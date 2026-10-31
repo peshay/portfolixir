@@ -8,7 +8,13 @@ defmodule PortfolixirWeb.TaxStatementFieldErrorsTest do
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.TaxLive
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp submit(view, holder) do
     view

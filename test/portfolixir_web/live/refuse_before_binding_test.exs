@@ -11,7 +11,13 @@ defmodule PortfolixirWeb.RefuseBeforeBindingTest do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SecuritiesAccount
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp open_depot_form(view) do
     view |> element("#add-account-button") |> render_click()

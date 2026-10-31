@@ -592,7 +592,10 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       {:ok, view, _html} =
         conn
         |> Phoenix.ConnTest.recycle()
-        |> Plug.Test.put_req_cookie("portfolixir_locale", locale)
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          "portfolixir_locale",
+          locale
+        )
         |> live("/imports")
 
       upload_sample(view)
