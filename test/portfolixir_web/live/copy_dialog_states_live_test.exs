@@ -137,8 +137,9 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
     # - Each head carries an ⓘ (a <details> disclosure) with its one-sentence
     #   definition.
     # - Under 640 px, where the head is hidden, the role's ⓘ rides in each
-    #   cash row beside its role control and the Buckets ⓘ after each chip
-    #   group's scope line, with the same words.
+    #   cash row beside its role control and the Buckets ⓘ in each chip
+    #   group, with the same words (beside the card's own "Buckets" label
+    #   since #1162, N16 = A; it trailed the scope line).
     test "the liquidity role and buckets heads carry their definitions", %{conn: conn} do
       base_world(name: "Hauptportfolio", cash_name: "Girokonto", depot_name: "Depot 1")
       {:ok, view, _html} = live(conn, "/portfolios")

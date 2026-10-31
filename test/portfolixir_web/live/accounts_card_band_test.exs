@@ -15,6 +15,14 @@ defmodule PortfolixirWeb.AccountsCardBandTest do
 
   @css File.read!("priv/static/app.css")
 
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
   # Two pairs and a lone cash account, as the board draws them: one pair
   # tagged together, one tagged apart, the lone account without a bucket.
   defp world do
@@ -180,6 +188,71 @@ defmodule PortfolixirWeb.AccountsCardBandTest do
 
       assert block(".accounts-table thead th:first-child") =~ ~r/min-width:\s*13\.5rem;/
       assert block(".accounts-table .cell-name") =~ ~r/overflow-wrap:\s*anywhere;/
+    end
+  end
+
+  describe "#1162 — the card names the bucket cell (N16 = A)" do
+    # User story (#1162, Sprint 21 γ5; board 05 ②, pick N16 = A):
+    # As the operator reading an account's card on a phone,
+    # I want the bucket cell to open with the word "Buckets" and its ⓘ
+    # beside it,
+    # so that the ⓘ explains a word I can see, as the role's ⓘ does.
+    #
+    # Acceptance criteria:
+    # - Every chip group opens with `.bucket-chip-group__label`
+    #   (`data-role="bucket-label"`): the head's own msgid "Buckets" and the
+    #   row copy of the Buckets ⓘ ("About buckets" / "Zu den Buckets"),
+    #   moved there from the scope line.
+    # - The scope line keeps its sentence only: no ⓘ trails it.
+    # - The label is `display: none` by default (the head names the column
+    #   once) and shows only in the card, under the card's container query,
+    #   in the role label's voice (11 px, weight 600, text-muted).
+    test "the card opens the bucket cell with Buckets ⓘ", %{conn: conn} do
+      %{muster: muster, plan: plan, settlement: settlement, lone: lone} = world()
+      {:ok, _view, html} = live(german(conn), "/portfolios")
+      doc = Floki.parse_document!(html)
+
+      groups = Floki.find(doc, "#accounts-table tbody [data-role='bucket-chips']")
+
+      ids =
+        Enum.map(groups, fn group -> group |> Floki.attribute("id") |> List.first() end)
+
+      assert Enum.sort(ids) ==
+               Enum.sort([
+                 "pair-buckets-#{muster.id}",
+                 "depot-buckets-#{plan.id}",
+                 "cash-buckets-#{settlement.id}",
+                 "cash-buckets-#{lone.id}"
+               ])
+
+      for {_tag, _attrs, children} = group <- groups do
+        [first | _] = Enum.filter(children, &is_tuple/1)
+
+        assert Floki.attribute([first], "data-role") == ["bucket-label"],
+               "the label is not the chip group's first element"
+
+        assert Floki.attribute([first], "class") == ["bucket-chip-group__label"]
+        assert first |> Floki.text(deep: false) |> String.trim() == "Buckets"
+
+        assert [_] =
+                 Floki.find(
+                   [first],
+                   "details.accounts-term-info--phone[data-role='buckets-info'] summary[aria-label='Zu den Buckets']"
+                 )
+
+        assert [_] = Floki.find([group], "[data-role='buckets-info']")
+        assert [scope] = Floki.find([group], "[data-role='bucket-scope']")
+        assert Floki.find([scope], "details") == []
+        assert scope |> Floki.text() |> String.trim() =~ ~r/^Gilt für /
+      end
+
+      assert block(".bucket-chip-group__label") =~ ~r/display:\s*none;/
+
+      shown = rule(container("width < 840px"), ".bucket-chip-group__label")
+      assert shown =~ ~r/display:\s*inline-flex;/
+      assert shown =~ ~r/font-size:\s*11px;/
+      assert shown =~ ~r/font-weight:\s*600;/
+      assert shown =~ ~r/color:\s*var\(--color-text-muted\);/
     end
   end
 end
