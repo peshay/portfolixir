@@ -3700,9 +3700,17 @@ pixel-identical before and after; the visible "why" stays the basis line.
   margin (rule ④).
 - **Basis line** (rule ②): "Die 5 zuletzt abgeschlossenen · Ergebnis in
   EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab
-  365 Tagen Haltedauer" — counting the rows the card shows ("Der zuletzt
+  365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst" —
+  counting the rows the card shows ("Der zuletzt
   abgeschlossene · …" for one; closing act γ n3). The card covers every depot while the rest of the
-  Overview follows the selected view, and the line says so.
+  Overview follows the selected view, and the line says so. *Amended
+  2026-10-31 (issue 1171, Sprint 21 γ1; board
+  `mockups/ux-design-2026-10-09/01-overview` ⑤):* the line names both limits
+  of p. a., the facet's clause word for word (English "… · p. a. only from
+  365 days of holding and only where a rate solves the flows"), because a
+  trade held past 365 days that no rate solves (a total loss) shows its
+  period return, "-100,0% gesamt", and otherwise read as the card breaking
+  its own rule.
 - **Rows:** at most five, newest close first, the `.attention-list` of "Off
   target" and "Due": each `a.attention-item[data-role="closed-trade"]` to
   the security's Trades tab, the name over "verkauft 22.09.2026 · 568 Tage";

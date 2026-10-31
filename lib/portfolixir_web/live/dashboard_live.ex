@@ -689,10 +689,12 @@ defmodule PortfolixirWeb.DashboardLive do
               do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
           </AppShell.data_note>
           <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
-            <%!-- Counts what the card shows: five at most (closing act γ n3). --%>
+            <%!-- Counts what the card shows: five at most (closing act γ n3).
+                 #1171 (board 01 ⑤): both limits of p. a., the facet's clause
+                 word for word (DESIGN.md → The list's basis line). --%>
             <%= ngettext(
-              "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding",
-              "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding",
+              "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding and only where a rate solves the flows",
+              "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding and only where a rate solves the flows",
               length(@card.trades),
               currency: @card.base_currency
             ) %>

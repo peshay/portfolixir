@@ -1921,8 +1921,9 @@ die Karte **Abgeschlossene Trades** (UX-DR2
 in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
 Rundläufe, neueste zuerst, je mit Verkaufsdatum und Haltedauer, dem
 realisierten Ergebnis in der Basiswährung in seiner Vorzeichenfarbe und
-darunter der Rendite — **pro Jahr** („p. a.") ab 365 Tagen Haltedauer,
-**über die ganze Haltedauer** („gesamt") darunter —, jede Zeile verlinkt auf
+darunter der Rendite — **pro Jahr** („p. a.") ab 365 Tagen Haltedauer und
+wo ein Zinssatz die Zahlungen löst, **über die ganze Haltedauer** („gesamt")
+sonst, wie die Basiszeile sagt —, jede Zeile verlinkt auf
 den Trades-Tab ihres Wertpapiers, und **Alle Trades →** im Kopf der Karte
 führt zur Facette Trades. Ihre Basiszeile sagt, dass sie **alle Depots
 unabhängig von der Ansicht** abdeckt: der Rest der Übersicht folgt der

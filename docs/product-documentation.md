@@ -1747,8 +1747,9 @@ period and the currency — the **Closed trades** card (UX-DR2 as amended
 2026-10-01, issue #984): the five most recently closed round-trips, newest first, each
 with the date it was sold and how long it was held, its realised result in
 the base currency in its sign colour, and under it the return — **per year**
-("p. a.") from 365 days of holding, **over the whole holding period**
-("total") below — each row linking to that security's Trades tab, with
+("p. a.") from 365 days of holding and where a rate solves the flows,
+**over the whole holding period** ("total") otherwise, as the basis line
+says — each row linking to that security's Trades tab, with
 **All trades →** in the card's head leading to the Trades facet. Its basis
 line says it covers **every depot, whatever the view**: the rest of the
 Overview follows the selected view, the trades do not. It lists results, not
