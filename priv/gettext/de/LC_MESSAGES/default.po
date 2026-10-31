@@ -13207,8 +13207,8 @@ msgstr[1] "%{count} Anleihen sind auf zwei Skalen bepreist (Kurse um 100, gebuch
 #, elixir-autogen, elixir-format
 msgid "%{entry}"
 msgid_plural "%{count} bookings, the last: %{entry}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%{entry}"
+msgstr[1] "%{count} Buchungen, zuletzt: %{entry}"
 
 #: lib/portfolixir_web/live/securities_live.ex:1628
 #, elixir-autogen, elixir-format
