@@ -101,6 +101,7 @@ decision pass.
 | D3 | Take the import parse off the page process | `captured` | security triage 2026-10-12, T-18 | the design issue Lane S files | — |
 | D4 | Fold portfolios into buckets and views | `triaged` | ADR-0024 §5; design session 2026-07-12 | is the exit criterion met | a risk-tier migration |
 | D5 | Market-data robustness: backoff, more providers | `captured` | import PRD follow-up notes | nothing specified | ADR-0005; the outbound policy |
+| D6 | A JSON v1 delivery's value as its cost basis | `captured` | Sprint 21 β1 closing act (#1216): the parser drops `amount` on the no-cash kinds (#482), so a converted delivery books no basis where a CSV Kurs would | which PP field carries it; whether a value without a quantity × price is a basis | ADR-0029 (the importer books what the file says) |
 
 **Screens and app pages**
 
