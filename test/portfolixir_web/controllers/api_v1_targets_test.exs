@@ -1178,6 +1178,12 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   #   1 - 0.75 = 0.25 (the holding is the whole steering basis, and the cash
   #   target of 0.4 keeps both plans at or above 100%, so no renormalisation).
   #   Reading the draft's drift off the active plan breaks this.
+  # - A view plan's draft read by plan_id alone (no view=) is measured in the
+  #   plan's own view, against that view's cash target: with the draft's core
+  #   and position targets at 0.4 and the view's cash at 0.1, the steered sum
+  #   is 0.4 + 0.1 = 0.5 (ADR-0040), the position target renormalises to
+  #   0.4 / 0.5 = 0.8 and the drift is 1 - 0.8 = 0.2; against Gesamt's cash of
+  #   0.4 (Σ 0.8, 0.4 / 0.8 = 0.5) it would read 0.5.
   # - The drift basis says when it reads a draft, and names it; an active
   #   plan addressed by plan_id reads as before.
   # - The writes' refusals hold on both reads, each a 422 on plan_id: a
@@ -1262,6 +1268,51 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
     assert active_by_id["drift_basis"] == active_drift["drift_basis"]
     assert draft_drift["drift_basis"] =~ "plan_id #{draft.id} names a draft"
     assert String.starts_with?(draft_drift["drift_basis"], active_drift["drift_basis"])
+
+    # A view plan's draft, read without view=: its drift is measured in the
+    # plan's own view, against that view's cash target, not Gesamt's.
+    {:ok, plan_view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Draft View", include_all: true})
+
+    put_json(conn, "/api/v1/portfolios/#{pid}/cash_target", %{
+      "cash_target_weight" => "0.1",
+      "view" => plan_view.id
+    })
+    |> json_response(200)
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "view" => plan_view.id,
+      "targets" => [
+        %{"category_id" => core.id, "target_weight" => "0.8"},
+        %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.75"}
+      ]
+    })
+    |> json_response(200)
+
+    [%{id: view_active_id}] =
+      Targets.list_plans(pid, classification_id: classification.id, view: plan_view.id)
+
+    {:ok, view_draft} =
+      Targets.duplicate_plan(Actor.owner_ui(), view_active_id, %{name: "View Draft"})
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "view" => plan_view.id,
+      "plan_id" => view_draft.id,
+      "targets" => [
+        %{"category_id" => core.id, "target_weight" => "0.4"},
+        %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.4"}
+      ]
+    })
+    |> json_response(200)
+
+    view_draft_drift = read_positions.("?min_drift=0&plan_id=#{view_draft.id}")
+
+    assert Decimal.equal?(
+             Decimal.new(elem(hd(drifts.(view_draft_drift)), 1)),
+             Decimal.new("0.2")
+           )
 
     # The writes' refusals, on both reads.
     {:ok, _} = Targets.activate_plan(Actor.owner_ui(), draft.id)
