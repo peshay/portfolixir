@@ -500,6 +500,10 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   # - The facet's note says "1 sale is not convertible — a buy it closes has
   #   no figure in the sale's currency — and is excluded from every total:
   #   Arbolia Inc." and no no-rate sentence; the list shows Wrenfield alone.
+  # - The backfill control beside it says it "stores every published day
+  #   and derives from it the settlement legs imported buys and sells lack"
+  #   (board 09's strings, last row); in German "… und leitet daraus die
+  #   Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; …".
   # - The card's note says "1 sale not convertible — … — is left out of the
   #   trades: Arbolia Inc." and points to the backfill; the card lists
   #   Wrenfield alone. In German "… fehlt bei den Trades: Arbolia Inc.".
@@ -515,6 +519,24 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
              "1 sale is not convertible — a buy it closes has no figure in the sale's currency — and is excluded from every total: Arbolia Inc."
 
     refute has_element?(view, "[data-role=realized-excluded-no-rate]")
+
+    # Board 09's strings, last row (#1196, ADR-0015 point 6): the control
+    # beside the note says it also derives the legs the trade lacks, as the
+    # Trades tab's remedy says it does.
+    assert view
+           |> element("#realized-excluded [data-role=fx-backfill] .muted")
+           |> render()
+           |> text() =~
+             "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
+
+    {:ok, de_view, _html} = live(conn, "/cashflow?tab=realized&locale=de")
+    render_async(de_view)
+
+    assert de_view
+           |> element("#realized-excluded [data-role=fx-backfill] .muted")
+           |> render()
+           |> text() =~
+             "Das Nachladen holt die historische EZB-Reihe einmalig, speichert jeden veröffentlichten Tag und leitet daraus die Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen."
 
     {:ok, card, _html} = live(conn, "/")
     render_async(card)
