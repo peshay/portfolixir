@@ -305,14 +305,15 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
   end
 
   # One new interest payment under the old name, one new purchase under the
-  # former ISIN, and two equal deposits of one day at two times, which the
-  # import collapses onto one booking.
+  # former ISIN, and one deposit written twice at two decimal precisions
+  # (two content hashes, one economic key), which the import collapses onto
+  # one booking.
   defp later_rows(date \\ "2026-03-31") do
     [
       interest("Tagesgeld", "1.40", date),
       purchase(date, "50.00"),
       Map.merge(deposit("7.00"), %{"date" => date, "time" => "09:00"}),
-      Map.merge(deposit("7.00"), %{"date" => date, "time" => "09:05"})
+      Map.merge(deposit("7.0"), %{"date" => date, "time" => "09:00"})
     ]
   end
 
@@ -447,7 +448,7 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
     |> Floki.find(selector)
     |> Enum.map(fn node ->
       node
-      |> Floki.text(sep: " ")
+      |> Floki.text()
       |> String.replace(~r/\s+/u, " ")
       |> String.replace(~r/ ([.,:])/u, "\\1")
       |> String.trim()

@@ -985,11 +985,35 @@ defmodule PortfolixirWeb.ImportsLive do
         </ul>
       </div>
 
-      <%= if @result.alias_matches != [] do %>
-        <p class="muted" data-role="alias-matches">
-          <%= gettext("%{n} record(s) matched via former ISIN.", n: length(@result.alias_matches)) %>
+      <%!-- Board 07, found while drawing 9: a real plural. --%>
+      <p :if={@result.alias_matches != []} class="muted" data-role="alias-matches">
+        <%= ngettext(
+          "One record matched via a former ISIN.",
+          "%{count} records matched via a former ISIN.",
+          length(@result.alias_matches)
+        ) %>
+      </p>
+
+      <%!-- #962 (board 07 ⑨): beside the former-ISIN line, the bookings that
+           reached an account or a depot through a former name, per name. --%>
+      <div
+        :if={@result.former_name_matches != []}
+        class="import-skipped"
+        data-role="former-name-matches"
+      >
+        <p class="muted">
+          <%= ngettext(
+            "One booking booked through a former name:",
+            "%{count} bookings booked through a former name:",
+            @result.former_name_bookings
+          ) %>
         </p>
-      <% end %>
+        <ul>
+          <li :for={match <- @result.former_name_matches}>
+            <%= former_name_line(match, @existing_cash, @existing_depots) %>
+          </li>
+        </ul>
+      </div>
 
       <%= if @result.security_overrides != [] do %>
         <p class="muted" data-role="security-overrides">
@@ -997,13 +1021,9 @@ defmodule PortfolixirWeb.ImportsLive do
         </p>
       <% end %>
 
-      <%= if @result.collapsed_duplicates != [] do %>
-        <p class="muted" data-role="collapsed-duplicates">
-          <%= gettext("%{n} row(s) collapsed onto the same resolved booking within this file.",
-            n: length(@result.collapsed_duplicates)
-          ) %>
-        </p>
-      <% end %>
+      <p :if={@result.collapsed_duplicates != []} class="muted" data-role="collapsed-duplicates">
+        <%= collapsed_line(@preview, length(@result.collapsed_duplicates)) %>
+      </p>
 
       <%= if @result.unresolved_entries != [] do %>
         <div class="import-skipped" data-role="unresolved-entries">
@@ -4435,6 +4455,42 @@ defmodule PortfolixirWeb.ImportsLive do
     |> Enum.map(fn err -> row_message(preview, err.row || "?", err.message) end)
     |> Enum.join("\n")
   end
+
+  # #962: "“Tagesgeld Extra”, now Tagesgeld · 1 booking", the file's name
+  # and the account's live name each isolated.
+  defp former_name_line(%{kind: kind, name: name, account_id: id, count: count}, cash, depots) do
+    accounts = if kind == :depot, do: depots, else: cash
+
+    StoredText.isolate(
+      ngettext(
+        "“%{name}”, now %{account} · %{count} booking",
+        "“%{name}”, now %{account} · %{count} bookings",
+        count,
+        name: StoredText.slot(:name),
+        account: StoredText.slot(:account)
+      ),
+      name: name,
+      account: account_name(accounts, id)
+    )
+  end
+
+  # Board 07, found while drawing 9: a real plural, in the format's word.
+  defp collapsed_line(preview, count),
+    do:
+      if(json?(preview),
+        do:
+          ngettext(
+            "One entry collapsed onto the same resolved booking within this file.",
+            "%{count} entries collapsed onto the same resolved booking within this file.",
+            count
+          ),
+        else:
+          ngettext(
+            "One row collapsed onto the same resolved booking within this file.",
+            "%{count} rows collapsed onto the same resolved booking within this file.",
+            count
+          )
+      )
 
   # #1207 (2): the rows the preview refused that the stored history does
   # not hold — the row errors as the preview showed them, less those whose

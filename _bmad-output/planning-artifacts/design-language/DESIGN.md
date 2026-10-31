@@ -3501,6 +3501,28 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   parser warnings said it ("Entry 5: … — entry not imported. …"). A refused
   row the stored history already holds is not listed: it was imported
   before, and the correction section names it.
+- **The bookings booked through a former name stand beside the former-ISIN
+  line** *(2026-10-31; issue 962, Sprint 21 γ7; board
+  `mockups/ux-design-2026-10-09/07-imports` ⑨)*: `.import-skipped`,
+  `data-role="former-name-matches"`, "One booking booked through a former
+  name:" / "%{count} bookings booked through a former name:" („3 Buchungen
+  über einen früheren Namen gebucht:"), then one item per file name the
+  prefill resolved through a former name of an account or a depot (ADR-0050
+  §4), "“%{name}”, now %{account} · %{count} bookings" / „„Tagesgeld Extra“,
+  jetzt Tagesgeld · 1 Buchung", the name and the account each in `<bdi>`.
+  Only bookings the import made count, and a remap onto another account is
+  the operator's choice, not a former name (the remembered names list it).
+  The apply's result carries it (`former_name_matches`,
+  `former_name_bookings`). **Real plurals** (board 07, found while drawing
+  9): "One record matched via a former ISIN." / "%{count} records matched via
+  a former ISIN." („Ein Datensatz über eine frühere ISIN zugeordnet."), and
+  "One row collapsed onto the same resolved booking within this file." /
+  "%{count} rows collapsed …" (a JSON file: "entry" / "entries"). **The done
+  page's order:** the counts, the portfolio record a first import created,
+  the correction left undone, the rows the preview refused, the former-ISIN
+  line and the former-name matches, the manual mappings and the in-file
+  collapses, then the unresolved, remembered, duplicate, set-balance,
+  internal-transfer and unimportable lists, the cards and the actions.
 - **The result adds three lists in `.import-skipped`'s existing form** (a
   muted sentence, then the rows): "Remembered for future imports:" with one
   line per name ("“X” is now a former name of Y.", "…and no longer of Z." for

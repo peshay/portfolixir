@@ -3294,7 +3294,10 @@ below corrects says so at the end of the note at the head of the preview,
 with a link to that section, so *the import creates nothing* does not read as
 *nothing to do*. After the import, **the rows the preview refused come first
 in the result**, each with its remedy as the parser warnings said it, so a
-refused booking you still have to enter by hand is not forgotten.
+refused booking you still have to enter by hand is not forgotten. Beside the
+records matched through a former ISIN, the result counts the bookings that
+reached an account or a depot through one of its former names, per name
+(*“Tagesgeld Extra”, now Tagesgeld · 1 booking*).
 
 The result lists every record it skipped, grouped by the check that skipped
 it: an identical row imported before (stored content hash; the expected mass

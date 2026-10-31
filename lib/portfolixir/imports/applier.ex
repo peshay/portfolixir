@@ -200,7 +200,14 @@ defmodule Portfolixir.Imports.Applier do
               behind_restated_anchor: [],
               # Board 07 ⑨ (#1178): the portfolio record this import created
               # (`%{id, name, base_currency_code}`), or nil.
-              created_portfolio: nil
+              created_portfolio: nil,
+              # Board 07 ⑨ (#962): per file name the prefill resolved through
+              # a former name (ADR-0050 §4), the account it reached and how
+              # many bookings this import made through it
+              # (`%{kind, name, account_id, count}`), and how many bookings
+              # in all.
+              former_name_matches: [],
+              former_name_bookings: 0
 
     @type t :: %__MODULE__{}
   end
@@ -297,6 +304,7 @@ defmodule Portfolixir.Imports.Applier do
                plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
              {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
              :ok <- revalidate_mapped_accounts(params, portfolio_id),
+             former = former_name_routes(flat_entries, params, portfolio_id),
              state =
                portfolio_id
                |> base_state(default_currency, params, result)
@@ -306,6 +314,7 @@ defmodule Portfolixir.Imports.Applier do
              state = resolve_unmapped_names(state, flat_entries),
              {:ok, state} <- execute_security_mappings(flat_entries, state),
              {:ok, final_state} <- reduce_entries(flat_entries, state),
+             final_state = record_former_name_matches(final_state, flat_entries, former),
              {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
           final_result
         else
@@ -355,6 +364,8 @@ defmodule Portfolixir.Imports.Applier do
       :ok = lock_file_isins(flat_entries, params)
     end
 
+    former = if simulate?, do: %{}, else: former_name_routes(flat_entries, params, portfolio_id)
+
     state =
       base_state(portfolio_id, default_currency, params, %Result{})
       |> Map.merge(%{simulate: simulate?})
@@ -367,7 +378,8 @@ defmodule Portfolixir.Imports.Applier do
       |> resolve_unmapped_names(flat_entries)
 
     with {:ok, state} <- execute_security_mappings(flat_entries, state),
-         do: reduce_entries(flat_entries, state)
+         {:ok, final_state} <- reduce_entries(flat_entries, state),
+         do: {:ok, record_former_name_matches(final_state, flat_entries, former)}
   end
 
   # #1287 (security review 2026-10-12, H53): the ISIN write locks of the
@@ -1311,6 +1323,86 @@ defmodule Portfolixir.Imports.Applier do
         end
       end
     end)
+  end
+
+  # --- the bookings made through a former name (board 07 ⑨, #962) ---
+
+  # Per kind and file name, the account a name reaches through a former
+  # name (ADR-0050 §4's second tier), read under the account-identity lock
+  # and before the run remembers any name: a name the mapping binds to that
+  # same account, or leaves to the resolution. A remap onto another account
+  # is the operator's choice, not a former name, and is not counted.
+  defp former_name_routes(flat_entries, params, portfolio_id) do
+    cash_choices = Map.get(params, :cash_accounts, %{})
+
+    depot_choices =
+      Map.new(Map.get(params, :depots, %{}), fn {name, %{target: target}} -> {name, target} end)
+
+    Map.merge(
+      former_routes(
+        :cash,
+        file_names(flat_entries, [:pp_account_name, :pp_counter_account_name]),
+        AccountNames.index(CashAccount, portfolio_id),
+        cash_choices
+      ),
+      former_routes(
+        :depot,
+        file_names(flat_entries, [:pp_portfolio_name, :pp_counter_portfolio_name]),
+        AccountNames.index(SecuritiesAccount, portfolio_id),
+        depot_choices
+      )
+    )
+  end
+
+  defp former_routes(kind, names, index, choices) do
+    for name <- names,
+        {:ok, id, :former} <- [AccountNames.resolve(index, name)],
+        Map.get(choices, name, {:existing, id}) == {:existing, id},
+        into: %{},
+        do: {{kind, name}, id}
+  end
+
+  # The bookings the run inserted under each such name, in the file's
+  # order of the names; a booking naming two counts once in the total.
+  defp record_former_name_matches(state, _flat_entries, routes) when routes == %{}, do: state
+
+  defp record_former_name_matches(state, flat_entries, routes) do
+    inserted =
+      flat_entries
+      |> Enum.zip(Enum.reverse(state.outcomes))
+      |> Enum.flat_map(fn
+        {entry, :inserted} -> [routed_names(entry, routes)]
+        _skipped -> []
+      end)
+      |> Enum.reject(&(&1 == []))
+
+    counts =
+      inserted
+      |> List.flatten()
+      |> Enum.frequencies()
+
+    matches =
+      inserted
+      |> List.flatten()
+      |> Enum.uniq()
+      |> Enum.map(fn {kind, name} = key ->
+        %{kind: kind, name: name, account_id: Map.fetch!(routes, key), count: counts[key]}
+      end)
+
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{r | former_name_matches: matches, former_name_bookings: length(inserted)}
+    end)
+  end
+
+  defp routed_names(entry, routes) do
+    [
+      {:cash, entry.pp_account_name},
+      {:cash, entry.pp_counter_account_name},
+      {:depot, entry.pp_portfolio_name},
+      {:depot, entry.pp_counter_portfolio_name}
+    ]
+    |> Enum.filter(&Map.has_key?(routes, &1))
+    |> Enum.uniq()
   end
 
   # --- bucket tag for newly created accounts (ADR-0024 story 5) ---

@@ -3629,7 +3629,10 @@ Vorschau, mit einem Link zu diesem Abschnitt, damit *der Import legt nichts
 an* nicht als *nichts zu tun* gelesen wird. Nach dem Import **stehen die
 Zeilen, die die Vorschau abgelehnt hat, zuerst im Ergebnis**, jede mit ihrer
 Abhilfe, wie die Parser-Warnungen sie sagten, damit eine abgelehnte Buchung,
-die Sie noch von Hand erfassen müssen, nicht vergessen wird.
+die Sie noch von Hand erfassen müssen, nicht vergessen wird. Neben den
+Datensätzen, die über eine frühere ISIN zugeordnet wurden, zählt das Ergebnis
+die Buchungen, die ein Konto oder Depot über einen seiner früheren Namen
+erreicht haben, je Name (*„Tagesgeld Extra“, jetzt Tagesgeld · 1 Buchung*).
 
 Das Ergebnis listet jeden übersprungenen Datensatz, gruppiert nach der
 Prüfung, die ihn übersprungen hat: eine identische, schon importierte Zeile
