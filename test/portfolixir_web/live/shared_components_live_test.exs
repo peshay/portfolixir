@@ -33,7 +33,9 @@ defmodule PortfolixirWeb.SharedComponentsLiveTest do
   # - The logo dialog's footer is the dialog's own child, not a band: the
   #   structure the rule `.modal > .modal-footer:not(.modal-footer--band)`
   #   pads, with "Remove logo" its last button.
-  test "the logo dialog's footer is the dialog's own child, the rule's structure", %{conn: conn} do
+  # - The blocked-delete dialog's footer is the dialog's own child too, so
+  #   the generic rule gives it the `0 18px 18px` its scoped rule gave (F27).
+  test "a dialog's own footer is the dialog's child, the rule's structure", %{conn: conn} do
     security = security!("Wrenfield Gardens AG")
     {:ok, view, _html} = live(conn, "/securities")
     render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(security.id)})
@@ -45,6 +47,21 @@ defmodule PortfolixirWeb.SharedComponentsLiveTest do
              view,
              "dialog#logo-override-dialog > .modal-footer > button:last-child[phx-click='remove_logo_override']"
            )
+
+    world = WorldFixtures.base_world(name: "Blocked", currency: "EUR")
+    {:ok, accounts, _html} = live(conn, "/portfolios")
+    accounts |> element("#cash-kebab-#{world.cash.id}") |> render_click()
+
+    accounts
+    |> element("#cash-row-menu-#{world.cash.id} [data-role='menu-delete']")
+    |> render_click()
+
+    assert has_element?(
+             accounts,
+             "dialog#delete-blocked-dialog.modal.confirm-delete-blocked > .modal-footer"
+           )
+
+    refute has_element?(accounts, "dialog#delete-blocked-dialog .modal-footer--band")
   end
 
   # User story (#1160, Sprint 21 γ8; board 08, "#1160"):
