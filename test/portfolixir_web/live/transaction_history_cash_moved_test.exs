@@ -215,7 +215,9 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
   #   taken from its cash leg, not from its kind, and its Saldo reads 89,00.
   # - Σ Betrag of the three rows is 89,00, the balance's change from 0.
   # - The phone row reads "-1,00 EUR"; the summary's Verkauf sum is the same
-  #   figure, "1 · -1,00 EUR".
+  #   figure, "1 · -1,00 EUR", and its basis line says each kind's sum is in
+  #   that kind's direction, so such a sell lowers it, never "ohne
+  #   Vorzeichen".
   test "a sell whose fees exceed its proceeds reads as money leaving the account",
        %{conn: conn} do
     world =
@@ -269,6 +271,15 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
       |> String.trim()
 
     assert sell_summary =~ "Verkauf: 1 · -1,00 EUR"
+
+    basis = doc |> Floki.find("[data-role='summary-basis']") |> Floki.text()
+
+    assert basis =~
+             "je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein " <>
+               "Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die " <>
+               "Summe der Verkäufe."
+
+    refute basis =~ "ohne Vorzeichen"
 
     write_off = Repo.preload(write_off, [:cash_account])
 
