@@ -43,7 +43,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
      |> assign(:mode, nil)
      |> assign(:form, @empty_form)
      |> assign(:errors, %{})
-     |> assign(:bucket_error, nil)}
+     |> assign(bucket_error: nil, tag_refused?: false)}
   end
 
   @impl true
@@ -119,7 +119,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     ~H"""
     <form id="account-dialog-form" phx-change="form_change" phx-submit="save" phx-target={@myself}>
       <%= if @bucket_error do %>
-        <p class="alert-error" role="alert"><%= @bucket_error %></p>
+        <p class="alert-error" id="account-bucket-error" role="alert"><%= @bucket_error %></p>
       <% end %>
 
       <div class="form-grid">
@@ -195,6 +195,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
             value={@form["new_tag"]}
             autocomplete="off"
             placeholder={gettext("e.g. Household")}
+            aria-invalid={@tag_refused? && "true"}
+            aria-describedby={@tag_refused? && "account-bucket-error"}
           />
         </label>
       </fieldset>
@@ -262,7 +264,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
      |> assign(:step, :form)
      |> assign(:form, @empty_form)
      |> assign(:errors, %{})
-     |> assign(:bucket_error, nil)}
+     |> assign(bucket_error: nil, tag_refused?: false)}
   end
 
   def handle_event("back", _params, socket) do
@@ -271,7 +273,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
      |> assign(:step, :choose)
      |> assign(:mode, nil)
      |> assign(:errors, %{})
-     |> assign(:bucket_error, nil)}
+     |> assign(bucket_error: nil, tag_refused?: false)}
   end
 
   def handle_event("form_change", params, socket) do
@@ -305,7 +307,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       {:error, :scope_conflict} ->
         {:noreply,
          socket
-         |> assign(:errors, %{})
+         |> assign(errors: %{}, tag_refused?: false)
          |> assign(
            :bucket_error,
            gettext("Only one scope bucket per account — pick at most one.")
@@ -316,18 +318,21 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       {:error, :name_taken_by_scope_bucket} ->
         {:noreply,
          socket
-         |> assign(:errors, %{})
+         |> assign(errors: %{}, tag_refused?: true)
          |> assign(
            :bucket_error,
            gettext("That name belongs to a scope bucket — pick a different tag name.")
          )}
 
       {:error, {:field_errors, errors}} ->
-        {:noreply, socket |> assign(:errors, errors) |> assign(:bucket_error, nil)}
+        {:noreply,
+         socket |> assign(:errors, errors) |> assign(bucket_error: nil, tag_refused?: false)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
-         socket |> assign(:errors, %{}) |> assign(:bucket_error, new_tag_error(changeset))}
+         socket
+         |> assign(errors: %{}, tag_refused?: true)
+         |> assign(:bucket_error, new_tag_error(changeset))}
     end
   end
 
