@@ -7026,8 +7026,7 @@ they already have (UX-DR25 clauses 1 and 2).
   einmalig, speichert jeden veröffentlichten Tag und leitet daraus die
   Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; ein Tag, den
   die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.“ The figures and
-  the card's
-  basis line count only the trades shown. No figure of the unavailable trade
+  the card's basis line count only the trades shown. No figure of the unavailable trade
   is converted. *Amended 2026-10-31 (#1198):* a name list that ends the
   sentence and whose last name ends in a full stop („Arbolia Inc.“) ends it
   once — „… ausgeschlossen: Arbolia Inc.“, never „Inc..“; in every reason
