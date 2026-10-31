@@ -12365,8 +12365,8 @@ msgstr "unverändert"
 #, elixir-autogen, elixir-format
 msgid "%{count} payment could not be converted — no stored exchange rate to %{currency} on or before its booking date — and is excluded from every total. Affected currency: %{currencies}."
 msgid_plural "%{count} payments could not be converted — no stored exchange rate to %{currency} on or before their booking dates — and are excluded from every total. Affected currencies: %{currencies}."
-msgstr[0] "%{count} Zahlung konnte nicht umgerechnet werden — kein gespeicherter Wechselkurs nach %{currency} am oder vor ihrem Buchungsdatum — und bleibt aus jeder Summe ausgeschlossen. Betroffene Währung: %{currencies}."
-msgstr[1] "%{count} Zahlungen konnten nicht umgerechnet werden — kein gespeicherter Wechselkurs nach %{currency} am oder vor ihren Buchungsdaten — und bleiben aus jeder Summe ausgeschlossen. Betroffene Währungen: %{currencies}."
+msgstr[0] "%{count} Zahlung konnte nicht umgerechnet werden — kein gespeicherter Wechselkurs nach %{currency} an oder vor ihrem Buchungstag — und ist aus jeder Summe ausgeschlossen. Betroffene Währung: %{currencies}."
+msgstr[1] "%{count} Zahlungen konnten nicht umgerechnet werden — kein gespeicherter Wechselkurs nach %{currency} an oder vor ihren Buchungstagen — und sind aus jeder Summe ausgeschlossen. Betroffene Währungen: %{currencies}."
 
 #: lib/portfolixir_web/live/income_live.ex:860
 #, elixir-autogen, elixir-format
