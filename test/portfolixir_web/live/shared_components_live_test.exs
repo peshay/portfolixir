@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.SharedComponentsLiveTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.WorldFixtures
 
   defp security!(name) do
     {:ok, security} =
@@ -44,5 +45,34 @@ defmodule PortfolixirWeb.SharedComponentsLiveTest do
              view,
              "dialog#logo-override-dialog > .modal-footer > button:last-child[phx-click='remove_logo_override']"
            )
+  end
+
+  # User story (#1160, Sprint 21 γ8; board 08, "#1160"):
+  # As the operator opening Accounts, Securities or Snapshots,
+  # I want the result slot to take no room before any action,
+  # so that the block below it starts where the page draws it.
+  #
+  # Acceptance criteria:
+  # - Each slot is an inline result whose regions hold no element at rest.
+  # - Accounts' slot is a direct child of its section's grid, the structure
+  #   whose empty slot the stylesheet takes out of the flow.
+  test "the remaining result slots are empty at rest", %{conn: conn} do
+    {:ok, accounts, _html} = live(conn, "/portfolios")
+
+    assert has_element?(
+             accounts,
+             "#accounts-panel.workspace-section > #accounts-result.inline-result"
+           )
+
+    refute has_element?(accounts, "#accounts-result .inline-result__region > *")
+
+    {:ok, securities, _html} = live(conn, "/securities")
+    assert has_element?(securities, "#securities-action-result.inline-result")
+    refute has_element?(securities, "#securities-action-result .inline-result__region > *")
+
+    WorldFixtures.base_world(name: "Shared", currency: "EUR")
+    {:ok, snapshots, _html} = live(conn, "/snapshots")
+    assert has_element?(snapshots, "#snapshots-action-result.inline-result")
+    refute has_element?(snapshots, "#snapshots-action-result .inline-result__region > *")
   end
 end

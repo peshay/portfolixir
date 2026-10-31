@@ -31,6 +31,36 @@ defmodule Portfolixir.Invariants.CssSharedComponentsTest do
     refute @css =~ ~r/\n\.confirm-delete-blocked \.modal-footer \{/
   end
 
+  # User story (#1160, Sprint 21 γ8; board 08, "#1160"):
+  # As the operator reading Accounts, Securities and Snapshots before any
+  # action,
+  # I want an empty result slot to take no room,
+  # so that the page looks as it does until an action answers — no 8 px band,
+  # and on Accounts no second 16 px grid gap.
+  #
+  # Acceptance criteria:
+  # - The component's region takes its 8 px margins only when it holds a
+  #   result (`:has(> *)`): its regions always hold whitespace, so the old
+  #   `:not(:empty)` always matched and is gone.
+  # - In a section's grid every empty inline result leaves the flow, not only
+  #   a page slot (`.workspace-section > .inline-result:not(…)`), so the grid
+  #   adds no gap for it.
+  # - A page slot keeps its own footprint: no margin at rest, 12 px above a
+  #   result.
+  test "an empty inline result takes no room at rest" do
+    assert block(".inline-result__region:has(> *)") =~ ~r/margin:\s*8px 0;/
+    refute @css =~ ~r/\.inline-result__region:not\(:empty\)/
+
+    assert block(".workspace-section > .inline-result:not(:has(.inline-result__region > *))") =~
+             ~r/position:\s*absolute;/
+
+    assert block(".inline-result.inline-result--page > .inline-result__region") =~
+             ~r/margin:\s*0;/
+
+    assert block(".inline-result.inline-result--page > .inline-result__region:has(> *)") =~
+             ~r/margin:\s*12px 0 0;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

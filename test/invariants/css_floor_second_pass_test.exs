@@ -429,9 +429,10 @@ defmodule Portfolixir.Invariants.CssFloorSecondPassTest do
     assert block(".inline-result.inline-result--page > .inline-result__region:has(> *)") =~
              ~r/margin:\s*12px 0 0;/
 
-    assert block(
-             ".workspace-section > .inline-result--page:not(:has(.inline-result__region > *))"
-           ) =~ ~r/position:\s*absolute;/
+    # Widened to every inline result in a section's grid (#1160, Sprint 21
+    # γ8): a page slot is one of them.
+    assert block(".workspace-section > .inline-result:not(:has(.inline-result__region > *))") =~
+             ~r/position:\s*absolute;/
 
     assert @css =~
              ~r/#transactions-result \.data-note,\s*#transaction-history-heading,\s*#transaction-list \.row-actions__kebab,\s*#transaction-phone-rows \.row-actions__kebab \{\s*scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
