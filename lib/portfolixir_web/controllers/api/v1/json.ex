@@ -538,6 +538,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         # The ADR-0015 amendment of 2026-10-07 (#1108): the currency the
         # fees and taxes in every lot and closed trade are in.
         fees_and_taxes: Ledger.trade_fees_basis(),
+        # #1212 (Sprint 21 α11): which figures carry the fees and taxes.
+        fees_and_taxes_in_figures: Ledger.trade_figures_fees_basis(),
         orphan_sells:
           "a sell the FIFO matcher could not pair with a buy, with the quantity no lot " <>
             "covered: an inbound delivery opens no lot, and a sell larger than the shares " <>
@@ -653,7 +655,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # #1142 (plan D-6): the percentages' rules, null on a zero cost basis.
       computation_basis: %{
         unrealized_pnl_pct: Ledger.unrealized_pnl_pct_basis(),
-        decomposition_pct: PnlDecomposition.pct_basis()
+        decomposition_pct: PnlDecomposition.pct_basis(),
+        # #1212 (Sprint 21 α11): whether the buys' fees and taxes are in
+        # the costs; they are not, while a closed trade's basis counts them.
+        fees_and_taxes_in_figures: Ledger.holding_fees_basis()
       },
       as_of: date(Clock.today()),
       data: Enum.map(holdings, &holding(&1, portfolio_id))
@@ -1343,7 +1348,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
           "each category today. A statement about the current composition: " <>
           "no period, no membership basis, no as-of. The percentage is the " <>
           "sum of results divided by the sum of invested, never a mean of the " <>
-          "members' percentages. " <> category_result_scope(result),
+          "members' percentages. Invested is the members' base_cost, without the buys' " <>
+          "fees and taxes, so the result is before them; a sold position's fees and taxes " <>
+          "are in its closed trade's basis (GET /api/v1/securities/:security_id/trades). " <>
+          category_result_scope(result),
       categories: Enum.map(result.categories, &category_result_row/1),
       excluded_members: Enum.map(result.excluded_members, &category_excluded_member/1)
     }

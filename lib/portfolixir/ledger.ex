@@ -1112,6 +1112,39 @@ defmodule Portfolixir.Ledger do
       "and 0 would read as flat. unrealized_pnl_abs still states the gain."
   end
 
+  @doc """
+  Whether a buy's fees and taxes are in a holding's money figures (#1212,
+  Sprint 21 α11), as the sentence the holdings payload carries (the AGENTS.md
+  metric rule). The cost fold (`cost_lots/1`) adds quantity × price and the
+  settlement leg, never the fees and taxes beside them, while a closed
+  trade's basis (`trade_figures_fees_basis/0`) counts them: one definition
+  per figure, stated, so the two are not read as the same.
+  """
+  @spec holding_fees_basis() :: String.t()
+  def holding_fees_basis do
+    "cost_basis, avg_cost and base_cost are without the buys' fees and taxes: cost_basis and " <>
+      "avg_cost are quantity x price in the security's currency, base_cost the settlement leg, " <>
+      "the cash before fees and taxes. unrealized_pnl_* and the decomposition are measured " <>
+      "against them, so they are before those costs. The fees and taxes are costs in GET " <>
+      "/api/v1/costs, and a closed trade's basis counts them once the shares are sold (GET " <>
+      "/api/v1/securities/:security_id/trades)."
+  end
+
+  @doc """
+  Which of the trades read's money figures carry a buy's or a sell's fees and
+  taxes (#1212, Sprint 21 α11), as the sentence the trades payload carries
+  beside `trade_fees_basis/0`, which says the currency they are read in.
+  """
+  @spec trade_figures_fees_basis() :: String.t()
+  def trade_figures_fees_basis do
+    "An open lot's buy_price, buy_price_native, base_cost and unrealized_pnl_* are " <>
+      "without the buy's fees and taxes, which buy_fees and buy_taxes state beside them. A " <>
+      "closed trade's basis includes the buy fees and taxes of the lots it closes, prorated " <>
+      "by the quantity it closes (buy_fees, buy_taxes); its proceeds are net of the sell's " <>
+      "fees and taxes (sell_fees, sell_taxes); realized_pnl_abs, proceeds - basis, is after " <>
+      "all four. avg_buy_price and avg_sell_price are prices, without them."
+  end
+
   defp native_unit_price(tx, security_currency) do
     cond do
       is_nil(security_currency) or tx.currency_code == security_currency ->

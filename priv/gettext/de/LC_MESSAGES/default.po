@@ -11403,11 +11403,6 @@ msgstr[1] "%{count} davon sind im „Wert“ enthalten."
 msgid "1 position is not included in “Cost” and “Result” because its cost was not paid in %{currency} alone:"
 msgstr "1 Position ist in „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr Einstand nicht nur in %{currency} bezahlt wurde:"
 
-#: lib/portfolixir_web/live/classifications_live.ex:472
-#, elixir-autogen, elixir-format
-msgid "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value."
-msgstr "Einstand und Ergebnis umfassen die heute hier eingeordneten Positionen, in %{currency} — eine Aussage über die aktuelle Zusammensetzung, keine Periodenrendite. Eine Position, deren Einstand nicht in %{currency} bezahlt wurde, bleibt aus beiden heraus und wird oben genannt; der „Wert“ zählt sie weiter, wenn sie einen Wert hat."
-
 #: lib/portfolixir_web/live/classifications_live.ex:1083
 #, elixir-autogen, elixir-format
 msgid "Some positions here are left out of both sides of the sum, rather than counted as zero, because no result in %{currency} is derivable for them."
@@ -12631,3 +12626,8 @@ msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung b
 #, elixir-autogen, elixir-format
 msgid "Counts and the cash moved per kind of the transactions this filter selects, summed per currency, unsigned and not converted."
 msgstr "Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung summiert, ohne Vorzeichen und nicht umgerechnet."
+
+#: lib/portfolixir_web/live/classifications_live.ex:472
+#, elixir-autogen, elixir-format
+msgid "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. Cost is what the shares cost without the buys' fees and taxes, so the result is before them; a closed trade's cost includes them. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value."
+msgstr "Einstand und Ergebnis umfassen die heute hier eingeordneten Positionen, in %{currency} — eine Aussage über die aktuelle Zusammensetzung, keine Periodenrendite. Der Einstand ist, was die Anteile ohne Gebühren und Steuern der Käufe gekostet haben, das Ergebnis also vor ihnen; der Einstand eines abgeschlossenen Trades enthält sie. Eine Position, deren Einstand nicht in %{currency} bezahlt wurde, bleibt aus beiden heraus und wird oben genannt; der „Wert“ zählt sie weiter, wenn sie einen Wert hat."

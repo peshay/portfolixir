@@ -470,7 +470,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <summary aria-label={gettext("About the result")}>ⓘ</summary>
             <p role="tooltip">
               <%= gettext(
-                "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value.",
+                "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. Cost is what the shares cost without the buys' fees and taxes, so the result is before them; a closed trade's cost includes them. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value.",
                 currency: @results.base_currency
               ) %>
             </p>

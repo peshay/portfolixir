@@ -11395,11 +11395,6 @@ msgstr[1] ""
 msgid "1 position is not included in “Cost” and “Result” because its cost was not paid in %{currency} alone:"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:472
-#, elixir-autogen, elixir-format
-msgid "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value."
-msgstr ""
-
 #: lib/portfolixir_web/live/classifications_live.ex:1083
 #, elixir-autogen, elixir-format
 msgid "Some positions here are left out of both sides of the sum, rather than counted as zero, because no result in %{currency} is derivable for them."
@@ -12620,4 +12615,9 @@ msgstr ""
 #: lib/portfolixir_web/live/transaction_management_live.ex:294
 #, elixir-autogen, elixir-format
 msgid "Counts and the cash moved per kind of the transactions this filter selects, summed per currency, unsigned and not converted."
+msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:472
+#, elixir-autogen, elixir-format
+msgid "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. Cost is what the shares cost without the buys' fees and taxes, so the result is before them; a closed trade's cost includes them. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value."
 msgstr ""
