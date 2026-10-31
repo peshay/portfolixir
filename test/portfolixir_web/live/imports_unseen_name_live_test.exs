@@ -500,8 +500,11 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
   # so that the remount shows what the answer showed.
   #
   # Acceptance criteria:
-  # - P8's drifted drop, answered: "Depot Muster" carries Depot Muster. A
-  #   remount of the parked preview carries it too, with no note.
+  # - P8's drifted drop, parked before the dry run answers, then answered:
+  #   "Depot Muster" carries Depot Muster. A remount of the parked preview
+  #   carries it too, with no note: the answer's release is parked with the
+  #   mapping. (Mutation: without parking the released mapping, the remount
+  #   restores the mapping parked before the answer, "Decide…".)
   # - P9's drop, answered and remounted: "Tagesgeld Extra" still reads
   #   "Decide…" with the note.
   test "a released row survives a remount from the parked preview", %{conn: conn} do
@@ -511,8 +514,14 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     conn = init_test_session(conn, %{"_csrf_token" => "PPPPPPPPPPPPPPPPPPPPP195"})
     on_exit(fn -> PreviewStore.delete(PreviewStore.key_for("PPPPPPPPPPPPPPPPPPPPP195")) end)
 
+    hold_refine!()
     {:ok, view, _html} = live(conn, "/imports")
-    upload!(view, history(time: "10:30"))
+    upload_unanswered!(view, history(time: "10:30"))
+    # The park the upload sent itself is handled before this render.
+    assert selected(view, "depot", "Depot Muster") == ""
+
+    release_refine!()
+    render_async(view)
     assert selected(view, "depot", "Depot Muster") == "existing:#{depot.id}"
 
     {:ok, remounted, _html} = live(conn, "/imports")
