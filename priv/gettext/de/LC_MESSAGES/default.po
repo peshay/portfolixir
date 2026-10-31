@@ -12375,8 +12375,8 @@ msgstr "unverändert"
 #, elixir-autogen, elixir-format
 msgid "%{count} payment could not be converted — no stored exchange rate to %{currency} on or before its booking date — and is excluded from every total. Affected currency: %{currencies}."
 msgid_plural "%{count} payments could not be converted — no stored exchange rate to %{currency} on or before their booking dates — and are excluded from every total. Affected currencies: %{currencies}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%{count} Zahlung konnte nicht umgerechnet werden — kein gespeicherter Wechselkurs nach %{currency} am oder vor ihrem Buchungsdatum — und bleibt aus jeder Summe ausgeschlossen. Betroffene Währung: %{currencies}."
+msgstr[1] "%{count} Zahlungen konnten nicht umgerechnet werden — kein gespeicherter Wechselkurs nach %{currency} am oder vor ihren Buchungsdaten — und bleiben aus jeder Summe ausgeschlossen. Betroffene Währungen: %{currencies}."
 
 #: lib/portfolixir_web/live/income_live.ex:860
 #, elixir-autogen, elixir-format
@@ -12524,8 +12524,8 @@ msgstr "Abhilfe: in die andere Richtung zusammenführen — das Ziel in dieses W
 #, elixir-autogen, elixir-format
 msgid "after the merge, %{count} identifier of the two would no longer lead to the target:"
 msgid_plural "after the merge, %{count} identifiers of the two would no longer lead to the target:"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "nach der Zusammenführung würde %{count} Kennung der beiden nicht mehr zum Ziel führen:"
+msgstr[1] "nach der Zusammenführung würden %{count} Kennungen der beiden nicht mehr zum Ziel führen:"
 
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1322
 #, elixir-autogen, elixir-format
