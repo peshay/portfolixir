@@ -456,6 +456,53 @@ defmodule Portfolixir.Ledger.ProjectionTest do
       assert Projection.cash_amount(representative("split")) == nil
     end
 
+    # User story (#1209, Sprint 21 α11): As the operator, I want a sell
+    # whose fees exceed its proceeds to move negative cash, so that the
+    # history's Betrag takes its sign from the leg and not from the kind.
+    #
+    # Acceptance criteria:
+    # - A sell of 1 × 0 with a fee of 1.00 moves -1.00; a buy of 20 × 48.20
+    #   with a fee of 1.00 moves -965.00; a sell of 5 × 60 with 1.00 fees and
+    #   0.50 taxes moves 298.50.
+    test "the figure carries its leg's sign, a write-off sell's fee included" do
+      write_off =
+        tx("sell", %{
+          cash_account_id: @cash,
+          securities_account_id: @depot,
+          security_id: @security,
+          quantity: dec("1"),
+          price: dec("0"),
+          fees: dec("1.00"),
+          taxes: dec("0")
+        })
+
+      buy =
+        tx("buy", %{
+          cash_account_id: @cash,
+          securities_account_id: @depot,
+          security_id: @security,
+          quantity: dec("20"),
+          price: dec("48.20"),
+          fees: dec("1.00"),
+          taxes: dec("0")
+        })
+
+      sell =
+        tx("sell", %{
+          cash_account_id: @cash,
+          securities_account_id: @depot,
+          security_id: @security,
+          quantity: dec("5"),
+          price: dec("60"),
+          fees: dec("1.00"),
+          taxes: dec("0.50")
+        })
+
+      assert Decimal.equal?(Projection.cash_amount(write_off), dec("-1.00"))
+      assert Decimal.equal?(Projection.cash_amount(buy), dec("-965.00"))
+      assert Decimal.equal?(Projection.cash_amount(sell), dec("298.50"))
+    end
+
     test "every kind's figure is the magnitude of its own account's leg" do
       for kind <- Transaction.kinds(), kind != "balance_adjustment" do
         transaction = representative(kind)

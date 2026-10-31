@@ -203,4 +203,77 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
       assert PortfolixirWeb.TransactionManagementLive.phone_amount(zero_buy) == "0,00 EUR"
     end)
   end
+
+  # User story (#1209, Sprint 21 α11): As the operator reading one cash
+  # account's history, I want a sell whose fees exceed its proceeds to read
+  # as the money that left the account, so that the Betrag column still adds
+  # up to what the balance beside it did.
+  #
+  # Acceptance criteria (#1209):
+  # - Deposit 100,00, buy 1 × 10,00, sell 1 × 0,00 with a fee of 1,00 (a
+  #   worthless write-off): the sell's Betrag reads "-1,00 EUR", the sign
+  #   taken from its cash leg, not from its kind, and its Saldo reads 89,00.
+  # - Σ Betrag of the three rows is 89,00, the balance's change from 0.
+  # - The phone row reads "-1,00 EUR"; the summary's Verkauf sum is the same
+  #   figure, "1 · -1,00 EUR".
+  test "a sell whose fees exceed its proceeds reads as money leaving the account",
+       %{conn: conn} do
+    world =
+      WorldFixtures.base_world(
+        name: "Write-off",
+        cash_name: "Test-Cash",
+        depot_name: "Depot Muster"
+      )
+
+    share = WorldFixtures.create_security!(name: "Wrenfield Gardens AG", ticker: "WGA")
+    deposit = WorldFixtures.deposit!(world, "100", ~D[2026-10-01])
+
+    book = fn attrs ->
+      {:ok, tx} =
+        Ledger.create_transaction(
+          Actor.owner_ui(),
+          Map.merge(
+            %{
+              portfolio_id: world.portfolio.id,
+              securities_account_id: world.depot.id,
+              cash_account_id: world.cash.id,
+              security_id: share.id,
+              currency_code: "EUR",
+              quantity: "1",
+              taxes: "0"
+            },
+            attrs
+          )
+        )
+
+      tx
+    end
+
+    buy = book.(%{type: "buy", date: ~D[2026-10-02], price: "10", fees: "0"})
+    write_off = book.(%{type: "sell", date: ~D[2026-10-03], price: "0", fees: "1.00"})
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+    toggle_account(view, world.cash.id)
+    doc = view |> render() |> Floki.parse_document!()
+
+    assert cell(doc, deposit, "amount") == "100,00EUR"
+    assert cell(doc, buy, "amount") == "-10,00EUR"
+    assert cell(doc, write_off, "amount") == "-1,00EUR"
+    assert cell(doc, write_off, "running-balance") == "89,00"
+
+    sell_summary =
+      doc
+      |> Floki.find("#transaction-summary .summary-type[data-type='sell']")
+      |> Floki.text()
+      |> String.replace(~r/\s+/u, " ")
+      |> String.trim()
+
+    assert sell_summary =~ "Verkauf: 1 · -1,00 EUR"
+
+    write_off = Repo.preload(write_off, [:cash_account])
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+      assert PortfolixirWeb.TransactionManagementLive.phone_amount(write_off) == "-1,00 EUR"
+    end)
+  end
 end
