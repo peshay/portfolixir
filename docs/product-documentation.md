@@ -1130,7 +1130,8 @@ of one account add up to its balance's change. What leaves the account
 carries a "-", what arrives an explicit "+" ("+12.40" a tax refund, "-4.90"
 a fee; issue #1147), and neither is coloured: the sign is a direction, not
 a gain or a loss. A zero carries no sign, and a set balance shows the level
-it set, unsigned. A booking that moves no cash — a delivery, a security
+it set with its stored sign: unsigned when positive, "-12.50" for an
+overdraft. A booking that moves no cash — a delivery, a security
 transfer — shows its quantity × price in the booking's currency, unsigned.
 A **cash transfer** moves two accounts, so its sign is the one in view's:
 while the chips select its receiving account and not its sender it reads
@@ -1198,10 +1199,11 @@ to two-line rows under the same month heads — the date and the kind over the
 security or account the booking touched (both accounts of a cash transfer,
 sender first, as the Account column names them), the signed amount with its
 currency over the size (quantity × price, the price with its stored digits
-and its currency, "8 × 100.00 USD"; the quantity alone; a split's ratio) on the right, the running balance
-beneath it while the chips narrow to one account — so nothing scrolls
-sideways, and a long name with no space wraps inside its row (issue #1073);
-the column picker keeps its meaning above 560 px.
+and its currency, "8 × 100.00 USD"; the quantity alone; a split's ratio)
+on the right, the running balance beneath it while the chips narrow to one
+account — so nothing scrolls sideways, and a long name with no space wraps
+inside its row (issue #1073); the column picker keeps its meaning above
+560 px.
 
 ### Holdings Calculation
 

@@ -1242,10 +1242,11 @@ zur Änderung seines Saldos addieren. Was das Konto verlässt, trägt ein „-�
 was ankommt, ein ausdrückliches „+“ („+12,40“ eine Steuererstattung, „-4,90“
 Gebühren; Issue #1147), und keines von beiden ist eingefärbt: Das
 Vorzeichen ist eine Richtung, kein Gewinn oder Verlust. Eine Null trägt kein
-Vorzeichen, und ein gesetzter Saldo zeigt den Stand, den er setzt, ohne
-Vorzeichen. Eine Buchung, die kein Geld bewegt — eine Einlieferung, eine
-Wertpapierumbuchung —, zeigt Stückzahl × Preis in der Währung der Buchung,
-ohne Vorzeichen. Eine **Umbuchung** bewegt zwei
+Vorzeichen, und ein gesetzter Saldo zeigt den Stand, den er setzt, mit
+seinem gespeicherten Vorzeichen: ohne Vorzeichen, wenn er positiv ist,
+„-12,50“ bei einer Überziehung. Eine Buchung, die kein Geld bewegt — eine
+Einlieferung, eine Wertpapierumbuchung —, zeigt Stückzahl × Preis in der
+Währung der Buchung, ohne Vorzeichen. Eine **Umbuchung** bewegt zwei
 Konten, also trägt sie das Vorzeichen des Kontos im Blick: Solange die Chips
 ihr Empfängerkonto auswählen und nicht ihr Senderkonto, liest sie sich als
 ankommendes Geld („+200,00“, wie der Saldo daneben um 200 steigt); sonst aus
@@ -1320,10 +1321,10 @@ Wertpapier oder Konto, das die Buchung berührt hat (bei einer Umbuchung beide
 Konten, den Sender zuerst, wie die Spalte Konto sie nennt), rechts der Betrag mit
 Vorzeichen und Währung über der Größe (Stückzahl × Preis, der Preis mit
 seinen gespeicherten Stellen und seiner Währung, „8 × 100,00 USD“; die
-Stückzahl allein; das Verhältnis eines Splits), darunter der laufende Saldo, solange die Chips auf ein Konto
-eingrenzen — sodass nichts seitwärts scrollt und ein langer Name ohne
-Leerzeichen in seiner Zeile umbricht (Issue #1073); die Spaltenauswahl
-behält oberhalb von 560 px ihre Bedeutung.
+Stückzahl allein; das Verhältnis eines Splits), darunter der laufende Saldo,
+solange die Chips auf ein Konto eingrenzen — sodass nichts seitwärts scrollt
+und ein langer Name ohne Leerzeichen in seiner Zeile umbricht (Issue #1073);
+die Spaltenauswahl behält oberhalb von 560 px ihre Bedeutung.
 
 ### Bestandsberechnung
 
