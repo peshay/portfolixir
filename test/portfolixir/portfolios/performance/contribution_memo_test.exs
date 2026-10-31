@@ -6,6 +6,8 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
 
   import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, deposit!: 3]
 
+  alias Portfolixir.Derived
+  alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Derived.Memo
   alias Portfolixir.Derived.Registry
   alias Portfolixir.DerivedConfig
@@ -40,9 +42,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   # Acceptance criteria:
   # - `performance_contribution` (portfolio basis) and
   #   `performance_view_contribution` (global basis) are registered with the
-  #   default lifetime `:request`, at computation version 3 since #1154 added
-  #   each row's `wkn` to their payload (2 since #1055 added the unvalued
-  #   cash accounts); the walk analytics are at version 4, #1055's.
+  #   default lifetime `:request`, at computation version 4 since a coupon
+  #   naming its bond became that position's income (#928, ADR-0051's
+  #   amendment of 2026-10-09; 3 since #1154 added each row's `wkn` to their
+  #   payload, 2 since #1055 added the unvalued cash accounts); the walk
+  #   analytics are at version 4, #1055's.
   # - A fixed-period read is memoised under its analytic, one entry per
   #   scope, walk end date and period; repeating it returns the same figures.
   # - A ledger write is in the next read.
@@ -50,8 +54,8 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   #   memo budget's rule, E25 S4 G03).
   # - The contribution's walk is never stored as a walk analytic.
   test "the contribution is its own request-lifetime analytic per scope and period" do
-    assert Registry.computation_version!(:performance_contribution) == 3
-    assert Registry.computation_version!(:performance_view_contribution) == 3
+    assert Registry.computation_version!(:performance_contribution) == 4
+    assert Registry.computation_version!(:performance_view_contribution) == 4
     assert Registry.lifetime(:performance_contribution) == :request
     assert Registry.lifetime(:performance_view_contribution) == :request
     assert Registry.computation_version!(:performance_analysis) == 4
@@ -94,5 +98,56 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
     {:ok, ranged} = Contribution.for_portfolio(pid, period: range, today: @today)
     assert ranged.start_date == ~D[2026-02-01]
     refute Enum.any?(entry_keys(:performance_contribution), &String.contains?(&1, "range"))
+  end
+
+  # User story (#928, Sprint 21 α4; ADR-0051 I13, ADR-0039 §5):
+  # As the operator reading Wealth's contribution table after the coupon
+  # became its bond's income,
+  # I want no table computed under the old interest clause served to me,
+  # so that a bond's row never reads its price move alone from a memo.
+  #
+  # Acceptance criteria:
+  # - Both contribution analytics are registered at computation version 4;
+  #   the walk analytics stay at 4.
+  # - A value stored under version 3, for the very scope, period and data
+  #   version a read asks for, is not served: the read computes afresh.
+  test "a contribution stored under computation version 3 is never served" do
+    world = base_world(name: "Memo v3", cash_name: "Cash", depot_name: "Depot")
+    fund = create_security!(name: "Memo v3 Fund", ticker: "MV3")
+    deposit!(world, "1000", ~D[2026-01-05])
+    WorldFixtures.buy!(world, fund, quantity: "5", price: "100", date: ~D[2026-01-05])
+    WorldFixtures.put_quotes!(fund, [{~D[2026-01-05], "100"}, {~D[2026-03-02], "110"}])
+    pid = world.portfolio.id
+
+    assert Registry.computation_version!(:performance_contribution) == 4
+    assert Registry.computation_version!(:performance_view_contribution) == 4
+    assert Registry.computation_version!(:performance_analysis) == 4
+    assert Registry.computation_version!(:performance_view_analysis) == 4
+
+    stored_under_v3 = %{stored: :under_version_3}
+
+    portfolio_basis = Derived.portfolio_basis(pid)
+    global_basis = Derived.global_basis()
+
+    for {analytic, basis, key} <- [
+          {:performance_contribution, portfolio_basis,
+           "view=unscoped|today=2026-06-30|period=ytd"},
+          {:performance_view_contribution, global_basis,
+           "view=unscoped|base=EUR|today=2026-06-30|period=ytd"}
+        ] do
+      Memo.put(
+        {analytic, basis, key, DataVersion.current(basis), 3},
+        stored_under_v3,
+        DateTime.utc_now()
+      )
+    end
+
+    {:ok, portfolio_read} = Contribution.for_portfolio(pid, period: "ytd", today: @today)
+    {:ok, view_read} = Contribution.for_view(nil, period: "ytd", today: @today)
+
+    for read <- [portfolio_read, view_read] do
+      refute Map.has_key?(read, :stored)
+      assert Decimal.equal?(contribution_of(read, fund), Decimal.new("50"))
+    end
   end
 end

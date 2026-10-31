@@ -108,7 +108,8 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
   #   is face amount x percent / 100, the correct market value.
   # - The cost basis is quantity x derived price (fees not folded in).
   # - The coupon, booked as INTEREST naming the bond, lands on the cash
-  #   account without any link to the bond.
+  #   account with the bond it names (#928, ADR-0051 I10: this flipped from
+  #   no link on purpose; every other figure here stands).
   # - The performance walk's end value agrees with the valuation. Its TTWROR
   #   treats the first quote's re-pricing as a basis step (#545), so the
   #   return is the deposit's growth by the coupon less the fee.
@@ -152,9 +153,11 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
     assert_dec(holding.market_value, "9725.00")
     assert_dec(holding.unrealized_pnl_abs, "-125.00")
 
-    # The coupon is income on the cash account, attributed to no security.
+    # The coupon is income on the cash account, attributed to its bond
+    # (ADR-0051 I10), and to no depot.
     assert [coupon] = Ledger.list_transactions_for_portfolio(portfolio.id) |> interest_rows()
-    assert coupon.security_id == nil
+    assert coupon.security_id == bond.id
+    assert coupon.securities_account_id == nil
     assert_dec(coupon.gross_amount, "225.00")
 
     # #330's guard (ADR-0052 §4) stays silent: both scales agree.
