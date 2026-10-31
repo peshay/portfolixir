@@ -567,6 +567,13 @@ still carries. A bond named without a class is marked *no asset class* in
 the note. The Overview's data-quality line counts every bond priced on two
 scales, in either direction and catalog-wide, and links to the list of
 exactly those.
+That list opens on a problem note per direction (issue #1121): the bonds
+counting a hundred times too high, each linking to its **Transactions**
+tab, then those counting a hundred times too low, each linking to its
+**Quotes** tab, with the quote and the booked price per unit beside each
+name. Because the list is catalog-wide, the notes say the bond counts
+wrongly *wherever it is valued* — a held bond's total, a sold bond's past
+values, a benchmark's comparison — and they name exactly the rows below.
 
 ### Dates tab (the security's calendar, ADR-0048)
 

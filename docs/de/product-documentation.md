@@ -622,6 +622,14 @@ Anlageklasse genannte Anleihe ist im Hinweis mit *ohne Anlageklasse*
 markiert. Die Datenqualitätszeile der Übersicht zählt jede auf zwei Skalen
 bepreiste Anleihe, in beiden Richtungen und über den ganzen Katalog, und
 verlinkt auf die Liste genau dieser.
+Diese Liste öffnet mit einem Problem-Hinweis je Richtung (Issue #1121):
+die Anleihen, die hundertfach zu hoch zählen, jede mit einem Link auf ihren
+Tab **Transaktionen**, dann die, die hundertfach zu niedrig zählen, jede mit
+einem Link auf ihren Tab **Kurse**, neben jedem Namen der Kurs und der
+gebuchte Preis je Stück. Weil die Liste den ganzen Katalog umfasst, sagen
+die Hinweise, dass die Anleihe falsch zählt, *wo immer sie bewertet wird* —
+in der Summe einer gehaltenen, den früheren Werten einer verkauften, dem
+Vergleich einer Benchmark —, und sie nennen genau die Zeilen darunter.
 
 ### Tab „Termine" (der Kalender des Wertpapiers, ADR-0048)
 

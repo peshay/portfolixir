@@ -163,6 +163,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_notes, [])
      |> assign(:detail_thesis_state, ThesisState.none())
      |> assign(:detail_bond, nil)
+     |> assign(:dq_two_scales, [])
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
@@ -680,6 +681,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <% end %>
           </ul>
         <% end %>
+
+        <.two_scales_notes findings={@dq_two_scales} />
 
         <%!-- Bulk logo retry (#561): only on the missing-logo filtered list,
              with its result inline beside the trigger — the status region
@@ -4724,6 +4727,56 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp safe_to_string({:safe, iodata}), do: IO.iodata_to_binary(iodata)
 
+  attr(:findings, :list, required: true)
+
+  # #1121 (board 02, N3.2 A): the list the Overview's two-scales count opens
+  # says which way each bond is off and what to check — Wealth's two notes,
+  # forward first, one per direction present (UX-DR17: consequence and
+  # remedy point opposite ways), in one status region between the removable
+  # chips and the list. The entries are W2's. The list is catalog-wide on
+  # purpose (D-15), so the scope clause reads "wherever it is valued", not
+  # Wealth's "in the totals" (J1.2). It names; nothing is converted.
+  defp two_scales_notes(assigns) do
+    assigns =
+      assigns
+      |> assign(:forward, Enum.filter(assigns.findings, &(&1.direction == :forward)))
+      |> assign(:reverse, Enum.filter(assigns.findings, &(&1.direction == :reverse)))
+
+    ~H"""
+    <div
+      :if={@findings != []}
+      class="securities-dq-notes"
+      role="status"
+      data-role="securities-dq-notes"
+    >
+      <AppShell.data_note
+        :if={@forward != []}
+        severity={:problem}
+        data-role="securities-dq-two-scales"
+      >
+        <%= ngettext(
+          "One bond is priced on two scales (quotes around 100, booked price per unit around 1) and counts a hundred times too high wherever it is valued; the return does not show it. Check the quantity of its bookings against the nominal on the statement:",
+          "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high wherever they are valued; the return does not show it. Check the quantity of their bookings against the nominal on the statement:",
+          length(@forward)
+        ) %>
+        <PortfolixirWeb.PortfolioLive.two_scales_entries findings={@forward} tab="transactions" />
+      </AppShell.data_note>
+      <AppShell.data_note
+        :if={@reverse != []}
+        severity={:problem}
+        data-role="securities-dq-two-scales-reverse"
+      >
+        <%= ngettext(
+          "One bond is priced on two scales (quotes around 1, booked price per unit around 100) and counts a hundred times too low wherever it is valued. Check its stored quotes — a quote around 1 is not a percent of face:",
+          "%{count} bonds are priced on two scales (quotes around 1, booked price per unit around 100) and count a hundred times too low wherever they are valued. Check their stored quotes — a quote around 1 is not a percent of face:",
+          length(@reverse)
+        ) %>
+        <PortfolixirWeb.PortfolioLive.two_scales_entries findings={@reverse} tab="quotes" />
+      </AppShell.data_note>
+    </div>
+    """
+  end
+
   # #1104 (board 02, N6 A): a condition on a boolean field reads "<field>:
   # ja" / "<field>: nein", one rule for every boolean field, the family
   # chips' "value in the label" (D2). The stored filter stays
@@ -6734,11 +6787,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     socket
     |> assign_securities(securities)
+    |> assign(:dq_two_scales, two_scales_findings(dq, securities))
     |> assign(:chip_currencies, Catalog.currencies_in_use())
     |> assign(:chip_classes, Catalog.effective_asset_classes_in_use())
     |> attach_classification_columns()
     |> apply_classification_sort()
   end
+
+  # #1121 (board 02, N3.2 A): the findings of the bonds the list shows under
+  # `?dq=two_scales`, with their direction and both figures. Read over the
+  # rows below, which `DataQuality.refine/3` narrowed by the same guard, so
+  # the notes name exactly the rows the count opened (#705).
+  defp two_scales_findings("two_scales", rows),
+    do: rows |> Enum.map(&security_from_row/1) |> Bonds.two_scales_among()
+
+  defp two_scales_findings(_dq, _rows), do: []
 
   defp refine_by_class(rows, []), do: rows
 

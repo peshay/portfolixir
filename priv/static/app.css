@@ -1695,6 +1695,23 @@ li + li {
   margin: 12px clamp(14px, 2.2vw, 24px) 0;
 }
 
+/* The securities list's two-scales notes (issue 1121, board
+   ux-design-2026-10-09/02-securities, rule ②): one note per direction in
+   one status region, stacked with the gap Wealth's dq-notes have, inside
+   the gutter the panel's other blocks keep. The missing-logo bulk action
+   in the same slot takes that gutter too (the board's found while
+   drawing 2): it started at the panel's edge. */
+.workspace-panel > .securities-dq-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 12px clamp(14px, 2.2vw, 24px) 0;
+}
+
+.workspace-panel > .dq-bulk-action {
+  margin: 12px clamp(14px, 2.2vw, 24px) 0;
+}
+
 .workspace-panel .securities-workspace {
   flex: 1 1 auto;
   min-height: 0;
