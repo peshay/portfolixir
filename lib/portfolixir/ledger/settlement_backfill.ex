@@ -44,20 +44,27 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
 
   @doc """
   Runs the backfill. Returns `{:ok, summary}` with `updated`,
-  `skipped_no_rate` and `skipped_no_rate_rows` (transaction ids with their
-  dates, so the skips are actionable), or `{:error, {transaction_id,
-  changeset}}` on the first failing update (nothing further is attempted).
+  `skipped_no_rate`, `skipped_no_rate_rows` (transaction ids with their
+  dates, so the skips are actionable) and `skipped_changed` (rows that
+  gained a leg after the candidate read: each write re-checks under the
+  row's lock that none of the three legs is stored, #1196), or `{:error, {transaction_id, changeset}}` on the first failing
+  update (nothing further is attempted).
   An update that lost a lock cycle with a concurrent write (#1214) stops it
   the same way as `{:error, {transaction_id, :raced}}`: nothing was written
   for that row, and a re-run picks it up.
   """
   def run(%Actor{} = actor) do
+    empty = %{updated: 0, skipped_no_rate: 0, skipped_no_rate_rows: [], skipped_changed: 0}
+
     candidates()
-    |> Enum.reduce_while({:ok, %{updated: 0, skipped_no_rate: 0, skipped_no_rate_rows: []}}, fn
+    |> Enum.reduce_while({:ok, empty}, fn
       transaction, {:ok, summary} ->
         case backfill_row(actor, transaction) do
           {:ok, :updated} ->
             {:cont, {:ok, %{summary | updated: summary.updated + 1}}}
+
+          {:ok, :changed} ->
+            {:cont, {:ok, %{summary | skipped_changed: summary.skipped_changed + 1}}}
 
           {:ok, :no_rate} ->
             row = %{transaction_id: transaction.id, date: transaction.date}
@@ -134,12 +141,14 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   defp apply_update(actor, transaction, settlement_amount, security_amount) do
     rate = settlement_amount |> Decimal.div(security_amount) |> Decimal.round(6)
 
-    case Ledger.update_transaction(actor, transaction, %{
+    case Ledger.derive_settlement_legs(actor, transaction, %{
            security_amount: security_amount,
            settlement_amount: settlement_amount,
            settlement_fx_rate: rate
          }) do
       {:ok, _transaction} -> {:ok, :updated}
+      # #1196: the row gained a leg after the candidate read.
+      {:error, :legs_stored} -> {:ok, :changed}
       {:error, :raced} -> {:error, :raced}
       {:error, changeset} -> {:error, changeset}
     end

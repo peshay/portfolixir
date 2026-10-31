@@ -1512,14 +1512,45 @@ defmodule Portfolixir.Ledger do
   the booking again and retry.
   """
   def update_transaction(%Actor{} = actor, %Transaction{} = transaction, attrs)
-      when is_map(attrs) do
+      when is_map(attrs),
+      do: update_transaction(actor, transaction, attrs, Multi.new())
+
+  @doc """
+  Stores the three ADR-0015 settlement legs derived for an imported
+  cross-currency trade (`Portfolixir.Ledger.SettlementBackfill`, #1196) as
+  an `update_transaction/3` would, but only onto a row that still carries
+  none of them when the write holds its lock. A row that gained a leg since
+  the caller read it (the operator entered the broker's figures meanwhile)
+  is left as it is and answered `{:error, :legs_stored}`, nothing written
+  or journaled: a leg once stored is never rewritten with the hub's.
+  """
+  @spec derive_settlement_legs(Actor.t(), Transaction.t(), map()) ::
+          {:ok, Transaction.t()}
+          | {:error, Ecto.Changeset.t() | :legs_stored | :not_found | :raced}
+  def derive_settlement_legs(%Actor{} = actor, %Transaction{} = transaction, legs)
+      when is_map(legs) do
+    still_without_legs =
+      Multi.run(Multi.new(), :legs_still_missing, fn _repo, changes ->
+        locked = Journal.locked_row(changes)
+
+        if is_nil(locked.security_amount) and is_nil(locked.settlement_amount) and
+             is_nil(locked.settlement_fx_rate),
+           do: {:ok, :missing},
+           else: {:error, :legs_stored}
+      end)
+
+    update_transaction(actor, transaction, legs, still_without_legs)
+  end
+
+  defp update_transaction(actor, transaction, attrs, %Multi{} = precondition) do
     attrs = derive_settlement_fx_rate(attrs)
 
     # The changeset starts from the row as stored, re-read under its lock by
     # the journal step, never from the caller's earlier read (E25 S6, F49).
     # #1214: the accounts the edit moves the booking onto are locked first,
-    # ahead of that row lock (`lock_moved_onto/2`).
-    Multi.new()
+    # ahead of that row lock (`lock_moved_onto/2`). A precondition runs on
+    # that locked row before the write (#1196).
+    precondition
     |> Multi.update(:transaction, fn changes ->
       changes
       |> Journal.locked_row()
@@ -1648,6 +1679,10 @@ defmodule Portfolixir.Ledger do
   # The row was deleted before the write took its lock (E25 S6, F49).
   defp transaction_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
     do: {:error, :not_found}
+
+  # #1196: the row gained a leg after the backfill read it.
+  defp transaction_write_result({:error, :legs_still_missing, :legs_stored, _changes}),
+    do: {:error, :legs_stored}
 
   defp transaction_write_result({:error, :raced}), do: {:error, :raced}
 
