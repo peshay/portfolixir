@@ -1103,19 +1103,20 @@ a sell's are taken off it, however the booking was entered, so the amounts
 of one account add up to its balance's change. What leaves the account is
 negative, what arrives positive, a zero carries no sign, and a set balance
 shows the level it set. A booking that moves no cash — a delivery, a
-security transfer — shows its quantity × price in the booking's currency. A **cash transfer** moves two accounts, so
-its sign is the one in view's: while the chips select its receiving account
-and not its sender it reads as money arriving ("200.00", as the Balance
-beside it rises by 200); otherwise it reads from the sender ("-200.00").
+security transfer — shows its quantity × price in the booking's currency.
+A **cash transfer** moves two accounts, so its sign is the one in view's:
+while the chips select its receiving account and not its sender it reads
+as money arriving ("200.00", as the Balance beside it rises by 200);
+otherwise it reads from the sender ("-200.00").
 
-The summary above the table states the counts and the cash moved per kind,
-the same figure as the Amount column, with **one total per currency**. Amounts are never converted or
-added across currencies; converting them would make them a different figure
-needing its own rate basis. The rows are sectioned by month, and each month
-head carries the month and its **count** alone — *September 2026*, *6
-transactions* (issue #1083): a sum across buys, deposits, sales and a set
-balance would be neither a cash flow nor a turnover, so the sums stay in the
-summary, where its basis line says what they add.
+The summary above the table states the counts and the cash moved per kind, the
+same figure as the Amount column, with **one total per currency**. Amounts are
+never converted or added across currencies; converting them would make them a
+different figure needing its own rate basis. The rows are sectioned by month,
+and each month head carries the month and its **count** alone — *September
+2026*, *6 transactions* (issue #1083): a sum across buys, deposits, sales and
+a set balance would be neither a cash flow nor a turnover, so the sums stay in
+the summary, where its basis line says what they add.
 
 Beside the account and type chips sit the **Changed since** chips (*Today /
 7 days / 30 days*, issue #731): they narrow the history to transactions
@@ -2398,11 +2399,13 @@ across currencies converting them at its own rate, as on the facet (issue
 USD", issue #1213). On the **Transactions** tab a row booked in another
 currency than its cash account names each figure's currency: its fees and
 taxes are in the account's ("5.00 EUR"), its price and gross in the
-booking's ("1,000.00 USD"); a row in one currency stays as it is. An open lot or a closed trade on no cost shows the dash with "No
-return: no cost basis" in its "%" column, and so do the security's
-**Holdings** tab and Wealth's optional **P&L %** column for shares
-delivered in at no cost, such as a spin-off (issue #1142); a holding with
-no price keeps the plain dash. On a
+booking's ("1,000.00 USD"), except a gross stored without a price, which
+is cash and in the account's; a missing figure is a bare dash, and a row in
+one currency stays as it is. An open lot or a closed trade on no cost shows
+the dash with "No return: no cost basis" in its "%" column, and so do the
+security's **Holdings** tab and Wealth's optional **P&L %** column for
+shares delivered in at no cost, such as a spin-off (issue #1142); a holding
+with no price keeps the plain dash. On a
 phone the table gives way to two-line rows: opened → closed over the
 quantity and the days, the result over its percent and, from a year of
 holding, the p. a. figure. Since issue #1060 the

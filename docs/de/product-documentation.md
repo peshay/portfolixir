@@ -1221,14 +1221,14 @@ ankommendes Geld („200,00“, wie der Saldo daneben um 200 steigt); sonst aus
 Sicht des Senders („-200,00“).
 
 Die Zusammenfassung über der Tabelle nennt Anzahl und bewegtes Geld je Art,
-dieselbe Zahl wie die Spalte Betrag, mit **einer Summe je Währung**. Die Beträge werden nie umgerechnet oder
-über Währungen hinweg addiert — eine Umrechnung wäre eine andere Kennzahl und
-bräuchte ihre eigene Kursbasis. Die Zeilen sind nach Monaten gegliedert, und
-jeder Monatskopf trägt den Monat und allein seine **Anzahl** — *September
-2026*, *6 Transaktionen* (Issue #1083): Eine Summe über Käufe, Einlagen,
-Verkäufe und einen gesetzten Saldo wäre weder ein Geldfluss noch ein Umsatz,
-also bleiben die Summen in der Zusammenfassung, deren Grundlagenzeile sagt,
-was sie addieren.
+dieselbe Zahl wie die Spalte Betrag, mit **einer Summe je Währung**. Die
+Beträge werden nie umgerechnet oder über Währungen hinweg addiert — eine
+Umrechnung wäre eine andere Kennzahl und bräuchte ihre eigene Kursbasis. Die
+Zeilen sind nach Monaten gegliedert, und jeder Monatskopf trägt den Monat und
+allein seine **Anzahl** — *September 2026*, *6 Transaktionen* (Issue #1083):
+Eine Summe über Käufe, Einlagen, Verkäufe und einen gesetzten Saldo wäre
+weder ein Geldfluss noch ein Umsatz, also bleiben die Summen in der
+Zusammenfassung, deren Grundlagenzeile sagt, was sie addieren.
 
 Neben den Konto- und Art-Chips sitzen die **Geändert-seit**-Chips (*Heute /
 7 Tage / 30 Tage*, Issue #731): sie verengen die Historie auf Transaktionen,
@@ -2638,8 +2638,9 @@ nennt diese Währung in jeder Breite („+188,75 USD“, Issue #1213). Im Reiter
 **Transaktionen** nennt eine Zeile, die in einer anderen Währung als ihr
 Verrechnungskonto gebucht ist, die Währung jeder Zahl: Gebühren und Steuern
 stehen in der des Kontos („5,00 EUR“), Preis und Brutto in der der Buchung
-(„1.000,00 USD“); eine Zeile in einer Währung bleibt, wie sie ist. Ein
-offener Lot oder ein
+(„1.000,00 USD“), außer einem ohne Preis gespeicherten Brutto, das Geld ist
+und in der des Kontos steht; eine fehlende Zahl ist ein bloßer Strich, und
+eine Zeile in einer Währung bleibt, wie sie ist. Ein offener Lot oder ein
 abgeschlossener Trade ohne Kosten zeigt in seiner Spalte „%“ den Strich mit
 „Keine Rendite: keine Kostenbasis“, ebenso der Tab **Bestände** des
 Wertpapiers und die optionale Spalte **G&V %** im Vermögen für Stücke, die

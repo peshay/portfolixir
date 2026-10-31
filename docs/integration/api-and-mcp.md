@@ -2468,9 +2468,9 @@ church tax withheld at a zero church-tax rate.
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
   per-category **result** (ADR-0041 slice one, #712): `invested` (the sum of the
   members' `base_cost`, without the buys' fees and taxes, so the result is
-  before them; `basis_note` says so since issue #1212), `current_value`, `result_abs` and `result_pct`
-  per category, plus the member `positions` that produced it and the `excluded`
-  rows it could not cover.
+  before them; `basis_note` says so since issue #1212), `current_value`,
+  `result_abs` and `result_pct` per category, plus the member `positions`
+  that produced it and the `excluded` rows it could not cover.
 
   **Read the basis before the numbers.** The payload states it in one line
   (`basis: "current_composition"`, with a `basis_note` spelling it out): this is
