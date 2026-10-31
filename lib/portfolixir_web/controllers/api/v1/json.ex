@@ -1735,7 +1735,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
             months:
               Map.new(year.months, fn {month, series} ->
                 {Integer.to_string(month),
-                 %{fees: decimal(series.fees), taxes: decimal(series.taxes)}}
+                 %{
+                   fees: decimal(series.fees),
+                   taxes: decimal(series.taxes),
+                   total: decimal(series.total)
+                 }}
               end)
           }
         end)

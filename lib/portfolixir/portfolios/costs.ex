@@ -80,6 +80,11 @@ defmodule Portfolixir.Portfolios.Costs do
             "its booking date: a cross-currency trade's fees and taxes (ADR-0015) are never " <>
             "read in the security's currency; a booking without a cash account is read in " <>
             "its own currency; an excluded cost is named by the currency it was read in",
+        # #1210 (ADR-0015's amendment of 2026-10-07, identity 2).
+        totals:
+          "each month's total is that month's fees plus its taxes, both after the " <>
+            "conversion above; a year's fees_total, taxes_total and total sum its " <>
+            "twelve months; an excluded cost is in no total",
         window: window(full, annual, "grouped by booking date"),
         reference: "EUR hub rates on each booking date itself",
         gaps: "a cost with no stored booking-date rate is excluded from the totals and named"
@@ -156,7 +161,11 @@ defmodule Portfolixir.Portfolios.Costs do
       months =
         Map.new(@months, fn month ->
           in_month = Enum.filter(year_costs, &(&1.date.month == month))
-          {month, %{fees: sum_series(in_month, :fees), taxes: sum_series(in_month, :taxes)}}
+          fees = sum_series(in_month, :fees)
+          taxes = sum_series(in_month, :taxes)
+
+          # #1210: the month's own total, the figure identity 2 names.
+          {month, %{fees: fees, taxes: taxes, total: Decimal.add(fees, taxes)}}
         end)
 
       fees_total = months |> Map.values() |> Enum.reduce(@zero, &Decimal.add(&2, &1.fees))

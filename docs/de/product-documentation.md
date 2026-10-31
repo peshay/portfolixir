@@ -2715,7 +2715,8 @@ die ankamen (Issue #1107).
 
 **Kosten** (`/cashflow?tab=costs`, Issue #726) ist, was das Portfolio im
 Betrieb gekostet hat: Gebühren und Steuern je Periode, als zwei Serien mit
-Jahressumme — **nur auf Übersichtsebene**, bewusst kein Kosten-Journal je
+einer Gesamt-Zeile, die die Gebühren plus Steuern jedes Monats und die
+Jahressumme zeigt (Issue #1210) — **nur auf Übersichtsebene**, bewusst kein Kosten-Journal je
 Transaktion. Summiert werden die Gebühren- und Steuer-**Nebenbeträge** jeder
 Transaktion plus die eigenständigen Gebühren- und Steuerbuchungen;
 Steuererstattungen werden gegen die Steuern verrechnet. Bruttobeträge werden

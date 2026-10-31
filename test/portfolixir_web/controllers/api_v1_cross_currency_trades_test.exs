@@ -542,7 +542,8 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
   #
   # Acceptance criteria:
   # - Buy 10 at 100 USD settled 790.00 EUR, fees 5.00 and taxes 1.00 EUR:
-  #   the month reads fees 5, taxes 1, the year total 6 (before: 4, 0.8, 4.8).
+  #   the month reads fees 5, taxes 1, the year total 6 (before: 4, 0.8, 4.8);
+  #   since #1210 the month carries its own total 6 too.
   # - computation_basis.currency states the rule.
   test "GET /api/v1/costs reads identity 2 in the account's currency", %{conn: conn} do
     world = base_world(name: "Wire Costs", cash_name: "Wire Cost Cash", depot_name: "Wire Desk")
@@ -572,7 +573,7 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
     %{"data" => data} = get_json(conn, "/api/v1/costs")
 
     assert [year] = data["annual"]
-    assert year["months"]["5"] == %{"fees" => "5", "taxes" => "1"}
+    assert year["months"]["5"] == %{"fees" => "5", "taxes" => "1", "total" => "6"}
     assert year["total"] == "6"
     assert data["excluded"] == %{"count" => 0, "currencies" => []}
     assert data["computation_basis"]["currency"] =~ "cash account's currency"

@@ -1700,6 +1700,17 @@ and the next reader — human or agent — offers to finish it.
 The same clause covers a **stated difference** between two figures a reader
 could otherwise reconcile by subtracting.
 
+**The Costs matrix's "Gesamt" row prints each month** *(amended 2026-10-31,
+Sprint 21 γ4, issue 1210; board `mockups/ux-design-2026-10-09/04-wealth-income`
+④, before/after; ADR-0015's amendment of 2026-10-07, identity 2)*. It
+spanned its twelve month cells with one empty cell, so a January with 5,00
+of fees and 1,00 of taxes never showed its 6,00. The row now has a `.num`
+cell per month, the read's `months[m].total` (fees + taxes, with
+`computation_basis.totals` stating it) printed as the series rows print
+theirs, the Matrix-zero dash where a month sums to zero, then the year's
+total: 14 cells, 32 px tall; at 390 px the matrix scrolls in its own
+scroller as before (UX-DR15).
+
 **Built state.** Both rules ship across the three new facets. The rules are
 written to be surface-agnostic; nothing outside the Cash-flow area has been
 audited against them yet, which is a named remainder rather than a claim of

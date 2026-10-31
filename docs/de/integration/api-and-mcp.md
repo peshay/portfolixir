@@ -2051,7 +2051,12 @@ Beispiel-Payloads für Konten:
   wegfielen, und die Antwort nennt das angewandte `limit`.
 - `GET /api/v1/costs` (Issue #726) liefert das Kosten-Rollup: Gebühren und
   Steuern über alle Portfolios, **nur auf Übersichtsebene**, je Jahr und
-  Monat mit Jahressummen für Gebühren, Steuern und beides zusammen. Die
+  Monat mit Jahressummen für Gebühren, Steuern und beides zusammen. Seit
+  Issue #1210 trägt jeder Monat neben `fees` und `taxes` seine eigene Summe
+  `total` — die Gebühren plus die Steuern dieses Monats, als Decimal-Strings
+  (`{"fees": "5", "taxes": "1", "total": "6"}`) —, und
+  `computation_basis.totals` nennt, wie die Summe eines Monats und eines
+  Jahres gebildet wird. Die
   Serie summiert die Gebühren- und Steuer-**Nebenbeträge** jeder Transaktion
   plus die eigenständigen `fee`-/`tax`-Buchungen; `tax_refund` wird gegen
   die Steuern verrechnet. Bruttobeträge werden nie summiert — das Brutto

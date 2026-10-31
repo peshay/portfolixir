@@ -866,9 +866,14 @@ defmodule PortfolixirWeb.IncomeLive do
                         <% end %>
                         <td class="num col-subject"><%= money(year.taxes_total) %></td>
                       </tr>
+                      <%!-- #1210 (board 04 ④): the row prints each month's
+                           fees + taxes, the read's months[m].total, as the
+                           series rows print theirs. --%>
                       <tr class="totals-row">
                         <td><%= gettext("Total") %></td>
-                        <td class="num" colspan="12"></td>
+                        <%= for month <- @months do %>
+                          <td class="num"><%= matrix_cell(year.months[month].total) %></td>
+                        <% end %>
                         <td class="num col-subject"><%= money(year.total) %></td>
                       </tr>
                     <% end %>

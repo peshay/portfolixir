@@ -2469,7 +2469,8 @@ booked in dollars into a EUR account, its rate stored, is the euros that
 arrived (issue #1107).
 
 **Costs** (`/cashflow?tab=costs`, issue #726) is what the portfolio cost to
-run: fees and taxes per period, as two series with a yearly total — at
+run: fees and taxes per period, as two series with a total row that prints
+each month's fees plus taxes and the year's sum (issue #1210) — at
 **overview level only**, deliberately not a per-transaction cost ledger. It
 sums the fee and tax **legs** riding any transaction plus the standalone fee
 and tax bookings, and nets tax refunds against taxes; it never sums gross

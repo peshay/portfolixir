@@ -1898,7 +1898,11 @@ Example account payloads:
   the answer echoes the applied `limit`.
 - `GET /api/v1/costs` (issue #726) returns the Costs roll-up: fees and taxes
   across all portfolios at **overview level only**, per year and month with
-  yearly fee, tax and combined totals. The series sums the fee and tax
+  yearly fee, tax and combined totals. Since issue #1210 every month carries
+  its own `total` beside `fees` and `taxes` — that month's fees plus its
+  taxes, as Decimal strings (`{"fees": "5", "taxes": "1", "total": "6"}`) —
+  and `computation_basis.totals` states how a month's and a year's totals are
+  formed. The series sums the fee and tax
   **legs** riding any transaction plus the standalone `fee`/`tax` bookings,
   with `tax_refund` netted against taxes; gross amounts are never summed —
   a buy's gross **includes** its legs while a sell's is **net** of them, so
