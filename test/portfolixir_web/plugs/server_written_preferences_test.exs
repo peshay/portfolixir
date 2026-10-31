@@ -200,7 +200,7 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
 
     test "the Wealth page opens on the operator's default view, not on a planted one",
          %{own: own, planted: planted} do
-      :ok = Settings.set_default_view(own.id)
+      :ok = Settings.set_default_view(Actor.owner_ui(), own.id)
 
       conn =
         build_conn()
@@ -218,7 +218,7 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
     test "with a UI password, the logged-in operator's Wealth page is not scoped by a planted cookie",
          %{own: own, planted: planted} do
       with_ui_password()
-      :ok = Settings.set_default_view(own.id)
+      :ok = Settings.set_default_view(Actor.owner_ui(), own.id)
 
       conn =
         build_conn()
@@ -347,7 +347,7 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
     test "with a UI password, the logged-in operator's Wealth page opens on the default view",
          %{own: own} do
       with_ui_password()
-      :ok = Settings.set_default_view(own.id)
+      :ok = Settings.set_default_view(Actor.owner_ui(), own.id)
 
       conn =
         build_conn()
