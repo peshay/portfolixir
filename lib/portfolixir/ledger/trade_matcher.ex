@@ -31,7 +31,8 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   its own stored legs, which `Ledger` hands over as transaction data
   (`:legs`, `%{currency => %{unit_price, fees, taxes}}`), never through a
   rate looked up. A lot with no leg in the sell's currency makes the trade
-  unavailable (point 3): it keeps the sell's own figures, `nil` for every
+  unavailable (point 3), and so does a lot or a sell priced in a third
+  currency (`:third_currency`), even where the two share it: it keeps the sell's own figures, `nil` for every
   figure derived from the lots, `unavailable_reason: :missing_settlement_leg`
   and `lots_missing_leg` (each such lot's open date and booking currency).
   A trade whose sell and lots share one currency computes exactly as before
@@ -63,6 +64,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
           optional(:taxes) => Decimal.t(),
           optional(:currency_code) => String.t(),
           optional(:legs) => %{optional(String.t()) => map()},
+          optional(:third_currency) => boolean(),
           optional(:split_ratio_numerator) => pos_integer(),
           optional(:split_ratio_denominator) => pos_integer()
         }
@@ -119,6 +121,8 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       # #1198: the lot in each other currency its stored legs reach, per
       # share with its fees and taxes in that currency (`Ledger`).
       legs: Map.get(tx, :legs, %{}),
+      # Point 3: a lot priced in a third currency enters no closed trade.
+      third_currency: Map.get(tx, :third_currency, false),
       # The portfolio that bought the lot; a split scales the lot whatever
       # it is (K09).
       portfolio_id: Map.get(tx, :portfolio_id)
@@ -237,7 +241,14 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   defp finalize_sell(state, tx, consumed_lots, _remaining_after_orphan) do
     consumed = Enum.reverse(consumed_lots)
     currency = Map.get(tx, :currency_code)
-    entered = Enum.map(consumed, &enter(&1, currency))
+
+    # Point 3: a sell priced in a third currency carries its fees in its
+    # account's currency, which no leg converts into its price's, so no lot
+    # it closes enters it.
+    entered =
+      if Map.get(tx, :third_currency, false),
+        do: Enum.map(consumed, &{:missing, &1}),
+        else: Enum.map(consumed, &enter(&1, currency))
 
     trade =
       case Enum.reject(entered, &match?({:ok, _lot}, &1)) do
@@ -255,7 +266,11 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   # sell's currency as booked where it is booked in it, so a one-currency
   # trade computes exactly as before (point 4); otherwise through its own
   # stored leg in that currency, its price per share and its fees and taxes
-  # replaced by the leg's, or not at all (point 3).
+  # replaced by the leg's, or not at all (point 3). A lot priced in a third
+  # currency enters not at all, even a sell in that currency: its fees are
+  # in its account's currency (point 3 ahead of point 4, the note of
+  # 2026-10-31).
+  defp enter(%{third_currency: true} = lot, _currency), do: {:missing, lot}
   defp enter(%{currency_code: currency} = lot, currency), do: {:ok, lot}
 
   defp enter(lot, currency) do

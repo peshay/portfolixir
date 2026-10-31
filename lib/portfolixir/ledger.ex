@@ -1023,9 +1023,27 @@ defmodule Portfolixir.Ledger do
       settlement_currency: matcher_settlement_currency(tx, security_currency),
       # #1198 (the ADR-0015 amendment of 2026-10-09, point 2): the row in the
       # other currency its own stored legs reach, for a sell in that currency.
-      legs: matcher_legs(tx, security_currency)
+      legs: matcher_legs(tx, security_currency),
+      # Point 3: a buy or sell priced in neither its security's currency nor
+      # its account's, a row stored before #1199's refusal. Its fees are in
+      # its account's currency and no leg converts them into its price's, so
+      # a closed trade it is part of is unavailable.
+      third_currency: third_currency?(tx, security_currency)
     }
   end
+
+  defp third_currency?(%Transaction{type: type} = tx, security_currency)
+       when type in ["buy", "sell"] and is_binary(security_currency) do
+    case tx.cash_account do
+      %CashAccount{currency_code: account} when is_binary(account) ->
+        tx.currency_code not in [security_currency, account]
+
+      _no_account ->
+        false
+    end
+  end
+
+  defp third_currency?(_tx, _security_currency), do: false
 
   # The one other currency a buy or sell's own stored legs reach, per share
   # with its fees and taxes in that currency, as `%{currency => leg}`, or
@@ -1164,9 +1182,11 @@ defmodule Portfolixir.Ledger do
       "lot or a sell priced in a third currency, a lot booked in another account's currency " <>
       "than the sell's), makes the closed trade unavailable: unavailable_reason " <>
       "missing_settlement_leg, lots_missing_leg names each such lot by its open_date and " <>
-      "currency_code, the sell's own figures stay (quantity, dates, avg_sell_price, " <>
+      "currency_code (a sell priced in a third currency names every lot it closes), the " <>
+      "sell's own figures stay (quantity, dates, avg_sell_price, " <>
       "sell_fees, sell_taxes, proceeds), every figure derived from the lots is null, and the " <>
-      "trade is in no total. A trade whose sell and lots are booked in one currency reads " <>
+      "trade is in no total. A trade whose sell and lots are booked in one currency, not a " <>
+      "third, reads " <>
       "them as booked, so buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and " <>
       "realized_pnl_abs are all in currency_code for every available trade. An imported " <>
       "lot's legs come from the EUR hub rate stored for its booking date (ADR-0033), not " <>
