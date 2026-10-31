@@ -2742,8 +2742,8 @@ defmodule Portfolixir.DocsTest do
   #
   # Acceptance criteria:
   # - The handbooks describe the reverse case (quotes near 1 beside bookings
-  #   near 100, 1/500 to 1/20) and that the security's own page does not
-  #   name it yet (#1112), the master-data signal on a security showing no
+  #   near 100, 1/500 to 1/20) and, since #1112 (Sprint 21 γ2), that the
+  #   security's own Overview names it too, the master-data signal on a security showing no
   #   class, that a bond stored as Equity needs its class set, the "no asset
   #   class" badge, the Overview line's catalog-wide two-scales count in the
   #   line's singular, and the inference's whole-word rule with its
@@ -2761,7 +2761,7 @@ defmodule Portfolixir.DocsTest do
              "**Which securities the guard reads.**",
              "shows **no** asset class (none set, none inferred) and carries bond master data: a maturity or a coupon",
              "set its class to Bond (or Government bond)",
-             "does not name the reverse case yet (#1112)",
+             "The security's own Overview names it too",
              "marked *no asset class*",
              "one bond priced on two scales",
              "is catalog-wide on purpose",
@@ -2774,7 +2774,7 @@ defmodule Portfolixir.DocsTest do
              "**Welche Wertpapiere der Wächter liest.**",
              "wenn es **keine** Anlageklasse zeigt (keine gesetzte, keine abgeleitete) und Anleihe-Stammdaten trägt",
              "muss auf Anleihe (oder Staatsanleihe) gesetzt werden",
-             "nennt den umgekehrten Fall noch nicht (#1112)",
+             "Wertpapiers nennt ihn ebenfalls",
              "*ohne Anlageklasse* markiert",
              "eine Anleihe auf zwei Skalen bepreist",
              "umfasst mit Absicht den ganzen Katalog",
