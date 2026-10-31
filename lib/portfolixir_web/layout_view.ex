@@ -913,7 +913,9 @@ defmodule PortfolixirWeb.LayoutView do
 
                 var idx = this.nearestIndex(payload.points, pointerSvgX);
                 var point = payload.points[idx];
-                var iso = point[0];
+                // #1163: the display date the server sent (points[i][4]);
+                // the ISO date at [0] stays for the zoom.
+                var shownDate = point[4] || point[0];
                 var close = point[1];
                 var px = point[2];
                 var py = point[3];
@@ -929,7 +931,7 @@ defmodule PortfolixirWeb.LayoutView do
                 this.crosshair.hidden = false;
 
                 var tx = this.transactionAt(payload.txs, px);
-                this.renderTooltip(iso, close, payload.currency, tx);
+                this.renderTooltip(shownDate, close, payload.currency, payload.mode, tx);
 
                 this.positionTooltip(cssX, cssY, frameRect.width);
               },
@@ -952,7 +954,7 @@ defmodule PortfolixirWeb.LayoutView do
                 }
                 return null;
               },
-              renderTooltip: function (iso, close, currency, tx) {
+              renderTooltip: function (shownDate, close, currency, mode, tx) {
                 // Built through the DOM API (#770): every value is text, never markup.
                 var tooltip = this.tooltip;
                 tooltip.textContent = "";
@@ -962,12 +964,15 @@ defmodule PortfolixirWeb.LayoutView do
                   node.textContent = text;
                   tooltip.appendChild(node);
                 };
-                line("chart-tooltip__date", String(iso));
-                line("chart-tooltip__price", String(close) + (currency ? " " + currency : ""));
+                // #1163: every string is the server's display string in the
+                // page's language; a percent point carries no currency.
+                var suffix = currency && mode !== "percent" ? " " + currency : "";
+                line("chart-tooltip__date", String(shownDate));
+                line("chart-tooltip__price", String(close) + suffix);
                 if (tx) {
                   line(
                     "chart-tooltip__tx chart-tooltip__tx--" + String(tx.type).replace(/[^a-z_]/g, ""),
-                    tx.type + " " + tx.quantity + " @ " + tx.price
+                    String(tx.label)
                   );
                 }
                 tooltip.hidden = false;

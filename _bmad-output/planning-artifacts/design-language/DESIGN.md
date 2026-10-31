@@ -6317,8 +6317,23 @@ prescribed ISO for a date the page only shows (found while drawing 2).
   event states — a custom range on Wealth, a since chip, every detail tab,
   the accounts merge previews — and finds no `YYYY-MM-DD` in their visible
   text.
-- **One known exception:** the chart's hover tooltip still shows the ISO
-  date and a raw price; it is the hook's own rendering and is filed.
+- **The chart's tooltip and marker titles follow the rule too** *(issue
+  1163, Sprint 21, board `ux-design-2026-10-09/02-securities` ⑥; this
+  bullet was the rule's one known exception)*: they read the page's
+  language from display strings the server sends, and the raw values stay
+  for the zoom. A payload point is `[iso, display value, x, y, display
+  date]`: the ISO date stays first, because the zoom sends it back as the
+  custom range; the display value is a caller's `label` where one is given
+  (Wealth's and the snapshots' charts), else the percent view's signed
+  percent against the first close ("+10,4%"), else the close through
+  `Format.decimal(close, 2)` ("41,40"); the display date goes through
+  `Format.date` in the shared payload, so all three charts get it. A trade
+  keeps its raw quantity and price and carries `label`, "Kauf 12 zu 41,12
+  USD" (the kind's label, the quantity as stored, the price by the
+  history's stored-figure rule R10c, the booking's currency); the marker's
+  title reads "Kauf am 15.05.2026 zu 41,12 USD". The hook prints these
+  strings through `textContent` (#770), with no currency after a percent
+  point, and knows no locale.
 
 ### The chart axes *(issue 1088; pick J5 A)*
 

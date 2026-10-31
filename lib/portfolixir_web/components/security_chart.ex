@@ -31,6 +31,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.TransactionKindLabel
+  alias PortfolixirWeb.TransactionManagementLive
 
   @width 960
   @height 320
@@ -144,7 +146,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
           <% end %>
 
           <%= if @show_transactions? do %>
-            <%= for marker <- transaction_markers(@transactions, @geometry, @plot_left, @plot_top, @plot_right, @plot_bottom) do %>
+            <%= for marker <- transaction_markers(@transactions, @geometry, @currency_code, {@plot_left, @plot_top, @plot_right, @plot_bottom}) do %>
               <path class={"tx-marker tx-#{marker.type}"} d={marker.d}>
                 <title><%= marker.label %></title>
               </path>
@@ -178,12 +180,18 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> point_coords(x0, y0, x1, y1)
       |> Enum.zip(geometry.quotes)
       |> Enum.map(fn {{x, y}, {q, _idx}} ->
-        [payload_date(q.date), point_display(q), round2(x), round2(y)]
+        [
+          payload_date(q.date),
+          point_display(q, geometry, assigns),
+          round2(x),
+          round2(y),
+          Format.date(q.date)
+        ]
       end)
 
     txs =
       if assigns.show_transactions? do
-        build_tx_payload(assigns.transactions, geometry, x0, y0, x1, y1)
+        build_tx_payload(assigns.transactions, geometry, assigns.currency_code, {x0, y0, x1, y1})
       else
         []
       end
@@ -197,8 +205,12 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     }
   end
 
-  # The hook's JSON keeps ISO: the zoom sends these dates back as the
-  # custom range, and the tooltip is the hook's own rendering.
+  # The hook's JSON keeps ISO at `points[i][0]` and on a trade: the zoom
+  # sends these dates back as the custom range. #1163 (board 02 ⑥): the
+  # tooltip reads the display strings beside them, `points[i][4]` and
+  # `txs[i].label`, built here in the page's language, so the hook knows no
+  # locale. Wealth's and the snapshots' charts share this payload and get
+  # the display date too.
   defp payload_date(date), do: Date.to_iso8601(date)
 
   defp payload_mode(%{percent_mode?: true}), do: "percent"
@@ -206,9 +218,28 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp payload_mode(_), do: "absolute"
 
   # The crosshair tooltip's display value: a quote's explicit `:label` wins
-  # (lets a caller show two series in one tooltip line), else the raw close.
-  defp point_display(%{label: label}) when is_binary(label), do: label
-  defp point_display(q), do: chart_decimal_string(q.close)
+  # (lets a caller show two series in one tooltip line). Else, #1163: the
+  # percent view prints the axis's signed percent against the first close
+  # ("+10,4%"), a percent series its value with one decimal, and a price
+  # series its close at two places, the Quotes table's and the pane head's
+  # form ("41,40").
+  defp point_display(%{label: label}, _geometry, _assigns) when is_binary(label), do: label
+
+  defp point_display(q, %{percent_mode?: true} = geometry, _assigns) do
+    first = chart_decimal(List.first(geometry.quotes) |> elem(0) |> Map.get(:close))
+    close = chart_decimal(q.close)
+
+    if first && close && not Decimal.equal?(first, 0) do
+      Format.signed_percent(Decimal.div(Decimal.sub(close, first), first)) <> "%"
+    else
+      "—"
+    end
+  end
+
+  defp point_display(q, _geometry, %{value_mode: :percent_values}),
+    do: Format.signed_decimal(chart_decimal(q.close), 1) <> "%"
+
+  defp point_display(q, _geometry, _assigns), do: Format.decimal(chart_decimal(q.close), 2)
 
   # The zero line (gain/loss boundary) on the raw value scale; only rendered
   # when 0 actually sits inside the padded range.
@@ -221,7 +252,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     format_coord(plot_bottom - (plot_bottom - plot_top) * fraction)
   end
 
-  defp build_tx_payload(transactions, geometry, x0, y0, x1, y1) do
+  defp build_tx_payload(transactions, geometry, currency_code, {x0, y0, x1, y1}) do
     plot_w = x1 - x0
     plot_h = y1 - y0
 
@@ -243,6 +274,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
             type: tx.type,
             quantity: chart_decimal_string(tx.quantity),
             price: chart_decimal_string(tx.price),
+            label: tx_line(tx, currency_code),
             x: round2(x),
             y: round2(y)
           }
@@ -402,7 +434,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     |> Float.to_string()
   end
 
-  defp transaction_markers(transactions, geometry, x0, y0, x1, y1) do
+  defp transaction_markers(transactions, geometry, currency_code, {x0, y0, x1, y1}) do
     plot_w = x1 - x0
     plot_h = y1 - y0
 
@@ -422,12 +454,37 @@ defmodule PortfolixirWeb.Components.SecurityChart do
           %{
             d: marker_path(tx.type, x, y),
             type: tx.type,
-            label: "#{tx.type} on #{Format.date(tx.date)} at #{chart_decimal_string(tx.price)}"
+            label: marker_title(tx, currency_code)
           }
         ]
       end
     end)
   end
+
+  # #1163 (board 02 ⑥): the trade line of the tooltip and the marker's
+  # title, in the page's language — the kind's label, the quantity as
+  # stored, the price by the history's stored-figure rule (R10c) and the
+  # booking's currency, else the chart's.
+  defp tx_line(tx, currency_code) do
+    gettext("%{kind} %{quantity} at %{price} %{currency}",
+      kind: TransactionKindLabel.label(tx.type),
+      quantity: Format.exact(chart_decimal(tx.quantity)),
+      price: TransactionManagementLive.stored_figure(chart_decimal(tx.price)),
+      currency: tx_currency(tx, currency_code)
+    )
+  end
+
+  defp marker_title(tx, currency_code) do
+    gettext("%{kind} on %{date} at %{price} %{currency}",
+      kind: TransactionKindLabel.label(tx.type),
+      date: Format.date(tx.date),
+      price: TransactionManagementLive.stored_figure(chart_decimal(tx.price)),
+      currency: tx_currency(tx, currency_code)
+    )
+  end
+
+  defp tx_currency(%{currency_code: code}, _chart) when is_binary(code) and code != "", do: code
+  defp tx_currency(_tx, chart), do: chart || ""
 
   defp trade_transaction?(%{type: type}), do: type in ["buy", "sell"]
   defp trade_transaction?(_), do: false

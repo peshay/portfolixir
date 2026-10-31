@@ -6092,7 +6092,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
     transactions =
       Enum.map(
         transaction_rows,
-        &%{date: &1.date, type: &1.type, price: &1.price, quantity: &1.quantity}
+        &%{
+          date: &1.date,
+          type: &1.type,
+          price: &1.price,
+          quantity: &1.quantity,
+          currency_code: &1.currency_code
+        }
       )
 
     metrics =
