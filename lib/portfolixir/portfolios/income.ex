@@ -11,6 +11,9 @@ defmodule Portfolixir.Portfolios.Income do
       yearly total per series, so the page can render a year × month grid;
     * a **per-position** table (security, gross, withheld tax, net, number of
       payments, last payment), so a maintainer sees which holding paid what;
+      an interest booking that names a security (a bond's coupon) is that
+      security's row, and the interest naming none shares the row without a
+      security (ADR-0051's amendment of 2026-10-09, #928);
     * the **per-transaction** detail, so a year can be drilled into.
 
   ## Gross / withheld tax / net
@@ -91,7 +94,7 @@ defmodule Portfolixir.Portfolios.Income do
 
   # K07: what no total could include, named as the costs facet names it —
   # by the currency it was read in — with the securities of each currency
-  # (an interest payment has none).
+  # (an interest payment naming none adds no name; a coupon names its bond).
   defp excluded(unconverted) do
     %{
       count: length(unconverted),

@@ -30,7 +30,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
       external flow gives it (its booked price, else the day's price, #779);
       a split and a transfer inside the scope `0`; a leg crossing a view's
       boundary the boundary flow the walk books for it (ADR-0019, §6);
-    * **income** — dividends as credited, at the booking day's rate;
+    * **income** — dividends, and the interest bookings that name the
+      position's security (a bond's coupon), each as credited, at the
+      booking day's rate (ADR-0051's amendment of 2026-10-09, #928);
     * **costs** — the fees and taxes carried by the position's own trades
       (#708's trade costs, kept per security), read in the currency of the
       trade's cash account (#1051), counted when the whole trade is inside
@@ -42,7 +44,8 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   The remainder lines (§3), each summed from its own bookings and **never a
   plug** (the result minus the positions):
 
-    * `interest` — every `interest` booking;
+    * `interest` — the `interest` bookings that name no security: account
+      interest, and every coupon stored without its bond;
     * `standalone_fees_and_taxes` — `fee`, `tax` and `tax_refund` bookings,
       even when one names a security;
     * `cash_currency_effect` — the revaluation of cash balances in foreign
@@ -58,9 +61,10 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   afterwards is the currency effect on cash.
 
   Scoped to a view, a booking is read through the legs the walk keeps
-  (ADR-0019): a dividend credited to an in-view account is its security's
-  income even when the position sits outside the view (the view received
-  it); a trade whose cash leg is outside the view brings its units in at the
+  (ADR-0019): a dividend or a coupon credited to an in-view account is its
+  security's income even when the position sits outside the view (the view
+  received it), and one credited to an account outside the view is kept
+  nowhere; a trade whose cash leg is outside the view brings its units in at the
   cash they cost, fees included, as a boundary flow, so it carries no cost
   line of its own; a trade whose units leave the view only moves cash across
   the edge and is kept nowhere.
@@ -84,7 +88,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   the table is a derived value of its own (ADR-0039): the
   `:performance_contribution` analytic under the portfolio's basis, and
   `:performance_view_contribution` under the global basis for a view across
-  portfolios, computation version 1, lifetime `:request` by default, keyed
+  portfolios, computation version 4, lifetime `:request` by default, keyed
   by scope, walk end date and period. The stored walk analytics never carry
   the per-position figures.
   """
@@ -414,7 +418,10 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "path that day: its cash leg less its fees and taxes, which are its costs), a " <>
           "delivery ± the value the walk's external flow gives it, a split and a transfer " <>
           "inside the scope 0, and a leg crossing a view's edge as its boundary flow " <>
-          "(ADR-0019); income is the dividends as credited; costs are the fees and taxes " <>
+          "(ADR-0019); income is the dividends and the interest bookings that name the " <>
+          "position's security (a bond's coupon), each as credited, also when credited to " <>
+          "an in-scope account while the position sits outside the scope (ADR-0051, " <>
+          "amendment of 2026-10-09); costs are the fees and taxes " <>
           "on the position's own trades, read in the currency of the trade's cash account " <>
           "(#708, #1051), and count zero while that currency has no rate path to the base, " <>
           "as the account does (ADR-0010; the account is named under " <>
@@ -423,7 +430,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "The positions plus the remainder lines sum to totals.result, end value − start " <>
           "value − net external flows of the scope over the window, the money result " <>
           "beside the TTWROR (ADR-0051 §3). Each line is summed from its own bookings and " <>
-          "is never a plug: interest is every interest booking; standalone_fees_and_taxes " <>
+          "is never a plug: interest is the interest bookings that name no security " <>
+          "(account interest, and coupons stored without their bond); " <>
+          "standalone_fees_and_taxes " <>
           "the fee, tax and tax refund bookings no trade carries; cash_currency_effect the " <>
           "revaluation of foreign-currency cash, plus the settlement difference of a trade " <>
           "between its cash leg and price × quantity plus costs on the booking day, plus " <>

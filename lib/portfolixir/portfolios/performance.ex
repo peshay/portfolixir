@@ -2314,9 +2314,16 @@ defmodule Portfolixir.Portfolios.Performance do
     do:
       add_to_position(kept, tx.security_id, :income, total_add_cash_base(legs.cash, tx, context))
 
-  # Interest carries no security, a bond's coupon included (§3).
-  defp keep_internal(kept, "interest", tx, legs, context),
+  # An interest booking that names a security is that position's income as
+  # credited, at the booking day's rate, as a dividend is: a bond's coupon
+  # (ADR-0051's amendment of 2026-10-09, #928). One that names none, account
+  # interest or a coupon stored without its bond, is the interest line (§3).
+  defp keep_internal(kept, "interest", %{security_id: nil} = tx, legs, context),
     do: add_line(kept, :interest, total_add_cash_base(legs.cash, tx, context))
+
+  defp keep_internal(kept, "interest", tx, legs, context),
+    do:
+      add_to_position(kept, tx.security_id, :income, total_add_cash_base(legs.cash, tx, context))
 
   # Fees and taxes no trade carries, even when one names a security: #708's
   # definition of a standalone cost (§3).

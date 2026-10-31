@@ -68,8 +68,12 @@ defmodule Portfolixir.Derived.Registry do
     # v3 (2026-10-08, #1154, Sprint 20 γ): every row carries the security's
     # `wkn`, which tells twins without an ISIN apart on the screen's table; a
     # v2 payload lacks it, and its rows would fall through to the number.
-    performance_contribution: %{computation_version: 3, default_lifetime: :request},
-    performance_view_contribution: %{computation_version: 3, default_lifetime: :request},
+    # v4 (Sprint 21 α4, #928, ADR-0051's amendment of 2026-10-09): an
+    # interest booking that names a security is that position's income, and
+    # the interest line holds only the interest naming none; a v3 table puts
+    # every coupon in the interest line.
+    performance_contribution: %{computation_version: 4, default_lifetime: :request},
+    performance_view_contribution: %{computation_version: 4, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
