@@ -66,8 +66,9 @@ defmodule PortfolixirWeb.LiveIdRange do
   end
 
   # The path params of the route this URL matches, as the router reads them.
+  # The path is already local (`local_path/1` answers "/" for an empty one).
   defp path_params(router, uri) do
-    case Phoenix.Router.route_info(router, "GET", uri.path || "/", uri.host) do
+    case Phoenix.Router.route_info(router, "GET", uri.path, uri.host) do
       %{path_params: path_params} -> path_params
       :error -> %{}
     end
