@@ -4195,9 +4195,9 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   jeder Diagrammbreite eine Größe, 9 px; in einem schmalen Diagramm (bis
   etwa 760 px, wie auf dem Telefon) oder wo ein Wert breiter ist als der
   Platz neben dem Diagramm, stehen die Werte im Diagramm auf ihren
-  Gitterlinien. Die eine Ausnahme von der Sprache der Seite ist die Anzeige
-  beim Überfahren des Diagramms: Sie zeigt das Datum noch in ISO-Form und
-  den Kurs unformatiert.
+  Gitterlinien. Auch die Anzeige beim Überfahren des Diagramms und seine
+  Handelsmarker folgen der Sprache der Seite: das Datum, der Kurs mit seiner
+  Währung und ein Handel als „Kauf 12 zu 41,12 USD“ (#1163).
 - Zahlenfelder (Stückzahl, Preis, Gebühren und Steuern, Abrechnungsbetrag und
   Kurs, die Grenze einer Regel, die Zahlen unter Steuern, ein Kontosaldo)
   zeigen und lesen Zahlen in der Sprache der Seite: auf einer deutschen Seite
