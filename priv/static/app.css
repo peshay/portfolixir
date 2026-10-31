@@ -9144,10 +9144,13 @@ dialog.booking-drawer {
   /* α6 (board 03, found while drawing 4): a cash form or a buy with its
      costs open grows past the sheet's 88vh, so the foot stays at the
      sheet's bottom edge while the fields scroll above it. Its own bottom
-     padding takes the sheet's, so the last scroll ends as before. */
+     padding takes the sheet's, so the last scroll ends as before. The
+     sticky edge is the sheet's padding edge, 16 px above the sheet's own,
+     so `bottom` takes that padding back: the foot sits on the edge and
+     nothing scrolls visibly under its buttons (the α closing act, 390 px). */
   .booking-drawer__foot {
     position: sticky;
-    bottom: 0;
+    bottom: calc(-16px - env(safe-area-inset-bottom, 0px));
     padding: var(--space-2) 0 calc(16px + env(safe-area-inset-bottom, 0px));
     margin-bottom: calc(-16px - env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--color-border);

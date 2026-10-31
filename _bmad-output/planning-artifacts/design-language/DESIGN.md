@@ -6926,7 +6926,11 @@ kinds the drawer does not book").
   buy with its costs open) is taller than the 88 vh sheet, so
   `.booking-drawer__foot` is sticky at the sheet's bottom edge on the
   sheet's background, with a hairline above it, while the fields scroll
-  (board 03, found while drawing 4).
+  (board 03, found while drawing 4). *Amended 2026-10-31 (#1052, #1206):*
+  on the edge itself — its `bottom` is `calc(-16px - env(safe-area-inset-
+  bottom, 0px))`, the sheet's bottom padding taken back, since the sticky
+  edge is the padding edge; at `bottom: 0` it stopped 16 px above the edge
+  at 390 px, and the help line and „Löschen…“ scrolled visibly under it.
 - **The notes-only drawer now serves** a cash transfer, the deliveries, a
   security transfer, the balance snapshot, the split, and a cash kind
   stored in another currency than its account's (an API booking with its
@@ -7021,7 +7025,8 @@ they already have (UX-DR25 clauses 1 and 2).
   strings, last row)*: „… Das Nachladen holt die historische EZB-Reihe
   einmalig, speichert jeden veröffentlichten Tag und leitet daraus die
   Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; ein Tag, den
-  die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.“ The figures and the card's
+  die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.“ The figures and
+  the card's
   basis line count only the trades shown. No figure of the unavailable trade
   is converted. *Amended 2026-10-31 (#1198):* a name list that ends the
   sentence and whose last name ends in a full stop („Arbolia Inc.“) ends it
