@@ -286,12 +286,21 @@ defmodule Portfolixir.Ledger.Splits do
     end
   end
 
-  # A security merged away under the delete took the anchor along: it is
-  # gone with it.
-  defp lock_anchored_rows(repo, %Transaction{id: id} = anchor) do
+  # A security merged away while the delete waited for its lock is gone, but
+  # the merge moved its split rows onto the surviving security (H60): the
+  # anchor is read again by id and its event locked once more, on the
+  # security it names now. A second miss, or an anchor gone by then, is gone.
+  defp lock_anchored_rows(repo, %Transaction{id: id} = anchor, retry? \\ true) do
     case lock_event(repo, anchor.security_id) do
       {:error, :security_not_found} ->
-        {:error, :not_found}
+        case retry? && repo.get(Transaction, id) do
+          %Transaction{type: "split", security_id: moved_to} = moved
+          when moved_to != anchor.security_id ->
+            lock_anchored_rows(repo, moved, false)
+
+          _gone ->
+            {:error, :not_found}
+        end
 
       {:ok, :locked} ->
         locked =
