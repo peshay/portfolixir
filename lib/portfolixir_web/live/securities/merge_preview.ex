@@ -1425,12 +1425,15 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   # The stored values a reason names by kind. `subject` is the security the
   # guard speaks of as its source, as in `reason/4`.
-  defp value_lines(%{code: :identity_unresolvable} = guard, subject, other, _direction) do
+  # The label names the side on this page: on the reverse direction the
+  # guard's source is the page's target, so the side is swapped back.
+  defp value_lines(%{code: :identity_unresolvable} = guard, subject, other, direction) do
     for failure <- unresolvable_refs(guard) do
       {kind, value, mono?} = identifier(failure)
+      side = failure.security_id |> side(subject, other) |> page_side(direction)
 
       %{
-        kind: kind_label(kind, side(failure.security_id, subject, other), failure.identity),
+        kind: kind_label(kind, side, failure.identity),
         value: value,
         mono: mono?,
         extra: currency_extra(kind, failure.ref)
@@ -1464,6 +1467,9 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp side(id, %{id: id}, _other), do: :source
   defp side(id, _subject, %{id: id}), do: :target
   defp side(_id, _subject, _other), do: :earlier
+
+  defp page_side(:earlier, _direction), do: :earlier
+  defp page_side(side, direction), do: swap(side, direction)
 
   # The identifier an identity resolves by first: ISIN, WKN, ticker, name.
   defp identifier(%{identity: :former_isin, ref: ref}), do: {:former_isin, ref.isin, true}
