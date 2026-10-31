@@ -108,7 +108,7 @@ msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:46
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:390
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1305
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1311
 #: lib/portfolixir_web/live/portfolio_live.ex:2684
 #: lib/portfolixir_web/live/securities_live.ex:2033
 #: lib/portfolixir_web/live/securities_live.ex:2725
@@ -1946,7 +1946,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:121
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:428
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:972
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:978
 #: lib/portfolixir_web/live/portfolio_live.ex:2553
 #: lib/portfolixir_web/live/transaction_management_live.ex:357
 #: lib/portfolixir_web/live/transaction_management_live.ex:490
@@ -2024,7 +2024,7 @@ msgstr ""
 msgid "Built-in classifications cannot be edited"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:997
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1003
 #, elixir-autogen, elixir-format
 msgid "Cash account updated"
 msgstr ""
@@ -2069,32 +2069,32 @@ msgstr ""
 msgid "Color"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1000
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1006
 #, elixir-autogen, elixir-format
 msgid "Could not update cash account"
 msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:79
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:749
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:750
 #, elixir-autogen, elixir-format
 msgid "Liquidity role"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:846
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:754
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:755
 #, elixir-autogen, elixir-format
 msgid "Free cash"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:847
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:757
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:758
 #, elixir-autogen, elixir-format
 msgid "Credit line"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:848
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:760
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:761
 #, elixir-autogen, elixir-format
 msgid "Reserve"
 msgstr ""
@@ -2546,8 +2546,8 @@ msgid "Active view"
 msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:237
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:839
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:840
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:849
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:850
 #, elixir-autogen, elixir-format
 msgid "Add bucket"
 msgstr ""
@@ -2584,6 +2584,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:200
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:123
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:812
 #: lib/portfolixir_web/live/securities_live.ex:2849
 #: lib/portfolixir_web/live/securities_live.ex:2889
 #, elixir-autogen, elixir-format
@@ -2693,7 +2694,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:676
 #: lib/portfolixir_web/live/buckets_live.ex:814
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1455
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1461
 #: lib/portfolixir_web/live/securities_live.ex:5256
 #, elixir-autogen, elixir-format
 msgid "That bucket no longer exists. Refresh and try again."
@@ -2704,7 +2705,7 @@ msgstr ""
 msgid "The bucket could not be deleted. Nothing was changed."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1451
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1457
 #, elixir-autogen, elixir-format
 msgid "That account no longer exists. Refresh and try again."
 msgstr ""
@@ -3043,7 +3044,7 @@ msgid "History"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:278
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1638
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1644
 #, elixir-autogen, elixir-format
 msgid "Import"
 msgstr ""
@@ -3255,7 +3256,7 @@ msgstr ""
 msgid "the view's current bucket membership is applied to the whole history."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1637
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1643
 #, elixir-autogen, elixir-format
 msgid "API"
 msgstr ""
@@ -3298,7 +3299,7 @@ msgstr ""
 msgid "Portfolio records (compatibility)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1639
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1645
 #, elixir-autogen, elixir-format
 msgid "Seeded"
 msgstr ""
@@ -3308,7 +3309,7 @@ msgstr ""
 msgid "Setup counts"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1636
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1642
 #, elixir-autogen, elixir-format
 msgid "UI"
 msgstr ""
@@ -3359,7 +3360,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:135
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:389
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:256
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1306
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1312
 #: lib/portfolixir_web/live/transaction_management_live.ex:2289
 #: lib/portfolixir_web/live/transaction_management_live.ex:2330
 #: lib/portfolixir_web/live/transaction_management_live.ex:2891
@@ -3387,7 +3388,7 @@ msgstr ""
 msgid "Create depot & account"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:896
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:902
 #, elixir-autogen, elixir-format
 msgid "Create tag"
 msgstr ""
@@ -3437,8 +3438,8 @@ msgstr ""
 msgid "New depot with cash account"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:893
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:894
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:899
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:900
 #, elixir-autogen, elixir-format
 msgid "New tag"
 msgstr ""
@@ -3458,13 +3459,13 @@ msgstr ""
 msgid "Only one scope bucket per account — pick at most one."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1446
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1452
 #, elixir-autogen, elixir-format
 msgid "Only one scope bucket per account — remove its current scope bucket first."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:925
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:926
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:931
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:932
 #, elixir-autogen, elixir-format
 msgid "Remove bucket %{name}"
 msgstr ""
@@ -3585,7 +3586,7 @@ msgid "September"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:324
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1164
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1170
 #, elixir-autogen, elixir-format
 msgid "That name belongs to a scope bucket — pick a different tag name."
 msgstr ""
@@ -3611,7 +3612,7 @@ msgstr ""
 msgid "matches no accounts"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1609
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1615
 #, elixir-autogen, elixir-format
 msgid "Applies to depot and cash account"
 msgstr ""
@@ -6413,7 +6414,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:202
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:719
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:720
 #, elixir-autogen, elixir-format
 msgid "About buckets"
 msgstr ""
@@ -6930,17 +6931,17 @@ msgstr ""
 msgid "Open"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1611
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1617
 #, elixir-autogen, elixir-format
 msgid "Applies to the cash account"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1610
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1616
 #, elixir-autogen, elixir-format
 msgid "Applies to the depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:805
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:815
 #, elixir-autogen, elixir-format
 msgid "No bucket"
 msgstr ""
@@ -7326,14 +7327,14 @@ msgid_plural "highest of %{count} pairs · 1 year"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:830
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:840
 #, elixir-autogen, elixir-format
 msgid "+%{count} more"
 msgid_plural "+%{count} more"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:827
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:837
 #, elixir-autogen, elixir-format
 msgid "Show fewer"
 msgstr ""
@@ -7991,43 +7992,43 @@ msgstr ""
 msgid "Merge into…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1329
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1335
 #, elixir-autogen, elixir-format
 msgid "Delete “%{name}”? The account has no bookings and no linked depot."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1336
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1342
 #, elixir-autogen, elixir-format
 msgid "Delete “%{name}”? The depot has no bookings."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1340
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1346
 #, elixir-autogen, elixir-format
 msgid "Its bucket assignments are removed with it."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1361
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1367
 #: lib/portfolixir_web/reference_counts.ex:56
 #, elixir-autogen, elixir-format
 msgid "%{first} and %{second}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1362
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1368
 #, elixir-autogen, elixir-format
 msgid "references"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1365
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1371
 #, elixir-autogen, elixir-format
 msgid "“%{name}” still has %{references} — merge it first."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1372
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1378
 #, elixir-autogen, elixir-format
 msgid "A merge moves the bookings and the depot into an account of the same currency, liquidity role and buckets; the name stays there as a former name."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1378
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1384
 #, elixir-autogen, elixir-format
 msgid "A merge moves the bookings into a depot with the same default buckets; the name stays there as a former name."
 msgstr ""
@@ -8496,7 +8497,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:2629
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:509
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1347
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1353
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:666
 #: lib/portfolixir_web/live/securities/merge_preview.ex:156
 #: lib/portfolixir_web/reference_counts.ex:70
@@ -8506,7 +8507,7 @@ msgid_plural "%{count} bookings"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1349
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1355
 #, elixir-autogen, elixir-format
 msgid "%{count} linked depot (%{names})"
 msgid_plural "%{count} linked depots (%{names})"
@@ -9796,7 +9797,7 @@ msgstr ""
 msgid "The file is not valid JSON. Remedy: export it again from Portfolio Performance."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1268
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1274
 #: lib/portfolixir_web/live/securities_live.ex:6384
 #, elixir-autogen, elixir-format
 msgid "%{name} changed while it was being deleted; nothing was deleted. Try again."
@@ -11672,12 +11673,12 @@ msgstr ""
 msgid "A split with a different ratio is already booked for this security on this date. Booking will be rejected, and the preview shows no quantity after it — delete the existing event first if it is wrong."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:718
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:719
 #, elixir-autogen, elixir-format
 msgid "About the liquidity role"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:729
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:730
 #, elixir-autogen, elixir-format
 msgid "Buckets — tags on depots and cash accounts. A view picks buckets and narrows every figure to their accounts; an account can carry several."
 msgstr ""
@@ -11709,7 +11710,7 @@ msgid_plural "Last known: %{ttwror}% year to date — %{count} bookings through 
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:723
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:724
 #, elixir-autogen, elixir-format
 msgid "Liquidity role — how a cash account counts: free cash enters the cash quote; reserve and credit line do not."
 msgstr ""
@@ -12262,17 +12263,17 @@ msgstr ""
 msgid "That transaction changed while it was being saved, so nothing was saved. Try again."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1312
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1318
 #, elixir-autogen, elixir-format
 msgid "Delete “%{name}”? If the account still has bookings or a linked depot, the deletion is refused and nothing changes."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1319
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1325
 #, elixir-autogen, elixir-format
 msgid "Delete “%{name}”? If the depot still has bookings, the deletion is refused and nothing changes."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1259
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:1265
 #, elixir-autogen, elixir-format
 msgid "“%{name}” deleted."
 msgstr ""

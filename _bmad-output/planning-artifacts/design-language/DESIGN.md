@@ -276,7 +276,7 @@ components:
     scope: 'a sub-line under the chips saying what the set applies to — depot and cash account, the depot, or the cash account — readable without interacting; it replaces the "Both" micro-label whose meaning lived in a title attribute (issue 806, variant A)'
     actions: 'row actions behind the kebab of the Tables pattern, never as a fourth control in the cell: "Tag separately" sits there'
     card: 'the accounts table becomes the phone''s card wherever its wrapper is narrower than 840px — a container query on the wrapper (`container: accounts / inline-size`, `@container accounts (width < 840px)`), not a viewport breakpoint, so the sidebar''s 220, 72 or 0 px never cuts the table. The bound: 618px of columns that do not depend on the data (Currency 80, the role with its ⓘ 155, Balance 121, Buckets 220, the kebab 42) and the Name column''s 13.5rem (216px) floor make 834px, and a seven-digit balance adds 4px. A longer name breaks inside its cell (`overflow-wrap: anywhere`), so no stored name moves the bound; the wrapper stays `overflow: visible`, so the bucket picker still escapes it. The amount and "Set balance" never wrap (`white-space: nowrap`). Added 2026-10-31, issue 1145, pick N15 = A of board ux-design-2026-10-09/05-accounts'
-    role: 'the Liquidity role select carries its label visually-hidden only where the table shows its head (`@container accounts (width >= 840px)`, the complement of the card''s query; above 640 px until 2026-10-31) — the column head states it once for the whole table; in the card the head is hidden too, so the label shows beside the select (`.liquidity-role-field__label`, {typography.control-label} size at 11px, weight 600, {colors.text-muted}) with the role''s ⓘ beside the word (amended 2026-10-07, issue 1085, board ux-design-2026-10-04/07-floor rule ⑦)'
+    role: 'the Liquidity role select carries its label visually-hidden only where the table shows its head (`@container accounts (width >= 840px)`, the complement of the card''s query; above 640 px until 2026-10-31) — the column head states it once for the whole table; in the card the head is hidden too, so the label shows beside the select (`.liquidity-role-field__label`, {typography.control-label} size at 11px, weight 600, {colors.text-muted}) with the role''s ⓘ beside the word (amended 2026-10-07, issue 1085, board ux-design-2026-10-04/07-floor rule ⑦). The card names the bucket cell the same way: `.bucket-chip-group__label` opens each chip group with the head''s word "Buckets" and the Buckets ⓘ beside it, in the role label''s voice (11px, weight 600, {colors.text-muted}), shown only where the head is hidden (`display: none` beside it); the scope line keeps its sentence only (amended 2026-10-31, issue 1162, pick N16 = A of board ux-design-2026-10-09/05-accounts)'
     target-size: 'under @media (pointer: coarse) the chip''s × and + are {spacing.touch-target} squares, and a chip holding a × gives up its block and right padding so the × fills its end (46px on touch), its corners the pill''s end (0 left, {rounded.full} right) and no shadow at any width; the role select and "Set balance" take {spacing.touch-target} min-height, and the role field keeps {spacing.3} between label, ⓘ and select so the ⓘ''s touch ring stays off the select. On the desktop the + is the 22px circle it declares (`min-height: 0`). Added 2026-10-07, issue 1085, rule ⑧, and the review of U5'
   security-metric-grid:
     placement: 'under the price chart on the securities detail chart tab, never on a tab of its own — a moving average means its distance to the price and its crossing with the other average, and separating the figures from the series makes both unreadable (issue 824, pick D1-A)'
@@ -5874,10 +5874,12 @@ units" (board 04) are other stories'.
   `white-space: nowrap`); the panel opens upward over the page head, and
   the Buckets panel, right of centre, grows leftward
   (`.metric-tooltip--end`) so it stays inside a 768 px page. **Under 640 px**
-  the head is hidden, so the same ⓘ rides in the rows
-  (`.accounts-term-info--phone`, hidden above 640 px): the role's beside
+  (since Sprint 21's N15 = A, in the card wherever the table's wrapper is
+  narrower than 840 px) the head is hidden, so the same ⓘ rides in the rows
+  (`.accounts-term-info--phone`, hidden beside the head): the role's beside
   each cash account's role control, the Buckets' after each chip group's
-  scope line, which became a `<div>` to hold it. There the panel is
+  scope line, which became a `<div>` to hold it (since N16 = A, beside the
+  card's own "Buckets" label that opens the chip group). There the panel is
   anchored to its cell and takes the card's width: an ⓘ two thirds across
   a 390 px card had no room for an 18rem panel on either side. The head's
   own two ⓘ take `display: none` there: the head is only visually hidden,
@@ -6394,7 +6396,19 @@ accent at 2 px (see "The view switcher's quiet controls" below).
   reaches 8 px past its circle, and with the 6 px gap it covered the
   select's left edge, where a tap opened the definition (measured after:
   the ring ends 4 px before the select). Front matter: `bucket-cell.role`.
-  The Buckets ⓘ keeps its place after the scope line, as board 08 draws it.
+  **The card names the bucket cell the same way** *(Sprint 21 pick N16 =
+  A, board `mockups/ux-design-2026-10-09/05-accounts` ②, issue 1162)*:
+  "Buckets ⓘ" opens each chip group (`.bucket-chip-group__label`, a
+  `<div>` because it holds the ⓘ's `<details>`; 11 px, 600,
+  {colors.text-muted}, the role label's voice), shown only where the head
+  is hidden and `display: none` beside it, where the head says it once. The
+  label is the head's own msgid; the ⓘ is the row copy that trailed the
+  scope line since board 08 and explained a word the card never showed.
+  The scope line keeps its sentence only. Measured at 390 px on a
+  27-letter cash account: the word at x 26–69 on the chips' line, its ⓘ
+  10 px after it; the cell 296 × 78 px. **Not built:** N16 B ("Buckets ·"
+  before the scope sentence, the ⓘ still 181 px after the word) and C (no
+  ⓘ on the card).
 - **The chips' 44 px** (⑧): under a coarse pointer the chip's × and + are
   44 × 44 (they were 24 × 24 and 32 × 34, the two sub-floor values UX-DR6's
   amendment 2 rejects), and a chip holding a × gives up its block and right

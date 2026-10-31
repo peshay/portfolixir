@@ -7583,6 +7583,15 @@ button.income-bar-label.is-active {
   font-size: 12px;
 }
 
+/* The card names the bucket cell (issue 1162, pick N16 = A of board
+   ux-design-2026-10-09/05-accounts): "Buckets" with its ⓘ beside the word,
+   in the role label's voice, where the head that names the column is
+   hidden. Beside the head it is not shown; the card's container query
+   below shows it. Rule ⑦ applied to the second term. */
+.bucket-chip-group__label {
+  display: none;
+}
+
 /* An empty set says so as a word rather than as an empty cell: "no bucket"
    is a state, and a blank cell reads as "not loaded". */
 .bucket-chip-group__empty {
@@ -7936,10 +7945,11 @@ button.income-bar-label.is-active {
     display: none;
   }
 
-  /* Issue 1090: the role's ⓘ beside its control, the Buckets ⓘ after the scope
-     line. Its panel is anchored to the cell, not to the ⓘ, and takes the
-     card's width: an ⓘ two thirds across a 390 px card had no room for an
-     18rem panel on either side. */
+  /* Issue 1090: the role's ⓘ beside its control, the Buckets ⓘ beside the
+     card's "Buckets" label (issue 1162; it trailed the scope line). Its
+     panel is anchored to the cell, not to the ⓘ, and takes the card's
+     width: an ⓘ two thirds across a 390 px card had no room for an 18rem
+     panel on either side. */
   .accounts-term-info--phone {
     display: inline-block;
   }
@@ -7970,6 +7980,17 @@ button.income-bar-label.is-active {
     position: static;
     min-width: 0;
     width: 100%;
+  }
+
+  /* Issue 1162 (N16 = A): the card opens each bucket cell with its name. */
+  .bucket-chip-group__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
   }
 }
 

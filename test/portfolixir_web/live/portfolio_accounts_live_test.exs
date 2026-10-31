@@ -639,7 +639,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     band = view |> element("#account-row-depot-#{depot.id}") |> render()
     assert band =~ ~s(rowspan="2")
     assert band =~ "pair-buckets-#{depot.id}"
-    refute band =~ ~s(class="bucket-chip-group__label")
+    # The "Both" micro-label (`.bucket-chip-group__label`, its meaning in a
+    # title attribute) is gone. Since #1162 (N16 = A) the class names the
+    # card's "Buckets" label, which holds the head's word and its ⓘ only.
+    refute band =~ ~r/>\s*Both\s*</
+    assert [label] = band |> Floki.parse_fragment!() |> Floki.find(".bucket-chip-group__label")
+    assert Floki.attribute([label], "title") == []
+    assert label |> Floki.text(deep: false) |> String.trim() == "Buckets"
     assert band =~ "Applies to depot and cash account"
     refute band =~ "Tag separately"
 

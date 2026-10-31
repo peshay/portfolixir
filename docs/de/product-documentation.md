@@ -767,8 +767,8 @@ kann, ohne sie anzufassen; eine leere Menge liest sich als *Kein Bucket*
 statt als leere Zelle. Der Spaltenkopf **Buckets** trägt ein ⓘ, das sagt,
 was ein Bucket ist — ein Tag für Depots und Verrechnungskonten, den eine
 Ansicht auswählt, um jede Kennzahl auf seine Konten einzugrenzen —; auf dem
-Telefon, wo der Kopf verborgen ist, folgt dasselbe ⓘ der Geltungszeile jeder
-Chip-Gruppe (Issue #1090). **Getrennt taggen** ist aus der Zelle in das
+Telefon, wo der Kopf verborgen ist, beginnt jede Chip-Gruppe mit dem Wort
+**Buckets** und demselben ⓘ daneben (Issues #1090, #1162). **Getrennt taggen** ist aus der Zelle in das
 **Kebab-Menü** der Zeile gewandert.
 Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
 zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der

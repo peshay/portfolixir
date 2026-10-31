@@ -702,8 +702,9 @@ the depot*, *applies to the cash account* — so a cell can be read without
 touching it, and an empty set reads as the words *no bucket* rather than as a
 blank cell. The **Buckets** column head carries an ⓘ that says what a
 bucket is — a tag on depots and cash accounts that a view picks to narrow
-every figure to its accounts — and on a phone, where the head is hidden, the
-same ⓘ follows each chip group's scope line (issue #1090). **Tag
+every figure to its accounts — and on a phone, where the head is hidden, each
+chip group opens with the word **Buckets** and the same ⓘ beside it (issues
+#1090, #1162). **Tag
 separately** moved out of the cell into the row's **kebab menu**, which
 splits the group so each side can be tagged on its own
 (differing sets always render split). At most four chips are shown per group — further chips

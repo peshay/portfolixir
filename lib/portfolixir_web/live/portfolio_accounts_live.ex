@@ -691,14 +691,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   attr(:term, :atom, required: true, values: [:liquidity_role, :buckets])
-  attr(:phone, :boolean, default: false, doc: "the row copy, shown only under 640 px")
+  attr(:phone, :boolean, default: false, doc: "the row copy, shown only in the card")
   attr(:class, :string, default: nil)
   attr(:rest, :global)
 
   # #1090 (board 08 ④): the ⓘ that defines a column's domain word — one
   # sentence, the method named (EXPERIENCE.md → Voice and Tone). On the head
-  # above 640 px; the `phone` copy rides in each row, where the head is
-  # hidden, and is hidden above it.
+  # where the table shows it; the `phone` copy rides in each row of the card,
+  # where the head is hidden (#1145: wherever the table's wrapper is narrower
+  # than 840 px), and is hidden beside the head.
   defp term_info(assigns) do
     ~H"""
     <details
@@ -801,6 +802,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
     ~H"""
     <div class="bucket-chip-group" id={"#{@owner}-buckets-#{@owner_id}"} data-role="bucket-chips">
+      <%!-- #1162 (pick N16 = A, board ux-design-2026-10-09/05-accounts):
+           the card hides the head, so it names the cell itself — the head's
+           word with the Buckets ⓘ beside it, as rule ⑦ names the role
+           select. Shown only in the card (`.bucket-chip-group__label`). A
+           <div>, not a <span>: it holds the ⓘ, a <details>, which phrasing
+           content cannot hold. --%>
+      <div class="bucket-chip-group__label" data-role="bucket-label">
+        <%= gettext("Buckets") %><.term_info term={:buckets} phone data-role="buckets-info" />
+      </div>
       <span :if={@assigned == []} class="bucket-chip-group__empty" data-role="bucket-empty">
         <%= gettext("No bucket") %>
       </span>
@@ -842,13 +852,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       <%!-- #806 (variant A): the scope is READABLE without interacting —
            which set this is and what it covers — instead of being a micro-
            label whose meaning lived in a title attribute. --%>
-      <%!-- A <div>, not a <span>: under 640 px it carries the Buckets ⓘ, a
-           <details>, which phrasing content cannot hold (#1090). --%>
-      <div class="bucket-chip-group__scope" data-role="bucket-scope"><%= @scope_line %><.term_info
-          term={:buckets}
-          phone
-          data-role="buckets-info"
-        /></div>
+      <%!-- The scope line keeps its sentence only: the Buckets ⓘ it carried
+           since #1090 opens the cell with its word (#1162). --%>
+      <div class="bucket-chip-group__scope" data-role="bucket-scope"><%= @scope_line %></div>
       <p :if={@error} class="bucket-inline-error" data-role="bucket-error" role="alert">
         <%= @error %>
       </p>
