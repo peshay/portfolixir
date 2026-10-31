@@ -128,9 +128,9 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     # One span holds the subject line, so a long name wraps inside the box
     # (the closing act, R8).
     assert has_element?(view, "#booking-delete-subject .phone-row__ids > span")
-    # The figure the history shows (quantity × price); the cash the
-    # booking moved, fees included, is the consequence sentence's.
-    assert subject =~ "-2,500.00 EUR"
+    # The figure the history shows: the cash the booking moved, its fee
+    # included (#1209, 40 × 62.50 + 4.90), as the balance moves.
+    assert subject =~ "-2,504.90 EUR"
     assert subject =~ "40 × 62.50"
 
     consequence =

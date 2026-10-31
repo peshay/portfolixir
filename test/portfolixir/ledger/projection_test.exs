@@ -392,4 +392,83 @@ defmodule Portfolixir.Ledger.ProjectionTest do
       assert Projection.intra_day_order(booking) < Projection.intra_day_order(snapshot)
     end
   end
+
+  # User story (#1209, Sprint 21 α11): As the operator reading the
+  # transaction history, I want a row's Betrag to be the cash its booking
+  # moved in its account, read from the same cash leg the balance folds, so
+  # that the column and the balance can never disagree.
+  #
+  # Acceptance criteria:
+  # - A buy without a gross amount: 20 × 48.20 + 1.00 fee is 965.00; a sell
+  #   without one: 5 × 60 − 1.00 − 0.50 is 298.50; a stored gross amount is
+  #   taken as it is.
+  # - A buy at price 0 is 0, unsigned; a balance snapshot is its stated
+  #   balance, sign kept; a delivery moves no cash and has none.
+  # - Every kind's figure is the magnitude of its own account's leg in
+  #   `effects/1`.
+  describe "cash_amount/1 (#1209)" do
+    test "a trade without a gross amount moves its cash, fees and taxes included" do
+      buy =
+        tx("buy", %{
+          cash_account_id: @cash,
+          securities_account_id: @depot,
+          security_id: @security,
+          quantity: dec("20"),
+          price: dec("48.20"),
+          fees: dec("1.00"),
+          taxes: dec("0")
+        })
+
+      sell =
+        tx("sell", %{
+          cash_account_id: @cash,
+          securities_account_id: @depot,
+          security_id: @security,
+          quantity: dec("5"),
+          price: dec("60"),
+          fees: dec("1.00"),
+          taxes: dec("0.50")
+        })
+
+      assert Decimal.equal?(Projection.cash_amount(buy), dec("965.00"))
+      assert Decimal.equal?(Projection.cash_amount(sell), dec("298.50"))
+
+      stored = %{buy | gross_amount: dec("806.00")}
+      assert Decimal.equal?(Projection.cash_amount(stored), dec("806.00"))
+    end
+
+    test "a zero is unsigned, a snapshot keeps its sign, a delivery has none" do
+      zero =
+        tx("buy", %{
+          cash_account_id: @cash,
+          securities_account_id: @depot,
+          security_id: @security,
+          quantity: dec("1"),
+          price: dec("0")
+        })
+
+      assert Decimal.to_string(Projection.cash_amount(zero)) == "0"
+
+      overdraft = tx("balance_adjustment", %{cash_account_id: @cash, gross_amount: dec("-12.50")})
+      assert Decimal.equal?(Projection.cash_amount(overdraft), dec("-12.50"))
+
+      assert Projection.cash_amount(representative("inbound_delivery")) == nil
+      assert Projection.cash_amount(representative("split")) == nil
+    end
+
+    test "every kind's figure is the magnitude of its own account's leg" do
+      for kind <- Transaction.kinds(), kind != "balance_adjustment" do
+        transaction = representative(kind)
+
+        case Projection.effects(transaction).cash do
+          [] ->
+            assert Projection.cash_amount(transaction) == nil
+
+          [{account_id, {:add, delta}} | _rest] ->
+            assert account_id == transaction.cash_account_id
+            assert Decimal.equal?(Projection.cash_amount(transaction), Decimal.abs(delta))
+        end
+      end
+    end
+  end
 end

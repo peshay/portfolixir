@@ -147,6 +147,24 @@ defmodule Portfolixir.Ledger.Projection do
 
   defp effect(parts), do: Map.merge(%{cash: [], quantities: [], external: false}, Map.new(parts))
 
+  @doc """
+  The cash a booking moves on its own cash account (#1209): the magnitude of
+  the first cash leg `effects/1` gives it, in that account's currency, so a
+  buy's fees and taxes are in it and a sell's are out of it whichever route
+  stored the row. A balance snapshot gives the balance it states, sign kept.
+  `nil` for a kind with no cash leg (a delivery, a security transfer, a
+  split). The transaction history's Betrag and its summary read this, so
+  their sum over one account is that account's balance change.
+  """
+  @spec cash_amount(map()) :: Decimal.t() | nil
+  def cash_amount(tx) do
+    case effects(tx).cash do
+      [{_account_id, {:add, delta}} | _rest] -> Decimal.abs(delta)
+      [{_account_id, {:set, absolute}} | _rest] -> absolute
+      [] -> nil
+    end
+  end
+
   # A row carrying every field any kind reads, so each clause of `effects/1`
   # can project it. Only its shape matters: one share of `:probe_security`.
   @probe %{

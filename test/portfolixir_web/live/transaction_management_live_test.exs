@@ -944,7 +944,8 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
       basis = view |> element("#transaction-summary [data-role='summary-basis']") |> render()
       # Named content, not an urgency or a bare number (UX-DR21).
-      assert basis =~ "gross"
+      # The cash moved, the figure the Betrag shows (#1209).
+      assert basis =~ "cash moved"
       assert basis =~ "currency"
     end
 

@@ -291,7 +291,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 </span>
               <% end %>
               <p class="summary-basis" data-role="summary-basis">
-                <%= gettext("Counts and gross booked amounts of the transactions this filter selects, summed per currency and not converted.") %>
+                <%= gettext("Counts and the cash moved per kind of the transactions this filter selects, summed per currency, unsigned and not converted.") %>
               </p>
             </div>
 
@@ -1520,18 +1520,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> Enum.sort_by(& &1.currency)
   end
 
+  # The same figure the Betrag cell shows (#1209), unsigned: a kind's sum is
+  # the cash its bookings moved.
   defp sum_amount(transactions) do
     Enum.reduce(transactions, Decimal.new(0), fn tx, acc ->
-      Decimal.add(acc, tx_amount(tx))
+      Decimal.add(acc, tx_money(tx) || Decimal.new(0))
     end)
   end
-
-  defp tx_amount(%{gross_amount: %Decimal{} = gross}), do: gross
-
-  defp tx_amount(%{quantity: %Decimal{} = qty, price: %Decimal{} = price}),
-    do: Decimal.mult(qty, price)
-
-  defp tx_amount(_tx), do: Decimal.new(0)
 
   # The distinct types / securities actually present in the history drive the
   # filter dropdowns, so the controls never offer a value that matches nothing.
@@ -1815,27 +1810,43 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def plural_count(%Decimal{} = quantity),
     do: if(Decimal.equal?(quantity, 1), do: 1, else: 2)
 
-  # The booking's money on the same basis as the summary's sums (the stored
-  # gross amount, else quantity × price); a split or a transfer without a
-  # price has none.
-  # The currency a booking's money is in: a recorded cash amount moves through
-  # the cash account, so it is in the account's currency — for a cross-
-  # currency trade (ADR-0015) that is not the booking's currency, which is the
-  # security's (closing act, UAT: a EUR debit read "CHF"). Without a recorded
-  # cash amount the figure is quantity × price, in the booking's currency.
-  defp money_currency(%{gross_amount: %Decimal{}, cash_account: %{currency_code: code}})
-       when is_binary(code),
-       do: code
+  # The currency a booking's money is in: the cash a booking moves is in its
+  # cash account's currency (ADR-0015, amendment of 2026-10-07, point 1) — for
+  # a cross-currency trade that is not the booking's currency, which is the
+  # security's (closing act, UAT: a EUR debit read "CHF"). A booking that
+  # moves no cash shows its quantity × price, in the booking's currency.
+  defp money_currency(%{cash_account: %{currency_code: code}} = transaction)
+       when is_binary(code) do
+    if cash_moved(transaction), do: code, else: transaction.currency_code
+  end
 
   defp money_currency(transaction), do: transaction.currency_code
 
+  # The booking's money, on the same basis as the summary's sums (#1209): the
+  # cash it moved in its cash account, read from the projection's own cash
+  # leg, so a buy's fees and taxes are in it and a sell's out of it whichever
+  # route stored the row (the API and the drawer's same-currency buy store no
+  # gross amount), and the column adds up to the balance's change. A kind
+  # with no cash leg keeps its stored amount, else quantity × price; a split
+  # has none.
   defp tx_money(%{type: "split"}), do: nil
-  defp tx_money(%{gross_amount: %Decimal{} = gross}), do: gross
 
-  defp tx_money(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
+  defp tx_money(transaction) do
+    case cash_moved(transaction) do
+      %Decimal{} = cash -> cash
+      nil -> stored_value(transaction)
+    end
+  end
+
+  defp cash_moved(%{type: "split"}), do: nil
+  defp cash_moved(transaction), do: Projection.cash_amount(transaction)
+
+  defp stored_value(%{gross_amount: %Decimal{} = gross}), do: gross
+
+  defp stored_value(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
     do: Decimal.mult(quantity, price)
 
-  defp tx_money(_transaction), do: nil
+  defp stored_value(_transaction), do: nil
 
   # Signed as the cash account sees it: what leaves the account is negative,
   # what arrives is positive. A balance snapshot is a level, not a flow, and
@@ -1847,15 +1858,21 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp signed_money(%{type: "cash_transfer"} = transaction, %Decimal{} = amount, account_ids) do
     if receiving_view?(transaction, account_ids),
       do: PortfolixirWeb.Format.money(amount),
-      else: PortfolixirWeb.Format.money(Decimal.negate(amount))
+      else: PortfolixirWeb.Format.money(outflow(amount))
   end
 
   defp signed_money(%{type: type}, %Decimal{} = amount, _account_ids)
        when type in @outflow_kinds,
-       do: PortfolixirWeb.Format.money(Decimal.negate(amount))
+       do: PortfolixirWeb.Format.money(outflow(amount))
 
   defp signed_money(_transaction, %Decimal{} = amount, _account_ids),
     do: PortfolixirWeb.Format.money(amount)
+
+  # A zero leaves nothing, so it carries no minus: a buy at price 0 reads
+  # "0,00", never "-0,00" (#1209).
+  defp outflow(amount) do
+    if Decimal.equal?(amount, 0), do: Decimal.new(0), else: Decimal.negate(amount)
+  end
 
   defp receiving_view?(transaction, account_ids) do
     to_string(transaction.counter_cash_account_id) in account_ids and
