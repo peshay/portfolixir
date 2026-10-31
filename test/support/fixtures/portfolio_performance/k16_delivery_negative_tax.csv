@@ -1,0 +1,4 @@
+Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+2026-02-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;
+2026-02-03 00:00:00;Einlieferung;Arbolia Inc.;10;100,00;1.000,00;;-0,40;999,60;Test-Depot;;;
+2026-02-04 00:00:00;Kauf;Arbolia Inc.;5;100,00;500,00;1,00;;501,00;Test-Depot;Test-Cash;;

@@ -200,4 +200,155 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
     assert digests("bond_invented.json") == @bond_invented_json
     assert digests("bond_coupon.json") == @bond_coupon_json
   end
+
+  # ADR-0053 K25 (the amendment of 2026-10-09; risk-tier: import
+  # idempotency, ADR-0036). Taken on b9413da, before A8 and A9 make a row
+  # error of a negative tax unit on a delivery, a security transfer or a cash
+  # transfer, and of a negative FEE unit (#1188, #1177). The files are the
+  # identities K16 to K24 (K20 is K17's file, K22 K21's sale): every row of
+  # each and every refund split off them. A row the code refuses keeps the
+  # digest of the would-be entry the preview keeps beside its row error
+  # (`refused_credits`): K19's sale under A5 today, and after A8 and A9 the
+  # rows they refuse, whose would-be entries are built as before, so the
+  # delivery's split-off refund and the purchase's fees of 7.00 (FEE 5.00 and
+  # FEE -2.00 by magnitude) are what they hash.
+  @k25_digests %{
+    "k16_delivery_negative_tax.json" => [
+      {1, "dc10fac8468d021d677aebdd07a6856b2cf626122aa38cbd14a4534934c0d023"},
+      {2, "fd3e4beddc8c3432d06db4ff6eea0907bb3207effdb65235fce6130de93410a3"},
+      {"2.tax_refund.1", "6289b2e13201085ba718e31dba633fe154d5fceee85ff77c0c432a633b73838a"},
+      {3, "cf5f80ccbfd8d0b21712a0b1602d0bd07af9850268db9391627e4682e10b345d"}
+    ],
+    "k16_delivery_negative_tax.csv" => [
+      {2, "dc10fac8468d021d677aebdd07a6856b2cf626122aa38cbd14a4534934c0d023"},
+      {3, "e89af8a279bac82a13543d2e2736160ec3c83c48b1984c3607aeeb08761b52f1"},
+      {"3.tax_refund.1", "175fbd79cba16d7be13a76a9f7db7192beeca9aa3e6074edb3960af5012a3157"},
+      {4, "25ae0c6e804d02f1b2170a10334a7f8c41d00d929dc90bd841d64ea1aacb23d7"}
+    ],
+    "k17_transfer_negative_tax.json" => [
+      {1, "dc10fac8468d021d677aebdd07a6856b2cf626122aa38cbd14a4534934c0d023"},
+      {2, "25d48be6ce16873f9335e37e6b2f097d1573d9759b0903dd1de606db2dd8e551"},
+      {"2.tax_refund.1", "7a867b922c5fab8dd4b913d659d16ff1be97f85709e753c7a5647fad41a0f552"}
+    ],
+    "k17_transfer_negative_tax.csv" => [
+      {2, "dc10fac8468d021d677aebdd07a6856b2cf626122aa38cbd14a4534934c0d023"},
+      {3, "362f35227a09727b61719b428716bed5b7e3847b43550af176277ee45f8e3429"},
+      {"3.tax_refund.1", "a3349d74dd8eda7be65ddb21c5815176fda0c7f43b17692d2be8e87fd57ca6d8"}
+    ],
+    "k18_negative_fee.json" => [
+      {1, "8d697a56052e2c685d1c899bf009876ee198a9a0880330d742d26d87bd7f598b"},
+      {2, "d8feec373cc9b1ebf521b9353cff831ea49fc1447eb2e6b429b17f25bf1a7c5d"}
+    ],
+    "k18_converter_negative_fee.csv" => [
+      {2, "8d697a56052e2c685d1c899bf009876ee198a9a0880330d742d26d87bd7f598b"},
+      {3, "3c59afd0266e9ee7251271f67ec48f2c5012f1b03b4587eefc00ca582bf0dab0"}
+    ],
+    "k19_refused_sale.json" => [
+      {1, "fcd9fc38d26e07686e0fbf62c27c5a8e56896668c5a94af944cfa4eaf3f401d7"},
+      {2, "16a19ca0d9b91d3614dee6471ae939679f63dfac4c16ec15742f45fba8cad50a"},
+      {3, "abbe6913d056b551ce226f3fbebe25c3339dfe296e0451d4801ec7ee03303a9d"},
+      {"3.tax_refund.1", "9b8ca7664a520fa83bc4fa9705983d1fbb03a0720563bbb987db2dd17b2bad5f"}
+    ],
+    "k21_hand_edit.json" => [
+      {1, "891d18370ff0a044c8883413130621a6aacc6dd53968a1954039b8f9adbd0c0a"},
+      {2, "a6b25f04e7133dfb8a506898a46656b3a92236b23d4fccef1a98972dcc33c276"},
+      {3, "1e4f4f444d464e9394d345a1ee3bb3c1d836f137651b6362cdba82e5315cae9f"},
+      {4, "31511e97bef4d55f05c1768aa75a2d1facf9a3856b7484bc0dc97f6dd234af2f"},
+      {"4.tax_refund.1", "313b3998236c9f28829ebaa6853a520376b9e20a7f59b437caabf23264e79c4b"}
+    ],
+    "k23_drifted.json" => [
+      {1, "891d18370ff0a044c8883413130621a6aacc6dd53968a1954039b8f9adbd0c0a"},
+      {2, "a6b25f04e7133dfb8a506898a46656b3a92236b23d4fccef1a98972dcc33c276"},
+      {3, "31511e97bef4d55f05c1768aa75a2d1facf9a3856b7484bc0dc97f6dd234af2f"},
+      {"3.tax_refund.1", "313b3998236c9f28829ebaa6853a520376b9e20a7f59b437caabf23264e79c4b"}
+    ],
+    "k23_drifted_reexport.json" => [
+      {1, "891d18370ff0a044c8883413130621a6aacc6dd53968a1954039b8f9adbd0c0a"},
+      {2, "a6b25f04e7133dfb8a506898a46656b3a92236b23d4fccef1a98972dcc33c276"},
+      {3, "a80a537e0b5215eb8470b731ceb26d038f3ab7d872f4345d51dba58c6860155c"},
+      {"3.tax_refund.1", "a8d19980d0ed952544e2c304c6e431f1395179c7ab8b2dd8320da23b067a40d8"}
+    ],
+    "k24_twins.json" => [
+      {1, "891d18370ff0a044c8883413130621a6aacc6dd53968a1954039b8f9adbd0c0a"},
+      {2, "3d7ff9278a5af5168760f13f62f906a23751a860e4507271fb78a212cadc7589"},
+      {3, "31511e97bef4d55f05c1768aa75a2d1facf9a3856b7484bc0dc97f6dd234af2f"},
+      {"3.tax_refund.1", "313b3998236c9f28829ebaa6853a520376b9e20a7f59b437caabf23264e79c4b"},
+      {4, "5b32a9c88456c77f5860a6118bb4c958330be610fc1cd0e3d9085d1d82409391"},
+      {"4.tax_refund.1", "5d5989ce494c4d1d7d014b292fb28728baaa7e9d594059bd2fc0e13e44dcd202"}
+    ],
+    "k24_twins_both_moved.json" => [
+      {1, "891d18370ff0a044c8883413130621a6aacc6dd53968a1954039b8f9adbd0c0a"},
+      {2, "3d7ff9278a5af5168760f13f62f906a23751a860e4507271fb78a212cadc7589"},
+      {3, "a80a537e0b5215eb8470b731ceb26d038f3ab7d872f4345d51dba58c6860155c"},
+      {"3.tax_refund.1", "a8d19980d0ed952544e2c304c6e431f1395179c7ab8b2dd8320da23b067a40d8"},
+      {4, "ff33bec530af2e886835637c8f3841cce7b5ae6e99cf6099d25cf1081f15d27f"},
+      {"4.tax_refund.1", "5f433fc99cb77f9ab741612d7b719a9aab9fc5f81cf5ef771fca171f69a44be8"}
+    ],
+    "k24_twins_b_moved.json" => [
+      {1, "891d18370ff0a044c8883413130621a6aacc6dd53968a1954039b8f9adbd0c0a"},
+      {2, "3d7ff9278a5af5168760f13f62f906a23751a860e4507271fb78a212cadc7589"},
+      {3, "31511e97bef4d55f05c1768aa75a2d1facf9a3856b7484bc0dc97f6dd234af2f"},
+      {"3.tax_refund.1", "313b3998236c9f28829ebaa6853a520376b9e20a7f59b437caabf23264e79c4b"},
+      {4, "ff33bec530af2e886835637c8f3841cce7b5ae6e99cf6099d25cf1081f15d27f"},
+      {"4.tax_refund.1", "5f433fc99cb77f9ab741612d7b719a9aab9fc5f81cf5ef771fca171f69a44be8"}
+    ]
+  }
+
+  # Each row's content hash as `digests_of/2` takes it, the would-be entries
+  # of the rows the preview refuses included, in the file's row order. Every
+  # row of the file is in the list, entry or would-be entry, so none drops
+  # out of it unseen.
+  defp all_digests(name) do
+    body = File.read!(Path.join(@fixtures, name))
+    {:ok, preview} = PortfolioPerformance.parse(body, filename: name)
+    refused = Enum.map(preview.refused_credits, & &1.entry)
+    rows = (preview.entries ++ refused) |> Enum.map(& &1.source_row) |> Enum.sort()
+    first = if String.ends_with?(name, ".csv"), do: 2, else: 1
+    count = row_count(body, first)
+
+    assert rows == Enum.to_list(first..(first + count - 1)), "#{name}: #{inspect(preview.errors)}"
+
+    {digests, _parent_hash} =
+      (preview.entries ++ refused)
+      |> Enum.sort_by(& &1.source_row)
+      |> Entry.flatten()
+      |> Enum.map_reduce(nil, fn
+        %Entry{companion_index: nil} = entry, _parent_hash ->
+          hash = ImportHash.compute(entry, @portfolio_id)
+          {{entry.source_row, hash}, hash}
+
+        %Entry{companion_index: index} = entry, parent_hash ->
+          hash = ImportHash.companion(parent_hash, index, entry, @portfolio_id)
+          {{entry.source_row, hash}, parent_hash}
+      end)
+
+    digests
+  end
+
+  # A CSV file's booking rows follow its header (row 1); a JSON file's are
+  # its transactions, numbered from 1.
+  defp row_count(body, 2), do: body |> String.split("\n", trim: true) |> length() |> Kernel.-(1)
+  defp row_count(body, 1), do: body |> Jason.decode!() |> Map.fetch!("transactions") |> length()
+
+  # User story (ADR-0053 K25, the amendment of 2026-10-09; #1188, #1177):
+  # As the operator of an instance that already imported a Portfolio
+  # Performance export with a delivery or a transfer carrying a tax refund,
+  # a negative fee unit, or a sale stored under the old reading,
+  # I want every content hash of those rows to stay byte-identical when the
+  # importer starts to refuse such a row,
+  # so that dropping the same export again books nothing twice and the
+  # correction can still find the booking it stored.
+  #
+  # Acceptance criteria:
+  # - Every row of the K16 to K24 files, JSON and CSV, hashes to the digest
+  #   taken on unchanged code, and so does every refund split off them.
+  # - A row the preview refuses (A5, A8, A9) hashes as its would-be entry,
+  #   which the preview keeps: K16's delivery and its refund, K17's
+  #   transfer and its refund, K18's purchase over fees 7.00, K19's sale.
+  # - No row of a file drops out of the list.
+  test "every row of the K16 to K24 files keeps the digest taken before A8 and A9" do
+    for {name, pinned} <- @k25_digests do
+      assert all_digests(name) == pinned, name
+    end
+  end
 end

@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Test-Cash",
+      "date": "2026-03-02",
+      "currency": "EUR",
+      "amount": 1100.00
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2026-03-03",
+      "currency": "EUR",
+      "amount": 100.00,
+      "shares": 10,
+      "security": {
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
+        "currency": "EUR"
+      }
+    },
+    {
+      "type": "DIVIDEND",
+      "account": "Test-Cash",
+      "date": "2026-05-15",
+      "currency": "EUR",
+      "amount": 9.13,
+      "shares": 10,
+      "security": {
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
+        "currency": "EUR"
+      }
+    },
+    {
+      "type": "SALE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2026-06-15",
+      "time": "15:30",
+      "currency": "EUR",
+      "amount": 120.00,
+      "shares": 10,
+      "security": {
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 5.00},
+        {"type": "TAX", "amount": -25.00}
+      ]
+    }
+  ]
+}

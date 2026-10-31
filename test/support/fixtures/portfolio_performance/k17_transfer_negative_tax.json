@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Test-Cash",
+      "date": "2026-02-02",
+      "currency": "EUR",
+      "amount": 1000.00
+    },
+    {
+      "type": "CASH_TRANSFER",
+      "account": "Test-Cash",
+      "otherAccount": "Test-Savings",
+      "date": "2026-02-10",
+      "currency": "EUR",
+      "amount": 100.00,
+      "units": [
+        {"type": "TAX", "amount": -5.00}
+      ]
+    }
+  ]
+}
