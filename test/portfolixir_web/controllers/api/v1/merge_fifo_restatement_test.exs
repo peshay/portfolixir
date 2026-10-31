@@ -257,6 +257,58 @@ defmodule PortfolixirWeb.Api.V1.MergeFifoRestatementTest do
   end
 
   # User story (security review 2026-10-12, K11):
+  # As the operator merging two depots whose bookings are equal,
+  # I want the depot preview's FIFO sentence to name the one choice that
+  # does move the queue,
+  # so that "remove as duplicates" is never shown beside a sentence saying
+  # the FIFO realized gains cannot change.
+  #
+  # Acceptance criteria:
+  # - With equal bookings (choice_required true), positions_basis says the
+  #   FIFO realized gains do not change unless equal bookings are removed
+  #   as duplicates, which takes them out of the queue.
+  # - The dialog's basis line says the same.
+  test "depot merge with equal bookings: the FIFO sentence names the duplicate removal", ctx do
+    target = depot!(ctx, "Depot T")
+    source = depot!(ctx, "Depot S")
+    security = security!("Meridian Fund")
+
+    trade!(ctx, source, security, "buy", "10", "100", ~D[2025-01-02])
+    trade!(ctx, target, security, "buy", "10", "100", ~D[2025-01-02])
+    trade!(ctx, target, security, "buy", "5", "100", ~D[2025-02-03])
+
+    preview =
+      ctx.api
+      |> get("/api/v1/securities_accounts/#{source.id}/merge_preview?target_id=#{target.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert preview["choice_required"] == true
+
+    assert preview["positions_basis"] =~
+             "do not change unless equal bookings are removed as duplicates, which takes " <>
+               "them out of the queue"
+
+    {:ok, view, _html} = live(ctx.ui, "/portfolios")
+    view |> element("#account-kebab-#{source.id}") |> render_click()
+    view |> element("#account-row-menu-#{source.id} [data-role='menu-merge']") |> render_click()
+
+    view
+    |> element("#merge-dialog form[data-role='merge-target-form']")
+    |> render_change(%{merge: %{target_id: "#{target.id}"}})
+
+    view |> element("#merge-dialog [data-role='merge-continue']") |> render_click()
+
+    assert view
+           |> element("#merge-dialog .merge-basis", "Realized gains by FIFO")
+           |> render()
+           |> Floki.parse_fragment!()
+           |> Floki.text() =~
+             "do not change unless equal bookings are removed as duplicates, which takes them " <>
+               "out of the queue"
+  end
+
+  # User story (security review 2026-10-12, K11):
   # As the operator confirming a security merge on the page,
   # I want step 2 to state the FIFO realized gains per close year and the
   # open lots' cost, before and after, under the holdings,

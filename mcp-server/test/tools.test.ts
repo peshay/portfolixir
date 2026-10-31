@@ -2136,7 +2136,7 @@ describe("Portfolixir MCP tools", () => {
     // K11: the depot's realized_result is a moving average, and a depot
     // merge leaves the FIFO realized gains as they are.
     assert.match(preview, /moving-average/);
-    assert.match(preview, /FIFO realized gains do not change/);
+    assert.match(preview, /FIFO realized gains do not change unless equal bookings are removed/);
     assert.equal(find("portfolixir.securities_accounts.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(
       describe("portfolixir.securities_accounts.delete"),
