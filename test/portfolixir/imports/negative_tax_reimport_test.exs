@@ -489,4 +489,67 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
              }
            ]
   end
+
+  # User story (#1188, #1177's negative FEE unit; Sprint 21 α5; ADR-0053 A8
+  # and A9, the amendment of 2026-10-09):
+  # As the operator whose instance imported a JSON cash transfer with a tax
+  # refund under Sprint 20's reading, or a JSON purchase with a negative FEE
+  # unit before A9 refused it,
+  # I want a re-drop of the export to say that the row is already imported
+  # and cannot be corrected here,
+  # so that I do not follow the row error's remedy and book it twice.
+  #
+  # Acceptance criteria:
+  # - K17's transfer stored as Sprint 20 booked it (105.00 to Test-Savings,
+  #   the refund 5.00 on Test-Cash; K20): its row error in that portfolio
+  #   says "… — already imported, and it cannot be corrected here. Do not
+  #   book the transfer again; …".
+  # - K18's purchase stored as booked before (cash 1,003.00, fees 7.00): its
+  #   row error says it is already imported, naming its fees as stored,
+  #   7.00.
+  # - In a portfolio that never imported them, each row error keeps its
+  #   remedy; the apply books nothing twice.
+  test "a transfer or a purchase A8 or A9 refuses whose booking is stored says it is already imported",
+       %{portfolio: portfolio} do
+    for {name, message} <- [
+          {"k17_transfer_negative_tax.json",
+           "transfer with a tax refund of 5.00: a transfer moves cash between two accounts, " <>
+             "and a refund split off it would land on one side only — already imported, and " <>
+             "it cannot be corrected here. Do not book the transfer again; see “A negative " <>
+             "tax inside a row” in the product documentation."},
+          {"k18_negative_fee.json",
+           "booking with a negative fee (-2.00): the import does not book a fee refund yet — " <>
+             "already imported with fees of 7.00, and it cannot be corrected here. Do not " <>
+             "enter the booking again; see “A negative tax inside a row” in the product " <>
+             "documentation."}
+        ] do
+      {:ok, %Preview{errors: [%{row: 2, message: remedy}]} = preview} =
+        PortfolioPerformance.parse(fixture(name), filename: name)
+
+      # The row as the importer booked it before it was refused: its
+      # would-be entry, kept beside its row error.
+      [%{entry: stored}] = preview.refused_credits
+
+      {:ok, target} =
+        Portfolios.create_portfolio(Actor.owner_ui(), %{
+          name: "Stored " <> name,
+          base_currency_code: "EUR"
+        })
+
+      apply!(%{preview | entries: preview.entries ++ [stored]}, target)
+
+      assert [%{row: 2, message: ^message}] =
+               Imports.row_errors(preview, portfolio_id: target.id),
+             name
+
+      assert Imports.row_errors(preview, portfolio_id: portfolio.id) == [
+               %{row: 2, message: remedy}
+             ],
+             name
+
+      before = counts()
+      assert apply!(preview, target).created_transactions == 0
+      assert counts() == before
+    end
+  end
 end
