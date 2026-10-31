@@ -332,4 +332,110 @@ defmodule Portfolixir.Imports.ApplierSettlementTest do
 
     assert Repo.aggregate(Transaction, :count) == 1
   end
+
+  # User story (#1199, H53; the ADR-0050 amendment of 2026-10-09, point 2):
+  # As the operator dropping a file again whose apply would be refused for
+  # a booking priced in a third currency,
+  # I want the preview's dry run to stop where the apply stops,
+  # so that it never releases a name, or counts a row booked, on a run the
+  # apply would never finish.
+  #
+  # Acceptance criteria:
+  # - The buy of 800.00 EUR stored; the re-export moves it to 10:30 and adds
+  #   the buy of the USD security priced 720.00 CHF into the EUR account
+  #   (the CHF and USD hub rates stored): the apply refuses row 2. The dry
+  #   run stops on it, so the counts stay on the hash layers: 2 new, 0
+  #   economics. (Mutation: without the third-currency refusal in the
+  #   simulated insert the dry run runs on and counts the moved buy
+  #   economics 1.)
+  test "the dry run stops where the apply refuses an entry priced in a third currency" do
+    portfolio = portfolio!()
+    usd_security!()
+    store_usd_and_chf_rates!()
+    apply!(buy_entry(%{}), portfolio)
+
+    redrop = %Preview{
+      entries: [
+        buy_entry(%{time: ~T[10:30:00]}),
+        buy_entry(%{
+          source_row: 2,
+          currency_code: "CHF",
+          gross_amount: Decimal.new("720.00"),
+          quantity: Decimal.new("8"),
+          price: Decimal.new("90.00")
+        })
+      ]
+    }
+
+    assert {:error, %{row: 2, reason: {:insert_failed, _changeset}}} =
+             Applier.apply(redrop, %{portfolio_id: portfolio.id})
+
+    assert %{new: 2, economics: 0} = Applier.reimport_counts(redrop, portfolio.id).total
+  end
+
+  # User story (H53; the ADR-0050 amendment of 2026-10-09, point 2):
+  # As the operator dropping a file again that opens a new cash account and
+  # books a deposit onto it in another currency, without a rate,
+  # I want the preview's dry run to judge the account it would create in
+  # the currency the apply creates it in,
+  # so that the dry run stops where the apply refuses the deposit.
+  #
+  # Acceptance criteria:
+  # - The buy of 800.00 EUR stored; the re-export moves it to 10:30, opens
+  #   "PP Savings" with a deposit of 50.00 EUR and adds a deposit of 20.00
+  #   USD onto it: the apply refuses row 3 (a cross-currency settlement
+  #   needs its rate). The dry run stops on it, so the counts stay on the
+  #   hash layers: 3 new, 0 economics. (Mutation: without the currencies of
+  #   the accounts the dry run would create, the USD deposit passes and the
+  #   moved buy counts economics 1.)
+  test "the dry run judges an account it would create in the currency the apply creates it in" do
+    portfolio = portfolio!()
+    usd_security!()
+    store_usd_and_chf_rates!()
+    apply!(buy_entry(%{}), portfolio)
+
+    redrop = %Preview{
+      entries: [
+        buy_entry(%{time: ~T[10:30:00]}),
+        savings_deposit(2, "EUR", "50.00"),
+        savings_deposit(3, "USD", "20.00")
+      ]
+    }
+
+    assert {:error, %{row: 3, reason: {:insert_failed, _changeset}}} =
+             Applier.apply(redrop, %{portfolio_id: portfolio.id})
+
+    assert %{new: 3, economics: 0} = Applier.reimport_counts(redrop, portfolio.id).total
+  end
+
+  defp store_usd_and_chf_rates! do
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-15],
+          rate: "1.25",
+          source: "manual"
+        },
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: ~D[2026-01-15],
+          rate: "0.90",
+          source: "manual"
+        }
+      ])
+  end
+
+  defp savings_deposit(row, currency, amount) do
+    %Entry{
+      source_row: row,
+      kind: "deposit",
+      date: ~D[2026-01-16],
+      currency_code: currency,
+      gross_amount: Decimal.new(amount),
+      pp_account_name: "PP Savings"
+    }
+  end
 end
