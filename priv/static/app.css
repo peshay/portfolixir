@@ -9551,6 +9551,14 @@ dialog.booking-drawer {
   white-space: nowrap;
 }
 
+/* The agent's mark on the Tax page (security review 2026-10-12, K12; board
+   ux-design-2026-10-27/03-author-marks): the line's muted text wherever it
+   stands, the allowance-order list included, whose institution reads in body
+   colour. */
+[data-role="tax-author"] {
+  color: var(--color-text-muted);
+}
+
 /* Undetermined is neither a pass nor a breach (ADR-0049 §3): an outlined,
    muted badge — the board's reading — so it can never pass for "met". */
 .badge--undetermined {

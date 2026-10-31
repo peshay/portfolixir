@@ -990,7 +990,10 @@ defmodule PortfolixirWeb.TaxLive do
           <details class="tax-orders-disclosure" data-role="orders">
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
-              <%= gettext("Configured allowance orders") %> · <.orders_summary orders={@orders} />
+              <%!-- One text element: the summary is a flex row, so the
+                   agent's "(Agent)" must not become a flex item of its own
+                   (K12, board 03). --%>
+              <span data-role="orders-summary"><%= gettext("Configured allowance orders") %> · <.orders_summary orders={@orders} /></span>
             </summary>
             <p class="summary-basis">
               <%= gettext(

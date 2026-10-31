@@ -1068,8 +1068,8 @@ msgstr "Status konnte nicht geändert werden."
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:647
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:189
 #: lib/portfolixir_web/live/snapshots_live.ex:684
-#: lib/portfolixir_web/live/tax_live.ex:1054
-#: lib/portfolixir_web/live/tax_live.ex:1078
+#: lib/portfolixir_web/live/tax_live.ex:1057
+#: lib/portfolixir_web/live/tax_live.ex:1081
 #, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr "Löschen"
@@ -4405,7 +4405,7 @@ msgstr "Abgeführte Kirchensteuer"
 msgid "Configured allowance orders total %{recorded} against the %{expected} ceiling for this year — %{gap} above. Redistribute the orders with the banks."
 msgstr "Hinterlegte Freistellungsaufträge summieren sich auf %{recorded} gegen den Höchstbetrag %{expected} dieses Jahres — %{gap} darüber. Aufträge mit den Banken neu verteilen."
 
-#: lib/portfolixir_web/live/tax_live.ex:1043
+#: lib/portfolixir_web/live/tax_live.ex:1046
 #, elixir-autogen, elixir-format
 msgid "Correct"
 msgstr "Korrigieren"
@@ -4415,7 +4415,7 @@ msgstr "Korrigieren"
 msgid "Correct statement"
 msgstr "Abrechnung korrigieren"
 
-#: lib/portfolixir_web/live/tax_live.ex:1051
+#: lib/portfolixir_web/live/tax_live.ex:1054
 #, elixir-autogen, elixir-format
 msgid "Delete this recorded statement?"
 msgstr "Diese erfasste Abrechnung löschen?"
@@ -4564,7 +4564,7 @@ msgstr "Steuerpflichtige Kapitalerträge"
 msgid "Taxpayer"
 msgstr "Steuerpflichtige Person"
 
-#: lib/portfolixir_web/live/tax_live.ex:996
+#: lib/portfolixir_web/live/tax_live.ex:999
 #, elixir-autogen, elixir-format
 msgid "What was instructed per institution, for comparison against what the bank applied."
 msgstr "Was je Institut beauftragt wurde — zum Vergleich mit dem, was die Bank angewendet hat."
@@ -5828,7 +5828,7 @@ msgstr "ungültige Position %{unit}"
 msgid "Continue"
 msgstr "Weiter"
 
-#: lib/portfolixir_web/live/tax_live.ex:1075
+#: lib/portfolixir_web/live/tax_live.ex:1078
 #, elixir-autogen, elixir-format
 msgid "Delete this allowance order?"
 msgstr "Diesen Freistellungsauftrag löschen?"
@@ -6185,7 +6185,7 @@ msgstr "Freistellungsauftrag %{used} von %{granted} verbraucht"
 msgid "Allowance granted / used"
 msgstr "Freistellungsauftrag erteilt / verbraucht"
 
-#: lib/portfolixir_web/live/tax_live.ex:1067
+#: lib/portfolixir_web/live/tax_live.ex:1070
 #, elixir-autogen, elixir-format
 msgid "Allowance order actions"
 msgstr "Aktionen zum Freistellungsauftrag"
@@ -6205,7 +6205,7 @@ msgstr "Gegen die Abrechnung prüfen"
 msgid "Composition"
 msgstr "Zusammensetzung"
 
-#: lib/portfolixir_web/live/tax_live.ex:993
+#: lib/portfolixir_web/live/tax_live.ex:996
 #, elixir-autogen, elixir-format
 msgid "Configured allowance orders"
 msgstr "Hinterlegte Freistellungsaufträge"
@@ -6240,7 +6240,7 @@ msgstr "Freistellungsauftrag hinterlegen"
 msgid "Remaining allowance"
 msgstr "Verbleibender Freistellungsauftrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:1033
+#: lib/portfolixir_web/live/tax_live.ex:1036
 #, elixir-autogen, elixir-format
 msgid "Statement actions"
 msgstr "Aktionen zur Abrechnung"
@@ -12438,7 +12438,7 @@ msgid "Named by:"
 msgstr "Name von:"
 
 #: lib/portfolixir_web/live/tax_live.ex:554
-#: lib/portfolixir_web/live/tax_live.ex:1002
+#: lib/portfolixir_web/live/tax_live.ex:1005
 #, elixir-autogen, elixir-format
 msgid "Allowance order by:"
 msgstr "Freistellungsauftrag von:"
