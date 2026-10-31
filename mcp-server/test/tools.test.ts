@@ -2248,6 +2248,7 @@ describe("Portfolixir MCP tools", () => {
     assert.match(preview, /close year/);
     assert.match(preview, /open_lots/);
     assert.match(preview, /fifo_basis/);
+    assert.match(preview, /no realized amount and no open cost moves; which lot a sale closes/);
     assert.match(preview, /moving-average/);
     assert.equal(find("portfolixir.securities.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.merge_preview/);

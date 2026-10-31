@@ -371,12 +371,19 @@ defmodule PortfolixirWeb.Api.V1.MergeFifoRestatementTest do
     assert is_map(fifo), "the security merge preview states no FIFO realized gains"
     assert fifo["unchanged"] == true
 
+    # unchanged says what it compares: the amounts, not which lot a sale
+    # closes (the source's later lot can stand open in the target's place).
+    assert preview["fifo_basis"] =~
+             "unchanged: no realized amount and no open cost moves; which lot a sale closes, " <>
+               "and with it holding periods and annualized returns, may"
+
     view = to_security_preview(ctx, source, target)
 
     assert has_element?(
              view,
              "#security-merge-dialog [data-role='merge-fifo']",
-             "Realized gains (FIFO) do not change."
+             "Realized gains (FIFO): no realized amount and no open cost moves; which lot a " <>
+               "sale closes, and with it holding periods and annualized returns, may."
            )
 
     refute has_element?(view, "#security-merge-dialog [data-role='merge-fifo'] table")
