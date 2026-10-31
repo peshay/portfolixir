@@ -94,6 +94,15 @@ plan is refused there: it steers nothing, and is reused by activating it or
 duplicating it into a draft. The reads keep following the active plan, and
 the SOLL editor's own saves are unchanged.
 
+*Note (2026-10-31, #1185):* the two target reads (`GET …/targets`,
+`GET …/position_targets`, `portfolixir.targets.list` and
+`.list_positions`) take the same optional `plan_id` with the writes' refusals,
+so an agent reads a draft back before activating it; without it they still
+follow the view's active plan. A draft's position drift is measured as the
+allocation would measure it with the draft active, in the draft's view, and
+the drift basis says so. The allocation read and the screens still steer by
+the active plan only.
+
 ### 4. Sequencing: journal-arming rides along
 
 Plan writes are not yet journaled (open slice of the leaf-first

@@ -2191,7 +2191,9 @@ Example account payloads:
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the target side of the allocation). Optional `classification_id`
   scopes the list to one tree; optional `view` selects the plan (omitted =
-  Gesamt). Unknown portfolios return `404 Not Found`.
+  Gesamt); optional `plan_id` reads that plan version, a draft or the active
+  plan, with the `422`s of the `PUT` below (issue #1185). Unknown portfolios
+  return `404 Not Found`.
 - `PUT /api/v1/portfolios/:portfolio_id/targets` upserts target weights for one
   classification. The body is `{"classification_id": id, "targets": [{"category_id":
   id, "target_weight": "0.25"}]}` and may carry an optional `"view": id` to write
@@ -2229,7 +2231,8 @@ Example account payloads:
   plan version — a draft from `POST /api/v1/plans/:id/duplicate`, or the
   active plan — instead of the view's active plan, so a draft's category and
   position targets are edited over the API as in the SOLL editor, and
-  activated when ready; the reads keep following the active plan. The plan
+  activated when ready; the two target reads take the same `plan_id` (issue
+  #1185), and without it follow the active plan. The plan
   must be one of this portfolio's, of this classification and, when `view` is
   given, of that view, and it must not be `archived`: an archived version
   steers nothing and is reused by activating it or duplicating it into a
@@ -2266,7 +2269,11 @@ Example account payloads:
   response states the applied `min_drift`, `position_targets_total` (the
   pre-filter count) and a `drift_basis` sentence. Without `min_drift` the rows
   carry no `drift_weight` and the shape is unchanged. An invalid threshold is
-  a `422`.
+  a `422`. Optional `plan_id` reads that plan version, with the `422`s of the
+  `PUT` (issue #1185): its rows, its `effective_targets` and, with
+  `min_drift`, the drift against its targets as the allocation would measure
+  it with that version active, in its view; for a draft, `drift_basis` says
+  so and names the plan.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   removes one position target and returns `{deleted}`. The category row and the
   category's other positions are untouched. Optional `view` selects the plan;
@@ -4056,7 +4063,8 @@ Since ADR-0027 the plan tools (`portfolixir.plans.list`,
 its id as `plan_id` to `portfolixir.targets.set`, `portfolixir.targets.delete`
 and `portfolixir.targets.delete_position` (issue #1133; without it they write
 the view's active plan, and an archived plan is refused), or in the SOLL
-editor, then activate it. The snapshot tools
+editor, read it back by passing the same `plan_id` to `portfolixir.targets.list`
+and `portfolixir.targets.list_positions` (issue #1185), then activate it. The snapshot tools
 (`portfolixir.snapshots.list`, `portfolixir.snapshots.create`,
 `portfolixir.snapshots.delete`, `portfolixir.snapshots.comparison`) freeze a
 depot state as a marker and read the counterfactual comparison; every financial

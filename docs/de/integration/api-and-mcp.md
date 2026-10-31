@@ -2366,8 +2366,9 @@ Beispiel-Payloads für Konten:
 - `GET /api/v1/portfolios/:portfolio_id/targets` listet die gespeicherten
   Zielgewichte eines Portfolios (die SOLL-Seite der Allokation). Optionales
   `classification_id` schränkt die Liste auf einen Baum ein; optionales `view`
-  wählt den Plan (weggelassen = Gesamt). Unbekannte Portfolios liefern `404 Not
-  Found`.
+  wählt den Plan (weggelassen = Gesamt); optionales `plan_id` liest diese
+  Planversion, einen Entwurf oder den aktiven Plan, mit den `422` des `PUT`
+  unten (Issue #1185). Unbekannte Portfolios liefern `404 Not Found`.
 - `PUT /api/v1/portfolios/:portfolio_id/targets` führt Zielgewichte für eine
   Klassifizierung ein (Upsert). Der Body ist `{"classification_id": id, "targets":
   [{"category_id": id, "target_weight": "0.25"}]}` und kann ein optionales
@@ -2409,8 +2410,9 @@ Beispiel-Payloads für Konten:
   diese Planversion — einen Entwurf aus `POST /api/v1/plans/:id/duplicate`
   oder den aktiven Plan — statt des aktiven Plans der View, sodass die
   Kategorie- und Positionsziele eines Entwurfs über die API bearbeitet werden
-  wie im SOLL-Editor und er aktiviert wird, wenn er fertig ist; die Lesezugriffe
-  folgen weiter dem aktiven Plan. Der Plan muss einer dieses Portfolios sein,
+  wie im SOLL-Editor und er aktiviert wird, wenn er fertig ist; die beiden
+  Ziel-Lesezugriffe nehmen dasselbe `plan_id` (Issue #1185) und folgen ohne es
+  dem aktiven Plan. Der Plan muss einer dieses Portfolios sein,
   dieser Klassifizierung und, wenn `view` angegeben ist, dieser View, und er
   darf nicht `archived` sein: Eine archivierte Version steuert nichts und wird
   wiederverwendet, indem man sie aktiviert oder in einen Entwurf dupliziert.
@@ -2452,7 +2454,11 @@ Beispiel-Payloads für Konten:
   angewandte `min_drift`, `position_targets_total` (die Zeilenzahl vor dem
   Filter) und einen Satz `drift_basis`. Ohne `min_drift` tragen die Zeilen
   kein `drift_weight`, und die Form ist unverändert. Eine ungültige Schwelle
-  ist ein `422`.
+  ist ein `422`. Optionales `plan_id` liest diese Planversion, mit den `422`
+  des `PUT` (Issue #1185): ihre Zeilen, ihre `effective_targets` und, mit
+  `min_drift`, die Drift gegen ihre Ziele, wie die Allokation sie mit dieser
+  Version aktiv in ihrer View messen würde; bei einem Entwurf sagt
+  `drift_basis` das und nennt den Plan.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   entfernt ein Positionsziel und liefert `{deleted}`. Die Kategoriezeile und
   die übrigen Positionen der Kategorie bleiben unberührt. Optionales `view`
@@ -4407,7 +4413,9 @@ Plan-**Versionen**: den aktiven Plan in einen Entwurf duplizieren, den Entwurf
 bearbeiten, indem seine id als `plan_id` an `portfolixir.targets.set`,
 `portfolixir.targets.delete` und `portfolixir.targets.delete_position` geht
 (Issue #1133; ohne sie schreiben sie den aktiven Plan der View, und ein
-archivierter Plan wird abgelehnt), oder im SOLL-Editor, und ihn dann
+archivierter Plan wird abgelehnt), oder im SOLL-Editor, ihn mit demselben
+`plan_id` über `portfolixir.targets.list` und
+`portfolixir.targets.list_positions` zurücklesen (Issue #1185) und ihn dann
 aktivieren. Die Snapshot-Tools (`portfolixir.snapshots.list`,
 `portfolixir.snapshots.create`, `portfolixir.snapshots.delete`,
 `portfolixir.snapshots.comparison`) frieren einen Depotstand als Marker ein
