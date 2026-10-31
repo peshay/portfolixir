@@ -1122,12 +1122,12 @@ defmodule Portfolixir.Ledger do
   """
   @spec holding_fees_basis() :: String.t()
   def holding_fees_basis do
-    "cost_basis, avg_cost and base_cost are without the buys' fees and taxes: cost_basis and " <>
-      "avg_cost are quantity x price in the security's currency, base_cost the settlement leg, " <>
-      "the cash before fees and taxes. unrealized_pnl_* and the decomposition are measured " <>
-      "against them, so they are before those costs. The fees and taxes are costs in GET " <>
-      "/api/v1/costs, and a closed trade's basis counts them once the shares are sold (GET " <>
-      "/api/v1/securities/:security_id/trades)."
+    "cost_basis, avg_cost and base_cost are without the buys' fees and taxes: cost_basis is " <>
+      "quantity x price in the security's currency and avg_cost its average per share, " <>
+      "base_cost the settlement leg, the cash before fees and taxes. unrealized_pnl_* and the " <>
+      "decomposition are measured against them, so they are before those costs. The fees and " <>
+      "taxes are costs in GET /api/v1/costs, and a closed trade's basis counts them once the " <>
+      "shares are sold (GET /api/v1/securities/:security_id/trades)."
   end
 
   @doc """
