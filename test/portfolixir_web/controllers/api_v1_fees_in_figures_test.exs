@@ -257,7 +257,10 @@ defmodule PortfolixirWeb.ApiV1FeesInFiguresTest do
     holdings = get_json(conn, "/api/v1/portfolios/#{s.world.portfolio.id}/holdings")
     held = holdings["computation_basis"]["fees_and_taxes_in_figures"]
 
-    assert held =~ "cost_basis, avg_cost and base_cost are without the buys' fees and taxes"
+    assert held =~
+             "cost_basis (quantity x price), avg_cost (cost_basis per share) and base_cost " <>
+               "are without the buys' fees and taxes"
+
     assert held =~ "unrealized_pnl_* and the decomposition"
     assert held =~ "a closed trade's basis counts them"
 
