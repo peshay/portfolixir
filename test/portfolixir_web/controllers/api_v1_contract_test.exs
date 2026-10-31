@@ -58,7 +58,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "Sprint 21, the money after the first import"
     assert newest["endpoints"] == []
     assert newest["tools"] == []
-    assert newest["prompts"] == []
+    # The read serves no prompts list; the manifest holds it.
+    assert hd(Contract.entries()).prompts == []
     refute newest["summary"] =~ "#1214"
 
     for story <- ["α1", "α2", "α3", "α4", "α11", "β1", "β2", "β3"] do
