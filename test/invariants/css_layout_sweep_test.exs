@@ -119,15 +119,45 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/margin-bottom:\s*clamp\(18px, 2\.4vw, 28px\)/
   end
 
-  test "under 560 px a category row wraps to two lines and keeps its name" do
-    rows =
+  #
+  # Amended by #1165 (Sprint 21 γ6, board 06 ①, pick N17 A): between 561 and
+  # 720 px the one-line row left the name 33 / 4 px at 600 px, so the two
+  # lines, and the dropped "Positions" and "Cost", hold up to 720 px. They
+  # are a container query on the page (`container: classifications /
+  # inline-size`), selected by the room the tree has, so the band the open
+  # sidebar makes (901 to about 940 px of viewport) lies on two lines too.
+  # No tree rule is left at the viewport's 560 px.
+  test "up to 720 px of the page a category row wraps to two lines and keeps its name" do
+    assert block(".classifications-detail") =~ ~r/container:\s*classifications \/ inline-size;/
+
+    columns =
       case Regex.run(
-             ~r/@media \(max-width: 560px\) \{\n  \/\* category rows on two lines[^\n]*\n(.*?)\n\}\n/s,
+             ~r/@container classifications \(max-width: 720px\) \{\n  \/\* The phone keeps the name[^\n]*\n(.*?)\n\}\n/s,
              @css
            ) do
         [_, body] -> body
-        nil -> flunk("no 560 px block for the two-line category row")
+        nil -> flunk("no 720 px container block for the tree's columns")
       end
+
+    assert columns =~
+             ~r/\.cat-summary \{[^}]*grid-template-columns: 0\.7rem minmax\(0, 1fr\) 6rem 6rem 2\.6rem;/
+
+    assert columns =~
+             ~r/\.tree-head \{[^}]*grid-template-columns: minmax\(0, 1fr\) 6rem 6rem 2\.6rem;/
+
+    assert columns =~ ~r/\.cat-positions,\s*\.cat-invested,[^{]*\{\s*display: none;/
+
+    rows =
+      case Regex.run(
+             ~r/@container classifications \(max-width: 720px\) \{\n  \/\* category rows on two lines[^\n]*\n(.*?)\n\}\n/s,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no 720 px container block for the two-line category row")
+      end
+
+    refute @css =~
+             ~r/@media \(max-width: 560px\) \{\n  \/\* (The phone keeps the name|category rows on two lines)/
 
     assert rows =~ ~r/\.cat-summary \.cat-name \{[^}]*grid-column: 2 \/ 5;[^}]*grid-row: 1;/
     assert rows =~ ~r/\.cat-summary \.cat-name \{[^}]*flex-wrap: wrap;/
