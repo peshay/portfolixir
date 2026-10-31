@@ -3126,11 +3126,22 @@ choose, and the still-to-map line above it names the row. Choose the account
 it was renamed from: its earlier bookings are recognised as already booked,
 nothing is booked twice, and **Remember this mapping** (ticked) keeps the new
 name as a former name of that account, which an import maps by itself once a
-booking under the new name has been imported; until then the row asks again,
-and choosing the same account again still books nothing twice. *+ Create new*
-books the rows on a new account; choose it only for an
-account that really is new. A first import, and a file in which no name or
-every name matches stored bookings, is prefilled as before.
+booking under the new name has been imported. A former name alone vouches for
+nothing: a later file that brings a new booking under the new name asks once
+more, and choosing the same account again still books nothing twice. *+ Create
+new* books the rows on a new account; choose it only for an account that
+really is new. A first import, and a file in which no name or every name
+matches stored bookings, is prefilled as before.
+
+The preview counts first by content hash, then in the background the way the
+import will run. Until that answer arrives, such a row is withheld and its
+count reads *provisional · recomputing*. When every booking under the name
+turns out to be already booked on the account the name leads to (a
+re-export whose times drifted, an account renamed in Portfolixir and in
+Portfolio Performance alike, or the same file again after you remembered the
+mapping), the row is prefilled with that account once the counts are refined,
+unless you have chosen already. If the counting stops, for example on a name
+two accounts share, every such row stays withheld.
 
 **What each row of the mapping step says.** Every cash account and depot of
 the file counts its bookings: how many are **already imported**, how many

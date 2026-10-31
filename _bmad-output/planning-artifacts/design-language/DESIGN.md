@@ -3235,7 +3235,30 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   prefilled as before. **Under 560 px** this note and the ambiguous note
   (board 01's found-while-drawing item 8) join the correction note's
   selector list: the body wraps under the glyph and the word and takes the
-  note's full width; neither has a rule of its own.
+  note's full width; neither has a rule of its own. *Amended 2026-10-09
+  (issue 1195; ADR-0050's amendment of 2026-10-09, "the probe reads the dry
+  run"; board ux-design-2026-10-09/07-imports ④):* **withheld until the
+  dry run answers.** The first pass (hash layers alone) names the row; while
+  the background dry run runs, the withheld row is the one row whose state
+  can still change, so its count dims (`.stale-value`) and carries the
+  recomputing cue under it, inside the count's own block
+  (`.mapping-count > .recomputing-cue`, `aria-busy="true"` on the count):
+  basis "provisional", word "recomputing" — "provisional · recomputing" /
+  „vorläufig · wird neu berechnet". No other row carries the cue. **The
+  dry-run release:** when the dry run finds every importable booking under
+  the name already booked on the account its resolution leads to (a drifted
+  re-export, an account renamed in both programs, the same file after a
+  remembered mapping), the name is not unknown: the note goes, the row takes
+  its resolution's prefill (with nothing new, #1168's read-only "No mapping
+  needed" line, the choice riding as the hidden input), the hint drops it
+  and the confirm unlocks — unless the operator chose for the row before the
+  answer, whose choice stands. A dry run that stops (an ambiguous name a row
+  needs, anywhere in the file) releases nothing. **A remembered former name
+  still asks** while its export brings a new booking under it: the
+  remembered remap writes `former_names` like a rename or a merge, which
+  records no author, so the name vouches for nothing on its own; the row
+  reads "N bookings already imported · 1 new", "Decide…", the note, the
+  hint — by design, until a booking under the name has been imported.
 - **Same-named securities are told apart the same way (the closing act,
   UAT-13).** Wherever the operator picks or names a security — the Risk rule
   dialog's subject list, the booking drawer's security list, the row menus

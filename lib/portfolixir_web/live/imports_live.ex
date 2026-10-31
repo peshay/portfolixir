@@ -1629,7 +1629,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # A file name no booking was imported under, while the file's other names
   # have bookings (ADR-0050 §2 as amended on 2026-10-07; board 01 ①, pick
   # L1 = A): it gets no prefill, whatever its resolution, and the row says
-  # why.
+  # why, until the dry run's answer releases it (#1195).
   defp unseen?(states, group, pp_name),
     do: states.unseen |> Map.fetch!(group) |> MapSet.member?(pp_name)
 
@@ -3046,7 +3046,8 @@ defmodule PortfolixirWeb.ImportsLive do
   # unknown to the stored history, in a file whose other names are known,
   # → nothing either, whatever it resolves to (§2 as amended on 2026-10-07):
   # every row under it is a hash miss, so a prefill would book the history
-  # it names a second time.
+  # it names a second time. The dry run's answer may release it later
+  # (`take_refined_counts/2`, the amendment of 2026-10-09, #1195).
   defp initial_mapping_for(%Preview{} = preview, %{resolutions: resolutions} = states) do
     %{"cash" => cash_resolutions, "depot" => depot_resolutions} = resolutions
 

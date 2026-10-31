@@ -3443,11 +3443,23 @@ das bestehende Konto, das umbenannt wurde: Seine früheren Buchungen werden als
 bereits gebucht erkannt, nichts wird doppelt gebucht, und **Zuordnung merken**
 (angehakt) behält den neuen Namen als früheren Namen dieses Kontos, den ein
 Import selbst zuordnet, sobald eine Buchung unter dem neuen Namen importiert
-ist; bis dahin fragt die Zeile erneut, und dasselbe Konto erneut zu wählen,
-bucht weiterhin nichts doppelt. *+ Neu anlegen* bucht die Zeilen auf ein
-neues Konto; wählen Sie es nur für ein Konto, das wirklich neu ist. Ein erster
-Import und eine Datei, in der kein Name oder jeder Name gespeicherten
-Buchungen gleicht, wird wie bisher vorbelegt.
+ist. Ein früherer Name allein bürgt für nichts: eine spätere Datei, die unter
+dem neuen Namen eine neue Buchung bringt, fragt noch einmal, und dasselbe
+Konto erneut zu wählen, bucht weiterhin nichts doppelt. *+ Neu anlegen* bucht
+die Zeilen auf ein neues Konto; wählen Sie es nur für ein Konto, das wirklich
+neu ist. Ein erster Import und eine Datei, in der kein Name oder jeder Name
+gespeicherten Buchungen gleicht, wird wie bisher vorbelegt.
+
+Die Vorschau zählt zuerst nach Inhalts-Hash, dann im Hintergrund so, wie der
+Import laufen wird. Bis diese Antwort da ist, bleibt eine solche Zeile
+zurückgehalten, und ihre Zahl lautet *vorläufig · wird neu berechnet*. Ist
+jede Buchung unter dem Namen bereits auf dem Konto gebucht, zu dem der Name
+führt (ein erneuter Export mit verschobenen Uhrzeiten, ein Konto, das in
+Portfolixir und in Portfolio Performance gleich umbenannt wurde, oder dieselbe
+Datei noch einmal, nachdem Sie die Zuordnung gemerkt haben), wird die Zeile
+mit diesem Konto vorbelegt, sobald die Zählung verfeinert ist, sofern Sie
+nicht schon gewählt haben. Bricht die Zählung ab, etwa an einem Namen, den
+zwei Konten tragen, bleibt jede solche Zeile zurückgehalten.
 
 **Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
 Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** sind,

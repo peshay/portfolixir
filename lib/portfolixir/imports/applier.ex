@@ -75,7 +75,8 @@ defmodule Portfolixir.Imports.Applier do
   security key (`securities`), on the hash layers alone, so the preview can
   tell a security decision the apply never reaches (#923); with the file's
   names unknown to the stored history (`unseen_names`, the amendment of
-  2026-10-07 to §2, #904), which the preview does not prefill.
+  2026-10-07 to §2, #904), which the preview does not prefill until the
+  refined pass releases them (the amendment of 2026-10-09, #1195).
 
   Behavior:
 
@@ -454,11 +455,19 @@ defmodule Portfolixir.Imports.Applier do
   transaction or a retired hash holds, while another name of the file, in
   this portfolio, has a row that does. Such a name is typically one renamed
   in Portfolio Performance: names are hash inputs, so every row under it
-  misses, and the preview must not prefill it. Only the stored hashes count
-  — a repeat inside the file holds nothing yet, and the economic layer is
-  not read, because it cannot see a name — so both passes name the same.
-  Names compare as the file wrote them, exactly (the parsers trim surrounding
-  whitespace; #973). A file with no hit at all names nothing.
+  misses, and the preview must not prefill it. Only the stored hashes arm
+  the probe — a repeat inside the file holds nothing yet. The refined pass
+  (the amendment of 2026-10-09, #1195) then releases a name every importable
+  row of which the dry run judges already booked on its resolution (none
+  `:new`, none an internal transfer): the economic key cannot see a name,
+  but it carries the accounts a row resolves onto, and a name the stored
+  history never saw resolves onto an account the run would create, whose
+  rows count new. A former name vouches for nothing on its own. A dry run
+  that stops releases nothing, so the first pass (`dry_run: false`) and a
+  stopped refined pass name the same; the refined pass never names one the
+  first pass did not. Names compare as the file wrote them, exactly (the
+  parsers trim surrounding whitespace; #973). A file with no hit at all
+  names nothing.
   """
   @spec reimport_counts(Preview.t(), integer() | nil, keyword()) :: %{
           total: layer_counts(),

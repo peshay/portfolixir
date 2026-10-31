@@ -102,8 +102,10 @@ defmodule Portfolixir.Imports do
   name is held by a stored or a retired content hash, while another name of
   the file has one), which the preview leaves without a prefill. See
   `Portfolixir.Imports.Applier.reimport_counts/3`; `dry_run: false` counts on
-  the hash layers alone, without the rolled-back run of the apply that judges
-  the rest, and names the same unseen names.
+  the hash layers alone, without the dry run of the apply that judges the
+  rest. The dry run's answer can only release an unseen name, one whose rows
+  it finds all already booked on its resolution (ADR-0050 as amended on
+  2026-10-09, #1195); a dry run that stops releases nothing.
 
   Read-only. The hash names the portfolio the import binds to: `:portfolio_id`
   when given, otherwise the internal default portfolio the Imports view binds
