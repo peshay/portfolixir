@@ -276,7 +276,11 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   A stored trade with a rate and neither amount (H35), booked in another
   currency than its cash account's, is listed too: its settlement is read
   as `quantity × price × settlement_fx_rate`, the cash its own rate implies,
-  so the listing shows by how much the cash booked misses it.
+  so the listing shows by how much the cash booked misses it. The listing
+  keeps the cash-difference filter for every row, so a rate-only row whose
+  implied cash lies within a cent of the cash booked is not listed; the money
+  it misses is under a cent (#1290 lists the rows unconditionally on a
+  surface of their own).
   """
   @spec violations() :: [map()]
   def violations do
