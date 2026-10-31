@@ -179,6 +179,12 @@ describe("Portfolixir MCP tools", () => {
     // which figure must agree with which, and which patches re-check it.
     assert.match(transactionCreate?.description ?? "", /settlement_amount \+ fees \+ taxes/);
     assert.match(transactionCreate?.description ?? "", /settlement_amount - fees - taxes/);
+    // Without gross_amount the cash booked is SettlementGuard.booked_cash/2's:
+    // quantity × price plus fees and taxes on a buy, less them on a sell.
+    assert.match(
+      transactionCreate?.description ?? "",
+      /books quantity × price plus fees and taxes \(less on a sell\) as the account's cash/
+    );
     const transactionUpdate = tools.find((tool) => tool.name === "portfolixir.transactions.update");
     assert.match(transactionUpdate?.description ?? "", /re-checks the cross-currency settlement/);
     assert.match(transactionUpdate?.description ?? "", /notes or date on an older booking/);
