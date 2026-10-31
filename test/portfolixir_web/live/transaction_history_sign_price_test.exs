@@ -358,4 +358,70 @@ defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
 
     assert {"-806,00 EUR", "8 × 100,00 USD"} = delete_box(view, cross)
   end
+
+  # User story (#1148, Sprint 21 γ3; board 03, pick N11 A, "a dash carries
+  # none"):
+  # As the operator reading a USD security's Transaktionen tab,
+  # I want a booking with no price to read a bare dash in the Preis column,
+  # so that a currency never labels a price that is not there, as the
+  # history's Preis cell does (DESIGN.md: one price rule on both surfaces).
+  #
+  # Acceptance criteria:
+  # - A dividend of the USD security (no price) reads Preis "—", with no
+  #   currency beside it.
+  # - The same security's buy still reads "55,00 USD".
+  test "the security's Transaktionen tab gives a priceless row a bare dash", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(name: "Muster", cash_name: "Test-Cash", depot_name: "Depot Muster")
+
+    arbolia =
+      WorldFixtures.create_security!(name: "Arbolia Inc.", ticker: "ARBL", currency: "USD")
+
+    usd =
+      world.portfolio
+      |> WorldFixtures.add_depot(
+        cash_currency: "USD",
+        cash_name: "USD-Konto",
+        depot_name: "Depot USD"
+      )
+      |> Map.put(:portfolio, world.portfolio)
+
+    WorldFixtures.deposit!(usd, "5000", ~D[2026-09-01], currency: "USD")
+
+    buy =
+      WorldFixtures.buy!(usd, arbolia,
+        quantity: "2",
+        price: "55",
+        date: ~D[2026-09-02],
+        currency: "USD"
+      )
+
+    dividend =
+      book!(%{
+        type: "dividend",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: usd.cash.id,
+        security_id: arbolia.id,
+        gross_amount: "8.00",
+        currency_code: "USD",
+        date: ~D[2026-10-05]
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=transactions&locale=de")
+
+    [dividend_row, buy_row] =
+      view
+      |> element("#detail-tab-panel-transactions")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("tbody tr")
+
+    assert buy.price && dividend.price == nil
+
+    dash = Floki.find(dividend_row, "td[data-role='price']")
+    assert text(dash) == "—"
+    assert Floki.find(dash, "small") == []
+
+    assert buy_row |> Floki.find("td[data-role='price']") |> text() == "55,00 USD"
+  end
 end
