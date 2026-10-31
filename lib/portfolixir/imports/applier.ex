@@ -372,25 +372,27 @@ defmodule Portfolixir.Imports.Applier do
   # account-identity lock nor the ISIN write lock, inserts nothing (so no
   # trigger takes the import-hash lock), and reads the currencies without a
   # row lock; the database refuses any write it would still send.
-  defp dry_run_outcomes(_flat_entries, nil), do: :error
+  #
+  # The one run answers both: each row's outcome in file order, and the
+  # economic keys each row past the hash layer reached (`economic_keys/2`,
+  # ADR-0053 A12), so a page that refines its counts and lists the
+  # correction simulates the file once.
+  defp simulate(_flat_entries, nil), do: :error
 
-  defp dry_run_outcomes(flat_entries, portfolio_id) do
+  defp simulate(flat_entries, portfolio_id) do
     fn ->
       with :ok <- open_dry_run(portfolio_id),
            {:ok, final_state} <-
              run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true) do
-        Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes)})
+        Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes), final_state.economic_keys})
       else
         _stopped -> Repo.rollback(:stopped)
       end
     end
     |> Repo.transaction(timeout: @transaction_timeout)
     |> case do
-      {:error, {:dry_run, outcomes}} when length(outcomes) == length(flat_entries) ->
-        {:ok, outcomes}
-
-      _stopped ->
-        :error
+      {:error, {:dry_run, outcomes, keys}} -> {:ok, outcomes, keys}
+      _stopped -> :error
     end
   rescue
     DBConnection.ConnectionError -> :error
@@ -436,26 +438,41 @@ defmodule Portfolixir.Imports.Applier do
   def economic_keys(%Preview{}, nil), do: :error
 
   def economic_keys(%Preview{entries: entries}, portfolio_id) when is_integer(portfolio_id) do
-    flat_entries = Entry.flatten(entries)
+    # The same read-only, lock-free simulation as `reimport_counts/3`'s (H53).
+    case entries |> Entry.flatten() |> simulate(portfolio_id) do
+      {:ok, _outcomes, keys} -> {:ok, keys}
+      :error -> :error
+    end
+  end
 
-    # The same read-only, lock-free simulation as `dry_run_outcomes/2` (H53).
-    fn ->
-      with :ok <- open_dry_run(portfolio_id),
-           {:ok, final_state} <-
-             run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true) do
-        Repo.rollback({:dry_run, final_state.economic_keys})
-      else
-        _stopped -> Repo.rollback(:stopped)
-      end
+  @doc """
+  `economic_keys/2` for the import correction's confirm
+  (`Portfolixir.Imports.Correction.apply/3`, ADR-0053 A12, #1205), read
+  inside the caller's transaction, which already holds the portfolio's
+  account-identity lock (`Lifecycle.AccountNames.lock_identity/2`). The
+  lock-free simulation stops when another writer holds that lock (H53),
+  which suits a preview but would silently cut a confirmed correction down
+  to its hash hits; under the lock no writer of the account names is in
+  flight, and the names the keys resolve cannot change before the confirm
+  writes. The same simulated run (`simulate?`: nothing is inserted, what
+  the run would create is kept in memory); it takes no lock of its own and
+  writes nothing. `:error` when the run stops (an ambiguous name).
+  """
+  @spec economic_keys_in_transaction(Preview.t(), integer()) :: {:ok, map()} | :error
+  def economic_keys_in_transaction(%Preview{entries: entries}, portfolio_id)
+      when is_integer(portfolio_id) do
+    true = Repo.in_transaction?()
+
+    case run_auto(
+           Entry.flatten(entries),
+           portfolio_id,
+           "EUR",
+           %{portfolio_id: portfolio_id},
+           true
+         ) do
+      {:ok, final_state} -> {:ok, final_state.economic_keys}
+      {:error, _stopped} -> :error
     end
-    |> Repo.transaction(timeout: @transaction_timeout)
-    |> case do
-      {:error, {:dry_run, keys}} -> {:ok, keys}
-      _stopped -> :error
-    end
-  rescue
-    DBConnection.ConnectionError -> :error
-    Postgrex.Error -> :error
   end
 
   @doc """
@@ -522,8 +539,15 @@ defmodule Portfolixir.Imports.Applier do
   first pass did not. Names compare as the file wrote them, exactly (the
   parsers trim surrounding whitespace; #973). A file with no hit at all
   names nothing.
+
+  With `economic_keys: true` the answer also carries `economic_keys`, what
+  `economic_keys/2` answers, taken from the same simulated run (`:error`
+  when it stopped or with `dry_run: false`): the Imports page lists the
+  correction's rows matched by their figures from the run that refines its
+  counts, and simulates the file once (ADR-0053 A12, #1205).
   """
   @spec reimport_counts(Preview.t(), integer() | nil, keyword()) :: %{
+          optional(:economic_keys) => {:ok, map()} | :error,
           total: layer_counts(),
           cash_accounts: %{String.t() => layer_counts()},
           depots: %{String.t() => layer_counts()},
@@ -537,10 +561,16 @@ defmodule Portfolixir.Imports.Applier do
     # `dry_run: false` counts on the hash layers alone: one read, where the
     # dry run costs what the apply costs (the Imports view shows these first
     # and refines them in the background, the closing act, EH-1).
-    outcomes =
+    simulation =
       if Keyword.get(opts, :dry_run, true),
-        do: dry_run_outcomes(flat_entries, portfolio_id),
+        do: simulate(flat_entries, portfolio_id),
         else: :error
+
+    outcomes =
+      case simulation do
+        {:ok, outcomes, _keys} when length(outcomes) == length(flat_entries) -> {:ok, outcomes}
+        _stopped -> :error
+      end
 
     layers =
       case outcomes do
@@ -589,7 +619,18 @@ defmodule Portfolixir.Imports.Applier do
     counts
     |> Map.put(:securities, securities)
     |> Map.put(:unseen_names, unseen)
+    |> put_economic_keys(simulation, Keyword.get(opts, :economic_keys, false))
   end
+
+  # ADR-0053 A12 (#1205): the economic keys of the same run, for the import
+  # correction, so a page that refines its counts and lists the correction
+  # simulates the file once.
+  defp put_economic_keys(counts, _simulation, false), do: counts
+
+  defp put_economic_keys(counts, {:ok, _outcomes, keys}, true),
+    do: Map.put(counts, :economic_keys, {:ok, keys})
+
+  defp put_economic_keys(counts, :error, true), do: Map.put(counts, :economic_keys, :error)
 
   @typedoc "The file's names unknown to the stored history, as `reimport_counts/3` names them."
   @type unseen_names :: %{cash_accounts: [String.t()], depots: [String.t()]}

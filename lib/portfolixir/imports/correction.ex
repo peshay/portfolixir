@@ -52,8 +52,10 @@ defmodule Portfolixir.Imports.Correction do
   (ADR-0017), and the derived-value bump inside the writing transaction
   (`Journal.record/3` → `Derived.Invalidation`, ADR-0039). The whole
   confirm is one transaction that first takes the apply's account-identity
-  lock for the portfolio (`Lifecycle.AccountNames.lock_identity/2`), then
-  lists the bookings again under their row locks, so it corrects what is
+  lock for the portfolio (`Lifecycle.AccountNames.lock_identity/2`), reads
+  the rows' economic keys under it when a row needs them (A12,
+  `Applier.economic_keys_in_transaction/2`), then lists the bookings again
+  under their row locks, so it corrects what is
   stored when it runs and nothing a concurrent writer changed in between;
   a refused write rolls every change back. A second run finds nothing to
   correct.
@@ -161,9 +163,10 @@ defmodule Portfolixir.Imports.Correction do
 
     keys =
       Keyword.get_lazy(opts, :keys, fn ->
-        if Keyword.get(opts, :dry_run, true),
-          do: Applier.economic_keys(preview, portfolio_id),
-          else: :error
+        if Keyword.get(opts, :dry_run, true) and
+             needs_keys?(flat_entries, hashes, stored, portfolio_id),
+           do: Applier.economic_keys(preview, portfolio_id),
+           else: :error
       end)
 
     figure_items =
@@ -244,6 +247,57 @@ defmodule Portfolixir.Imports.Correction do
     do: Decimal.equal?(Decimal.new(a), Decimal.new(b))
 
   defp same_figure?(_a, _b), do: false
+
+  @doc """
+  Whether `detect/3` needs the apply's simulated run for `preview` in
+  `portfolio_id` (ADR-0053 A12, #1205): only a row no stored content hash
+  holds can be matched by its figures, and only under A4's old reading, so
+  the run is needed when such a row reads otherwise under it (its hash
+  amount is not its cash, or a JSON trade's hash price is not its price)
+  and the portfolio holds a booking for its old key to match. Otherwise the
+  economic keys could list nothing, and the hash lookup alone lists the
+  correction: a re-drop that is all hash hits is answered in the time that
+  lookup takes. Read-only; `false` without a portfolio.
+  """
+  @spec economic_keys_needed?(Preview.t(), integer() | nil) :: boolean()
+  def economic_keys_needed?(%Preview{}, nil), do: false
+
+  def economic_keys_needed?(%Preview{entries: entries}, portfolio_id)
+      when is_integer(portfolio_id) do
+    flat_entries = Entry.flatten(entries)
+    hashes = Applier.row_hashes(flat_entries, portfolio_id)
+
+    held =
+      from(t in Transaction,
+        where: t.import_hash in ^List.flatten(hashes),
+        select: {t.import_hash, true}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    needs_keys?(flat_entries, hashes, held, portfolio_id)
+  end
+
+  defp needs_keys?(flat_entries, hashes, stored, portfolio_id) do
+    flat_entries
+    |> Enum.zip(hashes)
+    |> Enum.any?(fn {%Entry{} = entry, row_hashes} ->
+      is_nil(entry.companion_index) and
+        not Enum.any?(row_hashes, &Map.has_key?(stored, &1)) and
+        reads_otherwise?(entry)
+    end) and holds_bookings?(portfolio_id)
+  end
+
+  # A4's old reading differs from the booked one: the key `Applier` records
+  # as `old` for the row is not `nil`.
+  defp reads_otherwise?(%Entry{} = entry),
+    do: differs?(entry.hash_amount, entry.gross_amount) or differs?(entry.hash_price, entry.price)
+
+  defp differs?(%Decimal{} = old, %Decimal{} = booked), do: not Decimal.equal?(old, booked)
+  defp differs?(_old, _booked), do: false
+
+  defp holds_bookings?(portfolio_id),
+    do: Repo.exists?(from(t in Transaction, where: t.portfolio_id == ^portfolio_id))
 
   # A12 (#1205): a row no stored content hash holds, which the economic
   # layer matches under A4's old reading — a drifted re-export (a time of
@@ -595,6 +649,7 @@ defmodule Portfolixir.Imports.Correction do
   `preview`, under `actor`, and answers the corrected items as they were
   listed (each `transaction` as stored before, its `changes` as written).
   One transaction: the apply's account-identity lock first, then the
+  economic keys read under it when a row needs them (A12), then the
   bookings listed again under their row locks, then one
   `Ledger.update_transaction/3` per booking, each journaled with its
   before-image. A refused write rolls them all back and answers
@@ -604,14 +659,20 @@ defmodule Portfolixir.Imports.Correction do
   @spec apply(Actor.t(), Preview.t(), integer()) ::
           {:ok, [Item.t()]} | {:error, %{row: term(), reason: term()}}
   def apply(%Actor{} = actor, %Preview{} = preview, portfolio_id) when is_integer(portfolio_id) do
-    # A12: the dry run that resolves each row's economic keys rolls back, so
-    # it runs before the confirm's transaction; the rows are judged again
-    # against the bookings under the confirm's locks.
-    keys = Applier.economic_keys(preview, portfolio_id)
-
     Repo.transaction(
       fn ->
         :ok = AccountNames.lock_identity(portfolio_id)
+
+        # A12: the economic keys are read under the identity lock, in this
+        # transaction, and only when a row needs them
+        # (`economic_keys_needed?/2`). The preview's lock-free simulation
+        # stops while another writer holds that lock (H53); a confirm is a
+        # write the operator confirmed, so it waits for that writer as the
+        # apply does, instead of correcting only the hash hits.
+        keys =
+          if economic_keys_needed?(preview, portfolio_id),
+            do: Applier.economic_keys_in_transaction(preview, portfolio_id),
+            else: :error
 
         preview
         |> detect(portfolio_id, lock: true, keys: keys)

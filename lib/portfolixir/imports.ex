@@ -114,8 +114,13 @@ defmodule Portfolixir.Imports do
   when given, otherwise the internal default portfolio the Imports view binds
   to (ADR-0024), read without creating it — before the first import there is
   none, and every importable row is new.
+
+  With `economic_keys: true` the answer also carries the import
+  correction's economic keys from the same simulated run
+  (`Applier.reimport_counts/3`), for `cash_corrections/2`'s `:keys`.
   """
   @spec reimport_counts(Preview.t(), keyword()) :: %{
+          optional(:economic_keys) => {:ok, map()} | :error,
           total: Applier.layer_counts(),
           cash_accounts: %{String.t() => Applier.layer_counts()},
           depots: %{String.t() => Applier.layer_counts()},
@@ -124,7 +129,8 @@ defmodule Portfolixir.Imports do
         }
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
     Applier.reimport_counts(preview, import_portfolio_id(opts),
-      dry_run: Keyword.get(opts, :dry_run, true)
+      dry_run: Keyword.get(opts, :dry_run, true),
+      economic_keys: Keyword.get(opts, :economic_keys, false)
     )
   end
 
@@ -199,10 +205,30 @@ defmodule Portfolixir.Imports do
   internal default portfolio the Imports view binds to (ADR-0024), read
   without creating it — before the first import there is none, and nothing
   is listed.
+
+  A row matched by its figures (A12) reads the economic keys of the apply's
+  simulated run. `:keys` hands them over (`{:ok, keys}` from
+  `reimport_counts/2`'s `economic_keys`, or `:error` to list by the hash
+  alone); without it the run is made here, only when
+  `correction_needs_dry_run?/2` says a row needs it.
   """
   @spec cash_corrections(Preview.t(), keyword()) :: [Correction.Item.t()]
   def cash_corrections(%Preview{} = preview, opts \\ []) when is_list(opts),
-    do: Correction.detect(preview, import_portfolio_id(opts))
+    do: Correction.detect(preview, import_portfolio_id(opts), Keyword.take(opts, [:keys]))
+
+  @doc """
+  Whether `cash_corrections/2` needs the apply's simulated run for
+  `preview` (ADR-0053 A12, #1205): the portfolio holds a booking, and a row
+  no stored content hash holds reads differently under A4's old reading
+  (its hash amount is not its cash, or a JSON trade's hash price is not its
+  price). Otherwise no row can be matched by its figures, and the hash
+  lookup alone lists the correction. See
+  `Portfolixir.Imports.Correction.economic_keys_needed?/2`. Read-only; the
+  portfolio as for `cash_corrections/2`.
+  """
+  @spec correction_needs_dry_run?(Preview.t(), keyword()) :: boolean()
+  def correction_needs_dry_run?(%Preview{} = preview, opts \\ []) when is_list(opts),
+    do: Correction.economic_keys_needed?(preview, import_portfolio_id(opts))
 
   @doc """
   The row errors of a parsed preview as the preview shows them in the

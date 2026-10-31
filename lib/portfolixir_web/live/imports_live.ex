@@ -106,7 +106,8 @@ defmodule PortfolixirWeb.ImportsLive do
     :unmatched_config,
     :unmatched_config_scope,
     :account_states,
-    :corrections
+    :corrections,
+    :corrections_pending
   ]
 
   defp parked_summary(socket),
@@ -145,9 +146,10 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp refine_unless_answered(socket, preview) do
-    if Map.get(socket.assigns.account_states, :refined, false),
-      do: assign(socket, :counts_token, nil),
-      else: refine_counts(socket, preview)
+    if Map.get(socket.assigns.account_states, :refined, false) and
+         not socket.assigns.corrections_pending,
+       do: assign(socket, :counts_token, nil),
+       else: refine_counts(socket, preview)
   end
 
   # Only the summary of the preview this page parked: another tab of the
@@ -391,14 +393,39 @@ defmodule PortfolixirWeb.ImportsLive do
       />
 
       <section
-        :if={@corrections != [] and not @correction_running}
+        :if={(@corrections != [] or @corrections_pending) and not @correction_running}
         class="panel inner"
         id="import-correction"
         aria-labelledby="import-correction-head"
       >
         <h3 id="import-correction-head"><%= gettext("Already imported, with a different amount") %></h3>
-        <div role="status">
-          <AppShell.data_note severity={:attention} data-role="import-correction">
+        <div role="status" aria-busy={@corrections_pending && "true"}>
+          <%!-- ADR-0053 A12 and its consequences: while the page's dry run
+               has not answered, a row may still be found by its date and
+               figures. The section says so with the recomputing cue, lists
+               what the hash lookup found, and offers no confirm until the
+               answer. --%>
+          <AppShell.data_note
+            :if={@corrections == []}
+            severity={:note}
+            data-role="import-correction"
+          >
+            <p class="recomputing-cue" data-role="import-correction-pending">
+              <span class="spinner"></span><%= gettext("comparing by date and figures") %>
+            </p>
+          </AppShell.data_note>
+          <AppShell.data_note
+            :if={@corrections != []}
+            severity={:attention}
+            data-role="import-correction"
+          >
+            <p
+              :if={@corrections_pending}
+              class="recomputing-cue"
+              data-role="import-correction-pending"
+            >
+              <span class="spinner"></span><%= gettext("found by import hash · comparing by date and figures") %>
+            </p>
             <p data-role="import-correction-finding">
               <%!-- Board ux-design-2026-10-07/03-correction-sentence ①:
                    true for both readings the correction meets, a CSV
@@ -467,14 +494,20 @@ defmodule PortfolixirWeb.ImportsLive do
                 <.correction_state line={line} />
               </li>
             </ul>
-            <p :if={@correction_fixable != []} class="import-correction__total">
+            <p
+              :if={@correction_fixable != [] and not @corrections_pending}
+              class="import-correction__total"
+            >
               <%= total_line(
                 @correction_totals,
                 length(@correction_fixable),
                 length(@corrections) > length(@correction_fixable)
               ) %>
             </p>
-            <div :if={@correction_fixable != []} class="import-correction__foot">
+            <div
+              :if={@correction_fixable != [] and not @corrections_pending}
+              class="import-correction__foot"
+            >
               <button
                 type="button"
                 id="import-correction-open"
@@ -497,7 +530,7 @@ defmodule PortfolixirWeb.ImportsLive do
       </section>
 
       <.correction_dialog
-        :if={@correcting and @correction_fixable != []}
+        :if={@correcting and @correction_fixable != [] and not @corrections_pending}
         corrections={@correction_fixable}
         kept={length(@corrections) - length(@correction_fixable)}
         totals={@correction_totals}
@@ -1145,14 +1178,19 @@ defmodule PortfolixirWeb.ImportsLive do
   # and runs once at a time.
   def handle_event("open_correction", _params, socket) do
     {:noreply,
-     assign(socket, :correcting, Correction.confirmable(socket.assigns.corrections) != [])}
+     assign(
+       socket,
+       :correcting,
+       not socket.assigns.corrections_pending and
+         Correction.confirmable(socket.assigns.corrections) != []
+     )}
   end
 
   def handle_event("cancel_correction", _params, socket),
     do: {:noreply, assign(socket, :correcting, false)}
 
   def handle_event("confirm_correction", _params, socket) do
-    if socket.assigns.correction_running or
+    if socket.assigns.correction_running or socket.assigns.corrections_pending or
          Correction.confirmable(socket.assigns.corrections) == [],
        do: {:noreply, assign(socket, :correcting, false)},
        else: confirm_correction(socket)
@@ -1199,11 +1237,20 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
+  # The one dry run answers the counts and, from the same simulated run,
+  # the correction's economic keys (ADR-0053 A12, #1205): a correction
+  # waiting for them is listed again with them. After the import the page
+  # shows no counts, so only the keys are taken.
   def handle_async(:refine_counts, {:ok, {token, counts}}, socket) do
     if token == socket.assigns.counts_token do
+      socket =
+        if socket.assigns.stage == :preview,
+          do: take_refined_counts(socket, counts),
+          else: update(socket, :account_states, &Map.put(&1, :pending, false))
+
       {:noreply,
        socket
-       |> take_refined_counts(counts)
+       |> take_correction_keys(Map.get(counts, :economic_keys, :error))
        |> repark()}
     else
       {:noreply, socket}
@@ -1211,11 +1258,13 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   # The hash-layer counts stand when the dry run fails, and every withheld
-  # row stays withheld (#1195).
+  # row stays withheld (#1195); the correction keeps what the hash lookup
+  # found.
   def handle_async(:refine_counts, {:exit, _reason}, socket) do
     {:noreply,
      socket
      |> update(:account_states, &Map.put(&1, :pending, false))
+     |> take_correction_keys(:error)
      |> repark()}
   end
 
@@ -1229,7 +1278,8 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:result, result)
      |> assign(:error, nil)
      |> reload_lookups()
-     |> assign_corrections(socket.assigns.preview)}
+     |> assign_corrections(socket.assigns.preview)
+     |> refine_if_pending(socket.assigns.preview)}
   end
 
   # ADR-0050 §10: an account the mapping names has been merged away (or
@@ -1296,6 +1346,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:correction_running, false)
      |> assign(:correction_result, correction_result(corrected))
      |> assign_corrections(socket.assigns.preview)
+     |> refine_if_pending(socket.assigns.preview)
      |> repark()}
   end
 
@@ -1312,6 +1363,7 @@ defmodule PortfolixirWeb.ImportsLive do
         )}
      )
      |> assign_corrections(socket.assigns.preview)
+     |> refine_if_pending(socket.assigns.preview)
      |> repark()}
   end
 
@@ -1324,6 +1376,7 @@ defmodule PortfolixirWeb.ImportsLive do
        {:problem, gettext("The correction failed unexpectedly. Nothing was corrected.")}
      )
      |> assign_corrections(socket.assigns.preview)
+     |> refine_if_pending(socket.assigns.preview)
      |> repark()}
   end
 
@@ -1526,7 +1579,7 @@ defmodule PortfolixirWeb.ImportsLive do
       |> update(:account_states, &Map.put(&1, :pending, true))
       |> CappedAsync.start_async(:refine_counts, fn ->
         await_refine_gate()
-        {token, Imports.reimport_counts(preview)}
+        {token, Imports.reimport_counts(preview, economic_keys: true)}
       end)
     else
       assign(socket, :counts_token, nil)
@@ -2143,15 +2196,42 @@ defmodule PortfolixirWeb.ImportsLive do
   # left uncorrected) and after each correction: the bookings the file's
   # hashes name, and the parser warnings as the portfolio reads them (a
   # credit A5 refuses whose booking is already stored says so, #1118).
+  #
+  # A row matched by its figures (ADR-0053 A12, #1205) needs the apply's
+  # simulated run, which costs what an apply costs: it is never made in this
+  # process. When a row needs it (`Imports.correction_needs_dry_run?/1`),
+  # the section lists the hash hits at once and stays pending — no confirm,
+  # the recomputing cue — until the page's one background dry run
+  # (`refine_counts/2`) answers with the keys (`take_correction_keys/2`).
   defp assign_corrections(socket, nil),
-    do: assign(socket, corrections: [], row_errors: [])
+    do: assign(socket, corrections: [], corrections_pending: false, row_errors: [])
 
-  defp assign_corrections(socket, %Preview{} = preview),
-    do:
-      assign(socket,
-        corrections: Imports.cash_corrections(preview),
-        row_errors: Imports.row_errors(preview)
-      )
+  defp assign_corrections(socket, %Preview{} = preview) do
+    pending? = Imports.correction_needs_dry_run?(preview)
+
+    assign(socket,
+      corrections: Imports.cash_corrections(preview, keys: :error),
+      corrections_pending: pending?,
+      row_errors: Imports.row_errors(preview)
+    )
+  end
+
+  # After the import or a correction no dry run is under way; one starts
+  # when the correction waits for its keys.
+  defp refine_if_pending(socket, preview) do
+    if socket.assigns.corrections_pending,
+      do: refine_counts(socket, preview),
+      else: socket
+  end
+
+  defp take_correction_keys(%{assigns: %{corrections_pending: false}} = socket, _keys),
+    do: socket
+
+  defp take_correction_keys(socket, keys) do
+    socket
+    |> assign(:corrections, Imports.cash_corrections(socket.assigns.preview, keys: keys))
+    |> assign(:corrections_pending, false)
+  end
 
   # One listed booking as the section shows it: the row, the date, the kind,
   # the booking's names, its signed cash as booked and as corrected, and
