@@ -119,6 +119,26 @@ defmodule PortfolixirWeb.ContentSecurityPolicyTest do
     assert standard =~ "connect-src 'self' ws://www.example.com wss://www.example.com;"
   end
 
+  # User story (security review 2026-10-12, H38; board 01 of
+  # ux-design-2026-10-27):
+  # As the operator choosing a logo file in the Manage-logo dialog,
+  # I want the chosen image to preview,
+  # so that I see the file before it is stored.
+  #
+  # Acceptance criteria:
+  # - img-src admits exactly 'self', data: and blob: (the upload preview's
+  #   object URL), in the per-request and the static policy alike; no
+  #   foreign origin and no scheme wildcard.
+  test "img-src admits the page's own blob: images for the logo upload's preview",
+       %{conn: conn} do
+    [policy] = conn |> get("/") |> get_resp_header("content-security-policy")
+
+    for header <- [policy, ContentSecurityPolicy.static_policy()] do
+      assert [_, sources] = Regex.run(~r/(?:^|; )img-src ([^;]+)/, header)
+      assert String.split(sources) == ["'self'", "data:", "blob:"]
+    end
+  end
+
   # The raw header as a browser sends it; Plug.Conn.put_req_header/3 refuses
   # the host header in tests, and the plug reads the header, not the field.
   defp host_header(conn, value),
