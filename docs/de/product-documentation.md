@@ -1957,7 +1957,12 @@ früheren Werte und ihr realisiertes Ergebnis — liegt hundertfach daneben,
 ob sie gehalten wird oder nicht. Der Zähler der gehaltenen Wertpapiere,
 deren Kurse nicht zu ihren Buchungen passen (Issue #1101), sagt
 „gehaltene", weil die Zeile sonst den Katalog zählt, und behält ein
-gehaltenes Wertpapier, das stillgelegt oder eine Benchmark ist. Der Befund,
+gehaltenes Wertpapier, das stillgelegt oder eine Benchmark ist. Diese
+beiden Befunde sagen nach ihrem Link auch, was sie mit der Summe darüber
+machen (Issue #1121): „— gehalten zählt sie in der Summe oben hundertfach
+zu hoch oder zu niedrig" und „— ihr Wert in der Summe oben oder ihr
+Einstand ist daher falsch"; die Wertkarte selbst schweigt, denn eine solche
+Zeile steht in der Summe, nicht außerhalb. Der Befund,
 der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
 Anlageklasse"). Der Hinweis nimmt die höchste vorhandene Stufe an: Problem,
 solange eine Anleihe auf zwei Skalen bepreist ist oder die Kurse eines

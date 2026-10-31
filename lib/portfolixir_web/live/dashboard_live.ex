@@ -608,6 +608,13 @@ defmodule PortfolixirWeb.DashboardLive do
                 <span aria-hidden="true"> · </span>
               <% end %>
               <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
+              <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
+                   says what it does to the total above, after its link and
+                   outside it, so the link still names the list it opens.
+                   The card stays silent (#703's split, D-7). Keyed by
+                   `data-effect-of`, so the line's `data-role`s stay one per
+                   finding. --%>
+              <span :if={finding[:effect]} data-effect-of={finding.role}><%= finding.effect %></span>
             <% end %>
           </AppShell.data_note>
         </div>
@@ -1160,6 +1167,14 @@ defmodule PortfolixirWeb.DashboardLive do
           "one bond priced on two scales",
           "%{count} bonds priced on two scales",
           count
+        ),
+      # Conditional ("if held"): the count is catalog-wide on purpose, and
+      # only a held bond is in the total above.
+      effect:
+        ngettext(
+          "— if held, it counts a hundredfold too high or too low in the total above",
+          "— each one held counts a hundredfold too high or too low in the total above",
+          count
         )
     }
   end
@@ -1172,6 +1187,12 @@ defmodule PortfolixirWeb.DashboardLive do
         ngettext(
           "one held security whose quotes do not match its bookings",
           "%{count} held securities whose quotes do not match their bookings",
+          count
+        ),
+      effect:
+        ngettext(
+          "— so its value in the total above, or its cost, is wrong",
+          "— so their value in the total above, or their cost, is wrong",
           count
         )
     }

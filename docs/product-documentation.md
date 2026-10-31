@@ -1777,7 +1777,12 @@ sold-out bonds included, because such a bond's booked history — its past
 values and its realized result — is a hundredfold off whether it is held or
 not. The count of held securities whose quotes do not match their bookings
 (issue #1101) says "held", because the line otherwise counts the catalog,
-and keeps a held security that is retired or a benchmark. Whichever finding
+and keeps a held security that is retired or a benchmark. These two
+findings also say, after their link, what they do to the total above it
+(issue #1121): "— if held, it counts a hundredfold too high or too low in
+the total above" and "— so their value in the total above, or their cost,
+is wrong"; the value card itself stays silent, since such a row is in the
+total, not left out of it. Whichever finding
 opens the line carries the noun ("4 securities without an asset class").
 The note takes the highest severity present: a problem while a bond is
 priced on two scales or a held security's quotes do not match its

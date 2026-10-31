@@ -285,7 +285,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
   end
 
   # The line's text after the finding's link, up to the next finding.
-  defp effect(view, role), do: text(view, ~s(#dashboard-dq-line [data-role="#{role}-effect"]))
+  defp effect(view, role), do: text(view, ~s(#dashboard-dq-line [data-effect-of="#{role}"]))
 
   # User story (#1121, the card half, Sprint 21 γ1; board 01 ③, pick N3 A):
   # As the operator reading the Overview's total, I want the data-quality
@@ -326,7 +326,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
              "— ihr Wert in der Summe oben oder ihr Einstand ist daher falsch"
 
     # The clause is the note's body text, never inside the link.
-    refute has_element?(view, ~s(#dashboard-dq-line a [data-role$="-effect"]))
+    refute has_element?(view, ~s(#dashboard-dq-line a [data-effect-of]))
     assert has_element?(view, "#dashboard-data-quality .data-note--problem")
     refute has_element?(view, "#dashboard-wealth .data-note", "Skalen")
     refute has_element?(view, "#dashboard-wealth .data-note", "Buchungen")
