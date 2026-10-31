@@ -15,9 +15,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.NamedRecordRefusal
@@ -41,7 +43,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
      |> assign(:mode, nil)
      |> assign(:form, @empty_form)
      |> assign(:errors, %{})
-     |> assign(:bucket_error, nil)}
+     |> assign(bucket_error: nil, tag_refused?: false)}
   end
 
   @impl true
@@ -117,7 +119,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     ~H"""
     <form id="account-dialog-form" phx-change="form_change" phx-submit="save" phx-target={@myself}>
       <%= if @bucket_error do %>
-        <p class="alert-error" role="alert"><%= @bucket_error %></p>
+        <p class="alert-error" id="account-bucket-error" role="alert"><%= @bucket_error %></p>
       <% end %>
 
       <div class="form-grid">
@@ -193,6 +195,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
             value={@form["new_tag"]}
             autocomplete="off"
             placeholder={gettext("e.g. Household")}
+            aria-invalid={@tag_refused? && "true"}
+            aria-describedby={@tag_refused? && "account-bucket-error"}
           />
         </label>
       </fieldset>
@@ -224,9 +228,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
         value={@value || ""}
         required={@required}
         maxlength={@maxlength}
+        aria-invalid={@errors[@name] && "true"}
+        aria-describedby={@errors[@name] && "account-#{@name}-error"}
       />
       <%= if msg = @errors[@name] do %>
-        <span class="field-error"><%= msg %></span>
+        <span class="field-error" id={"account-#{@name}-error"}><%= msg %></span>
       <% end %>
     </label>
     """
@@ -258,7 +264,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
      |> assign(:step, :form)
      |> assign(:form, @empty_form)
      |> assign(:errors, %{})
-     |> assign(:bucket_error, nil)}
+     |> assign(bucket_error: nil, tag_refused?: false)}
   end
 
   def handle_event("back", _params, socket) do
@@ -267,7 +273,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
      |> assign(:step, :choose)
      |> assign(:mode, nil)
      |> assign(:errors, %{})
-     |> assign(:bucket_error, nil)}
+     |> assign(bucket_error: nil, tag_refused?: false)}
   end
 
   def handle_event("form_change", params, socket) do
@@ -280,16 +286,29 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     form = normalize_form(socket.assigns.form, params["account"])
     socket = assign(socket, :form, form)
 
-    with {:ok, bucket_ids} <- resolve_initial_buckets(form),
-         {:ok, records} <- create_records(socket.assigns.mode, form, socket),
-         :ok <- assign_initial_buckets(records, bucket_ids) do
-      notify_parent(socket, {:created, success_message(socket.assigns.mode)})
-      {:noreply, socket}
-    else
+    # K14: the tag, the cash account, the depot and the bucket sets land
+    # together or not at all — a refusal at any step rolls back the writes
+    # before it, so nothing is left behind and a retry starts clean.
+    save = fn ->
+      with {:ok, bucket_ids} <- resolve_initial_buckets(form),
+           {:ok, records} <- create_records(socket.assigns.mode, form, socket),
+           :ok <- assign_initial_buckets(records, bucket_ids) do
+        {:ok, records}
+      end
+    end
+
+    case save |> Portfolios.all_or_nothing() |> map_refusal() do
+      {:ok, _records} ->
+        notify_parent(socket, {:created, success_message(socket.assigns.mode)})
+        {:noreply, socket}
+
+      # A bucket refusal is this submit's only answer: the field errors of
+      # an earlier submit go with it (K13).
       {:error, :scope_conflict} ->
         {:noreply,
-         assign(
-           socket,
+         socket
+         |> assign(errors: %{}, tag_refused?: false)
+         |> assign(
            :bucket_error,
            gettext("Only one scope bucket per account — pick at most one.")
          )}
@@ -298,17 +317,22 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       # tag (fix round): tell the user instead of failing opaquely.
       {:error, :name_taken_by_scope_bucket} ->
         {:noreply,
-         assign(
-           socket,
+         socket
+         |> assign(errors: %{}, tag_refused?: true)
+         |> assign(
            :bucket_error,
            gettext("That name belongs to a scope bucket — pick a different tag name.")
          )}
 
       {:error, {:field_errors, errors}} ->
-        {:noreply, socket |> assign(:errors, errors) |> assign(:bucket_error, nil)}
+        {:noreply,
+         socket |> assign(:errors, errors) |> assign(bucket_error: nil, tag_refused?: false)}
 
-      {:error, %Ecto.Changeset{}} ->
-        {:noreply, assign(socket, :bucket_error, gettext("The new tag could not be created."))}
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         socket
+         |> assign(errors: %{}, tag_refused?: true)
+         |> assign(:bucket_error, new_tag_error(changeset))}
     end
   end
 
@@ -319,8 +343,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   # -- create flow ------------------------------------------------------------
 
   # Resolves the checked buckets plus the optional inline tag into one id set,
-  # rejecting more than one exclusive scope bucket BEFORE anything is created —
-  # the invariant fails loud and early, never after a partial write.
+  # rejecting more than one exclusive scope bucket; the save's one
+  # transaction (K14) rolls back the inline tag with the refusal.
   defp resolve_initial_buckets(form) do
     selected = LiveParam.ids(form["bucket_ids"])
 
@@ -356,9 +380,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
   defp create_records("depot", form, socket) do
     # The depot name is pre-validated so a blank one, or one another depot
-    # already answers to (ADR-0050 §4), can never leave a freshly created cash
-    # account dangling without its depot.
+    # already answers to (ADR-0050 §4), is refused before the cash account is
+    # written; any refusal the depot's own changeset makes after it rolls the
+    # cash account back with the save's one transaction (K14).
     with :ok <- require_field(form, "depot_name"),
+         :ok <- require_text(form, "depot_name"),
          :ok <- require_free_depot_name(form),
          {:ok, cash, created?} <- resolve_cash_account(form, socket),
          {:ok, depot} <- create_depot(form, cash) do
@@ -390,7 +416,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       "currency_code" => form["currency_code"],
       "portfolio_id" => Portfolios.default_portfolio(Actor.owner_ui()).id
     })
-    |> map_changeset_errors("cash", %{"name" => "cash_name"})
+    |> refused_as("cash", %{"name" => "cash_name"})
   end
 
   defp create_depot(form, cash) do
@@ -399,7 +425,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       "cash_account_id" => cash.id,
       "portfolio_id" => Portfolios.default_portfolio(Actor.owner_ui()).id
     })
-    |> map_changeset_errors("depot", %{"name" => "depot_name"})
+    |> refused_as("depot", %{"name" => "depot_name"})
   end
 
   defp assign_initial_buckets(_records, []), do: :ok
@@ -448,6 +474,32 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     end
   end
 
+  # A new tag the text rule refuses says why, in the page's language (K13;
+  # board 07): "New tag <message>.".
+  defp new_tag_error(%Ecto.Changeset{errors: errors}) do
+    case Keyword.fetch(errors, :name) do
+      {:ok, {_message, opts} = error} when is_list(opts) ->
+        if opts[:validation] == :text,
+          do: gettext("New tag %{message}.", message: FieldLabel.translate_error(error)),
+          else: gettext("The new tag could not be created.")
+
+      :error ->
+        gettext("The new tag could not be created.")
+    end
+  end
+
+  # A name the text rule refuses is the field's error before any lookup and
+  # before the cash account is created (K13), in the page's language.
+  defp require_text(form, field) do
+    case Text.check(form[field], max: 255) do
+      :ok -> :ok
+      {:error, refusal} -> {:error, {:field_errors, %{field => text_message(refusal)}}}
+    end
+  end
+
+  defp text_message(refusal),
+    do: refusal |> Text.message(max: 255) |> FieldLabel.translate_error()
+
   defp require_field(form, field) do
     if String.trim(form[field] || "") == "" do
       {:error, {:field_errors, %{field => dgettext("errors", "can't be blank")}}}
@@ -456,7 +508,19 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     end
   end
 
-  defp map_changeset_errors({:ok, record}, _kind, _mapping), do: {:ok, record}
+  # A record's refusal travels out of the save's transaction as it is, and
+  # its messages are read after the rollback (K14): naming the account a
+  # name belongs to reads the database, which a refused transaction no
+  # longer answers.
+  defp refused_as({:ok, record}, _kind, _mapping), do: {:ok, record}
+
+  defp refused_as({:error, %Ecto.Changeset{} = changeset}, kind, mapping),
+    do: {:error, {:refused, kind, mapping, changeset}}
+
+  defp map_refusal({:error, {:refused, kind, mapping, changeset}}),
+    do: map_changeset_errors({:error, changeset}, kind, mapping)
+
+  defp map_refusal(result), do: result
 
   # #921: the field errors in the page's language — the name guard
   # (`validation: :name_taken`) in the rename dialog's words, every other

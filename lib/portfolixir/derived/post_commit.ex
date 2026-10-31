@@ -24,6 +24,11 @@ defmodule Portfolixir.Derived.PostCommit do
   the mark lives in the table, not here. It is an optimisation of *when*, like
   the refresher, and never a condition for a write: a failed settle is logged
   and retried on the next tick. Disabled with the rest of the derived layer.
+
+  Each tick also compacts the version log (security review 2026-10-12, H10):
+  `DataVersion.compact_settled/1` deletes the settled events below each
+  basis's newest settled one, so the log no longer grows with every bump
+  while every version stays what it was and every pending mark stays.
   """
 
   use GenServer
@@ -87,6 +92,7 @@ defmodule Portfolixir.Derived.PostCommit do
 
   def handle_info(:tick, state) do
     safe_settle()
+    safe_compact()
     Process.send_after(self(), :tick, state.interval)
     {:noreply, state}
   end
@@ -98,6 +104,14 @@ defmodule Portfolixir.Derived.PostCommit do
   rescue
     error ->
       Logger.warning("post-commit bump deferred: #{Exception.message(error)}")
+      :ok
+  end
+
+  defp safe_compact do
+    DataVersion.compact_settled(Repo)
+  rescue
+    error ->
+      Logger.warning("version-log compaction deferred: #{Exception.message(error)}")
       :ok
   end
 end

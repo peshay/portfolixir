@@ -335,7 +335,13 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
     put_quote!(security, Date.add(effective_date, -2), "100")
     put_quote!(security, Date.add(effective_date, 1), "50")
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     view = open_wizard(conn, security)
 
     assert has_element?(view, "#split-wizard-form button[type='submit'][phx-disable-with]")

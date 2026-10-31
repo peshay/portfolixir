@@ -54,11 +54,15 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                      "volume scale 6 (ADR-0028 §3). cost_basis and avg_cost: the moving-average " <>
                      "cost GET /api/v1/portfolios/:id/holdings states, in the security's " <>
                      "currency, fees and taxes not included; after the merge both depots' lots " <>
-                     "combine, so the cost is restated. realized_result: over the position's " <>
-                     "sales, each sale's quantity times its price in the security's currency " <>
-                     "less the cost it removed at the running average, fees and taxes not " <>
-                     "included; null where a price or cost in the security's currency is not " <>
-                     "derivable. source and target are before the merge (null where the depot " <>
+                     "combine, so the cost is restated. realized_result: the depot's " <>
+                     "moving-average result, not the app's realized gains — over the " <>
+                     "position's sales, each sale's quantity times its price in the security's " <>
+                     "currency less the cost it removed at the running average, fees and taxes " <>
+                     "not included; null where a price or cost in the security's currency is " <>
+                     "not derivable. The FIFO realized gains (GET /api/v1/realized_gains, a " <>
+                     "security's trades) do not change unless equal bookings are removed as " <>
+                     "duplicates, which takes them out of the queue: the FIFO queue belongs to " <>
+                     "the security, not the depot. source and target are before the merge (null where the depot " <>
                      "holds no booking of the security), after is the target afterwards. " <>
                      "rounding_differences: each split of an affected security where the " <>
                      "combined position rounded once differs, at the end of the split's day, " <>
@@ -105,15 +109,33 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                               "/api/v1/portfolios/:id/holdings states, in the security's " <>
                               "currency, fees and taxes not included; after the merge both " <>
                               "securities' lots in a depot combine, so the cost is restated. " <>
-                              "realized_result: over the position's sales, each sale's quantity " <>
-                              "times its price less the cost it removed at the running average, " <>
-                              "fees and taxes not included; null where not derivable. source and " <>
+                              "realized_result: the depot's moving-average result, not the " <>
+                              "app's realized gains (fifo_realized states those) — over the " <>
+                              "position's sales, each sale's quantity times its price less the " <>
+                              "cost it removed at the running average, fees and taxes not " <>
+                              "included; null where not derivable. source and " <>
                               "target are before the merge (null where the depot holds no " <>
                               "booking of that security), after is the target afterwards, per " <>
                               "depot the source holds. rounding_differences: each split where " <>
                               "the combined position rounded once differs, at the end of the " <>
                               "split's day, from the two positions rounded apart — expected, " <>
                               "never a refusal."
+
+  @fifo_basis "fifo_realized: the realized gains the app reads (GET /api/v1/realized_gains, " <>
+                "GET /api/v1/securities/:id/trades) are FIFO over one queue per security across " <>
+                "every depot; the merge pools the two queues, so a sale can close the other " <>
+                "security's older lot. years: per close year and currency, realized_pnl_abs " <>
+                "summed over the closed trades of the source and of the target, each over its own " <>
+                "queue before the merge (null where it closes no trade that year), and of the " <>
+                "target over the merged rows after; change is after less both. open_lots: the " <>
+                "open lots' cost (quantity times buy price, with the buy fees and taxes still " <>
+                "open) likewise. Amounts in each trade's or lot's currency, the security's " <>
+                "unless a booking was priced in another, never converted; the realized-gains " <>
+                "read converts them at each close date. unmatched_sells: the sells no lot " <>
+                "covers, per side. Realized and open cost change by the same amount unless a " <>
+                "sell no lot covered before is matched after. unchanged: no realized amount and no " <>
+                "open cost moves; which lot a sale closes, and with it holding periods and " <>
+                "annualized returns, may."
 
   @security_reimport_note "After the merge every identity of the source resolves to the target: " <>
                             "its ISIN, as the target's ISIN or as a former ISIN of the target " <>
@@ -213,6 +235,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
         "true" => security_outcome(Map.fetch!(preview.outcomes, true))
       },
       positions_basis: @security_positions_basis,
+      fifo_basis: @fifo_basis,
       reimport_note: @security_reimport_note
     }
   end
@@ -220,9 +243,10 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
   @doc """
   What a failed guard carries beside its code and detail, for the refusal's
   `errors`: the rules that name the source (`policy_rules`), the identities
-  that would no longer resolve (`unresolvable`), the balance anchors a cash
-  merge cannot restate (`anchors`) and the bookings that make one
-  unstorable (`bookings`).
+  that would no longer resolve (`unresolvable`), the stored ISIN that fails
+  its check digit (`source_isin`, H11: the detail names it by its kind), the
+  balance anchors a cash merge cannot restate (`anchors`) and the bookings
+  that make one unstorable (`bookings`).
   """
   def guard_facts(%{policy_rules: [_ | _] = rules}), do: %{policy_rules: rules}
 
@@ -238,6 +262,8 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
       end
     )
   end
+
+  def guard_facts(%{code: :invalid_source_isin, source_isin: isin}), do: %{source_isin: isin}
 
   def guard_facts(%{code: :legacy_hashed_split, splits: [_ | _] = splits}),
     do: %{splits: Enum.map(splits, &%{id: &1.id, date: JSON.date(&1.date)})}
@@ -359,6 +385,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             after: figures(position.after)
           }
         end),
+      fifo_realized: fifo_realized(outcome.fifo_realized),
       rounding_differences:
         Enum.map(outcome.rounding_differences, fn difference ->
           %{
@@ -588,6 +615,36 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
         collapsed_transaction_id: change.collapsed_transaction_id
       }
     end)
+  end
+
+  # K11: the FIFO restatement, every amount a string, a side that closes no
+  # trade in a year null.
+  defp fifo_realized(fifo) do
+    %{
+      years:
+        Enum.map(fifo.years, fn year ->
+          %{
+            year: year.year,
+            currency_code: year.currency_code,
+            source: JSON.decimal(year.source),
+            target: JSON.decimal(year.target),
+            after: JSON.decimal(year.after),
+            change: JSON.decimal(year.change)
+          }
+        end),
+      open_lots:
+        Enum.map(fifo.open_lots, fn open ->
+          %{
+            currency_code: open.currency_code,
+            source: JSON.decimal(open.source),
+            target: JSON.decimal(open.target),
+            after: JSON.decimal(open.after),
+            change: JSON.decimal(open.change)
+          }
+        end),
+      unmatched_sells: fifo.unmatched_sells,
+      unchanged: fifo.unchanged
+    }
   end
 
   defp figures(nil), do: nil

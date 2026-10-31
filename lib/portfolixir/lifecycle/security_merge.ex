@@ -137,7 +137,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   `collapse_key_equal`: every position of S (per depot) with its quantity,
   moving-average cost and realized result for S and for T before and for T
   after (`Portfolixir.Ledger.position_costs/1`; the cost basis is
-  legitimately restated, because lots combine), the rounding difference each
+  legitimately restated, because lots combine); the FIFO realized gains per
+  close year and the open lots' cost of S and of T before and of T after
+  (`Portfolixir.Lifecycle.MergeFifo`: the merge pools the two FIFO queues,
+  so it can restate the realized gains the app reads; security review
+  2026-10-12, K11); the rounding difference each
   split leaves between the combined position rounded once and the two
   rounded apart, and the cash accounts a collapsed booking changes. Its
   `plan_digest` covers all of it.
@@ -223,6 +227,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.Lifecycle.MergeFifo
   alias Portfolixir.Lifecycle.MergeFigures
   alias Portfolixir.Lifecycle.MergeFlow
   alias Portfolixir.Lifecycle.MergeRecord
@@ -1001,6 +1006,14 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       folds: folds,
       linearity: linearity(base, folds),
       positions: positions(base, Ledger.position_costs(after_rows)),
+      # K11: the FIFO realized gains the merge restates, by pooling the two
+      # queues, and the open lots' cost — the figures the app's realized
+      # gains read, where `positions` states the moving average.
+      fifo_realized:
+        MergeFifo.restatement(base.s_all, base.t_all, after_rows, %{
+          source: base.source.currency_code,
+          target: base.target.currency_code
+        }),
       rounding_differences: rounding_differences(base, folds),
       cash_accounts: MergeFigures.collapsed_cash_accounts(pairs),
       flow_changes: MergeFigures.collapse_flow_changes(pairs)
@@ -1128,18 +1141,25 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   # one, or by adopt_source_isin), and the catalog refuses an ISIN whose
   # check digit fails on a stored security. Refused here, by name, rather
   # than by the catalog after the operator confirmed.
+  #
+  # H11 (#965's rule for identifiers): the detail names the ISIN by its
+  # kind; the stored value is `source_isin`, data beside the sentence.
   defp source_isin_guard(%{source: source}) do
     valid? = not present?(source.isin) or Security.identifier_valid?(:isin, source.isin)
 
-    guard(
-      :invalid_source_isin,
-      "the source's ISIN passes its check digit",
-      valid?,
-      "the source carries no ISIN, or a valid one",
-      "security ##{source.id}'s ISIN #{source.isin} fails its check digit (ISO 6166), and a " <>
-        "merge would write it onto the target, which the catalog refuses for a stored " <>
-        "security. Correct or clear the ISIN on security ##{source.id} first, then preview again."
-    )
+    guard =
+      guard(
+        :invalid_source_isin,
+        "the source's ISIN passes its check digit",
+        valid?,
+        "the source carries no ISIN, or a valid one",
+        "security ##{source.id}'s stored ISIN fails its check digit (ISO 6166), and a " <>
+          "merge would write it onto the target, which the catalog refuses for a stored " <>
+          "security. Correct or clear the ISIN on security ##{source.id} first, then preview " <>
+          "again."
+      )
+
+    if valid?, do: guard, else: Map.put(guard, :source_isin, source.isin)
   end
 
   defp currency_guard(%{source: source, target: target}) do
@@ -1387,7 +1407,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp identity_text(%{identity: :imported}),
     do: "identity as its Portfolio Performance import recorded it"
 
-  defp identity_text(%{identity: :former_isin, ref: ref}), do: "former ISIN #{ref.isin}"
+  defp identity_text(%{identity: :former_isin}), do: "former ISIN"
 
   defp identity_text(%{identity: :merged_stored}),
     do: "identity, as its merge into this chain recorded it,"
@@ -1395,18 +1415,29 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp identity_text(%{identity: :merged_imported}),
     do: "identity as its Portfolio Performance import recorded it (merged away since)"
 
-  # The identity's name stays out of the sentence (#965); it is the
-  # failure's `ref.name`.
+  # The identity is named by its kinds, never by its stored values: the
+  # name (#965) and the identifiers (H11) are the failure's `ref`, data
+  # beside the sentence.
   defp ref_text(ref) do
-    [
-      {"ISIN", ref.isin},
-      {"WKN", ref.wkn},
-      {"ticker", ref.ticker},
-      {"its recorded name", ref.name && ""},
-      {"currency", ref.currency}
-    ]
-    |> Enum.reject(&is_nil(elem(&1, 1)))
-    |> Enum.map_join(", ", fn {label, value} -> String.trim("#{label} #{value}") end)
+    kinds =
+      [
+        {"ISIN", ref.isin},
+        {"WKN", ref.wkn},
+        {"ticker", ref.ticker},
+        {"recorded name", ref.name},
+        {"currency", ref.currency}
+      ]
+      |> Enum.reject(&is_nil(elem(&1, 1)))
+      |> Enum.map(&elem(&1, 0))
+
+    "its " <> join_kinds(kinds)
+  end
+
+  defp join_kinds([only]), do: only
+
+  defp join_kinds(kinds) do
+    {init, [last]} = Enum.split(kinds, -1)
+    Enum.join(init, ", ") <> " and " <> last
   end
 
   defp outcome_text(%{kind: :none}),
@@ -2113,6 +2144,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           }
         end),
       positions: outcome.positions,
+      fifo_realized: outcome.fifo_realized,
       rounding_differences: outcome.rounding_differences,
       cash_accounts: outcome.cash_accounts,
       flow_changes: outcome.flow_changes

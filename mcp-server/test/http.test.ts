@@ -16,6 +16,7 @@ import {
   createFailureThrottle,
   createHttpApp,
   mcpAuthMiddleware,
+  mcpTokenWarning,
   MCP_TOKEN_MIN_BYTES,
   mcpUrl,
   startHttpServer
@@ -181,6 +182,32 @@ describe("MCP HTTP security helpers", () => {
     }
   });
 
+  // User story (security review 2026-10-12, H20; #1202; T-17):
+  // As an operator whose companion listens over HTTP,
+  // I want a token with few distinct characters named in a warning at start,
+  // so that a hand-typed token the length floor accepts does not pass for a
+  // random one, now that the lock no longer slows guessing.
+  //
+  // Acceptance criteria:
+  // - A token of one repeated character or of a counting run meets the
+  //   floor, and the warning names PORTFOLIXIR_MCP_TOKEN, says how to
+  //   generate one and never carries the token.
+  // - A token generated as documented gets no warning.
+  it("names a token with few distinct characters in a warning, never the token", () => {
+    const random = Buffer.from(Array.from({ length: 48 }, (_, i) => ((i + 1) * 53 + 7) % 256)).toString("base64");
+
+    for (const weak of ["a".repeat(32), "0123456789".repeat(3) + "01"]) {
+      assert.equal(requireMcpToken(weak), weak);
+      const warning = mcpTokenWarning(weak);
+      assert.ok(warning, weak);
+      assert.match(warning, /PORTFOLIXIR_MCP_TOKEN/);
+      assert.match(warning, /openssl rand -base64 48/);
+      assert.ok(!warning.includes(weak));
+    }
+
+    assert.equal(mcpTokenWarning(random), undefined);
+  });
+
   // User story (E25 S1, F01; #974, the Sprint 20 plan's D-11):
   // As an operator whose companion listens over HTTP,
   // I want repeated wrong tokens from one source locked out for a growing interval,
@@ -225,6 +252,51 @@ describe("MCP HTTP security helpers", () => {
     assert.equal(authenticate(auth, "Bearer wrong", "10.0.0.5").statusCode, 401);
   });
 
+  // User story (security review 2026-10-12, H21):
+  // As the operator whose MCP token someone guesses slowly,
+  // I want a source's failure count kept for an hour after its last failure,
+  // well past the longest lock,
+  // so that waiting out a lock never resets the escalation, while a source
+  // that stays quiet for over an hour starts afresh.
+  //
+  // Acceptance criteria:
+  // - Ten failures lock a source for the first lock; an eleventh fifty
+  //   minutes later locks it for twice that.
+  // - Sixty-one quiet minutes after its last failure, the source's next
+  //   failure counts from one: nine more leave it unlocked, the tenth locks
+  //   it for the first lock again.
+  it("keeps a source's failure count for an hour after its last failure", () => {
+    let now = 10_000;
+    const throttle = createFailureThrottle();
+    const source = "10.0.0.9";
+
+    for (let attempt = 1; attempt <= throttle.maxFailures; attempt += 1) {
+      throttle.failure(source, now);
+    }
+
+    assert.deepEqual(throttle.check(source, now), { locked: true, retryAfter: throttle.baseLockSeconds });
+
+    now += 50 * 60;
+    assert.equal(throttle.check(source, now).locked, false);
+    throttle.failure(source, now);
+    assert.deepEqual(throttle.check(source, now), {
+      locked: true,
+      retryAfter: throttle.baseLockSeconds * 2
+    });
+
+    now += 61 * 60;
+    throttle.failure(source, now);
+    assert.equal(throttle.check(source, now).locked, false, "the count starts afresh");
+
+    for (let attempt = 2; attempt < throttle.maxFailures; attempt += 1) {
+      throttle.failure(source, now);
+    }
+
+    assert.equal(throttle.check(source, now).locked, false);
+    throttle.failure(source, now);
+    assert.deepEqual(throttle.check(source, now), { locked: true, retryAfter: throttle.baseLockSeconds });
+  });
+
   // User story (#974, the Sprint 20 plan's D-11):
   // As an operator whose host clients all reach the companion's published
   // port from one address,
@@ -236,8 +308,9 @@ describe("MCP HTTP security helpers", () => {
   // - While the source is locked, the right token reaches the next handler.
   // - The lock stays as it was: the source is still locked for the same time,
   //   and the next wrong token from it is answered 429 and counted.
-  // (The 32-byte floor `requireMcpToken` holds the token to is what makes a
-  // locked guesser's correct guess infeasible.)
+  // (A random token, not the 32-byte floor `requireMcpToken` holds the token
+  // to, which checks length only, is what makes a locked guesser's correct
+  // guess infeasible: H20, #1202.)
   it("lets a correct token through a locked source, and keeps the lock", () => {
     const now = 1_000;
     const throttle = createFailureThrottle();
@@ -259,6 +332,44 @@ describe("MCP HTTP security helpers", () => {
     assert.equal(refused.statusCode, 429);
     assert.equal(refused.nextCalled, false);
     assert.equal(refused.headers["retry-after"], String(throttle.baseLockSeconds * 2));
+  });
+
+  // User story (security review 2026-10-12, H49):
+  // As an operator whose companion listens over HTTP,
+  // I want the failed-token throttle to remember a bounded number of sources,
+  // so that wrong tokens from many addresses cannot grow the companion's
+  // memory for the whole retention hour.
+  //
+  // Acceptance criteria:
+  // - After failures from more distinct sources than the cap, each in its own
+  //   IPv6 /64, the throttle holds no more records than its cap.
+  // - Every one of those wrong tokens is still answered 401.
+  // - A source locked before the flood is still locked after it.
+  it("remembers a bounded number of failing sources and keeps a lock through a flood", () => {
+    const now = 1_000;
+    const throttle = createFailureThrottle();
+    const auth = mcpAuthMiddleware(soundToken, throttle, () => now);
+
+    for (let attempt = 1; attempt <= throttle.maxFailures; attempt += 1) {
+      authenticate(auth, "Bearer wrong", "10.0.0.5");
+    }
+
+    assert.equal(throttle.check("10.0.0.5", now).locked, true);
+
+    const flood = 50_000;
+    const statuses = new Map<number, number>();
+
+    for (let i = 1; i <= flood; i += 1) {
+      const source = `2001:db8:${(i >> 16).toString(16)}:${(i & 0xffff).toString(16)}::1`;
+      const status = authenticate(auth, "Bearer wrong", source).statusCode;
+      statuses.set(status, (statuses.get(status) ?? 0) + 1);
+    }
+
+    assert.deepEqual([...statuses], [[401, flood]]);
+    const size = throttle.size();
+    assert.ok(size < flood, `no cap: ${size} records kept for ${flood} failing sources`);
+    assert.ok(size <= throttle.maxRecords);
+    assert.equal(throttle.check("10.0.0.5", now).locked, true);
   });
 
   // Issue #761: the SDK's DNS-rebinding protection is fed the names this

@@ -3,26 +3,56 @@ default_install_hook_types:
   - commit-msg
 
 repos:
-  # Every remote hook repository is frozen to the commit its tag named when
-  # it was pinned (E25 S8, F60): a tag can be moved, a commit cannot.
-  # `pre-commit autoupdate --freeze` moves the SHA and the comment together.
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b  # frozen: v5.0.0
+  # Every hook is local and builds no environment of its own (H65, the
+  # 2026-10-12 security review). A remote hook repository is installed by
+  # pre-commit with `pip install` into a fresh virtualenv, which resolves its
+  # dependencies and build backend from the package index, unpinned, on every
+  # install. The hygiene hooks below run instead on pre-commit-hooks and its
+  # dependencies as .github/pre-commit/requirements.txt pins them, by version
+  # and sha256, and CI installs them with --require-hashes (E25 S8, F60): a
+  # hash pin of the release the hook repository was frozen to, so a new upload
+  # changes nothing without a commit here. The ids, names, file types and
+  # stages are the hook repository's own.
+  - repo: local
     hooks:
       - id: trailing-whitespace
+        name: trim trailing whitespace
+        entry: trailing-whitespace-fixer
+        language: system
+        types: [text]
+        stages: [pre-commit, pre-push, manual]
         args:
           - --markdown-linebreak-ext=md,markdown
       - id: end-of-file-fixer
+        name: fix end of files
+        entry: end-of-file-fixer
+        language: system
+        types: [text]
+        stages: [pre-commit, pre-push, manual]
       - id: check-yaml
+        name: check yaml
+        entry: check-yaml
+        language: system
+        types: [yaml]
       - id: mixed-line-ending
+        name: mixed line ending
+        entry: mixed-line-ending
+        language: system
+        types: [text]
         args:
           - --fix=lf
-
-  - repo: local
-    hooks:
       - id: check-invisible-unicode
         name: Reject invisible/bidi Unicode (Trojan Source defense)
         entry: python3 scripts/check_invisible_unicode.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      # The gates' own unit tests (H64): every scripts/test_*.py, the
+      # invisible-Unicode scanner's among them, so CI's pre-commit job proves
+      # the gate it runs. -B keeps __pycache__ out of the checkout.
+      - id: scripts-self-tests
+        name: Unit tests of the gate scripts (scripts/test_*.py)
+        entry: python3 -B -m unittest discover --start-directory scripts --pattern "test_*.py"
         language: system
         pass_filenames: false
         always_run: true

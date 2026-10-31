@@ -32,7 +32,9 @@ defmodule Portfolixir.Journal.Allowlist do
   # E21) so the exemption is a closed list under the same meta-test as the
   # market-data set instead of a comment in a migration.
   # `settings` holds the operator's default view (a preference, scope again),
-  # written by PUT /api/v1/settings/default_view without an actor.
+  # journaled under its setter's actor since H61 (security review 2026-10-12),
+  # beside instance state (a dismissed notice, the currencies the FX backfill
+  # sought) that the instance writes without one.
   @unarmed_scope_tables ~w(views view_include_buckets view_exclude_buckets
                            securities_account_buckets cash_account_buckets
                            position_bucket_overrides depot_snapshots settings)

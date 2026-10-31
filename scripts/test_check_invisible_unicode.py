@@ -7,13 +7,20 @@ Run with::
     # or
     python3 scripts/test_check_invisible_unicode.py
 
+The pre-commit hook `scripts-self-tests` runs them, with every other
+``scripts/test_*.py``, in CI's pre-commit job.
+
 These tests exercise the scanner in isolation against temporary files and the
 committed negative-test fixtures, without touching the repo-wide gate.
 """
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -157,12 +164,84 @@ class FixtureTests(unittest.TestCase):
 
 
 class BinaryDetectionTests(unittest.TestCase):
-    def test_nul_byte_file_is_skipped(self):
-        handle = tempfile.NamedTemporaryFile(suffix=".bin", delete=False)
-        handle.write(b"\x00\x01\x02\xff")
-        handle.close()
-        self.addCleanup(os.unlink, handle.name)
-        self.assertIsNone(scanner.read_text(handle.name))
+    """Only a file the binary list or .gitattributes names is skipped (H64).
+
+    Every other file that holds a NUL or does not decode as UTF-8 is reported,
+    and the characters around the offending byte are still scanned.
+    """
+
+    TAG_A = chr(0xE0041)  # TAG LATIN CAPITAL LETTER A
+    RLO = chr(0x202E)  # RIGHT-TO-LEFT OVERRIDE
+
+    def _repo(self) -> str:
+        directory = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, directory)
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        subprocess.run(["git", "init", "-q", directory], check=True, env=env)
+        return directory
+
+    def _write(self, directory: str, name: str, data: bytes) -> str:
+        path = os.path.join(directory, name)
+        with open(path, "wb") as handle:
+            handle.write(data)
+        return name
+
+    def _run(self, directory: str, names: list[str]) -> tuple[int, str]:
+        previous = os.getcwd()
+        os.chdir(directory)
+        try:
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                status = scanner.main(["check_invisible_unicode.py", *names])
+        finally:
+            os.chdir(previous)
+        return status, stderr.getvalue()
+
+    def test_nul_byte_in_a_text_file_is_a_violation(self):
+        directory = self._repo()
+        data = ("# rules" + self.TAG_A + "\n").encode("utf-8") + b"\x00\n"
+        name = self._write(directory, "notes.md", data)
+        status, output = self._run(directory, [name])
+        self.assertEqual(status, 1)
+        self.assertIn("notes.md:2:1: not valid UTF-8 text", output)
+        self.assertIn("U+E0041", output)
+
+    def test_invalid_utf8_in_a_text_file_is_a_violation(self):
+        directory = self._repo()
+        data = ("a" + self.RLO + "b\n// ").encode("utf-8") + b"\xff\n"
+        name = self._write(directory, "trojan.ts", data)
+        status, output = self._run(directory, [name])
+        self.assertEqual(status, 1)
+        self.assertIn("trojan.ts:2:4: not valid UTF-8 text", output)
+        self.assertIn("trojan.ts:1:2: U+202E", output)
+
+    def test_a_listed_binary_extension_is_skipped(self):
+        directory = self._repo()
+        name = self._write(directory, "logo.png", b"\x89PNG\r\n\x1a\n\x00\xff")
+        self.assertEqual(self._run(directory, [name]), (0, ""))
+
+    def test_a_file_gitattributes_marks_binary_is_skipped(self):
+        directory = self._repo()
+        self._write(directory, ".gitattributes", b"*.dat binary\n*.raw -text\n")
+        dat = self._write(directory, "blob.dat", b"\x00\x01\xff")
+        raw = self._write(directory, "blob.raw", b"\xff\xfe")
+        self.assertEqual(self._run(directory, [dat, raw]), (0, ""))
+
+    def test_gitattributes_skips_nothing_it_does_not_name(self):
+        directory = self._repo()
+        self._write(directory, ".gitattributes", b"*.dat binary\n")
+        name = self._write(directory, "notes.txt", b"text\x00")
+        status, output = self._run(directory, [name])
+        self.assertEqual(status, 1)
+        self.assertIn("notes.txt:1:5: not valid UTF-8 text", output)
+
+    def test_outside_a_git_repository_only_the_list_skips(self):
+        directory = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, directory)
+        name = self._write(directory, "notes.txt", b"\xff")
+        status, output = self._run(directory, [name])
+        self.assertEqual(status, 1)
+        self.assertIn("notes.txt:1:1: not valid UTF-8 text", output)
 
 
 if __name__ == "__main__":

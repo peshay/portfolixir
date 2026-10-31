@@ -53,11 +53,14 @@ defmodule Portfolixir.DataCase do
   # The import-hash lock of the booking and retirement triggers (#917) is
   # scoped the same way: a test that books hashed rows (the lock shared) and
   # then merges (exclusive) in its one transaction deadlocked with another
-  # such test on the one database-wide key.
+  # such test on the one database-wide key. So is the default-portfolio lock
+  # (H54), which every test that resolves the default on an empty database
+  # takes.
   defp scope_isin_write_lock do
     Portfolixir.Repo.query!("""
     SELECT set_config('portfolixir.isin_write_lock_scope', pg_backend_pid()::text, true),
-           set_config('portfolixir.import_hash_lock_scope', pg_backend_pid()::text, true)
+           set_config('portfolixir.import_hash_lock_scope', pg_backend_pid()::text, true),
+           set_config('portfolixir.default_portfolio_lock_scope', pg_backend_pid()::text, true)
     """)
   end
 

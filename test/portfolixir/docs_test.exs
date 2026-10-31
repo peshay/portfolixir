@@ -928,6 +928,39 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (security review 2026-10-12, K17):
+  # As the agent paging a delta read from the API reference,
+  # I want the reference to say what the server answers,
+  # so that I follow the cursor of the right read and stop at the right page.
+  #
+  # Acceptance criteria:
+  # - `has_more` is true when more rows matched than the page holds, not
+  #   whenever the page is full.
+  # - A cursor belongs to the read that answered it; with `since`, paging is
+  #   by `as_of`, never by `offset`.
+  # - The research log's `limit` keeps, in a delta read, the oldest entries
+  #   after `since`.
+  test "the API reference describes the paged delta read as the server answers it (K17)" do
+    flat = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+    en = flat.("docs/integration/api-and-mcp.md")
+    de = flat.("docs/de/integration/api-and-mcp.md")
+
+    refute en =~ "whose page is full also carries"
+    assert en =~ "when more rows matched than the page holds, also carries `has_more: true`"
+    assert en =~ "A cursor belongs to the read that answered it"
+    assert en =~ "With `since`, page by `as_of`, never by `offset`"
+    assert en =~ "in a delta read, the oldest after `since`"
+
+    refute de =~ "mit voller Seite trägt zusätzlich"
+
+    assert de =~
+             "Passten mehr Zeilen, als die Seite enthält, trägt ein Delta-Read zusätzlich `has_more: true`"
+
+    assert de =~ "Ein Cursor gehört zu dem Read, der ihn geliefert hat"
+    assert de =~ "Mit `since` nach `as_of` blättern, nie mit `offset`"
+    assert de =~ "in einem Delta-Read die ältesten nach `since`"
+  end
+
   # User story (#844):
   # As a reader of the published documentation site,
   # I want every page's front matter to parse,
@@ -1162,9 +1195,9 @@ defmodule Portfolixir.DocsTest do
   #   (EN, DE) and the agent guide (EN, DE) say the token is compared first:
   #   a correct token passes while its address is locked, a wrong one counts
   #   and keeps the lock.
-  # - SECURITY.md and ADR-0045 §1's dated note state the cost and the 32-byte
-  #   floor that makes it acceptable, and that the UI password stays
-  #   lock-first.
+  # - SECURITY.md and ADR-0045 §1's dated note state the cost and that the
+  #   UI password stays lock-first; what makes the cost acceptable is pinned
+  #   by the next test (H20, #1202).
   test "the guides say a correct token passes a locked source and a wrong one still counts" do
     read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
 
@@ -1196,7 +1229,8 @@ defmodule Portfolixir.DocsTest do
           {"SECURITY.md",
            [
              "a bearer token is compared before its source's lock is consulted",
-             "a locked guesser who guesses right is let in, which the 32-byte floor makes infeasible",
+             "the lock labels wrong tokens and slows nothing",
+             "a locked guesser who guesses right is let in",
              "the UI password, which a person chooses, meets the lock first",
              "the lock answers only wrong tokens, so the operator's agent, whose token is correct, keeps working"
            ]},
@@ -1213,6 +1247,43 @@ defmodule Portfolixir.DocsTest do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
     end
+  end
+
+  # User story (security review 2026-10-12, H20; #1202, answer (a); T-17):
+  # As the operator who generates the tokens,
+  # I want the records to say that a random token, not the length floor,
+  # makes a guess infeasible, and how to generate one,
+  # so that I do not take the 32-byte check for a guarantee it does not give.
+  #
+  # Acceptance criteria:
+  # - SECURITY.md, .env.example, the deployment guide (EN, DE) and llms.txt
+  #   say "a random token from `openssl rand -base64 48`" (DE: "ein
+  #   zufälliges Token aus").
+  # - SECURITY.md says the floor checks length only and no longer credits it
+  #   with making a right guess infeasible.
+  # - ADR-0045's note of 2026-10-08 carries a dated correction of 2026-10-28.
+  test "the records say a random token, not the length floor, makes guessing infeasible" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+    env_example = ".env.example" |> File.read!() |> String.replace(~r/^# ?/m, "")
+
+    for {path, doc} <- [
+          {"SECURITY.md", read.("SECURITY.md")},
+          {".env.example", String.replace(env_example, ~r/\s+/, " ")},
+          {"docs/home-deployment.md", read.("docs/home-deployment.md")},
+          {"docs/llms.txt", read.("docs/llms.txt")}
+        ] do
+      assert doc =~ "a random token from `openssl rand -base64 48`", path
+    end
+
+    assert read.("docs/de/home-deployment.md") =~
+             "ein zufälliges Token aus `openssl rand -base64 48`"
+
+    security = read.("SECURITY.md")
+    assert security =~ "checks length only"
+    refute security =~ "which the 32-byte floor makes infeasible"
+
+    assert read.("docs/decisions/0045-optional-built-in-authentication.md") =~
+             "Correction (2026-10-28"
   end
 
   # User story (#974, Sprint 20 γ closing act, the security lens):
@@ -1273,23 +1344,23 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
-  # User story (#941, Sprint 20 γ closing act, the correctness hunter):
+  # User story (#941, Sprint 20 γ closing act, the correctness hunter;
+  # #1204, Sprint 21 D-4 answer (b)):
   # As an operator reading what the heap cap does,
   # I want the guide to say what fails when a page's load grows past it,
-  # so that a page that drops and reconnects is recognised, and not taken
-  # for a load that failed alone.
+  # so that a page's failure note after a killed load is recognised, and not
+  # taken for a page that drops and reconnects.
   #
   # Acceptance criteria:
-  # - The guide (EN, DE) says a request past the cap fails alone, a page's
-  #   load runs in a task linked to its page and takes the page down with
-  #   it, and the page reconnects; a quote sync and a logo lookup run apart
-  #   from the page and fail alone.
-  # - It no longer says a page's load past the cap fails alone.
+  # - The guide (EN, DE) says a request past the cap fails alone, and a
+  #   page's load, a quote sync and a logo lookup each run apart from the
+  #   page, fail alone, and the page answers with its failure note.
+  # - It no longer says a page's load takes the page down with it.
   # - HeapCap's moduledoc and the capped-tasks invariant's user story say
   #   the same: a request's process or a page's own process fails alone; a
-  #   page's `start_async` load takes the page down with it, and the page
-  #   reconnects (#1204 holds whether it should).
-  test "the guide says a page's load past the heap cap takes the page down" do
+  #   page's `start_async` load fails alone too, and the page shows its own
+  #   failure state (#1204).
+  test "the guide says a page's load past the heap cap fails alone and the page shows its failure" do
     # A test file's user story is read without its comment markers.
     read = fn path ->
       text = File.read!(path)
@@ -1306,26 +1377,23 @@ defmodule Portfolixir.DocsTest do
           {"docs/home-deployment.md",
            [
              "a request that grows past it fails alone, logged, instead of exhausting the machine's memory",
-             "A page's load runs in a task linked to the page, so one that grows past it takes the page down with it, logged, and the page reconnects",
-             "a quote sync and a logo lookup run apart from the page and fail alone"
-           ], "a request or a page's load that grows past it fails alone"},
+             "A page's load, a quote sync and a logo lookup each run apart from the page, so one that grows past it fails alone, logged, and the page answers with its failure note"
+           ], "takes the page down with it"},
           {"docs/de/home-deployment.md",
            [
              "Eine Anfrage, die darüber wächst, scheitert allein und wird protokolliert, statt den Speicher der Maschine zu erschöpfen",
-             "Der Ladevorgang einer Seite läuft in einem Task, der mit der Seite verbunden ist: Wächst er darüber, reißt er die Seite mit, es wird protokolliert, und die Seite verbindet sich neu",
-             "eine Kurssynchronisation und eine Logo-Suche laufen getrennt von der Seite und scheitern allein"
-           ],
-           "Eine Anfrage oder ein Ladevorgang einer Seite, der darüber wächst, scheitert allein"},
+             "Der Ladevorgang einer Seite, eine Kurssynchronisation und eine Logo-Suche laufen jeweils getrennt von der Seite: Wächst einer davon darüber, scheitert er allein, es wird protokolliert, und die Seite antwortet mit ihrem Fehlerhinweis"
+           ], "reißt er die Seite mit"},
           {"lib/portfolixir_web/heap_cap.ex",
            [
              "a request's process or a page's own process past it is killed and fails alone",
-             "A page's `start_async` load runs in a task linked to the page, so the cap's kill takes the page down with it, and the page reconnects (#1204 holds whether it should fail alone)"
-           ], "past it the process is killed and fails alone, instead of"},
+             "A page's `start_async` load runs in a worker its task watches, so the cap's kill reaches the page as a failed load, and the page shows its own failure state (#1204)"
+           ], "takes the page down with it"},
           {"test/invariants/web_tasks_capped_test.exs",
            [
              "a request's process or a page's own process fails alone",
-             "a page's `start_async` load takes the page down with it, and the page reconnects (#1204 holds whether it should fail alone)"
-           ], "so that one runaway load fails alone instead of taking the node's memory"}
+             "a page's `start_async` load fails alone too, and the page shows its own failure state (#1204)"
+           ], "takes the page down with it"}
         ] do
       doc = read.(path)
 
@@ -1334,6 +1402,50 @@ defmodule Portfolixir.DocsTest do
       end
 
       refute doc =~ refuted, "#{path}: #{refuted}"
+    end
+  end
+
+  # User story (security review 2026-10-12, K08):
+  # As an operator sizing the instance's memory,
+  # I want the guide to name the background walks the heap cap covers and
+  # the size of ledger at which a walk reaches it,
+  # so that a skipped warm-up in the log is recognised, and the cap is not
+  # taken for a bound no read comes near.
+  #
+  # Acceptance criteria:
+  # - The guide (EN, DE) names the warm-up at boot and after each local
+  #   midnight and the refresh after a write as walks under the same cap,
+  #   each failing alone and logged, its scope skipped.
+  # - It states the walk's cost per held security and day and, as measured
+  #   on the default cap, the security-days at which a walk reaches it, and
+  #   names the cap's configuration under `Portfolixir.HeapCap`.
+  # - Neither figure is derived from the other ("so", "daher").
+  # - It no longer says no ordinary read or write comes near the cap.
+  test "the guide names the background walks under the heap cap and the size that reaches it" do
+    for {path, fragments, refuted} <- [
+          {"docs/home-deployment.md",
+           [
+             "The background walks run under the same cap, each in a process of its own: the performance warm-up at boot and after each local midnight, and the refresh after a write",
+             "A walk grown past it is killed and logged, its scope is skipped, and the next read computes it",
+             "roughly 300 bytes per held security and day, and on the default cap a walk was measured to reach it at roughly 600,000 held security-days",
+             "`max_heap_bytes` under `Portfolixir.HeapCap`"
+           ], ~r/No ordinary read or write comes near it|day, so a walk reaches the cap/},
+          {"docs/de/home-deployment.md",
+           [
+             "Die Hintergrundberechnungen laufen unter derselben Grenze, jede in einem eigenen Prozess: das Vorwärmen der Performance beim Start und nach jeder lokalen Mitternacht und die Aktualisierung nach einer Schreiboperation",
+             "Eine Berechnung, die darüber wächst, wird beendet und protokolliert, ihr Bereich wird übersprungen",
+             "rund 300 Bytes je gehaltenem Wertpapier und Tag, und gemessen erreicht eine Berechnung die Standardgrenze bei rund 600.000 gehaltenen Wertpapier-Tagen",
+             "`max_heap_bytes` unter `Portfolixir.HeapCap`"
+           ],
+           ~r/Kein gewöhnliches Lesen oder Schreiben kommt in ihre Nähe|erreicht die Grenze daher/u}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ refuted, "#{path}: #{inspect(refuted)}"
     end
   end
 
@@ -3806,5 +3918,50 @@ defmodule Portfolixir.DocsTest do
         fragment <- fragments do
       assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
     end
+  end
+
+  # User story (security review 2026-10-12, K19):
+  # As an agent recording provenance or paging the catalog from the API
+  # reference,
+  # I want the reference to say what the API does with the research log's
+  # provenance fields, the event writes' reserved keys and the list bounds,
+  # in both languages,
+  # so that I never believe a marker I sent was stored, or send a limit the
+  # API refuses.
+  #
+  # Acceptance criteria:
+  # - Both languages say a research-log entry's author is derived from the
+  #   credential and machine_generated is reserved, both ignored in a body.
+  # - The German events section names the path's security_id, the reserved
+  #   machine_generated, the fixed security and the bounds the English one
+  #   names (limit default 1000, max 10000; stale default 90 days).
+  # - The English securities list names limit a positive integer, default
+  #   5000, max 20000, and offset non-negative.
+  test "the API reference states the research log's provenance, the event keys and the list bounds" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`author` (`operator` or `agent`) is derived from the credential that writes the entry",
+             "`machine_generated` is reserved for a local-model path that does not exist yet",
+             "both are ignored in a body, so a body can claim neither",
+             "(`limit` a positive integer, default 5000, max 20000; `offset` non-negative)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`author` (`operator` oder `agent`) wird aus dem Zugang abgeleitet, der den Eintrag schreibt",
+             "`machine_generated` ist einem Pfad mit lokalem Modell vorbehalten, den es noch nicht gibt",
+             "beide werden in einem Body ignoriert, ein Body kann also keines von beiden beanspruchen",
+             "die nächsten zuerst, mit `limit` (Standard 1000, max. 10000)",
+             "älter als `N` Tage (Standard 90) ist",
+             "`security_id` kommt aus dem Pfad, nie aus dem Body; `machine_generated` ist reserviert und wird im Body ignoriert",
+             "Das Wertpapier, zu dem ein Termin gehört, lässt sich nicht ändern"
+           ]}
+        ],
+        fragment <- fragments do
+      assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
+    end
+
+    refute normalized_text("docs/integration/api-and-mcp.md") =~
+             "for pagination (both non-negative integers)"
   end
 end

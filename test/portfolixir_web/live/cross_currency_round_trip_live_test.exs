@@ -12,7 +12,13 @@ defmodule PortfolixirWeb.CrossCurrencyRoundTripLiveTest do
 
   alias Portfolixir.Fx
 
-  defp de_conn(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp de_conn(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp text(nodes),
     do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()

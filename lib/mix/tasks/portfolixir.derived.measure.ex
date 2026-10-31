@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Portfolixir.Derived.Measure do
-  @shortdoc "Times the figures the operator waits on, so activation stays a measurement"
+  @shortdoc "Times the figures the operator waits on; writes a synthetic ledger first"
 
   @moduledoc """
   Seeds a synthetic ledger and times every figure a human surface waits on,
@@ -22,13 +22,20 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
       DATABASE_NAME=portfolixir_bench mix ecto.migrate
       DATABASE_NAME=portfolixir_bench mix portfolixir.derived.measure
 
-  It refuses to run in `:prod`. Options, with the defaults that reproduce the
-  ADR's Context row (50 securities / 1,001 bookings / weekly quotes / ~10 years):
+  It refuses to run in `:prod`, and it refuses to seed a database that
+  already holds a portfolio unless `--write-synthetic` says so (security
+  review 2026-10-12, K04): a run-from-source instance keeps its real records
+  in the development database every Mix command in that shell targets. What
+  it writes is journaled under the system job `derived_measure`, so the
+  journal tells it apart from the operator's own writes. Options, with the
+  defaults that reproduce the ADR's Context row (50 securities / 1,001
+  bookings / weekly quotes / ~10 years):
 
       --securities 50     securities in the catalog
       --bookings 1000     buy/sell bookings spread over the window
       --years 10          how far back the first booking sits
       --skip-seed         measure whatever is already in the database
+      --write-synthetic   seed even though the database holds a portfolio
 
   ## What the numbers mean
 
@@ -63,7 +70,13 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
 
   @requirements ["app.start"]
 
-  @switches [securities: :integer, bookings: :integer, years: :integer, skip_seed: :boolean]
+  @switches [
+    securities: :integer,
+    bookings: :integer,
+    years: :integer,
+    skip_seed: :boolean,
+    write_synthetic: :boolean
+  ]
 
   @impl Mix.Task
   def run(args) do
@@ -72,6 +85,8 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
     end
 
     {opts, _rest, _invalid} = OptionParser.parse(args, strict: @switches)
+
+    unless opts[:skip_seed] || opts[:write_synthetic], do: refuse_unless_empty!()
 
     # Ecto's per-query debug logging is on in :dev and costs more than some of
     # the analytics being timed, so leaving it on would measure the logger.
@@ -188,6 +203,22 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
 
   # -- seeding -----------------------------------------------------------------
 
+  # The seed writes 1,000+ bookings and a portfolio no path deletes, so a
+  # database that already holds a portfolio is someone's ledger until the
+  # operator says otherwise (K04).
+  defp refuse_unless_empty! do
+    if Portfolios.list_portfolios() != [] do
+      database = Portfolixir.Repo.config()[:database]
+
+      Mix.raise(
+        "portfolixir.derived.measure writes a synthetic ledger, and the database " <>
+          "#{inspect(database)} already holds a portfolio. Point DATABASE_NAME at a " <>
+          "throwaway database, measure what is there with --skip-seed, or pass " <>
+          "--write-synthetic to write beside it."
+      )
+    end
+  end
+
   defp world do
     case Portfolios.list_portfolios() do
       [] ->
@@ -217,7 +248,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
     # runs are comparable.
     :rand.seed(:exsss, {711, 711, 711})
 
-    owner = Actor.owner_ui()
+    owner = Actor.system_job("derived_measure")
     {portfolio, cash, depot} = seed_accounts(owner)
     catalog = seed_catalog(owner, securities, years)
 

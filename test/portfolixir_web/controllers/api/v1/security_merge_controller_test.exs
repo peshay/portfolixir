@@ -158,7 +158,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   # - POST /api/v1/securities/:id/merge with target_id, plan_digest,
   #   collapse_key_equal, identity_choice and isin_changed_on answers 201
   #   with the merge record.
-  # - Right after, the holdings show the preview's after-figures; GET
+  # - Right after, the holdings show the preview's after-figures, and the
+  #   FIFO figures it states for after (K11) are what GET
+  #   /api/v1/realized_gains and the target's trades read; GET
   #   /api/v1/securities/:target carries the preview's identifiers after the
   #   choice made, its former ISINs among the identifier aliases with the
   #   operator's date; its quotes number the target's plus the moved ones.
@@ -211,6 +213,46 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
       end
     end
 
+    # §16 invariant 12 for the FIFO restatement (security review
+    # 2026-10-12, K11): the realized gains per close year and the open lots'
+    # cost the preview states for after are what the reads answer.
+    fifo = outcome["fifo_realized"]
+    assert is_map(fifo), "the preview states no FIFO realized gains"
+
+    realized =
+      ctx.conn |> get("/api/v1/realized_gains") |> json_response(200) |> Map.fetch!("data")
+
+    for year <- fifo["years"], year["after"] != nil do
+      read = Enum.find(realized["annual"], &(&1["year"] == year["year"]))
+      assert Decimal.equal?(Decimal.new(read["total"]), Decimal.new(year["after"]))
+    end
+
+    open_lots =
+      ctx.conn
+      |> get("/api/v1/securities/#{ctx.target.id}/trades")
+      |> json_response(200)
+      |> get_in(["data", "open_lots"])
+
+    # Each open lot's cost: quantity x buy price plus its buy fees and taxes
+    # prorated by what is still open, as the matcher counts a lot's cost.
+    open_cost =
+      Enum.reduce(open_lots, Decimal.new(0), fn lot, acc ->
+        quantity = Decimal.new(lot["quantity"])
+        open_share = Decimal.div(quantity, Decimal.new(lot["original_quantity"]))
+
+        quantity
+        |> Decimal.mult(Decimal.new(lot["buy_price"]))
+        |> Decimal.add(Decimal.mult(Decimal.new(lot["buy_fees"]), open_share))
+        |> Decimal.add(Decimal.mult(Decimal.new(lot["buy_taxes"]), open_share))
+        |> Decimal.add(acc)
+      end)
+
+    assert [%{"after" => open_after}] = fifo["open_lots"]
+    assert Decimal.equal?(open_cost, Decimal.new(open_after))
+    # The buy fee of the target's January lot is in it: 10 x 50.00 + 4.95,
+    # 2 x 50.00 and 3 x 50.00 (the equal February pair collapsed).
+    assert Decimal.equal?(Decimal.new(open_after), Decimal.new("754.95"))
+
     kept = ctx.conn |> get("/api/v1/securities/#{ctx.target.id}") |> json_response(200)
 
     for field <- ["isin", "wkn", "ticker_symbol", "name", "asset_class"],
@@ -253,7 +295,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   #
   # Acceptance criteria:
   # - Without identity_choice while both carry an ISIN: 422 on
-  #   identity_choice naming both ISINs; an unknown choice 422; an
+  #   identity_choice naming the ISINs by their kind, both values in
+  #   errors.isins (H11); an unknown choice 422; an
   #   isin_changed_on that is not a date 422; without collapse_key_equal
   #   while pairs exist 422 — each writing nothing.
   # - A source whose imported identity would no longer resolve answers 409
@@ -268,13 +311,16 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     base = %{target_id: ctx.target.id, plan_digest: preview["plan_digest"]}
     mark = journal_mark()
 
-    assert %{"errors" => %{"identity_choice" => [message]}} =
+    assert %{"errors" => %{"identity_choice" => [message], "isins" => isins}} =
              ctx.conn
              |> post(path, Map.put(base, :collapse_key_equal, false))
              |> json_response(422)
 
-    assert message =~ @isin_source
-    assert message =~ @isin_target
+    # H11: the message names the ISINs by their kind; the values are data.
+    assert message =~ "both securities carry an ISIN"
+    refute message =~ @isin_source
+    refute message =~ @isin_target
+    assert isins == %{"source_isin" => @isin_source, "target_isin" => @isin_target}
 
     assert %{
              "errors" => %{"identity_choice" => ["must be keep_target_isin or adopt_source_isin"]}
@@ -401,7 +447,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   #
   # Acceptance criteria:
   # - GET merge_preview and POST merge answer 409 invalid_source_isin, the
-  #   detail naming the ISIN, and journal nothing.
+  #   detail naming the security by its id and the ISIN by its kind, the
+  #   stored value in errors.source_isin (H11), and journal nothing.
   test "a source ISIN that fails its check digit answers 409 invalid_source_isin", ctx do
     {:ok, _} =
       Portfolixir.Repo.transaction(fn ->
@@ -424,7 +471,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
              |> json_response(409)
 
     assert errors["code"] == "invalid_source_isin"
-    assert errors["detail"] =~ "XS0000054560"
+    assert errors["detail"] =~ "security ##{ctx.source.id}'s stored ISIN fails its check digit"
+    refute errors["detail"] =~ "XS0000054560"
+    assert errors["source_isin"] == "XS0000054560"
 
     assert %{"errors" => %{"code" => "invalid_source_isin"}} =
              ctx.conn
@@ -579,7 +628,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   # source also has one on 2025-03-04, a Region assignment, a position
   # target in the active plan and an earnings date.
   defp world!(ctx) do
-    buy!(ctx, ctx.target, "10", "50.00", ~D[2025-01-10])
+    # A buy fee, so the FIFO restatement's open cost carries the fee path
+    # (K11).
+    buy!(ctx, ctx.target, "10", "50.00", ~D[2025-01-10], fees: "4.95")
     buy!(ctx, ctx.target, "2", "50.00", ~D[2025-02-01])
     buy = buy!(ctx, ctx.source, "3", "50.00", ~D[2025-01-20])
     buy!(ctx, ctx.source, "2", "50.00", ~D[2025-02-01])
@@ -671,7 +722,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     security
   end
 
-  defp buy!(ctx, security, quantity, price, date) do
+  defp buy!(ctx, security, quantity, price, date, opts \\ []) do
     {:ok, tx} =
       Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: ctx.portfolio.id,
@@ -682,6 +733,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
         date: date,
         quantity: quantity,
         price: price,
+        fees: Keyword.get(opts, :fees, "0"),
         currency_code: "EUR"
       })
 
@@ -690,15 +742,19 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
 
   defp split!(portfolio, security, date, {numerator, denominator}) do
     {:ok, tx} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: portfolio.id,
-        security_id: security.id,
-        type: "split",
-        date: date,
-        currency_code: security.currency_code,
-        split_ratio_numerator: numerator,
-        split_ratio_denominator: denominator
-      })
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: portfolio.id,
+          security_id: security.id,
+          type: "split",
+          date: date,
+          currency_code: security.currency_code,
+          split_ratio_numerator: numerator,
+          split_ratio_denominator: denominator
+        },
+        split_flow: true
+      )
 
     tx
   end

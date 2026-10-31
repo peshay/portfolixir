@@ -237,7 +237,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   @doc """
   The skeleton a name is compared by in the configuration-at-risk check
-  (E25 S5, G23): no format characters, compatibility-normalized (NFKC, so a
+  (E25 S5, G23): a Hangul filler as the space it renders as, no
+  default-ignorable characters (H12), compatibility-normalized (NFKC, so a
   full-width or styled letter is its plain one), lowercased, lookalike
   Cyrillic and Greek letters folded onto the Latin letter they render as, and
   every run of whitespace one space. Two names with one skeleton look alike
@@ -247,6 +248,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
   def skeleton(name) when is_binary(name) do
     if String.valid?(name) do
       name
+      |> Text.fold_blank_fillers()
       |> Text.strip_format_characters()
       |> String.normalize(:nfkc)
       |> String.downcase()

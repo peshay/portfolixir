@@ -24,11 +24,17 @@ characters on an instance bound beyond loopback is named in a startup warning;
 both bearer tokens, the API's and the MCP companion's, must be at least 32
 bytes and not a placeholder, and, like the UI password, are throttled per
 source after repeated failures, with the escalation kept well past the longest
-lock; a bearer token is compared before its source's lock is consulted, so a
+lock, and the counts bounded in number (an IPv6 source counts as its /64, and
+past a rolling ceiling on wrong tokens from sources not yet counted such a
+source waits unrecorded); a bearer token is compared before its source's lock is consulted, so a
 correct token passes a locked source and a wrong one still counts and is
-answered `429` while the lock lasts (Sprint 20, #974): a locked guesser who
-guesses right is let in, which the 32-byte floor makes infeasible, while the
-UI password, which a person chooses, meets the lock first; the floor holds for
+answered `429` while the lock lasts (Sprint 20, #974), so the lock labels
+wrong tokens and slows nothing: a locked guesser who guesses right is let in,
+and what makes that guess infeasible is a random token from `openssl rand
+-base64 48`, as the examples generate it, not the 32-byte floor, which checks
+length only (a token with few distinct characters is named in a startup
+warning, by the application and the companion alike), while the UI password,
+which a person chooses, meets the lock first; the floor holds for
 every token a release boots with and for the companion's, and on a server run
 from source only when `PORTFOLIXIR_API_TOKENS` or `PORTFOLIXIR_API_PRINCIPAL`
 is set, so where `PORTFOLIXIR_API_TOKEN` alone is read with no floor and while
@@ -38,7 +44,10 @@ asks everyone to wait, the operator included, while existing sessions keep
 working, and restarting the application clears it, because the counts live in
 memory only; every server-side fetch of a caller- or provider-supplied URL
 passes a deny-by-default policy (https only, public addresses only, provider
-hosts only), and every outbound client, the provider adapters included,
+hosts only, except the logo URL an operator or a token points the instance at,
+which may name any public https host and is journaled with that host under
+the actor who asked, security review 2026-10-12, H61), and every outbound
+client, the provider adapters included,
 follows a redirect only when the hop passes the same policy on that client's
 own hosts, never to plain http, for a few hops at most, and without any header
 that could carry a credential once the host changes (E25); and the documented
@@ -55,10 +64,22 @@ refusals built outside the router included, carries
 the same browser can neither embed nor probe them, and a view, benchmark or
 language choice in a link from another site (`Sec-Fetch-Site` other than
 `same-origin` or `none`) applies to the page it opens and is never remembered
-(E25). Text an agent reads carries no character the operator cannot see:
-every writer, the importer included, refuses Unicode tag characters,
-bidirectional controls, the other invisible format characters and runs of
-variation selectors, naming them by code point, and the MCP companion hands
+(E25). Browsers send no `Sec-Fetch-Site` to plain HTTP at any name or address
+but loopback, so there a choice is remembered only when the `Referer` names the
+instance's own origin, and otherwise applies to that page alone (H41); the
+limit that remains is an older browser without the header (Safari before 16.4)
+on HTTPS or loopback, whose unlabelled requests are still remembered, and over
+plain HTTP off loopback a choice typed into the address bar applies to its
+page only. A remembered choice is read only from a cookie the instance signed,
+sent once under its name; over HTTPS it carries the `__Host-` prefix, so a
+sibling name cannot plant one. The signature proves the instance wrote the
+value, not that the operator chose it: another port of the same host name
+shares the cookies and can still plant a value the instance signed, which with
+a UI password it signs only for a logged-in client (K02). Text an agent reads carries no character the operator cannot see:
+every writer, the importer included, refuses Unicode's default-ignorable
+code points (tag characters, bidirectional controls, the other invisible
+format characters, fillers) and variation selectors with no base to vary,
+naming them by code point, and the MCP companion hands
 the agent any such character a row stored before the rule still carries
 spelled as `[U+XXXX]` (E25). The HTTPS posture is
 the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by
@@ -69,8 +90,9 @@ only peers whose scheme is believed. When `PHX_FORCE_SSL` is on, the listener
 is bound beyond loopback and that variable names no readable address beyond
 loopback in the listener's IP family, the application logs a startup warning
 naming the redirect loop a proxy on the Docker bridge would get. A second
-warning names every entry of the variable it could not read; the application
-starts either way. What the instance still expects of the
+warning names every entry of the variable it could not read, and a third every
+block too wide to name a proxy (wider than `/8` for IPv4 or `/32` for IPv6),
+which is ignored; the application starts either way. What the instance still expects of the
 operator: a reverse proxy that terminates TLS, passes `Host` through, sets
 `X-Forwarded-Proto` itself, appends the connecting address to `X-Forwarded-For`
 or overwrites it, never passes a value the client sent through, and injects
@@ -87,14 +109,47 @@ deployment, Docker Engine 28.3.3 or newer, because there the port mapping, not
 the application, keeps the instance on the host's loopback, and a UI password,
 because the other containers and the host itself still reach it; and backups.
 For the same reason the MCP companion counts failed tokens per connecting
-address with every host client as one source: a local process sending wrong
+address, remembering a bounded number of addresses, with every host client as
+one source: a local process sending wrong
 tokens locks that address until the lock runs out or the companion restarts,
 and the lock answers only wrong tokens, so the operator's agent, whose token
 is correct, keeps working (#974).
 
+Since the Sprint 21 security batch (the whole-system review of 2026-10-12,
+its triage's Part 7; the **third hardening baseline**, after E21 and E25):
+the throttle's counts are bounded in number as well as in time, an IPv6
+source counting as its /64, with a ceiling on sources not yet counted (H03)
+and the same cap on the companion (H49); a trusted-proxy block wide enough to
+cover the clients is ignored and named at startup (H04); a release refuses to
+boot on an empty, placeholder or short database password, and on a
+`DATABASE_URL` whose shape or TLS settings it cannot read, naming the
+variable and never its value (H18, H72, K03); a refused principal name is
+quoted only when it is shaped like a name and shorter than the token floor
+(H22); an open page is held to its login's lifetime (H19); the token floor
+stays a length check and a token with few distinct characters is named at
+start (H20); a remembered preference is read only from a cookie the instance
+signed, sent once, `__Host-` on HTTPS, and off loopback over plain HTTP only
+with the instance's own Referer (K02, H41); the development socket's origins
+are the Host guard's names (K18); the listener bounds its connections,
+acceptors and read timeout and speaks no cleartext HTTP/2, and the deployment
+guide puts the header-phase deadline on the reverse proxy (H09, H27); every
+Compose service rotates its logs (H70), a log entry's control characters are
+written as visible escapes (H69), and a crashing live page is logged by topic
+and event name only (H71); every protective switch reads one vocabulary and
+an unread one is named at boot (H06); the derived rebuild starts without the
+web listener (K05); the measurement ledger is seeded beside real records only
+on an explicit flag (K04); and the companion refuses to start when Node's
+environment proxy would carry its API calls (K16). The groups S3 to S8 are
+recorded in the same Part 7 and in the paragraphs below where they apply.
+
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted
-to the cookie's expiry, and bound to the password it was issued under. What
+to the cookie's expiry, and bound to the password it was issued under. The
+lifetime is checked on every browser request and at every LiveView mount, and
+an open page checks it again before each event and when it runs out, which
+sends the page to the login; only a request renews it, never the page's
+socket. A value that is not a whole number of days falls back to 30 and is
+named in a warning at startup (H19). What
 ends one is narrower than "log out" suggests: a logout clears the login in that
 browser only and closes its live pages, while a copy of the session cookie
 taken earlier stays valid on the same terms as the original.
@@ -107,13 +162,24 @@ cookie may be in someone else's hands (ADR-0045).
 
 The development stack, `docker-compose.dev.yml`, is not a deployment. It runs
 on public development secrets: the database password `postgres` and the
-`SECRET_KEY_BASE` committed in `config/dev.exs`, with debug pages and origin
-checks off. Anyone who reaches its ports can read and change its data, so both
+`SECRET_KEY_BASE` committed in `config/dev.exs`, with debug pages on. Anyone
+who reaches its ports can read and change its data, so both
 its ports, the application's and the database's, are published on loopback
 only (E25), and it holds synthetic data, never an operator's real records. An
 instance still running the development stack as its deployment, as the
 documentation described it before the production release (#760), moves off it
 by a backup and a restore (`docs/home-deployment.md`, "Development stack").
+A server run from source (`mix phx.server`) shares that database posture: it
+connects as the superuser `postgres` with the password `postgres`, which
+`config/dev.exs` fixes, so the PostgreSQL it uses accepts that public login
+from every process on the machine; a release, by contrast, refuses to boot on
+an empty, placeholder or short database password.
+Running from source (`mix phx.server`, the README's "Run from source") uses
+the same development configuration and so the same public session key: its
+socket accepts only the names its Host guard does and its LiveView salt is
+derived from the secret, as a release's are, but anyone can sign a session for
+it, so that route requires `PORTFOLIXIR_UI_PASSWORD`, without which every
+process on the machine can use the UI (K18).
 
 Known limits, recorded rather than hidden: as shipped, the application
 connects as the database's bootstrap superuser, which also owns the tables, so
@@ -123,15 +189,19 @@ and a runtime role without `TRUNCATE` for a new install, and moves an existing
 instance onto them); the outbound URL
 policy resolves a name once for the check and the client resolves it again to
 connect, so a name whose answer changes in between can pass (the byte cap, the
-deadline and the redirect re-check bound what such a fetch can do); an address
+deadline, a parse linear in the body under a wall-clock bound of its own, and
+the redirect re-check bound what such a fetch can do); an address
 in the local-use IPv4/IPv6 translation prefix (`64:ff9b:1::/48`) is refused
 like every special-purpose block, so an IPv6-only host whose DNS64 uses it
 cannot download logos or follow provider redirects (the well-known prefix
 `64:ff9b::/96` is judged by the IPv4 address it carries,
 `docs/home-deployment.md`); an Imports preview is parked in memory per browser
 session until it is applied, discarded or left for two hours, within a fixed
-number of parked previews of which the oldest-touched is evicted, judged by
-its key and timestamp alone (E25): only a session past the UI password, or,
+number of parked previews and a fixed byte budget, of which the oldest-touched
+is evicted, judged by its key, timestamp and size alone, and a preview too
+large for its share of the budget is not parked, the budget counting the
+heap the previews take and not the binaries of the text cells they keep,
+which the entry count and the upload size bound instead (E25; H07): only a session past the UI password, or,
 without one, a browser that reaches the instance on its loopback binding, can
 park one, so an instance bound beyond loopback without a UI password lets
 anyone who reaches it fill that budget; and the WebSocket handshake is dispatched ahead of the Host guard and rests on

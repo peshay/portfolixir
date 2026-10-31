@@ -19,6 +19,11 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
   alias Portfolixir.Portfolios.Targets
   alias PortfolixirWeb.Format
 
+  # The instance on loopback, where the browser labels every request it
+  # sends, so a choice made by following the page's own links is remembered
+  # (H41).
+  setup %{conn: conn}, do: %{conn: %{conn | host: "localhost"}}
+
   @auth {"authorization", "Bearer test-api-token"}
 
   defp live_drained(conn, path) do
@@ -531,7 +536,9 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
     refute has_element?(lv, "#view-switch-total[data-has-plan]")
 
     followed = get(conn, path(world, "view=#{world.view.id}"))
-    assert followed.resp_cookies["portfolixir_view"].value == "#{world.view.id}"
+
+    assert PortfolixirWeb.PreferenceCookieHelpers.remembered(followed, "portfolixir_view") ==
+             "#{world.view.id}"
 
     {:ok, wealth, _html} = live(recycle(followed), "/portfolio")
     assert has_element?(wealth, "#view-switch-#{world.view.id}.is-active")

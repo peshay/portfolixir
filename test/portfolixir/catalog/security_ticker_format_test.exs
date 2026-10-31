@@ -29,4 +29,33 @@ defmodule Portfolixir.Catalog.SecurityTickerFormatTest do
       assert errors_on(changeset)[:ticker_symbol]
     end
   end
+
+  # User story (security review 2026-10-12, H57):
+  # As the importer that creates a security from a file,
+  # I want the catalog's ticker rule as a predicate,
+  # so that a ticker the catalog would refuse is known before the write.
+  #
+  # Acceptance criteria:
+  # - Security.ticker_valid?/1 answers as the changeset judges a new
+  #   security's ticker.
+  test "ticker_valid?/1 answers as the changeset judges a ticker" do
+    for ticker <- ["XMPL-B", "^GXMPL", "EURUSD=X", "VMR.DE", "0000.HK", "vmr.de"] do
+      assert Security.ticker_valid?(ticker), ticker
+    end
+
+    for ticker <- [
+          "A B",
+          "A/B",
+          "A?B",
+          "A#B",
+          "A%2FB",
+          ".",
+          "..",
+          String.duplicate("A", 65),
+          "",
+          nil
+        ] do
+      refute Security.ticker_valid?(ticker), inspect(ticker)
+    end
+  end
 end

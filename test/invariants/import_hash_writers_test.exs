@@ -528,9 +528,12 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       security: security
     } do
       for attrs <- [anchor_attrs(world), split_attrs(world, security)] do
+        # `split_flow: true` passes the ledger's own split refusal (K10), so
+        # the database's kind check beneath it is what answers.
         assert {:error, changeset} =
                  Ledger.create_transaction(Actor.import_session(), attrs,
-                   import_hash: "synthetic-#{attrs.type}"
+                   import_hash: "synthetic-#{attrs.type}",
+                   split_flow: true
                  )
 
         assert %{import_hash: ["is never set on a balance anchor or a split"]} =

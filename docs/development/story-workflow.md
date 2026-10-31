@@ -52,8 +52,8 @@ added or changed, update `/api/v1` and `mcp-server/` tests and behavior in the
 same story, or document why that surface is not applicable.
 
 Run the required gates before review: the full list in `AGENTS.md` at the
-repository root ("Required Local Checks"). It is CI's `pre-commit`, `test` and
-`quality` jobs, so a branch that passes it passes CI. The six-command copy
+repository root ("Required Local Checks"). It is CI's `pre-commit`, `test`,
+`quality` and `advisories` jobs, so a branch that passes it passes CI. The six-command copy
 this page carried omitted eight of CI's checks, and a batch that skipped two
 of them cost a round (Sprint 13 retrospective).
 

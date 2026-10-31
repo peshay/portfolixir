@@ -237,7 +237,7 @@ defmodule PortfolixirWeb.DashboardTest do
       Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Mine", include_all: false})
 
     :ok = Portfolixir.Buckets.set_view_buckets(Actor.owner_ui(), mine, [bucket.id], [])
-    :ok = Portfolixir.Settings.set_default_view(mine.id)
+    :ok = Portfolixir.Settings.set_default_view(Portfolixir.Actor.owner_ui(), mine.id)
 
     {:ok, view, _html} = live(conn, "/")
     html = render_async(view)
@@ -630,7 +630,13 @@ defmodule PortfolixirWeb.DashboardTest do
       put_quote!(security, ~D[2026-09-30], close)
     end
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
@@ -682,7 +688,13 @@ defmodule PortfolixirWeb.DashboardTest do
 
     put_quote!(stale, Date.add(Date.utc_today(), -30), "12.50")
 
-    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(german, "/")
     render_async(view)
 

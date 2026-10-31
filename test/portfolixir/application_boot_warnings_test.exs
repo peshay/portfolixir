@@ -114,6 +114,35 @@ defmodule Portfolixir.ApplicationBootWarningsTest do
     assert log =~ unreadable
   end
 
+  # User story (security review 2026-10-12, H06):
+  # As an operator who wrote a protective switch in a spelling the
+  # application does not read,
+  # I want the boot log to name the variable and the value,
+  # so that I learn the switch is off before I rely on it.
+  #
+  # Acceptance criteria:
+  # - With PHX_FORCE_SSL=enabled in the environment, warn_if_exposed/0 logs
+  #   a warning naming PHX_FORCE_SSL and the value, and returns :ok.
+  test "names an unrecognised protective switch value at boot" do
+    previous = System.get_env("PHX_FORCE_SSL")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("PHX_FORCE_SSL", previous),
+        else: System.delete_env("PHX_FORCE_SSL")
+    end)
+
+    System.put_env("PHX_FORCE_SSL", "enabled")
+
+    log =
+      capture_log([level: :warning], fn ->
+        assert Portfolixir.Application.warn_if_exposed() == :ok
+      end)
+
+    {:warn, message} = RuntimeConfig.switch_warning("PHX_FORCE_SSL", "enabled", false)
+    assert log =~ message
+  end
+
   # #930, review pass 2: after_start/0, the step start/2 runs once the
   # supervisor is up, logs the loop warning exactly once (the seed and the
   # logo reconciliation are gated off in the test configuration).
@@ -133,5 +162,65 @@ defmodule Portfolixir.ApplicationBootWarningsTest do
       )
 
     assert length(String.split(log, message)) == 2, "logged once"
+  end
+
+  # The UI password as warn_if_exposed/0 reads it: the application
+  # environment first, the variable second; both restored afterwards.
+  defp with_ui_password(password) do
+    previous_env = Application.fetch_env(:portfolixir, :ui_password)
+    previous_var = System.get_env("PORTFOLIXIR_UI_PASSWORD")
+
+    on_exit(fn ->
+      case previous_env do
+        {:ok, value} -> Application.put_env(:portfolixir, :ui_password, value)
+        :error -> Application.delete_env(:portfolixir, :ui_password)
+      end
+
+      if previous_var,
+        do: System.put_env("PORTFOLIXIR_UI_PASSWORD", previous_var),
+        else: System.delete_env("PORTFOLIXIR_UI_PASSWORD")
+    end)
+
+    System.delete_env("PORTFOLIXIR_UI_PASSWORD")
+    Application.put_env(:portfolixir, :ui_password, password)
+  end
+
+  # User story (security review 2026-10-12, H21):
+  # As an operator who binds the web UI beyond loopback,
+  # I want the exposure warning and the short-password warning written to the
+  # log at boot, not only decided by a function,
+  # so that dropping either from the boot wiring cannot pass unnoticed while
+  # SECURITY.md and ADR-0045 still promise it.
+  #
+  # Acceptance criteria:
+  # - Bound to 0.0.0.0 with no UI password, warn_if_exposed/0 logs the
+  #   exposure warning once.
+  # - Bound to 0.0.0.0 with an eight-character password, it logs the
+  #   short-password warning once and no exposure warning.
+  # - With a password of the minimum length, it logs neither.
+  test "logs the exposure and the short-password warnings at boot" do
+    Application.put_env(
+      :portfolixir,
+      :trusted_proxies,
+      RuntimeConfig.trusted_proxies("172.18.0.1")
+    )
+
+    {:warn, exposure} = RuntimeConfig.exposure_warning({0, 0, 0, 0}, nil)
+    {:warn, short} = RuntimeConfig.password_warning({0, 0, 0, 0}, "eightchr")
+
+    with_ui_password(nil)
+    log = capture_log([level: :warning], fn -> Portfolixir.Application.warn_if_exposed() end)
+    assert length(String.split(log, exposure)) == 2, "the exposure warning, logged once"
+    refute log =~ short
+
+    with_ui_password("eightchr")
+    log = capture_log([level: :warning], fn -> Portfolixir.Application.warn_if_exposed() end)
+    assert length(String.split(log, short)) == 2, "the short-password warning, logged once"
+    refute log =~ exposure
+
+    with_ui_password(String.duplicate("p", RuntimeConfig.min_ui_password_length()))
+    log = capture_log([level: :warning], fn -> Portfolixir.Application.warn_if_exposed() end)
+    refute log =~ exposure
+    refute log =~ short
   end
 end

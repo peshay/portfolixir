@@ -29,12 +29,20 @@ defmodule Portfolixir.Application do
       holds up or stops the boot; config-gated (off in tests), see
       `Catalog.reconcile_logos_on_boot/1`.
     * The startup warnings, `warn_if_exposed/0`.
+    * In a release, the log filter that keeps a crashing live page's form
+      values and session out of the log (security review 2026-10-12, H71);
+      config-gated, see `PortfolixirWeb.SocketCrashReport.install_on_boot/0`.
+    * A stored exchange rate that is not positive, named in one warning
+      (`Portfolixir.Fx.report_non_positive_rates_on_boot/0`, K06); no read
+      uses it. Config-gated (off in tests).
   """
   @spec after_start() :: :ok
   def after_start do
+    PortfolixirWeb.SocketCrashReport.install_on_boot()
     Portfolixir.Classifications.seed_builtins_on_boot()
     Portfolixir.Catalog.reconcile_logos_on_boot()
     warn_if_exposed()
+    Portfolixir.Fx.report_non_positive_rates_on_boot()
   end
 
   @doc """
@@ -48,6 +56,9 @@ defmodule Portfolixir.Application do
       Portfolixir.Repo,
       {Phoenix.PubSub, name: Portfolixir.PubSub},
       {Task.Supervisor, name: Portfolixir.LogoSupervisor},
+      # The capped workers `Portfolixir.HeapCap.run/1` starts: a page's load,
+      # and each performance warm-up and refresher walk (#1204, K08).
+      {Task.Supervisor, name: Portfolixir.CappedTasks},
       # One run per key for a security's sync and the FX backfill (E25, G04).
       Portfolixir.SingleFlight,
       Portfolixir.Auth.Throttle,
@@ -82,7 +93,10 @@ defmodule Portfolixir.Application do
   S1 F67) with a short one, is named in the log at startup; so is (#930)
   `PHX_FORCE_SSL` on beyond loopback with no trusted proxy beyond loopback,
   the redirect loop's cause; and, whatever the bind, the entries of
-  `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse. The decisions are pure
+  `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse, and (H04) those too wide
+  to name a proxy; (H20) an API token with few distinct characters; (H19) a
+  `PORTFOLIXIR_SESSION_DAYS` that is not a whole number of days; and (H06) a
+  protective switch whose value is not a switch value. The decisions are pure
   functions in `Portfolixir.RuntimeConfig`, so they are unit-tested; this is
   only the wiring. Always `:ok`: a warning, never a refusal.
   """
@@ -96,12 +110,22 @@ defmodule Portfolixir.Application do
     force_ssl = Application.get_env(:portfolixir, :force_ssl)
     proxies = Application.get_env(:portfolixir, :trusted_proxies)
     unreadable = Portfolixir.RuntimeConfig.unreadable_trusted_proxies()
+    overbroad = Portfolixir.RuntimeConfig.overbroad_trusted_proxies()
+    principals = Application.get_env(:portfolixir, :api_tokens)
+
+    session_days =
+      Application.get_env(:portfolixir, :session_days) ||
+        System.get_env("PORTFOLIXIR_SESSION_DAYS")
 
     for {:warn, message} <- [
           Portfolixir.RuntimeConfig.exposure_warning(ip, password),
           Portfolixir.RuntimeConfig.password_warning(ip, password),
           Portfolixir.RuntimeConfig.trusted_proxies_warning(force_ssl, ip, proxies),
-          Portfolixir.RuntimeConfig.unreadable_proxies_warning(unreadable)
+          Portfolixir.RuntimeConfig.unreadable_proxies_warning(unreadable),
+          Portfolixir.RuntimeConfig.overbroad_proxies_warning(overbroad),
+          Portfolixir.RuntimeConfig.weak_tokens_warning(principals),
+          Portfolixir.RuntimeConfig.session_days_warning(session_days)
+          | Portfolixir.RuntimeConfig.protective_switch_warnings()
         ] do
       Logger.warning(message)
     end

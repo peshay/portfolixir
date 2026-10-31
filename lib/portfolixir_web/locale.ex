@@ -3,6 +3,10 @@ defmodule PortfolixirWeb.Locale do
 
   import Plug.Conn
 
+  alias PortfolixirWeb.PreferenceCookie
+
+  # Signed, one of its name, `__Host-` over HTTPS (K02).
+  @cookie "portfolixir_locale"
   @default_locale "en"
   @supported_locales ~w(en de)
 
@@ -18,7 +22,7 @@ defmodule PortfolixirWeb.Locale do
     query_locale = normalize_locale(conn.query_params["locale"])
 
     stored_locale =
-      normalize_locale(conn.cookies["portfolixir_locale"]) ||
+      normalize_locale(PreferenceCookie.read(conn, @cookie)) ||
         preferred_browser_locale(conn) ||
         @default_locale
 
@@ -56,18 +60,13 @@ defmodule PortfolixirWeb.Locale do
   def locale_of(%Plug.Conn{} = conn) do
     conn = fetch_cookies(conn)
 
-    normalize_locale(conn.cookies["portfolixir_locale"]) || preferred_browser_locale(conn) ||
+    normalize_locale(PreferenceCookie.read(conn, @cookie)) || preferred_browser_locale(conn) ||
       @default_locale
   end
 
   defp maybe_store_locale(conn, nil), do: conn
 
-  defp maybe_store_locale(conn, locale) do
-    put_resp_cookie(conn, "portfolixir_locale", locale,
-      max_age: 60 * 60 * 24 * 365,
-      same_site: "Lax"
-    )
-  end
+  defp maybe_store_locale(conn, locale), do: PreferenceCookie.put(conn, @cookie, locale)
 
   defp preferred_browser_locale(conn) do
     conn

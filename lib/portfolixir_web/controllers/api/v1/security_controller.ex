@@ -37,19 +37,24 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, data_quality} <- data_quality_param(params),
          {:ok, serializer} <- listing_serializer(params),
          {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
-         {:ok, since} <- SinceParam.parse(params) do
+         {:ok, since} <- SinceParam.parse_page(params) do
       serializer = fields_serializer(fields, serializer)
+      limit = Keyword.fetch!(opts, :limit)
 
-      securities =
+      # K17: one row past the limit tells a full page from the whole answer.
+      {securities, truncated} =
         opts
+        |> Keyword.put(:limit, ListLimit.fetch(limit))
         |> put_updated_since(since)
         |> list_by(data_quality)
+        |> ListLimit.page(limit)
 
       envelope =
-        %{data: Enum.map(securities, serializer)}
+        %{data: Enum.map(securities, serializer), limit: limit, truncated: truncated}
         |> put_findings(data_quality, securities)
 
-      json(conn, SinceParam.put_envelope(envelope, since))
+      page = %{has_more: truncated, last: last_stamp(securities)}
+      json(conn, SinceParam.put_page_envelope(envelope, since, page))
     else
       {:error, field} ->
         conn
@@ -58,8 +63,12 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     end
   end
 
+  # A delta read is a page (K17): oldest change first, after the cursor.
   defp put_updated_since(opts, nil), do: opts
-  defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
+  defp put_updated_since(opts, since), do: Keyword.put(opts, :delta, SinceParam.cursor(since))
+
+  defp last_stamp([]), do: nil
+  defp last_stamp(rows), do: rows |> List.last() |> then(&{&1.updated_at, &1.id})
 
   defp fields_serializer(nil, serializer), do: serializer
 

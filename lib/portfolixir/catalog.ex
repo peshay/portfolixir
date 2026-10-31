@@ -20,6 +20,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Lifecycle.Delete
@@ -36,6 +37,9 @@ defmodule Portfolixir.Catalog do
     * `:sort` – `{field_key, :asc | :desc}`, default `{:name, :asc}`
     * `:limit` – cap the number of rows returned (for pagination)
     * `:offset` – skip this many rows (for pagination)
+    * `:delta` – a `Portfolixir.DeltaCursor` cursor: the rows changed after
+      it, oldest change first, replacing `:sort` (the API's paged delta
+      read, K17)
     * `:is_benchmark` – `true` lists only the benchmark securities
       (ADR-0046 §1), `false` leaves them out; absent lists both
     * `:is_retired` – `true` lists only the retired securities, `false`
@@ -54,7 +58,7 @@ defmodule Portfolixir.Catalog do
     |> apply_logo_status(opts[:logo_status])
     |> apply_updated_since(opts[:updated_since])
     |> apply_currencies(opts[:currencies])
-    |> apply_sort(db_sort_or_default(sort))
+    |> apply_sort_or_delta(db_sort_or_default(sort), opts[:delta])
     |> apply_limit(opts[:limit])
     |> apply_offset(opts[:offset])
     |> Repo.all()
@@ -155,10 +159,13 @@ defmodule Portfolixir.Catalog do
   def list_securities_with_metrics(opts \\ []) when is_list(opts) do
     sort = opts[:sort] || {:name, :asc}
 
-    opts
-    |> list_securities()
-    |> Quotes.attach_metrics()
-    |> sort_metric_rows(sort)
+    rows =
+      opts
+      |> list_securities()
+      |> Quotes.attach_metrics()
+
+    # A paged delta read keeps its change order (K17).
+    if opts[:delta], do: rows, else: sort_metric_rows(rows, sort)
   end
 
   @doc """
@@ -413,15 +420,26 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
-  Writes the logo bookkeeping on a security (#766): the only path that sets
-  `logo_path`, `logo_source` and `logo_locked`. Journaled under the fixed logo
-  system actor like every other logo write; a nil value removes the key.
+  The background logo discovery's write of the logo bookkeeping (#766),
+  journaled under the fixed logo system job: `put_logo_attributes/3` with
+  `Actor.system_job("logo")`. A write a person or a token asked for (an
+  override, a removal, a rediscovery) goes through `put_logo_attributes/3`
+  with the request's actor (security review 2026-10-12, H61).
   """
-  def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs) do
+  def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs),
+    do: put_logo_attributes(Actor.system_job("logo"), security, logo_attrs)
+
+  @doc """
+  Writes the logo bookkeeping on a security on behalf of `actor` (#766, H61):
+  the only path that sets `logo_path`, `logo_source`, `logo_source_host` and
+  `logo_locked`. A nil value removes the key.
+  """
+  def put_logo_attributes(%Actor{} = actor, %Security{} = security, logo_attrs)
+      when is_map(logo_attrs) do
     multi =
       Multi.new()
       |> Multi.update(:security, &Security.logo_changeset(Journal.locked_row(&1), logo_attrs))
-      |> Journal.record(Actor.system_job("logo"),
+      |> Journal.record(actor,
         resource_type: "security",
         operation: :update,
         source: :security,
@@ -536,16 +554,21 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
-  Sets a manual logo override from an image URL. Locks the security so
-  background discovery never replaces the manual choice.
+  Sets a manual logo override from an image URL on behalf of `actor`. Locks
+  the security so background discovery never replaces the manual choice. The
+  journal entry names `actor` and the URL's host (H61).
   """
-  def set_logo_override(%Security{} = security, url, opts \\ []) when is_binary(url) do
-    LogoStore.store_manual_override(security, url, opts)
+  def set_logo_override(%Actor{} = actor, %Security{} = security, url, opts \\ [])
+      when is_binary(url) do
+    LogoStore.store_manual_override(actor, security, url, opts)
   end
 
-  @doc "Removes a security's logo and records an explicit \"no logo\" decision."
-  def remove_logo(%Security{} = security, opts \\ []) do
-    LogoStore.remove_logo(security, opts)
+  @doc """
+  Removes a security's logo on behalf of `actor` and records an explicit
+  "no logo" decision.
+  """
+  def remove_logo(%Actor{} = actor, %Security{} = security, opts \\ []) do
+    LogoStore.remove_logo(actor, security, opts)
   end
 
   @doc """
@@ -681,14 +704,15 @@ defmodule Portfolixir.Catalog do
 
   @doc """
   Re-runs automatic logo discovery for a single security synchronously,
-  bypassing the background queue. Used by the "search again" action. A locked
-  security is left untouched.
+  bypassing the background queue, on behalf of `actor`, whom the journal
+  names (H61). Used by the "search again" action. A locked security is left
+  untouched.
   """
-  def rediscover_logo(%Security{} = security, opts \\ []) do
+  def rediscover_logo(%Actor{} = actor, %Security{} = security, opts \\ []) do
     if logo_status(security).locked do
       :skip
     else
-      LogoLookup.run(security, opts)
+      LogoLookup.run(actor, security, opts)
     end
   end
 
@@ -1034,6 +1058,11 @@ defmodule Portfolixir.Catalog do
 
   defp apply_sort(query, _), do: from(s in query, order_by: [asc: s.name])
 
+  defp apply_sort_or_delta(query, sort, nil), do: apply_sort(query, sort)
+
+  defp apply_sort_or_delta(query, _sort, cursor),
+    do: DeltaCursor.page(query, dynamic([s], s.updated_at), cursor)
+
   defp order_by_field(query, %Field{source: :column, key: key}, :asc) do
     from(s in query, order_by: [asc: field(s, ^key)])
   end
@@ -1042,14 +1071,25 @@ defmodule Portfolixir.Catalog do
     from(s in query, order_by: [desc: field(s, ^key)])
   end
 
-  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, :asc)
-       when type in [:integer, :decimal] do
-    from(s in query, order_by: [asc: fragment("(? ->> ?)::numeric", s.attributes, ^jsonb_key)])
-  end
+  # The cast runs only on a value of numeric shape (H37): one stored before
+  # the write was typed sorts with the empty ones instead of failing the read.
+  @numeric_text "^-?[0-9]+(\\.[0-9]+)?$"
 
-  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, :desc)
-       when type in [:integer, :decimal] do
-    from(s in query, order_by: [desc: fragment("(? ->> ?)::numeric", s.attributes, ^jsonb_key)])
+  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, dir)
+       when type in [:integer, :decimal] and dir in [:asc, :desc] do
+    from(s in query,
+      order_by: [
+        {^dir,
+         fragment(
+           "CASE WHEN (? ->> ?) ~ ? THEN (? ->> ?)::numeric END",
+           s.attributes,
+           ^jsonb_key,
+           ^@numeric_text,
+           s.attributes,
+           ^jsonb_key
+         )}
+      ]
+    )
   end
 
   defp order_by_field(query, %Field{source: {:attributes, jsonb_key}}, :asc) do

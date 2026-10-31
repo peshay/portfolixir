@@ -19,6 +19,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   """
 
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.ParseGuard
   alias Portfolixir.Net.PathSegment
 
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
@@ -32,6 +33,10 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   # The page size the search asks for, and the most candidates one search may
   # turn into summary lookups, whatever the answer carries (F30).
   @search_limit 5
+  # The most of a candidate's title, description or excerpt any pattern
+  # reads (security review 2026-10-12, H50): a real title is at most 255
+  # bytes, and a description's company words come first.
+  @text_bound 300
 
   # A candidate is accepted when its description/excerpt looks like a company
   # or fund and does NOT look like an unrelated topic (a fruit, a genus, a
@@ -78,11 +83,10 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
 
     case Http.get(req, url: @search_endpoint, params: [q: query, limit: @search_limit]) do
       {:ok, %Req.Response{status: 200, body: %{"pages" => pages}}} when is_list(pages) ->
-        pages
-        |> Enum.take(@search_limit)
-        |> Enum.filter(&company_like?/1)
-        |> Enum.filter(&title_matches_query?(&1, query))
-        |> first_candidate_image(opts)
+        case ParseGuard.run(fn -> candidates(pages, query) end) do
+          {:ok, candidates} -> first_candidate_image(candidates, opts)
+          {:error, _reason} = error -> error
+        end
 
       {:ok, %Req.Response{status: status}} when status in [200, 404] ->
         :not_found
@@ -93,6 +97,13 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp candidates(pages, query) do
+    pages
+    |> Enum.take(@search_limit)
+    |> Enum.filter(&company_like?/1)
+    |> Enum.filter(&title_matches_query?(&1, query))
   end
 
   defp first_candidate_image([], _opts), do: :not_found
@@ -117,12 +128,15 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
 
   defp company_like?(_page), do: false
 
+  # Every text field is bounded before any pattern reads it (H50).
   defp text_field(page, key) do
     case Map.get(page, key) do
-      value when is_binary(value) -> value
+      value when is_binary(value) -> bounded(value)
       _ -> ""
     end
   end
+
+  defp bounded(text), do: String.slice(text, 0, @text_bound)
 
   defp looks_like_company?(text) do
     Regex.match?(@company_signal, text) and not Regex.match?(@non_company_signal, text)
@@ -138,8 +152,8 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   @name_stopwords ~w(inc incorporated corp corporation co company group holding holdings
                      the and of ag se plc sa nv ltd llc lp)
   defp title_matches_query?(page, query) when is_map(page) do
-    title = if is_binary(page["title"]), do: page["title"], else: ""
-    query_tokens = name_tokens(query)
+    title = text_field(page, "title")
+    query_tokens = name_tokens(bounded(query))
 
     query_tokens != [] and
       (shares_token?(query_tokens, name_tokens(title)) or acronym_of?(title, query_tokens))

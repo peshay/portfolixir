@@ -39,12 +39,15 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
 
   # E25 S7, G30 (T-8): a rule is worded as a stored rule, not as the
   # operator's, because an API token writes rules as well as the Risk page;
-  # who wrote each rule and version is the audit journal's to say.
+  # who wrote each rule and version is the audit journal's to say. H14
+  # (T-16): the version's author does not cover the name; name_author does.
   @rules_note "A rule is a stored standard over a figure the product already serves " <>
                 "(ADR-0049): a cap, floor or band on a weight, a drift, the HHI, or a " <>
                 "portfolio metric. Every version carries author: operator for the Risk page, " <>
-                "agent for an API token; which token wrote a rule or a version is in the " <>
-                "audit journal (resource_type policy_rule and policy_rule_version). Rules " <>
+                "agent for an API token; author covers the version, not the name, and the " <>
+                "rule's name_author is who last named it. Which token wrote a rule or a " <>
+                "version is in the audit journal (resource_type policy_rule and " <>
+                "policy_rule_version). Rules " <>
                 "are versioned: an edit adds a version from a " <>
                 "date and closes the previous one the day before, so the standard in force on " <>
                 "any date stays readable (as_of=). A version that has been in force is never " <>
@@ -61,18 +64,22 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
          {:ok, view} <- view_param(params),
          {:ok, as_of} <- date_param(params, "as_of"),
          {:ok, include_retired} <- boolean_param(params, "include_retired"),
-         {:ok, since} <- SinceParam.parse(params),
+         {:ok, since} <- SinceParam.parse_page(params),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       as_of = as_of || Clock.today()
 
-      rules =
-        PolicyRules.list_rules(pid,
+      # K17: one row past the limit tells a full page from the whole answer,
+      # and a delta read is a page after the cursor.
+      {rules, truncated} =
+        pid
+        |> PolicyRules.list_rules(
           view: view,
           as_of: as_of,
           include_retired: include_retired,
-          updated_since: since && since.cut,
-          limit: limit
+          delta: since && SinceParam.cursor(since),
+          limit: ListLimit.fetch(limit)
         )
+        |> ListLimit.page(limit)
 
       payload = %{
         data: %{
@@ -81,12 +88,14 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
           as_of: JSON.date(as_of),
           include_retired: include_retired,
           limit: limit,
+          truncated: truncated,
           rules: Enum.map(rules, &PolicyJSON.rule/1),
           rules_note: @rules_note
         }
       }
 
-      json(conn, SinceParam.put_envelope(payload, since))
+      page = %{has_more: truncated, last: last_stamp(rules)}
+      json(conn, SinceParam.put_page_envelope(payload, since, page))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       :view_not_found -> not_found(conn)
@@ -316,4 +325,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
   end
+
+  defp last_stamp([]), do: nil
+
+  defp last_stamp(rules),
+    do: rules |> List.last() |> then(&{PolicyRules.changed_at(&1), &1.id})
 end

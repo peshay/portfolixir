@@ -65,7 +65,9 @@ Integrationsdetails für `/api/v1` und `mcp-server/` sind separat unter
 3. Erfasse manuelle Kauf- und Verkauftransaktionen mit Decimal-basierten Mengen-
    und Preiswerten.
 4. Importiere optional einen Portfolio-Performance-Transaktionsexport über
-   Imports, prüfe die Vorschau, ordne fehlende Konten zu und wende dann atomar an.
+   Imports, prüfe die Vorschau, ordne fehlende Konten zu und wende dann atomar an
+   (das interne Default-Portfolio, das ein erster Import anlegt, bleibt auch
+   dann bestehen, wenn der Import fehlschlägt).
 5. Öffne die Bestandsansicht, um die aktuelle Position je Wertpapier zu prüfen.
 6. Erfasse Wertpapierkurse im Zeitverlauf und behalte die Historie für
    reproduzierbare Charts.
@@ -387,7 +389,8 @@ und beide lesen dieselbe Vorschau.
 
 Die Vorschau zeigt alles, was die Zusammenführung tut, bevor etwas
 geschrieben wird: die Position beider Wertpapiere in jedem Depot vorher und
-nachher, die Buchungen, die bei beiden stehen (Sie entscheiden, ob es
+nachher, die realisierten Gewinne (FIFO) je Abschlussjahr und den noch
+offenen Einstand vorher und nachher, die Buchungen, die bei beiden stehen (Sie entscheiden, ob es
 Duplikate sind — nichts ist vorausgewählt), die Splits, die zusammenfallen,
 die Kurse, die Klassifizierungs- und Planzeilen, die Termine und die
 Kennzeichen. Was die Zusammenführung tut:
@@ -396,6 +399,15 @@ Kennzeichen. Was die Zusammenführung tut:
   eine Buchung, die Sie als Duplikat bestätigen, wird gelöscht, und ein
   Split, den beide am selben Tag tragen, bleibt einmal erhalten. Die
   Stückzahl jedes Tages in jedem Depot wird gegen beide Historien geprüft.
+- **Realisierte Gewinne** werden first-in, first-out über eine Reihe je
+  Wertpapier über alle Depots zugeordnet. Sind die beiden Wertpapiere eines,
+  kann ein Verkauf den älteren Posten des anderen schließen; die
+  realisierten Gewinne eines Abschlussjahres und der noch offene Einstand
+  können sich also ändern. Der Block *Realisierte Gewinne (FIFO)* der
+  Vorschau nennt sie je Abschlussjahr oder sagt in einer Zeile, dass sich
+  kein realisierter Betrag und kein offener Einstand ändert (welchen Posten
+  ein Verkauf schließt, und mit ihm Haltedauern und annualisierte Renditen,
+  kann sich dennoch ändern).
 - **Kurse** füllen die Lücken des Wertpapiers, das bleibt; an einem Tag, an
   dem beide einen Kurs haben, gewinnt der des bleibenden. Ein von Hand
   erfasster Schlusskurs, der so entfiele, wird vorher aufgeführt. Die
@@ -676,8 +688,9 @@ Sperren, die in N Tagen ablaufen.
 
 **Unsichtbare Zeichen** (E25). Kein Text wird mehr mit einem Zeichen
 gespeichert, das als nichts dargestellt wird — ein Leerzeichen der Breite
-null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, eine Folge von
-Variantenselektoren: Jedes Formular, die API, MCP und der Import lehnen es ab
+null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, ein
+Hangul-Füller, ein Variantenselektor ohne etwas zu variieren: Jedes Formular,
+die API, MCP und der Import lehnen es ab
 und nennen es (`U+200B`). Ein Emoji aus mehreren, verbunden durch einen
 Verbinder der Breite null (eine Person am Laptop, die Regenbogenflagge), wird
 gespeichert, denn der Verbinder erscheint als das Emoji; die Flaggen von
@@ -868,9 +881,13 @@ einem Dialog:
    sobald die beiden eines sind), die verknüpften Depots, die umziehen, und
    die gesetzten Salden, die angepasst werden — jeder mit seinem Datum und
    seinem Wert danach — oder entfallen. Für Depots zeigt sie je betroffener
-   Position Stückzahl, Durchschnittskosten und realisierten Gewinn/Verlust
-   vorher und nachher sowie einen Split, dessen Rundung sich unterscheidet,
-   sobald beide Historien vereint sind. **Buchungen, die in beiden Konten
+   Position Stückzahl, Durchschnittskosten und *Realisiert (gleit. Ø)* — das
+   Ergebnis des Depots nach gleitendem Durchschnitt — vorher und nachher
+   sowie einen Split, dessen Rundung sich unterscheidet, sobald beide
+   Historien vereint sind. Die realisierten Gewinne nach FIFO (Cashflow →
+   Trades, der Trades-Tab eines Wertpapiers) ändern sich nicht, außer gleiche
+   Buchungen werden als Duplikate entfernt, was sie aus der Reihe nimmt: Ihre
+   Reihe gehört dem Wertpapier, nicht dem Depot. **Buchungen, die in beiden Konten
    gleich sind** — gleicher Tag, gleiche Art, gleiche Beträge, typischerweise
    ein Import, der zweimal ankam — stehen mit zwei Wahlmöglichkeiten da,
    *als Duplikate entfernen* oder *beide behalten*, jede mit dem Saldo, zu
@@ -2075,7 +2092,10 @@ Wahl — auch von „Alles" — gewinnt immer). Eine Ansicht, eine Benchmark ode
 eine Sprache, die mit einem Link von einer anderen Website kommt, gilt für die
 Seite, die dieser Link öffnet, und wird nicht gemerkt (E25): Nur eine Wahl auf
 der Instanz selbst oder eine in die Adresszeile getippte ändert, was die
-nächste Seite zeigt. Die eigenen Links dieser Seite (Sprachwechsel, Reiter)
+nächste Seite zeigt. Über einfaches HTTP unter einem LAN-Namen oder einer
+LAN-Adresse, wo der Browser nicht sagt, woher eine Anfrage kommt, merkt sich
+die Instanz nur eine Wahl auf ihren eigenen Seiten, und eine getippte gilt für
+diese Seite (H41). Die eigenen Links dieser Seite (Sprachwechsel, Reiter)
 geben die fremde Ansicht nicht weiter, und eine Anmeldung dazwischen entfernt
 Ansicht, Benchmark und Sprache aus der Adresse, zu der sie zurückführt. Teilen sich die Buckets der aktiven
 Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –
@@ -2612,8 +2632,14 @@ eines USD-Wertpapiers, einem EUR-Konto gutgeschrieben, sind die Euro, die
 angekommen sind, und ihre Zeile unter den Zahlungen des Jahres nennt EUR,
 während die Tabelle je Position die Währung der Buchung behält (die
 Ergänzung von ADR-0015 vom 07.10.2026). Die Umrechnungsmethodik
-(EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums — dieselbe
-Umrechnung wie die Bewertung) steht hinter dem ⓘ neben der Währungszeile.
+(EUR-Hub zum letzten gespeicherten Kurs an oder vor dem jeweiligen
+Buchungsdatum — dieselbe Umrechnung wie die Bewertung) steht hinter dem ⓘ
+neben der Währungszeile. Eine Zahlung ohne solchen Kurs — eine Währung, die
+die Kursquelle nicht veröffentlicht, oder ein Datum vor dem ersten
+gespeicherten Kurs — steht in keiner Zahl: Ein Achtung-Hinweis über der
+Jahresübersicht nennt, wie viele, ihre Währung und ihr Wertpapier, und bietet
+das Nachladen der historischen Kurse an; die Zahlungen des aufgeklappten
+Jahres listen sie weiter in ihrer eigenen Währung.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.
 
@@ -2760,6 +2786,13 @@ eine Datennotiz an seiner Zeile mit dem Prüf-Bedienelement darin, und
 öffnen sich aus einem Aufklappen und sind standardmäßig geschlossen; die
 Vorzeichenregel ist Feldhilfe an den Betragsfeldern, und die hinterlegten
 Freistellungsaufträge sitzen hinter einem Aufklappen, das ihren Zweck nennt.
+Was Ihr Agent mit seinem Token geschrieben hat, trägt das Wort „Agent" (K12):
+Eine Abrechnung, die er erfasst hat, liest „erfasst · Agent" statt „manuell
+erfasst", eine, die Sie erfasst und er zuletzt korrigiert hat, „manuell
+erfasst · korrigiert · Agent", ein Freistellungsauftrag, den er erteilt hat,
+trägt „· Agent", und die Basiszeile nennt „(Agent)" hinter jedem Institut,
+dessen gezählte Abrechnung vom Agenten stammt. Ihre eigenen Einträge tragen
+kein Wort.
 
 **Der Verkaufsspielraum** ist der Verlusttopf Aktien plus der verbleibende
 Freistellungsauftrag (`erteilt − verbraucht`). Er wird immer **mit seinem
@@ -2829,7 +2862,9 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   gilt. Eine Regel, deren gültige Linie der Agent mit seinem API-Token gezogen
   hat, endet in ihrer Wortzeile mit **„Agent“** — geplante und beendete Regeln
   ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
-  „Operator“ oder „Agent“ (E25). Eigene Regeln tragen kein Wort. Die Regeln
+  „Operator“ oder „Agent“ (E25). Eine Regel, die zuletzt der Agent benannt
+  hat, trägt „Agent“ auch hinter ihrem Namen (H14). Eigene Regeln tragen kein
+  Wort. Die Regeln
   des Agenten gelten wie die eigenen; das Wort sagt nur, wer die Linie gezogen
   hat. Wie man eine Regel Schritt für Schritt anlegt, liest, ändert und
   beendet, steht im [Leitfaden Eigene Regeln](guides/own-rules.html).
@@ -2888,7 +2923,12 @@ beim Quell-Export verbleiben kann. In einer CSV-Datei ist *Zeile N* die Zeile,
 die eine Tabellenkalkulation zeigt, die Kopfzeile als Zeile 1, die erste
 Buchung also Zeile 2; jede Liste der Vorschau und des Ergebnisses nennt eine
 CSV-Zeile genauso. Das Anwenden des Imports ist atomar und
-nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
+nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen. Ein
+Datensatz ist die Ausnahme: Auf einer frischen Instanz legt der erste Import
+das interne Default-Portfolio an und schreibt es fest, bevor er die Datei
+bucht, damit jeder andere Schreibvorgang, der das Default-Portfolio
+inzwischen auflöst, dasselbe findet; dieser Datensatz bleibt auch dann
+bestehen, wenn der Import fehlschlägt.
 
 ### Was eine Portfolio-Performance-CSV voraussetzt
 
@@ -3092,8 +3132,19 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   EUR; ein klein geschriebener Code wie `usd` wird als `USD` gelesen. Eine
   CSV-Zeile bucht in EUR und wird nie wegen ihrer Währung abgelehnt.
 
+Ein JSON-Wertpapier, dessen Ticker der Katalog ablehnen würde (ein
+Leerzeichen, `/`, `?`, `#`, `%`, nur Punkte oder mehr als 64 Zeichen), wird
+ohne ihn importiert: Eine Parser-Warnung nennt das Wertpapier, jede Zeile der
+Datei wird importiert, und der Ticker lässt sich danach am Wertpapier
+erfassen.
+
 Eine Vorschau wird für den nächsten Besuch (Sprachwechsel, Neuladen) erst
-aufbewahrt, wenn sie einmal angezeigt wurde.
+aufbewahrt, wenn sie einmal angezeigt wurde, und nur, solange sie dafür nicht
+zu groß ist: Die Vorschau einer sehr großen Datei wird nicht aufbewahrt, und
+der nächste Besuch zeigt wieder das Ablagefeld. Eine aufbewahrte Vorschau
+kehrt so zurück, wie sie beim Ablegen der Datei berechnet wurde, mit den
+seither vorgenommenen Korrekturen; das Bestätigen prüft sie erneut gegen den
+aktuellen Datenbestand.
 
 ### Umbuchungen in einer Portfolio-Performance-CSV
 
@@ -3862,8 +3913,11 @@ abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt jeden
 Bereich ab, der Finanzdaten schreibt: Wertpapiere und die Kurse, die jemand
 eingibt, Portfolios, Geldkonten und Depots, Buchungen (auch die eines Imports),
 Klassifizierungen und SOLL-Pläne, Steuerdaten, Recherche-Notizen und Termine,
-eigene Regeln, Zusammenführungen sowie Buckets und Views. Eine eigene Ansicht
-in der App ist als Folgeschritt geplant.
+eigene Regeln, Zusammenführungen, Buckets und Views sowie die
+Standard-Ansicht, mit der die Seiten öffnen. Ein Logo, das jemand setzt,
+entfernt oder erneut suchen lässt, nennt, wer es war; nur die Logo-Suche im
+Hintergrund wird als Systemjob journalisiert. Eine eigene Ansicht in der App
+ist als Folgeschritt geplant.
 
 Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
 stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen

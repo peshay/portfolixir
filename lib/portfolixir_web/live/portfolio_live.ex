@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
@@ -3272,24 +3273,15 @@ defmodule PortfolixirWeb.PortfolioLive do
     query =
       params
       |> Map.drop(["benchmark", "benchmark_merged"])
-      |> Enum.sort()
-      |> Enum.flat_map(&kept_param/1)
+      # Every other parameter of the link rides along as it came (M-8): the
+      # redirect changes the benchmark only, never the period or the view.
+      |> LiveParam.carried()
       |> Kernel.++(Enum.map(Enum.uniq(selectors), &{"benchmark[]", &1}))
       |> Kernel.++([{"benchmark_merged", Enum.map_join(merged, ",", &elem(&1, 0))}])
       |> URI.encode_query()
 
     "/portfolio?" <> query
   end
-
-  # Every other parameter of the link rides along as it came (review finding
-  # M-8): the redirect changes the benchmark only, never the period or the
-  # view a bookmark carries. A list stays a list; anything else is dropped.
-  defp kept_param({key, value}) when is_binary(key) and is_binary(value), do: [{key, value}]
-
-  defp kept_param({key, values}) when is_binary(key) and is_list(values),
-    do: for(value <- values, is_binary(value), do: {key <> "[]", value})
-
-  defp kept_param(_other), do: []
 
   # The note says only what the records say: each id in `benchmark_merged`
   # must name a security a merge took away into an active benchmark.
@@ -3788,7 +3780,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # chosen. Everything active (`nil`) clears the preference — Everything IS
   # the built-in default.
   def handle_event("set_default_view", _params, socket) do
-    :ok = Settings.set_default_view(socket.assigns.active_view_id)
+    :ok = Settings.set_default_view(Actor.owner_ui(), socket.assigns.active_view_id)
     {:noreply, assign(socket, :default_view_id, socket.assigns.active_view_id)}
   end
 

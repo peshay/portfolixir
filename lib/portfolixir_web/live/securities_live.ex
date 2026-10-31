@@ -182,6 +182,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
      # leaves on its survivor's detail, until the next navigation.
      |> assign(:merged_notice, nil)
      |> assign(:logo_dialog_security, nil)
+     # H38 (board 01 of ux-design-2026-10-27): a manual logo is a file the
+     # browser uploads, never an address the server fetches. The accept list
+     # is written out for the intake gate (NFR-9 B6) and equals
+     # LogoStore.upload_accept/0, so the browser and the store refuse the
+     # same files (pinned in securities_logo_upload_test.exs).
+     |> assign(:logo_upload_error, nil)
+     |> allow_upload(:logo,
+       accept: ~w(.jpeg .jpg .png .webp),
+       max_entries: 1,
+       max_file_size: LogoStore.upload_max_bytes()
+     )
      |> assign_securities([])}
   end
 
@@ -243,6 +254,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
           params
           |> Map.drop(["id"])
           |> Map.put("merged_from", Integer.to_string(id))
+          # Every other parameter rides along as `LiveParam.carried/1` reads
+          # it, the list page's own `cur[]` chips included (H16).
+          |> LiveParam.carried()
           |> URI.encode_query()
 
         {:noreply, push_patch(socket, to: "/securities/#{survivor}?" <> query, replace: true)}
@@ -959,7 +973,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <% end %>
 
       <%= if @logo_dialog_security do %>
-        <LogoOverrideDialog.dialog security={@logo_dialog_security} />
+        <LogoOverrideDialog.dialog
+          security={@logo_dialog_security}
+          upload={@uploads.logo}
+          upload_error={@logo_upload_error}
+        />
       <% end %>
     </AppShell.shell>
     """
@@ -4699,6 +4717,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # H39: refused server-side while a sync of this page is in flight, whatever
+  # the button's DOM state; a catalog sync another window or the scheduled
+  # tick runs is refused by `QuoteSync.sync_all/1` and named in the result.
+  def handle_event("sync_now", _params, %{assigns: %{sync_running?: true}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
@@ -4744,6 +4768,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # It is that result's next action, so the result goes; the sync's own
   # answer lands in the page-level slot. The toolbar and the Chart tab keep
   # `sync_now`, which means every security.
+  def handle_event("sync_quotes_released", _params, %{assigns: %{sync_running?: true}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("sync_quotes_released", _params, socket) do
     case socket.assigns.selected_security do
       %Security{} = sec ->
@@ -5094,8 +5121,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # H39: once queued from this page, a retry is a no-op until the page leaves
+  # the missing-logo list; LogoDiscovery ignores a retry while a drain is
+  # pending.
+  def handle_event(
+        "retry_missing_logos",
+        _params,
+        %{assigns: %{logo_retry_queued?: true}} = socket
+      ),
+      do: {:noreply, socket}
+
   def handle_event("retry_missing_logos", _params, socket) do
-    LogoDiscovery.enqueue_missing_security_logos()
+    LogoDiscovery.retry_missing_security_logos()
 
     # Feedback rides the canonical inline-result slot (design-critic fix
     # round): data-note appearance and dismissal instead of a bare span.
@@ -5164,12 +5201,28 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("close_logo_dialog", _params, socket) do
-    {:noreply, assign(socket, :logo_dialog_security, nil)}
+    {:noreply, socket |> clear_logo_upload() |> assign(:logo_dialog_security, nil)}
   end
 
-  def handle_event("save_logo_url", %{"logo" => %{"url" => url}}, socket) do
+  def handle_event("validate_logo_upload", _params, socket) do
+    {:noreply, assign(socket, :logo_upload_error, nil)}
+  end
+
+  # Only a ref of an entry the upload holds is cancelled; any other ref
+  # (a stale or pushed one) is a no-op, because cancel_upload/3 raises on it.
+  def handle_event("cancel_logo_upload", %{"ref" => ref}, socket) do
+    ref = LiveParam.string(ref)
+
+    if is_binary(ref) and Enum.any?(socket.assigns.uploads.logo.entries, &(&1.ref == ref)) do
+      {:noreply, socket |> cancel_upload(:logo, ref) |> assign(:logo_upload_error, nil)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("save_logo_upload", _params, socket) do
     case socket.assigns.logo_dialog_security do
-      %Security{} = sec -> store_logo_url(socket, sec, String.trim(LiveParam.string(url) || ""))
+      %Security{} = sec -> store_logo_upload(socket, sec)
       _ -> {:noreply, socket}
     end
   end
@@ -5177,9 +5230,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
     with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = sec <- Catalog.get_security(id),
-         {:ok, _updated} <- Catalog.remove_logo(sec, logo_opts()) do
+         {:ok, _updated} <- Catalog.remove_logo(Actor.owner_ui(), sec, logo_opts()) do
       {:noreply,
        socket
+       |> clear_logo_upload()
        |> assign(:logo_dialog_security, nil)
        |> put_action_result(:note, gettext("Logo removed"))
        |> load_securities()
@@ -5372,7 +5426,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, task} =
         CappedAsync.start_child(Portfolixir.LogoSupervisor, fn ->
           await_watch()
-          result = LogoLookup.run(sec)
+          result = LogoLookup.run(Actor.owner_ui(), sec, [])
           send(parent, {:logo_update_done, sec_id, result})
         end)
 
@@ -5387,7 +5441,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp dispatch_row_action(socket, "manage_logo", %Security{} = sec) do
-    {:noreply, assign(socket, :logo_dialog_security, sec)}
+    {:noreply, socket |> clear_logo_upload() |> assign(:logo_dialog_security, sec)}
   end
 
   defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
@@ -5447,25 +5501,52 @@ defmodule PortfolixirWeb.SecuritiesLive do
     %{security | attributes: attributes}
   end
 
-  defp store_logo_url(socket, _sec, "") do
-    {:noreply,
-     socket
-     |> put_action_result(:problem, gettext("Enter an image URL first."))}
+  # The uploaded bytes go to the store, which checks the type, the size and
+  # the image header. A refused file stays chosen (postponed), with the
+  # refusal under it, until the operator removes or replaces it.
+  # The path is LiveView's own managed upload temp file, not user input.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp store_logo_upload(socket, sec) do
+    results =
+      consume_uploaded_entries(socket, :logo, fn %{path: path}, entry ->
+        content_type = LogoStore.upload_content_type(entry.client_type, entry.client_name)
+
+        case LogoStore.store_manual_bytes(
+               Actor.owner_ui(),
+               sec,
+               File.read!(path),
+               content_type,
+               logo_opts()
+             ) do
+          {:ok, _updated} -> {:ok, :stored}
+          {:error, :unsupported_content_type} -> {:postpone, {:refused, :not_an_image}}
+          {:error, :too_large} -> {:postpone, {:refused, :too_large}}
+          {:error, _reason} -> {:postpone, {:refused, :not_stored}}
+        end
+      end)
+
+    case results do
+      [:stored] ->
+        {:noreply,
+         socket
+         |> assign(:logo_upload_error, nil)
+         |> assign(:logo_dialog_security, nil)
+         |> put_action_result(:note, gettext("Logo updated"))
+         |> load_securities()
+         |> load_detail_data()}
+
+      [{:refused, reason}] ->
+        {:noreply, assign(socket, :logo_upload_error, reason)}
+
+      _nothing_chosen ->
+        {:noreply, socket}
+    end
   end
 
-  defp store_logo_url(socket, sec, url) do
-    {kind, flash} =
-      case Catalog.set_logo_override(sec, url, logo_opts()) do
-        {:ok, _updated} -> {:note, gettext("Logo updated")}
-        {:error, _reason} -> {:problem, gettext("Could not load that image")}
-      end
-
-    {:noreply,
-     socket
-     |> assign(:logo_dialog_security, nil)
-     |> put_action_result(kind, flash)
-     |> load_securities()
-     |> load_detail_data()}
+  defp clear_logo_upload(socket) do
+    socket.assigns.uploads.logo.entries
+    |> Enum.reduce(socket, fn entry, acc -> cancel_upload(acc, :logo, entry.ref) end)
+    |> assign(:logo_upload_error, nil)
   end
 
   # Manual logo operations reuse the same storage dir (and, in tests, the same
@@ -6210,6 +6291,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # One security's sync, in the background (the row menu's "Sync prices"
   # and the release result's follow-up): the busy sync button shows the
   # progress, no toast, and `:sync_done` brings the answer.
+  # H39: one sync of this page at a time, refused server-side.
+  defp start_security_sync(%{assigns: %{sync_running?: true}} = socket, _sec), do: socket
+
   defp start_security_sync(socket, %Security{} = sec) do
     parent = self()
 
@@ -6295,6 +6379,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp kept_manual(%{skipped_manual: kept}) when is_integer(kept), do: kept
   defp kept_manual(_result), do: 0
+
+  defp sync_flash({:error, :sync_in_progress}) do
+    gettext(
+      "A price sync of every security is already running; it was not started a second time."
+    )
+  end
 
   defp sync_flash({:ok, %{ok: ok, skipped: 0, error: 0}}) when ok > 0 do
     gettext("Prices synced.")

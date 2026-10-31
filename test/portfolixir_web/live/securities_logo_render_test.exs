@@ -21,6 +21,17 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
          6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 250, 207, 0, 0,
          0, 3, 0, 1, 5, 12, 60, 192, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130>>
 
+  # The Manage-logo dialog's upload (H38): choose a PNG, then save it.
+  defp upload_png(view) do
+    view
+    |> file_input("#logo-upload-form", :logo, [
+      %{name: "logo.png", content: @png, type: "image/png", last_modified: 1_700_000_000_000}
+    ])
+    |> render_upload("logo.png")
+
+    view |> element("#logo-upload-form") |> render_submit()
+  end
+
   defp png_stub do
     [
       plug: fn conn ->
@@ -278,13 +289,14 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   #
   # Acceptance criteria:
   # - The dialog on a marked locked manual row reads "The stored logo file is
-  #   missing. Set it again from an image URL, or remove the logo.", never
+  #   missing. Upload the image again, or remove the logo.", never
   #   "This security is set to have no logo." nor the manual-logo sentence.
   # - "Remove logo" is enabled there; it stays disabled on the "no logo"
   #   choice.
-  # - The image URL field is empty: never prefilled with a stored local path,
-  #   on a marked row nor on a manual logo whose file is there.
-  # - Saving an image URL there stores the logo again, clears the mark, and
+  # - The upload starts with nothing chosen: never prefilled with a stored
+  #   logo, on a marked row nor on a manual logo whose file is there (H38
+  #   replaced the image URL field with the upload).
+  # - Uploading an image there stores the logo again, clears the mark, and
   #   the row renders the image.
   test "the manage-logo dialog names a missing logo file and keeps the way back open",
        %{conn: conn} do
@@ -327,32 +339,32 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     end
 
     File.write!(Path.join(tmp, "#{present.id}.png"), @png)
-    {:ok, _} = LogoStore.remove_logo(chosen, storage_dir: tmp)
+    {:ok, _} = LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), chosen, storage_dir: tmp)
 
     assert {:ok, %{marked: 1}} = LogoStore.reconcile_missing_files(storage_dir: tmp)
 
     {:ok, view, _html} = live(conn, "/securities")
     remove = "#logo-override-dialog button[phx-click='remove_logo_override']"
-    url = "#logo-override-url"
+    nothing_chosen = "#logo-upload-form:not(:has(.logo-override__chosen))"
 
     html =
       render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(sec.id)})
 
     assert html =~
-             "The stored logo file is missing. Set it again from an image URL, or remove the logo."
+             "The stored logo file is missing. Upload the image again, or remove the logo."
 
     refute html =~ "This security is set to have no logo."
     refute html =~ "A manual logo is set"
     refute html =~ "No logo found yet."
     assert has_element?(view, remove <> ":not([disabled])")
-    assert has_element?(view, url <> "[value='']")
-    assert has_element?(view, "#logo-override-dialog form[phx-submit='save_logo_url']")
+    assert has_element?(view, nothing_chosen)
+    assert has_element?(view, "#logo-override-dialog form[phx-submit='save_logo_upload']")
 
-    # A manual logo whose file is there: its local path is not an image URL.
+    # A manual logo whose file is there: nothing is chosen for it either.
     render_hook(view, "close_logo_dialog", %{})
     render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(present.id)})
     assert render(view) =~ "A manual logo is set"
-    assert has_element?(view, url <> "[value='']")
+    assert has_element?(view, nothing_chosen)
 
     # The "no logo" choice: nothing left to remove.
     render_hook(view, "close_logo_dialog", %{})
@@ -362,7 +374,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
     render_hook(view, "close_logo_dialog", %{})
     render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(sec.id)})
-    render_hook(view, "save_logo_url", %{"logo" => %{"url" => "https://example.test/logo.png"}})
+    upload_png(view)
 
     status = Catalog.logo_status(Catalog.get_security!(sec.id))
     assert status.has_logo
@@ -371,8 +383,9 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   end
 
   # User story:
-  # As a maintainer, I want to set a logo from a URL when automatic discovery
-  # missed one, and remove a wrong logo — directly from the securities list.
+  # As a maintainer, I want to set a logo from an image file when automatic
+  # discovery missed one, and remove a wrong logo — directly from the
+  # securities list.
   test "manage-logo dialog sets and removes a manual logo", %{conn: conn} do
     prior = Application.get_env(:portfolixir, :logo_discovery_opts, [])
 
@@ -405,8 +418,8 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
     assert html =~ "Manage logo"
 
-    # Set a manual logo from a URL (downloaded through the Req stub).
-    render_hook(view, "save_logo_url", %{"logo" => %{"url" => "https://example.test/logo.png"}})
+    # Set a manual logo from an uploaded file.
+    upload_png(view)
 
     updated = Catalog.get_security!(sec.id)
     assert updated.attributes["logo_source"] == "manual"

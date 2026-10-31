@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -51,8 +51,10 @@ jobs:
       # pre-commit and every dependency it pulls, pinned by version and sha256
       # (E25 S8, F60): --require-hashes refuses anything the file does not
       # name with a matching hash, and --only-binary installs wheels only, so
-      # no package's build script runs either. The hook repositories are
-      # frozen to commits in .pre-commit-config.yaml.
+      # no package's build script runs either. The same file pins what the
+      # hooks run on, pre-commit-hooks and its dependencies: every hook in
+      # .pre-commit-config.yaml is local and builds no environment of its own,
+      # so nothing is resolved from the package index after this step (H65).
       - name: Install pre-commit
         run: |
           python3 -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
@@ -69,8 +71,12 @@ jobs:
         # An exact tag and its digest (E25 S8, F60): the digest is what gets
         # pulled, the tag says which release that is. Dependabot does not read
         # service images, so the maintenance lane's PostgreSQL review moves
-        # the pin, in both jobs at once -- ci_test holds them equal.
-        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        # the pin, in both jobs at once -- ci_test holds them equal. Pulled
+        # through Google's Docker Hub mirror (#1218): GitHub-hosted runners
+        # share addresses, so Docker Hub's unauthenticated pull quota can be
+        # spent by others and turn the job red before a step runs; the digest
+        # keeps the image byte-identical to Docker Hub's.
+        image: mirror.gcr.io/library/postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -119,7 +125,7 @@ jobs:
 
       - name: Upload test output artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-output
           path: test-output.log
@@ -167,54 +173,26 @@ jobs:
       - name: Gettext catalogs match the source
         run: mix gettext.extract --check-up-to-date
 
-      # `mix hex.audit` on the current Hex: retirements plus the hex.pm EEF
-      # advisory feed, which Hex 2.5 gates on with no ignore mechanism. Until
-      # Sprint 11 this step pinned Hex 2.4.1 (the last retirement-only
-      # hex.audit) because cowlib carried three advisories with no fixed
-      # release; Bandit replaced Cowboy (#772), cowlib left the tree, and the
-      # pin and its exception went with it. An advisory that appears here
-      # again is cleared by an upgrade, not by a pin.
-      - name: Audit Hex packages (retirements and advisories)
-        run: mix hex.audit
-
-      # Fails the build on known security advisories in the Hex dependency
-      # tree (mix_audit), with no ignore list: the cowlib advisory the list
-      # used to carry (GHSA-g2wm-735q-3f56, no fixed release) left the tree
-      # with the Bandit swap (#772, Sprint 11). This mirrors the HIGH-gated
-      # posture of the npm audit (`--audit-level=high`); advisories are
-      # cleared by upgrades, not by ignores.
-      - name: Audit Hex dependencies
-        run: mix deps.audit
-
       # AGENTS.md has always required `npm test` and `npm run build` for the
       # MCP companion, but CI only audited its dependencies — so an MCP-only
       # change (or a transitive major bump underneath the SDK) rested on an
       # unverifiable local claim. Under ADR-0036 "every quality gate green"
       # replaces the per-PR human read, so the companion's own gates have to
-      # run here too. `npm ci` installs from the lockfile the audit above
-      # already checked. `--ignore-scripts` blocks dependency lifecycle
+      # run here too. `npm ci` installs from the lockfile the advisories job
+      # audits. `--ignore-scripts` blocks dependency lifecycle
       # scripts, which are arbitrary code execution on the runner at install
       # time; nothing in this tree needs them (the deps are the MCP SDK,
       # express, zod, tsx and typescript), and both gates below pass without.
       # Issue #728: the MCP gates ran on whatever Node ubuntu-latest shipped
       # that week — the one unpinned toolchain in this workflow. Pinned to
-      # the 24 LTS line, the same major the companion's Dockerfile ships and
+      # the 26 LTS line, the same major the companion's Dockerfile ships and
       # `engines.node` in mcp-server/package.json records, so CI, the image
       # and a local run agree — and `@types/node` has a runtime major to
       # follow instead of the registry's latest.
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
-
-      # D-7 (Sprint 15): the audit runs on the pinned Node 24 and its npm, not
-      # on whatever npm the runner image ships. CI 1558 ran it before Setup
-      # Node: that npm fell back to the quick-audit endpoint the registry is
-      # retiring, which answered 400 and turned the gate red with no advisory
-      # behind it. The level is unchanged — the fix is reading the right
-      # endpoint, never making the gate optional.
-      - name: Audit MCP server dependencies (npm)
-        run: npm audit --audit-level=high --prefix mcp-server
+          node-version: "26"
 
       - name: Install MCP server dependencies
         run: npm ci --ignore-scripts --prefix mcp-server
@@ -254,6 +232,70 @@ jobs:
 
       - name: Dialyzer
         run: mix dialyzer --format short
+
+  # The live-feed audits (H63, the 2026-10-12 security review): `mix
+  # hex.audit`, `mix deps.audit` and `npm audit` read advisory and retirement
+  # feeds that turn red with nobody pushing. In the quality job a red feed
+  # skipped every later step -- the companion's tests and build, Credo,
+  # Sobelow and Dialyzer -- so their own job keeps the deterministic gates
+  # running while a feed is red, and this job alone shows the advisory. Each
+  # audit after the first runs with `!cancelled()`, so one red feed hides
+  # neither of the others; every audit still fails this job and keeps its
+  # level.
+  advisories:
+    runs-on: ubuntu-latest
+    needs: pre-commit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: '1.18.5'
+          otp-version: '27.3.4.18'
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      # `mix hex.audit` on the current Hex: retirements plus the hex.pm EEF
+      # advisory feed, which Hex 2.5 gates on with no ignore mechanism. Until
+      # Sprint 11 this step pinned Hex 2.4.1 (the last retirement-only
+      # hex.audit) because cowlib carried three advisories with no fixed
+      # release; Bandit replaced Cowboy (#772), cowlib left the tree, and the
+      # pin and its exception went with it. An advisory that appears here
+      # again is cleared by an upgrade, not by a pin.
+      - name: Audit Hex packages (retirements and advisories)
+        run: mix hex.audit
+
+      # Fails the build on known security advisories in the Hex dependency
+      # tree (mix_audit), with no ignore list: the cowlib advisory the list
+      # used to carry (GHSA-g2wm-735q-3f56, no fixed release) left the tree
+      # with the Bandit swap (#772, Sprint 11). This mirrors the HIGH-gated
+      # posture of the npm audit (`--audit-level=high`); advisories are
+      # cleared by upgrades, not by ignores.
+      - name: Audit Hex dependencies
+        if: ${{ !cancelled() }}
+        run: mix deps.audit
+
+      - name: Setup Node
+        if: ${{ !cancelled() }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+
+      # D-7 (Sprint 15): the audit runs on the pinned Node 26 and its npm, not
+      # on whatever npm the runner image ships. CI 1558 ran it before Setup
+      # Node: that npm fell back to the quick-audit endpoint the registry is
+      # retiring, which answered 400 and turned the gate red with no advisory
+      # behind it. The level is unchanged — the fix is reading the right
+      # endpoint, never making the gate optional.
+      - name: Audit MCP server dependencies (npm)
+        if: ${{ !cancelled() }}
+        run: npm audit --audit-level=high --prefix mcp-server
 
   migration-immutability:
     runs-on: ubuntu-latest
@@ -303,7 +345,7 @@ jobs:
     services:
       db:
         # The test job's pin, tag and digest alike (E25 S8, F60).
-        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        image: mirror.gcr.io/library/postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -391,8 +433,8 @@ jobs:
           persist-credentials: false
 
       # The stack is built only when a change can change what it builds: the
-      # paths release.yml cuts a release for, the two build contexts'
-      # .dockerignore files, and this workflow. A `paths:` filter on the
+      # paths release.yml cuts a release for (the two build contexts'
+      # .dockerignore files among them, #1189), and this workflow. A `paths:` filter on the
       # workflow would hold back every other job, and a third-party filter
       # action would be one more dependency on the runner, so git compares
       # the commits here. A pull request is compared with its base, a push
@@ -462,6 +504,20 @@ jobs:
             printf '%s=%s\n' "$name" "$value" >> .env
           done
           echo "PORTFOLIXIR_BACKGROUND_FETCH=off" >> .env
+
+      # The base images and the database image come from Docker Hub, named by
+      # digest; the daemon pulls them through Google's mirror (#1218), so a
+      # quota a shared runner's neighbours spent cannot fail the build, and
+      # the digests keep the bytes Docker Hub's. A mirror that fails falls
+      # back to Docker Hub. The runner's existing daemon settings are kept.
+      - name: Pull Docker Hub images through Google's mirror
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          config=/etc/docker/daemon.json
+          if sudo test -s "$config"; then current="$(sudo cat "$config")"; else current='{}'; fi
+          jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' <<< "$current" | sudo tee "$config" > /dev/null
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
 
       - name: Build and start the Compose stack
         if: steps.changes.outputs.build == 'true'

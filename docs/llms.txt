@@ -58,8 +58,9 @@ can bring the history in from a Portfolio Performance export.
 
 1. Clone the repository, https://github.com/peshay/portfolixir.
 2. Create `.env` from `.env.example` (`install -m 600 .env.example .env`) and
-   set its secrets: `SECRET_KEY_BASE`, `PORTFOLIXIR_API_TOKEN` and
-   `PORTFOLIXIR_MCP_TOKEN` each from `openssl rand -base64 48`,
+   set its secrets: `SECRET_KEY_BASE` from `openssl rand -base64 48`,
+   `PORTFOLIXIR_API_TOKEN` and `PORTFOLIXIR_MCP_TOKEN` each a random token
+   from `openssl rand -base64 48` (the 32-byte floor checks length only),
    `POSTGRES_PASSWORD` from `openssl rand -hex 32`, and
    `PORTFOLIXIR_UI_PASSWORD`, the web UI's login, from `openssl rand -base64 24`
    or a passphrase of at least 12 characters the operator chooses, in single
@@ -67,7 +68,8 @@ can bring the history in from a Portfolio Performance export.
    variable (such a passphrase holds no single quote, which ends the quoted
    value, and does not end in a backslash, which escapes the closing quote).
    A token
-   shorter than 32 bytes, or left as the placeholder, stops the stack at start;
+   shorter than 32 bytes, or left as the placeholder, stops the stack at start,
+   and so does an empty `POSTGRES_PASSWORD` or one shorter than 32 bytes;
    with `PORTFOLIXIR_UI_PASSWORD` left empty, the web UI is open and asks for no
    login.
 3. Run `docker compose up --build -d`: it builds and starts the stack in the
@@ -107,8 +109,10 @@ modules (btree_gist). `mix` reads no `.env`: export `PORTFOLIXIR_API_TOKEN` and
 with `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
 `portfolixir_dev` on `127.0.0.1:5432`); it connects as user `postgres` with
 password `postgres`, which `config/dev.exs` fixes: no variable changes them. It
-listens on loopback, on `PORT` (default `4000`); without
-`PORTFOLIXIR_UI_PASSWORD` its web UI asks for no login. Where nobody types at a
+listens on loopback, on `PORT` (default `4000`); the route requires
+`PORTFOLIXIR_UI_PASSWORD`: without it its web UI asks for no login, and the
+development configuration's session key is public, so the password is its only
+lock. Where nobody types at a
 prompt, as in an agent's shell, generate the password into a file only the
 operator can read (`umask 077`, `openssl rand -base64 24`) and export it from
 there, so no command line and no shell history holds it; start the server in the
@@ -121,7 +125,7 @@ stdio (below), with `PORTFOLIXIR_API_BASE_URL` naming the same port.
 - Over HTTP, to the companion the Compose stack runs: the URL
   http://127.0.0.1:4001/mcp with the header `Authorization: Bearer
   <PORTFOLIXIR_MCP_TOKEN>`.
-- Over stdio, the client starting the companion itself: with Node 24, run `npm
+- Over stdio, the client starting the companion itself: with Node 26, run `npm
   ci --ignore-scripts --prefix mcp-server` and `npm run build --prefix
   mcp-server` once, then the command is `node mcp-server/dist/index.js` with
   `PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000` and `PORTFOLIXIR_API_TOKEN`
@@ -164,13 +168,13 @@ into context; one that defers schemas pays only for the names. Measured per
 profile as the serialized `tools/list` answer, with tokens approximated as bytes
 / 4 to bytes / 3.5:
 
-- `read`: 67 tools, at most 103,261 bytes, about 26,000 to 30,000 tokens
-- `book`: 114 tools, at most 176,275 bytes, about 44,000 to 51,000 tokens
-- `full`: 143 tools, at most 206,672 bytes, about 52,000 to 60,000 tokens
+- `read`: 67 tools, at most 102,986 bytes, about 25,000 to 30,000 tokens
+- `book`: 113 tools, at most 172,005 bytes, about 43,000 to 50,000 tokens
+- `full`: 143 tools, at most 206,560 bytes, about 51,000 to 60,000 tokens
 
 A test holds the companion under these byte figures, and they only ever move
 down. They count the tool list only: the server instructions a client also
-receives when it connects add about 1.6 KB more (1,545 to 1,740 bytes,
+receives when it connects add about 1.6 KB more (1,545 to 1,755 bytes,
 depending on the profile).
 
 ## Before the first figure

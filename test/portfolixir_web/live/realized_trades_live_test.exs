@@ -129,7 +129,13 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     assert excluded_at < unmatched_at and unmatched_at < figures_at
 
     # In German, the board's copy and the German date and quantity forms.
-    de_conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "portfolixir_locale", "de")
+    de_conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        Phoenix.ConnTest.build_conn(),
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, de_view, _html} = live(de_conn, "/cashflow?tab=realized")
     de_note = de_view |> element("#realized-unmatched") |> render()
 
@@ -287,7 +293,14 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
   # - The switch, the column, the dash's reason and the basis line in German.
   test "the Trades facet is German where the page is", %{conn: conn} do
     seed_reach!()
-    de_conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+    de_conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(de_conn, "/cashflow?tab=realized")
 
     assert has_element?(view, "[data-role='cashflow-facets'] a[aria-current='true']", "Trades")
@@ -319,7 +332,13 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
 
   defp class_of(nodes), do: nodes |> Floki.attribute("class") |> List.first("")
 
-  defp de_conn(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp de_conn(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp phone_row(view, name) do
     view

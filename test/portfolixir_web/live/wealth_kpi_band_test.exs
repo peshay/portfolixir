@@ -8,6 +8,11 @@ defmodule PortfolixirWeb.WealthKpiBandTest do
   alias Portfolixir.Classifications
   alias Portfolixir.WorldFixtures
 
+  # The instance on loopback, where the browser labels every request it
+  # sends, so a choice made by following the page's own links is remembered
+  # (H41).
+  setup %{conn: conn}, do: %{conn: %{conn | host: "localhost"}}
+
   # User story (#797, review C1 — variant A, picked 2026-09-14):
   # As a local portfolio maintainer reading the Wealth key figures,
   # I want the band composed as two tiers — three lead figures at full size

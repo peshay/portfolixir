@@ -112,6 +112,29 @@ The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
   hand and the preview names the row as not imported. Discard the preview
   afterwards.
 
+The Sprint 21 security fixes added theirs (step 17 of the seed, amendment
+D-12); the agent is an API token, as the app reads its writes:
+
+- **A name the agent gave (H14):** "Barreserve höchstens 30 %", created by
+  the operator as "Barobergrenze" and renamed by the agent: Wealth → Risk
+  and the rule dialog mark the name as the agent's, while the version stays
+  the operator's.
+- **A statement the agent recorded (K12):** "Beispiel Direktbank", for the
+  prior tax year beside "Example Bank": the Tax page reads "recorded ·
+  Agent", and the trim budget's basis line marks the institution.
+- **A merge that restates realized gains (K11):** two copies of "Thornbury
+  Water Fund", left un-merged, each bought 10 and sold 5. Merged, one FIFO
+  queue lets the later sale close the older lot: the preview states 2025's
+  realized result for both sides, the merged one and a change of +50.00
+  EUR, and the open lots' cost likewise.
+- **Income without a rate (K07):** a USD dividend on Harborline Freight Inc
+  in the US Depot of the EUR Demo Depot. The seed stores no USD rate, so the
+  income report leaves it out of every total and names it, with its
+  currency and security.
+- **A split across two portfolios (K09):** "Wexmoor Instruments AG", held
+  in the Demo Depot and in a second EUR portfolio, "Family Depot", split
+  2:1: one split row in each, and both holdings doubled (20 and 12 shares).
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate

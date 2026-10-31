@@ -9,7 +9,8 @@ defmodule Portfolixir.Ledger.Splits do
   per portfolio, plus warnings) without writing anything; `book_split/2`
   inserts the whole row group atomically in one `Ecto.Multi`, each row
   journaled individually (ADR-0017) through the same
-  `Ledger.create_transaction/2` path as every other ledger write.
+  `Ledger.create_transaction/3` path as every other ledger write, passing
+  `split_flow: true`: the one caller the ledger books a split for (K10).
 
   **Group identity is the natural key `(security_id, date, normalized
   ratio)`** — deliberately no grouping column and no migration (migrations
@@ -121,7 +122,10 @@ defmodule Portfolixir.Ledger.Splits do
   It takes the security's split-event lock before it reads the rows already
   booked, and books inside the same transaction, so a whole-split delete
   (`delete_split/2`) of the same security either finishes before the reads
-  or waits for the rows (#912 review round).
+  or waits for the rows (#912 review round). Right after it, the security's
+  row in key-share mode, so a security merge in flight finishes before the
+  positioned portfolios are read, and one that starts waits for the rows
+  (H60).
   """
   def book_split(%Actor{} = actor, attrs) when is_map(attrs) do
     with {:ok, params} <- validate(attrs) do
@@ -165,13 +169,31 @@ defmodule Portfolixir.Ledger.Splits do
   # so they wait on each other instead of each acting on what the other has
   # not committed yet. Two securities that share a key only serialize more
   # than they must.
+  #
+  # Then the security's row, in key-share mode, before the event's
+  # portfolios are read (security review 2026-10-12, H60): a security merge
+  # holds both securities FOR UPDATE while it moves their bookings, and
+  # takes no split-event lock, so a split that read its fan-out under the
+  # event lock alone read the portfolios as they stood before the merge. A
+  # merge in flight now holds the split back until it has committed; a split
+  # in flight holds the merge back until it has committed, and the merge
+  # then reads its rows. Key share is the lock a split row's foreign key
+  # takes on the security anyway, taken earlier: it meets only FOR UPDATE
+  # (the merges, the hardened delete), and the split flow locks no depot, so
+  # the merge's order (depots, then securities) is kept. A security gone by
+  # then answers `:security_not_found`.
   defp lock_event(repo, security_id) when is_integer(security_id) do
     repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [
       @event_lock_key,
       rem(security_id, @int4_max)
     ])
 
-    {:ok, :locked}
+    from(s in Security, where: s.id == ^security_id, lock: "FOR KEY SHARE", select: s.id)
+    |> repo.one()
+    |> case do
+      nil -> {:error, :security_not_found}
+      _id -> {:ok, :locked}
+    end
   end
 
   @doc """
@@ -180,8 +202,9 @@ defmodule Portfolixir.Ledger.Splits do
   ratio)`, in every portfolio, in one transaction, one journal entry per row
   with the row as its before-image (ADR-0017, ADR-0028 §1).
 
-  The security's split-event lock is taken first, the rows are then locked
-  in id order before any is deleted, so two deletes of one event cannot each
+  The security's split-event lock is taken first, then the security's row
+  in key-share mode (a security merge in flight finishes first, H60), the
+  rows are then locked in id order before any is deleted, so two deletes of one event cannot each
   hold half of it, and a booking of the same split cannot add a row between
   the lock and the commit; `row` itself must still be stored then. A failure on any row rolls every row back — nothing is deleted and
   nothing journaled.
@@ -256,8 +279,30 @@ defmodule Portfolixir.Ledger.Splits do
         {:error, :not_found}
 
       %Transaction{type: "split"} = anchor ->
-        {:ok, :locked} = lock_event(repo, anchor.security_id)
+        lock_anchored_rows(repo, anchor)
 
+      %Transaction{} ->
+        {:error, :not_a_split}
+    end
+  end
+
+  # A security merged away while the delete waited for its lock is gone, but
+  # the merge moved its split rows onto the surviving security (H60): the
+  # anchor is read again by id and its event locked once more, on the
+  # security it names now. A second miss, or an anchor gone by then, is gone.
+  defp lock_anchored_rows(repo, %Transaction{id: id} = anchor, retry? \\ true) do
+    case lock_event(repo, anchor.security_id) do
+      {:error, :security_not_found} ->
+        case retry? && repo.get(Transaction, id) do
+          %Transaction{type: "split", security_id: moved_to} = moved
+          when moved_to != anchor.security_id ->
+            lock_anchored_rows(repo, moved, false)
+
+          _gone ->
+            {:error, :not_found}
+        end
+
+      {:ok, :locked} ->
         locked =
           repo.all(
             from(t in Transaction,
@@ -282,9 +327,6 @@ defmodule Portfolixir.Ledger.Splits do
 
             {:ok, rows}
         end
-
-      %Transaction{} ->
-        {:error, :not_a_split}
     end
   end
 
@@ -670,7 +712,7 @@ defmodule Portfolixir.Ledger.Splits do
   defp insert_multi(actor, params, portfolio_ids) do
     Enum.reduce(portfolio_ids, Multi.new(), fn portfolio_id, multi ->
       Multi.run(multi, {:split, portfolio_id}, fn _repo, _changes ->
-        Ledger.create_transaction(actor, row_attrs(params, portfolio_id))
+        Ledger.create_transaction(actor, row_attrs(params, portfolio_id), split_flow: true)
       end)
     end)
   end

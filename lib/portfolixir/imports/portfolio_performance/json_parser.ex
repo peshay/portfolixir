@@ -44,6 +44,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
@@ -72,10 +73,17 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # carry no gross_amount.
   @no_cash_kinds ~w(inbound_delivery outbound_delivery security_transfer)
 
+  # H57: the entry warning of a row whose security's ticker was not adopted.
+  @ticker_refused "ticker-not-adopted"
+
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
     max_rows = PortfolioPerformance.max_rows()
 
+    with :ok <- within_shape(body, max_rows), do: decode(body, max_rows, opts)
+  end
+
+  defp decode(body, max_rows, opts) do
     case Jason.decode(body, floats: :decimals) do
       {:ok, %{"version" => 1, "transactions" => txs}} when is_list(txs) ->
         rows = length(txs)
@@ -102,6 +110,87 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         {:error, {:invalid_json, Exception.message(e)}}
     end
   end
+
+  # Security review 2026-10-12, H59: the shape of the body is judged before
+  # it is decoded, by one pass over its bytes that builds nothing. An export
+  # nests five levels (the document, its transactions, a transaction, its
+  # units, a unit), so a body nested deeper than this is no export.
+  @max_depth 32
+
+  # The most elements an object, or an array below the document's own keys
+  # (a transaction's units), may hold before the body is decoded: far more
+  # than an export writes (a transaction has some fifteen keys and at most
+  # `PortfolioPerformance.max_units/0` units, a units list past that being a
+  # row error), so no export is refused by it. It holds whatever the row cap
+  # is configured to.
+  @max_nested_elements 1_000
+
+  # The document's own arrays (its transactions) hold at most `max_rows`
+  # elements: past it, the row cap's refusal, naming the longest one's
+  # length. An object or a nested array past its bound, or a body nested past
+  # `@max_depth`, is no export. A body the pass cannot judge (unbalanced
+  # brackets) is left to the decoder, which names it.
+  defp within_shape(body, max_rows),
+    do: scan(body, [], {max_rows, @max_nested_elements}, 0)
+
+  defp scan(<<?", rest::binary>>, stack, limits, over),
+    do: scan_string(rest, stack, limits, over)
+
+  defp scan(<<?[, rest::binary>>, stack, limits, over),
+    do: open(rest, :array, stack, limits, over)
+
+  defp scan(<<?{, rest::binary>>, stack, limits, over),
+    do: open(rest, :object, stack, limits, over)
+
+  defp scan(<<c, rest::binary>>, [container | stack], {max_rows, _} = limits, over)
+       when c in [?], ?}],
+       do: scan(rest, stack, limits, past_cap(container, max_rows, over))
+
+  defp scan(<<?,, rest::binary>>, [{:array, commas, depth} | stack], limits, over)
+       when depth <= 2,
+       do: scan(rest, [{:array, commas + 1, depth} | stack], limits, over)
+
+  defp scan(<<?,, _rest::binary>>, [{_type, commas, _depth} | _stack], {_, nested}, _over)
+       when commas + 1 >= nested,
+       do: {:error, :malformed_payload}
+
+  defp scan(<<?,, rest::binary>>, [{type, commas, depth} | stack], limits, over),
+    do: scan(rest, [{type, commas + 1, depth} | stack], limits, over)
+
+  defp scan(<<_byte, rest::binary>>, stack, limits, over),
+    do: scan(rest, stack, limits, over)
+
+  defp scan(<<>>, stack, {max_rows, _}, over) do
+    case Enum.reduce(stack, over, &past_cap(&1, max_rows, &2)) do
+      0 -> :ok
+      elements -> {:error, {:too_many_rows, elements}}
+    end
+  end
+
+  defp scan_string(<<?\\, _escaped, rest::binary>>, stack, limits, over),
+    do: scan_string(rest, stack, limits, over)
+
+  defp scan_string(<<?", rest::binary>>, stack, limits, over),
+    do: scan(rest, stack, limits, over)
+
+  defp scan_string(<<_byte, rest::binary>>, stack, limits, over),
+    do: scan_string(rest, stack, limits, over)
+
+  defp scan_string(<<>>, stack, limits, over), do: scan(<<>>, stack, limits, over)
+
+  defp open(_rest, _type, stack, _limits, _over) when length(stack) >= @max_depth,
+    do: {:error, :malformed_payload}
+
+  defp open(rest, type, stack, limits, over),
+    do: scan(rest, [{type, 0, length(stack) + 1} | stack], limits, over)
+
+  # The longest of the document's own arrays past the cap so far: an array
+  # of n commas holds n + 1 elements.
+  defp past_cap({:array, commas, depth}, max_rows, over)
+       when depth <= 2 and commas + 1 > max_rows,
+       do: max(over, commas + 1)
+
+  defp past_cap(_container, _max_rows, over), do: over
 
   defp expanded_count(txs) do
     Enum.reduce(txs, 0, fn tx, count -> count + 1 + refund_units(tx) end)
@@ -145,11 +234,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         end
       end)
 
+    entries = Enum.reverse(entries)
+
     %Preview{
       format: :json,
       source_filename: Keyword.get(opts, :filename),
-      entries: Enum.reverse(entries),
-      errors: Enum.reverse(errors),
+      entries: entries,
+      errors: Enum.sort_by(Enum.reverse(errors) ++ ticker_warnings(entries), & &1.row),
       refused_credits: Enum.reverse(refused)
     }
   end
@@ -173,7 +264,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
          {:ok, shares} <- Decimals.parse(Map.get(raw, "shares")),
          {:ok, {fees, taxes, refund_amounts}} <- sum_units(Map.get(raw, "units", [])),
          {:ok, currency} <- parse_currency(:booking, Map.get(raw, "currency")),
-         {:ok, security} <- parse_security(Map.get(raw, "security")) do
+         {:ok, security, ticker_refused?} <- parse_security(Map.get(raw, "security")) do
       pp_portfolio = present_string(Map.get(raw, "portfolio"))
       pp_account = present_string(Map.get(raw, "account"))
 
@@ -243,6 +334,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         pp_counter_portfolio_name: present_string(Map.get(raw, "otherPortfolio")),
         pp_counter_account_name: present_string(Map.get(raw, "otherAccount")),
         note: present_string(Map.get(raw, "note")),
+        warnings: if(ticker_refused?, do: [@ticker_refused], else: []),
         companion_entries: companions
       }
 
@@ -410,21 +502,50 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
+  # Security review 2026-10-12, H57: a ticker the catalog would refuse on
+  # the security it creates is not adopted, and the security is matched and
+  # created by what else the file names; the flag becomes one row warning
+  # per security (`ticker_warnings/1`).
   defp parse_security(%{} = sec) do
     with {:ok, currency} <- parse_currency(:security, Map.get(sec, "currency")) do
+      ticker = present_string(Map.get(sec, "ticker"))
+      refused? = is_binary(ticker) and not Security.ticker_valid?(ticker)
+
       {:ok,
        %{
          name: present_string(Map.get(sec, "name")) |> normalize_letter_spacing(),
          isin: present_string(Map.get(sec, "isin")) |> normalize_isin(),
          wkn: present_string(Map.get(sec, "wkn")),
-         ticker: present_string(Map.get(sec, "ticker")),
+         ticker: if(refused?, do: nil, else: ticker),
          currency: currency
-       }}
+       }, refused?}
     end
   end
 
   # Absent, or not a map at all (#768): no security on the row.
-  defp parse_security(_other), do: {:ok, nil}
+  defp parse_security(_other), do: {:ok, nil, false}
+
+  # H57: one warning per security whose ticker was not adopted, on its first
+  # row that imports, naming the security and the remedy.
+  defp ticker_warnings(entries) do
+    {warnings, _warned} =
+      Enum.reduce(entries, {[], MapSet.new()}, fn %Entry{security: security} = entry,
+                                                  {warnings, warned} ->
+        if @ticker_refused in entry.warnings and not MapSet.member?(warned, security) do
+          message =
+            gettext(
+              "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards.",
+              name: security.name || security.isin || security.wkn
+            )
+
+          {[%{row: entry.source_row, message: message} | warnings], MapSet.put(warned, security)}
+        else
+          {warnings, warned}
+        end
+      end)
+
+    Enum.reverse(warnings)
+  end
 
   # #1044: a transfer moves money or shares between two accounts or depots, so
   # one without its other side has nothing to book against; the apply would
@@ -462,7 +583,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   defp parse_currency(_which, value) when is_binary(value) do
     case value |> String.trim() |> String.upcase() do
       "" -> {:ok, nil}
-      code -> {:ok, code}
+      # H58: detached from the upload body, as `present_string/1` is.
+      code -> {:ok, :binary.copy(code)}
     end
   end
 
@@ -477,10 +599,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   defp present_string(nil), do: nil
 
+  # Security review 2026-10-12, H58: a cell the entry keeps is copied out of
+  # the upload body. Trimmed, it is a slice of the body; a slice longer than
+  # 64 bytes that crosses into another process (a page task, the preview
+  # store) references the whole body there, and the heap cap counts the body
+  # once per such slice.
   defp present_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
-      trimmed -> trimmed
+      trimmed -> :binary.copy(trimmed)
     end
   end
 

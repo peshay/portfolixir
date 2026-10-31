@@ -26,7 +26,7 @@ server, for one), so check your client's documentation for its spelling.
 | Profile | The agent can |
 |---|---|
 | `read` | read everything and change nothing |
-| `book` | read, create, and make the replace-shaped writes (update, upsert, set), which the same write sent the former value undoes; no removal, merge, ISIN change, rule retirement or quote release |
+| `book` | read, create, and make the replace-shaped writes (update, upsert, set), which the same write sent the former value undoes; no removal, merge, ISIN change, new rule version, rule retirement or quote release |
 | `full` (the default) | call every tool |
 
 Two of the writes `book` keeps leave a residue their inverse does not clear: a
@@ -42,7 +42,7 @@ set `book` leaves out, and why, is in [API and MCP](api-and-mcp.html#mcp-tools).
 
 ## Over stdio: the client starts the companion
 
-Build the companion once, with Node 24:
+Build the companion once, with Node 26:
 
 ```bash
 npm ci --ignore-scripts --prefix mcp-server
@@ -131,6 +131,14 @@ MCP client served from another origin (`localhost:6274`).
 
 The Compose file sets the transport, host and port for its own service; a
 companion you start yourself reads them from its environment.
+
+The companion's API calls carry the API token, so they never go through a
+proxy. Where Node's own proxy is switched on (`NODE_USE_ENV_PROXY=1` or
+`--use-env-proxy`, with `HTTP_PROXY` or `HTTPS_PROXY` set), name the API host
+in `NO_PROXY` exactly as `PORTFOLIXIR_API_BASE_URL` writes it
+(`NO_PROXY=127.0.0.1,localhost,app`; `localhost` does not cover `127.0.0.1`).
+Otherwise the companion stops at start with exit status 1 and a line naming
+`NO_PROXY`.
 
 ## First steps
 

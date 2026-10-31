@@ -43,23 +43,78 @@ defmodule Portfolixir.Portfolios do
   """
   def default_portfolio_attrs, do: @default_portfolio
 
+  # The default-portfolio lock (H54): one transaction-scoped advisory lock
+  # for the whole database, of the two-key form. Its first key is distinct
+  # from the ISIN write lock's, the account-identity lock's, the split-event
+  # lock's and the import-hash lock's. The second is 0 unless the
+  # transaction has set `portfolixir.default_portfolio_lock_scope`, which
+  # only the test sandbox does: a sandboxed test never commits, so it would
+  # hold the one lock until it ended and every other async test resolving
+  # the default would wait for it (as #1018 found for the ISIN lock).
+  @default_portfolio_lock_key 727_224_001
+  @default_portfolio_lock_sql """
+  SELECT pg_advisory_xact_lock($1,
+    coalesce(nullif(current_setting('portfolixir.default_portfolio_lock_scope', true), '')::integer, 0))
+  """
+
+  @doc """
+  Runs several account writes as one (K14): `fun` calls the context
+  writers — each actor-first, each journaling in its own `Ecto.Multi` — and
+  answers `{:ok, value}` or `{:error, reason}`. An error rolls back every
+  write `fun` made, journal entries included, and is answered as is; so the
+  account dialog's tag, cash account, depot and bucket sets land together
+  or not at all.
+  """
+  @spec all_or_nothing((-> {:ok, term()} | {:error, term()})) :: {:ok, term()} | {:error, term()}
+  def all_or_nothing(fun) when is_function(fun, 0) do
+    Repo.transaction(fn ->
+      case fun.() do
+        {:ok, value} -> value
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
   @doc """
   Resolves the ONE deterministic internal default portfolio that new depots
   and cash accounts bind to (ADR-0024): the earliest record when any exists,
   otherwise a freshly created "Default" (EUR) — journaled under `actor` like
   any sanctioned portfolio write. The UI and API never ask the user for a
   portfolio; grouping happens exclusively through buckets and views.
+
+  When none exists yet, the record is created under the default-portfolio
+  lock, in a short transaction of its own, read again under the lock first
+  (security review 2026-10-12, H54): two writers resolving the default on a
+  fresh instance take turns, and the second finds the record the first
+  committed instead of creating a second "Default". Called outside a
+  transaction, the record is committed when it returns; a caller that opens
+  a long transaction (the import) resolves it before that. Called inside one
+  (the account dialog's all-or-nothing save), the lock and the record are
+  held to that transaction's end: the caller takes it before its other locks.
   """
   def default_portfolio(%Actor{} = actor) do
     case first_portfolio() do
-      nil ->
-        {:ok, portfolio} = create_portfolio(actor, @default_portfolio)
-
-        portfolio
-
-      portfolio ->
-        portfolio
+      nil -> create_default_portfolio(actor)
+      portfolio -> portfolio
     end
+  end
+
+  defp create_default_portfolio(actor) do
+    {:ok, portfolio} =
+      Repo.transaction(fn ->
+        Repo.query!(@default_portfolio_lock_sql, [@default_portfolio_lock_key])
+
+        case first_portfolio() do
+          nil ->
+            {:ok, portfolio} = create_portfolio(actor, @default_portfolio)
+            portfolio
+
+          portfolio ->
+            portfolio
+        end
+      end)
+
+    portfolio
   end
 
   @doc """

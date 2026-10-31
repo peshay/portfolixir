@@ -1,5 +1,5 @@
 # The DEVELOPMENT configuration (#760): source mounted, Mix present, debug
-# pages, origin checks off. Never the documented deployment — that is
+# pages, a public session key. Never the documented deployment — that is
 # docker-compose.yml (a production release). Run with:
 #   docker compose -f docker-compose.dev.yml up --build
 # The database port is published for local tooling; the tokens have no
@@ -22,7 +22,7 @@ services:
   db:
     # Pinned by tag and digest (ADR-0045 §2, E25 S2); Dependabot's
     # docker-compose ecosystem moves both, never across a PostgreSQL major.
-    image: postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     environment:
       POSTGRES_DB: portfolixir_dev
       POSTGRES_USER: postgres
@@ -38,6 +38,13 @@ services:
       start_period: 5s
     ports:
       - "127.0.0.1:5432:5432"
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   app:
     build:
@@ -55,6 +62,12 @@ services:
       PORTFOLIXIR_ALLOWED_HOSTS: app
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
       PORT: 4000
+    # Descriptors above the listener's connection cap (500, config/config.exs),
+    # so a flood of connections meets the cap, not the descriptor table.
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
     ports:
       - "127.0.0.1:4000:4000"
     command: ["mix", "phx.server"]
@@ -68,6 +81,13 @@ services:
       - .:/app
       - app-deps:/app/deps
       - app-build:/app/_build
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   mcp:
     build:
@@ -89,6 +109,13 @@ services:
       PORTFOLIXIR_MCP_PROFILE: ${PORTFOLIXIR_MCP_PROFILE:-}
     ports:
       - "127.0.0.1:4001:4001"
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   portfolixir-dev-postgres-data:

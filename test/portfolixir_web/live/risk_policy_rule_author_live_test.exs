@@ -129,7 +129,13 @@ defmodule PortfolixirWeb.RiskPolicyRuleAuthorLiveTest do
     assert first =~ "Version 1" and first =~ "· Operator"
     assert second =~ "Version 2" and second =~ "· Agent"
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/risk")
 
     assert view |> row(agents) |> render() =~

@@ -7,10 +7,77 @@ defmodule Portfolixir.RuntimeConfig do
   instead of by a deployment (ADR-0045 §2, #758).
   """
 
-  @true_values ["1", "true", "yes"]
+  @true_values ~w(1 true yes on)
+  @false_values ~w(0 false no off)
   @loopback {127, 0, 0, 1}
   @any {0, 0, 0, 0}
   @always_allowed_hosts ["localhost", "127.0.0.1"]
+
+  @doc """
+  One boolean switch as the environment holds it (security review
+  2026-10-12, H06): `1`, `true`, `yes` and `on` are true, `0`, `false`, `no`
+  and `off` are false, trimmed and in any case; unset or blank is `default`.
+  Anything else is `{:error, value}`, which the callers read as `default`
+  and `switch_warning/3` names at boot.
+  """
+  @spec switch(String.t() | nil, default) :: {:ok, boolean() | default} | {:error, String.t()}
+        when default: boolean() | nil
+  def switch(value, default) when is_binary(value) do
+    case value |> String.trim() |> String.downcase() do
+      "" -> {:ok, default}
+      word when word in @true_values -> {:ok, true}
+      word when word in @false_values -> {:ok, false}
+      _unrecognised -> {:error, value}
+    end
+  end
+
+  def switch(_unset, default), do: {:ok, default}
+
+  # The switches whose unreadable value leaves the instance less protected
+  # than the operator meant, each with the state it is then read as.
+  @protective_switches [
+    {"PHX_FORCE_SSL", false},
+    {"DATABASE_SSL", false},
+    {"PORTFOLIXIR_BACKGROUND_FETCH", true}
+  ]
+
+  @doc """
+  The startup check behind H06 (security review 2026-10-12): a switch whose
+  value `switch/2` cannot read is named, with the value and the state it is
+  read as. A warning, never a refusal. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec switch_warning(String.t(), String.t() | nil, boolean()) :: :ok | {:warn, String.t()}
+  def switch_warning(variable, value, default) do
+    case switch(value, default) do
+      {:ok, _bool} ->
+        :ok
+
+      {:error, value} ->
+        {:warn,
+         "#{variable} is #{inspect(value)}, which is not a switch value, so it is read as " <>
+           "#{if default, do: "on", else: "off"}. Write 1, true, yes or on, or 0, false, no " <>
+           "or off."}
+    end
+  end
+
+  @doc """
+  `switch_warning/3` over every protective switch (`PHX_FORCE_SSL`,
+  `DATABASE_SSL`, `PORTFOLIXIR_BACKGROUND_FETCH`), read through `get_env`.
+  """
+  @spec protective_switch_warnings((String.t() -> String.t() | nil)) ::
+          [:ok | {:warn, String.t()}]
+  def protective_switch_warnings(get_env \\ &protective_switch_value/1) do
+    for {variable, default} <- @protective_switches,
+        do: switch_warning(variable, get_env.(variable), default)
+  end
+
+  # Each name literal, so the environment scan of the outbound invariant can
+  # read them (NFR-9 B2).
+  defp protective_switch_value("PHX_FORCE_SSL"), do: System.get_env("PHX_FORCE_SSL")
+  defp protective_switch_value("DATABASE_SSL"), do: System.get_env("DATABASE_SSL")
+
+  defp protective_switch_value("PORTFOLIXIR_BACKGROUND_FETCH"),
+    do: System.get_env("PORTFOLIXIR_BACKGROUND_FETCH")
 
   def database_ssl?(value \\ System.get_env("DATABASE_SSL", "false"))
 
@@ -226,8 +293,65 @@ defmodule Portfolixir.RuntimeConfig do
        Enum.map_join(entries, ", ", &inspect/1) <> "."}
   end
 
+  @doc """
+  The startup check behind H04 (security review 2026-10-12): the entries of
+  `PORTFOLIXIR_TRUSTED_PROXIES` too wide to name a proxy
+  (`overbroad_trusted_proxies/1`) are named in a warning of their own,
+  whatever `PHX_FORCE_SSL` and the bind say, with what such a block would
+  do. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec overbroad_proxies_warning([String.t()]) :: :ok | {:warn, String.t()}
+  def overbroad_proxies_warning([]), do: :ok
+
+  def overbroad_proxies_warning(entries) when is_list(entries) do
+    {:warn,
+     "PORTFOLIXIR_TRUSTED_PROXIES holds blocks wider than " <>
+       "/#{min_trusted_proxy_prefix(:ipv4)} (IPv4) or /#{min_trusted_proxy_prefix(:ipv6)} " <>
+       "(IPv6), which would believe the X-Forwarded-For and X-Forwarded-Proto of nearly " <>
+       "every client, letting each choose its throttle source and its scheme; they are " <>
+       "ignored, and no proxy is trusted for them: " <>
+       Enum.map_join(entries, ", ", &inspect/1) <>
+       ". Name the proxy's exact address (docs/home-deployment.md, \"Reverse proxy\")."}
+  end
+
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
+
+  # Fewer distinct characters than this, and a token is plainly not random:
+  # `openssl rand -base64 48` prints about forty (H20, T-17).
+  @min_token_distinct_chars 12
+
+  @doc """
+  The startup check behind H20 (security review 2026-10-12; #1202; T-17):
+  the 32-byte floor checks length only, and since #974 the lock slows no
+  guess, so a configured token with fewer than
+  #{@min_token_distinct_chars} distinct characters is named, by its variable
+  or its name and never by its value, in a warning. A warning, never a
+  refusal: an entropy floor would refuse tokens that work today. Pure;
+  `Portfolixir.Application` logs it.
+  """
+  @spec weak_tokens_warning([{String.t() | nil, String.t()}] | nil) :: :ok | {:warn, String.t()}
+  def weak_tokens_warning(principals) when is_list(principals) do
+    case for({name, token} <- principals, few_distinct?(token), do: describe_principal(name)) do
+      [] ->
+        :ok
+
+      weak ->
+        {:warn,
+         "API tokens with fewer than #{@min_token_distinct_chars} distinct characters: " <>
+           Enum.join(weak, ", ") <>
+           ". The 32-byte floor checks length only and the lock slows no guess, so " <>
+           "only a random token keeps the API unguessable: replace each with a random " <>
+           "token from `openssl rand -base64 48`."}
+    end
+  end
+
+  def weak_tokens_warning(_unset), do: :ok
+
+  defp few_distinct?(token) when is_binary(token),
+    do: token |> String.graphemes() |> Enum.uniq() |> length() < @min_token_distinct_chars
+
+  defp few_distinct?(_token), do: false
 
   @doc "The bearer tokens' length floor; the MCP companion holds its token to it too (F01)."
   @spec min_token_bytes() :: pos_integer()
@@ -268,6 +392,10 @@ defmodule Portfolixir.RuntimeConfig do
   # A token's name is written into the journal's actor label and read back by
   # agents, so it is a short identifier, never free text.
   @principal_name ~r/\A[a-z0-9][a-z0-9_-]{0,31}\z/
+  # What a refusal may quote of a value that fails the name rule (H22): a run
+  # of identifier characters shorter than the token floor (`min_token_bytes/0`),
+  # so nothing that could pass as a token is ever quoted.
+  @name_shaped ~r/\A[A-Za-z0-9_-]{1,31}\z/
 
   @doc """
   The API's principals (E25 S7, G26; the architecture's FU-6, named
@@ -344,8 +472,9 @@ defmodule Portfolixir.RuntimeConfig do
       name ->
         unless Regex.match?(@principal_name, name) do
           raise ArgumentError,
-                "PORTFOLIXIR_API_PRINCIPAL: the name #{inspect(name)} must be 1 to 32 " <>
-                  "characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+                "PORTFOLIXIR_API_PRINCIPAL: #{describe_bad_name(name)} must be 1 to 32 " <>
+                  "characters of a-z, 0-9, _ and -, starting with a letter or a digit; " <>
+                  "the token itself goes into PORTFOLIXIR_API_TOKEN"
         end
 
         if List.keymember?(named, name, 0) do
@@ -370,6 +499,14 @@ defmodule Portfolixir.RuntimeConfig do
 
   defp reject_orphan_name!(_unset), do: :ok
 
+  # A refused name is quoted only when it is name-shaped; anything else may
+  # be a token written in the wrong place, so only its length is told.
+  defp describe_bad_name(name) do
+    if Regex.match?(@name_shaped, name),
+      do: "the name #{inspect(name)}",
+      else: "a name of #{String.length(name)} characters (not shown: it may be a token)"
+  end
+
   defp named_entries(value) when is_binary(value) do
     value
     |> String.split(",")
@@ -387,8 +524,9 @@ defmodule Portfolixir.RuntimeConfig do
 
         unless Regex.match?(@principal_name, name) do
           raise ArgumentError,
-                "PORTFOLIXIR_API_TOKENS entry #{position}: the name #{inspect(name)} must be 1 " <>
-                  "to 32 characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+                "PORTFOLIXIR_API_TOKENS entry #{position}: #{describe_bad_name(name)} must " <>
+                  "be 1 to 32 characters of a-z, 0-9, _ and -, starting with a letter or a " <>
+                  "digit; if this entry is a bare token, write it as name=token"
         end
 
         # Spaces around the "=" belong to neither side: a token kept with
@@ -500,12 +638,267 @@ defmodule Portfolixir.RuntimeConfig do
           "SECRET_KEY_BASE is required; generate one with `openssl rand -base64 48`"
   end
 
-  defp truthy?(value) do
-    value
-    |> String.trim()
-    |> String.downcase()
-    |> then(&(&1 in @true_values))
+  # What `openssl rand -hex 32` prints is twice this.
+  @min_database_password_bytes 32
+
+  @doc """
+  The `DATABASE_URL` a release boots with (security review 2026-10-12, H18;
+  T-14): its password, which the Compose deployment takes from
+  `POSTGRES_PASSWORD`, is present, at least #{@min_database_password_bytes}
+  bytes and not a placeholder the example files ship. Raises naming the
+  variables, never the value; the URL is returned unchanged.
+  """
+  @spec validate_database_url!(String.t()) :: String.t()
+  def validate_database_url!(url) when is_binary(url) do
+    password = database_password(url)
+
+    cond do
+      password == "" ->
+        database_password_error!("is empty")
+
+      byte_size(password) < @min_database_password_bytes ->
+        database_password_error!(
+          "is shorter than #{@min_database_password_bytes} bytes (got #{byte_size(password)})"
+        )
+
+      placeholder?(password) ->
+        database_password_error!("is a placeholder")
+
+      true ->
+        url
+    end
   end
+
+  defp database_password(url) do
+    case URI.parse(url).userinfo do
+      nil ->
+        ""
+
+      userinfo ->
+        case String.split(userinfo, ":", parts: 2) do
+          [_user, password] -> URI.decode(password)
+          [_user] -> ""
+        end
+    end
+  end
+
+  defp database_password_error!(what) do
+    raise ArgumentError,
+          "the database password in DATABASE_URL (POSTGRES_PASSWORD in the Compose " <>
+            "deployment) #{what}; generate one with `openssl rand -hex 32`"
+  end
+
+  @database_url_shape "postgres://user:password@host:port/database"
+
+  @doc """
+  The `DATABASE_URL` a production instance boots with (security review
+  2026-10-12, H72): read as the Repo reads it, it names a host and a single
+  database name, carries no fragment, and every `%` in its user and password
+  starts a two-digit escape.
+  Raises naming the variable and what is wrong, never its value: the Repo's
+  own error would print the whole URL, password included, into the log.
+  """
+  @spec database_url!(String.t() | nil) :: String.t()
+  def database_url!(url) when is_binary(url) and url != "" do
+    case database_url_problem(url) do
+      nil ->
+        url
+
+      problem ->
+        raise ArgumentError,
+              "DATABASE_URL #{problem}; write it as #{@database_url_shape}, with a " <>
+                "password of letters and digits (`openssl rand -hex 32`) or one whose " <>
+                "/, # and ? are percent-encoded, and whose % starts a two-digit escape"
+    end
+  end
+
+  def database_url!(_missing) do
+    raise ArgumentError, "DATABASE_URL is required (#{@database_url_shape})"
+  end
+
+  # What is wrong with the URL, in words that hold none of its parts. Read
+  # with `URI.parse/1`, as the Repo reads it, so every URL the Repo accepted
+  # still boots and only the ones it would stop on are refused here.
+  defp database_url_problem(url) do
+    uri = URI.parse(url)
+
+    cond do
+      uri.host in [nil, ""] -> "names no host"
+      not (is_binary(uri.path) and uri.path =~ ~r"\A/[^/]+\z") -> "names no single database"
+      uri.fragment != nil -> "holds a # that ends it early"
+      not decodable?(uri.userinfo) -> "holds a user or password that is not percent-encoded"
+      true -> nil
+    end
+  end
+
+  # A % that does not start a two-digit hex escape would be read as
+  # something else than the operator wrote, silently.
+  defp decodable?(nil), do: true
+  defp decodable?(userinfo), do: not Regex.match?(~r/%(?![0-9A-Fa-f]{2})/, userinfo)
+
+  # The query keys the Repo is handed through the URL, all integers; the TLS
+  # keys are read here and taken out of it, so nothing in the URL overrides
+  # the decision below (Ecto merges the URL's options over the Repo's).
+  @kept_query_keys ~w(pool_size timeout idle_interval)
+  @verifying_tls_modes ~w(require verify-ca verify-full)
+  @permissive_tls_modes ~w(disable allow prefer)
+
+  @doc """
+  The Repo's `url` and `ssl` options (security review 2026-10-12, K03), from
+  `DATABASE_URL` (checked by `database_url!/1`), `DATABASE_SSL` and
+  `DATABASE_SSL_CA_FILE`.
+
+  The URL's query is read here: libpq's `sslmode=require`, `verify-ca` and
+  `verify-full`, and `ssl=true`, turn TLS on, always verifying the server's
+  certificate and name (Postgrex's defaults over the operating system's
+  trust store); `ssl=false` turns it off. `sslmode=disable`, `allow` and
+  `prefer`, which let a connection run without TLS, any other `ssl` or
+  `sslmode` value, and any key other than those and `pool_size`, `timeout`
+  and `idle_interval` are refused. A URL setting that contradicts an
+  explicit `DATABASE_SSL` is refused naming both; when one of them is silent
+  the other decides, and with both silent TLS is off. The TLS keys are taken
+  out of the URL the Repo reads.
+
+  `DATABASE_SSL_CA_FILE`, an absolute path to a readable PEM file, names the
+  CA that signed the database's certificate (a private CA) in place of the
+  trust store, keeping the verification; it needs TLS on. Every refusal
+  names the variable, never a value from the URL.
+  """
+  @spec database_options!(String.t() | nil, String.t() | nil, String.t() | nil) :: keyword()
+  def database_options!(url, ssl, ca_file) do
+    url = database_url!(url)
+    {base, query} = split_query(url)
+    {kept, url_tls} = database_query!(query)
+    tls = database_tls!(url_tls, database_ssl_switch(ssl))
+
+    [url: rebuild_query(base, kept), ssl: database_ssl_option!(tls, ca_file)]
+  end
+
+  defp split_query(url) do
+    case String.split(url, "?", parts: 2) do
+      [base, query] -> {base, query}
+      [base] -> {base, ""}
+    end
+  end
+
+  defp rebuild_query(base, []), do: base
+  defp rebuild_query(base, kept), do: base <> "?" <> URI.encode_query(kept)
+
+  defp database_query!(query) do
+    query
+    |> decode_query!()
+    |> Enum.reduce({[], []}, fn {key, value}, {kept, tls} ->
+      case database_query_key!(key, value) do
+        {:keep, pair} -> {[pair | kept], tls}
+        {:tls, on?} -> {kept, [on? | tls]}
+      end
+    end)
+    |> then(fn {kept, tls} -> {Enum.reverse(kept), url_tls!(Enum.uniq(tls))} end)
+  end
+
+  defp decode_query!(query) do
+    Enum.to_list(URI.query_decoder(query))
+  rescue
+    ArgumentError ->
+      reraise ArgumentError,
+              [message: "DATABASE_URL holds a query that is not percent-encoded"],
+              __STACKTRACE__
+  end
+
+  defp database_query_key!("ssl", "true"), do: {:tls, true}
+  defp database_query_key!("ssl", "false"), do: {:tls, false}
+
+  defp database_query_key!("ssl", _value),
+    do: raise(ArgumentError, "DATABASE_URL holds an ssl= other than true or false")
+
+  defp database_query_key!("sslmode", mode) when mode in @verifying_tls_modes, do: {:tls, true}
+
+  defp database_query_key!("sslmode", mode) when mode in @permissive_tls_modes do
+    raise ArgumentError,
+          "DATABASE_URL asks for sslmode=#{mode}, which lets the connection run without " <>
+            "TLS; use sslmode=verify-full, or remove it and leave TLS to DATABASE_SSL"
+  end
+
+  defp database_query_key!("sslmode", _mode) do
+    raise ArgumentError,
+          "DATABASE_URL holds an sslmode the application does not read; use " <>
+            "sslmode=verify-full or require"
+  end
+
+  defp database_query_key!(key, value) when key in @kept_query_keys do
+    case Integer.parse(value) do
+      {_int, ""} ->
+        {:keep, {key, value}}
+
+      _ ->
+        raise ArgumentError, "DATABASE_URL holds a #{key} that is not a whole number"
+    end
+  end
+
+  defp database_query_key!(key, _value) do
+    raise ArgumentError,
+          "DATABASE_URL holds the query key #{inspect(key)}, which the application does " <>
+            "not read; it reads ssl, sslmode, pool_size, timeout and idle_interval"
+  end
+
+  defp url_tls!([]), do: nil
+  defp url_tls!([on?]), do: on?
+
+  defp url_tls!(_both) do
+    raise ArgumentError,
+          "DATABASE_URL turns TLS both on and off in its query; keep one setting"
+  end
+
+  # DATABASE_SSL as `switch/2` reads it; an unreadable value is silent here,
+  # as it is off everywhere else, and named at boot (H06).
+  defp database_ssl_switch(value) do
+    case switch(value, nil) do
+      {:ok, setting} -> setting
+      {:error, _value} -> nil
+    end
+  end
+
+  defp database_tls!(nil, nil), do: false
+  defp database_tls!(nil, env), do: env
+  defp database_tls!(url, nil), do: url
+  defp database_tls!(same, same), do: same
+
+  defp database_tls!(url, env) do
+    raise ArgumentError,
+          "DATABASE_URL turns TLS to the database #{on_off(url)} while DATABASE_SSL turns " <>
+            "it #{on_off(env)}; remove one of the two settings or make them agree"
+  end
+
+  defp on_off(true), do: "on"
+  defp on_off(false), do: "off"
+
+  defp database_ssl_option!(tls, ca_file) do
+    case ca_file && String.trim(ca_file) do
+      blank when blank in [nil, ""] -> tls
+      path -> [cacertfile: ca_file!(tls, path)]
+    end
+  end
+
+  defp ca_file!(false, _path) do
+    raise ArgumentError,
+          "DATABASE_SSL_CA_FILE is set but TLS to the database is off; set " <>
+            "DATABASE_SSL=true or add sslmode=verify-full to DATABASE_URL"
+  end
+
+  defp ca_file!(true, path) do
+    cond do
+      Path.type(path) != :absolute ->
+        raise ArgumentError, "DATABASE_SSL_CA_FILE must be an absolute path, got a relative one"
+
+      not File.regular?(path) ->
+        raise ArgumentError, "DATABASE_SSL_CA_FILE names no readable file"
+
+      true ->
+        path
+    end
+  end
+
+  defp truthy?(value), do: switch(value, false) == {:ok, true}
 
   defp split_hosts(nil), do: []
   defp split_hosts(extra) when is_binary(extra), do: String.split(extra, ",")
@@ -566,16 +959,16 @@ defmodule Portfolixir.RuntimeConfig do
   `PORTFOLIXIR_BACKGROUND_FETCH` (#1026): logo discovery and the scheduled
   quote and FX sync. The words development reads turn it off (`0`, `false`,
   `no`, `off`, in any case; `config/dev.exs`, #963), and the release also
-  reads them around a blank; anything else, or nothing, leaves the release as
-  `config/prod.exs` sets it. The switch can only turn fetching off, and only
+  reads them around a blank (`switch/2`); anything else, or nothing, leaves
+  the release as `config/prod.exs` sets it, and a value that is not a switch
+  value is named at boot (H06). The switch can only turn fetching off, and only
   what the release does by itself: a sync, logo update or search someone
   starts still calls out.
   """
   @spec background_fetch?(String.t() | nil) :: boolean()
   def background_fetch?(value \\ System.get_env("PORTFOLIXIR_BACKGROUND_FETCH"))
 
-  def background_fetch?(value) when is_binary(value),
-    do: String.downcase(String.trim(value)) not in ~w(0 false no off)
+  def background_fetch?(value) when is_binary(value), do: switch(value, true) != {:ok, false}
 
   def background_fetch?(_value), do: true
 
@@ -603,21 +996,73 @@ defmodule Portfolixir.RuntimeConfig do
   def session_max_age(_value), do: @default_session_days * 86_400
 
   @doc """
+  The startup check behind `session_max_age/1` (security review 2026-10-12,
+  H19): a `PORTFOLIXIR_SESSION_DAYS` that is set but not a whole number of
+  days — a fraction, a unit suffix, a negative number, a typo — falls back to
+  the #{@default_session_days}-day default, and the warning names the value so
+  the fallback is not silent. Unset, blank, `0` and a positive whole number
+  pass. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec session_days_warning(String.t() | integer() | nil) :: :ok | {:warn, String.t()}
+  def session_days_warning(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    case Integer.parse(trimmed) do
+      _blank when trimmed == "" -> :ok
+      {days, ""} when days >= 0 -> :ok
+      _unreadable -> unreadable_session_days(value)
+    end
+  end
+
+  def session_days_warning(_value), do: :ok
+
+  defp unreadable_session_days(value) do
+    {:warn,
+     "PORTFOLIXIR_SESSION_DAYS is #{inspect(value)}, not a whole number of days; a UI " <>
+       "login lasts the default #{@default_session_days} days instead. Set a whole " <>
+       "number of days, or 0 for a login that ends when the browser closes."}
+  end
+
+  @doc """
   The proxies whose forwarding headers the application believes (#771, E25 S1
   F09): their `x-forwarded-for` names the throttle's source, and their
   `x-forwarded-proto` the scheme, which loopback may also set.
   `PORTFOLIXIR_TRUSTED_PROXIES`, comma-separated addresses or CIDR blocks
   (`127.0.0.1`, `172.18.0.1`, `::1`, a block such as `192.0.2.0/29`). Empty
   by default: a header nobody vouches for is never a source. Entries that do
-  not parse are dropped.
+  not parse are dropped, and so is a block wider than
+  `min_trusted_proxy_prefix/1` (security review 2026-10-12, H04), which would
+  believe nearly every client; `overbroad_trusted_proxies/1` lists those.
   """
   @spec trusted_proxies(String.t() | nil) :: [{:inet.ip_address(), non_neg_integer()}]
   def trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
 
-  def trusted_proxies(value) when is_binary(value),
-    do: value |> proxy_entries() |> Enum.flat_map(&parse_cidr/1)
+  def trusted_proxies(value) when is_binary(value) do
+    for entry <- proxy_entries(value), {:ok, block} <- [parse_cidr(entry)], do: block
+  end
 
   def trusted_proxies(_value), do: []
+
+  @doc """
+  The shortest prefix a trusted-proxy block may have, per address family: a
+  shorter one covers the clients as well as any proxy (H04).
+  """
+  @spec min_trusted_proxy_prefix(:ipv4 | :ipv6) :: pos_integer()
+  def min_trusted_proxy_prefix(:ipv4), do: 8
+  def min_trusted_proxy_prefix(:ipv6), do: 32
+
+  @doc """
+  The entries of `PORTFOLIXIR_TRUSTED_PROXIES` that parse but are wider than
+  `min_trusted_proxy_prefix/1`, and that `trusted_proxies/1` therefore drops,
+  trimmed and in order: the startup warning names them (H04).
+  """
+  @spec overbroad_trusted_proxies(String.t() | nil) :: [String.t()]
+  def overbroad_trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
+
+  def overbroad_trusted_proxies(value) when is_binary(value),
+    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == :overbroad))
+
+  def overbroad_trusted_proxies(_value), do: []
 
   @doc """
   The entries of `PORTFOLIXIR_TRUSTED_PROXIES` that do not parse, and that
@@ -628,7 +1073,7 @@ defmodule Portfolixir.RuntimeConfig do
   def unreadable_trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
 
   def unreadable_trusted_proxies(value) when is_binary(value),
-    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == []))
+    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == :error))
 
   def unreadable_trusted_proxies(_value), do: []
 
@@ -654,11 +1099,14 @@ defmodule Portfolixir.RuntimeConfig do
 
     with {:ok, ip} <- :inet.parse_strict_address(to_charlist(address)),
          {:ok, bits} <- prefix_for(ip, prefix) do
-      [{ip, bits}]
+      if bits < min_trusted_proxy_prefix(ip_family(ip)), do: :overbroad, else: {:ok, {ip, bits}}
     else
-      _ -> []
+      _ -> :error
     end
   end
+
+  defp ip_family(ip) when tuple_size(ip) == 4, do: :ipv4
+  defp ip_family(_ip), do: :ipv6
 
   defp prefix_for({_, _, _, _}, :whole), do: {:ok, 32}
   defp prefix_for({_, _, _, _, _, _, _, _}, :whole), do: {:ok, 128}

@@ -134,15 +134,19 @@ defmodule Portfolixir.Derived.SecurityBasisTest do
     other_before = version(other)
 
     {:ok, _tx} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: holder.portfolio.id,
-        security_id: split.id,
-        type: "split",
-        date: ~D[2024-02-02],
-        currency_code: "EUR",
-        split_ratio_numerator: 2,
-        split_ratio_denominator: 1
-      })
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: holder.portfolio.id,
+          security_id: split.id,
+          type: "split",
+          date: ~D[2024-02-02],
+          currency_code: "EUR",
+          split_ratio_numerator: 2,
+          split_ratio_denominator: 1
+        },
+        split_flow: true
+      )
 
     assert version(split) > split_before
     assert version(other) == other_before

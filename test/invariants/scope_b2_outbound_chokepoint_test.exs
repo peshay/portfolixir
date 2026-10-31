@@ -147,6 +147,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
        "the production database URL, which carries the database role's password; it names " <>
          "the operator's own database"},
     "DATABASE_SSL" => {:config, "turns TLS on for the production database connection"},
+    "DATABASE_SSL_CA_FILE" =>
+      {:config, "the CA file that verifies the production database's certificate (K03)"},
     "POOL_SIZE" => {:config, "the database connection pool's size"},
     "DATABASE_HOST" => {:config, "the dev and test database's host (local PostgreSQL)"},
     "DATABASE_PORT" => {:config, "the dev and test database's port (local PostgreSQL)"},
@@ -191,7 +193,31 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "PORTFOLIXIR_MCP_PROFILE" =>
       {:config,
        "the companion's tool profile, read, book or full (Sprint 17 A1, #992); it narrows " <>
-         "the tools the companion lists and calls, never the API token"}
+         "the tools the companion lists and calls, never the API token"},
+    "NODE_USE_ENV_PROXY" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "NODE_OPTIONS" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "HTTP_PROXY" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "http_proxy" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "HTTPS_PROXY" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "https_proxy" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "NO_PROXY" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"},
+    "no_proxy" =>
+      {:config,
+       "read only to refuse a start whose API calls Node's environment proxy would carry (K16)"}
   }
 
   # `{module, call} => reason`: where a host name may be resolved.

@@ -37,6 +37,12 @@ defmodule Portfolixir.Classifications.Category do
     |> update_change(:color, &normalize_color/1)
     |> update_change(:description, &normalize_description/1)
     |> validate_required([:name, :classification_id])
+    # The position is stored in an int4 column (H31): a value past it is a
+    # field error, never a failed write.
+    |> validate_number(:position,
+      greater_than_or_equal_to: -2_147_483_648,
+      less_than_or_equal_to: 2_147_483_647
+    )
     |> Text.validate(:name, max: 255)
     |> Text.validate(:description, max: 2000, multiline: true)
     |> check_constraint(:description, name: :classification_categories_description_length_check)
@@ -58,6 +64,12 @@ defmodule Portfolixir.Classifications.Category do
     category
     |> cast(attrs, [:name, :key, :color, :position, :parent_id, :classification_id])
     |> validate_required([:name, :key, :classification_id])
+    # The position is stored in an int4 column (H31): a value past it is a
+    # field error, never a failed write.
+    |> validate_number(:position,
+      greater_than_or_equal_to: -2_147_483_648,
+      less_than_or_equal_to: 2_147_483_647
+    )
     |> assoc_constraint(:classification)
   end
 

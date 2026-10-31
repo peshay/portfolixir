@@ -131,7 +131,12 @@ defmodule PortfolixirWeb.RowKebabNamesTest do
     security = create_security!(name: "Nordic Timber Holdings AB", ticker: "NTH")
     buy = buy!(world, security, quantity: "10", price: "124", date: ~D[2026-09-01])
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
     {:ok, view, _html} = live(conn, "/securities")
     assert label(view, "#row-kebab-#{security.id}") == "Aktionen für Nordic Timber Holdings AB"

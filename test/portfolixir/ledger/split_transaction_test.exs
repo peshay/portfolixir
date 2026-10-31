@@ -58,7 +58,11 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
   end
 
   defp split!(world, security, opts) do
-    {:ok, tx} = Ledger.create_transaction(Actor.owner_ui(), split_attrs(world, security, opts))
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), split_attrs(world, security, opts),
+        split_flow: true
+      )
+
     tx
   end
 
@@ -95,7 +99,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
         assert {:error, changeset} =
                  Ledger.create_transaction(
                    Actor.owner_ui(),
-                   split_attrs(world, world.security, numerator: p, denominator: q)
+                   split_attrs(world, world.security, numerator: p, denominator: q),
+                   split_flow: true
                  )
 
         assert %{split_ratio_numerator: [message]} = errors_on(changeset)
@@ -109,7 +114,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 world |> split_attrs(world.security, []) |> Map.delete(:security_id)
+                 world |> split_attrs(world.security, []) |> Map.delete(:security_id),
+                 split_flow: true
                )
 
       assert %{security_id: _} = errors_on(changeset)
@@ -117,7 +123,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 split_attrs(world, world.security, numerator: 0)
+                 split_attrs(world, world.security, numerator: 0),
+                 split_flow: true
                )
 
       assert %{split_ratio_numerator: _} = errors_on(changeset)
@@ -125,7 +132,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 split_attrs(world, world.security, denominator: -3)
+                 split_attrs(world, world.security, denominator: -3),
+                 split_flow: true
                )
 
       assert %{split_ratio_denominator: _} = errors_on(changeset)
@@ -146,7 +154,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
         assert {:error, changeset} =
                  Ledger.create_transaction(
                    Actor.owner_ui(),
-                   split_attrs(world, world.security, extra: %{field => value})
+                   split_attrs(world, world.security, extra: %{field => value}),
+                   split_flow: true
                  )
 
         assert %{^field => [message]} = errors_on(changeset)
@@ -206,7 +215,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 split_attrs(world, world.security, date: ~D[2026-03-01], numerator: 3)
+                 split_attrs(world, world.security, date: ~D[2026-03-01], numerator: 3),
+                 split_flow: true
                )
 
       assert %{date: [message]} = errors_on(changeset)
@@ -322,12 +332,18 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert Decimal.equal?(untouched.quantity, Decimal.new("10"))
       assert Decimal.equal?(untouched.avg_cost, Decimal.new("100"))
 
-      # FIFO lots scale per portfolio too.
+      # The FIFO queue is the security's, not a portfolio's (the ADR-0015
+      # amendment of 2026-10-09), so a split scales every open lot in it once
+      # (security review 2026-10-12, K09; owner decision T-21). The split
+      # flow books a row for every positioned portfolio, so the lots and the
+      # positions agree there; this row, written for A alone, shows the
+      # matcher's rule, not a state the split flow leaves.
       trades = Ledger.list_trades_for_security(world_a.security.id)
-      quantities = trades.open_lots |> Enum.map(& &1.quantity) |> Enum.sort(Decimal)
-      assert [ten, twenty] = quantities
-      assert Decimal.equal?(ten, Decimal.new("10"))
-      assert Decimal.equal?(twenty, Decimal.new("20"))
+      assert [lot_a, lot_b] = trades.open_lots
+      assert Decimal.equal?(lot_a.quantity, Decimal.new("20"))
+      assert Decimal.equal?(lot_a.buy_price, Decimal.new("50"))
+      assert Decimal.equal?(lot_b.quantity, Decimal.new("20"))
+      assert Decimal.equal?(lot_b.buy_price, Decimal.new("50"))
     end
   end
 

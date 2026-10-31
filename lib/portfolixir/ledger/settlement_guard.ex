@@ -33,11 +33,23 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   carries `quantity × price` as its settlement, so it meets the guard by
   construction.
 
-  **Risk-tier (ADR-0036).** The guard is a ledger invariant. When it runs is
-  fixed by the Sprint 15 plan's D-5: on insert, and on an update that changes
-  `gross_amount`, `settlement_amount`, `fees`, `taxes` or the type — and,
-  for a row without a cash amount, its quantity or price, which then change
-  the cash booked (F71). A row that predates the guard is never revalidated
+  **A rate is not a cash amount** (security review 2026-10-12, H35; owner
+  decision T-19). A trade booked in another currency than its cash
+  account's that carries a `settlement_fx_rate` but neither a
+  `gross_amount` nor a `settlement_amount` has nothing to compare, and the
+  projection never applies the rate to the cash leg: it would book
+  `quantity × price` in the booking currency as the account's cash. Such a
+  trade is refused on `gross_amount` until it carries the cash the broker
+  settled (`validate_rate_only/1`, run by the cash account's currency
+  check); nothing is derived from the rate. `violations/0` lists a stored
+  one against the cash its own rate implies.
+
+  **Risk-tier (ADR-0036).** The guard is a ledger invariant. When it runs was
+  fixed by the Sprint 15 plan's D-5 and widened by the ADR-0015 amendment of
+  2026-10-09, point 1 (H35): on insert, and on an update that changes
+  `gross_amount`, `settlement_amount`, `fees`, `taxes`, the type, the
+  currency, the cash account or the depot — and, for a row without a cash
+  amount, its quantity or price, which then change the cash booked (F71). A row that predates the guard is never revalidated
   behind the operator's back — editing its note must not start failing — and
   `violations/0` lists such rows read-only; repairing one is the operator's
   decision (NFR-2).
@@ -47,11 +59,23 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   import Ecto.Query, only: [from: 2]
 
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Repo
 
   @tolerance Decimal.new("0.01")
   @guarded_types ["buy", "sell"]
-  @trigger_fields [:gross_amount, :settlement_amount, :fees, :taxes, :type]
+  # The currency, the cash account and the depot decide whether a trade is
+  # cross-currency at all (the ADR-0015 amendment of 2026-10-09, point 1; H35).
+  @trigger_fields [
+    :gross_amount,
+    :settlement_amount,
+    :fees,
+    :taxes,
+    :type,
+    :currency_code,
+    :cash_account_id,
+    :securities_account_id
+  ]
   # Without a cash amount the booked cash follows these as well (F71).
   @fallback_trigger_fields [:quantity, :price]
 
@@ -110,14 +134,59 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   def booked_cash(_type, _row), do: nil
 
   @doc """
-  The changeset step (D-5): checks a cross-currency buy or sell on insert and
-  on an update that changes an amount or the type; leaves every other write
-  alone. The error lands on `gross_amount` and names the implied amount —
+  The changeset step (D-5, widened by the ADR-0015 amendment of 2026-10-09):
+  checks a cross-currency buy or sell on insert and on an update that changes
+  an amount, the type, the currency, the cash account or the depot; leaves
+  every other write alone. The error lands on `gross_amount` and names the implied amount —
   nothing is corrected silently.
   """
   @spec validate(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   def validate(%Ecto.Changeset{} = changeset) do
     if runs?(changeset), do: check(changeset), else: changeset
+  end
+
+  @doc """
+  The rate-only step (H35, T-19): a buy or sell booked in another currency
+  than its cash account's that carries a `settlement_fx_rate` but neither a
+  `gross_amount` nor a `settlement_amount` is refused on `gross_amount`,
+  the message naming the cash `quantity × price` with fees and taxes would
+  book. It runs when `validate/1` runs (its triggers), and only where the caller has
+  found the currencies to differ — `Transaction.validate_cash_account_currency/2`,
+  which alone knows the account's currency — so a trade booked in its
+  account's currency with a rate stored beside it is left alone.
+  """
+  @spec validate_rate_only(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  def validate_rate_only(%Ecto.Changeset{} = changeset) do
+    type = get_field(changeset, :type)
+    row = figures(changeset)
+
+    if runs?(changeset) and
+         rate_only?(
+           type,
+           get_field(changeset, :settlement_amount),
+           row,
+           get_field(changeset, :settlement_fx_rate)
+         ),
+       do: refuse_rate_only(changeset, type, row),
+       else: changeset
+  end
+
+  defp rate_only?(type, nil, %{gross_amount: nil}, %Decimal{}) when type in @guarded_types,
+    do: true
+
+  defp rate_only?(_type, _settlement, _row, _rate), do: false
+
+  defp refuse_rate_only(changeset, type, row) do
+    case booked_cash(type, row) do
+      %Decimal{} = booked ->
+        add_error(changeset, :gross_amount, rate_only_message(type),
+          booked: display(booked),
+          validation: :settlement_guard
+        )
+
+      nil ->
+        add_error(changeset, :gross_amount, rate_only_message(nil), validation: :settlement_guard)
+    end
   end
 
   defp runs?(%Ecto.Changeset{data: %{__meta__: %{state: :built}}}), do: true
@@ -176,6 +245,23 @@ defmodule Portfolixir.Ledger.SettlementGuard do
         "it must equal the settlement amount less fees and taxes (%{expected}), " <>
         "within %{tolerance}"
 
+  defp rate_only_message("buy"),
+    do:
+      "is required for a cross-currency trade without a settlement amount: " <>
+        "quantity × price plus fees and taxes (%{booked}) would be booked in the " <>
+        "security's currency as the account's cash; record the cash the broker settled"
+
+  defp rate_only_message("sell"),
+    do:
+      "is required for a cross-currency trade without a settlement amount: " <>
+        "quantity × price less fees and taxes (%{booked}) would be booked in the " <>
+        "security's currency as the account's cash; record the cash the broker settled"
+
+  defp rate_only_message(nil),
+    do:
+      "is required for a cross-currency trade without a settlement amount; " <>
+        "record the cash the broker settled"
+
   defp within?(gross, expected) do
     gross |> Decimal.sub(expected) |> Decimal.abs() |> Decimal.compare(@tolerance) != :gt
   end
@@ -186,11 +272,26 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   projection books for it (`booked_cash`: the gross amount, or quantity ×
   price with fees and taxes where none is recorded — F71), the cash amount
   the settlement implies and the difference (`booked - expected`).
+
+  A stored trade with a rate and neither amount (H35), booked in another
+  currency than its cash account's, is listed too: its settlement is read
+  as `quantity × price × settlement_fx_rate`, the cash its own rate implies,
+  so the listing shows by how much the cash booked misses it. The listing
+  keeps the cash-difference filter for every row, so a rate-only row whose
+  implied cash lies within a cent of the cash booked is not listed; the money
+  it misses is under a cent (#1290 lists the rows unconditionally on a
+  surface of their own).
   """
   @spec violations() :: [map()]
   def violations do
     from(t in Transaction,
-      where: t.type in ^@guarded_types and not is_nil(t.settlement_amount),
+      left_join: c in CashAccount,
+      on: c.id == t.cash_account_id,
+      where:
+        t.type in ^@guarded_types and
+          (not is_nil(t.settlement_amount) or
+             (not is_nil(t.settlement_fx_rate) and is_nil(t.gross_amount) and
+                t.currency_code != c.currency_code)),
       order_by: [t.date, t.id],
       select:
         map(t, [
@@ -202,6 +303,7 @@ defmodule Portfolixir.Ledger.SettlementGuard do
           :quantity,
           :price,
           :settlement_amount,
+          :settlement_fx_rate,
           :fees,
           :taxes
         ])
@@ -209,7 +311,7 @@ defmodule Portfolixir.Ledger.SettlementGuard do
     |> Repo.all()
     |> Enum.flat_map(fn row ->
       booked = booked_cash(row.type, row)
-      expected = expected_cash(row.type, row.settlement_amount, row.fees, row.taxes)
+      expected = expected_cash(row.type, stored_settlement(row), row.fees, row.taxes)
 
       if is_nil(booked) or within?(booked, expected) do
         []
@@ -224,6 +326,11 @@ defmodule Portfolixir.Ledger.SettlementGuard do
       end
     end)
   end
+
+  defp stored_settlement(%{settlement_amount: %Decimal{} = settlement}), do: settlement
+
+  defp stored_settlement(%{quantity: quantity, price: price, settlement_fx_rate: rate}),
+    do: quantity |> Decimal.mult(price) |> Decimal.mult(rate)
 
   defp zero(nil), do: Decimal.new(0)
   defp zero(%Decimal{} = value), do: value

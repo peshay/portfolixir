@@ -71,12 +71,11 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
       # Insert a fresh entry via the public API.
       assert :ok = PreviewStore.put(fresh_tok, :fresh_preview, :fresh_mapping)
 
-      # Directly inject a stale entry into the ETS table with a timestamp
-      # far in the past (2 hours + 1 second beyond the TTL), bypassing
-      # the public API so we can control the touched_at timestamp.
+      # Inject a stale entry with a timestamp far in the past (2 hours + 1
+      # second beyond the TTL), through the touched_at option of put/4.
       table = Portfolixir.Imports.PreviewStore
       stale_time = System.os_time(:second) - (7_200 + 1)
-      :ets.insert(table, {stale_tok, :stale_preview, :stale_mapping, stale_time})
+      PreviewStore.put(stale_tok, :stale_preview, :stale_mapping, touched_at: stale_time)
 
       # Verify both are visible before the sweep.
       assert PreviewStore.get(fresh_tok) != nil
@@ -187,6 +186,71 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
       assert PreviewStore.get(oldest) == nil
       assert PreviewStore.get(newcomer) == {:small, :mapping}
       assert Enum.all?(rest, &(PreviewStore.get(&1) != nil))
+    end
+
+    # User story (security review 2026-10-12, H07):
+    # As the operator of an instance whose UI anyone on the host can reach,
+    # I want the parked previews bounded by the bytes they hold,
+    # so that the store's memory is fixed whatever the files parked in it.
+    #
+    # Acceptance criteria:
+    # - Past the byte budget the oldest-touched entries are evicted, and the
+    #   newest entry is retrievable.
+    # - A preview larger than one entry's share is not parked, and the entry
+    #   its key held before is dropped, so a remount never shows an older file.
+    test "evicts past the byte budget and refuses a preview past one entry's share" do
+      PreviewStore.clear()
+      on_exit(&PreviewStore.clear/0)
+      Application.put_env(:portfolixir, :import_preview_max_bytes, 8 * 1024 * 1024)
+      on_exit(fn -> Application.delete_env(:portfolixir, :import_preview_max_bytes) end)
+
+      # About 1.6 MB each: five fit the budget, a sixth evicts the oldest.
+      payload = fn index -> {:preview, index, Enum.to_list(1..100_000)} end
+      keys = for i <- 1..6, do: token("bytes-#{i}")
+
+      keys
+      |> Enum.with_index()
+      |> Enum.each(fn {key, index} ->
+        assert :ok = PreviewStore.put(key, payload.(index), :mapping, touched_at: index)
+      end)
+
+      [oldest | rest] = keys
+      assert PreviewStore.get(oldest) == nil
+      assert Enum.all?(rest, &(PreviewStore.get(&1) != nil))
+
+      held = :ets.info(PreviewStore, :memory) * :erlang.system_info(:wordsize)
+      assert held <= PreviewStore.max_bytes()
+
+      # Past a quarter of the budget: refused, and the key's older file goes.
+      [kept | _] = rest
+      assert :too_large = PreviewStore.put(kept, Enum.to_list(1..200_000), :mapping)
+      assert PreviewStore.get(kept) == nil
+      refute PreviewStore.parked?(kept)
+    end
+
+    # User story (security review 2026-10-12, H08):
+    # As the operator who reloads the Imports page with a preview parked,
+    # I want what the page shows of it parked beside it,
+    # so that a remount shows it without computing it again.
+    #
+    # Acceptance criteria:
+    # - put/4 with a summary parks it; restore/1 answers it with the preview
+    #   and the mapping; get/1 still answers the preview and the mapping.
+    # - put_summary/2 replaces only the summary; summary/1 reads it alone;
+    #   both ignore an absent key.
+    test "parks a summary beside the preview and replaces only it" do
+      key = token("summary")
+      assert :ok = PreviewStore.put(key, :preview, :mapping, summary: %{counts: 1})
+      assert {:preview, :mapping, %{counts: 1}} = PreviewStore.restore(key)
+      assert {:preview, :mapping} = PreviewStore.get(key)
+
+      assert :ok = PreviewStore.put_summary(key, %{counts: 2})
+      assert PreviewStore.summary(key) == %{counts: 2}
+      assert {:preview, :mapping, %{counts: 2}} = PreviewStore.restore(key)
+
+      assert :ignored = PreviewStore.put_summary(token("absent"), %{})
+      assert PreviewStore.summary(token("absent")) == nil
+      assert PreviewStore.restore(nil) == nil
     end
 
     test "put_mapping/2 replaces only the mapping" do

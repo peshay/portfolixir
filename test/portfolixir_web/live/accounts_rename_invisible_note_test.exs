@@ -18,7 +18,14 @@ defmodule PortfolixirWeb.AccountsRenameInvisibleNoteTest do
   alias Portfolixir.Repo
 
   defp zwsp, do: <<0x200B::utf8>>
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   # A write as the tables held it before the refusal: straight to the
   # table, with the journal's actor set so its guard lets it through.

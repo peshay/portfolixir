@@ -28,7 +28,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   `agent`, derived from the write's actor by
   `PolicyRuleVersion.author_for/1` and never taken from input, so the agent's
   lines are told apart from the operator's own; the database keeps a recorded
-  author. A rename is no version and moves no author.
+  author. A rename is no version and moves no version's author.
+
+  **The name carries its own author** (security review 2026-10-12, H14,
+  T-16): `name_author` on the rule, set from the actor by `create_rule/3` and
+  by every rename that changes the name, so a label a token gave reads as
+  the agent's even where the version in force is the operator's.
 
   **A version that has been in force is immutable**: never updated, never
   deleted; only its `valid_until` is set when an edit or a retirement closes
@@ -54,6 +59,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   alias Portfolixir.Actor
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Clock
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
@@ -86,7 +92,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
           {:ok, PolicyRule.t()} | {:error, write_error()}
   def create_rule(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     today = today(opts)
-    rule_changeset = PolicyRule.changeset(%PolicyRule{}, attrs)
+
+    rule_changeset =
+      %PolicyRule{}
+      |> PolicyRule.changeset(attrs)
+      |> PolicyRule.put_name_author(actor)
+
     version_attrs = version_attrs(attr(attrs, :version), today)
 
     # The version is validated before anything is written, against a
@@ -217,7 +228,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   a **rule-level edit outside the versioning**: no version is added or
   changed, and the new name reads for the rule with all its versions. The
   journal keeps the previous name (the entry's before-image is the stored
-  row) and who changed it. Only `name` is read from `attrs`: the context
+  row) and who changed it, and the rule's `name_author` becomes the one
+  `actor` derives (H14, T-16). Only `name` is read from `attrs`: the context
   (portfolio, view) never changes. Allowed on a retired rule; a name need not
   be unique. The rules counter is bumped, because a finding carries the name.
 
@@ -251,6 +263,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
         stored.id
 
       true ->
+        changeset = PolicyRule.put_name_author(changeset, actor)
+
         with {:ok, renamed} <- journaled_update(actor, changeset, stored, "policy_rule") do
           Invalidation.after_rule_write(renamed.portfolio_id, Repo)
           renamed.id
@@ -345,6 +359,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     * `:include_retired` — `true` adds the rules retired by `as_of`;
     * `:updated_since` — a naive-UTC cut: rules whose row or any version was
       written strictly after it (FR-38);
+    * `:delta` — a `Portfolixir.DeltaCursor` cursor, the API's paged delta
+      read (K17): the rules changed after it by `changed_at/1`, oldest change
+      first, so a capped page continues where the last one ended;
     * `:limit`.
 
   Oldest rule first.
@@ -359,7 +376,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     |> maybe_context(Keyword.get(opts, :view, :any))
     |> maybe_updated_since(Keyword.get(opts, :updated_since))
     |> maybe_not_retired(include_retired, as_of)
-    |> order_by([r], asc: r.id)
+    |> order_rules(Keyword.get(opts, :delta))
     |> maybe_limit(Keyword.get(opts, :limit))
     |> preload(:versions)
     |> Repo.all()
@@ -757,6 +774,35 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   defp maybe_context(query, view_id) when is_integer(view_id),
     do: where(query, [r], r.view_id == ^view_id)
+
+  @doc """
+  A rule's change stamp: the latest write of its row or of any version, the
+  stamp the `:updated_since` and `:delta` reads compare. Needs the versions
+  loaded.
+  """
+  @spec changed_at(PolicyRule.t()) :: NaiveDateTime.t()
+  def changed_at(%PolicyRule{updated_at: updated_at, versions: versions}) do
+    versions
+    |> Enum.map(& &1.updated_at)
+    |> Enum.concat([updated_at])
+    |> Enum.max(NaiveDateTime)
+  end
+
+  defp order_rules(query, nil), do: order_by(query, [r], asc: r.id)
+
+  defp order_rules(query, cursor) do
+    stamp =
+      dynamic(
+        [r],
+        fragment(
+          "GREATEST(?, (SELECT max(v.updated_at) FROM policy_rule_versions v WHERE v.policy_rule_id = ?))",
+          r.updated_at,
+          r.id
+        )
+      )
+
+    DeltaCursor.page(query, stamp, cursor)
+  end
 
   defp maybe_updated_since(query, nil), do: query
 

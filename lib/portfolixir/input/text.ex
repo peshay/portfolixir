@@ -12,17 +12,31 @@ defmodule Portfolixir.Input.Text do
     * NUL and every other C0 control character, DEL and the C1 controls —
       except tab, line feed and carriage return in text that is multi-line by
       nature (`multiline: true`: notes, descriptions);
-    * **invisible characters** (E25 S7, G20): the Unicode tag characters
-      (U+E0000–U+E007F), the bidirectional controls (U+061C, U+200E, U+200F,
-      U+202A–U+202E, U+2066–U+2069), the other invisible format characters
-      (the soft hyphen U+00AD, U+180E, the zero-width space and joiners
-      U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order mark
-      U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) and a run of
-      two or more variation selectors (U+FE00–U+FE0F, U+E0100–U+E01EF; one
-      selector alone is an emoji's presentation and passes). They render as
-      nothing on the operator's screen but reach an agent intact, so text
-      that carries them could hide an instruction in a record the operator
-      reviewed. One exception keeps emoji whole (E25 S7 review round,
+    * **invisible characters** (E25 S7, G20; security review 2026-10-12,
+      H12): Unicode's whole Default_Ignorable_Code_Point set and the
+      interlinear annotation characters — the tag characters and the rest of
+      their block (U+E0000–U+E00FF, U+E01F0–U+E0FFF), the bidirectional
+      controls (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), the
+      other invisible format characters (the soft hyphen U+00AD, the
+      zero-width space and joiners U+200B–U+200D, U+2060–U+2065,
+      U+206A–U+206F, the byte-order mark U+FEFF, U+FFF9–U+FFFB,
+      U+1BCA0–U+1BCA3, U+1D173–U+1D17A), the combining grapheme joiner
+      U+034F, the Hangul fillers U+115F, U+1160, U+3164 and U+FFA0, the
+      Khmer inherent vowels U+17B4–U+17B5, the Mongolian selectors
+      U+180B–U+180F and the reserved U+FFF0–U+FFF8 — and a variation
+      selector with no base it can vary. A selector of U+FE00–U+FE0F stands
+      after a pictograph, a keycap's digit, `#` or `*`, a CJK ideograph, a
+      mathematical operator, a CJK fullwidth punctuation mark (U+3001,
+      U+3002, U+FF01, U+FF0C, U+FF0E, U+FF1A, U+FF1B, U+FF1F), a curly
+      quotation mark (U+2018, U+2019, U+201C, U+201D) or a letter of the
+      scripts with standardized variants (Myanmar, Phags-pa, Manichaean,
+      Egyptian hieroglyphs); one of
+      U+E0100–U+E01EF (the ideographic variation selectors) only after a CJK
+      ideograph; a selector next to another one is refused as before. They
+      render as nothing on the operator's screen but reach an agent intact,
+      so text that carries them could hide an instruction, or a byte per
+      letter, in a record the operator reviewed. One exception keeps emoji
+      whole (E25 S7 review round,
       S7E-3): the zero-width joiner U+200D passes where it **joins two
       pictographs** — the character before it is a pictograph, or a VS16
       (U+FE0F) right after one, and the character after it is one — since
@@ -60,12 +74,19 @@ defmodule Portfolixir.Input.Text do
   # name the same set whatever Unicode version either runtime ships; the
   # shared cases in mcp-server/test/fixtures/invisible-text.json pin both.
   #
-  # The alternatives: every refused format character but the zero-width
-  # joiner; a joiner not preceded by a pictograph (or a pictograph and a
-  # VS16); a joiner not followed by a pictograph (S7E-3); a run of variation
-  # selectors.
+  # The alternatives: every refused character but the zero-width joiner and
+  # the variation selectors; a joiner not preceded by a pictograph (or a
+  # pictograph and a VS16); a joiner not followed by a pictograph (S7E-3);
+  # a selector of U+FE00–U+FE0F after no base it can vary; an ideographic
+  # variation selector after no CJK ideograph; a selector followed by
+  # another (H12: the base sets are a written-out superset of the bases of
+  # StandardizedVariants.txt, emoji-variation-sequences.txt and the
+  # Ideographic Variation Database).
   @pictograph "\\x{00A9}\\x{00AE}\\x{203C}\\x{2049}\\x{2122}\\x{2139}\\x{2190}-\\x{21FF}\\x{2300}-\\x{23FF}\\x{24C2}\\x{25A0}-\\x{27BF}\\x{2934}\\x{2935}\\x{2B00}-\\x{2BFF}\\x{3030}\\x{303D}\\x{3297}\\x{3299}\\x{1F000}-\\x{1FAFF}"
-  @invisible ~r/[\x{00AD}\x{061C}\x{180E}\x{200B}\x{200C}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{FEFF}\x{FFF9}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E007F}]|(?<![#{@pictograph}])(?<![#{@pictograph}]\x{FE0F})\x{200D}|\x{200D}(?![#{@pictograph}])|[\x{FE00}-\x{FE0F}\x{E0100}-\x{E01EF}]{2,}/u
+  @ideograph "\\x{3400}-\\x{4DBF}\\x{4E00}-\\x{9FFF}\\x{F900}-\\x{FAFF}\\x{20000}-\\x{3FFFF}"
+  @variant_base "#{@pictograph}#{@ideograph}\\x{23}\\x{2A}\\x{30}-\\x{39}\\x{1000}-\\x{109F}\\x{2200}-\\x{22FF}\\x{2A00}-\\x{2AFF}\\x{A840}-\\x{A87F}\\x{A9E0}-\\x{A9FF}\\x{AA60}-\\x{AA7F}\\x{10AC0}-\\x{10AFF}\\x{13000}-\\x{143FF}\\x{2018}\\x{2019}\\x{201C}\\x{201D}\\x{3001}\\x{3002}\\x{FF01}\\x{FF0C}\\x{FF0E}\\x{FF1A}\\x{FF1B}\\x{FF1F}"
+  @selector "\\x{FE00}-\\x{FE0F}\\x{E0100}-\\x{E01EF}"
+  @invisible ~r/[\x{00AD}\x{034F}\x{061C}\x{115F}\x{1160}\x{17B4}\x{17B5}\x{180B}-\x{180F}\x{200B}\x{200C}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E00FF}\x{E01F0}-\x{E0FFF}]|(?<![#{@pictograph}])(?<![#{@pictograph}]\x{FE0F})\x{200D}|\x{200D}(?![#{@pictograph}])|(?<![#{@variant_base}])[\x{FE00}-\x{FE0F}]|(?<![#{@ideograph}])[\x{E0100}-\x{E01EF}]|[#{@selector}](?=[#{@selector}])/u
 
   # How many distinct characters a field error names.
   @named_characters 5
@@ -108,12 +129,19 @@ defmodule Portfolixir.Input.Text do
   @spec check(term(), opts()) :: :ok | {:error, refusal()}
   def check(nil, _opts), do: :ok
 
+  # The length is bounded before the value is scanned (H55): a value of more
+  # bytes than four per allowed code point (UTF-8's widest) is too long
+  # whatever it holds, and the code-point count runs before the two pattern
+  # passes, so an over-long value costs one walk and no list.
   def check(value, opts) when is_binary(value) do
+    max = opts[:max]
+
     cond do
+      is_integer(max) and byte_size(value) > 4 * max -> {:error, :too_long}
       not String.valid?(value) -> {:error, :invalid_encoding}
+      too_long?(value, max) -> {:error, :too_long}
       Regex.match?(controls(opts), value) -> {:error, :control_characters}
       Regex.match?(@invisible, value) -> {:error, :invisible_characters}
-      too_long?(value, opts[:max]) -> {:error, :too_long}
       true -> :ok
     end
   end
@@ -335,7 +363,13 @@ defmodule Portfolixir.Input.Text do
   a column's width in (a grapheme can be several code points).
   """
   @spec codepoint_length(String.t()) :: non_neg_integer()
-  def codepoint_length(text) when is_binary(text), do: text |> String.codepoints() |> length()
+  def codepoint_length(text) when is_binary(text), do: count_codepoints(text, 0)
+
+  # A walk over the binary, no list (H55); a byte that starts no code point
+  # counts as one, as `String.codepoints/1` splits it.
+  defp count_codepoints(<<_::utf8, rest::binary>>, count), do: count_codepoints(rest, count + 1)
+  defp count_codepoints(<<_byte, rest::binary>>, count), do: count_codepoints(rest, count + 1)
+  defp count_codepoints(<<>>, count), do: count
 
   @doc """
   Cuts `text` to at most `max` code points without splitting a grapheme: the
@@ -355,20 +389,42 @@ defmodule Portfolixir.Input.Text do
     |> Enum.join()
   end
 
-  # Unicode format characters (general category Cf): zero-width spaces and
-  # joiners, the byte-order mark, the soft hyphen, bidirectional controls.
-  @format_characters ~r/\p{Cf}/u
+  # Unicode format characters (general category Cf: zero-width spaces and
+  # joiners, the byte-order mark, the soft hyphen, bidirectional controls)
+  # and every other default-ignorable code point (H12), written out so the
+  # set does not shrink with an older Unicode table: the combining grapheme
+  # joiner, the Hangul fillers, the Khmer inherent vowels, the Mongolian
+  # selectors, the variation selectors and the reserved ranges.
+  @ignorable ~r/[\p{Cf}\x{00AD}\x{034F}\x{061C}\x{115F}\x{1160}\x{17B4}\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]/u
+
+  # The Hangul fillers render as a blank, not as nothing.
+  @blank_fillers ~r/[\x{115F}\x{1160}\x{3164}\x{FFA0}]/u
 
   @doc """
-  `text` without its Unicode format characters (general category `Cf`: the
-  zero-width space and joiners, the word joiner, the byte-order mark, the
-  soft hyphen, the bidirectional controls). They render as nothing, so two
-  names that differ only by them look identical (E25 S5, G23). Text that is
-  not valid UTF-8 is returned unchanged for `check/2` to refuse.
+  `text` without its default-ignorable characters: the Unicode format
+  characters (general category `Cf`: the zero-width space and joiners, the
+  word joiner, the byte-order mark, the soft hyphen, the bidirectional
+  controls) and every other Default_Ignorable_Code_Point (security review
+  2026-10-12, H12: the combining grapheme joiner, the Hangul fillers, the
+  Khmer inherent vowels, the Mongolian and the other variation selectors,
+  the reserved ranges). They render as nothing, so two names that differ
+  only by them look identical (E25 S5, G23). Text that is not valid UTF-8
+  is returned unchanged for `check/2` to refuse.
   """
   @spec strip_format_characters(String.t()) :: String.t()
   def strip_format_characters(text) when is_binary(text) do
-    if String.valid?(text), do: String.replace(text, @format_characters, ""), else: text
+    if String.valid?(text), do: String.replace(text, @ignorable, ""), else: text
+  end
+
+  @doc """
+  `text` with each Hangul filler (U+115F, U+1160, U+3164, U+FFA0) as the
+  space it renders as: the lookalike skeleton's first fold (H12), before
+  `strip_format_characters/1` drops what renders as nothing. Text that is
+  not valid UTF-8 is returned unchanged.
+  """
+  @spec fold_blank_fillers(String.t()) :: String.t()
+  def fold_blank_fillers(text) when is_binary(text) do
+    if String.valid?(text), do: String.replace(text, @blank_fillers, " "), else: text
   end
 
   defp controls(opts) do
@@ -376,5 +432,7 @@ defmodule Portfolixir.Input.Text do
   end
 
   defp too_long?(_value, nil), do: false
+  # No more bytes than the bound: no more code points either.
+  defp too_long?(value, max) when byte_size(value) <= max, do: false
   defp too_long?(value, max), do: codepoint_length(value) > max
 end

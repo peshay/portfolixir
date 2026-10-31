@@ -171,7 +171,7 @@ defmodule Portfolixir.Portfolios.PerformanceWarmupTest do
   test "warm/0 also warms the default view's scope" do
     portfolio = seeded_portfolio!("Warm C")
     {:ok, view} = Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Warm View"})
-    Portfolixir.Settings.set_default_view(view.id)
+    Portfolixir.Settings.set_default_view(Portfolixir.Actor.owner_ui(), view.id)
 
     assert Warmup.warm() == :ok
 

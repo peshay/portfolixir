@@ -20,6 +20,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.Security
@@ -55,6 +56,92 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
         |> Plug.Conn.send_resp(200, bytes)
       end
     ]
+  end
+
+  # User story (security review 2026-10-12, H52):
+  # As the operator whose logo is replaced by one of another image type,
+  # I want the store to keep one file per security,
+  # so that the replaced image is not still served under its old name.
+  #
+  # Acceptance criteria:
+  # - A PNG replaced by a JPEG through discovery leaves only `<id>.jpg`.
+  # - A manual upload of a WebP over that leaves only `<id>.webp`.
+  # - Another security's file is never touched.
+  test "a logo stored under a new extension leaves no other file of that security",
+       %{tmp: tmp, security: sec} do
+    jpg = <<0xFF, 0xD8, 0xFF, 0xE0, 0, 16>>
+    webp = "RIFF" <> <<0, 0, 0, 0>> <> "WEBP" <> "VP8 "
+
+    {:ok, other} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Brindle AG",
+        currency_code: "EUR",
+        provider: "manual",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      LogoStore.store_manual_bytes(Actor.owner_ui(), other, @png, "image/png", storage_dir: tmp)
+
+    {:ok, _} =
+      LogoStore.download_and_store(sec, "https://example.test/logo.png", :wikipedia,
+        req: png_stub(@png),
+        storage_dir: tmp
+      )
+
+    {:ok, _} =
+      LogoStore.download_and_store(sec, "https://example.test/logo.jpg", :wikipedia,
+        req: png_stub(jpg, "image/jpeg"),
+        storage_dir: tmp
+      )
+
+    assert Enum.sort(File.ls!(tmp)) == Enum.sort(["#{sec.id}.jpg", "#{other.id}.png"])
+
+    {:ok, stored} =
+      LogoStore.store_manual_bytes(Actor.owner_ui(), sec, webp, "image/webp", storage_dir: tmp)
+
+    assert stored.attributes["logo_path"] == "/security_logos/#{sec.id}.webp"
+    assert Enum.sort(File.ls!(tmp)) == Enum.sort(["#{sec.id}.webp", "#{other.id}.png"])
+  end
+
+  # User story (security review 2026-10-12, H52, review note):
+  # As the operator whose logo is being replaced,
+  # I want a replacement that fails to be written to leave my logo as it was,
+  # so that a failed store never leaves the security pointing at a removed
+  # file.
+  #
+  # Acceptance criteria:
+  # - When the new file cannot be written, the previous file stays on disk
+  #   and `logo_path` still names it, through discovery and through an upload.
+  test "a logo write that fails leaves the previous logo in place", %{tmp: tmp, security: sec} do
+    jpg = <<0xFF, 0xD8, 0xFF, 0xE0, 0, 16>>
+    webp = "RIFF" <> <<0, 0, 0, 0>> <> "WEBP" <> "VP8 "
+
+    {:ok, _} =
+      LogoStore.download_and_store(sec, "https://example.test/logo.png", :wikipedia,
+        req: png_stub(@png),
+        storage_dir: tmp
+      )
+
+    # The new file's name is taken by a directory, so its write fails.
+    File.mkdir_p!(Path.join(tmp, "#{sec.id}.jpg"))
+    File.mkdir_p!(Path.join(tmp, "#{sec.id}.webp"))
+
+    assert {:error, _} =
+             LogoStore.download_and_store(sec, "https://example.test/logo.jpg", :wikipedia,
+               req: png_stub(jpg, "image/jpeg"),
+               storage_dir: tmp
+             )
+
+    assert {:error, _} =
+             LogoStore.store_manual_bytes(Actor.owner_ui(), sec, webp, "image/webp",
+               storage_dir: tmp
+             )
+
+    assert File.read!(Path.join(tmp, "#{sec.id}.png")) == @png
+
+    assert Catalog.get_security!(sec.id).attributes["logo_path"] ==
+             "/security_logos/#{sec.id}.png"
   end
 
   test "writes the image to <storage_dir>/<id>.png and updates the attributes",
@@ -154,6 +241,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
        %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
              LogoStore.store_manual_override(
+               Portfolixir.Actor.owner_ui(),
                sec,
                "https://example.test/logo.png",
                req: png_stub(@png),
@@ -169,7 +257,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   test "store_manual_bytes writes validated upload bytes and locks",
        %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
-             LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+             LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png",
+               storage_dir: tmp
+             )
 
     assert updated.attributes["logo_source"] == "manual"
     assert updated.attributes["logo_locked"] == true
@@ -179,7 +269,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   test "store_manual_bytes refuses content types outside the allowlist",
        %{tmp: tmp, security: sec} do
     assert {:error, :unsupported_content_type} =
-             LogoStore.store_manual_bytes(sec, "<html/>", "text/html", storage_dir: tmp)
+             LogoStore.store_manual_bytes(Actor.owner_ui(), sec, "<html/>", "text/html",
+               storage_dir: tmp
+             )
 
     refute Repo.get!(Security, sec.id).attributes["logo_locked"]
   end
@@ -200,7 +292,8 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
     assert File.exists?(Path.join(tmp, "#{sec.id}.png"))
 
-    assert {:ok, removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+    assert {:ok, removed} =
+             LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), with_logo, storage_dir: tmp)
 
     refute removed.attributes["logo_path"]
     refute removed.attributes["logo_source"]
@@ -227,7 +320,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     on_exit(fn -> Application.put_env(:portfolixir, LogoStore, previous) end)
 
     assert LogoStore.storage_dir() == tmp
-    assert {:ok, _} = LogoStore.store_manual_bytes(sec, @png, "image/png")
+    assert {:ok, _} = LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png")
     assert File.read!(Path.join(tmp, "#{sec.id}.png")) == @png
   end
 
@@ -354,14 +447,22 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
               {security!("Brindle AG"), jpg, "image/jpeg"},
               {security!("Corvala AG"), webp, "image/webp"}
             ] do
-          {:ok, stored} = LogoStore.store_manual_bytes(security, bytes, type, storage_dir: tmp)
+          {:ok, stored} =
+            LogoStore.store_manual_bytes(Actor.owner_ui(), security, bytes, type,
+              storage_dir: tmp
+            )
+
           stored
         end
 
       assert stored |> Enum.map(&Path.extname(&1.attributes["logo_path"])) |> Enum.sort() ==
                [".jpg", ".png", ".webp"]
 
-      {:ok, no_logo} = LogoStore.remove_logo(security!("Dunmere AG"), storage_dir: tmp)
+      {:ok, no_logo} =
+        LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), security!("Dunmere AG"),
+          storage_dir: tmp
+        )
+
       before = Enum.map([no_logo | stored], &{&1.attributes, journal(&1)})
       :ok = LogoStore.subscribe()
 
@@ -491,10 +592,13 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       end
 
       {:ok, uploaded} =
-        LogoStore.store_manual_bytes(marked.(sec), @png, "image/png", storage_dir: tmp)
+        LogoStore.store_manual_bytes(Actor.owner_ui(), marked.(sec), @png, "image/png",
+          storage_dir: tmp
+        )
 
       {:ok, chosen} =
         LogoStore.store_manual_override(
+          Portfolixir.Actor.owner_ui(),
           marked.(security!("Brindle AG")),
           "https://example.test/l.png",
           req: png_stub(@png),
@@ -510,7 +614,10 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
           storage_dir: tmp
         )
 
-      {:ok, removed} = LogoStore.remove_logo(marked.(security!("Dunmere AG")), storage_dir: tmp)
+      {:ok, removed} =
+        LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), marked.(security!("Dunmere AG")),
+          storage_dir: tmp
+        )
 
       for security <- [uploaded, chosen, discovered, removed] do
         refute Map.has_key?(reload(security).attributes, "logo_file_missing")
@@ -569,7 +676,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       assert gate == {:ok, false}
 
       # The file of one sits in the configured directory, the other's nowhere.
-      {:ok, present} = LogoStore.store_manual_bytes(sec, @png, "image/png")
+      {:ok, present} = LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png")
       assert File.exists?(Path.join(tmp, "#{sec.id}.png"))
       missing = with_logo!(security!("Brindle AG"), "wikipedia")
 
@@ -816,7 +923,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       :ok = LogoStore.subscribe()
 
       assert {:ok, _updated} =
-               LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+               LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png",
+                 storage_dir: tmp
+               )
 
       assert_receive {:security_logo_updated, id}
       assert id == sec.id
@@ -833,7 +942,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
         )
 
       :ok = LogoStore.subscribe()
-      assert {:ok, _removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+
+      assert {:ok, _removed} =
+               LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), with_logo, storage_dir: tmp)
 
       assert_receive {:security_logo_updated, id}
       assert id == sec.id

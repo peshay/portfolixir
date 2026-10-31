@@ -38,7 +38,8 @@ defmodule Portfolixir.Ledger.HeldSecuritiesTest do
             currency_code: "EUR"
           },
           extra
-        )
+        ),
+        split_flow: type == "split"
       )
 
     tx

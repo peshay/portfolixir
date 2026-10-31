@@ -20,7 +20,12 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
     default view where one is set — the scopes the dashboard and Wealth page
     actually open. Periods cost nothing (`summarise/2` re-chains);
   - it is disabled by the **same switch** as the derived layer, so "off" is
-    one testable state, not two.
+    one testable state, not two;
+  - each scope's walk runs **under the heap cap** a request runs under, in a
+    supervised worker of its own (`Portfolixir.HeapCap.run/1`, K08): a walk
+    grown past the cap is killed and logged, the scope is skipped, and this
+    process goes on. `Portfolixir.Derived.Refresher` walks through
+    `warm_basis/1`, so its walks run the same way.
 
   Day rollover: `today` is part of the memo key, so yesterday's entries simply
   stop matching at midnight. This process re-warms shortly after local
@@ -33,6 +38,7 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Derived
+  alias Portfolixir.HeapCap
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Settings
@@ -128,34 +134,37 @@ defmodule Portfolixir.Portfolios.Performance.Warmup do
   end
 
   defp warm_scope(portfolio_id, view_id) do
-    Performance.analysis(portfolio_id, view: view_id)
+    HeapCap.run(fn -> Performance.analysis(portfolio_id, view: view_id) end)
   rescue
     error ->
-      Logger.warning(
-        "performance warm-up skipped portfolio #{portfolio_id} " <>
-          "(view #{inspect(view_id)}): #{Exception.message(error)}"
-      )
-
-      :ok
+      skipped("portfolio #{portfolio_id} (view #{inspect(view_id)})", Exception.message(error))
+  catch
+    :exit, reason ->
+      skipped("portfolio #{portfolio_id} (view #{inspect(view_id)})", exited(reason))
   end
 
   defp warm_view_scope(view_id) do
     case Portfolios.first_portfolio() do
       %{base_currency_code: base_currency} ->
-        Performance.view_analysis(view_id, base_currency: base_currency)
+        HeapCap.run(fn -> Performance.view_analysis(view_id, base_currency: base_currency) end)
 
       _no_portfolio ->
         :ok
     end
   rescue
-    error ->
-      Logger.warning(
-        "performance warm-up skipped view scope #{inspect(view_id)}: " <>
-          Exception.message(error)
-      )
-
-      :ok
+    error -> skipped("view scope #{inspect(view_id)}", Exception.message(error))
+  catch
+    :exit, reason -> skipped("view scope #{inspect(view_id)}", exited(reason))
   end
+
+  defp skipped(scope, why) do
+    Logger.warning("performance warm-up skipped #{scope}: #{why}")
+    :ok
+  end
+
+  # A walk killed past the heap cap, or one that exited otherwise.
+  defp exited(:killed), do: "its walk was killed at the heap cap"
+  defp exited(reason), do: "its walk exited (#{inspect(reason, limit: 5)})"
 
   defp default_view_id do
     Settings.default_view_id() && Buckets.get_view(Settings.default_view_id()) &&

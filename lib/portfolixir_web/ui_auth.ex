@@ -187,8 +187,9 @@ defmodule PortfolixirWeb.UiAuth do
   round, S7E-2). The redirect after a login is a request from the instance
   itself, so a choice it carried would be remembered
   (`PortfolixirWeb.FetchSite`), including one another site's link put into
-  the path the login page was sent to. A choice made on the instance is
-  remembered by the request the login interrupted, so nothing is lost.
+  the path the login page was sent to. A request the login interrupts
+  remembers no choice either (`PortfolixirWeb.PreferenceCookie`, K02), so a
+  choice made before the login is made again after it.
   """
   @spec safe_return_path(term()) :: String.t()
   def safe_return_path(path) when is_binary(path) do

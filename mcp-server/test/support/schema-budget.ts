@@ -248,6 +248,17 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_261,
     book: 176_275,
     full: 206_672
+  },
+  {
+    since: "2026-10-31",
+    why:
+      "Sprint 21, the security batch (the 2026-10-12 review's S4, S6 and S7 rows): every byte " +
+      "the batch's descriptions added was paid by a trim in the same tool, the book profile lost " +
+      "policy_rules.add_version to the admin set (H13), and the ceilings are lowered once, at the " +
+      "end, to the figures measured with the whole batch (the amendment's D-6; D-10's rule)",
+    read: 102986,
+    book: 172005,
+    full: 206560
   }
 ];
 

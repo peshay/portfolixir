@@ -221,8 +221,8 @@ that case; "the picture is identical" is. `docs/development/sprint-workflow.md`
 
 ## Required Local Checks
 
-The list is CI's `pre-commit`, `test` and `quality` jobs, so a branch that
-passes here passes there.
+The list is CI's `pre-commit`, `test`, `quality` and `advisories` jobs, so a
+branch that passes here passes there.
 
 ```bash
 mix format
@@ -246,7 +246,9 @@ Two of these behave differently from the rest. `mix dialyzer` builds a PLT on
 its first run, so it is slow once rather than every time. `mix hex.audit` and
 `mix deps.audit` read a live advisory database, so a green run does not stay
 green — a gate that turns red with nobody pushing anything is an advisory
-published since, not a regression.
+published since, not a regression. CI runs them and the companion's
+`npm audit` in a job of their own, `advisories`, so a red feed hides no other
+gate.
 
 Install pre-commit itself from the hash-pinned file CI installs from, then the
 hooks, once. The install goes into a virtual environment, because the system
@@ -262,12 +264,14 @@ python -m pip install --require-hashes --only-binary :all: -r .github/pre-commit
 pre-commit install --install-hooks
 ```
 
-The Git hooks find that environment by themselves; activate it again in a new
-shell before running `pre-commit run --all-files` from the list above.
+Activate that environment in every shell you commit from or run `pre-commit
+run --all-files` in: the hooks run the tools it installed.
 
 The pre-commit setup uses standard hygiene hooks and `mix format --check-formatted`.
-Remote hook repositories are frozen to commit SHAs; `pre-commit autoupdate
---freeze` moves one.
+Every hook is local and builds no environment of its own: the hygiene hooks
+run on `pre-commit-hooks` as the same hash-pinned file pins it, so a new
+upload to the package index changes nothing a hook runs (H65). Dependabot
+proposes its updates with the rest of that file.
 
 ## Test Rules
 

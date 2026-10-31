@@ -11,4 +11,10 @@
 #
 # in CI; a local install runs the same pip inside a virtual environment
 # (CONTRIBUTING.md), because an externally managed system Python refuses it.
-pre-commit==4.6.2
+pre-commit==4.7.0
+# The hygiene hooks (trailing whitespace, end of file, YAML syntax, line
+# endings) run as `language: system` hooks on this package and its
+# dependencies (H65): pre-commit builds no hook environment of its own, which
+# would resolve them from the package index unpinned on every install. The
+# version is the one the hook repository was frozen to before.
+pre-commit-hooks==5.0.0

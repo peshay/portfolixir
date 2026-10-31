@@ -990,7 +990,13 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
         view: nil
       )
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
 
     sum = view |> element("[data-role='soll-sum']") |> render()

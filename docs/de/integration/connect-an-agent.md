@@ -29,7 +29,7 @@ aufrufen darf:
 | Profil | Der Agent kann |
 |---|---|
 | `read` | alles lesen und nichts ändern |
-| `book` | lesen, anlegen und die ersetzenden Schreibzugriffe ausführen (Ändern, Upsert, Setzen), die derselbe Schreibzugriff mit dem früheren Wert rückgängig macht; kein Entfernen, Zusammenführen, keine ISIN-Änderung, kein Stilllegen einer Regel und keine Kursfreigabe |
+| `book` | lesen, anlegen und die ersetzenden Schreibzugriffe ausführen (Ändern, Upsert, Setzen), die derselbe Schreibzugriff mit dem früheren Wert rückgängig macht; kein Entfernen, Zusammenführen, keine ISIN-Änderung, keine neue Version einer Regel, kein Stilllegen einer Regel und keine Kursfreigabe |
 | `full` (Standard) | jedes Tool aufrufen |
 
 Zwei der Schreibzugriffe, die `book` behält, hinterlassen einen Rest, den ihr
@@ -47,7 +47,7 @@ steht in [API und MCP](api-and-mcp.html#mcp-tools).
 
 ## Über stdio: Der Client startet den Begleitdienst
 
-Bauen Sie den Begleitdienst einmal, mit Node 24:
+Bauen Sie den Begleitdienst einmal, mit Node 26:
 
 ```bash
 npm ci --ignore-scripts --prefix mcp-server
@@ -140,6 +140,14 @@ im Browser, der von einem anderen Origin ausgeliefert wird
 
 Die Compose-Datei setzt Transport, Host und Port für ihren eigenen Dienst; ein
 Begleitdienst, den Sie selbst starten, liest sie aus seiner Umgebung.
+
+Die API-Aufrufe des Begleitdienstes tragen das API-Token, deshalb laufen sie
+nie über einen Proxy. Wo der eigene Proxy von Node eingeschaltet ist
+(`NODE_USE_ENV_PROXY=1` oder `--use-env-proxy`, mit gesetztem `HTTP_PROXY`
+oder `HTTPS_PROXY`), nennen Sie den API-Host in `NO_PROXY` genau so, wie
+`PORTFOLIXIR_API_BASE_URL` ihn schreibt (`NO_PROXY=127.0.0.1,localhost,app`;
+`localhost` deckt `127.0.0.1` nicht ab). Sonst stoppt der Begleitdienst beim
+Start mit dem Exit-Status 1 und einer Zeile, die `NO_PROXY` nennt.
 
 ## Erste Schritte
 

@@ -87,8 +87,11 @@ defmodule Portfolixir.Tax do
 
     # #853: without a tax year there is no row to look up — the lookup's
     # `== ^nil` raised an ArgumentError (a 500). The insert path answers the
-    # changeset's own field errors instead.
-    case tax_year && fetch_parameters(jurisdiction || @default_jurisdiction, tax_year) do
+    # changeset's own field errors instead. Nor is a key the changeset refused
+    # ever looked up (H36): a value no column holds would fail the query.
+    lookup? = tax_year && valid_fields?(fresh, [:jurisdiction, :tax_year])
+
+    case lookup? && fetch_parameters(jurisdiction || @default_jurisdiction, tax_year) do
       {:ok, existing} -> update_parameters(actor, existing, attrs)
       _absent -> insert_parameters(actor, fresh)
     end
@@ -278,7 +281,7 @@ defmodule Portfolixir.Tax do
 
   defp insert_allowance_order(actor, changeset) do
     Multi.new()
-    |> Multi.insert(:order, changeset)
+    |> Multi.insert(:order, AllowanceOrder.put_author(changeset, actor))
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :create,
@@ -290,7 +293,12 @@ defmodule Portfolixir.Tax do
 
   defp update_allowance_order(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:order, &AllowanceOrder.changeset(Journal.locked_row(&1), attrs))
+    |> Multi.update(:order, fn changes ->
+      changes
+      |> Journal.locked_row()
+      |> AllowanceOrder.changeset(attrs)
+      |> AllowanceOrder.put_corrected_by(actor)
+    end)
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :update,
@@ -406,7 +414,8 @@ defmodule Portfolixir.Tax do
   end
 
   @doc """
-  Records a statement snapshot on behalf of `actor`.
+  Records a statement snapshot on behalf of `actor`, whose author it stores
+  (K12, T-16).
 
   `opts[:today]` injects the clock (AR-2) and defaults to `Portfolixir.Clock.today/0`;
   an `as_of` after it is rejected. When the caller supplies no
@@ -420,7 +429,10 @@ defmodule Portfolixir.Tax do
     today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
-    |> Multi.insert(:snapshot, snapshot_changeset(attrs, today))
+    |> Multi.insert(
+      :snapshot,
+      attrs |> snapshot_changeset(today) |> StatementSnapshot.put_author(actor)
+    )
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :create,
@@ -432,7 +444,8 @@ defmodule Portfolixir.Tax do
 
   @doc """
   Updates a recorded snapshot on behalf of `actor` — a corrected re-issue for
-  the same statement date. The frozen `church_tax_rate` is not re-resolved.
+  the same statement date. The frozen `church_tax_rate` is not re-resolved;
+  `corrected_by` becomes the author `actor` derives (K12, T-16).
   """
   @spec update_snapshot(Actor.t(), StatementSnapshot.t(), map(), keyword()) ::
           {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t() | :not_found}
@@ -441,10 +454,12 @@ defmodule Portfolixir.Tax do
     today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
-    |> Multi.update(
-      :snapshot,
-      &StatementSnapshot.changeset(Journal.locked_row(&1), attrs, today)
-    )
+    |> Multi.update(:snapshot, fn changes ->
+      changes
+      |> Journal.locked_row()
+      |> StatementSnapshot.changeset(attrs, today)
+      |> StatementSnapshot.put_corrected_by(actor)
+    end)
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :update,
@@ -660,6 +675,9 @@ defmodule Portfolixir.Tax do
          # A date outside the shared bound is the probe's field error, never
          # a lookup (E25 S4, F70).
          true <- is_binary(holder) and BoundedDate.within?(as_of),
+         # A holder the text rule refuses is the probe's field error, never
+         # a lookup (H36), the guard the allowance order carries.
+         true <- valid_fields?(probe, [:holder]),
          %Profile{} = profile <- profile_in_force(holder, as_of) do
       StatementSnapshot.changeset(%StatementSnapshot{}, attrs, today,
         default_church_tax_rate: profile.church_tax_rate
@@ -670,6 +688,10 @@ defmodule Portfolixir.Tax do
   end
 
   # -- internals -------------------------------------------------------------
+
+  # None of `fields` carries an error of the changeset.
+  defp valid_fields?(%Ecto.Changeset{errors: errors}, fields),
+    do: not Enum.any?(errors, fn {field, _error} -> field in fields end)
 
   # Both sides are folded by the database, with the `lower()` the unique
   # indexes use; the value is normalised as a stored one is (E25 S6, G21).

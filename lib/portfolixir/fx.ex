@@ -11,9 +11,23 @@ defmodule Portfolixir.Fx do
 
   All arithmetic stays at full `Decimal` precision — never floats, never an
   intermediate round (see ADR-0003, ADR-0007). Rounding is a display concern.
+
+  ## A stored rate that is not positive is no rate
+
+  Every writer refuses a rate that is not positive once rounded to its
+  column (`Portfolixir.Catalog.MarketDataBounds`), but a release before
+  2026.10.1 judged the value before the column rounded it, so a rate finer
+  than the column could be stored as 0. Every lookup here reads only
+  positive rows (`positive/1`), so such a row is no rate: the caller's
+  missing-rate path applies — excluded and named, or valued as missing —
+  instead of a division by zero (security review 2026-10-12, K06). No read
+  deletes or changes the row; `report_non_positive_rates/0` names it at
+  boot.
   """
 
   import Ecto.Query
+
+  require Logger
 
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Derived.Invalidation
@@ -75,6 +89,7 @@ defmodule Portfolixir.Fx do
   @doc "Most recent rate for `base/quote` on or before `date`, or nil."
   def at_or_before(base, quote, %Date{} = date) do
     base_quote(base, quote)
+    |> positive()
     |> where([r], r.date <= ^date)
     |> order_by([r], desc: r.date)
     |> limit(1)
@@ -89,6 +104,7 @@ defmodule Portfolixir.Fx do
     latest_date = MarketDataBounds.latest_date()
 
     base_quote(base, quote)
+    |> positive()
     |> where([r], r.date <= ^latest_date)
     |> order_by([r], desc: r.date)
     |> limit(1)
@@ -104,6 +120,7 @@ defmodule Portfolixir.Fx do
   """
   def series(quote_currency, %Date{} = from) do
     base_quote(@hub, quote_currency)
+    |> positive()
     |> where([r], r.date >= ^from)
     |> order_by([r], asc: r.date)
     |> Repo.all()
@@ -213,7 +230,7 @@ defmodule Portfolixir.Fx do
       from(r in ExchangeRate,
         where:
           r.base_currency == ^@hub and r.quote_currency in ^currencies and
-            r.date <= ^latest_date,
+            r.date <= ^latest_date and r.rate > 0,
         order_by: [asc: r.quote_currency, desc: r.date],
         distinct: r.quote_currency,
         select: {r.quote_currency, r.rate}
@@ -314,7 +331,11 @@ defmodule Portfolixir.Fx do
   end
 
   defp eur_rate_on(ccy, date) do
-    case Repo.get_by(ExchangeRate, base_currency: @hub, quote_currency: ccy, date: date) do
+    base_quote(@hub, ccy)
+    |> positive()
+    |> where([r], r.date == ^date)
+    |> Repo.one()
+    |> case do
       %ExchangeRate{rate: rate} -> {:ok, rate}
       nil -> {:error, :no_rate}
     end
@@ -341,6 +362,69 @@ defmodule Portfolixir.Fx do
 
   defp base_quote(base, quote) do
     from(r in ExchangeRate, where: r.base_currency == ^base and r.quote_currency == ^quote)
+  end
+
+  # K06: a rate a release before 2026.10.1 stored as 0 is no rate to a read.
+  defp positive(query), do: where(query, [r], r.rate > 0)
+
+  @doc """
+  The stored rates that are not positive, oldest first, as
+  `{base_currency, quote_currency, date}`: rows a release before 2026.10.1
+  could store (a rate finer than the column rounded to 0), which no lookup
+  reads (K06).
+  """
+  @spec non_positive_rates() :: [{String.t(), String.t(), Date.t()}]
+  def non_positive_rates do
+    Repo.all(
+      from(r in ExchangeRate,
+        where: r.rate <= 0,
+        order_by: [asc: r.date, asc: r.base_currency, asc: r.quote_currency],
+        select: {r.base_currency, r.quote_currency, r.date}
+      )
+    )
+  end
+
+  @doc """
+  The boot step of `report_non_positive_rates/0`, gated by the
+  `:report_non_positive_rates_on_boot` config (default true; off in tests,
+  where the boot runs outside any test's database ownership).
+  """
+  @spec report_non_positive_rates_on_boot() :: :ok
+  def report_non_positive_rates_on_boot do
+    if Application.get_env(:portfolixir, :report_non_positive_rates_on_boot, true),
+      do: report_non_positive_rates(),
+      else: :ok
+  end
+
+  @doc """
+  Logs one warning at boot naming each stored rate that is not positive
+  (`non_positive_rates/0`), and nothing when there is none. It deletes and
+  changes nothing: no read uses such a row, and a history backfill of a
+  published day replaces it. Answers `:ok`, also when the table cannot be
+  read, so it never stops the boot.
+  """
+  @spec report_non_positive_rates() :: :ok
+  def report_non_positive_rates do
+    case non_positive_rates() do
+      [] ->
+        :ok
+
+      rows ->
+        count = length(rows)
+
+        Logger.warning(
+          "#{count} stored exchange rate#{if count == 1, do: " is", else: "s are"} not " <>
+            "positive and no conversion uses #{if count == 1, do: "it", else: "them"}; a day " <>
+            "without a rate is excluded and named where a figure needs it. A history " <>
+            "backfill (POST /api/v1/exchange_rates/sync with scope=history) replaces a day " <>
+            "the provider publishes. " <>
+            Enum.map_join(rows, ", ", fn {base, quote, date} ->
+              "#{base}/#{quote} on #{Date.to_iso8601(date)}"
+            end)
+        )
+    end
+  rescue
+    _error in [DBConnection.ConnectionError, Postgrex.Error] -> :ok
   end
 
   # A key named twice is refused here, by name (#937, the F13 pattern of

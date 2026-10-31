@@ -19,7 +19,13 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
   @maturity ~D[2031-06-15]
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp bond!(attrs \\ %{}) do
     {:ok, security} =

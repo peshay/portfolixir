@@ -104,13 +104,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     # A UTF-8 byte-order mark ahead of "Datum" is not part of the header.
     body = String.replace_prefix(body, "\uFEFF", "")
 
-    case __MODULE__.Parser.parse_string(body, skip_headers: false) do
+    case read_rows(body) do
+      {:error, _reason} = error ->
+        error
+
       [] ->
         {:error, :empty_csv}
 
       [header_row | data_rows] ->
         with :ok <- validate_header(header_row),
-             :ok <- validate_row_count(data_rows),
              :ok <- validate_entry_count(header_row, data_rows) do
           # #1128: a row is numbered as a spreadsheet shows the file, the
           # header being row 1, so the first booking row is row 2. No content
@@ -152,11 +154,69 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   @required_columns ~w(Datum Typ Wertpapier Stück Kurs Betrag Gebühren Steuern Konto)
 
-  # #768: a bound on how much of one file the preview holds in memory.
-  defp validate_row_count(rows) do
+  # Security review 2026-10-12, H59: the longest line a booking row can be.
+  # A note is at most `Text.free_text_max/0` (10,000) code points, at most
+  # 40,000 bytes and twice that with every character a quote the file
+  # escapes; the other cells are names of at most 255 code points and
+  # numbers. A longer line is no export's row, and it is refused before it
+  # is split into cells.
+  @max_line_bytes 262_144
+
+  # #768: a bound on how much of one file the preview holds in memory, and
+  # (H59) applied before the rows are built: the body's lines are counted
+  # and measured without building anything, and the parser builds at most
+  # one row past the cap. A line holds at most one row (a quoted cell can
+  # spread one row over several lines), so the line count is what the
+  # refusal names.
+  defp read_rows(body) do
     max = PortfolioPerformance.max_rows()
-    count = length(rows)
-    if count > max, do: {:error, {:too_many_rows, count}}, else: :ok
+
+    case count_lines(body, 0, 0) do
+      :too_long ->
+        {:error, :malformed_payload}
+
+      {:ok, lines} ->
+        rows =
+          body
+          |> line_stream()
+          |> __MODULE__.Parser.parse_stream(skip_headers: false)
+          |> Enum.take(max + 2)
+
+        if length(rows) > max + 1,
+          do: {:error, {:too_many_rows, max(lines - 1, max + 1)}},
+          else: rows
+    end
+  end
+
+  # One pass over the bytes, `length` the bytes of the line read so far.
+  # The bound is judged before a line break and at the end of the body, so a
+  # line one byte over it is refused whether a break or the file ends it.
+  defp count_lines(_rest, _lines, length) when length > @max_line_bytes, do: :too_long
+  defp count_lines(<<?\n, rest::binary>>, lines, _length), do: count_lines(rest, lines + 1, 0)
+
+  defp count_lines(<<_byte, rest::binary>>, lines, length),
+    do: count_lines(rest, lines, length + 1)
+
+  defp count_lines(<<>>, lines, 0), do: {:ok, lines}
+
+  defp count_lines(<<>>, lines, length) when length <= @max_line_bytes,
+    do: {:ok, lines + 1}
+
+  # The body's lines, each with its line break, as the stream parser reads a
+  # file.
+  defp line_stream(body) do
+    size = byte_size(body)
+
+    Stream.unfold(0, fn
+      from when from >= size ->
+        nil
+
+      from ->
+        case :binary.match(body, "\n", scope: {from, size - from}) do
+          {at, 1} -> {binary_part(body, from, at - from + 1), at + 1}
+          :nomatch -> {binary_part(body, from, size - from), size}
+        end
+    end)
   end
 
   # E25 S5 (F38): the cap counts the entries the file expands into — each
@@ -641,10 +701,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   defp present_string(nil), do: nil
 
+  # Security review 2026-10-12, H58: a cell the entry keeps is copied out of
+  # the upload body. Trimmed, it is a slice of the body; a slice longer than
+  # 64 bytes that crosses into another process (a page task, the preview
+  # store) references the whole body there, and the heap cap counts the body
+  # once per such slice.
   defp present_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
-      trimmed -> trimmed
+      trimmed -> :binary.copy(trimmed)
     end
   end
 

@@ -166,13 +166,40 @@ export function requireMcpToken(configuredToken: string | undefined): string {
   return token;
 }
 
+/**
+ * Fewer distinct characters than this, and a token is plainly not random:
+ * `openssl rand -base64 48` prints about forty (H20, #1202, T-17).
+ */
+export const MCP_TOKEN_MIN_DISTINCT_CHARS = 12;
+
+/**
+ * The floor `requireMcpToken` holds checks length only, and since #974 the
+ * lock slows no guess, so a token with few distinct characters is named in a
+ * warning at start (H20, #1202, T-17): a warning, never a refusal, and never
+ * the token itself. `undefined` for a token that passes.
+ */
+export function mcpTokenWarning(token: string): string | undefined {
+  if (new Set(token).size >= MCP_TOKEN_MIN_DISTINCT_CHARS) {
+    return undefined;
+  }
+
+  return (
+    `PORTFOLIXIR_MCP_TOKEN has fewer than ${MCP_TOKEN_MIN_DISTINCT_CHARS} distinct characters. ` +
+    "The 32-byte floor checks length only and the lock slows no guess, so only a random " +
+    "token keeps the companion unguessable: replace it with a random token from " +
+    "`openssl rand -base64 48`."
+  );
+}
+
 export interface FailureThrottle {
   readonly maxFailures: number;
   readonly baseLockSeconds: number;
   readonly maxLockSeconds: number;
+  readonly maxRecords: number;
   check(source: string, now: number): { locked: false } | { locked: true; retryAfter: number };
   failure(source: string, now: number): void;
   success(source: string): void;
+  size(): number;
 }
 
 interface FailureRecord {
@@ -187,15 +214,36 @@ interface FailureRecord {
  * failure a source is locked for two seconds, doubling per further failure up
  * to five minutes; a success clears it. A source's count is kept for an hour
  * after its last failure, so waiting out a lock does not reset the escalation,
- * and older records are pruned so the map stays bounded by that window.
+ * and older records are pruned so the map stays bounded by that window. It is
+ * bounded in count as well (security review 2026-10-12, H49): past
+ * `maxRecords`, a new source evicts the record whose last failure is oldest
+ * and that is not locked, and is not recorded when every record is locked.
  */
 export function createFailureThrottle(): FailureThrottle {
   const maxFailures = 10;
   const baseLockSeconds = 2;
   const maxLockSeconds = 300;
   const retentionSeconds = 60 * 60;
+  const maxRecords = 10_000;
+  // Kept in the order of each source's last failure, oldest first.
   const records = new Map<string, FailureRecord>();
   let lastPrune = 0;
+
+  // Room for one more source: the oldest record that is not locked goes.
+  const makeRoom = (now: number): boolean => {
+    if (records.size < maxRecords) {
+      return true;
+    }
+
+    for (const [source, record] of records) {
+      if (record.lockedUntil <= now) {
+        records.delete(source);
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const prune = (now: number): void => {
     if (now - lastPrune < maxLockSeconds) {
@@ -215,6 +263,7 @@ export function createFailureThrottle(): FailureThrottle {
     maxFailures,
     baseLockSeconds,
     maxLockSeconds,
+    maxRecords,
     check(source, now) {
       const record = records.get(source);
 
@@ -224,7 +273,13 @@ export function createFailureThrottle(): FailureThrottle {
     },
     failure(source, now) {
       prune(now);
-      const record = records.get(source) ?? { count: 0, lockedUntil: 0, lastFailure: now };
+      const known = records.get(source);
+
+      if (!known && !makeRoom(now)) {
+        return;
+      }
+
+      const record = known ?? { count: 0, lockedUntil: 0, lastFailure: now };
       record.count += 1;
       record.lastFailure = now;
 
@@ -233,10 +288,15 @@ export function createFailureThrottle(): FailureThrottle {
         record.lockedUntil = now + Math.min(baseLockSeconds * 2 ** exponent, maxLockSeconds);
       }
 
+      // Re-inserted, so the map's order stays the order of last failures.
+      records.delete(source);
       records.set(source, record);
     },
     success(source) {
       records.delete(source);
+    },
+    size() {
+      return records.size;
     }
   };
 }
@@ -249,9 +309,12 @@ export function createFailureThrottle(): FailureThrottle {
  * the source's count unless the source is locked, so the agent's requests
  * never lift a guesser's lock. A wrong token counts
  * against its source, locked or not, and is answered 429 with the lock its
- * own failure extended while the lock lasts, 401 before. The cost: a locked
- * guesser who guesses right is let in, which the 32-byte floor
- * `requireMcpToken` holds the token to makes infeasible. The source is the
+ * own failure extended while the lock lasts, 401 before, so the lock labels
+ * wrong tokens and slows nothing. The cost: a locked guesser who guesses
+ * right is let in, which a random token from `openssl rand -base64 48` makes
+ * infeasible; the 32-byte floor `requireMcpToken` holds the token to checks
+ * length only, and `mcpTokenWarning` names a token with few distinct
+ * characters at start (H20, #1202). The source is the
  * connecting address. The Host and Origin guards run ahead of it.
  */
 export function mcpAuthMiddleware(

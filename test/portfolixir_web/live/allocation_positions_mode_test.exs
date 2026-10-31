@@ -242,7 +242,14 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
   # The basis clause in the page's language.
   test "the drift's basis clause is German on a German page", %{conn: conn} do
     w = world()
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     view = open(conn, w)
 
     assert has_element?(

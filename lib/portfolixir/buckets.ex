@@ -339,7 +339,13 @@ defmodule Portfolixir.Buckets do
   def ensure_tag_bucket(%Actor{} = actor, name) when is_binary(name) do
     trimmed = String.trim(name)
 
-    case Repo.get_by(Bucket, name: trimmed) do
+    # A name the text rule refuses is never looked up (K13): the create's
+    # changeset answers it as a field error, before any statement runs.
+    lookup =
+      if Text.check(trimmed, max: @name_max_length) == :ok,
+        do: Repo.get_by(Bucket, name: trimmed)
+
+    case lookup do
       %Bucket{dimension: @scope_dimension} -> {:error, :name_taken_by_scope_bucket}
       %Bucket{} = bucket -> {:ok, bucket}
       nil -> create_bucket(actor, %{name: trimmed, dimension: "tag"})
@@ -353,19 +359,24 @@ defmodule Portfolixir.Buckets do
   the 100-character name limit and the scope-bucket name collision.
   """
   @spec validate_tag_bucket_name(String.t()) ::
-          :ok | {:error, :name_too_long | :name_taken_by_scope_bucket}
+          :ok
+          | {:error, :name_too_long | :name_taken_by_scope_bucket | {:text, Text.refusal()}}
   def validate_tag_bucket_name(name) when is_binary(name) do
     trimmed = String.trim(name)
 
-    cond do
-      Text.codepoint_length(trimmed) > @name_max_length ->
+    # The text rule runs before the lookup (K13): a name it refuses is named
+    # by its refusal and never bound into a query.
+    case Text.check(trimmed, max: @name_max_length) do
+      {:error, :too_long} ->
         {:error, :name_too_long}
 
-      match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)) ->
-        {:error, :name_taken_by_scope_bucket}
+      {:error, refusal} ->
+        {:error, {:text, refusal}}
 
-      true ->
-        :ok
+      :ok ->
+        if match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)),
+          do: {:error, :name_taken_by_scope_bucket},
+          else: :ok
     end
   end
 
@@ -813,9 +824,14 @@ defmodule Portfolixir.Buckets do
   view never observes a half-applied filter, journaled with the view's whole
   definition before and after (F45); resending the same sets journals
   nothing. A view that is gone answers `{:error, :not_found}`.
+
+  Option `include_all:` (a boolean) sets the view's include-all flag in the
+  same locked, journaled transaction (H44): the bucket picker saves the
+  flag and both sets as one write, so a refused set (a bucket deleted
+  meanwhile) leaves the flag as it was too, and a save journals one entry.
   """
-  def set_view_buckets(%Actor{} = actor, %View{id: view_id}, include_ids, exclude_ids)
-      when is_list(include_ids) and is_list(exclude_ids) do
+  def set_view_buckets(%Actor{} = actor, %View{id: view_id}, include_ids, exclude_ids, opts \\ [])
+      when is_list(include_ids) and is_list(exclude_ids) and is_list(opts) do
     # A bucket named twice counts once, as in the sibling writers (E25 S4,
     # F12): the join tables hold each (view, bucket) pair once.
     include_ids = Enum.uniq(include_ids)
@@ -831,11 +847,12 @@ defmodule Portfolixir.Buckets do
     Multi.new()
     |> lock_view(view_id, :edit)
     |> validate_assignment(include_ids ++ exclude_ids, :exists)
+    |> put_include_all(Keyword.fetch(opts, :include_all))
     |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
     |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
     |> insert_all_step(:include, ViewIncludeBucket, include_entries)
     |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
-    |> Multi.run(:definition, fn repo, %{locked_view: view} ->
+    |> Multi.run(:definition, fn repo, %{view: view} ->
       {:ok, ViewDefinition.of(repo, view)}
     end)
     |> Journal.record(actor,
@@ -850,6 +867,17 @@ defmodule Portfolixir.Buckets do
       {:error, :locked_view, :not_found, _} -> {:error, :not_found}
       {:error, _, reason, _} -> {:error, reason}
     end
+  end
+
+  # The view as the write leaves it: the locked row, with its include-all flag
+  # set under the same lock when the caller passes one (H44).
+  defp put_include_all(multi, :error),
+    do: Multi.run(multi, :view, fn _repo, %{locked_view: view} -> {:ok, view} end)
+
+  defp put_include_all(multi, {:ok, include_all}) when is_boolean(include_all) do
+    Multi.update(multi, :view, fn %{locked_view: view} ->
+      View.changeset(view, %{include_all: include_all})
+    end)
   end
 
   # -- view scope (read seam for analytics, #444) ----------------------------

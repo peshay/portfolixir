@@ -26,14 +26,20 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     with {:ok, opts} <- list_opts(params),
          {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
          {:ok, balance_account} <- running_balance_param(params),
-         {:ok, since} <- SinceParam.parse(params) do
+         {:ok, since} <- SinceParam.parse_page(params) do
       balances = running_balances(balance_account)
+      limit = Keyword.fetch!(opts, :limit)
 
-      rows =
+      # K17: one row past the limit tells a full page from the whole answer.
+      {transactions, truncated} =
         opts
+        |> Keyword.put(:limit, ListLimit.fetch(limit))
         |> put_updated_since(since)
         |> Ledger.list_transactions()
-        |> Enum.map(fn transaction ->
+        |> ListLimit.page(limit)
+
+      rows =
+        Enum.map(transactions, fn transaction ->
           transaction
           |> JSON.transaction()
           |> FieldSelection.take(fields)
@@ -41,9 +47,12 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
         end)
 
       payload =
-        %{data: rows}
+        %{data: rows, limit: limit, truncated: truncated}
         |> put_running_balance_basis(balance_account)
-        |> SinceParam.put_envelope(since)
+        |> SinceParam.put_page_envelope(since, %{
+          has_more: truncated,
+          last: last_stamp(transactions)
+        })
 
       json(conn, payload)
     else
@@ -101,8 +110,12 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
 
   defp running_balance_param(_params), do: {:ok, nil}
 
+  # A delta read is a page (K17): oldest change first, after the cursor.
   defp put_updated_since(opts, nil), do: opts
-  defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
+  defp put_updated_since(opts, since), do: Keyword.put(opts, :delta, SinceParam.cursor(since))
+
+  defp last_stamp([]), do: nil
+  defp last_stamp(rows), do: rows |> List.last() |> then(&{&1.updated_at, &1.id})
 
   def show(conn, %{"id" => id}) do
     with {:ok, tid} <- IdParam.parse(id),
@@ -118,8 +131,8 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   # quote/price-basis adjustment engine (§2, issue #590) is not in yet, so a
   # split booked through the generic endpoint would produce a phantom
   # valuation/TTWROR spike. Reject it at this public boundary, before any
-  # write. The domain `Ledger.create_transaction/2` stays permissive so the
-  # fan-out shell (later slice) and the fold tests can create splits through it.
+  # write. The domain `Ledger.create_transaction/3` refuses a split too unless
+  # the split flow calls it (K10); this boundary keeps its own message.
   @split_rejection %{
     type: [
       "split transactions are booked via the dedicated split flow, not the generic transaction endpoint"
@@ -158,6 +171,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
         nil -> not_found(conn)
         :error -> not_found(conn)
         {:error, :not_found} -> not_found(conn)
+        {:error, :raced} -> raced(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     end
@@ -237,6 +251,20 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     conn
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
+  end
+
+  # #1214: the update lost a lock cycle with a concurrent write (40P01) and
+  # wrote nothing; reading the booking again and retrying decides.
+  defp raced(conn) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{
+      errors: %{
+        detail:
+          "transaction changed while it was being saved, and nothing was saved: " <>
+            "read it again and retry the update"
+      }
+    })
   end
 
   defp conflict(conn) do

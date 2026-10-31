@@ -300,6 +300,17 @@ Two neighbours decide what a fix can rest on:
    `Ledger.transaction_for_matcher/2`, as the rate did in 2026-10-07, so the
    matcher stays pure (ADR-0033's fold rule). Full precision, nothing
    rounded (ADR-0016).
+
+   *Note (2026-10-28, security review 2026-10-12, K09; decision T-21):*
+   because the queue is the security's across every portfolio, a split
+   scales **every** open lot of that queue when its date passes, whatever
+   portfolio label the lot carries. A split stays booked one row per
+   positioned portfolio (ADR-0028 §1); the rows of one event, the same date
+   and the same normalized ratio, scale the queue once, in the matcher, and
+   no booking is added for a portfolio that holds nothing. Before the note,
+   a lot the queue had moved to another portfolio's sale was never scaled,
+   and that security's trades, realized gains and sell preview were wrong
+   from the split on.
 3. **A lot without the leg it needs makes its closed trade unavailable**,
    the fallback. A lot lacks it when its sell is in the security's currency
    and the lot was imported before a rate was stored (no native leg), when

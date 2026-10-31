@@ -77,7 +77,8 @@ defmodule Portfolixir.CITest do
   # so that vulnerable dependencies cannot land on the base branch unnoticed.
   #
   # Acceptance criteria:
-  # - The quality job runs `mix deps.audit`.
+  # - The advisories job runs `mix deps.audit` (H63 moved it there from the
+  #   quality job).
   # - The mix_audit dependency stays declared.
   # - The historical "intentionally NOT wired" placeholder is gone.
   test "ci audits hex dependencies for security advisories" do
@@ -93,7 +94,7 @@ defmodule Portfolixir.CITest do
   # As a self-hosted operator upgrading between sprints,
   # I want every sprint merge to produce a version tag and a GitHub release
   # with generated notes,
-  # so that a known-good rollback point and a communicable changelog exist
+  # so that a rollback point and a communicable changelog exist
   # without any manual release work (issue 659, ADR-0026 step 5).
   #
   # Acceptance criteria:
@@ -132,8 +133,9 @@ defmodule Portfolixir.CITest do
   # Acceptance criteria:
   # - The Release workflow also runs on pushes to `main`, but only when the
   #   push touches shipped paths (the release image's and the companion
-  #   image's inputs, the operator's Compose file); docs, tests, planning
-  #   artifacts and CI files make no release.
+  #   image's inputs, the two build contexts' .dockerignore files (#1189),
+  #   the operator's Compose file); docs, tests, planning artifacts and CI
+  #   files make no release.
   # - One job computes the next `YYYY.M.N` (N counts up within the month and
   #   starts at 1), creates an ANNOTATED tag through the API (a tag object,
   #   then the ref), and creates the release in the same job, because a tag
@@ -155,6 +157,12 @@ defmodule Portfolixir.CITest do
 
     for shipped <- ["lib/**", "priv/**", "config/**", "mix.exs", "mix.lock", "mcp-server/src/**"] do
       assert release =~ ~s("#{shipped}"), "#{shipped} is shipped and must trigger a release"
+    end
+
+    # The two build contexts' .dockerignore files decide what enters the
+    # images, so a change to either is a change to what ships (#1189).
+    for context <- [".dockerignore", "mcp-server/.dockerignore"] do
+      assert release =~ ~s(      - "#{context}"\n), "#{context} decides what ships"
     end
 
     for unshipped <- ["docs/**", "test/**", "_bmad-output/**", ".github/**"] do
@@ -195,6 +203,40 @@ defmodule Portfolixir.CITest do
 
     adr = File.read!("docs/decisions/0026-epic-batch-workflow.md")
     assert adr =~ "Amendment: calendar versions made by the Release workflow"
+  end
+
+  # User story (security review 2026-10-12, H66):
+  # As a self-hosted operator pinning or rolling back to a release,
+  # I want the deployment guide to say what a release is: a merged point, cut
+  # on the push to `main` while CI runs on the same commit, not after it,
+  # so that I check the commit's CI run before I rely on it instead of
+  # trusting a label no gate stands behind.
+  #
+  # Acceptance criteria:
+  # - While the calendar release runs on the push itself (no CI result is
+  #   read before the tag is made), the guide, in English and in German,
+  #   calls a release a merged point, not a known-good one, and says to check
+  #   the CI run on the release's commit first.
+  test "the deployment guide calls a release what the workflow makes it" do
+    release = File.read!(".github/workflows/release.yml")
+
+    # The release is cut on the push, beside CI, with nothing that reads CI.
+    assert release =~ ~r/^on:\n  push:\n/m
+    refute release =~ "check-runs"
+    refute release =~ "workflow_run"
+
+    for {path, merged, known_good, check_ci} <- [
+          {"docs/home-deployment.md", "a merged point", ~r/known.good/i,
+           "check that the CI run on its commit passed"},
+          {"docs/de/home-deployment.md", "ein gemergter Stand", ~r/bekannt gute/i,
+           "prüfe, ob der CI-Lauf auf seinem Commit grün war"}
+        ] do
+      guide = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      assert guide =~ merged, "#{path}: a release is not called a merged point"
+      refute guide =~ known_good, "#{path}: a release is still called known-good"
+      assert guide =~ check_ci, "#{path}: no word on checking the release's CI run"
+    end
   end
 
   # The version arithmetic of the calendar job, run as the job runs it: the
@@ -293,7 +335,10 @@ defmodule Portfolixir.CITest do
     assert ci_workflow =~ "actions/setup-node",
            "the MCP gates would otherwise run on whatever Node ubuntu-latest ships"
 
-    assert [[_, ci_major]] = Regex.scan(~r/node-version: ['"](\d+)['"]/, ci_workflow)
+    # The quality job's MCP gates and the advisories job's npm audit (H63)
+    # each set Node up; both name the one major.
+    assert [[_, ci_major]] =
+             ~r/node-version: ['"](\d+)['"]/ |> Regex.scan(ci_workflow) |> Enum.uniq()
 
     # The pinned line is an Active LTS major, not the newest release: type
     # definitions describe the runtime, and the runtime is the one the
@@ -547,7 +592,10 @@ defmodule Portfolixir.CITest do
       assert env_example =~ variable <> "="
     end
 
-    assert env_example =~ "rand-hex-32"
+    # H18 (security review 2026-10-12): the database password ships empty,
+    # so Compose refuses to start until it is set, with how to generate it.
+    assert env_example =~ ~r/^POSTGRES_PASSWORD=$/m
+    assert env_example =~ "openssl rand -hex 32"
   end
 
   # User story (E25 S2, F08):
@@ -1017,25 +1065,26 @@ defmodule Portfolixir.CITest do
   # called an audit endpoint the registry is retiring.
   #
   # Acceptance criteria:
-  # - In the quality job the npm audit step runs after the Setup Node step
-  #   (Node 24, the pinned line) — CI 1558 ran it before, on the image's npm,
+  # - In the advisories job (H63 moved it there from the quality job) the
+  #   npm audit step runs after the Setup Node step
+  #   (Node 26, the pinned line) — CI 1558 ran it before, on the image's npm,
   #   and failed on the retiring quick-audit endpoint's 400.
   # - The gate is unchanged: `--audit-level=high`, no `|| true`, no
   #   `continue-on-error`.
   test "the npm audit runs on the pinned Node and keeps its level" do
     ci = File.read!(".github/workflows/ci.yml")
-    [_before, quality] = String.split(ci, ~r/^  quality:$/m, parts: 2)
-    quality = quality |> String.split(~r/^  [a-z-]+:$/m) |> hd()
+    [_before, advisories] = String.split(ci, ~r/^  advisories:$/m, parts: 2)
+    advisories = advisories |> String.split(~r/^  [a-z-]+:$/m) |> hd()
 
-    {setup_node, _} = :binary.match(quality, "uses: actions/setup-node@")
+    {setup_node, _} = :binary.match(advisories, "uses: actions/setup-node@")
 
     {audit, _} =
-      :binary.match(quality, "run: npm audit --audit-level=high --prefix mcp-server")
+      :binary.match(advisories, "run: npm audit --audit-level=high --prefix mcp-server")
 
     assert setup_node < audit, "the npm audit runs before the pinned Node is set up"
-    assert quality =~ ~s(node-version: "24")
+    assert advisories =~ ~s(node-version: "26")
 
-    audit_step = binary_part(quality, audit, byte_size(quality) - audit)
+    audit_step = binary_part(advisories, audit, byte_size(advisories) - audit)
     audit_step = audit_step |> String.split("\n      - name:") |> hd()
     refute audit_step =~ "|| true"
     refute audit_step =~ "continue-on-error"
@@ -1174,12 +1223,16 @@ defmodule Portfolixir.CITest do
   #   listener, then reads the page, an API read with the generated token and
   #   a companion tool call with the companion's token. A token reaches curl
   #   on its standard input, never on its command line.
+  # - Before the build, the runner's Docker daemon pulls Docker Hub images
+  #   through Google's mirror (#1218): the base images are named by digest,
+  #   so the mirror serves the same bytes, and Docker Hub's unauthenticated
+  #   quota, which a shared runner's neighbours can spend, is not involved.
   # - On a failure it prints `docker compose ps` and `docker compose logs`;
   #   it always ends with `docker compose down -v`. It pushes and publishes
   #   nothing.
   # - It builds when the change touches a path release.yml cuts a release
-  #   for, a .dockerignore file or ci.yml, and skips the build otherwise:
-  #   its own filter, run against a scratch repository, says so.
+  #   for (a .dockerignore file among them) or ci.yml, and skips the build
+  #   otherwise: its own filter, run against a scratch repository, says so.
   test "the compose-smoke job builds, starts and reads the Compose deployment" do
     job = job!(ci_workflow(), "compose-smoke")
 
@@ -1192,6 +1245,17 @@ defmodule Portfolixir.CITest do
 
     up = job |> step!("Build and start the Compose stack") |> run_scripts() |> Enum.join("\n")
     assert String.trim(up) == "docker compose up --build -d"
+
+    [mirror] =
+      job |> step!("Pull Docker Hub images through Google's mirror") |> run_scripts()
+
+    assert mirror =~ ~s("registry-mirrors": ["https://mirror.gcr.io"])
+    assert mirror =~ "/etc/docker/daemon.json"
+    assert mirror =~ "systemctl restart docker"
+
+    {mirrored, _} = :binary.match(job, "- name: Pull Docker Hub images through Google's mirror")
+    {built, _} = :binary.match(job, "- name: Build and start the Compose stack")
+    assert mirrored < built, "the daemon is pointed at the mirror after the build pulled"
 
     # Every secret docker-compose.yml requires, and only those, generated here.
     required =
@@ -1241,8 +1305,9 @@ defmodule Portfolixir.CITest do
     assert teardown =~ ~r/^\s+if: always\(\)/m
     assert teardown =~ "docker compose down -v"
 
-    # The filter builds on the paths release.yml ships, the build contexts'
-    # .dockerignore files and this workflow, and on nothing else.
+    # The filter builds on the paths release.yml ships (the build contexts'
+    # .dockerignore files among them since #1189) and this workflow, and on
+    # nothing else.
     [filter] = job |> step!("Decide whether the change touches the build") |> run_scripts()
 
     [release_paths] =
@@ -1257,8 +1322,8 @@ defmodule Portfolixir.CITest do
     pathspecs =
       ~r/':\(glob\)([^']+)'/ |> Regex.scan(filter, capture: :all_but_first) |> List.flatten()
 
-    assert pathspecs ==
-             shipped ++ [".dockerignore", "mcp-server/.dockerignore", ".github/workflows/ci.yml"]
+    assert ".dockerignore" in shipped and "mcp-server/.dockerignore" in shipped
+    assert pathspecs == shipped ++ [".github/workflows/ci.yml"]
 
     for step <- steps(job),
         not (step =~ ~r/^\s+- name: (Checkout|Decide whether the change touches the build)$/m) do
@@ -1349,7 +1414,9 @@ defmodule Portfolixir.CITest do
   #
   # Acceptance criteria:
   # - Every remote hook repository's `rev:` is a 40-hex commit SHA, with the
-  #   tag it was resolved from in a `# frozen: vX.Y.Z` comment.
+  #   tag it was resolved from in a `# frozen: vX.Y.Z` comment. (Since H65
+  #   no remote hook repository remains: the hygiene hooks are local and run
+  #   on the hash-pinned pre-commit-hooks, pre_commit_hooks_test.exs.)
   # - CI installs pre-commit with `--require-hashes`, wheels only, from
   #   .github/pre-commit/requirements.txt; `pip install --upgrade
   #   pre-commit` is gone.
@@ -1360,7 +1427,6 @@ defmodule Portfolixir.CITest do
     remote_repos = Regex.scan(~r/^\s*- repo: https:\/\//m, config)
     revs = Regex.scan(~r/^\s+rev: (.*)$/m, config, capture: :all_but_first)
 
-    assert remote_repos != []
     assert length(revs) == length(remote_repos), "a remote hook repository has no rev"
 
     for [rev] <- revs do
@@ -1432,7 +1498,9 @@ defmodule Portfolixir.CITest do
   #
   # Acceptance criteria:
   # - Every CI service container names an exact PostgreSQL tag and a sha256
-  #   digest, the same in every job.
+  #   digest, the same in every job, and pulls it through Google's Docker Hub
+  #   mirror, so no unauthenticated Docker Hub quota a shared runner can spend
+  #   turns a job red (#1218); the digest keeps the image byte-identical.
   # - Both stages of the MCP image name one Node tag with a sha256 digest.
   # - The agent install script hard-codes a SHA-256 for the OTP and the
   #   Elixir archive; a version override without its own checksum is refused.
@@ -1443,7 +1511,7 @@ defmodule Portfolixir.CITest do
     images = Regex.scan(~r/^\s+image: (.*)$/m, ci_workflow(), capture: :all_but_first)
     assert images != []
     assert [[image]] = Enum.uniq(images), "CI jobs disagree on the database image"
-    assert image =~ ~r/^postgres:\d+\.\d+@sha256:[0-9a-f]{64}$/
+    assert image =~ ~r/^mirror\.gcr\.io\/library\/postgres:\d+\.\d+@sha256:[0-9a-f]{64}$/
 
     froms = Regex.scan(~r/^FROM (\S+)/m, File.read!("mcp-server/Dockerfile"))
     assert [[_, build], [_, runtime]] = froms
@@ -1473,6 +1541,69 @@ defmodule Portfolixir.CITest do
     assert status != 0
     assert output =~ "refusing"
   end
+
+  # User story (security review 2026-10-12, H68):
+  # As the owner whose merge rests on green gates instead of a read of the
+  # workflows,
+  # I want the workflows' pull-request trust model pinned: least-privilege
+  # tokens declared for each whole workflow, and no trigger that runs with a
+  # write token or secrets on behalf of someone else's change,
+  # so that a change that widens a token or adds such a trigger fails a gate
+  # instead of passing every one.
+  #
+  # Acceptance criteria:
+  # - Every workflow declares workflow-level `permissions:`: ci.yml and
+  #   commit-authorship.yml exactly `contents: read`, release.yml exactly
+  #   `contents: write`; a new workflow needs its own entry here.
+  # - No job widens its workflow's token: a job-level `permissions:` names
+  #   only scopes the workflow grants, at the same or a lower level.
+  # - No workflow is triggered by pull_request_target, workflow_run or
+  #   issue_comment.
+  test "every workflow pins its token and refuses the triggers that run foreign changes with it" do
+    expected = %{
+      ".github/workflows/ci.yml" => %{"contents" => "read"},
+      ".github/workflows/commit-authorship.yml" => %{"contents" => "read"},
+      ".github/workflows/release.yml" => %{"contents" => "write"}
+    }
+
+    paths = Path.wildcard(".github/workflows/*.{yml,yaml}")
+    assert Enum.sort(paths) == Enum.sort(Map.keys(expected)), "a workflow has no entry here"
+
+    for path <- paths do
+      workflow = YamlElixir.read_from_file!(path)
+      granted = workflow["permissions"]
+
+      assert granted == expected[path],
+             "#{path}: workflow-level permissions are #{inspect(granted)}, " <>
+               "not #{inspect(expected[path])}"
+
+      for {job, spec} <- workflow["jobs"], Map.has_key?(spec, "permissions") do
+        assert is_map(spec["permissions"]),
+               "#{path}: job #{job} grants #{inspect(spec["permissions"])}"
+
+        for {scope, level} <- spec["permissions"] do
+          assert permission_rank(level) <= permission_rank(granted[scope]),
+                 "#{path}: job #{job} widens #{scope} to #{level}"
+        end
+      end
+
+      triggers =
+        case workflow["on"] do
+          on when is_map(on) -> Map.keys(on)
+          on -> List.wrap(on)
+        end
+
+      assert triggers != [], "#{path}: no trigger read"
+
+      for trigger <- ~w(pull_request_target workflow_run issue_comment) do
+        refute trigger in triggers, "#{path}: triggered by #{trigger}"
+      end
+    end
+  end
+
+  defp permission_rank("write"), do: 2
+  defp permission_rank("read"), do: 1
+  defp permission_rank(_none), do: 0
 
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
 

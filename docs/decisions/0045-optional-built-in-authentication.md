@@ -86,6 +86,13 @@ session's LiveViews, and rotating `SECRET_KEY_BASE` invalidates every session
 everywhere. With longer-lived cookies that second lever is the one to
 document, and `SECURITY.md` now does.
 
+**Note (2026-10-28, security review 2026-10-12, H19): an open page keeps the
+lifetime too.** A page mounted inside the lifetime re-checks the session it
+mounted with before each event and when the stamp runs out, and is then sent
+to the login; the stamp is still renewed only by a browser request, never over
+the socket. A `PORTFOLIXIR_SESSION_DAYS` that is not a whole number of days
+keeps falling back to 30 and is named in a startup warning.
+
 **Amendment, 2026-09-24 (E25 S1, #886): a session is bound to the password.**
 The 2026-09-24 security review (F02) found that changing
 `PORTFOLIXIR_UI_PASSWORD` left every existing session valid, because a session
@@ -123,6 +130,18 @@ person chooses it and no floor holds its length (a startup warning names a short
 what bounds guessing it. Whether the login should let a correct password
 through its lock is a separate question, which nobody has asked. The bullet "The `/api/v1` routes
 are untouched" still holds: the UI password is never accepted there.
+
+**Correction (2026-10-28, Sprint 21, #1202, security review H20): the floor
+checks length only.** The note above credits the 32-byte floor with making a
+locked guesser's right guess infeasible. The floor checks a token's length
+and refuses the placeholders, nothing more: one character repeated 32 times
+passes it. Under compare-first the lock labels wrong tokens and slows
+nothing, so what makes the guess infeasible is a random token from `openssl
+rand -base64 48`, which the documentation now says wherever a token is set
+(#1202, answer (a)). The floor stays a length check, since an entropy floor
+would refuse tokens that work today; the application and the companion name a
+token with few distinct characters in a startup warning instead (T-17 of the
+2026-10-12 security triage).
 
 ### 2. The deployment contract
 
@@ -199,3 +218,20 @@ still binds loopback unless told otherwise.
 | Should authentication cover the API too? | **Answered, no:** the bearer tokens stay the agent's credential (§3). |
 | Multi-user, roles, per-portfolio access? | **Deferred, with reason:** NFR-6 says one operator; the parking lot (#340) holds multi-user as a vision item, and nothing in this review needs it. |
 | Should the UI password gate Phase 3 credential storage? | **Deferred to the Phase 3 ADR:** this ADR discharges the precondition; how Phase 3 uses it is that ADR's to say. |
+
+## Note (2026-10-31): the claims pinned, and one sentence narrowed (security review 2026-10-12, H25)
+
+Nothing above changes; this note records what the code does where the
+record's words reach further, and which tests now hold its claims.
+
+- **"One new test family in the invariant suite"** (Consequences) is wider
+  than what shipped: the Host guard, the cookie attributes and the socket
+  mount are tested beside the modules they exercise
+  (`test/portfolixir_web/host_guard_test.exs`, `session_hardening_test.exs`,
+  `ui_auth_test.exs`), not under `test/invariants/`. `mix test` runs both,
+  so the guarantee is the same; only the location differs.
+- **Pinned since:** the LiveView signing salt a release derives from
+  `SECRET_KEY_BASE` (§2; `live_socket_origin_test.exs`), the password absent
+  from the log at debug level on a right and a wrong login (§1), and the API
+  refusing a logged-in session without a bearer token and the UI password as
+  a bearer token (§1, §3; `ui_auth_boundaries_test.exs`).

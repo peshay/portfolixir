@@ -132,6 +132,36 @@ defmodule Portfolixir.WriteActorTest do
                   delete_all insert_or_update insert_or_update!)a
   @multi_writes ~w(insert update delete insert_all update_all delete_all insert_or_update)a
 
+  # Writers named one by one, because the classifier below follows only
+  # same-file calls and does not see a write made through another module (a
+  # store, a sibling context). Each was found writing under a fixed actor
+  # (security review 2026-10-12, decision T-16): every clause takes the
+  # actor first.
+  @pinned_actor_first %{
+    {Portfolixir.Catalog, :set_logo_override} => "lib/portfolixir/catalog.ex",
+    {Portfolixir.Catalog, :remove_logo} => "lib/portfolixir/catalog.ex",
+    {Portfolixir.Catalog, :rediscover_logo} => "lib/portfolixir/catalog.ex",
+    {Portfolixir.Classifications, :reclassify_securities} => "lib/portfolixir/classifications.ex",
+    {Portfolixir.Classifications, :reset_asset_class} => "lib/portfolixir/classifications.ex",
+    {Portfolixir.Settings, :set_default_view} => "lib/portfolixir/settings.ex",
+    {Portfolixir.Catalog.LogoStore, :store_manual_bytes} =>
+      "lib/portfolixir/catalog/logo_store.ex"
+  }
+
+  test "every pinned writer takes an Actor first in every clause" do
+    violations =
+      for {{module, name}, file} <- @pinned_actor_first,
+          clauses = file |> File.read!() |> Code.string_to_quoted!() |> collect_defs(),
+          named = Enum.filter(clauses, &(&1.kind == :def and &1.name == name)),
+          named == [] or not Enum.all?(named, &actor_first?(&1.args)) do
+        {module, name, Enum.map(named, & &1.arity)}
+      end
+
+    assert violations == [],
+           "pinned writers missing (or not taking) an Actor first argument:\n" <>
+             Enum.map_join(violations, "\n", &inspect/1)
+  end
+
   test "every public context writer is actor-first, excluded, or grandfathered" do
     violations =
       for {module, _file} <- @context_files,

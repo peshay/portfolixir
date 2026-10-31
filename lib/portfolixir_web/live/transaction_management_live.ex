@@ -872,6 +872,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> close_drawer()
          |> failure(gone_message())
          |> load_state()}
+
+      :raced ->
+        {:noreply,
+         socket
+         |> assign(:editing_fixed, %{socket.assigns.editing_fixed | notes: notes})
+         |> failure(raced_message())}
     end
   end
 
@@ -886,6 +892,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   defp gone_message, do: gettext("That transaction no longer exists.")
+
+  defp raced_message,
+    do:
+      gettext(
+        "That transaction changed while it was being saved, so nothing was saved. Try again."
+      )
 
   # The kinds the drawer books are buy and sell (AGENTS.md goal 4); every
   # other row opens notes-only: the row as stored now (its note current),
@@ -959,7 +971,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   defp save_booking(socket, params, prepared) do
-    case book(socket.assigns.editing_id, prepared) do
+    case book_trade(socket.assigns.editing_id, prepared) do
       {:ok, _transaction} ->
         {:noreply,
          socket
@@ -986,7 +998,32 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:editing_id, nil)
          |> failure(gone_message())
          |> load_state()}
+
+      # The drawer keeps what was typed, as on a refusal.
+      :raced ->
+        {:noreply,
+         socket
+         |> assign(:transaction_form, params)
+         |> failure(raced_message())}
     end
+  end
+
+  # K10: the drawer books the kinds its select offers, buy and sell, and no
+  # other: any other kind pushed at it writes nothing and is answered with the
+  # booking's own field errors plus an invalid type. A split is booked through
+  # the split flow only.
+  defp book_trade(id, params) do
+    if params["type"] in Transaction.manual_trade_types(),
+      do: book(id, params),
+      else: {:error, refused_kind(params)}
+  end
+
+  defp refused_kind(params) do
+    changeset = Transaction.changeset(%Transaction{}, params)
+
+    if Keyword.has_key?(changeset.errors, :type),
+      do: changeset,
+      else: Ecto.Changeset.add_error(changeset, :type, "is invalid", validation: :inclusion)
   end
 
   # #809: the one place the two ledger calls diverge. A booking that vanished
@@ -999,6 +1036,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         # Deleted between this read and the write's lock (E25 S6, F49).
         case Ledger.update_transaction(Actor.owner_ui(), transaction, params) do
           {:error, :not_found} -> :gone
+          # Lost a lock cycle with a concurrent write and saved nothing (#1214).
+          {:error, :raced} -> :raced
           result -> result
         end
 
@@ -2259,7 +2298,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <label>
             <span><%= gettext("Type") %></span>
             <select name="transaction[type]">
-              <%= for type <- ["buy", "sell"] do %>
+              <%= for type <- Transaction.manual_trade_types() do %>
                 <option value={type} selected={type == @transaction_form["type"]}>
                   <%= tx_type_label(type) %>
                 </option>

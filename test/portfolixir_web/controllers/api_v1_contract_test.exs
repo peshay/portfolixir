@@ -49,71 +49,273 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 21, the security batch of 2026-10-12 (version 18): Lane S's one
+    # entry, its items named by the triage's identifiers and grouped by its
+    # lanes. No route, tool or prompt is added or removed.
+    assert newest["version"] == 18
+    assert newest["date"] == "2026-10-29"
+    assert newest["summary"] =~ "Sprint 21, the security batch of 2026-10-12"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+
+    for lane <- ["S1", "S2", "S4", "S6", "S7"] do
+      assert newest["summary"] =~ lane, lane
+    end
+
+    for id <-
+          ~w(H03 H20 #1202 K16 H01 H02 H30 H31 H36 H37 K06 H35 K09 K11 K07 K17 #1214 H60 H54 H61 H11 H12 H13 H14 K12) do
+      assert newest["summary"] =~ id, id
+
+      assert Enum.any?(
+               newest["parameters"],
+               &(&1 =~ "(#{id}" or &1 =~ "#{id})" or &1 =~ "#{id};" or &1 =~ ", #{id}")
+             ),
+             id
+    end
+
+    # The S7 text rows arrived; no placeholder is left in the entry.
+    refute Enum.any?(newest["parameters"], &(&1 =~ "pending"))
+
+    # S1 (H03): IPv6 per /64, and 429 past the first-failure ceiling.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "Every authenticated /api/v1 route") and
+                 &1 =~ "/64" and &1 =~ "429 with Retry-After, where it was answered 401" and
+                 &1 =~ "(H03)")
+           )
+
+    # S2 (K16): the companion refuses to start beside Node's environment proxy.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "The MCP companion's start") and &1 =~ "NO_PROXY" and
+                 &1 =~ "refuses to start" and &1 =~ "(K16)")
+           )
+
+    # S4 (H01, H02): the server's own bounds.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "2,000,000 bytes is answered 413" and &1 =~ "100 levels" and
+                 &1 =~ "multipart" and &1 =~ "(H01, H02)")
+           )
+
+    # S4 (H30, H31, H36, H37): a malformed value is a 422 naming its field.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "PUT /api/v1/tax/parameters") and
+                 &1 =~ "errors.church_tax_rates" and &1 =~ "(H30)")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.classifications.categories.update" and
+                 &1 =~ "-2147483648 to 2147483647" and &1 =~ "errors.position" and
+                 &1 =~ "(H31)")
+           )
+
+    assert Enum.any?(newest["parameters"], &(&1 =~ "before any lookup" and &1 =~ "(H36)"))
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "market_cap_rank must be a whole number" and
+                 &1 =~ "sort=attr_market_cap_rank" and &1 =~ "(H37)")
+           )
+
+    # S4 (K06): a legacy zero rate is no rate.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "GET /api/v1/valuation" and &1 =~ "is no rate" and
+                 &1 =~ "portfolixir.exchange_rates.list" and &1 =~ "(K06)")
+           )
+
+    # S6 (H35): a cross-currency trade with a rate and neither amount.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/transactions and PATCH") and
+                 &1 =~ "is required for a cross-currency trade without a settlement amount" and
+                 &1 =~ "currency_code, cash_account_id or securities_account_id" and
+                 &1 =~ "(H35;")
+           )
+
+    # S6 (K09): a split scales the security's whole FIFO queue.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.trades.list" and &1 =~ "portfolixir.cashflow.realized_gains" and
+                 &1 =~ "every open lot of the security's FIFO queue" and &1 =~ "(K09;")
+           )
+
+    # S6 (K11): the security merge preview states the FIFO restatement.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities/:id/merge_preview") and
+                 &1 =~ "fifo_realized" and &1 =~ "fifo_basis" and
+                 &1 =~ "portfolixir.securities_accounts.merge_preview" and &1 =~ "(K11)")
+           )
+
+    # S6 (K07): an unconverted payment is excluded and named.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/income") and
+                 &1 =~ "excluded {count, currencies" and &1 =~ "computation_basis" and
+                 &1 =~ "null" and &1 =~ "(K07)")
+           )
+
+    # S6 (K17): a capped delta read is a page.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/transactions, GET /api/v1/securities") and
+                 &1 =~ "truncated" and &1 =~ "has_more" and &1 =~ "<ISO8601 instant>~<id>" and
+                 &1 =~ "portfolixir.policy_rules.list" and &1 =~ "(K17)")
+           )
+
+    # S6 (#1214): a lost lock cycle is a retryable 409.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "PATCH /api/v1/transactions/:id") and
+                 &1 =~ "read it again and retry the update" and &1 =~ "(#1214)")
+           )
+
+    # S6 (H60, H54): the writers take turns.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/splits") and &1 =~ "take turns" and
+                 &1 =~ "(H60, H54)")
+           )
+
+    # S6 (H61): the logo writes and the default view name their actor.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "PUT /api/v1/settings/default_view" and &1 =~ "logo_source_host" and
+                 &1 =~ "resource_type setting" and &1 =~ "(H61;")
+           )
+
+    # S7 (H11): merge refusals carry identifiers as data.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.securities.merge_preview" and &1 =~ "errors.source_isin" and
+                 &1 =~ "errors.isins" and &1 =~ "(H11;")
+           )
+
+    # S7 (H12): the text rule covers every default-ignorable character.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "Default_Ignorable_Code_Point" and
+                 &1 =~ "a variation selector without a base it can vary" and
+                 &1 =~ "[U+XXXX]" and &1 =~ "(H12;")
+           )
+
+    # S7 (H13): add_version is hinted destructive and held from book.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "portfolixir.policy_rules.add_version") and
+                 &1 =~ "destructiveHint is true" and &1 =~ "PORTFOLIXIR_MCP_PROFILE=book" and
+                 &1 =~ "(H13)")
+           )
+
+    # S7 (H14, K12): who named a rule, who recorded and corrected a tax row.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "name_author" and &1 =~ "rule_name_author" and &1 =~ "(H14)")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "corrected_by" and &1 =~ "agent_institutions" and &1 =~ "(K12;")
+           )
+
+    # Entry 17's #974 item, corrected in place with entry 18 (H20, #1202): a
+    # token generated as documented, not the 32-byte floor, makes a right
+    # guess infeasible.
+    gamma = Enum.find(data["entries"], &(&1["version"] == 17))
+
+    assert Enum.any?(
+             gamma["parameters"],
+             &(String.starts_with?(&1, "Every authenticated /api/v1 route") and
+                 &1 =~ "not the 32-byte floor" and
+                 not (&1 =~ "which the 32-byte floor makes infeasible"))
+           )
+
+    # Entry 8's text-rule items, corrected in place with entry 18 (H12): a
+    # lone variation selector passes only after a base it can vary.
+    sprint16 = Enum.find(data["entries"], &(&1["version"] == 8))
+
+    assert Enum.any?(
+             sprint16["parameters"],
+             &(String.starts_with?(&1, "Every write that stores a name") and
+                 &1 =~ "only after a base it can vary" and
+                 not (&1 =~ "a single variation selector passes"))
+           )
+
+    assert Enum.any?(
+             sprint16["parameters"],
+             &(String.starts_with?(&1, "Every MCP tool's result") and
+                 &1 =~ "one without a base it can vary")
+           )
+
     # Sprint 20, commit group γ (version 17; β's 16 sits beneath it once the
     # groups are put in order): the agent's reads and writes, one entry for
     # the group, opened by C2's first surface change and extended by each
     # story after it. No route and no tool is added.
-    assert newest["version"] == 17
-    assert newest["date"] == "2026-10-08"
-    assert newest["summary"] =~ "Sprint 20 γ"
-    assert newest["endpoints"] == []
-    assert newest["tools"] == []
+    assert gamma["version"] == 17
+    assert gamma["date"] == "2026-10-08"
+    assert gamma["summary"] =~ "Sprint 20 γ"
+    assert gamma["endpoints"] == []
+    assert gamma["tools"] == []
 
     # #1103: the securities list takes is_retired, and a data_quality set
     # beside a narrowing it contradicts matches nothing.
-    assert newest["summary"] =~ "#1103"
+    assert gamma["summary"] =~ "#1103"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities?is_retired=") and
                  &1 =~ "portfolixir.securities.list" and &1 =~ "is_benchmark=true" and
                  &1 =~ "empty list" and &1 =~ "#1103")
            )
 
     # #1113: a data_quality set pages after its rule.
-    assert newest["summary"] =~ "#1113"
+    assert gamma["summary"] =~ "#1113"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities?data_quality=&limit=&offset=") and
                  &1 =~ "after the rule" and &1 =~ "#1113")
            )
 
     # #1133: the target writes take an optional plan_id, and an archived
     # plan is refused.
-    assert newest["summary"] =~ "#1133"
+    assert gamma["summary"] =~ "#1133"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "PUT /api/v1/portfolios/:portfolio_id/targets") and
                  &1 =~ "plan_id" and &1 =~ "is archived" and
                  &1 =~ "portfolixir.targets.delete_position" and &1 =~ "#1133")
            )
 
     # #1143: a refused target or cash-target weight names its row.
-    assert newest["summary"] =~ "#1143"
+    assert gamma["summary"] =~ "#1143"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(&1 =~ "PUT /api/v1/portfolios/:portfolio_id/cash_target" and &1 =~ "errors.row" and
                  &1 =~ "\"cash\"" and &1 =~ "#1143")
            )
 
     # #1135: the plan tools' descriptions name position targets.
-    assert newest["summary"] =~ "#1135"
+    assert gamma["summary"] =~ "#1135"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "portfolixir.plans.duplicate and portfolixir.plans.delete") and
                  &1 =~ "position targets" and &1 =~ "#1135")
            )
 
     # #940 (C3): a parent past the tree's 32nd level is refused on parent_id,
     # and the category tools name the bound.
-    assert newest["summary"] =~ "#940"
+    assert gamma["summary"] =~ "#940"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(
                  &1,
                  "POST /api/v1/classifications/:classification_id/categories"
@@ -124,10 +326,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #953 (C3): an assignment's entry carries its before-image; a resent set
     # and a clear of an inheriting position leave none.
-    assert newest["summary"] =~ "#953"
+    assert gamma["summary"] =~ "#953"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/journal (portfolixir.journal.list)") and
                  &1 =~ "position_bucket_override" and
                  &1 =~ "a clear of a position that already inherits leaves no entry" and
@@ -136,10 +338,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #965 (C3): a delete's policy-rule 409 and an account merge's guard
     # name records by their ids.
-    assert newest["summary"] =~ "#965"
+    assert gamma["summary"] =~ "#965"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "DELETE /api/v1/securities/:id, DELETE /api/v1/views/:id") and
                  &1 =~ "is read by N policy rule(s): #<id> (<status>)" and
                  &1 =~ "portfolixir.cash_accounts.merge_preview" and
@@ -149,7 +351,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # #965, the γ closing act (security lens): a re-booked split's 422 names
     # its portfolio by id.
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/securities/:security_id/isin-change") and
                  &1 =~ "POST /api/v1/splits (portfolixir.splits.create)" and
                  &1 =~ "for portfolio #<id>" and &1 =~ "#965")
@@ -157,11 +359,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #956 (C3) and #1137 (C4): the companion's HTTP listener compares a
     # browser's Origin whole, and binds loopback for an empty host.
-    assert newest["summary"] =~ "#956"
-    assert newest["summary"] =~ "#1137"
+    assert gamma["summary"] =~ "#956"
+    assert gamma["summary"] =~ "#1137"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "The MCP companion's HTTP listener") and
                  &1 =~ "origin not allowed" and &1 =~ "PORTFOLIXIR_MCP_ALLOWED_HOSTS" and
                  &1 =~ "[::1]" and &1 =~ "#956" and
@@ -173,7 +375,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # brackets reads as the loopback default, and the allowed hosts compare
     # in lower case.
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "The MCP companion's HTTP listener") and
                  &1 =~ "and so does an empty pair of brackets ([])" and
                  &1 =~ "compared in lower case" and
@@ -182,10 +384,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #974 (C4, the plan's D-11): the bearer checks compare the token first,
     # on the API and on the companion.
-    assert newest["summary"] =~ "#974"
+    assert gamma["summary"] =~ "#974"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "Every authenticated /api/v1 route") and
                  &1 =~ "the MCP companion's HTTP listener" and
                  &1 =~ "a correct token passes while its source is locked out" and
@@ -197,7 +399,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # where the 32-byte floor holds; a from-source server reading
     # PORTFOLIXIR_API_TOKEN alone holds it to none and stays lock-first.
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "Every authenticated /api/v1 route") and
                  &1 =~ "while every configured token meets the 32-byte floor" and
                  &1 =~ "reads PORTFOLIXIR_API_TOKEN alone holds it to none" and
@@ -207,10 +409,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #1159 (C5): a security merge records an ISIN choice and its date only
     # where it made the choice; a stored record keeps what it holds.
-    assert newest["summary"] =~ "#1159"
+    assert gamma["summary"] =~ "#1159"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/securities/:id/merge") and
                  &1 =~ "portfolixir.merges.list" and
                  &1 =~ "manifest.choices holds identity_choice and isin_changed_on only where" and
@@ -219,10 +421,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #1159's rule on the collapse choice (D-14): every merge records
     # collapse_key_equal only where it had key-equal pairs.
-    assert newest["summary"] =~ "collapse_key_equal only where it had key-equal pairs"
+    assert gamma["summary"] =~ "collapse_key_equal only where it had key-equal pairs"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/cash_accounts/:id/merge") and
                  &1 =~ "portfolixir.merges.list" and
                  &1 =~
@@ -232,10 +434,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # #1127 (C6): a security write that leaves the class empty stores bond
     # for a name with an explicit bond word; a stored class is kept.
-    assert newest["summary"] =~ "#1127"
+    assert gamma["summary"] =~ "#1127"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/securities and PATCH") and
                  &1 =~ "stores bond where the name carries an explicit bond word" and
                  &1 =~ "A class stored before is kept" and &1 =~ "#1127")
@@ -244,10 +446,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # #1154, the γ closing act (correctness hunter): the contribution
     # analytics' stored rows gained the WKN, so both move to computation
     # version 3; the payload is unchanged.
-    assert newest["summary"] =~ "#1154"
+    assert gamma["summary"] =~ "#1154"
 
     assert Enum.any?(
-             newest["parameters"],
+             gamma["parameters"],
              &(String.starts_with?(
                  &1,
                  "GET /api/v1/portfolios/:portfolio_id/performance/contribution"

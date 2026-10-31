@@ -129,7 +129,10 @@ defmodule Portfolixir.Portfolios.IncomeTest do
     assert Decimal.equal?(years[2025].dividends_total, Decimal.new("100"))
   end
 
-  test "falls back to parity and flags an unconvertible booking when no rate exists" do
+  # Security review 2026-10-12, K07: a booking with no rate path stays out
+  # of every base-currency total and is named, as the sibling Cash-flow
+  # facets do; it is never counted at parity.
+  test "excludes and names an unconvertible booking when no rate exists" do
     # No EUR/GBP rate is stored, so the GBP dividend cannot be converted.
     world = WorldFixtures.base_world(currency: "EUR", cash_currency: "GBP")
     security = WorldFixtures.create_security!(name: "UK Payer", ticker: "UKP", currency: "GBP")
@@ -139,12 +142,21 @@ defmodule Portfolixir.Portfolios.IncomeTest do
     income = Income.for_portfolio(world.portfolio.id)
 
     assert income.unconverted_count == 1
-    # Converted at parity (no rate), so the GBP amount carries through unchanged.
-    row = Enum.find(income.positions, &(&1.security_id == security.id))
-    assert Decimal.equal?(row.gross, Decimal.new("100"))
+    refute Enum.any?(income.positions, &(&1.security_id == security.id))
+    assert income.annual == []
+
+    assert income.excluded == %{
+             count: 1,
+             currencies: [%{currency_code: "GBP", count: 1, securities: ["UK Payer"]}]
+           }
 
     [detail] = Enum.filter(income.transactions, &(&1.year == 2025))
     refute detail.converted
+    assert Decimal.equal?(detail.native_gross, Decimal.new("100"))
+    # No base-currency figure: never the native amount at parity.
+    assert detail.gross == nil
+    assert detail.tax == nil
+    assert detail.net == nil
   end
 
   test "lists per-transaction detail for a year drilldown" do

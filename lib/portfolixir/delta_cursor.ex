@@ -19,9 +19,23 @@ defmodule Portfolixir.DeltaCursor do
   another database role are not visible to this read without the
   `pg_read_all_stats` privilege; the documented deployment runs one role.
   Commit-ordered cursors are the long-term design (issue #897).
+
+  **A capped delta read is a page (K17).** A read bounded by `limit` takes
+  its rows oldest change first, by the change stamp and then the id, and
+  starts after a cursor `{cut, after_id}`: a row qualifies when its stamp
+  lies after `cut`, or on `cut` with an id after `after_id`. A full page
+  hands back the cursor at its last row, so the next page continues there
+  and rows sharing one stamp (an import writes thousands within a second)
+  are neither skipped nor re-read in a loop. `page/3` is that filter and
+  order; the API's `SinceParam` writes and reads the cursor.
   """
 
+  import Ecto.Query, only: [dynamic: 2, order_by: 2, where: 2]
+
   alias Portfolixir.Repo
+
+  @typedoc "Where a paged delta read starts: after `cut`, or on `cut` after `after_id`."
+  @type cursor :: %{cut: NaiveDateTime.t(), after_id: pos_integer() | nil}
 
   @margin_seconds 1
 
@@ -44,5 +58,29 @@ defmodule Portfolixir.DeltaCursor do
     |> Enum.min(DateTime)
     |> DateTime.truncate(:second)
     |> DateTime.add(-@margin_seconds, :second)
+  end
+
+  @doc """
+  Narrows `query` to the rows after `cursor` and orders them by the change
+  stamp, then the id, ascending. `stamp` is the dynamic expression of the
+  row's change stamp over the query's first binding (a column, or a computed
+  stamp such as a rule's latest version write).
+  """
+  @spec page(Ecto.Queryable.t(), Ecto.Query.dynamic_expr(), cursor()) :: Ecto.Query.t()
+  def page(query, stamp, %{cut: %NaiveDateTime{}} = cursor) do
+    query
+    |> where(^after_cursor(stamp, cursor))
+    |> order_by(^[asc: stamp, asc: dynamic([r], r.id)])
+  end
+
+  defp after_cursor(stamp, %{cut: cut, after_id: nil}),
+    do: dynamic([r], ^stamp > type(^cut, :naive_datetime))
+
+  defp after_cursor(stamp, %{cut: cut, after_id: id}) when is_integer(id) do
+    dynamic(
+      [r],
+      ^stamp > type(^cut, :naive_datetime) or
+        (^stamp == type(^cut, :naive_datetime) and r.id > ^id)
+    )
   end
 end

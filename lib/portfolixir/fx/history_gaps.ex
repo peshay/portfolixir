@@ -127,9 +127,12 @@ defmodule Portfolixir.Fx.HistoryGaps do
     end)
   end
 
+  # A stored rate that is not positive is no rate to any lookup
+  # (`Portfolixir.Fx`, K06), so it is no coverage either: the currency stays
+  # open and the backfill fetches it.
   defp earliest_rates do
     from(r in ExchangeRate,
-      where: r.base_currency == ^@hub,
+      where: r.base_currency == ^@hub and r.rate > 0,
       group_by: r.quote_currency,
       select: {r.quote_currency, min(r.date)}
     )

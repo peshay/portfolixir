@@ -6,6 +6,7 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.Isin
+  alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
@@ -18,6 +19,11 @@ defmodule Portfolixir.Catalog.Security do
   @coupon_frequencies ~w(annual semi_annual)
   @coupon_rate_column {9, 6}
   @face_value_column {20, 6}
+
+  # A ticker's shape (#763, #888): no whitespace, no URL syntax, not made only
+  # of dots, at most 64 characters. `changeset/2` and `ticker_valid?/1`
+  # judge by it.
+  @ticker_shape ~r/\A(?!\.+\z)[^\s\/?#%]{1,64}\z/
 
   @type t :: %__MODULE__{}
 
@@ -80,12 +86,13 @@ defmodule Portfolixir.Catalog.Security do
     coupon_frequency maturity_date issue_date face_value face_value_currency_code
   )a
 
-  @logo_keys ~w(logo_path logo_source logo_locked logo_file_missing)
+  @logo_keys ~w(logo_path logo_source logo_source_host logo_locked logo_file_missing)
 
   @doc """
-  The logo bookkeeping (`logo_path`, `logo_source`, `logo_locked`, and since
+  The logo bookkeeping (`logo_path`, `logo_source`, `logo_locked`, since
   #933 `logo_file_missing`, the reconciliation's mark for a path that names no
-  file) is written only by `Portfolixir.Catalog.LogoStore` and the
+  file, and since H61 `logo_source_host`, the host a manual override's URL
+  named) is written only by `Portfolixir.Catalog.LogoStore` and the
   reconciliation through this changeset (#766). A nil value removes the key.
   Every other attribute is left untouched.
   """
@@ -110,6 +117,10 @@ defmodule Portfolixir.Catalog.Security do
     # value, which would otherwise be a failed write.
     |> Text.validate_map(:attributes)
     |> protect_attributes()
+    # The registry's whole-number attributes are typed at write (H37): a
+    # number or its text is stored as a number, anything else is a field
+    # error, so a numeric sort never meets a word.
+    |> type_whole_number_attributes()
     # The map as it will be stored, merged with what is there, is bounded
     # (E25 S6, G02): a writer adding keys on every call cannot grow the row,
     # and each journal entry of it, without end.
@@ -167,9 +178,7 @@ defmodule Portfolixir.Catalog.Security do
     # no whitespace, no URL syntax, not made only of dots (a relative-path
     # segment), bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK,
     # an ISIN, a CoinGecko coin id) pass.
-    |> validate_format(:ticker_symbol, ~r/\A(?!\.+\z)[^\s\/?#%]{1,64}\z/,
-      message: "is not a ticker symbol"
-    )
+    |> validate_format(:ticker_symbol, @ticker_shape, message: "is not a ticker symbol")
     |> validate_format(:online_id, ~r/\A(?!\.+\z)[^\s\/?#%]{1,128}\z/,
       message: "is not a provider id"
     )
@@ -200,6 +209,18 @@ defmodule Portfolixir.Catalog.Security do
   # ISINs at parse).
   @wkn_shape ~r/\A[A-Z0-9]{6}\z/
   @printable_ascii ~r/\A[\x21-\x7E]+\z/
+
+  @doc """
+  Whether `value` is a ticker the catalog stores on a new security: the shape
+  `changeset/2` judges an upper-cased ticker by (#763, #888), for a writer
+  that decides before it writes (an import that drops an unusable ticker
+  instead of failing the file, security review 2026-10-12, H57).
+  """
+  @spec ticker_valid?(term()) :: boolean()
+  def ticker_valid?(value) when is_binary(value),
+    do: Regex.match?(@ticker_shape, String.upcase(value))
+
+  def ticker_valid?(_value), do: false
 
   @doc """
   Whether `value` meets the rule a changed `field` (`:isin`, `:wkn` or
@@ -530,6 +551,38 @@ defmodule Portfolixir.Catalog.Security do
 
       _no_change ->
         changeset
+    end
+  end
+
+  defp type_whole_number_attributes(changeset) do
+    case fetch_change(changeset, :attributes) do
+      {:ok, attributes} when is_map(attributes) ->
+        existing = changeset.data.attributes || %{}
+
+        Enum.reduce(SecurityFields.whole_number_attribute_keys(), changeset, fn key, acc ->
+          type_whole_number(acc, key, Map.get(attributes, key), Map.get(existing, key))
+        end)
+
+      _no_change ->
+        changeset
+    end
+  end
+
+  # A value stored before the rule and left as it is stays (the sort reads it
+  # as empty); only what this write brings is typed.
+  defp type_whole_number(changeset, _key, nil, _existing), do: changeset
+  defp type_whole_number(changeset, _key, same, same), do: changeset
+
+  defp type_whole_number(changeset, key, value, _existing) do
+    case SecurityFields.whole_number(value) do
+      {:ok, number} ->
+        update_change(changeset, :attributes, &Map.put(&1, key, number))
+
+      :error ->
+        add_error(changeset, :attributes, "%{key} must be a whole number",
+          key: key,
+          validation: :whole_number
+        )
     end
   end
 

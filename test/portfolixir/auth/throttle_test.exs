@@ -164,6 +164,80 @@ defmodule Portfolixir.Auth.ThrottleTest do
     assert Throttle.check(:api, key("bystander"), now: now + 30) == :ok
   end
 
+  # User story (security review 2026-10-12, H03):
+  # As the operator,
+  # I want the API scope to stop taking first failures from sources it does
+  # not remember once a rolling ceiling is reached,
+  # so that failures spread over many prefixes cannot grow the table without
+  # bound or hand an unrecorded source unlimited attempts.
+  #
+  # Acceptance criteria:
+  # - The API scope has a first-failure ceiling; the UI scope, whose
+  #   failures the scope-wide ceiling already bounds, has none.
+  # - Past it, a source the scope does not remember is told to wait and its
+  #   failure is not recorded; a source it remembers keeps its own count.
+  # - The ceiling lasts no longer than its window.
+  test "past the first-failure ceiling an unknown source waits and is not recorded" do
+    assert {ceiling, window} = Throttle.new_source_ceiling(:api)
+    assert Throttle.new_source_ceiling(:ui) == nil
+    assert ceiling * 10 <= Throttle.max_rows()
+
+    # A fixed clock long past, so no test on the real clock shares the window.
+    now = 2_000 * window
+    known = key("known")
+    Throttle.failure(:api, known, now: now)
+
+    Enum.each(2..ceiling, fn i -> Throttle.failure(:api, key("first-#{i}"), now: now) end)
+
+    stranger = key("stranger")
+    assert {:locked, seconds} = Throttle.check(:api, stranger, now: now + 30)
+    assert seconds > 0 and seconds <= window
+    Throttle.failure(:api, stranger, now: now + 30)
+    assert :ets.lookup(Throttle, {:api, stranger}) == []
+
+    assert Throttle.check(:api, known, now: now + 30) == :ok
+    Throttle.failure(:api, known, now: now + 30)
+    assert [{_, 2, _, _}] = :ets.lookup(Throttle, {:api, known})
+
+    assert Throttle.check(:api, stranger, now: now + window + 60) == :ok
+  end
+
+  # User story (security review 2026-10-12, H03):
+  # As the operator,
+  # I want first failures from unseen sources counted toward the API scope's
+  # ceiling even once the table holds its cap,
+  # so that a full table cannot switch the ceiling off.
+  #
+  # Acceptance criteria:
+  # - With the table full, an unseen source's failure adds no row, and below
+  #   the ceiling an unseen source is not told to wait.
+  # - Unseen sources still reach the ceiling: past it, an unseen source is
+  #   told to wait.
+  test "a full table still counts unseen sources toward the first-failure ceiling" do
+    {ceiling, window} = Throttle.new_source_ceiling(:api)
+    # A fixed clock long past, so no test on the real clock shares the window.
+    now = 3_000 * window
+
+    try do
+      fill = Throttle.max_rows() - :ets.info(Throttle, :size)
+      Enum.each(1..max(fill, 1), fn i -> Throttle.failure(:full_fill, "fill-#{i}", now: now) end)
+      assert :ets.info(Throttle, :size) >= Throttle.max_rows()
+
+      first = key("unseen-first")
+      Throttle.failure(:api, first, now: now)
+      assert :ets.lookup(Throttle, {:api, first}) == []
+      assert Throttle.check(:api, key("probe"), now: now) == :ok
+
+      Enum.each(2..ceiling, fn i -> Throttle.failure(:api, key("unseen-#{i}"), now: now) end)
+
+      assert {:locked, seconds} = Throttle.check(:api, key("stranger"), now: now + 30)
+      assert seconds > 0 and seconds <= window
+    after
+      :ets.select_delete(Throttle, [{{{:full_fill, :_}, :_, :_, :_}, [], [true]}])
+      :ets.delete(Throttle, {:api, {:new_sources, div(now, 60)}})
+    end
+  end
+
   test "concurrent failures are all counted" do
     source = key("concurrent")
 

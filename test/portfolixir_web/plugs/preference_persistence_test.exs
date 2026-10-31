@@ -3,7 +3,9 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   # parameters on a plain GET, so any site could link the operator's browser
   # to `/?view=…` and rewrite the stored UI scope. A choice is remembered only
   # when the browser says the request came from this origin, from the address
-  # bar or a bookmark, or does not say (an older browser, a script).
+  # bar or a bookmark, or does not say where browsers always say (an older
+  # browser, a script); off loopback over plain HTTP, where no browser says,
+  # only when the Referer names the instance itself (H41).
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
@@ -64,14 +66,18 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   #   S7E-4): the session keeps the stored choice, which every later mount
   #   reads.
   # - The stored choice is what the next request without a parameter reads.
-  # - A GET whose Sec-Fetch-Site is same-origin or none, or that carries none,
-  #   still remembers the choice.
+  # - A GET whose Sec-Fetch-Site is same-origin or none still remembers the
+  #   choice; one that carries none does on loopback, or off it over plain
+  #   HTTP with the instance's own Referer (H41).
   test "a cross-site GET applies a view, benchmark and locale to itself only", %{conn: conn} do
     stored =
       conn
-      |> put_req_cookie(@view_cookie, "total")
-      |> put_req_cookie(@benchmark_cookie, "rate:0.02")
-      |> put_req_cookie(@locale_cookie, "en")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(@view_cookie, "total")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        @benchmark_cookie,
+        "rate:0.02"
+      )
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(@locale_cookie, "en")
 
     for site <- ["cross-site", "same-site"] do
       response =
@@ -102,8 +108,11 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
        %{conn: conn} do
     response =
       conn
-      |> put_req_cookie(@view_cookie, "5")
-      |> put_req_cookie(@benchmark_cookie, "security:3")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(@view_cookie, "5")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        @benchmark_cookie,
+        "security:3"
+      )
       |> from("cross-site")
       |> get("/?view=nope&benchmark_rate=")
 
@@ -131,8 +140,8 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
 
     stored =
       conn
-      |> put_req_cookie(@view_cookie, "total")
-      |> put_req_cookie(@locale_cookie, "en")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(@view_cookie, "total")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(@locale_cookie, "en")
       |> from("cross-site")
 
     {:ok, page, html} = live(stored, "/portfolio?view=#{view.id}&locale=de")
@@ -194,13 +203,28 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   end
 
   test "a same-origin, typed or unlabelled GET remembers the choice", %{conn: conn} do
-    for site <- ["same-origin", "none", nil] do
-      request = if site, do: from(conn, site), else: conn
+    unlabelled_loopback = %{conn | host: "localhost"}
+    unlabelled_own_referer = put_req_header(conn, "referer", "http://www.example.com/portfolio")
+
+    for site <- ["same-origin", "none", :loopback, :own_referer] do
+      request =
+        case site do
+          :loopback -> unlabelled_loopback
+          :own_referer -> unlabelled_own_referer
+          header -> from(conn, header)
+        end
+
       response = get(request, "/?view=7&benchmark[]=security:9&locale=de")
 
-      assert %{value: "7"} = response.resp_cookies[@view_cookie], inspect(site)
-      assert %{value: "security:9"} = response.resp_cookies[@benchmark_cookie], inspect(site)
-      assert %{value: "de"} = response.resp_cookies[@locale_cookie], inspect(site)
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(response, @view_cookie) == "7",
+             inspect(site)
+
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(response, @benchmark_cookie) ==
+               "security:9",
+             inspect(site)
+
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(response, @locale_cookie) == "de",
+             inspect(site)
     end
   end
 
@@ -216,8 +240,9 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   #   benchmark_rate parameter, whether the login page was reached through the
   #   redirect or by a link naming the path itself; every other parameter is
   #   kept.
-  # - A choice made on the instance and redirected to the login is remembered
-  #   by that request already, so the login loses nothing by dropping it.
+  # - A choice redirected to the login is not remembered by that request
+  #   either (K02): before the login no preference cookie is written, so the
+  #   choice is made again once logged in.
   describe "the login's return path" do
     setup do
       previous = Application.get_env(:portfolixir, :ui_password)
@@ -251,11 +276,11 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
       assert html =~ ~s(action="/login?to=%2Fportfolio")
     end
 
-    test "a same-origin choice is remembered before the login", %{conn: conn} do
+    test "a same-origin choice is not remembered before the login", %{conn: conn} do
       redirected = conn |> from("same-origin") |> get("/portfolio?view=7&locale=de")
 
-      assert %{value: "7"} = redirected.resp_cookies[@view_cookie]
-      assert %{value: "de"} = redirected.resp_cookies[@locale_cookie]
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(redirected, @view_cookie) == nil
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(redirected, @locale_cookie) == nil
       assert redirected_to(redirected) == "/login?to=%2Fportfolio"
     end
 
@@ -289,7 +314,11 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   #   (ADR-0024).
   test "the page's links carry only a remembered view", %{conn: conn} do
     view = wealth_world()
-    stored = conn |> put_req_cookie(@view_cookie, "total") |> from("cross-site")
+
+    stored =
+      conn
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(@view_cookie, "total")
+      |> from("cross-site")
 
     for path <- ["/portfolio", "/portfolio?tab=allocation"] do
       separator = if path =~ "?", do: "&", else: "?"

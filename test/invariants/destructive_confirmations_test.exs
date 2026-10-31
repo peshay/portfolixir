@@ -9,7 +9,8 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
     {"lib/portfolixir_web/live/tax_live.ex", ~s(phx-click="delete_allowance_order")},
     {"lib/portfolixir_web/live/securities/logo_override_dialog.ex",
      ~s(phx-click="remove_logo_override")},
-    {"lib/portfolixir_web/live/classifications_live.ex", "data-unassign-selected"}
+    {"lib/portfolixir_web/live/classifications_live.ex", "data-unassign-selected"},
+    {"lib/portfolixir_web/live/portfolio_accounts_live.ex", ~s(phx-click="row_delete")}
   ]
 
   # User story:
@@ -19,7 +20,10 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
   #
   # Acceptance criteria:
   # - Each of the four formerly bare controls carries data-confirm on the same element.
-  test "the four formerly bare destructive controls carry data-confirm" do
+  # - So does Delete in the Accounts & depots row menu, and no control's
+  #   data-confirm depends on a condition, so no state switches the ask off
+  #   (security review 2026-10-12, H17).
+  test "the destructive controls carry an unconditional data-confirm" do
     for {file, marker} <- @sites do
       source = File.read!(file)
       assert source =~ marker, "#{file} no longer contains #{marker}"
@@ -31,6 +35,17 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
 
       assert element, "#{file}: #{marker} is not on a <button>"
       assert element =~ "data-confirm=", "#{file}: #{marker} has no data-confirm"
+
+      # Every conditional form: if, unless, cond, case, and a boolean
+      # operator (&&, ||, and, or). String literals are blanked first, so
+      # the words of the question itself never count.
+      code = String.replace(element, ~r/"(?:[^"\\]|\\.)*"/, ~s(""))
+
+      refute code =~ ~r/data-confirm=\{\s*(if|unless|cond|case)\b/,
+             "#{file}: #{marker} asks only under a condition"
+
+      refute code =~ ~r/data-confirm=\{[^}]*(&&|\|\||\band\b|\bor\b)/,
+             "#{file}: #{marker} asks only under a condition"
     end
   end
 

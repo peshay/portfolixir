@@ -34,11 +34,19 @@ defmodule Portfolixir.Portfolios.Income do
   the booking date** — the same mechanics `Portfolixir.Portfolios.Valuation`
   uses, reused rather than reimplemented. Each per-transaction detail names
   the currency its native amounts are in (`currency`, the account's); each
-  per-position row keeps the booking's currency (`security_currency`). A booking with
-  no rate path to the base currency is converted at parity and surfaces in
-  `unconverted_count` so a missing rate never silently distorts a total. The
-  chosen basis is described in `base_currency` and `conversion_note`
-  (FR-13).
+  per-position row keeps the booking's currency (`security_currency`).
+
+  A booking with no rate path to the base currency — no stored rate on or
+  before its date — is **excluded** from every base-currency figure (the
+  matrix, the year totals and the per-position rows) and **named** in
+  `excluded` (count, and per currency its count and securities), as the
+  sibling Cash-flow facets do (security review 2026-10-12, K07): never
+  counted at parity, which would add two currencies one to one. The
+  per-transaction detail keeps it, flagged `converted: false`, with its
+  native amounts and `nil` base-currency `gross`, `tax` and `net`;
+  `unconverted_count` counts it. The chosen basis is
+  described in `base_currency`, `conversion_note` and `computation_basis`
+  (FR-13, AGENTS.md metric rule).
   """
 
   alias Portfolixir.Fx
@@ -66,14 +74,61 @@ defmodule Portfolixir.Portfolios.Income do
       |> Enum.filter(&(&1.type in ["dividend", "interest"]))
       |> Enum.map(&entry(&1, base_currency))
 
+    {converted, unconverted} = Enum.split_with(entries, & &1.converted)
+
     %{
       portfolio_id: portfolio_id,
       base_currency: base_currency,
       conversion_note: conversion_note(base_currency),
-      unconverted_count: Enum.count(entries, &(not &1.converted)),
-      annual: annual(entries),
-      positions: positions(entries),
+      computation_basis: computation_basis(),
+      unconverted_count: length(unconverted),
+      excluded: excluded(unconverted),
+      annual: annual(converted),
+      positions: positions(converted),
       transactions: Enum.map(entries, &detail/1)
+    }
+  end
+
+  # K07: what no total could include, named as the costs facet names it —
+  # by the currency it was read in — with the securities of each currency
+  # (an interest payment has none).
+  defp excluded(unconverted) do
+    %{
+      count: length(unconverted),
+      currencies:
+        unconverted
+        |> Enum.group_by(& &1.currency)
+        |> Enum.sort_by(fn {currency, _group} -> currency end)
+        |> Enum.map(fn {currency, group} ->
+          %{
+            currency_code: currency,
+            count: length(group),
+            securities:
+              group
+              |> Enum.map(& &1.security_name)
+              |> Enum.reject(&is_nil/1)
+              |> Enum.uniq()
+              |> Enum.sort()
+          }
+        end)
+    }
+  end
+
+  defp computation_basis do
+    %{
+      series:
+        "dividend and interest bookings of the portfolio; gross is net (gross_amount) plus " <>
+          "the dividend's withheld tax (taxes), interest carries no withholding",
+      currency:
+        "each booking is read in its cash account's currency, the currency it was " <>
+          "credited in, and converted from it",
+      window: "full ledger history of the portfolio, grouped by booking date",
+      reference: "EUR hub rates, the most recent stored on or before each booking date",
+      gaps:
+        "a payment with no stored rate on or before its booking date is excluded from " <>
+          "every total (annual, months, positions) and named in excluded; the transactions " <>
+          "list keeps it with converted false, its native amounts and null base-currency " <>
+          "gross, tax and net, never converted at parity"
     }
   end
 
@@ -179,12 +234,17 @@ defmodule Portfolixir.Portfolios.Income do
       native_gross: entry.native_gross,
       native_tax: entry.native_tax,
       native_net: entry.native_net,
-      gross: entry.gross,
-      tax: entry.tax,
-      net: entry.net,
+      # K07: a payment with no rate path has no base-currency figure — nil,
+      # never its native amount at parity; its native figures stand.
+      gross: base_figure(entry, entry.gross),
+      tax: base_figure(entry, entry.tax),
+      net: base_figure(entry, entry.net),
       converted: entry.converted
     }
   end
+
+  defp base_figure(%{converted: true}, amount), do: amount
+  defp base_figure(%{converted: false}, _amount), do: nil
 
   defp sum_gross(entries, kind) do
     entries
@@ -196,10 +256,11 @@ defmodule Portfolixir.Portfolios.Income do
     Enum.reduce(entries, @zero, fn entry, acc -> Decimal.add(acc, fun.(entry)) end)
   end
 
-  # Reuses the EUR-hub conversion (see `Portfolixir.Fx`) at the booking date's
-  # rate, mirroring `Portfolixir.Portfolios.Valuation`. A missing rate path
-  # falls back to parity and flags the entry as unconverted, so a total is never
-  # silently dropped.
+  # Reuses the EUR-hub conversion (see `Portfolixir.Fx`) at the most recent
+  # rate on or before the booking date, mirroring
+  # `Portfolixir.Portfolios.Valuation`. A missing rate path flags the entry as
+  # unconverted: it keeps its native amount for the detail and stays out of
+  # every total (K07).
   defp convert(%Decimal{} = amount, from, base, %Date{} = date)
        when is_binary(from) and is_binary(base) do
     case Fx.convert(amount, from, base, date) do
@@ -234,8 +295,10 @@ defmodule Portfolixir.Portfolios.Income do
   end
 
   defp conversion_note(base_currency) do
-    "Amounts converted to #{base_currency} via the EUR hub at each booking " <>
-      "date's stored rate; original currency retained. A booking's cash and " <>
+    "Amounts converted to #{base_currency} via the EUR hub at the most recent " <>
+      "stored rate on or before each booking date; a payment with no such rate is " <>
+      "excluded from every total and named in excluded, never counted at parity. " <>
+      "Original currency retained. A booking's cash and " <>
       "withheld tax are read in its cash account's currency, the currency they " <>
       "were credited in."
   end

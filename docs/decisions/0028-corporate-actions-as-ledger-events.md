@@ -115,6 +115,16 @@ one-pass fold (`positions_by_security`) stays single-application per account
 even with N portfolio rows, and portfolio-scoped folds each see exactly
 their own row.
 
+*Note (2026-10-28, security review 2026-10-12, K09; decision T-21):* the
+holdings folds keep this per-portfolio scope, but the FIFO trade matcher does
+not: since ADR-0015's amendment of 2026-10-09 made the FIFO queue the
+security's across every portfolio, a split scales **every** open lot of that
+queue once when its date passes, whatever portfolio label the lot carries,
+and the rows of one event (the same date and normalized ratio) scale it once
+(ADR-0015, note of 2026-10-28). A split event whose rows miss a portfolio
+that held a position scales that portfolio's lots while its holdings stay
+unscaled (#1292).
+
 Its projection is one new `effects/1` clause introducing a **multiplicative
 quantity leg** — conceptually
 `quantities: [{:scale, %{security_id: id, ratio: {p, q}}}], external: false`
@@ -289,6 +299,14 @@ open lot's per-share `buy_price` **divides by the ratio** so the lot's cost
 stays invariant (`decorate_open_lot` computes quantity × buy_price).
 Matched trades whose buy and sell straddle the effective date compare in
 one basis.
+
+*Note (2026-10-28, K09; T-21):* "the same way" now means every open lot of
+the security's queue, not the row's portfolio's alone (the note under §1).
+Each lot's quantity is quantized once at the volume scale (half up, scale 6)
+and its `buy_price` divides at full precision, so a remainder the
+quantization leaves lands in that lot's cost, and the lots of a position can
+sum to a quantity one unit of the scale away from the holdings fold, which
+rounds the combined position once; the per-lot rounding predates the note.
 
 **The AR-7 loud-failure gate covers only folds that dispatch through
 `Projection.effects/1`.** Two folds do not: the moving-average cost fold

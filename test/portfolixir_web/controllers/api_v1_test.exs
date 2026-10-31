@@ -49,7 +49,7 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert json_response(conn, 401) == %{"errors" => %{"detail" => "unauthorized"}}
 
     conn = build_conn() |> api_conn() |> get("/api/v1/securities")
-    assert json_response(conn, 200) == %{"data" => []}
+    assert json_response(conn, 200) == %{"data" => [], "limit" => 5000, "truncated" => false}
   end
 
   # User story:

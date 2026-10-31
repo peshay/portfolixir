@@ -641,7 +641,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         phx-click="row_delete"
         phx-value-kind={@kind}
         phx-value-id={@account.id}
-        data-confirm={if @menu.refs == %{}, do: delete_confirmation(@kind, @account, @menu.buckets?)}
+        data-confirm={delete_confirmation(@kind, @account, @menu)}
       >
         <AppShell.icon name={:trash} />
         <span><%= gettext("Delete") %></span>
@@ -1018,8 +1018,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # Session-only split of a merged pair: from here on the depot and its cash
   # account carry their own chip groups (no write happens).
   # ADR-0050 (L5a, G1-A): every entity row's menu. What references the
-  # account is read as the menu opens, so Delete knows whether to ask once
-  # or to open the refusal.
+  # account is read as the menu opens, so Delete's question follows what the
+  # menu saw; it always asks (H17, Q6 A), and a referenced account's refusal
+  # follows the question.
   def handle_event("open_account_menu", %{"kind" => kind, "id" => id}, socket) do
     case fetch_account(kind, id) do
       {:ok, account} ->
@@ -1233,7 +1234,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # ADR-0050 §11 through the hardened delete: an account something references
   # is never deleted — the refusal names what references it and offers the
   # merge instead; an unreferenced one goes, its bucket links first,
-  # journaled. The row disappearing is the confirmation.
+  # journaled, and the page says so (board 06).
   defp delete_account(socket, kind, account) do
     case Delete.referenced_by(account) do
       refs when map_size(refs) > 0 ->
@@ -1241,7 +1242,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
       _free ->
         case delete(account) do
-          {:ok, _deleted} -> socket |> assign(:result, nil) |> load_state()
+          {:ok, _deleted} -> socket |> assign(:result, deleted(account)) |> load_state()
           {:error, {:referenced, refs}} -> block_delete(socket, kind, account, refs)
           # A lost race (#954): the account changed under the delete and
           # nothing references it now; nothing was deleted, a retry decides.
@@ -1249,6 +1250,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           {:error, _gone} -> load_state(socket)
         end
     end
+  end
+
+  # Board 06 (H17): a delete says so, as a rename or a merge does; the
+  # stored name isolated in <bdi> (#968, pick H8.8).
+  defp deleted(account) do
+    {:note,
+     StoredText.isolate(gettext("“%{name}” deleted.", name: StoredText.slot(:name)),
+       name: account.name
+     )}
   end
 
   # #968, pick H8.8: the stored name isolated in <bdi>.
@@ -1294,6 +1304,26 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   defp kind_label("depot"), do: gettext("Depot")
   defp kind_label("cash"), do: gettext("Cash account")
+
+  # H17 (Q6 A): Delete always asks. A menu that saw references cannot know
+  # they are still there, so its question claims nothing about them and
+  # says what happens if they are: the refusal follows, nothing changes.
+  defp delete_confirmation("cash", account, %{refs: refs}) when map_size(refs) > 0 do
+    gettext(
+      "Delete “%{name}”? If the account still has bookings or a linked depot, the deletion is refused and nothing changes.",
+      name: account.name
+    )
+  end
+
+  defp delete_confirmation("depot", account, %{refs: refs}) when map_size(refs) > 0 do
+    gettext(
+      "Delete “%{name}”? If the depot still has bookings, the deletion is refused and nothing changes.",
+      name: account.name
+    )
+  end
+
+  defp delete_confirmation(kind, account, %{buckets?: buckets?}),
+    do: delete_confirmation(kind, account, buckets?)
 
   defp delete_confirmation("cash", account, buckets?) do
     gettext("Delete “%{name}”? The account has no bookings and no linked depot.",

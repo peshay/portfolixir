@@ -43,7 +43,7 @@
 ## Tests and Gates
 
 The list is AGENTS.md -> "Required Local Checks", which is CI's `pre-commit`,
-`test` and `quality` jobs. Report each one; "n/a" with a reason is an answer,
+`test`, `quality` and `advisories` jobs. Report each one; "n/a" with a reason is an answer,
 silence is not.
 
 - `mix format`:

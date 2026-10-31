@@ -11,7 +11,7 @@ msgstr ""
 msgid "is invalid"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:453
+#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:505
 #, elixir-autogen
 msgid "can't be blank"
 msgstr ""
@@ -158,6 +158,10 @@ msgid_plural "must have keys of at most %{count} character(s)"
 msgstr[0] ""
 msgstr[1] ""
 
+## Portfolixir.Catalog.Security: a ticker's shape (#763, #888; security review 2026-10-12, H57).
+msgid "is not a ticker symbol"
+msgstr ""
+
 ## Portfolixir.Catalog.Security: an identifier changed on a stored security (E25 S5, G23).
 msgid "is not a WKN (six letters or digits)"
 msgstr ""
@@ -211,4 +215,8 @@ msgid "was retired by a merge and cannot be booked again"
 msgstr ""
 
 msgid "is never set on a balance anchor or a split"
+msgstr ""
+
+## Portfolixir.Catalog.Security: a whole-number attribute typed at write (H37).
+msgid "%{key} must be a whole number"
 msgstr ""

@@ -697,6 +697,11 @@ A CI meta-test asserts every exemplar file referenced here still exists.
 
 ### P6 — Route scopes
 
+> **Superseded by ADR-0054 §1** (2026-10-31): there are no `:api_read` or
+> `:api_write` pipelines and no route-scope gate; every token carries the
+> same full authority, and a route classification stays optional, a map and
+> never a control. The text below is the record of what was planned.
+
 - Router pipelines `:api_read` and `:api_write` are the D4 scope classification.
   Every `/api/v1` route passes through exactly one — a fail-closed meta-test
   rejects unclassified routes. Market-data sync triggers are `:api_read`;

@@ -243,14 +243,17 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
     })
   end
 
+  # H11 (#965's rule for identifiers): the message names both ISINs by their
+  # kind; the stored values are `isins`, data beside it.
   defp refuse(conn, _kind, {:choice_required, :identity_choice, isins}, _source_id) do
     unprocessable(conn, %{
       identity_choice: [
-        "is required: both securities carry an ISIN (the source #{isins.source_isin}, the " <>
-          "target #{isins.target_isin}) — keep_target_isin keeps #{isins.target_isin} and " <>
-          "records #{isins.source_isin} as a former ISIN of the target; adopt_source_isin gives " <>
-          "the target #{isins.source_isin} and records #{isins.target_isin} as its former ISIN"
-      ]
+        "is required: both securities carry an ISIN (both in errors.isins) — keep_target_isin " <>
+          "keeps the target's ISIN and records the source's as a former ISIN of the target; " <>
+          "adopt_source_isin gives the target the source's ISIN and records the target's as " <>
+          "its former ISIN"
+      ],
+      isins: %{source_isin: isins.source_isin, target_isin: isins.target_isin}
     })
   end
 

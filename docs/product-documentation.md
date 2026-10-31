@@ -61,7 +61,9 @@ Integration details for `/api/v1` and `mcp-server/` are documented separately in
    decision anywhere — see below).
 3. Record manual buy and sell transactions with Decimal-based quantity and price values.
 4. Optionally import a Portfolio Performance transaction export through
-   Imports, review the preview, map missing accounts, then apply atomically.
+   Imports, review the preview, map missing accounts, then apply atomically
+   (the internal Default portfolio a first import creates stays even when the
+   import fails).
 5. Open the holdings view to verify current position per security.
 6. Record security quotes over time and keep history for reproducible charts.
 7. Review current holdings and quote chart behavior directly in the app.
@@ -349,15 +351,24 @@ Your agent has the same merge
 tools), and both read the same preview.
 
 The preview shows everything the merge does before anything is written: each
-depot's position of both securities before and after, the bookings that
-appear on both (you decide whether they are duplicates — nothing is
-preselected), the splits that coincide, the quotes, the classification and
-plan rows, the calendar events and the identifiers. What the merge does:
+depot's position of both securities before and after, the realized gains
+(FIFO) per close year and the cost still open, before and after, the
+bookings that appear on both (you decide whether they are duplicates —
+nothing is preselected), the splits that coincide, the quotes, the
+classification and plan rows, the calendar events and the identifiers. What
+the merge does:
 
 - **Bookings** move onto the security you keep, in every depot; a booking you
   confirm as a duplicate is deleted, and a split both carry on the same day is
   kept once. Every day's quantity in every depot is checked against both
   histories.
+- **Realized gains** are matched first-in, first-out over one queue per
+  security, across every depot. Once the two securities are one, a sale can
+  close the other's older lot, so the realized gains of a close year, and
+  the cost still open, can change; the preview's *Realized gains (FIFO)*
+  block states them per close year, or says in one line that no realized
+  amount and no open cost moves (which lot a sale closes, and with it
+  holding periods and annualized returns, may still change).
 - **Quotes** fill the gaps of the security you keep; on a day both have a
   quote, the kept security's wins. A close you typed by hand that would be
   dropped this way is listed first. The dropped closes stay in the merge
@@ -621,8 +632,8 @@ and dated blocks expiring within N days.
 
 **Invisible characters** (E25). No text is stored any more with a character
 that renders as nothing — a zero-width space, a direction control, a tag
-character, a run of variation selectors: every form, the API, MCP and the
-import refuse it, naming it (`U+200B`). An emoji built from several joined by
+character, a Hangul filler, a variation selector with nothing to vary: every
+form, the API, MCP and the import refuse it, naming it (`U+200B`). An emoji built from several joined by
 a zero-width joiner (a person at a laptop, the rainbow flag) is stored, since
 the joiner renders as the emoji; the England, Scotland and Wales flags, built
 from tag characters, and the zero-width non-joiner some scripts use are
@@ -793,9 +804,12 @@ everything. It takes two steps in one dialog:
    between the two that are dropped (they cancel out once the two are one),
    the linked depots that move, and the set balances that are adjusted —
    each with its date and its value afterwards — or dropped. For depots it
-   shows each affected position's quantity, average cost and realized
-   gain/loss before and after, and a split whose rounding differs once both
-   histories are combined. **Bookings that are equal in both accounts** —
+   shows each affected position's quantity, average cost and *Realized
+   (moving avg.)* — the depot's result by moving average — before and after,
+   and a split whose rounding differs once both histories are combined. The
+   realized gains by FIFO (Cash flow → Trades, a security's Trades tab) do not
+   change unless equal bookings are removed as duplicates, which takes them out
+   of the queue: their queue belongs to the security, not the depot. **Bookings that are equal in both accounts** —
    same day, same kind, same amounts, typically one import that landed twice
    — are listed with two choices, *remove as duplicates* or *keep both*,
    each with the balance it leads to (for cash accounts); *remove as
@@ -1888,7 +1902,10 @@ whenever no other view has been explicitly picked (an explicit pick — includin
 Everything — always wins). A view, a benchmark or a language that arrives in a
 link from another site applies to the page that link opens and is not
 remembered (E25): only a choice made on the instance itself, or typed into the
-address bar, changes what the next page shows. That page's own links (the
+address bar, changes what the next page shows. Reached over plain HTTP at a
+LAN name or address, where the browser does not say where a request came
+from, the instance remembers only a choice made on its own pages, and a typed
+one applies to that page (H41). That page's own links (the
 language switch, the tabs) do not pass the foreign view on, and a login in
 between drops the view, benchmark and language from the address it returns
 to. When the active view's buckets share an account, a
@@ -2381,9 +2398,14 @@ stays visible on each row. A payment is read in the currency of the account
 it was credited to: a USD security's dividend credited to a EUR account is
 the euros that arrived, and its row among the year's payments names EUR,
 while the per-position table keeps the booking's currency (the ADR-0015
-amendment of 2026-10-07). The conversion methodology (EUR hub at each booking
-date's stored rate — the same conversion the valuation uses) sits behind the
-ⓘ affordance next to the currency line. The report is also
+amendment of 2026-10-07). The conversion methodology (EUR hub at the most
+recent stored rate on or before each booking date — the same conversion the
+valuation uses) sits behind the ⓘ affordance next to the currency line. A
+payment with no such rate — a currency the rate source does not publish, or
+a date before the first stored rate — is in no figure: an attention note
+above the annual overview names how many, their currency and security, and
+offers the historical backfill; the drilled year's payments still list it in
+its own currency. The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.
 
@@ -2518,6 +2540,12 @@ with the check control inside, and "Correct" and "Delete" sit in the row
 menu. Both entry forms open from a disclosure and are closed by default; the
 sign convention is field help on the amount inputs, and the configured
 Freistellungsaufträge sit behind a disclosure that states their purpose.
+What your agent wrote with its token is marked with the word "Agent" (K12):
+a statement it recorded reads "recorded · Agent" instead of "recorded
+manually", one you recorded and it corrected last reads "recorded manually ·
+corrected · Agent", an allowance order it put carries "· Agent", and the
+basis line names "(Agent)" after each institution whose counted statement is
+the agent's. Your own entries carry no word.
 
 **The trim budget** is the equity loss pot plus the remaining allowance
 (`granted − used`). It is always shown **with its as-of date** and warns
@@ -2580,7 +2608,8 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   to Risk in the view the rule applies in. A rule whose line in force the
   agent wrote with its API token ends its words with **"Agent"** — scheduled
   and retired rules too — and the dialog's version list names the author of
-  every version, "Operator" or "Agent" (E25). Your own rules carry no word.
+  every version, "Operator" or "Agent" (E25). A rule the agent named last
+  carries "Agent" after its name too (H14). Your own rules carry no word.
   The agent's rules are in force like yours; the word only says who drew the
   line. How to write, read, change and end a rule, step by step, is in the
   [Own Rules Guide](guides/own-rules.html).
@@ -2640,7 +2669,10 @@ stable `Row N: message` lines so the diagnostics can be kept with the source
 export. In a CSV file, *Row N* is the row a spreadsheet shows, the header
 being row 1, so the first booking is row 2; every list of the preview and of
 the result names a CSV row the same way. Applying the import is atomic and uses content hashes to skip
-duplicates on re-run.
+duplicates on re-run. One record is the exception: on a fresh instance the
+first import creates the internal Default portfolio and commits it before it
+books the file, so that every other write resolving the default meanwhile
+finds the same one; that record stays even when the import fails.
 
 ### What a Portfolio Performance CSV requires
 
@@ -2823,8 +2855,17 @@ confirm. These rows are left out the same way, each named with its row:
   in the default, EUR; a lower-case code such as `usd` is read as `USD`. A CSV
   row books in EUR and is never refused for its currency.
 
+A JSON security whose ticker the catalog would refuse (a space, `/`, `?`,
+`#`, `%`, only dots, or more than 64 characters) is imported without it: one
+parser warning names the security, every row of the file imports, and the
+ticker can be recorded on the security afterwards.
+
 A preview is kept for your next visit (a language switch, a reload) only once
-it has been shown.
+it has been shown, and only while it is not too large to keep: the preview of
+a very large file is not kept, and the next visit shows the drop zone again.
+A kept preview comes back as it was computed when the file was dropped, with
+the corrections made since; confirming checks it against the current data
+again.
 
 ### Transfers in a Portfolio Performance CSV
 
@@ -3189,8 +3230,10 @@ Quote sources in this iteration:
   (for example iShares, Vanguard, Lyxor, Amundi, Xtrackers, SPDR, Invesco).
   Structured/leverage products (warrants, knock-outs, certificates) carry no
   own logo but show their issuer's logo (BNP Paribas, Morgan Stanley, Société
-  Générale, …) when the issuer is recognizable. A manual override (image URL)
-  always wins and locks the security against background discovery.
+  Générale, …) when the issuer is recognizable. A manual override always
+  wins and locks the security against background discovery: on the page an
+  image file uploaded in the Manage-logo dialog (PNG, JPEG or WebP, at most
+  256 KB), over the API an image URL under the outbound policy.
   Government bonds use the `government_bond` asset class for ISIN country flag fallbacks.
 - Quote-history fetch uses Yahoo Finance for both. Two reasons:
   - PP's own API exposes only search, no price history.
@@ -3523,7 +3566,10 @@ The journal is queryable through `GET /api/v1/journal` and the matching
 financial data: securities and the quotes someone enters, portfolios, cash
 accounts and depots, bookings (an import's included), classifications and SOLL
 plans, tax records, research notes and events, policy rules, merges, and
-buckets and views. A dedicated in-app viewer is a planned follow-up.
+buckets and views, and the default view the pages open on. A logo someone
+sets, removes or searches again names who did; only the background logo
+discovery is journaled as a system job. A dedicated in-app viewer is a
+planned follow-up.
 
 Deleting a cash account, a depot or a security never takes anything with it
 silently (ADR-0050 §11). A row that bookings still reference — or, for a

@@ -8,8 +8,8 @@ defmodule PortfolixirWeb.ErrorViewTest do
   alias Phoenix.LiveView.Rendered
   alias PortfolixirWeb.ErrorView
 
-  # One byte past the endpoint's body bound (Plug.Parsers length: 8_000_000).
-  @too_large 8_000_001
+  # One byte past the endpoint's body bound (Plug.Parsers length: 2_000_000).
+  @too_large 2_000_001
 
   # User story (E25 S2, F68; design pass Part 11 item 4, board 11):
   # As an operator whose browser meets an error the app answers,
@@ -124,7 +124,10 @@ defmodule PortfolixirWeb.ErrorViewTest do
       {403, _headers, body} =
         assert_error_sent(403, fn ->
           conn
-          |> put_req_cookie("portfolixir_locale", "de")
+          |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            "portfolixir_locale",
+            "de"
+          )
           |> with_csrf()
           |> post("/login", %{"password" => "x"})
         end)
@@ -150,7 +153,16 @@ defmodule PortfolixirWeb.ErrorViewTest do
             {"406.html", "406 · Format nicht verfügbar"},
             {"500.html", "500 · Interner Fehler"}
           ] do
-        de = put_req_cookie(conn, "portfolixir_locale", "de")
+        # As the endpoint hands it to the error view: with its secret, so the
+        # signed cookie verifies.
+        de =
+          conn
+          |> Map.put(:secret_key_base, PortfolixirWeb.Endpoint.config(:secret_key_base))
+          |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            "portfolixir_locale",
+            "de"
+          )
+
         assert status_line(ErrorView.render(template, %{conn: de})) == line
       end
 
@@ -177,7 +189,10 @@ defmodule PortfolixirWeb.ErrorViewTest do
       {403, _headers, body} =
         assert_error_sent(403, fn ->
           conn
-          |> put_req_cookie("portfolixir_locale", "de")
+          |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            "portfolixir_locale",
+            "de"
+          )
           |> with_csrf()
           |> post("/login", %{"password" => "x"})
         end)

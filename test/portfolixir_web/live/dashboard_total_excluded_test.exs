@@ -462,7 +462,7 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [bucket.id])
     {:ok, euro} = Buckets.create_view(Actor.owner_ui(), %{name: "Euro", include_all: false})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), euro, [bucket.id], [])
-    :ok = Portfolixir.Settings.set_default_view(euro.id)
+    :ok = Portfolixir.Settings.set_default_view(Portfolixir.Actor.owner_ui(), euro.id)
 
     {:ok, view, _html} = de_live(conn, "/")
     render_async(view)

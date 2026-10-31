@@ -218,6 +218,27 @@ defmodule Portfolixir.Catalog.SecurityFields do
 
   def all, do: fields()
 
+  @doc """
+  The JSONB keys of the attribute-backed fields the registry types as whole
+  numbers (H37). A writer's value under one of them is typed at write
+  (`whole_number/1`), so the numeric sort reads a number or nothing.
+  """
+  def whole_number_attribute_keys do
+    for %Field{source: {:attributes, jsonb_key}, type: :integer} <- fields(), do: jsonb_key
+  end
+
+  @doc """
+  A whole number from a number or its text, `:error` for anything else (a
+  word, a boolean, a fraction, a map).
+  """
+  def whole_number(value) when is_integer(value), do: {:ok, value}
+
+  def whole_number(value) when is_binary(value) do
+    if value =~ ~r/\A-?[0-9]{1,18}\z/, do: {:ok, String.to_integer(value)}, else: :error
+  end
+
+  def whole_number(_value), do: :error
+
   def get(key) when is_atom(key) do
     Enum.find(fields(), fn f -> f.key == key end)
   end

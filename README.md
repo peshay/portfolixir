@@ -187,7 +187,7 @@ regenerates them._
   runs 1.18.5 on Erlang/OTP 27), and PostgreSQL 15 or newer, with its contrib
   modules (btree_gist): the migrations use `NULLS NOT DISTINCT` and create the
   `btree_gist` extension.
-- For the MCP companion run on its own: Node 24.
+- For the MCP companion run on its own: Node 26.
 
 The first build pulls the pinned base images and downloads Debian packages, Hex
 packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass
@@ -276,9 +276,11 @@ is named by `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
 user `postgres` with password `postgres`, which `config/dev.exs` fixes: no
 variable changes them. Only a release reads `DATABASE_URL`. The server listens
 on loopback, on `PORT` (default `4000`), and its web UI asks for a login only
-when `PORTFOLIXIR_UI_PASSWORD` is exported before `mix phx.server`: without it,
-the UI is open to every process on the machine.
-The `read` below locks it: type a password of at least 12 characters at its
+when `PORTFOLIXIR_UI_PASSWORD` is exported before `mix phx.server`. This route
+requires it: without it the UI is open to every process on the machine, and
+the development configuration signs sessions with a key the repository
+publishes, so the password is the only lock it has (`SECURITY.md`).
+The `read` below sets it: type a password of at least 12 characters at its
 prompt (bash or zsh), which neither shows it nor keeps it in the shell's
 history. `/api/v1` and the MCP companion share one bearer token,
 `PORTFOLIXIR_API_TOKEN`; keep its value for the companion.
@@ -345,7 +347,10 @@ node mcp-server/dist/index.js
 ```
 
 `node` runs the built companion directly: `npm start` would print its own
-banner on stdout before the companion's first JSON-RPC message.
+banner on stdout before the companion's first JSON-RPC message. In a shell
+where Node's proxy is on (`NODE_USE_ENV_PROXY=1` or `--use-env-proxy`), also
+set `NO_PROXY=127.0.0.1,localhost`: the companion refuses to send its API
+calls, and the token with them, through a proxy, and stops naming `NO_PROXY`.
 
 ### Connect your agent
 

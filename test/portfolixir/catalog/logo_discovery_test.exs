@@ -351,7 +351,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
       })
 
     # Lock it to "no logo" — this is the state set by removing a logo.
-    {:ok, locked} = Catalog.remove_logo(candidate, storage_dir: tmp)
+    {:ok, locked} = Catalog.remove_logo(Portfolixir.Actor.owner_ui(), candidate, storage_dir: tmp)
     assert locked.attributes["logo_locked"] == true
 
     Application.put_env(:portfolixir, :enable_logo_discovery, true)

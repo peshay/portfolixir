@@ -9,7 +9,7 @@ msgstr ""
 msgid "is invalid"
 msgstr "ist ungültig"
 
-#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:453
+#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:505
 #, elixir-autogen
 msgid "can't be blank"
 msgstr "darf nicht leer sein"
@@ -154,6 +154,10 @@ msgid_plural "must have keys of at most %{count} character(s)"
 msgstr[0] "darf nur Schlüssel mit höchstens %{count} Zeichen haben"
 msgstr[1] "darf nur Schlüssel mit höchstens %{count} Zeichen haben"
 
+## Portfolixir.Catalog.Security: a ticker's shape (#763, #888; security review 2026-10-12, H57).
+msgid "is not a ticker symbol"
+msgstr "ist kein Ticker-Symbol"
+
 ## Portfolixir.Catalog.Security: an identifier changed on a stored security (E25 S5, G23).
 msgid "is not a WKN (six letters or digits)"
 msgstr "ist keine WKN (sechs Buchstaben oder Ziffern)"
@@ -205,3 +209,7 @@ msgstr "wurde bei einer Zusammenführung stillgelegt und kann nicht erneut gebuc
 
 msgid "is never set on a balance anchor or a split"
 msgstr "wird bei „Saldo gesetzt“ und einem Split nie gesetzt"
+
+## Portfolixir.Catalog.Security: a whole-number attribute typed at write (H37).
+msgid "%{key} must be a whole number"
+msgstr "%{key} muss eine ganze Zahl sein"

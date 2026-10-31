@@ -58,7 +58,7 @@ defmodule Portfolixir.Catalog.LogoStorePolicyTest do
           "http://example.test/logo.png"
         ] do
       assert {:error, {:url_not_allowed, _}} =
-               LogoStore.store_manual_override(sec, url,
+               LogoStore.store_manual_override(Portfolixir.Actor.owner_ui(), sec, url,
                  storage_dir: tmp,
                  req: counting_png_stub(self())
                ),
@@ -73,7 +73,10 @@ defmodule Portfolixir.Catalog.LogoStorePolicyTest do
 
   test "stores a manual URL to a public host", %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
-             LogoStore.store_manual_override(sec, "https://example.test/logo.png",
+             LogoStore.store_manual_override(
+               Portfolixir.Actor.owner_ui(),
+               sec,
+               "https://example.test/logo.png",
                storage_dir: tmp,
                req: counting_png_stub(self())
              )

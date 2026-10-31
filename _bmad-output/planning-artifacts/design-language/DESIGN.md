@@ -1072,6 +1072,7 @@ carries `num`; no second comma rule in the web layer) and
 - **Charts** — one shared component (`security_chart.ex`, ADR-0022) used at two call sites (`portfolio_live.ex:1700`, `securities_live.ex:630`), plus **four** hand-rolled implementations still in the build: the allocation sunburst (`portfolio_live.ex:1790`), the snapshot two-polyline comparison (`snapshots_live.ex:440`), and the Income surface's **two** separate bar charts (`income_live.ex:108` annual, `:203` per-month). {components.chart-frame}: accent quote line (1.6px) over the 0.14-opacity accent fill, moving-average overlays, cost-basis line, **buy/sell markers that must be shape-coded and are not** (▲ buy {colors.tx-buy}, ▼ sell {colors.tx-sell} is the requirement; `security_chart.ex:129-136` renders one `<circle r="4">` for both types and `app.css:3126-3132` changes only `fill`, so the built markers are hue-only — issue #645, filed under Colors → Violations), mono axis text, crosshair + {components.chart-tooltip} via the `ChartCrosshair` hook. New chart work uses the shared component; the snapshot comparison inherits its axes, crosshair and data-as-table disclosure when it moves over — but not a period control, whose domain is fixed by the snapshot's as-of date.
 - **Allocation visuals** — donut and sunburst SVGs with legends (`.donut`, `.sunburst-seg`), drift tables with category swatches, display-only rebalancing hints (`.rebalance-hint`, ADR-0023 — an annotation, never an action).
 - **Tax budget** (`.tax-budget`) — {components.budget-meter}: allowance-order utilization per institution as a fill level with the remaining amount and its as-of date, **no threshold colouring**; recorded statements below as a list, each carrying its consistency finding as a {components.data-note} severity. Entry forms behind a disclosure; the permanent prose paragraphs become ⓘ tooltips (enumerated in EXPERIENCE.md → Alignment inventory → UX-DR11).
+  - **Who wrote a row** *(amended 2026-10-29, Sprint 21 board `mockups/ux-design-2026-10-27/03-author-marks` ② and ③, pick Q3 = A; security review K12, T-16)*: rule versions' author mark (`[data-role="tax-author"]`: "Agent" after a middle dot, the line's muted text, a `.visually-hidden` lead, no badge, no colour, only at the exception). The statement head's last words: the operator recorded it and nobody else changed it — "recorded manually" / "manuell erfasst" (unchanged); the agent recorded it — "recorded · Agent" / "erfasst · Agent", lead "Recorded by:" / "Erfasst von:", also when the operator corrected it later; the operator recorded it and the agent corrected it last — "recorded manually · corrected · Agent" / "manuell erfasst · korrigiert · Agent", lead "Last corrected by:" / "Zuletzt korrigiert von:"; a PDF import's words unchanged. The allowance-order list: "Bank B · Agent", lead "Allowance order by:" / "Freistellungsauftrag von:"; the closed disclosure's summary, a comma-like list, takes the basis line's form: "Bank B 400,00 (Agent)". The basis line: "(Agent)" right after each institution whose counted statement the agent recorded or corrected last, joined to it by a no-break space, lead "Statement by:" / "Abrechnung von:" — "… · Bank A, Bank B (Agent), Bank C (Agent)". The operator's own rows carry no word.
 - **Forms** — stacked label-over-input grids ({components.input}); buttons are quiet elevated rectangles ({components.button}) with `.button-primary` / `.button-danger` variants. **One primary action treatment:** solid filled button; the outline button is the secondary; invisible grey inline text is not an action treatment. Forms sit behind disclosure, not in the primary sightline. Per-account actions live in their row: **the global cash-balance form is `form.inline-form.balance-form` on Wealth — Holdings (`portfolio_live.ex:1509-1531`), not on Accounts & depots** — see EXPERIENCE.md → Component Patterns → Cash accounts for what moves where.
 - **Feedback** — {components.data-note} replaces `.alert-error` / `.alert-success` / `.alert-warning` / `.alert-info` / `.hint` / the dq chips. `.empty-state` wells stay. {components.inline-result} replaces toasts (`.status-toast` and the `AutoDismissToast` hook, issue #566).
 - **Overlays** — `.modal` + backdrop, `.popover` for column pickers and filters, `.row-context-menu` (kebab menu, bottom sheet under 720px). **The requirement is a native `<dialog>` opened with `showModal()`, focus-trapped and inert-backed (UX-DR9).** *Built, and this bullet is the record of it (corrected 2026-09-15, Sprint 12):* `lib/portfolixir_web/` now contains **nine** `<dialog>` elements and **zero** `aria-modal` attributes. Every modal runs on the `ModalDialog` hook, so the focus trap, the inert backdrop and Esc come from the platform; the securities detail `<aside class="detail-pane">` carries no modality attribute at all (issue #646), which is what the original correction asked for. The two bottom sheets issues 800 and 803 added — the securities filter sheet and the booking drawer — are the same `<dialog>`, the drawer opened non-modally above 720 px through `data-sheet-below` so the history behind it stays readable. The reason the original diagnosis gave still binds: `aria-modal="true"` without containment is worse than omitting it, because the screen reader confines its virtual cursor to the dialog while `Tab` keeps walking the page behind it.
@@ -1592,6 +1593,26 @@ Three clauses:
    not help converts a stated limit into a failed attempt, which is worse
    than no control. The note said "Store the missing exchange rates." and
    pointed at a page with no rate control at all until this batch removed it.
+
+**Income joins the three** *(security review 2026-10-12, K07; board
+`mockups/ux-design-2026-10-27/05-income-rate-path`, pick Q5 A)*. The income
+facet counted a payment with no rate path to the base currency at parity,
+one to one; it now excludes it from every figure — the bars, the year
+labels, the matrix, the top contributors and the per-position table — and
+names it in `#income-excluded`, an `attention` data note in its own
+`.workspace-section` between the facet's basis line and "Annual overview",
+with `fx_backfill_control/1` inside it as on Realized: "1 payment could not
+be converted — no stored exchange rate to EUR on or before its booking date
+— and is excluded from every total. Affected currency: CHF (Velden Water
+AG)." / "1 Zahlung konnte nicht umgerechnet werden — kein gespeicherter
+Wechselkurs nach EUR an oder vor ihrem Buchungstag — und ist aus jeder Summe
+ausgeschlossen. Betroffene Währung: CHF (Velden Water AG)." Each currency
+carries its securities in parentheses (an interest payment names none). The
+drilled year's payments table keeps the payment in its own currency, which
+clause 2 allows: that table lists native amounts. The facet's ⓘ states the
+rate rule the code applies — the most recent stored rate on or before each
+booking date, a payment with no such rate excluded and named — and after a
+backfill that stores its day's rate the payment converts and the note goes.
 
 ### UX-DR26 (new) — a deliberate limit is stated on the surface that lacks it
 
@@ -2754,6 +2775,20 @@ adds. Built by Sprint 16 Lane L5a in
   line; and — board 13 — one line per split whose combined rounding differs
   from the two rounded apart, with its date and ratio. Its note adds that
   the target keeps its cash account.
+  - **The realized column is named for its moving average** *(security
+    review 2026-10-12, K11; board `mockups/ux-design-2026-10-27/04-merge-restatement`
+    ②, before/after)*: the column head and the phone line's label read
+    "Realized (moving avg.)" / "Realisiert (gleit. Ø)", never "Realized
+    gain/loss", and the basis line names it — "the depot's result by moving
+    average over both depots' buys" — and ends with one sentence: "Realized
+    gains by FIFO (Cash flow → Trades, a security's Trades tab) do not
+    change unless equal bookings are removed as duplicates, which takes them
+    out of the queue: the FIFO queue belongs to the security, not the
+    depot." / "Die realisierten Gewinne nach FIFO (Cashflow → Trades, der
+    Trades-Tab eines Wertpapiers) ändern sich nicht, außer gleiche Buchungen
+    werden als Duplikate entfernt, was sie aus der Reihe nimmt: Die
+    FIFO-Reihe gehört dem Wertpapier, nicht dem Depot." Two figures called "realized" never stand side by side
+    unnamed.
 - **The confirm** is `.button-danger` "Merge into <target>" at the band's
   end. While the equal bookings' choice is missing it is disabled —
   `.button-danger:disabled` at 45 % opacity with the not-allowed cursor,
@@ -2854,6 +2889,40 @@ records only what the security adds.
   are dropped, the events that move); the equal bookings as G2's
   `fieldset.merge-choice`, its table cut to three rows with "Show the other
   N pairs" (`.merge-more`) and the two unpreselected options.
+- **The FIFO restatement, under the holdings** *(security review
+  2026-10-12, K11; board `mockups/ux-design-2026-10-27/04-merge-restatement`
+  ①, pick Q4 A)*: the merge pools the two securities' FIFO queues, so a sale
+  can close the other's older lot — the merge's one money consequence that
+  the holdings sum does not conserve. Between the holdings' basis line and
+  `.merge-counts` stands `div.merge-fifo` (`data-role="merge-fifo"`), open,
+  in the depot preview's anatomy and nothing new: a `.merge-block-head`
+  "Realized gains (FIFO)" / "Realisierte Gewinne (FIFO)"; a `.merge-wide`
+  `table.merge-positions` with "Close year · Source · Target → afterwards ·
+  Change" (one row per close year, "source · target →" small over the bold
+  after figure, "—" where a side closes no trade that year, the change
+  signed or a muted "unchanged" / "unverändert"), then the row "Open
+  positions (cost)" / "Offene Positionen (Einstand)" as "source + target →"
+  over its after figure, set off by a `--color-border-strong` top rule
+  (`tr.merge-fifo__open`); under 720 px the same rows as `.merge-lines`
+  ("Realized 2026" / "Realisiert 2026" over "source · target → **after**"
+  and "Change +46.40" / "Änderung +46,40" small); and a `.merge-basis`
+  line: in the security's currency, before each security over its own
+  queue, afterwards over the merged one, realized and open cost moving by
+  the same amount unless a sale no lot covered before is covered afterwards,
+  the proceeds staying. The change column is tabular
+  (`td.merge-fifo__change`). A row in another currency than the security's
+  names it after its label. **Unchanged state:** where no realized amount
+  and no open cost moves the block is one `.merge-basis` line, "Realized
+  gains (FIFO): no realized amount and no open cost moves; which lot a sale
+  closes, and with it holding periods and annualized returns, may." /
+  "Realisierte Gewinne (FIFO): Kein realisierter Betrag und kein offener
+  Einstand ändert sich; welchen Posten ein Verkauf schließt, und mit ihm
+  Haltedauern und annualisierte Renditen, kann sich ändern.", in place of
+  the head and the table. It says what it compares — sums — and not that
+  nothing moves: the source's lot can stand open in the target's place. The figures follow the equal bookings' choice, as the holdings
+  do. "Open positions" is the Trades tab's own term ("Open positions
+  (FIFO)" / "Offene Positionen (FIFO)"), reused with "(cost)" rather than
+  the board's new "Offene Posten" (board 04, found while drawing 2).
 - **Four tables, each only when it has rows** (`.merge-table`, a cell's
   reason muted under its value): the colliding **manual** quotes ("Date ·
   Target · applies · Source · dropped", the source's struck through in
@@ -2882,9 +2951,17 @@ records only what the security adds.
   with its state and view, G6-A's reference) plus "A rule that has been in
   force keeps its subject as part of its history.", a split one side lacks
   with its date, ratio and the side's earlier booking or quote, a split that
-  would restate a depot it did not restate before. Where the reverse merge
-  passes, the remedy says so ("merge the other way — <ISIN> into this
-  security") and **Merge the other way** opens that pair's preview; where it
+  would restate a depot it did not restate before. A reason names
+  identities by kind and count ("2 identifiers of the two would no longer
+  lead to the target:", "the source's ISIN fails its check digit"); their
+  values follow as data lines (board 04 ③, H11): one
+  `.merge-refusal__position` line each, its kind as a muted
+  `.merge-refusal__kind` label ("ISIN of the source (as imported):", "Name
+  of the target:"), the value in `<bdi>`, an identifier in the pair cards'
+  mono face, a name in the text face with its currency after it. Where the
+  reverse merge passes, the remedy says so ("merge the other way — the
+  target into this security") and **Merge the other way** opens that pair's
+  preview; where it
   is refused too, "The other way is refused too: …" and "No direction is
   possible; both securities stay unchanged.", with no remedy the version
   does not have. A split mismatch offers **Check again** after its remedy;
@@ -3203,10 +3280,26 @@ or MCP token as the agent (decision T-8).
 - **The dialog.** Every entry of the version list names its author after the
   severity: "· Operator" or "· Agent". A version stored before authors
   existed and without a journaled creation names none.
-- **A rename is no version** (D-6) and moves no mark: the word follows the
-  line, not the name; the journal names who renamed.
+- **A rename moves the name's own mark** *(amended 2026-10-29, Sprint 21
+  board `mockups/ux-design-2026-10-27/03-author-marks` ①, security review
+  H14, T-16; it replaces "a rename is no version and moves no mark")*: the
+  name carries "Agent" when the agent gave it, the words line when the agent
+  wrote the version in force; each with its hidden lead. The name's mark
+  (`[data-role="policy-rule-name-author"]`, from the rule's `name_author`)
+  follows the name's button, outside it, in the words line's voice (12 px,
+  `--color-text-muted`, no wrap inside "· Agent"), hidden lead "Named by:" /
+  "Name von:"; the scheduled and retired lists carry it after the name's
+  link; the dialog's head line names "Named by: Agent" where the agent named
+  the rule. The mark is the current name's author; the journal keeps every
+  rename.
 - **The title stays "Own rules".** It sets the portfolio's rules apart from
   the lens's generic thresholds (ADR-0049 §7), not from the agent.
+- **The other places the mark stands** *(amended 2026-10-29, Sprint 21
+  board `mockups/ux-design-2026-10-27/03-author-marks` ② and ③, security
+  review K12, T-16)*: the Tax page's statement heads, its allowance-order
+  list and summary, and the trim budget's basis line (Components → Tax
+  budget). The same anatomy everywhere; in a comma list the word takes
+  parentheses after what it covers.
 
 ## Amendment 2026-09-26 — Stored text with invisible characters *(Sprint 16 pick G12.2-B, E25 S7, G20)*
 
@@ -4452,6 +4545,18 @@ error is printed as it answered. Whether the follow-up's result belongs in
 the tab, beside its trigger, stays open; it lands where every sync result
 lands.
 
+**A catalog sync that is already running** *(security review 2026-10-12,
+H39; board `mockups/ux-design-2026-10-27/07-copy-sheet`)*: one catalog sync
+runs at a time across the instance. "Kurse aktualisieren" pressed while the
+scheduled sync or another window's runs answers in the same
+`#securities-action-result`, as a note (nothing is wrong, nothing is lost):
+"Eine Kursaktualisierung aller Wertpapiere läuft bereits; sie wurde nicht
+ein zweites Mal gestartet." (English "A price sync of every security is
+already running; it was not started a second time."). On the page whose own
+sync runs, the busy button stays the answer: the server refuses the pushed
+event and says nothing new. "Logo-Suche für alle wiederholen" is a
+no-op once queued, keeping its result.
+
 ### The detail's range labels *(H7.3; issue 1033)*
 
 The Chart tab's range buttons printed the raw codes ("1M 3M 6M YTD 1Y 3Y 5Y
@@ -4634,12 +4739,25 @@ and the domain is unchanged.
   frozen once referenced (2 bookings, 1 quote)" / "steht fest, sobald etwas
   darauf verweist (2 Buchungen, 1 Kurs)". The counts are read when the
   error is shown, as the domain read them when it refused.
-- **Not covered here, named:** the security merge dialog's refusal line,
-  the tax statement form and the snapshot form also interpolate changeset
-  messages by hand, and they print the raw field key in front of each
-  ("name can't be blank"). Translating the message alone would leave a
-  half-German line, so they wait for a story that gives their fields labels
-  too.
+- **Not covered here, named:** the security merge dialog's refusal line
+  and the snapshot form also interpolate changeset messages by hand, and
+  they print the raw field key in front of each ("name can't be blank").
+  Translating the message alone would leave a half-German line, so they
+  wait for a story that gives their fields labels too.
+- **The account dialog's text fields are tied to their errors** (K13,
+  board 07; UX-DR13's error association): each `.field-error` carries an
+  id, and its field `aria-invalid` and `aria-describedby` naming it. A name
+  the text rule refuses reads the `errors` domain's message under the
+  field ("darf keine Steuerzeichen und keine Zeilenumbrüche enthalten"),
+  and such a new tag the dialog's alert "Neuer Tag darf keine Steuerzeichen
+  und keine Zeilenumbrüche enthalten." The Imports page's bucket-tag field
+  answers in the same words.
+- **The tax statement form** (H36, board 07) names every refused field by
+  its label in its problem note (`#tax-form-error`): "Steuerpflichtige
+  Person: darf keine Steuerzeichen und keine Zeilenumbrüche enthalten", the
+  message through the `errors` domain; a meta-test walks every field the
+  form can be refused on. The holder field carries `aria-invalid` and
+  points at the note, as the institution and date fields do.
 
 ### The plan editor's Σ under 100 % *(H8.4 = A, issue 969)*
 
@@ -5391,6 +5509,15 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
       und hier nicht zu korrigieren. Die Buchung nicht noch einmal erfassen;
       siehe „Eine negative Steuer in einer Zeile“ in der
       Produktdokumentation."
+- **A refused ticker is dropped with a warning naming its remedy**
+  *(2026-10-28; security review 2026-10-12, H57; board
+  `mockups/ux-design-2026-10-27/02-imports-mapping` ②, pick Q2 = B)*: one
+  warning on the security's first row, "Sorrel Bay Foods AG: the ticker in
+  the file is not a valid ticker symbol and is not adopted; the security is
+  created without a ticker. Record the ticker on the security afterwards." /
+  "… Der Ticker aus der Datei ist kein gültiges Ticker-Symbol und wird nicht
+  übernommen; das Wertpapier wird ohne Ticker angelegt. Den Ticker danach am
+  Wertpapier erfassen."; every row imports.
 - **The parser warnings are ONE `attention` data note** (UX-DR17), no longer
   the accent banner UX-DR17 retired. It keeps `#parser-warnings-box`, sits
   where the box sat (after the counts by kind, before the mapping form), and
@@ -5459,6 +5586,62 @@ had no words for that state. Built as drawn; no `app.css` rule changes.
   (`/security_logos/<id>.<ext>`), never the URL the image came from, and the
   field's `type="url"` refuses it on save; the field starts empty in every
   state, its placeholder showing the shape it takes.
+
+## Amendment 2026-10-29 — The logo dialog: an upload instead of an image URL *(Sprint 21 Lane S, S3, security review 2026-10-12 H38; board `mockups/ux-design-2026-10-27/01-logo-upload`, before / after)*
+
+The Manage-logo dialog (`securities/logo_override_dialog.ex`) sets a manual
+logo from an image file the operator's browser uploads; the image-URL form
+and its "Save URL" are gone, so nothing typed into the page makes the server
+fetch an address. "Search again" (discovery under the outbound policy) and
+"Remove logo" are unchanged. This supersedes the 2026-10-06 amendment's
+image-URL bullet and its status sentence.
+
+- **Anatomy, in the URL form's slot** (`#logo-upload-form`,
+  `.logo-override__form`, one column, `--space-2` between parts): the label
+  "Image file" (`.logo-override__label`); the chooser "Choose image…", the
+  label of the visually hidden `live_file_input`, drawn as the outline
+  button (`.logo-override__choose`, a focus ring while the input has focus);
+  the chosen file's row; the field error; the basis line (`.hint`); "Save
+  logo" (`.button-primary`).
+- **Three states.** *Nothing chosen:* "Save logo" disabled. *A file chosen:*
+  its `live_img_preview` at the detail header's logo size
+  (`.security-logo--lg`, 40 px, on the logo plate), the file name (600,
+  wrapping anywhere) over its size (muted, tabular), and an × ("Remove the
+  selection", `aria-label` and `title`) that cancels the entry; "Save logo"
+  enabled. The answer is the page's result "Logo updated", and the dialog
+  closes. *A file refused:* the image glyph on the initial plate in the
+  preview's place, and a `.field-error` under the chosen file
+  (`#logo-upload-error`), the input `aria-invalid` and described by it
+  (UX-DR13); "Save logo" disabled until the file is removed or replaced.
+- **The refusal's words** are the Imports upload's ("File too large.",
+  "File type not accepted.", "Only one file at a time."); a file whose bytes
+  are not the image its type names is refused by the store after the upload
+  and stays chosen, with "The file is not a readable image." under it. A
+  store fault that is not the file's reads "Could not save the logo." in the
+  same place.
+- **Dropping a file on the form** chooses it too (`phx-drop-target`), with
+  no zone drawn: the dialog is small, and a phone has nothing to drop.
+- **The basis line** names what is accepted and the lock: "PNG, JPEG or
+  WebP, at most 256 KB. The image is stored on this instance; discovery does
+  not overwrite it." The accept list and the size are `LogoStore`'s own
+  (`upload_accept/0`, `upload_max_bytes/0`), which `allow_upload/3` reads,
+  so the browser and the store refuse the same files.
+- **The file-missing sentence** names the upload: "The stored logo file is
+  missing. Upload the image again, or remove the logo." (de "Die
+  gespeicherte Logodatei fehlt. Das Bild erneut hochladen oder das Logo
+  entfernen.").
+- **The source is a word** (found while drawing 1, Voice and Tone): a logo
+  discovery stored reads "Current logo source: found automatically"
+  (de "Aktuelle Logo-Quelle: automatisch gefunden") for every adapter; the
+  stored adapter name never reaches the sentence, and a meta-test keeps it
+  so. A manual logo, uploaded here or set over the API, is always locked and
+  reads "A manual logo is set (discovery will not overwrite it)." as before;
+  the label "manually uploaded" exists for a manual source without the lock,
+  which no current write leaves, so the sentence never prints the raw value.
+- **The API keeps its URL path** (`PUT /api/v1/securities/:id/logo`, under
+  the outbound policy): the upload is a screen path the API does not offer,
+  as the coverage rule allows; a manual logo as bytes over the API and MCP
+  is on the idea list.
 
 ## Amendment 2026-10-07 — Copy and dialog states *(Sprint 19 pick J8 = A, PR γ U6; issues 1090, 1074, 1066, 1072, 944, 945)*
 
@@ -6331,3 +6514,29 @@ has no result to state, and a zero would claim it is flat").
   make the category its own ancestor"), and the same label opens "… muss
   zur selben Klassifikation gehören". Only the label changes: the slot, the
   severity and the sentence after the label stay as they were.
+
+## Amendment 2026-10-28 — Accounts & depots: Delete always asks *(Sprint 21 pick Q6 = A, board `mockups/ux-design-2026-10-27/06-delete-confirm`; security review 2026-10-12, H17)*
+
+Amends G1-A's row menu (Amendment 2026-09-26, "Delete asks only when it can
+succeed").
+
+- **Delete always asks once.** The row menu's Delete carries its native
+  confirmation whatever the menu read when it opened, so no state switches
+  the ask off; `test/invariants/destructive_confirmations_test.exs` pins it
+  as an unconditional `data-confirm`.
+- **The sentence follows what the menu saw.** A menu that saw a free account
+  asks as before ("…has no bookings and no linked depot.", plus the bucket
+  line). A menu that saw references claims nothing it cannot know: "Delete
+  “Tagesgeld”? If the account still has bookings or a linked depot, the
+  deletion is refused and nothing changes." — for a depot, "If the depot
+  still has bookings, …". German: "„Tagesgeld“ löschen? Hat das Konto noch
+  Buchungen oder ein verknüpftes Depot, wird das Löschen abgelehnt, und
+  nichts ändert sich."
+- **A referenced account's refusal follows the ask**: after OK, "Cannot
+  delete" opens as before when references remain; when they are gone, the
+  account is deleted, as asked.
+- **A delete says so** (board 06, found while drawing 1): a successful
+  delete puts "“Tagesgeld” deleted." („Tagesgeld“ gelöscht.) as a note in
+  the page's inline result (`#accounts-result`), the stored name in
+  `<bdi>`, as a merge reports its result; the row disappearing is no longer
+  the only word.

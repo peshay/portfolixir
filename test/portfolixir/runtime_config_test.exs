@@ -10,18 +10,82 @@ defmodule Portfolixir.RuntimeConfigTest do
   #
   # Acceptance criteria:
   # - DATABASE_SSL defaults to false.
-  # - The accepted true values are 1, true, and yes.
+  # - The accepted true values are 1, true, yes and on (H06).
   # - Other values are parsed as false.
   test "parses DATABASE_SSL with a false default and explicit true values" do
     refute RuntimeConfig.database_ssl?(nil)
     refute RuntimeConfig.database_ssl?("")
     refute RuntimeConfig.database_ssl?("false")
     refute RuntimeConfig.database_ssl?("no")
+    refute RuntimeConfig.database_ssl?("off")
+    refute RuntimeConfig.database_ssl?("require")
 
     assert RuntimeConfig.database_ssl?("1")
     assert RuntimeConfig.database_ssl?("true")
     assert RuntimeConfig.database_ssl?("TRUE")
     assert RuntimeConfig.database_ssl?("yes")
+    assert RuntimeConfig.database_ssl?("on")
+  end
+
+  # User story (security review 2026-10-12, H06):
+  # As an operator who writes a switch the way Docker, systemd and many
+  # guides write it,
+  # I want every boolean switch to read one vocabulary, and a value outside
+  # it to be named at boot for the switches that protect the instance,
+  # so that a switch I believe is on is never silently off.
+  #
+  # Acceptance criteria:
+  # - switch/2 reads 1, true, yes, on as true and 0, false, no, off as false,
+  #   trimmed and in any case; unset or blank gives the default; anything else
+  #   is {:error, value}.
+  # - PHX_FORCE_SSL, DATABASE_SSL and PHX_BIND_ALL accept on; the background
+  #   fetch switch accepts the same words.
+  # - switch_warning/3 names the variable and the value it could not read,
+  #   and the state it is read as; a recognised or absent value gives :ok.
+  # - protective_switch_warnings/1 checks PHX_FORCE_SSL, DATABASE_SSL and
+  #   PORTFOLIXIR_BACKGROUND_FETCH.
+  test "reads one switch vocabulary and names an unrecognised protective switch" do
+    for value <- ["1", "true", "YES", " on ", "On"] do
+      assert RuntimeConfig.switch(value, false) == {:ok, true}
+    end
+
+    for value <- ["0", "false", "No", "OFF "] do
+      assert RuntimeConfig.switch(value, true) == {:ok, false}
+    end
+
+    assert RuntimeConfig.switch(nil, true) == {:ok, true}
+    assert RuntimeConfig.switch("  ", false) == {:ok, false}
+    assert RuntimeConfig.switch("enabled", false) == {:error, "enabled"}
+
+    assert [_ | _] = RuntimeConfig.force_ssl_opts("on", nil)
+    assert RuntimeConfig.force_ssl_opts("off", nil) == false
+    assert RuntimeConfig.bind_ip("on") == {0, 0, 0, 0}
+    refute RuntimeConfig.background_fetch?("off")
+    assert RuntimeConfig.background_fetch?("on")
+
+    assert RuntimeConfig.switch_warning("PHX_FORCE_SSL", "on", false) == :ok
+    assert RuntimeConfig.switch_warning("PHX_FORCE_SSL", nil, false) == :ok
+
+    assert {:warn, message} = RuntimeConfig.switch_warning("PHX_FORCE_SSL", "enabled", false)
+    assert message =~ "PHX_FORCE_SSL"
+    assert message =~ ~s("enabled")
+    assert message =~ "read as off"
+
+    assert {:warn, message} =
+             RuntimeConfig.switch_warning("PORTFOLIXIR_BACKGROUND_FETCH", "disabled", true)
+
+    assert message =~ "read as on"
+
+    env = %{"PHX_FORCE_SSL" => "enabled", "DATABASE_SSL" => "require"}
+    warnings = RuntimeConfig.protective_switch_warnings(&Map.get(env, &1))
+
+    assert [{:warn, force_ssl}, {:warn, database_ssl}] =
+             Enum.filter(warnings, &match?({:warn, _}, &1))
+
+    assert force_ssl =~ "PHX_FORCE_SSL"
+    assert database_ssl =~ "DATABASE_SSL"
+
+    assert Enum.all?(RuntimeConfig.protective_switch_warnings(fn _ -> nil end), &(&1 == :ok))
   end
 
   # User story:
@@ -134,6 +198,60 @@ defmodule Portfolixir.RuntimeConfigTest do
              RuntimeConfig.trusted_proxies(System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
   end
 
+  # User story (security review 2026-10-12, H04):
+  # As an operator naming the proxy in front of the instance,
+  # I want a block wide enough to cover the clients refused and named,
+  # so that a copied catch-all does not trust every client's forwarding
+  # headers, and two halves cannot stand in for it.
+  #
+  # Acceptance criteria:
+  # - An IPv4 block shorter than /8 and an IPv6 block shorter than /32 are
+  #   dropped by trusted_proxies/1 and listed by overbroad_trusted_proxies/1,
+  #   never as unreadable.
+  # - A single address, a /29, a /8 and an IPv6 /32 still parse.
+  # - overbroad_proxies_warning/1 names the variable, quotes each entry and
+  #   says what such a block would do; none, no warning.
+  test "refuses and names a trusted-proxy block wide enough to cover the clients" do
+    raw =
+      "0.0.0.0/0, 0.0.0.0/1, 128.0.0.0/1, 127.0.0.0/7, ::/0, 2001:db8::/31, " <>
+        "172.18.0.1, 192.0.2.0/29, 10.0.0.0/8, 2001:db8::/32, nope"
+
+    assert RuntimeConfig.trusted_proxies(raw) == [
+             {{172, 18, 0, 1}, 32},
+             {{192, 0, 2, 0}, 29},
+             {{10, 0, 0, 0}, 8},
+             {{0x2001, 0xDB8, 0, 0, 0, 0, 0, 0}, 32}
+           ]
+
+    overbroad = [
+      "0.0.0.0/0",
+      "0.0.0.0/1",
+      "128.0.0.0/1",
+      "127.0.0.0/7",
+      "::/0",
+      "2001:db8::/31"
+    ]
+
+    assert RuntimeConfig.overbroad_trusted_proxies(raw) == overbroad
+    assert RuntimeConfig.unreadable_trusted_proxies(raw) == ["nope"]
+    assert RuntimeConfig.overbroad_trusted_proxies("172.18.0.1") == []
+    assert RuntimeConfig.overbroad_trusted_proxies(nil) == []
+
+    assert RuntimeConfig.overbroad_trusted_proxies() ==
+             RuntimeConfig.overbroad_trusted_proxies(
+               System.get_env("PORTFOLIXIR_TRUSTED_PROXIES")
+             )
+
+    assert RuntimeConfig.overbroad_proxies_warning([]) == :ok
+    assert {:warn, message} = RuntimeConfig.overbroad_proxies_warning(overbroad)
+    assert message =~ "PORTFOLIXIR_TRUSTED_PROXIES"
+    assert message =~ "X-Forwarded-For"
+
+    for entry <- overbroad do
+      assert message =~ inspect(entry)
+    end
+  end
+
   # User story (#777):
   # As an operator who does not want to type the password every day,
   # I want the session lifetime to be a setting with a sensible default,
@@ -191,8 +309,14 @@ defmodule Portfolixir.RuntimeConfigTest do
       end
     end
 
-    for config <- ["config/dev.exs", "config/test.exs"] do
-      [_, committed] = Regex.run(~r/secret_key_base:\s*"([^"]+)"/, File.read!(config))
+    for {config, env} <- [{"config/dev.exs", :dev}, {"config/test.exs", :test}] do
+      # What the file evaluates to is committed, however it is spelled there.
+      committed =
+        config
+        |> Config.Reader.read!(env: env, target: :host)
+        |> Keyword.fetch!(:portfolixir)
+        |> Keyword.fetch!(PortfolixirWeb.Endpoint)
+        |> Keyword.fetch!(:secret_key_base)
 
       assert_raise ArgumentError, ~r/SECRET_KEY_BASE/, fn ->
         RuntimeConfig.validate_secret_key_base!(committed)
@@ -304,7 +428,7 @@ defmodule Portfolixir.RuntimeConfigTest do
     refute message =~ "not set or not readable"
     assert {:warn, _} = RuntimeConfig.trusted_proxies_warning(on, any6, loopback)
 
-    for beyond <- ["127.0.0.1, 172.18.0.1", "127.0.0.0/7", "2001:db8::1, 172.18.0.1"] do
+    for beyond <- ["127.0.0.1, 172.18.0.1", "10.0.0.0/8", "2001:db8::1, 172.18.0.1"] do
       assert RuntimeConfig.trusted_proxies_warning(on, any, RuntimeConfig.trusted_proxies(beyond)) ==
                :ok,
              beyond
@@ -370,5 +494,192 @@ defmodule Portfolixir.RuntimeConfigTest do
     end
 
     assert File.read!("config/runtime.exs") =~ "Portfolixir.RuntimeConfig.logo_dir()"
+  end
+
+  # User story (security review 2026-10-12, H72):
+  # As an operator whose database password holds a character a URL reserves,
+  # I want the release to refuse DATABASE_URL at boot naming the variable and
+  # what is wrong with it, never its value,
+  # so that the password never lands in the container log or a bug report.
+  #
+  # Acceptance criteria:
+  # - A URL with a host, a port and one database name is returned as given;
+  #   so is one whose password is percent-encoded.
+  # - A password holding '/', '#', '?' or a malformed percent sequence, a URL
+  #   without a host or without a database name, and an unset variable each
+  #   raise an ArgumentError that names DATABASE_URL and holds no part of the
+  #   password.
+  # - Every URL it returns parses for the Repo without an error.
+  # - The production runtime configuration reads DATABASE_URL through it.
+  test "refuses a malformed DATABASE_URL naming the variable, never the password" do
+    for url <- [
+          "postgres://portfolixir:0123abcd@db:5432/portfolixir_prod",
+          "postgres://portfolixir:Synthetic%2FPw%23x@db:5432/portfolixir_prod",
+          "postgresql://portfolixir@127.0.0.1/portfolixir_prod"
+        ] do
+      assert RuntimeConfig.database_url!(url) == url
+      assert Keyword.fetch!(Ecto.Repo.Supervisor.parse_url(url), :database) == "portfolixir_prod"
+    end
+
+    for password <- [
+          "SyntheticPw/With+Slash=",
+          "SyntheticPw#Hash",
+          "SyntheticPw?Query",
+          "SyntheticPw%zzBad"
+        ] do
+      url = "postgres://portfolixir:#{password}@db:5432/portfolixir_prod"
+      error = assert_raise ArgumentError, fn -> RuntimeConfig.database_url!(url) end
+      assert error.message =~ "DATABASE_URL"
+      refute error.message =~ "SyntheticPw"
+    end
+
+    for url <- ["postgres:///portfolixir_prod", "postgres://db:5432/", "postgres://db:5432/a/b"] do
+      error = assert_raise ArgumentError, fn -> RuntimeConfig.database_url!(url) end
+      assert error.message =~ "DATABASE_URL"
+    end
+
+    error = assert_raise ArgumentError, fn -> RuntimeConfig.database_url!(nil) end
+    assert error.message =~ "DATABASE_URL is required"
+
+    assert File.read!("config/runtime.exs") =~
+             ~s|Portfolixir.RuntimeConfig.database_url!(System.get_env("DATABASE_URL"))|
+  end
+
+  # User story (security review 2026-10-12, K03):
+  # As an operator pointing a release at a PostgreSQL outside the Compose
+  # network with a provider's URL,
+  # I want the URL's TLS settings honoured with verification, refused where
+  # they would allow plaintext or contradict DATABASE_SSL, and a private CA
+  # to be named,
+  # so that my financial records never cross the network in plaintext while I
+  # believe TLS is on.
+  #
+  # Acceptance criteria:
+  # - ?sslmode=require, verify-ca or verify-full turns TLS on with
+  #   Postgrex's verifying defaults; ?ssl=true does too; neither key is left
+  #   in the URL the Repo reads, so nothing in it overrides the decision.
+  # - ?sslmode=disable, allow or prefer, a ?ssl= other than true or false,
+  #   and any key outside ssl, sslmode, pool_size, timeout and idle_interval
+  #   are refused naming DATABASE_URL, never a query value.
+  # - A URL TLS setting that contradicts an explicit DATABASE_SSL is refused
+  #   naming both; DATABASE_SSL alone still decides when the URL is silent.
+  # - DATABASE_SSL_CA_FILE names an absolute, readable file used as the CA
+  #   over the verifying defaults; with TLS off, relative or missing, it is
+  #   refused naming the variable.
+  # - The production runtime configuration reads the Repo's URL and TLS
+  #   through it, and the deployment guide names both variables in English
+  #   and German.
+  test "maps the database URL's TLS settings and refuses permissive or contradicting ones" do
+    url = "postgres://portfolixir:0123abcd@db.example.net:5432/portfolixir_prod"
+
+    assert RuntimeConfig.database_options!(url, nil, nil) == [url: url, ssl: false]
+    assert RuntimeConfig.database_options!(url, "true", nil) == [url: url, ssl: true]
+
+    for mode <- ~w(require verify-ca verify-full) do
+      assert RuntimeConfig.database_options!(url <> "?sslmode=" <> mode, nil, nil) ==
+               [url: url, ssl: true]
+
+      assert RuntimeConfig.database_options!(url <> "?sslmode=" <> mode, "on", nil) ==
+               [url: url, ssl: true]
+    end
+
+    assert RuntimeConfig.database_options!(url <> "?ssl=true", nil, nil) == [url: url, ssl: true]
+    assert RuntimeConfig.database_options!(url <> "?ssl=false", "", nil) == [url: url, ssl: false]
+
+    assert [url: kept, ssl: true] =
+             RuntimeConfig.database_options!(url <> "?sslmode=require&pool_size=5", nil, nil)
+
+    parsed = Ecto.Repo.Supervisor.parse_url(kept)
+    assert parsed[:pool_size] == 5
+    refute Keyword.has_key?(parsed, :ssl)
+    refute Keyword.has_key?(parsed, :sslmode)
+
+    refusals = [
+      {url <> "?sslmode=disable", nil},
+      {url <> "?sslmode=allow", nil},
+      {url <> "?sslmode=prefer", nil},
+      {url <> "?ssl=require", nil},
+      {url <> "?sslrootcert=SyntheticValue", nil},
+      {url <> "?password=SyntheticValue", nil},
+      {url <> "?ssl=false", "true"},
+      {url <> "?sslmode=require", "false"},
+      {url <> "?ssl=false&sslmode=require", nil}
+    ]
+
+    for {bad, ssl} <- refusals do
+      error = assert_raise ArgumentError, fn -> RuntimeConfig.database_options!(bad, ssl, nil) end
+      assert error.message =~ "DATABASE_URL", bad
+      refute error.message =~ "SyntheticValue"
+      refute error.message =~ "0123abcd"
+    end
+
+    error =
+      assert_raise ArgumentError, fn ->
+        RuntimeConfig.database_options!(url <> "?ssl=false", "true", nil)
+      end
+
+    assert error.message =~ "DATABASE_SSL"
+
+    ca =
+      Path.join(System.tmp_dir!(), "runtime-config-ca-#{System.unique_integer([:positive])}.pem")
+
+    File.write!(ca, "synthetic")
+    on_exit(fn -> File.rm(ca) end)
+
+    assert RuntimeConfig.database_options!(url, "true", ca) == [url: url, ssl: [cacertfile: ca]]
+
+    assert RuntimeConfig.database_options!(url <> "?sslmode=verify-full", nil, ca) ==
+             [url: url, ssl: [cacertfile: ca]]
+
+    for {ssl, file} <- [
+          {nil, ca},
+          {"false", ca},
+          {"true", "relative/ca.pem"},
+          {"true", ca <> ".gone"}
+        ] do
+      error =
+        assert_raise ArgumentError, fn -> RuntimeConfig.database_options!(url, ssl, file) end
+
+      assert error.message =~ "DATABASE_SSL_CA_FILE"
+    end
+
+    assert RuntimeConfig.database_options!(url, "true", "  ") == [url: url, ssl: true]
+
+    error = assert_raise ArgumentError, fn -> RuntimeConfig.database_options!(nil, nil, nil) end
+    assert error.message =~ "DATABASE_URL is required"
+
+    runtime = File.read!("config/runtime.exs")
+    assert runtime =~ "Portfolixir.RuntimeConfig.database_options!("
+    assert runtime =~ ~s|System.get_env("DATABASE_SSL_CA_FILE")|
+
+    for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      text = File.read!(guide)
+      assert text =~ "`DATABASE_SSL`", guide
+      assert text =~ "`DATABASE_SSL_CA_FILE`", guide
+      assert text =~ "sslmode", guide
+    end
+  end
+
+  # User story (security review 2026-10-12, H72, review round):
+  # As an operator whose database password holds characters the Repo has
+  # always read, such as ^ | { } [ ] \\ " < > ` or a space,
+  # I want the DATABASE_URL check to read the URL as the Repo does,
+  # so that an instance that booted before still boots, and only a URL the
+  # Repo could not read is refused.
+  #
+  # Acceptance criteria:
+  # - A URL whose password holds those characters (and @ or :) is returned as
+  #   given, and the Repo reads the same host, password and database from it.
+  test "a DATABASE_URL password the Repo has always accepted still boots" do
+    for password <- [~s(a^b|c{d}e[f]g\\h"i<j>k`l m), "p@ss", "p:ss"] do
+      url = "postgres://portfolixir:#{password}@db:5432/portfolixir_prod"
+
+      assert RuntimeConfig.database_url!(url) == url
+
+      parsed = Ecto.Repo.Supervisor.parse_url(url)
+      assert parsed[:hostname] == "db"
+      assert parsed[:password] == password
+      assert parsed[:database] == "portfolixir_prod"
+    end
   end
 end

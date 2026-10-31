@@ -238,7 +238,8 @@ defmodule Portfolixir.Input.TextTest do
       {c(0x200D) <> c(0x1F468), 1},
       {c(0x1F468) <> c(0x200D), 1},
       {c(0x1F468) <> c(0x200D) <> c(0x200D) <> c(0x1F4BB), 2},
-      {"x" <> c(0xFE0F) <> c(0x200D) <> c(0x1F468), 1},
+      # H12: a VS16 after a Latin letter has no base to vary, so it counts too.
+      {"x" <> c(0xFE0F) <> c(0x200D) <> c(0x1F468), 2},
       {c(0x1F3F4) <>
          c(0xE0067) <>
          c(0xE0062) <>

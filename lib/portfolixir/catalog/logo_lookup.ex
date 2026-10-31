@@ -22,6 +22,7 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.LogoLookup.CompaniesLogo
   alias Portfolixir.Catalog.LogoLookup.CryptoMap
   alias Portfolixir.Catalog.LogoLookup.Wikipedia
@@ -421,10 +422,21 @@ defmodule Portfolixir.Catalog.LogoLookup do
   """
   @spec run(Security.t(), keyword()) ::
           {:ok, Security.t()} | :skip | {:error, term()}
-  def run(%Security{} = security, opts \\ []) do
+  def run(%Security{} = security, opts \\ []), do: do_run(:logo_job, security, opts)
+
+  @doc """
+  `run/2` on behalf of `actor`, for a rediscovery a person or a token asked
+  for: the stored logo is journaled under `actor`, not the discovery's
+  system job (security review 2026-10-12, H61).
+  """
+  @spec run(Actor.t(), Security.t(), keyword()) ::
+          {:ok, Security.t()} | :skip | {:error, term()}
+  def run(%Actor{} = actor, %Security{} = security, opts), do: do_run(actor, security, opts)
+
+  defp do_run(actor, security, opts) do
     case lookup_url(security, opts) do
       {:ok, url, source} ->
-        case store(security, url, source, opts) do
+        case store(actor, security, url, source, opts) do
           {:ok, updated} ->
             {:ok, updated}
 
@@ -458,8 +470,11 @@ defmodule Portfolixir.Catalog.LogoLookup do
       {:error, :malformed_upstream}
   end
 
-  defp store(security, url, source, opts) do
-    LogoStore.download_and_store(security, url, source, opts)
+  defp store(actor, security, url, source, opts) do
+    case actor do
+      :logo_job -> LogoStore.download_and_store(security, url, source, opts)
+      %Actor{} -> LogoStore.download_and_store(actor, security, url, source, opts)
+    end
   rescue
     exception ->
       Logger.warning(

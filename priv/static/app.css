@@ -2838,6 +2838,82 @@ img.security-logo {
   font-size: 24px;
 }
 
+/* The Manage-logo dialog's upload (H38, board 01 of ux-design-2026-10-27):
+   a label, the chooser row, the chosen file, the field error, the basis
+   line and the confirm, in one column. */
+.logo-override__form {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.logo-override__label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The chooser is the label of the visually hidden file input, drawn as the
+   outline button. */
+.logo-override__choose {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* The chooser's words read as a button's, not as the muted field caption
+   the generic `label span` rule draws. */
+.logo-override__choose span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.logo-override__choose:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The chosen file: its preview at the detail header's logo size, the file
+   name and size, and the × that clears the choice. */
+.logo-override__chosen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.logo-override__chosen .security-logo--lg {
+  margin-right: 0;
+}
+
+.logo-override__file {
+  display: grid;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.logo-override__file b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.logo-override__file small {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.logo-override__form .hint,
+.logo-override__form .field-error {
+  margin: 0;
+}
+
 .row-target--with-logo {
   display: inline-flex;
   align-items: center;
@@ -9473,6 +9549,24 @@ dialog.booking-drawer {
   color: var(--color-text-muted);
 }
 
+/* The name's own author mark (security review 2026-10-12, H14; board
+   ux-design-2026-10-27/03-author-marks): the words line's voice beside the
+   name's button and outside it, so the button's name stays the rule's name;
+   it never breaks inside "· Agent". */
+[data-role="policy-rule-name-author"] {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* The agent's mark on the Tax page (security review 2026-10-12, K12; board
+   ux-design-2026-10-27/03-author-marks): the line's muted text wherever it
+   stands, the allowance-order list included, whose institution reads in body
+   colour. */
+[data-role="tax-author"] {
+  color: var(--color-text-muted);
+}
+
 /* Undetermined is neither a pass nor a breach (ADR-0049 §3): an outlined,
    muted badge — the board's reading — so it can never pass for "met". */
 .badge--undetermined {
@@ -9875,6 +9969,18 @@ dialog.merge-dialog {
   color: var(--color-text-muted);
 }
 
+/* K11 (board 04, Q4 A): the security merge's FIFO restatement reuses the
+   depot preview's anatomy — .merge-block-head, a .merge-wide table,
+   .merge-lines rows under 720 px, a .merge-basis line. Only the change
+   column is new: signed, tabular; the open lots' row is set off. */
+.merge-fifo td.merge-fifo__change {
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-fifo tr.merge-fifo__open td {
+  border-top: 1px solid var(--color-border-strong);
+}
+
 /* Step 1: every account, the ones that cannot take the history disabled
    with their reason as text (board 02). */
 .merge-targets {
@@ -10151,6 +10257,23 @@ dialog.merge-dialog {
 
 .merge-refusal__remedy {
   margin-bottom: 8px;
+}
+
+/* H11 (board 04): an identity a refusal names by kind: its kind as a muted
+   label, its stored value as data after it, isolated and never wrapped
+   inside the value. */
+.merge-refusal__position .merge-refusal__kind {
+  color: var(--color-text-muted);
+}
+
+.merge-refusal__position bdi {
+  overflow-wrap: anywhere;
+}
+
+/* An identifier (ISIN, WKN, ticker) in the mono face the pair cards use;
+   a name stays in the text face. */
+.merge-refusal__position bdi.mono {
+  font-size: 12.5px;
 }
 
 /* The security merge (board 03-security-merge, pick G3-A): the source and

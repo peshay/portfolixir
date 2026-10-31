@@ -11,7 +11,16 @@ defmodule Portfolixir.ReviewSeedTest do
 
   alias Portfolixir.Catalog.Quote
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Income
+  alias Portfolixir.Portfolios.PolicyRule
+  alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.Portfolio
+  alias Portfolixir.Tax
+  alias Portfolixir.Tax.StatementSnapshot
 
   @seed "priv/demo/finding_surfaces_seed.exs"
 
@@ -72,6 +81,86 @@ defmodule Portfolixir.ReviewSeedTest do
     end
   end
 
+  # User story (Sprint 21 amendment D-12, the review seed):
+  # As the reviewer walking the Sprint 21 security fixes on the review
+  # instance,
+  # I want the seed to carry the shape each fix draws on a page,
+  # so that the walkthrough finds every mark and figure without booking it
+  # by hand.
+  #
+  # Acceptance criteria:
+  # - H14: a Demo Depot rule the operator created and the agent renamed
+  #   carries name_author agent, its version author operator.
+  # - K12: a statement the agent recorded carries author agent.
+  # - K11: a security merge left ready to try whose two sides both closed
+  #   trades states fifo_realized with a close year of both, and a change.
+  # - K07: an income booking in USD, to which no rate leads from EUR, is
+  #   excluded from the Demo Depot's income and named with its security.
+  # - K09: a split of a security held in two portfolios booked one row in
+  #   each and scaled both holdings.
+  # - A second run adds no rule, statement, portfolio, security or booking
+  #   (the first test pins the securities and the bookings).
+  test "the review seed carries the Sprint 21 security shapes (D-12)" do
+    seed!()
+    demo = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot"))
+
+    # H14: renamed by the agent, the version still the operator's.
+    agent_named =
+      demo.id
+      |> PolicyRules.list_rules(include_retired: true)
+      |> Enum.filter(&(&1.name_author == :agent))
+
+    assert [%PolicyRule{versions: [%{author: :operator}]}] = agent_named,
+           "no Demo Depot rule is named by the agent"
+
+    # K12: recorded by the agent.
+    assert Enum.any?(Tax.list_snapshots(), &(&1.author == :agent)),
+           "no tax statement is recorded by the agent"
+
+    # K11: both sides closed trades, and pooling them restates the result.
+    [source, target] =
+      for isin <- ["XS0000000165", "XS0000000173"],
+          do: Repo.one!(from(s in Security, where: s.isin == ^isin))
+
+    {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+    fifo = preview.outcomes[false].fifo_realized
+
+    assert Enum.any?(fifo.years, &(&1.source && &1.target)),
+           "no close year in which both sides closed a trade"
+
+    assert fifo.unchanged == false
+
+    # K07: a USD dividend in the EUR portfolio, excluded and named.
+    excluded = Income.for_portfolio(demo.id).excluded
+
+    assert %{currency_code: "USD", securities: ["Harborline Freight Inc"]} =
+             Enum.find(excluded.currencies, &(&1.currency_code == "USD")),
+           "no USD income booking is excluded from the Demo Depot's income"
+
+    # K09: one split row per portfolio, both holdings scaled.
+    wexmoor = Repo.one!(from(s in Security, where: s.name == "Wexmoor Instruments AG"))
+
+    splits =
+      wexmoor.id
+      |> Ledger.list_transactions_for_security()
+      |> Enum.filter(&(&1.type == "split"))
+
+    assert length(splits) == 2
+    assert splits |> Enum.map(& &1.portfolio_id) |> Enum.uniq() |> length() == 2
+
+    held =
+      wexmoor.id
+      |> Ledger.holdings_for_security()
+      |> Map.new(&{&1.portfolio.id, &1.quantity})
+
+    assert map_size(held) == 2
+    assert held |> Map.values() |> Enum.reduce(&Decimal.add/2) |> Decimal.equal?(32)
+
+    rows = row_counts()
+    seed!()
+    assert row_counts() == rows
+  end
+
   defp stored_class(name) do
     Repo.one!(from(s in Security, where: s.name == ^name, select: s.asset_class))
   end
@@ -79,7 +168,10 @@ defmodule Portfolixir.ReviewSeedTest do
   defp row_counts,
     do: %{
       securities: Repo.aggregate(Security, :count),
-      bookings: Repo.aggregate(Transaction, :count)
+      bookings: Repo.aggregate(Transaction, :count),
+      portfolios: Repo.aggregate(Portfolio, :count),
+      rules: Repo.aggregate(PolicyRule, :count),
+      statements: Repo.aggregate(StatementSnapshot, :count)
     }
 
   # The seed defines a module; a second run redefines it, as a second

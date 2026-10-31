@@ -46,7 +46,14 @@ WHAT IS NOT FLAGGED
   * Ordinary whitespace: TAB (U+0009), LF (U+000A), CR (U+000D), SPACE (U+0020).
   * A single U+FEFF appearing as the very first character of a file (a UTF-8
     byte-order mark). A BOM anywhere else is flagged.
-  * Binary files (detected via NUL byte or UTF-8 decode failure) are skipped.
+  * Binary files, and only those: a file whose extension is on the explicit
+    list ``BINARY_EXTENSIONS`` below, or one ``.gitattributes`` marks binary
+    (``binary`` or ``-text``) that also holds a NUL or does not decode as
+    UTF-8. Every other file that holds a NUL or a byte sequence that is not
+    UTF-8 is a violation of its own ("not valid UTF-8 text"), and the
+    characters around the offending byte are still scanned: one such byte
+    must not carry a bidi control or a tag character past the gate (H64, the
+    2026-10-12 security review).
   * Entries pinned in the allowlist file (see ALLOWLIST below).
 
 ALLOWLIST
@@ -95,6 +102,13 @@ TAG_CHARS = set(range(0xE0000, 0xE007F + 1))
 # U+FEFF: forbidden unless it is the first character of the file (BOM).
 BOM = 0xFEFF
 
+# The binary files the gate skips, by extension. A tracked binary of another
+# kind joins this list, or is marked `binary` in .gitattributes; any other file
+# must be UTF-8 text without a NUL.
+BINARY_EXTENSIONS = frozenset(
+    {".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".webp", ".woff", ".woff2"}
+)
+
 # Code points that are allowed despite being control/format characters because
 # they are ordinary text structure. (Cc whitespace is also explicitly allowed.)
 ALLOWED_WHITESPACE = {0x09, 0x0A, 0x0D, 0x20}
@@ -105,10 +119,12 @@ class Violation:
     path: str
     line: int
     col: int
-    codepoint: int
+    codepoint: int | None
     description: str
 
     def render(self) -> str:
+        if self.codepoint is None:
+            return f"{self.path}:{self.line}:{self.col}: {self.description}"
         try:
             name = unicodedata.name(chr(self.codepoint))
         except ValueError:
@@ -215,23 +231,79 @@ def classify(codepoint: int) -> str | None:
     return None
 
 
-def read_text(path: str) -> str | None:
-    """Read a file as UTF-8 text. Return None if it looks binary.
-
-    A file is treated as binary (and skipped) if it contains a NUL byte or
-    fails to decode as UTF-8.
-    """
+def read_bytes(path: str) -> bytes | None:
+    """Read a file's bytes; None if it cannot be read."""
     try:
         with open(path, "rb") as handle:
-            data = handle.read()
-    except (OSError, IOError):
+            return handle.read()
+    except OSError:
         return None
-    if b"\x00" in data:
-        return None
+
+
+def decode(data: bytes) -> str:
+    """Decode as UTF-8, keeping every byte that is not UTF-8 as a lone
+    surrogate (``surrogateescape``), so the characters around it still scan."""
+    return data.decode("utf-8", errors="surrogateescape")
+
+
+def read_text(path: str) -> str | None:
+    """Read a file as text (see ``decode``). Return None if it cannot be read."""
+    data = read_bytes(path)
+    return None if data is None else decode(data)
+
+
+def is_listed_binary(path: str) -> bool:
+    """True if the file's extension is on the explicit binary list."""
+    return os.path.splitext(path)[1].lower() in BINARY_EXTENSIONS
+
+
+def encoding_violation(path: str, data: bytes) -> Violation | None:
+    """The first NUL or byte sequence that is not UTF-8, as a violation."""
+    offset = data.find(b"\x00")
+    what = "a NUL byte"
     try:
-        return data.decode("utf-8")
-    except UnicodeDecodeError:
+        data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        if offset == -1 or exc.start < offset:
+            offset, what = exc.start, "a byte sequence that is not UTF-8"
+    if offset == -1:
         return None
+    line = data.count(b"\n", 0, offset) + 1
+    col = offset - (data.rfind(b"\n", 0, offset) + 1) + 1
+    return Violation(
+        path,
+        line,
+        col,
+        None,
+        f"not valid UTF-8 text: {what} at byte {offset}; only a file "
+        f"BINARY_EXTENSIONS or .gitattributes names as binary is skipped",
+    )
+
+
+def gitattributes_binary(paths: list[str]) -> set[str]:
+    """The paths .gitattributes marks binary (``binary``, or ``-text``).
+
+    Outside a git repository nothing is marked, so only the extension list
+    skips a file.
+    """
+    if not paths:
+        return set()
+    try:
+        output = subprocess.run(
+            ["git", "check-attr", "-z", "--stdin", "binary", "text"],
+            input=b"".join(p.encode("utf-8") + b"\0" for p in paths),
+            check=True,
+            capture_output=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return set()
+    fields = output.decode("utf-8", errors="surrogateescape").split("\0")
+    marked = set()
+    for index in range(0, len(fields) - 2, 3):
+        path, attribute, value = fields[index : index + 3]
+        if (attribute, value) in (("binary", "set"), ("text", "unset")):
+            marked.add(path)
+    return marked
 
 
 def scan_text(path: str, text: str, allowlist: list[AllowlistEntry]) -> list[Violation]:
@@ -296,13 +368,28 @@ def main(argv: list[str]) -> int:
     files = args if args else tracked_files()
 
     violations: list[Violation] = []
+    # Files that hold a NUL or are not UTF-8: reported unless .gitattributes
+    # marks them binary, which git answers for all of them at once.
+    not_text: list[tuple[str, Violation, list[Violation]]] = []
     for path in files:
-        if not os.path.isfile(path):
+        if not os.path.isfile(path) or is_listed_binary(path):
             continue
-        text = read_text(path)
-        if text is None:
-            continue  # binary or unreadable -> skip
-        violations.extend(scan_text(path, text, allowlist))
+        data = read_bytes(path)
+        if data is None:
+            print(f"error: {path}: cannot be read", file=sys.stderr)
+            return 1
+        found = scan_text(path, decode(data), allowlist)
+        problem = encoding_violation(path, data)
+        if problem is None:
+            violations.extend(found)
+        else:
+            not_text.append((path, problem, found))
+
+    marked = gitattributes_binary([path for path, _, _ in not_text])
+    for path, problem, found in not_text:
+        if path not in marked:
+            violations.append(problem)
+            violations.extend(found)
 
     if violations:
         print(

@@ -120,6 +120,51 @@ defmodule Portfolixir.DevConfigTest do
     end
   end
 
+  # User story (security review 2026-10-12, H06, closing act):
+  # As a developer who writes a switch the way Docker and systemd write it,
+  # I want development to read PHX_BIND_ALL and PORTFOLIXIR_BACKGROUND_FETCH
+  # with the release's one switch vocabulary,
+  # so that a switch means the same under `mix phx.server` as in a release.
+  #
+  # Acceptance criteria:
+  # - Every word of the vocabulary (1, true, yes, on; 0, false, no, off), in
+  #   any case and with spaces around it, gives development the state
+  #   `Portfolixir.RuntimeConfig.switch/2` gives the release.
+  # - An unreadable value keeps each switch's default: loopback, fetching on.
+  test "development reads its two switches with the release's vocabulary" do
+    names = ["PHX_BIND_ALL", "PORTFOLIXIR_BACKGROUND_FETCH"]
+    previous = Map.new(names, &{&1, System.get_env(&1)})
+
+    try do
+      for word <- ~w(1 true yes on 0 false no off),
+          spelled <- [word, " " <> String.upcase(word) <> " "] do
+        {:ok, on?} = Portfolixir.RuntimeConfig.switch(spelled, false)
+
+        System.put_env("PHX_BIND_ALL", spelled)
+        System.put_env("PORTFOLIXIR_BACKGROUND_FETCH", spelled)
+
+        assert bind_ip() == if(on?, do: {0, 0, 0, 0}, else: {127, 0, 0, 1}), inspect(spelled)
+        assert background_fetch() == %{logos: on?, quotes: on?, fx: on?}, inspect(spelled)
+      end
+
+      System.put_env("PHX_BIND_ALL", "enabled")
+      System.put_env("PORTFOLIXIR_BACKGROUND_FETCH", "disabled")
+      assert bind_ip() == {127, 0, 0, 1}
+      assert background_fetch() == %{logos: true, quotes: true, fx: true}
+    after
+      for {name, value} <- previous do
+        if value, do: System.put_env(name, value), else: System.delete_env(name)
+      end
+    end
+  end
+
+  defp bind_ip do
+    dev_config()
+    |> Keyword.fetch!(PortfolixirWeb.Endpoint)
+    |> Keyword.fetch!(:http)
+    |> Keyword.fetch!(:ip)
+  end
+
   defp background_fetch do
     config = dev_config()
 

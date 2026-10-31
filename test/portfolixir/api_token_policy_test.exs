@@ -77,6 +77,7 @@ defmodule Portfolixir.ApiTokenPolicyTest do
       {"mcp#{mcp}", ~r/PORTFOLIXIR_API_TOKENS.*entry 1.*name=token/},
       {"MCP=#{mcp}", ~r/PORTFOLIXIR_API_TOKENS.*"MCP"/},
       {"-x=#{mcp}", ~r/PORTFOLIXIR_API_TOKENS.*"-x"/},
+      {"_x=#{mcp}", ~r/PORTFOLIXIR_API_TOKENS.*"_x"/},
       {"#{String.duplicate("n", 33)}=#{mcp}", ~r/PORTFOLIXIR_API_TOKENS/},
       {"mcp=#{mcp},mcp=#{scripts}", ~r/PORTFOLIXIR_API_TOKENS.*"mcp".*twice/},
       {"mcp=short", ~r/PORTFOLIXIR_API_TOKENS.*"mcp".*32 bytes/},

@@ -23,16 +23,18 @@ defmodule PortfolixirWeb.ViewScope do
   the review round's S7E-4): the page it opens reads it from its own address
   (`PortfolixirWeb.LiveViewScope`), so a live navigation from that page shows
   the remembered view.
+
+  The cookie is signed, read only when its name appears once, and named with
+  the `__Host-` prefix over HTTPS (`PortfolixirWeb.PreferenceCookie`, K02).
   """
 
   import Plug.Conn
 
   alias PortfolixirWeb.FetchSite
+  alias PortfolixirWeb.PreferenceCookie
 
   @cookie "portfolixir_view"
   @session_key "active_view_id"
-  # 1 year, same horizon as the locale cookie.
-  @max_age 60 * 60 * 24 * 365
 
   def init(opts), do: opts
 
@@ -54,7 +56,7 @@ defmodule PortfolixirWeb.ViewScope do
   @doc "The session key the LiveView on_mount reads the active view id from."
   def session_key, do: @session_key
 
-  @doc "The cookie name the active view id is persisted under."
+  @doc "The cookie name the active view id is persisted under (over plain HTTP)."
   def cookie_name, do: @cookie
 
   @doc """
@@ -81,20 +83,16 @@ defmodule PortfolixirWeb.ViewScope do
     end
   end
 
-  defp remember(conn, nil), do: delete_resp_cookie(conn, @cookie)
+  defp remember(conn, nil), do: PreferenceCookie.delete(conn, @cookie)
+  defp remember(conn, "total"), do: PreferenceCookie.put(conn, @cookie, "total")
 
-  defp remember(conn, "total"),
-    do: put_resp_cookie(conn, @cookie, "total", max_age: @max_age, same_site: "Lax")
+  defp remember(conn, view_id) when is_integer(view_id),
+    do: PreferenceCookie.put(conn, @cookie, Integer.to_string(view_id))
 
-  defp remember(conn, view_id) when is_integer(view_id) do
-    put_resp_cookie(conn, @cookie, Integer.to_string(view_id),
-      max_age: @max_age,
-      same_site: "Lax"
-    )
-  end
-
+  # Only a value this server signed, and only one of its name, is carried
+  # (`PortfolixirWeb.PreferenceCookie`, K02).
   defp carry_cookie(conn) do
-    case normalize(conn.cookies[@cookie]) do
+    case normalize(PreferenceCookie.read(conn, @cookie)) do
       nil -> put_session(conn, @session_key, nil)
       choice -> put_session(conn, @session_key, choice)
     end

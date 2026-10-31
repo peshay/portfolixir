@@ -151,10 +151,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
   from the operator's own, so only a token's write is the agent's.
   """
   @spec author_for(Portfolixir.Actor.t()) :: :operator | :agent
-  def author_for(%Portfolixir.Actor{type: type}) when type in [:api_token_rw, :api_token_ro],
-    do: :agent
-
-  def author_for(%Portfolixir.Actor{}), do: :operator
+  def author_for(%Portfolixir.Actor{} = actor), do: Portfolixir.Actor.author(actor)
 
   @doc """
   Sets the author of a new version's changeset from the actor of the write

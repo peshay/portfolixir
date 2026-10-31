@@ -161,6 +161,14 @@ const MODIFYING_POSTS = [
   "portfolixir.securities.merge"
 ];
 
+// Routed through POST and add a row, but close the version in force and
+// replace the scheduled versions from their date (security review
+// 2026-10-12, H13): destructive, and not idempotent, since a repeat adds
+// another version.
+const REPLACING_POSTS = [
+  "portfolixir.policy_rules.add_version" // closes the version in force, replaces scheduled ones
+];
+
 const OPEN_WORLD = [
   "portfolixir.securities.search_online", // sends its query to the configured provider
   "portfolixir.securities.create", // queues a provider backfill and a logo lookup (R6)
@@ -169,11 +177,7 @@ const OPEN_WORLD = [
 ];
 
 // Writes that only ever add, and whose additions are permanent.
-const APPEND_ONLY = [
-  "portfolixir.notes.append",
-  "portfolixir.policy_rules.create",
-  "portfolixir.policy_rules.add_version"
-];
+const APPEND_ONLY = ["portfolixir.notes.append", "portfolixir.policy_rules.create"];
 
 describe("the companion's published tool surface", () => {
   // User story (E25 S7, F21):
@@ -328,7 +332,8 @@ describe("the companion's published tool surface", () => {
   //   adds, PUT, PATCH and DELETE overwrite or remove; the only exceptions are
   //   named (two POST-routed computations read; three provider calls are open-world).
   // - The append-only writes are non-destructive and their descriptions state
-  //   that what they add is permanent.
+  //   that what they add is permanent; a new policy-rule version, which
+  //   closes and replaces versions, is destructive and not idempotent (H13).
   it("publishes every tool's hints, derived from the method it routes to", async () => {
     const routes = routedMethodsFromSource();
     const published = await publishedTools();
@@ -344,6 +349,7 @@ describe("the companion's published tool surface", () => {
       }
 
       const readOnly = method === "GET" || READ_ONLY_POSTS.includes(tool.name);
+      const replacing = REPLACING_POSTS.includes(tool.name);
       const hintedAs = REMOVING_POSTS.includes(tool.name)
         ? "DELETE"
         : MODIFYING_POSTS.includes(tool.name)
@@ -352,10 +358,14 @@ describe("the companion's published tool surface", () => {
       assert.equal(hints.readOnlyHint, readOnly, `${tool.name} (${method}) readOnlyHint`);
       assert.equal(
         hints.destructiveHint,
-        !readOnly && ["PUT", "PATCH", "DELETE"].includes(hintedAs ?? ""),
+        !readOnly && (replacing || ["PUT", "PATCH", "DELETE"].includes(hintedAs ?? "")),
         `${tool.name} (${method}) destructiveHint`
       );
-      assert.equal(hints.idempotentHint, readOnly || hintedAs !== "POST", `${tool.name} idempotentHint`);
+      assert.equal(
+        hints.idempotentHint,
+        readOnly || (!replacing && hintedAs !== "POST"),
+        `${tool.name} idempotentHint`
+      );
       assert.equal(hints.openWorldHint, OPEN_WORLD.includes(tool.name), `${tool.name} openWorldHint`);
 
       if (method === "GET") {
@@ -419,7 +429,7 @@ describe("the companion's published tool surface", () => {
     for (const tool of additive) {
       assert.doesNotMatch(
         tool.description ?? "",
-        /\b(is archived|are dropped|is dropped|written onto)\b/,
+        /\b(is archived|are dropped|is dropped|written onto|is closed|is replaced)\b/,
         `${tool.name} says it changes stored rows but is hinted as only adding`
       );
     }

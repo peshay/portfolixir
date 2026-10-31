@@ -645,4 +645,54 @@ defmodule PortfolixirWeb.TaxLiveTest do
       assert live |> element(kebab) |> render() =~ ~s(aria-expanded="true")
     end
   end
+
+  # User story (security review 2026-10-12, K12; board 03 ②, design review):
+  # As the operator reading the closed allowance-order disclosure,
+  # I want "Bank B 400.00 (Agent)" to read as one line of text,
+  # so that the mark stays joined to the order it covers at every width.
+  #
+  # Acceptance criteria:
+  # - The summary's text, the orders and the agent's mark included, is one
+  #   element beside the chevron, so the flex summary lays it out as one item.
+  # - The mark in the order list carries the muted role the stylesheet
+  #   colours as the line's muted text, as it does in every other place.
+  test "an agent's allowance-order mark stays inside the summary's text and reads muted", %{
+    conn: conn
+  } do
+    record!(%{})
+
+    {:ok, _order} =
+      Tax.put_allowance_order(Actor.api_token_rw("mcp"), %{
+        holder: "Owner",
+        institution: "Bank B",
+        tax_year: 2025,
+        amount_granted: "400"
+      })
+
+    {:ok, _live, html} = live(conn, "/tax?holder=Owner&year=2025")
+    doc = Floki.parse_document!(html)
+
+    [summary] = Floki.find(doc, "[data-role=orders] > summary")
+    {"summary", _attrs, children} = summary
+
+    elements = Enum.filter(children, &match?({_tag, _attrs, _children}, &1))
+
+    assert [{"svg", _, _}, {"span", text_attrs, _}] = elements,
+           "the summary must hold the chevron and one text element: " <> Floki.raw_html(summary)
+
+    assert {"data-role", "orders-summary"} in text_attrs
+
+    assert children |> Enum.reject(&match?({_, _, _}, &1)) |> Enum.all?(&(String.trim(&1) == ""))
+
+    [text] = Floki.find(summary, "[data-role=orders-summary]")
+    assert [_mark] = Floki.find(text, "[data-role=tax-author]")
+    assert Floki.text(text) =~ ~r/Bank B 400\.00\x{00A0}\(Allowance order by: Agent\)/u
+
+    assert [_mark] = Floki.find(doc, ".tax-orders li [data-role=tax-author]")
+
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\[data-role="tax-author"\]\s*\{[^}]*color:\s*var\(--color-text-muted\)/
+  end
 end

@@ -182,6 +182,9 @@ describe("Portfolixir MCP tools", () => {
     const transactionUpdate = tools.find((tool) => tool.name === "portfolixir.transactions.update");
     assert.match(transactionUpdate?.description ?? "", /re-checks the cross-currency settlement/);
     assert.match(transactionUpdate?.description ?? "", /notes or date on an older booking/);
+    // #1214: an update that lost a lock cycle is a retryable 409, named where
+    // the agent reads the tool.
+    assert.match(transactionUpdate?.description ?? "", /409 with errors\.detail alone and saves nothing: re-read it and retry/);
 
     const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
     assert.deepEqual(securitiesList?.inputSchema.properties.holding_status.enum, [
@@ -1108,6 +1111,24 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /170/);
   });
 
+  // User story (security review 2026-10-12, K07):
+  // As the agent reading the income report,
+  // I want its description to say how a payment with no rate path to the
+  // base currency is treated,
+  // so that I never read a total as converted when part of it could not be.
+  //
+  // Acceptance criteria:
+  // - The description says such a payment is excluded from every total and
+  //   named in excluded, and names computation_basis.
+  it("states that the income report excludes and names a payment with no rate", () => {
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.portfolios.income")?.description ?? "";
+    assert.match(description, /on or before/);
+    assert.match(description, /excluded from every total/);
+    assert.match(description, /excluded \(count, currencies/);
+    assert.match(description, /computation_basis/);
+  });
+
   it("issues a POST to /exchange_rates/sync for portfolixir.exchange_rates.sync", async () => {
     const { client, requests } = createRecordingClient({
       data: { provider: "ecb", status: "ok", upserted: 25 }
@@ -1234,6 +1255,53 @@ describe("Portfolixir MCP tools", () => {
     ]) {
       assert.match(description(name), /never skips? one/, name);
     }
+  });
+
+  // K17: a capped delta read is a page. The tools say that a full page
+  // carries has_more and a cursor as_of, and that the reads echo limit and
+  // truncated, so a full page is never taken for the whole answer.
+  it("states that a capped delta read pages with has_more and echoes limit and truncated", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.securities.list",
+      "portfolixir.transactions.list",
+      "portfolixir.notes.list",
+      "portfolixir.events.list"
+    ]) {
+      assert.match(description(name), /has_more=true/, name);
+      // One wording for the cursor, as the docs and the delta note say it.
+      assert.match(description(name), /a cursor at the page's last (row|entry)/, name);
+      assert.doesNotMatch(description(name), /cursor past/, name);
+      assert.match(description(name), /truncated/, name);
+      // A page held at the in-flight bound: no ~id, poll again later.
+      assert.match(description(name), /no ~id/, name);
+      assert.match(description(name), /poll later/, name);
+      // A cursor belongs to the read that answered it, and a delta read
+      // pages by it alone.
+      assert.match(description(name), /this read's next since/, name);
+      assert.match(description(name), /page by as_of/, name);
+    }
+
+    for (const name of [
+      "portfolixir.securities.list",
+      "portfolixir.transactions.list",
+      "portfolixir.events.list"
+    ]) {
+      assert.match(description(name), /with since, page by as_of, never offset/, name);
+    }
+
+    // A delta read's page of the log holds the oldest entries after since.
+    assert.match(description("portfolixir.notes.list"), /in a delta read, the oldest after since/);
+    const notesLimit = listTools().find((tool) => tool.name === "portfolixir.notes.list")
+      ?.inputSchema.properties?.limit as { description?: string } | undefined;
+    assert.match(notesLimit?.description ?? "", /in a delta read, the oldest after since/);
+
+    const rules = description("portfolixir.policy_rules.list");
+    assert.match(rules, /paged as in portfolixir\.securities\.list/);
+    assert.match(rules, /the top-level as_of is the cursor, not data\.as_of/);
+    assert.match(rules, /truncated/);
   });
 
   // E25 S6, F43: a delete removes its children through their journaled
@@ -2065,6 +2133,10 @@ describe("Portfolixir MCP tools", () => {
     assert.match(preview, /realized_result/);
     assert.match(preview, /positions_basis/);
     assert.match(preview, /plan_digest/);
+    // K11: the depot's realized_result is a moving average, and a depot
+    // merge leaves the FIFO realized gains as they are.
+    assert.match(preview, /moving-average/);
+    assert.match(preview, /FIFO realized gains do not change unless equal bookings are removed/);
     assert.equal(find("portfolixir.securities_accounts.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(
       describe("portfolixir.securities_accounts.delete"),
@@ -2170,6 +2242,14 @@ describe("Portfolixir MCP tools", () => {
     assert.match(preview, /after_by_identity_choice/);
     assert.match(preview, /manual_collisions/);
     assert.match(preview, /plan_digest/);
+    // Security review 2026-10-12, K11: the merge pools two FIFO queues, and
+    // the preview names the fields that state the restatement.
+    assert.match(preview, /fifo_realized/);
+    assert.match(preview, /close year/);
+    assert.match(preview, /open_lots/);
+    assert.match(preview, /fifo_basis/);
+    assert.match(preview, /no realized amount and no open cost moves; which lot a sale closes/);
+    assert.match(preview, /moving-average/);
     assert.equal(find("portfolixir.securities.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.merge_preview/);
     assert.match(describe("portfolixir.securities.get"), /merged_into/);

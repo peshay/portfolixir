@@ -630,4 +630,52 @@ describe("the built companion over its real transports", () => {
       }
     });
   }
+
+  // User story (security review 2026-10-12, K16):
+  // As the operator whose environment switches on Node's proxy for every
+  // Node tool,
+  // I want the built companion never to send its API calls through that
+  // proxy,
+  // so that the API token and my records never pass through a third process.
+  //
+  // Acceptance criteria:
+  // - Started with NODE_USE_ENV_PROXY=1, HTTP_PROXY pointing at a loopback
+  //   stand-in for a proxy and a NO_PROXY that does not name the API host,
+  //   the companion exits 1 naming NO_PROXY, before any call.
+  // - Neither the fake API nor the stand-in proxy receives anything.
+  it("refuses to start when Node's environment proxy would carry its API calls", { timeout: 60_000 }, async () => {
+    const api = await startFakeApi();
+    let proxyConnections = 0;
+    const fakeProxy = createNetServer((socket) => {
+      proxyConnections += 1;
+      socket.end("HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n");
+    });
+    fakeProxy.listen(0, "127.0.0.1");
+    await once(fakeProxy, "listening");
+    const { port: proxyPort } = fakeProxy.address() as AddressInfo;
+
+    const companion = spawnCompanion({
+      PORTFOLIXIR_API_BASE_URL: api.baseUrl,
+      PORTFOLIXIR_API_TOKEN: apiToken,
+      PORTFOLIXIR_MCP_TRANSPORT: "stdio",
+      NODE_USE_ENV_PROXY: "1",
+      HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
+      NO_PROXY: "localhost"
+    });
+    const exited = once(companion.child, "close");
+
+    try {
+      // A companion that started would wait on stdin and miss this deadline.
+      const [code] = await within(exited, 15_000, "the companion's exit");
+      assert.equal(code, 1, companion.stderr());
+      assert.match(companion.stderr(), /NO_PROXY/);
+      assert.doesNotMatch(companion.stderr(), /^\s+at /m, "no stack trace");
+      assert.deepEqual(api.hits, []);
+      assert.equal(proxyConnections, 0, "the proxy stand-in received a connection");
+    } finally {
+      await companion.stop();
+      await api.close();
+      fakeProxy.close();
+    }
+  });
 });

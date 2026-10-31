@@ -59,10 +59,23 @@ defmodule Portfolixir.Catalog.QuoteSync do
   per-security result list:
   `{:ok, %{ok: integer, skipped: integer, error: integer, results: list}}`.
 
+  One catalog sync runs at a time across the node, whoever starts it — a
+  page, a second window, the scheduled tick (security review 2026-10-12,
+  H39): while one runs, another answers `{:error, :sync_in_progress}` at
+  once and calls no provider.
+
   Options:
     * `:adapter_for` – `%{"provider_string" => module}` map, overrides config.
   """
+  @spec sync_all(keyword()) :: {:ok, map()} | {:error, :sync_in_progress}
   def sync_all(opts \\ []) do
+    case SingleFlight.run(:quote_sync_all, fn -> sync_all_unlocked(opts) end) do
+      {:ok, result} -> result
+      {:error, :in_progress} -> {:error, :sync_in_progress}
+    end
+  end
+
+  defp sync_all_unlocked(opts) do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
     securities = Catalog.list_securities()
 

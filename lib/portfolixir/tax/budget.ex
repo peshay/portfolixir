@@ -31,6 +31,7 @@ defmodule Portfolixir.Tax.Budget do
           holder: String.t(),
           tax_year: integer(),
           institutions: [String.t()],
+          agent_institutions: [String.t()],
           as_of: Date.t() | nil,
           loss_pot_equities: Decimal.t(),
           loss_pot_other: Decimal.t(),
@@ -92,6 +93,13 @@ defmodule Portfolixir.Tax.Budget do
       holder: holder_of(latest),
       tax_year: tax_year_of(latest),
       institutions: Enum.sort(covered),
+      # K12 (T-16): the covered institutions whose counted statement the
+      # agent recorded or corrected last, which the basis line marks.
+      agent_institutions:
+        latest
+        |> Enum.filter(&StatementSnapshot.agent_written?/1)
+        |> Enum.map(& &1.institution)
+        |> Enum.sort(),
       as_of: oldest_as_of(latest),
       loss_pot_equities: sum_field(latest, :loss_pot_equities),
       loss_pot_other: sum_field(latest, :loss_pot_other),

@@ -24,7 +24,8 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 
 **Benannte Tokens** (E25). `PORTFOLIXIR_API_TOKENS` fügt weitere Tokens als
 `name=token`-Einträge hinzu, durch Kommas getrennt (`scripts=<token>`; ein Name
-hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`). Ein Schreibzugriff mit
+hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`, beginnend mit einem Buchstaben
+oder einer Ziffer). Ein Schreibzugriff mit
 einem davon wird mit diesem Namen als `actor_label` im Journal verbucht
 (`GET /api/v1/journal`), und eine damit ausgeführte Zusammenführung hält den
 Namen in ihrem Protokoll fest (`GET /api/v1/merges`), genommen aus dem Eintrag,
@@ -67,7 +68,10 @@ den Agenten nicht aussperrt. Die Bearer-Prüfung der API selbst verhält sich
 genauso, solange jedes konfigurierte Token die Mindestlänge von 32 Bytes
 erreicht; ein aus dem Quellcode gestarteter Server, der nur
 `PORTFOLIXIR_API_TOKEN` liest, hält es an keine, und mit einem kürzeren Token
-prüft sie zuerst die Sperre. Vor allem anderen prüft der
+prüft sie zuerst die Sperre. Die API zählt IPv6-Adressen außerdem je /64, und
+über einer stündlichen Obergrenze für erste Fehlversuche von Adressen, die sie
+noch nicht kennt, wird schon das erste falsche Token von einer solchen Adresse
+mit `429` und `Retry-After` beantwortet statt mit `401`. Vor allem anderen prüft der
 Begleitdienst den `Host`-Header genau, Name und Port: Eine Anfrage unter einem
 `Host`, auf den der Listener nicht antwortet (die Loopback-Namen und seine
 gebundene Adresse mit seinem Port sowie die Namen in
@@ -107,8 +111,9 @@ Gebühren, Steuern, Kurs-Schlusswerte und monetärer Summen. Request-Payloads f�
 diese Werte sollten ebenfalls Strings senden.
 
 Die Fehler, die der Server selbst statt eines Endpunkts beantwortet, nutzen
-denselben Umschlag mit ihrem eigenen Status: ein unlesbarer Body ist `400`, ein
-Body über der Größengrenze des Servers `413`, eine unbekannte Route `404`, ein
+denselben Umschlag mit ihrem eigenen Status: ein unlesbarer Body, oder einer, der
+Arrays und Objekte mehr als 100 Ebenen tief verschachtelt, ist `400`, ein Body
+über der Größengrenze des Servers von 2.000.000 Bytes `413`, eine unbekannte Route `404`, ein
 interner Fehler `500`, jeweils als `{"errors": {"detail": "Bad Request"}}` mit
 der englischen Statusbezeichnung.
 
@@ -195,14 +200,24 @@ Steuerzeichen, auch kein NUL, und ist höchstens 10000 Zeichen lang (der
 `body` eines Research-Log-Eintrags 20000, die `description` einer Kategorie
 2000), gezählt in Codepunkten; auch die Datenbank lehnt einen längeren Wert
 ab. Kein Text, einzeilig oder frei, trägt ein **unsichtbares Zeichen** (E25):
-ein Unicode-Tag-Zeichen (U+E0000–U+E007F), ein Steuerzeichen der
-Schreibrichtung (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), ein
-anderes unsichtbares Formatzeichen (das weiche Trennzeichen U+00AD, U+180E,
-das Leerzeichen und die Verbinder der Breite null U+200B–U+200D,
-U+2060–U+2065, U+206A–U+206F, die Byte-Order-Mark U+FEFF, U+FFF9–U+FFFB,
-U+1BCA0–U+1BCA3, U+1D173–U+1D17A) oder eine Folge von zwei oder mehr
-Variantenselektoren (ein einzelner, die Darstellung eines Emojis, ist
-erlaubt). Ein Verbinder der Breite null U+200D ist erlaubt, wo er zwei
+irgendeinen der standardmäßig ignorierbaren Codepunkte von Unicode — ein
+Tag-Zeichen und den Rest seines Blocks (U+E0000–U+E00FF, U+E01F0–U+E0FFF),
+ein Steuerzeichen der Schreibrichtung (U+061C, U+200E, U+200F,
+U+202A–U+202E, U+2066–U+2069), ein anderes unsichtbares Formatzeichen (das
+weiche Trennzeichen U+00AD, das Leerzeichen und die Verbinder der Breite
+null U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, die Byte-Order-Mark
+U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A), den kombinierenden
+Graphemverbinder U+034F, einen Hangul-Füller (U+115F, U+1160, U+3164,
+U+FFA0), U+17B4–U+17B5, U+180B–U+180F oder U+FFF0–U+FFF8 — oder einen
+Variantenselektor ohne eine Basis, die er variieren kann. Ein Selektor aus
+U+FE00–U+FE0F ist erlaubt nach einem Piktogramm (die Darstellung eines
+Emojis), der Ziffer, `#` oder `*` einer Tastenkappe, einem CJK-Ideogramm,
+einem mathematischen Operator, einem CJK-Satzzeichen voller Breite (U+3001,
+U+3002, U+FF01, U+FF0C, U+FF0E, U+FF1A, U+FF1B, U+FF1F), einem
+typografischen Anführungszeichen (U+2018, U+2019, U+201C, U+201D) oder einem
+Buchstaben von Myanmar, Phags-pa, Manichäisch oder den ägyptischen
+Hieroglyphen; einer aus U+E0100–U+E01EF
+nur nach einem CJK-Ideogramm; ein Selektor neben einem anderen nie. Ein Verbinder der Breite null U+200D ist erlaubt, wo er zwei
 Piktogramme verbindet, wie in einem Emoji aus mehreren (eine Person am
 Laptop, eine Familie, die Regenbogenflagge): Das Zeichen vor ihm ist ein
 Piktogramm oder ein VS16 direkt nach einem, und das Zeichen nach ihm ist
@@ -212,9 +227,9 @@ null U+200C, den Wörter mancher Schriften (Persisch, mehrere indische
 Schriften) tragen. Sie werden als nichts angezeigt, erreichen einen Agenten
 aber unverändert; der Fehler nennt sie darum mit Codepunkt: `must not contain
 invisible characters (U+200B); retype the text without them`. Die eine
-Ausnahme ist der Name eines Wertpapiers: Seine Formatzeichen werden wie
-bisher beim Speichern entfernt, und nur eine Folge von Variantenselektoren
-wird abgelehnt. Alles andere liefert `422` mit dem Namen des Felds, nie einen
+Ausnahme ist der Name eines Wertpapiers: Seine standardmäßig ignorierbaren
+Zeichen, Variantenselektoren eingeschlossen, werden beim Speichern entfernt,
+wie bisher seine Formatzeichen. Alles andere liefert `422` mit dem Namen des Felds, nie einen
 Serverfehler. Ein Portfolio-Performance-Import nennt eine Zeile, deren Namen
 oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau. Die freie
 Zuordnung `attributes` eines Wertpapiers erfüllt die Regel in jeder Tiefe:
@@ -224,6 +239,10 @@ Freitext; sonst liefert der Schreibzugriff `422` auf `attributes`. Die
 Zuordnung, wie sie gespeichert wird — zusammengeführt mit den vorhandenen
 Attributen —, ist als kompaktes JSON höchstens 65536 Byte groß; ein
 Schreibzugriff darüber liefert `422` auf `attributes` und speichert nichts.
+`market_cap_rank`, das Attribut, das die Wertpapierliste als Zahl sortiert,
+ist eine ganze Zahl oder ihr Text und wird als Zahl gespeichert; alles andere
+liefert `422` auf `attributes` („market_cap_rank must be a whole number“),
+und ein Wert eines Suchanbieters, der keine ganze Zahl ist, wird verworfen.
 Eine Änderung, die nichts ändert, schreibt keine Zeile und hinterlässt keinen
 Journaleintrag. Eine
 Eigenschaft eines Suchanbieters, die gegen die Regel verstößt, wird verworfen,
@@ -250,7 +269,33 @@ hat und noch offen ist, je nachdem, was früher liegt: Eine Zeile wird
 gestempelt, wenn ihre Transaktion sie schreibt, nicht wenn diese committet,
 sodass ein Cursor zum Lesezeitpunkt eine Zeile überspränge, die ein langer
 Schreibvorgang (ein Import) nach dem Read committet. Der nächste Read kann
-eine Zeile daher erneut liefern, überspringt aber keine. **Löschungen sind
+eine Zeile daher erneut liefern, überspringt aber keine.
+
+**Ein begrenzter Delta-Read ist eine Seite (K17).** Die Delta-Reads mit
+`limit` — Buchungen, Wertpapiere, die Notizen und Ereignisse eines
+Wertpapiers, die Policy-Regeln eines Portfolios — liefern ihre Zeilen nach
+ältester Änderung zuerst, und jeder ihrer Reads, Delta oder voll, spiegelt
+`limit` und `truncated` (wahr, wenn mehr Zeilen passten, als die Antwort
+enthält). Passten mehr Zeilen, als die Seite enthält, trägt ein Delta-Read
+zusätzlich `has_more: true`, und sein `as_of` ist dann ein Cursor auf die
+letzte Zeile der Seite,
+`<ISO8601-Zeitpunkt>~<id>`: als nächstes `since` übergeben und sofort weiter
+lesen. Zeilen mit demselben Stempel (ein Import schreibt Tausende in einer
+Sekunde) unterscheidet die id, sodass eine Seitengrenze zwischen ihnen keine
+überspringt und keine wiederholt. Ein Cursor liegt nie hinter der obigen
+Grenze: Ist die letzte Zeile der Seite neuer, ist `as_of` die Grenze, ohne
+`~<id>`, und `has_more` bleibt wahr — der Rest wartet hinter einem noch
+laufenden Schreibvorgang, also später erneut abfragen, nicht sofort: Bis
+dieser endet, liefert ein sofortiger Read dieselbe Seite. Eine Seite, hinter
+der nichts mehr wartet, trägt `has_more: false` und die Grenze, wie bisher —
+auch wenn sie genau `limit` Zeilen enthält. Ein Cursor gehört zu dem Read,
+der ihn geliefert hat: Er trägt dessen Zeilen-id, sodass ein anderer Read mit
+ihm seine eigenen Zeilen in der Sekunde des Cursors überspränge. Mit `since`
+nach `as_of` blättern, nie mit `offset`: Ein Cursor neben `offset`
+überspringt ebenfalls Zeilen. Ein fehlerhafter Cursor ist dasselbe `422` wie
+jedes ungültige `since`.
+
+**Löschungen sind
 in einem Delta-Read nicht repräsentiert**; wer Löschungen erkennen muss,
 macht einen vollen Read. Ein ungültiges `since` ist ein `422`. Delta-Reads
 sind **pull-only**: Push-Zustellung (Webhooks an einen konfigurierten
@@ -580,7 +625,8 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   (`legacy_hashed_split`, mit `errors.splits`; seine Art zurücksetzen oder ihn
   löschen — einen, den die Zusammenführung zusammenlegt, löscht sie und legt
   seinen Hash still). Eine ISIN der Quelle mit falscher Prüfziffer wird
-  abgelehnt (`invalid_source_isin`): Die Zusammenführung würde sie auf das
+  abgelehnt (`invalid_source_isin`, der gespeicherte Wert in
+  `errors.source_isin`): Die Zusammenführung würde sie auf das
   Ziel schreiben, was der Katalog für ein gespeichertes Wertpapier ablehnt;
   sie ist daher zuerst an der Quelle zu korrigieren oder zu leeren. Schließlich
   muss jede Identität beider Wertpapiere nach der Zusammenführung das Ziel
@@ -642,9 +688,28 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     `deleted` (`collapsed_duplicate` oder `collapsed_split`), `positions`
     (je Depot, in dem die Quelle hält: `source`, `target` und `after`,
     jeweils `quantity`, `cost_basis`, `avg_cost` und `realized_result`),
-    `rounding_differences`, `cash_accounts` und `flow_changes`, mit
-    `positions_basis` wie bei einer Depot-Zusammenführung; `reimport_note`
-    sagt, was die Zusammenführung für den nächsten Import bedeutet.
+    `fifo_realized`, `rounding_differences`, `cash_accounts` und
+    `flow_changes`, mit `positions_basis` wie bei einer
+    Depot-Zusammenführung; `reimport_note` sagt, was die Zusammenführung für
+    den nächsten Import bedeutet;
+  - `fifo_realized`, in jedem Ergebnis: die realisierten Gewinne nach FIFO,
+    die die Zusammenführung neu feststellt (Sicherheitsprüfung 2026-10-12,
+    K11). Die realisierten Gewinne der App (`GET /api/v1/realized_gains`,
+    die Trades eines Wertpapiers) laufen nach FIFO über eine Reihe je
+    Wertpapier über alle Depots; die Zusammenführung legt beide Reihen
+    zusammen, sodass ein Verkauf den älteren Posten des anderen Wertpapiers
+    schließen kann. `years` nennt je Abschlussjahr und Währung das
+    realisierte Ergebnis der Quelle und des Ziels, jeweils über die eigene
+    Reihe vorher (`null`, wo es in dem Jahr keinen Trade schließt), des
+    Ziels über die zusammengeführten Buchungen danach, und die Änderung
+    (`change`); `open_lots` den Einstand der offenen Posten ebenso;
+    `unmatched_sells` die Verkäufe, die kein Posten deckt, je Seite;
+    `unchanged` ist wahr, wenn sich kein realisierter Betrag und kein
+    offener Einstand ändert — welchen Posten ein Verkauf schließt, und mit
+    ihm Haltedauern und annualisierte Renditen, kann sich dennoch ändern. Beträge stehen in der
+    Währung jedes Trades, nie umgerechnet; `fifo_basis` nennt die Regel.
+    `realized_result` in `positions` ist das Ergebnis des Depots nach
+    gleitendem Durchschnitt, nicht diese Zahl.
 
   Jede Stückzahl, jeder Kurs, jedes Gewicht und jede Dezimalzahl ist ein
   String. Der Digest deckt beide Wertpapiere, jede Buchung beider, ihre
@@ -658,7 +723,9 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   führt unter dem Token zusammen (`portfolixir.securities.merge`).
   `collapse_key_equal` ist Pflicht, wenn die Vorschau `key_equal_pairs`
   nennt, und `identity_choice`, wenn beide Wertpapiere eine ISIN tragen —
-  ohne sie jeweils ein `422`, und nie vorausgewählt: Frag den Operator.
+  ohne sie jeweils ein `422`, und nie vorausgewählt: Frag den Operator. Die
+  Ablehnung zu `identity_choice` nennt die ISINs nach ihrer Art und trägt
+  beide in `errors.isins` (`source_isin`, `target_isin`).
   `keep_target_isin` behält die ISIN des Ziels und zeichnet die der Quelle
   als frühere ISIN des Ziels auf; `adopt_source_isin` gibt dem Ziel die ISIN
   der Quelle und zeichnet seine alte als frühere ISIN auf (die Reparatur des
@@ -720,10 +787,13 @@ sind ein `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **gesetzt, nicht geraten**), `as_of` (das Stichdatum der Aussage, getrennt
 von `inserted_at`: ein heute geschriebener Eintrag über das letzte Quartal
-trägt das Datum des Quartals), `author` (`operator`, `agent`, `local_model`;
-die API setzt standardmäßig `agent`), `machine_generated` (ein extrahierter
-Eintrag ist ein Vorschlag bis zur Bestätigung und muss seine `source_url`
-tragen), `supersedes_id` (der frühere Eintrag desselben Wertpapiers, den
+trägt das Datum des Quartals), `author` und `machine_generated` — `author`
+(`operator` oder `agent`) wird aus dem Zugang abgeleitet, der den Eintrag
+schreibt, `agent` für jedes API-Token, und `machine_generated` ist einem Pfad
+mit lokalem Modell vorbehalten, den es noch nicht gibt (ein extrahierter
+Eintrag wäre ein Vorschlag bis zur Bestätigung und trüge seine
+`source_url`); beide werden in einem Body ignoriert, ein Body kann also
+keines von beiden beanspruchen —, `supersedes_id` (der frühere Eintrag desselben Wertpapiers, den
 dieser ersetzt; Pflicht bei einem Widerruf), `valid_until` (eine datierte
 Sperre wie ein Lock-up oder eine selbst auferlegte Kaufsperre) und — nur
 bei `thesis`-Einträgen — `conviction` (`low`, `medium`, `high`),
@@ -736,9 +806,9 @@ Feldnamen, und aus Eingaben entsteht nie ein Atom.
 - `GET /api/v1/securities/:security_id/notes` — das Log, neueste zuerst
   (nach `as_of`, dann Schreibzeit), mit dem abgeleiteten `thesis_state` und
   einer `log_note`, die den Nur-anhängen-Kontrakt benennt.
-  `limit` behält die neuesten Einträge (Standard 1000, max. 10000);
-  `thesis_state` leitet sich immer aus dem ganzen Log ab, und die Antwort
-  nennt das angewandte `limit`.
+  `limit` behält die neuesten Einträge, in einem Delta-Read die ältesten nach
+  `since` (Standard 1000, max. 10000); `thesis_state` leitet sich immer aus
+  dem ganzen Log ab, und die Antwort nennt das angewandte `limit`.
 - `POST /api/v1/securities/:security_id/notes` — hängt einen Eintrag aus
   einem `note`-Objekt an (`201`); journalisiert unter dem API-Token-Akteur.
   Ein `as_of` nach heute (dem Kalendertag der Instanz) liefert `422` auf
@@ -835,7 +905,7 @@ Audit-Journal.
 Die Reads:
 
 - `GET /api/v1/securities/:security_id/events` — die Termine eines
-  Wertpapiers, die nächsten zuerst, mit `limit`.
+  Wertpapiers, die nächsten zuerst, mit `limit` (Standard 1000, max. 10000).
 - `GET /api/v1/events/upcoming?days=N` — alles, was in den nächsten `N` Tagen
   (Standard 30) im **gesamten Katalog** ansteht. Ein `window`- oder
   `month`-Termin ist fällig, sobald **irgendein** Tag, auf den er fallen kann,
@@ -847,14 +917,16 @@ Die Reads:
   `limit`; bewusst **kein** `days`, denn ein unbestätigter vergangener Termin
   gehört in die Liste, egal wie alt er ist.
 - `GET /api/v1/events/stale?days=N` — Termine, deren `checked_at` älter als
-  `N` Tage ist oder die nie geprüft wurden (`days_since_checked` ist dann
+  `N` Tage (Standard 90) ist oder die nie geprüft wurden (`days_since_checked` ist dann
   `null`). Ein Termin, dessen gespeichertes `checked_at` nach morgen liegt
   (vor der Ablehnung unten geschrieben), steht ebenfalls darin, mit
   negativem `days_since_checked`.
 
 Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 `PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
-(`204`). Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
+(`204`). Beim Anlegen gilt: `security_id` kommt aus dem Pfad, nie aus dem
+Body; `machine_generated` ist reserviert und wird im Body ignoriert. Das
+Wertpapier, zu dem ein Termin gehört, lässt sich nicht ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
 (Kalendertag der Instanz plus ein Tag für Zeitzonen) `422` auf `checked_at`,
 und nichts wird geschrieben. Die `note` eines Termins fasst höchstens 10000
 Zeichen (Unicode-Codepoints); eine längere liefert `422` auf `note`. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
@@ -1049,9 +1121,14 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   gesperrt. Eine fehlende URL liefert `422` mit `errors.url`; ein Bild, das
   sich nicht laden lässt oder die Prüfung nicht besteht, liefert `422` mit
   `errors.logo`, einer festen Meldung, die weder Adresse noch Status nennt.
+  Der Journaleintrag nennt den Prinzipal des Tokens, und sein Nachher-Abbild
+  trägt `logo_source_host`, den Host, den die URL nannte.
 - `DELETE /api/v1/securities/:security_id/logo` entfernt das Logo und hält die
   ausdrückliche Entscheidung „kein Logo“ fest (die Zeile zeigt wieder ihre
   Initialen oder ihre Flagge); auch das sperrt das Wertpapier gegen die Suche.
+  Journalisiert unter dem Prinzipal des Tokens, wie das manuelle Logo und die
+  erneute Suche; nur die Suche im Hintergrund wird als Systemjob `logo`
+  journalisiert.
 - `POST /api/v1/securities/:security_id/logo/discover` startet die
   automatische Suche erneut („Erneut suchen“). Die Antwort enthält ein
   `result`: `updated`, `no_source` oder `failed`. Gesperrte Wertpapiere bleiben
@@ -1491,10 +1568,16 @@ Beispiel-Antwort für Kurssynchronisierung:
     die Käufe beider Depots einen gemeinsamen Durchschnitt, die Kosten ändern
     sich also zu Recht, und ein Verkauf, den das Ziel zwischen zwei Käufen
     getätigt hat, verbraucht danach den gemeinsamen Durchschnitt;
-    `realized_result` ist über die Verkäufe der Position die Stückzahl jedes
-    Verkaufs mal sein Kurs in der Währung des Wertpapiers, abzüglich der
-    Kosten, die er zum laufenden Durchschnitt entnommen hat, und `null`, wo
-    dieser Kurs oder diese Kosten nicht ableitbar sind;
+    `realized_result` ist das Ergebnis des Depots nach gleitendem
+    Durchschnitt, nicht die realisierten Gewinne der App: über die Verkäufe
+    der Position die Stückzahl jedes Verkaufs mal sein Kurs in der Währung
+    des Wertpapiers, abzüglich der Kosten, die er zum laufenden Durchschnitt
+    entnommen hat, und `null`, wo dieser Kurs oder diese Kosten nicht
+    ableitbar sind. Die realisierten Gewinne nach FIFO
+    (`GET /api/v1/realized_gains`, die Trades eines Wertpapiers) ändern sich
+    bei einer Depot-Zusammenführung nicht, außer gleiche Buchungen werden als
+    Duplikate entfernt, was sie aus der Reihe nimmt: Die FIFO-Reihe gehört
+    dem Wertpapier, nicht dem Depot;
     `rounding_differences` nennt je Position und Split-Datum jeden Split
     eines betroffenen Wertpapiers, bei dem die gemeinsam einmal gerundete
     Position am Ende des Split-Tags von den zwei getrennt gerundeten
@@ -1683,9 +1766,14 @@ Beispiel-Payloads für Konten:
   Geldbetrag, und genau das wird verglichen: Ein Handel, der in der Währung des
   Wertpapiers bepreist und ohne Geldbetrag gesendet wird, antwortet mit 422
   auf `gross_amount` und nennt den Betrag, der gebucht würde, und den, den die
-  Abrechnung ergibt — sende den Betrag, den der Broker abgerechnet hat. Die
-  Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
-  `settlement_amount`, `fees`, `taxes` oder `type` ändert, oder bei einer
+  Abrechnung ergibt — sende den Betrag, den der Broker abgerechnet hat. Ein
+  Handel, der einen `settlement_fx_rate` trägt, aber weder `gross_amount`
+  noch `settlement_amount`, wird ebenso abgelehnt, mit 422 auf
+  `gross_amount` und dem Betrag, der gebucht würde: Ein Kurs ist nicht der
+  Betrag, den der Broker abgerechnet hat, und nichts wird aus ihm
+  abgeleitet. Die Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
+  `settlement_amount`, `fees`, `taxes`, `type`, `currency_code`,
+  `cash_account_id` oder `securities_account_id` ändert, oder bei einer
   Buchung ohne `gross_amount` ihre `quantity` oder ihren `price` — ein `PATCH`
   der Notiz oder des Datums einer älteren Buchung wird deswegen nie
   abgelehnt.
@@ -1701,7 +1789,10 @@ Beispiel-Payloads für Konten:
   Feld, denn ein Split wird über `POST /api/v1/splits` gebucht, dessen
   Prüfungen eine allgemeine Änderung umgehen würde. Ein falscher Split wird
   als Ganzes gelöscht (`DELETE /api/v1/splits/:transaction_id`, unten) und
-  neu gebucht.
+  neu gebucht. Eine Änderung, die mit einem gleichzeitigen Schreibvorgang auf
+  denselben Zeilen kollidiert, etwa einer Kontozusammenführung, und dabei
+  unterliegt, antwortet mit **409** und nur `errors.detail`: Es wurde nichts
+  gespeichert; die Transaktion neu lesen und die Änderung wiederholen.
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
   der Transaktion auch sie. Mit einer importierten Buchung geht ihr
@@ -2227,10 +2318,17 @@ Beispiel-Payloads für Konten:
   `converted`). Das Brutto einer Dividende ist ihr Netto-Cash (`gross_amount`) plus
   die einbehaltene Steuer; Zinsen tragen keine Quellensteuer. Alle Beträge sind
   Decimal-Strings in der `base_currency` des Portfolios, umgerechnet über den
-  EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums (dieselbe Mechanik
-  wie der Bewertungs-Endpunkt), mit beibehaltener ursprünglicher Währung;
-  `unconverted_count` zählt Buchungen ohne Kurspfad (zur Parität umgerechnet), und
-  `conversion_note` nennt die Basis. Bargeld und einbehaltene Steuer einer
+  EUR-Hub zum letzten gespeicherten Kurs an oder vor dem jeweiligen
+  Buchungsdatum (dieselbe Mechanik wie der Bewertungs-Endpunkt), mit
+  beibehaltener ursprünglicher Währung. Eine Buchung ohne solchen Kurspfad ist
+  aus jeder Summe (`annual`, seine Monate, `positions`) ausgeschlossen und in
+  `excluded` genannt (`count`, und je Währung `currency_code`, `count` und
+  `securities`), wie bei den anderen Cashflow-Lesungen; `transactions` behält
+  sie mit `converted: false`, ihren nativen Beträgen und `null` für `gross`,
+  `tax` und `net` in Basiswährung — nie ihr nativer Betrag zur Parität
+  (Sicherheitsprüfung 2026-10-12, K07). `unconverted_count` zählt sie, `conversion_note` nennt die
+  Basis und `computation_basis` (`series`, `currency`, `window`, `reference`,
+  `gaps`) die Regel. Bargeld und einbehaltene Steuer einer
   Buchung werden in der Währung ihres Verrechnungskontos gelesen, der
   Währung, in der sie gutgeschrieben wurden (die Ergänzung von ADR-0015 vom
   07.10.2026): Die Dividende eines USD-Wertpapiers, einem EUR-Konto
@@ -2668,7 +2766,10 @@ Beispiel-Payloads für Konten:
   werden). Ein Lot ohne ableitbares Wertpapierwährungs-Leg meldet `null`-G/V
   statt eines blinden währungsübergreifenden Vergleichs. Die Antwort ist
   selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
-  annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Optionales `from`/`to`
+  annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Da ein Verkauf das
+  älteste Lot verbraucht, gleich welches Portfolio es gekauft hat, skaliert ein
+  Split an seinem Datum jedes offene Lot des Wertpapiers einmal, sodass die
+  Lots den gehaltenen Stücken folgen. Optionales `from`/`to`
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
   Eröffnungsdatum, geschlossene Round-Trips nach Schlussdatum, verwaiste Verkäufe
   nach Verkaufsdatum.
@@ -2827,13 +2928,24 @@ beschrieben.)
   Übertragung umschreibt. Dasselbe `(institution, holder, tax_year, as_of)`
   erneut zu erfassen ist ein `422`, kein stilles Duplikat. Die Quelle einer
   erfassten Steuerbescheinigung setzt das System (`manual`); eine `source` im
-  Body einer Anlage oder einer Korrektur wird ignoriert.
+  Body einer Anlage oder einer Korrektur wird ignoriert. Wer sie geschrieben
+  hat, ist ein eigenes Paar (Sicherheitsprüfung K12): `author` ist, wer sie
+  erfasst hat, und `corrected_by`, wer sie zuletzt korrigiert hat (`null`
+  bis zu einer Korrektur), jeweils `operator` für die Steuern-Seite und
+  `agent` für ein API- oder MCP-Token, abgeleitet aus dem Zugang des
+  Schreibzugriffs und nie aus dem Body gelesen. Eine Änderung, die nichts
+  ändert, setzt kein `corrected_by`. Ein Freistellungsauftrag trägt dasselbe
+  Paar für sein erstes Erfassen und sein letztes Ersetzen. Zeilen von vor
+  den Autoren erhalten, was ihr Anlegen und ihre letzte Korrektur im Journal
+  nennen, `null` ohne einen solchen Eintrag.
 - `GET /api/v1/tax/trim_budget` rollt die jeweils neueste Bescheinigung je
   Institut zu einer Person und einem Jahr auf (Pflichtparameter `holder` und
   `tax_year`); Institute werden nach der Groß-/Kleinschreibungsfaltung der
   Datenbank gruppiert, sodass eine spätere Bescheinigung unter einer anderen
   Schreibweise derselben Bank die frühere ersetzt. Die Antwort nennt, welche
-  `institutions` sie abdeckt, das `as_of` ihres **ältesten** Bestandteils, die
+  `institutions` sie abdeckt, welche davon auf einer Bescheinigung beruhen,
+  die der Agent erfasst oder zuletzt korrigiert hat (`agent_institutions`,
+  K12), das `as_of` ihres **ältesten** Bestandteils, die
   summierten `allowance_granted` und `allowance_used`, aus denen der
   Füllstand auf der Steuern-Seite gelesen wird (neben `allowance_remaining`),
   und `complete: false` mit `missing_institutions`, wenn ein hinterlegter
@@ -2872,9 +2984,16 @@ der Seite Risiko gespeicherte Version, `agent` für eine mit einem API- oder
 MCP-Token geschriebene, abgeleitet aus dem Zugang des Schreibzugriffs und nie
 aus dem Body gelesen; ein Befund trägt den `author` der gültigen Version.
 Eine Version von vor den Autoren erhält den Autor, den ihr Anlegen im Journal
-nennt, `null` nur ohne einen solchen Eintrag. Risiko markiert die Regeln des
-Agenten mit dem Wort „Agent"; ab wann eine Regel gilt, hängt nicht von ihrem
-Autor ab.
+nennt, `null` nur ohne einen solchen Eintrag. `author` gilt für die Version,
+nicht für den Namen: Eine Umbenennung ist keine Version, darum trägt die
+Regel ihren eigenen **`name_author`** (Sicherheitsprüfung H14), wer sie
+zuletzt benannt hat, ebenso gesetzt beim Anlegen und bei jeder Umbenennung;
+ein Befund trägt ihn als `rule_name_author`. Eine Regel von vor den
+Namensautoren erhält den Autor ihrer letzten Umbenennung im Journal, sonst
+den der Version, die mit ihrem Namen geschrieben wurde, `null` nur ohne
+beides. Risiko markiert die Regeln des Agenten mit dem Wort „Agent", hinter
+dem Namen, wo der Agent die Regel benannt hat; ab wann eine Regel gilt,
+hängt nicht von ihrem Autor ab.
 
 **Was eine Regel ist.** Eine Aussage über **eine benannte Kennzahl**, für
 einen Bezug, in einem Auswertungskontext:
@@ -3045,11 +3164,19 @@ Scope-Leiter).
   Paare werden durch Triangulation abgeleitet, und `GBX` (Pence) wird als
   `GBP × 100` behandelt.
   `limit` behält die jüngsten Kurse (Standard 50000, max. 200000).
-  Jeder gespeicherte Wechselkurs ist wie ein Kurs begrenzt: positiv und nicht
-  nach morgen datiert. Eine Synchronisierung verwirft einen Anbieterkurs
-  außerhalb der Grenze, statt den Lauf scheitern zu lassen, und die
-  Lesepfade für den jüngsten Wechselkurs nutzen nie eine gespeicherte Zeile
-  nach dieser Grenze.
+  Jeder Wechselkurs, den ein Schreibweg speichert, ist wie ein Kurs begrenzt:
+  positiv, auf seine 15 Nachkommastellen gerundet, und nicht nach morgen
+  datiert. Eine Synchronisierung verwirft einen Anbieterkurs außerhalb der
+  Grenze, statt den Lauf scheitern zu lassen, und die Lesepfade für den
+  jüngsten Wechselkurs nutzen nie eine gespeicherte Zeile nach dieser
+  Grenze. Ein Kurs, den eine Version vor 2026.10.1 als 0 speichern konnte
+  (ein Wert feiner als die Spalte), ist für jede Umrechnung kein Kurs: Die
+  Zahl, die ihn braucht, schließt die Buchung aus und nennt sie oder meldet
+  den Kurs als fehlend, wie an einem Tag ohne Kurs. Die Zeile wird weder
+  gelöscht noch geändert — sie bleibt in dieser Liste, ein Nachladen der
+  Historie ersetzt sie an einem Tag, den der Anbieter veröffentlicht, und
+  das Startprotokoll nennt jede solche Zeile (Sicherheitsprüfung
+  2026-10-12, K06).
 - `POST /api/v1/exchange_rates/sync` holt Kurse vom konfigurierten Anbieter
   (standardmäßig EZB) und liefert `{provider, status, upserted, scope}`.
   `scope=latest` (Standard) holt den **täglichen** Feed — die heutigen Kurse,
@@ -3123,6 +3250,10 @@ neu zugeordnet werden.
   `PATCH` verschiebt, unter Ebene 32 läge, liefert ebenfalls `422` an
   `parent_id` und nennt die Ebene („would put a category on level 33; a
   classification has at most 32 levels“, Issue #940).
+  Eine `position`, an einer Klassifikation oder einer Kategorie, ist eine
+  ganze Zahl von -2147483648 bis 2147483647 (der Bereich der Spalte); jede
+  andere liefert `422` an `position`, und nichts wird geschrieben. Die Schemas
+  des Begleitdienstes tragen dieselben Grenzen.
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` löscht eine
   Kategorie mit den Kategorien darunter, den dort zugeordneten Wertpapieren und
   den dort abgelegten Zielen; jede Zeile wird als eigene Löschung
@@ -3371,6 +3502,9 @@ Finanzielle Decimals kommen hier nicht vor.
   einer existierenden View-id, oder `{"view_id": null}` zum Zurücksetzen auf
   Alles. Eine unbekannte View-id liefert `404` (nichts wird geschrieben); eine
   fehlerhafte `view_id` liefert `422`. Die Antwort entspricht dem `GET`-Format.
+  Eine Änderung wird unter dem Prinzipal des Tokens journalisiert
+  (`resource_type` `setting`, ein `upsert`, beim Zurücksetzen ein `delete`),
+  sodass die vorige Voreinstellung in ihrem Vorher-Abbild steht.
 
 ## Importe
 
@@ -3658,14 +3792,18 @@ bisher aktiven Plan, ein ISIN-Wechsel schreibt die neue ISIN auf das
 Wertpapier — und tragen deshalb die Hinweise eines `PUT`: destruktiv und
 idempotent, weil eine Wiederholung nichts weiter ändert (ein zweiter Ruhestand
 antwortet mit `409`, eine zweite Aktivierung ändert nichts, ein zweiter
-ISIN-Wechsel ist ein benannter Konflikt); `openWorldHint` ist wahr für
+ISIN-Wechsel ist ein benannter Konflikt); `portfolixir.policy_rules.add_version`
+läuft über `POST` und fügt eine Version an, schließt aber die geltende Version
+und ersetzt jede geplante ab ihrem Datum und ist deshalb destruktiv und nicht
+idempotent, weil eine Wiederholung eine weitere Version anfügt;
+`openWorldHint` ist wahr für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
 `portfolixir.exchange_rates.sync`, die einen externen Anbieter erreichen, und
 für `portfolixir.securities.create`, das bei eingeschalteter Anreicherung der
 Instanz einen Kursnachlauf beim Anbieter und eine Logo-Suche anstößt.
-Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und die
-Versionen einer Regel, sind nicht destruktiv, und ihre Beschreibungen sagen,
-dass das Angefügte dauerhaft ist.
+Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und eine neue
+Regel (`portfolixir.policy_rules.create`), sind nicht destruktiv, und ihre
+Beschreibungen sagen, dass das Angefügte dauerhaft ist.
 
 **Ohne Rückfrage freigebbare Lesezugriffe.** Ein Host darf jedes Tool mit
 `readOnlyHint: true` ohne Rückfrage ausführen: Keines davon verändert die
@@ -3695,7 +3833,9 @@ Löschen, das Entfernen eines früheren Namens und eines ISIN-Alias, das
 Aufheben einer Klassifikationszuordnung, das Löschen einer
 Positions-Überschreibung, die Freigabe manueller Kurse), auch wo ein späteres
 Schreiben eine gleiche Zeile zurückbringen könnte, ebenso die drei
-Zusammenführungen, die ISIN-Änderung und das Stilllegen einer Regel. Ein
+Zusammenführungen, die ISIN-Änderung, eine neue Version einer Regel (sie
+schließt die geltende Version und ersetzt die geplanten) und das Stilllegen
+einer Regel. Ein
 ersetzender Schreibzugriff (ein Ändern, ein Upsert, eine Bucket-Menge, das
 Aktivieren eines Plans) bleibt in `book`, weil derselbe Schreibzugriff mit dem
 früheren Wert ihn rückgängig macht; eine enger gesendete Bucket-Menge oder
@@ -3800,7 +3940,8 @@ Schreiben eines Geldkontos oder Depots nennt `cash account #5` oder
 account #5 in this portfolio“), und das Detail einer Prüfung beim
 Zusammenführen von Wertpapieren nennt Regeln, Depots, Buckets und Portfolios
 mit ihren ids (`policy rule(s): #7 (in_force)`, `In depot #3`,
-`in portfolio #1`) und den Namen einer Identität als „its recorded name“, und
+`in portfolio #1`) und Namen und Kennungen einer Identität nach ihrer Art
+(„its recorded name“, „its stored ISIN“), und
 ein erneut gebuchter Split nennt das Portfolio des bestehenden Ereignisses mit
 seiner id (`for portfolio #1`). Ein Löschen, das abgelehnt wird, weil eine Richtlinienregel das Objekt liest
 (`409`), nennt die Regeln ebenso, und das Detail einer Prüfung beim
@@ -3814,7 +3955,9 @@ eines Wertpapiers über `GET /api/v1/securities/:id`, eines Portfolios über
 neben dem Detail nur an zwei Stellen: `errors.policy_rules[].name`, mit `id`
 und `status` jeder Regel, und `errors.unresolvable[].ref.name`, den erfassten
 Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur
-mit ihren ids. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
+mit ihren ids. Die Ablehnung einer Wertpapier-Zusammenführung trägt ISIN, WKN
+und Ticker einer Identität ebenfalls als Daten neben dem Satz:
+`errors.unresolvable[].ref`, `errors.source_isin` und `errors.isins`. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über
@@ -4071,7 +4214,9 @@ lässt sich nicht lesen.
   dass eine Version dauerhaft ist, sobald sie gilt: Die Regel lässt sich dann
   nur noch beenden.
 - `portfolixir.policy_rules.add_version` — die Änderung: eine neue Version,
-  nie ein Überschreiben, und dauerhaft, sobald sie gilt.
+  nie ein Überschreiben, und dauerhaft, sobald sie gilt. Sie schließt die
+  geltende Version am Vortag und ersetzt jede geplante ab ihrem Datum; deshalb
+  ist sie als destruktiv markiert und gehört zu den Admin-Tools.
 - `portfolixir.policy_rules.rename` — nur der Name; die Beschreibung sagt,
   dass Umbenennen keine Version anlegt und die Versionen unverändert bleiben.
 - `portfolixir.policy_rules.retire` — beendet die geltende Version; alles

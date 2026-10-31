@@ -674,8 +674,12 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
 
       assert %{detail: detail} = Enum.find(guards, &(&1.code == :buckets_mismatch))
 
+      # The detail lists the buckets by id, ascending, whatever order the
+      # fixture's free printable slots handed them out in.
+      [first_id, second_id] = Enum.sort([short.id, reserve.id])
+
       assert detail =~
-               ~s[the source account sits in the buckets ##{short.id}, ##{reserve.id} and the ] <>
+               ~s[the source account sits in the buckets ##{first_id}, ##{second_id} and the ] <>
                  ~s[target account in no bucket: view membership]
 
       refute detail =~ short.name

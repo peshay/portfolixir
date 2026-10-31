@@ -360,6 +360,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   # Acceptance criteria:
   # - A problem note: the source has research entries (count and last
   #   date), which are never moved or deleted; no confirm.
+  # - The remedy names the other way by the sides' roles, never by a stored
+  #   ISIN or name (H11; the pair cards above name both).
   # - "Merge the other way" swaps the pair and shows its preview.
   test "a refusal names its reason, and offers the merge the other way when it is real", ctx do
     buy!(ctx, ctx.source, "3", "105.00", ~D[2025-02-12])
@@ -372,6 +374,9 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     assert refusal =~
              "Merging is not possible: the source has 1 research entry, the last of 2026-01-15. Research entries are never moved or deleted; a security with entries can only be the target."
+
+    assert refusal =~ "Remedy: merge the other way — the target into this security."
+    refute refusal =~ "XS0000000025"
 
     refute has_element?(view, "#security-merge-dialog [data-role='merge-confirm']")
 
@@ -555,7 +560,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   # so that the merge I confirm is never refused by the catalog afterwards.
   #
   # Acceptance criteria:
-  # - The refusal names the ISIN and its check digit, says to correct or
+  # - The refusal names the source's ISIN by its kind and its check digit,
+  #   the stored value on a data line of its own (H11), says to correct or
   #   clear it on the source, offers "Check again", and no confirm.
   # - Once the ISIN is cleared and the WKN kept, the master data list the
   #   WKN as not adopted, with the WKN's rule.
@@ -570,7 +576,22 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
 
     assert refusal =~
-             "the source&#39;s ISIN XS0000004560 fails its check digit, and the merge would write it onto the target."
+             "the source&#39;s ISIN fails its check digit, and the merge would write it onto the target."
+
+    # H11: the value stands as data on its own line, never in the sentence.
+    for lead <- leads(refusal), do: refute(lead =~ "XS0000004560")
+
+    assert has_element?(
+             view,
+             "#security-merge-dialog .merge-refusal__position bdi.mono",
+             "XS0000004560"
+           )
+
+    assert has_element?(
+             view,
+             "#security-merge-dialog .merge-refusal__position .merge-refusal__kind",
+             "ISIN of the source:"
+           )
 
     assert refusal =~
              "Remedy: correct or clear the source&#39;s ISIN in its master data, then check again."
@@ -623,26 +644,53 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   # User story:
   # As the operator merging two securities without an ISIN,
   # I want a merge that would leave an identifier leading nowhere refused,
-  # naming the identifier, without a remedy the version does not have,
+  # naming the identifier by its kind with its value on a data line (H11),
+  # without a remedy the version does not have,
   # so that the next import never creates the source again (ADR-0050 §9).
   test "an identity that would no longer resolve is refused, with no invented remedy", ctx do
     target = security!("Fund A")
     source = security!("Fund B")
     buy!(ctx, source, "1", "10.00", ~D[2025-01-10])
 
-    {:ok, view, _html} = live(ctx.conn, "/securities")
-    open_menu(view, source)
-    view |> element("#row-menu-#{source.id} [data-role='menu-merge']") |> render_click()
-    search(view, "Fund A")
-    pick(view, target)
-    view |> element("#security-merge-dialog [data-role='merge-continue']") |> render_click()
-
-    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+    refusal = identity_refusal(ctx, source, target, "/securities")
 
     assert refusal =~
-             "after the merge, an identifier of the two would no longer lead to the target: name “Fund B” (EUR)."
+             "after the merge, 1 identifier of the two would no longer lead to the target:"
+
+    for lead <- leads(refusal), do: refute(lead =~ "Fund B")
+
+    # Each value is labelled by the side it belongs to on this page, in the
+    # direct reason and in the reverse one alike (board 04: "Name des Ziels:").
+    pairs = value_pairs(refusal)
+    assert {"Name of the source:", "Fund B"} in pairs
+    assert {"Name of the target:", "Fund A"} in pairs
+    refute {"Name of the source:", "Fund A"} in pairs
+    refute {"Name of the target:", "Fund B"} in pairs
+    refute refusal =~ ~s(<bdi class="mono">)
 
     assert refusal =~ "This version has no way around it; both securities stay unchanged."
+
+    german = value_pairs(identity_refusal(ctx, source, target, "/securities?locale=de"))
+    assert {"Name der Quelle:", "Fund B"} in german
+    assert {"Name des Ziels:", "Fund A"} in german
+    refute {"Name der Quelle:", "Fund A"} in german
+  end
+
+  defp identity_refusal(ctx, source, target, path) do
+    {:ok, view, _html} = live(ctx.conn, path)
+    open_menu(view, source)
+    view |> element("#row-menu-#{source.id} [data-role='menu-merge']") |> render_click()
+    search(view, target.name)
+    pick(view, target)
+    view |> element("#security-merge-dialog [data-role='merge-continue']") |> render_click()
+    view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+  end
+
+  # The refusal's data lines as {kind label, value} (H11, board 04).
+  defp value_pairs(refusal) do
+    ~r/<span class="merge-refusal__kind">\s*(.*?)\s*<\/span>\s*<bdi[^>]*>(.*?)<\/bdi>/s
+    |> Regex.scan(refusal, capture: :all_but_first)
+    |> Enum.map(fn [kind, value] -> {kind, value} end)
   end
 
   # User story:
@@ -1023,15 +1071,19 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
   defp split!(portfolio, security, date, {numerator, denominator}) do
     {:ok, tx} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: portfolio.id,
-        security_id: security.id,
-        type: "split",
-        date: date,
-        currency_code: security.currency_code,
-        split_ratio_numerator: numerator,
-        split_ratio_denominator: denominator
-      })
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: portfolio.id,
+          security_id: security.id,
+          type: "split",
+          date: date,
+          currency_code: security.currency_code,
+          split_ratio_numerator: numerator,
+          split_ratio_denominator: denominator
+        },
+        split_flow: true
+      )
 
     tx
   end
@@ -1075,5 +1127,12 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
       })
 
     rule
+  end
+
+  # The refusal's sentences, without the data lines under them (H11).
+  defp leads(refusal) do
+    ~r/<p class="merge-refusal__lead">(.*?)<\/p>/s
+    |> Regex.scan(refusal, capture: :all_but_first)
+    |> List.flatten()
   end
 end

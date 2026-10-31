@@ -560,6 +560,71 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert Buckets.list_buckets() == []
   end
 
+  # User story (security review 2026-10-12, K13):
+  # As the operator importing a PP export with a bucket tag,
+  # I want a tag the database cannot hold named before anything is applied,
+  # so that the page says why in my language instead of stopping.
+  #
+  # Acceptance criteria:
+  # - A tag with a NUL answers "New tag <message>." in the page's language,
+  #   in English and in German, and the page stays alive on its preview.
+  # - Nothing is written: no transaction, no account, no bucket.
+  test "a tag the text rule refuses is named before apply, in English and German",
+       %{conn: conn} do
+    Process.flag(:trap_exit, true)
+
+    submit_params = %{
+      "bucket_tag" => "PP\u0000Import",
+      "cash" => %{
+        "Test-Cash" => "create:Test-Cash",
+        "Test-Cash-2" => "create:Test-Cash-2"
+      },
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    for {locale, message} <- [
+          {"en", "New tag must not contain control characters or line breaks."},
+          {"de", "Neuer Tag darf keine Steuerzeichen und keine Zeilenumbrüche enthalten."}
+        ] do
+      {:ok, view, _html} =
+        conn
+        |> Phoenix.ConnTest.recycle()
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          "portfolixir_locale",
+          locale
+        )
+        |> live("/imports")
+
+      upload_sample(view)
+
+      {html, _log} =
+        ExUnit.CaptureLog.with_log(fn ->
+          view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
+        end)
+
+      assert Process.alive?(view.pid)
+      refute html =~ "Import complete"
+
+      alert =
+        view
+        |> element("p.alert-error")
+        |> render()
+        |> Floki.parse_fragment!()
+        |> Floki.text()
+        |> String.trim()
+
+      assert alert == message, locale
+
+      assert Ledger.list_transactions() == []
+      assert Portfolios.list_securities_accounts() == []
+      assert Portfolios.list_cash_accounts() == []
+      assert Buckets.list_buckets() == []
+    end
+  end
+
   test "re-applying the same file is a no-op and does not duplicate bucket assignments",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")

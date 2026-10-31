@@ -72,13 +72,13 @@ Start the project with either:
 ## Required local checks
 
 Run the list in `AGENTS.md` at the repository root ("Required Local Checks")
-before opening a PR. It is CI's `pre-commit`, `test`
-and `quality` jobs, so a branch that passes it locally passes them; it is not
+before opening a PR. It is CI's `pre-commit`, `test`,
+`quality` and `advisories` jobs, so a branch that passes it locally passes them; it is not
 copied here, because a copy is what fell behind before (#1022).
 
-The `npm` checks need **Node 24** (the Active LTS line). That version is
+The `npm` checks need **Node 26** (the Active LTS line). That version is
 pinned in three places that must agree: `actions/setup-node` in CI,
-`engines.node` in `mcp-server/package.json`, and the Node 24 base image in
+`engines.node` in `mcp-server/package.json`, and the Node 26 base image in
 `mcp-server/Dockerfile` (an exact tag pinned by digest) —
 `test/portfolixir/ci_test.exs` asserts that they do, and that `@types/node`
 describes the same major. Running the checks on another
@@ -105,8 +105,10 @@ DATABASE_NAME=portfolixir_bench mix portfolixir.derived.measure
 
 It **writes synthetic transactions**, so point it at a throwaway database as
 above — the same convention `priv/demo` uses — and it refuses to run in `:prod`.
-`--securities`, `--bookings` and `--years` size the ledger; `--skip-seed`
-measures whatever is already there.
+It also refuses to seed a database that already holds a portfolio unless
+`--write-synthetic` is given, and journals its writes under the system job
+`derived_measure`. `--securities`, `--bookings` and `--years` size the ledger;
+`--skip-seed` measures whatever is already there.
 
 An analytic that turns out cheap enough not to need a lifetime is a finding and
 is printed as one. Record the run in ADR-0039 next to the existing measurement

@@ -199,15 +199,19 @@ defmodule Portfolixir.Ledger.SplitsTest do
     # Portfolio B already carries the split (e.g. a half-landed retry booked
     # manually): re-booking completes the fan-out with A's missing row only.
     {:ok, existing} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: world_b.portfolio.id,
-        security_id: security.id,
-        type: "split",
-        date: ~D[2026-02-02],
-        currency_code: "EUR",
-        split_ratio_numerator: 2,
-        split_ratio_denominator: 1
-      })
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world_b.portfolio.id,
+          security_id: security.id,
+          type: "split",
+          date: ~D[2026-02-02],
+          currency_code: "EUR",
+          split_ratio_numerator: 2,
+          split_ratio_denominator: 1
+        },
+        split_flow: true
+      )
 
     assert {:ok, [completion]} = Splits.book_split(Actor.owner_ui(), split_attrs(security))
     assert completion.portfolio_id == world_a.portfolio.id

@@ -185,11 +185,17 @@ The stack refuses to start while a secret is missing, the application and the
 MCP companion refuse to start with a token shorter than 32 bytes or equal to a
 placeholder, and the application refuses a `SECRET_KEY_BASE` shorter than 64
 bytes, equal to a placeholder, or equal to a value committed in this
-repository. Generate each token and `SECRET_KEY_BASE`
-with `openssl rand -base64 48`, and `POSTGRES_PASSWORD` with
+repository, and a database password that is empty, shorter than 32 bytes or
+equal to a placeholder. Make each token a random token from `openssl rand
+-base64 48`: the 32-byte floor checks length only, and the lock that follows
+wrong tokens slows no guess, so the token's randomness is what keeps it
+unguessable (a token with few distinct characters is named in a startup
+warning). Generate `SECRET_KEY_BASE`
+with `openssl rand -base64 48` as well, and `POSTGRES_PASSWORD` with
 `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
-base64 would break the connection string. Generate `PORTFOLIXIR_UI_PASSWORD`,
+base64 would break the connection string; the application then refuses to
+start, naming `DATABASE_URL` but never printing it. Generate `PORTFOLIXIR_UI_PASSWORD`,
 the web UI's login, with `openssl rand -base64 24`, or choose a passphrase and
 put it in single quotes in `.env` (`PORTFOLIXIR_UI_PASSWORD='…'`), because
 Compose reads a `$` in an unquoted value as a variable. Such a passphrase holds
@@ -202,11 +208,11 @@ needs no quotes. Left empty, the web UI is open.
 | `SECRET_KEY_BASE` | yes | Signs the session cookie; the signing salts are derived from it. |
 | `POSTGRES_PASSWORD` | yes | The database password; the app builds its connection string from it. |
 | `PORTFOLIXIR_API_TOKEN` | yes | The bearer token of the JSON API and of the MCP companion's upstream calls. The Compose file hands it to the application as it is and names it `mcp` through `PORTFOLIXIR_API_PRINCIPAL`, so the audit journal names `mcp` for every write the companion makes. |
-| `PORTFOLIXIR_API_PRINCIPAL` | no | The name the audit journal records for a write made with `PORTFOLIXIR_API_TOKEN` (1 to 32 characters of `a-z`, `0-9`, `_` and `-`). The Compose file sets it to `mcp`; leave it alone there. Unset, that token's writes carry no name. A name `PORTFOLIXIR_API_TOKENS` also uses stops the application at boot. |
-| `PORTFOLIXIR_API_TOKENS` | no | Further API tokens as `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`; a token here cannot contain a comma, which `openssl rand -base64 48` never prints; spaces around a name, a token and a comma are ignored). A write made with one is journaled under its name. Each token meets the same rules, and a name or a token may appear only once, `PORTFOLIXIR_API_TOKEN` included, or the application refuses to start naming the entry. Every token has the same full authority; the name attributes, it does not restrict. |
+| `PORTFOLIXIR_API_PRINCIPAL` | no | The name the audit journal records for a write made with `PORTFOLIXIR_API_TOKEN` (1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a letter or a digit). The Compose file sets it to `mcp`; leave it alone there. Unset, that token's writes carry no name. A name `PORTFOLIXIR_API_TOKENS` also uses stops the application at boot. |
+| `PORTFOLIXIR_API_TOKENS` | no | Further API tokens as `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a letter or a digit; a token here cannot contain a comma, which `openssl rand -base64 48` never prints; spaces around a name, a token and a comma are ignored). A write made with one is journaled under its name. Each token meets the same rules, and a name or a token may appear only once, `PORTFOLIXIR_API_TOKEN` included, or the application refuses to start naming the entry. Every token has the same full authority; the name attributes, it does not restrict. |
 | `PORTFOLIXIR_MCP_TOKEN` | yes | The bearer token an MCP client presents to the companion. |
 | `PORTFOLIXIR_UI_PASSWORD` | no | Set it to require a login on the web UI (ADR-0045); generate it with `openssl rand -base64 24`. Unset or empty, the UI is open — acceptable only behind reverse-proxy authentication. Changing it ends every login made with the old password. |
-| `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30). The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` turns the server-side expiry off: the browser forgets the login when it closes, but a copy of the session cookie never expires, so prefer a number of days. A logout clears the login in that browser only, and a copy of the session cookie taken earlier stays valid; to end every login, change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`. |
+| `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30), a whole number: anything else falls back to 30, and the startup log names it. An open page is sent to the login when the login runs out. The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` turns the server-side expiry off: the browser forgets the login when it closes, but a copy of the session cookie never expires, so prefer a number of days. A logout clears the login in that browser only, and a copy of the session cookie taken earlier stays valid; to end every login, change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`. |
 | `PHX_HOST` | no | The name the reverse proxy serves (default `localhost`). Requests under any other `Host` are refused with 421. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). The Compose file adds `app`, the name the MCP companion reaches the application under. |
 | `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and sends `X-Forwarded-Proto` from loopback or from an address named in `PORTFOLIXIR_TRUSTED_PROXIES`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. `localhost` and `127.0.0.1` are never redirected: the container's health check, and an MCP companion run outside Compose at its default base URL `http://127.0.0.1:4000`. |
@@ -214,14 +220,22 @@ needs no quotes. Left empty, the web UI is open.
 | `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` (the login and token throttle's source) and `X-Forwarded-Proto` (the scheme) the application believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy, and only a proxy on loopback can mark a request as HTTPS. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under, comma-separated, each also admitted as a browser origin: a proxy name, `127.0.0.1:<port>` when the mapping publishes the companion on another host port than `4001`, or a browser-based MCP client's `host:port`. |
 | `PORTFOLIXIR_MCP_READ_ONLY` | no | `true` makes the MCP companion read-only: it lists and calls only the tools that change nothing (off by default; any value other than `true`, `false`, `1`, `0` or empty stops it with the variable named). It narrows the companion, not `PORTFOLIXIR_API_TOKEN`, which can still write through the API. It is the same as `PORTFOLIXIR_MCP_PROFILE=read`. |
-| `PORTFOLIXIR_MCP_PROFILE` | no | The MCP companion's tool profile: `read` (only the tools that change nothing), `book` (the reads, the creates and the replace-shaped writes, which the same write sent the former value undoes, except that a rename back keeps the in-between name as a former name and an upsert over a provider date stays manual until the admin quote release; no removal, merge, ISIN change or rule retirement) or `full` (every tool). Empty is `full`, or `read` when `PORTFOLIXIR_MCP_READ_ONLY=true`; beside that switch, `book` or `full` stops the companion naming both variables, as does any other value. It narrows the companion, not `PORTFOLIXIR_API_TOKEN`. See [API and MCP](integration/api-and-mcp.html). |
+| `PORTFOLIXIR_MCP_PROFILE` | no | The MCP companion's tool profile: `read` (only the tools that change nothing), `book` (the reads, the creates and the replace-shaped writes, which the same write sent the former value undoes, except that a rename back keeps the in-between name as a former name and an upsert over a provider date stays manual until the admin quote release; no removal, merge, ISIN change, new rule version or rule retirement) or `full` (every tool). Empty is `full`, or `read` when `PORTFOLIXIR_MCP_READ_ONLY=true`; beside that switch, `book` or `full` stops the companion naming both variables, as does any other value. It narrows the companion, not `PORTFOLIXIR_API_TOKEN`. See [API and MCP](integration/api-and-mcp.html). |
 | `TZ` | no | The zone that decides what "today" is, as a tz name (`Europe/Berlin`); empty is UTC. Every date check — a statement or a quote not in the future, a rule version not backdated — reads the application's calendar day in this zone, and each database session takes the same zone when it connects, so the database's own date checks agree with it; the database server's `timezone` setting then does not matter. A value the database does not know as a zone name is logged once at startup and the session keeps the server's zone. |
 | `PORTFOLIXIR_BACKGROUND_FETCH` | no | `off` (or `0`, `false`, `no`) leaves logo discovery and the scheduled quote and FX downloads off from boot, so the instance calls out only when someone asks it to. Unset or anything else keeps them on; it can only turn fetching off. |
 | `PORTFOLIXIR_LOGO_DIR` | no | The absolute directory stored logos are kept in. The release image sets it to `/var/lib/portfolixir/logos`, the `portfolixir-logos` volume, because the release itself is read-only for the user it runs as; leave it alone in Compose. |
+| `DATABASE_SSL` | no | For a release run against a database outside the Compose network: `true` turns TLS on for the database connection, verifying the server's certificate and name against the system's trust store; off by default, as the Compose stack keeps its database on its own network. `DATABASE_URL` may say the same with `?sslmode=require`, `verify-ca` or `verify-full` (each verifies fully) or `?ssl=true`. `sslmode=disable`, `allow` or `prefer`, a query key other than those and `pool_size`, `timeout` and `idle_interval`, and a URL setting that contradicts `DATABASE_SSL` stop the application at boot, naming the variable and the key. The commonest such key in a managed database's URL is `sslrootcert`: name that CA file in `DATABASE_SSL_CA_FILE` instead. `sslmode=require` now verifies the server's certificate against the system's trust store, where the application used to ignore the key and connect without TLS, so a database whose certificate a private CA signed needs `DATABASE_SSL_CA_FILE`. A Unix-socket URL (`socket_dir` or `socket` in the query) is therefore no longer accepted; connect over TCP. |
+| `DATABASE_SSL_CA_FILE` | no | The absolute path of a PEM file holding the CA that signed the database's certificate, for a database a private CA serves; the certificate and its name are still verified. It needs TLS on; set with TLS off, or naming no readable file, it stops the application at boot. |
 
 Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
 shorter than 12 characters it warns as well, and starts either way.
+
+The application's switches (`PHX_FORCE_SSL`, `PHX_BIND_ALL`, `DATABASE_SSL`,
+`PORTFOLIXIR_BACKGROUND_FETCH`) read `1`, `true`, `yes` or `on` as on and `0`,
+`false`, `no` or `off` as off, in any case. Any other value is read as the
+switch's default, and for every one of them but `PHX_BIND_ALL` the startup
+log names the variable and the value.
 
 A server run from source (the README's "Run from source", `mix phx.server`
 under `MIX_ENV=dev`) reads no `.env`, no `POSTGRES_PASSWORD` and no
@@ -540,6 +554,16 @@ browser used, which is what marks the session cookie `Secure` and what
 the client sent through: a forwarding header that reaches the application as
 the client wrote it lets the client choose the throttle's source.
 
+The application's port is meant to sit behind such a proxy, one that reads a
+request's whole header under its own header timeouts before it connects
+upstream (nginx's `client_header_timeout`, Caddy's `read_header_timeout`).
+The application bounds
+its listener for one operator and the companion: at most 500 connections at
+once, a connection closed once its client has sent nothing for 15 seconds,
+and HTTP/1.1 only, with no cleartext HTTP/2. It times each read, not the
+whole header, so a client that trickles a header byte by byte is the
+proxy's to stop.
+
 Name the exact address the proxy connects from in
 `PORTFOLIXIR_TRUSTED_PROXIES`. Through the published port that is the Docker
 bridge gateway, which `docker network inspect` shows, for example
@@ -548,7 +572,9 @@ creates the stack's network, so check it again whenever the stack's network is
 recreated, after a `docker compose down` for instance: an address that no
 longer matches is as good as none. Name the one address rather than a
 private block: every address inside a named block is believed, so a block also
-trusts whatever else shares that network. The one address is shared too:
+trusts whatever else shares that network. A block wider than `/8` (IPv4) or
+`/32` (IPv6), such as `0.0.0.0/0`, would believe nearly every client, so the
+application ignores it and names it in a startup warning. The one address is shared too:
 through a published port, every client on the host arrives from that same
 address, not only the proxy, so naming it believes the forwarding headers of
 every process on the host. Such a process can then choose the address the
@@ -567,12 +593,30 @@ container through the Docker bridge must be named there for the cookie to be
 across all sources together over a rolling window, so guesses spread over many
 addresses cannot multiply; past that ceiling the login asks everyone to wait,
 the operator included, while sessions already logged in keep working.
+The counts are bounded in number as well as in time: an IPv6 client counts as
+its /64, and wrong tokens from addresses the API does not remember yet meet a
+rolling ceiling of their own, past which such an address is asked to wait and
+is not remembered.
 Restarting the application clears the counts, the ceiling's included, because
 they are kept in memory only: `docker compose restart app` gives the login
 back at once. Changing `PORTFOLIXIR_UI_PASSWORD` in `.env` and running
 `docker compose up -d` recreates the container, which clears them too.
 Reverse-proxy authentication and the built-in UI password compose: keep
 either, or both.
+
+Give the instance a host name of its own. Browsers do not separate cookies by
+port, and a sibling name under the same parent domain can set cookies for the
+parent, so another web app on the same name or beside it shares the
+instance's cookies in the browser. The instance reads only the view, benchmark
+and language choices it wrote itself: they are signed, a name the browser
+sends twice is not read, and over HTTPS they carry the `__Host-` prefix, so a
+sibling name cannot plant one. The signature proves that the instance wrote a
+value, not that you chose it: an app on another port of the same name shares
+the cookies, so it can still plant a value the instance signed (with a UI
+password, the instance signs one only for a logged-in client), and it can make
+the instance forget a choice. After the upgrade that brought the signing, choices the browser
+remembered from before are not read: the pages open on the default view, with
+no benchmark and in the browser's language, until a choice is made again.
 
 ### The TLS contract
 
@@ -653,8 +697,8 @@ browser extension injected script into it — the policy did its job.
 
 ## Development stack
 
-The development configuration — source mounted, Mix present, debug pages,
-origin checks off, the database port published for local tooling — lives in
+The development configuration — source mounted, Mix present, debug pages, a
+public session key, the database port published for local tooling — lives in
 `docker-compose.dev.yml` and is never the documented deployment:
 
 ```bash
@@ -963,7 +1007,9 @@ release from starting:
   the way a new write stores them, each change in the audit journal. A name
   that would then equal another record of the same key is left as it was and
   named in the log (`tax identity backfill`); the upgrade goes on, and you
-  correct or remove one of the two records on the Tax page.
+  correct or remove one of the two records on the Tax page. So is a name that
+  would outgrow its column once stored that way, or that the database refuses
+  to store: the log names its table and id, and you correct it there.
 
 ## Rebuild Derived Values
 
@@ -978,6 +1024,11 @@ mix portfolixir.derived.rebuild
 # inside the release container:
 docker compose exec app bin/portfolixir eval "Portfolixir.Release.rebuild_derived()"
 ```
+
+The release command runs in a second VM inside the running container: it
+starts the application without its web listener, its scheduled downloads and
+its boot steps, drops and recomputes the derived values, prints the report and
+exits, while the instance keeps serving.
 
 This never touches financial data — the ledger is read, never written. It is
 the recovery step if a derived value is ever suspected stale or corrupt; in
@@ -1026,10 +1077,13 @@ the client configuration for each transport.
 Every merge that changes shipped code is tagged with a calendar version
 (`YYYY.M.N`, the `N`-th release of that month; until September 2026 the
 scheme was `X.Y.Z`, ending at `0.14.0`) and published automatically as a
-GitHub Release with generated notes and the API contract version it ships. A release is a
-known-good point to pin or roll a self-hosted instance back to (check out the
-tag before building) plus a readable changelog — never an installable
-artifact. Migrations are additive; when rolling back across a release that
+GitHub Release with generated notes and the API contract version it ships. A
+release is a merged point to pin or roll a self-hosted instance back to (check
+out the tag before building) plus a readable changelog — never an installable
+artifact. It is cut when the merge lands, while CI runs on the same commit,
+not after CI has passed: before you pin or roll back to a release, check that
+the CI run on its commit passed (the check marks beside the commit on
+GitHub). Migrations are additive; when rolling back across a release that
 added migrations, restore the database backup taken before that upgrade.
 
 ## Notes
@@ -1046,18 +1100,34 @@ added migrations, restore the database backup taken before that upgrade.
 - The release logs at `info`: the request lines, each live page's socket
   connect with its CSRF token filtered out, warnings and errors. The database
   queries, the parameters of each request and page event, and the session
-  contents that the `debug` level writes stay out of the log.
+  contents that the `debug` level writes stay out of the log; a page that
+  crashes is logged with its reason and stack and the name of the event it
+  was handling, without the last message's values. A control
+  character in a log entry is written as a visible escape (`\x1B` for ESC),
+  so nothing a request carries can forge a log line or reach the terminal
+  that reads the log. In Compose every container logs through Docker's
+  `local` log driver, which keeps at most five files of 10 MB each per
+  container. A release run outside Compose writes its log to standard
+  output, so rotate it where it is kept (journald, or a file under
+  logrotate): an unrotated log grows with every request.
 - Every request and every open page runs in its own process under a heap
   cap of 512 MiB, counting the large binaries it holds, and so does every
   task a page hands its work to (the performance walk, the valuations, an
   import's apply, a quote sync): a request that grows past it fails alone,
-  logged, instead of exhausting the machine's memory. A page's load runs in
-  a task linked to the page, so one that grows past it takes the page down
-  with it, logged, and the page reconnects; a quote sync and a logo lookup
-  run apart from the page and fail alone, the page answering with its
-  failure note. No ordinary read or write comes near it; `max_heap_bytes` under
-  `PortfolixirWeb.HeapCap` in `config/config.exs` changes it. The in-memory
-  cache of derived figures keeps to its own budget (5000 entries, 128 MiB).
+  logged, instead of exhausting the machine's memory. A page's load, a quote
+  sync and a logo lookup each run apart from the page, so one that grows
+  past it fails alone, logged, and the page answers with its failure note.
+  The background walks run under the same cap, each in a process of its
+  own: the performance warm-up at boot and after each local midnight, and
+  the refresh after a write. A walk grown past it is killed and logged, its
+  scope is skipped, and the next read computes it. The performance walk
+  holds roughly 300 bytes per held security and day, and on the default
+  cap a walk was measured to reach it at roughly 600,000 held security-days
+  (about 160 securities held for ten years with daily closes); a
+  contribution read walks only its window.
+  `max_heap_bytes` under `Portfolixir.HeapCap` in `config/config.exs`
+  changes it. The in-memory cache of derived figures keeps to its own budget
+  (5000 entries, 128 MiB).
 - The release starts without Erlang distribution, so it opens no listener
   towards the other containers: `bin/portfolixir eval` works inside the
   container, `remote` and `rpc` do not.

@@ -160,7 +160,10 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
     for {locale, expected} <- [{"en", "+18.7%"}, {"de", "+18,7%"}] do
       {:ok, view, _html} =
         conn
-        |> Plug.Test.put_req_cookie("portfolixir_locale", locale)
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          "portfolixir_locale",
+          locale
+        )
         |> live("/portfolio")
 
       render_async(view)

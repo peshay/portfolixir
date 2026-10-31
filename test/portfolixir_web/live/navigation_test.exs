@@ -539,7 +539,7 @@ defmodule PortfolixirWeb.NavigationTest do
     explicit_cookie_conn =
       build_conn()
       |> put_req_header("accept-language", "de-DE,de;q=0.9,en;q=0.8")
-      |> put_req_cookie("portfolixir_locale", "en")
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie("portfolixir_locale", "en")
 
     {:ok, english_view, _html} = live(explicit_cookie_conn, "/")
 

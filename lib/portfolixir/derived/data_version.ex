@@ -219,6 +219,32 @@ defmodule Portfolixir.Derived.DataVersion do
     :ok
   end
 
+  @doc """
+  Compacts the event log while it is in use (security review 2026-10-12,
+  H10): deletes every settled event of a basis below that basis's newest
+  settled event, in one statement. A basis's version is its highest event id,
+  and nothing deleted is higher than a kept one, so every current version
+  stays exactly what it was — the rule `compact/1` applies. A pending event,
+  older or newer, is never touched: its mark is what makes
+  `settle_pending/1` bump its basis once more after the commit. Called on
+  `Portfolixir.Derived.PostCommit`'s interval, outside any writer's
+  transaction.
+  """
+  @spec compact_settled(Ecto.Repo.t()) :: :ok
+  def compact_settled(repo \\ Repo) do
+    if schema_ready?(repo) and pending_column?(repo) do
+      repo.query!("""
+      DELETE FROM #{@table} e
+      USING (
+        SELECT basis, max(id) AS newest FROM #{@table} WHERE NOT pending GROUP BY basis
+      ) settled
+      WHERE e.basis = settled.basis AND e.id < settled.newest AND NOT e.pending
+      """)
+    end
+
+    :ok
+  end
+
   # Journaled writes happen during data migrations that run BEFORE this
   # module's own migration on a fresh database (the bucket-scope and journal
   # seeds). A bump attempt there would abort the seed's transaction; skipping

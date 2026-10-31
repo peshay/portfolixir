@@ -37,10 +37,12 @@ defmodule PortfolixirWeb.TaxLive do
   alias Portfolixir.Actor
   alias Portfolixir.Clock
   alias Portfolixir.Tax
+  alias Portfolixir.Tax.AllowanceOrder
   alias Portfolixir.Tax.Budget
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
 
@@ -63,7 +65,7 @@ defmodule PortfolixirWeb.TaxLive do
       |> assign(:current_path, "/tax")
       |> assign(:today, today)
       |> assign(:currency, @currency)
-      |> assign(:form_errors, nil)
+      |> assign(form_errors: nil, posted: nil)
       |> assign(:order_errors, nil)
       |> assign(:editing_id, nil)
       |> assign(:statement_form_open?, false)
@@ -92,7 +94,7 @@ defmodule PortfolixirWeb.TaxLive do
   @impl true
   def handle_event("open_statement_form", _params, socket) do
     {:noreply,
-     assign(socket, statement_form_open?: true, editing_id: nil, form_errors: nil)
+     assign(socket, statement_form_open?: true, editing_id: nil, form_errors: nil, posted: nil)
      |> load_editing()}
   end
 
@@ -103,7 +105,7 @@ defmodule PortfolixirWeb.TaxLive do
      socket
      |> assign(:statement_form_open?, open?)
      |> assign(:editing_id, if(open?, do: socket.assigns.editing_id))
-     |> assign(:form_errors, nil)
+     |> assign(form_errors: nil, posted: nil)
      |> load_editing()}
   end
 
@@ -113,11 +115,15 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("record_statement", %{"statement" => params}, socket) do
+    # What was typed stays on a refusal (H36; board 07 frame 3): the form
+    # re-renders the posted values until the form is closed or saved.
+    socket = assign(socket, :posted, LiveParam.form(params))
+
     case save_statement(socket, LiveParam.map(params)) do
       {:ok, snapshot} ->
         socket =
           socket
-          |> assign(form_errors: nil, editing_id: nil, statement_form_open?: false)
+          |> assign(form_errors: nil, posted: nil, editing_id: nil, statement_form_open?: false)
           |> push_patch(to: scope_path(snapshot.holder, snapshot.tax_year))
 
         {:noreply, socket}
@@ -148,7 +154,7 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("edit_statement", %{"id" => id}, socket) do
     {:noreply,
      socket
-     |> assign(editing_id: LiveParam.id(id), form_errors: nil)
+     |> assign(editing_id: LiveParam.id(id), form_errors: nil, posted: nil)
      |> assign(statement_form_open?: true, row_menu: nil)
      |> load_editing()}
   end
@@ -156,7 +162,7 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("cancel_edit", _params, socket) do
     {:noreply,
      socket
-     |> assign(editing_id: nil, form_errors: nil, statement_form_open?: false)
+     |> assign(editing_id: nil, form_errors: nil, posted: nil, statement_form_open?: false)
      |> load_editing()}
   end
 
@@ -401,13 +407,10 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-  end
+  # Each message in the page's language through the errors domain (H36;
+  # board 07): the problem note reads "<label>: <message>".
+  defp changeset_errors(changeset),
+    do: Ecto.Changeset.traverse_errors(changeset, &FieldLabel.translate_error/1)
 
   # -- display ---------------------------------------------------------------
 
@@ -514,15 +517,29 @@ defmodule PortfolixirWeb.TaxLive do
 
   defp error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
-      "#{field_label_or_name(field)}: #{Enum.join(messages, ", ")}"
+      "#{form_error_label(field)}: #{Enum.join(messages, ", ")}"
     end)
   end
 
-  defp field_label_or_name(:amount_granted), do: gettext("Amount granted")
+  @doc false
+  # The label a problem note names a refused field by: the field's own on the
+  # form, never its raw key (H36; a meta-test walks every field the statement
+  # form can be refused on).
+  def form_error_label(:amount_granted), do: gettext("Amount granted")
+  def form_error_label(:holder), do: gettext("Taxpayer")
+  def form_error_label(:institution), do: gettext("Institution")
+  def form_error_label(:tax_year), do: gettext("Tax year")
+  def form_error_label(:as_of), do: gettext("Statement date")
+  def form_error_label(:note), do: gettext("Note")
+  def form_error_label(:church_tax_rate), do: gettext("Church tax rate")
 
-  defp field_label_or_name(field) do
+  def form_error_label(field) do
     if field in StatementSnapshot.money_fields(), do: field_label(field), else: to_string(field)
   end
+
+  # A posted value while a refusal stands, else the stored or default one.
+  defp posted(%{} = params, key, default), do: Map.get(params, key, default)
+  defp posted(_none, _key, default), do: default
 
   defp value_of(nil, _field), do: nil
   # #869: a stored figure opens in the page's locale, its trailing zeros
@@ -530,10 +547,73 @@ defmodule PortfolixirWeb.TaxLive do
   defp value_of(row, field),
     do: row |> Map.fetch!(field) |> Decimal.normalize() |> DecimalInput.value()
 
-  defp orders_summary([]), do: gettext("none configured")
+  attr(:orders, :list, required: true)
 
-  defp orders_summary(orders) do
-    Enum.map_join(orders, " · ", &"#{&1.institution} #{Format.money(&1.amount_granted)}")
+  # The closed disclosure's one-line list; an order the agent put or replaced
+  # last takes the basis line's "(Agent)" after its amount (K12, board 03).
+  defp orders_summary(%{orders: []} = assigns) do
+    ~H"""
+    <%= gettext("none configured") %>
+    """
+  end
+
+  defp orders_summary(assigns) do
+    ~H"""
+    <%= for {order, index} <- Enum.with_index(@orders) do %><%= if index > 0 do %> · <% end %><%= order.institution %> <%= Format.money(order.amount_granted) %><.paren_agent_mark :if={AllowanceOrder.agent_written?(order)} lead={gettext("Allowance order by:")} /><% end %>
+    """
+  end
+
+  attr(:row, :map, required: true)
+
+  # The statement head's last words (K12, T-16; board 03): the source, and
+  # the agent's mark where the agent recorded the statement or corrected it
+  # last. A statement the agent recorded no longer reads "recorded manually":
+  # the source stays the system's (F20), but a token's write is no manual
+  # transcription. The operator's own writes carry no word.
+  defp statement_source(%{row: %{author: :agent, source: "manual"}} = assigns) do
+    ~H"""
+    <%= gettext("recorded") %><.agent_mark lead={gettext("Recorded by:")} />
+    """
+  end
+
+  defp statement_source(%{row: %{author: :agent}} = assigns) do
+    ~H"""
+    <%= source_label(@row.source) %><.agent_mark lead={gettext("Recorded by:")} />
+    """
+  end
+
+  defp statement_source(%{row: %{corrected_by: :agent}} = assigns) do
+    ~H"""
+    <%= source_label(@row.source) %> · <%= gettext("corrected") %><.agent_mark lead={gettext("Last corrected by:")} />
+    """
+  end
+
+  defp statement_source(assigns) do
+    ~H"""
+    <%= source_label(@row.source) %>
+    """
+  end
+
+  attr(:lead, :string, required: true, doc: "the hidden words before the mark, for a reader")
+
+  # Rule versions' author mark (DESIGN.md, amendment 2026-09-26, pick
+  # G12.1-A), reused for tax rows (K12): "Agent" after a middle dot, in the
+  # line's muted text, a hidden lead before it, no badge and no colour.
+  defp agent_mark(assigns) do
+    ~H"""
+    <span data-role="tax-author"> · <span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %></span>
+    """
+  end
+
+  attr(:lead, :string, required: true, doc: "the hidden words before the mark, for a reader")
+
+  # The same mark in a comma list (Q3 = A, board 03): "(Agent)" right after
+  # the institution it covers, joined to it by a no-break space, so it never
+  # starts a line alone and never reads as a mark on the whole line.
+  defp paren_agent_mark(assigns) do
+    ~H"""
+    <span data-role="tax-author">&nbsp;(<span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %>)</span>
+    """
   end
 
   @impl true
@@ -599,7 +679,7 @@ defmodule PortfolixirWeb.TaxLive do
                   ) %>
                   · <%= gettext("as of %{date}", date: Format.date(@summary.as_of)) %>
                   <span :if={@summary.institutions != []}>
-                    · <%= Enum.join(@summary.institutions, ", ") %>
+                    · <%= for {institution, index} <- Enum.with_index(@summary.institutions) do %><%= if index > 0 do %>, <% end %><%= institution %><.paren_agent_mark :if={institution in @summary.agent_institutions} lead={gettext("Statement by:")} /><% end %>
                   </span>
                 <% else %>
                   <%= gettext("No statement recorded for this year.") %>
@@ -707,9 +787,11 @@ defmodule PortfolixirWeb.TaxLive do
                 <input
                   type="text"
                   name="statement[holder]"
-                  value={(@editing && @editing.holder) || @holder}
+                  value={posted(@posted, "holder", (@editing && @editing.holder) || @holder)}
                   list="tax-holders"
                   required
+                  aria-invalid={invalid?(@form_errors, :holder) && "true"}
+                  aria-describedby={invalid?(@form_errors, :holder) && "tax-form-error"}
                 />
                 <datalist id="tax-holders">
                   <option :for={holder <- @holders} value={holder}></option>
@@ -720,7 +802,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <input
                   type="number"
                   name="statement[tax_year]"
-                  value={(@editing && @editing.tax_year) || @tax_year}
+                  value={posted(@posted, "tax_year", (@editing && @editing.tax_year) || @tax_year)}
                   min="1990"
                   max="2200"
                   required
@@ -731,7 +813,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <input
                   type="text"
                   name="statement[institution]"
-                  value={@editing && @editing.institution}
+                  value={posted(@posted, "institution", @editing && @editing.institution)}
                   required
                   aria-invalid={invalid?(@form_errors, :institution) && "true"}
                   aria-describedby={invalid?(@form_errors, :institution) && "tax-form-error"}
@@ -745,7 +827,7 @@ defmodule PortfolixirWeb.TaxLive do
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                   maxlength="10"
                   name="statement[as_of]"
-                  value={@editing && Date.to_iso8601(@editing.as_of)}
+                  value={posted(@posted, "as_of", @editing && Date.to_iso8601(@editing.as_of))}
                   required
                   aria-invalid={invalid?(@form_errors, :as_of) && "true"}
                   aria-describedby={invalid?(@form_errors, :as_of) && "tax-form-error"}
@@ -774,7 +856,7 @@ defmodule PortfolixirWeb.TaxLive do
                     inputmode="decimal"
                     class="num"
                     name={"statement[#{field}]"}
-                    value={value_of(@editing, field)}
+                    value={posted(@posted, Atom.to_string(field), value_of(@editing, field))}
                     aria-invalid={invalid?(@form_errors, field) && "true"}
                     aria-describedby={amount_describedby(@form_errors, field)}
                   />
@@ -783,7 +865,11 @@ defmodule PortfolixirWeb.TaxLive do
 
               <label class="tax-form__wide">
                 <%= gettext("Note") %>
-                <input type="text" name="statement[note]" value={@editing && @editing.note} />
+                <input
+                  type="text"
+                  name="statement[note]"
+                  value={posted(@posted, "note", @editing && @editing.note)}
+                />
               </label>
 
               <div class="tax-form__actions">
@@ -826,7 +912,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <span class="hint">
                   <%= Format.date(entry.row.as_of) %>
                   · <%= gettext("Tax year %{year}", year: entry.row.tax_year) %>
-                  · <%= source_label(entry.row.source) %>
+                  · <.statement_source row={entry.row} />
                 </span>
                 <AppShell.row_kebab
                   id={"tax-row-kebab-statement-#{entry.row.id}"}
@@ -916,7 +1002,10 @@ defmodule PortfolixirWeb.TaxLive do
           <details class="tax-orders-disclosure" data-role="orders">
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
-              <%= gettext("Configured allowance orders") %> · <%= orders_summary(@orders) %>
+              <%!-- One text element: the summary is a flex row, so the
+                   agent's "(Agent)" must not become a flex item of its own
+                   (K12, board 03). --%>
+              <span data-role="orders-summary"><%= gettext("Configured allowance orders") %> · <.orders_summary orders={@orders} /></span>
             </summary>
             <p class="summary-basis">
               <%= gettext(
@@ -925,7 +1014,7 @@ defmodule PortfolixirWeb.TaxLive do
             </p>
             <ul :if={@orders != []} class="tax-orders" role="list">
               <li :for={order <- @orders} id={"tax-order-#{order.id}"}>
-                <span><%= order.institution %></span>
+                <span><%= order.institution %><.agent_mark :if={AllowanceOrder.agent_written?(order)} lead={gettext("Allowance order by:")} /></span>
                 <span class="num"><%= Format.money(order.amount_granted) %></span>
                 <AppShell.row_kebab
                   id={"tax-row-kebab-order-#{order.id}"}

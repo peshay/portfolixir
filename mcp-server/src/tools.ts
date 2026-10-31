@@ -493,6 +493,10 @@ const isinAliasDeleteZ = z.object({
 // The parts persist into int4 columns, hence the 2147483647 cap (E17
 // review, finding 4).
 const INT4_MAX = 2147483647;
+const INT4_MIN = -2147483648;
+// A classification's or a category's position is stored in an int4 column.
+const positionProperty = { type: "integer", minimum: INT4_MIN, maximum: INT4_MAX };
+const position = z.number().int().min(INT4_MIN).max(INT4_MAX);
 
 const splitRequestSchema = {
   type: "object",
@@ -672,7 +676,7 @@ const classificationSchema = objectWith("classification", {
   required: ["name"],
   properties: {
     name: { type: "string" },
-    position: { type: "integer" },
+    position: positionProperty,
     description: { type: "string" }
   }
 });
@@ -680,7 +684,7 @@ const classificationSchema = objectWith("classification", {
 const classificationZ = z.object({
   classification: z.object({
     name: z.string(),
-    position: z.number().int().optional(),
+    position: position.optional(),
     description: optionalString()
   })
 });
@@ -699,7 +703,7 @@ const categorySchema = {
         color: { type: "string" },
         description: { type: "string" },
         parent_id: { type: "integer", minimum: 1 },
-        position: { type: "integer" }
+        position: positionProperty
       }
     }
   }
@@ -712,7 +716,7 @@ const categoryZ = z.object({
     color: optionalString(),
     description: optionalString(),
     parent_id: z.number().int().positive().optional(),
-    position: z.number().int().optional()
+    position: position.optional()
   })
 });
 
@@ -758,7 +762,7 @@ const classificationUpdateSchema = {
       type: "object",
       properties: {
         name: { type: "string" },
-        position: { type: "integer" },
+        position: positionProperty,
         description: { type: "string" }
       }
     }
@@ -769,7 +773,7 @@ const classificationUpdateZ = z.object({
   id: z.number().int().positive(),
   classification: z.object({
     name: optionalString(),
-    position: z.number().int().optional(),
+    position: position.optional(),
     description: optionalString()
   })
 });
@@ -788,7 +792,7 @@ const categoryUpdateSchema = {
         color: { type: "string" },
         description: { type: "string" },
         parent_id: { type: "integer", minimum: 1 },
-        position: { type: "integer" }
+        position: positionProperty
       }
     }
   }
@@ -802,7 +806,7 @@ const categoryUpdateZ = z.object({
     color: optionalString(),
     description: optionalString(),
     parent_id: z.number().int().positive().optional(),
-    position: z.number().int().optional()
+    position: position.optional()
   })
 });
 
@@ -1351,7 +1355,7 @@ const policyRulesListSchema = {
     },
     as_of: { type: "string", description: boundedDate("The date the status is read on (default today).") },
     include_retired: { type: "boolean", description: "also list rules retired by as_of" },
-    since: { type: "string", description: "ISO8601 instant (UTC) or date; rules whose row or any version changed after it" },
+    since: { type: "string", description: "ISO8601 UTC, a date or an as_of cursor" },
     limit: { type: "integer", minimum: 1 }
   }
 } as const;
@@ -2824,11 +2828,11 @@ const POLICY_REIMPORT_GUARANTEE =
 // operator's; each points to the journal for who wrote it.
 const POLICY_RULE_AUTHOR =
   " Every rule here is a stored rule, whoever wrote it: the operator on the Risk page or an " +
-  "API token, the agent's own among them. Every version carries author — operator for a " +
-  "version saved on the Risk page, agent for one written with an API or MCP token, this " +
-  "companion's included; set from the credential, never from input — and a finding the " +
-  "author of its version; the Risk page marks the agent's rules. Which token wrote a rule or " +
-  "a version is in the audit journal (portfolixir.journal.list with resource_type " +
+  "API token, the agent's own among them. author is operator for the Risk page, agent for an " +
+  "API or MCP token (this companion); set from the credential, never from input. " +
+  "author covers a version (a finding's: its version's), not the name; name_author (a " +
+  "finding's rule_name_author) is who last named the rule. The Risk page marks the agent's. " +
+  "Which token wrote is in the audit journal (portfolixir.journal.list with resource_type " +
   "policy_rule or policy_rule_version; actor_type owner_ui is the Risk page, api_token_rw an " +
   "API token, actor_label its name).";
 
@@ -2838,8 +2842,8 @@ const notesListSchema = {
   required: ["security_id"],
   properties: {
     security_id: { type: "integer", minimum: 1 },
-    limit: { type: "integer", minimum: 1, description: "newest entries to keep (default 1000, at most 10000)" },
-    since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
+    limit: { type: "integer", minimum: 1, description: "newest entries to keep; in a delta read, the oldest after since" },
+    since: { type: "string", description: "ISO8601 UTC, a date or this read's as_of cursor" }
   }
 };
 
@@ -2985,7 +2989,7 @@ const declaredTools: DeclaredTool[] = [
     contractGetSchema,
     contractGetZ
   ),
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, a bond's master data and timestamps. Optional fields selects a sparse fieldset from the full projection and supersedes projection. Page with limit/offset. Optional since (ISO8601 UTC) is a delta read: rows created or updated strictly after it, plus as_of (the next since, no later than the oldest write in flight, so the next read may re-deliver a row but never skips one) and a delta_note; deletions are NOT represented, so a sync that must see them reads in full. Optional data_quality narrows to a set: stale_quote (no quote newer than 7 days, INCLUDING never-priced), missing_quote (no quote at all), missing_logo (none and unlocked, or file gone) — none of these three holds a benchmark or a retired security — missing_fx (priced, no stored rate to the EUR hub), two_scales (bonds portfolixir.securities.get names in bond.two_scales) and implausible_quote (held; a booking's quote that week under 1/2 or over 2x its price; findings and computation_basis in the envelope). The dashboard counts the same sets. is_benchmark=true lists only the benchmarks (ADR-0046), false leaves them out; is_retired=true lists only the retired securities, false leaves them out.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows are slim by default (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, a bond's master data and timestamps. Optional fields (a sparse fieldset of the full projection) supersedes projection. Page with limit/offset; limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: rows changed strictly after it, oldest change first, with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. Optional data_quality narrows to a set: stale_quote (no quote newer than 7 days, INCLUDING never-priced), missing_quote (no quote at all), missing_logo (none and unlocked, or file gone) — none of these three holds a benchmark or a retired security — missing_fx (priced, no stored rate to the EUR hub), two_scales (see bond.two_scales) and implausible_quote (held; a booking's quote that week under 1/2 or over 2x its price; findings and computation_basis in the envelope). The dashboard counts the same sets. is_benchmark=true lists only the benchmarks (ADR-0046), false leaves them out; is_retired=true lists only the retired securities, false leaves them out.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -3045,28 +3049,29 @@ const declaredTools: DeclaredTool[] = [
       "portfolixir.securities.merge takes; both securities (identifiers, split events, booking count); the guards; " +
       "the key_equal_pairs (a source booking whose day, kind, depot, cash account and amounts equal a target " +
       "booking's); the splits that collapse or move and the split events after; position_buckets per depot; quotes " +
-      "(source_count, moved_count — the source's quotes on dates the target has none —, collision_count — dates " +
-      "both have, where the target's quote wins — and manual_collisions, each colliding source quote typed by hand " +
-      "with both closes); configuration (category_assignments and position_targets, each with its action: move, " +
-      "or drop with the reason collides or stale); events (moved, and possible_duplicates of the same kind on the " +
-      "same day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
+      "(source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the " +
+      "target's wins; manual_collisions, those typed by hand, with both closes); " +
+      "configuration (category_assignments and position_targets, each with its action: move, or drop with the " +
+      "reason collides or stale); events (moved; possible_duplicates, same kind and " +
+      "day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
       "adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset " +
       "class and former ISINs; adopted, what the target takes from the source; differences, every source value " +
-      "that follows the target instead, a WKN or ticker the catalog refuses on a change among them, with the " +
-      "target's null); reverse, whether merging the other way would pass; and " +
+      "that follows the target instead, a WKN or ticker the catalog refuses among them); reverse, whether merging the other way would pass; and " +
       "outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, " +
-      "cost_basis, avg_cost and realized_result of both before and of the target after, rounding_differences, and " +
-      "the cash accounts a collapsed booking changes; positions_basis states how. Show the operator the outcomes " +
-      "of both choices; the choices are theirs. Quantities, closes, weights and decimals are strings. A pair that " +
+      "cost_basis, avg_cost and realized_result (moving-average) of both before and of the target after " +
+      "(positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues " +
+      "restates: per close year source, target, after and change, open_lots' cost alike, unchanged (no realized amount and no open cost moves; which lot a sale closes " +
+      "may), fifo_basis; " +
+      "rounding_differences; the cash accounts a collapsed booking changes. Show both outcomes; the " +
+      "choices are the operator's. Quantities, closes, weights, decimals: strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
-      "legacy_hashed_split (a split to move still carries an import hash from a re-type before the import-hash " +
-      "check; errors.splits names it — change its kind back or delete it), invalid_source_isin (the source's " +
-      "ISIN fails its check digit: correct or clear it on the source first), or " +
-      "identity_unresolvable with errors.unresolvable: an identity of either security — as stored, as its " +
-      "Portfolio Performance import recorded it, or with a former ISIN — or of a security merged into either " +
-      "before (merged_stored, merged_imported), that would no longer find the target) " +
+      "legacy_hashed_split (a split to move still carries an import hash; errors.splits names it — change " +
+      "its kind back or delete it), invalid_source_isin (errors.source_isin " +
+      "fails its check digit: fix or clear it on the source first), or " +
+      "identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or " +
+      "with a former ISIN, or of one merged into either before, that would no longer find the target) " +
       "and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
     securityMergePreviewSchema,
     securityMergePreviewZ
@@ -3078,12 +3083,12 @@ const declaredTools: DeclaredTool[] = [
       "(portfolixir.securities.merge_preview): pass its plan_digest. collapse_key_equal is required when the " +
       "preview lists key_equal_pairs and is never preselected — ask the operator: true deletes each paired booking " +
       "of the source, false keeps both on the target. identity_choice is required when both securities carry an " +
-      "ISIN and is never preselected — ask the operator: keep_target_isin keeps the target's ISIN and records the " +
+      "ISIN (errors.isins) and is never preselected — ask the operator: keep_target_isin keeps the target's ISIN and records the " +
       "source's as its former ISIN; adopt_source_isin gives the target the source's ISIN and keeps its old one as " +
-      "the former ISIN; isin_changed_on dates that former ISIN (the merge date when absent). The source's bookings " +
+      "former ISIN; isin_changed_on dates that former ISIN (the merge date when absent). The source's bookings " +
       "move onto the target in every depot, splits it shares with the target on the same day collapse; its " +
-      "quotes fill the target's gaps, and on a date both have the target's quote wins (the dropped close is kept " +
-      "in the merge record, no quote write is journaled); its category assignments, position targets and events " +
+      "quotes fill the target's gaps, and on a date both have the target's quote wins (the dropped close kept " +
+      "in the merge record; no quote write journaled); its category assignments, position targets and events " +
       "move (an assignment where the target has one in that classification is dropped, a position target that " +
       "would collide or go stale is deleted — each as the preview listed); its former ISINs, and its WKN, ticker " +
       "and feed where the target lacks them, go to the target; name, asset class and logo stay the target's. One " +
@@ -3096,7 +3101,7 @@ const declaredTools: DeclaredTool[] = [
       "the writes, with nothing written; an identifier the database never saw is outside that check. Answers " +
       "201 with the merge " +
       "record. If a booking, a quote, a configuration row, an identifier or a guard changed since the preview, it " +
-      "answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — show it and ask " +
+      "answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — show it, ask " +
       "again. A retry of a completed merge of the same pair answers 200 with the original merge record " +
       "(already_applied true). A later read of the source's id answers 404 with errors.merged_into naming the " +
       "target.",
@@ -3122,7 +3127,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.list",
     "Calendar of one security",
-    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is actually paid, book it through the ledger as always and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction and no tool does that for you. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only events created or updated strictly after that instant return — a rescheduled date comes back as its changed row — and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note; deletions are NOT represented, so a sync that must detect a removed date does a full read. The due, stale and unconfirmed queues deliberately take no since: their membership changes because time passes, with no row changing." + REIMPORT_GUARANTEE,
+    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (FR-38, ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
     eventsListSchema,
     eventsListZ
   ),
@@ -3171,7 +3176,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.notes.list",
     "Research log of a security",
-    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations. Optional limit keeps the newest entries (default 1000, at most 10000); thesis_state always derives from the whole log, and the answer echoes the limit it applied. Optional since (FR-38, ISO8601 UTC) is a delta read: only entries appended strictly after it (by inserted_at; the log is append-only) return, with as_of (the next since, no later than the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note; thesis_state still derives from the whole log, and superseded_by_ids on an older entry is only complete on a full read. The unreviewed, expiring and uncorroborated queues deliberately take no since: their membership changes because time passes, with no row changing." + REIMPORT_GUARANTEE,
+    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). Start a research run here: one call, not a re-read of old conversations. Optional limit keeps the newest entries (in a delta read, the oldest after since; default 1000, at most 10000), echoed with truncated; thesis_state always derives from the whole log. Optional since (FR-38, ISO8601 UTC) is a delta read: entries appended strictly after it (by inserted_at; the log is append-only), oldest first, with as_of (this read's next since; on has_more=true a cursor at the page's last entry, or, with no ~id, poll later: a write is in flight); page by as_of. A later read may re-deliver an entry, never skip one. superseded_by_ids on an older entry is complete only on a full read. The unreviewed, expiring and uncorroborated queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
     notesListSchema,
     notesListZ
   ),
@@ -3379,19 +3384,20 @@ const declaredTools: DeclaredTool[] = [
     "Preview merging a depot (id, the source) into another depot of the same portfolio (target_id, the one to " +
       "keep) — a read that writes nothing (ADR-0050 §7, §10). Answers the plan_digest " +
       "portfolixir.securities_accounts.merge takes, both depots (cash_account_id, bucket_ids, former_names, " +
-      "transaction_count), the guards, the security transfers between the two (the merge deletes them), the " +
+      "transaction_count), the guards, the security transfers between the two (deleted), the " +
       "key_equal_pairs (a source booking whose day, kind, security, cash account and amounts equal a target " +
       "booking's), position_buckets (per security: both depots' effective buckets and what the merge does with " +
       "the source's override — carry, drop_redundant, drop_unheld, clear_target or none), the names the target " +
       "gains (former_names.after), and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
       "booking count after, the bookings moved and deleted, positions (every security the source holds: " +
       "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
-      "after — the moving-average cost is restated because both depots' lots combine), rounding_differences (per " +
+      "after — moving-average figures, restated as both depots' lots combine; the FIFO realized gains do not " +
+      "change unless equal bookings are removed), rounding_differences (per " +
       "position and split date, the combined position rounded once less the two rounded apart — expected, " +
       "never a refusal, no bound per split), the cash accounts a collapsed booking changes, the flows it " +
       "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
-      "collapsed transfer names, with its quantity before and after. " +
-      "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +
+      "collapsed transfer names, with quantity before and after. " +
+      "positions_basis states how. Show the operator both outcomes; the choice is " +
       "theirs. Quantities and decimals are strings. A pair that may not merge answers 409 with errors.code " +
       "(same_account, not_live, portfolio_mismatch, buckets_mismatch or position_buckets_mismatch naming each " +
       "position whose buckets differ while both depots hold it, or whose override to carry holds more than one " +
@@ -3424,7 +3430,7 @@ const declaredTools: DeclaredTool[] = [
     depotMergeSchema,
     depotMergeZ
   ),
-  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount), full rows only to audit a booking. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional running_balance_for (a cash account id) adds a running_balance to each row: the balance of that account after the booking, in the account's own currency, and a running_balance_basis block naming the account. The fold covers the account's WHOLE history, so a narrowed read (from/to, a filter) still shows true balances, not a partial sum; a row that does not move that account carries null, not the previous balance.", {
+  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields selects a sparse fieldset — prefer a small one (e.g. id, type, date, security_id, gross_amount), full rows only to audit a booking. Every read echoes limit (default 10000, at most 50000) and truncated. Optional since (FR-38, ISO8601 UTC) is a delta read: rows created or updated strictly after it, oldest change first, with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. Pull-only. Optional running_balance_for (a cash account id) adds a running_balance to each row: the balance of that account after the booking, in the account's own currency, and a running_balance_basis block naming the account. The fold covers the account's WHOLE history, so a narrowed read still shows true balances; a row that does not move that account carries null, not the previous balance.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -3449,8 +3455,8 @@ const declaredTools: DeclaredTool[] = [
     running_balance_for: z.number().int().positive().optional(),
     limit: z.number().int().min(1).optional()
   })),
-  tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest/tax_refund credit) — never send negative values: a refunded tax (e.g. from a loss sale) is a separate tax_refund transaction with a positive gross_amount, never a negative taxes field (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (the trade amount in the account currency, before fees and taxes) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings. The cash and the settlement must agree (#395): a cross-currency buy's gross_amount (cash paid, fees and taxes included) must equal settlement_amount + fees + taxes, a sell's (cash received) settlement_amount - fees - taxes, within 0.01 — otherwise a 422 on gross_amount names the implied amount. Always send gross_amount on a cross-currency trade: without it the ledger books quantity × price (with fees and taxes) as the account's cash, which is checked the same way, so a trade priced in the security currency and sent without its cash amount answers 422 on gross_amount." + LEDGER_AMOUNTS, transactionSchema, transactionZ),
-  tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price). A patch that changes gross_amount, settlement_amount, fees, taxes or type — or, on a booking without gross_amount, quantity or price, which then change the cash booked — re-checks the cross-currency settlement agreement (#395); a patch of notes or date on an older booking is never refused by it. A stored split row changes only its notes (any other field answers 422); a wrong split: portfolixir.splits.delete, then book it again." + LEDGER_AMOUNTS, transactionUpdateSchema, transactionUpdateZ),
+  tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest/tax_refund credit) — never send negative values: a refunded tax (e.g. from a loss sale) is a separate tax_refund transaction with a positive gross_amount, never a negative taxes field (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (the trade amount in the account currency, before fees and taxes) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings. The cash and the settlement must agree (#395): a cross-currency buy's gross_amount (cash paid, fees and taxes included) must equal settlement_amount + fees + taxes, a sell's (cash received) settlement_amount - fees - taxes, within 0.01 — otherwise a 422 on gross_amount names the implied amount. Always send gross_amount on a cross-currency trade: without it the ledger books quantity × price (with fees and taxes) as the account's cash, checked the same way; a trade with a rate but neither gross_amount nor settlement_amount answers 422 on gross_amount." + LEDGER_AMOUNTS, transactionSchema, transactionZ),
+  tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction. As on create: a dividend's gross_amount is the NET cash credited (withheld taxes go in taxes), and an unpriced inbound delivery enters the cost basis at zero (so inbound_delivery needs a price). A patch that changes gross_amount, settlement_amount, fees, taxes, type, currency_code, cash_account_id or securities_account_id — or, on a booking without gross_amount, quantity or price — re-checks the cross-currency settlement agreement (#395); a patch of notes or date on an older booking is never refused by it. A stored split row changes only its notes (else 422); a wrong split: portfolixir.splits.delete, then book it again. A patch that loses a race to a concurrent write answers 409 with errors.detail alone and saves nothing: re-read it and retry." + LEDGER_AMOUNTS, transactionUpdateSchema, transactionUpdateZ),
   tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction; a split: portfolixir.splits.delete.", idSchema, idZ),
   tool(
     "portfolixir.splits.preview",
@@ -3515,14 +3521,14 @@ const declaredTools: DeclaredTool[] = [
     properties: { limit: { type: "integer", minimum: 1 } }
   }, z.object({ limit: z.number().int().min(1).optional() })),
   tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store exchange rates from the configured provider (ECB, EUR hub). scope=latest (default) fetches the daily feed — today's rates, nothing in the past. scope=history (issue #737) runs the one-shot BACKFILL of the historical ECB series through the same path: every published day at once, so a dated conversion (a realized gain, a cost, a flow excluded and named for a missing close-date rate) can find its rate; run it when a cashflow facet reports excluded rows. The rate-availability rule is unchanged: a day the ECB did not publish (a weekend, an unlisted currency) stays excluded and named. Returns {provider, status, upserted, scope}; a provider without a history answers 422, and a provider failure, or rates the database cannot store, answers 502 with nothing stored. One backfill runs at a time: while one runs, a second answers 409.", exchangeRateSyncSchema, exchangeRateSyncZ),
-  tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and assignments.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
-  tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification. A parent_id must name a category of the same classification, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
-  tool("portfolixir.classifications.update", "Update classification", "Update a custom classification's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
+  tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom tree. A parent_id must name a category of the same classification, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
+  tool("portfolixir.classifications.update", "Update classification", "Update a custom tree's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
   tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification (a built-in tree is refused). ONE CALL REMOVES, with it: every category of the tree, at every depth; every security's assignment in it; every target weight on its categories, category and position targets alike; and every target plan of the tree, in every portfolio and view and every version, with its cash target. The securities themselves stay. Each of those rows — the plans with their targets, the stored assignments and the categories — is journaled as its own delete before the classification's, so the journal keeps the whole tree. A tree a policy rule reads is refused with 409 naming the rules.", idSchema, idZ),
   tool("portfolixir.classifications.categories.update", "Update category", "Patch a category. A new parent_id must name a category of the same classification that is neither the category itself nor one of its descendants, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categoryUpdateSchema, categoryUpdateZ),
   tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification. ONE CALL REMOVES, with it: its sub-categories at every depth; the securities' assignments to any of them, so those securities are unassigned in the tree; and the target weights on any of them, category and position targets alike, in every plan. Each row is journaled as its own delete, the lowest categories first and the category itself last. A category a policy rule reads, itself or below it, is refused with 409 naming the rules.", categoryDeleteSchema, categoryDeleteZ),
-  tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom classification.", assignSchema, assignZ),
+  tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom tree.", assignSchema, assignZ),
   tool("portfolixir.classifications.assign_bulk", "Assign securities (bulk)", "Assign many securities to one category in a single call.", assignBulkSchema, assignBulkZ),
   tool("portfolixir.classifications.unassign", "Unassign security", "Remove a security's assignment from a classification.", unassignSchema, unassignZ),
   tool(
@@ -3569,7 +3575,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
+    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag for an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category; the row still counts where it was filed; re-file it (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects its plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target, as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),
@@ -3604,7 +3610,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.policy_rules.list",
     "Stored policy rules",
-    "The stored policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE RULES HERE rather than restating them from memory: the rule in force is the one stored. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until, author) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one." + POLICY_RULE_AUTHOR + POLICY_REIMPORT_GUARANTEE,
+    "The stored policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects, not prose in a prompt. READ THE RULES HERE, not from memory: the rule in force is the one stored. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until, author) and next_version when one is scheduled. as_of (default today) answers \"the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context; view_id null is portfolio-wide); since is the row delta (a rule changed when its row or a version did), paged as in portfolixir.securities.list: the top-level as_of is the cursor, not data.as_of; limit and truncated are echoed. Whether a rule holds is the findings read." + POLICY_RULE_AUTHOR + POLICY_REIMPORT_GUARANTEE,
     policyRulesListSchema,
     policyRulesListZ
   ),
@@ -3653,7 +3659,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.policy_findings",
     "Did anything cross a line?",
-    "The stored policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is a stored rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
+    "The stored policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving them. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, rule_name_author, subject, measure, kind, severity, note, author), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is a stored rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
     policyFindingsSchema,
     policyFindingsZ
   ),
@@ -3681,7 +3687,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.income",
     "Portfolio income (dividends + interest)",
-    "Retrospective income report for a portfolio from booked dividend and interest transactions (no forecast): an annual year x month matrix split into dividends and interest with a yearly total, a per-position table (security, gross, withheld tax, net, payment count, last payment) and the per-transaction detail for a year drilldown. Gross is net plus the dividend's withheld tax; all amounts are Decimal strings in the portfolio base currency, converted via the EUR hub at each booking date's stored rate, with the original currency retained.",
+    "A portfolio's booked dividends and interest (no forecast): a year x month matrix, yearly totals, per-position rows (gross, withheld tax, net, payment count, last payment) and per-transaction detail. Gross is net plus withheld tax. Decimal strings in the base currency, converted via the EUR hub at the latest stored rate on or before each booking date; a payment with no such rate is excluded from every total and named in excluded (count, currencies), kept in transactions (converted false, base figures null). computation_basis states the rule.",
     incomeSchema,
     incomeZ
   ),
@@ -3996,14 +4002,14 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.allowance_orders.list",
     "List configured Freistellungsauftraege",
-    "List the Freistellungsauftraege the taxpayer INSTRUCTED, per holder, institution and tax year. This is the instruction side; what the bank actually applied is recorded on the statement snapshot. Filters fold case, so 'comdirect' and 'Comdirect' are the same institution.",
+    "List the Freistellungsauftraege the taxpayer INSTRUCTED, per holder, institution and tax year; what the bank applied is on the statement. Each carries author and corrected_by (operator | agent). Filters fold case, so 'comdirect' and 'Comdirect' are the same institution.",
     allowanceOrdersListSchema,
     allowanceOrdersListZ
   ),
   tool(
     "portfolixir.allowance_orders.put",
     "Record a configured Freistellungsauftrag",
-    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it - identity folds case, so it never silently becomes a second order." + TAX_AMOUNTS,
+    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it (corrected_by: agent) - identity folds case, never a second order." + TAX_AMOUNTS,
     allowanceOrderPutSchema,
     allowanceOrderPutZ
   ),
@@ -4017,28 +4023,28 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.tax_snapshots.list",
     "List recorded tax statements",
-    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. Note carefully WHY, because the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT try to compute these from holdings or from trades - read the recorded statement. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag, a staleness object (#667: age_days vs age_threshold_days AND activity_since_count - the count of tax-relevant bookings of activity_kinds dated after as_of; warning=true is the signal to act on, the bare stale flag flips the day after any as_of) and the advisory consistency findings. All money values are Decimal strings.",
+    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. WHY, since the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT compute these from holdings or trades - read the recorded statement. Each row carries author and corrected_by (who recorded, who last corrected: operator | agent), allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag, a staleness object (#667: age_days vs age_threshold_days AND activity_since_count, tax-relevant bookings of activity_kinds after as_of; act on warning=true, the bare stale flag flips the day after any as_of) and the advisory consistency findings. All money values are Decimal strings.",
     taxSnapshotsListSchema,
     taxSnapshotsListZ
   ),
   tool(
     "portfolixir.tax_snapshots.get",
     "Read one recorded tax statement",
-    "Read one recorded statement by id with its derived figures (allowance_remaining, tax_free_trim_budget), its as_of basis, staleness, and the advisory findings. A finding names the recorded and the expected number and the gap; it never proposes a corrected value.",
+    "Read one recorded statement by id with author, corrected_by, derived figures (allowance_remaining, tax_free_trim_budget), as_of, staleness and advisory findings. A finding names the recorded and the expected number and the gap; it never proposes a corrected value.",
     taxSnapshotIdSchema,
     taxSnapshotIdZ
   ),
   tool(
     "portfolixir.tax_snapshots.create",
     "Record a tax statement",
-    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). The source of a recorded statement is manual, set by the system and never by the request. Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
+    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). source (manual) and author (agent, for a token) are set by the system, never by the request. Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
     taxSnapshotCreateSchema,
     taxSnapshotCreateZ
   ),
   tool(
     "portfolixir.tax_snapshots.update",
     "Correct a recorded tax statement",
-    "Correct a recorded statement in place - the case of a re-issued statement for the same position date. Same magnitude rules as create." + TAX_AMOUNTS,
+    "Correct a recorded statement in place (a re-issue for the same date); sets corrected_by: agent. Same magnitude rules as create." + TAX_AMOUNTS,
     taxSnapshotUpdateSchema,
     taxSnapshotUpdateZ
   ),
@@ -4052,7 +4058,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.tax_snapshots.trim_budget",
     "Tax-free trim budget for a holder and year",
-    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution (holder and institution matched by the database's case fold, so case spellings of one taxpayer or bank are one), its equity loss pot plus its remaining allowance (the response also carries the summed allowance_granted and allowance_used the remaining allowance is derived from). Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. The response carries a staleness object: warning=true when the roll-up's as_of is older than age_threshold_days OR when activity_since_count tax-relevant bookings (activity_kinds) landed after it - the activity condition is the one to act on. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
+    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution (holder and institution matched by the database's case fold, so case spellings of one taxpayer or bank are one), its equity loss pot plus its remaining allowance (also the summed allowance_granted and allowance_used). agent_institutions: those resting on a statement the agent recorded or last corrected. Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. Its staleness object sets warning=true when as_of is older than age_threshold_days OR activity_since_count tax-relevant bookings (activity_kinds) landed after it - act on the activity condition. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
     taxTrimBudgetSchema,
     taxTrimBudgetZ
   )
@@ -4062,8 +4068,8 @@ const declaredTools: DeclaredTool[] = [
 // routes to, so a new tool is hinted by its route and none ships without
 // hints. GET reads; POST adds; PUT and PATCH overwrite what is stored; DELETE
 // removes. The exceptions are named here, each with its reason. An
-// append-only write (a research-log entry, a policy-rule version) is POST and
-// so non-destructive; its description states that what it adds is permanent.
+// append-only write (a research-log entry, a new policy rule) is POST and so
+// non-destructive; its description states that what it adds is permanent.
 const READ_ONLY_POSTS = new Set([
   // Computes a split's effect and stores nothing (ADR-0028).
   "portfolixir.splits.preview",
@@ -4098,6 +4104,15 @@ const MODIFYING_POSTS = new Set([
   "portfolixir.securities.merge"
 ]);
 
+// Routed through POST and add a row, but close or replace stored rows on
+// the way (security review 2026-10-12, H13), so they are destructive; not
+// idempotent, since a repeat adds another row.
+const REPLACING_POSTS = new Set([
+  // Closes the version in force and replaces every scheduled version from
+  // its valid_from.
+  "portfolixir.policy_rules.add_version"
+]);
+
 // Reach an external provider through the API, so their answer depends on
 // something outside the instance. The security create queues a provider
 // quote backfill and a logo lookup when enrichment is enabled (R6).
@@ -4110,12 +4125,13 @@ const OPEN_WORLD_TOOLS = new Set([
 
 function hintsFor(name: string, method: string): ToolHints {
   const readOnly = method === "GET" || READ_ONLY_POSTS.has(name);
+  const replacing = REPLACING_POSTS.has(name);
   const hintedAs = REMOVING_POSTS.has(name) ? "DELETE" : MODIFYING_POSTS.has(name) ? "PUT" : method;
 
   return {
     readOnlyHint: readOnly,
-    destructiveHint: !readOnly && ["PUT", "PATCH", "DELETE"].includes(hintedAs),
-    idempotentHint: readOnly || hintedAs !== "POST",
+    destructiveHint: !readOnly && (replacing || ["PUT", "PATCH", "DELETE"].includes(hintedAs)),
+    idempotentHint: readOnly || (!replacing && hintedAs !== "POST"),
     openWorldHint: OPEN_WORLD_TOOLS.has(name)
   };
 }

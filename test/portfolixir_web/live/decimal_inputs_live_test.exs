@@ -17,7 +17,13 @@ defmodule PortfolixirWeb.DecimalInputsLiveTest do
   # Board ux-design-2026-09-24/05-numeric-inputs (#869, the numeric half).
   # Synthetic figures only: 1 EUR = 1.10 USD on the booking date.
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp open_booking(conn) do
     {:ok, view, _html} = live(conn, "/transactions")

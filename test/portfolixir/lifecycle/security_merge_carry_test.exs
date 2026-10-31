@@ -753,8 +753,11 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
         Repo.query!("UPDATE securities SET isin = $2 WHERE id = $1", [ctx.source.id, bad_isin])
       end)
 
+      # H11: the detail names the ISIN by its kind; the value is data.
       guard = refused_guard!(ctx, :invalid_source_isin)
-      assert guard.detail =~ bad_isin
+      refute guard.detail =~ bad_isin
+      assert guard.detail =~ "security ##{ctx.source.id}'s stored ISIN fails its check digit"
+      assert guard.source_isin == bad_isin
       assert guard.remedy == :merge_other_way
 
       {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{isin: @isin_target})
@@ -877,7 +880,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       guard = refused_guard!(ctx, :identity_unresolvable)
 
       assert guard.detail =~
-               "Security ##{ctx.source.id}'s stored identity (its recorded name, currency EUR) " <>
+               "Security ##{ctx.source.id}'s stored identity (its recorded name and currency) " <>
                  "would resolve to security ##{third.id} after merging"
 
       refute guard.detail =~ "Carry Fund"

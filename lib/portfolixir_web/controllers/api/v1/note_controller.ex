@@ -31,14 +31,13 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
 
   # FR-38 / #830: the log's delta note. The log is append-only, so the cut
   # compares inserted_at, and there are no deletions to leave out.
-  @delta_note "Entries appended strictly after `since` (UTC), by their inserted_at. The log " <>
-                "is append-only, so an entry never changes after it is written and no entry " <>
-                "is ever deleted: a retraction arrives as a new entry naming what it " <>
-                "supersedes, and superseded_by_ids on an older entry is only complete on a " <>
-                "full read. thesis_state always derives from the whole log. Use this " <>
-                "response's `as_of` as the next `since`: it lies no later than the start of " <>
-                "the oldest write still in flight, so the next read may re-deliver an entry " <>
-                "but never skips one."
+  # K17: the delta is a page, oldest entry first.
+  @delta_note "Entries appended strictly after `since` (UTC), by their inserted_at, oldest " <>
+                "first. The log is append-only, so an entry never changes after it is " <>
+                "written and no entry is ever deleted: a retraction arrives as a new entry " <>
+                "naming what it supersedes, and superseded_by_ids on an older entry is only " <>
+                "complete on a full read. thesis_state always derives from the whole log. " <>
+                SinceParam.page_rule()
 
   @default_unreviewed_days 90
   @default_expiring_days 30
@@ -50,26 +49,31 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
-         {:ok, since} <- SinceParam.parse(params),
+         {:ok, since} <- SinceParam.parse_page(params),
          %Security{} = security <- Catalog.get_security(security_id) do
-      opts = [limit: limit] ++ if(since, do: [inserted_since: since.cut], else: [])
+      # K17: one row past the limit tells a full page from the whole log, and
+      # a delta read is a page after the cursor.
+      opts =
+        [limit: ListLimit.fetch(limit)] ++
+          if(since, do: [delta: SinceParam.cursor(since)], else: [])
+
+      {entries, truncated} = security.id |> Knowledge.list_notes(opts) |> ListLimit.page(limit)
 
       payload = %{
         data: %{
           security_id: security.id,
-          entries:
-            security.id
-            |> Knowledge.list_notes(opts)
-            |> Enum.map(&JSON.security_note/1),
+          entries: Enum.map(entries, &JSON.security_note/1),
           # The projection reads the whole log, whatever the page (or the
           # delta) shows.
           thesis_state: security.id |> Knowledge.thesis_state() |> JSON.thesis_state(),
           limit: limit,
+          truncated: truncated,
           log_note: @log_note
         }
       }
 
-      json(conn, SinceParam.put_envelope(payload, since, @delta_note))
+      page = %{has_more: truncated, last: last_stamp(entries)}
+      json(conn, SinceParam.put_page_envelope(payload, since, @delta_note, page))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       nil -> MergedAway.not_found(conn, :security, security_id)
@@ -259,4 +263,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
   end
+
+  defp last_stamp([]), do: nil
+  defp last_stamp(entries), do: entries |> List.last() |> then(&{&1.inserted_at, &1.id})
 end

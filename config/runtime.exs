@@ -87,8 +87,21 @@ if config_env() == :prod do
            System.get_env("PORTFOLIXIR_API_PRINCIPAL")
          )
 
-  config :portfolixir, Portfolixir.Repo,
-    url: System.fetch_env!("DATABASE_URL"),
-    ssl: Portfolixir.RuntimeConfig.database_ssl?(),
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+  # Checked at boot: the shape (H72) and then the password (H18, T-14); the
+  # variable is named in a failure, never its value, which holds the password.
+  database_url =
+    Portfolixir.RuntimeConfig.validate_database_url!(
+      Portfolixir.RuntimeConfig.database_url!(System.get_env("DATABASE_URL"))
+    )
+
+  # TLS to the database (K03): the URL's ssl/sslmode and DATABASE_SSL must
+  # agree, a permissive sslmode or an unknown query key is refused, TLS
+  # always verifies, and DATABASE_SSL_CA_FILE names a private CA.
+  config :portfolixir,
+         Portfolixir.Repo,
+         Portfolixir.RuntimeConfig.database_options!(
+           database_url,
+           System.get_env("DATABASE_SSL"),
+           System.get_env("DATABASE_SSL_CA_FILE")
+         ) ++ [pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")]
 end

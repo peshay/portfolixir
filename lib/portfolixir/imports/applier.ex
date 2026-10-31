@@ -265,6 +265,7 @@ defmodule Portfolixir.Imports.Applier do
   # this import CREATES (nil/blank skips tagging; existing-mapped accounts
   # keep their tags untouched).
   def apply(%Preview{entries: entries}, %{cash_accounts: _, depots: _} = params) do
+    params = resolve_default_portfolio(params)
     default_currency = Map.get(params, :default_currency_code, "EUR")
     bucket_tag = normalize_bucket_tag(Map.get(params, :bucket_tag))
     flat_entries = Entry.flatten(entries)
@@ -786,10 +787,22 @@ defmodule Portfolixir.Imports.Applier do
 
   # No explicit choice: bind to the deterministic internal default
   # portfolio (ADR-0024). Resolved under the import actor, so a
-  # first-import "Default" shows source Import in the admin list.
-  defp resolve_portfolio(nil, result) do
-    %{id: id} = Portfolios.default_portfolio(Actor.import_session())
-    {:ok, id, result}
+  # first-import "Default" shows source Import in the admin list, and before
+  # the apply's transaction opens (security review 2026-10-12, H54): created
+  # inside it, the record stayed uncommitted for the whole file, and a writer
+  # resolving the default meanwhile created a second one. Resolved first, it
+  # is created under the default-portfolio lock and committed at once
+  # (`Portfolios.default_portfolio/1`); a failed import leaves it, as it
+  # leaves an account the operator created first.
+  defp resolve_default_portfolio(params) do
+    case Map.get(params, :portfolio) do
+      nil ->
+        %{id: id} = Portfolios.default_portfolio(Actor.import_session())
+        Map.put(params, :portfolio, {:existing, id})
+
+      _choice ->
+        params
+    end
   end
 
   defp resolve_portfolio({:existing, id}, result) when is_integer(id) do

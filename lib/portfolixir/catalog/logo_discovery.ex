@@ -70,6 +70,20 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     :ok
   end
 
+  @doc """
+  The operator's "Retry logo lookup for all": queues every missing logo, as
+  `enqueue_missing_security_logos/1` does, but does nothing while a drain is
+  pending, so a repeated retry never rescans and re-queues the catalog
+  mid-drain (security review 2026-10-12, H39).
+  """
+  def retry_missing_security_logos(name \\ __MODULE__) do
+    if enabled?() do
+      safe_cast(name, :retry_missing)
+    end
+
+    :ok
+  end
+
   # -- GenServer callbacks --------------------------------------------------
 
   @impl true
@@ -106,6 +120,9 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
 
     {:noreply, state}
   end
+
+  def handle_cast(:retry_missing, %{scheduled?: true} = state), do: {:noreply, state}
+  def handle_cast(:retry_missing, state), do: handle_cast(:enqueue_missing, state)
 
   @impl true
   def handle_info(:drain, state) do

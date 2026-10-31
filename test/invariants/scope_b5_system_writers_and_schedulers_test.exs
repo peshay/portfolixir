@@ -52,7 +52,10 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     {"Mix.Tasks.Portfolixir.BackfillSettlementLegs", "settlement_backfill"} =>
       "an operator-run, one-shot repair of settlement legs from recorded transactions",
     {"Mix.Tasks.Portfolixir.SeedScopeBuckets", "portfolio_scope_seed"} =>
-      "an operator-run seed turning portfolios into scope buckets and views (ADR-0024)"
+      "an operator-run seed turning portfolios into scope buckets and views (ADR-0024)",
+    {"Mix.Tasks.Portfolixir.Derived.Measure", "derived_measure"} =>
+      "a developer-run synthetic ledger for timing the derived values (ADR-0039 §2), " <>
+        "refused beside an existing portfolio unless asked for (K04)"
   }
 
   # `module => reason`.
@@ -70,7 +73,8 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
       "debounces the rebuild of durable derived values after a write (ADR-0039)",
     "Portfolixir.Derived.PostCommit" =>
       "bumps a data version once more after the commit of the write that marked it " <>
-        "pending (E25 S6, F47); it writes derived bookkeeping only",
+        "pending (E25 S6, F47), and on its interval compacts the version log to the " <>
+        "newest settled event per basis (H10); it writes derived bookkeeping only",
     "Portfolixir.Portfolios.Performance.Warmup" =>
       "re-warms the performance basis at the local day rollover (ADR-0039 amendment)",
     "Portfolixir.Auth.Throttle" =>
@@ -78,7 +82,10 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     "Portfolixir.Imports.PreviewStore" =>
       "sweeps expired import previews; the preview itself waits for a confirm",
     "PortfolixirWeb.PortfolioLive" =>
-      "clears the FX-sync success flash three seconds after it shows; dies with the page"
+      "clears the FX-sync success flash three seconds after it shows; dies with the page",
+    "PortfolixirWeb.LiveUiAuth" =>
+      "re-checks an open page's UI login when its lifetime runs out (H19) and sends the " <>
+        "page to the login; writes nothing, dies with the page"
   }
 
   # Modules allowed to name the journal's `scenario_id` at all: the writer

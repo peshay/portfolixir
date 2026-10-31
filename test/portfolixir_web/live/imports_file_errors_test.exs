@@ -106,6 +106,33 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
     refute band =~ "Ungültiges JSON"
   end
 
+  # User story (security review 2026-10-12, H56):
+  # As the operator dropping a JSON file whose version is not a version,
+  # I want the page to name the file error in the error band and stay up,
+  # so that a mis-converted export never takes the Imports page down.
+  #
+  # Acceptance criteria:
+  # - A version that is an object or a list is answered with "The file could
+  #   not be read as a Portfolio Performance export." and the page process
+  #   stays alive; a string or an integer version is still named.
+  test "a JSON version that is an object or a list is a named file error, not a crash",
+       %{conn: conn} do
+    for version <- [~s({"a": 1}), "{}", "[1114112]", "[{}]"] do
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_json(view, "version.json", ~s({"version": #{version}, "transactions": []}))
+
+      assert Process.alive?(view.pid), "version #{version} took the page down"
+      band = view |> element(".alert-error[role=alert]") |> render()
+      assert band =~ "The file could not be read as a Portfolio Performance export."
+    end
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_json(view, "version.json", ~s({"version": "two", "transactions": []}))
+
+    assert view |> element(".alert-error[role=alert]") |> render() =~
+             "Unsupported PP JSON version: two"
+  end
+
   test "the German page names the encoding error in German", %{conn: conn} do
     conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
     {:ok, view, _html} = live(conn, "/imports")

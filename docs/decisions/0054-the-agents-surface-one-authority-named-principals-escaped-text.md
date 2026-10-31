@@ -9,7 +9,9 @@ description: "Records the agent-surface posture the architecture's FU-6 asked fo
 - **Status:** Accepted. Adopted by the merge of the Sprint 20 sprint PR
   (ADR-0026 step 1, as amended on PR #780: the merge is the signature). No
   owner question is outstanding: the architecture's FU-6 row says the
-  product identity settles it.
+  product identity settles it. **Amended in Sprint 21** by the security
+  review's H14 and K12 (decision T-16): §1's author mark reaches a rule's
+  name and the tax rows.
 - **Date:** 2026-10-08
 - **Answers:** #967 and the architecture's follow-up FU-6.
 - **Supersedes:** the architecture's decision D4 ("graduated token scopes",
@@ -78,7 +80,14 @@ the architecture's precedence names: that is the ADR corpus. This record is.
   records its author, `agent` for an API or MCP token
   ([ADR-0049](0049-policy-rules-as-first-class-objects.html), amendment of
   Sprint 16, T-8). It is in force as the operator's would be; it is not held
-  back for adoption.
+  back for adoption. *Amended 2026-10-29 (Sprint 21, security review
+  2026-10-12, decision T-16):* the same author, derived the same way
+  (`Portfolixir.Actor.author/1`), now also names who last named a policy
+  rule (`name_author`, H14), and who recorded and who last corrected a tax
+  statement or an allowance order (`author`, `corrected_by`, K12); the Risk
+  and Tax pages mark the agent's with the same word, and a tax row's source
+  stays the system's, so a token's write no longer reads as a manual
+  transcription.
 
 ### 2. The threat model
 
@@ -207,3 +216,35 @@ resolution of its Critical Gap 4 (2026-08-12); the security triage of
 | An author on rule versions | G30, T-8 | **Answered** by ADR-0049's Sprint 16 amendment; recorded in §1 |
 | The boundary for invisible characters: refused on write, stored as stored, spelled by the companion | G20; #967 | **Answered:** §4 |
 | D4, FU-6 and their checklist item updated in the architecture | #967 | **Answered:** the architecture points here (Consequences) |
+
+## Amendment (2026-10-29): identifiers, and every character that renders as nothing (security review 2026-10-12, H11, H12)
+
+§4 is widened in two places, by the reason it already gives; nothing in it
+is withdrawn.
+
+- **A record named in a sentence covers identifiers.** A security merge's
+  guard details and refusals name an identity's ISIN, WKN and ticker by
+  their kind ("its stored ISIN"), as #965 did for names: a new security
+  keeps the identifiers it is created with, and an import file's WKN meets
+  the text rule only, so an identifier is stored text like a name. The
+  values travel as data beside the sentence (`errors.unresolvable[].ref`,
+  `errors.source_isin`, `errors.isins`), and the merge dialog shows them as
+  data lines under a reason that names their kind. An invariant test reads
+  the merge contexts and the merge controller and refuses a sentence that
+  interpolates an identifier.
+- **The characters an operator cannot see are Unicode's whole
+  Default_Ignorable_Code_Point set**, still written out in both runtimes and
+  pinned by the shared fixture, not only the format characters G20 wrote
+  out; and a variation selector is refused wherever it has no base it can
+  vary (an emoji's presentation, a keycap, a CJK ideograph's variant, a
+  standardized variant), not only in a run. A security's name, and the
+  import's lookalike skeleton, drop every default-ignorable code point; the
+  skeleton reads a Hangul filler as the space it renders as.
+
+## Note (2026-10-31): a principal's name starts with a letter or a digit (security review 2026-10-12, H25)
+
+§3's "a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`" is wider
+than the code, which also requires the first character to be a letter or a
+digit (`Portfolixir.RuntimeConfig`; `api_token_policy_test.exs` pins `-x`
+and `_x` as refused at boot). The rule is the stricter one; §3 is read
+with it.

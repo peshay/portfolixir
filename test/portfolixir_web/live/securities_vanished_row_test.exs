@@ -14,7 +14,14 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
   alias Portfolixir.Lifecycle
 
   defp agent, do: Actor.api_token_rw("synthetic-agent")
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp security!(name, isin) do
     {:ok, security} =

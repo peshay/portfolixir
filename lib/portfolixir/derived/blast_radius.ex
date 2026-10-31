@@ -48,6 +48,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Repo
+  alias Portfolixir.Settings.Setting
 
   @type radius :: :all | [integer()]
 
@@ -86,6 +87,11 @@ defmodule Portfolixir.Derived.BlastRadius do
   # like the policy rules above — a record of another shape still widens.
   def for_write("security_note", %{__struct__: SecurityNote}), do: []
   def for_write("security_event", %{__struct__: SecurityEvent}), do: []
+
+  # The default view (H61) is a preference: which scope a page opens on, read
+  # by no walk, quote, rate or rule, so no portfolio's derived values move.
+  # Resolved per struct, like the knowledge records above.
+  def for_write("setting", %{__struct__: Setting}), do: []
 
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
   # one aggregate of the security's rows: its radius is a quote write's, every
@@ -127,7 +133,7 @@ defmodule Portfolixir.Derived.BlastRadius do
     classification depot_bucket_assignment merge_record policy_rule policy_rule_version
     portfolio position_bucket_override retired_import_hash securities_account
     security_category_assignment security_event security_identifier_alias security_note
-    snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view
+    setting snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view
   )
 
   @doc """

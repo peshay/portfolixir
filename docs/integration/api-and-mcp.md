@@ -23,7 +23,7 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 
 **Named tokens** (E25). `PORTFOLIXIR_API_TOKENS` adds further tokens as
 `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32
-characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled
+characters of `a-z`, `0-9`, `_` and `-`, starting with a letter or a digit). A write made with one is journaled
 with that name as `actor_label` (`GET /api/v1/journal`), and a merge applied
 with one records it on its merge record (`GET /api/v1/merges`), taken from the
 entry the presented token matched, never from the request.
@@ -63,7 +63,10 @@ client connects from the Docker bridge, a guesser or a stale client there does
 not lock the agent out. The API's own bearer check behaves the same way
 while every token it is configured with meets the 32-byte floor; a server run
 from source that reads `PORTFOLIXIR_API_TOKEN` alone holds it to none, and
-with a shorter token it consults the lock first. Before anything else, the companion checks the `Host`
+with a shorter token it consults the lock first. The API also counts IPv6
+addresses per /64, and past an hourly ceiling on first failures from addresses
+it has not seen, a first wrong token from such an address is answered `429`
+with `Retry-After` too, instead of `401`. Before anything else, the companion checks the `Host`
 header exactly, name and port: a request under a `Host` the listener does not
 answer to (the loopback names and its bound address with its port, and the
 names in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`) is answered `403` before its origin
@@ -99,8 +102,9 @@ quote closes, and monetary totals. Request payloads for those values should also
 send strings.
 
 The errors the server answers itself, rather than an endpoint, use the same
-envelope with their own status: an unreadable body is `400`, a body over the server's size
-bound `413`, an unknown route `404`, an internal error `500`, each as
+envelope with their own status: an unreadable body, or one nesting arrays and
+objects more than 100 levels deep, is `400`, a body over the server's size
+bound of 2,000,000 bytes `413`, an unknown route `404`, an internal error `500`, each as
 `{"errors": {"detail": "Bad Request"}}` with the status's reason phrase.
 
 `DELETE /api/v1/securities/:id` is the success exception: it returns
@@ -177,12 +181,22 @@ keeps tabs and line breaks but no other control character, a NUL included,
 and is at most 10000 characters long (a research-log entry's `body` 20000, a
 category's `description` 2000), counted in code points; the database refuses
 a longer value as well. No text, one-line or free, carries an **invisible
-character** (E25): a Unicode tag character (U+E0000–U+E007F), a bidirectional
-control (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), another
-invisible format character (the soft hyphen U+00AD, U+180E, the zero-width
-space and joiners U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order
-mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) or a run of two
-or more variation selectors (a single one, an emoji's presentation, passes).
+character** (E25): any of Unicode's default-ignorable code points — a tag
+character and the rest of its block (U+E0000–U+E00FF, U+E01F0–U+E0FFF), a
+bidirectional control (U+061C, U+200E, U+200F, U+202A–U+202E,
+U+2066–U+2069), another invisible format character (the soft hyphen U+00AD,
+the zero-width space and joiners U+200B–U+200D, U+2060–U+2065,
+U+206A–U+206F, the byte-order mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3,
+U+1D173–U+1D17A), the combining grapheme joiner U+034F, a Hangul filler
+(U+115F, U+1160, U+3164, U+FFA0), U+17B4–U+17B5, U+180B–U+180F or
+U+FFF0–U+FFF8 — or a variation selector with no base it can vary. A
+selector of U+FE00–U+FE0F passes after a pictograph (an emoji's
+presentation), a keycap's digit, `#` or `*`, a CJK ideograph, a mathematical
+operator, a CJK fullwidth punctuation mark (U+3001, U+3002, U+FF01, U+FF0C,
+U+FF0E, U+FF1A, U+FF1B, U+FF1F), a curly quotation mark (U+2018, U+2019,
+U+201C, U+201D) or a letter of Myanmar, Phags-pa, Manichaean or the Egyptian
+hieroglyphs; one of U+E0100–U+E01EF only after a CJK ideograph; a selector
+next to another one never.
 A zero-width joiner U+200D passes where it joins two pictographs, as in an
 emoji built from several (a person at a laptop, a family, the rainbow flag):
 the character before it is a pictograph, or a VS16 right after one, and the
@@ -191,9 +205,9 @@ Wales) are built from tag characters and stay refused, and so does the
 zero-width non-joiner U+200C, which some scripts' words (Persian, several
 Indic scripts) carry. They render as nothing but reach an agent intact, so the
 error names them by code point: `must not contain invisible characters
-(U+200B); retype the text without them`. A security's name is the one exception: its format characters
-are dropped as it is stored, as before, and only a run of variation selectors
-is refused. Anything else answers `422` naming the field, never a
+(U+200B); retype the text without them`. A security's name is the one exception: its default-ignorable
+characters, variation selectors included, are dropped as it is stored, as
+before for its format characters. Anything else answers `422` naming the field, never a
 server error. A Portfolio Performance import names a row whose names or note
 break the same rule in its preview. A security's free-form `attributes` map
 meets the rule at any depth: every key is one-line text of at most 255
@@ -201,7 +215,11 @@ characters, and every text value, in a nested object or list too, is free
 text; otherwise the write answers `422` on `attributes`. The map as stored,
 merged with the attributes already there, is at most 65536 bytes as compact
 JSON; a write that would pass that answers `422` on `attributes` and stores
-nothing. An update that changes nothing writes no row and leaves no journal
+nothing. `market_cap_rank`, the attribute the securities list sorts as a
+number, is a whole number or its text and is stored as a number; anything
+else answers `422` on `attributes` ("market_cap_rank must be a whole
+number"), and a search provider's value that is no whole number is dropped.
+An update that changes nothing writes no row and leaves no journal
 entry. A search provider's property that breaks the
 rule is dropped before it reaches the attributes. A read's text filter — the
 securities `query`, the journal's `resource_type` and `resource_id`, the tax
@@ -225,7 +243,30 @@ instant, or before the start of the oldest transaction that has written and
 is still open, whichever is earlier: a row is stamped when its transaction
 writes it, not when that transaction commits, so a cursor at the read instant
 would skip a row a long write (an import) commits after the read. The next
-read may therefore re-deliver a row, but never skips one. **Deletions are not
+read may therefore re-deliver a row, but never skips one.
+
+**A capped delta read is a page (K17).** The delta reads bounded by `limit`
+— transactions, securities, a security's notes and events, a portfolio's
+policy rules — return their rows oldest change first, and every read of
+them, delta or full, echoes `limit` and `truncated` (true when more rows
+matched than the answer holds). A delta read, when more rows matched than
+the page holds, also carries `has_more: true`, and its `as_of` is then a
+cursor at the page's last row,
+`<ISO8601 instant>~<id>`: pass it as the next `since` and read again at
+once. Rows sharing one stamp (an import writes thousands within a second)
+are told apart by the id, so a page boundary among them skips none and
+repeats none. A cursor never lies past the bound above: when the page's last
+row is newer, `as_of` is the bound, without `~<id>`, and `has_more` stays
+true — the rest waits behind a write still in flight, so poll again later,
+not at once: until that write ends, a read at once returns the same page.
+A page with nothing behind it carries `has_more: false` and the bound, as
+before — also when it holds exactly `limit` rows. A cursor belongs to the
+read that answered it: it carries that read's row id, so passed to another
+read it would skip that read's rows on the cursor's second. With `since`,
+page by `as_of`, never by `offset`: a cursor beside `offset` skips rows too.
+A malformed cursor is the same `422` as any invalid `since`.
+
+**Deletions are not
 represented** in a delta read; a caller that must detect deletions performs a
 full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
 delivery (webhooks to a user-configured endpoint) is a separate, still-gated
@@ -337,7 +378,8 @@ full list.
   `input_series`, `reference`, `window`, `gaps`, `threshold` and
   `assumptions`),
   `projection` (`slim`/`full`), and
-  `limit`/`offset` for pagination (both non-negative integers). Use these to
+  `limit`/`offset` for pagination (`limit` a positive integer, default 5000,
+  max 20000; `offset` non-negative). Use these to
   page large catalogs instead of fetching the whole table at once. A
   `data_quality` set is filtered before `limit`/`offset` page it, so only its
   last page is short (issue #1113). The
@@ -512,7 +554,8 @@ confirms with the same `plan_digest`, so both see the same plan.
   check (`legacy_hashed_split`, with `errors.splits`; change its kind back
   or delete it — one the merge collapses is deleted with its hash retired).
   A source ISIN that fails its check digit is refused
-  (`invalid_source_isin`): the merge would write it onto the target, which
+  (`invalid_source_isin`, the stored value in `errors.source_isin`): the
+  merge would write it onto the target, which
   the catalog refuses for a stored security, so correct or clear it on the
   source first. Finally, every identity of both
   securities must still find the target after the merge
@@ -569,10 +612,25 @@ confirms with the same `plan_digest`, so both see the same plan.
     target's `transaction_count` after, `moved_transaction_ids`, `deleted`
     (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the
     source holds: `source`, `target` and `after`, each `quantity`,
-    `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`,
-    `cash_accounts` and `flow_changes`, with `positions_basis` as for a
-    depot merge; `reimport_note` says what the merge does to the next
-    import.
+    `cost_basis`, `avg_cost` and `realized_result`), `fifo_realized`,
+    `rounding_differences`, `cash_accounts` and `flow_changes`, with
+    `positions_basis` as for a depot merge; `reimport_note` says what the
+    merge does to the next import;
+  - `fifo_realized`, in each outcome: the FIFO realized gains the merge
+    restates (security review 2026-10-12, K11). The realized gains the app
+    reads (`GET /api/v1/realized_gains`, a security's trades) are FIFO over
+    one queue per security across every depot; the merge pools the two
+    queues, so a sale can close the other security's older lot. `years`
+    lists per close year and currency the realized result of the source
+    and of the target, each over its own queue before (`null` where it
+    closes no trade that year), of the target over the merged rows after,
+    and the `change`; `open_lots` the open lots' cost likewise;
+    `unmatched_sells` the sells no lot covers, per side; `unchanged` is
+    true when no realized amount and no open cost moves — which lot a sale
+    closes, and with it holding periods and annualized returns, may still
+    change. Amounts are in each trade's currency, never
+    converted; `fifo_basis` states the rule. `realized_result` in
+    `positions` is the depot's moving-average result, not this figure.
 
   Every quantity, close, weight and decimal is a string. The digest covers
   both securities, every booking of either, their quotes, category
@@ -585,7 +643,9 @@ confirms with the same `plan_digest`, so both see the same plan.
   merges under the token (`portfolixir.securities.merge`).
   `collapse_key_equal` is required when the preview lists `key_equal_pairs`,
   and `identity_choice` when both securities carry an ISIN — each a `422`
-  without it, and never preselected: ask the operator.
+  without it, and never preselected: ask the operator. The `identity_choice`
+  refusal names the ISINs by their kind and carries both in `errors.isins`
+  (`source_isin`, `target_isin`).
   `keep_target_isin` keeps the target's ISIN and records the source's as a
   former ISIN of the target; `adopt_source_isin` gives the target the
   source's ISIN and records the target's old one as its former ISIN (the
@@ -641,9 +701,12 @@ a `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **set, not guessed**), `as_of` (the statement's cut-off date, distinct from
 `inserted_at`: an entry written today about last quarter carries last
-quarter's date), `author` (`operator`, `agent`, `local_model`; the API
-defaults to `agent`), `machine_generated` (an extracted entry is a proposal
-until confirmed and must carry its `source_url`), `supersedes_id` (the earlier
+quarter's date), `author` and `machine_generated` — `author` (`operator` or
+`agent`) is derived from the credential that writes the entry, `agent` for
+every API token, and `machine_generated` is reserved for a local-model path
+that does not exist yet (an extracted entry would be a proposal until
+confirmed, carrying its `source_url`); both are ignored in a body, so a body
+can claim neither —, `supersedes_id` (the earlier
 entry of the same security this one replaces; required for a retraction),
 `valid_until` (a dated block such as a lockup or a self-imposed buying block),
 and — on `thesis` entries only — `conviction` (`low`, `medium`, `high`),
@@ -656,9 +719,9 @@ input.
 - `GET /api/v1/securities/:security_id/notes` — the log, newest first (by
   `as_of`, then write time), with the derived `thesis_state` and a `log_note`
   stating the append-only contract.
-  `limit` keeps the newest entries (default 1000, max 10000); `thesis_state`
-  always derives from the whole log, and the answer echoes the applied
-  `limit`.
+  `limit` keeps the newest entries — in a delta read, the oldest after
+  `since` (default 1000, max 10000); `thesis_state` always derives from the
+  whole log, and the answer echoes the applied `limit`.
 - `POST /api/v1/securities/:security_id/notes` — appends one entry from a
   `note` object (`201`); journaled under the API-token actor. An `as_of`
   after today (the instance's calendar day) answers `422` on `as_of` ("must
@@ -975,10 +1038,13 @@ discovery never overwrites the choice.
   stored locally; the security is locked to the manual choice. A missing URL
   returns `422` with `errors.url`; an image that cannot be fetched or fails
   the check returns `422` with `errors.logo`, a fixed message that names no
-  address and no status.
+  address and no status. The journal entry names the token's principal, and
+  its after-image carries `logo_source_host`, the host the URL named.
 - `DELETE /api/v1/securities/:security_id/logo` removes the logo and records an
   explicit "no logo" decision (the row falls back to its initials/flag), also
-  locking it against discovery.
+  locking it against discovery. Journaled under the token's principal, like
+  the override and the rediscovery; only the background discovery is
+  journaled as the system job `logo`.
 - `POST /api/v1/securities/:security_id/logo/discover` re-runs automatic
   discovery ("search again"). The response includes a `result` of `updated`,
   `no_source`, or `failed`. Locked securities are left untouched and answer
@@ -1386,10 +1452,15 @@ Example quote sync response:
     moving-average cost `GET /api/v1/portfolios/:id/holdings` states, in the
     security's currency, fees and taxes not included — after the merge both
     depots' lots combine, so the cost is restated, and a sale the target made
-    between two buys now consumes the combined average; `realized_result` is,
-    over the position's sales, each sale's quantity times its price in the
+    between two buys now consumes the combined average; `realized_result` is
+    the depot's moving-average result, not the app's realized gains: over
+    the position's sales, each sale's quantity times its price in the
     security's currency less the cost it removed at the running average, and
-    `null` where that price or cost is not derivable;
+    `null` where that price or cost is not derivable. The FIFO realized
+    gains (`GET /api/v1/realized_gains`, a security's trades) do not change
+    in a depot merge unless equal bookings are removed as duplicates, which
+    takes them out of the queue: the FIFO queue belongs to the security, not
+    the depot;
     `rounding_differences` lists, per position and split date, each split
     of an affected security where the combined position rounded once
     differs, at the end of the split's day, from the two positions rounded
@@ -1562,9 +1633,14 @@ Example account payloads:
   a buy, less them on a sale) as the cash, so that is what is compared: a
   trade priced in the security's currency and sent without its cash amount
   answers 422 on `gross_amount` naming both the amount it would book and the
-  one the settlement implies — send the cash the broker settled. The check
+  one the settlement implies — send the cash the broker settled. A trade
+  that carries a `settlement_fx_rate` but neither `gross_amount` nor
+  `settlement_amount` is refused the same way, 422 on `gross_amount` naming
+  the amount it would book: a rate is not the cash the broker settled, and
+  nothing is derived from it. The check
   runs on create and on a `PATCH` that changes `gross_amount`,
-  `settlement_amount`, `fees`, `taxes` or `type`, or, on a booking without a
+  `settlement_amount`, `fees`, `taxes`, `type`, `currency_code`,
+  `cash_account_id` or `securities_account_id`, or, on a booking without a
   `gross_amount`, its `quantity` or `price` — a `PATCH` of the notes or the
   date of an older booking is never refused by it.
 - `GET /api/v1/transactions/:id` returns one transaction.
@@ -1577,7 +1653,10 @@ Example account payloads:
   `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
   because a split is booked through `POST /api/v1/splits`, whose checks a
   generic update would pass by. A wrong split is deleted whole
-  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again.
+  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again. An
+  update that collides with a concurrent write of the same rows, such as a
+  cash-account merge, and loses answers **409** with `errors.detail` only:
+  nothing was saved; read the transaction again and retry the update.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
   An imported booking's content hash goes with it, so a re-import of the same
@@ -2067,10 +2146,17 @@ Example account payloads:
   `native_tax`/`native_net`, the base-currency `gross`/`tax`/`net`, and
   `converted`). A dividend's gross is its net cash (`gross_amount`) plus the
   withheld tax; interest carries no withholding. All amounts are Decimal strings
-  in the portfolio's `base_currency`, converted via the EUR hub at each
-  booking date's stored rate (the same mechanics as the valuation endpoint), with
-  the original currency retained; `unconverted_count` counts bookings with no
-  rate path (converted at parity), and `conversion_note` states the basis.
+  in the portfolio's `base_currency`, converted via the EUR hub at the most
+  recent stored rate on or before each booking date (the same mechanics as the
+  valuation endpoint), with the original currency retained. A booking with no
+  such rate path is excluded from every total (`annual`, its months,
+  `positions`) and named in `excluded` (`count`, and per currency its
+  `currency_code`, `count` and `securities`), as the other Cash-flow reads
+  do; `transactions` keeps it with `converted: false`, its native amounts and
+  `null` base-currency `gross`, `tax` and `net` — never its native amount at
+  parity (security review 2026-10-12, K07). `unconverted_count` counts it,
+  `conversion_note` states the basis and `computation_basis` (`series`,
+  `currency`, `window`, `reference`, `gaps`) the rule.
   A booking's cash and withheld tax are read in its cash account's currency,
   the currency it was credited in (the ADR-0015 amendment of 2026-10-07): a
   dividend of a USD security credited to a EUR account is converted from
@@ -2275,12 +2361,22 @@ under "Transactions and Holdings" above.)
   never rewrites a recorded transcription. Re-recording the same
   `(institution, holder, tax_year, as_of)` is a `422`, not a silent duplicate.
   A recorded statement's `source` is `manual`, set by the system: a `source`
-  in the body of a create or a correction is ignored.
+  in the body of a create or a correction is ignored. Who wrote it is a
+  separate pair (security review K12): `author` is who recorded it and
+  `corrected_by` who corrected it last (`null` until a correction), each
+  `operator` for the Tax page and `agent` for an API or MCP token, derived
+  from the write's credential and never read from the body. An update that
+  changes nothing sets no `corrected_by`. An allowance order carries the same
+  pair for its first put and its last replacing put. Rows stored before
+  authors existed take what their journaled creation and last correction
+  name, `null` without one.
 - `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
   to one holder and year (required `holder` and `tax_year`); institutions are
   grouped by the database's case fold, so a later statement under another
   case spelling of one bank replaces the earlier one. It reports which
-  `institutions` it covers, the `as_of` of its **oldest** component, the
+  `institutions` it covers, which of them rest on a statement the agent
+  recorded or corrected last (`agent_institutions`, K12), the `as_of` of its
+  **oldest** component, the
   summed `allowance_granted` and `allowance_used` the fill level on the Tax
   page is read from (beside `allowance_remaining`), and
   `complete: false` with `missing_institutions` when a configured allowance
@@ -2617,7 +2713,9 @@ church tax withheld at a zero church-tax rate.
   with no derivable native leg reports `null` P&L instead of a blind
   cross-currency figure. The response is self-describing (FR-13):
   it carries `method: "fifo"`, so a client never has to assume how lots were
-  paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
+  paired against sells. Since a sale consumes the oldest lot whatever
+  portfolio bought it, a split scales every open lot of the security once on
+  its date, so the lots follow the shares held. Optional `from`/`to` (ISO dates) filter each leg by its
   own date: open lots by open date, closed round-trips by close date, orphan
   sells by sell date.
   There is no `limit`: `from`/`to` are the bound (the FIFO matcher needs the
@@ -2660,8 +2758,14 @@ the Risk page, `agent` for one written with an API or MCP token, derived from
 the write's credential and never read from the body; a finding carries the
 `author` of the version in force. A version stored before authors existed
 takes the author its journaled creation names, `null` only without one.
-Risk marks the agent's rules with the word "Agent"; when a rule is in force
-does not depend on its author.
+`author` covers the version, not the name: a rename is no version, so the
+rule carries its own **`name_author`** (security review H14), who last named
+it, set the same way by the create and by every rename, and a finding
+carries it as `rule_name_author`. A rule stored before name authors existed
+takes the author of its last journaled rename, or of the version written
+with its name, `null` only without either. Risk marks the agent's rules
+with the word "Agent", after the name where the agent named the rule; when
+a rule is in force does not depend on its author.
 
 **What a rule is.** A predicate over **one named measure**, for one subject,
 in one evaluation context:
@@ -2815,10 +2919,16 @@ level (d)).
   against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
   derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
   `limit` keeps the most recent rates (default 50000, max 200000).
-  Every stored rate is bounded like a quote: positive, and dated no later
-  than tomorrow. A sync drops a provider rate outside the bound instead of
-  failing the run, and the latest-rate reads never use a stored row dated
-  past it.
+  Every rate a writer stores is bounded like a quote: positive once rounded
+  to its 15 decimal places, and dated no later than tomorrow. A sync drops a
+  provider rate outside the bound instead of failing the run, and the
+  latest-rate reads never use a stored row dated past it. A rate a release
+  before 2026.10.1 could store as 0 (a value finer than the column) is no
+  rate to any conversion: the figure that needs it excludes and names the
+  booking, or reports the rate missing, as for a day with no rate. The row
+  is neither deleted nor changed — it stays in this list, a history
+  backfill replaces it on a day the provider publishes, and the boot log
+  names each such row (security review 2026-10-12, K06).
 - `POST /api/v1/exchange_rates/sync` fetches rates from the configured
   provider (ECB by default) and returns `{provider, status, upserted, scope}`.
   `scope=latest` (the default) fetches the **daily** feed — today's rates,
@@ -2883,6 +2993,10 @@ tree stays intrinsic and cannot be reassigned.
   would sit below level 32 answers `422` on `parent_id` as well, naming the
   level ("would put a category on level 33; a classification has at most 32
   levels", issue #940).
+  A `position`, on a classification or a category, is an integer from
+  -2147483648 to 2147483647 (the column's range); any other answers `422` on
+  `position` and nothing is written. The companion's schemas carry the same
+  bounds.
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
   category with the categories below it, the securities assigned there and
   the targets filed under them; each row is journaled as its own delete,
@@ -3127,7 +3241,9 @@ decimals are involved.
 - `PUT /api/v1/settings/default_view` sets it. Body: `{"view_id": <id>}` with a
   live view id, or `{"view_id": null}` to clear back to Everything. An unknown
   view id returns `404` (nothing is written); a malformed `view_id` returns
-  `422`. The response mirrors the `GET` shape.
+  `422`. The response mirrors the `GET` shape. A change is journaled under
+  the token's principal (`resource_type` `setting`, an `upsert`, or a
+  `delete` when cleared), so the previous default is in its before-image.
 
 ## Imports
 
@@ -3378,14 +3494,17 @@ ones, an activation archives the plan that was active, an ISIN change writes
 the new ISIN onto the security — so they are hinted as a `PUT` is:
 destructive, and idempotent, since a repeat changes nothing more (a second
 retirement answers `409`, a second activation is a no-op, a second ISIN change
-a named conflict); `openWorldHint` is true for
+a named conflict); `portfolixir.policy_rules.add_version` is routed through
+`POST` and adds a version, but closes the version in force and replaces every
+scheduled version from its date, so it is destructive, and not idempotent,
+since a repeat adds another version; `openWorldHint` is true for
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
 `portfolixir.exchange_rates.sync`, which reach an external provider, and for
 `portfolixir.securities.create`, which queues a quote backfill from the
 provider and a logo lookup when the instance's enrichment is enabled. The
-append-only writes, `portfolixir.notes.append` and the policy-rule versions,
-are non-destructive, and their descriptions say that what they add is
-permanent.
+append-only writes, `portfolixir.notes.append` and a new policy rule
+(`portfolixir.policy_rules.create`), are non-destructive, and their
+descriptions say that what they add is permanent.
 
 **Auto-approvable reads.** A host may run every tool with `readOnlyHint: true`
 without asking: none of them changes the instance.
@@ -3411,7 +3530,8 @@ removal-shaped tools are admin, and replace-shaped writes stay in `book`. Every
 removal is admin (every delete, the former-name and ISIN-alias removals, a
 classification's unassignment, a position's override cleared, the release of
 manual quotes), even where a later write could put an equal row back, and so
-are the three merges, the ISIN change and a rule's retirement. A
+are the three merges, the ISIN change, a rule's new version (it closes the
+version in force and replaces the scheduled ones) and a rule's retirement. A
 replace-shaped write (an update, an upsert, a bucket set, a plan's activation)
 stays in `book`, because the same write sent the former value undoes it; a
 bucket set sent narrower, or a position's override set to `[]`, stays too,
@@ -3504,8 +3624,8 @@ of a cash-account or depot write names `cash account #5` or `securities
 account #5` (`errors.former_names`: "include the name of cash account #5 in
 this portfolio"), and a security merge's guard detail names its rules,
 depots, buckets and portfolios by their ids (`policy rule(s): #7 (in_force)`,
-`In depot #3`, `in portfolio #1`) and an identity's name as "its recorded
-name", and a split booked again names the existing event's portfolio by its
+`In depot #3`, `in portfolio #1`) and an identity's name and identifiers by
+their kind ("its recorded name", "its stored ISIN"), and a split booked again names the existing event's portfolio by its
 id (`for portfolio #1`). A delete refused because a policy rule reads the object (`409`) names
 the rules the same way, and a cash-account or depot merge's guard detail names
 its buckets and a position by their ids (`the buckets #3, #7`,
@@ -3517,7 +3637,9 @@ a portfolio's from `GET /api/v1/portfolios`). A refusal's `errors` carry a
 name beside the detail in two places only: `errors.policy_rules[].name`, with
 each rule's `id` and `status`, and `errors.unresolvable[].ref.name`, the
 identity's recorded name; a depot, a portfolio and a bucket travel there by
-their ids alone. Portfolixir's screens keep naming it by its name.
+their ids alone. A security merge's refusal carries an identity's stored
+ISIN, WKN and ticker as data beside the sentence too:
+`errors.unresolvable[].ref`, `errors.source_isin` and `errors.isins`. Portfolixir's screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that
@@ -3753,7 +3875,9 @@ API may have committed it, and its answer cannot be read.
   description carries the measure matrix and the scales, and states that a
   version is permanent once in force: the rule can then only be retired.
 - `portfolixir.policy_rules.add_version` — the edit: a new version, never an
-  overwrite, and permanent once in force.
+  overwrite, and permanent once in force. It closes the version in force the
+  day before and replaces every scheduled version from its date, so it is
+  hinted destructive and held with the admin tools.
 - `portfolixir.policy_rules.rename` — the name only; the description states
   that a rename creates no version and the versions do not change.
 - `portfolixir.policy_rules.retire` — ends the version in force; everything

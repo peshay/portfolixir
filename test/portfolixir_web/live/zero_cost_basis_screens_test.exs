@@ -61,7 +61,14 @@ defmodule PortfolixirWeb.ZeroCostBasisScreensTest do
 
   defp class_of(node), do: node |> Floki.attribute("class") |> List.first("")
   defp document(html) when is_binary(html), do: Floki.parse_document!(html)
-  defp de(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+  defp de(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   # The reason anatomy of #1089: a muted dash, aria-hidden, the reason in the
   # node's title and in a visually hidden sentence.

@@ -19,7 +19,7 @@ updates:
     directory: "/mcp-server"
     schedule:
       interval: "weekly"
-    # Types follow the pinned runtime major (#728: Node 24 LTS in CI, the
+    # Types follow the pinned runtime major (#728: Node 26 LTS in CI, the
     # companion's Dockerfile and engines.node). A @types/node major beyond it
     # is declined, not deferred -- it becomes a candidate when the runtime pin
     # moves. Sprint 8 ignored one version (24 -> 26.2.0) and the bot reopened
@@ -33,8 +33,9 @@ updates:
     schedule:
       interval: "weekly"
 
-  # pre-commit and its dependencies, pinned by version and sha256 for CI's
-  # install (E25 S8, F60): the bot regenerates requirements.txt from
+  # pre-commit and its dependencies, and pre-commit-hooks the local hygiene
+  # hooks run on (H65), pinned by version and sha256 for CI's install (E25
+  # S8, F60): the bot regenerates requirements.txt from
   # requirements.in with pip-compile --generate-hashes, so the hash pin does
   # not harden into a stale version. One grouped PR rather than one per
   # package.

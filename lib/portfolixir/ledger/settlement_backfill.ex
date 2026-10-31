@@ -41,6 +41,9 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   `skipped_no_rate` and `skipped_no_rate_rows` (transaction ids with their
   dates, so the skips are actionable), or `{:error, {transaction_id,
   changeset}}` on the first failing update (nothing further is attempted).
+  An update that lost a lock cycle with a concurrent write (#1214) stops it
+  the same way as `{:error, {transaction_id, :raced}}`: nothing was written
+  for that row, and a re-run picks it up.
   """
   def run(%Actor{} = actor) do
     candidates()
@@ -60,6 +63,9 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
                 | skipped_no_rate: summary.skipped_no_rate + 1,
                   skipped_no_rate_rows: summary.skipped_no_rate_rows ++ [row]
               }}}
+
+          {:error, :raced} ->
+            {:halt, {:error, {transaction.id, :raced}}}
 
           {:error, changeset} ->
             {:halt, {:error, {transaction.id, changeset}}}
@@ -121,6 +127,7 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
            settlement_fx_rate: rate
          }) do
       {:ok, _transaction} -> {:ok, :updated}
+      {:error, :raced} -> {:error, :raced}
       {:error, changeset} -> {:error, changeset}
     end
   end

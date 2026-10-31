@@ -2,7 +2,8 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
   @moduledoc """
   Read and manage a security's logo: report its status, set a manual override
   from an image URL, remove it (locking "no logo"), or trigger automatic
-  re-discovery ("search again").
+  re-discovery ("search again"). Every write is journaled under the request's
+  actor, the named token's principal (ADR-0054 §3; H61).
   """
 
   use PortfolixirWeb, :controller
@@ -22,7 +23,8 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
   def update(conn, %{"security_id" => id} = params) do
     with %Security{} = security <- Catalog.get_security(id),
          {:ok, url} <- logo_url(params),
-         {:ok, updated} <- Catalog.set_logo_override(security, url, logo_opts()) do
+         {:ok, updated} <-
+           Catalog.set_logo_override(conn.assigns.actor, security, url, logo_opts()) do
       json(conn, %{data: JSON.logo_status(updated)})
     else
       nil -> MergedAway.not_found(conn, :security, id)
@@ -33,7 +35,7 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
 
   def delete(conn, %{"security_id" => id}) do
     with %Security{} = security <- Catalog.get_security(id),
-         {:ok, updated} <- Catalog.remove_logo(security, logo_opts()) do
+         {:ok, updated} <- Catalog.remove_logo(conn.assigns.actor, security, logo_opts()) do
       json(conn, %{data: JSON.logo_status(updated)})
     else
       nil -> MergedAway.not_found(conn, :security, id)
@@ -44,13 +46,13 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
   def discover(conn, %{"security_id" => id}) do
     case Catalog.get_security(id) do
       nil -> MergedAway.not_found(conn, :security, id)
-      security -> json(conn, %{data: discover_payload(security)})
+      security -> json(conn, %{data: discover_payload(conn.assigns.actor, security)})
     end
   end
 
-  defp discover_payload(security) do
+  defp discover_payload(actor, security) do
     result =
-      case Catalog.rediscover_logo(security, logo_opts()) do
+      case Catalog.rediscover_logo(actor, security, logo_opts()) do
         {:ok, _updated} -> "updated"
         :skip -> "no_source"
         {:error, _reason} -> "failed"

@@ -16,7 +16,13 @@ defmodule PortfolixirWeb.DialogFieldErrorsDeTest do
   alias Portfolixir.Actor
   alias Portfolixir.Portfolios
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp field_error(view, form, field) do
     view
