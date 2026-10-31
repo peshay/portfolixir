@@ -167,7 +167,7 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
   # Acceptance criteria:
   # - A note body carrying U+034F, or selectors interleaved one per letter,
   #   answers 422.
-  # - A security name carrying U+034F answers 422 or is stored without it.
+  # - A security name carrying U+034F answers 201 and is stored without it.
   describe "API writers" do
     setup %{conn: conn} do
       %{conn: api(conn), security: create_security!(name: "Coastal Ferry Lines", ticker: "CFL")}
@@ -229,8 +229,7 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
              "answered #{response.status}; GET answers #{inspect(read_back)}"
     end
 
-    test "POST /api/v1/securities refuses U+034F in a name or stores the name without it",
-         %{conn: conn} do
+    test "POST /api/v1/securities stores a name without its U+034F", %{conn: conn} do
       response =
         post(
           conn,
@@ -238,8 +237,9 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
           Jason.encode!(%{security: %{name: "Harbour Cranes" <> c(0x034F), currency_code: "EUR"}})
         )
 
-      stored =
-        if response.status == 201, do: Jason.decode!(response.resp_body)["data"]["name"]
+      # The name strip drops every default-ignorable character (H12), as it
+      # drops a format character (G23).
+      assert %{"data" => %{"name" => "Harbour Cranes"}} = json_response(response, 201)
 
       # Control (G23 pin): a format character is stripped from a name.
       control =
@@ -253,9 +253,6 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
         |> json_response(201)
 
       assert control["data"]["name"] == "Harbour Lifts"
-
-      assert response.status == 422 or stored == "Harbour Cranes",
-             "answered #{response.status}, stored name #{visible(stored)}"
     end
   end
 
@@ -306,8 +303,9 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
   # Acceptance criteria:
   # - skeleton/1 of a name with any default-ignorable character equals the
   #   bare name's; a Hangul filler folds to the space it renders as.
-  # - A CSV row naming the U+034F twin matches or is flagged, and no second
-  #   security is created.
+  # - A CSV row naming the U+034F twin, alone in its file, resolves as
+  #   "Config AG", matched to the configured security, and the apply
+  #   creates no security.
   describe "the import's lookalike guard" do
     defp configured!(name) do
       {:ok, security} =
@@ -351,28 +349,24 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
       assert SecurityResolver.skeleton("Config" <> c(0x3164) <> "AG") == base
     end
 
-    test "a CSV row naming a U+034F twin of a configured security is flagged, not silently created" do
+    test "a CSV row naming a U+034F twin books onto the configured security, creating nothing" do
       configured = configured!("Config AG")
 
       csv = """
       Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
       2024-03-01 00:00:00;Einlage;;;;1.100,00;;;1.100,00;Test-Cash;;;
-      2024-03-04 10:01:00;Kauf;Config#{c(0x200B)} AG;10;10,00;100,00;;;100,00;Test-Depot;Test-Cash;;
       2024-03-05 10:01:00;Kauf;Config AG#{c(0x034F)};10;10,00;100,00;;;100,00;Test-Depot;Test-Cash;;
       """
 
       {:ok, preview} = PortfolioPerformance.parse(csv, filename: "h12.csv")
-      %{resolutions: resolutions} = Imports.resolve_securities(preview)
+      assert preview.errors == []
 
-      by_name = Map.new(resolutions, fn row -> {row.ref.name, row} end)
-
-      # Control (G23 pin): the zero-width-space twin matches the configured
-      # security at the name tier (the name strip drops U+200B).
-      control = by_name["Config AG"]
-      assert control.status == :matched
-      assert control.matched.security_id == configured.id
-
-      twin = by_name["Config AG" <> c(0x034F)]
+      # The name strip drops U+034F, so the twin's reference is the
+      # configured name and it matches the configured security.
+      assert %{resolutions: [twin]} = Imports.resolve_securities(preview)
+      assert twin.ref.name == "Config AG"
+      assert twin.status == :matched
+      assert twin.matched.security_id == configured.id
 
       {:ok, portfolio} =
         Portfolios.create_portfolio(Actor.owner_ui(), %{
@@ -380,36 +374,18 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
           base_currency_code: "EUR"
         })
 
-      {applied, _log} =
+      {{:ok, applied}, _log} =
         with_log(fn -> Imports.apply(preview, %{portfolio_id: portfolio.id}) end)
+
+      assert applied.created_securities == 0
 
       lookalikes =
         Security
         |> Repo.all()
         |> Enum.filter(&(SecurityResolver.skeleton(&1.name) |> String.starts_with?("config ag")))
-        |> Enum.map(&visible(&1.name))
+        |> Enum.map(& &1.id)
 
-      observed = %{
-        row_errors: preview.errors,
-        twin_status: twin && twin.status,
-        twin_at_risk: twin && Map.get(twin, :at_risk),
-        created_securities: match?({:ok, _}, applied) && elem(applied, 1).created_securities,
-        catalog_lookalikes: lookalikes
-      }
-
-      # The twin is read as the configured security: its own reference
-      # matches or is flagged, or its name folds into the configured one's
-      # reference, so no resolution creates a security.
-      assert preview.errors != [] or
-               (is_nil(twin) and Enum.all?(resolutions, &(&1.status != :create))) or
-               (twin && twin.status in [:matched, :config_at_risk]),
-             "the U+034F twin resolves silently: #{inspect(observed)}"
-
-      assert observed.created_securities in [false, 0],
-             "the import created a security: #{inspect(observed)}"
-
-      assert length(lookalikes) == 1,
-             "a visually identical twin was created: #{inspect(observed)}"
+      assert lookalikes == [configured.id]
     end
   end
 end
