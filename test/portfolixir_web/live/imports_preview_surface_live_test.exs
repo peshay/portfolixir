@@ -385,18 +385,23 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     # Acceptance criteria:
     # - No reason in the applier's English ("skipped: zero or missing
     #   gross_amount for fee", "the row it was split from (row 3) was not
-    #   imported") and no internal id ("3.tax_refund.1"): a fee of 0,00 reads
-    #   "Zeile 4: Gebühren ohne Betrag — nichts zu buchen", and the refund
-    #   split off the internal transfer in row 3 reads "Zeile 3
-    #   (Steuererstattung): die Zeile selbst wurde nicht importiert".
+    #   imported") and no internal id ("3.tax_refund.1"): a fee without an
+    #   amount reads "Zeile 3: Gebühren ohne Betrag — nichts zu buchen", and
+    #   the refund split off it reads "Zeile 3 (Steuererstattung): die Zeile
+    #   selbst wurde nicht importiert".
     # - The heading is a real plural: "2 nicht importierbare Datensätze
     #   übersprungen:"; one record reads "Skipped one unimportable record:".
+    #
+    # The refund's row is a fee with no Betrag and no Gesamtpreis, which the
+    # apply skips as having no amount, and so the refund split off it. It
+    # was an internal transfer (Konto = Gegenkonto) with a negative Steuern
+    # until ADR-0053 A8 (#1188) made a transfer's refund a row error of the
+    # preview, so that refund no longer reaches the apply.
     test "a skipped fee and a skipped refund, in German and in English", %{conn: conn} do
       file =
         @refund_header <>
           "2026-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;\n" <>
-          "2026-02-02 00:00:00;Umbuchung (Ausgang);;;;50,00;;-1,00;;Test-Cash;Test-Cash;;\n" <>
-          "2026-03-02 00:00:00;Gebühren;;;;0,00;;;0,00;Test-Cash;;;\n"
+          "2026-03-02 00:00:00;Gebühren;;;;;;-1,00;;Test-Cash;;;\n"
 
       {:ok, view, _html} = live(german(conn), "/imports")
       drop!(view, "skips.csv", file, "text/csv")
@@ -408,7 +413,7 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
 
       assert texts(view, "[data-role='skipped-entries'] li") |> Enum.sort() == [
                "Zeile 3 (Steuererstattung): die Zeile selbst wurde nicht importiert",
-               "Zeile 4: Gebühren ohne Betrag — nichts zu buchen"
+               "Zeile 3: Gebühren ohne Betrag — nichts zu buchen"
              ]
 
       refute text(view, "[data-role='skipped-entries']") =~ "skipped"
