@@ -4297,7 +4297,15 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   das ist kein Währungsgewinn." — "kein Währungsverlust" for an overdraft,
   "weder ein Währungsgewinn noch ein Währungsverlust" for balances of both
   signs. "Wechselkurs", never "Kurs", which the screen keeps for a
-  security's price. An account emptied before its rate came gets the first
+  security's price. *Extended 2026-10-31 (issue 1150, board
+  `mockups/ux-design-2026-10-09/04-wealth-income` ⑤, German copy):* the rule
+  holds for the backfill control (`fx_backfill_control/1`) — "Die tägliche
+  Synchronisation der Wechselkurse kann …", "Historische Wechselkurse
+  nachladen", "Nachladen hat 214 Wechselkurse gespeichert." — and for the
+  Flows and Costs facets' notes ("kein gespeicherter Wechselkurs") and ⓘ
+  ("zum Wechselkurs …", "kein Wechselkurs gespeichert", "zum Wechselkurs
+  eines Nachbartags"), and for the Trades tab's remedy, which quotes the
+  button. An account emptied before its rate came gets the first
   sentence only: nothing entered the line. An account still at zero on the
   period's last day reads "Ein Verrechnungskonto zählt bis zum Ende des
   Zeitraums null: **…** (…)." (board J2 A, pin a2), after the others.

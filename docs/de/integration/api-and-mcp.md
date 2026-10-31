@@ -3284,7 +3284,7 @@ Scope-Leiter).
   `502 Bad Gateway`, und nichts wird gespeichert. Ein Backfill läuft zur Zeit:
   Während einer läuft, liefert ein zweiter `409 Conflict`. Die menschliche
   Sicht ist die
-  Schaltfläche **Historische Kurse nachladen** in den Ausschluss-Hinweisen
+  Schaltfläche **Historische Wechselkurse nachladen** in den Ausschluss-Hinweisen
   auf `/cashflow`. Seit Issue #1120 (Sprint-20-D-5) führt die Instanz dieses
   Backfill auch **von selbst** aus, einmal, nach ihrem Start-Abgleich und
   nach einem Import, wenn eine Buchung oder ein Verrechnungskonto in einer

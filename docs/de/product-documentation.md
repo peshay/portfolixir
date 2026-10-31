@@ -1756,7 +1756,7 @@ ersten Kurs seiner Währung null und wird unter der Beitragstabelle genannt
 (siehe *Beitrag je Position*). Für eine Währung, die die EZB nicht
 veröffentlicht, und eine Buchung vor 1999 wird einmal geholt; die Instanz
 versucht es nicht bei jedem Start erneut. Ohne Netzwerk versucht sie es beim
-nächsten Start oder Import wieder. Von Hand holt **Historische Kurse
+nächsten Start oder Import wieder. Von Hand holt **Historische Wechselkurse
 nachladen** in den Ausschluss-Hinweisen unter Cashflow oder `scope=history`
 am Wechselkurs-Sync-Endpunkt und MCP-Tool dieselbe Reihe.
 
@@ -2580,9 +2580,10 @@ die Basis des Income-Bereichs, denn eine realisierte Zahl ist ein historischer
 Fakt an ihrem Datum. Ein Verkauf **ohne** gespeicherten Wechselkurs zu diesem Datum
 wird **aus jeder Summe ausgeschlossen und benannt** (Achtung-Notiz mit Anzahl
 und Wertpapieren) — nie zum Kurs eines Nachbardatums konvertiert, nie still
-verworfen. Die tägliche Kurssynchronisation holt *aktuelle* Kurse und kann
-einen vergangenen Tag nicht nachtragen; die Notiz trägt daher die Abhilfe, die
-es kann: **Historische Kurse nachladen** holt die historische EZB-Reihe
+verworfen. Die tägliche Synchronisation der Wechselkurse holt *aktuelle*
+Wechselkurse und kann einen vergangenen Tag nicht nachtragen; die Notiz trägt
+daher die Abhilfe, die es kann: **Historische Wechselkurse nachladen** holt
+die historische EZB-Reihe
 einmalig, speichert jeden veröffentlichten Tag, leitet daraus die Gegenwerte
 ab, die importierten Käufen und Verkäufen fehlen (Issue #1196), und liest die
 Facette neu — der
