@@ -331,6 +331,57 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
     assert page.("limit=2&offset=2") == ["E Active AG"]
   end
 
+  # User story (#1186, Sprint 21 β3):
+  # As the operator's agent listing the catalog by a quote metric,
+  # I want a metric sort to sort the whole set and the page to be cut after it,
+  # so that the first page holds the highest (or lowest) figures, not a name
+  # page reordered or name order under a sort I asked for.
+  #
+  # Acceptance criteria:
+  # - The plain list with sort=latest_price&direction=desc&limit=2 answers
+  #   the two highest closes (40, 30), offset=2 the next two (20, 10) and
+  #   offset=4 the security with no quote, which sorts last either way; asc
+  #   walks the closes up (10, 20, then 30, 40, then the unpriced one).
+  # - data_quality=missing_logo, a set paged in its query, walks the same
+  #   pages: it, too, pages after the metric sort.
+  test "a metric sort sorts the whole set and pages after it", %{conn: conn} do
+    today = Date.utc_today()
+
+    for {name, ticker, close} <- [
+          {"A Alpha AG", "AAL", "30"},
+          {"B Beta AG", "BBE", "10"},
+          {"C Gamma AG", "CGA", "40"},
+          {"D Delta AG", "DDE", "20"}
+        ] do
+      security = create_security!(name: name, ticker: ticker)
+      put_quote!(security, Date.add(today, -1), close)
+    end
+
+    _unpriced = create_security!(name: "E Unpriced AG", ticker: "EUN")
+
+    page = fn query ->
+      conn
+      |> recycle()
+      |> get_json("/api/v1/securities?" <> query)
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Enum.map(& &1["name"])
+    end
+
+    for set <- ["", "data_quality=missing_logo&"] do
+      desc = set <> "sort=latest_price&direction=desc&limit=2"
+      asc = set <> "sort=latest_price&direction=asc&limit=2"
+
+      assert page.(desc) == ["C Gamma AG", "A Alpha AG"], desc
+      assert page.(desc <> "&offset=2") == ["D Delta AG", "B Beta AG"], desc
+      assert page.(desc <> "&offset=4") == ["E Unpriced AG"], desc
+
+      assert page.(asc) == ["B Beta AG", "D Delta AG"], asc
+      assert page.(asc <> "&offset=2") == ["A Alpha AG", "C Gamma AG"], asc
+      assert page.(asc <> "&offset=4") == ["E Unpriced AG"], asc
+    end
+  end
+
   # User story (#1113):
   # As the operator's agent paging through a data-quality set whose rule is
   # read off the quotes,
