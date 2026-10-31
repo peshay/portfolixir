@@ -2503,7 +2503,10 @@ defmodule Portfolixir.Imports.Applier do
     changeset =
       %Transaction{}
       |> Transaction.import_changeset(attrs)
-      |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs, state))
+      |> Transaction.validate_cash_account_currency(
+        cash_currencies_for(attrs, state),
+        security_currency_for(attrs, state)
+      )
 
     if changeset.valid? do
       state =
