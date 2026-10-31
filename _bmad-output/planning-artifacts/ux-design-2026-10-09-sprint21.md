@@ -3013,6 +3013,21 @@ Gegenwert in der Währung ihres Verkaufs — und in keiner Summe oben; …").
 Shown only where a side counts one; no new CSS. This addendum is the mock;
 no PNG is drawn.
 
+*Addendum (2026-10-31, #1198):* the tab note is one sentence per trade, not
+per lacking lot. A trade with one such lot reads the Strings table's
+sentence; a trade with several reads "1 trade not convertible: %{count}
+buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's
+currency; the trade's cost and result are missing, and it counts in no
+total. Remedy: a rate for each of those dates — the rate backfill under
+“All trades” stores them and derives the figures from them — or the figures
+in %{currency} on the bookings." / "1 Trade ohne Umrechnung: %{count} Käufe,
+die er schließt, vom %{lot_dates}, haben keinen Gegenwert in %{currency},
+der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er
+zählt in keiner Summe. Abhilfe: ein Wechselkurs für jeden dieser Tage — das
+Nachladen der Wechselkurse unter „Alle Trades“ speichert sie und leitet
+daraus die Gegenwerte ab — oder die Gegenwerte in %{currency} an den
+Buchungen." Before, it read "1 Trade ohne Umrechnung" once per lot.
+
 ### ② N9 — #1213: a cross-currency booking's money figures name no currency (variants)
 
 **Today.**
