@@ -382,7 +382,11 @@ full list.
   max 20000; `offset` non-negative). Use these to
   page large catalogs instead of fetching the whole table at once. A
   `data_quality` set is filtered before `limit`/`offset` page it, so only its
-  last page is short (issue #1113). The
+  last page is short (issue #1113). A `sort` on a quote figure
+  (`latest_price`, `latest_price_date`, `day_change_abs`, `day_change_pct`,
+  `performance_1m`, `performance_1y`) sorts the whole set, with or without a
+  `data_quality` set, a security without the figure last in either direction
+  and ties in name order, and `limit`/`offset` page after it (issue #1186). The
   **human view** of these narrowings is the one-tap filter-chip row on the
   securities page (issue #717): its chips ride the same URL state
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` and
