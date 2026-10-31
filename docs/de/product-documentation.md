@@ -1903,7 +1903,14 @@ US Broker (60,00 USD) · 1 gehaltene Position ohne Preis — Placeholder
 Anleihe 2031 3,25%. Details in Vermögen →". Jede Gruppe nennt höchstens
 sechs Namen, dann „+N"; ein Konto mit Saldo null lässt nichts aus und wird
 nicht genannt; der Link öffnet das Vermögen, dessen Datenqualitäts-Abschnitt
-„Wechselkurse synchronisieren" anbietet. Lässt die Summe nichts aus, gibt es
+„Wechselkurse synchronisieren" anbietet. Der Link und die Karte selbst
+öffnen das Vermögen im Zeitraum der Karte, seit Jahresbeginn
+(`/portfolio?period=ytd`, beim Ankommen gelesen und nirgends gespeichert, so
+dass ein gewöhnlicher Besuch weiter bei 1J öffnet), und in der Ansicht, die
+Sie dort zuletzt gewählt haben: Ist sie nicht die, die die Karte zählt,
+sagt der Hinweis das vor dem Link („Vermögen ist gerade auf die Ansicht „Nur
+Neuzugang“ eingegrenzt; diese Summe zählt „Alles“."), und nichts wird für
+Sie gewählt (Issue #1122). Lässt die Summe nichts aus, gibt es
 keinen Hinweis. Unter der Karte zeigt die Seite die **Kennzahlenleiste**
 (UX-DR2 in der Fassung vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
 der die Zahl gehört — die **TTWROR 1J** mit ihrem IRR (bei kürzerer

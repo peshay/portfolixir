@@ -1730,8 +1730,13 @@ EUR — USD Settlement (1,850.00 USD), US Broker (60.00 USD) · 1 held position
 with no price — Placeholder Anleihe 2031 3,25%. Details in Wealth →". Each
 group names at most six, then "+N"; an account with a zero balance leaves
 nothing out and is not named; the link opens Wealth, whose data-quality
-section offers **Sync exchange rates**. When the total leaves nothing out,
-there is no note. Under the card, the page shows the **key-figure strip**
+section offers **Sync exchange rates**. The link and the card itself open
+Wealth on the card's period, year to date (`/portfolio?period=ytd`, read on
+arrival and stored nowhere, so a plain visit still opens at 1Y), and on the
+view you last picked there: where that view is not the one the card counts,
+the note says so before the link ("Wealth is currently scoped to the view
+“Nur Neuzugang”; this total counts “Everything”."), and nothing is chosen
+for you (issue #1122). When the total leaves nothing out, there is no note. Under the card, the page shows the **key-figure strip**
 (UX-DR2 as amended 2026-09-14, issue #798): four cells, each linking to the surface that owns
 its figure — the **1Y TTWROR** with its IRR (the period MWR for a shorter
 history) leading to Wealth, the **cash quote** with the cash amount leading

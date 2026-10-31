@@ -157,8 +157,10 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:portfolio, portfolio)
           |> assign(:classifications, classifications)
           # 1y default (UAT fix round): "max" grows unreadable as history
-          # accumulates; the period buttons still offer it.
-          |> assign(:period, "1y")
+          # accumulates; the period buttons still offer it. #1122 (board 01
+          # ④, option 3): a link may name its period (`?period=ytd` from the
+          # Overview's total), read on arrival and stored nowhere.
+          |> assign(:period, param_period(params))
           |> assign(:range_error, nil)
           |> assign(:chart_mode, "ttwror")
           # The classification tree and the tree/positions mode round-trip
@@ -208,6 +210,14 @@ defmodule PortfolixirWeb.PortfolioLive do
         {:ok, socket}
     end
   end
+
+  # The arrival period (#1122): one of the period tokens, else 1y. A range or
+  # a year is a choice made on the page, never one a link makes.
+  defp param_period(%{"period" => period}) when is_binary(period) do
+    if period in Performance.periods(), do: period, else: "1y"
+  end
+
+  defp param_period(_params), do: "1y"
 
   # The Wealth area's active tab (ADR-0022): the tab bar navigates with plain
   # links, so the choice arrives as a query param on mount.

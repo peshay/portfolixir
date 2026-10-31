@@ -1902,14 +1902,24 @@ for a condition *in* the total; this one is rows *out* of it.
   links to `?dq=missing_quote`, a list without retired securities, and its
   count must equal that list.
 - **The link, and no control** (UX-DR25 clause 3): "Details in Vermögen →"
-  links to `/portfolio`, as the card does — the session's view, with no
-  `?view=` and no stored choice. The rate sync and a price are fixed on
-  Wealth, so the note carries no button that cannot act from here. **The
-  consequence:** the note follows the card's scope, the default view, while
-  Wealth opens on the session's view, so where the two differ Wealth's
-  data-quality notes may name other rows than the note did; adding
-  `?view=` would also store that choice (`ViewScope`), which a link from
-  the Overview must not do.
+  links to `/portfolio?period=ytd`, as the card does — the session's view,
+  with no `?view=` and no stored choice. The rate sync and a price are fixed
+  on Wealth, so the note carries no button that cannot act from here.
+  *Amended 2026-10-31 (issue 1122, Sprint 21 γ1; board
+  `mockups/ux-design-2026-10-09/01-overview` ④, option 3, adopted by Sprint
+  20's D-4):* **the card's period travels.** The note's link and the card's
+  own `href` carry `?period=ytd`; Wealth reads `period` in `mount/3` (a
+  period token, else 1J) and stores nothing, so the next plain visit opens
+  at 1J. **Where the session's view is not the card's,** one sentence before
+  the link names both: "Vermögen ist gerade auf die Ansicht „Nur Neuzugang“
+  eingegrenzt; diese Summe zählt „Alles“." (English "Wealth is currently
+  scoped to the view “Nur Neuzugang”; this total counts “Everything”.";
+  `data-role="wealth-card-view"`), each name stored text in its own `<bdi>`
+  (H8.8), the card's being its own label (`name || "Alles"`). With the views
+  equal the note is as before. No choice is made for the operator (#1081's
+  rule; EXPERIENCE.md Flow 3): `?view=` would store one (`ViewScope`). The
+  sentence lives in the note, so with nothing left out of the total there is
+  no sentence either (board 01, found while drawing 3, filed apart).
 - **The section is not a `.grid`.** It holds one card in every state (the
   card, the stale-value article, the skeleton). As a second `.grid` item the
   note became a second column and the card shrank to 457 px at 980 px; with

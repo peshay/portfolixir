@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.SecurityEventLabel
+  alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.ValuationNotes
 
@@ -161,6 +162,9 @@ defmodule PortfolixirWeb.DashboardLive do
       # where the user's Gettext locale is NOT set — a gettext call here
       # always came out English ("EVERYTHING" after the card's CSS uppercase).
       name: view && view.name,
+      # #1122: the card's own view id (nil for Everything), so the note can
+      # name the session's view where Wealth would open on another.
+      view_id: view_id,
       valuation: everything_or_view_valuation(view_id, base_currency, context),
       ttwror: ttwror_of(summarise(analysis, "ytd")),
       one_year: summarise(analysis, "1y")
@@ -318,7 +322,9 @@ defmodule PortfolixirWeb.DashboardLive do
             </small>
           </article>
         <% else %>
-          <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link">
+          <%!-- #1122 (board 01 ④, option 3): the card's period travels,
+               read on arrival and never stored; no `?view=`. --%>
+          <a id="dashboard-wealth-card" href="/portfolio?period=ytd" class="stat stat--link">
             <span><%= @wealth_card.name || gettext("Everything") %></span>
             <strong>
               <span
@@ -351,6 +357,8 @@ defmodule PortfolixirWeb.DashboardLive do
         <div id="dashboard-wealth-card-status" role="status" class="wealth-card-status"><.wealth_card_excluded
             :if={@wealth_card}
             valuation={@wealth_card.valuation}
+            card={@wealth_card}
+            active_view={@active_view}
           /></div>
       </section>
 
@@ -761,6 +769,8 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   attr(:valuation, :map, required: true)
+  attr(:card, :map, required: true)
+  attr(:active_view, :any, default: nil)
 
   # #1081 (D-3, board 01 pick J1 A; UX-DR25 clauses 1–3): what the card's
   # total leaves out, named beside it — the cash accounts with no rate path
@@ -771,17 +781,39 @@ defmodule PortfolixirWeb.DashboardLive do
   # It reads only the valuation the card already reads, and its names come
   # from the helpers Wealth's notes use. No control: the rate sync and the
   # price are fixed on Wealth, so the note links there. The link is the
-  # card's own `/portfolio` — the session's view, no `?view=`, nothing
-  # stored. Localized here, at render time (the async task has no locale).
+  # card's own `/portfolio?period=ytd` — the card's period, read on arrival;
+  # the session's view, no `?view=`, nothing stored (#1122, board 01 ④,
+  # option 3). Where the session's view is not the card's, one sentence
+  # before the link names both, so the reader knows Wealth will show
+  # another scope. Localized here, at render time (the async task has no
+  # locale).
   defp wealth_card_excluded(assigns) do
-    assigns = assign(assigns, :groups, ValuationNotes.excluded_groups(assigns.valuation))
+    assigns =
+      assigns
+      |> assign(:groups, ValuationNotes.excluded_groups(assigns.valuation))
+      |> assign(:active_id, assigns.active_view && assigns.active_view.id)
 
     ~H"""
     <AppShell.data_note :if={@groups != []} severity={:attention} data-role="wealth-card-excluded">
       <%= excluded_sentence(Enum.join(@groups, " · ")) %>
-      <a href="/portfolio" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
+      <%!-- The space before the link is the sentence's own: a parser that
+           drops whitespace-only text between two elements keeps it. --%>
+      <span :if={@active_id != @card.view_id} data-role="wealth-card-view"><%= view_sentence(@active_view, @card) %> </span>
+      <a href="/portfolio?period=ytd" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
     </AppShell.data_note>
     """
+  end
+
+  # Both names are stored text, each in its own `<bdi>` (H8.8).
+  defp view_sentence(active_view, card) do
+    StoredText.isolate(
+      gettext("Wealth is currently scoped to the view “%{active}”; this total counts “%{card}”.",
+        active: StoredText.slot(:active),
+        card: StoredText.slot(:card)
+      ),
+      active: (active_view && active_view.name) || gettext("Everything"),
+      card: card.name || gettext("Everything")
+    )
   end
 
   # A last name that ends in a full stop ("Harborline Freight Inc.") closes
