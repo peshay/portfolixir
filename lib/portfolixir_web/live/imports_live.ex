@@ -155,15 +155,19 @@ defmodule PortfolixirWeb.ImportsLive do
   # Only the summary of the preview this page parked: another tab of the
   # session may have parked another file under the same key since.
   defp repark(socket) do
-    park = Map.get(socket.assigns, :park)
-    key = socket.assigns.session_token
-
-    if socket.assigns.stage == :preview and is_reference(park) and
-         match?(%{park: ^park}, PreviewStore.summary(key)) do
-      PreviewStore.put_summary(key, parked_summary(socket))
-    end
+    if parked_here?(socket),
+      do: PreviewStore.put_summary(socket.assigns.session_token, parked_summary(socket))
 
     socket
+  end
+
+  # Whether the preview parked under the session's key is the one this page
+  # parked.
+  defp parked_here?(socket) do
+    park = Map.get(socket.assigns, :park)
+
+    socket.assigns.stage == :preview and is_reference(park) and
+      match?(%{park: ^park}, PreviewStore.summary(socket.assigns.session_token))
   end
 
   @impl true
@@ -1659,7 +1663,9 @@ defmodule PortfolixirWeb.ImportsLive do
           else: mapping
       end)
 
-    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
+    # A late answer parks its release only onto this page's own preview:
+    # another tab of the session may have parked another file since.
+    if parked_here?(socket), do: PreviewStore.put_mapping(socket.assigns.session_token, mapping)
 
     socket
     |> assign(:mapping, mapping)
