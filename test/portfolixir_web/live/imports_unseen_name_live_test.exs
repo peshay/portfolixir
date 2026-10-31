@@ -552,6 +552,55 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     assert note(remounted, "cash", "Tagesgeld Extra") == @cash_note
   end
 
+  # User story (#1195, Sprint 21 α8; plan D-5, after H07 and H08):
+  # As the operator who drops another file in a second tab while the first
+  # tab's dry run still runs,
+  # I want the first tab's late answer to leave the second tab's file and
+  # mapping alone,
+  # so that a reload of the second tab shows the choice I made there.
+  #
+  # Acceptance criteria:
+  # - Tab 1 drops P8's drifted file; its dry run is held. Tab 2 (the same
+  #   session) starts over, drops a deposit on "Second Cash" and maps it
+  #   onto Test-Cash.
+  # - Tab 1's answer releases Depot Muster in tab 1; the parked mapping
+  #   stays tab 2's, and a reload of tab 2 still maps "Second Cash" onto
+  #   Test-Cash. (Mutation: without the park check, the reload reads
+  #   "Decide…".)
+  test "a late dry-run answer in one tab leaves another tab's parked mapping alone", %{
+    conn: conn
+  } do
+    portfolio = portfolio!()
+    applied!(portfolio, history())
+    depot = named!(SecuritiesAccount, "Depot Muster")
+    test_cash = named!(CashAccount, "Test-Cash")
+    conn = init_test_session(conn, %{"_csrf_token" => "TTTTTTTTTTTTTTTTTTTTT195"})
+    on_exit(fn -> PreviewStore.delete(PreviewStore.key_for("TTTTTTTTTTTTTTTTTTTTT195")) end)
+
+    hold_refine!()
+    {:ok, tab1, _html} = live(conn, "/imports")
+    upload_unanswered!(tab1, history(time: "10:30"))
+    assert_receive {:imports_refine_gate, held}, 5_000
+    Application.delete_env(:portfolixir, :imports_refine_gate)
+
+    {:ok, tab2, _html} = live(conn, "/imports")
+    render_async(tab2)
+    tab2 |> element("button[phx-click='reset']") |> render_click()
+    upload!(tab2, [deposit("Second Cash", "50.00", "2026-02-02")])
+
+    tab2
+    |> element("form#pp-import-apply")
+    |> render_change(keyed(%{"cash" => %{"Second Cash" => "existing:#{test_cash.id}"}}))
+
+    send(held, {:imports_refine_gate, :release})
+    render_async(tab1)
+    assert selected(tab1, "depot", "Depot Muster") == "existing:#{depot.id}"
+
+    {:ok, reloaded, _html} = live(conn, "/imports")
+    render_async(reloaded)
+    assert selected(reloaded, "cash", "Second Cash") == "existing:#{test_cash.id}"
+  end
+
   # User story:
   # As the operator whose account really is new in an export that also
   # carries known accounts,
