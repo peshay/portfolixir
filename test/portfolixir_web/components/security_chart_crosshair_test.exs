@@ -80,7 +80,9 @@ defmodule PortfolixirWeb.Components.SecurityChartCrosshairTest do
     # close and a fifth slot the display date; the ISO date stays first.
     assert [iso, close_str, x, y, shown_date] = List.first(payload["points"])
     assert iso == "2026-05-13"
-    assert close_str == "100.00"
+    # The review of γ2 (S2): an unlabelled price point carries its currency
+    # in its display string, so the hook appends nothing.
+    assert close_str == "100.00 USD"
     assert shown_date == "2026-05-13"
     assert is_number(x)
     assert is_number(y)
@@ -189,7 +191,8 @@ defmodule PortfolixirWeb.Components.SecurityChartCrosshairTest do
   #
   # Acceptance criteria:
   # - The server sends display strings beside the raw values: `points[i][1]`
-  #   is the close through `Format.decimal(close, 2)`, `points[i][4]` the
+  #   is the close through `Format.decimal(close, 2)` with the chart's
+  #   currency ("41,40 USD"; the review of γ2, S2), `points[i][4]` the
   #   date through `Format.date`, `txs[i].label` the trade line ("%{kind}
   #   %{quantity} at %{price} %{currency}": the kind's label, the quantity as
   #   stored, the price by the history's stored-figure rule, the booking's
@@ -217,7 +220,7 @@ defmodule PortfolixirWeb.Components.SecurityChartCrosshairTest do
 
       payload = extract_payload(html)
 
-      assert [_first, ["2026-05-15", "41,40", _x, _y, "15.05.2026"]] = payload["points"]
+      assert [_first, ["2026-05-15", "41,40 USD", _x, _y, "15.05.2026"]] = payload["points"]
 
       assert [tx] = payload["txs"]
       assert tx["label"] == "Kauf 12 zu 41,12 USD"
@@ -282,7 +285,9 @@ defmodule PortfolixirWeb.Components.SecurityChartCrosshairTest do
   # Acceptance criteria:
   # - `renderTooltip` prints the display date (`point[4]`) and the trade's
   #   `label`; the English "type quantity @ price" line is gone.
-  # - A percent-mode point carries no currency suffix.
+  # - The hook appends nothing to the display value: the server's string
+  #   carries the currency where one belongs, so a label that already names
+  #   it ("… 83.281,47 EUR") never reads "EUR EUR" (the review of γ2, S2).
   # - Every value still goes in through `textContent` (#770).
   test "the crosshair hook prints the server's display strings through textContent" do
     move = hook_function("handleMove")
@@ -291,8 +296,45 @@ defmodule PortfolixirWeb.Components.SecurityChartCrosshairTest do
     tooltip = hook_function("renderTooltip")
     assert tooltip =~ "tx.label"
     refute tooltip =~ ~s(" @ ")
-    assert tooltip =~ ~s("percent")
+    refute tooltip =~ "currency"
+    refute tooltip =~ "mode"
+    assert tooltip =~ "String(close)"
     assert tooltip =~ "textContent"
     refute tooltip =~ "innerHTML"
+  end
+
+  # User story (the review of γ2, S2, #1163): As the operator hovering
+  # Wealth's value chart, I want the tooltip to read its label once, so that
+  # "… 83.281,47 EUR" does not read "… 83.281,47 EUR EUR".
+  #
+  # Acceptance criteria:
+  # - A labelled point of an absolute-mode chart with a currency passes
+  #   through verbatim: the label is the whole display string.
+  # - An unlabelled point of a chart without a currency carries none.
+  test "a labelled absolute-mode point passes through verbatim, and no currency means none" do
+    labelled =
+      render_chart(
+        default_assigns(
+          currency_code: "EUR",
+          quotes: [
+            %{
+              date: ~D[2026-05-15],
+              close: Decimal.new("83281.47"),
+              label: "+8.0% · 83,281.47 EUR"
+            }
+          ]
+        )
+      )
+      |> extract_payload()
+
+    assert [["2026-05-15", "+8.0% · 83,281.47 EUR", _, _, _]] = labelled["points"]
+
+    bare =
+      render_chart(
+        default_assigns(currency_code: "", quotes: [quote_fixture(~D[2026-05-15], "7")])
+      )
+      |> extract_payload()
+
+    assert [["2026-05-15", "7.00", _, _, _]] = bare["points"]
   end
 end
