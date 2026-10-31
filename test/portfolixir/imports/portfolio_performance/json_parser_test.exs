@@ -918,9 +918,80 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
                  "yet — row not imported. Book the sale by hand, with its fees less the " <>
                  "refund (3.00).",
                "booking with a negative fee (-1.90): the import does not book a fee refund " <>
-                 "yet — row not imported. Enter the booking by hand, with its fees less the " <>
-                 "refund (-1.90)."
+                 "yet — row not imported. Enter the booking by hand without a fee."
              ]
+    end
+
+    # User story (#1177's negative FEE unit, Sprint 21 α5 review S1; ADR-0053
+    # A9): As the operator whose row refunds more fee than it charges,
+    # I want the remedy to name the cash to book,
+    # so that I never try to book a negative fee, which the ledger refuses.
+    #
+    # Acceptance criteria:
+    # - A purchase with FEE units 1.00 and -2.00 (net -1.00) and `amount`
+    #   1,003.00: "booking with a negative fee (-2.00): … — row not imported.
+    #   Enter the booking by hand at the cash Portfolio Performance shows,
+    #   Gesamtpreis 1,003.00, without a fee."; a sale reads "Book the sale by
+    #   hand at the cash …".
+    # - A row that moves no cash (a delivery) reads "… by hand without a
+    #   fee."
+    # - A net of zero or above keeps "with its fees less the refund (…)".
+    # - In German: "… Die Buchung von Hand mit dem Geld erfassen, das
+    #   Portfolio Performance zeigt, Gesamtpreis 1.003,00, ohne Gebühr."
+    test "a fee refund larger than the fees names the cash to book, never a negative fee" do
+      over = [unit("FEE", "1.00"), unit("FEE", "-2.00")]
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            tx(%{type: "PURCHASE", amount: Jason.Fragment.new("1003.00"), units: over}),
+            tx(%{amount: Jason.Fragment.new("20.10"), units: over}),
+            tx(%{
+              amount: Jason.Fragment.new("20.10"),
+              units: [unit("FEE", "2"), unit("FEE", "-2")]
+            })
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [], errors: errors}} = JsonParser.parse(body)
+
+      assert Enum.map(errors, & &1.message) == [
+               "booking with a negative fee (-2.00): the import does not book a fee refund " <>
+                 "yet — row not imported. Enter the booking by hand at the cash Portfolio " <>
+                 "Performance shows, Gesamtpreis 1,003.00, without a fee.",
+               "sell with a negative fee (-2.00): the import does not book a fee refund yet " <>
+                 "— row not imported. Book the sale by hand at the cash Portfolio Performance " <>
+                 "shows, Gesamtpreis 20.10, without a fee.",
+               "sell with a negative fee (-2.00): the import does not book a fee refund yet " <>
+                 "— row not imported. Book the sale by hand, with its fees less the refund " <>
+                 "(0.00)."
+             ]
+
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+      assert {:ok, %Preview{errors: errors}} = JsonParser.parse(body)
+
+      assert Enum.map(errors, & &1.message) |> Enum.take(2) == [
+               "Buchung mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
+                 "Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand mit dem Geld " <>
+                 "erfassen, das Portfolio Performance zeigt, Gesamtpreis 1.003,00, ohne Gebühr.",
+               "Verkauf mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
+                 "Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand mit dem Geld " <>
+                 "buchen, das Portfolio Performance zeigt, Gesamtpreis 20,10, ohne Gebühr."
+             ]
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [delivery("OUTBOUND_DELIVERY", %{units: over})]
+        })
+
+      assert {:ok, %Preview{errors: [%{message: message}]}} = JsonParser.parse(body)
+
+      assert message ==
+               "Buchung mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
+                 "Import noch nicht — Zeile nicht übernommen. Die Buchung ohne Gebühr von Hand " <>
+                 "erfassen."
     end
 
     test "says it in German, its figures in the German notation" do
