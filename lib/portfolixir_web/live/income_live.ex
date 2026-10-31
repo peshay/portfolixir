@@ -332,13 +332,31 @@ defmodule PortfolixirWeb.IncomeLive do
                 id="realized-excluded"
                 data-role="realized-excluded"
               >
-                <%= ngettext(
+                <%!-- #1198 (board 09, pick N8 A): a sale whose lot has no
+                     leg in its currency is named in a reason sentence of its
+                     own, apart from a sale with no close-date rate: the two
+                     remedies differ. --%>
+                <span
+                  :if={@realized.excluded.by_reason.no_rate.count > 0}
+                  data-role="realized-excluded-no-rate"
+                ><%= ngettext(
                   "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
                   "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}.",
-                  @realized.excluded.count,
-                  count: @realized.excluded.count,
-                  securities: Enum.join(@realized.excluded.securities, ", ")
-                ) %>
+                  @realized.excluded.by_reason.no_rate.count,
+                  count: @realized.excluded.by_reason.no_rate.count,
+                  securities: Enum.join(@realized.excluded.by_reason.no_rate.securities, ", ")
+                ) %></span>
+                <span
+                  :if={@realized.excluded.by_reason.missing_settlement_leg.count > 0}
+                  data-role="realized-excluded-missing-leg"
+                ><%= ngettext(
+                  "%{count} sale is not convertible — a buy it closes has no figure in the sale's currency — and is excluded from every total: %{securities}.",
+                  "%{count} sales are not convertible — a buy each closes has no figure in its sale's currency — and are excluded from every total: %{securities}.",
+                  @realized.excluded.by_reason.missing_settlement_leg.count,
+                  count: @realized.excluded.by_reason.missing_settlement_leg.count,
+                  securities:
+                    Enum.join(@realized.excluded.by_reason.missing_settlement_leg.securities, ", ")
+                ) %></span>
                 <.fx_backfill_control
                   backfilling={@fx_backfilling}
                   result={@fx_backfill_result}

@@ -6787,3 +6787,54 @@ kinds the drawer does not book").
   `Ledger.create_transaction/3` and `Ledger.update_transaction/3`, the
   functions the API uses; the tests pin each write against the API's answer
   for the same write (`booking_drawer_cash_kinds_live_test.exs`).
+
+## Amendment 2026-10-31 — A closed trade whose lot has no leg in the sale's currency *(Sprint 21 pick N8 = A, board `mockups/ux-design-2026-10-09/09-money-states`; issue 1198, PR 1 α3; the ADR-0015 amendment of 2026-10-09, point 3)*
+
+A closed trade is in its sale's currency, every lot it closes entering
+through its own stored legs. A lot without the leg it needs (an import that
+applied before a rate was stored, a lot or a sale priced in a third
+currency, a lot booked in another account's currency) makes the trade
+**unavailable**: never summed, named where it is read. The security's page
+keeps the trade that happened; the aggregates keep the one exclusion shape
+they already have (UX-DR25 clauses 1 and 2).
+
+- **The security's Trades tab keeps the row** (`trades_tab_panel/1`). Ø Kauf,
+  p. a., Realisierter G/V and "%" are the reason dash, #1089's anatomy and
+  the zero-basis pattern (`td.trade-pa--na`, `data-role="trade-unconvertible"`,
+  the dash muted and `aria-hidden`): its `title` reads "Ohne Umrechnung: Ein
+  Kauf in EUR hat keinen Gegenwert in USD" (English "Not convertible: a buy
+  in EUR has no figure in USD"), and a visually hidden sentence "ohne
+  Umrechnung, ein Kauf in EUR ohne Gegenwert in USD" says it to the screen
+  reader. Ø Verkauf, Tage and Stückzahl stay. The row is as tall as its
+  neighbour.
+- **Under 560 px** the phone row's result slot is a muted dash over "ohne
+  Umrechnung" (English "not convertible"), one line, the hidden sentence
+  beside it; the left half (dates, quantity · days) is unchanged.
+- **The tab's note** leads "Abgeschlossene Trades (FIFO)", above the
+  unmatched-sells note, as an `attention` data note
+  (`#detail-closed-trades-unavailable`, `data-role="trades-unavailable"`),
+  one sentence per lot that lacks its leg: "1 Trade ohne Umrechnung: Der
+  Kauf vom 01.04.2025 ist in EUR gebucht und hat keinen Gegenwert in USD,
+  der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er
+  zählt in keiner Summe. Abhilfe: ein Wechselkurs für den 01.04.2025 — das
+  Nachladen der Wechselkurse unter „Alle Trades“ speichert ihn und leitet
+  daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung." The
+  remedy points at the backfill control under "Alle Trades"; the tab carries
+  no control of its own.
+- **The Trades facet** (Income, `#realized-excluded`) and **the Overview
+  card** (`data-role="trades-card-excluded"`) leave the trade out of the
+  rows, the matrix and the three figures, and name it in the exclusion note
+  they already have, in a reason sentence of its own beside the no-rate one,
+  because the two remedies differ: the facet "1 Verkauf ist ohne Umrechnung
+  — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des
+  Verkaufs — und aus jeder Summe ausgeschlossen: Arbolia Inc."
+  (`data-role="realized-excluded-missing-leg"`), the no-rate sentence
+  `data-role="realized-excluded-no-rate"`; the card "1 Verkauf ohne
+  Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der
+  Währung des Verkaufs — fehlt bei den Trades: Arbolia Inc." followed by the
+  existing pointer "Das Nachladen der Wechselkurse steht unter „Alle Trades“."
+  when no no-rate sentence carries it already
+  (`data-role="trades-card-excluded-missing-leg"`). The facet's note keeps
+  the backfill control (`fx_backfill_control/1`). The figures and the card's
+  basis line count only the trades shown. No figure of the unavailable trade
+  is converted.

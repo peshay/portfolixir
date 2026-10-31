@@ -157,6 +157,21 @@ The Sprint 21 money fixes add theirs (step 18 of the seed, plan D-14):
   at 09:31 instead of 09:30): neither books anything, the re-export's
   coupon is named as already booked by its figures.
 
+Sprint 21's money batch adds round trip 1 (step 18 of the seed, the plan's
+D-14), in a portfolio of its own, "Round Trip Depot":
+
+- **Imported, then sold by hand (#1198):** a Portfolio Performance file buys
+  10 "Kestrel Bay Resources Inc." (CAD, because the seed stores no USD rate)
+  from the EUR account for 806.00 EUR, the legs derived from the stored 1
+  EUR = 1.25 CAD; a hand-booked sale at 120 CAD settles 957.00 EUR. The
+  closed trade reads 188.75 CAD, and Cash flow → Trades 151.00 EUR, the cash
+  the two bookings moved.
+- **A trade not convertible (#1198, board 09):** the same file buys 10
+  "Arbolia Inc." (USD) with no USD rate stored, so no legs; sold by hand in
+  USD, its closed trade has no cost in dollars. The security's Trades tab
+  keeps the row with the reason dash and names the remedy; the Trades facet
+  and the Overview card leave it out of every total and name it.
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate

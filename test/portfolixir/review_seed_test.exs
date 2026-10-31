@@ -23,6 +23,7 @@ defmodule Portfolixir.ReviewSeedTest do
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
+  alias Portfolixir.Portfolios.RealizedGains
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Tax
   alias Portfolixir.Tax.StatementSnapshot
@@ -220,6 +221,44 @@ defmodule Portfolixir.ReviewSeedTest do
       assert result.already_imported == layers, file
     end
 
+    seed!()
+    assert row_counts() == rows
+  end
+
+  # User story (#1198, Sprint 21 α3; the plan's D-14 and D-1 round trip 1):
+  # As the UAT persona and the design critic walking α's closing act,
+  # I want the review seed to carry a dollar security imported from a EUR
+  # account and sold by hand, and one whose lot has no leg in its sale's
+  # currency,
+  # so that round trip 1 and board 09's unavailable trade are on the
+  # instance without a hand-made fixture.
+  #
+  # Acceptance criteria:
+  # - "Kestrel Bay Resources Inc." (CAD, because the seed never stores a USD
+  #   rate) reads one closed trade of 188.75 CAD and 151.00 EUR on the
+  #   realized-gains read, the 957.00 − 806.00 its two bookings moved.
+  # - "Arbolia Inc." (USD, imported with no rate, so no legs) reads one
+  #   closed trade unavailable, missing_settlement_leg, named in excluded.
+  # - A second run adds no security, booking or portfolio.
+  test "the seed carries round trip 1 and an unavailable trade" do
+    seed!()
+
+    kestrel = Repo.one!(from(s in Security, where: s.name == "Kestrel Bay Resources Inc."))
+    arbolia = Repo.one!(from(s in Security, where: s.name == "Arbolia Inc."))
+
+    assert [trade] = Ledger.list_trades_for_security(kestrel.id).closed_trades
+    assert trade.currency_code == "CAD"
+    assert Decimal.equal?(trade.realized_pnl_abs, Decimal.new("188.75"))
+
+    report = RealizedGains.report(base_currency: "EUR")
+    row = Enum.find(report.trades, &(&1.security_id == kestrel.id))
+    assert Decimal.equal?(row.realized_base, Decimal.new("151.00"))
+
+    assert [unavailable] = Ledger.list_trades_for_security(arbolia.id).closed_trades
+    assert unavailable.unavailable_reason == :missing_settlement_leg
+    assert "Arbolia Inc." in report.excluded.by_reason.missing_settlement_leg.securities
+
+    rows = row_counts()
     seed!()
     assert row_counts() == rows
   end

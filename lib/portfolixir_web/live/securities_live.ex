@@ -2198,6 +2198,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <%= if @trades.closed_trades != [] or @trades.orphan_sells != [] do %>
         <h3 class="detail-section-title"><%= gettext("Closed trades (FIFO)") %></h3>
 
+        <%!-- #1198 (board 09, pick N8 A; the ADR-0015 amendment of
+             2026-10-09, point 3): a closed trade a lot of which has no
+             leg in the sale's currency stays a row, its cost and result the
+             reason dash; this attention note leads the section, as the
+             unmatched-sells note does, one sentence per lot that lacks its
+             leg, each with its remedy. --%>
+        <AppShell.data_note
+          :if={unavailable_lots(@trades.closed_trades) != []}
+          severity={:attention}
+          id="detail-closed-trades-unavailable"
+          data-role="trades-unavailable"
+        >
+          <span :for={{trade, lot} <- unavailable_lots(@trades.closed_trades)}>
+            <%= ngettext(
+              "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
+              "%{count} trades not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trades' cost and result are missing, and they count in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
+              1,
+              lot_date: Format.date(lot.open_date),
+              lot_currency: lot.currency_code,
+              currency: trade.currency_code || @currency_code
+            ) %>
+          </span>
+        </AppShell.data_note>
+
         <%!-- #1029 (board H1 pin 3; UX-DR25): the sells the matcher could
              not pair with a buy lead the section where their quantity is
              missing — the facet's note, in the tab. The security is the
@@ -2265,7 +2289,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td><%= Format.date(trade.open_date) %></td>
                   <td><%= Format.date(trade.close_date) %></td>
                   <td class="num"><%= Format.decimal(trade.quantity, 4) %></td>
-                  <td class="num"><%= Format.decimal(trade.avg_buy_price, 2) %></td>
+                  <.unconvertible_cell
+                    :if={trade.unavailable_reason}
+                    trade={trade}
+                    currency_code={@currency_code}
+                  />
+                  <td :if={is_nil(trade.unavailable_reason)} class="num">
+                    <%= Format.decimal(trade.avg_buy_price, 2) %>
+                  </td>
                   <td class="num"><%= Format.decimal(trade.avg_sell_price, 2) %></td>
                   <td class="num"><%= trade.holding_period_days %></td>
                   <%!-- The annualized return of the trade-currency percent
@@ -2273,36 +2304,44 @@ defmodule PortfolixirWeb.SecuritiesLive do
                        figure of this table; under 365 days of holding, or
                        with no rate, a muted dash whose reason is the cell's
                        title and a sentence for the screen reader. --%>
-                  <td
-                    :if={trade.annualized_return}
-                    class={["num", "trade-pa", shown_percent_class(trade.annualized_return)]}
-                  >
-                    <%= signed_pa(trade.annualized_return) %>
-                  </td>
-                  <td
-                    :if={is_nil(trade.annualized_return)}
-                    class="num trade-pa trade-pa--na"
-                    title={pa_absent_title(trade.annualized_return_reason)}
-                  >
-                    <span aria-hidden="true">—</span><span class="visually-hidden"><%= pa_absent_sentence(
-                      trade.annualized_return_reason
-                    ) %></span>
-                  </td>
-                  <%!-- #1213 (board 09, N9 A): the trade's currency at every
-                       width, as the phone row names it; two trades of one
-                       security can be in two currencies. --%>
-                  <td class={["num", shown_class(trade.realized_pnl_abs, 2)]}>
-                    <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small :if={trade.realized_pnl_abs} class="value-suffix"><%= trade.currency_code || @currency_code %></small>
-                  </td>
-                  <%!-- #1142 (board 02): a trade on no cost has no
-                       return — the reason dash, not "0.0%". --%>
-                  <.no_return_cell :if={is_nil(trade.realized_pnl_pct)} />
-                  <td
-                    :if={trade.realized_pnl_pct}
-                    class={["num", shown_percent_class(trade.realized_pnl_pct)]}
-                  >
-                    <%= signed_pa(decimal_for_display(trade.realized_pnl_pct)) %>
-                  </td>
+                  <%= if trade.unavailable_reason do %>
+                    <%!-- #1198 (N8 A): p. a., the result and "%" are the
+                         reason dash too; Ø Verkauf, Tage and Stückzahl stay. --%>
+                    <.unconvertible_cell trade={trade} currency_code={@currency_code} />
+                    <.unconvertible_cell trade={trade} currency_code={@currency_code} />
+                    <.unconvertible_cell trade={trade} currency_code={@currency_code} />
+                  <% else %>
+                    <td
+                      :if={trade.annualized_return}
+                      class={["num", "trade-pa", shown_percent_class(trade.annualized_return)]}
+                    >
+                      <%= signed_pa(trade.annualized_return) %>
+                    </td>
+                    <td
+                      :if={is_nil(trade.annualized_return)}
+                      class="num trade-pa trade-pa--na"
+                      title={pa_absent_title(trade.annualized_return_reason)}
+                    >
+                      <span aria-hidden="true">—</span><span class="visually-hidden"><%= pa_absent_sentence(
+                        trade.annualized_return_reason
+                      ) %></span>
+                    </td>
+                    <%!-- #1213 (board 09, N9 A): the trade's currency at every
+                         width, as the phone row names it; two trades of one
+                         security can be in two currencies. --%>
+                    <td class={["num", shown_class(trade.realized_pnl_abs, 2)]}>
+                      <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small :if={trade.realized_pnl_abs} class="value-suffix"><%= trade.currency_code || @currency_code %></small>
+                    </td>
+                    <%!-- #1142 (board 02): a trade on no cost has no
+                         return — the reason dash, not "0.0%". --%>
+                    <.no_return_cell :if={is_nil(trade.realized_pnl_pct)} />
+                    <td
+                      :if={trade.realized_pnl_pct}
+                      class={["num", shown_percent_class(trade.realized_pnl_pct)]}
+                    >
+                      <%= signed_pa(decimal_for_display(trade.realized_pnl_pct)) %>
+                    </td>
+                  <% end %>
                 </tr>
               <% end %>
             </tbody>
@@ -2335,7 +2374,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 ) %>
               </span>
             </span>
-            <span class="phone-row__figures">
+            <%!-- #1198 (N8 A): at 390 px the unavailable trade says so in
+                 the result slot, "not convertible" under a muted dash. --%>
+            <span :if={trade.unavailable_reason} class="phone-row__figures">
+              <span class="phone-row__figure trade-pa--na" data-role="trade-unconvertible">
+                <span aria-hidden="true">—</span>
+              </span>
+              <span class="phone-row__figure2"><%= gettext("not convertible") %></span>
+              <span class="visually-hidden"><%= unconvertible_sentence(trade, @currency_code) %></span>
+            </span>
+            <span :if={is_nil(trade.unavailable_reason)} class="phone-row__figures">
               <span class={["phone-row__figure", shown_class(trade.realized_pnl_abs, 2)]}>
                 <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small class="value-suffix"><%= trade.currency_code || @currency_code %></small>
               </span>
@@ -2464,6 +2512,53 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp return_absent?(pnl_abs, pnl_pct), do: not is_nil(pnl_abs) and is_nil(pnl_pct)
 
   defp no_return_sentence, do: gettext("no return, no cost basis")
+
+  # #1198 (board 09, pick N8 A): every lot a closed trade could not enter in
+  # its sale's currency, with its trade, for the tab's note.
+  defp unavailable_lots(trades) do
+    for %{unavailable_reason: reason} = trade <- trades,
+        reason != nil,
+        lot <- trade.lots_missing_leg,
+        do: {trade, lot}
+  end
+
+  defp unconvertible_lot_currency(%{lots_missing_leg: [lot | _]}), do: lot.currency_code
+  defp unconvertible_lot_currency(_trade), do: nil
+
+  defp unconvertible_title(trade, currency_code) do
+    gettext("Not convertible: a buy in %{lot_currency} has no figure in %{currency}",
+      lot_currency: unconvertible_lot_currency(trade),
+      currency: trade.currency_code || currency_code
+    )
+  end
+
+  defp unconvertible_sentence(trade, currency_code) do
+    gettext("not convertible, a buy in %{lot_currency} with no figure in %{currency}",
+      lot_currency: unconvertible_lot_currency(trade),
+      currency: trade.currency_code || currency_code
+    )
+  end
+
+  attr(:trade, :map, required: true)
+  attr(:currency_code, :string, default: nil)
+
+  # #1198 (N8 A): Ø Kauf, p. a., the result and "%" of a trade a lot of
+  # which has no leg in the sale's currency — #1089's reason dash, muted and
+  # aria-hidden, its reason the title and a visually hidden sentence.
+  defp unconvertible_cell(assigns) do
+    ~H"""
+    <td
+      class="num trade-pa--na"
+      title={unconvertible_title(@trade, @currency_code)}
+      data-role="trade-unconvertible"
+    >
+      <span aria-hidden="true">—</span><span class="visually-hidden"><%= unconvertible_sentence(
+        @trade,
+        @currency_code
+      ) %></span>
+    </td>
+    """
+  end
 
   # #1142 (board 02): the "%" cell of a figure on no cost, the muted dash
   # with #1089's reason anatomy, muted in every data table by the general

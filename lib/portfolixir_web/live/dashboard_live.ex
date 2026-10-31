@@ -655,12 +655,29 @@ defmodule PortfolixirWeb.DashboardLive do
             severity={:attention}
             data-role="trades-card-excluded"
           >
-            <%= ngettext(
+            <%!-- #1198 (board 09, pick N8 A): the second reason in a
+                 sentence of its own, the existing pointer to the backfill
+                 after it. --%>
+            <span
+              :if={@card.excluded.by_reason.no_rate.count > 0}
+              data-role="trades-card-excluded-no-rate"
+            ><%= ngettext(
               "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
               "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-              @card.excluded.count,
-              securities: Enum.join(@card.excluded.securities, ", ")
-            ) %>
+              @card.excluded.by_reason.no_rate.count,
+              securities: Enum.join(@card.excluded.by_reason.no_rate.securities, ", ")
+            ) %></span>
+            <span
+              :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
+              data-role="trades-card-excluded-missing-leg"
+            ><%= ngettext(
+              "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
+              "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
+              @card.excluded.by_reason.missing_settlement_leg.count,
+              securities:
+                Enum.join(@card.excluded.by_reason.missing_settlement_leg.securities, ", ")
+            ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
+              do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
           </AppShell.data_note>
           <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
             <%!-- Counts what the card shows: five at most (closing act γ n3). --%>

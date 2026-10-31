@@ -190,7 +190,14 @@ defmodule PortfolixirWeb.CrossCurrencyLabelsTest do
       {:ok, view, _html} = live(conn, "/transactions?locale=de")
       view |> element("#tx-kebab-#{tx.id}") |> render_click()
       view |> element("#tx-edit-#{tx.id}") |> render_click()
-      facts = view |> element("#booking-facts") |> render() |> Floki.parse_fragment!()
+
+      # A cash kind stored in its account's currency opens the editable cash
+      # form (#1052, α6); one stored in another currency keeps the notes-only
+      # facts. Both label the amount in the account's currency.
+      selector =
+        if has_element?(view, "#booking-facts"), do: "#booking-facts", else: "#transaction-form"
+
+      facts = view |> element(selector) |> render() |> Floki.parse_fragment!()
       {view, text(facts)}
     end
 

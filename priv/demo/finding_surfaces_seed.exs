@@ -21,8 +21,10 @@
 # agent renamed, a tax statement the agent recorded, a security merge ready
 # to try whose two sides both closed trades, a USD dividend no stored rate
 # converts to EUR, and a split of a security held in two portfolios; and
-# the Sprint 21 money surfaces (18, plan D-14): a bond whose coupon was
-# imported with it. The Gesamtpreis row error (#1076) is a file the
+# the Sprint 21 money surfaces (18 and 19, plan D-14): a bond whose coupon
+# was imported with it, a dollar security imported from a EUR account and
+# sold by hand, and one whose lot has no leg in its sale's currency. The
+# Gesamtpreis row error (#1076) is a file the
 # walkthrough drops by hand: priv/demo/pp_csv_gesamtpreis_demo.csv; so are
 # the coupon file's second drop and its re-export, and the delivery with a
 # negative tax (#1188, the Sprint 21 plan's D-14 and round trip 4):
@@ -1904,5 +1906,102 @@ if Ledger.list_transactions(portfolio_id: anleihen.id) == [] do
 end
 
 IO.puts("Sprint 21 money surfaces: Anleihen, a bond with a coupon")
+
+# 19. Sprint 21 α3 (#1198, D-14; the ADR-0015 amendment of 2026-10-09): a
+#     dollar security imported from a EUR account and sold by hand, round
+#     trip 1 of the plan's D-1, in a portfolio of its own. The seed never
+#     stores a USD rate (step 4), so the dollar is a Canadian one: a
+#     Portfolio Performance file buys 10 "Kestrel Bay Resources Inc." (CAD)
+#     for 806.00 EUR (fee 5.00, tax 1.00) with 1 EUR = 1.25 CAD stored, so
+#     the import stores its legs (800.00 EUR, 1,000.00 CAD, 0.800000), and a
+#     hand-booked sale of the 10 at 120 CAD settles 960.00 EUR, fee 3.00 EUR:
+#     the closed trade reads 188.75 CAD = 151.00 EUR = 957.00 - 806.00.
+#     Beside it, the board 09 shape (pick N8): "Arbolia Inc." (USD) bought
+#     by the same file with no USD rate stored, so no legs, and sold by hand
+#     in USD: its closed trade is not convertible, named on its Trades tab,
+#     on the Trades facet and on the Overview card. The file is imported
+#     only into an empty portfolio and each sale booked only once, so a
+#     re-run adds nothing.
+round_trip_bought = Date.add(today, -200)
+round_trip_sold = Date.add(today, -120)
+
+{:ok, _} =
+  Fx.upsert_many(
+    for date <- [round_trip_bought, round_trip_sold] do
+      %{base_currency: "EUR", quote_currency: "CAD", date: date, rate: "1.25", source: "manual"}
+    end
+  )
+
+round_trip =
+  case Enum.find(Portfolios.list_portfolios(), &(&1.name == "Round Trip Depot")) do
+    nil ->
+      {:ok, p} =
+        Portfolios.create_portfolio(owner, %{name: "Round Trip Depot", base_currency_code: "EUR"})
+
+      p
+
+    p ->
+      p
+  end
+
+if Ledger.list_transactions(portfolio_id: round_trip.id) == [] do
+  purchase = fn name, isin, ticker, currency ->
+    %{
+      "type" => "PURCHASE",
+      "account" => "Round Trip Cash",
+      "portfolio" => "Round Trip Depot",
+      "date" => Date.to_iso8601(round_trip_bought),
+      "time" => "10:00",
+      "currency" => "EUR",
+      "amount" => 806.0,
+      "shares" => 10.0,
+      "security" => %{"name" => name, "isin" => isin, "ticker" => ticker, "currency" => currency},
+      "units" => [%{"type" => "FEE", "amount" => 5.0}, %{"type" => "TAX", "amount" => 1.0}]
+    }
+  end
+
+  body =
+    Jason.encode!(%{
+      "version" => 1,
+      "transactions" => [
+        %{
+          "type" => "DEPOSIT",
+          "account" => "Round Trip Cash",
+          "date" => Date.to_iso8601(round_trip_bought),
+          "currency" => "EUR",
+          "amount" => 2000.0
+        },
+        purchase.("Kestrel Bay Resources Inc.", "CA00KESTREL3", "KBR", "CAD"),
+        purchase.("Arbolia Inc.", "US0ARBOLIA15", "ARBL", "USD")
+      ]
+    })
+
+  {:ok, preview} = Imports.parse_portfolio_performance(body, filename: "round_trip.json")
+  {:ok, _result} = Imports.apply(preview, %{portfolio_id: round_trip.id})
+end
+
+for name <- ["Kestrel Bay Resources Inc.", "Arbolia Inc."],
+    %{} = security <- [find_security.(name)],
+    [buy] <- [Ledger.list_transactions(portfolio_id: round_trip.id, security_id: security.id)] do
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: round_trip.id,
+      securities_account_id: buy.securities_account_id,
+      cash_account_id: buy.cash_account_id,
+      security_id: security.id,
+      type: "sell",
+      date: round_trip_sold,
+      quantity: "10",
+      price: "120",
+      fees: "3.00",
+      currency_code: security.currency_code,
+      security_amount: "1200",
+      settlement_amount: "960.00",
+      settlement_fx_rate: "0.8",
+      gross_amount: "957.00"
+    })
+end
+
+IO.puts("Sprint 21 α3: Kestrel Bay (188.75 CAD = 151.00 EUR), Arbolia (not convertible)")
 
 IO.puts("review seed done (timber position: #{timber_state})")
