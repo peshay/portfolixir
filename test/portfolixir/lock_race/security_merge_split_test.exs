@@ -207,6 +207,34 @@ defmodule Portfolixir.LockRace.SecurityMergeSplitTest do
     refute source_exists?(w)
   end
 
+  # Acceptance criteria (a delete started from the merged-away security's
+  # row):
+  # - With the merge held after its lock on the securities, a delete of the
+  #   event from portfolio B's row, read while that row still named the
+  #   source, waits for the merge; the merge moves the row onto the target
+  #   and removes the source, and the delete then finds the row on the
+  #   target and removes the whole event: no portfolio keeps the split, and
+  #   both hold 10 units of the target.
+  test "a whole-split delete from the merged-away security's row deletes the event",
+       %{db: db} do
+    w = world("Merge Before Source Delete")
+    {:ok, [_row_a]} = Splits.book_split(owner(), split_attrs(w.target))
+    {:ok, [row_b]} = Splits.book_split(owner(), split_attrs(w.source))
+    digest = approved(w)
+
+    {merged, deleted} =
+      LockRace.race!(db, {fn -> merge(w, digest) end, &securities_lock?/1}, fn ->
+        Splits.delete_split(owner(), row_b)
+      end)
+
+    assert {:ok, _record, :applied} = merged
+    assert {:ok, [_a, _b]} = deleted
+    assert split_portfolios(w.target) == []
+    assert quantity(w.a, w.target) == Decimal.new("10.000000000000")
+    assert quantity(w.b, w.target) == Decimal.new("10.000000000000")
+    refute source_exists?(w)
+  end
+
   test "a merge waits for a whole-split delete of its target and is refused", %{db: db} do
     w = world("Delete Before Merge")
     {:ok, [row_a]} = Splits.book_split(owner(), split_attrs(w.target))
