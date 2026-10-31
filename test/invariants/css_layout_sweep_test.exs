@@ -456,11 +456,21 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
   # Acceptance criteria:
   # - Under 720 px the drawer's foot is sticky at the bottom of the sheet,
   #   on the sheet's own background.
+  # - It sticks at the sheet's edge, not 16 px above it: its `bottom` takes
+  #   back the sheet's bottom padding (16 px and the safe area), which the
+  #   scroller's sticky edge otherwise keeps (the α closing act's design
+  #   critic, 390 px), so nothing scrolls visibly under the buttons.
   # - A kind without taxes leaves the amount as the grid's fifth and last
   #   label; it takes the full row (the board's one proposal rule).
   test "the booking sheet keeps its foot at its edge and a lone amount takes the row" do
     assert drawer_block() =~
              ~r/\.booking-drawer__foot \{\s*position: sticky;\s*bottom: [^;]+;[^}]*background: var\(--color-bg-elevated\)/
+
+    assert drawer_block() =~
+             ~r/dialog\.booking-drawer \{[^}]*padding: 12px 16px calc\(16px \+ env\(safe-area-inset-bottom, 0px\)\);/
+
+    assert drawer_block() =~
+             ~r/\.booking-drawer__foot \{\s*position: sticky;\s*bottom: calc\(-16px - env\(safe-area-inset-bottom, 0px\)\);/
 
     assert block(".booking-drawer .form-grid > label:nth-child(5):last-child") =~
              ~r/grid-column:\s*1 \/ -1/
