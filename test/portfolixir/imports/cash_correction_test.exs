@@ -1520,6 +1520,62 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert balances(one) == %{"Test-Cash" => "1140"}
     end
 
+    # User story (#1205, #1193, Sprint 21 α7; ADR-0053 A1, A6 on A12's
+    # figure path, the twin rule applied to split-off refunds):
+    # As the operator with two sales on one day, each with an equal refund
+    # split off it, who has since deleted one of those refunds by hand,
+    # I want a drifted re-export to count one stored refund for one row
+    # only,
+    # so that a confirm never takes out a refund the account no longer
+    # holds and leaves the cash below the file.
+    #
+    # Acceptance criteria:
+    # - Stored under the old reading: sale A 120.00 and sale B 130.00, each
+    #   with a 25.00 refund beside it; Test-Cash 1,200.00 (PP: 1,150.00).
+    # - Both refunds stored, the drifted re-export (15:30 → 15:31, 16:10 →
+    #   16:11) lists both sales by their figures with a confirm; the
+    #   confirm brings Test-Cash to 1,150.00.
+    # - B's refund deleted by hand (Test-Cash 1,175.00): the one stored
+    #   refund cannot be told apart by its figures, so neither sale is
+    #   listed, the confirm writes nothing, and Test-Cash stays 1,175.00,
+    #   never 1,125.00.
+    test "A12: one stored refund counts as the split-off refund of one row only" do
+      history = [deposit("2026-06-01", 1100.0), purchase("2026-06-02", 20.0, 200.0)]
+      stored = history ++ [sale("2026-06-15", "15:30", 120.0), sale("2026-06-15", "16:10", 130.0)]
+
+      drifted =
+        history ++ [sale("2026-06-15", "15:31", 120.0), sale("2026-06-15", "16:11", 130.0)]
+
+      both = portfolio!("Both refunds stored")
+      apply!(old_reading(parse_rows(stored)), both)
+      assert balances(both) == %{"Test-Cash" => "1200"}
+
+      items = listed(parse_rows(drifted), both)
+      assert states(items) == [{3, :confirm}, {4, :confirm}]
+      assert Enum.all?(items, &(&1.match == :figures))
+      assert figures(items) == [{3, "120", "95", "-25"}, {4, "130", "105", "-25"}]
+      assert [_a, _b] = correct!(parse_rows(drifted), both)
+      assert balances(both) == %{"Test-Cash" => "1150"}
+
+      one = portfolio!("B's refund deleted")
+      apply!(old_reading(parse_rows(stored)), one)
+
+      b_refund =
+        one.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.filter(&(&1.type == "tax_refund"))
+        |> Enum.max_by(& &1.id)
+
+      {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), b_refund)
+      assert balances(one) == %{"Test-Cash" => "1175"}
+      before = snapshot()
+
+      assert listed(parse_rows(drifted), one) == []
+      assert correct!(parse_rows(drifted), one) == []
+      assert snapshot() == before
+      assert balances(one) == %{"Test-Cash" => "1175"}
+    end
+
     # User story (Sprint 21 α7, the plan's round trip 3; ADR-0053 K19, K21
     # and K23 on one account, K26):
     # As the operator re-dropping a JSON history imported under the old
