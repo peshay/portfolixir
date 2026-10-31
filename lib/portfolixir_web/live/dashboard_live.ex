@@ -1069,8 +1069,11 @@ defmodule PortfolixirWeb.DashboardLive do
       Decimal.compare(Decimal.abs(row.drift_weight), @drift_threshold) == :gt
   end
 
+  # Decided on the drift as displayed, one-decimal percentage points
+  # (#1149). The card lists only drifts beyond the threshold, so a drift
+  # that reads zero never reaches it; the rule is kept for one reading.
   defp drift_sign_class(drift_weight) do
-    if Decimal.compare(drift_weight, 0) == :lt, do: "is-negative", else: nil
+    if Format.displayed_percent_sign(drift_weight) == :negative, do: "is-negative", else: nil
   end
 
   # Readable item text (UAT fix round): "7.2 pp above target" instead of a
@@ -1078,7 +1081,7 @@ defmodule PortfolixirWeb.DashboardLive do
   defp drift_phrase(drift_weight) do
     pp = Format.percent(Decimal.abs(drift_weight))
 
-    if Decimal.compare(drift_weight, 0) == :lt do
+    if Format.displayed_percent_sign(drift_weight) == :negative do
       gettext("%{pp} pp below target", pp: pp)
     else
       gettext("%{pp} pp above target", pp: pp)

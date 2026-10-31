@@ -740,7 +740,11 @@ defmodule PortfolixirWeb.RiskLive do
   defp view_name(nil), do: gettext("Everything")
   defp view_name(view), do: view.name
 
-  defp negative?(%Decimal{} = value), do: Decimal.negative?(value)
+  # Decided on the drawdown as displayed, percentage points with one decimal
+  # (`signed_percent/1`; #1149): a drawdown that reads "0,0" is not a loss.
+  defp negative?(%Decimal{} = value),
+    do: value |> Decimal.mult(100) |> Format.displayed_sign(1) == :negative
+
   defp negative?(_value), do: false
 
   defp signed_percent(%Decimal{} = value), do: Format.signed_decimal(Decimal.mult(value, 100), 1)

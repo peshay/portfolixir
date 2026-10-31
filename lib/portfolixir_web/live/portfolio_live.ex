@@ -2160,7 +2160,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <td class={[
                           "num",
                           "col-subject",
-                          Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
+                          drift_negative_class(row.drift_value)
                         ]}>
                           <%= if Decimal.equal?(row.target_weight, 0) do %>
                             —
@@ -2201,9 +2201,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <td class={[
                               "num",
                               "col-subject",
-                              position.drift_value &&
-                                Decimal.compare(position.drift_value, 0) == :lt &&
-                                "is-negative"
+                              drift_negative_class(position.drift_value)
                             ]}>
                               <%= if position_drift_shown?(position, row) do %>
                                 <%= Format.money(position.drift_value) %>
@@ -2248,7 +2246,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <td class={[
                           "num",
                           "col-subject",
-                          Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
+                          drift_negative_class(@allocation.cash.drift_value)
                         ]}>
                           <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
                             —
@@ -2314,9 +2312,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <td class={[
                               "num",
                               "col-subject",
-                              position.drift_value &&
-                                Decimal.compare(position.drift_value, 0) == :lt &&
-                                "is-negative"
+                              drift_negative_class(position.drift_value)
                             ]}>
                               <%= if position.drift_value do %>
                                 <%= Format.money(position.drift_value) %>
@@ -2448,8 +2444,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <td class={[
                           "num",
                           "col-subject",
-                          entry.drift_value && Decimal.compare(entry.drift_value, 0) == :lt &&
-                            "is-negative"
+                          drift_negative_class(entry.drift_value)
                         ]}>
                           <%= if entry.drift_value do %>
                             <%= Format.money(entry.drift_value) %>
@@ -3561,6 +3556,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp perf_sign_class(value), do: value |> Format.displayed_percent_sign() |> flat_sign_class()
 
   defp money_sign_class(value), do: value |> Format.displayed_sign(2) |> flat_sign_class()
+
+  # A drift prints through `Format.money`, so its loss tone is decided at two
+  # places (#1149): a drift that reads "0,00" is not an underweight.
+  defp drift_negative_class(value),
+    do: if(Format.displayed_sign(value, 2) == :negative, do: "is-negative")
 
   defp flat_sign_class(:positive), do: "is-positive"
   defp flat_sign_class(:negative), do: "is-negative"

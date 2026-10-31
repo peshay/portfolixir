@@ -1869,11 +1869,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp signed_or_dash(value), do: PortfolixirWeb.Format.signed_decimal(value, 2)
 
+  # Decided on the figure as displayed, two places (#1149): a gain that
+  # reads "0,00" carries no colour.
   defp gain_class(%Decimal{} = value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      :eq -> nil
+    case PortfolixirWeb.Format.displayed_sign(value, 2) do
+      :positive -> "is-positive"
+      :negative -> "is-negative"
+      :zero -> nil
     end
   end
 

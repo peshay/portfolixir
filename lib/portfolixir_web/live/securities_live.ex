@@ -4355,7 +4355,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           formatted = Format.signed_decimal(decimal_for_display(value), 2)
 
           Phoenix.HTML.raw(
-            ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+            ~s(<span class="#{decimal_class(value, 2)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
           )
         end
     end
@@ -4732,17 +4732,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
       ~s[</select></form>]
   end
 
-  defp decimal_class(value) do
-    case decimal_for_display(value) do
-      nil ->
-        "decimal-neutral"
-
-      decimal ->
-        case Decimal.compare(decimal, 0) do
-          :gt -> "decimal-positive"
-          :lt -> "decimal-negative"
-          :eq -> "decimal-neutral"
-        end
+  # Decided on the figure as displayed (#1149): `places` is the precision
+  # the cell prints at — two for money, four for a fraction printed as
+  # percentage points with two decimals — so "0,00 %" is neutral.
+  defp decimal_class(value, places) do
+    case value |> decimal_for_display() |> Format.displayed_sign(places) do
+      :positive -> "decimal-positive"
+      :negative -> "decimal-negative"
+      _zero_or_none -> "decimal-neutral"
     end
   end
 

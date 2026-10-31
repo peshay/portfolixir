@@ -209,7 +209,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
               ) %></span>
               <span class="drift-bar" aria-hidden="true">
                 <span
-                  :if={Decimal.compare(position.contribution, 0) != :eq}
+                  :if={Format.displayed_sign(position.contribution, 2) != :zero}
                   class={["drift-bar__fill", bar_side(position.contribution)]}
                   style={"width: #{bar_width(position.contribution, @f.largest)}%"}
                 >
@@ -690,8 +690,10 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     end
   end
 
+  # The bar's side is the figure's as displayed (#1149, review SF-1); a
+  # figure that reads zero draws no bar at all (the `:if` above).
   defp bar_side(value) do
-    if Decimal.compare(value, 0) == :lt, do: "is-under", else: "is-over"
+    if Format.displayed_sign(value, 2) == :negative, do: "is-under", else: "is-over"
   end
 
   defp bar_width(value, largest) do

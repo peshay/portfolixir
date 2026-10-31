@@ -689,17 +689,15 @@ defmodule PortfolixirWeb.SnapshotsLive do
     """
   end
 
-  defp signed_percent(value) do
-    formatted = Format.percent(value)
-    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
-  end
+  defp signed_percent(value), do: Format.signed_percent(value)
 
-  # Gain/loss colour by sign, never the accent (UX-DR7).
+  # Gain/loss colour by sign, never the accent (UX-DR7), decided on the
+  # percent as displayed (#1149): "0,0%" carries none.
   defp sign_class(value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      :eq -> nil
+    case Format.displayed_percent_sign(value) do
+      :positive -> "is-positive"
+      :negative -> "is-negative"
+      _zero -> nil
     end
   end
 end
