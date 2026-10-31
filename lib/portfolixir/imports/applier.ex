@@ -408,13 +408,20 @@ defmodule Portfolixir.Imports.Applier do
   # economic keys each row past the hash layer reached (`economic_keys/2`,
   # ADR-0053 A12), so a page that refines its counts and lists the
   # correction simulates the file once.
-  defp simulate(_flat_entries, nil), do: :error
+  #
+  # With `mapping` (the operator's account and security choices, in the
+  # mapped apply's shape; board 07 ②, pick N20 A, #1180) the run binds every
+  # name the mapping names as the mapped apply binds it, and the rest as the
+  # prefill resolves them, so the preview's count after a choice is what the
+  # confirm skips and books.
+  defp simulate(flat_entries, portfolio_id, mapping \\ nil)
 
-  defp simulate(flat_entries, portfolio_id) do
+  defp simulate(_flat_entries, nil, _mapping), do: :error
+
+  defp simulate(flat_entries, portfolio_id, mapping) do
     fn ->
       with :ok <- open_dry_run(portfolio_id),
-           {:ok, final_state} <-
-             run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true) do
+           {:ok, final_state} <- run_dry(flat_entries, portfolio_id, mapping) do
         Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes), final_state.economic_keys})
       else
         _stopped -> Repo.rollback(:stopped)
@@ -429,6 +436,41 @@ defmodule Portfolixir.Imports.Applier do
     DBConnection.ConnectionError -> :error
     # A lock the dry run would wait for, or a write it would send.
     Postgrex.Error -> :error
+  end
+
+  defp run_dry(flat_entries, portfolio_id, nil),
+    do: run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true)
+
+  # The mapped apply's own planning (`plan_mapped_cash/3`,
+  # `plan_mapped_depots/2`) over the operator's choices, then the
+  # auto-resolving run's body for every name they leave open. It remembers
+  # no name and records no ISIN change: neither changes which account or
+  # security a row resolves onto, and the dry run writes nothing.
+  defp run_dry(flat_entries, portfolio_id, mapping) do
+    cash_mapping = Map.get(mapping, :cash_accounts, %{})
+
+    params = %{
+      portfolio_id: portfolio_id,
+      security_mappings:
+        Map.new(Map.get(mapping, :security_mappings, %{}), fn
+          {key, {:existing, id, :record_isin_change}} -> {key, {:existing, id}}
+          other -> other
+        end)
+    }
+
+    with {:ok, cash_plan} <-
+           plan_mapped_cash(cash_mapping, cash_currencies_by_pp_name(flat_entries), "EUR"),
+         {:ok, depot_plan} <- plan_mapped_depots(Map.get(mapping, :depots, %{}), cash_mapping) do
+      state =
+        base_state(portfolio_id, "EUR", params, %Result{})
+        |> Map.merge(%{simulate: true})
+        |> Map.merge(cash_plan)
+        |> Map.merge(depot_plan)
+        |> resolve_unmapped_names(flat_entries)
+
+      with {:ok, state} <- execute_security_mappings(flat_entries, state),
+           do: reduce_entries(flat_entries, state)
+    end
   end
 
   # The dry run's transaction is read-only and waits for no lock. Where a
@@ -576,6 +618,12 @@ defmodule Portfolixir.Imports.Applier do
   when it stopped or with `dry_run: false`): the Imports page lists the
   correction's rows matched by their figures from the run that refines its
   counts, and simulates the file once (ADR-0053 A12, #1205).
+
+  With `mapping:` (`:cash_accounts`, `:depots` and `:security_mappings` in
+  the mapped apply's shape) the dry run binds the names it names as `apply/2`
+  under that mapping binds them (board 07 ②, pick N20 A, #1180): the
+  preview's count after the operator's choice is what the confirm skips and
+  books. Every name it leaves open resolves as the prefill does.
   """
   @spec reimport_counts(Preview.t(), integer() | nil, keyword()) :: %{
           optional(:economic_keys) => {:ok, map()} | :error,
@@ -594,7 +642,7 @@ defmodule Portfolixir.Imports.Applier do
     # and refines them in the background, the closing act, EH-1).
     simulation =
       if Keyword.get(opts, :dry_run, true),
-        do: simulate(flat_entries, portfolio_id),
+        do: simulate(flat_entries, portfolio_id, Keyword.get(opts, :mapping)),
         else: :error
 
     outcomes =

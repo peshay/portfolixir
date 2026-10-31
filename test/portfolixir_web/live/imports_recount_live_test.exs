@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.ImportsRecountLiveTest do
   alias Portfolixir.Actor
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
+  alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -167,6 +168,66 @@ defmodule PortfolixirWeb.ImportsRecountLiveTest do
            )
   end
 
+  # User story (#1180, Sprint 21 γ7, pick N20 A; security review
+  # 2026-10-12, H07 and H08, the parked preview): As the operator who
+  # reloads the page or switches the language after a choice, I want the
+  # recounted row to read as it did, and a choice the page had not yet
+  # counted to be counted then, so that a remount never shows the count
+  # made before my choice as the count after it.
+  #
+  # Acceptance criteria:
+  # - After the recount answered, a remount shows "3 bookings already
+  #   imported · 1 new" on the chosen row, with the choice selected.
+  # - A choice parked before its recount answered is counted by the
+  #   remount: it reads "3 bookings already imported · 1 new" once the
+  #   remount's dry run answers.
+  test "a remount shows the recounted row, and counts a choice parked before its answer",
+       %{conn: conn} do
+    portfolio = portfolio!()
+    applied!(portfolio, history())
+    tagesgeld = named!(CashAccount, "Tagesgeld")
+
+    drop =
+      history(savings: "Tagesgeld Extra") ++ [interest("Tagesgeld Extra", "1.40", "2026-03-31")]
+
+    conn = init_test_session(conn, %{"_csrf_token" => "RRRRRRRRRRRRRRRRRRRRRR80"})
+    key = PreviewStore.key_for("RRRRRRRRRRRRRRRRRRRRRR80")
+    on_exit(fn -> PreviewStore.delete(key) end)
+    choose = keyed(%{"cash" => %{"Tagesgeld Extra" => "existing:#{tagesgeld.id}"}})
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload!(view, drop)
+    view |> element("form#pp-import-apply") |> render_change(choose)
+    render_async(view)
+
+    {:ok, remounted, _html} = live(conn, "/imports")
+    render_async(remounted)
+
+    assert count_text(remounted, "cash", "Tagesgeld Extra") ==
+             "3 bookings already imported · 1 new"
+
+    assert has_element?(
+             remounted,
+             row("cash", "Tagesgeld Extra") <>
+               " option[selected][value='existing:#{tagesgeld.id}']"
+           )
+
+    PreviewStore.delete(key)
+    {:ok, view, _html} = live(conn, "/imports")
+    upload!(view, drop)
+    hold_refine!()
+    view |> element("form#pp-import-apply") |> render_change(choose)
+
+    # The remount counts the parked choice itself; both dry runs, the first
+    # page's and the remount's, wait at the seam until released.
+    {:ok, remounted, _html} = live(conn, "/imports")
+    release_refine!(2)
+    render_async(remounted)
+
+    assert count_text(remounted, "cash", "Tagesgeld Extra") ==
+             "3 bookings already imported · 1 new"
+  end
+
   # --- the exports ---------------------------------------------------------------
 
   defp history(names \\ []) do
@@ -245,10 +306,15 @@ defmodule PortfolixirWeb.ImportsRecountLiveTest do
     on_exit(fn -> Application.delete_env(:portfolixir, :imports_refine_gate) end)
   end
 
-  defp release_refine! do
-    assert_receive {:imports_refine_gate, task}, 5_000
+  defp release_refine!(count \\ 1) do
+    tasks =
+      for _waiting <- 1..count do
+        assert_receive {:imports_refine_gate, task}, 5_000
+        task
+      end
+
     Application.delete_env(:portfolixir, :imports_refine_gate)
-    send(task, {:imports_refine_gate, :release})
+    Enum.each(tasks, &send(&1, {:imports_refine_gate, :release}))
   end
 
   # --- reading the page --------------------------------------------------------------

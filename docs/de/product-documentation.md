@@ -3575,9 +3575,14 @@ Inhalt einer früher gespeicherten gleicht oder wenn auf dem Konto, zu dem der
 Name führt, schon eine Buchung mit demselben Tag, derselben Art und denselben
 Beträgen steht — der Fall eines erneut gespeicherten Exports, nachdem Sie
 zwei seiner Konten zusammengeführt haben —, und eine Umbuchung zwischen zwei
-Namen, die jetzt zu einem Konto führen, entfällt. Eine Entscheidung, die Sie
-in der Vorschau noch treffen (ein Wertpapier, ein anderes Konto), kann
-ändern, was mit den neuen Buchungen einer Zeile geschieht. Eine
+Namen, die jetzt zu einem Konto führen, entfällt. Ändern Sie eine Wahl (ein
+anderes Konto, das Verrechnungskonto eines Depots, ein Wertpapier), zählt die
+Vorschau unter Ihrer Wahl neu, sodass die Zeile sagt, was der Import dann
+überspringt und bucht: Ein umbenanntes Konto, dem Konto zugeordnet, aus dem
+es kam, lautet etwa *12 Buchungen bereits importiert · 1 neu*. Während diese
+Zählung läuft, wird die Zahl der Zeile blass, und nach einer halben Sekunde
+lautet sie *vor der Wahl gezählt · wird neu berechnet*. Eine Zeile, die Sie
+geändert haben, behält ihre Wahl auch dann, wenn auf ihr nichts neu ist. Eine
 Vorbelegung über einen früheren Namen sagt das unter der Auswahl. Eine Zeile,
 von deren Buchungen keine neu ist, zeigt gar keine Auswahl: Sie sagt *Keine
 Zuordnung nötig: Der Import bucht unter diesem Namen nichts*, behält das

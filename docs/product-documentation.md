@@ -3247,8 +3247,13 @@ prefill: a booking is already imported when its content matches one stored
 before, or when a booking with the same day, kind and amounts already stands
 on the account the name leads to — the case of an export saved again after
 you merged two of its accounts — and a transfer between two names that now
-lead to one account is dropped. A decision you still make in the preview (a
-security, another account) can change what a row's new bookings do. A prefill found
+lead to one account is dropped. When you change a choice (another account, a
+depot's cash account, a security), the preview counts again under your
+choices, so the row says what the import will then skip and book: a renamed
+account mapped onto the account it came from reads, for example, *12 bookings
+already imported · 1 new*. While that count runs, the row's figure dims, and
+after half a second it reads *counted before the choice · recomputing*. A
+row you changed keeps its choice even when nothing on it is new. A prefill found
 through a former name says so under the select. A row none of whose bookings
 is new shows no choice at all: it says *No mapping needed: the import books
 nothing under this name*, keeps the account it was matched to, and never

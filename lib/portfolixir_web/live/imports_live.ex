@@ -25,6 +25,11 @@ defmodule PortfolixirWeb.ImportsLive do
 
   @max_upload_bytes 20_000_000
 
+  # Board 07, found while drawing 10: the recount's cue waits this long, so
+  # a dry run that answers at once never flickers it (the seconds-class
+  # rule, DESIGN.md 2026-08-22).
+  @recount_cue_after_ms 500
+
   # The fields a mapping row carries, as its form sends them.
   @depot_fields ~w(target cash)
   @security_fields ~w(choice ack record_isin_change)
@@ -50,6 +55,12 @@ defmodule PortfolixirWeb.ImportsLive do
       |> assign(:applying, false)
       |> assign(:result, nil)
       |> assign(:error, nil)
+      # The dry run under way (#1180): the mapping it counts under, whether
+      # under the operator's choices, and its cue once it has run half a
+      # second.
+      |> assign(:recount_cue, nil)
+      |> assign(:counts_basis, nil)
+      |> assign(:counts_mapped, false)
       |> assign_correction_idle()
       |> reload_lookups()
       |> assign(:mapping, mapping)
@@ -147,8 +158,8 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp refine_unless_answered(socket, preview) do
     if Map.get(socket.assigns.account_states, :refined, false) and
-         not socket.assigns.corrections_pending,
-       do: assign(socket, :counts_token, nil),
+         not socket.assigns.corrections_pending and not recount_due?(socket.assigns),
+       do: assign(socket, counts_token: nil, counts_basis: count_basis(socket.assigns.mapping)),
        else: refine_counts(socket, preview)
   end
 
@@ -614,6 +625,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     <.mapping_count
                       counts={row_counts(@account_states, "cash", pp_name)}
                       provisional={provisional?(@account_states, "cash", pp_name)}
+                      recount={recount_state(assigns, "cash", pp_name)}
                     />
                   </div>
                   <div :if={nothing_to_map?(assigns, "cash", pp_name)} class="mapping-target">
@@ -661,6 +673,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     <.mapping_count
                       counts={row_counts(@account_states, "depot", pp_name)}
                       provisional={provisional?(@account_states, "depot", pp_name)}
+                      recount={recount_state(assigns, "depot", pp_name)}
                     />
                   </div>
                   <%!-- #1168: with no select, the row's target is its last
@@ -1144,10 +1157,22 @@ defmodule PortfolixirWeb.ImportsLive do
 
   def handle_event("parse", _params, socket), do: {:noreply, socket}
 
+  # Board 07 ②, pick N20 A (#1180): a change of what the apply books under
+  # (an account, a depot's cash account, a security) counts the file again
+  # under the operator's mapping. One dry run runs at a time: a change made
+  # while one runs is counted when it answers (`recount_if_due/1`).
   def handle_event("mapping_changed", params, socket) do
+    current = socket.assigns.mapping
     mapping = mapping_from_params(params, socket.assigns)
+    changed? = count_basis(mapping) != count_basis(current)
+    mapping = Map.put(mapping, :recount, Map.get(current, :recount, false) or changed?)
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
-    {:noreply, socket |> assign(:mapping, mapping) |> assign_remember_outcomes()}
+
+    {:noreply,
+     socket
+     |> assign(:mapping, mapping)
+     |> assign_remember_outcomes()
+     |> recount_if_due()}
   end
 
   def handle_event("apply", _params, socket) when socket.assigns.applying do
@@ -1280,6 +1305,15 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply, socket}
   end
 
+  # Board 07, found while drawing 10 (DESIGN.md 2026-08-22, the
+  # seconds-class rule): a recount still running after half a second shows
+  # its cue; one that answers sooner never does.
+  def handle_info({:recount_cue, token}, socket) do
+    if token == socket.assigns.counts_token and socket.assigns.account_states.pending,
+      do: {:noreply, assign(socket, :recount_cue, token)},
+      else: {:noreply, socket}
+  end
+
   def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
@@ -1297,6 +1331,7 @@ defmodule PortfolixirWeb.ImportsLive do
       {:noreply,
        socket
        |> take_correction_keys(Map.get(counts, :economic_keys, :error))
+       |> recount_if_due()
        |> repark()}
     else
       {:noreply, socket}
@@ -1451,6 +1486,7 @@ defmodule PortfolixirWeb.ImportsLive do
     socket
     |> assign(:mapping, mapping)
     |> assign_remember_outcomes()
+    |> count_under_mapping()
     |> repark()
   end
 
@@ -1482,6 +1518,7 @@ defmodule PortfolixirWeb.ImportsLive do
             socket
             |> assign(:mapping, initial_mapping_for(preview, socket.assigns.account_states))
             |> assign_remember_outcomes()
+            |> count_under_mapping()
 
           # E25 S5 (F33): parked only once it has rendered. The message is
           # handled after this callback's render, so a preview whose first
@@ -1616,19 +1653,131 @@ defmodule PortfolixirWeb.ImportsLive do
     }
   end
 
+  # Board 07 ②, pick N20 A (#1180): once the operator has changed what the
+  # apply books under, the dry run counts under the operator's mapping
+  # (`dry_run_mapping/1`), so a row's count is what the confirm skips and
+  # books; before, under the prefill, as the apply resolves an unmapped
+  # name. The correction's economic keys are always read under the prefill,
+  # as its confirm reads them (ADR-0053 A12), so a correction still waiting
+  # for them costs the mapped count a second run.
   defp refine_counts(socket, preview) do
     if connected?(socket) do
       token = make_ref()
+      mapped = dry_run_mapping(socket.assigns)
+      keys? = Map.get(socket.assigns, :corrections_pending, true)
+      Process.send_after(self(), {:recount_cue, token}, @recount_cue_after_ms)
 
       socket
       |> assign(:counts_token, token)
+      |> assign(:counts_basis, socket.assigns |> Map.get(:mapping) |> count_basis())
+      |> assign(:counts_mapped, mapped != nil)
+      |> assign(:recount_cue, nil)
       |> update(:account_states, &Map.put(&1, :pending, true))
       |> CappedAsync.start_async(:refine_counts, fn ->
         await_refine_gate()
-        {token, Imports.reimport_counts(preview, economic_keys: true)}
+        {token, refined_counts(preview, mapped, keys?)}
       end)
     else
       assign(socket, :counts_token, nil)
+    end
+  end
+
+  defp refined_counts(preview, nil, _keys?),
+    do: Imports.reimport_counts(preview, economic_keys: true)
+
+  defp refined_counts(preview, mapped, keys?) do
+    counts = Imports.reimport_counts(preview, mapping: mapped)
+
+    keys =
+      if keys?,
+        do: preview |> Imports.reimport_counts(economic_keys: true) |> Map.fetch!(:economic_keys),
+        else: :error
+
+    Map.put(counts, :economic_keys, keys)
+  end
+
+  # What the apply books under, per row, as the counts compare it: the
+  # account rows' choices and the security rows'.
+  defp count_basis(nil), do: nil
+
+  defp count_basis(mapping),
+    do: %{
+      "cash" => mapping.cash,
+      "depot" => mapping.depot,
+      "security" => Map.get(mapping, :security, %{})
+    }
+
+  # The counts on the page answer the mapping just built (an upload, the
+  # accounts read again); the dry run under way counts under it too.
+  defp count_under_mapping(socket) do
+    basis = count_basis(socket.assigns.mapping)
+
+    socket
+    |> assign(:counts_basis, basis)
+    |> update(:account_states, &Map.put(&1, :counted, basis))
+  end
+
+  # A change the shown counts do not answer, and no dry run under way.
+  defp recount_if_due(socket) do
+    if socket.assigns.stage == :preview and not socket.assigns.account_states.pending and
+         recount_due?(socket.assigns),
+       do: refine_counts(socket, socket.assigns.preview),
+       else: socket
+  end
+
+  defp recount_due?(%{mapping: mapping, account_states: states}) do
+    Map.get(mapping, :recount, false) and
+      Map.get(states, :counted) not in [nil, count_basis(mapping)]
+  end
+
+  # The operator's choices as the mapped apply takes them, for the dry run
+  # (`Imports.reimport_counts/2`'s `mapping:`): every decided account row,
+  # every depot whose target and cash account are decided, every security
+  # row's remap or explicit creation. A row left open resolves as the
+  # prefill does. Nil until the operator has changed one.
+  defp dry_run_mapping(%{mapping: mapping} = assigns) when is_map(mapping) do
+    if Map.get(mapping, :recount, false) do
+      cash =
+        for {pp_name, choice} <- mapping.cash,
+            {:ok, value} <- [parse_depot_target(choice)],
+            into: %{},
+            do: {pp_name, value}
+
+      depots =
+        for {pp_name, %{"target" => target_str, "cash" => cash_str}} <- mapping.depot,
+            {:ok, target} <- [parse_depot_target(target_str)],
+            {:ok, cash_ref} <- [parse_depot_cash(cash_str, target, cash, assigns)],
+            not is_binary(cash_ref) or Map.has_key?(cash, cash_ref),
+            into: %{},
+            do: {pp_name, %{target: target, cash: cash_ref}}
+
+      securities =
+        for res <- assigns.security_resolutions,
+            {:mapping, value} <- [dry_run_security(res, mapping)],
+            into: %{},
+            do: {res.key, value}
+
+      %{cash_accounts: cash, depots: depots, security_mappings: securities}
+    end
+  end
+
+  defp dry_run_mapping(_assigns), do: nil
+
+  defp dry_run_security(%{status: :matched}, _mapping), do: :none
+
+  defp dry_run_security(res, mapping) do
+    case {res.status, security_choice(mapping, res)} do
+      {_status, "existing:" <> id_str} ->
+        case LiveParam.fetch_id(id_str) do
+          {:ok, id} -> {:mapping, {:existing, id}}
+          :error -> :none
+        end
+
+      {status, "create"} when status != :create ->
+        {:mapping, :create}
+
+      _open ->
+        :none
     end
   end
 
@@ -1664,9 +1813,17 @@ defmodule PortfolixirWeb.ImportsLive do
   # stands. The answer only releases, so a name the first pass prefilled is
   # never withheld by it. A dry run that stopped answers the hash layers'
   # counts and names every name the first pass named, so it releases nothing.
+  #
+  # A count under the operator's mapping (#1180) releases nothing: a release
+  # is judged on the name's own resolution, and the operator has already
+  # chosen. The counts then answer the mapping the run started under, or,
+  # where nothing changed since, the mapping with its released rows.
   defp take_refined_counts(socket, counts) do
     states = socket.assigns.account_states
-    refined = unseen_sets(counts.unseen_names)
+    mapped? = Map.get(socket.assigns, :counts_mapped, false)
+    refined = if mapped?, do: states.unseen, else: unseen_sets(counts.unseen_names)
+    started_under = Map.get(socket.assigns, :counts_basis)
+    unchanged? = started_under == count_basis(socket.assigns.mapping)
 
     unseen =
       Map.new(states.unseen, fn {group, set} ->
@@ -1683,9 +1840,9 @@ defmodule PortfolixirWeb.ImportsLive do
       |> Map.merge(%{counts: state_counts(counts), unseen: unseen, pending: false})
       |> Map.put(:refined, true)
 
-    socket
-    |> assign(:account_states, states)
-    |> prefill_released(released)
+    socket = socket |> assign(:account_states, states) |> prefill_released(released)
+    counted = if unchanged?, do: count_basis(socket.assigns.mapping), else: started_under
+    update(socket, :account_states, &Map.put(&1, :counted, counted))
   end
 
   defp prefill_released(socket, []), do: socket
@@ -1851,6 +2008,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   attr(:counts, :map, required: true)
   attr(:provisional, :boolean, default: false)
+  attr(:recount, :atom, default: nil)
 
   # Per row (board 04): how many of its bookings are already imported (by
   # content hash, a merge's retired hash, or an equal booking the apply finds
@@ -1862,11 +2020,40 @@ defmodule PortfolixirWeb.ImportsLive do
   # runs is the hash layers' first count, the one row state that can still
   # change, so it dims and carries the recomputing cue (DESIGN.md → the
   # recomputing cue) with its basis, "provisional".
+  #
+  # #1180 (board 07 ②, pick N20 A): a row whose choice the shown count does
+  # not answer, while the recount under the operator's mapping runs, dims
+  # at once (`aria-busy`) and carries the cue with its basis, "counted
+  # before the choice", once the answer has not come within half a second
+  # (`recount: :busy | :cue`).
   defp mapping_count(assigns) do
     ~H"""
-    <span class="mapping-count" data-role="mapping-count" aria-busy={@provisional && "true"}><%= if @provisional do %><span class="stale-value"><.count_words counts={@counts} /></span><span class="recomputing-cue"><span class="spinner"></span><%= gettext("provisional · recomputing") %></span><% else %><.count_words counts={@counts} /><% end %></span>
+    <span class="mapping-count" data-role="mapping-count" aria-busy={(@provisional or @recount != nil) && "true"}><%= cond do %><% @recount != nil -> %><span class="stale-value"><.count_words counts={@counts} /></span><span :if={@recount == :cue} class="recomputing-cue"><span class="spinner"></span><%= gettext("counted before the choice · recomputing") %></span><% @provisional -> %><span class="stale-value"><.count_words counts={@counts} /></span><span class="recomputing-cue"><span class="spinner"></span><%= gettext("provisional · recomputing") %></span><% true -> %><.count_words counts={@counts} /><% end %></span>
     """
   end
+
+  # Whether a row's count waits for the recount of its changed choice
+  # (#1180): `:busy` at once, `:cue` once half a second has passed.
+  defp recount_state(%{account_states: states, mapping: mapping} = assigns, group, pp_name) do
+    counted = Map.get(states, :counted)
+
+    cond do
+      not states.pending or is_nil(counted) ->
+        nil
+
+      get_in(counted, [group, pp_name]) == mapping_row(mapping, group, pp_name) ->
+        nil
+
+      assigns.recount_cue != nil and assigns.recount_cue == assigns.counts_token ->
+        :cue
+
+      true ->
+        :busy
+    end
+  end
+
+  defp mapping_row(mapping, "cash", pp_name), do: Map.get(mapping.cash, pp_name)
+  defp mapping_row(mapping, "depot", pp_name), do: Map.get(mapping.depot, pp_name)
 
   attr(:counts, :map, required: true)
 
@@ -1907,8 +2094,13 @@ defmodule PortfolixirWeb.ImportsLive do
   # stored history (board 01 ①, counted missing until chosen), and a cash
   # name that a depot row still asking names as its cash account
   # (`depot_cash_ok?/3` reads that row's choice).
+  #
+  # A row the operator changed from its prefill keeps its select too
+  # (#1180): the recount under the choice may find nothing new on it, and
+  # the choice stays the operator's to change.
   defp nothing_to_map?(assigns, "cash", pp_name) do
     nothing_new_row?(assigns.account_states, "cash", pp_name) and
+      not operator_chose?(assigns.mapping, "cash", pp_name) and
       not Enum.any?(assigns.depot_pp_names, fn depot ->
         depot_cash_value(assigns.mapping, depot) == "pp:" <> pp_name and
           not nothing_to_map?(assigns, "depot", depot)
@@ -1916,7 +2108,12 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp nothing_to_map?(assigns, "depot", pp_name),
-    do: nothing_new_row?(assigns.account_states, "depot", pp_name)
+    do:
+      nothing_new_row?(assigns.account_states, "depot", pp_name) and
+        not operator_chose?(assigns.mapping, "depot", pp_name)
+
+  defp operator_chose?(mapping, group, pp_name),
+    do: row_choice(mapping, group, pp_name) != get_in(mapping, [:prefill, group, pp_name])
 
   defp nothing_new_row?(states, group, pp_name),
     do: row_counts(states, group, pp_name).new == 0 and not unseen?(states, group, pp_name)

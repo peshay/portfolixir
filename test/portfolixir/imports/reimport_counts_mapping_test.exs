@@ -11,6 +11,7 @@ defmodule Portfolixir.Imports.ReimportCountsMappingTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Imports
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -173,7 +174,7 @@ defmodule Portfolixir.Imports.ReimportCountsMappingTest do
 
   defp world do
     %{
-      transactions: Repo.aggregate(Portfolixir.Ledger.Transaction, :count),
+      transactions: Repo.aggregate(Transaction, :count),
       cash:
         Repo.all(from(c in CashAccount, select: {c.id, c.name, c.former_names}, order_by: c.id)),
       depots: Repo.aggregate(SecuritiesAccount, :count)

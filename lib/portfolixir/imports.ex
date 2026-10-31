@@ -118,6 +118,12 @@ defmodule Portfolixir.Imports do
   With `economic_keys: true` the answer also carries the import
   correction's economic keys from the same simulated run
   (`Applier.reimport_counts/3`), for `cash_corrections/2`'s `:keys`.
+
+  With `mapping:` (the operator's choices in the mapped apply's shape:
+  `:cash_accounts`, `:depots`, `:security_mappings`; board 07 ②, pick N20
+  A, #1180) the dry run binds each name the mapping names as the apply under
+  that mapping binds it, and resolves the rest as the prefill does: a row's
+  count after the operator's choice is what the confirm skips and books.
   """
   @spec reimport_counts(Preview.t(), keyword()) :: %{
           optional(:economic_keys) => {:ok, map()} | :error,
@@ -130,7 +136,8 @@ defmodule Portfolixir.Imports do
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
     Applier.reimport_counts(preview, import_portfolio_id(opts),
       dry_run: Keyword.get(opts, :dry_run, true),
-      economic_keys: Keyword.get(opts, :economic_keys, false)
+      economic_keys: Keyword.get(opts, :economic_keys, false),
+      mapping: Keyword.get(opts, :mapping)
     )
   end
 

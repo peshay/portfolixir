@@ -3226,7 +3226,22 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   under the prefill, rolled back: "already imported" is every layer that
   skips a booking (content hash, a merge's retired hash, an equal booking by
   its economics), so a file saved again after a merge reads "nothing to
-  create". Under
+  create". *Amended 2026-10-31 (issue 1180; board
+  ux-design-2026-10-09/07-imports ②, pick N20 A):* **a changed row is
+  recounted under the chosen mapping.** A change of what the apply books
+  under (an account, a depot's cash account, a security) runs the dry run
+  again under the operator's mapping, one run at a time; its answer is what
+  the confirm skips and books, so "+ Neu anlegen" renamed onto the account it
+  came from reads "12 Buchungen bereits importiert · **1 neu**", and the lead
+  note and the cards follow from the same answer. While it runs, the row
+  whose choice the shown count does not answer dims at once (`.stale-value`,
+  `aria-busy="true"` on the count); after half a second without an answer
+  (the seconds-class rule: a small file's recount never flickers a cue) the
+  recomputing cue stands under it: basis "counted before the choice", word
+  "recomputing" — "counted before the choice · recomputing" / „vor der Wahl
+  gezählt · wird neu berechnet". A recount releases no withheld name (the
+  release is judged on the name's own resolution), and a row the operator
+  changed keeps its select even when its recount finds nothing new. Under
   720 px a row is one column (source, count, choice, notes; a depot's cash
   select last).
 - **Notes under the select say only what is not obvious** (`.mapping-basis`,
