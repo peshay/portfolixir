@@ -57,12 +57,30 @@ defmodule Portfolixir.HeapCap do
   """
   @spec run((-> result)) :: result when result: term()
   def run(fun) when is_function(fun, 0) do
-    @supervisor
-    |> Task.Supervisor.async_nolink(fn ->
-      cap!()
-      outcome(fun)
-    end)
-    |> await()
+    caller = self()
+    tag = make_ref()
+
+    # The worker waits for the caller's monitor before it runs, so even a
+    # worker killed at once is reported with its own reason; a caller gone
+    # before that leaves nothing to run for.
+    {:ok, worker} =
+      Task.Supervisor.start_child(@supervisor, fn ->
+        caller_watch = Process.monitor(caller)
+
+        receive do
+          ^tag ->
+            Process.demonitor(caller_watch, [:flush])
+            cap!()
+            send(caller, {tag, outcome(fun)})
+
+          {:DOWN, ^caller_watch, :process, ^caller, _reason} ->
+            :ok
+        end
+      end)
+
+    watch = Process.monitor(worker)
+    send(worker, tag)
+    await(worker, watch, tag)
   end
 
   defp outcome(fun) do
@@ -71,17 +89,18 @@ defmodule Portfolixir.HeapCap do
     kind, reason -> {:caught, kind, reason, __STACKTRACE__}
   end
 
-  defp await(%Task{ref: ref, pid: worker}) do
+  @spec await(pid(), reference(), reference()) :: term()
+  defp await(worker, watch, tag) do
     receive do
-      {^ref, {:ok, result}} ->
-        Process.demonitor(ref, [:flush])
+      {^tag, {:ok, result}} ->
+        Process.demonitor(watch, [:flush])
         result
 
-      {^ref, {:caught, kind, reason, stacktrace}} ->
-        Process.demonitor(ref, [:flush])
+      {^tag, {:caught, kind, reason, stacktrace}} ->
+        Process.demonitor(watch, [:flush])
         :erlang.raise(kind, reason, stacktrace)
 
-      {:DOWN, ^ref, :process, ^worker, reason} ->
+      {:DOWN, ^watch, :process, ^worker, reason} ->
         exit(reason)
 
       # Only a caller that traps exits receives one: the worker goes with it.
