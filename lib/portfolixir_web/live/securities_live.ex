@@ -1427,6 +1427,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <%= if @detail_tab == "trades" do %>
         <.trades_tab_panel
           trades={@detail_trades}
+          transactions={@detail_transaction_rows}
           currency_code={@selected_security.currency_code}
         />
       <% end %>
@@ -2089,9 +2090,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   attr(:trades, :map, required: true)
+  attr(:transactions, :list, default: [])
   attr(:currency_code, :string, default: nil)
 
   defp trades_tab_panel(assigns) do
+    third_sales = third_currency_sales(assigns.transactions, assigns.currency_code)
+
+    assigns =
+      update(assigns, :trades, fn trades ->
+        %{
+          trades
+          | closed_trades:
+              Enum.map(trades.closed_trades, &Map.put(&1, :third, third_case(&1, third_sales)))
+        }
+      end)
+
     ~H"""
     <section
       id="detail-tab-panel-trades"
@@ -2211,6 +2224,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
           data-role="trades-unavailable"
         >
           <span :for={{trade, [lot | _] = lots} <- unavailable_lots(@trades.closed_trades)}>
+            <%!-- Point 3's third currency (#1198): a sale or a lot priced
+                 in neither the security's nor its account's currency has no
+                 rate to fetch; its remedy is the booking itself. --%>
+            <%= case trade.third do %>
+              <% :sale -> %>
+                <%= gettext(
+                  "1 trade not convertible: the sale of %{date} is priced in a currency that is neither the security's nor its account's (%{currency}); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored booking's currency or amounts.",
+                  date: Format.date(trade.close_date),
+                  currency: trade.currency_code
+                ) %>
+              <% {:lots, third_lots} -> %>
+                <%= ngettext(
+                  "1 trade not convertible: the buy of %{lot_dates} is priced in a currency that is neither the security's nor its account's (%{currency}); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored booking's currency or amounts.",
+                  "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, are priced in a currency that is neither the security's nor its account's (%{currency}); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored bookings' currency or amounts.",
+                  length(third_lots),
+                  lot_dates: lot_dates(third_lots),
+                  currency: trade.currency_code
+                ) %>
+              <% nil -> %>
             <%= if lots == [lot] do %>
               <%= ngettext(
                 "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
@@ -2226,9 +2258,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
                 "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
                 length(lots),
-                lot_dates: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", "),
+                lot_dates: lot_dates(lots),
                 currency: trade.currency_code || @currency_code
               ) %>
+            <% end %>
             <% end %>
           </span>
         </AppShell.data_note>
@@ -2535,12 +2568,75 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp unconvertible_lot_currency(%{lots_missing_leg: [lot | _]}), do: lot.currency_code
   defp unconvertible_lot_currency(_trade), do: nil
 
+  # Each open date once (two lots of one day name it once), in the lots'
+  # order.
+  defp lot_dates(lots),
+    do: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", ")
+
+  # Point 3 (the ADR-0015 amendment of 2026-10-09): the security's sales
+  # priced in neither its currency nor their account's, by date and
+  # currency, as `Ledger` flags them for the matcher.
+  defp third_currency_sales(transactions, security_currency) when is_binary(security_currency) do
+    for %{type: "sell", cash_account: %{currency_code: account}} = tx <- transactions,
+        is_binary(account),
+        tx.currency_code not in [security_currency, account],
+        into: MapSet.new(),
+        do: {tx.date, tx.currency_code}
+  end
+
+  defp third_currency_sales(_transactions, _security_currency), do: MapSet.new()
+
+  # Why an unavailable trade has no figure, when it is a third currency: the
+  # sale itself (`:sale`), or the lots priced in the sale's own currency,
+  # which enter it as booked unless that currency is a third one
+  # (`{:lots, lots}`); `nil` for a lot that lacks its leg.
+  defp third_case(%{unavailable_reason: nil}, _third_sales), do: nil
+
+  defp third_case(trade, third_sales) do
+    if MapSet.member?(third_sales, {trade.close_date, trade.currency_code}) do
+      :sale
+    else
+      case Enum.filter(trade.lots_missing_leg, &(&1.currency_code == trade.currency_code)) do
+        [] -> nil
+        lots -> {:lots, lots}
+      end
+    end
+  end
+
+  defp unconvertible_title(%{third: :sale} = trade, _currency_code),
+    do:
+      gettext(
+        "Not convertible: the sale is priced in %{currency}, neither the security's nor its account's currency",
+        currency: trade.currency_code
+      )
+
+  defp unconvertible_title(%{third: {:lots, _lots}} = trade, _currency_code),
+    do:
+      gettext(
+        "Not convertible: a buy priced in %{currency}, neither the security's nor its account's currency",
+        currency: trade.currency_code
+      )
+
   defp unconvertible_title(trade, currency_code) do
     gettext("Not convertible: a buy in %{lot_currency} has no figure in %{currency}",
       lot_currency: unconvertible_lot_currency(trade),
       currency: trade.currency_code || currency_code
     )
   end
+
+  defp unconvertible_sentence(%{third: :sale} = trade, _currency_code),
+    do:
+      gettext(
+        "not convertible, the sale priced in %{currency}, neither the security's nor its account's currency",
+        currency: trade.currency_code
+      )
+
+  defp unconvertible_sentence(%{third: {:lots, _lots}} = trade, _currency_code),
+    do:
+      gettext(
+        "not convertible, a buy priced in %{currency}, neither the security's nor its account's currency",
+        currency: trade.currency_code
+      )
 
   defp unconvertible_sentence(trade, currency_code) do
     gettext("not convertible, a buy in %{lot_currency} with no figure in %{currency}",

@@ -6973,7 +6973,25 @@ they already have (UX-DR25 clauses 1 and 2).
   die er schließt, vom 12.02.2025, 12.03.2025, haben keinen Gegenwert in
   USD, der Währung des Verkaufs; … Abhilfe: ein Wechselkurs für jeden dieser
   Tage — …" Before, such a trade read "1 Trade ohne Umrechnung" once per
-  lot.
+  lot. Two lots of one day name their day once; the count stays the lots.
+  *Amended 2026-10-31 (#1198; the ADR-0015 amendment of 2026-10-09, point
+  3, a third currency):* a trade unavailable because a booking is priced in
+  neither the security's nor its account's currency has no rate to fetch,
+  so its sentence names that booking and its remedy is the booking itself —
+  the sale: „1 Trade ohne Umrechnung: Der Verkauf vom 02.05.2025 ist in
+  einer Währung bepreist, die weder die des Wertpapiers noch die seines
+  Kontos ist (CHF); Einstand und Ergebnis des Trades fehlen, und er zählt in
+  keiner Summe. Abhilfe: Währung oder Beträge der gespeicherten Buchung
+  korrigieren.“; a lot priced in the sale's own currency: „… Der Kauf vom
+  01.04.2025 ist in einer Währung bepreist, …“. The cells' title reads
+  „Ohne Umrechnung: Der Verkauf ist in CHF bepreist, weder die Währung des
+  Wertpapiers noch die seines Kontos“ / „Ohne Umrechnung: Ein Kauf in CHF,
+  weder die Währung des Wertpapiers noch die seines Kontos“ (English "Not
+  convertible: the sale is priced in CHF, neither the security's nor its
+  account's currency" / "… a buy priced in CHF, …"). The page reads the
+  sale's case off the security's bookings (a sell priced in neither the
+  security's currency nor its account's), as `Ledger` flags it for the
+  matcher; `unavailable_reason` stays `missing_settlement_leg`.
 - **The Trades facet** (Income, `#realized-excluded`) and **the Overview
   card** (`data-role="trades-card-excluded"`) leave the trade out of the
   rows, the matrix and the three figures, and name it in the exclusion note
