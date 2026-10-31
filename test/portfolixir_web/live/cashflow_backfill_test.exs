@@ -296,4 +296,50 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
     assert view |> element(~s([data-role="fx-backfill-result"])) |> render() =~
              "Nachladen hat 1 Wechselkurs gespeichert."
   end
+
+  # User story (#1150's rule, the review of the γ4 range):
+  # As the operator reading German,
+  # I want every sentence that means an exchange rate to say "Wechselkurs",
+  # beyond the backfill control and the Flows and Costs facets,
+  # so that "Kurs" keeps meaning a security's price everywhere.
+  #
+  # Acceptance criteria:
+  # - The Income facet's ⓘ converts "zum letzten gespeicherten Wechselkurs"
+  #   and excludes a payment "ohne solchen Wechselkurs".
+  # - The hint that no security-currency cost is derivable (a security's
+  #   Holdings tab and the sell preview) ends "kein gespeicherter
+  #   Wechselkurs am Buchungstag".
+  test "the Income facet's ⓘ and the cost-basis hint say Wechselkurs in German", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Income", currency: "EUR")
+
+    {:ok, _} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "interest",
+        date: ~D[2026-02-20],
+        gross_amount: "5",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _} = live(conn, "/cashflow?locale=de")
+    info = view |> element(~s([data-role="facet-composition"])) |> render()
+
+    assert info =~
+             "zum letzten gespeicherten Wechselkurs an oder vor dem jeweiligen Buchungsdatum"
+
+    assert info =~ "eine Zahlung ohne solchen Wechselkurs ist ausgeschlossen"
+    refute info =~ "Kurs an oder vor"
+
+    hint =
+      Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+        Gettext.gettext(
+          PortfolixirWeb.Gettext,
+          "No security-currency cost is derivable from the recorded booking (no settlement legs, no stored rate at the booking date)."
+        )
+      end)
+
+    assert hint ==
+             "Aus der erfassten Buchung ist kein Einstand in Wertpapierwährung ableitbar (keine Abrechnungsbeine, kein gespeicherter Wechselkurs am Buchungstag)."
+  end
 end
