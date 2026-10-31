@@ -7020,9 +7020,36 @@ has no result to state, and a zero would claim it is flat").
   "Hinzufügen" is brought into view and focused (`focus-into-view`), as a
   plan write's is, because the form sits 570 px below the slot at 980 px.
   The form keeps what was typed.
-- **A move** has no control on this screen. The API refuses it with the
-  changeset's message on `parent_id`, naming the level the moved subtree's
-  deepest category would take.
+- **A move** *(issue 1211, Sprint 21 γ6; board
+  `ux-design-2026-10-09/06-classifications` ②, pick N18 A; replaces "A move
+  has no control on this screen")* is made in the category's edit form (✎):
+  - **"Übergeordnet" / "Parent"** is a select in `.recolor-label`, the
+    built-in tree's colour-label style, after the description: "— Oberste
+    Ebene —" and every category of the tree, indented as in "Neue
+    Kategorie", the current parent selected. The category itself and its
+    descendants are left out, so the cycle the context refuses cannot be
+    picked; a parent that would push the subtree past level 32 is listed and
+    refused on save. The description's basis drops from 14 to 10 rem while
+    the select is there, so the form keeps one line at 1200 px.
+  - **The answer** sits in the page's result slot, as every write here does:
+    "„USA“ liegt jetzt unter „Amerika“." / "“USA” now sits under
+    “Amerika”.", or "„USA“ liegt jetzt auf der obersten Ebene." / "“USA” now
+    sits on the top level.", the stored names in `<bdi>` (H8.8). An edit
+    that does not change the parent keeps "Kategorie aktualisiert".
+  - **The new parent chain renders open** (found while drawing, 6):
+    categories render closed unless the tree is filtered, so the moved row
+    would otherwise leave the screen.
+  - **The refusal past level 32** is a problem in the slot, brought into
+    view and focused as "Hinzufügen"'s is, the form left open: "Nicht
+    verschoben: Unter „Stufe 31“ käme eine Kategorie auf Ebene 33 — eine
+    Klassifizierung hat höchstens 32 Ebenen. Bei „Übergeordnet“ eine
+    Kategorie weiter oben wählen." / "Not moved: under “Stufe 31” a category
+    would sit on level 33 — a classification has at most 32 levels. Under
+    “Parent”, pick a category higher up." The level is the changeset's own:
+    the deepest level the moved subtree would reach. A cycle that a
+    concurrent edit makes possible keeps the changeset's "Übergeordnete
+    Kategorie würde die Kategorie zu ihrer eigenen Oberkategorie machen".
+  The API and MCP move a category the same way (`parent_id` on the update).
 - **The parent field's other refusals read German** (found while drawing,
   6; fixed on the branch under the plan's D-14, which the board document
   sanctions: "fix in the story, on the message path it touches"). The page's

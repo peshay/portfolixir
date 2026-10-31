@@ -1416,6 +1416,14 @@ der Ebene, die die neue Kategorie bekommen hätte, und der Grenze; das Formular
 behält, was du eingegeben hast (Issue #940). Die API lehnt dasselbe für eine
 Kategorie ab, die sie unter Ebene 32 anlegen oder verschieben würde.
 
+Um eine Kategorie zu **verschieben**, öffne ihr Bearbeitungsformular (✎) und
+wähle eine andere Kategorie unter **Übergeordnet** oder „— Oberste Ebene —";
+die Kategorie nimmt ihre Unterkategorien und Zuordnungen mit (Issue #1211). Die
+Liste lässt die Kategorie selbst und alles darunter aus. Die Seite sagt, wo die
+Kategorie jetzt liegt, und öffnet den Zweig der neuen Oberkategorie; eine
+Verschiebung, deren Teilbaum unter Ebene 32 reichen würde, wird abgelehnt wie
+**Hinzufügen**.
+
 Jedes Portfolio kann ein **Zielgewicht** je Kategorie speichern (ein Anteil am
 Portfolio, zum Beispiel 25 %). Die **Allokations**-Aufschlüsselung vergleicht dann
 je Kategorie das tatsächliche Gewicht (seinen Anteil an den bewerteten Positionen)

@@ -1287,6 +1287,13 @@ new category would have taken and the bound; the form keeps what you typed
 (issue #940). The API refuses the same for a category it would create or move
 below level 32.
 
+To **move** a category, open its edit form (✎) and pick another **Parent**
+(*Übergeordnet*), or "— Top level —"; the category takes its sub-categories
+and assignments with it (issue #1211). The list leaves out the category itself
+and everything below it. The page answers where the category now sits and
+opens the new parent's branch; a move whose sub-tree would reach past level 32
+is refused the same way **Add** is.
+
 Each portfolio can store a **target weight** per category (a fraction of the
 portfolio, for example 25%). The **allocation** breakdown then compares, per
 category, the actual weight (its share of the valued positions) against the
