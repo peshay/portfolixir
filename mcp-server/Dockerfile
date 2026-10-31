@@ -9,7 +9,7 @@
 # Dependabot's docker ecosystem moves tag and digest together.
 
 # --- build stage -----------------------------------------------------------
-FROM node:26.12.0-alpine3.24@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS build
+FROM node:26.13.0-alpine3.24@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS build
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
 # --- runtime stage ---------------------------------------------------------
-FROM node:26.12.0-alpine3.24@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+FROM node:26.13.0-alpine3.24@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
 
 ENV NODE_ENV=production \
     PORTFOLIXIR_MCP_TRANSPORT=http \
