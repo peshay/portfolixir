@@ -13179,12 +13179,12 @@ msgctxt "boolean filter"
 msgid "yes"
 msgstr "ja"
 
-#: lib/portfolixir_web/components/security_chart.ex:469
+#: lib/portfolixir_web/components/security_chart.ex:478
 #, elixir-autogen, elixir-format
 msgid "%{kind} %{quantity} at %{price} %{currency}"
 msgstr "%{kind} %{quantity} zu %{price} %{currency}"
 
-#: lib/portfolixir_web/components/security_chart.ex:478
+#: lib/portfolixir_web/components/security_chart.ex:487
 #, elixir-autogen, elixir-format
 msgid "%{kind} on %{date} at %{price} %{currency}"
 msgstr "%{kind} am %{date} zu %{price} %{currency}"
