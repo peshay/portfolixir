@@ -1097,6 +1097,57 @@ handbook's paragraph, which changes with the words.
   copy is needed, but #1195's rows now move from one to the other when the
   answer arrives, so the sprint workflow's board rule applies.
 
+### Note (2026-10-31): the dry run holds no lock another writer waits for
+
+*Security review 2026-10-12, H53; built with #1203 in Sprint 21's α9.* The
+dry run this amendment reads was the auto-resolving apply rolled back: for
+its whole run it held the portfolio's account-identity lock, the ISIN write
+lock of every security it created (then one lock for the whole database),
+and the import-hash lock its booking inserts take, so a preview that was
+only being looked at made other writers wait, and a writer under the API's
+transaction limit failed. It ran again on every mount of a parked preview.
+What changed, with no change to points 1 to 5:
+
+- **The dry run is a simulation.** It runs in a read-only transaction that
+  always rolls back. It takes neither the account-identity lock nor an ISIN
+  write lock and inserts nothing: every security, account and booking the
+  apply would create is kept in memory under a negative id no stored row
+  has (the in-memory index of #1203, `SecurityResolver.put_security/2`), so
+  the file's later rows resolve and are judged against them as the apply's
+  own run judges them, and a repeat of a row it would book is found in its
+  own record. It reads the currencies of stored accounts without a row lock.
+- **It waits for no one.** Where a writer of the portfolio's account names
+  holds their lock when it starts (a rename, a merge, an apply), it stops at
+  once rather than taking the lock; a read that would wait for a lock stops
+  it after a short wait. Either way it releases nothing (point 2), and the
+  counts stay on the hash layers.
+- **It runs once per parked preview.** Its answer is parked with the
+  preview's summary, so a remount (a reload, a language switch, a second
+  tab) shows it; only a preview parked before the answer came runs it
+  again.
+- **The ISIN write lock is one per normalized ISIN** (ADR-0029 §3's
+  serialized check): a writer takes the lock of every ISIN it writes into
+  either column, in ascending key order, so a long transaction serializes
+  only the writers of its own ISINs. Two ISINs that share a key serialize
+  more than they must.
+
+**The blocking that remains, accepted:**
+
+- **The confirm's apply** still holds, for its whole transaction (bounded
+  by its timeout), the account-identity lock of its portfolio, the ISIN
+  write lock of each ISIN it creates, and the import-hash lock shared for
+  its bookings: a rename or an account create in that portfolio, a write of
+  one of those ISINs, and a merge's hash retirement wait for it. That is the
+  apply's lock order (`Portfolixir.LockTable`, row 9), taken on the
+  operator's confirm, not on a look.
+- **The dry run's reads** take the table locks every read takes, which only
+  a schema change (a migration) waits for; and each running dry run holds
+  one pooled connection until it answers.
+- **What only the database checks** (a constraint, a trigger's refusal) the
+  simulation does not reach. A booking the apply would have refused there
+  counts new instead of stopping the dry run, so it releases no name, and
+  the apply still judges every row again on every layer (point 5).
+
 ## References
 
 - #328, #608, and the 2026-09-23 backlog triage (Part 1, Sprint 16 row).
