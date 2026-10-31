@@ -47,6 +47,9 @@ defmodule PortfolixirWeb.CrossCurrencyLabelsTest do
   #   Brutto "1.000,00 USD".
   # - The buy booked in its account's currency (Portfolio Performance's
   #   form: 2 × 80,00 EUR, fees 1,50) stays bare: "1,50", "0,00", "160,00".
+  # - A USD dividend credited 80,00 EUR with 12,00 EUR withheld names the
+  #   account's currency on its fee, taxes and stored cash ("0,00 EUR",
+  #   "12,00 EUR", "80,00 EUR").
   test "a cross-currency row's fees, taxes and gross name their currencies, only there",
        %{conn: conn, world: world, arbolia: arbolia} do
     cross_trade!(world, arbolia,
@@ -73,9 +76,21 @@ defmodule PortfolixirWeb.CrossCurrencyLabelsTest do
       currency_code: "EUR"
     })
 
+    book!(%{
+      portfolio_id: world.portfolio.id,
+      cash_account_id: world.cash.id,
+      security_id: arbolia.id,
+      type: "dividend",
+      date: ~D[2026-08-20],
+      gross_amount: "80.00",
+      taxes: "12.00",
+      settlement_fx_rate: "0.8",
+      currency_code: "USD"
+    })
+
     {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=transactions&locale=de")
 
-    [cross, same] =
+    [dividend, cross, same] =
       view
       |> element("#detail-tab-panel-transactions")
       |> render()
@@ -91,6 +106,7 @@ defmodule PortfolixirWeb.CrossCurrencyLabelsTest do
            ]
 
     assert Enum.slice(cells(same), 3..6) == ["80,00 EUR", "1,50", "0,00", "160,00"]
+    assert Enum.slice(cells(dividend), 4..6) == ["0,00 EUR", "12,00 EUR", "80,00 EUR"]
   end
 
   # User story (#1213, Sprint 21 α11; N9 variant A, the issue's comment of

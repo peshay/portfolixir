@@ -2067,13 +2067,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                          same-currency row stays bare, its Preis naming the
                          one currency all its figures are in. --%>
                     <td class="num" data-role="fees">
-                      <%= Format.decimal(tx.fees, 2) %><small :if={cross_currency_row?(tx)}><%= tx.cash_account.currency_code %></small>
+                      <%= Format.decimal(tx.fees, 2) %><small :if={cross_currency_figure?(tx, tx.fees)}><%= tx.cash_account.currency_code %></small>
                     </td>
                     <td class="num" data-role="taxes">
-                      <%= Format.decimal(tx.taxes, 2) %><small :if={cross_currency_row?(tx)}><%= tx.cash_account.currency_code %></small>
+                      <%= Format.decimal(tx.taxes, 2) %><small :if={cross_currency_figure?(tx, tx.taxes)}><%= tx.cash_account.currency_code %></small>
                     </td>
                     <td class="num" data-role="gross">
-                      <%= Format.decimal(tx_gross(tx), 2) %><small :if={cross_currency_row?(tx)}><%= tx_gross_currency(tx) %></small>
+                      <%= Format.decimal(tx_gross(tx), 2) %><small :if={cross_currency_figure?(tx, tx_gross(tx))}><%= tx_gross_currency(tx) %></small>
                     </td>
                   <% end %>
                   <td><%= depot_name(tx) %></td>
@@ -3326,9 +3326,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp tx_gross(_), do: nil
 
-  # A row booked in another currency than its cash account's (ADR-0015, the
-  # drawer's settlement case): its fees and taxes are in the account's
-  # currency, its price and gross in the booking's (#1213).
+  # A figure of a row booked in another currency than its cash account's
+  # (ADR-0015, the drawer's settlement case) names its currency: the fees and
+  # taxes are in the account's, the price and gross in the booking's
+  # (#1213). A dash names none.
+  defp cross_currency_figure?(tx, %Decimal{}), do: cross_currency_row?(tx)
+  defp cross_currency_figure?(_tx, _no_figure), do: false
+
   defp cross_currency_row?(%{cash_account: %{currency_code: account}, currency_code: booking})
        when is_binary(account),
        do: account != booking
