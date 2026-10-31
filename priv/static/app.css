@@ -7763,11 +7763,18 @@ button.income-bar-label.is-active {
 }
 
 /* Popover: anchored below the chip group (its position: relative parent), so
-   opening it never changes the row height. */
+   opening it never changes the row height. It opens leftward from the chip
+   group's end, as the Buckets head's ⓘ panel does (`.metric-tooltip--end`):
+   the bucket cell is the table's last data column, and since the Name
+   column's 13.5rem floor (issue 1145) a picker anchored at its start ran up
+   to 33 px past the page's right edge just above the card's bound, where
+   `.workspace-page`'s clip cut it (the review of Sprint 21 γ5). The card's
+   picker stays static and full-width. */
 .accounts-table .bucket-picker {
   position: absolute;
   top: calc(100% + 4px);
-  left: 0;
+  left: auto;
+  right: 0;
   z-index: 30;
   min-width: 260px;
 }
