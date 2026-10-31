@@ -2479,9 +2479,9 @@ Beispiel-Payloads für Konten:
   rechnet (ein Prädikat, zwei Oberflächen). Behaltene Zeilen tragen
   `drift_weight`, Zeilen ohne Drift werden mitgefiltert, und die Antwort
   benennt das angewandte `min_drift`, `position_targets_total` (die
-  Zeilenzahl vor dem Filter) und einen Satz `drift_basis`. Ohne `min_drift` tragen die Zeilen
-  kein `drift_weight`, und die Form ist unverändert. Eine ungültige Schwelle
-  ist ein `422`. Optionales `plan_id` liest diese Planversion, mit den `422`
+  Zeilenzahl vor dem Filter) und einen Satz `drift_basis`. Ohne `min_drift`
+  tragen die Zeilen kein `drift_weight`, und die Form ist unverändert. Eine
+  ungültige Schwelle ist ein `422`. Optionales `plan_id` liest diese Planversion, mit den `422`
   des `PUT` (Issue #1185): ihre Zeilen, ihre `effective_targets` und, mit
   `min_drift`, die Drift gegen ihre Ziele, wie die Allokation sie mit dieser
   Version aktiv in ihrer View messen würde; bei einem Entwurf sagt
