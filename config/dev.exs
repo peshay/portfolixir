@@ -1,4 +1,15 @@
-bind_all_http = String.downcase(System.get_env("PHX_BIND_ALL", "false"))
+# The release's switch vocabulary (Portfolixir.RuntimeConfig.switch/2, H06),
+# written out here because configuration is read before the application is
+# compiled: 1/true/yes/on are on, 0/false/no/off are off, trimmed, any case.
+switch_word = fn value, default ->
+  case (value || "") |> String.trim() |> String.downcase() do
+    word when word in ~w(1 true yes on) -> true
+    word when word in ~w(0 false no off) -> false
+    _unset_or_unread -> default
+  end
+end
+
+bind_all_http? = switch_word.(System.get_env("PHX_BIND_ALL"), false)
 
 import Config
 
@@ -39,7 +50,7 @@ dev_secret_key_base =
 config :portfolixir, PortfolixirWeb.Endpoint,
   url: [host: System.get_env("PHX_HOST", "localhost"), port: dev_http_port],
   http: [
-    ip: if(bind_all_http in ["1", "true", "yes"], do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
+    ip: if(bind_all_http?, do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
     port: dev_http_port
   ],
   # The socket handshake accepts the names the Host guard accepts, as a
@@ -67,8 +78,7 @@ config :portfolixir, PortfolixirWeb.HostGuard, hosts: dev_hosts
 # a seeded review database does not vary with provider availability and no
 # demo name leaves the machine (#963). Unset, dev keeps the full live
 # experience.
-background_fetch_switch = String.downcase(System.get_env("PORTFOLIXIR_BACKGROUND_FETCH", "on"))
-background_fetch? = background_fetch_switch not in ~w(0 false no off)
+background_fetch? = switch_word.(System.get_env("PORTFOLIXIR_BACKGROUND_FETCH"), true)
 
 # Try to fetch a logo for new securities locally as well so the dev
 # experience matches prod.
