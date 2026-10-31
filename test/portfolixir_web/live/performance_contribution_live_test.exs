@@ -462,8 +462,9 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   #   Währungsgewinn.", the
   #   figures in the house formats.
   # - The "Währungseffekt auf Bargeld" row carries the marker "Tagesgeld CHF:
-  #   18 Tage null"; the other lines carry none; the phone remainder row
-  #   carries it too.
+  #   18 Tage mit 0 bewertet" (in words since the α closing act's UAT, not
+  #   "18 Tage null", which read as a programming null); the other lines
+  #   carry none; the phone remainder row carries it too.
   # - Every figure is unchanged: the row holds +2.500,00 and the sum row is
   #   the badge's money figure.
   test "a cash account held before its first rate is named in German, board J2 A",
@@ -489,7 +490,7 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     currency_row = "#contribution-table tr[data-line='cash_currency_effect']"
 
     assert text_of(view, "#{currency_row} .contribution-unvalued-mark") ==
-             "Tagesgeld CHF: 18 Tage null"
+             "Tagesgeld CHF: 18 Tage mit 0 bewertet"
 
     assert has_element?(
              view,
@@ -507,7 +508,7 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
     assert text_of(view, "#contribution-phone-rows [data-role='contribution-phone-rest']") ==
              "Keiner Position zugeordnet Zinsen 0,00 · Gebühren/Steuern 0,00 · " <>
-               "Währung +2.500,00 · Tagesgeld CHF: 18 Tage null +2.500,00"
+               "Währung +2.500,00 · Tagesgeld CHF: 18 Tage mit 0 bewertet +2.500,00"
 
     assert text_of(view, "[data-role='contribution-sum-figure']") == "+2.500,00 EUR"
 
