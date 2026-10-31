@@ -814,36 +814,24 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       preview
     end
 
-    # What an importer before A5 stored for a row A5 now refuses: its
-    # would-be entry under the old reading, with the refund beside it.
-    defp stored_with_refused(%Preview{entries: entries, refused_credits: refused} = preview) do
+    # What an importer stored for a row A5, A8 or A9 now refuses before it
+    # refused it: its would-be entry as the preview keeps it
+    # (`refused_credits`), with the refund split off it beside it — the
+    # reading of Sprint 20, which booked a JSON cash transfer's refund
+    # (ADR-0053 K20).
+    defp stored_as_refused(%Preview{entries: entries, refused_credits: refused} = preview) do
       refused_entries = Enum.map(refused, & &1.entry)
 
-      old_reading(%{
+      %{
         preview
         | entries: Enum.sort_by(entries ++ refused_entries, & &1.source_row),
           refused_credits: [],
           errors: []
-      })
-    end
-
-    # A8 (built by α5 on its own branch) refuses a cash transfer that carries
-    # a tax refund, and keeps its would-be entry as A5 keeps a refused
-    # credit's (`refused_credits`). The preview is shaped so here.
-    defp refused_like_a8(%Preview{entries: entries} = preview, row) do
-      {[refused], kept} = Enum.split_with(entries, &(&1.source_row == row))
-
-      message =
-        "transfer with Gesamtpreis 100.00 and a tax refund of 5.00: a refund beside a " <>
-          "transfer would book on one of its accounts only — row not imported."
-
-      %{
-        preview
-        | entries: kept,
-          errors: [%{row: row, message: message}],
-          refused_credits: [%{row: row, entry: refused, message: message}]
       }
     end
+
+    # The same under the old reading, before A1.
+    defp stored_with_refused(%Preview{} = preview), do: old_reading(stored_as_refused(preview))
 
     defp listed(preview, portfolio),
       do: Imports.cash_corrections(preview, portfolio_id: portfolio.id)
@@ -938,11 +926,13 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
         }
       ]
 
+      refused = parse_rows(rows)
+      assert [%{row: 2}] = refused.refused_credits
+
       sprint20 = portfolio!("K20 Sprint 20 reading")
-      apply!(parse_rows(rows), sprint20)
+      apply!(stored_as_refused(refused), sprint20)
       assert balances(sprint20) == %{"Test-Cash" => "900", "Test-Savings" => "105"}
 
-      refused = refused_like_a8(parse_rows(rows), 2)
       assert [%Item{row: 2, state: :refused} = line] = listed(refused, sprint20)
 
       assert per_account(line) == %{
@@ -954,7 +944,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert balances(sprint20) == %{"Test-Cash" => "900", "Test-Savings" => "105"}
 
       old = portfolio!("K20 old reading")
-      apply!(old_reading(parse_rows(rows)), old)
+      apply!(stored_with_refused(refused), old)
       assert [%Item{row: 2, state: :refused} = line] = listed(refused, old)
 
       assert per_account(line) == %{
