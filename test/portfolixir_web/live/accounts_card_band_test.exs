@@ -98,6 +98,17 @@ defmodule PortfolixirWeb.AccountsCardBandTest do
     end
   end
 
+  defp coarse(selector) do
+    ~r/@media \(pointer: coarse\) \{(.*?)\n\}/s
+    |> Regex.scan(@css, capture: :all_but_first)
+    |> Enum.find_value(fn [inner] ->
+      case Regex.run(~r/(?:^|\n|,)\s*#{Regex.escape(selector)} \{([^}]*)\}/, inner) do
+        [_, body] -> body
+        nil -> nil
+      end
+    end) || flunk("no coarse rule for #{inspect(selector)}")
+  end
+
   describe "#1145 — the accounts table is never cut (N15 = A)" do
     # User story (#1145, Sprint 21 γ5; board 05 ①, pick N15 = A):
     # As the operator on a tablet, or on a laptop with the sidebar open,
@@ -253,6 +264,57 @@ defmodule PortfolixirWeb.AccountsCardBandTest do
       assert shown =~ ~r/font-size:\s*11px;/
       assert shown =~ ~r/font-weight:\s*600;/
       assert shown =~ ~r/color:\s*var\(--color-text-muted\);/
+    end
+  end
+
+  describe "#1161 — the chip's × on the desktop" do
+    # User story (#1161, Sprint 21 γ5; board 05 ③, before/after, and found
+    # while drawing 2):
+    # As the operator with a mouse,
+    # I want a chip's × to sit inside the chip's height, as the + does,
+    # so that a chip holding a × is no taller than one without it.
+    #
+    # Acceptance criteria:
+    # - The × is the 22 × 22 that rule ⑧ declares for the +: `width` and
+    #   `height` 22 px, `min-height: 0` (the base button's 34 px floor no
+    #   longer wins), `padding: 0`, its corners the pill's end
+    #   (`0 999px 999px 0`) at every width, and still no shadow.
+    # - A chip holding a × gives up its block and right padding outside a
+    #   coarse pointer too, so the × fills the pill's end.
+    # - Under a coarse pointer the × is still 44 × 44, and that rule comes
+    #   after the base rule it overrides.
+    # - The × is the chip's direct child, which `:has(> …)` selects on, and
+    #   carries its accessible name.
+    test "the × is 22 × 22 and its chip gives up its block padding", %{conn: conn} do
+      %{muster: muster} = world()
+      {:ok, _view, html} = live(conn, "/portfolios")
+      doc = Floki.parse_document!(html)
+
+      assert [_] =
+               Floki.find(
+                 doc,
+                 "#pair-buckets-#{muster.id} .bucket-chip > button.bucket-chip__remove[aria-label='Remove bucket Langfristig']"
+               )
+
+      remove = block(".bucket-chip__remove")
+      assert remove =~ ~r/width:\s*22px;/
+      assert remove =~ ~r/\n\s*height:\s*22px;/
+      assert remove =~ ~r/min-height:\s*0;/
+      assert remove =~ ~r/\n\s*padding:\s*0;/
+      assert remove =~ ~r/border-radius:\s*0 999px 999px 0;/
+      assert remove =~ ~r/box-shadow:\s*none;/
+
+      chip = block(".bucket-chip:has(> .bucket-chip__remove)")
+      assert chip =~ ~r/padding-block:\s*0;/
+      assert chip =~ ~r/padding-right:\s*0;/
+
+      touch = coarse(".bucket-chip__remove")
+      assert touch =~ ~r/min-width:\s*44px;/
+      assert touch =~ ~r/min-height:\s*44px;/
+
+      {base_at, _} = :binary.match(@css, "\n.bucket-chip__remove {")
+      {coarse_at, _} = :binary.match(@css, "\n  .bucket-chip__remove {")
+      assert coarse_at > base_at
     end
   end
 end
