@@ -70,6 +70,7 @@ defmodule Portfolixir.Imports.Correction do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier
+  alias Portfolixir.Imports.DedupKey
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Input.BoundedDecimal
@@ -157,8 +158,23 @@ defmodule Portfolixir.Imports.Correction do
       end)
       |> Enum.uniq_by(& &1.transaction.id)
 
+    keys =
+      Keyword.get_lazy(opts, :keys, fn ->
+        if Keyword.get(opts, :dry_run, true),
+          do: Applier.economic_keys(preview, portfolio_id),
+          else: :error
+      end)
+
+    figure_items =
+      figure_items(flat_entries, hashes, stored, keys, %{
+        portfolio_id: portfolio_id,
+        format: format,
+        lock?: lock?
+      })
+
     (hash_items ++ refused_items(preview, portfolio_id, lock?))
     |> Enum.uniq_by(& &1.transaction.id)
+    |> Kernel.++(figure_items)
     |> mark_edited()
     |> Enum.sort_by(&row_order/1)
   end
@@ -222,6 +238,128 @@ defmodule Portfolixir.Imports.Correction do
     do: Decimal.equal?(Decimal.new(a), Decimal.new(b))
 
   defp same_figure?(_a, _b), do: false
+
+  # A12 (#1205): a row no stored content hash holds, which the economic
+  # layer matches under A4's old reading — a drifted re-export (a time of
+  # day moved, an ISIN added, an account renamed) of a row booked before
+  # A1. The keys are the ones the apply's dry run reaches for the row, its
+  # accounts and security resolved under the preview's prefill
+  # (`Applier.economic_keys/2`); a row the booked reading's key matches is
+  # booked as the file reads it, and is not listed. The line carries a
+  # confirm only when exactly one stored booking of the portfolio holds the
+  # old key and no other row of the file claims it: a row with a hash hit
+  # claims the booking it hits, and a row without one every booking either
+  # of its keys matches. Otherwise it is listed without one, with the count
+  # of the twins or the row that claims the booking: the economic key cannot
+  # tell two genuine twins apart, and correcting the wrong one is worse than
+  # correcting none. A row whose split-off refund is not stored beside it,
+  # by its hash or its economic key, is not listed (A6's rule).
+  defp figure_items(_flat, _hashes, _stored, :error, _context), do: []
+
+  defp figure_items(flat_entries, hashes, stored, {:ok, keys}, context) do
+    hits =
+      Enum.zip_with(flat_entries, hashes, fn entry, row_hashes ->
+        {entry, Enum.find_value(row_hashes, &Map.get(stored, &1))}
+      end)
+
+    rows =
+      for {%Entry{companion_index: nil} = entry, nil} <- hits,
+          %{} = row_keys <- [Map.get(keys, {entry.source_row, nil})],
+          do: {entry, row_keys}
+
+    if rows == [] do
+      []
+    else
+      by_key = context |> portfolio_bookings() |> Enum.group_by(&DedupKey.of/1)
+
+      claims =
+        Enum.map(hits, fn
+          {entry, %Transaction{id: id}} ->
+            {entry.source_row, MapSet.new([id])}
+
+          {entry, nil} ->
+            row_keys = Map.get(keys, {entry.source_row, entry.companion_index}, %{})
+
+            {entry.source_row,
+             [row_keys[:booked], row_keys[:old]]
+             |> Enum.flat_map(&Map.get(by_key, &1, []))
+             |> MapSet.new(& &1.id)}
+        end)
+
+      hash_claimed = for {_entry, %Transaction{id: id}} <- hits, into: MapSet.new(), do: id
+
+      context = Map.merge(context, %{by_key: by_key, claims: claims, hits: hits, keys: keys})
+
+      Enum.flat_map(rows, fn {entry, row_keys} ->
+        booked =
+          by_key
+          |> Map.get(row_keys.booked, [])
+          |> Enum.reject(&MapSet.member?(hash_claimed, &1.id))
+
+        if booked == [] and row_keys.old,
+          do:
+            figure_line(entry, Enum.sort_by(Map.get(by_key, row_keys.old, []), & &1.id), context),
+          else: []
+      end)
+    end
+  end
+
+  defp figure_line(_entry, [], _context), do: []
+
+  defp figure_line(entry, [%Transaction{} = transaction], context) do
+    claimant = claimant(entry, transaction, context.claims)
+
+    case item(entry, transaction, context.format) do
+      nil ->
+        []
+
+      %Item{} = line when not is_nil(claimant) ->
+        [%{line | match: :figures, state: :claimed, claimed_by: claimant}]
+
+      %Item{} = line ->
+        if refunds_beside?(entry, context), do: [%{line | match: :figures}], else: []
+    end
+  end
+
+  defp figure_line(entry, [transaction | _] = twins, context) do
+    case item(entry, transaction, context.format) do
+      nil -> []
+      %Item{} = line -> [%{line | match: :figures, state: :twin, matches: length(twins)}]
+    end
+  end
+
+  # The first other row of the file that claims the booking, or `nil`.
+  defp claimant(%Entry{source_row: row}, %Transaction{id: id}, claims) do
+    Enum.find_value(claims, fn {claiming_row, ids} ->
+      if claiming_row != row and MapSet.member?(ids, id), do: claiming_row
+    end)
+  end
+
+  # Every refund split off the row is stored: by its own hash, or by its
+  # economic key as the apply finds it.
+  defp refunds_beside?(%Entry{source_row: row}, context) do
+    context.hits
+    |> Enum.filter(fn {entry, _hit} -> entry.source_row == row and entry.companion_index end)
+    |> Enum.all?(fn
+      {_entry, %Transaction{}} ->
+        true
+
+      {entry, nil} ->
+        case Map.get(context.keys, {row, entry.companion_index}) do
+          %{booked: key} -> Map.has_key?(context.by_key, key)
+          nil -> false
+        end
+    end)
+  end
+
+  defp portfolio_bookings(%{portfolio_id: portfolio_id, lock?: lock?}) do
+    from(t in Transaction,
+      where: t.portfolio_id == ^portfolio_id,
+      preload: [:security, :cash_account, :counter_cash_account]
+    )
+    |> then(fn query -> if lock?, do: lock(query, "FOR NO KEY UPDATE"), else: query end)
+    |> Repo.all()
+  end
 
   # File order: a row's number, a refused row among the others.
   defp row_order(%Item{row: row}) when is_integer(row), do: {0, row}
@@ -382,12 +520,17 @@ defmodule Portfolixir.Imports.Correction do
   @spec apply(Actor.t(), Preview.t(), integer()) ::
           {:ok, [Item.t()]} | {:error, %{row: term(), reason: term()}}
   def apply(%Actor{} = actor, %Preview{} = preview, portfolio_id) when is_integer(portfolio_id) do
+    # A12: the dry run that resolves each row's economic keys rolls back, so
+    # it runs before the confirm's transaction; the rows are judged again
+    # against the bookings under the confirm's locks.
+    keys = Applier.economic_keys(preview, portfolio_id)
+
     Repo.transaction(
       fn ->
         :ok = AccountNames.lock_identity(portfolio_id)
 
         preview
-        |> detect(portfolio_id, lock: true)
+        |> detect(portfolio_id, lock: true, keys: keys)
         |> confirmable()
         |> Enum.reduce_while([], fn %Item{} = item, corrected ->
           case Ledger.update_transaction(actor, item.transaction, item.changes) do

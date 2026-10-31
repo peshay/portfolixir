@@ -375,6 +375,38 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   @doc """
+  The economic keys the apply would reach for each row of `preview` that no
+  stored content hash holds, under the preview's prefill (ADR-0053 A12,
+  #1205): `%{{source_row, companion_index} => %{booked: key, old: key |
+  nil}}`, the key of the booking as the file reads it today and, where it
+  differs, the key under A4's old reading (the hash's amount as the cash,
+  a JSON trade's hash price as the price). Judged by the same rolled-back
+  run as the dry run of `reimport_counts/3`; a row whose account or
+  security does not exist yet carries a placeholder that matches nothing.
+  `:error` without a portfolio, or when the run stops. Writes nothing.
+  """
+  @spec economic_keys(Preview.t(), integer() | nil) :: {:ok, map()} | :error
+  def economic_keys(%Preview{}, nil), do: :error
+
+  def economic_keys(%Preview{entries: entries}, portfolio_id) when is_integer(portfolio_id) do
+    flat_entries = Entry.flatten(entries)
+
+    fn ->
+      case run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}) do
+        {:ok, final_state} -> Repo.rollback({:dry_run, final_state.economic_keys})
+        {:error, _reason} -> Repo.rollback(:stopped)
+      end
+    end
+    |> Repo.transaction(timeout: @transaction_timeout)
+    |> case do
+      {:error, {:dry_run, keys}} -> {:ok, keys}
+      _stopped -> :error
+    end
+  rescue
+    DBConnection.ConnectionError -> :error
+  end
+
+  @doc """
   The already-imported counts of a parsed preview, before any apply (ADR-0050
   §3): every row classified by the first check the applier would run on it —
   `:unimportable` (a cash kind without a positive amount, or a kind no export
@@ -1110,7 +1142,8 @@ defmodule Portfolixir.Imports.Applier do
 
   # Each row's outcome is kept, newest first, for the preview's dry run.
   defp reduce_entries(entries, initial_state) do
-    initial_state = Map.merge(initial_state, %{parent: nil, outcome: nil, outcomes: []})
+    initial_state =
+      Map.merge(initial_state, %{parent: nil, outcome: nil, outcomes: [], economic_keys: %{}})
 
     Enum.reduce_while(entries, {:ok, initial_state}, fn entry, {:ok, state} ->
       case process_row(entry, state) do
@@ -2170,6 +2203,7 @@ defmodule Portfolixir.Imports.Applier do
   # different rows for one.
   defp insert_transaction(entry, attrs, state, collapse? \\ true) do
     key = DedupKey.of(attrs)
+    state = record_economic_keys(state, entry, key, attrs)
 
     # Two-layer idempotency (#533): the stored content `import_hash` skips exact
     # re-inserts (and exact within-file duplicates), and since ADR-0050 §3 it
@@ -2205,6 +2239,20 @@ defmodule Portfolixir.Imports.Applier do
           insert_new_transaction(entry, attrs, run_key(DedupKey.of(attrs), entry), state)
         end
     end
+  end
+
+  # ADR-0053 A12 (#1205): the economic keys a row reached, under both its
+  # readings, for the import correction to find a drifted re-export's
+  # booking by its figures (`economic_keys/2`). Only a row past the hash
+  # layer gets here, its accounts and security resolved.
+  defp record_economic_keys(state, %Entry{} = entry, key, attrs) do
+    old = with %{} = old_attrs <- old_reading(entry, attrs), do: DedupKey.of(old_attrs)
+
+    Map.update!(
+      state,
+      :economic_keys,
+      &Map.put(&1, {entry.source_row, entry.companion_index}, %{booked: key, old: old})
+    )
   end
 
   # ADR-0053 §4 and A4: the economic key under both readings of a row,
