@@ -999,7 +999,7 @@ defmodule PortfolixirWeb.ImportsLive do
               length(@result.duplicate_entries)
             ) %>
           </p>
-          <%= for {layer, entries} <- duplicate_groups(@result.duplicate_entries) do %>
+          <%= for {layer, entries} <- duplicate_groups(@result.duplicate_entries, @corrections) do %>
             <details
               class="dup-group"
               data-role="duplicate-group"
@@ -1015,7 +1015,7 @@ defmodule PortfolixirWeb.ImportsLive do
                   <%= gettext("Row %{row}: %{description}",
                     row: row_label(@file_rows, dup.row),
                     description: row_description(@file_rows, dup.row)
-                  ) %>
+                  ) %><%= if dup[:stored] do %> — <%= gettext("%{amount} stored", amount: dup.stored) %><% end %>
                 </li>
               </ul>
             </details>
@@ -3064,10 +3064,27 @@ defmodule PortfolixirWeb.ImportsLive do
     end
   end
 
-  @duplicate_layers [:hash, :retired, :economics]
+  @duplicate_layers [:hash, :retired, :economics, :differs]
 
-  defp duplicate_groups(duplicates) do
-    grouped = Enum.group_by(duplicates, & &1.layer)
+  # A row the economic layer skipped whose stored booking the correction
+  # lists (found by its date and figures under an older reading, ADR-0053
+  # A12) is not a booking with the same amount: it is grouped apart, with
+  # the amount stored (#1205).
+  defp duplicate_groups(duplicates, corrections) do
+    listed = Map.new(corrections, &{&1.row, &1.transaction})
+
+    grouped =
+      duplicates
+      |> Enum.map(fn dup ->
+        case {dup.layer, Map.get(listed, dup.row)} do
+          {:economics, %{gross_amount: %Decimal{} = gross} = tx} ->
+            dup |> Map.put(:layer, :differs) |> Map.put(:stored, amount(gross, tx.currency_code))
+
+          _other ->
+            dup
+        end
+      end)
+      |> Enum.group_by(& &1.layer)
 
     for layer <- @duplicate_layers,
         entries = Map.get(grouped, layer, []),
@@ -3979,6 +3996,9 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp duplicate_reason(%{layer: :economics}),
     do: gettext("an existing booking has the same date, security, quantity and amount")
+
+  defp duplicate_reason(%{layer: :differs}),
+    do: gettext("already imported, with a different amount — not corrected by this import")
 
   defp error_to_string(:too_large), do: gettext("File too large.")
   defp error_to_string(:not_accepted), do: gettext("File type not accepted.")

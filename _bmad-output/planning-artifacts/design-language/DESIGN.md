@@ -6590,6 +6590,14 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   again to correct them." / "5 bereits importierte Buchungen mit anderem
   Betrag als in der Datei sind nicht korrigiert. Dieselbe Datei erneut
   ablegen, um sie zu korrigieren."
+  *(Amended 2026-10-31, #1205; ADR-0053 A12:)* a row the economic layer
+  skipped whose stored booking the correction lists (found by its date and
+  figures) is not named under „eine bestehende Buchung hat … denselben
+  Betrag“: it stands in a skip group of its own, open
+  (`data-layer="differs"`), „bereits importiert, mit anderem Betrag — von
+  diesem Import nicht korrigiert“ ("already imported, with a different
+  amount — not corrected by this import"), each line ending „— 18,50 EUR
+  gespeichert“ ("— 18.50 EUR stored"), the stored booking's amount.
 - **Superseded on board 09:** its "a file with no Gesamtpreis (a converter
   file) never shows it" — since A6 a converter file whose negative Steuern
   was counted twice shows the section too. The new row-error reasons of
