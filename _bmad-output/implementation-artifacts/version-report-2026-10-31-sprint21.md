@@ -24,6 +24,9 @@ are the last session's, of 2026-10-31.
 | `express` (the companion) | 5.2.1 → 5.3.0 | "chore(deps): express 5.2.1 -> 5.3.0 in the companion" | Dependabot #1230 (published 2026-10-09). The amendment's count of open Dependabot PRs named five; eight were open (below), and the lane's rule since Sprint 16 is that no Dependabot PR remains neither taken nor declined with a reason. A minor inside `^5`, moving `package.json`'s range to `^5.3.0` as the PR does; `content-disposition` 2.0.1 and `content-type` 2.1.0 come with it. The companion's tests and build are green under it; the schema budget does not read it. |
 | `@hono/node-server` (transitive, under the MCP SDK) | 2.1.0 → 2.1.5 | "chore(deps): @hono/node-server 2.1.0 -> 2.1.5 under the MCP SDK" | `npm audit` reported one moderate advisory (GHSA-rmxm-3fg6-px4f: `serveStatic` decodes a request path twice), below CI's `--audit-level=high`, so the gate stayed green. The lanes take a transitive npm entry for an advisory (`ip-address` in Sprint 16, `fast-uri` in Sprint 17, `proxy-addr` in Sprint 19), not for drift; neither the companion's own code nor the SDK's distributed code calls `serveStatic`, so nothing in it fixes a defect the app has met. Lock only; `npm audit` reports 0 vulnerabilities at any level afterwards. |
 | `actions/setup-node`, `actions/upload-artifact` | 7.0.0 → 7.1.0; 7.0.1 → 7.0.2 | "chore(ci): actions/setup-node 7.0.0 -> 7.1.0, actions/upload-artifact 7.0.1 -> 7.0.2" | Dependabot #1228 and #1227 (2026-10-16). Both stay pinned by the tag's commit, with the version in a comment; each digest was read from the action's own tag (`git ls-remote`) and matches the PR's. `setup-node` moves in both places the workflow uses it: Lane S's H63 row moved the live-feed audits into a job of their own, which sets up Node too, after the PR was opened, so the PR's one-line diff would have left the second pin behind. |
+| `@modelcontextprotocol/sdk` (the companion) | 1.32.1 → 1.32.2 | "chore(deps): @modelcontextprotocol/sdk 1.32.1 -> 1.32.2 in the companion" | Dependabot #1281, from its run of 2026-10-30 (the package was published on 2026-10-23, the day of the previous run). A patch inside `^1.13.0`, lock only; the companion's tests, build and schema budget are unchanged by it. |
+| `actions/setup-python` | 7.0.0 → 7.1.0 | "chore(ci): actions/setup-python 7.0.0 -> 7.1.0" | Dependabot #1282 (2026-10-30), pinned by the tag's commit, read from the action's own tag. |
+| Compose's database image digest | `postgres:18.6-alpine3.24` `77f58511…` → `10a5c69a…` | "chore(docker): the Compose database image moves to the rebuilt 18.6-alpine3.24 digest" | Dependabot #1283 (2026-10-30): the same PostgreSQL 18.6 on the same Alpine line, rebuilt on 2026-10-26; the digest is the tag's index digest read from Docker Hub. `docker-compose.dev.yml` moves with `docker-compose.yml`, which Dependabot does not watch, so both files run one image. Proven by CI's `compose-smoke` job on the PR. |
 
 Every row is its own commit, never mixed into a security row (ADR-0036
 clause 1). The lane's commits sit at the head of the sprint PR's history
@@ -31,9 +34,11 @@ before Lane S, as the amendment's D-2 orders.
 
 ## Dependabot
 
-Eight Dependabot PRs were open at lane time; the amendment of 2026-10-27
-counted five (#1232, #1233, #1234, #1235, #1237) and did not name #1227,
-#1228 and #1230, which had been open since 2026-10-16. All eight are taken:
+Thirteen Dependabot PRs were open at lane time: eight when the branch opened
+(the amendment of 2026-10-27 counted five, #1232, #1233, #1234, #1235 and
+#1237, and did not name #1227, #1228 and #1230, open since 2026-10-16), and
+five more from Dependabot's run of 2026-10-30, while the lane was building.
+Eleven are taken, one is superseded and one is declined:
 
 - **#1237** `phoenix` 1.8.16 and **#1235** `phoenix_live_view` 1.2.13: taken
   (above).
@@ -44,6 +49,14 @@ counted five (#1232, #1233, #1234, #1235, #1237) and did not name #1227,
   row rather than taken as proposed.
 - **#1230** `express` 5.3.0, **#1228** `actions/setup-node` 7.1.0, **#1227**
   `actions/upload-artifact` 7.0.2: taken (above).
+- **#1281** `@modelcontextprotocol/sdk` 1.32.2, **#1282** `actions/setup-python`
+  7.1.0, **#1283** the Compose `postgres:18.6-alpine3.24` digest: taken
+  (above).
+- **#1280** `node` 24.21.0 → 26.12.1: superseded by the lane's 26.13.0 (the
+  LTS release); it closes with the Node commits, as #1234 does.
+- **#1279** `decimal` 3.1.2 → 3.2.0: **declined, with its reason recorded
+  below** ("Deliberately not updated"). The PR stays open, as D-7 says of a
+  bump the lane does not take.
 
 Dependabot's version updates do not cover transitive dependencies
 (`@hono/node-server`, `websock_adapter`, `elixir_make`), and `dependabot.yml`
@@ -68,18 +81,17 @@ decline.
 | Row | Current | Reason |
 | --- | --- | --- |
 | Elixir / OTP minors and majors (#727) | Elixir 1.18.5 / OTP 27.3.4.18 | Both halves are still blocked upstream (see the triggers above). The move stays on its own branch and PR, because it moves the CI version pins, the Dockerfile base images and the Dialyzer PLT cache key together. CI compiles with `--warnings-as-errors`, so two Elixir minors of deprecations are a body of work, not a version-string edit. The 27.3.4.19 patch waits for its `hexpm/elixir` image (above). |
-| `decimal` | 3.1.2 (3.2.0 published the same day, 2026-10-10) | `mix hex.outdated` reads "Update not possible": `mix.exs` requires `~> 3.1.2`, the floor T-11's hotfix set for the advisory fix (H28). 3.2.0 is a minor with no advisory behind it, and `Decimal` is the money type (ADR-0003): a minor of it is read before it is taken, on its own, not inside a security batch. |
+| `decimal` | 3.1.2 (3.2.0 published the same day, 2026-10-10; Dependabot #1279 of 2026-10-30 proposes it) | `mix hex.outdated` reads "Update not possible": `mix.exs` requires `~> 3.1.2`, the floor T-11's hotfix set for the advisory fix (H28), which 3.2.0 lies outside, so the PR moves `mix.exs` too. **Declined this lane**, as the triage's H28 row already orders: 3.2.0 changes division and rounding results (its own release notes name `div/2` rounding fixes affecting about 5 % of random divisions at the default precision, a carry fix in rounding, and new `:subnormal` and `:clamped` signals), and `Decimal` is the money type (ADR-0003). A release that changes rounding is read against the identities the ledger pins before it is taken, as its own reviewed bump on a quiet branch, never inside a security batch. |
 | `phoenix_html` | 4.3.0 (4.4.0 published 2026-10-30) | Published on 2026-10-30, the day of Dependabot's weekly run (its PRs date from Thursdays), with no PR open for it, and inside `~> 4.1`; Dependabot proposes it on its next run and the next lane reads it then. A currency bump taken unread would be the lane's only unreasoned move. |
 | `websock_adapter` (transitive, under `phoenix`) | 0.6.0 (0.7.0 published 2026-10-27) | Came along with the `phoenix_live_view` resolution and was reverted so the commit mirrors Dependabot #1235's scope. A transitive minor; no advisory, no defect the app has met (the LiveView socket runs on it unchanged). The next lane reads its changes. |
 | `floki` (test only) | 0.38.4 (0.38.5 published 2026-10-29) | Published after the sprint PR's base; no Dependabot PR yet. A test-only patch is taken by Dependabot's PR, not ahead of it. |
 | `sobelow` (dev, test) | 0.16.0 (0.17.0 on 2026-10-28, 0.18.0 and 0.18.1 on 2026-10-29) | Two minors in two days, of a gate tool. A new Sobelow can add findings and change what `.sobelow-skips` matches, and the sprint's rule is that a gate is never weakened and `.sobelow-skips` not changed inside the security batch (D-6); so the move is its own commit on a quiet branch, where a new finding is a finding and not a gate fight. Dependabot proposes it next week. |
-| `@modelcontextprotocol/sdk` (mcp-server) | 1.32.1 (1.32.2 published 2026-10-23) | A patch inside `^1.13.0` with no Dependabot PR (published the day of its weekly run) and no advisory. The companion's direct dependencies are taken through Dependabot's PRs; the next run proposes it. |
 | `@types/node` patch (mcp-server) | 26.6.5 (26.6.6 published 2026-10-28) | Same: inside the range, no PR yet. The major now follows the pinned Node 26 runtime (the Sprint 8 decision); `dependabot.yml`'s ignore moved with it. |
 | Transitive npm drift inside its ranges (mcp-server) | for example `jose` 6.2.3 (6.2.14), `express-rate-limit` 8.5.2 (8.7.2), `eventsource-parser` 3.0.8 (3.1.1), `qs` 6.17.0 (6.17.1), `on-finished` 2.4.1 (2.4.2) under the SDK and express; `esbuild` 0.28.1 (0.28.2) under `tsx`; 11 entries with a newer version inside their range (`npm outdated --all`, the platform-specific `@esbuild/*` packages not counted) | `npm audit` reports 0 vulnerabilities at any level after the `@hono/node-server` move, and the lanes take a transitive npm entry for an advisory, not for drift. A lockfile-wide update would move eleven entries in one change with no reason read for any of them. |
 | MCP SDK v2 (mcp-server) | `@modelcontextprotocol/sdk` 1.32.1 (v2: `@modelcontextprotocol/server` 2.4.0, 2026-10-23) | The SDK's README names v1.x the maintenance line; v1.x receives bug and security fixes for at least six months after v2's release of 2026-07-27, so until 2027-01-27 at the earliest. Moving the companion is a package migration, not a version bump, and whatever it changes in the tool schemas is measured against the schema budget. #1115 tracks it as its own risk-tier lane before v1's support ends. |
 | Dockerfile `HEX_VERSION` | 2.4.2 (local Hex 2.5.1) | The image pin reproduces the image. The advisory gates run in CI against the current Hex, so nothing in this batch sits behind the pin. |
 | PostgreSQL major | 18 (`18.6`, by digest) | 18.6 is still the newest 18 patch on Docker Hub. 19 exists as **19rc1** (2026-10-28) only, and a release candidate is not a candidate for a self-hosted instance's data directory. The postgresql.org version feed is outside the lane's network policy, so Docker Hub's tags are the source. |
-| Compose's and CI's database image digests | `postgres:18.6-alpine3.24` (Compose), `postgres:18.6` (CI) | Both tags were rebuilt on 2026-10-26 and 2026-10-28 (`18.6-alpine3.24` now `10a5c69a…`, `18.6` now `979bccfd…`), still PostgreSQL 18.6. Neither ships in an image the operator runs (Compose pulls the database image by its own pin, CI's serves the test database only), and no security fix was read that forces either, so the lane changes nothing (Lane M: "change nothing unless a security fix forces it"). Dependabot has proposed nothing for them. |
+| CI's database image digest | `postgres:18.6@sha256:5a5a84b1…` | The tag was rebuilt on 2026-10-28 (now `979bccfd…`), still PostgreSQL 18.6. It serves CI's test database only and ships in no image, no security fix was read that forces it, and Dependabot has proposed nothing for it (it watches Compose, not the workflow's `services:`), so the lane changes nothing (Lane M: "change nothing unless a security fix forces it"). Compose's digest, which Dependabot did propose, is taken above. |
 | BMAD `bmb` | v1.8.1 pinned (latest tag v2.2.2 at Sprint 20) | A **major** behind. The between-batches rule applies, plus a read of the major's changes, so it is its own decision. |
 | BMAD `automator` | `main` at `0b94fd7`, channel `next` | BMAD 6.12.0's registry marks the module deprecated in favour of `bmad-loop`. Recorded, not acted on: replacing or re-pinning the automator changes how stories are run, which is a process decision for the owner, not a version bump. |
 | BMAD core and method, `tea`, `cis` | 6.12.1; v1.27.2, v0.3.2 (pinned) | Core and method: see the BMAD trigger above (v6.12.4 exists; the next planning session's Lane M). `tea` and `cis` were not re-read this lane; they ride the same re-pin. |
@@ -106,8 +118,8 @@ reads the new image the same way.
     `hexpm/elixir:1.18.5-erlang-27.3.4.18-debian-bookworm-20261005`; the build
     stage uses its `-slim` variant.
   - The runtime stage uses `debian:bookworm-20261005-slim`.
-  - The database is `postgres:18.6-alpine3.24` in Compose and `postgres:18.6`
-    in CI.
+  - The database is `postgres:18.6-alpine3.24` in Compose (both files, the
+    digest of 2026-10-26) and `postgres:18.6` in CI.
   - Node 26: `node:26.13.0-alpine3.24`, `engines.node >=26 <27`, and
     `node-version: "26"` in both companion jobs of CI.
   - Every image above is pinned by digest.
@@ -123,8 +135,8 @@ reads the new image the same way.
 - **npm (mcp-server):**
   - `npm audit`: 0 vulnerabilities at any level (after `@hono/node-server`
     2.1.5).
-  - Outdated: the SDK's and `@types/node`'s patches among the direct
-    dependencies, and the transitive drift above.
+  - Outdated: `@types/node`'s patch among the direct dependencies, and the
+    transitive drift above.
 - **BMAD install:**
   - The manifest says 6.12.1; core and bmm are 6.12.1.
   - Pinned modules: tea v1.27.2 (`d99ad29`), cis v0.3.2 (`97298b2`), bmb
