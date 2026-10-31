@@ -2061,9 +2061,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <%= PortfolixirWeb.TransactionManagementLive.stored_figure(tx.price) %>
                       <small><%= tx.currency_code %></small>
                     </td>
-                    <td class="num"><%= Format.decimal(tx.fees, 2) %></td>
-                    <td class="num"><%= Format.decimal(tx.taxes, 2) %></td>
-                    <td class="num"><%= Format.decimal(tx_gross(tx), 2) %></td>
+                    <%!-- #1213 (board 09, N9 variant A): a cross-currency
+                         row names each figure's currency — the fees and
+                         taxes the cash account's, the gross its own — and a
+                         same-currency row stays bare, its Preis naming the
+                         one currency all its figures are in. --%>
+                    <td class="num" data-role="fees">
+                      <%= Format.decimal(tx.fees, 2) %><small :if={cross_currency_row?(tx)}><%= tx.cash_account.currency_code %></small>
+                    </td>
+                    <td class="num" data-role="taxes">
+                      <%= Format.decimal(tx.taxes, 2) %><small :if={cross_currency_row?(tx)}><%= tx.cash_account.currency_code %></small>
+                    </td>
+                    <td class="num" data-role="gross">
+                      <%= Format.decimal(tx_gross(tx), 2) %><small :if={cross_currency_row?(tx)}><%= tx_gross_currency(tx) %></small>
+                    </td>
                   <% end %>
                   <td><%= depot_name(tx) %></td>
                   <td><%= tx.notes %></td>
@@ -2277,8 +2288,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       trade.annualized_return_reason
                     ) %></span>
                   </td>
+                  <%!-- #1213 (board 09, N9 A): the trade's currency at every
+                       width, as the phone row names it; two trades of one
+                       security can be in two currencies. --%>
                   <td class={["num", shown_class(trade.realized_pnl_abs, 2)]}>
-                    <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %>
+                    <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small :if={trade.realized_pnl_abs} class="value-suffix"><%= trade.currency_code || @currency_code %></small>
                   </td>
                   <%!-- #1142 (board 02): a trade on no cost has no
                        return — the reason dash, not "0.0%". --%>
@@ -3311,6 +3325,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp tx_gross(%{gross_amount: gross}) when not is_nil(gross), do: gross
 
   defp tx_gross(_), do: nil
+
+  # A row booked in another currency than its cash account's (ADR-0015, the
+  # drawer's settlement case): its fees and taxes are in the account's
+  # currency, its price and gross in the booking's (#1213).
+  defp cross_currency_row?(%{cash_account: %{currency_code: account}, currency_code: booking})
+       when is_binary(account),
+       do: account != booking
+
+  defp cross_currency_row?(_tx), do: false
+
+  # The currency of `tx_gross/1`'s figure: quantity × price is in the
+  # booking's currency, a stored gross amount is cash, in the account's.
+  defp tx_gross_currency(%{quantity: %Decimal{}, price: %Decimal{}} = tx), do: tx.currency_code
+  defp tx_gross_currency(%{cash_account: %{currency_code: code}}), do: code
 
   defp depot_name(%{securities_account: %{name: name}}), do: name
   # Rows without a depot (e.g. splits) render an em dash like the money

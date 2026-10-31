@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
@@ -2095,6 +2096,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # required fields of `Transaction`), each as the disabled control the
   # booking form uses for it.
   defp booking_facts(%Transaction{} = tx, assigns) do
+    tx = with_cash_account(tx, assigns.cash_accounts)
     cash = &account_label(&1, assigns.cash_accounts)
     depot = &account_label(&1, assigns.securities_accounts)
 
@@ -2176,16 +2178,37 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # The cash kinds: dividend, interest, deposit, removal, fee, tax and tax
   # refund — the account and the amount, and the taxes a dividend or
-  # interest withheld.
+  # interest withheld. Both are cash, so both name the cash account's
+  # currency (#1213; ADR-0015, amendment of 2026-10-07, point 1), as the
+  # history's row does: a USD security's dividend credited in euros reads
+  # "Betrag (EUR)".
   defp kind_facts(%Transaction{} = tx, cash, _depot) do
+    currency = cash_currency(tx)
+
     [
       fact(gettext("Cash account"), "cash_account_id", :select, cash.(tx.cash_account_id)),
-      amount_fact(gettext("Amount (%{currency})", currency: tx.currency_code), tx.gross_amount)
+      amount_fact(gettext("Amount (%{currency})", currency: currency), tx.gross_amount)
     ] ++
       if(tx.type in ["dividend", "interest"],
-        do: [amount_fact(gettext("Taxes"), tx.taxes, "taxes")],
+        do: [amount_fact(gettext("Taxes (%{currency})", currency: currency), tx.taxes, "taxes")],
         else: []
       )
+  end
+
+  defp cash_currency(%Transaction{cash_account: %{currency_code: code}}) when is_binary(code),
+    do: code
+
+  defp cash_currency(%Transaction{} = tx), do: tx.currency_code
+
+  # The drawer's booking with its cash account, from the page's list when
+  # the row came without it.
+  defp with_cash_account(%Transaction{cash_account: %CashAccount{}} = tx, _accounts), do: tx
+
+  defp with_cash_account(%Transaction{cash_account_id: id} = tx, accounts) do
+    case Enum.find(accounts, &(&1.id == id)) do
+      %CashAccount{} = account -> %{tx | cash_account: account}
+      _none -> tx
+    end
   end
 
   defp fact(label, field, control, value),

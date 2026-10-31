@@ -81,7 +81,8 @@ defmodule PortfolixirWeb.CrossCurrencyRoundTripLiveTest do
       |> Floki.parse_document!()
       |> Floki.find("#detail-closed-trades-table tbody tr")
 
-    assert text(Floki.find(row, "td:nth-child(8)")) == "+188,75"
+    # The result cell names the trade's currency at every width (#1213, N9 A).
+    assert text(Floki.find(row, "td:nth-child(8)")) == "+188,75 USD"
 
     {:ok, facet, _html} = live(de_conn(conn), "/cashflow?tab=realized")
 

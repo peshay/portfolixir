@@ -132,7 +132,8 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert class_of(pa) =~ "num"
     assert class_of(pa) =~ "is-positive"
     assert text(pa) == "+20.0%"
-    assert text(Floki.find(long, "td:nth-child(8)")) == "+440.00"
+    # The result cell names the trade's currency at every width (#1213, N9 A).
+    assert text(Floki.find(long, "td:nth-child(8)")) == "+440.00 EUR"
 
     fade = closed_row(doc, "2023-06-01")
     assert [pa] = Floki.find(fade, "td.trade-pa")
@@ -669,8 +670,9 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
       refute class_of(cell) =~ ~r/is-positive|is-negative/, "trade column #{column}"
     end
 
+    # The result names its currency at every width (#1213, N9 A).
     assert Enum.map(7..9, &text(Floki.find(trade, "td:nth-child(#{&1})"))) ==
-             ["0.0%", "0.00", "0.0%"]
+             ["0.0%", "0.00 EUR", "0.0%"]
 
     phone = phone_row(doc, "2024-01-02")
     assert [figure] = Floki.find(phone, ".phone-row__figure")
