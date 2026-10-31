@@ -107,7 +107,7 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
   # User story (#1149, Sprint 21 γ4; board 04 ③):
   # As the operator reading a security's Overview tab,
   # I want a day change of +0.004 % and an unrealised result of -0.004 EUR
-  # to read "0.00 %" and "0.00" in body ink,
+  # to read "0.0%" (the one-decimal form of issue 1201) and "0.00" in body ink,
   # so that a figure that reads zero is not coloured as a gain or a loss.
   #
   # Acceptance criteria:
@@ -133,7 +133,7 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
     doc = document(view)
 
     day = Floki.find(doc, ~s([data-role="overview-day-change"] dd))
-    assert text(day) == "0.00 %"
+    assert text(day) == "0.0%"
     refute classes(day) =~ "is-positive"
 
     unrealised = Floki.find(doc, ~s([data-role="overview-unrealised"] dd))
