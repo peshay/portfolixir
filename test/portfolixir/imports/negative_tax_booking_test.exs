@@ -209,7 +209,7 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
   defp held(portfolio) do
     portfolio.id
     |> Ledger.holdings_for_portfolio()
-    |> Enum.map(&{&1.security.name, &1.quantity})
+    |> Enum.map(&{&1.security_name, &1.quantity})
   end
 
   defp account_names(portfolio) do

@@ -361,7 +361,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         row =
           &"2024-03-01 00:00:00;#{label};#{security};1;100,00;100,00;2,00;-0,50;#{&1};Cash;Cash-2;;\n"
 
-        assert {:ok, %Preview{errors: [], entries: [_]}} = checked(row.(right)), label
+        # A transfer's refund cannot be carried (ADR-0053 A8, #1188): the
+        # row that agrees passes §2 and is named for its refund instead,
+        # while the row that disagrees is still named by §2, which comes
+        # first.
+        if label in ["Umbuchung (Ausgang)", "Umbuchung (Eingang)"] do
+          assert {:ok, %Preview{entries: [], errors: [%{message: refund}]}} =
+                   checked(row.(right)),
+                 label
+
+          assert refund =~ ~r/^transfer with a tax refund of 0,50: /, label
+        else
+          assert {:ok, %Preview{errors: [], entries: [_]}} = checked(row.(right)), label
+        end
 
         assert {:ok, %Preview{entries: [], errors: [%{message: message}]}} = checked(row.(wrong)),
                label

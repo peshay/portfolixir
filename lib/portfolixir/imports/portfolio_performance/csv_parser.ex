@@ -441,13 +441,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       # and S5 (F33): a security that names nothing, and text the ledger
       # would refuse, are this row's error; then a Gesamtpreis that
       # contradicts the Betrag (ADR-0053 §2), so a value no column holds is
-      # named first; then a credit that would book 0 or less (A5, #1118).
+      # named first; then a refund the row's own cash leg cannot carry (A8,
+      # #1188); then a credit that would book 0 or less (A5, #1118).
       readings = %{betrag: gross, total: total, fees: raw_fees, taxes: raw_taxes}
       direction = PortfolioPerformance.direction(kind, side)
 
       with nil <-
              account_error(kind, cells) || PortfolioPerformance.row_error(entry) ||
                reading_error(direction, readings, cells),
+           nil <-
+             PortfolioPerformance.refund_refusal(
+               entry,
+               tax_refund && Decimals.format_de(tax_refund)
+             ),
            written = credit_written(cells, total, tax_refund, entry.gross_amount),
            nil <- PortfolioPerformance.credit_refusal(direction, entry, written) do
         {:ok, entry}

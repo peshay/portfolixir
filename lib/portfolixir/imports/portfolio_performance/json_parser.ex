@@ -341,11 +341,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       # #1044: a transfer without its other side first; then E25 S4 (G24)
       # and S5 (F33): a security that names nothing, and text the ledger would
       # refuse, are this row's error; so is a currency the catalog does not
-      # list (#948); then a credit that would book 0 or less (ADR-0053 A5,
+      # list (#948); then a refund the row's own cash leg cannot carry
+      # (ADR-0053 A8, #1188); then a credit that would book 0 or less (A5,
       # #1118).
       case counter_error(entry) || PortfolioPerformance.row_error(entry) do
-        nil -> credit_refusal(kind, amount, refund_amounts, entry)
-        message -> {:error, message}
+        nil ->
+          refund_refusal(entry, refund_amounts) ||
+            credit_refusal(kind, amount, refund_amounts, entry)
+
+        message ->
+          {:error, message}
       end
     else
       {:error, reason} when is_binary(reason) ->
@@ -477,6 +482,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
            written
          ) do
       nil -> {:ok, entry}
+      {message, refused} -> {:refused, message, refused}
+    end
+  end
+
+  # ADR-0053 A8: a refund split off a delivery, a security transfer or a
+  # cash transfer, named in the reader's notation as A5's figures are.
+  defp refund_refusal(entry, refunds) do
+    written =
+      refunds
+      |> refund_total()
+      |> then(&(&1 && Decimals.format_locale(&1, Gettext.get_locale(PortfolixirWeb.Gettext))))
+
+    case PortfolioPerformance.refund_refusal(entry, written) do
+      nil -> nil
       {message, refused} -> {:refused, message, refused}
     end
   end

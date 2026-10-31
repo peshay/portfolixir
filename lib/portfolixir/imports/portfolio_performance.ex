@@ -266,6 +266,103 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
     end
   end
 
+  # ADR-0053 A8 (the amendment of 2026-10-09, #1188): the kinds whose own
+  # booking moves no cash on one account, so no tax refund split off them
+  # has an account Portfolio Performance moved. A delivery and a security
+  # transfer name none; a cash transfer moves its cash between two.
+  @refund_uncarried_kinds ~w(inbound_delivery outbound_delivery security_transfer cash_transfer)
+
+  @doc """
+  The row message for a negative tax unit (a JSON TAX unit or a CSV Steuern
+  below zero) on a row whose own cash leg cannot carry the refund split off
+  it (ADR-0053 A8, #1188), with what the preview keeps of the row, or
+  `nil`: `{message, refused}`, shaped as `credit_refusal/3` answers.
+
+  A delivery or a security transfer moves no cash, so the refund would
+  have no account and the apply would refuse the whole file on it; a cash
+  transfer moves its cash between two accounts, and the refund would land on
+  one side only, the receiver ending that much too high. Each is a row
+  error with its remedy, and the rest of the file previews. Both parsers
+  run it after `row_error/1` (and a CSV row after §2's check), before A5's
+  `credit_refusal/3`, so a receiving transfer row is not called a credit
+  that nets to nothing.
+
+  `refused` keeps the row's would-be `entry` exactly as the parser built
+  it, its split-off refund included, so its content hash does not move
+  (K25), and the message the row shows instead when the stored history
+  already holds that hash. `refund` is the refund split off, written as the
+  message quotes it: a CSV row's in the file's notation, a JSON row's in
+  the reader's. The sentences are board ux-design-2026-10-09/07-imports ③'s,
+  one per kind.
+  """
+  @spec refund_refusal(Entry.t(), String.t()) ::
+          nil | {String.t(), %{entry: Entry.t(), message: String.t()}}
+  def refund_refusal(%Entry{kind: kind, companion_entries: [_ | _]} = entry, refund)
+      when kind in @refund_uncarried_kinds do
+    {refund_message(kind, refund), %{entry: entry, message: stored_refund_message(kind, refund)}}
+  end
+
+  def refund_refusal(%Entry{}, _refund), do: nil
+
+  defp refund_message("inbound_delivery", refund),
+    do:
+      gettext(
+        "inbound delivery with a tax refund of %{refund}: an inbound delivery moves no cash, so the refund would have no account — row not imported. Book the inbound delivery by hand without it; if money did move, book that as a tax refund of its own.",
+        refund: refund
+      )
+
+  defp refund_message("outbound_delivery", refund),
+    do:
+      gettext(
+        "outbound delivery with a tax refund of %{refund}: an outbound delivery moves no cash, so the refund would have no account — row not imported. Book the outbound delivery by hand without it; if money did move, book that as a tax refund of its own.",
+        refund: refund
+      )
+
+  defp refund_message("security_transfer", refund),
+    do:
+      gettext(
+        "security transfer with a tax refund of %{refund}: a security transfer moves no cash, so the refund would have no account — row not imported. Book the security transfer by hand without it; if money did move, book that as a tax refund of its own.",
+        refund: refund
+      )
+
+  defp refund_message("cash_transfer", refund),
+    do:
+      gettext(
+        "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — row not imported. Book the transfer by hand without it; if money did move, book that as a tax refund of its own.",
+        refund: refund
+      )
+
+  # The row was imported under an older reading (a JSON cash transfer under
+  # Sprint 20's, ADR-0053 K20), so the remedy would book it twice; as A5's
+  # stored message says it (#1118), with the handbook's section.
+  defp stored_refund_message("inbound_delivery", refund),
+    do:
+      gettext(
+        "inbound delivery with a tax refund of %{refund}: an inbound delivery moves no cash, so the refund would have no account — already imported, and it cannot be corrected here. Do not book the inbound delivery again; see “A negative tax inside a row” in the product documentation.",
+        refund: refund
+      )
+
+  defp stored_refund_message("outbound_delivery", refund),
+    do:
+      gettext(
+        "outbound delivery with a tax refund of %{refund}: an outbound delivery moves no cash, so the refund would have no account — already imported, and it cannot be corrected here. Do not book the outbound delivery again; see “A negative tax inside a row” in the product documentation.",
+        refund: refund
+      )
+
+  defp stored_refund_message("security_transfer", refund),
+    do:
+      gettext(
+        "security transfer with a tax refund of %{refund}: a security transfer moves no cash, so the refund would have no account — already imported, and it cannot be corrected here. Do not book the security transfer again; see “A negative tax inside a row” in the product documentation.",
+        refund: refund
+      )
+
+  defp stored_refund_message("cash_transfer", refund),
+    do:
+      gettext(
+        "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — already imported, and it cannot be corrected here. Do not book the transfer again; see “A negative tax inside a row” in the product documentation.",
+        refund: refund
+      )
+
   defp credit_message(%{kind: "sell", refund: nil} = written),
     do:
       gettext(
