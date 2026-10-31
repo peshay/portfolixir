@@ -9008,6 +9008,15 @@ select:disabled {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+/* The securities rows carry the page gutter on both sides (issue 1139,
+   board ux-design-2026-10-09/02-securities, rule ④): the panel has no
+   inline padding, so the monogram and the kebab touched the viewport's
+   edges. 16 px is the gutter the toolbar's search field keeps; the border
+   between rows still runs edge to edge. */
+#securities-phone-rows .phone-row {
+  padding-inline: 16px;
+}
+
 .phone-rows > li:first-child {
   border-top: 0;
 }

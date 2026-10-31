@@ -2039,6 +2039,11 @@ composition per surface that the column picker does not touch.
   price instead of a change computed from a stale close, "no price" over
   "—" where nothing prices the row; the kebab at the row's end. Selection
   paints {colors.selected}; a retired row dims like the table row.
+  The row carries the 16 px page gutter on both sides, the gutter the
+  toolbar's search field keeps, so neither the logo nor the kebab touches
+  the viewport's edge; the border between rows still runs edge to edge
+  (issue 1139, Sprint 21, board `ux-design-2026-10-09/02-securities`, rule
+  ④).
 - **Transactions:** the month group heads stay (bg-muted band, the
   count ~~and the per-currency totals~~); each row is the date · kind label
   over the subject (security, else cash account, else depot), the signed
