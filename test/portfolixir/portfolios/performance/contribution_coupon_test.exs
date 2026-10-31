@@ -116,6 +116,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionCouponTest do
     for {field, value} <- expected do
       case value do
         %Decimal{} -> assert_dec(Map.fetch!(row, field), Decimal.to_string(value), field)
+        value when field in [:name, :isin] -> assert Map.fetch!(row, field) == value
         value when is_binary(value) -> assert_dec(Map.fetch!(row, field), value, field)
         value -> assert Map.fetch!(row, field) == value, "#{field}"
       end
@@ -237,7 +238,9 @@ defmodule Portfolixir.Portfolios.Performance.ContributionCouponTest do
         costs: "0",
         contribution: "400.00",
         held_at_start: false,
-        held_at_end: false
+        held_at_end: false,
+        name: "Larkspur Rail AG 4,00 % Anleihe 2031",
+        isin: @isin
       )
 
       assert_lines(read, "1.10", "0", "0")
