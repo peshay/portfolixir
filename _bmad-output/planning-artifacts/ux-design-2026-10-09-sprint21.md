@@ -2994,6 +2994,25 @@ The unavailable row on the tab is as tall as its neighbour at both widths.
   the existing exclusion note; the backfill control's sentence; that the
   trade is out of the rows, the matrix and the figures.
 
+*Addendum (2026-10-31, #1198; the amendment's D-5, "α3's unavailable state
+appears in the preview's after-figure, named"):* the security merge
+preview's FIFO restatement (board `ux-design-2026-10-27` 04, ①) sums
+available trades only, so a pooled sale that becomes not convertible would
+read as a negative restatement with no name. Under the block, in either
+state, one more `.merge-basis` line in this pick's facet words, with the
+count per side (`ngettext` on the after count): "Afterwards %{count} sale is
+not convertible — a buy it closes has no figure in the sale's currency —
+and is in no sum above; before, source %{source} · target %{target}." /
+"Danach ist %{count} Verkauf ohne Umrechnung — ein Kauf, den er schließt,
+hat keinen Gegenwert in der Währung des Verkaufs — und in keiner Summe
+oben; vorher Quelle %{source} · Ziel %{target}." (plural: "Afterwards
+%{count} sales are not convertible — a buy each closes has no figure in its
+sale's currency — and are in no sum above; …" / "Danach sind %{count}
+Verkäufe ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen
+Gegenwert in der Währung ihres Verkaufs — und in keiner Summe oben; …").
+Shown only where a side counts one; no new CSS. This addendum is the mock;
+no PNG is drawn.
+
 ### ② N9 — #1213: a cross-currency booking's money figures name no currency (variants)
 
 **Today.**
