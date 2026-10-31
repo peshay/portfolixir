@@ -81,6 +81,25 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
     {"3.tax_refund.1", "92d2155b3fb988a734e76f6a09228608daf44a193c1208e8b593dff83a3776ee"}
   ]
 
+  # ADR-0051 I11 (the amendment of 2026-10-09; risk-tier: import
+  # idempotency). Taken on b9413da, before the importer keeps the security an
+  # INTEREST row names: bond_invented.json's coupon names its bond, and
+  # bond_coupon.json (I12's file) holds an account interest naming none and a
+  # coupon naming its bond. The hash reads the file's security, never the
+  # resolved id, so keeping the id moves none of these.
+  @bond_invented_json [
+    {1, "bd63431010381e27aca4208e1fdfb580c28cf31bdffe61917066a046c426293d"},
+    {2, "8dc2d38d49feb02be9d95c15fac6905547cc53f3b51e7027354c9cde4501b20e"},
+    {3, "31448c5617eb01b93e0bdfc071262dc3fa33413b7b5e109ec01ef780749671cc"}
+  ]
+
+  @bond_coupon_json [
+    {1, "f22016e54cb13465464e33478a813a53738e50118f60a1daf0990eedbc2d4107"},
+    {2, "11ad6bb00b99a942fc034002f832b9f9052e38062a163c4e5f607fdf94bdd9b5"},
+    {3, "2309f00604e660d0856232b719f8f97e54556d5195e9b8590a9b95beb41d1ca6"},
+    {4, "46e5531ceec4cc62ac794ed5e6d8b29ce42f6d188dac154c2a9cf1907cf70e39"}
+  ]
+
   # Each row's content hash, computed as the applier computes it: a row of
   # the file by `ImportHash.compute/2`, a split-off refund by
   # `ImportHash.companion/4` with the hash of the row before it.
@@ -163,5 +182,22 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
   #   amendment's change; so does the refund split off the sale.
   test "a JSON sale with a negative tax unit keeps every content hash pinned before the amendment" do
     assert digests("sale_with_negative_tax.json") == @sale_with_negative_tax_json
+  end
+
+  # User story (#928, Sprint 21 α4; ADR-0051 I11):
+  # As the operator of an instance that imported a bond's coupons before the
+  # importer kept their security,
+  # I want every content hash of those rows to stay byte-identical when the
+  # importer starts storing the security an INTEREST row names,
+  # so that dropping the same export again books no coupon twice.
+  #
+  # Acceptance criteria:
+  # - Every row of bond_invented.json, its coupon naming the bond included,
+  #   hashes to the digest pinned before the change.
+  # - Every row of bond_coupon.json, the account interest naming no security
+  #   and the coupon naming its bond, hashes to its pinned digest.
+  test "a bond's coupon rows keep every content hash pinned before the importer kept their security" do
+    assert digests("bond_invented.json") == @bond_invented_json
+    assert digests("bond_coupon.json") == @bond_coupon_json
   end
 end
