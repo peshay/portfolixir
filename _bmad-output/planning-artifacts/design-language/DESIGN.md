@@ -6002,11 +6002,21 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
   messages of one field joined by ", ", the fields by "; ". The ledger's
   refusals an import can reach carry German in the `errors` domain, and one
   that names another field ("must differ from …") names it by its label.
-- **Drift recorded, not repaired here (issue 1130):**
-  `#import-unmatched-config` (the leftover-configuration list) still wears
-  `.import-warning-box`, the same retired accent banner. The class stays for
-  it alone; its sub-rules for the head line and the `<pre>` went with the
-  parser warnings.
+- **The leftover-configuration list is an attention data note too**
+  *(repaired 2026-10-31; issue 1130, Sprint 21 γ7; board
+  `mockups/ux-design-2026-10-09/07-imports` ⑤, before/after)*.
+  `#import-unmatched-config` (`data-role="unmatched-config"`, the id kept) is
+  ONE `AppShell.data_note` at `:attention`: the severity word and glyph,
+  then the body, which stretches (`flex: 1 1 auto`, a grid with
+  `--space-2` gaps): the `<h3>` "Configured securities this import does not
+  touch" (13 px, the note's colour), the remedy sentence, and the list, in
+  the text colour because it is data, each security a link to its page
+  (`/securities/<id>`) with its ISIN after a middle dot. The note stands
+  `--space-4` clear of its neighbours. Under 560 px it joins the ONE
+  selector list of notes that carry a list (the body under the glyph and
+  the word, at the note's full width). The strings are unchanged.
+  `.import-warning-box` has left `app.css`: no surface wears the retired
+  accent banner any more.
 
 ## Amendment 2026-10-06 — The logo dialog for a logo whose file is gone *(Sprint 19 PR β, B2, issue 933; board `mockups/ux-design-2026-10-04/07b-logo-dialog-missing-file`, before / after)*
 

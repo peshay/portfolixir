@@ -4312,18 +4312,37 @@ input[pattern]:invalid:not(:placeholder-shown) {
   font-weight: 600;
 }
 
-/* Still the unmatched-configuration box (`#import-unmatched-config`), the
-   accent banner UX-DR17 retired, until issue 1130 moves it to a data note;
-   the parser warnings left it for an attention data note (below). */
-.import-warning-box {
+/* The securities with strategy configuration a file does not touch
+   (`#import-unmatched-config`; issue 1130, board
+   ux-design-2026-10-09/07-imports ⑤): ONE attention data note (UX-DR17),
+   the parser warnings' move, which retired the accent banner. Its body
+   stretches; the head line, the sentence and the list follow in order, the
+   list in the text colour, since it is data. */
+[data-role="unmatched-config"] {
+  margin: var(--space-4) 0;
+}
+
+[data-role="unmatched-config"] .data-note__body {
+  flex: 1 1 auto;
+  min-width: 0;
   display: grid;
-  gap: 0.65rem;
-  margin: 1rem 0 1.25rem;
-  padding: 0.85rem;
-  color: var(--color-accent);
-  background: var(--color-accent-soft);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, transparent);
-  border-radius: var(--radius-md);
+  gap: var(--space-2);
+}
+
+[data-role="unmatched-config"] h3,
+[data-role="unmatched-config"] p,
+[data-role="unmatched-config"] ul {
+  margin: 0;
+}
+
+[data-role="unmatched-config"] h3 {
+  font-size: 13px;
+  color: inherit;
+}
+
+[data-role="unmatched-config"] ul {
+  padding-left: 18px;
+  color: var(--color-text);
 }
 
 /* The rows a file holds but the import leaves out (issues 1044 and 948; board
@@ -4496,18 +4515,21 @@ input[pattern]:invalid:not(:placeholder-shown) {
      drawing, item 8) — which beside the word kept 180 px at 390. The
      parser-warnings note joins it too (issue 1140): beside its glyph and
      "ACHTUNG" its row list kept about 240 px, and the 12rem scroller hid
-     the third warning. Above 560 px nothing changes. */
+     the third warning. The leftover-configuration note joins it as well
+     (issue 1130). Above 560 px nothing changes. */
   [data-role="parser-warnings"],
   #import-correction .data-note,
   [data-role="mapping-unseen-name"],
-  [data-role="mapping-ambiguous"] {
+  [data-role="mapping-ambiguous"],
+  [data-role="unmatched-config"] {
     flex-wrap: wrap;
   }
 
   [data-role="parser-warnings"] .data-note__body,
   #import-correction .data-note__body,
   [data-role="mapping-unseen-name"] .data-note__body,
-  [data-role="mapping-ambiguous"] .data-note__body {
+  [data-role="mapping-ambiguous"] .data-note__body,
+  [data-role="unmatched-config"] .data-note__body {
     flex-basis: 100%;
   }
 }

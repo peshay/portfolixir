@@ -859,23 +859,27 @@ defmodule PortfolixirWeb.ImportsLive do
           ) %>
         </p>
 
-        <%= if @unmatched_config != [] do %>
-          <section class="import-warning-box" id="import-unmatched-config">
-            <h3><%= gettext("Configured securities this import does not touch") %></h3>
-            <p class="muted">
-              <%= gettext(
-                "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
-              ) %>
-            </p>
-            <ul>
-              <%= for row <- @unmatched_config do %>
-                <li>
-                  <%= row.security.name %><%= if row.security.isin do %> · <%= row.security.isin %><% end %>
-                </li>
-              <% end %>
-            </ul>
-          </section>
-        <% end %>
+        <%!-- #1130 (board ux-design-2026-10-09/07-imports ⑤): a finding is a
+             data note (UX-DR17), the parser warnings' move; each security
+             links to its page, where the remedy is recorded. --%>
+        <AppShell.data_note
+          :if={@unmatched_config != []}
+          severity={:attention}
+          id="import-unmatched-config"
+          data-role="unmatched-config"
+        >
+          <h3><%= gettext("Configured securities this import does not touch") %></h3>
+          <p>
+            <%= gettext(
+              "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
+            ) %>
+          </p>
+          <ul>
+            <li :for={row <- @unmatched_config}>
+              <.link href={"/securities/#{row.security.id}"}><bdi><%= row.security.name %></bdi></.link><%= if row.security.isin do %> · <%= row.security.isin %><% end %>
+            </li>
+          </ul>
+        </AppShell.data_note>
 
         <% missing = missing_mappings(assigns) %>
         <%= if not @applying and missing != [] do %>
