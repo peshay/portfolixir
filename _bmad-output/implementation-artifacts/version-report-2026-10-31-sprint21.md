@@ -26,6 +26,7 @@ are the last session's, of 2026-10-31.
 | `actions/setup-node`, `actions/upload-artifact` | 7.0.0 → 7.1.0; 7.0.1 → 7.0.2 | "chore(ci): actions/setup-node 7.0.0 -> 7.1.0, actions/upload-artifact 7.0.1 -> 7.0.2" | Dependabot #1228 and #1227 (2026-10-16). Both stay pinned by the tag's commit, with the version in a comment; each digest was read from the action's own tag (`git ls-remote`) and matches the PR's. `setup-node` moves in both places the workflow uses it: Lane S's H63 row moved the live-feed audits into a job of their own, which sets up Node too, after the PR was opened, so the PR's one-line diff would have left the second pin behind. |
 | `@modelcontextprotocol/sdk` (the companion) | 1.32.1 → 1.32.2 | "chore(deps): @modelcontextprotocol/sdk 1.32.1 -> 1.32.2 in the companion" | Dependabot #1281, from its run of 2026-10-30 (the package was published on 2026-10-23, the day of the previous run). A patch inside `^1.13.0`, lock only; the companion's tests, build and schema budget are unchanged by it. |
 | `actions/setup-python` | 7.0.0 → 7.1.0 | "chore(ci): actions/setup-python 7.0.0 -> 7.1.0" | Dependabot #1282 (2026-10-30), pinned by the tag's commit, read from the action's own tag. |
+| `phoenix_html` | 4.3.0 → 4.4.0 | "chore(deps): phoenix_html 4.3.0 -> 4.4.0" | Published 2026-10-30 with no Dependabot PR yet; the lane had left it unread. On 2026-10-31 its advisory reached hex.pm (EEF-CVE-2026-117645, medium: attribute injection through unvalidated attribute names in `attributes_escape/1`, the function HEEx uses for dynamic attributes) and turned `mix hex.audit` red on the branch with nobody pushing, so the lane takes the fix release, as it takes every advisory. Lock only, inside `~> 4.1`. |
 | Compose's database image digest | `postgres:18.6-alpine3.24` `77f58511…` → `10a5c69a…` | "chore(docker): the Compose database image moves to the rebuilt 18.6-alpine3.24 digest" | Dependabot #1283 (2026-10-30): the same PostgreSQL 18.6 on the same Alpine line, rebuilt on 2026-10-26; the digest is the tag's index digest read from Docker Hub. `docker-compose.dev.yml` moves with `docker-compose.yml`, which Dependabot does not watch, so both files run one image. Proven by CI's `compose-smoke` job on the PR. |
 
 Every row is its own commit, never mixed into a security row (ADR-0036
@@ -82,7 +83,6 @@ decline.
 | --- | --- | --- |
 | Elixir / OTP minors and majors (#727) | Elixir 1.18.5 / OTP 27.3.4.18 | Both halves are still blocked upstream (see the triggers above). The move stays on its own branch and PR, because it moves the CI version pins, the Dockerfile base images and the Dialyzer PLT cache key together. CI compiles with `--warnings-as-errors`, so two Elixir minors of deprecations are a body of work, not a version-string edit. The 27.3.4.19 patch waits for its `hexpm/elixir` image (above). |
 | `decimal` | 3.1.2 (3.2.0 published the same day, 2026-10-10; Dependabot #1279 of 2026-10-30 proposes it) | `mix hex.outdated` reads "Update not possible": `mix.exs` requires `~> 3.1.2`, the floor T-11's hotfix set for the advisory fix (H28), which 3.2.0 lies outside, so the PR moves `mix.exs` too. **Declined this lane**, as the triage's H28 row already orders: 3.2.0 changes division and rounding results (its own release notes name `div/2` rounding fixes affecting about 5 % of random divisions at the default precision, a carry fix in rounding, and new `:subnormal` and `:clamped` signals), and `Decimal` is the money type (ADR-0003). A release that changes rounding is read against the identities the ledger pins before it is taken, as its own reviewed bump on a quiet branch, never inside a security batch. |
-| `phoenix_html` | 4.3.0 (4.4.0 published 2026-10-30) | Published on 2026-10-30, the day of Dependabot's weekly run (its PRs date from Thursdays), with no PR open for it, and inside `~> 4.1`; Dependabot proposes it on its next run and the next lane reads it then. A currency bump taken unread would be the lane's only unreasoned move. |
 | `websock_adapter` (transitive, under `phoenix`) | 0.6.0 (0.7.0 published 2026-10-27) | Came along with the `phoenix_live_view` resolution and was reverted so the commit mirrors Dependabot #1235's scope. A transitive minor; no advisory, no defect the app has met (the LiveView socket runs on it unchanged). The next lane reads its changes. |
 | `floki` (test only) | 0.38.4 (0.38.5 published 2026-10-29) | Published after the sprint PR's base; no Dependabot PR yet. A test-only patch is taken by Dependabot's PR, not ahead of it. |
 | `sobelow` (dev, test) | 0.16.0 (0.17.0 on 2026-10-28, 0.18.0 and 0.18.1 on 2026-10-29) | Two minors in two days, of a gate tool. A new Sobelow can add findings and change what `.sobelow-skips` matches, and the sprint's rule is that a gate is never weakened and `.sobelow-skips` not changed inside the security batch (D-6); so the move is its own commit on a quiet branch, where a new finding is a finding and not a gate fight. Dependabot proposes it next week. |
@@ -125,11 +125,11 @@ reads the new image the same way.
   - Every image above is pinned by digest.
 - **Hex:**
   - Direct: every dependency *Up-to-date* except `decimal` (requirement),
-    `phoenix_html`, `floki` and `sobelow` (above). Transitive:
+    `floki` and `sobelow` (above). Transitive:
     `websock_adapter` 0.6.0 (0.7.0 exists, above); everything else
     *Up-to-date* (`mix hex.outdated --all`).
   - `mix hex.audit`: no retired packages, no advisories (after `bandit`
-    1.14.1).
+    1.14.1 and `phoenix_html` 4.4.0).
   - `mix deps.audit`: no vulnerabilities.
   - `mix deps.unlock --check-unused`: no unused entries.
 - **npm (mcp-server):**
