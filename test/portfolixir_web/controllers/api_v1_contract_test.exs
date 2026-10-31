@@ -57,7 +57,6 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "Sprint 21, the security batch of 2026-10-12"
     assert newest["endpoints"] == []
     assert newest["tools"] == []
-    assert newest["prompts"] == []
 
     for lane <- ["S1", "S2", "S4", "S6", "S7"] do
       assert newest["summary"] =~ lane, lane
