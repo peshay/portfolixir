@@ -2981,6 +2981,17 @@ records only what the security adds.
   do. "Open positions" is the Trades tab's own term ("Open positions
   (FIFO)" / "Offene Positionen (FIFO)"), reused with "(cost)" rather than
   the board's new "Offene Posten" (board 04, found while drawing 2).
+  *Amended 2026-10-31 (#1198, the amendment's D-5; board
+  `ux-design-2026-10-09` 09, the addendum to ① N8):* where a side has a
+  pooled sale that is not convertible (`unavailable_trades`, in no sum
+  above), one more `.merge-basis` line (`data-role="merge-fifo-unavailable"`)
+  closes the block, in either state, in the realized facet's words with the
+  count per side: "Afterwards 1 sale is not convertible — a buy it closes
+  has no figure in the sale's currency — and is in no sum above; before,
+  source 0 · target 0." / "Danach ist 1 Verkauf ohne Umrechnung — ein Kauf,
+  den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — und in
+  keiner Summe oben; vorher Quelle 0 · Ziel 0." A change the table shows is
+  so never a trade that left every sum unnamed.
 - **Four tables, each only when it has rows** (`.merge-table`, a cell's
   reason muted under its value): the colliding **manual** quotes ("Date ·
   Target · applies · Source · dropped", the source's struck through in

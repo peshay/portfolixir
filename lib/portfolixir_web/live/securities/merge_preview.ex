@@ -357,6 +357,22 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           ) %>
         </p>
       <% end %>
+      <%!-- #1198 (the amendment's D-5; board 09's N8 family): a pooled sale
+           that closes a lot with no leg in its currency is in no sum above,
+           so a change the table shows is never a trade gone unnamed. --%>
+      <p
+        :if={Enum.any?(Map.values(@fifo.unavailable_trades), &(&1 > 0))}
+        class="merge-basis"
+        data-role="merge-fifo-unavailable"
+      >
+        <%= ngettext(
+          "Afterwards %{count} sale is not convertible — a buy it closes has no figure in the sale's currency — and is in no sum above; before, source %{source} · target %{target}.",
+          "Afterwards %{count} sales are not convertible — a buy each closes has no figure in its sale's currency — and are in no sum above; before, source %{source} · target %{target}.",
+          @fifo.unavailable_trades.after,
+          source: @fifo.unavailable_trades.source,
+          target: @fifo.unavailable_trades.target
+        ) %>
+      </p>
     </div>
     """
   end
