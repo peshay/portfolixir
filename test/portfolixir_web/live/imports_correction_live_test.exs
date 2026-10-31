@@ -1226,6 +1226,111 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "Not corrected automatically — stays as it is: the import does not book a fee refund yet, so the sale's fees stay as stored, 7.00. Put it right by hand in the history: change the sale to 95.00; the tax refund is already booked."
     end
 
+    # ADR-0050's P10 seam: the page's dry run, once started on this test's
+    # behalf, waits until `release_refine!/0`.
+    defp hold_refine! do
+      Application.put_env(:portfolixir, :imports_refine_gate, self())
+      on_exit(fn -> Application.delete_env(:portfolixir, :imports_refine_gate) end)
+    end
+
+    defp release_refine! do
+      assert_receive {:imports_refine_gate, task}, 5_000
+      Application.delete_env(:portfolixir, :imports_refine_gate)
+      send(task, {:imports_refine_gate, :release})
+    end
+
+    defp upload_unanswered!(view, name, content) do
+      view
+      |> file_input("#pp-import-form", :pp_file, [
+        %{
+          name: name,
+          content: content,
+          type: "application/json",
+          last_modified: 1_700_000_000_000
+        }
+      ])
+      |> render_upload(name)
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12 and its consequences,
+    # "its state while the dry run that A12 reads has not answered"):
+    # As the operator dropping a drifted re-export of a large history,
+    # I want the page to answer at once and the correction section to say
+    # that it is still comparing by date and figures, without a confirm,
+    # until the background dry run answers,
+    # so that the page never freezes on the upload and I never confirm a
+    # list that is still growing.
+    #
+    # Acceptance criteria:
+    # - K23's sale stored under the old reading, its re-export drifted by a
+    #   minute: before the dry run answers, the section shows "comparing by
+    #   date and figures" (aria-busy), no line and no confirm.
+    # - A re-drop whose sale is a hash hit and whose second sale drifted
+    #   lists the hash hit at once, with "found by import hash · comparing
+    #   by date and figures", and no confirm.
+    # - Once the dry run answers, the drifted sale is listed by its date and
+    #   figures (+120.00 +95.00 -25.00) with a confirm, and the cue is gone.
+    test "the section says it is still comparing until the dry run answers", %{conn: conn} do
+      portfolio = portfolio!()
+
+      apply_before_the_amendment!(
+        portfolio,
+        sales_json([{"2026-06-15", "15:30"}, {"2026-08-17", "15:30"}])
+      )
+
+      hold_refine!()
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_unanswered!(
+        view,
+        "history.json",
+        sales_json([{"2026-06-15", "15:31"}, {"2026-08-17", "15:31"}])
+      )
+
+      assert text(view, "#import-correction [data-role='import-correction-pending']") ==
+               "comparing by date and figures"
+
+      assert has_element?(view, "#import-correction [aria-busy='true']")
+      refute has_element?(view, "#import-correction-table")
+      refute has_element?(view, "#import-correction-open")
+
+      release_refine!()
+      render_async(view)
+
+      refute has_element?(view, "[data-role='import-correction-pending']")
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(1)") =~
+               "+120.00 +95.00 -25.00"
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(1)") =~
+               "Found by its date and figures"
+
+      assert text(view, "#import-correction-open") == "Correct 2 bookings…"
+
+      hold_refine!()
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_unanswered!(
+        view,
+        "history.json",
+        sales_json([{"2026-06-15", "15:30"}, {"2026-08-17", "15:31"}])
+      )
+
+      assert text(view, "#import-correction [data-role='import-correction-pending']") ==
+               "found by import hash · comparing by date and figures"
+
+      assert [_hash_hit] = view |> element("#import-correction-table tbody") |> render() |> rows()
+      refute has_element?(view, "#import-correction-open")
+
+      release_refine!()
+      render_async(view)
+
+      refute has_element?(view, "[data-role='import-correction-pending']")
+      assert text(view, "#import-correction-open") == "Correct 2 bookings…"
+    end
+
+    defp rows(html), do: html |> Floki.parse_fragment!() |> Floki.find("tr")
+
     # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule; board 07):
     # As the operator whose two equal sales both drifted,
     # I want each listed with the count of the bookings that match it, and
