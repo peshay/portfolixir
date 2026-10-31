@@ -246,8 +246,10 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   # - A stored third-currency row (priced in CHF through a EUR account,
   #   with a rate and no security_amount, written as stored before #1199's
   #   check) is not touched although a CHF rate is stored: no journal entry,
-  #   no field changed; nor is the same row stored with no leg at all. The
-  #   mix task narrows with the same set.
+  #   no field changed; nor is the same row stored with no leg at all, nor
+  #   a EUR-booked buy carrying settlement_fx_rate 0.790000 alone or
+  #   settlement_amount 800.00 alone. The mix task narrows with the same
+  #   set.
   # - A booking-form row with its legs gets no journal entry.
   test "only rows booked in their account's currency with no leg stored are derived (identity 6)" do
     w = world()
@@ -305,6 +307,38 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         settlement_fx_rate: Decimal.new("0.944444")
       })
 
+    # EUR-booked buys of the USD security that carry one leg but no
+    # security_amount, as the ledger accepts them: the legs-missing
+    # condition keeps them out, each of its three parts (review round S2).
+    one_leg = fn leg ->
+      {:ok, row} =
+        Ledger.create_transaction(
+          Actor.owner_ui(),
+          Map.merge(
+            %{
+              portfolio_id: w.portfolio.id,
+              securities_account_id: w.depot.id,
+              cash_account_id: w.cash.id,
+              security_id: w.security.id,
+              type: "buy",
+              date: ~D[2026-01-16],
+              quantity: "10",
+              price: "80.00",
+              fees: "5.00",
+              taxes: "1.00",
+              gross_amount: "806.00",
+              currency_code: "EUR"
+            },
+            leg
+          )
+        )
+
+      row
+    end
+
+    rate_only = one_leg.(%{settlement_fx_rate: "0.790000"})
+    amount_only = one_leg.(%{settlement_amount: "800.00"})
+
     # The same, written with no leg at all: the account-currency condition,
     # not the legs-missing one, keeps it out.
     third_currency_bare =
@@ -323,11 +357,13 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         }
       ])
 
-    untouched = [booked_with_legs, third_currency, third_currency_bare]
+    untouched = [booked_with_legs, third_currency, third_currency_bare, rate_only, amount_only]
     before = Enum.map(untouched, &legs(Ledger.get_transaction(&1.id)))
     journaled_before = journal_entries(Enum.map(untouched, & &1.id))
 
-    assert {:ok, %{updated: 1, skipped_no_rate: 0}} =
+    # None of the untouched rows is a candidate at all: the lock-time
+    # re-check (skipped_changed) is not what keeps them out.
+    assert {:ok, %{updated: 1, skipped_no_rate: 0, skipped_changed: 0}} =
              SettlementBackfill.run(Actor.system_job("settlement_backfill"))
 
     derived = Ledger.get_transaction(rounded.id)
