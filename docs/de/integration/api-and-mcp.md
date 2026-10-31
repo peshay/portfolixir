@@ -2385,9 +2385,10 @@ Beispiel-Payloads für Konten:
   `converted`). Das Brutto einer Dividende ist ihr Netto-Cash (`gross_amount`) plus
   die einbehaltene Steuer; Zinsen tragen keine Quellensteuer. Alle Beträge sind
   Decimal-Strings in der `base_currency` des Portfolios, umgerechnet über den
-  EUR-Hub zum letzten gespeicherten Kurs an oder vor dem jeweiligen
+  EUR-Hub zum letzten gespeicherten Wechselkurs an oder vor dem jeweiligen
   Buchungsdatum (dieselbe Mechanik wie der Bewertungs-Endpunkt), mit
-  beibehaltener ursprünglicher Währung. Eine Buchung ohne solchen Kurspfad ist
+  beibehaltener ursprünglicher Währung. Eine Buchung ohne solchen
+  Wechselkurspfad ist
   aus jeder Summe (`annual`, seine Monate, `positions`) ausgeschlossen und in
   `excluded` genannt (`count`, und je Währung `currency_code`, `count` und
   `securities`), wie bei den anderen Cashflow-Lesungen; `transactions` behält

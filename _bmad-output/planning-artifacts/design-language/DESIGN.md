@@ -4398,7 +4398,10 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   Flows and Costs facets' notes ("kein gespeicherter Wechselkurs") and ⓘ
   ("zum Wechselkurs …", "kein Wechselkurs gespeichert", "zum Wechselkurs
   eines Nachbartags"), and for the Trades tab's remedy, which quotes the
-  button. An account emptied before its rate came gets the first
+  button; since the review of the γ4 build also for the Income facet's ⓘ
+  ("zum letzten gespeicherten Wechselkurs …", "ohne solchen Wechselkurs")
+  and the hint that no security-currency cost is derivable ("kein
+  gespeicherter Wechselkurs am Buchungstag"). An account emptied before its rate came gets the first
   sentence only: nothing entered the line. An account still at zero on the
   period's last day reads "Ein Verrechnungskonto zählt bis zum Ende des
   Zeitraums null: **…** (…)." (board J2 A, pin a2), after the others.
