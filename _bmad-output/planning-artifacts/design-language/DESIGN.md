@@ -2284,6 +2284,14 @@ the basis line read it.
   as text, and a no-break space before each " · " holds the "·" to the word
   before it: no line starts with one, however long the view's name
   *(review round)*.
+  *Amended (Sprint 21 α11, issue 1212):* the line's ⓘ says what "Einstand"
+  counts: "Der Einstand ist, was die Anteile ohne Gebühren und Steuern der
+  Käufe gekostet haben, das Ergebnis also vor ihnen; der Einstand eines
+  abgeschlossenen Trades enthält sie." (English "Cost is what the shares
+  cost without the buys' fees and taxes, so the result is before them; a
+  closed trade's cost includes them."), after its composition sentence. The
+  figures do not change; the read's `basis_note` and the holdings and trades
+  reads' `computation_basis.fees_and_taxes_in_figures` say the same.
 - **A view that matches no account** says so under the controls row, in
   Wealth's hint and words (`data-role="view-matches-nothing"`), instead of
   leaving every row at "—" without a reason *(review round)*.

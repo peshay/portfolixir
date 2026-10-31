@@ -1720,7 +1720,8 @@ Example account payloads:
   (ADR-0033), no longer an assumption; a holding whose security has no quote
   returns `null` price, market value and P&L. Each row additionally carries
   the ADR-0033 base-currency P&L decomposition: `base_cost` (the
-  settlement-leg amount actually paid, with its `base_currency`),
+  settlement leg, the cash paid before fees and taxes, with its
+  `base_currency`),
   `price_return_abs`/`price_return_pct` (the security's own price move,
   converted at today's rate), `currency_return_abs`/`currency_return_pct`
   (the FX effect on the amount originally invested) and
@@ -1742,6 +1743,13 @@ Example account payloads:
   holding whose `base_cost` is `"0"` reads `price_return_pct`,
   `currency_return_pct` and `total_return_base_pct` `null` beside its three
   amounts, and `computation_basis.decomposition_pct` states the rule.
+  Since issue #1212 `computation_basis.fees_and_taxes_in_figures` says what
+  the costs count: `cost_basis`, `avg_cost` and `base_cost` are without the
+  buys' fees and taxes, and the P&L and its decomposition are measured
+  against them, while a closed trade's `basis` on the trades read counts
+  them once the shares are sold. The figures did not change: a buy of 10 at
+  100 USD settled 790.00 EUR with 6.00 EUR of fees and taxes reads
+  `base_cost` `"790"`.
   Holdings are derived
   on read with no stored snapshot, so `as_of` is the read date. Unknown
   portfolios return `404 Not Found`. Optional filters: `security_id`,
@@ -2429,7 +2437,8 @@ church tax withheld at a zero church-tax rate.
   Read the three together: `real_ttwror_before_costs` alone flatters.
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
   per-category **result** (ADR-0041 slice one, #712): `invested` (the sum of the
-  members' base-currency cost), `current_value`, `result_abs` and `result_pct`
+  members' `base_cost`, without the buys' fees and taxes, so the result is
+  before them; `basis_note` says so since issue #1212), `current_value`, `result_abs` and `result_pct`
   per category, plus the member `positions` that produced it and the `excluded`
   rows it could not cover.
 
@@ -2749,6 +2758,13 @@ church tax withheld at a zero church-tax rate.
   read, an open lot whose `base_cost` is `"0"` reads the decomposition's
   three percentages `null` too, and `computation_basis.decomposition_pct`
   states the rule.
+  Since issue #1212 `computation_basis.fees_and_taxes_in_figures` says which
+  figures carry the fees and taxes: an open lot's `buy_price`,
+  `buy_price_native`, `base_cost` and `unrealized_pnl_*` are without them
+  (`buy_fees` and `buy_taxes` state them beside), a closed round-trip's
+  `basis` includes the buy fees and taxes of the lots it closes, prorated,
+  its `proceeds` are net of the sell's, and `realized_pnl_abs` is after all
+  four. No figure changed.
 
 ## Policy rules (ADR-0049)
 

@@ -1278,7 +1278,10 @@ composition, not a period return — moving a security between categories moves
 its whole result with it. A position whose result cannot be derived (no usable
 price, or no exchange rate to your base currency) is left out of **both** sides
 of the sum and counted in the "covered of total" marker, rather than counted as
-zero, which would quietly understate the category.
+zero, which would quietly understate the category. **Cost** is what the shares
+cost without the buys' fees and taxes, so the result is before them; a closed
+trade's cost on a security's Trades tab includes them (issue #1212). The
+basis line's ⓘ says so.
 
 The figures follow the tree as you edit it (issue #1110): creating or deleting
 a category, assigning, unassigning or moving a security, or moving a category

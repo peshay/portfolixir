@@ -1864,8 +1864,9 @@ Beispiel-Payloads für Konten:
   Ledger-Faltung erzwungen (ADR-0033), nicht länger eine Annahme; ein
   Bestand, dessen Wertpapier keinen Kurs hat, liefert `null` für Preis,
   Marktwert und G/V. Jede Zeile trägt zusätzlich die
-  ADR-0033-Zerlegung des G/V in Basiswährung: `base_cost` (der tatsächlich
-  gezahlte Abrechnungsbetrag, mit seiner `base_currency`),
+  ADR-0033-Zerlegung des G/V in Basiswährung: `base_cost` (der
+  Abrechnungsbetrag, das gezahlte Geld vor Gebühren und Steuern, mit seiner
+  `base_currency`),
   `price_return_abs`/`price_return_pct` (die eigene Kursbewegung des
   Wertpapiers, zum heutigen Kurs umgerechnet),
   `currency_return_abs`/`currency_return_pct` (der Wechselkurseffekt auf den
@@ -1890,6 +1891,13 @@ Beispiel-Payloads für Konten:
   `price_return_pct`, `currency_return_pct` und `total_return_base_pct`
   `null` neben seinen drei Beträgen, und `computation_basis.decomposition_pct`
   nennt die Regel.
+  Seit Issue #1212 sagt `computation_basis.fees_and_taxes_in_figures`, was
+  die Kosten zählen: `cost_basis`, `avg_cost` und `base_cost` sind ohne
+  Gebühren und Steuern der Käufe, und G/V und Zerlegung messen gegen sie,
+  während die `basis` eines geschlossenen Trades im Trades-Endpunkt sie
+  enthält, sobald die Stücke verkauft sind. Keine Zahl hat sich geändert:
+  Ein Kauf von 10 zu 100 USD, abgerechnet mit 790,00 EUR und 6,00 EUR
+  Gebühren und Steuern, liest `base_cost` `"790"`.
   Bestände werden beim Lesen abgeleitet, ohne gespeicherten Snapshot, daher
   ist `as_of` das Lesedatum. Unbekannte Portfolios liefern `404 Not Found`.
   Optionale Filter: `security_id`, `securities_account_id`. Ein optionales
@@ -2475,7 +2483,9 @@ Beispiel-Payloads für Konten:
   `target_plan`-Löschung des Plans journalisiert.
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
   das **Ergebnis** je Kategorie (ADR-0041 Teil eins, #712): `invested` (die
-  Summe der Einstandskosten der Mitglieder in Basiswährung), `current_value`,
+  Summe der `base_cost` der Mitglieder, ohne Gebühren und Steuern der Käufe,
+  das Ergebnis also vor ihnen; `basis_note` sagt es seit Issue #1212),
+  `current_value`,
   `result_abs` und `result_pct` je Kategorie, dazu die `positions`, die es
   ergeben, und die `excluded`-Zeilen, die es nicht abdecken konnte. Die Basis
   steht in einer Zeile (`basis: "current_composition"`, ausgeschrieben in
@@ -2807,6 +2817,14 @@ Beispiel-Payloads für Konten:
   Bestands-Endpunkt liest ein offener Lot mit `base_cost` `"0"` die drei
   Prozentwerte der Zerlegung ebenfalls `null`, und
   `computation_basis.decomposition_pct` nennt die Regel.
+  Seit Issue #1212 sagt `computation_basis.fees_and_taxes_in_figures`,
+  welche Zahlen Gebühren und Steuern tragen: `buy_price`,
+  `buy_price_native`, `base_cost` und `unrealized_pnl_*` eines offenen Lots
+  sind ohne sie (`buy_fees` und `buy_taxes` nennen sie daneben), die
+  `basis` eines geschlossenen Round-Trips enthält die Kaufgebühren und
+  -steuern der Lots, die er schließt, anteilig, seine `proceeds` sind
+  abzüglich der des Verkaufs, und `realized_pnl_abs` ist nach allen vieren.
+  Keine Zahl hat sich geändert.
 - `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
   ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein
   `as_of`-Datum. Ein Snapshot kopiert keine Finanzdaten — die Bestände, die er

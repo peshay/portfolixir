@@ -1407,7 +1407,10 @@ andere Kategorie, wandert sein gesamtes Ergebnis mit. Eine Position, deren
 Ergebnis sich nicht ableiten lässt (kein brauchbarer Kurs oder kein Wechselkurs
 zur Basiswährung), bleibt auf **beiden** Seiten der Summe außen vor und wird in
 der Markierung „abgedeckt von gesamt" mitgezählt, statt als Null zu gelten, was
-die Kategorie still kleinrechnen würde.
+die Kategorie still kleinrechnen würde. Der **Einstand** ist, was die Anteile
+ohne Gebühren und Steuern der Käufe gekostet haben, das Ergebnis also vor
+ihnen; der Einstand eines abgeschlossenen Trades im Reiter Trades eines
+Wertpapiers enthält sie (Issue #1212). Das ⓘ der Basiszeile sagt es.
 
 Die Zahlen folgen dem Baum, während Sie ihn bearbeiten (Issue #1110): eine
 Kategorie anlegen oder löschen, ein Wertpapier zuordnen, die Zuordnung aufheben
