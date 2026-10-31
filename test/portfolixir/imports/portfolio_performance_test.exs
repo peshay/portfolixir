@@ -162,6 +162,51 @@ defmodule Portfolixir.Imports.PortfolioPerformanceTest do
       assert PortfolioPerformance.credit_refusal(:debit, entry, %{}) == nil
     end
 
+    # User story (#1193, Sprint 21 α7; board ux-design-2026-10-09/07-imports
+    # ①, the parser warning of a stored refused row):
+    # As the operator whose refused row's stored booking the correction
+    # lists,
+    # I want its warning to point to that line instead of saying it cannot
+    # be corrected here,
+    # so that I find its figures and its remedy where they are.
+    #
+    # Acceptance criteria:
+    # - Each kept record carries `listed_message`: the refusal's figures,
+    #   then "— already imported; listed under “Already imported, with a
+    #   different amount”." (a sale as a sale, any other credit as the
+    #   booking; A8's kinds by name), and the rule that refused it.
+    test "the listed message points to the correction's line" do
+      pointer = "— already imported; listed under “Already imported, with a different amount”."
+
+      assert {_fresh, %{rule: :a5, listed_message: listed}} =
+               refused("sell", "Gesamtpreis", "-4,90", nil, nil)
+
+      assert listed ==
+               "sell with Gesamtpreis -4,90: nothing would remain for the sale " <> pointer
+
+      assert {_fresh, %{rule: :a5, listed_message: listed}} =
+               refused("dividend", "Betrag", "1,00", "1,00", "0,00")
+
+      assert listed ==
+               "booking with Betrag 1,00 and a tax refund of 1,00: 0,00 would remain for the " <>
+                 "booking " <> pointer
+
+      refund = %Entry{source_row: 3, kind: "tax_refund", gross_amount: Decimal.new("0.40")}
+
+      delivery = %Entry{
+        source_row: 2,
+        kind: "inbound_delivery",
+        companion_entries: [refund]
+      }
+
+      assert {_fresh, %{rule: :a8, listed_message: listed}} =
+               PortfolioPerformance.refund_refusal(delivery, "0,40")
+
+      assert listed ==
+               "inbound delivery with a tax refund of 0,40: an inbound delivery moves no cash, " <>
+                 "so the refund would have no account " <> pointer
+    end
+
     test "says it in German" do
       Gettext.put_locale(PortfolixirWeb.Gettext, "de")
 
