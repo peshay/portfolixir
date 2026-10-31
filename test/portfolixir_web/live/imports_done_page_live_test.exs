@@ -136,6 +136,62 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
              "2 Einträge, die die Vorschau abgelehnt hat, sind nicht importiert:"
   end
 
+  # User story (#1178, Sprint 21 γ7; board 07 ⑨): As the operator whose
+  # first import ran on a fresh instance, I want the done page to name the
+  # portfolio record the import created, so that the record I later find
+  # under Accounts & depots is one I was told about.
+  #
+  # Acceptance criteria:
+  # - On an instance with no portfolio record, the done page says under its
+  #   counts, in a muted line (`data-role="import-portfolio"`): "The import
+  #   created the portfolio record “Default” (EUR) and booked into it."; the
+  #   apply's result names it (`created_portfolio`).
+  # - In German: "Der Import hat den Portfoliodatensatz „Default“ (EUR)
+  #   angelegt und darin gebucht."
+  # - With a record already there, no line, and the result names none.
+  test "the done page names the portfolio record a first import created", %{conn: conn} do
+    body = json([deposit("1000.00")])
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, "first.json", body)
+    confirm(view)
+
+    assert has_element?(
+             view,
+             ".import-done > p.muted[data-role='import-portfolio']",
+             "The import created the portfolio record “Default” (EUR) and booked into it."
+           )
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, "second.json", json([deposit("20.00")]))
+    confirm(view)
+    refute has_element?(view, "[data-role='import-portfolio']")
+
+    {:ok, german, _html} = live(german(conn), "/imports")
+    upload(german, "third.json", json([deposit("30.00")]))
+    confirm(german)
+    refute has_element?(german, "[data-role='import-portfolio']")
+  end
+
+  test "the apply's result names the portfolio record it created, in German too",
+       %{conn: conn} do
+    {:ok, german, _html} = live(german(conn), "/imports")
+    upload(german, "first.json", json([deposit("1000.00")]))
+    confirm(german)
+
+    assert has_element?(
+             german,
+             "[data-role='import-portfolio']",
+             "Der Import hat den Portfoliodatensatz „Default“ (EUR) angelegt und darin gebucht."
+           )
+
+    {:ok, preview} =
+      Imports.parse_portfolio_performance(json([deposit("5.00")]), filename: "again.json")
+
+    assert {:ok, %{created_portfolio: nil}} =
+             Imports.apply(preview, %{cash_accounts: %{}, depots: %{}})
+  end
+
   # --- the exports -------------------------------------------------------------
 
   defp history do
