@@ -64,6 +64,33 @@ defmodule PortfolixirWeb.LiveSocketOriginTest do
     end
   end
 
+  # User story (security review 2026-10-12, H25):
+  # As an operator running a release,
+  # I want the LiveView signing salt derived from my SECRET_KEY_BASE,
+  # so that no installation signs its sockets with the salt printed in the
+  # repository, as ADR-0045 §2 says.
+  #
+  # Acceptance criteria:
+  # - Under :prod, config/runtime.exs sets the endpoint's live_view
+  #   signing_salt to RuntimeConfig.derived_salt(SECRET_KEY_BASE,
+  #   "live_view"), never config.exs's literal.
+  test "a release derives the LiveView signing salt from SECRET_KEY_BASE" do
+    salt =
+      with_env(@release_env, fn ->
+        "config/runtime.exs"
+        |> Config.Reader.read!(env: :prod, target: :host)
+        |> Keyword.fetch!(:portfolixir)
+        |> Keyword.fetch!(PortfolixirWeb.Endpoint)
+        |> Keyword.fetch!(:live_view)
+        |> Keyword.fetch!(:signing_salt)
+      end)
+
+    assert salt ==
+             Portfolixir.RuntimeConfig.derived_salt(@release_env["SECRET_KEY_BASE"], "live_view")
+
+    refute salt == "portfolixir-salt"
+  end
+
   defp with_env(env, fun) do
     previous = Map.new(env, fn {name, _value} -> {name, System.get_env(name)} end)
 
