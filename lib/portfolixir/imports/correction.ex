@@ -313,7 +313,8 @@ defmodule Portfolixir.Imports.Correction do
   # of the twins or the row that claims the booking: the economic key cannot
   # tell two genuine twins apart, and correcting the wrong one is worse than
   # correcting none. A row whose split-off refund is not stored beside it,
-  # by its hash or its economic key, is not listed (A6's rule).
+  # by its hash or its economic key, is not listed (A6's rule); a stored
+  # refund found by its key counts for one row of the file only.
   defp figure_items(_flat, _hashes, _stored, :error, _context), do: []
 
   defp figure_items(flat_entries, hashes, stored, {:ok, keys}, context) do
@@ -348,7 +349,15 @@ defmodule Portfolixir.Imports.Correction do
 
       hash_claimed = for {_entry, %Transaction{id: id}} <- hits, into: MapSet.new(), do: id
 
-      context = Map.merge(context, %{by_key: by_key, claims: claims, hits: hits, keys: keys})
+      context =
+        Map.merge(context, %{
+          by_key: by_key,
+          claims: claims,
+          hits: hits,
+          keys: keys,
+          refunds: refunds_by_parent(hits),
+          refunds_left: refunds_left(hits, keys, by_key, hash_claimed)
+        })
 
       Enum.flat_map(rows, fn {entry, row_keys} ->
         booked =
@@ -396,21 +405,57 @@ defmodule Portfolixir.Imports.Correction do
   end
 
   # Every refund split off the row is stored: by its own hash, or by its
-  # economic key as the apply finds it.
+  # economic key as the apply finds it. A refund found by its key counts
+  # only when no other row claims it (A12's twin rule on A6's): the stored
+  # refunds under the key, less those a hash hit claims, are at least as
+  # many as the refunds of the file found by that key. Two equal refunds
+  # cannot be told apart by their figures, so one stored refund never
+  # counts for two rows.
   defp refunds_beside?(%Entry{source_row: row}, context) do
-    context.hits
-    |> Enum.filter(fn {entry, _hit} -> entry.source_row == row and entry.companion_index end)
+    context.refunds
+    |> Map.get(row, [])
     |> Enum.all?(fn
       {_entry, %Transaction{}} ->
         true
 
       {entry, nil} ->
-        case Map.get(context.keys, {row, entry.companion_index}) do
-          %{booked: key} -> Map.has_key?(context.by_key, key)
+        case Map.get(context.keys, {entry.source_row, entry.companion_index}) do
+          %{booked: key} -> Map.get(context.refunds_left, key, 0) >= 0
           nil -> false
         end
     end)
   end
+
+  # The hits of the refunds split off each row, by the row's number: a
+  # companion follows its parent in the flattened file (`Entry.flatten/1`)
+  # and carries a source row of its own.
+  defp refunds_by_parent(hits) do
+    {by_parent, _parent} =
+      Enum.reduce(hits, {%{}, nil}, fn
+        {%Entry{companion_index: nil, source_row: row}, _hit}, {by_parent, _parent} ->
+          {by_parent, row}
+
+        companion, {by_parent, parent} ->
+          {Map.update(by_parent, parent, [companion], &(&1 ++ [companion])), parent}
+      end)
+
+    by_parent
+  end
+
+  # Per booked key of a refund without a hash hit: the stored bookings under
+  # the key no hash hit claims, less the file's refunds found by that key.
+  defp refunds_left(hits, keys, by_key, hash_claimed) do
+    for {%Entry{companion_index: index} = entry, nil} <- hits,
+        not is_nil(index),
+        %{booked: key} <- [Map.get(keys, {entry.source_row, index})],
+        reduce: %{} do
+      left ->
+        Map.update(left, key, unclaimed(by_key, key, hash_claimed) - 1, &(&1 - 1))
+    end
+  end
+
+  defp unclaimed(by_key, key, hash_claimed),
+    do: by_key |> Map.get(key, []) |> Enum.count(&(not MapSet.member?(hash_claimed, &1.id)))
 
   defp portfolio_bookings(%{portfolio_id: portfolio_id, lock?: lock?}) do
     from(t in Transaction,

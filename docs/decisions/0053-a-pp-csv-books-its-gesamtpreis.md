@@ -775,6 +775,18 @@ stored hash holds reads otherwise under A4's old reading and the portfolio
 holds a booking (`Correction.economic_keys_needed?/2`); otherwise the hash
 lookup alone lists the correction (#1205).
 
+**Note (2026-10-31): a stored refund counts for one row.** A6's rule on
+A12's path found a refund by its economic key whenever any stored refund
+held that key, and it read the refunds of the row itself by a row number a
+split-off refund does not carry, so the rule held for every row. Two
+same-day sales with equal refunds, one refund deleted by hand, were both
+listed with a confirm, and the confirm took 25.00 more out of the cash than
+the file states. The twin rule now applies to the refunds too: a refund
+found by its key counts only while the stored refunds under that key, less
+those a hash hit claims, are at least as many as the file's refunds found
+by that key. Otherwise its row is not listed, since the economic key cannot
+tell which row's refund is gone (`Correction.detect/3`, #1205, #1193).
+
 **Everything else in §6 and A6 holds:**
 
 - a separate confirm, which writes only the lines that carry one;
