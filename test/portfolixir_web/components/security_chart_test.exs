@@ -437,8 +437,10 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
             )
           )
 
-        assert html =~ "buy on 15.05.2026 at 101"
-        refute html =~ "buy on 2026-05-15"
+        # #1163 (Sprint 21 γ2, board 02 ⑥): the whole title reads German
+        # now, not only its date.
+        assert html =~ "Kauf am 15.05.2026 zu 101,00"
+        refute html =~ "buy on"
       end)
     end
   end
