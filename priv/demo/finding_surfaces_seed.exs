@@ -4,8 +4,9 @@
 # position, a foreign-currency cash account with no FX rate, a snapshot, a tax
 # statement, research-log entries, security events, buckets and a view, policy
 # rules in every state, a cross-currency buy, position targets in one
-# category and an archived version of their plan, and the lifecycle merges: merged and renamed accounts, a merged
-# depot, a merged security, and a refused merge of each kind a seed can reach
+# category and an archived version of their plan, and the lifecycle
+# merges: merged and renamed accounts, a merged depot, a merged security,
+# and a refused merge of each kind a seed can reach
 # (the two legacy import-hash states need a database from before the
 # import-hash check and are left to the tests), and the Sprint 17 surfaces
 # (15): closed trades held over a year and lost entirely, sells with no
@@ -769,11 +770,11 @@ platform_targets =
 # 13a. An archived plan version (#1185, Sprint 21 β2; plan D-14): the
 #      Strategies plan's "Earlier mix", with its first Platforms position
 #      (Apple, 12 % today) at 15 %, kept as an archived version beside the
-#      active plan. It is
-#      duplicated from the active plan, edited, activated, and the active plan
-#      activated again, so the active plan keeps its id and its weights. The
-#      SOLL editor lists it among the versions, and an agent's plan_id read
-#      refuses it as the writes do. Skipped when the scope holds one already.
+#      active plan. It is duplicated from the active plan, edited, activated,
+#      and the active plan activated again, so the active plan keeps its id
+#      and its weights. The SOLL editor lists it among the versions, and an
+#      agent's plan_id read refuses it as the writes do. Skipped when the
+#      scope holds one already.
 strategies_plans =
   Portfolixir.Portfolios.Targets.list_plans(portfolio.id,
     classification_id: strategies.id,
