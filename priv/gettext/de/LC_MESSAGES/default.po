@@ -674,7 +674,7 @@ msgstr "Aktien, ETFs, Fonds und Anleihen über Portfolio Performance suchen."
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:250
 #, elixir-autogen, elixir-format
 msgid "Searching…"
-msgstr "Suche…"
+msgstr "Wird gesucht…"
 
 #: lib/portfolixir_web/live/securities_live.ex:456
 #, elixir-autogen, elixir-format
@@ -1191,7 +1191,7 @@ msgstr "Logo aktualisiert"
 #: lib/portfolixir_web/live/securities_live.ex:5677
 #, elixir-autogen, elixir-format
 msgid "Looking up logo…"
-msgstr "Suche Logo…"
+msgstr "Logo wird gesucht…"
 
 #: lib/portfolixir_web/live/securities_live.ex:5960
 #, elixir-autogen, elixir-format
@@ -2519,7 +2519,7 @@ msgstr "Wechselkurse synchronisieren"
 #: lib/portfolixir_web/live/portfolio_live.ex:4267
 #, elixir-autogen
 msgid "Syncing…"
-msgstr "Synchronisiere…"
+msgstr "Wird synchronisiert…"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4297
 #, elixir-autogen
@@ -5005,7 +5005,7 @@ msgstr "Benutzerdefinierter Zeitraum …"
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:444
 #, elixir-autogen, elixir-format
 msgid "Saving…"
-msgstr "Speichern…"
+msgstr "Wird gespeichert…"
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:389
 #, elixir-autogen, elixir-format
@@ -5782,7 +5782,7 @@ msgstr[1] "Nachladen hat %{count} Wechselkurse gespeichert."
 #: lib/portfolixir_web/live/income_live.ex:119
 #, elixir-autogen, elixir-format
 msgid "Backfilling…"
-msgstr "Lädt nach…"
+msgstr "Wird nachgeladen…"
 
 #: lib/portfolixir_web/live/income_live.ex:125
 #, elixir-autogen, elixir-format
