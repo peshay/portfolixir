@@ -1028,7 +1028,9 @@ meanwhile (by the agent, or in another tab) reads, as a *Problem*, "That
 transaction no longer exists." — the one refusal the API knows. Each
 result carries its word and its glyph, not only a colour, and its × clears
 it (#1064). Accounts & depots, Views, Classifications and Risk answer their
-actions the same way. Nothing is checked beyond that, as over the API: deleting a
+actions the same way. The × gives the focus back to the control that
+produced the result, or, when that control is gone, to the section's
+heading (#1166). Nothing is checked beyond that, as over the API: deleting a
 buy whose shares a later sale consumed leaves that sale without its
 purchase.
 

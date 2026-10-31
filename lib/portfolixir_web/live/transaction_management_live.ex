@@ -131,6 +131,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           id="transactions-result"
           class="inline-result--page"
           result={page_result(@error, @success)}
+          focus_fallback="#transaction-history-heading"
         />
 
         <%!-- ADR-0024: no portfolio strip — the depot choice alone decides
@@ -152,7 +153,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <%!-- U1 (#912): where the focus goes when the delete dialog
                  closes — its opener, the row menu, is gone by then, and
                  after a delete the row is too (WCAG 2.4.3). --%>
-            <h2 id="transaction-history-heading" tabindex="-1"><%= gettext("Transaction history") %></h2>
+            <h2 id="transaction-history-heading" class="result-focus-fallback" tabindex="-1"><%= gettext("Transaction history") %></h2>
             <div class="section-head-controls">
               <button
                 :if={@transactions != []}

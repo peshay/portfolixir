@@ -71,11 +71,12 @@ defmodule PortfolixirWeb.BucketsLive do
           id="buckets-result"
           class="inline-result--page"
           result={page_result(@error, @success)}
+          focus_fallback="#views-heading"
         />
 
         <section id="views-section" class="workspace-section">
           <header class="section-head">
-            <h2>
+            <h2 id="views-heading" class="result-focus-fallback" tabindex="-1">
               <%= gettext("Views") %>
               <%!-- The two-step explanation behind the heading's ⓘ (UX-DR11
                    triage of the former how-it-works block, issue 802). --%>

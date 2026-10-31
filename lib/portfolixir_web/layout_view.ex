@@ -1368,6 +1368,84 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // The inline result's dismiss gives the focus back (issue 1166,
+            // Sprint 21 γ8, board ux-design-2026-10-09/08-shared-copy, pick
+            // N13 = A). The server removes the note and the focused × with
+            // it, so the focus fell to <body> and the next Tab started at the
+            // top of the page. On the ×'s click, before the server answers,
+            // the focus goes to the first on the page and visible of: the
+            // trigger the page names (`data-focus-return`), the control that
+            // had the focus when the result arrived (the button itself, or a
+            // dialog's opener once the dialog closed), or the control last
+            // activated outside the slot when the focus sat on the slot
+            // (#920) or on <body>; else `data-focus-fallback`, the section's
+            // heading or the toolbar's first control (WCAG 2.4.3). Only the
+            // dismiss moves the focus: a result arriving, or replacing
+            // another, never does.
+            Hooks.InlineResult = {
+              mounted: function () {
+                var self = this;
+                this.shown = this.hasResult();
+                this.trigger = null;
+                this.lastAction = null;
+                this.onActivate = function (event) {
+                  var target = event.target;
+                  if (!target || !target.closest || self.el.contains(target)) return;
+                  var control = event.submitter ||
+                    target.closest("button, a[href], input, select, textarea, summary, [phx-click]");
+                  if (control) self.lastAction = control;
+                };
+                this.onDismiss = function (event) {
+                  var target = event.target;
+                  if (!target || !target.closest) return;
+                  if (!target.closest("[data-role='result-dismiss']")) return;
+                  var next = self.returnTarget();
+                  if (next) next.focus();
+                };
+                document.addEventListener("click", this.onActivate, true);
+                document.addEventListener("submit", this.onActivate, true);
+                this.el.addEventListener("click", this.onDismiss);
+              },
+              updated: function () {
+                var shown = this.hasResult();
+                if (shown && !this.shown) this.noteTrigger();
+                this.shown = shown;
+              },
+              destroyed: function () {
+                document.removeEventListener("click", this.onActivate, true);
+                document.removeEventListener("submit", this.onActivate, true);
+                this.el.removeEventListener("click", this.onDismiss);
+              },
+              // A result, not a busy line: only a result carries the ×.
+              hasResult: function () {
+                return !!this.el.querySelector("[data-role='result-dismiss']");
+              },
+              // Read once the patch is done, so a closing dialog has given
+              // its opener the focus back first.
+              noteTrigger: function () {
+                var self = this;
+                window.setTimeout(function () {
+                  var active = document.activeElement;
+                  var held = active && active !== document.body && !self.el.contains(active);
+                  self.trigger = held ? active : self.lastAction;
+                }, 0);
+              },
+              usable: function (el) {
+                return !!el && el.isConnected && !this.el.contains(el) && !el.disabled &&
+                  typeof el.focus === "function" && el.getClientRects().length > 0;
+              },
+              returnTarget: function () {
+                var named = this.el.getAttribute("data-focus-return");
+                var candidates = named ? Array.prototype.slice.call(document.querySelectorAll(named)) : [];
+                candidates.push(this.trigger);
+                for (var i = 0; i < candidates.length; i++) {
+                  if (this.usable(candidates[i])) return candidates[i];
+                }
+                var fallback = this.el.getAttribute("data-focus-fallback");
+                return fallback ? document.querySelector(fallback) : null;
+              }
+            };
+
             Hooks.CountUp = {
               mounted: function () {
                 this.lastValue = null;

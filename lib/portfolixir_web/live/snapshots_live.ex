@@ -355,6 +355,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
         <AppShell.inline_result
           id="snapshots-action-result"
           result={@page_error && {:problem, @page_error}}
+          focus_fallback="#snapshots-heading"
         />
 
         <%!-- The comparison is the surface (#671, #796): it renders first and
@@ -545,7 +546,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
         <section class="workspace-section">
           <header class="section-head">
-            <h2>
+            <h2 id="snapshots-heading" class="result-focus-fallback" tabindex="-1">
               <%= gettext("Snapshots") %>
               <%!-- The explanation behind an ⓘ on the heading (UX-DR11),
                    not a paragraph above the list. --%>

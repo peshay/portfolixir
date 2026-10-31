@@ -473,7 +473,7 @@ defmodule PortfolixirWeb.RiskLive do
     ~H"""
     <section class="workspace-section policy-rules" id="policy-rules" aria-labelledby="policy-rules-title">
       <header class="section-head">
-        <h2 id="policy-rules-title">
+        <h2 id="policy-rules-title" class="result-focus-fallback" tabindex="-1">
           <%= gettext("Own rules") %>
           <span class="section-head__meta" data-role="policy-rules-summary">
             · <%= ngettext("%{count} breached", "%{count} breached", @findings.summary.breached) %>
@@ -492,6 +492,7 @@ defmodule PortfolixirWeb.RiskLive do
         id="policy-rules-result"
         class="inline-result--page"
         result={@notice && {:note, @notice}}
+        focus_fallback="#policy-rules-title"
       />
 
       <%= if @findings.findings == [] do %>

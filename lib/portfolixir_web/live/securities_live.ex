@@ -457,6 +457,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <form class="search-field" phx-change="search" phx-submit="search" id="securities-search-form">
             <AppShell.icon name={:search} />
             <input
+              id="securities-search"
               type="search"
               name="query"
               value={@query}
@@ -705,6 +706,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           id="securities-action-result"
           result={@action_result}
           focusable
+          focus_fallback="#securities-search"
         />
 
         <div
@@ -3352,6 +3354,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         id="quotes-release-result"
         result={@release_result}
         dismiss_event="dismiss_release_result"
+        focus_fallback="#detail-tab-quotes"
       >
         <:follow_up :if={@sync_adapter?}>
           <%!-- #1033 (H7.4): the follow-up syncs the security just

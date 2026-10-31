@@ -452,12 +452,26 @@ defmodule PortfolixirWeb.AppShell do
   result slot (#1064, pick J7 = A), which keeps the footprint of the alert
   it replaced — none at rest, so a page looks as it did until an action
   answers.
+
+  `focus_return` and `focus_fallback` say where the dismiss gives the focus
+  back (#1166, Sprint 21 board 08, pick N13 = A): the server removes the note
+  and the focused × with it, so the focus fell to `<body>`. The
+  `InlineResult` hook moves it on the ×'s click to the first on the page and
+  visible of: `focus_return` (a selector for the trigger, when the page names
+  it), the control that had the focus when the result arrived (or the one
+  last activated, when the focus sat on the slot or on `<body>`); else
+  `focus_fallback`, the section's heading (`tabindex="-1"`,
+  `.result-focus-fallback`) or, on a page without one, the toolbar's first
+  control. Only the dismiss moves the focus. Both are CSS selectors, as the
+  dialogs' `data-focus-return` / `data-focus-fallback` are.
   """
   attr(:id, :string, required: true)
   attr(:result, :any, default: nil)
   attr(:dismiss_event, :string, default: "dismiss_result")
   attr(:focusable, :boolean, default: false)
   attr(:class, :string, default: nil)
+  attr(:focus_return, :string, default: nil)
+  attr(:focus_fallback, :string, default: nil)
   slot(:follow_up)
 
   def inline_result(assigns) do
@@ -467,6 +481,9 @@ defmodule PortfolixirWeb.AppShell do
       class={["inline-result", @class]}
       data-role="action-result"
       tabindex={@focusable && "-1"}
+      phx-hook="InlineResult"
+      data-focus-return={@focus_return}
+      data-focus-fallback={@focus_fallback}
     >
       <div id={"#{@id}-status"} role="status" class="inline-result__region">
         <%= case @result do %>
@@ -506,6 +523,7 @@ defmodule PortfolixirWeb.AppShell do
       <button
         type="button"
         class="inline-result__dismiss"
+        data-role="result-dismiss"
         phx-click={@dismiss_event}
         aria-label={gettext("Dismiss")}
         title={gettext("Dismiss")}

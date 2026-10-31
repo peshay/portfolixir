@@ -87,7 +87,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       <div id="portfolios-workspace" class="workspace-page">
         <section id="accounts-panel" class="workspace-section">
           <div class="section-head">
-            <h2><%= gettext("Depots and cash accounts") %></h2>
+            <h2 id="accounts-heading" class="result-focus-fallback" tabindex="-1">
+              <%= gettext("Depots and cash accounts") %>
+            </h2>
             <button
               id="add-account-button"
               type="button"
@@ -98,7 +100,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
             </button>
           </div>
 
-          <AppShell.inline_result id="accounts-result" result={@result} />
+          <AppShell.inline_result
+            id="accounts-result"
+            result={@result}
+            focus_fallback="#accounts-heading"
+          />
 
           <%= if @rows == [] do %>
             <p class="hint" data-role="accounts-empty">

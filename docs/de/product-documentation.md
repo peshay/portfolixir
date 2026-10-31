@@ -1129,7 +1129,9 @@ als *Problem*, „Diese Transaktion existiert nicht mehr.“ — die eine
 Ablehnung, die die API kennt. Jedes Ergebnis trägt sein Wort und sein
 Zeichen, nicht nur eine Farbe, und sein × blendet es aus (#1064). Konten &
 Depots, Ansichten, Klassifizierungen und Risiko antworten auf ihre Aktionen
-ebenso. Darüber
+ebenso. Das × gibt den Fokus an das Bedienelement zurück, das das Ergebnis
+ausgelöst hat, oder, wenn es nicht mehr da ist, an die Überschrift des
+Abschnitts (#1166). Darüber
 hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
 Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
 Kauf.

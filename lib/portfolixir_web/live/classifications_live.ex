@@ -295,10 +295,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
           class="inline-result--page"
           result={page_result(@error, @success)}
           focusable
+          focus_fallback="#classification-heading"
         />
 
         <header class="detail-head">
-          <h2 id="classification-heading" tabindex="-1">
+          <h2 id="classification-heading" class="result-focus-fallback" tabindex="-1">
             <%= ClassificationName.display(@tree.classification) %>
             <%= if @tree.classification.built_in do %>
               <span class="badge"><%= gettext("Built-in") %></span>
@@ -571,9 +572,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
           id="classifications-result"
           class="inline-result--page"
           result={page_result(@error, nil)}
+          focus_fallback="#classification-create-heading"
         />
         <section class="workspace-section">
-          <h2><%= gettext("Create classification") %></h2>
+          <h2 id="classification-create-heading" class="result-focus-fallback" tabindex="-1">
+            <%= gettext("Create classification") %>
+          </h2>
           <form id="classification-form" phx-submit="create_classification" class="inline-form">
             <label>
               <span><%= gettext("Name") %></span>

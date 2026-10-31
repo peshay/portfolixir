@@ -282,7 +282,9 @@ defmodule PortfolixirWeb.ImportsLive do
 
     ~H"""
     <section class="workspace-section">
-      <h2><%= gettext("Preview") %></h2>
+      <h2 id="import-preview-heading" class="result-focus-fallback" tabindex="-1">
+        <%= gettext("Preview") %>
+      </h2>
       <p class="muted">
         <%= gettext("Source format: %{format}",
           format: assigns.preview.format |> to_string() |> String.upcase()
@@ -394,6 +396,7 @@ defmodule PortfolixirWeb.ImportsLive do
         result={@correction_result}
         dismiss_event="dismiss_correction_result"
         focusable
+        focus_fallback="#import-preview-heading"
       />
 
       <section
