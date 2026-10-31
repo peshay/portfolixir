@@ -885,7 +885,10 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     #   refund 25.00 beside it), Test-Cash reads 945.10.
     # - The re-drop lists the sale, not correctable here: Test-Cash +45.10
     #   as stored, +20.10 as the file states, difference -25.00.
-    # - Its row error still says the row is already imported.
+    # - Its row error still says the row is already imported, and points to
+    #   the line: "… — already imported; listed under “Already imported,
+    #   with a different amount”." (DE: „… — bereits importiert; aufgeführt
+    #   unter „Bereits importiert, mit anderem Betrag“.“; board 07 ①).
     # - The confirm writes nothing: Test-Cash stays 945.10.
     test "K19: a stored sale the preview now refuses is listed without a confirm" do
       portfolio = portfolio!("K19")
@@ -909,7 +912,24 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert [%{row: 3, message: message}] =
                Imports.row_errors(preview, portfolio_id: portfolio.id)
 
-      assert message =~ "already imported"
+      assert message =~
+               "— already imported; listed under “Already imported, with a different amount”."
+
+      assert [%{row: 3, message: german}] =
+               Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+                 [
+                   deposit("2026-04-01", 1000.0),
+                   purchase("2026-04-02", 10.0, 100.0),
+                   sale("2026-04-15", "15:30", 20.10)
+                 ]
+                 |> parse_rows()
+                 |> Imports.row_errors(portfolio_id: portfolio.id)
+               end)
+
+      assert german ==
+               "Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben " <>
+                 "-4,90 — bereits importiert; aufgeführt unter „Bereits importiert, mit anderem " <>
+                 "Betrag“."
 
       assert correct!(preview, portfolio) == []
       assert balances(portfolio) == %{"Test-Cash" => "945.1"}
@@ -1042,7 +1062,8 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     # Acceptance criteria:
     # - Stored as the file states it (the sale at 120.00, fees 7.00, no
     #   negative tax): Test-Cash 1,020.00, and nothing is listed.
-    # - Its row error still says that the row is already imported.
+    # - Its row error still says that the row is already imported and
+    #   cannot be corrected here: it is listed nowhere to point to.
     test "A10: a stored A9 sale whose every account agrees is not listed" do
       portfolio = portfolio!("A9 agreeing")
       preview = parse_rows(fee_refund_history([]))
@@ -1057,7 +1078,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert [%{row: 3, message: message}] =
                Imports.row_errors(preview, portfolio_id: portfolio.id)
 
-      assert message =~ "already imported"
+      assert message =~ "— already imported with fees of 7.00, and it cannot be corrected here."
     end
 
     # User story (#1193, #1177, Sprint 21 α7; ADR-0053 A9, A10):
@@ -1072,6 +1093,8 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     # - Listed, not correctable here: Test-Cash +145.00 as stored, +120.00
     #   as the file states, difference -25.00; its refusal names A9, and the
     #   cash a hand correction sets, 95.00.
+    # - Its row error names its fees as stored and points to the line, in
+    #   English and in German.
     # - K19's sale carries A5, K20's transfer A8.
     test "A10: a stored A9 sale with a tax refund is listed under A9's rule" do
       portfolio = portfolio!("A9 with a tax refund")
@@ -1088,6 +1111,27 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert Map.get(refusal, :rule) == :a9
       assert norm(refusal.rest) == "95"
       assert correct!(preview, portfolio) == []
+
+      assert [%{row: 3, message: message}] =
+               Imports.row_errors(preview, portfolio_id: portfolio.id)
+
+      assert message ==
+               "sell with a negative fee (-2.00): the import does not book a fee refund yet — " <>
+                 "already imported with fees of 7.00; listed under “Already imported, with a " <>
+                 "different amount”."
+
+      german =
+        Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+          preview = parse_rows(fee_refund_history([%{"type" => "TAX", "amount" => -25.0}]))
+          Imports.row_errors(preview, portfolio_id: portfolio.id)
+        end)
+
+      assert [%{row: 3, message: message}] = german
+
+      assert message ==
+               "Verkauf mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
+                 "Import noch nicht — bereits importiert mit Gebühren von 7,00; aufgeführt " <>
+                 "unter „Bereits importiert, mit anderem Betrag“."
     end
 
     # User story (#1194, Sprint 21 α7; ADR-0053 A11, K21, K26):

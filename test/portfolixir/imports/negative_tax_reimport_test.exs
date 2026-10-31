@@ -363,11 +363,12 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   # - #1118's JSON sale booked as the parser of 12117072 booked it (cash
   #   20.10, price 2.51, the refund 25.00 beside it; Test-Cash 1,045.10):
   #   the row's message in that portfolio keeps the refusal's figures (what
-  #   would remain for the sale, 0 or less), says it is already imported,
-  #   that it cannot be corrected here, not to book the sale again, and
-  #   where the handbook explains it; it no longer asks for the booking by
-  #   hand (the wording of board ux-design-2026-10-07/01-import-preview ③,
-  #   its figures to the cent in the page's notation).
+  #   would remain for the sale, 0 or less) and says it is already imported;
+  #   it no longer asks for the booking by hand (the wording of board
+  #   ux-design-2026-10-07/01-import-preview ③, its figures to the cent in
+  #   the page's notation). The correction lists it, so the message points
+  #   there: "… — already imported; listed under “Already imported, with a
+  #   different amount”." (board ux-design-2026-10-09/07-imports ①).
   # - In a portfolio that never imported it, the refusal keeps its remedy.
   # - The correction lists it without a confirm (ADR-0053 A10, #1193,
   #   Sprint 21 α7: it was listed nowhere before), its confirm writes
@@ -396,9 +397,8 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
                row: 3,
                message:
                  "sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain " <>
-                   "for the sale — already imported, and it cannot be corrected here. Do not " <>
-                   "book the sale again; see “A negative tax inside a row” in the product " <>
-                   "documentation."
+                   "for the sale — already imported; listed under “Already imported, with a " <>
+                   "different amount”."
              }
            ]
 
@@ -442,8 +442,8 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
 
     assert message ==
              "sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for " <>
-               "the sale — already imported, and it cannot be corrected here. Do not book the " <>
-               "sale again; see “A negative tax inside a row” in the product documentation."
+               "the sale — already imported; listed under “Already imported, with a different " <>
+               "amount”."
   end
 
   # User story (#1118; ADR-0050 §3 and its amendment of 2026-10-07, point 1:
@@ -507,12 +507,14 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   #
   # Acceptance criteria:
   # - K17's transfer stored as Sprint 20 booked it (105.00 to Test-Savings,
-  #   the refund 5.00 on Test-Cash; K20): its row error in that portfolio
-  #   says "… — already imported, and it cannot be corrected here. Do not
-  #   book the transfer again; …"; so does its PP CSV, its figure "5,00".
-  # - K18's purchase stored as booked before (cash 1,003.00, fees 7.00): its
-  #   row error says it is already imported, naming its fees as stored,
-  #   7.00.
+  #   the refund 5.00 on Test-Cash; K20): the correction lists it, so its
+  #   row error in that portfolio says "… — already imported; listed under
+  #   “Already imported, with a different amount”."; so does its PP CSV, its
+  #   figure "5,00".
+  # - K18's purchase stored as booked before (cash 1,003.00, fees 7.00): no
+  #   account differs, so it is not listed, and its row error says it is
+  #   already imported and cannot be corrected here, naming its fees as
+  #   stored, 7.00.
   # - In a portfolio that never imported them, each row error keeps its
   #   remedy; the apply books nothing twice.
   test "a transfer or a purchase A8 or A9 refuses whose booking is stored says it is already imported",
@@ -520,14 +522,12 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
     for {name, row, message} <- [
           {"k17_transfer_negative_tax.json", 2,
            "transfer with a tax refund of 5.00: a transfer moves cash between two accounts, " <>
-             "and a refund split off it would land on one side only — already imported, and " <>
-             "it cannot be corrected here. Do not book the transfer again; see “A negative " <>
-             "tax inside a row” in the product documentation."},
+             "and a refund split off it would land on one side only — already imported; " <>
+             "listed under “Already imported, with a different amount”."},
           {"k17_transfer_negative_tax.csv", 3,
            "transfer with a tax refund of 5,00: a transfer moves cash between two accounts, " <>
-             "and a refund split off it would land on one side only — already imported, and " <>
-             "it cannot be corrected here. Do not book the transfer again; see “A negative " <>
-             "tax inside a row” in the product documentation."},
+             "and a refund split off it would land on one side only — already imported; " <>
+             "listed under “Already imported, with a different amount”."},
           {"k18_negative_fee.json", 2,
            "booking with a negative fee (-2.00): the import does not book a fee refund yet — " <>
              "already imported with fees of 7.00, and it cannot be corrected here. Do not " <>
