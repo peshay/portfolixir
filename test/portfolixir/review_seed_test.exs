@@ -11,8 +11,8 @@ defmodule Portfolixir.ReviewSeedTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quote
-  alias Portfolixir.Classifications
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Classifications
   alias Portfolixir.Imports
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction

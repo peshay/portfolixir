@@ -32,8 +32,9 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
-         {:ok, since} <- SinceParam.parse(params) do
-      targets = Targets.list_targets(pid, since_opts(list_opts(params, view), since))
+         {:ok, since} <- SinceParam.parse(params),
+         {:ok, opts, _plan} <- read_scope(params, pid, view) do
+      targets = Targets.list_targets(pid, since_opts(opts, since))
 
       json(
         conn,
@@ -48,6 +49,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
       {:error, :since} -> unprocessable(conn, %{since: ["is invalid"]})
+      {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
   end
@@ -101,18 +103,18 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, min_drift} <- DriftParam.parse(params),
-         {:ok, since} <- SinceParam.parse(params) do
-      opts = list_opts(params, view)
+         {:ok, since} <- SinceParam.parse(params),
+         {:ok, opts, plan} <- read_scope(params, pid, view) do
       rows = Targets.list_position_targets(pid, since_opts(opts, since))
 
       # `effective_targets` is a roll-up derived from the WHOLE plan, never
       # from the delta, so it reads without the cut.
       payload = %{
         data: %{
-          position_targets: position_rows(rows, pid, view, min_drift),
+          position_targets: position_rows(rows, pid, drift_scope(view, plan), min_drift),
           position_targets_total: length(rows),
           min_drift: JSON.decimal(min_drift),
-          drift_basis: drift_basis(min_drift),
+          drift_basis: drift_basis(min_drift, plan),
           effective_targets:
             Enum.map(Targets.effective_targets(pid, opts), &JSON.effective_target/1)
         }
@@ -125,14 +127,15 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       {:error, :view} -> invalid_view(conn)
       {:error, :min_drift} -> unprocessable(conn, %{min_drift: ["is invalid"]})
       {:error, :since} -> unprocessable(conn, %{since: ["is invalid"]})
+      {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
   end
 
-  defp position_rows(rows, _pid, _view, nil), do: Enum.map(rows, &JSON.position_target/1)
+  defp position_rows(rows, _pid, _scope, nil), do: Enum.map(rows, &JSON.position_target/1)
 
-  defp position_rows(rows, pid, view, %Decimal{} = min_drift) do
-    drifts = position_drifts(rows, pid, view)
+  defp position_rows(rows, pid, scope, %Decimal{} = min_drift) do
+    drifts = position_drifts(rows, pid, scope)
 
     rows
     |> Enum.map(&{&1, Map.get(drifts, {&1.classification_id, &1.security_id})})
@@ -146,12 +149,12 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # keyed by `{classification_id, security_id}` — categories and the
   # unassigned pot alike, so a stale row (filed under a category its security
   # left) still finds its drift where the allocation counts it.
-  defp position_drifts(rows, pid, view) do
+  defp position_drifts(rows, pid, scope) do
     rows
     |> Enum.map(& &1.classification_id)
     |> Enum.uniq()
     |> Enum.flat_map(fn cid ->
-      case Allocation.for_portfolio(pid, cid, ViewParam.opts(view)) do
+      case Allocation.for_portfolio(pid, cid, scope) do
         {:ok, breakdown} -> allocation_position_drifts(breakdown, cid)
         _other -> []
       end
@@ -169,9 +172,21 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     end
   end
 
-  defp drift_basis(nil), do: nil
+  # #1185: a plan_id read measures the drift against that plan version, in its
+  # own view's scope (a plan_id beside another view is refused), as the
+  # allocation would with that version active.
+  defp drift_scope(view, nil), do: ViewParam.opts(view)
+  defp drift_scope(_view, plan), do: [view: plan.view_id, plan: plan.id]
 
-  defp drift_basis(%Decimal{}),
+  defp drift_basis(nil, _plan), do: nil
+
+  defp drift_basis(%Decimal{}, %{status: "draft", id: id}),
+    do:
+      drift_basis(Decimal.new(0), nil) <>
+        "; plan_id #{id} names a draft, so the position targets are the draft's, measured as " <>
+        "the allocation would measure them with the draft active, in its view"
+
+  defp drift_basis(%Decimal{}, _plan),
     do:
       "drift_weight = actual weight of the security in the steering basis (securities + counting cash, " <>
         "view-scoped) minus its position target, as the allocation read computes it; rows without a " <>
@@ -281,6 +296,30 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       :error -> {:error, {:plan_id, "is invalid"}}
     end
   end
+
+  # #1185: the reads take the writes' plan_id with the writes' refusals; a
+  # classification_id beside it must be the plan's, as the PUT's must.
+  defp read_scope(params, pid, view) do
+    opts = list_opts(params, view)
+
+    case Map.get(params, "plan_id") do
+      absent when absent in [nil, ""] ->
+        {:ok, opts, nil}
+
+      raw ->
+        with {:ok, plan} <- writable_plan(raw, pid),
+             :ok <- same_view(plan, view),
+             :ok <- same_classification(plan, Keyword.get(opts, :classification_id)) do
+          {:ok, [plan: plan.id] ++ opts, plan}
+        end
+    end
+  end
+
+  defp same_classification(_plan, nil), do: :ok
+  defp same_classification(%{classification_id: cid}, cid), do: :ok
+
+  defp same_classification(_plan, _cid),
+    do: {:error, {:plan_id, "is a plan of another classification"}}
 
   defp same_view(_plan, nil), do: :ok
   defp same_view(%{view_id: view_id}, %{id: view_id}), do: :ok

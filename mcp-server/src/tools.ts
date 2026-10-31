@@ -1053,6 +1053,7 @@ const targetsListSchema = {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
+    plan_id: { type: "integer", minimum: 1 },
     since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
   }
 };
@@ -1061,6 +1062,7 @@ const targetsListZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive().optional(),
   view: z.number().int().positive().optional(),
+  plan_id: z.number().int().positive().optional(),
   since: optionalString()
 });
 
@@ -1141,6 +1143,7 @@ const positionTargetsListSchema = {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
+    plan_id: { type: "integer", minimum: 1 },
     // #740: the allocation read's threshold, same spelling, one level down.
     min_drift: {
       type: "string",
@@ -1155,6 +1158,7 @@ const positionTargetsListZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive().optional(),
   view: z.number().int().positive().optional(),
+  plan_id: z.number().int().positive().optional(),
   min_drift: optionalString(),
   since: optionalString()
 });
@@ -3554,7 +3558,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.targets.list",
     "List target weights",
-    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Optional since (ISO8601 UTC) makes this a delta read: only target rows changed strictly after that instant return, where a row counts as changed when it OR its plan changed — activating another plan version re-delivers the rows it swapped in, though none of them was edited. The response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note; deletions are NOT represented, so a removed target, or one left behind by a plan that stopped being active, is only visible on a full read.",
+    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan; optional plan_id reads that plan version, refused as on portfolixir.targets.set. Optional since (ISO8601 UTC) makes this a delta read: only rows changed strictly after it return, a row counting as changed when it OR its plan changed (activating a version re-delivers the rows it swapped in). The response carries as_of, the next since (a later read may re-deliver a row but never skips one), and a delta_note; deletions are NOT represented: a removed row, or one left by a plan no longer active, shows only on a full read.",
     targetsListSchema,
     targetsListZ
   ),
@@ -3575,7 +3579,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag for an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category; the row still counts where it was filed; re-file it (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects its plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target, as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
+    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag for an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category; the row still counts where it was filed; re-file it (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects its plan; plan_id: as on portfolixir.targets.list; drift_basis names a draft. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target, as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (ISO8601 UTC) makes the position rows a delta read as on portfolixir.targets.list (a later read may re-deliver a row, never skip one), applied before min_drift, so position_targets_total counts the delta; effective_targets always covers the whole plan.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),
@@ -4561,6 +4565,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/targets`, args, [
           "classification_id",
           "view",
+          "plan_id",
           "since"
         ])
       );
@@ -4587,6 +4592,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "classification_id",
           "view",
           "min_drift",
+          "plan_id",
           "since"
         ])
       );

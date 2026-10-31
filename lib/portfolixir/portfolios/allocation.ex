@@ -210,9 +210,12 @@ defmodule Portfolixir.Portfolios.Allocation do
   `:valuation`, the scope's valuation when the caller already holds it.
   `:view` (a `%View{}`, a view id, or `nil` = Gesamt) scopes
   **both** the IST valuation (#444) and the SOLL plan (ADR-0020): only the
-  addressed view's `(view, classification)` plan is loaded. Returns
-  `{:ok, breakdown}` or `{:error, :not_found}` when the classification does not
-  exist.
+  addressed view's `(view, classification)` plan is loaded. `:plan` (a plan
+  version of this classification, by id or struct; #1185) reads that version's
+  category and position targets instead of the view's active plan, so a draft
+  is measured as it would steer once activated; the cash target stays the
+  view's. Returns `{:ok, breakdown}` or `{:error, :not_found}` when the
+  classification does not exist.
   """
   def for_portfolio(portfolio_id, classification_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) do
@@ -229,7 +232,13 @@ defmodule Portfolixir.Portfolios.Allocation do
         # instead of raising out of an async render or API request.
         with %{} = valuation <- given_or_valued(portfolio_id, opts) do
           soll =
-            plan_soll(portfolio_id, classification_id, view, security_categories, categories)
+            plan_soll(
+              portfolio_id,
+              classification_id,
+              {view, Keyword.get(opts, :plan)},
+              security_categories,
+              categories
+            )
 
           soll = put_unheld_prices(soll, valuation, opts)
 
@@ -254,22 +263,27 @@ defmodule Portfolixir.Portfolios.Allocation do
   # in the impure shell, and injected into the pure `build/5` as data (AR-2).
   # The already-loaded classification data is handed to the stale annotation
   # (`lookup:`) so it is not re-derived per call (fix round, perf).
-  defp plan_soll(portfolio_id, classification_id, view, security_categories, categories) do
+  defp plan_soll(portfolio_id, classification_id, {view, plan}, security_categories, categories) do
     cash_target = Targets.get_cash_target(portfolio_id, view: view)
-    category_plan? = Targets.plan_exists?(portfolio_id, classification_id, view: view)
+    scope = if plan, do: [plan: plan], else: [view: view]
+
+    category_plan? =
+      not is_nil(plan) or Targets.plan_exists?(portfolio_id, classification_id, view: view)
 
     cond do
       category_plan? ->
         explicit =
           portfolio_id
-          |> Targets.list_targets(classification_id: classification_id, view: view)
+          |> Targets.list_targets([classification_id: classification_id] ++ scope)
           |> Map.new(&{&1.category_id, &1.target_weight})
 
         position_targets =
-          Targets.list_position_targets(portfolio_id,
-            classification_id: classification_id,
-            view: view,
-            lookup: {classification_id, security_categories, categories}
+          Targets.list_position_targets(
+            portfolio_id,
+            [
+              classification_id: classification_id,
+              lookup: {classification_id, security_categories, categories}
+            ] ++ scope
           )
 
         %{
