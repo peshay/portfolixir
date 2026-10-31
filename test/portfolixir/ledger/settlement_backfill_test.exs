@@ -449,4 +449,38 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
     assert [%{actor_label: nil}] =
              journal_entries([tx.id]) |> Enum.filter(&(&1.operation == :update))
   end
+
+  # User story (#1196, review round: the task's summary):
+  # As the maintainer running `mix portfolixir.backfill_settlement_legs`,
+  # I want its summary to count the rows it passed over because they gained
+  # a leg or were deleted after it read them,
+  # so that a row the summary does not name as updated or skipped for a
+  # missing rate is still accounted for.
+  #
+  # Acceptance criteria:
+  # - With an owner edit storing the broker's legs right after the task
+  #   read its candidates, the summary prints "rows updated: 0", "skipped
+  #   (no rate): 0" and "skipped (changed): 1".
+  test "the task prints the rows it passed over because they changed" do
+    w = world()
+    tx = legacy_import_buy!(w)
+    seed_rate!(~D[2026-01-16], "1.25")
+
+    broker_legs = fn ->
+      Ledger.update_transaction(Actor.owner_ui(), Ledger.get_transaction(tx.id), %{
+        settlement_amount: "800.00",
+        security_amount: "1012.66",
+        settlement_fx_rate: "0.790000"
+      })
+    end
+
+    {output, {:ok, _edited}} =
+      Interleave.run(&candidate_read?/1, broker_legs, fn ->
+        ExUnit.CaptureIO.capture_io(fn -> BackfillSettlementLegs.run([]) end)
+      end)
+
+    assert output =~ "rows updated:          0\n"
+    assert output =~ "skipped (no rate):     0\n"
+    assert output =~ "skipped (changed):     1\n"
+  end
 end
