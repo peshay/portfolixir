@@ -899,15 +899,16 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # As the operator re-dropping an export whose nominal sale was imported
     # before A5 refused such a row,
     # I want its parser warning to say that it is already imported and
-    # cannot be corrected here,
+    # where the page lists it,
     # so that I do not enter the sale by hand a second time.
     #
     # Acceptance criteria:
     # - The parser warning of row 4 names the figures in the sentence of
     #   board ux-design-2026-10-07/01-import-preview ③, says the row is
-    #   already imported, that it cannot be corrected here, not to book the
-    #   sale again, and points to the product documentation; it no longer
-    #   says "Book the sale by hand".
+    #   already imported, and points to the line under "Already imported,
+    #   with a different amount" (board ux-design-2026-10-09/07-imports ①,
+    #   the stored sale being listed there); it no longer says "Book the
+    #   sale by hand".
     # - The correction section lists the stored sale, kept, without a
     #   confirm (ADR-0053 A10, Sprint 21 α7).
     # - The copied warnings read the same.
@@ -924,7 +925,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       apply_before_the_refusal!(portfolio)
 
       warning =
-        "Row 4: sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for the sale — already imported, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation."
+        "Row 4: sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for the sale — already imported; listed under “Already imported, with a different amount”."
 
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
@@ -944,7 +945,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
 
       assert text(view, "#parser-warnings-box pre") ==
-               "Zeile 4: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — bereits importiert und hier nicht zu korrigieren. Den Verkauf nicht noch einmal buchen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation."
+               "Zeile 4: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — bereits importiert; aufgeführt unter „Bereits importiert, mit anderem Betrag“."
     end
 
     # The same sale as a Portfolio Performance JSON export: `amount` 20.10,
