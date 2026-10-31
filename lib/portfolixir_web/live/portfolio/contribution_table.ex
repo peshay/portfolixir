@@ -598,7 +598,10 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   defp line_label(:cash_currency_effect), do: gettext("Currency effect on cash")
 
   defp line_note(:interest),
-    do: gettext("Account interest and coupons; an interest booking carries no security")
+    do:
+      gettext(
+        "Interest bookings that name no security: account interest, and coupons stored without their bond"
+      )
 
   defp line_note(:standalone_fees_and_taxes),
     do: gettext("Not part of a trade, even when one names a security")

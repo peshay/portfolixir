@@ -135,6 +135,19 @@ D-12); the agent is an API token, as the app reads its writes:
   in the Demo Depot and in a second EUR portfolio, "Family Depot", split
   2:1: one split row in each, and both holdings doubled (20 and 12 shares).
 
+The Sprint 21 money fixes add theirs (step 18 of the seed, plan D-14):
+
+- **A bond's coupon is its income (#928, round trip 2):** a portfolio of
+  its own, "Anleihen", imported from `pp_json_bond_coupon_demo.json`: the
+  bond "Larkspur Rail AG 4,00 % Anleihe 2031" and its coupon of 400,00 EUR,
+  which keeps its bond, beside 1,10 EUR of account interest. On Wealth, over
+  01.01.2026 – 30.06.2026, the contribution table reads the bond 525,00 EUR
+  (Erträge 400,00) and "Zinsen" 1,10 EUR, the result 526,10 EUR; Income's
+  "Je Position" lists the bond and "Zinsen" apart. Drop the same file into
+  Imports again, then `pp_json_bond_coupon_reexport_demo.json` (the coupon
+  at 09:31 instead of 09:30): neither books anything, the re-export's
+  coupon is named as already booked by its figures.
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate

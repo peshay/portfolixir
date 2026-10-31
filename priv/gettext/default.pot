@@ -10470,11 +10470,6 @@ msgstr[1] ""
 msgid "%{days}, %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:601
-#, elixir-autogen, elixir-format
-msgid "Account interest and coupons; an interest booking carries no security"
-msgstr ""
-
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:181
 #, elixir-autogen, elixir-format
 msgid "Contribution"
@@ -10491,7 +10486,7 @@ msgstr ""
 msgid "Contribution by position"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:616
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:619
 #, elixir-autogen, elixir-format
 msgid "Currency %{amount}"
 msgstr ""
@@ -10506,7 +10501,7 @@ msgstr ""
 msgid "End value"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:613
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:616
 #, elixir-autogen, elixir-format
 msgid "Fees/taxes %{amount}"
 msgstr ""
@@ -10516,12 +10511,12 @@ msgstr ""
 msgid "Flows in/out"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:607
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:610
 #, elixir-autogen, elixir-format
 msgid "Foreign-currency balances and the settlement differences of buys and sells"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:610
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:613
 #, elixir-autogen, elixir-format
 msgid "Interest %{amount}"
 msgstr ""
@@ -10539,7 +10534,7 @@ msgstr[1] ""
 msgid "Not attributed to a position"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:604
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:607
 #, elixir-autogen, elixir-format
 msgid "Not part of a trade, even when one names a security"
 msgstr ""
@@ -10589,7 +10584,7 @@ msgstr ""
 msgid "held at neither end"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:652
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:655
 #, elixir-autogen, elixir-format
 msgid "income %{amount}"
 msgstr ""
@@ -11787,7 +11782,7 @@ msgstr ""
 msgid "The source (created %{date}) is deleted afterwards — the entry, not its ISIN. This cannot be undone; the journal records every changed row."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:637
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:640
 #, elixir-autogen, elixir-format
 msgid "inflow into the position %{amount}"
 msgstr ""
@@ -11797,7 +11792,7 @@ msgstr ""
 msgid "no quantity after: a different ratio is booked on this day"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:640
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:643
 #, elixir-autogen, elixir-format
 msgid "outflow from the position %{amount}"
 msgstr ""
@@ -12560,4 +12555,9 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/merge_preview.ex:291
 #, elixir-autogen, elixir-format
 msgid "Realized gains (FIFO): no realized amount and no open cost moves; which lot a sale closes, and with it holding periods and annualized returns, may."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:602
+#, elixir-autogen, elixir-format
+msgid "Interest bookings that name no security: account interest, and coupons stored without their bond"
 msgstr ""

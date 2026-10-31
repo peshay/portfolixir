@@ -20,9 +20,11 @@
 # the Sprint 21 security surfaces (17, amendment D-12): a policy rule the
 # agent renamed, a tax statement the agent recorded, a security merge ready
 # to try whose two sides both closed trades, a USD dividend no stored rate
-# converts to EUR, and a split of a security held in two portfolios. The
-# Gesamtpreis row error (#1076) is a file the walkthrough drops by hand:
-# priv/demo/pp_csv_gesamtpreis_demo.csv.
+# converts to EUR, and a split of a security held in two portfolios; and
+# the Sprint 21 money surfaces (18, plan D-14): a bond whose coupon was
+# imported with it. The Gesamtpreis row error (#1076) is a file the
+# walkthrough drops by hand: priv/demo/pp_csv_gesamtpreis_demo.csv; so are
+# the coupon file's second drop and its re-export.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -1822,5 +1824,48 @@ if find_security.("Wexmoor Instruments AG") == nil do
 end
 
 IO.puts("Sprint 21 surfaces: an agent-named rule and statement, Thornbury, Wexmoor")
+
+# 18. Sprint 21 PR 1, the money surfaces (plan D-14: each story that needs a
+#     shape for the round trips adds it here).
+#
+# α4 (#928): a bond with a coupon, round trip 2. ADR-0051's I12 history is
+# imported into a portfolio of its own, "Anleihen", from
+# priv/demo/pp_json_bond_coupon_demo.json: the coupon keeps its bond. Over
+# 01.01.2026 – 30.06.2026 Wealth's contribution table reads the bond 525,00
+# EUR (Erträge 400,00) and Zinsen 1,10 EUR, the result 526,10 EUR. Dropping
+# the file again books nothing, and neither does
+# priv/demo/pp_json_bond_coupon_reexport_demo.json, the coupon at 09:31
+# instead of 09:30. Like the demo import, it either ran or it did not, and
+# the portfolio's own ledger says which.
+anleihen =
+  case Enum.find(Portfolios.list_portfolios(), &(&1.name == "Anleihen")) do
+    nil ->
+      {:ok, p} =
+        Portfolios.create_portfolio(owner, %{name: "Anleihen", base_currency_code: "EUR"})
+
+      p
+
+    p ->
+      p
+  end
+
+if Ledger.list_transactions(portfolio_id: anleihen.id) == [] do
+  body = File.read!("priv/demo/pp_json_bond_coupon_demo.json")
+
+  {:ok, preview} =
+    Imports.parse_portfolio_performance(body, filename: "pp_json_bond_coupon_demo.json")
+
+  {:ok, _result} = Imports.apply(preview, %{portfolio_id: anleihen.id})
+
+  coupon_bond = find_security.("Larkspur Rail AG 4,00 % Anleihe 2031")
+
+  {:ok, _} =
+    Catalog.upsert_quotes(owner, coupon_bond.id, [
+      %{date: ~D[2025-12-31], close: "99.00"},
+      %{date: ~D[2026-06-30], close: "100.25"}
+    ])
+end
+
+IO.puts("Sprint 21 money surfaces: Anleihen, a bond with a coupon")
 
 IO.puts("review seed done (timber position: #{timber_state})")

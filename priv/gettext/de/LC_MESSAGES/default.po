@@ -10478,11 +10478,6 @@ msgstr[1] "%{count} kleinere Positionen sind ausgeblendet; die Summe enthält si
 msgid "%{days}, %{reason}"
 msgstr "%{days}, %{reason}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:601
-#, elixir-autogen, elixir-format
-msgid "Account interest and coupons; an interest booking carries no security"
-msgstr "Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier"
-
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:181
 #, elixir-autogen, elixir-format
 msgid "Contribution"
@@ -10499,7 +10494,7 @@ msgstr "Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Koste
 msgid "Contribution by position"
 msgstr "Beitrag je Position"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:616
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:619
 #, elixir-autogen, elixir-format
 msgid "Currency %{amount}"
 msgstr "Währung %{amount}"
@@ -10514,7 +10509,7 @@ msgstr "Währungseffekt auf Bargeld"
 msgid "End value"
 msgstr "Endwert"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:613
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:616
 #, elixir-autogen, elixir-format
 msgid "Fees/taxes %{amount}"
 msgstr "Gebühren/Steuern %{amount}"
@@ -10524,12 +10519,12 @@ msgstr "Gebühren/Steuern %{amount}"
 msgid "Flows in/out"
 msgstr "Zu-/Abflüsse"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:607
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:610
 #, elixir-autogen, elixir-format
 msgid "Foreign-currency balances and the settlement differences of buys and sells"
 msgstr "Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:610
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:613
 #, elixir-autogen, elixir-format
 msgid "Interest %{amount}"
 msgstr "Zinsen %{amount}"
@@ -10547,7 +10542,7 @@ msgstr[1] "Sie bleiben in der Summe, so wie im Ergebnis darüber."
 msgid "Not attributed to a position"
 msgstr "Keiner Position zugeordnet"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:604
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:607
 #, elixir-autogen, elixir-format
 msgid "Not part of a trade, even when one names a security"
 msgstr "Ohne Handelsbezug, auch mit Wertpapier"
@@ -10597,7 +10592,7 @@ msgstr "Summe = Ergebnis im Zeitraum"
 msgid "held at neither end"
 msgstr "weder zu Beginn noch am Ende im Bestand"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:652
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:655
 #, elixir-autogen, elixir-format
 msgid "income %{amount}"
 msgstr "Erträge %{amount}"
@@ -11795,7 +11790,7 @@ msgstr "Das Audit-Journal hält die Löschung mit allen Werten fest; wiederherst
 msgid "The source (created %{date}) is deleted afterwards — the entry, not its ISIN. This cannot be undone; the journal records every changed row."
 msgstr "Die Quelle (angelegt %{date}) wird danach gelöscht — der Eintrag, nicht ihre ISIN. Das lässt sich nicht rückgängig machen; das Journal hält jede geänderte Zeile fest."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:637
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:640
 #, elixir-autogen, elixir-format
 msgid "inflow into the position %{amount}"
 msgstr "Zufluss in die Position %{amount}"
@@ -11805,7 +11800,7 @@ msgstr "Zufluss in die Position %{amount}"
 msgid "no quantity after: a different ratio is booked on this day"
 msgstr "keine Stückzahl danach: an diesem Tag ist ein anderes Verhältnis gebucht"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:640
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:643
 #, elixir-autogen, elixir-format
 msgid "outflow from the position %{amount}"
 msgstr "Abfluss aus der Position %{amount}"
@@ -12571,3 +12566,8 @@ msgstr "Je Zelle oben vorher (%{source} + %{target} bzw. %{source} · %{target})
 #, elixir-autogen, elixir-format
 msgid "Realized gains (FIFO): no realized amount and no open cost moves; which lot a sale closes, and with it holding periods and annualized returns, may."
 msgstr "Realisierte Gewinne (FIFO): Kein realisierter Betrag und kein offener Einstand ändert sich; welchen Posten ein Verkauf schließt, und mit ihm Haltedauern und annualisierte Renditen, kann sich ändern."
+
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:602
+#, elixir-autogen, elixir-format
+msgid "Interest bookings that name no security: account interest, and coupons stored without their bond"
+msgstr "Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre Anleihe gebucht sind"

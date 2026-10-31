@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Coupon-Cash",
+      "date": "2025-03-02",
+      "currency": "EUR",
+      "amount": 10000.00
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Coupon-Cash",
+      "portfolio": "Coupon-Depot",
+      "date": "2025-03-10",
+      "time": "10:00",
+      "currency": "EUR",
+      "amount": 9955.00,
+      "shares": 100.0,
+      "security": {
+        "name": "Larkspur Rail AG 4,00 % Anleihe 2031",
+        "isin": "XSLARKSPUR33",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 5.00}
+      ]
+    },
+    {
+      "type": "INTEREST",
+      "account": "Coupon-Cash",
+      "date": "2026-03-31",
+      "currency": "EUR",
+      "amount": 1.10
+    },
+    {
+      "type": "INTEREST",
+      "account": "Coupon-Cash",
+      "date": "2026-04-15",
+      "time": "09:31",
+      "currency": "EUR",
+      "amount": 400.00,
+      "security": {
+        "name": "Larkspur Rail AG 4,00 % Anleihe 2031",
+        "isin": "XSLARKSPUR33",
+        "currency": "EUR"
+      }
+    }
+  ]
+}
