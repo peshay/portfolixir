@@ -145,6 +145,38 @@ defmodule PortfolixirWeb.RefuseBeforeBindingTest do
     end
   end
 
+  # User story (security review 2026-10-12, K13; board 07):
+  # As the operator correcting the account dialog after a refusal,
+  # I want each submit to show only what that submit refused,
+  # so that a field I already fixed is not still marked wrong.
+  #
+  # Acceptance criteria:
+  # - After a refused depot name is corrected, a submit whose tag is refused
+  #   shows the tag alert and no longer marks the name field.
+  test "a tag refusal clears the dialog's earlier field errors", %{conn: conn} do
+    Process.flag(:trap_exit, true)
+    base_world(depot_name: "Depot 1", cash_name: "Giro")
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+    open_depot_form(view)
+    submit_account(view, %{"depot_name" => "Depot\u0000X", "cash_name" => "Neu"})
+    assert has_element?(view, "#account-depot_name-error")
+
+    submit_account(view, %{
+      "depot_name" => "Depot 2",
+      "cash_name" => "Neu",
+      "new_tag" => "Tag\u0000Y"
+    })
+
+    assert has_element?(view, "#account-form-dialog .alert-error")
+    refute has_element?(view, "#account-depot_name-error")
+
+    refute has_element?(
+             view,
+             ~s{#account-dialog-form input[name="account[depot_name]"][aria-invalid]}
+           )
+  end
+
   test "the accounts page's inline tag with a NUL is a bucket error, nothing written",
        %{conn: conn} do
     Process.flag(:trap_exit, true)
