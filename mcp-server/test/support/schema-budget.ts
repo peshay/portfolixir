@@ -268,9 +268,9 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
       "unavailable trade, the settlement-leg counts) was paid by a trim in the same tool, and " +
       "the ceilings are lowered once, at the end, to the figures measured with the whole PR " +
       "(the amendment's D-9; D-10's rule)",
-    read: 102915,
-    book: 171986,
-    full: 206541
+    read: 102911,
+    book: 171982,
+    full: 206537
   }
 ];
 

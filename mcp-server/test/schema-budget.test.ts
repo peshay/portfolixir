@@ -262,9 +262,9 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
       "unavailable trade, the settlement-leg counts) was paid by a trim in the same tool, and " +
       "the ceilings are lowered once, at the end, to the figures measured with the whole PR " +
       "(the amendment's D-9; D-10's rule)",
-    read: 102_915,
-    book: 171_986,
-    full: 206_541
+    read: 102_911,
+    book: 171_982,
+    full: 206_537
   }
 ];
 
