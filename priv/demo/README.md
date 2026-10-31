@@ -105,10 +105,11 @@ The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
   data-quality line counts them. The list it opens (`?dq=two_scales`)
   carries a note per direction (#1121), and Birkenhain's own Overview the
   reverse note (#1112).
-- **A quote that does not match its booking (#1112):** "Tamarisk Systems
-  Inc.", held in the Demo Depot, bought at 41.20 with a stored close of
-  412.00 on the booking's day: its Overview carries the implausible-quote
-  note, and the list's `?dq=implausible_quote` names it.
+- **A booking that does not match its quote (#1112):** "Tamarisk Systems
+  Inc.", held in the Demo Depot, quoted around 41.20 and bought at 4.12, a
+  tenth of the day's close: its Overview carries the implausible-quote
+  note, and the list's `?dq=implausible_quote` names it. The quotes are
+  right, so no stored close moves the depot's value history.
 - **What the total leaves out (#1081):** the USD cash with no rate and the
   delivered position with no price are named under the Overview's "Alles"
   card.

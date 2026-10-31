@@ -26,7 +26,7 @@
 # the Sprint 21 money surfaces (18 and 19, plan D-14): a bond whose coupon
 # was imported with it, a dollar security imported from a EUR account and
 # sold by hand, and one whose lot has no leg in its sale's currency; and a
-# held security whose quote of a booking's day is ten times its booked price
+# held security whose booked price is a tenth of its quote of that day
 # (20, Sprint 21 γ2). The
 # Gesamtpreis row error (#1076) is a file the
 # walkthrough drops by hand: priv/demo/pp_csv_gesamtpreis_demo.csv; so are
@@ -2067,15 +2067,19 @@ end
 IO.puts("Sprint 21 α3: Kestrel Bay (188.75 CAD = 151.00 EUR), Arbolia (not convertible)")
 
 # 20. Sprint 21 γ2 (#1112, board 02, pick N7 A; plan D-14): a held
-#     security whose quote of a booking's day contradicts its booked price,
-#     so a security's Overview carries the implausible-quote note beside the
+#     security whose booking contradicts its quote of that day, so a
+#     security's Overview carries the implausible-quote note beside the
 #     two-scales bonds of step 16d (whose reverse bond carries the reverse
-#     note). "Tamarisk Systems Inc." (EUR) is bought 10 at 41.20 in the Demo
-#     Depot 150 days back, with a close of 412.00 stored for that day — a
-#     quote on the wrong unit, ten times the price — and 41.30 the day after,
-#     so the Demo Depot's value is off for that one day only. A deposit of
-#     412.00 EUR the same day pays for it. Created only when the security is
-#     not there yet, quotes with it, so a re-run adds nothing.
+#     note). "Tamarisk Systems Inc." (EUR) is quoted right, around 41.20,
+#     and booked wrong: 10 bought at 4.12 in the Demo Depot 150 days back, a
+#     price typed a place off, a tenth of the day's close. The quotes are
+#     right so that no stored close moves the Demo Depot's value history: a
+#     wrong close there lowered the depot's 1J return for good (measured on
+#     the test database, 9.31 % without this step, 3.91 % with a close ten
+#     times the booking, 9.30 % with this shape), since the spike day counts
+#     as a small gain and the day after as a fall. A deposit of 41.20 EUR
+#     the same day pays for it. Created only when the security is not there
+#     yet, quotes with it, so a re-run adds nothing.
 if find_security.("Tamarisk Systems Inc.") == nil do
   bought_on = Date.add(today, -150)
 
@@ -2093,7 +2097,7 @@ if find_security.("Tamarisk Systems Inc.") == nil do
       cash_account_id: cash.id,
       type: "deposit",
       date: bought_on,
-      gross_amount: "412.00",
+      gross_amount: "41.20",
       currency_code: "EUR"
     })
 
@@ -2106,18 +2110,18 @@ if find_security.("Tamarisk Systems Inc.") == nil do
       type: "buy",
       date: bought_on,
       quantity: "10",
-      price: "41.20",
+      price: "4.12",
       currency_code: "EUR"
     })
 
   {:ok, _} =
     Catalog.upsert_quotes(owner, tamarisk.id, [
-      %{date: bought_on, close: "412.00"},
+      %{date: bought_on, close: "41.20"},
       %{date: Date.add(bought_on, 1), close: "41.30"},
       %{date: Date.add(today, -1), close: "41.80"}
     ])
 end
 
-IO.puts("Sprint 21 γ2: Tamarisk Systems Inc. (a quote ten times its booking)")
+IO.puts("Sprint 21 γ2: Tamarisk Systems Inc. (a booking a tenth of its quote)")
 
 IO.puts("review seed done (timber position: #{timber_state})")
