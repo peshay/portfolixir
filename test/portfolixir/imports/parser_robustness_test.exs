@@ -393,4 +393,58 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert {:ok, %Preview{entries: [_ | _]}} =
              PortfolioPerformance.parse("\uFEFF" <> csv([@csv_ok]), filename: "bom.csv")
   end
+
+  # The longest line a booking row can be (the CSV parser's line bound).
+  @max_line_bytes 262_144
+
+  # A deposit row exactly `bytes` long, its note filling it out.
+  defp deposit_line(bytes) do
+    head = "2024-01-15 10:01:00;Einlage;;;;100,00;;;;Test-Cash;;"
+    note = String.duplicate("a", bytes - byte_size(head) - 1)
+    line = head <> note <> ";"
+    ^bytes = byte_size(line)
+    line
+  end
+
+  # User story (security review 2026-10-12, H59):
+  # As an operator,
+  # I want the CSV line bound to hold to the byte, whether the long line ends
+  # in a line break or ends the file,
+  # so that no line longer than any booking row is ever split into cells.
+  #
+  # Acceptance criteria:
+  # - A line one byte over the bound is a named file error, followed by a
+  #   line break and as the file's last line without one.
+  # - A line exactly at the bound is read as a row, in both places.
+  # - Multi-line quoted notes, CRLF line ends, a file without a trailing line
+  #   break and doubled quotes keep parsing.
+  test "the CSV line bound holds at its edge and on a last line without a line break" do
+    over = deposit_line(@max_line_bytes + 1)
+    at = deposit_line(@max_line_bytes)
+
+    assert {:error, :malformed_payload} =
+             PortfolioPerformance.parse(csv([over, @csv_ok]) <> "\n", filename: "edge.csv")
+
+    assert {:error, :malformed_payload} =
+             PortfolioPerformance.parse(csv([@csv_ok, over]), filename: "edge.csv")
+
+    assert {:ok, %Preview{}} =
+             PortfolioPerformance.parse(csv([at, @csv_ok]) <> "\n", filename: "edge.csv")
+
+    assert {:ok, %Preview{}} =
+             PortfolioPerformance.parse(csv([@csv_ok, at]), filename: "edge.csv")
+
+    quoted =
+      "2024-01-15 10:01:00;Einlage;;;;100,00;;;;Test-Cash;;\"first line\nsecond \"\"quoted\"\" line\";"
+
+    assert {:ok, %Preview{entries: [_, deposit], errors: []}} =
+             PortfolioPerformance.parse(csv([@csv_ok, quoted]), filename: "q.csv")
+
+    assert deposit.note == "first line\nsecond \"quoted\" line"
+
+    crlf = Enum.join([@csv_header, @csv_ok, quoted], "\r\n") <> "\r\n"
+
+    assert {:ok, %Preview{entries: [_, _], errors: []}} =
+             PortfolioPerformance.parse(crlf, filename: "crlf.csv")
+  end
 end
