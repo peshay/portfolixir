@@ -7015,4 +7015,7 @@ they already have (UX-DR25 clauses 1 and 2).
   (`data-role="trades-card-excluded-missing-leg"`). The facet's note keeps
   the backfill control (`fx_backfill_control/1`). The figures and the card's
   basis line count only the trades shown. No figure of the unavailable trade
-  is converted.
+  is converted. *Amended 2026-10-31 (#1198):* a name list that ends the
+  sentence and whose last name ends in a full stop („Arbolia Inc.“) ends it
+  once — „… ausgeschlossen: Arbolia Inc.“, never „Inc..“; in every reason
+  sentence of the facet and the card.

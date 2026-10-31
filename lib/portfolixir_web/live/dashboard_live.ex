@@ -661,21 +661,30 @@ defmodule PortfolixirWeb.DashboardLive do
             <span
               :if={@card.excluded.by_reason.no_rate.count > 0}
               data-role="trades-card-excluded-no-rate"
-            ><%= ngettext(
-              "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-              "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-              @card.excluded.by_reason.no_rate.count,
-              securities: Enum.join(@card.excluded.by_reason.no_rate.securities, ", ")
+            ><%= names_sentence(
+              @card.excluded.by_reason.no_rate.securities,
+              fn names ->
+                ngettext(
+                  "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+                  "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+                  @card.excluded.by_reason.no_rate.count,
+                  securities: names
+                )
+              end
             ) %></span>
             <span
               :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
               data-role="trades-card-excluded-missing-leg"
-            ><%= ngettext(
-              "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
-              "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
-              @card.excluded.by_reason.missing_settlement_leg.count,
-              securities:
-                Enum.join(@card.excluded.by_reason.missing_settlement_leg.securities, ", ")
+            ><%= names_sentence(
+              @card.excluded.by_reason.missing_settlement_leg.securities,
+              fn names ->
+                ngettext(
+                  "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
+                  "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
+                  @card.excluded.by_reason.missing_settlement_leg.count,
+                  securities: names
+                )
+              end
             ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
               do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
           </AppShell.data_note>
@@ -1238,5 +1247,17 @@ defmodule PortfolixirWeb.DashboardLive do
       transactions_count: Ledger.count_transactions(),
       error: nil
     )
+  end
+
+  # A sentence that ends on a list of security names (#1198, the α closing
+  # act's UAT): a name that ends in a full stop ("Arbolia Inc.") ends the
+  # sentence once, not "Arbolia Inc..".
+  defp names_sentence(names, sentence) do
+    list = Enum.join(names, ", ")
+    text = sentence.(list)
+
+    if String.ends_with?(list, "."),
+      do: String.replace(text, list <> ".", list),
+      else: text
   end
 end

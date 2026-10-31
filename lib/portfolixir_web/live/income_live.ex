@@ -339,23 +339,32 @@ defmodule PortfolixirWeb.IncomeLive do
                 <span
                   :if={@realized.excluded.by_reason.no_rate.count > 0}
                   data-role="realized-excluded-no-rate"
-                ><%= ngettext(
-                  "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
-                  "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}.",
-                  @realized.excluded.by_reason.no_rate.count,
-                  count: @realized.excluded.by_reason.no_rate.count,
-                  securities: Enum.join(@realized.excluded.by_reason.no_rate.securities, ", ")
+                ><%= names_sentence(
+                  @realized.excluded.by_reason.no_rate.securities,
+                  fn names ->
+                    ngettext(
+                      "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
+                      "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}.",
+                      @realized.excluded.by_reason.no_rate.count,
+                      count: @realized.excluded.by_reason.no_rate.count,
+                      securities: names
+                    )
+                  end
                 ) %></span>
                 <span
                   :if={@realized.excluded.by_reason.missing_settlement_leg.count > 0}
                   data-role="realized-excluded-missing-leg"
-                ><%= ngettext(
-                  "%{count} sale is not convertible — a buy it closes has no figure in the sale's currency — and is excluded from every total: %{securities}.",
-                  "%{count} sales are not convertible — a buy each closes has no figure in its sale's currency — and are excluded from every total: %{securities}.",
-                  @realized.excluded.by_reason.missing_settlement_leg.count,
-                  count: @realized.excluded.by_reason.missing_settlement_leg.count,
-                  securities:
-                    Enum.join(@realized.excluded.by_reason.missing_settlement_leg.securities, ", ")
+                ><%= names_sentence(
+                  @realized.excluded.by_reason.missing_settlement_leg.securities,
+                  fn names ->
+                    ngettext(
+                      "%{count} sale is not convertible — a buy it closes has no figure in the sale's currency — and is excluded from every total: %{securities}.",
+                      "%{count} sales are not convertible — a buy each closes has no figure in its sale's currency — and are excluded from every total: %{securities}.",
+                      @realized.excluded.by_reason.missing_settlement_leg.count,
+                      count: @realized.excluded.by_reason.missing_settlement_leg.count,
+                      securities: names
+                    )
+                  end
                 ) %></span>
                 <.fx_backfill_control
                   backfilling={@fx_backfilling}
@@ -1535,4 +1544,16 @@ defmodule PortfolixirWeb.IncomeLive do
   defp facet_subtitle("flows"), do: gettext("Deposits and withdrawals")
   defp facet_subtitle("costs"), do: gettext("Fees and taxes")
   defp facet_subtitle(_income), do: gettext("Received dividends and interest")
+
+  # A sentence that ends on a list of security names (#1198, the α closing
+  # act's UAT): a name that ends in a full stop ("Arbolia Inc.") ends the
+  # sentence once, not "Arbolia Inc..".
+  defp names_sentence(names, sentence) do
+    list = Enum.join(names, ", ")
+    text = sentence.(list)
+
+    if String.ends_with?(list, "."),
+      do: String.replace(text, list <> ".", list),
+      else: text
+  end
 end
