@@ -2790,10 +2790,13 @@ church tax withheld at a zero church-tax rate.
   states the rule.
   Since issue #1212 `computation_basis.fees_and_taxes_in_figures` says which
   figures carry the fees and taxes: an open lot's `buy_price`,
-  `buy_price_native`, `base_cost` and `unrealized_pnl_*` are without them
-  (`buy_fees` and `buy_taxes` state them beside), a closed round-trip's
-  `basis` includes the buy fees and taxes of the lots it closes, prorated,
-  its `proceeds` are net of the sell's, and `realized_pnl_abs` is after all
+  `buy_price_native`, `base_cost` and `unrealized_pnl_*` are without them;
+  its `buy_fees` and `buy_taxes` are the whole buy's, for
+  `original_quantity`, the quantity the lot opened with (split-adjusted),
+  and the share already in a closed round-trip's `basis` is in that
+  round-trip's `buy_fees` and `buy_taxes`. A closed round-trip's `basis`
+  includes the buy fees and taxes of the lots it closes, prorated, its
+  `proceeds` are net of the sell's, and `realized_pnl_abs` is after all
   four. No figure changed.
 
 ## Policy rules (ADR-0049)

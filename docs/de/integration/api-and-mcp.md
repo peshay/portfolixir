@@ -2852,10 +2852,14 @@ Beispiel-Payloads für Konten:
   Seit Issue #1212 sagt `computation_basis.fees_and_taxes_in_figures`,
   welche Zahlen Gebühren und Steuern tragen: `buy_price`,
   `buy_price_native`, `base_cost` und `unrealized_pnl_*` eines offenen Lots
-  sind ohne sie (`buy_fees` und `buy_taxes` nennen sie daneben), die
-  `basis` eines geschlossenen Round-Trips enthält die Kaufgebühren und
-  -steuern der Lots, die er schließt, anteilig, seine `proceeds` sind
-  abzüglich der des Verkaufs, und `realized_pnl_abs` ist nach allen vieren.
+  sind ohne sie; seine `buy_fees` und `buy_taxes` sind die des ganzen
+  Kaufs, für `original_quantity`, die Stückzahl, mit der das Lot eröffnet
+  wurde (split-bereinigt), und der Anteil, der schon in der `basis` eines
+  geschlossenen Round-Trips steckt, steht in dessen `buy_fees` und
+  `buy_taxes`. Die `basis` eines geschlossenen Round-Trips enthält die
+  Kaufgebühren und -steuern der Lots, die er schließt, anteilig, seine
+  `proceeds` sind abzüglich der des Verkaufs, und `realized_pnl_abs` ist
+  nach allen vieren.
   Keine Zahl hat sich geändert.
 - `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
   ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein

@@ -1231,7 +1231,9 @@ defmodule Portfolixir.Ledger do
   @spec trade_figures_fees_basis() :: String.t()
   def trade_figures_fees_basis do
     "An open lot's buy_price, buy_price_native, base_cost and unrealized_pnl_* are " <>
-      "without the buy's fees and taxes, which buy_fees and buy_taxes state beside them. A " <>
+      "without the buy's fees and taxes. Its buy_fees and buy_taxes are the whole buy's, for " <>
+      "original_quantity, the quantity the lot opened with (split-adjusted); the share " <>
+      "already in a closed trade's basis is in that trade's buy_fees and buy_taxes. A " <>
       "closed trade's basis includes the buy fees and taxes of the lots it closes, prorated " <>
       "by the quantity it closes (buy_fees, buy_taxes); its proceeds are net of the sell's " <>
       "fees and taxes (sell_fees, sell_taxes); realized_pnl_abs, proceeds - basis, is after " <>
