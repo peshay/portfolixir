@@ -3261,6 +3261,18 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
     before the cards, outside the apply form, said once; nothing repeats it
     above the confirm. It shows when no booking of the file is new and the
     import recognises something (a hit on any layer, or a dropped transfer).
+    *Amended 2026-10-31 (issue 1207 (1); board
+    `mockups/ux-design-2026-10-09/07-imports` ⑦):* **when the correction
+    section shows, the note says so last**, so "creates nothing" does not
+    read as "nothing to do": "%{count} bookings already imported differ from
+    the file, though: correct them under “Already imported, with a different
+    amount” below." / „3 bereits importierte Buchungen weichen aber von der
+    Datei ab: unten unter „Bereits importiert, mit anderem Betrag“
+    korrigieren." (a real plural; one booking: "…differs …: correct it…"),
+    the quoted heading a link to `#import-correction`. When every listed
+    line is one the confirm leaves, the ending is "…: see why under “…”
+    below." / „…: unten unter „…“ steht, warum." The note stays a `note`;
+    no CSS.
   - **A mapping row with no new booking shows no select**, in any file, the
     rule being per row. Its count keeps "N bookings already imported ·
     **nothing to create**"; in the select's place `.mapping-target` holds one
@@ -3470,6 +3482,17 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   <account>" / "the name of N accounts". Only a row with new bookings shows
   it so; a stored choice that points at a name taken since counts as not
   made. Nothing the list offers can fail the import at the end.
+- **The rows the preview refused come first among the result's lists**
+  *(2026-10-31; issue 1207 (2), Sprint 21 γ7; board
+  `mockups/ux-design-2026-10-09/07-imports` ⑨)*, after only the
+  correction left undone: `.import-skipped`, `data-role="refused-rows"`,
+  "One row the preview refused was not imported:" / "%{count} rows the
+  preview refused were not imported:" (a JSON file says "entry" /
+  "entries": „2 Einträge, die die Vorschau abgelehnt hat, sind nicht
+  importiert:"), then each row's message with its remedy, exactly as the
+  parser warnings said it ("Entry 5: … — entry not imported. …"). A refused
+  row the stored history already holds is not listed: it was imported
+  before, and the correction section names it.
 - **The result adds three lists in `.import-skipped`'s existing form** (a
   muted sentence, then the rows): "Remembered for future imports:" with one
   line per name ("“X” is now a former name of Y.", "…and no longer of Z." for

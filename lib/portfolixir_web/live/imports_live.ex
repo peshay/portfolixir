@@ -320,11 +320,13 @@ defmodule PortfolixirWeb.ImportsLive do
            ②): under the format line and before the cards, not above the
            confirm after a mapping it does not need. The confirm stays: it
            writes nothing and reports every duplicate with its layer. --%>
+      <%!-- #1207 (1) (board 07 ⑦): with the correction section below, the
+           note says that work remains there, and links it. --%>
       <AppShell.data_note
         :if={@nothing_to_import}
         severity={:note}
         data-role="nothing-to-import"
-      ><%= nothing_to_import(@account_states.counts.total) %></AppShell.data_note>
+      ><%= nothing_to_import(@account_states.counts.total) %><%= if @corrections != [] do %> <%= correction_pointer(length(@corrections), @correction_fixable != []) %><% end %></AppShell.data_note>
 
       <div class="import-stats">
         <div class="import-stat-card">
@@ -917,7 +919,11 @@ defmodule PortfolixirWeb.ImportsLive do
     # Each file row the result names, by its number or, for a refund split
     # off a row, by that row's number and its kind (board 01, found while
     # drawing 1), read once for the page's lists.
-    assigns = assign(assigns, :file_rows, file_rows(assigns.preview))
+    assigns =
+      assign(assigns,
+        file_rows: file_rows(assigns.preview),
+        refused_rows: refused_rows(assigns.preview, assigns.row_errors)
+      )
 
     ~H"""
     <section class="workspace-section import-done">
@@ -947,6 +953,22 @@ defmodule PortfolixirWeb.ImportsLive do
             length(Correction.confirmable(@corrections))
           ) %>
         </p>
+      </div>
+
+      <%!-- #1207 (2) (board 07 ⑨): the rows the preview refused, first
+           among the lists, each with its remedy, so a refused booking still
+           to be booked by hand is not forgotten. A refused row the stored
+           history already holds is not among them: it was imported before,
+           and the correction section lists it. --%>
+      <div
+        :if={@refused_rows != []}
+        class="import-skipped"
+        data-role="refused-rows"
+      >
+        <p class="muted"><%= refused_rows_head(@preview, length(@refused_rows)) %></p>
+        <ul>
+          <li :for={err <- @refused_rows}><%= row_message(@preview, err.row || "?", err.message) %></li>
+        </ul>
       </div>
 
       <%= if @result.alias_matches != [] do %>
@@ -2421,6 +2443,36 @@ defmodule PortfolixirWeb.ImportsLive do
         [gettext("The import creates nothing: no booking, no account, no depot, no security.")],
       " "
     )
+  end
+
+  # #1207 (1) (board 07 ⑦): the lead note's pointer to the correction
+  # section, its heading a link to it; with only lines the confirm leaves,
+  # it says the lines say why.
+  defp correction_pointer(count, fixable?) do
+    section =
+      StoredText.link(
+        "#import-correction",
+        gettext("“%{name}”", name: gettext("Already imported, with a different amount"))
+      )
+
+    sentence =
+      if fixable?,
+        do:
+          ngettext(
+            "One booking already imported differs from the file, though: correct it under %{section} below.",
+            "%{count} bookings already imported differ from the file, though: correct them under %{section} below.",
+            count,
+            section: StoredText.slot(:section)
+          ),
+        else:
+          ngettext(
+            "One booking already imported differs from the file, though: see why under %{section} below.",
+            "%{count} bookings already imported differ from the file, though: see why under %{section} below.",
+            count,
+            section: StoredText.slot(:section)
+          )
+
+    StoredText.isolate(sentence, section: section)
   end
 
   # --- bookings already imported with a different amount (ADR-0053 §6, A6;
@@ -4369,6 +4421,32 @@ defmodule PortfolixirWeb.ImportsLive do
     |> Enum.map(fn err -> row_message(preview, err.row || "?", err.message) end)
     |> Enum.join("\n")
   end
+
+  # #1207 (2): the rows the preview refused that the stored history does
+  # not hold — the row errors as the preview showed them, less those whose
+  # message the stored history replaced (`Imports.row_errors/2`).
+  defp refused_rows(%Preview{errors: errors}, shown) when length(errors) == length(shown) do
+    for {error, row} <- Enum.zip(errors, shown), error.message == row.message, do: row
+  end
+
+  defp refused_rows(_preview, _shown), do: []
+
+  defp refused_rows_head(preview, count),
+    do:
+      if(json?(preview),
+        do:
+          ngettext(
+            "One entry the preview refused was not imported:",
+            "%{count} entries the preview refused were not imported:",
+            count
+          ),
+        else:
+          ngettext(
+            "One row the preview refused was not imported:",
+            "%{count} rows the preview refused were not imported:",
+            count
+          )
+      )
 
   # --- a row as its format numbers it (board 07 ⑥, #1179) ---
 

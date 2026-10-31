@@ -3287,6 +3287,13 @@ void. It is skipped and listed under the internal transfers with its row,
 kind, date and both names from the file, and the rest of the file imports; it
 no longer fails the whole import.
 
+A file that books nothing new but whose bookings the correction section
+below corrects says so at the end of the note at the head of the preview,
+with a link to that section, so *the import creates nothing* does not read as
+*nothing to do*. After the import, **the rows the preview refused come first
+in the result**, each with its remedy as the parser warnings said it, so a
+refused booking you still have to enter by hand is not forgotten.
+
 The result lists every record it skipped, grouped by the check that skipped
 it: an identical row imported before (stored content hash; the expected mass
 of a re-import, so its group stays collapsed), a row a merge removed (retired

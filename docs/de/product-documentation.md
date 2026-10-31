@@ -3621,6 +3621,14 @@ Umbuchungen mit Zeile, Art, Datum und beiden Namen aus der Datei aufgeführt,
 und der Rest der Datei wird importiert; sie lässt nicht mehr den ganzen Import
 scheitern.
 
+Eine Datei, die nichts Neues bucht, deren Buchungen aber der
+Korrekturabschnitt darunter korrigiert, sagt das am Ende der Notiz am Kopf der
+Vorschau, mit einem Link zu diesem Abschnitt, damit *der Import legt nichts
+an* nicht als *nichts zu tun* gelesen wird. Nach dem Import **stehen die
+Zeilen, die die Vorschau abgelehnt hat, zuerst im Ergebnis**, jede mit ihrer
+Abhilfe, wie die Parser-Warnungen sie sagten, damit eine abgelehnte Buchung,
+die Sie noch von Hand erfassen müssen, nicht vergessen wird.
+
 Das Ergebnis listet jeden übersprungenen Datensatz, gruppiert nach der
 Prüfung, die ihn übersprungen hat: eine identische, schon importierte Zeile
 (gespeicherter Inhalts-Hash; die erwartete Masse eines erneuten Imports,
