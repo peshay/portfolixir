@@ -12,8 +12,10 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   linked ADR-0015 figures from the **stored** hub rate at the row's booking
   date:
 
-    * `settlement_amount`  — `quantity x price` in the booked (account)
-      currency, the cash leg as recorded;
+    * `settlement_amount`  — the trade amount in the booked (account)
+      currency: the row's recorded cash amount net of its fees and taxes
+      (`Portfolixir.Ledger.SettlementGuard.trade_amount/4`), and
+      `quantity x price` only where no cash amount is recorded;
     * `security_amount`    — that amount converted into the security's own
       currency at the booking-date rate;
     * `settlement_fx_rate` — settlement units per 1 security unit.
