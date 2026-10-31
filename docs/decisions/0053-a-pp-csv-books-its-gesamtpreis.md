@@ -749,6 +749,16 @@ without a twin (#1205).**
     lock and the bookings' row locks, so it corrects what is stored when it
     runs.
 
+**Note (2026-10-31): a booking made by hand is not the import's.** A12
+finds a booking by its figures, so it can find one that has no import hash
+and that the operator entered with the figures an old import would have
+stored. A11 read only updates, so such a booking was matched and rewritten,
+against A11's purpose: a correction never rewrites a figure the operator
+made. Decided while building (flippable by the owner's comment): a create
+by any actor other than the importer (`import_session`) counts as made by
+hand. The line reads edited since its import, with the date of the entry,
+and carries no confirm (`Correction.detect/3`, #1205, #1194).
+
 **Everything else in §6 and A6 holds:**
 
 - a separate confirm, which writes only the lines that carry one;

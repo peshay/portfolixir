@@ -190,6 +190,12 @@ defmodule Portfolixir.Imports.Correction do
   # edit, and the confirm leaves it as the operator made it. It wins over a
   # refusal: a refused booking the operator put right by hand reads as
   # edited (board 07, found while drawing 4).
+  #
+  # A booking made by hand counts too (the decision noted under A12 on
+  # 2026-10-31): a create by any actor other than the importer. A12 finds a
+  # booking by its figures, and one the operator entered with the figures an
+  # old import would have stored is theirs, not the import's; it is named
+  # with the date of its entry and left as it is.
   @figure_fields ~w(gross_amount price quantity fees taxes)
 
   defp mark_edited([]), do: []
@@ -199,9 +205,7 @@ defmodule Portfolixir.Imports.Correction do
       items
       |> Enum.map(&to_string(&1.transaction.id))
       |> Enum.uniq()
-      |> Enum.flat_map(
-        &Journal.list_entries(resource_type: "transaction", resource_id: &1, operation: :update)
-      )
+      |> Enum.flat_map(&Journal.list_entries(resource_type: "transaction", resource_id: &1))
       |> Enum.filter(&hand_edit?/1)
       |> Enum.group_by(& &1.resource_id, &DateTime.to_date(&1.inserted_at))
       |> Map.new(fn {id, dates} -> {id, Enum.max(dates, Date)} end)
@@ -218,13 +222,16 @@ defmodule Portfolixir.Imports.Correction do
   end
 
   defp hand_edit?(%JournalEntry{actor_type: :import_session}), do: false
+  defp hand_edit?(%JournalEntry{operation: :create}), do: true
 
-  defp hand_edit?(%JournalEntry{actor_type: type, actor_label: label} = entry) do
+  defp hand_edit?(%JournalEntry{operation: :update, actor_type: type, actor_label: label} = entry) do
     {correction_type, correction_label} = Actor.to_columns(Imports.correction_actor())
 
     not (Atom.to_string(type) == correction_type and label == correction_label) and
       Enum.any?(@figure_fields, &figure_changed?(entry.before, entry.after, &1))
   end
+
+  defp hand_edit?(%JournalEntry{}), do: false
 
   defp figure_changed?(before, after_, field) when is_map(before) and is_map(after_),
     do: not same_figure?(Map.get(before, field), Map.get(after_, field))
