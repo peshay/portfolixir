@@ -580,6 +580,20 @@ books nothing; every other row's price input is its booked price. The #533
 economic key is checked under the old reading too, the hash's amount and
 price (A4).
 
+## Note (2026-10-31): an interest booking keeps its security, and its key is also read without one (ADR-0051, amended)
+
+The [amendment of 2026-10-09](0051-contribution-analysis.html) to ADR-0051
+(#928) has the importer store the security an `INTEREST` row names, so a
+bond's coupon is its position's income. The content hash already read the
+file's security and moves for no row. The #533 economic key reads
+`security_id`, so a coupon stored before without its security keys apart
+from the same coupon imported now: the pre-import check therefore also asks
+for an interest row's key **with no security**, under each reading it
+already asks for, and a drifted re-export of such a coupon is recognised and
+not booked twice. It errs towards "already booked", as the legacy hash does.
+The in-run key reads the security too, so two equal coupons of two bonds in
+one file no longer collapse into one booking.
+
 ## References
 
 - [ADR-0006](0006-classifications-with-target-weights.html) — built-in trees derived on read; custom assignments stored

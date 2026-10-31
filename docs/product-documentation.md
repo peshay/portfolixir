@@ -2139,8 +2139,8 @@ Per position, in the base currency and with the currency move included, the
 contribution is end value − start value − flows + income − costs: the value
 at the end of the period, minus the value at the close of the day before it,
 minus what was bought and plus what was sold (each at its booking day's
-rate), plus the dividends as credited, minus the fees and taxes of the
-position's own trades. A cross-currency trade's fees and taxes count in its
+rate), plus the dividends and the bond coupons that name it, as credited,
+minus the fees and taxes of the position's own trades. A cross-currency trade's fees and taxes count in its
 cash account's currency, the currency the broker charges them in. Each row
 shows those five figures beside the
 contribution, so every number can be checked by hand; the rows are sorted by
@@ -2151,7 +2151,9 @@ bought during the period, "no longer held at the end" when it was sold during
 it, and "held at neither end" when it was bought and sold inside the period.
 
 What no position owns is listed apart, under "Not attributed to a position":
-interest, standalone fees and taxes, and the currency effect on cash (the
+interest that names no security (account interest, and a coupon stored
+without its bond, which its note says), standalone fees and taxes, and the
+currency effect on cash (the
 revaluation of foreign-currency balances and the settlement differences of
 buys and sells). Each line is summed from its own bookings, and none is a
 balancing figure. The positions and those three lines add up exactly to the
@@ -2396,7 +2398,11 @@ table** with, for each security, the gross paid, the withheld tax, the net, the
 number of payments and the date of the last one. A dividend's **gross** is the
 net cash credited plus the withheld tax recorded on the transaction; interest
 (Portfolio Performance INTEREST: account interest or bond coupons) carries no
-withholding and is tracked as its own series next to dividends. Clicking a year
+withholding and is tracked as its own series next to dividends. A coupon that
+names its bond, as an import of a Portfolio Performance file now stores it,
+is that bond's row in the per-position table and in "Top contributors";
+interest that names no security shares the row "Interest". The matrix, the
+bars and the totals split by kind and stay the same. Clicking a year
 opens the per-transaction detail for that year.
 
 The year bars above the matrix are **stacked**, not summed: dividends and

@@ -2098,6 +2098,10 @@ Example account payloads:
   `security_id`, `name`, `isin`, `start_value`, `end_value`, `net_flows`,
   `income`, `costs` and `contribution` — `end_value − start_value − net_flows
   + income − costs`, in the base currency with the currency move included —
+  where `income` is the dividends and the interest bookings that name the
+  position's security (a bond's coupon), each as credited; a coupon credited
+  to an in-view account counts even when its position sits outside the view
+  (#928, ADR-0051's amendment of 2026-10-09; computation version 4) —
   plus `held_at_start`, `held_at_end`, `unvalued_days` and `unvalued_reason`
   (`no_price`, `no_rate` or `null`). `costs` are the fees and taxes of the
   position's own trades, converted from each trade's cash account currency,
@@ -2115,7 +2119,8 @@ Example account payloads:
   `unvalued_through_end` and the `first_rate_date` (#1055). The rows are sorted by
   contribution, largest first, with no share, rank or label. `remainder`
   holds what no position does, each line summed from its own bookings and
-  never a plug: `interest` (every interest booking, bond coupons included),
+  never a plug: `interest` (the interest bookings that name no security:
+  account interest, and every coupon stored without its bond),
   `standalone_fees_and_taxes` (fee, tax and tax-refund bookings no trade
   carries) and `cash_currency_effect` (the revaluation of foreign-currency
   cash, a trade's settlement difference between its cash leg and price ×
@@ -2137,7 +2142,10 @@ Example account payloads:
   feature). `annual` is a list of years (newest first), each with `months` (a
   map keyed by month number `"1"`–`"12"`, each carrying `dividends` and
   `interest`), and per-year `dividends_total`, `interest_total` and `total`.
-  `positions` is the per-position table: `security_id`, `security_name`,
+  `positions` is the per-position table, grouped by security and booking
+  currency: an interest booking that names a security (a bond's coupon) is
+  that security's row, and the interest naming none shares the row with
+  `security_id` `null` (#928): `security_id`, `security_name`,
   `security_currency` (the original booking currency), `gross`, `tax` (the
   withheld tax, from the dividend's TAX units stored on the transaction), `net`
   (`gross - tax`), `payment_count` and `last_payment`. `transactions` is the

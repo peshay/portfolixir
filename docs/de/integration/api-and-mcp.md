@@ -2264,7 +2264,12 @@ Beispiel-Payloads für Konten:
   `404`). Jede Zeile von `positions` trägt `security_id`, `name`, `isin`,
   `start_value`, `end_value`, `net_flows`, `income`, `costs` und
   `contribution` — `end_value − start_value − net_flows + income − costs`, in
-  der Basiswährung, die Währungsbewegung eingeschlossen — dazu
+  der Basiswährung, die Währungsbewegung eingeschlossen, wobei `income` die
+  Dividenden und die Zinsbuchungen sind, die das Wertpapier der Position
+  nennen (der Kupon einer Anleihe), jeweils wie gutgeschrieben; ein Kupon auf
+  ein Konto in der View zählt auch, wenn die Position außerhalb der View
+  liegt (#928, Amendment von ADR-0051 vom 2026-10-09; Berechnungsversion 4) —
+  dazu
   `held_at_start`, `held_at_end`, `unvalued_days` und `unvalued_reason`
   (`no_price`, `no_rate` oder `null`). `costs` sind die Gebühren und Steuern
   der eigenen Käufe und Verkäufe der Position, umgerechnet aus der Währung des
@@ -2283,8 +2288,9 @@ Beispiel-Payloads für Konten:
   `unvalued_through_end` und dem `first_rate_date` (#1055). Die Zeilen sind nach Beitrag sortiert, der
   größte zuerst, ohne Anteil, Rang oder Etikett. `remainder` hält, was keine
   Position hält, jede Zeile aus ihren eigenen Buchungen summiert und nie ein
-  Ausgleichsposten: `interest` (jede Zinsbuchung, Anleihekupons
-  eingeschlossen), `standalone_fees_and_taxes` (Gebühren-, Steuer- und
+  Ausgleichsposten: `interest` (die Zinsbuchungen ohne Wertpapier:
+  Kontozinsen und jeder Kupon, der ohne seine Anleihe gebucht ist),
+  `standalone_fees_and_taxes` (Gebühren-, Steuer- und
   Steuererstattungsbuchungen, die kein Trade trägt) und
   `cash_currency_effect` (die Neubewertung von Fremdwährungsguthaben, die
   Abrechnungsdifferenz eines Trades zwischen seinem Geldbein und Preis ×
@@ -2307,7 +2313,11 @@ Beispiel-Payloads für Konten:
   Funktion). `annual` ist eine Liste von Jahren (neueste zuerst), jedes mit
   `months` (eine Map mit Monatszahl-Schlüsseln `"1"`–`"12"`, jeweils mit
   `dividends` und `interest`) und je Jahr `dividends_total`, `interest_total` und
-  `total`. `positions` ist die Pro-Position-Tabelle: `security_id`,
+  `total`. `positions` ist die Pro-Position-Tabelle, gruppiert nach
+  Wertpapier und Buchungswährung: eine Zinsbuchung, die ein Wertpapier nennt
+  (der Kupon einer Anleihe), ist die Zeile dieses Wertpapiers, und die Zinsen
+  ohne Wertpapier teilen sich die Zeile mit `security_id` `null` (#928):
+  `security_id`,
   `security_name`, `security_currency` (die ursprüngliche Buchungswährung),
   `gross`, `tax` (die einbehaltene Steuer, aus den auf der Transaktion
   gespeicherten TAX-Einheiten der Dividende), `net` (`gross - tax`),

@@ -2348,7 +2348,7 @@ einschließlich der Währungsbewegung, gilt: Beitrag = Endwert − Anfangswert �
 Zu-/Abflüsse + Erträge − Kosten. Das ist der Wert am Ende des Zeitraums,
 abzüglich des Werts zum Schluss des Vortags, abzüglich der Käufe und zuzüglich
 der Verkäufe (jeweils zum Kurs des Buchungstags), zuzüglich der gutgeschriebenen
-Dividenden und abzüglich der Gebühren und Steuern der eigenen Käufe und
+Dividenden und der Anleihekupons, die die Position nennen, und abzüglich der Gebühren und Steuern der eigenen Käufe und
 Verkäufe der Position. Bei einem währungsübergreifenden Handel zählen Gebühren
 und Steuern in der Währung seines Verrechnungskontos, in der der Broker sie
 berechnet. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
@@ -2362,7 +2362,9 @@ Beginn noch am Ende im Bestand“, wenn sie im Zeitraum gekauft und verkauft
 wurde.
 
 Was keiner Position gehört, steht getrennt unter „Keiner Position
-zugeordnet“: Zinsen, einzelne Gebühren und Steuern sowie der Währungseffekt
+zugeordnet“: Zinsen ohne Wertpapier (Kontozinsen und ein Kupon, der ohne
+seine Anleihe gebucht ist, wie der Hinweis darunter sagt), einzelne Gebühren
+und Steuern sowie der Währungseffekt
 auf Bargeld (die Neubewertung von Fremdwährungskonten und die
 Abrechnungsdifferenzen von Käufen und Verkäufen). Jeder Posten wird aus seinen
 eigenen Buchungen summiert, und keiner ist ein Ausgleichsbetrag. Die Positionen
@@ -2629,7 +2631,11 @@ einbehaltenen Steuer, dem Netto, der Anzahl der Zahlungen und dem Datum der
 letzten. Das **Brutto** einer Dividende ist das gutgeschriebene Netto-Cash plus
 die auf der Transaktion erfasste einbehaltene Steuer; Zinsen
 (Portfolio-Performance INTEREST: Kontozinsen oder Anleihekupons) tragen keine
-Quellensteuer und werden als eigene Reihe neben Dividenden geführt. Ein Klick auf
+Quellensteuer und werden als eigene Reihe neben Dividenden geführt. Ein Kupon,
+der seine Anleihe nennt, wie ihn ein Import einer Portfolio-Performance-Datei
+jetzt speichert, ist die Zeile dieser Anleihe in der Pro-Position-Tabelle und
+in „Top-Beiträge“; Zinsen ohne Wertpapier teilen sich die Zeile „Zinsen“.
+Matrix, Balken und Summen trennen nach Art und bleiben gleich. Ein Klick auf
 ein Jahr öffnet das Detail je Transaktion für dieses Jahr.
 
 Die Jahresbalken über der Matrix sind **gestapelt**, nicht summiert:

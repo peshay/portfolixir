@@ -1607,7 +1607,13 @@ be converted — no stored exchange rate to EUR on or before its booking date
 AG)." / "1 Zahlung konnte nicht umgerechnet werden — kein gespeicherter
 Wechselkurs nach EUR an oder vor ihrem Buchungstag — und ist aus jeder Summe
 ausgeschlossen. Betroffene Währung: CHF (Velden Water AG)." Each currency
-carries its securities in parentheses (an interest payment names none). The
+carries its securities in parentheses (an interest payment naming no security
+adds none; a coupon names its bond, issue 928). *Amended 2026-10-31 (issue
+928, board `mockups/ux-design-2026-10-09/09-money-states` ④):* a coupon that
+names its bond is that bond's row in "Je Position" and "Top-Beiträge", and
+the year detail names the bond where it read "Zinsen"; the interest naming
+no security keeps the row "Zinsen". The bars, the matrix and the totals
+split by kind and do not change. The
 drilled year's payments table keeps the payment in its own currency, which
 clause 2 allows: that table lists native amounts. The facet's ⓘ states the
 rate rule the code applies — the most recent stored rate on or before each
@@ -4060,7 +4066,18 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   rule over the four rows that outranks the zebra stripe and the row hover
   (0,3,3 against 0,2,3), so it stays solid however many positions sit above
   it (repair R2, board `mockups/ux-review-2026-10-03/01-contribution-repairs`):
-  - **Zinsen** — "Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier";
+  - **Zinsen** — "Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die
+    ohne ihre Anleihe gebucht sind" (desktop only; the phone's remainder row
+    has no note). *Amended 2026-10-31 (issue 928, board
+    `mockups/ux-design-2026-10-09/09-money-states` ④, before/after; ADR-0051's
+    amendment of 2026-10-09):* a coupon that names its bond is that
+    position's income, in its Erträge and its Beitrag, and leaves this line;
+    the line holds the interest naming no security, which the note now
+    says. It names no release date: a coupon written without its bond after
+    the change lands here too. The note runs to two lines at 980 px (the
+    line 65 px tall); at 390 px the bond's line gains "· Erträge 400,00" and
+    the remainder row fits on one line. Was: "Konto und Kupons; eine
+    Zinsbuchung trägt kein Wertpapier";
   - **Einzelne Gebühren und Steuern** — "Ohne Handelsbezug, auch mit
     Wertpapier";
   - **Währungseffekt auf Bargeld** — "Fremdwährungskonten und
@@ -4069,8 +4086,10 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
     this line (ADR-0051 §3), and the sub-line says so rather than leaving
     "Bargeld" to suggest balances only.
 
-  English: "Not attributed to a position"; "Interest" — "Account interest
-  and coupons; an interest booking carries no security"; "Standalone fees
+  English: "Not attributed to a position"; "Interest" — "Interest bookings
+  that name no security: account interest, and coupons stored without their
+  bond" (was "Account interest and coupons; an interest booking carries no
+  security"); "Standalone fees
   and taxes" — "Not part of a trade, even when one names a security";
   "Currency effect on cash" — "Foreign-currency balances and the settlement
   differences of buys and sells". All three lines always render, a zero
