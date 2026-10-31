@@ -1273,6 +1273,219 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert Portfolixir.Repo.reload!(root).parent_id == nil
   end
 
+  defp regions_tree do
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Regionen"})
+
+    category = fn name, parent ->
+      {:ok, category} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: name,
+          parent_id: parent && parent.id
+        })
+
+      category
+    end
+
+    europe = category.("Europa", nil)
+    germany = category.("Deutschland", europe)
+    america = category.("Amerika", nil)
+    canada = category.("Kanada", america)
+    usa = category.("USA", nil)
+
+    %{
+      classification: classification,
+      europe: europe,
+      germany: germany,
+      america: america,
+      canada: canada,
+      usa: usa
+    }
+  end
+
+  defp parent_options(view) do
+    view
+    |> element("form.cat-edit-form .recolor-label select[name='category[parent_id]']")
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.find("option")
+    |> Enum.map(fn option ->
+      {option |> Floki.attribute("value") |> List.first(), Floki.text(option) |> String.trim(),
+       Floki.attribute(option, "selected") != []}
+    end)
+  end
+
+  # User story (#1211, Sprint 21 γ6, board 06 ②, pick N18 A):
+  # As the operator restructuring a classification tree,
+  # I want a "Parent" select in a category's edit form,
+  # so that I can move "USA" under "Amerika" on screen instead of deleting and
+  # re-creating it, which loses its assignments.
+  #
+  # Acceptance criteria:
+  # - The edit form carries "Parent" ("Übergeordnet") in `.recolor-label`,
+  #   after the description: "— Top level —" and every category, indented as
+  #   in "New category", the current parent selected; the category itself and
+  #   its descendants are left out, so a cycle cannot be picked.
+  # - Saving a new parent moves the category and answers "“USA” now sits
+  #   under “Amerika”." („USA“ liegt jetzt unter „Amerika“.), the names in
+  #   <bdi>; the new parent chain renders open, so the moved row stays in view.
+  # - Saving the top level answers "“USA” now sits on the top level."
+  #   („USA“ liegt jetzt auf der obersten Ebene.).
+  # - An edit that does not change the parent keeps "Category updated".
+  test "the edit form moves a category under another parent", %{conn: conn} do
+    %{classification: classification, europe: europe, germany: germany} =
+      tree = regions_tree()
+
+    %{america: america, canada: canada, usa: usa} = tree
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    # Europa's options leave out Europa and Deutschland; the top level is
+    # selected.
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{europe.id}']")
+    |> render_click()
+
+    assert has_element?(view, "form.cat-edit-form .recolor-label", "Parent")
+
+    assert parent_options(view) == [
+             {"", "— Top level —", true},
+             {"#{america.id}", "Amerika", false},
+             {"#{canada.id}", "— Kanada", false},
+             {"#{usa.id}", "USA", false}
+           ]
+
+    # Kanada's current parent is selected.
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{canada.id}']")
+    |> render_click()
+
+    assert {"#{america.id}", "Amerika", true} in parent_options(view)
+    refute Enum.any?(parent_options(view), fn {value, _, _} -> value == "#{canada.id}" end)
+    assert {"#{germany.id}", "— Deutschland", false} in parent_options(view)
+
+    # A rename that keeps the parent keeps its answer.
+    view
+    |> form("form.cat-edit-form", %{"category" => %{"name" => "Kanada"}})
+    |> render_submit()
+
+    assert view |> element("#classifications-result-status") |> render() =~ "Category updated"
+    assert Portfolixir.Repo.reload!(canada).parent_id == america.id
+
+    # USA moves under Amerika; the new parent chain is open.
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{usa.id}']")
+    |> render_click()
+
+    view
+    |> form("form.cat-edit-form", %{"category" => %{"parent_id" => "#{america.id}"}})
+    |> render_submit()
+
+    assert Portfolixir.Repo.reload!(usa).parent_id == america.id
+
+    assert view |> element("#classifications-result-status") |> render() =~
+             "“<bdi>USA</bdi>” now sits under “<bdi>Amerika</bdi>”."
+
+    assert has_element?(view, "details.cat-node[open][data-category='#{america.id}']")
+
+    # And back to the top level.
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{usa.id}']")
+    |> render_click()
+
+    view
+    |> form("form.cat-edit-form", %{"category" => %{"parent_id" => ""}})
+    |> render_submit()
+
+    assert Portfolixir.Repo.reload!(usa).parent_id == nil
+
+    assert view |> element("#classifications-result-status") |> render() =~
+             "“<bdi>USA</bdi>” now sits on the top level."
+
+    # The German sentences.
+    {:ok, de, _html} = live_drained(conn, "/classifications/#{classification.id}?locale=de")
+
+    de |> element("button[phx-click='edit_category'][phx-value-id='#{usa.id}']") |> render_click()
+    assert has_element?(de, "form.cat-edit-form .recolor-label", "Übergeordnet")
+
+    de
+    |> form("form.cat-edit-form", %{"category" => %{"parent_id" => "#{america.id}"}})
+    |> render_submit()
+
+    assert de |> element("#classifications-result-status") |> render() =~
+             "„<bdi>USA</bdi>“ liegt jetzt unter „<bdi>Amerika</bdi>“."
+
+    de |> element("button[phx-click='edit_category'][phx-value-id='#{usa.id}']") |> render_click()
+
+    de
+    |> form("form.cat-edit-form", %{"category" => %{"parent_id" => ""}})
+    |> render_submit()
+
+    assert de |> element("#classifications-result-status") |> render() =~
+             "„<bdi>USA</bdi>“ liegt jetzt auf der obersten Ebene."
+  end
+
+  # User story (#1211, Sprint 21 γ6, board 06 ②, pick N18 A, the refusal):
+  # As the operator moving a category whose sub-tree would then reach past
+  # the tree's last level,
+  # I want the move refused in the page's result slot, saying where it would
+  # have gone, the level, the bound and what to pick instead,
+  # so that a move never leaves a category every level column reads wrong
+  # (#940).
+  #
+  # Acceptance criteria:
+  # - "Not moved: under “Stufe 31” a category would sit on level 33 — a
+  #   classification has at most 32 levels. Under “Parent”, pick a category
+  #   higher up." („Nicht verschoben: Unter „Stufe 31“ käme eine Kategorie auf
+  #   Ebene 33 — …“), the level the changeset states, the name in <bdi>.
+  # - The refusal is brought into view and focused; nothing moves.
+  test "a move past level 32 is refused in the page's result slot", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Tiefentest"})
+
+    create = fn name, parent ->
+      {:ok, category} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: name,
+          parent_id: parent && parent.id
+        })
+
+      category
+    end
+
+    level_31 = Enum.reduce(1..31, nil, fn level, parent -> create.("Stufe #{level}", parent) end)
+    branch = create.("Ast", nil)
+    _leaf = create.("Blatt", branch)
+
+    for {locale, sentence} <- [
+          {"de",
+           "Nicht verschoben: Unter „<bdi>Stufe 31</bdi>“ käme eine Kategorie auf Ebene 33 — " <>
+             "eine Klassifizierung hat höchstens 32 Ebenen. Bei „Übergeordnet“ eine Kategorie " <>
+             "weiter oben wählen."},
+          {"en",
+           "Not moved: under “<bdi>Stufe 31</bdi>” a category would sit on level 33 — " <>
+             "a classification has at most 32 levels. Under “Parent”, pick a category higher up."}
+        ] do
+      {:ok, view, _html} =
+        live_drained(conn, "/classifications/#{classification.id}?locale=#{locale}")
+
+      view
+      |> element("button[phx-click='edit_category'][phx-value-id='#{branch.id}']")
+      |> render_click()
+
+      view
+      |> form("form.cat-edit-form", %{"category" => %{"parent_id" => "#{level_31.id}"}})
+      |> render_submit()
+
+      assert view |> element("#classifications-result-alert") |> render() =~ sentence
+      assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+    end
+
+    assert Portfolixir.Repo.reload!(branch).parent_id == nil
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))
