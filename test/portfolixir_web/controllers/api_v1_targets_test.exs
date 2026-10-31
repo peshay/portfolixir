@@ -1160,4 +1160,134 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
 
     assert weights.(draft.id) == []
   end
+
+  # User story (#1185, Sprint 21 β2):
+  # As the operator's agent restructuring a plan (ADR-0027),
+  # I want the target reads to take the plan_id the writes take,
+  # so that I can read a draft's category and position targets back between
+  # portfolixir.plans.duplicate and portfolixir.plans.activate, and see how
+  # far the holdings sit from the draft before I activate it.
+  #
+  # Acceptance criteria:
+  # - GET /targets?plan_id= and GET /position_targets?plan_id= list that
+  #   plan version's rows, and the position read's effective_targets roll up
+  #   that plan; without plan_id both keep reading the view's active plan.
+  # - With min_drift, a draft's drift_weight is the security's actual weight
+  #   minus the draft's position target, as the allocation would compute it
+  #   with the draft active: 1 - 0.6 = 0.4 here, where the active plan's is
+  #   1 - 0.75 = 0.25 (the holding is the whole steering basis, and the cash
+  #   target of 0.4 keeps both plans at or above 100%, so no renormalisation).
+  #   Reading the draft's drift off the active plan breaks this.
+  # - The drift basis says when it reads a draft, and names it; an active
+  #   plan addressed by plan_id reads as before.
+  # - The writes' refusals hold on both reads, each a 422 on plan_id: a
+  #   malformed id, an unknown plan or another portfolio's, another
+  #   classification's (beside a classification_id), another view's (beside a
+  #   view) and an archived plan.
+  test "the target reads take a draft's plan_id and refuse what the writes refuse",
+       %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: security} =
+      setup_world()
+
+    pid = portfolio.id
+    targets = "/api/v1/portfolios/#{pid}/targets"
+    positions = "/api/v1/portfolios/#{pid}/position_targets"
+
+    put_json(conn, "/api/v1/portfolios/#{pid}/cash_target", %{"cash_target_weight" => "0.4"})
+    |> json_response(200)
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "targets" => [
+        %{"category_id" => core.id, "target_weight" => "0.8"},
+        %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.75"}
+      ]
+    })
+    |> json_response(200)
+
+    [%{id: active_id}] = Targets.list_plans(pid, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active_id, %{name: "Draft"})
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "plan_id" => draft.id,
+      "targets" => [
+        %{"category_id" => core.id, "target_weight" => "0.65"},
+        %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.6"}
+      ]
+    })
+    |> json_response(200)
+
+    category_weights = fn query ->
+      get_json(conn, targets <> query)
+      |> json_response(200)
+      |> get_in(["data", "targets"])
+      |> Enum.map(&{&1["category_id"], &1["target_weight"]})
+    end
+
+    assert category_weights.("") == [{core.id, "0.8"}]
+    assert category_weights.("?plan_id=#{draft.id}") == [{core.id, "0.65"}]
+    assert category_weights.("?plan_id=#{active_id}") == [{core.id, "0.8"}]
+
+    assert category_weights.("?plan_id=#{draft.id}&classification_id=#{classification.id}") ==
+             [{core.id, "0.65"}]
+
+    read_positions = fn query ->
+      get_json(conn, positions <> query) |> json_response(200) |> Map.fetch!("data")
+    end
+
+    draft_read = read_positions.("?plan_id=#{draft.id}")
+
+    assert Enum.map(draft_read["position_targets"], &{&1["security_id"], &1["target_weight"]}) ==
+             [{security.id, "0.6"}]
+
+    assert [%{"explicit" => "0.65", "position_sum" => "0.6", "effective" => "0.6"}] =
+             draft_read["effective_targets"]
+
+    assert [%{"effective" => "0.75"}] = read_positions.("")["effective_targets"]
+
+    drifts = fn data ->
+      Enum.map(data["position_targets"], &{&1["security_id"], &1["drift_weight"]})
+    end
+
+    active_drift = read_positions.("?min_drift=0")
+    draft_drift = read_positions.("?min_drift=0&plan_id=#{draft.id}")
+    active_by_id = read_positions.("?min_drift=0&plan_id=#{active_id}")
+
+    assert Decimal.equal?(Decimal.new(elem(hd(drifts.(active_drift)), 1)), Decimal.new("0.25"))
+    assert Decimal.equal?(Decimal.new(elem(hd(drifts.(draft_drift)), 1)), Decimal.new("0.4"))
+    assert drifts.(active_by_id) == drifts.(active_drift)
+
+    refute active_drift["drift_basis"] =~ "draft"
+    assert active_by_id["drift_basis"] == active_drift["drift_basis"]
+    assert draft_drift["drift_basis"] =~ "plan_id #{draft.id} names a draft"
+    assert String.starts_with?(draft_drift["drift_basis"], active_drift["drift_basis"])
+
+    # The writes' refusals, on both reads.
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), draft.id)
+    other = base_world(name: "Other Book", cash_name: "Other Cash", depot_name: "Other Depot")
+
+    {:ok, other_plan} =
+      Targets.ensure_plan(Actor.owner_ui(), other.portfolio.id, classification.id)
+
+    {:ok, second_tree} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Second Tree"})
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Plan View", include_all: true})
+
+    for path <- [targets, positions],
+        {query, message} <- [
+          {"plan_id=#{active_id}", "is archived: activate it, or duplicate it into a draft"},
+          {"plan_id=#{other_plan.id}", "is not a plan of this portfolio"},
+          {"plan_id=999999999", "is not a plan of this portfolio"},
+          {"plan_id=#{draft.id}&classification_id=#{second_tree.id}",
+           "is a plan of another classification"},
+          {"plan_id=#{draft.id}&view=#{view.id}", "is a plan of another view"},
+          {"plan_id=twelve", "is invalid"}
+        ] do
+      assert get_json(conn, "#{path}?#{query}") |> json_response(422) ==
+               %{"errors" => %{"plan_id" => [message]}},
+             "#{path}?#{query}"
+    end
+  end
 end

@@ -2508,6 +2508,55 @@ describe("Portfolixir MCP tools", () => {
     assert.match(describe("portfolixir.targets.delete_position"), /plan_id/);
   });
 
+  // User story (#1185, Sprint 21 β2):
+  // As the operator's agent editing a draft plan (ADR-0027),
+  // I want portfolixir.targets.list and portfolixir.targets.list_positions to
+  // take the plan_id the writes take,
+  // so that I can read the draft's targets back before I activate it.
+  //
+  // Acceptance criteria:
+  // - Both reads carry plan_id as a query parameter; without it nothing
+  //   changes.
+  // - plan_id is a positive integer in both schemas, as on the writes;
+  //   anything else is refused before a request is sent.
+  // - Both descriptions say what plan_id reads and point to the writes'
+  //   refusals; list_positions says its drift basis names a draft.
+  it("forwards plan_id through the target reads (#1185)", async () => {
+    const { client, requests } = createRecordingClient({ data: { targets: [], position_targets: [] } });
+
+    await callTool(client, "portfolixir.targets.list", { portfolio_id: 3, plan_id: 21 });
+    await callTool(client, "portfolixir.targets.list_positions", {
+      portfolio_id: 3,
+      classification_id: 5,
+      plan_id: 21,
+      min_drift: "0.02"
+    });
+    await callTool(client, "portfolixir.targets.list", { portfolio_id: 3 });
+
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/targets?plan_id=21");
+    assert.equal(
+      requests[1].path,
+      "/api/v1/portfolios/3/position_targets?classification_id=5&min_drift=0.02&plan_id=21"
+    );
+    assert.equal(requests[2].path, "/api/v1/portfolios/3/targets");
+
+    for (const name of ["portfolixir.targets.list", "portfolixir.targets.list_positions"]) {
+      await assert.rejects(callTool(client, name, { portfolio_id: 3, plan_id: "21" }));
+      await assert.rejects(callTool(client, name, { portfolio_id: 3, plan_id: 0 }));
+
+      const schema = listTools().find((tool) => tool.name === name)!.inputSchema as any;
+      assert.deepEqual(schema.properties.plan_id, { type: "integer", minimum: 1 }, name);
+    }
+
+    assert.equal(requests.length, 3, "a refused plan_id sends nothing");
+
+    const describe = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
+    assert.match(describe("portfolixir.targets.list"), /plan_id reads that plan version/);
+    assert.match(describe("portfolixir.targets.list"), /refused as on portfolixir\.targets\.set/);
+    assert.match(describe("portfolixir.targets.list_positions"), /plan_id: as on portfolixir\.targets\.list/);
+    assert.match(describe("portfolixir.targets.list_positions"), /drift_basis names a draft/);
+  });
+
   // User story (#1143, #945's API half):
   // As the operator's agent writing a batch of targets over MCP,
   // I want the refused row the API names to reach me,
