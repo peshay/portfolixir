@@ -3886,4 +3886,49 @@ defmodule Portfolixir.DocsTest do
       assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
     end
   end
+
+  # User story (security review 2026-10-12, K19):
+  # As an agent recording provenance or paging the catalog from the API
+  # reference,
+  # I want the reference to say what the API does with the research log's
+  # provenance fields, the event writes' reserved keys and the list bounds,
+  # in both languages,
+  # so that I never believe a marker I sent was stored, or send a limit the
+  # API refuses.
+  #
+  # Acceptance criteria:
+  # - Both languages say a research-log entry's author is derived from the
+  #   credential and machine_generated is reserved, both ignored in a body.
+  # - The German events section names the path's security_id, the reserved
+  #   machine_generated, the fixed security and the bounds the English one
+  #   names (limit default 1000, max 10000; stale default 90 days).
+  # - The English securities list names limit a positive integer, default
+  #   5000, max 20000, and offset non-negative.
+  test "the API reference states the research log's provenance, the event keys and the list bounds" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`author` (`operator` or `agent`) is derived from the credential that writes the entry",
+             "`machine_generated` is reserved for a local-model path that does not exist yet",
+             "both are ignored in a body, so a body can claim neither",
+             "(`limit` a positive integer, default 5000, max 20000; `offset` non-negative)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`author` (`operator` oder `agent`) wird aus dem Zugang abgeleitet, der den Eintrag schreibt",
+             "`machine_generated` ist einem Pfad mit lokalem Modell vorbehalten, den es noch nicht gibt",
+             "beide werden in einem Body ignoriert, ein Body kann also keines von beiden beanspruchen",
+             "die nächsten zuerst, mit `limit` (Standard 1000, max. 10000)",
+             "älter als `N` Tage (Standard 90) ist",
+             "`security_id` kommt aus dem Pfad, nie aus dem Body; `machine_generated` ist reserviert und wird im Body ignoriert",
+             "Das Wertpapier, zu dem ein Termin gehört, lässt sich nicht ändern"
+           ]}
+        ],
+        fragment <- fragments do
+      assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
+    end
+
+    refute normalized_text("docs/integration/api-and-mcp.md") =~
+             "for pagination (both non-negative integers)"
+  end
 end
