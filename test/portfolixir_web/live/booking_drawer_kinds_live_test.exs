@@ -14,17 +14,24 @@ defmodule PortfolixirWeb.BookingDrawerKindsLiveTest do
     %{world: world, security: security}
   end
 
-  # User story (security review 2026-10-12, K10):
-  # As the operator booking a trade in the drawer,
-  # I want the drawer to book only the kinds it offers, buy and sell,
+  # User story (security review 2026-10-12, K10; widened by Sprint 21 α6,
+  # #1052 and #1206, the plan's D-6 and the amendment's D-5):
+  # As the operator booking in the drawer,
+  # I want the drawer to book only the kinds it offers — buy and sell, and
+  # since α6 the seven one-amount cash kinds — and never a split,
   # so that a split, which re-bases a security's quotes for every portfolio,
-  # is never booked past the split flow's checks.
+  # is never booked past the split flow's checks, and a two-legged booking
+  # is never booked by a form that carries one amount.
   #
   # Acceptance criteria:
-  # - The drawer's kind list offers buy and sell, and nothing else.
+  # - The drawer's kind list offers buy, sell, dividend, interest, deposit,
+  #   removal, fee, tax and tax refund, in that order, and nothing else: no
+  #   split (D-5 keeps K10's list without one).
   # - A save carrying a split stores nothing and shows a refusal; so does a
-  #   save carrying another kind the drawer does not offer.
-  test "the drawer books buy and sell only", %{conn: conn, world: world, security: security} do
+  #   save carrying another kind the drawer does not offer (a cash
+  #   transfer).
+  test "the drawer books the kinds it offers and never a split",
+       %{conn: conn, world: world, security: security} do
     {:ok, view, _html} = live(conn, "/transactions")
     render_click(view, "open_booking", %{})
 
@@ -35,7 +42,17 @@ defmodule PortfolixirWeb.BookingDrawerKindsLiveTest do
       |> then(&Regex.scan(~r/<option[^>]*value="([^"]+)"/, &1, capture: :all_but_first))
       |> List.flatten()
 
-    assert offered == ["buy", "sell"]
+    assert offered == [
+             "buy",
+             "sell",
+             "dividend",
+             "interest",
+             "deposit",
+             "removal",
+             "fee",
+             "tax",
+             "tax_refund"
+           ]
 
     before = length(Ledger.list_transactions())
 
@@ -59,9 +76,10 @@ defmodule PortfolixirWeb.BookingDrawerKindsLiveTest do
 
     render_submit(view, "save_transaction", %{
       "transaction" => %{
-        "type" => "deposit",
+        "type" => "cash_transfer",
         "portfolio_id" => to_string(world.portfolio.id),
         "cash_account_id" => to_string(world.cash.id),
+        "counter_cash_account_id" => to_string(world.cash.id),
         "date" => "2026-02-01",
         "currency_code" => "EUR",
         "gross_amount" => "100"

@@ -445,6 +445,27 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/\.transactions-columns--drawer \{\s*grid-template-columns: minmax\(0, 1fr\);/
   end
 
+  # User story (#1052, #1206, Sprint 21 α6; board 03, pick N12 A, and its
+  # found while drawing 4):
+  # As the operator booking a cash kind or correcting one on a phone,
+  # I want the sheet's Save and Cancel to stay at the sheet's bottom edge
+  # while the form scrolls above them, and a lone amount on its own row,
+  # so that the primary action is never below the fold of a form taller
+  # than the sheet (the edit state needs 934 px in a 743 px sheet).
+  #
+  # Acceptance criteria:
+  # - Under 720 px the drawer's foot is sticky at the bottom of the sheet,
+  #   on the sheet's own background.
+  # - A kind without taxes leaves the amount as the grid's fifth and last
+  #   label; it takes the full row (the board's one proposal rule).
+  test "the booking sheet keeps its foot at its edge and a lone amount takes the row" do
+    assert drawer_block() =~
+             ~r/\.booking-drawer__foot \{\s*position: sticky;\s*bottom: [^;]+;[^}]*background: var\(--color-bg-elevated\)/
+
+    assert block(".booking-drawer .form-grid > label:nth-child(5):last-child") =~
+             ~r/grid-column:\s*1 \/ -1/
+  end
+
   defp drawer_block do
     case Regex.run(
            ~r/@media \(max-width: 720px\) \{\n  \/\* booking drawer[^\n]*\n(.*?)\n\}\n/s,
