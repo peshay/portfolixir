@@ -6967,7 +6967,14 @@ they already have (UX-DR25 clauses 1 and 2).
   Nachladen der Wechselkurse unter „Alle Trades“ speichert ihn und leitet
   daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung." The
   remedy points at the backfill control under "Alle Trades"; the tab carries
-  no control of its own. *Amended 2026-10-31 (#1198):* one sentence per
+  no control of its own. *Amended 2026-10-31 (#1198, the α closing act's
+  UAT):* the security's page has no "Alle Trades" link, so the remedy names
+  the control as the Cash flow page labels it: „… — „Historische Kurse
+  nachladen“ unter Cashflow → „Trades“ speichert ihn und leitet daraus den
+  Gegenwert ab — …“ (English "“Backfill historical rates” on Cash flow →
+  “Trades” stores it …"). When #1150 relabels the button, the sentence
+  quotes the new label. The Overview card keeps „unter „Alle Trades““: its
+  own link carries that label. *Amended 2026-10-31 (#1198):* one sentence per
   trade, not per lot — a trade that closes several lots without their leg
   reads once, its lots counted and dated: "1 Trade ohne Umrechnung: 2 Käufe,
   die er schließt, vom 12.02.2025, 12.03.2025, haben keinen Gegenwert in

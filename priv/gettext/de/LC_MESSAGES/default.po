@@ -12856,13 +12856,6 @@ msgid_plural "%{count} sales not convertible — a buy each closes has no figure
 msgstr[0] "%{count} Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: %{securities}."
 msgstr[1] "%{count} Verkäufe ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen Gegenwert in der Währung ihres Verkaufs — fehlen bei den Trades: %{securities}."
 
-#: lib/portfolixir_web/live/securities_live.ex:2247
-#, elixir-autogen, elixir-format
-msgid "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking."
-msgid_plural "%{count} trades not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trades' cost and result are missing, and they count in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking."
-msgstr[0] "%{count} Trade ohne Umrechnung: Der Kauf vom %{lot_date} ist in %{lot_currency} gebucht und hat keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für den %{lot_date} — das Nachladen der Wechselkurse unter „Alle Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in %{currency} an der Buchung."
-msgstr[1] "%{count} Trades ohne Umrechnung: Der Kauf vom %{lot_date} ist in %{lot_currency} gebucht und hat keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis der Trades fehlen, und sie zählen in keiner Summe. Abhilfe: ein Wechselkurs für den %{lot_date} — das Nachladen der Wechselkurse unter „Alle Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in %{currency} an der Buchung."
-
 #: lib/portfolixir_web/live/securities_live.ex:2621
 #, elixir-autogen, elixir-format
 msgid "Not convertible: a buy in %{lot_currency} has no figure in %{currency}"
@@ -12919,13 +12912,6 @@ msgid "Afterwards %{count} sale is not convertible — a buy it closes has no fi
 msgid_plural "Afterwards %{count} sales are not convertible — a buy each closes has no figure in its sale's currency — and are in no sum above; before, source %{source} · target %{target}."
 msgstr[0] "Danach ist %{count} Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — und in keiner Summe oben; vorher Quelle %{source} · Ziel %{target}."
 msgstr[1] "Danach sind %{count} Verkäufe ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen Gegenwert in der Währung ihres Verkaufs — und in keiner Summe oben; vorher Quelle %{source} · Ziel %{target}."
-
-#: lib/portfolixir_web/live/securities_live.ex:2257
-#, elixir-autogen, elixir-format
-msgid "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings."
-msgid_plural "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings."
-msgstr[0] "1 Trade ohne Umrechnung: %{count} Kauf, den er schließt, vom %{lot_dates}, hat keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für jeden dieser Tage — das Nachladen der Wechselkurse unter „Alle Trades“ speichert sie und leitet daraus die Gegenwerte ab — oder die Gegenwerte in %{currency} an den Buchungen."
-msgstr[1] "1 Trade ohne Umrechnung: %{count} Käufe, die er schließt, vom %{lot_dates}, haben keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für jeden dieser Tage — das Nachladen der Wechselkurse unter „Alle Trades“ speichert sie und leitet daraus die Gegenwerte ab — oder die Gegenwerte in %{currency} an den Buchungen."
 
 #: lib/portfolixir_web/live/imports_live.ex:2557
 #, elixir-autogen, elixir-format
@@ -13077,3 +13063,17 @@ msgstr "ohne Umrechnung, ein Kauf in %{currency}, weder die Währung des Wertpap
 #, elixir-autogen, elixir-format
 msgid "not convertible, the sale priced in %{currency}, neither the security's nor its account's currency"
 msgstr "ohne Umrechnung, der Verkauf in %{currency}, weder die Währung des Wertpapiers noch die seines Kontos"
+
+#: lib/portfolixir_web/live/securities_live.ex:2247
+#, elixir-autogen, elixir-format
+msgid "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figure from it — or the figure in %{currency} on the booking."
+msgid_plural "%{count} trades not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trades' cost and result are missing, and they count in no total. Remedy: a rate for %{lot_date} — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figure from it — or the figure in %{currency} on the booking."
+msgstr[0] "%{count} Trade ohne Umrechnung: Der Kauf vom %{lot_date} ist in %{lot_currency} gebucht und hat keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für den %{lot_date} — „Historische Kurse nachladen“ unter Cashflow → „Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in %{currency} an der Buchung."
+msgstr[1] "%{count} Trades ohne Umrechnung: Der Kauf vom %{lot_date} ist in %{lot_currency} gebucht und hat keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis der Trades fehlen, und sie zählen in keiner Summe. Abhilfe: ein Wechselkurs für den %{lot_date} — „Historische Kurse nachladen“ unter Cashflow → „Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in %{currency} an der Buchung."
+
+#: lib/portfolixir_web/live/securities_live.ex:2257
+#, elixir-autogen, elixir-format
+msgid "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — “Backfill historical rates” on Cash flow → “Trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings."
+msgid_plural "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — “Backfill historical rates” on Cash flow → “Trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings."
+msgstr[0] "1 Trade ohne Umrechnung: %{count} Kauf, den er schließt, vom %{lot_dates}, hat keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für jeden dieser Tage — „Historische Kurse nachladen“ unter Cashflow → „Trades“ speichert sie und leitet daraus die Gegenwerte ab — oder die Gegenwerte in %{currency} an den Buchungen."
+msgstr[1] "1 Trade ohne Umrechnung: %{count} Käufe, die er schließt, vom %{lot_dates}, haben keinen Gegenwert in %{currency}, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für jeden dieser Tage — „Historische Kurse nachladen“ unter Cashflow → „Trades“ speichert sie und leitet daraus die Gegenwerte ab — oder die Gegenwerte in %{currency} an den Buchungen."
