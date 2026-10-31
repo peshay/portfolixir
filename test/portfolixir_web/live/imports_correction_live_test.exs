@@ -439,7 +439,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       view |> element("#import-correction-open") |> render_click()
 
       assert text(view, "#import-correction-subject") ==
-               "1 Buchung Zeile 3 · FX-Cash -25,00 EUR Differenz"
+               "1 Buchung Eintrag 3 · FX-Cash -25,00 EUR Differenz"
 
       assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
                "Danach hat FX-Cash 25,00 EUR weniger. " <>
@@ -690,7 +690,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       view |> element("#import-correction-open") |> render_click()
 
       assert text(view, "#import-correction-subject") ==
-               "2 bookings Rows 2, 4 · EUR-Cash, USD-Cash"
+               "2 bookings Entries 2, 4 · EUR-Cash, USD-Cash"
 
       refute has_element?(view, "#import-correction-subject .phone-row__figure")
       refute has_element?(view, "#import-correction-subject .phone-row__figure2")
@@ -977,13 +977,13 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       upload(view, "nominal.json", @nominal_sale_json, "application/json")
 
       assert text(view, "#parser-warnings-box pre") ==
-               "Zeile 2: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — Zeile nicht übernommen. Den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung."
+               "Eintrag 2: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — Eintrag nicht übernommen. Den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung."
 
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "nominal.json", @nominal_sale_json, "application/json")
 
       assert text(view, "#parser-warnings-box pre") ==
-               "Row 2: sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain for the sale — row not imported. Book the sale by hand, and the refund as a tax refund of its own."
+               "Entry 2: sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain for the sale — entry not imported. Book the sale by hand, and the refund as a tax refund of its own."
     end
   end
 
@@ -1661,12 +1661,12 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
         # The refund stored beside the sale is the one economic duplicate.
         economics = text(view, "[data-role='duplicate-group'][data-layer='economics']")
         assert economics =~ ~r/^1 · /
-        refute economics =~ ~r/(Row|Zeile) 3: /
+        refute economics =~ ~r/(Entry|Eintrag) 3: /
 
         group = "[data-role='duplicate-group'][data-layer='differs'][open]"
         assert text(view, group <> " summary") == head
         line = text(view, group <> " li")
-        assert line =~ ~r/^(Row|Zeile) 3: /
+        assert line =~ ~r/^(Entry|Eintrag) 3: /
         assert String.ends_with?(line, stored)
       end
     end

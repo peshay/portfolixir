@@ -289,7 +289,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
             security: security,
             pp_portfolio_name: pp_portfolio,
             pp_account_name: pp_account,
-            note: "Auto-split tax refund from row #{row}"
+            note: "Auto-split tax refund from entry #{row}"
           }
         end)
 

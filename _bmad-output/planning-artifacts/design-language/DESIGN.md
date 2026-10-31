@@ -5786,8 +5786,21 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
   is row 2. The number moves everywhere a CSV row is named — the parser
   warnings, the receiving side's "booked once, from that row", every list
   on the done page, the correction section and a split-off refund's note —
-  and the anatomy nowhere. No content hash reads it. A JSON row's number is
-  untouched (its own issue).
+  and the anatomy nowhere. No content hash reads it. **A JSON row is an
+  entry** *(2026-10-31; issue 1179, Sprint 21 γ7; board
+  `mockups/ux-design-2026-10-09/07-imports` ⑥)*: a JSON export numbers its
+  rows by their place in its `transactions` list, which no line of the file
+  shows, so a JSON preview and its done page say "Entry N" / "Eintrag N"
+  wherever they name a row — the parser warnings and the reason's own
+  ending ("— entry not imported" / "— Eintrag nicht übernommen"), the
+  correction table's first column ("Entry" / "Eintrag", 70 px at 980) and
+  its phone rows, the dialog ("Entries 4, 15, 21" / "Einträge 4, 15, 21"),
+  the refusal result, every done-page list ("Entry 7 (Tax refund)" /
+  „Eintrag 7 (Steuererstattung)“) and the apply's error line, which now
+  names a split-off refund by its row and kind, never by its internal id.
+  A refund split off a JSON row stores the note "Auto-split tax refund from
+  entry N" (new notes only; no hash reads it). A CSV keeps "Row N" /
+  "Zeile N". No size changes but the column head.
   - **A row with no account to book on.** A CSV transfer row, a cash or a
     security transfer, the sending or the receiving side, with a blank
     `Gegenkonto`: "transfer without a counter account — row not imported" /

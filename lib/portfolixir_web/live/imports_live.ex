@@ -390,7 +390,7 @@ defmodule PortfolixirWeb.ImportsLive do
           </button>
         </div>
         <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
-        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@row_errors) %></pre>
+        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@row_errors, @preview) %></pre>
       </AppShell.data_note>
 
       <%!-- ADR-0053 §6 and A6 (board 09, pick J9 = A; board 01 ⑧): the
@@ -455,7 +455,7 @@ defmodule PortfolixirWeb.ImportsLive do
               <table class="data-table" id="import-correction-table">
                 <thead>
                   <tr>
-                    <th class="num" scope="col"><%= gettext("Row") %></th>
+                    <th class="num" scope="col"><%= row_heading(@preview) %></th>
                     <th scope="col"><%= gettext("Date") %></th>
                     <th scope="col"><%= gettext("Booking") %></th>
                     <th class="num" scope="col"><%= gettext("Booked") %></th>
@@ -521,7 +521,7 @@ defmodule PortfolixirWeb.ImportsLive do
               <li class="phone-row">
                 <span class="phone-row__body">
                   <span class="phone-row__name"><bdi><%= line.security || line.account %></bdi></span>
-                  <span class="phone-row__ids"><span><%= gettext("Row %{row}", row: line.row) %> · <%= line.date %> · <%= line.kind %><%= if line.security && line.account do %> · <bdi><%= line.account %></bdi><% end %></span></span>
+                  <span class="phone-row__ids"><span><%= row_ref(@preview, line.row) %> · <%= line.date %> · <%= line.kind %><%= if line.security && line.account do %> · <bdi><%= line.account %></bdi><% end %></span></span>
                   <.correction_detail line={line} />
                 </span>
                 <span class="phone-row__figures">
@@ -533,7 +533,7 @@ defmodule PortfolixirWeb.ImportsLive do
               <li :for={other <- line.others} class="phone-row" data-role="import-correction-account">
                 <span class="phone-row__body">
                   <span class="phone-row__name"><bdi><%= other.name %></bdi></span>
-                  <span class="phone-row__ids"><span><%= gettext("Row %{row}", row: line.row) %> · <%= line.date %> · <%= line.kind %></span></span>
+                  <span class="phone-row__ids"><span><%= row_ref(@preview, line.row) %> · <%= line.date %> · <%= line.kind %></span></span>
                 </span>
                 <span class="phone-row__figures">
                   <span class={["phone-row__figure", sign_class(other.difference)]}><%= Format.signed_decimal(other.difference, 2) %></span>
@@ -583,6 +583,7 @@ defmodule PortfolixirWeb.ImportsLive do
         kept={length(@corrections) - length(@correction_fixable)}
         totals={@correction_totals}
         file_rows={file_rows(@preview)}
+        json={json?(@preview)}
       />
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
@@ -982,10 +983,7 @@ defmodule PortfolixirWeb.ImportsLive do
           <ul>
             <%= for unresolved <- @result.unresolved_entries do %>
               <li>
-                <%= gettext("Row %{row}: %{reason}",
-                  row: row_label(@file_rows, unresolved.row),
-                  reason: unresolved_reason(unresolved)
-                ) %>
+                <%= row_reason(@preview, row_label(@file_rows, unresolved.row), unresolved_reason(unresolved)) %>
               </li>
             <% end %>
           </ul>
@@ -1032,10 +1030,7 @@ defmodule PortfolixirWeb.ImportsLive do
               </summary>
               <ul>
                 <li :for={dup <- entries}>
-                  <%= gettext("Row %{row}: %{description}",
-                    row: row_label(@file_rows, dup.row),
-                    description: row_description(@file_rows, dup.row)
-                  ) %><%= if dup[:stored] do %> — <%= gettext("%{amount} stored", amount: dup.stored) %><% end %>
+                  <%= row_described(@preview, row_label(@file_rows, dup.row), row_description(@file_rows, dup.row)) %><%= if dup[:stored] do %> — <%= gettext("%{amount} stored", amount: dup.stored) %><% end %>
                 </li>
               </ul>
             </details>
@@ -1057,7 +1052,7 @@ defmodule PortfolixirWeb.ImportsLive do
           </p>
           <ul>
             <li :for={behind <- @result.behind_restated_anchor}>
-              <%= gettext("Row %{row}: %{description} — set balance of %{account} on %{date}",
+              <%= row_behind_anchor(@preview,
                 row: row_label(@file_rows, behind.row),
                 description: row_description(@file_rows, behind.row),
                 account: account_name(@existing_cash, behind.cash_account_id),
@@ -1082,7 +1077,7 @@ defmodule PortfolixirWeb.ImportsLive do
           <ul>
             <%= for transfer <- @result.internal_transfers do %>
               <li>
-                <%= gettext("Row %{row}: %{kind} %{date} · %{from} → %{to}",
+                <%= row_internal_transfer(@preview,
                   row: transfer.row,
                   kind: kind_label(transfer.kind),
                   date: transfer.date && Format.date(transfer.date),
@@ -1107,10 +1102,7 @@ defmodule PortfolixirWeb.ImportsLive do
           <ul>
             <%= for skip <- @result.skipped_entries do %>
               <li>
-                <%= gettext("Row %{row}: %{reason}",
-                  row: row_label(@file_rows, skip.row),
-                  reason: skip_reason(@file_rows, skip)
-                ) %>
+                <%= row_reason(@preview, row_label(@file_rows, skip.row), skip_reason(@file_rows, skip)) %>
               </li>
             <% end %>
           </ul>
@@ -1232,7 +1224,7 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("copy_parser_warnings", _params, socket) do
     text =
       case socket.assigns.preview do
-        %Preview{} -> parser_warning_text(socket.assigns.row_errors)
+        %Preview{} = preview -> parser_warning_text(socket.assigns.row_errors, preview)
         _ -> ""
       end
 
@@ -1413,7 +1405,7 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply,
      socket
      |> assign(:applying, false)
-     |> assign(:error, apply_error_message(reason))}
+     |> assign(:error, apply_error_message(reason, socket.assigns.preview))}
   end
 
   def handle_async(:apply_import, {:exit, _reason}, socket) do
@@ -1442,7 +1434,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(
        :correction_result,
        {:problem,
-        gettext("Row %{row}: the correction was refused: %{reason}. Nothing was corrected.",
+        correction_refused(socket.assigns.preview,
           row: row_label(file_rows(socket.assigns.preview), row),
           reason: correction_refusal(reason)
         )}
@@ -2826,12 +2818,16 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # The dialog's subject box: the bookings, their rows and accounts, the
   # total they move.
-  defp correction_subject(items, totals, file_rows) do
+  defp correction_subject(items, totals, file_rows, json?) do
     rows = Enum.map_join(items, ", ", &to_string(row_label(file_rows, &1.row)))
 
     %{
       name: ngettext("%{count} booking", "%{count} bookings", length(items)),
-      rows: ngettext("Row %{rows}", "Rows %{rows}", length(items), rows: rows),
+      rows:
+        if(json?,
+          do: ngettext("Entry %{rows}", "Entries %{rows}", length(items), rows: rows),
+          else: ngettext("Row %{rows}", "Rows %{rows}", length(items), rows: rows)
+        ),
       accounts:
         totals
         |> Enum.map(fn {account, _delta} -> StoredText.bdi(account.name) end)
@@ -3136,11 +3132,13 @@ defmodule PortfolixirWeb.ImportsLive do
   attr(:kept, :integer, default: 0)
   attr(:totals, :list, required: true)
   attr(:file_rows, :map, required: true)
+  attr(:json, :boolean, default: false)
 
   defp correction_dialog(assigns) do
     assigns =
       assign(assigns,
-        subject: correction_subject(assigns.corrections, assigns.totals, assigns.file_rows),
+        subject:
+          correction_subject(assigns.corrections, assigns.totals, assigns.file_rows, assigns.json),
         consequence: correction_consequence(assigns.corrections, assigns.totals)
       )
 
@@ -4282,9 +4280,22 @@ defmodule PortfolixirWeb.ImportsLive do
   # resolved cash account, issue #343) carries the rejecting changeset.
   # Surface its validation messages instead of an opaque struct dump so the
   # preview tells the user exactly which row and rule failed.
-  defp apply_error_message(%{row: row, reason: {:insert_failed, %Ecto.Changeset{} = changeset}}) do
-    gettext("Row %{row}: %{errors}", row: row || "?", errors: changeset_error_text(changeset))
+  # Board 07, found while drawing 7 (#1179): the row a failed insert names
+  # is labelled as every list of the page labels it, a refund split off a
+  # row by that row and its kind, never by its internal id.
+  defp apply_error_message(
+         %{row: row, reason: {:insert_failed, %Ecto.Changeset{} = changeset}},
+         preview
+       ) do
+    label = if row, do: row_label(file_rows(preview), row), else: "?"
+    errors = changeset_error_text(changeset)
+
+    if json?(preview),
+      do: gettext("Entry %{row}: %{errors}", row: label, errors: errors),
+      else: gettext("Row %{row}: %{errors}", row: label, errors: errors)
   end
+
+  defp apply_error_message(reason, _preview), do: apply_error_message(reason)
 
   # The tag write failed inside the apply (fix round belt-and-braces for the
   # race where the colliding scope bucket appears after the pre-validation):
@@ -4353,11 +4364,89 @@ defmodule PortfolixirWeb.ImportsLive do
   defp changeset_error_text(%Ecto.Changeset{} = changeset),
     do: FieldLabel.changeset_message(changeset)
 
-  defp parser_warning_text(errors) do
+  defp parser_warning_text(errors, preview) do
     errors
-    |> Enum.map(fn err ->
-      gettext("Row %{row}: %{message}", row: err.row || "?", message: err.message)
-    end)
+    |> Enum.map(fn err -> row_message(preview, err.row || "?", err.message) end)
     |> Enum.join("\n")
   end
+
+  # --- a row as its format numbers it (board 07 ⑥, #1179) ---
+
+  # A JSON export numbers its rows by their place in its `transactions`
+  # list, which no line of the file shows, so a JSON preview and its done
+  # page say "Entry N"; a CSV's "Row N" is the row a spreadsheet shows
+  # (#1128).
+  defp json?(%Preview{format: :json}), do: true
+  defp json?(_preview), do: false
+
+  defp row_heading(preview),
+    do: if(json?(preview), do: gettext("Entry"), else: gettext("Row"))
+
+  defp row_ref(preview, row),
+    do:
+      if(json?(preview),
+        do: gettext("Entry %{row}", row: row),
+        else: gettext("Row %{row}", row: row)
+      )
+
+  # A parser warning, its own ending in the format's word: the parsers write
+  # one message per refusal for both formats.
+  defp row_message(preview, row, message) do
+    if json?(preview) do
+      message =
+        String.replace(message, gettext("— row not imported"), gettext("— entry not imported"))
+
+      gettext("Entry %{row}: %{message}", row: row, message: message)
+    else
+      gettext("Row %{row}: %{message}", row: row, message: message)
+    end
+  end
+
+  defp row_reason(preview, row, reason),
+    do:
+      if(json?(preview),
+        do: gettext("Entry %{row}: %{reason}", row: row, reason: reason),
+        else: gettext("Row %{row}: %{reason}", row: row, reason: reason)
+      )
+
+  defp row_described(preview, row, description),
+    do:
+      if(json?(preview),
+        do: gettext("Entry %{row}: %{description}", row: row, description: description),
+        else: gettext("Row %{row}: %{description}", row: row, description: description)
+      )
+
+  defp row_behind_anchor(preview, bindings),
+    do:
+      if(json?(preview),
+        do:
+          gettext(
+            "Entry %{row}: %{description} — set balance of %{account} on %{date}",
+            bindings
+          ),
+        else:
+          gettext("Row %{row}: %{description} — set balance of %{account} on %{date}", bindings)
+      )
+
+  defp row_internal_transfer(preview, bindings),
+    do:
+      if(json?(preview),
+        do: gettext("Entry %{row}: %{kind} %{date} · %{from} → %{to}", bindings),
+        else: gettext("Row %{row}: %{kind} %{date} · %{from} → %{to}", bindings)
+      )
+
+  defp correction_refused(preview, bindings),
+    do:
+      if(json?(preview),
+        do:
+          gettext(
+            "Entry %{row}: the correction was refused: %{reason}. Nothing was corrected.",
+            bindings
+          ),
+        else:
+          gettext(
+            "Row %{row}: the correction was refused: %{reason}. Nothing was corrected.",
+            bindings
+          )
+      )
 end

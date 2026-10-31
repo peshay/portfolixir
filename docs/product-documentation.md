@@ -2838,7 +2838,10 @@ with a scrollable list of the rows and a copy button. The copied text uses
 stable `Row N: message` lines so the diagnostics can be kept with the source
 export. In a CSV file, *Row N* is the row a spreadsheet shows, the header
 being row 1, so the first booking is row 2; every list of the preview and of
-the result names a CSV row the same way. Applying the import is atomic and uses content hashes to skip
+the result names a CSV row the same way. A JSON export has no rows a
+spreadsheet shows: it numbers its bookings by their place in its
+`transactions` list, so a JSON preview and its result say *Entry N* instead
+(*Entry N: message*, *— entry not imported*). Applying the import is atomic and uses content hashes to skip
 duplicates on re-run. One record is the exception: on a fresh instance the
 first import creates the internal Default portfolio and commits it before it
 books the file, so that every other write resolving the default meanwhile

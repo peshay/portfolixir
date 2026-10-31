@@ -3117,7 +3117,11 @@ kopierte Text nutzt stabile `Zeile N: Meldung`-Zeilen, sodass die Diagnose
 beim Quell-Export verbleiben kann. In einer CSV-Datei ist *Zeile N* die Zeile,
 die eine Tabellenkalkulation zeigt, die Kopfzeile als Zeile 1, die erste
 Buchung also Zeile 2; jede Liste der Vorschau und des Ergebnisses nennt eine
-CSV-Zeile genauso. Das Anwenden des Imports ist atomar und
+CSV-Zeile genauso. Ein JSON-Export hat keine Zeilen, die eine
+Tabellenkalkulation zeigt: Er nummeriert seine Buchungen nach ihrem Platz in
+seiner `transactions`-Liste, darum sagen eine JSON-Vorschau und ihr Ergebnis
+stattdessen *Eintrag N* (*Eintrag N: Meldung*, *— Eintrag nicht übernommen*).
+Das Anwenden des Imports ist atomar und
 nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen. Ein
 Datensatz ist die Ausnahme: Auf einer frischen Instanz legt der erste Import
 das interne Default-Portfolio an und schreibt es fest, bevor er die Datei

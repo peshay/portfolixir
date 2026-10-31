@@ -492,8 +492,8 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
         "ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel"
 
       assert texts(view, "[data-role='unresolved-entries'] li") |> Enum.sort() == [
-               "Zeile 3: " <> veto,
-               "Zeile 4: " <> veto
+               "Eintrag 3: " <> veto,
+               "Eintrag 4: " <> veto
              ]
 
       assert text(view, "[data-role='unresolved-entries'] p") ==
@@ -514,7 +514,7 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
       assert render_async(view, 1_000) =~ "Import complete"
 
       assert texts(view, "[data-role='unresolved-entries'] li") == [
-               "Row 3: a likely match, “Qux AG”, differs on a stronger identifier — possibly an ISIN change not recorded yet"
+               "Entry 3: a likely match, “Qux AG”, differs on a stronger identifier — possibly an ISIN change not recorded yet"
              ]
 
       assert text(view, "[data-role='unresolved-entries'] p") ==
@@ -542,7 +542,7 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
       assert render_async(view, 1_000) =~ "Import abgeschlossen"
 
       assert texts(view, "[data-role='unresolved-entries'] li") == [
-               "Zeile 3: verschiedene Identifikatoren zeigen auf verschiedene bestehende Wertpapiere: „Foo Neu AG“ und „Bar Holding“"
+               "Eintrag 3: verschiedene Identifikatoren zeigen auf verschiedene bestehende Wertpapiere: „Foo Neu AG“ und „Bar Holding“"
              ]
 
       # One record in German: no "1 Datensätze" (board 01, found while
@@ -591,7 +591,7 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
         assert render_async(view, 1_000) =~ "Import complete", "#{tier}"
 
         assert texts(view, "[data-role='unresolved-entries'] li") == [
-                 "Row 3: 2 existing securities share this identifier: #{label}"
+                 "Entry 3: 2 existing securities share this identifier: #{label}"
                ],
                "#{tier}"
 

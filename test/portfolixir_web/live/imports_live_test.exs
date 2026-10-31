@@ -157,7 +157,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert has_element?(view, "#parser-warnings-box .data-note__icon[aria-hidden='true'] svg")
     assert has_element?(view, "#parser-warnings-box h3", "Parser warnings")
     assert has_element?(view, "#parser-warnings-box #copy-parser-warnings")
-    assert has_element?(view, "#parser-warnings-box pre", "Row 1")
+    assert has_element?(view, "#parser-warnings-box pre", "Entry 1")
     assert has_element?(view, "#parser-warnings-box pre", "MYSTERY_KIND")
     assert has_element?(view, ".import-stat-card.warning", "Warnings")
 
@@ -176,7 +176,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     view |> element("#copy-parser-warnings") |> render_click()
 
     assert_push_event(view, "copy-to-clipboard", %{
-      text: ~s|Row 1: unknown PP transaction type "MYSTERY_KIND"|
+      text: ~s|Entry 1: unknown PP transaction type "MYSTERY_KIND"|
     })
   end
 
@@ -941,7 +941,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # ux-design-2026-10-04/09-import-correction, found while drawing).
     assert has_element?(view, "p.alert-error")
     error = view |> element("p.alert-error[role='alert']") |> render()
-    assert html =~ "Row"
+    assert html =~ "Entry 1"
     assert error =~ "Exchange rate is required for a cross-currency settlement"
     refute error =~ "settlement_fx_rate"
 
@@ -958,7 +958,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     error = view |> element("p.alert-error[role='alert']") |> render()
 
     assert error =~
-             "Zeile 1: Wechselkurs ist für eine Abrechnung in einer anderen Währung erforderlich"
+             "Eintrag 1: Wechselkurs ist für eine Abrechnung in einer anderen Währung erforderlich"
   end
 
   defp apply_into_usd_account(conn) do
@@ -1956,7 +1956,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~
              ~r/<b>13<\/b>\s*·\s*an identical row was imported before \(stored content hash\)/
 
-    assert html =~ "Row 1: Buy 2024-01-15"
+    assert html =~ "Entry 1: Buy 2024-01-15"
     refute html =~ "already booked: an"
   end
 
@@ -2010,7 +2010,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Created transactions: 1"
     assert has_element?(view, "[data-role='internal-transfers']")
     assert html =~ "Skipped one internal transfer: both sides lead to the same account or depot."
-    assert html =~ "Row 2: Cash transfer 2025-02-01 · Giro → Tagesgeld"
+    assert html =~ "Entry 2: Cash transfer 2025-02-01 · Giro → Tagesgeld"
   end
 
   # User story (Sprint 19 PR γ U3; board 05, found while drawing 3 — the
@@ -2129,7 +2129,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
              ~r/<b>1<\/b>\s*·\s*eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt \(stillgelegter Inhalts-Hash\)/
 
     # The row's day reads the page's language (Sprint 19 U3, board 05).
-    assert html =~ "Zeile 1: Umbuchung 01.02.2025 · 250,00 EUR · Savings (old) → Savings"
+    assert html =~ "Eintrag 1: Umbuchung 01.02.2025 · 250,00 EUR · Savings (old) → Savings"
     assert has_element?(view, "[data-role='duplicate-group'][data-layer='retired'][open]")
   end
 
@@ -3054,9 +3054,9 @@ defmodule PortfolixirWeb.ImportsLiveTest do
                "One booking lies on or before a set balance a merge adjusted; that balance absorbs its amount:"
 
       assert list =~
-               "Row 1: Deposit 2025-04-15 · 50.00 EUR · Savings — set balance of Savings on 2025-05-31"
+               "Entry 1: Deposit 2025-04-15 · 50.00 EUR · Savings — set balance of Savings on 2025-05-31"
 
-      refute list =~ "Row 2"
+      refute list =~ "Entry 2"
     end
 
     # User story (Sprint 19 PR γ U3; board 05, found while drawing 3 — the
@@ -3142,8 +3142,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert html =~
                ~r/<b>2<\/b>\s*·\s*an identical row was imported before \(stored content hash\)/
 
-      assert html =~ "Row 1: Deposit 2025-01-02 · 100.00 EUR · Giro"
-      assert html =~ "Row 2: Deposit 2025-01-03 · 5.00 EUR · Giro"
+      assert html =~ "Entry 1: Deposit 2025-01-02 · 100.00 EUR · Giro"
+      assert html =~ "Entry 2: Deposit 2025-01-03 · 5.00 EUR · Giro"
       refute has_element?(view, "[data-role='duplicate-group'][data-layer='hash'][open]")
     end
 
@@ -3358,13 +3358,13 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert has_element?(
                view,
                "#parser-warnings-box pre",
-               "Row 2: currency “XEU” is not supported — row not imported"
+               "Entry 2: currency “XEU” is not supported — entry not imported"
              )
 
       assert has_element?(
                view,
                "#parser-warnings-box pre",
-               "Row 3: currency “EURO” is not supported — row not imported"
+               "Entry 3: currency “EURO” is not supported — entry not imported"
              )
 
       view

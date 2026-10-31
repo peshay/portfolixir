@@ -61,11 +61,11 @@ defmodule PortfolixirWeb.ImportsRefundRowErrorsLiveTest do
     upload(view, "refunds.json", @json, "application/json")
 
     assert text(view, "#parser-warnings-box pre") ==
-             "Zeile 2: Einlieferung mit Steuererstattung 0,40: Eine Einlieferung bewegt kein " <>
-               "Geld, die Erstattung hätte kein Konto — Zeile nicht übernommen. Die " <>
+             "Eintrag 2: Einlieferung mit Steuererstattung 0,40: Eine Einlieferung bewegt kein " <>
+               "Geld, die Erstattung hätte kein Konto — Eintrag nicht übernommen. Die " <>
                "Einlieferung ohne sie von Hand buchen; ist Geld geflossen, das als eigene " <>
-               "Steuererstattung. Zeile 4: Buchung mit einer negativen Gebühr (-2,00): Eine " <>
-               "Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Die " <>
+               "Steuererstattung. Eintrag 4: Buchung mit einer negativen Gebühr (-2,00): Eine " <>
+               "Gebührenerstattung bucht der Import noch nicht — Eintrag nicht übernommen. Die " <>
                "Buchung von Hand erfassen, mit den Gebühren abzüglich der Erstattung (3,00)."
 
     assert stat(view, "Warnungen") == "2"
@@ -75,11 +75,11 @@ defmodule PortfolixirWeb.ImportsRefundRowErrorsLiveTest do
     upload(view, "refunds.json", @json, "application/json")
 
     assert text(view, "#parser-warnings-box pre") ==
-             "Row 2: inbound delivery with a tax refund of 0.40: an inbound delivery moves no " <>
-               "cash, so the refund would have no account — row not imported. Book the inbound " <>
+             "Entry 2: inbound delivery with a tax refund of 0.40: an inbound delivery moves no " <>
+               "cash, so the refund would have no account — entry not imported. Book the inbound " <>
                "delivery by hand without it; if money did move, book that as a tax refund of " <>
-               "its own. Row 4: booking with a negative fee (-2.00): the import does not book " <>
-               "a fee refund yet — row not imported. Enter the booking by hand, with its fees " <>
+               "its own. Entry 4: booking with a negative fee (-2.00): the import does not book " <>
+               "a fee refund yet — entry not imported. Enter the booking by hand, with its fees " <>
                "less the refund (3.00)."
 
     # The rest previews: the deposit and the purchase of 5 shares, under

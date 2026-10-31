@@ -4517,19 +4517,19 @@ input[pattern]:invalid:not(:placeholder-shown) {
      "ACHTUNG" its row list kept about 240 px, and the 12rem scroller hid
      the third warning. The leftover-configuration note joins it as well
      (issue 1130). Above 560 px nothing changes. */
+  [data-role="unmatched-config"],
   [data-role="parser-warnings"],
   #import-correction .data-note,
   [data-role="mapping-unseen-name"],
-  [data-role="mapping-ambiguous"],
-  [data-role="unmatched-config"] {
+  [data-role="mapping-ambiguous"] {
     flex-wrap: wrap;
   }
 
+  [data-role="unmatched-config"] .data-note__body,
   [data-role="parser-warnings"] .data-note__body,
   #import-correction .data-note__body,
   [data-role="mapping-unseen-name"] .data-note__body,
-  [data-role="mapping-ambiguous"] .data-note__body,
-  [data-role="unmatched-config"] .data-note__body {
+  [data-role="mapping-ambiguous"] .data-note__body {
     flex-basis: 100%;
   }
 }

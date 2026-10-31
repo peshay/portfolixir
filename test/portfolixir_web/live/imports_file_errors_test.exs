@@ -196,7 +196,7 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
     assert has_element?(
              view,
              "#parser-warnings-box",
-             "Row 3: security without a name and without an ISIN — row not imported"
+             "Entry 3: security without a name and without an ISIN — entry not imported"
            )
 
     assert view |> element(".import-stat-card", "Securities") |> render() =~ ">2<"
