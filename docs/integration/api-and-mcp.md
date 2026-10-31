@@ -3634,10 +3634,10 @@ a bucket's from `GET /api/v1/buckets/:id`, a rule's from
 a portfolio's from `GET /api/v1/portfolios`). A refusal's `errors` carry a
 name beside the detail in two places only: `errors.policy_rules[].name`, with
 each rule's `id` and `status`, and `errors.unresolvable[].ref.name`, the
-identity's recorded name. A security merge's refusal carries an identity's
-stored ISIN, WKN and ticker the same way, as data beside the sentence:
-`errors.unresolvable[].ref`, `errors.source_isin` and `errors.isins`. A
-depot, a portfolio and a bucket travel there by their ids alone. Portfolixir's screens keep naming it by its name.
+identity's recorded name; a depot, a portfolio and a bucket travel there by
+their ids alone. A security merge's refusal carries an identity's stored
+ISIN, WKN and ticker as data beside the sentence too:
+`errors.unresolvable[].ref`, `errors.source_isin` and `errors.isins`. Portfolixir's screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that

@@ -3951,10 +3951,10 @@ eines Wertpapiers über `GET /api/v1/securities/:id`, eines Portfolios über
 `GET /api/v1/portfolios`). Die `errors` einer Ablehnung tragen einen Namen
 neben dem Detail nur an zwei Stellen: `errors.policy_rules[].name`, mit `id`
 und `status` jeder Regel, und `errors.unresolvable[].ref.name`, den erfassten
-Namen der Identität. Die Ablehnung einer Wertpapier-Zusammenführung trägt
-ISIN, WKN und Ticker einer Identität ebenso als Daten neben dem Satz:
-`errors.unresolvable[].ref`, `errors.source_isin` und `errors.isins`. Ein
-Depot, ein Portfolio und ein Bucket stehen dort nur mit ihren ids. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
+Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur
+mit ihren ids. Die Ablehnung einer Wertpapier-Zusammenführung trägt ISIN, WKN
+und Ticker einer Identität ebenfalls als Daten neben dem Satz:
+`errors.unresolvable[].ref`, `errors.source_isin` und `errors.isins`. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über
