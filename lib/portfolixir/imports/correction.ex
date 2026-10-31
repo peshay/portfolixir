@@ -415,6 +415,7 @@ defmodule Portfolixir.Imports.Correction do
   defp portfolio_bookings(%{portfolio_id: portfolio_id, lock?: lock?}) do
     from(t in Transaction,
       where: t.portfolio_id == ^portfolio_id,
+      order_by: :id,
       preload: [:security, :cash_account, :counter_cash_account]
     )
     |> then(fn query -> if lock?, do: lock(query, "FOR NO KEY UPDATE"), else: query end)
@@ -735,6 +736,7 @@ defmodule Portfolixir.Imports.Correction do
   defp stored_by_hash(hashes, lock?) do
     from(t in Transaction,
       where: t.import_hash in ^hashes,
+      order_by: :id,
       preload: [:security, :cash_account, :counter_cash_account]
     )
     |> then(fn query -> if lock?, do: lock(query, "FOR NO KEY UPDATE"), else: query end)
