@@ -591,8 +591,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
         |> Ledger.list_transactions_for_portfolio()
         |> Enum.find(&(&1.type == "tax_refund"))
 
+      # Under the importer's actor, so the line keeps its confirm (a hand
+      # edit is named and kept since ADR-0053 A11, Sprint 21 α7).
       {:ok, _edited} =
-        Ledger.update_transaction(Actor.owner_ui(), refund, %{gross_amount: "26.00"})
+        Ledger.update_transaction(Actor.import_session(), refund, %{gross_amount: "26.00"})
 
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "converter.csv", @converter_csv, "text/csv")
@@ -632,8 +634,11 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
         |> Ledger.list_transactions_for_portfolio()
         |> Enum.find(&(&1.type == "tax_refund"))
 
+      # Not a hand edit (ADR-0053 A11, Sprint 21 α7: one is named and kept,
+      # never written): the refund's cash differs from the file under the
+      # importer's own actor, so the confirm still tries to write it.
       {:ok, _edited} =
-        Ledger.update_transaction(Actor.owner_ui(), refund, %{gross_amount: "26.00"})
+        Ledger.update_transaction(Actor.import_session(), refund, %{gross_amount: "26.00"})
 
       # A stored state no public write reaches, set under a system actor
       # the journal trigger admits.
@@ -719,8 +724,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
         |> Ledger.list_transactions_for_portfolio()
         |> Enum.find(&(&1.type == "tax_refund"))
 
+      # Under the importer's actor, so the line keeps its confirm (a hand
+      # edit is named and kept since ADR-0053 A11, Sprint 21 α7).
       {:ok, _edited} =
-        Ledger.update_transaction(Actor.owner_ui(), refund, %{gross_amount: amount})
+        Ledger.update_transaction(Actor.import_session(), refund, %{gross_amount: amount})
 
       refund
     end

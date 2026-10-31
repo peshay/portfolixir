@@ -369,8 +369,9 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   #   hand (the wording of board ux-design-2026-10-07/01-import-preview ③,
   #   its figures to the cent in the page's notation).
   # - In a portfolio that never imported it, the refusal keeps its remedy.
-  # - The correction lists nothing for it (its correction is #1193), the
-  #   apply books nothing twice, and no balance moves.
+  # - The correction lists it without a confirm (ADR-0053 A10, #1193,
+  #   Sprint 21 α7: it was listed nowhere before), its confirm writes
+  #   nothing, the apply books nothing twice, and no balance moves.
   # - The same holds for the PP CSV of it booked under the Betrag reading.
   test "a credit row A5 refuses whose booking is stored says it is already imported", %{
     portfolio: portfolio
@@ -409,7 +410,12 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
 
     assert Imports.row_errors(preview, portfolio_id: fresh.id) == [%{row: 3, message: remedy}]
 
-    assert Imports.cash_corrections(preview, portfolio_id: portfolio.id) == []
+    assert [%{row: 3, state: :refused}] =
+             Imports.cash_corrections(preview, portfolio_id: portfolio.id)
+
+    assert {:ok, []} =
+             Imports.correct_cash(Imports.correction_actor(), preview, portfolio_id: portfolio.id)
+
     before = counts()
     cash = balances(portfolio)
     assert apply!(preview, portfolio).created_transactions == 0

@@ -68,10 +68,12 @@ defmodule Portfolixir.Imports.Correction do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.SettlementGuard
@@ -157,8 +159,69 @@ defmodule Portfolixir.Imports.Correction do
 
     (hash_items ++ refused_items(preview, portfolio_id, lock?))
     |> Enum.uniq_by(& &1.transaction.id)
+    |> mark_edited()
     |> Enum.sort_by(&row_order/1)
   end
+
+  # A11 (#1194): the figures of a row whose journal (ADR-0017) records an
+  # edit since its import. A booking counts as edited when an update by an
+  # actor other than the importer (`import_session`) and the correction
+  # (`Imports.correction_actor/0`) changed one of its figures: the cash,
+  # the price, the quantity, the fees or the taxes. A merge's re-pointing,
+  # the settlement legs a backfill writes under a system actor, and a note
+  # change none of them. Such a booking is named, with the date of its last
+  # edit, and the confirm leaves it as the operator made it. It wins over a
+  # refusal: a refused booking the operator put right by hand reads as
+  # edited (board 07, found while drawing 4).
+  @figure_fields ~w(gross_amount price quantity fees taxes)
+
+  defp mark_edited([]), do: []
+
+  defp mark_edited(items) do
+    ids = Enum.map(items, &to_string(&1.transaction.id))
+
+    edited_on =
+      from(e in JournalEntry,
+        where:
+          e.resource_type == "transaction" and e.resource_id in ^ids and
+            e.operation == :update and is_nil(e.scenario_id)
+      )
+      |> Repo.all()
+      |> Enum.filter(&hand_edit?/1)
+      |> Enum.group_by(& &1.resource_id, &DateTime.to_date(&1.inserted_at))
+      |> Map.new(fn {id, dates} -> {id, Enum.max(dates, Date)} end)
+
+    Enum.map(items, fn %Item{} = item ->
+      case Map.get(edited_on, to_string(item.transaction.id)) do
+        %Date{} = date when item.state in [:confirm, :refused] ->
+          %{item | state: :edited, edited_on: date}
+
+        _not_edited ->
+          item
+      end
+    end)
+  end
+
+  defp hand_edit?(%JournalEntry{actor_type: :import_session}), do: false
+
+  defp hand_edit?(%JournalEntry{actor_type: type, actor_label: label} = entry) do
+    {correction_type, correction_label} = Actor.to_columns(Imports.correction_actor())
+
+    not (Atom.to_string(type) == correction_type and label == correction_label) and
+      Enum.any?(@figure_fields, &figure_changed?(entry.before, entry.after, &1))
+  end
+
+  defp figure_changed?(before, after_, field) when is_map(before) and is_map(after_),
+    do: not same_figure?(Map.get(before, field), Map.get(after_, field))
+
+  defp figure_changed?(_before, _after, _field), do: false
+
+  defp same_figure?(same, same), do: true
+
+  defp same_figure?(a, b) when is_binary(a) and is_binary(b),
+    do: Decimal.equal?(Decimal.new(a), Decimal.new(b))
+
+  defp same_figure?(_a, _b), do: false
 
   # File order: a row's number, a refused row among the others.
   defp row_order(%Item{row: row}) when is_integer(row), do: {0, row}
