@@ -82,6 +82,53 @@ defmodule PortfolixirWeb.TaxStatementFieldErrorsTest do
              "Steuerpflichtige Person: darf keine Steuerzeichen und keine Zeilenumbrüche enthalten"
   end
 
+  # User story (security review 2026-10-12, H36; board 07 frame 3):
+  # As the operator whose statement was refused,
+  # I want the form to keep what I typed,
+  # so that I correct the one field instead of typing the statement again.
+  #
+  # Acceptance criteria:
+  # - After a refused submit the form shows the posted holder, institution,
+  #   date, amounts and note, not the defaults.
+  test "a refused statement keeps what was typed", %{conn: conn} do
+    Process.flag(:trap_exit, true)
+    {:ok, view, _html} = live(conn, "/tax?holder=Owner&year=2025")
+
+    {_result, _log} =
+      with_log(fn ->
+        view
+        |> form("#tax-statement-form", %{
+          "statement" => %{
+            "holder" => "Guest\u0000",
+            "institution" => "Example Bank",
+            "as_of" => "2025-12-31",
+            "taxable_income" => "1234.56",
+            "loss_pot_equities" => "250",
+            "note" => "Synthetic note"
+          }
+        })
+        |> render_submit()
+      end)
+
+    assert has_element?(view, "#tax-form-error")
+
+    value = fn name ->
+      view
+      |> element(~s{#tax-statement-form input[name="statement[#{name}]"]})
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.attribute("value")
+    end
+
+    assert value.("institution") == ["Example Bank"]
+    assert value.("as_of") == ["2025-12-31"]
+    assert value.("taxable_income") == ["1234.56"]
+    assert value.("loss_pot_equities") == ["250"]
+    assert value.("note") == ["Synthetic note"]
+    assert [holder] = value.("holder")
+    assert String.starts_with?(holder, "Guest")
+  end
+
   test "every field the statement form can be refused on has a label, not its raw key" do
     fields =
       [:institution, :holder, :tax_year, :as_of, :church_tax_rate, :note] ++
