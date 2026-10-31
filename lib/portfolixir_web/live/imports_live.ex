@@ -1209,8 +1209,17 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # Only the lines that carry a confirm are written (ADR-0053 A10–A12);
   # with none, the section has no confirm and a pushed one changes nothing.
+  # The confirm sends the lines its dialog offered, and writes only those
+  # that still carry a confirm under its lock; one found there that the
+  # dialog did not offer is named, not written (ADR-0053's note of
+  # 2026-10-31 under A12, #1205).
   defp confirm_correction(socket) do
     preview = socket.assigns.preview
+
+    listed =
+      socket.assigns.corrections
+      |> Correction.confirmable()
+      |> Enum.map(&{&1.row, &1.transaction.id})
 
     {:noreply,
      socket
@@ -1218,7 +1227,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:correction_running, true)
      |> assign(:correction_result, {:busy, gettext("Correcting…")})
      |> CappedAsync.start_async(:correct_cash, fn ->
-       Imports.correct_cash(Imports.correction_actor(), preview)
+       Imports.correct_listed_cash(Imports.correction_actor(), preview, listed)
      end)}
   end
 
@@ -1344,11 +1353,11 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # The result stands where the section stood (board 09 A); the bookings are
   # read again, so the section shows only what is still to correct.
-  def handle_async(:correct_cash, {:ok, {:ok, corrected}}, socket) do
+  def handle_async(:correct_cash, {:ok, {:ok, corrected, found_since}}, socket) do
     {:noreply,
      socket
      |> assign(:correction_running, false)
-     |> assign(:correction_result, correction_result(corrected))
+     |> assign(:correction_result, correction_result(corrected, found_since))
      |> assign_corrections(socket.assigns.preview)
      |> refine_if_pending(socket.assigns.preview)
      |> repark()}
@@ -2749,9 +2758,36 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   # The result line where the section stood (board 09 A): the bookings
-  # corrected and what each account moved.
-  defp correction_result([]),
+  # corrected and what each account moved, then the bookings the confirm
+  # found under its lock that its dialog did not offer, named with the
+  # done page's remedy (#1205).
+  defp correction_result([], []),
     do: {:note, gettext("No booking was corrected: each already agrees with this file.")}
+
+  defp correction_result([], found_since),
+    do: {:note, gettext("No booking was corrected.") <> " " <> found_since(found_since)}
+
+  defp correction_result(corrected, []), do: correction_result(corrected)
+
+  defp correction_result(corrected, found_since) do
+    {:note, {:safe, corrected_markup}} = correction_result(corrected)
+
+    {:note,
+     {:safe,
+      [
+        corrected_markup,
+        " ",
+        found_since |> found_since() |> Phoenix.HTML.html_escape() |> elem(1)
+      ]}}
+  end
+
+  defp found_since(found_since),
+    do:
+      ngettext(
+        "One more booking with a different amount from the file was found since the list was shown and is not corrected. Drop the same file again to correct it.",
+        "%{count} more bookings with a different amount from the file were found since the list was shown and are not corrected. Drop the same file again to correct them.",
+        length(found_since)
+      )
 
   defp correction_result(corrected) do
     totals = correction_totals(corrected)

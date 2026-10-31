@@ -1426,7 +1426,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       render_async(view)
 
       assert text(view, "#import-correction-result [role='status']") ==
-               "Note One booking corrected: Test-Cash -25.00 EUR. The journal keeps the previous amount. One more booking with a different amount was found since the list was shown and is not corrected. Drop the same file again to correct it. ×"
+               "Note One booking corrected: Test-Cash -25.00 EUR. The journal keeps the previous amount. One more booking with a different amount from the file was found since the list was shown and is not corrected. Drop the same file again to correct it. ×"
 
       assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1165.00"))
       assert sale_cash(portfolio, ~D[2026-08-17]) == ["120.000000"]
@@ -1489,7 +1489,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       render_async(view)
 
       assert text(view, "#import-correction-result [role='status']") =~
-               "One more booking with a different amount was found since the list was shown and is not corrected."
+               "One more booking with a different amount from the file was found since the list was shown and is not corrected."
 
       assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1090.00"))
       assert sale_cash(portfolio, ~D[2026-06-15]) == ["120.000000"]

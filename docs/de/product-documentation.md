@@ -3655,7 +3655,12 @@ für diesen Abschnitt. Bis er antwortet, zeigt der Abschnitt, was der
 Import-Hash gefunden hat, sagt „Abgleich über Datum und Beträge läuft“ und
 bietet keine Bestätigung an; danach erscheint der Rest der Liste. Die
 Bestätigung liest die Zahlen unter der Sperre des Imports noch einmal, ein
-inzwischen umbenanntes Konto wird also abgewartet, nicht übergangen.
+inzwischen umbenanntes Konto wird also abgewartet, nicht übergangen. Sie
+schreibt nur die Einträge, die ihr Dialog angeboten hat: Einen Eintrag, den
+sie erst dann als korrigierbar findet (eine über ihre Zahlen gefundene Zeile,
+nachdem der Abgleich angehalten hat, oder einen Zwilling, dessen anderer
+Zwilling inzwischen gelöscht wurde), schreibt sie nicht, und das Ergebnis
+nennt ihn; dieselbe Datei erneut ablegen, um ihn zu korrigieren.
 
 ### Wertpapier-Matching und der Zuordnungsschritt
 

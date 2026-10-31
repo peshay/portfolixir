@@ -3310,7 +3310,11 @@ makes once, in the background, for its counts and for this section. Until it
 answers, the section lists what the import hash found, says "comparing by
 date and figures", and offers no confirm; then the rest of the list appears.
 The confirm reads the figures again under the import's lock, so an account
-renamed meanwhile is waited for, not skipped.
+renamed meanwhile is waited for, not skipped. It writes only the lines its
+dialog offered: a line it finds confirmable only then (a row found by its
+figures after the comparison stopped, or a twin whose other twin was
+deleted meanwhile) is not written, and the result names it; drop the same
+file again to correct it.
 
 ### Security matching and the mapping step
 

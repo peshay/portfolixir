@@ -1576,6 +1576,36 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert balances(one) == %{"Test-Cash" => "1175"}
     end
 
+    # User story (#1205, Sprint 21 α7; ADR-0053's note of 2026-10-31 under
+    # A12, "the confirm writes what its dialog offered"):
+    # As the operator who confirms the lines a dialog offered,
+    # I want each line matched by its file row and its stored booking,
+    # so that a booking offered for one row is never written with another
+    # row's figures.
+    #
+    # Acceptance criteria:
+    # - K23's drifted sale (row 3) offered as row 4 is not written: nothing
+    #   corrected, row 3 answered as found since, Test-Cash stays 1,145.00.
+    # - Offered as row 3, it is corrected: Test-Cash 1,120.00.
+    test "the listed confirm writes a line only by its row and booking" do
+      portfolio = portfolio!("Listed confirm")
+      history = [deposit("2026-03-02", 1100.0), purchase("2026-03-03", 10.0, 100.0)]
+      apply!(old_reading(parse_rows(history ++ [sale("2026-06-15", "15:30", 120.0)])), portfolio)
+      drifted = parse_rows(history ++ [sale("2026-06-15", "15:31", 120.0)])
+      [%Item{row: 3, transaction: %{id: id}}] = listed(drifted, portfolio)
+      actor = Imports.correction_actor()
+
+      assert {:ok, [], [%Item{row: 3}]} =
+               Imports.correct_listed_cash(actor, drifted, [{4, id}], portfolio_id: portfolio.id)
+
+      assert balances(portfolio) == %{"Test-Cash" => "1145"}
+
+      assert {:ok, [%Item{row: 3}], []} =
+               Imports.correct_listed_cash(actor, drifted, [{3, id}], portfolio_id: portfolio.id)
+
+      assert balances(portfolio) == %{"Test-Cash" => "1120"}
+    end
+
     # User story (Sprint 21 α7, the plan's round trip 3; ADR-0053 K19, K21
     # and K23 on one account, K26):
     # As the operator re-dropping a JSON history imported under the old

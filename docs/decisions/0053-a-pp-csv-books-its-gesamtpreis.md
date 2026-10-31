@@ -787,6 +787,20 @@ those a hash hit claims, are at least as many as the file's refunds found
 by that key. Otherwise its row is not listed, since the economic key cannot
 tell which row's refund is gone (`Correction.detect/3`, #1205, #1193).
 
+**Note (2026-10-31): the confirm writes what its dialog offered.** The
+confirm judged every row again under its locks and wrote every line it
+then found confirmable, so it could write a line its dialog never offered:
+after the page's dry run stopped, the dialog offered the hash hits alone
+while the confirm also wrote a row found by its figures; and a twin the
+dialog said stays as it is was written once its other twin was deleted
+before the confirm. Decided while building (flippable by the owner's
+comment): the page sends the lines its dialog offered, each by its file
+row and stored booking, and the confirm writes only those that still carry
+a confirm under its locks (`Correction.apply_listed/4`). A line found there
+that the dialog did not offer is written by no one; the result names it
+with the done page's remedy, to drop the same file again (#1205). A line
+offered that no longer carries a confirm is still left as it is.
+
 **Everything else in §6 and A6 holds:**
 
 - a separate confirm, which writes only the lines that carry one;

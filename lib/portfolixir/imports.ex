@@ -280,6 +280,25 @@ defmodule Portfolixir.Imports do
   end
 
   @doc """
+  `correct_cash/3` for the lines the correction's dialog offered, each
+  `{row, transaction_id}` (ADR-0053's note of 2026-10-31 under A12, #1205):
+  only those still carrying a confirm under the lock are written. Answers
+  the corrected items and the confirmable lines found that the dialog did
+  not offer, which are not written. See
+  `Portfolixir.Imports.Correction.apply_listed/4`.
+  """
+  @spec correct_listed_cash(Actor.t(), Preview.t(), [{term(), integer()}], keyword()) ::
+          {:ok, [Correction.Item.t()], [Correction.Item.t()]}
+          | {:error, %{row: term(), reason: term()}}
+  def correct_listed_cash(%Actor{} = actor, %Preview{} = preview, listed, opts \\ [])
+      when is_list(listed) and is_list(opts) do
+    case import_portfolio_id(opts) do
+      nil -> {:ok, [], []}
+      portfolio_id -> Correction.apply_listed(actor, preview, portfolio_id, listed)
+    end
+  end
+
+  @doc """
   The actor a correction confirmed on the Imports page is journaled under:
   the operator (`:owner_ui`), labelled as an import correction, so the
   journal tells it from an edit made by hand (ADR-0053 §6).

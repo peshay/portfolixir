@@ -6642,6 +6642,21 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
     page's not-applied note count only the confirmable lines; the dialog
     adds „Die 4 übrigen Einträge der Liste bleiben, wie sie sind.“
     (`data-role="import-correction-kept"`).
+  - **The confirm writes what its dialog offered** *(amended 2026-10-31,
+    #1205; ADR-0053's note of 2026-10-31 under A12, decided while building;
+    flips by the owner's comment)*: the page sends the lines its
+    dialog offered, and the confirm writes only those that still carry a
+    confirm under its lock. A line it finds there that the dialog did not
+    offer (a row found by its date and figures after the dry run stopped, a
+    twin whose other twin was deleted meanwhile) is not written; the result
+    line adds, after the corrected bookings, „Eine weitere Buchung mit
+    anderem Betrag als in der Datei wurde seit der Anzeige der Liste
+    gefunden und ist nicht korrigiert. Dieselbe Datei erneut ablegen, um sie
+    zu korrigieren.“ (EN "One more booking with a different amount from the
+    file was found since the list was shown and is not corrected. Drop the
+    same file again to correct it."), the done page's remedy; with none
+    corrected it opens „Keine Buchung wurde korrigiert.“ ("No booking was
+    corrected.").
   - **A set balance that absorbs the change (#1197).** Per account, when
     its latest set balance is dated on or after a corrected booking, the
     dialog names it: „Bei Tagesgeld nimmt der gesetzte Saldo vom 01.10.2026

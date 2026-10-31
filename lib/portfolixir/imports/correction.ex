@@ -29,7 +29,9 @@ defmodule Portfolixir.Imports.Correction do
   beside it, so corrected alone it would leave the cash below the stored
   state.
 
-  **What the confirm writes**, per listed booking, and nothing else:
+  **What the confirm writes**, per listed booking, and nothing else (the
+  page's confirm, `apply_listed/4`, only the listed lines its dialog
+  offered):
 
     * the cash (`gross_amount`);
     * for a JSON purchase or sale, the price too: a JSON price is derived
@@ -705,6 +707,30 @@ defmodule Portfolixir.Imports.Correction do
   @spec apply(Actor.t(), Preview.t(), integer()) ::
           {:ok, [Item.t()]} | {:error, %{row: term(), reason: term()}}
   def apply(%Actor{} = actor, %Preview{} = preview, portfolio_id) when is_integer(portfolio_id) do
+    with {:ok, {corrected, _found_since}} <- write(actor, preview, portfolio_id, :all),
+         do: {:ok, corrected}
+  end
+
+  @doc """
+  `apply/3` for the lines a dialog offered (ADR-0053's note of 2026-10-31
+  under A12, #1205): `listed` holds each offered line's file row and
+  stored booking, `{row, transaction_id}`. The bookings are judged again
+  under the same locks, and only a line both offered and still carrying a
+  confirm is written. Answers the corrected items and the confirmable
+  lines found under the lock that the dialog did not offer (a row found by
+  its figures after a stopped dry run, a twin whose other twin was deleted
+  since), written by no one: a fresh drop of the file lists them.
+  """
+  @spec apply_listed(Actor.t(), Preview.t(), integer(), [{term(), integer()}]) ::
+          {:ok, [Item.t()], [Item.t()]} | {:error, %{row: term(), reason: term()}}
+  def apply_listed(%Actor{} = actor, %Preview{} = preview, portfolio_id, listed)
+      when is_integer(portfolio_id) and is_list(listed) do
+    with {:ok, {corrected, found_since}} <-
+           write(actor, preview, portfolio_id, MapSet.new(listed)),
+         do: {:ok, corrected, found_since}
+  end
+
+  defp write(actor, preview, portfolio_id, listed) do
     Repo.transaction(
       fn ->
         :ok = AccountNames.lock_identity(portfolio_id)
@@ -720,9 +746,13 @@ defmodule Portfolixir.Imports.Correction do
             do: Applier.economic_keys_in_transaction(preview, portfolio_id),
             else: :error
 
-        preview
-        |> detect(portfolio_id, lock: true, keys: keys)
-        |> confirmable()
+        {offered, found_since} =
+          preview
+          |> detect(portfolio_id, lock: true, keys: keys)
+          |> confirmable()
+          |> Enum.split_with(&offered?(&1, listed))
+
+        offered
         |> Enum.reduce_while([], fn %Item{} = item, corrected ->
           case Ledger.update_transaction(actor, item.transaction, item.changes) do
             {:ok, _transaction} -> {:cont, [item | corrected]}
@@ -731,12 +761,17 @@ defmodule Portfolixir.Imports.Correction do
         end)
         |> case do
           {:error, refusal} -> Repo.rollback(refusal)
-          corrected -> Enum.reverse(corrected)
+          corrected -> {Enum.reverse(corrected), found_since}
         end
       end,
       timeout: Applier.transaction_timeout()
     )
   end
+
+  defp offered?(%Item{}, :all), do: true
+
+  defp offered?(%Item{row: row, transaction: %Transaction{id: id}}, %MapSet{} = listed),
+    do: MapSet.member?(listed, {row, id})
 
   # A1: a parent's cash today is its cash cell less (or plus) the refund
   # split off it, so its correction takes out the refund only because the
