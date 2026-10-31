@@ -3292,6 +3292,58 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     end
   end
 
+  # User story (#1203, Sprint 21 α9):
+  # As the operator confirming a file whose second row names the security its
+  # first row creates,
+  # I want the preview to show the second row matched onto that creation and
+  # the confirm to book both rows on it,
+  # so that the preview says what the apply does, and the apply's check of
+  # what I approved never aborts the import it describes.
+  #
+  # Acceptance criteria:
+  # - "Bar Holding" with an ISIN on row 1, without one on row 2: the preview
+  #   lists one security to create and one matched "via name" onto "Bar
+  #   Holding"; the confirm creates one security and two bookings on it.
+  test "a row matched onto the file's own creation is confirmed as previewed", %{conn: conn} do
+    _portfolio = setup_portfolio()
+
+    bar = %{"name" => "Bar Holding", "currency" => "EUR"}
+
+    rows =
+      for {day, security} <- [
+            {"2026-01-05", Map.put(bar, "isin", "DE000BARH010")},
+            {"2026-01-06", bar}
+          ] do
+        %{
+          "type" => "PURCHASE",
+          "account" => "Giro",
+          "portfolio" => "Depot",
+          "date" => day,
+          "amount" => Jason.Fragment.new("100.00"),
+          "shares" => Jason.Fragment.new("1"),
+          "security" => security
+        }
+      end
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_payload(view, "synthetic.json", pp_json(rows), "application/json")
+
+    assert view |> element("[data-role='plain-creates'] summary") |> render() =~
+             "1 new security will be created"
+
+    assert view |> element("[data-role='matched-securities']") |> render() =~
+             "matched via name"
+
+    view |> element("form#pp-import-apply") |> render_submit()
+    html = render_async(view, 1_000)
+
+    assert html =~ "Created transactions: 2"
+    assert [security] = Portfolixir.Catalog.list_securities()
+    assert security.name == "Bar Holding"
+
+    assert Enum.map(Ledger.list_transactions(), & &1.security_id) == [security.id, security.id]
+  end
+
   # A synthetic Portfolio Performance JSON export; amounts stay strings, never
   # floats, and every row books in EUR.
   defp pp_json(rows) do
