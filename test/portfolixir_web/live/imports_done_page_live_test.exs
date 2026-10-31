@@ -192,6 +192,72 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
              Imports.apply(preview, %{cash_accounts: %{}, depots: %{}})
   end
 
+  # User story (#962, Sprint 21 γ7; board 07 ⑨): As the operator whose
+  # re-drop booked onto an account through the name it carried before I
+  # renamed it, I want the done page to count those bookings per name,
+  # beside the line for records matched through a former ISIN, so that I
+  # can see after the import which rows went to an account under an old
+  # name.
+  #
+  # Acceptance criteria:
+  # - Beside the former-ISIN line, `.import-skipped`
+  #   (`data-role="former-name-matches"`): "One booking booked through a
+  #   former name:", then "“Tagesgeld”, now Tagesgeld Neu · 1 booking"; the
+  #   apply's result carries it per name, with the account it reached.
+  # - Rows already imported under the old name are not counted: only
+  #   bookings the import made.
+  # - The former-ISIN line has a real plural: "One record matched via a
+  #   former ISIN."; so has the in-file collapse: "One entry collapsed onto
+  #   the same resolved booking within this file." (a CSV says "row").
+  # - In German: "Eine Buchung über einen früheren Namen gebucht:" and
+  #   "„Tagesgeld“, jetzt Tagesgeld Neu · 1 Buchung"; "Ein Datensatz über
+  #   eine frühere ISIN zugeordnet."
+  test "the done page counts the bookings booked through a former name, per name",
+       %{conn: conn} do
+    portfolio = portfolio!()
+
+    {:ok, preview} =
+      Imports.parse_portfolio_performance(json(renamed_history()), filename: "h.json")
+
+    {:ok, _} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    tagesgeld = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Tagesgeld"))
+
+    {:ok, _} =
+      Portfolios.update_cash_account(Actor.owner_ui(), tagesgeld, %{name: "Tagesgeld Neu"})
+
+    fund = Enum.find(Portfolixir.Catalog.list_securities(), &(&1.isin == "DE0001234565"))
+    {:ok, _} = Portfolixir.Catalog.record_isin_change(Actor.owner_ui(), fund, "DE0007654329")
+
+    drop = json(renamed_history() ++ later_rows())
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, "h.json", drop)
+    confirm(view)
+
+    assert text(view, "[data-role='alias-matches']") == "One record matched via a former ISIN."
+
+    assert text(view, "[data-role='collapsed-duplicates']") ==
+             "One entry collapsed onto the same resolved booking within this file."
+
+    matches = ".import-skipped[data-role='former-name-matches']"
+    assert text(view, matches <> " p") == "One booking booked through a former name:"
+    assert texts(view, matches <> " li") == ["“Tagesgeld”, now Tagesgeld Neu · 1 booking"]
+
+    assert {:ok, %{former_name_matches: [], former_name_bookings: 0}} =
+             Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    {:ok, german, _html} = live(german(conn), "/imports")
+    upload(german, "h.json", json(renamed_history() ++ later_rows("2026-06-30")))
+    confirm(german)
+
+    assert text(german, "[data-role='alias-matches']") ==
+             "Ein Datensatz über eine frühere ISIN zugeordnet."
+
+    assert text(german, matches <> " p") == "Eine Buchung über einen früheren Namen gebucht:"
+    assert texts(german, matches <> " li") == ["„Tagesgeld“, jetzt Tagesgeld Neu · 1 Buchung"]
+  end
+
   # --- the exports -------------------------------------------------------------
 
   defp history do
@@ -224,6 +290,54 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
         ]
       }
     ]
+  end
+
+  # A deposit, interest on "Tagesgeld" and a purchase of a fund by its ISIN,
+  # booked before the account is renamed and the fund's ISIN changes.
+  @isin_fund %{"name" => "Larkspur Rail AG", "isin" => "DE0001234565", "currency" => "EUR"}
+
+  defp renamed_history do
+    [
+      deposit("1000.00"),
+      interest("Tagesgeld", "1.25", "2026-01-31"),
+      purchase("2026-01-15", "100.00")
+    ]
+  end
+
+  # One new interest payment under the old name, one new purchase under the
+  # former ISIN, and two equal deposits of one day at two times, which the
+  # import collapses onto one booking.
+  defp later_rows(date \\ "2026-03-31") do
+    [
+      interest("Tagesgeld", "1.40", date),
+      purchase(date, "50.00"),
+      Map.merge(deposit("7.00"), %{"date" => date, "time" => "09:00"}),
+      Map.merge(deposit("7.00"), %{"date" => date, "time" => "09:05"})
+    ]
+  end
+
+  defp interest(account, amount, date) do
+    %{
+      "type" => "INTEREST",
+      "account" => account,
+      "date" => date,
+      "currency" => "EUR",
+      "amount" => num(amount)
+    }
+  end
+
+  defp purchase(date, amount) do
+    %{
+      "type" => "PURCHASE",
+      "account" => "Test-Cash",
+      "portfolio" => "Depot Muster",
+      "date" => date,
+      "time" => "10:00",
+      "currency" => "EUR",
+      "amount" => num(amount),
+      "shares" => num("5"),
+      "security" => @isin_fund
+    }
   end
 
   # A deposit, a delivery with a tax refund and a booking with a negative
