@@ -4059,6 +4059,29 @@ describe("Portfolixir MCP tools", () => {
     );
   });
 
+  // User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09, point 6):
+  // As the operating agent that runs the history backfill after a first import,
+  // I want the tool to say that the run derives the missing settlement legs and
+  // to hand me its counts as the API answers them,
+  // so that I know whether the import's trades now carry their legs.
+  // Acceptance criteria: the description names settlement_legs, its counts and
+  // that the daily sync derives none; the API's settlement_legs reaches the
+  // agent unchanged.
+  it("describes and passes through the settlement legs a history run derives", async () => {
+    const legs = { status: "completed", derived: 2, skipped_no_rate: 0, stopped_at_transaction_id: null };
+    const { client } = createRecordingClient({
+      data: { provider: "ecb", status: "ok", upserted: 3, scope: "history", settlement_legs: legs }
+    });
+
+    const result = await callTool(client, "portfolixir.exchange_rates.sync", { scope: "history" });
+    assert.deepEqual((result.structuredContent as any).data.settlement_legs, legs);
+
+    const sync = listTools().find((tool) => tool.name === "portfolixir.exchange_rates.sync");
+    assert.match(sync?.description ?? "", /settlement_legs/);
+    assert.match(sync?.description ?? "", /derived, skipped_no_rate/);
+    assert.match(sync?.description ?? "", /latest derives none/);
+  });
+
   // User story (ADR-0044 §8, issue #752): the contract-version read as a tool,
   // so an agent that cached the tool list can notice the surface moved.
   it("issues a GET to /contract for portfolixir.contract.get, with since=", async () => {

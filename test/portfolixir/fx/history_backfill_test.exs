@@ -12,15 +12,22 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
   import ExUnit.CaptureLog
   import Portfolixir.WorldFixtures, only: [base_world: 1, deposit!: 4, put_quote!: 3]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Fx
   alias Portfolixir.Fx.HistoryGaps
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
+  alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Contribution
+  alias Portfolixir.Portfolios.SecuritiesAccount
 
   # A fake rate provider: it reports each fetch to the test process and
   # answers what the call's options, or the application environment for a
@@ -530,6 +537,14 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
 
       assert buy.currency_code == "EUR"
       assert_eur(buy.price, "80", "buy.price")
+
+      # #1196 (ADR-0015's amendment of 2026-10-09, point 6): the run that
+      # stored the rates derived the legs the import could not store.
+      assert stored_legs(buy) == {"800.000000", "1000.000000", "0.800000"}
+
+      assert %{settlement_legs: %{status: :completed, derived: 1, skipped_no_rate: 0}} =
+               elem(run, 1)
+
       put_quote!(security_id, ~D[2024-10-01], "100")
 
       {performance, contribution} = reads(portfolio.id)
@@ -551,6 +566,200 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
 
       assert {:ok, %{scope: :history, upserted: 3, sought: ["USD"]}} = run
       assert HistoryGaps.open() == %{}
+    end
+  end
+
+  # -- #1196: the legs after a history backfill ------------------------------
+
+  # Identity 6's file, as Portfolio Performance's CSV export writes it: two
+  # dollar shares bought from a euro account on 2024-10-01, each settled
+  # 800.00 EUR with fees 5.00 and taxes 1.00 EUR (cash 806.00), the second
+  # priced at a Kurs PP rounded (7 x 114.29 = 800.03).
+  defp identity_six_csv(cash, depot) do
+    """
+    Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+    2024-10-01 10:00:00;Kauf;Examplia Robotics Corp.;10;80,00;800,00;5,00;1,00;806,00;#{depot};#{cash};;
+    2024-10-01 11:00:00;Kauf;Examplia Robotics Corp.;7;114,29;800,00;5,00;1,00;806,00;#{depot};#{cash};;
+    """
+  end
+
+  defp import_identity_six!(security, cash, depot) do
+    {:ok, preview} =
+      Imports.parse_portfolio_performance(identity_six_csv(cash, depot), filename: "#{cash}.csv")
+
+    assert preview.errors == []
+    key = SecurityResolver.key(SecurityResolver.effective_ref(hd(preview.entries)))
+
+    assert {:ok, %Result{created_transactions: 2}} =
+             Imports.apply(preview, %{
+               cash_accounts: %{cash => {:create, cash}},
+               depots: %{depot => %{target: {:create, depot}, cash: cash}},
+               security_mappings: %{key => {:existing, security.id}}
+             })
+
+    cash_account = Repo.one!(from(c in CashAccount, where: c.name == ^cash))
+    depot_account = Repo.one!(from(d in SecuritiesAccount, where: d.name == ^depot))
+
+    buys =
+      Repo.all(
+        from(t in Transaction,
+          where: t.cash_account_id == ^cash_account.id and t.type == "buy",
+          order_by: [desc: t.quantity]
+        )
+      )
+
+    {cash_account, depot_account, buys}
+  end
+
+  defp legs(%Transaction{} = transaction) do
+    {transaction.settlement_amount, transaction.security_amount, transaction.settlement_fx_rate}
+  end
+
+  # The three legs as the database stores them, at its scale of six places.
+  defp stored_legs(%Transaction{} = transaction) do
+    transaction
+    |> legs()
+    |> Tuple.to_list()
+    |> Enum.map(&(&1 && Decimal.to_string(&1)))
+    |> List.to_tuple()
+  end
+
+  defp reload_legs(transactions), do: Enum.map(transactions, &legs(Repo.get!(Transaction, &1.id)))
+
+  defp journal_entries(transactions) do
+    ids = Enum.map(transactions, &to_string(&1.id))
+
+    Repo.all(
+      from(e in Journal.Entry,
+        where: e.resource_type == "transaction" and e.resource_id in ^ids,
+        order_by: [asc: e.id]
+      )
+    )
+  end
+
+  # User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09,
+  # point 6 and identity 6):
+  # As the switcher whose fresh instance imported dollar shares bought from
+  # a euro account before any rate was stored,
+  # I want the run that stores the history to derive the settlement legs
+  # those rates make derivable, in the same single-flight run, journaled
+  # under a system actor,
+  # so that my first import's trades carry the legs a later import would
+  # have stored, without my running a task, and nothing else is rewritten.
+  #
+  # Acceptance criteria:
+  # - Imported with no rate stored, the two buys keep no legs. The history
+  #   run (1 EUR = 1.25 USD) derives them: 800.00 EUR, 1,000.00 USD and
+  #   0.800000 for each, the rounded row's read off its cash, not off 7 x
+  #   114.29 = 800.03; each derivation is journaled under the system actor
+  #   `settlement_backfill`. The run answers its counts: 2 derived, 0
+  #   skipped for a missing rate.
+  # - Field for field, the derived legs equal what the same file stores
+  #   when the rate is there before the import.
+  # - A booking-form sale with its legs, the rows that got their legs when
+  #   imported, and a stored third-currency row with a rate and no
+  #   security_amount are not touched: no journal entry, no field changed.
+  # - A manual backfill run afterwards derives nothing and answers 0.
+  describe "the legs after a history backfill (identity 6)" do
+    test "the run that stores the rates derives a first import's legs, as an import stores them" do
+      fresh_instance!()
+
+      {:ok, security} =
+        Catalog.create_security(Actor.owner_ui(), %{
+          name: "Examplia Robotics Corp.",
+          ticker_symbol: "EXRB",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {cash, depot, [first, rounded] = fresh_buys} =
+        import_identity_six!(security, "Giro", "Depot")
+
+      assert reload_legs(fresh_buys) == [{nil, nil, nil}, {nil, nil, nil}]
+
+      # Identity 1's booking-form sale, its legs beside it.
+      {:ok, sale} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: cash.portfolio_id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "sell",
+          date: ~D[2024-10-02],
+          quantity: "10",
+          price: "120",
+          fees: "3.00",
+          currency_code: "USD",
+          security_amount: "1200.00",
+          settlement_amount: "960.00",
+          settlement_fx_rate: "0.800000",
+          gross_amount: "957.00"
+        })
+
+      # A row priced in a third currency, as stored before #1199's check:
+      # CHF through the EUR account, its rate and no security_amount.
+      {:ok, third_currency} =
+        Repo.transaction(fn ->
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', 'legacy_row', true)")
+
+          Repo.insert!(%Transaction{
+            portfolio_id: cash.portfolio_id,
+            securities_account_id: depot.id,
+            cash_account_id: cash.id,
+            security_id: security.id,
+            type: "buy",
+            date: ~D[2024-10-01],
+            quantity: Decimal.new("1"),
+            price: Decimal.new("90.00"),
+            fees: Decimal.new("0"),
+            taxes: Decimal.new("0"),
+            gross_amount: Decimal.new("85.00"),
+            currency_code: "CHF",
+            settlement_fx_rate: Decimal.new("0.944444")
+          })
+        end)
+
+      untouched = [sale, third_currency]
+      untouched_legs = reload_legs(untouched)
+      untouched_journal = journal_entries(untouched)
+
+      series = {:ok, [row("CHF", ~D[2024-09-30], "0.90") | usd_series()]}
+
+      assert {:ok, %{scope: :history, settlement_legs: counts}} =
+               RateSync.backfill_when_needed(
+                 provider: HistoryFeed,
+                 test_pid: self(),
+                 history: series
+               )
+
+      assert counts == %{status: :completed, derived: 2, skipped_no_rate: 0}
+
+      for buy <- fresh_buys do
+        assert stored_legs(Repo.get!(Transaction, buy.id)) ==
+                 {"800.000000", "1000.000000", "0.800000"}
+      end
+
+      for buy <- [first, rounded] do
+        assert [%{actor_type: :system_job, actor_label: "settlement_backfill"}] =
+                 journal_entries([buy]) |> Enum.filter(&(&1.operation == :update))
+      end
+
+      assert reload_legs(untouched) == untouched_legs
+      assert journal_entries(untouched) == untouched_journal
+
+      # The same file, imported with the rate already stored, stores the
+      # same legs, field for field.
+      {_cash, _depot, imported_buys} = import_identity_six!(security, "Giro Zwei", "Depot Zwei")
+      assert reload_legs(imported_buys) == reload_legs(fresh_buys)
+
+      # A manual run derives nothing more and journals nothing.
+      settled = untouched ++ fresh_buys ++ imported_buys
+      settled_journal = journal_entries(settled)
+
+      assert {:ok, %{settlement_legs: %{status: :completed, derived: 0, skipped_no_rate: 0}}} =
+               RateSync.backfill(provider: HistoryFeed, history: series)
+
+      assert journal_entries(settled) == settled_journal
     end
   end
 

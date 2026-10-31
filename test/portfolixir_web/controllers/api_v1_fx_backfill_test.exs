@@ -6,7 +6,10 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
 
   import ExUnit.CaptureLog
 
+  alias Portfolixir.Actor
   alias Portfolixir.Fx.RateSync.Fake
+  alias Portfolixir.Ledger
+  alias Portfolixir.LostLockCycle
   alias Portfolixir.WorldFixtures
 
   defp api_conn(conn) do
@@ -101,11 +104,19 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
       |> json_response(200)
       |> Map.fetch!("data")
 
+    # #1196: the history run's answer carries the legs it derived; the GBP
+    # sale is booked in its security's currency, so there are none.
     assert backfill == %{
              "provider" => "fake",
              "status" => "ok",
              "upserted" => 2,
-             "scope" => "history"
+             "scope" => "history",
+             "settlement_legs" => %{
+               "status" => "completed",
+               "derived" => 0,
+               "skipped_no_rate" => 0,
+               "stopped_at_transaction_id" => nil
+             }
            }
 
     after_backfill = get_json(conn, "/api/v1/realized_gains")["data"]
@@ -129,7 +140,8 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
     # The default stays the daily sync, and the scope is echoed either way.
     Fake.put_response({:ok, []})
 
-    assert %{"data" => %{"scope" => "latest", "upserted" => 0}} =
+    # The daily sync derives no legs (#1196's limit): its answer says so.
+    assert %{"data" => %{"scope" => "latest", "upserted" => 0, "settlement_legs" => nil}} =
              conn |> api_conn() |> post("/api/v1/exchange_rates/sync") |> json_response(200)
 
     assert %{"errors" => %{"scope" => ["is invalid"]}} =
@@ -137,6 +149,133 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              |> api_conn()
              |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "everything"}))
              |> json_response(422)
+  end
+
+  # A EUR-booked buy of a USD security, as a Portfolio Performance import
+  # stores it when no rate was there: 10 at 80.00 EUR, cash 806.00 EUR,
+  # fees 5.00 and taxes 1.00 EUR, no legs (identity 6's first row).
+  defp legless_import_buy!(notes \\ nil) do
+    world = WorldFixtures.base_world(name: "Legs World", cash_name: "Legs Cash")
+
+    usd =
+      WorldFixtures.create_security!(name: "Legs Dollar Share", ticker: "LDS", currency: "USD")
+
+    {:ok, buy} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: usd.id,
+        type: "buy",
+        date: ~D[2026-01-21],
+        quantity: "10",
+        price: "80.00",
+        fees: "5.00",
+        taxes: "1.00",
+        gross_amount: "806.00",
+        currency_code: "EUR",
+        notes: notes
+      })
+
+    buy
+  end
+
+  defp usd_history(dates) do
+    {:ok,
+     Enum.map(dates, fn date ->
+       %{base_currency: "EUR", quote_currency: "USD", date: date, rate: "1.25", source: "ecb"}
+     end)}
+  end
+
+  defp history!(conn, status) do
+    conn
+    |> api_conn()
+    |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "history"}))
+    |> json_response(status)
+  end
+
+  # User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09,
+  # point 6):
+  # As the operating agent that runs the history backfill after a first
+  # import,
+  # I want its answer to count the settlement legs the run derived and the
+  # rows it skipped for a missing rate,
+  # so that I can tell whether the import's cross-currency trades now carry
+  # their legs without reading the ledger row by row.
+  #
+  # Acceptance criteria:
+  # - scope=history over a EUR-booked buy of a USD security with no legs,
+  #   and a second one dated before any rate, answers settlement_legs
+  #   {status "completed", derived 1, skipped_no_rate 1}; the first buy now
+  #   carries 800.00 EUR, 1,000.00 USD and 0.800000.
+  test "scope=history answers the settlement legs it derived and skipped", %{conn: conn} do
+    buy = legless_import_buy!()
+
+    {:ok, early} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: buy.portfolio_id,
+        securities_account_id: buy.securities_account_id,
+        cash_account_id: buy.cash_account_id,
+        security_id: buy.security_id,
+        type: "buy",
+        date: ~D[2025-12-01],
+        quantity: "1",
+        price: "80.00",
+        gross_amount: "80.00",
+        currency_code: "EUR"
+      })
+
+    Fake.put_history_response(usd_history([~D[2026-01-21]]))
+
+    assert %{"data" => %{"upserted" => 1, "settlement_legs" => legs}} = history!(conn, 200)
+
+    assert legs == %{
+             "status" => "completed",
+             "derived" => 1,
+             "skipped_no_rate" => 1,
+             "stopped_at_transaction_id" => nil
+           }
+
+    derived = Ledger.get_transaction(buy.id)
+    assert Decimal.to_string(derived.settlement_amount) == "800.000000"
+    assert Decimal.to_string(derived.security_amount) == "1000.000000"
+    assert Decimal.to_string(derived.settlement_fx_rate) == "0.800000"
+    assert Ledger.get_transaction(early.id).security_amount == nil
+  end
+
+  # User story (#1196; ADR-0015's amendment of 2026-10-09, point 6):
+  # As the operating agent,
+  # I want a derivation the ledger stops to leave the stored rates in place
+  # and to name the booking it stopped at,
+  # so that I know the rates arrived and that a re-run finishes the legs.
+  #
+  # Acceptance criteria:
+  # - A booking whose update loses a lock cycle (40P01) stops the
+  #   derivation: 200 with the rates' count, settlement_legs {status
+  #   "stopped", stopped_at_transaction_id: its id, the counts null}; the
+  #   rate is stored, the booking keeps no leg, and the stop is logged.
+  test "a derivation the ledger stops keeps the rates and names the booking", %{conn: conn} do
+    marker = "a lost lock cycle in the history run"
+    :ok = LostLockCycle.install!(marker)
+    buy = legless_import_buy!(marker)
+
+    Fake.put_history_response(usd_history([~D[2026-01-21]]))
+
+    {response, log} = with_log(fn -> history!(conn, 200) end)
+
+    assert %{"data" => %{"upserted" => 1, "scope" => "history", "settlement_legs" => legs}} =
+             response
+
+    assert legs == %{
+             "status" => "stopped",
+             "derived" => nil,
+             "skipped_no_rate" => nil,
+             "stopped_at_transaction_id" => buy.id
+           }
+
+    assert Ledger.get_transaction(buy.id).security_amount == nil
+    assert {:ok, _rate} = Portfolixir.Fx.rate_on("USD", "EUR", ~D[2026-01-21])
+    assert log =~ "settlement-leg derivation stopped at transaction ##{buy.id}"
   end
 
   defmodule NoHistoryProvider do

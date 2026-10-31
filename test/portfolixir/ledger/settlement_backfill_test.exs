@@ -11,6 +11,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.SettlementBackfill
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
   # Synthetic ADR-0033 fixture figures only. The booking and rate day,
@@ -194,5 +195,147 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
     reloaded = Ledger.get_transaction(settled.id)
     assert Decimal.equal?(reloaded.security_amount, Decimal.new("1000.00"))
     assert Decimal.equal?(reloaded.settlement_fx_rate, Decimal.new("0.80"))
+  end
+
+  # A row written past the ledger, with the journal actor set so the
+  # journal guard does not refuse it: how a row stood before a later check.
+  defp stored_before_the_check!(%Transaction{} = row) do
+    {:ok, stored} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'legacy_row', true)")
+        Repo.insert!(row)
+      end)
+
+    stored
+  end
+
+  defp journal_entries(transaction_ids) do
+    ids = Enum.map(transaction_ids, &to_string/1)
+
+    Repo.all(
+      from(e in Journal.Entry,
+        where: e.resource_type == "transaction" and e.resource_id in ^ids,
+        order_by: [asc: e.id]
+      )
+    )
+  end
+
+  defp legs(%Transaction{} = transaction) do
+    {transaction.settlement_amount, transaction.security_amount, transaction.settlement_fx_rate}
+  end
+
+  # User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09,
+  # point 6 and identity 6):
+  # As the operator whose fresh import booked a dollar share from a euro
+  # account before any rate was stored,
+  # I want the backfill to derive only the legs such a row is missing, read
+  # off the cash it moved,
+  # so that its legs equal what the import stores when the rate is there,
+  # and no row that already carries a leg, or is priced in a third currency,
+  # is rewritten.
+  #
+  # Acceptance criteria:
+  # - The candidates are the buys and sells booked in their cash account's
+  #   currency, not their security's, with none of the three legs stored.
+  # - A buy whose price Portfolio Performance rounded, 7 at 114.29 EUR with
+  #   cash 806.00 EUR, fees 5.00 and taxes 1.00 EUR, gains 800.00 EUR,
+  #   1,000.00 USD and 0.800000 at 1 EUR = 1.25 USD, read off the cash
+  #   (quantity x price would give 800.03), journaled under the system actor.
+  # - A stored third-currency row (priced in CHF through a EUR account,
+  #   with a rate and no security_amount, written as stored before #1199's
+  #   check) is not touched although a CHF rate is stored: no journal entry,
+  #   no field changed. The mix task narrows with the same set.
+  # - A booking-form row with its legs gets no journal entry.
+  test "only rows booked in their account's currency with no leg stored are derived (identity 6)" do
+    w = world()
+
+    {:ok, rounded} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "buy",
+        date: ~D[2026-01-16],
+        quantity: "7",
+        price: "114.29",
+        fees: "5.00",
+        taxes: "1.00",
+        gross_amount: "806.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, booked_with_legs} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "sell",
+        date: ~D[2026-01-16],
+        quantity: "5",
+        price: "120.00",
+        currency_code: "USD",
+        security_amount: "600.00",
+        settlement_amount: "480.00",
+        settlement_fx_rate: "0.800000",
+        gross_amount: "480.00"
+      })
+
+    # Written as it was stored before #1199's check refused a third
+    # currency: CHF-priced, through the EUR account, its rate and no
+    # security_amount.
+    third_currency =
+      stored_before_the_check!(%Transaction{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "buy",
+        date: ~D[2026-01-16],
+        quantity: Decimal.new("10"),
+        price: Decimal.new("90.00"),
+        fees: Decimal.new("0"),
+        taxes: Decimal.new("0"),
+        gross_amount: Decimal.new("850.00"),
+        currency_code: "CHF",
+        settlement_fx_rate: Decimal.new("0.944444")
+      })
+
+    seed_rate!(~D[2026-01-16], "1.25")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: ~D[2026-01-16],
+          rate: "0.90",
+          source: "manual"
+        }
+      ])
+
+    untouched = [booked_with_legs, third_currency]
+    before = Enum.map(untouched, &legs(Ledger.get_transaction(&1.id)))
+    journaled_before = journal_entries(Enum.map(untouched, & &1.id))
+
+    assert {:ok, %{updated: 1, skipped_no_rate: 0}} =
+             SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+
+    derived = Ledger.get_transaction(rounded.id)
+    assert Decimal.equal?(derived.settlement_amount, Decimal.new("800.00"))
+    assert Decimal.equal?(derived.security_amount, Decimal.new("1000.00"))
+    assert Decimal.equal?(derived.settlement_fx_rate, Decimal.new("0.800000"))
+
+    assert [%{actor_type: :system_job, actor_label: "settlement_backfill", operation: :update}] =
+             journal_entries([rounded.id]) |> Enum.filter(&(&1.operation == :update))
+
+    assert Enum.map(untouched, &legs(Ledger.get_transaction(&1.id))) == before
+    assert journal_entries(Enum.map(untouched, & &1.id)) == journaled_before
+
+    # The mix task runs the same narrowed set: the third-currency row stays.
+    Mix.Tasks.Portfolixir.BackfillSettlementLegs.run([])
+    assert Enum.map(untouched, &legs(Ledger.get_transaction(&1.id))) == before
+    assert journal_entries(Enum.map(untouched, & &1.id)) == journaled_before
   end
 end
