@@ -1259,7 +1259,7 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("mapping_changed", params, socket) do
     current = socket.assigns.mapping
     mapping = mapping_from_params(params, socket.assigns)
-    socket = close_picked(socket, current, mapping)
+    socket = socket |> close_picked(current, mapping) |> know_chosen(mapping)
     changed? = count_basis(mapping) != count_basis(current)
     mapping = Map.put(mapping, :recount, Map.get(current, :recount, false) or changed?)
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
@@ -2094,12 +2094,10 @@ defmodule PortfolixirWeb.ImportsLive do
           "existing:" <> raw <- [security_choice(mapping, res)],
           {:ok, id} <- [LiveParam.fetch_id(raw)],
           not Map.has_key?(known, id),
-          security = Catalog.get_security(id),
-          security != nil,
-          into: %{},
-          do: {id, security}
+          uniq: true,
+          do: id
 
-    known = Map.merge(known, chosen)
+    known = Map.merge(known, Catalog.get_securities_by_ids(chosen))
     remap = Map.get(socket.assigns, :remap) || blank_remap()
 
     assign(socket, :remap, %{
@@ -2127,6 +2125,34 @@ defmodule PortfolixirWeb.ImportsLive do
           bookings: Map.merge(remap.bookings, counts)
       }
     end)
+  end
+
+  # A target the mapping names that no row has shown yet (a pushed id, say)
+  # is read, so the row's line can name it; an id without a security stays
+  # unknown and the apply refuses it.
+  defp know_chosen(socket, mapping) do
+    remap = socket.assigns.remap
+
+    missing =
+      for res <- socket.assigns.security_resolutions,
+          "existing:" <> raw <- [security_choice(mapping, res)],
+          {:ok, id} <- [LiveParam.fetch_id(raw)],
+          not Map.has_key?(remap.known, id),
+          uniq: true,
+          do: id
+
+    if missing == [] do
+      socket
+    else
+      found = Catalog.get_securities_by_ids(missing)
+      counts = Ledger.count_transactions_by_security(Map.keys(found))
+
+      assign(socket, :remap, %{
+        remap
+        | known: Map.merge(remap.known, found),
+          bookings: Map.merge(remap.bookings, counts)
+      })
+    end
   end
 
   # A pick closes its row's picker into the row's line.
