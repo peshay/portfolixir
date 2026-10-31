@@ -202,7 +202,11 @@ defmodule Portfolixir.Ledger.TradeMatcherTest do
                currency_code: "USD",
                # #1198: every available trade says so.
                unavailable_reason: nil,
-               lots_missing_leg: []
+               lots_missing_leg: [],
+               # The ADR-0015 amendment's note of 2026-10-31: plain rows carry
+               # no cash account, and the sell and its lots share USD, so no
+               # cash result is read beside the trade.
+               cash_result: nil
              }
 
       assert Decimal.equal?(trade.basis, Decimal.new("2014"))

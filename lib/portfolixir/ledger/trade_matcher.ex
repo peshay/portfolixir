@@ -40,6 +40,14 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   a third, computes exactly as before (point 4); its `unavailable_reason` is
   `nil` and `lots_missing_leg` `[]`.
 
+  An available trade whose sell closes a lot booked in another currency also
+  carries `cash_result` (the amendment's note of 2026-10-31): the trade re-read
+  in the currency of the cash its sell moved (`:cash_currency`, transaction
+  data), the sell and each lot through the same stored legs, so its
+  `realized` is the cash the bookings moved. It is `nil` where the sell or a
+  lot has no leg in that currency, where a lot's buy moved cash in another,
+  and for a trade whose sell and lots share one currency.
+
   Matching still considers only the priced `buy`/`sell` kinds. A `split`
   (ADR-0028 §3) is a named mandatory change site: it scales open lot
   quantities by its ratio and divides the per-share `buy_price`, keeping
@@ -67,6 +75,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
           optional(:currency_code) => String.t(),
           optional(:legs) => %{optional(String.t()) => map()},
           optional(:third_currency) => boolean(),
+          optional(:cash_currency) => String.t() | nil,
           optional(:split_ratio_numerator) => pos_integer(),
           optional(:split_ratio_denominator) => pos_integer()
         }
@@ -125,6 +134,8 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       legs: Map.get(tx, :legs, %{}),
       # Point 3: a lot priced in a third currency enters no closed trade.
       third_currency: Map.get(tx, :third_currency, false),
+      # The note of 2026-10-31: the currency of the cash the lot's buy moved.
+      cash_currency: Map.get(tx, :cash_currency),
       # The portfolio that bought the lot; a split scales the lot whatever
       # it is (K09).
       portfolio_id: Map.get(tx, :portfolio_id)
@@ -255,7 +266,9 @@ defmodule Portfolixir.Ledger.TradeMatcher do
     trade =
       case Enum.reject(entered, &match?({:ok, _lot}, &1)) do
         [] ->
-          closed_trade(tx, Enum.map(entered, fn {:ok, lot} -> lot end))
+          tx
+          |> closed_trade(Enum.map(entered, fn {:ok, lot} -> lot end))
+          |> Map.put(:cash_result, cash_result(tx, consumed))
 
         missing ->
           unavailable_trade(tx, consumed, Enum.map(missing, fn {:missing, lot} -> lot end))
@@ -282,6 +295,56 @@ defmodule Portfolixir.Ledger.TradeMatcher do
 
       _no_leg ->
         {:missing, lot}
+    end
+  end
+
+  # The ADR-0015 amendment's note of 2026-10-31 (#1198): a trade whose sell
+  # closes a lot booked in another currency, re-read in the currency of the
+  # cash its sell moved, through the same stored legs: the sell as booked
+  # where it is booked in that currency, else at its settlement leg; each lot
+  # as booked where it is booked in it, else at its settlement leg, and only
+  # where its own buy moved cash in that currency. Its result is the cash the
+  # bookings moved, the sell's less the lots' (prorated), fees and taxes as
+  # recorded. `nil` where a side has no such leg, and for a trade whose sell
+  # and lots share one currency (point 4), which keeps the close-date
+  # conversion.
+  defp cash_result(tx, consumed) do
+    cash = Map.get(tx, :cash_currency)
+
+    with true <- is_binary(cash),
+         true <- Enum.any?(consumed, &(&1.currency_code != Map.get(tx, :currency_code))),
+         {:ok, sell} <- sell_in(tx, cash),
+         {:ok, lots} <- lots_in(consumed, cash) do
+      %{currency_code: cash, realized: closed_trade(sell, lots).realized_pnl_abs}
+    else
+      _no_cash_leg -> nil
+    end
+  end
+
+  defp sell_in(%{currency_code: currency} = tx, currency), do: {:ok, tx}
+
+  defp sell_in(tx, currency) do
+    case Map.get(Map.get(tx, :legs, %{}), currency) do
+      %{unit_price: %Decimal{} = price, fees: %Decimal{} = fees, taxes: %Decimal{} = taxes} ->
+        {:ok, Map.merge(tx, %{price: price, fees: fees, taxes: taxes})}
+
+      _no_leg ->
+        :error
+    end
+  end
+
+  defp lots_in(consumed, currency) do
+    Enum.reduce_while(consumed, {:ok, []}, fn lot, {:ok, acc} ->
+      with ^currency <- lot.cash_currency,
+           {:ok, entered} <- enter(lot, currency) do
+        {:cont, {:ok, [entered | acc]}}
+      else
+        _no_leg -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, lots} -> {:ok, Enum.reverse(lots)}
+      :error -> :error
     end
   end
 
@@ -312,7 +375,8 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       lots: Enum.map(consumed, &%{open_date: &1.open_date, quantity: &1.quantity, cost: nil}),
       unavailable_reason: :missing_settlement_leg,
       lots_missing_leg:
-        Enum.map(missing, &%{open_date: &1.open_date, currency_code: &1.currency_code})
+        Enum.map(missing, &%{open_date: &1.open_date, currency_code: &1.currency_code}),
+      cash_result: nil
     }
   end
 

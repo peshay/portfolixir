@@ -1028,9 +1028,20 @@ defmodule Portfolixir.Ledger do
       # its account's, a row stored before #1199's refusal. Its fees are in
       # its account's currency and no leg converts them into its price's, so
       # a closed trade it is part of is unavailable.
-      third_currency: third_currency?(tx, security_currency)
+      third_currency: third_currency?(tx, security_currency),
+      # The ADR-0015 amendment's note of 2026-10-31 (#1198): the currency of
+      # the cash the row moved, so a closed trade whose lots are booked in
+      # another currency than its sell can also be read in it, the cash its
+      # bookings moved.
+      cash_currency: cash_currency(tx)
     }
   end
+
+  defp cash_currency(%Transaction{cash_account: %CashAccount{currency_code: currency}})
+       when is_binary(currency),
+       do: currency
+
+  defp cash_currency(_tx), do: nil
 
   defp third_currency?(%Transaction{type: type} = tx, security_currency)
        when type in ["buy", "sell"] and is_binary(security_currency) do

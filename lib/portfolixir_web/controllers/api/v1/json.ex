@@ -1681,6 +1681,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       realized_pnl_abs: decimal(trade.realized_pnl_abs),
       realized_pnl_pct: decimal(trade.realized_pnl_pct),
       realized_base: decimal(trade.realized_base),
+      # #1198 (the ADR-0015 amendment's note of 2026-10-31):
+      # computation_basis.realized_base states both paths.
+      realized_base_source: reason(trade.realized_base_source),
       # #984: computation_basis.annualized_return states the rule.
       annualized_return: decimal(trade.annualized_return),
       annualized_return_reason: reason(trade.annualized_return_reason)

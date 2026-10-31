@@ -79,7 +79,10 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
              "currency_code" => "EUR",
              "realized_pnl_abs" => "490",
              "realized_pnl_pct" => pct("490", "1005"),
-             "realized_base" => "490"
+             "realized_base" => "490",
+             # The ADR-0015 amendment's note of 2026-10-31 (#1198): a EUR
+             # round trip names the close-date path, its figures unchanged.
+             "realized_base_source" => "close_date_rate"
            }
 
     assert Map.drop(oldest, @new_keys) == %{
@@ -94,7 +97,10 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
              "currency_code" => "EUR",
              "realized_pnl_abs" => "-20",
              "realized_pnl_pct" => "-0.1",
-             "realized_base" => "-20"
+             "realized_base" => "-20",
+             # The ADR-0015 amendment's note of 2026-10-31 (#1198): a EUR
+             # round trip names the close-date path, its figures unchanged.
+             "realized_base_source" => "close_date_rate"
            }
 
     assert newest["annualized_return"] == "0.304701"

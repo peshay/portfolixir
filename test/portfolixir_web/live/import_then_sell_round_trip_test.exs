@@ -258,7 +258,7 @@ defmodule PortfolixirWeb.ImportThenSellRoundTripTest do
     {:ok, overview, _html} = live(conn, "/")
 
     assert overview
-           |> render()
+           |> render_async()
            |> Floki.parse_document!()
            |> Floki.find("[data-role='closed-trade'] .num")
            |> text() =~ "+150.90"

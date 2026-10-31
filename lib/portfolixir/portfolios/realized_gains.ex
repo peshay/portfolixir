@@ -19,6 +19,20 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   The basis travels in the payload (`computation_basis`, `conversion_note`)
   per the AGENTS.md metric rule.
 
+  ## A sale that closes a lot booked in another currency (#1198)
+
+  Such a trade reads the cash its bookings moved instead (the ADR-0015
+  amendment's note of 2026-10-31): where its sell and every lot it closes
+  moved cash in the base currency and carry their stored leg in it, its
+  `realized_base` is the sale's settlement less the lots' (prorated), fees and
+  taxes as recorded, no rate looked up. Converting the trade's result at the
+  close date instead converts the lots' cost at the sale's rate, so it parts
+  from the cash moved wherever the hub rate moved between purchase and sale.
+  Each row names its path in `realized_base_source` (`:settlement_legs`,
+  `:close_date_rate`); `computation_basis.realized_base` states both. A trade
+  whose sell and lots share one currency keeps the close-date conversion
+  (point 4).
+
   ## A sale whose lot has no leg in its currency (#1198)
 
   A closed trade is in its sell's currency, every lot entering through its
@@ -126,7 +140,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
         "Each sale converted to #{base} via the EUR hub at the rate stored on " <>
           "its own close date; a sale with no stored rate for that day is " <>
           "excluded from the totals and named, never converted at a " <>
-          "neighbouring date's rate.",
+          "neighbouring date's rate. A sale that closes a lot booked in another " <>
+          "currency reads the #{base} cash its bookings moved where every one of " <>
+          "them carries its leg in #{base} (realized_base_source).",
       computation_basis: %{
         series:
           "realized_pnl_abs per FIFO-matched closed trade (proceeds net of sell fees and taxes, minus consumed basis)",
@@ -148,6 +164,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
             "the average holding period are null rather than zero — the average of nothing is " <>
             "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
             "full history, while limit= cuts only the years the matrix shows.",
+        # The ADR-0015 amendment's note of 2026-10-31 (#1198): which of two
+        # paths made each trade's realized_base.
+        realized_base: realized_base_basis(base),
         annualized_return: TradeReturn.basis(),
         # #1142 (plan D-6): a trade with no cost basis has no percentage.
         realized_pnl_pct: Ledger.realized_pnl_pct_basis(),
@@ -206,6 +225,25 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       trades: trades,
       excluded: excluded_summary(Enum.map(excluded, fn {excluded, _trade} -> excluded end))
     }
+  end
+
+  # The AGENTS.md metric rule: the two paths of realized_base, as the
+  # sentence the payload carries (the ADR-0015 amendment's note of
+  # 2026-10-31, #1198).
+  defp realized_base_basis(base) do
+    "realized_base is each trade's result in #{base}, by one of two paths each trade names " <>
+      "in realized_base_source. settlement_legs: a trade whose sell closes a lot booked in " <>
+      "another currency than the sell (fees_and_taxes), where the sell and every lot it " <>
+      "closes moved cash in #{base} and carry their stored leg in it, reads the cash its " <>
+      "bookings moved: the sale's settlement less each lot's settlement prorated by the " <>
+      "quantity it closes, fees and taxes as recorded in the cash account's currency, no " <>
+      "rate looked up and no close-date rate needed. close_date_rate: every other trade, a " <>
+      "trade whose sell and lots are booked in one currency among them, converts " <>
+      "realized_pnl_abs from currency_code at the EUR hub rate stored on its close date " <>
+      "(D-1, issue #724; a trade in #{base} needs none), and is excluded without one " <>
+      "(by_reason.no_rate). Where the hub " <>
+      "rate moved between purchase and sale, the two paths part: the first is the cash " <>
+      "moved, the second the trade's result at the sale date's rate."
   end
 
   # #1198 (the ADR-0015 amendment of 2026-10-09, point 3): every sale out of
@@ -319,7 +357,8 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       realized_pnl_pct: trade.realized_pnl_pct,
       currency_code: trade.currency_code || security.currency_code,
       realized_pnl_abs: trade.realized_pnl_abs,
-      unavailable_reason: Map.get(trade, :unavailable_reason)
+      unavailable_reason: Map.get(trade, :unavailable_reason),
+      cash_result: Map.get(trade, :cash_result)
     }
   end
 
@@ -371,10 +410,25 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   defp convert_trade(%{unavailable_reason: :missing_settlement_leg} = trade, _base),
     do: {:excluded, :missing_settlement_leg, trade}
 
+  #
+  # The ADR-0015 amendment's note of 2026-10-31 (#1198): a trade whose sell
+  # closes a lot booked in another currency, and whose sell and lots all
+  # moved cash in the base currency through their stored legs, reads the
+  # cash its bookings moved (`cash_result`), the sale's settlement less the
+  # lots', with no rate looked up (`realized_base_source: :settlement_legs`).
+  # Every other trade keeps D-1's close-date conversion (`:close_date_rate`).
+  defp convert_trade(%{cash_result: %{currency_code: base, realized: realized}} = trade, base),
+    do:
+      {:ok, Map.merge(trade, %{realized_base: realized, realized_base_source: :settlement_legs})}
+
   defp convert_trade(trade, base) do
     case Fx.convert_on(trade.realized_pnl_abs, trade.currency_code, base, trade.close_date) do
-      {:ok, converted} -> {:ok, Map.put(trade, :realized_base, converted)}
-      {:error, :no_rate} -> {:excluded, :no_rate, trade}
+      {:ok, converted} ->
+        {:ok,
+         Map.merge(trade, %{realized_base: converted, realized_base_source: :close_date_rate})}
+
+      {:error, :no_rate} ->
+        {:excluded, :no_rate, trade}
     end
   end
 
