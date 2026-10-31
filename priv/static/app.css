@@ -7641,12 +7641,21 @@ button.income-bar-label.is-active {
   white-space: nowrap;
 }
 
+/* The × is the 22 × 22 that rule ⑧ declares for the +, at every width
+   (issue 1161, board ux-design-2026-10-09/05-accounts ③): `min-height: 0`
+   takes back the base button's 34 px floor, which made it 12.5 × 34 and
+   every chip holding one 40 px tall. Its corners are the pill's end. The
+   coarse block below still wins on touch (44 × 44). */
 .bucket-chip__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 2px;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
   border: 0;
+  border-radius: 0 999px 999px 0;
   background: transparent;
   /* Not the base button's shadow: the × is part of the pill, not a box in
      it (the review of Sprint 19 U5; boxed most visibly in the dark). */
@@ -7656,6 +7665,15 @@ button.income-bar-label.is-active {
   cursor: pointer;
   font: inherit;
   line-height: 1;
+}
+
+/* A chip holding a × gives up its block and right padding, so the × fills
+   the pill's end and the chip is no taller than one without it (24 px
+   against 23.9; the 22 × 22 alone left it 28 px: board 05, found while
+   drawing 2). The coarse rule below repeats it for the 44 px ×. */
+.bucket-chip:has(> .bucket-chip__remove) {
+  padding-block: 0;
+  padding-right: 0;
 }
 
 .bucket-chip__remove:hover {
