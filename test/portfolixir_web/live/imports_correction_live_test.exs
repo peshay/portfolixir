@@ -908,6 +908,8 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     #   already imported, that it cannot be corrected here, not to book the
     #   sale again, and points to the product documentation; it no longer
     #   says "Book the sale by hand".
+    # - The correction section lists the stored sale, kept, without a
+    #   confirm (ADR-0053 A10, Sprint 21 α7).
     # - The copied warnings read the same.
     # - In German, as the board writes it ("Steuererstattung").
     # - A file never imported keeps the remedy.
@@ -929,7 +931,11 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
 
       assert text(view, "#parser-warnings-box pre") == warning
       refute render(view) =~ "Book the sale by hand"
-      refute has_element?(view, "#import-correction")
+
+      # Since ADR-0053 A10 (#1193, Sprint 21 α7) the stored sale is listed in
+      # the correction section, kept, with no confirm.
+      assert has_element?(view, "#import-correction-table tbody tr[data-state='kept']")
+      refute has_element?(view, "#import-correction-open")
 
       view |> element("#copy-parser-warnings") |> render_click()
       assert_push_event(view, "copy-to-clipboard", %{text: ^warning})
@@ -1010,6 +1016,297 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
 
       assert css =~
                ~r/\.import-correction-dialog \.modal-footer--band > \.button-ghost \{\s*order: 3;/
+    end
+  end
+
+  # Sprint 21 α7 (#1193, #1194, #1205, #1197; ADR-0053's amendment of
+  # 2026-10-09, A10 to A12; board 07 `ux-design-2026-10-09/07-imports`, pick
+  # N21 = A): every listed booking is a line of the one table, in file
+  # order; a line the confirm leaves reads "kept" in its Corrected cell and
+  # says why under its booking; the sentence, the total, the button and the
+  # dialog count only the lines the confirm writes.
+  describe "the correction's line states (board 07, pick N21 = A)" do
+    @arbolia ~s("security": {"name": "Arbolia Inc.", "isin": "USEXMPL10014", "currency": "EUR"})
+
+    # The plan's round trip 3: PP shows Test-Cash at 1,049.23.
+    defp round_trip_json(time) do
+      """
+      {"version": 1, "transactions": [
+        {"type": "DEPOSIT", "account": "Test-Cash", "date": "2026-03-02", "currency": "EUR", "amount": 1100.0},
+        {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-03-03", "time": "10:00", "currency": "EUR", "amount": 100.0, "shares": 10.0, #{@arbolia}},
+        {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-04-02", "time": "10:00", "currency": "EUR", "amount": 100.0, "shares": 10.0, #{@arbolia}},
+        {"type": "SALE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-04-15", "time": "11:00", "currency": "EUR", "amount": 20.10, "shares": 10.0, #{@arbolia},
+         "units": [{"type": "FEE", "amount": 5.0}, {"type": "TAX", "amount": -25.0}]},
+        {"type": "DIVIDEND", "account": "Test-Cash", "date": "2026-05-15", "currency": "EUR", "amount": 9.13, #{@arbolia}},
+        {"type": "SALE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-06-15", "time": "#{time}", "currency": "EUR", "amount": 120.0, "shares": 10.0, #{@arbolia},
+         "units": [{"type": "FEE", "amount": 5.0}, {"type": "TAX", "amount": -25.0}]}
+      ]}
+      """
+    end
+
+    # A sale of K21's shape on `date` at `time`, after a deposit and a
+    # purchase of 20 shares.
+    defp sales_json(sales) do
+      rows =
+        Enum.map_join(sales, ",\n", fn {date, time} ->
+          ~s({"type": "SALE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "#{date}", "time": "#{time}", "currency": "EUR", "amount": 120.0, "shares": 10.0, #{@arbolia}, "units": [{"type": "FEE", "amount": 5.0}, {"type": "TAX", "amount": -25.0}]})
+        end)
+
+      """
+      {"version": 1, "transactions": [
+        {"type": "DEPOSIT", "account": "Test-Cash", "date": "2026-03-02", "currency": "EUR", "amount": 1100.0},
+        {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-03-03", "time": "10:00", "currency": "EUR", "amount": 200.0, "shares": 20.0, #{@arbolia}},
+        #{rows}
+      ]}
+      """
+    end
+
+    # The history as an importer before A1 and A5 stored it: every row's
+    # cash cell whole, a JSON trade priced the old way, a refund beside its
+    # row, and the row A5 now refuses booked with them.
+    defp apply_before_the_amendment!(portfolio, body) do
+      {:ok, %Preview{} = preview} = PortfolioPerformance.parse(body, filename: "history.json")
+
+      old =
+        (preview.entries ++ Enum.map(preview.refused_credits, & &1.entry))
+        |> Enum.sort_by(& &1.source_row)
+        |> Enum.map(fn %Entry{} = entry ->
+          %{entry | gross_amount: entry.hash_amount, price: entry.hash_price || entry.price}
+        end)
+
+      {:ok, _result} =
+        Imports.apply(%{preview | entries: old, errors: [], refused_credits: []}, %{
+          portfolio_id: portfolio.id
+        })
+
+      :ok
+    end
+
+    defp hand_edit_dividend!(portfolio, amount) do
+      dividend =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.find(&(&1.type == "dividend"))
+
+      {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), dividend, %{gross_amount: amount})
+      :ok
+    end
+
+    defp today, do: PortfolixirWeb.Format.date(Date.utc_today())
+
+    # User story (#1193, #1194, #1205, Sprint 21 α7; the plan's round trip
+    # 3; board 07, N21 A):
+    # As the operator re-dropping a JSON history imported under the old
+    # reading, with a stored sale the preview now refuses, a dividend I
+    # changed by hand, and a sale whose time drifted,
+    # I want all three in the one table, each kept line saying why and
+    # reading "kept", and a confirm that counts the one it corrects,
+    # so that I see what the step writes and what I put right myself.
+    #
+    # Acceptance criteria:
+    # - The sentence: "3 bookings already imported differ from this file.
+    #   The step below corrects one of them: It was booked as an earlier
+    #   version … 2 stay as they are; each line says why."
+    # - The refused sale reads "kept", +45.10 stored, -25.00, and its
+    #   state names the refund, what would remain, and the remedy (0.10
+    #   without fees, the fees 5.00 of their own); the dividend reads
+    #   "kept" with "Changed by hand since its import (date) — stays as it
+    #   is. Per the file: +9.13."; the drifted sale reads +95.00 and says it
+    #   was found by its date and figures.
+    # - The total and the button count the one line: "The one booking the
+    #   step corrects, together -25.00 EUR: Test-Cash -25.00 EUR." and
+    #   "Correct one booking…"; the dialog adds "The other 2 lines of the
+    #   list stay as they are."
+    # - The confirm brings Test-Cash from 1,099.30 to 1,074.30; the section
+    #   then lists the two kept lines without a total and without a button:
+    #   "2 bookings already imported differ from this file and stay as they
+    #   are; each line says why."
+    test "round trip 3: three lines, two kept, a confirm for one", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_before_the_amendment!(portfolio, round_trip_json("15:30"))
+      hand_edit_dividend!(portfolio, "9.20")
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1099.30"))
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "history.json", round_trip_json("15:31"), "application/json")
+
+      assert text(view, "[data-role='import-correction-finding']") ==
+               "3 bookings already imported differ from this file. The step below corrects one of them: It was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund. 2 stay as they are; each line says why."
+
+      refused = text(view, "#import-correction-table tbody tr:nth-child(1)")
+      assert refused =~ "+45.10 kept -25.00"
+
+      assert refused =~
+               "Not corrected automatically — stays as it is: once the tax refund of 25.00 is split off, -4.90 would remain for the sale per the file, and a sale books more than zero. Put it right by hand in the history: change the sale to 0.10 without fees, enter the fees of 5.00 as a booking of their own; the tax refund is already booked."
+
+      assert has_element?(
+               view,
+               "#import-correction-table tbody tr:nth-child(1) .import-correction__state a[href='/transactions']"
+             )
+
+      edited = text(view, "#import-correction-table tbody tr:nth-child(2)")
+      assert edited =~ "+9.20 kept -0.07"
+
+      assert edited =~
+               "Changed by hand since its import (#{today()}) — stays as it is. Per the file: +9.13."
+
+      drifted = text(view, "#import-correction-table tbody tr:nth-child(3)")
+      assert drifted =~ "+120.00 +95.00 -25.00"
+
+      assert drifted =~
+               "Found by its date and figures: Portfolio Performance has written this entry differently since the import."
+
+      assert has_element?(view, "#import-correction-table tbody tr[data-state='kept']", "kept")
+
+      assert has_element?(
+               view,
+               "#import-correction-phone-rows li:nth-child(2) > .import-correction__state"
+             )
+
+      assert text(view, ".import-correction__total") ==
+               "The one booking the step corrects, together -25.00 EUR: Test-Cash -25.00 EUR."
+
+      assert text(view, "#import-correction-open") == "Correct one booking…"
+
+      view |> element("#import-correction-open") |> render_click()
+      assert text(view, "#import-correction-subject") =~ "1 booking"
+
+      assert text(view, "[data-role='import-correction-kept']") ==
+               "The other 2 lines of the list stay as they are."
+
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view, 1_000)
+
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1074.30"))
+
+      assert text(view, "[data-role='import-correction-finding']") ==
+               "2 bookings already imported differ from this file and stay as they are; each line says why."
+
+      refute has_element?(view, "#import-correction-open")
+      refute has_element?(view, ".import-correction__total")
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule; board 07):
+    # As the operator whose two equal sales both drifted,
+    # I want each listed with the count of the bookings that match it, and
+    # no confirm in the section,
+    # so that the page never offers to correct one of two twins.
+    #
+    # Acceptance criteria:
+    # - Both lines read "kept" and "2 stored bookings match its date and
+    #   figures — stays as it is. Correct the right one by hand in the
+    #   history."; the section has no button and no total.
+    test "twins are listed without a confirm", %{conn: conn} do
+      portfolio = portfolio!()
+
+      apply_before_the_amendment!(
+        portfolio,
+        sales_json([{"2026-06-15", "15:30"}, {"2026-06-15", "16:10"}])
+      )
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload(
+        view,
+        "history.json",
+        sales_json([{"2026-06-15", "15:31"}, {"2026-06-15", "16:11"}]),
+        "application/json"
+      )
+
+      for n <- [1, 2] do
+        assert text(view, "#import-correction-table tbody tr:nth-child(#{n})") =~
+                 "2 stored bookings match its date and figures — stays as it is. Correct the right one by hand in the history."
+      end
+
+      refute has_element?(view, "#import-correction-open")
+    end
+
+    # User story (#1197, Sprint 21 α7; board 07 ⑧ and its found while
+    # drawing 12):
+    # As the operator correcting bookings on an account whose balance I set
+    # after them,
+    # I want the dialog to name the set balance that absorbs the change, and
+    # the part it absorbs where it absorbs only part,
+    # so that I am not told the balance moves when it does not.
+    #
+    # Acceptance criteria:
+    # - A drifted sale on 2026-06-15 and a set balance of 2026-07-01: the
+    #   dialog reads "On Test-Cash, the set balance of 2026-07-01 absorbs
+    #   the 25.00 EUR: its balance stays as it is."; the confirm leaves the
+    #   balance at the set 1,000.00, and the result adds "— the set balance
+    #   of 2026-07-01 holds Test-Cash's balance".
+    # - Two drifted sales, on 2026-06-15 and 2026-08-17, around the same set
+    #   balance: "On Test-Cash, the set balance of 2026-07-01 absorbs 25.00
+    #   EUR of the 50.00 EUR: its balance changes by -25.00 EUR."
+    test "the dialog names a later set balance that absorbs the change", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_before_the_amendment!(portfolio, sales_json([{"2026-06-15", "15:30"}]))
+      cash = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Test-Cash"))
+
+      {:ok, _anchor} =
+        Ledger.set_cash_balance(Actor.owner_ui(), cash, %{date: ~D[2026-07-01], amount: "1000"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "history.json", sales_json([{"2026-06-15", "15:31"}]), "application/json")
+      view |> element("#import-correction-open") |> render_click()
+
+      assert text(view, "[data-role='import-correction-consequence']") =~
+               "On Test-Cash, the set balance of 2026-07-01 absorbs the 25.00 EUR: its balance stays as it is."
+
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view, 1_000)
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1000"))
+
+      assert text(view, "#import-correction-result") =~
+               "— the set balance of 2026-07-01 holds Test-Cash's balance"
+    end
+
+    test "a set balance between two corrected bookings absorbs only part", %{conn: conn} do
+      portfolio = portfolio!()
+
+      apply_before_the_amendment!(
+        portfolio,
+        sales_json([{"2026-06-15", "15:30"}, {"2026-08-17", "15:30"}])
+      )
+
+      cash = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Test-Cash"))
+
+      {:ok, _anchor} =
+        Ledger.set_cash_balance(Actor.owner_ui(), cash, %{date: ~D[2026-07-01], amount: "1000"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload(
+        view,
+        "history.json",
+        sales_json([{"2026-06-15", "15:31"}, {"2026-08-17", "15:31"}]),
+        "application/json"
+      )
+
+      view |> element("#import-correction-open") |> render_click()
+
+      assert text(view, "[data-role='import-correction-consequence']") =~
+               "On Test-Cash, the set balance of 2026-07-01 absorbs 25.00 EUR of the 50.00 EUR: its balance changes by -25.00 EUR."
+    end
+
+    # User story (board 07, N21 A and found while drawing 1):
+    # As the operator reading a state sentence beside the figures,
+    # I want the table to fill the note and wrap, not to widen past it,
+    # so that no figure column is pushed out of view.
+    #
+    # Acceptance criteria:
+    # - The correction table takes its min-content as its floor; the state
+    #   is a 12 px muted line, a kept line's in the text colour; on a phone
+    #   row it spans the row.
+    test "the table fills its note and wraps; the state line's rules" do
+      css = File.read!(Path.expand("../../../priv/static/app.css", __DIR__))
+
+      assert css =~
+               ~r/\.data-table-wrapper > #import-correction-table \{\s*min-width: min-content;/
+
+      assert css =~ ~r/\.import-correction__state \{[^}]*font-size: 12px;/
+      assert css =~ ~r/\.phone-row > \.import-correction__state \{\s*grid-column: 1 \/ -1;/
+      assert css =~ ~r/\.import-correction__state--kept \{\s*color: var\(--color-text\);/
     end
   end
 end
