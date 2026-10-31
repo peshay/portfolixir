@@ -48,11 +48,14 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   fixed by the Sprint 15 plan's D-5 and widened by the ADR-0015 amendment of
   2026-10-09, point 1 (H35): on insert, and on an update that changes
   `gross_amount`, `settlement_amount`, `fees`, `taxes`, the type, the
-  currency, the cash account or the depot — and, for a row without a cash
-  amount, its quantity or price, which then change the cash booked (F71). A row that predates the guard is never revalidated
-  behind the operator's back — editing its note must not start failing — and
-  `violations/0` lists such rows read-only; repairing one is the operator's
-  decision (NFR-2).
+  currency, the security (#1199), the cash account or the depot — and, for a
+  row without a cash amount, its quantity or price, which then change the
+  cash booked (F71). The third-currency refusal (#1199,
+  `Transaction.validate_cash_account_currency/3`) runs on the same
+  triggers (`runs?/1`), beside this guard. A row that predates the guard is
+  never revalidated behind the operator's back — editing its note must not
+  start failing — and `violations/0` lists such rows read-only; repairing
+  one is the operator's decision (NFR-2).
   """
 
   import Ecto.Changeset, only: [get_field: 2, add_error: 4, changed?: 2]
@@ -64,8 +67,9 @@ defmodule Portfolixir.Ledger.SettlementGuard do
 
   @tolerance Decimal.new("0.01")
   @guarded_types ["buy", "sell"]
-  # The currency, the cash account and the depot decide whether a trade is
-  # cross-currency at all (the ADR-0015 amendment of 2026-10-09, point 1; H35).
+  # The currency, the security, the cash account and the depot decide
+  # whether a trade is cross-currency at all (the ADR-0015 amendment of
+  # 2026-10-09, point 1; H35; the security since #1199).
   @trigger_fields [
     :gross_amount,
     :settlement_amount,
@@ -73,11 +77,16 @@ defmodule Portfolixir.Ledger.SettlementGuard do
     :taxes,
     :type,
     :currency_code,
+    :security_id,
     :cash_account_id,
     :securities_account_id
   ]
   # Without a cash amount the booked cash follows these as well (F71).
   @fallback_trigger_fields [:quantity, :price]
+
+  @doc "The kinds the guard covers, buy and sell."
+  @spec guarded_types() :: [String.t()]
+  def guarded_types, do: @guarded_types
 
   @doc "The accepted difference: one minor unit at ADR-0016's money scale."
   @spec tolerance() :: Decimal.t()
@@ -189,9 +198,17 @@ defmodule Portfolixir.Ledger.SettlementGuard do
     end
   end
 
-  defp runs?(%Ecto.Changeset{data: %{__meta__: %{state: :built}}}), do: true
+  @doc """
+  Whether the guard runs on `changeset`: on insert, and on an update that
+  changes one of its trigger fields (D-5; the ADR-0015 amendment of
+  2026-10-09, point 1). The third-currency refusal (#1199) runs on the same
+  answer, so the two checks sit side by side and neither revalidates a
+  stored row behind the operator's back.
+  """
+  @spec runs?(Ecto.Changeset.t()) :: boolean()
+  def runs?(%Ecto.Changeset{data: %{__meta__: %{state: :built}}}), do: true
 
-  defp runs?(changeset) do
+  def runs?(changeset) do
     Enum.any?(@trigger_fields, &changed?(changeset, &1)) or
       (is_nil(get_field(changeset, :gross_amount)) and
          Enum.any?(@fallback_trigger_fields, &changed?(changeset, &1)))

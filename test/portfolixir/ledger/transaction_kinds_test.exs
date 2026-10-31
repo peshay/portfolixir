@@ -492,10 +492,15 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
     test "accepts a mismatched-currency buy when a settlement FX rate is supplied" do
       w = setup_world()
 
+      # #1199 (the ADR-0015 amendment of 2026-10-09, point 1): a buy is
+      # priced in its security's currency or its account's, so the dollar
+      # booking buys a dollar security; a EUR one priced in USD is refused.
+      dollar = create_security!(name: "Test Dollar Security", ticker: "TSD", currency: "USD")
+
       attrs =
         Map.merge(base(w), %{
           type: "buy",
-          security_id: w.security.id,
+          security_id: dollar.id,
           securities_account_id: w.depot.id,
           cash_account_id: w.cash.id,
           quantity: Decimal.new("10"),

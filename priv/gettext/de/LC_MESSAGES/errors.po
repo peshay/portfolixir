@@ -198,6 +198,12 @@ msgstr "muss für eine Abrechnung in einer anderen Währung größer als 0 sein"
 msgid "must match the transaction currency (%{currency})"
 msgstr "muss der Währung der Buchung entsprechen (%{currency})"
 
+msgid "must be %{security_currency} (the security's currency) or %{account_currency} (the cash account's)"
+msgstr "muss %{security_currency} (die Währung des Wertpapiers) oder %{account_currency} (die des Verrechnungskontos) sein"
+
+msgid "must be %{currency} (the currency of the security and of its cash account)"
+msgstr "muss %{currency} sein (die Währung des Wertpapiers und seines Verrechnungskontos)"
+
 msgid "must differ from %{field}"
 msgstr "muss sich von %{field} unterscheiden"
 

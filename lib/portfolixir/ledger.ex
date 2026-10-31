@@ -1731,8 +1731,20 @@ defmodule Portfolixir.Ledger do
       |> Enum.split_with(&(&1 in referenced))
 
     currencies = Map.merge(cash_account_currencies(held), locked_cash_account_currencies(new))
-    Transaction.validate_cash_account_currency(changeset, currencies)
+
+    Transaction.validate_cash_account_currency(
+      changeset,
+      currencies,
+      security_currency(Ecto.Changeset.get_field(changeset, :security_id))
+    )
   end
+
+  # #1199: the currency the third-currency refusal reads beside the
+  # account's. A security that does not exist is left to `assoc_constraint`.
+  defp security_currency(nil), do: nil
+
+  defp security_currency(security_id),
+    do: Repo.one(from(s in Security, where: s.id == ^security_id, select: s.currency_code))
 
   defp cash_account_currencies([]), do: %{}
 

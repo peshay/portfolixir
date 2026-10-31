@@ -281,6 +281,23 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
       assert [_message] = currency_error(changeset)
     end
 
+    # Acceptance criteria: where the security and its account share one
+    # currency, a trade priced in another is refused naming that one.
+    test "a buy of a EUR security through a EUR account priced in USD is refused" do
+      w = world()
+      euro = create_security!(name: "EU Equity Third", ticker: "EUT", currency: "EUR")
+
+      assert {:error, changeset} =
+               Ledger.create_transaction(
+                 Actor.owner_ui(),
+                 third_currency_attrs(w, %{security_id: euro.id, currency_code: "USD"})
+               )
+
+      assert currency_error(changeset) == [
+               "must be EUR (the currency of the security and of its cash account)"
+             ]
+    end
+
     test "a buy priced in the security's or the account's currency is accepted" do
       w = world()
 

@@ -116,15 +116,78 @@ defmodule Portfolixir.Ledger.Transaction do
   from the map are skipped so a stale or not-yet-persisted reference is left
   to the existing `assoc_constraint`. This is pure validation: no stored
   amount is FX-converted here.
+
+  `security_currency`, the currency of the booking's security where the
+  caller knows it, adds the third-currency refusal (#1199; the ADR-0015
+  amendment of 2026-10-09, point 1): a buy or sell priced in neither that
+  currency nor its cash account's is an error on `currency_code` naming
+  both, on insert and on an update that changes a field
+  `Ledger.SettlementGuard` runs on.
   """
-  @spec validate_cash_account_currency(Ecto.Changeset.t(), %{optional(term()) => String.t()}) ::
-          Ecto.Changeset.t()
-  def validate_cash_account_currency(changeset, cash_currencies) when is_map(cash_currencies) do
+  @spec validate_cash_account_currency(
+          Ecto.Changeset.t(),
+          %{optional(term()) => String.t()},
+          String.t() | nil
+        ) :: Ecto.Changeset.t()
+  def validate_cash_account_currency(changeset, cash_currencies, security_currency \\ nil)
+      when is_map(cash_currencies) do
     currency_code = get_field(changeset, :currency_code)
 
     changeset
+    |> check_trade_currency(currency_code, security_currency, cash_currencies)
     |> check_account_currency(:cash_account_id, currency_code, cash_currencies)
     |> check_counter_account_currency(currency_code, cash_currencies)
+  end
+
+  # #1199 (the ADR-0015 amendment of 2026-10-09, point 1): a buy or sell is
+  # priced in its security's currency (the booking form, ADR-0015) or in its
+  # cash account's (the import form, ADR-0033), never in a third: no stored
+  # leg converts a third currency, so no closed trade could read its lots in
+  # one. The check runs where `SettlementGuard` runs its own
+  # (`SettlementGuard.runs?/1`: on insert, and on an update that changes the
+  # currency, the security, the cash account, the depot, the type or an
+  # amount), so a stored row priced in a third currency still takes a
+  # notes-only edit and keeps its figures. It needs both currencies; a trade
+  # without a security or a cash account is left to the checks it has.
+  defp check_trade_currency(changeset, currency_code, security_currency, cash_currencies)
+       when is_binary(security_currency) and is_binary(currency_code) do
+    account_currency = Map.get(cash_currencies, get_field(changeset, :cash_account_id))
+
+    if get_field(changeset, :type) in SettlementGuard.guarded_types() and
+         is_binary(account_currency) and
+         currency_code not in [security_currency, account_currency] and
+         SettlementGuard.runs?(changeset) do
+      refuse_trade_currency(changeset, security_currency, account_currency)
+    else
+      changeset
+    end
+  end
+
+  defp check_trade_currency(changeset, _currency_code, _security_currency, _cash_currencies),
+    do: changeset
+
+  # The codes are bindings, so a page translates the rule and the API and
+  # MCP read the English with both currencies named.
+  defp refuse_trade_currency(changeset, currency, currency) do
+    add_error(
+      changeset,
+      :currency_code,
+      "must be %{currency} (the currency of the security and of its cash account)",
+      currency: currency,
+      validation: :trade_currency
+    )
+  end
+
+  defp refuse_trade_currency(changeset, security_currency, account_currency) do
+    add_error(
+      changeset,
+      :currency_code,
+      "must be %{security_currency} (the security's currency) or %{account_currency} " <>
+        "(the cash account's)",
+      security_currency: security_currency,
+      account_currency: account_currency,
+      validation: :trade_currency
+    )
   end
 
   # A currency mismatch is no longer a rejection (ADR-0015): it requires a

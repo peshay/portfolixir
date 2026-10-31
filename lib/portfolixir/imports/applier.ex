@@ -2381,7 +2381,10 @@ defmodule Portfolixir.Imports.Applier do
     changeset =
       %Transaction{}
       |> Transaction.import_changeset(attrs)
-      |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs))
+      |> Transaction.validate_cash_account_currency(
+        cash_currencies_for(attrs),
+        security_currency_for(attrs, state)
+      )
 
     # The transactions table is journal-armed (ADR-0017): each imported booking
     # is journaled under an import actor in the same (nested) transaction as the
@@ -2506,6 +2509,15 @@ defmodule Portfolixir.Imports.Applier do
   # key-share lock in id order (`Ledger.locked_cash_account_currencies/1`),
   # inside the apply's transaction, so a currency change of the account
   # cannot commit between this check and the import's commit.
+  # #1199: the importer's copy of the third-currency refusal reads the
+  # security's currency as the run resolved it.
+  defp security_currency_for(attrs, state) do
+    case Map.get(state.live_index.securities_by_id, attrs[:security_id]) do
+      %Security{currency_code: currency} -> currency
+      _none -> nil
+    end
+  end
+
   defp cash_currencies_for(attrs),
     do:
       Ledger.locked_cash_account_currencies([

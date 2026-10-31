@@ -205,6 +205,13 @@ msgstr ""
 msgid "must match the transaction currency (%{currency})"
 msgstr ""
 
+## #1199: a trade priced in a third currency.
+msgid "must be %{security_currency} (the security's currency) or %{account_currency} (the cash account's)"
+msgstr ""
+
+msgid "must be %{currency} (the currency of the security and of its cash account)"
+msgstr ""
+
 msgid "must differ from %{field}"
 msgstr ""
 

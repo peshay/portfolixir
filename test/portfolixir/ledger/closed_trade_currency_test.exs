@@ -17,7 +17,9 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
   alias Portfolixir.Actor
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.RealizedGains
+  alias Portfolixir.Repo
 
   defp usd_rate!(dates) do
     {:ok, _} =
@@ -347,27 +349,37 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
   #   stored settlement rate (EUR per CHF), keeps its fees as recorded: the
   #   open lot's buy_fees read "5.000000" as before. Only a trade priced in
   #   the security's currency converts them.
+  # - Since #1199 (the ADR-0015 amendment of 2026-10-09, identity 5) the
+  #   ledger refuses a new booking priced in a third currency, so the row is
+  #   written as a database stored it before the check: the case is a
+  #   stored row's, and its expectation stands.
   test "a booking priced in a third currency keeps its fees as recorded (identity 4)" do
     world = base_world(name: "Third", cash_name: "Third Cash", depot_name: "Third Depot")
     swiss = create_security!(name: "Swiss Third", ticker: "SWT", currency: "CHF")
 
     {:ok, _buy} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: world.portfolio.id,
-        securities_account_id: world.depot.id,
-        cash_account_id: world.cash.id,
-        security_id: swiss.id,
-        type: "buy",
-        date: ~D[2025-04-01],
-        quantity: "10",
-        price: "100",
-        fees: "5",
-        currency_code: "USD",
-        security_amount: "900",
-        settlement_amount: "800",
-        settlement_fx_rate: "0.888889",
-        gross_amount: "805"
-      })
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Repo.insert!(%Transaction{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          cash_account_id: world.cash.id,
+          security_id: swiss.id,
+          type: "buy",
+          date: ~D[2025-04-01],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("100"),
+          fees: Decimal.new("5"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD",
+          security_amount: Decimal.new("900"),
+          settlement_amount: Decimal.new("800"),
+          settlement_fx_rate: Decimal.new("0.888889"),
+          gross_amount: Decimal.new("805")
+        })
+      end)
 
     assert [lot] = open(swiss)
     assert exact(lot.buy_fees) == "5.000000"
