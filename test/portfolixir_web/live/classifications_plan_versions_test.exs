@@ -221,9 +221,11 @@ defmodule PortfolixirWeb.ClassificationsPlanVersionsTest do
     |> element("form.soll-plan-picker")
     |> render_change(%{"soll_plan" => "#{original.id}"})
 
-    hint = view |> element("[data-role=soll-version-hint]") |> render()
+    # #1187: the archived banner is the read-only note, not the draft hint.
+    hint = view |> element("[data-role=soll-archived-note]") |> render()
     assert hint =~ "Archived"
     refute hint =~ "Draft"
+    refute has_element?(view, "[data-role=soll-version-hint]")
 
     # A crafted non-integer picker payload changes nothing and does not crash.
     html = view |> element("form.soll-plan-picker") |> render_change(%{"soll_plan" => "abc"})

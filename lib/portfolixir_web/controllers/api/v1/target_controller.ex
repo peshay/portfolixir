@@ -12,6 +12,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
+  # The refusal of an archived plan version (#1133), word for word on every
+  # path that meets `Targets.writable_plan/1`'s `:plan_archived` (#1187).
+  @plan_archived "is archived: activate it, or duplicate it into a draft"
+
   # FR-38 / #830: a target row's change stamp is its own updated_at OR its
   # plan's — activating another plan version swaps the steering rows without
   # touching any of them, so a row-only cut would hide that change.
@@ -75,8 +79,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, scope} <- write_scope(params, pid, view),
          {:ok, cid} <- IdParam.parse(category_id) do
-      {:ok, count} = Targets.delete_target(conn.assigns.actor, pid, cid, scope)
-      json(conn, %{data: %{deleted: count}})
+      case Targets.delete_target(conn.assigns.actor, pid, cid, scope) do
+        {:ok, count} -> json(conn, %{data: %{deleted: count}})
+        {:error, reason} -> render_error(conn, reason)
+      end
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
@@ -208,9 +214,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
          {:ok, scope} <- write_scope(params, pid, view),
          {:ok, cid} <- IdParam.parse(category_id),
          {:ok, sid} <- IdParam.parse(security_id) do
-      {:ok, count} = Targets.delete_position_target(conn.assigns.actor, pid, cid, sid, scope)
-
-      json(conn, %{data: %{deleted: count}})
+      case Targets.delete_position_target(conn.assigns.actor, pid, cid, sid, scope) do
+        {:ok, count} -> json(conn, %{data: %{deleted: count}})
+        {:error, reason} -> render_error(conn, reason)
+      end
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
@@ -264,8 +271,9 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # portfolio's, of the view the request names if it names one, and not
   # archived: an archived version steers nothing, and is reused by
   # activating or duplicating it. The set checks the classification too
-  # (`:plan_mismatch`). The SOLL editor addresses its versions through the
-  # context directly and is not narrowed by this.
+  # (`:plan_mismatch`). The archived rule is the context's
+  # (`Targets.writable_plan/1`, #1187), which the SOLL editor's writes and
+  # these writes meet again inside their transaction.
   defp write_scope(params, pid, view) do
     case Map.get(params, "plan_id") do
       absent when absent in [nil, ""] ->
@@ -282,9 +290,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp writable_plan(raw, pid) do
     with {:ok, plan_id} <- plan_id(raw),
          {:ok, %{portfolio_id: ^pid} = plan} <- Targets.fetch_plan(plan_id) do
-      if plan.status == "archived",
-        do: {:error, {:plan_id, "is archived: activate it, or duplicate it into a draft"}},
-        else: {:ok, plan}
+      case Targets.writable_plan(plan) do
+        :ok -> {:ok, plan}
+        {:error, :plan_archived} -> {:error, {:plan_id, @plan_archived}}
+      end
     else
       {:error, {:plan_id, _message}} = error -> error
       _unknown_or_foreign -> {:error, {:plan_id, "is not a plan of this portfolio"}}
@@ -358,6 +367,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     do: unprocessable(conn, changeset |> JSON.errors() |> put_refused_row(changeset))
 
   defp render_error(conn, :not_found), do: not_found(conn)
+
+  # Archived between the scope check and the write (#1187): the same body.
+  defp render_error(conn, :plan_archived),
+    do: unprocessable(conn, %{plan_id: [@plan_archived]})
 
   defp render_error(conn, :plan_mismatch),
     do: unprocessable(conn, %{plan_id: ["is a plan of another classification"]})

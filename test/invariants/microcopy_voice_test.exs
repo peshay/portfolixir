@@ -53,7 +53,7 @@ defmodule Portfolixir.Invariants.MicrocopyVoiceTest do
   #   whether it opens the sentence or follows a dash or a semicolon
   #   ("— wähle einen", "Aktualisiere die Seite", "gib den Text … ein").
   # - No German translation says "journalisiert"; the journal "hält … fest".
-  @du_imperative_de ~r/\b(erfasse|korrigiere|wähle|entferne|aktualisiere|versuche|importiere|synchronisiere|bearbeite|weise|gib|tippe|lege|passe|klicke|prüfe|öffne)\b|(^msgstr(\[\d\])? "|[.!?—:;] )(Erfasse|Korrigiere|Wähle|Entferne|Aktualisiere|Versuche|Importiere|Synchronisiere|Bearbeite|Gib|Tippe|Lege|Passe|Klicke|Prüfe|Öffne) /u
+  @du_imperative_de ~r/\b(erfasse|korrigiere|wähle|entferne|aktualisiere|versuche|importiere|synchronisiere|bearbeite|weise|gib|tippe|lege|passe|klicke|prüfe|öffne|aktiviere)\b|(^msgstr(\[\d\])? "|[.!?—:;] )(Erfasse|Korrigiere|Wähle|Entferne|Aktualisiere|Versuche|Importiere|Synchronisiere|Bearbeite|Gib|Tippe|Lege|Passe|Klicke|Prüfe|Öffne|Aktiviere) /u
 
   test "no German translation gives a du imperative mid-sentence or says journalisiert" do
     offending =

@@ -329,6 +329,16 @@ defmodule Portfolixir.Portfolios.Targets do
   end
 
   @doc """
+  Whether a write may go into this plan version (#1187; ADR-0027 §3 and its
+  note of 2026-10-08): `:ok` for an active or a draft version,
+  `{:error, :plan_archived}` for an archived one, which steers nothing and is
+  reused by activating it or duplicating it into a draft. The one rule the
+  plan-addressed writes below, the SOLL editor and the API's `plan_id` read.
+  """
+  def writable_plan(%TargetPlan{status: "archived"}), do: {:error, :plan_archived}
+  def writable_plan(%TargetPlan{}), do: :ok
+
+  @doc """
   Whether an **active** plan row exists for `(portfolio, view, classification)`
   (default `view: nil` = Gesamt). `true` for an empty plan; `false` when the
   scope has no active plan (drafts don't count — the SOLL surface is IST-only
@@ -418,7 +428,8 @@ defmodule Portfolixir.Portfolios.Targets do
   non-positive-integer `security_id`), `{:error, {:duplicate_position,
   security_id}}` (a second position row for one security), `{:error,
   :plan_mismatch}` (a `plan:` that does not belong to the addressed
-  portfolio/classification), or `{:error, %Ecto.Changeset{}}`.
+  portfolio/classification), `{:error, :plan_archived}` (a `plan:` that names
+  an archived version, `writable_plan/1`), or `{:error, %Ecto.Changeset{}}`.
   """
   def set_targets(%Actor{} = actor, portfolio_id, classification_id, entries, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
@@ -578,32 +589,38 @@ defmodule Portfolixir.Portfolios.Targets do
   Removes the **category** target for one category within the addressed plan
   (default `view: nil` = the active Gesamt plan; `plan:` addresses a version), on
   behalf of `actor`. Position rows (ADR-0030) for the category are left in place;
-  remove those with `delete_position_target/5`. Returns `{:ok, count}`. Leaves
-  the plan row itself in place.
+  remove those with `delete_position_target/5`. Returns `{:ok, count}`, or
+  `{:error, :plan_archived}` when `plan:` names an archived version
+  (`writable_plan/1`). Leaves the plan row itself in place.
   """
   def delete_target(%Actor{} = actor, portfolio_id, category_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(category_id) do
-    portfolio_id
-    |> scoped_query(opts)
-    |> where([t], t.category_id == ^category_id and is_nil(t.security_id))
-    |> select([t], t)
-    |> Repo.all()
-    |> delete_targets(actor)
+    with :ok <- ensure_writable_ref(opts) do
+      portfolio_id
+      |> scoped_query(opts)
+      |> where([t], t.category_id == ^category_id and is_nil(t.security_id))
+      |> select([t], t)
+      |> Repo.all()
+      |> delete_targets(actor)
+    end
   end
 
   @doc """
   Removes a single **position** target for `(category_id, security_id)` within
   the addressed plan (ADR-0030), on behalf of `actor`. Returns `{:ok, count}`
-  (0 when none existed). The category row and other positions are untouched.
+  (0 when none existed), or `{:error, :plan_archived}` when `plan:` names an
+  archived version (`writable_plan/1`). The category row and other positions are untouched.
   """
   def delete_position_target(%Actor{} = actor, portfolio_id, category_id, security_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(category_id) and is_integer(security_id) do
-    portfolio_id
-    |> scoped_query(opts)
-    |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
-    |> select([t], t)
-    |> Repo.all()
-    |> delete_targets(actor)
+    with :ok <- ensure_writable_ref(opts) do
+      portfolio_id
+      |> scoped_query(opts)
+      |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
+      |> select([t], t)
+      |> Repo.all()
+      |> delete_targets(actor)
+    end
   end
 
   @doc """
@@ -1062,12 +1079,37 @@ defmodule Portfolixir.Portfolios.Targets do
         ensure_plan_journaled(actor, portfolio_id, classification_id, view_id)
 
       plan_id ->
-        with {:ok, plan} <- fetch_plan(plan_id) do
+        with {:ok, plan} <- fetch_plan_for_write(plan_id) do
           if plan.portfolio_id == portfolio_id and plan.classification_id == classification_id do
-            {:ok, plan}
+            with :ok <- writable_plan(plan), do: {:ok, plan}
           else
             {:error, :plan_mismatch}
           end
+        end
+    end
+  end
+
+  # A write that names its version reads the version's status under a share
+  # lock, so an activation in another tab that archives it waits for this
+  # write or is seen by it (#1187).
+  defp fetch_plan_for_write(plan_id) do
+    case Repo.one(from(p in TargetPlan, where: p.id == ^plan_id, lock: "FOR SHARE")) do
+      nil -> {:error, :not_found}
+      plan -> {:ok, plan}
+    end
+  end
+
+  # The plan-addressed writes refuse an archived version (#1187); a write
+  # addressed by view goes to the view's active plan and needs no check.
+  defp ensure_writable_ref(opts) do
+    case plan_ref(opts) do
+      nil ->
+        :ok
+
+      plan_id ->
+        case fetch_plan_for_write(plan_id) do
+          {:ok, plan} -> writable_plan(plan)
+          {:error, :not_found} -> :ok
         end
     end
   end

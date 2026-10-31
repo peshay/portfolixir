@@ -1232,7 +1232,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
               <%= @soll.plan && @soll.plan.name %>
             </span>
           <% end %>
-          <button type="button" class="button" phx-click="duplicate_soll_plan">
+          <button
+            :if={not @soll.archived?}
+            type="button"
+            class="button"
+            phx-click="duplicate_soll_plan"
+          >
             <%= gettext("Duplicate plan") %>
           </button>
           <%= if @soll.plan do %>
@@ -1258,14 +1263,32 @@ defmodule PortfolixirWeb.ClassificationsLive do
               </form>
             </details>
           <% end %>
-          <%= if @soll.editing_version? do %>
+          <%= if @soll.editing_version? and not @soll.archived? do %>
             <button type="button" class="button-primary" phx-click="activate_soll_plan">
               <%= gettext("Activate this plan") %>
             </button>
             <span class="hint" data-role="soll-version-hint">
-              <%= version_hint(@soll.plan.status) %>
+              <%= draft_hint() %>
             </span>
           <% end %>
+        </div>
+        <%!-- #1187 (board 06 ④; ADR-0027 §3, note of 2026-10-08): an
+             archived version steers nothing and is read-only; its two
+             remedies sit inside the note (H6.1), and the context refuses a
+             write into it as the API does. --%>
+        <div :if={@soll.archived?} role="status">
+          <AppShell.data_note severity={:note} data-role="soll-archived-note">
+            <%= gettext(
+              "Archived — this version steers nothing and is read-only; the Wealth page follows the active plan. To change it, activate it or duplicate it as a draft."
+            ) %>
+            <button type="button" class="link-button" phx-click="activate_soll_plan">
+              <%= gettext("Activate") %>
+            </button>
+            ·
+            <button type="button" class="link-button" phx-click="duplicate_soll_plan">
+              <%= gettext("Duplicate as draft") %>
+            </button>
+          </AppShell.data_note>
         </div>
       <% end %>
 
@@ -1347,6 +1370,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                             value={Map.get(@soll.weights, category.id, "")}
                             step="any"
                             inputmode="decimal"
+                            disabled={@soll.archived?}
                             {refused_attrs(@refused, "soll-weight-#{category.id}")}
                           />
                         <% sum -> %>
@@ -1381,6 +1405,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                         value={@soll.position_weights |> Map.get(category.id, %{}) |> Map.get(member.id, "")}
                         step="any"
                         inputmode="decimal"
+                        disabled={@soll.archived?}
                         {refused_attrs(@refused, "soll-position-#{category.id}-#{member.id}")}
                       />
                     </td>
@@ -1434,7 +1459,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
           </div>
 
           <div class="soll-editor__actions">
-            <button type="submit" class="button-primary"><%= gettext("Save plan") %></button>
+            <button :if={not @soll.archived?} type="submit" class="button-primary">
+              <%= gettext("Save plan") %>
+            </button>
             <button
               type="button"
               class="button-danger"
@@ -1446,7 +1473,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           </div>
         </form>
 
-        <%= if @soll.copy_sources != [] do %>
+        <%= if @soll.copy_sources != [] and not @soll.archived? do %>
           <form id="soll-copy-form" phx-change="copy_soll_plan" class="soll-copy" data-no-submit>
             <label class="soll-copy__label" for="soll-copy-from">
               <%= gettext("Copy from another view…") %>
@@ -1880,6 +1907,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
            ) do
       {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
     else
+      # #1187: archived meanwhile (another tab activated a successor); the
+      # context refuses, and the editor reloads on that version, read-only.
+      {:error, :plan_archived} ->
+        %{plan: plan} = socket.assigns.soll
+
+        {:noreply,
+         socket
+         |> failure(plan_archived_error(plan))
+         |> assign(soll_plan_id: plan.id, soll_refused: nil)
+         |> load_soll()}
+
       {:error, reason} ->
         {:noreply,
          socket
@@ -2116,6 +2154,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       plans: plans,
       plan: selected,
       editing_version?: editing_version?,
+      archived?: exists? and selected.status == "archived",
       exists: exists?,
       weights: weights,
       members: position_members(classification_id, stored_positions),
@@ -2929,12 +2968,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # A percentage string ("60", "12.5", "" ) → a `Decimal` fraction in [0, 1], or
   # `nil` for blank. Returns `{:error, :invalid_weight}` for non-numbers.
-  # Status-aware banner for a selected non-active version (Steve UAT: an
-  # archived plan is not a draft).
-  defp version_hint("archived"),
-    do: gettext("Archived — the Wealth page follows the active plan; activate to reuse it.")
-
-  defp version_hint(_status),
+  # The banner for a selected draft; an archived version has its own note
+  # instead (#1187; Steve UAT: an archived plan is not a draft).
+  defp draft_hint,
     do:
       gettext(
         "Draft — the Wealth page keeps following the active plan until this one is activated."
@@ -3164,6 +3200,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
       true ->
         gettext("A target must lie between 0 and 100 %")
     end
+  end
+
+  defp plan_archived_error(plan) do
+    StoredText.isolate(
+      gettext(
+        "Not saved: “%{name}” is archived and steers nothing. Activate it or duplicate it as a draft, then edit.",
+        name: StoredText.slot(:name)
+      ),
+      name: plan.name
+    )
   end
 
   defp cash_target_error(:scale),
