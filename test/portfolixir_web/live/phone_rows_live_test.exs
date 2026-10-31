@@ -169,11 +169,11 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
 
     deposit = row_for(rows, "Deposit")
     assert text(Floki.find(deposit, ".phone-row__ids")) == "Giro"
-    assert text(Floki.find(deposit, ".phone-row__figure")) == "1,500.00 EUR"
+    assert text(Floki.find(deposit, ".phone-row__figure")) == "+1,500.00 EUR"
     assert Floki.find(deposit, ".phone-row__figure2") == []
 
     dividend = row_for(rows, "Dividend")
-    assert text(Floki.find(dividend, ".phone-row__figure")) == "12.50 EUR"
+    assert text(Floki.find(dividend, ".phone-row__figure")) == "+12.50 EUR"
     assert text(Floki.find(dividend, ".phone-row__figure2")) == "50 units"
   end
 

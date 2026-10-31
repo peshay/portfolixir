@@ -144,7 +144,7 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
   #   own same-currency buy) reads its cash: 20 × 48,20 + 1,00 fee reads
   #   −965,00 EUR, not −964,00; the drawer's 10 × 50,00 + 1,00 reads −501,00.
   # - A sell booked without a gross amount reads its proceeds net of fees and
-  #   taxes: 5 × 60,00 − 1,00 − 0,50 reads 298,50, not 300,00.
+  #   taxes: 5 × 60,00 − 1,00 − 0,50 reads +298,50 (#1147), not 300,00.
   # - A buy at price 0 reads "0,00", never "−0,00".
   # - Σ Betrag of the trade rows equals the balance's change: −1.167,50,
   #   from 3.000,00 to 1.832,50.
@@ -164,7 +164,7 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
     assert cell(doc, s.api_buy, "amount") == "-965,00EUR"
     assert cell(doc, drawer_buy, "amount") == "-501,00EUR"
     assert cell(doc, s.zero_buy, "amount") == "0,00EUR"
-    assert cell(doc, s.sell, "amount") == "298,50EUR"
+    assert cell(doc, s.sell, "amount") == "+298,50EUR"
 
     assert cell(doc, s.deposit, "running-balance") == "3.000,00"
     assert cell(doc, s.sell, "running-balance") == "1.832,50"
@@ -258,7 +258,7 @@ defmodule PortfolixirWeb.TransactionHistoryCashMovedTest do
     toggle_account(view, world.cash.id)
     doc = view |> render() |> Floki.parse_document!()
 
-    assert cell(doc, deposit, "amount") == "100,00EUR"
+    assert cell(doc, deposit, "amount") == "+100,00EUR"
     assert cell(doc, buy, "amount") == "-10,00EUR"
     assert cell(doc, write_off, "amount") == "-1,00EUR"
     assert cell(doc, write_off, "running-balance") == "89,00"

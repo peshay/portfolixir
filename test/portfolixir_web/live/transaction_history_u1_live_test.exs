@@ -619,7 +619,7 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
   #
   # Acceptance criteria:
   # - With the chips selecting the transfer's receiving account and not its
-  #   sender, the amount reads 200,00 in the table and on the phone row, and
+  #   sender, the amount reads +200,00 (#1147) in the table and on the phone row, and
   #   the delete dialog's box, which repeats the row, reads it too.
   # - With the sender in view, or no account chip, it reads -200,00.
   test "a cash transfer reads from the side of the account in view", %{conn: conn} do
@@ -671,8 +671,8 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
     assert phone.(view) == "-200,00 EUR"
 
     toggle.(view, savings.cash)
-    assert amount.(view) == "200,00 EUR"
-    assert phone.(view) == "200,00 EUR"
+    assert amount.(view) == "+200,00 EUR"
+    assert phone.(view) == "+200,00 EUR"
 
     assert has_element?(
              view,
@@ -691,7 +691,7 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
       |> Floki.parse_fragment!()
       |> text()
 
-    assert box == "200,00 EUR"
+    assert box == "+200,00 EUR"
     view |> element("[data-role='booking-delete-cancel']") |> render_click()
 
     # Both accounts in view: the sender's side, as the Konto cell names it

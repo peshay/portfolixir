@@ -519,7 +519,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 - **The three accent variants** — {colors.accent-violet} / {colors.accent-teal} / {colors.accent-coral} (light), {colors.accent-violet-dark} / {colors.accent-teal-dark} / {colors.accent-coral-dark} (dark) — are mutually exclusive. `--color-accent` resolves to exactly one of them via `[data-accent]`; violet is the default. Each has a `-soft` companion used for selected rows, active-nav washes, and notes. The accent means "interactive / current / yours" — it colors the chart line, the active nav marker, focus outlines, and unsigned stat numbers.
 - **The brand gradient stops** ({colors.brand-violet-1} → {colors.brand-teal-1} → {colors.brand-coral-1}) appear *together* in exactly one place: the 3px top bar of `.stat` cards. They are the only moment all three logo colors coexist; keep it that rare.
 - **Semantic colors** are accent-independent: {colors.positive} for gains, {colors.danger} for losses and destructive actions, {colors.warning} for caution states, {colors.tx-buy} / {colors.tx-sell} for transaction markers on charts. **Gain/loss color never re-keys with the accent — money semantics outrank brand.**
-- **Semantic color applies wherever a sign exists**, at every level of a table — data rows, subtotals and totals alike. A negative row and a negative total are the same fact at different granularity and must look like it.
+- **Semantic color applies wherever a sign exists**, at every level of a table — data rows, subtotals and totals alike. A negative row and a negative total are the same fact at different granularity and must look like it. *Amended 2026-10-31 (Sprint 21 γ3, issue 1147, pick N10 A):* the sign meant is a gain or a loss; a flow's sign is a direction and stays uncoloured (the contribution table, the transaction history).
 - **{colors.logo-plate} is constant white in every theme** by design (issue 449): the plate behind real image logos does not follow the theme. **{colors.on-accent} no longer is** — amended 2026-08-05 (designer): white on the three dark accent fills measures 1.86–2.72:1, so the token is light `#ffffff` / dark {colors.on-accent-dark}. See the computed table below.
 - **Surfaces** layer tonally: {colors.bg} canvas → {colors.bg-elevated} panels/inputs → {colors.bg-muted} table heads and wells. The sidebar has its own near-white violet-tinted surface ({colors.sidebar}) with a gradient sheen. Dark mode mirrors the whole stack on a blue-black ramp ({colors.bg-dark} → {colors.bg-elevated-dark} → {colors.bg-muted-dark}).
 - **Text** has four steps, two of which may carry content: {colors.text} (primary) and {colors.text-muted} (secondary — the floor for anything readable). {colors.text-subtle} is for **disabled states and pure decoration only** — at 2.47:1 in light mode it must never convey content; readable tertiary content uses {colors.text-muted}. {colors.text-soft} is a violet-leaning decorative step, never body copy (3.48:1 light).
@@ -1472,11 +1472,23 @@ components invented for it:
   with the sidebar open, 768 px).
 - **A transfer's sign is the account in view's.** With the account chips
   selecting a transfer's receiving account and not its sender, the row reads
-  the money arriving ("200,00", as the running balance beside it rises by
+  the money arriving ("+200,00", as the running balance beside it rises by
   200), on the phone row and in the delete dialog's box too; otherwise it
   reads from the sender ("-200,00"), the account the Konto cell names first.
-  Positive amounts still carry no "+" and history rows no sign colour; that
-  gap against the Accessibility Floor is its own story.
+- **The Betrag is a flow, signed and uncoloured** *(Sprint 21 γ3, issue
+  1147; board `mockups/ux-design-2026-10-09/03-history-drawer`, pick N10
+  A)*. Every inflow carries an explicit "+" ("+12,40" a tax refund,
+  "+1.500,00" a deposit) and every outflow its "-" ("-4,90" a fee), in the
+  cell, the phone row and the delete dialog's box, through
+  `Format.signed_decimal/2`; `signed_money/3` keeps deciding the direction
+  (the kind, a transfer's side). No sign class colours the cell or the phone
+  row: a flow's sign is a direction, not a gain (the contribution table's
+  rule), so a buy does not read as a loss nor a deposit as a gain. The sign
+  is the text carrier the Accessibility Floor asks for and reads the same in
+  forced colours. A zero is unsigned ("0,00"); a set balance is a level and
+  keeps its stored sign, unsigned when positive ("3.250,00"); a booking that
+  moves no cash (a delivery, a security transfer) has no direction in a cash
+  account and keeps its bare figure.
 - **The Betrag is the cash the row moved in its account** *(Sprint 21 α11,
   issue 1209; board `mockups/ux-design-2026-10-09/03-history-drawer`)*. The
   cell, the phone row, the delete dialog's box and the filter summary read

@@ -478,8 +478,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                       </span>
                     </span>
                     <span class="phone-row__figures">
-                      <span class="phone-row__figure"><%= phone_amount(transaction, @filters["account_ids"]) %></span>
-                      <span :if={phone_size(transaction)} class="phone-row__figure2">
+                      <span class="phone-row__figure" data-role="phone-amount"><%= phone_amount(transaction, @filters["account_ids"]) %></span>
+                      <span :if={phone_size(transaction)} class="phone-row__figure2" data-role="phone-size">
                         <%= phone_size(transaction) %>
                       </span>
                       <span
@@ -1997,18 +1997,33 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # account chips selecting its receiving account and not its sender, the
   # money arrives — as the running balance beside it says. Otherwise, the
   # sender first as the Konto cell names it, it leaves.
+  #
+  # #1147 (board 03, pick N10 A): a flow states its direction in text, "+"
+  # on every inflow and "-" on every outflow, and takes no gain/loss colour —
+  # a flow's sign is a direction, not a gain (the contribution table's rule).
+  # A figure that rounds to zero carries no sign (`Format.signed_decimal/2`).
+  # A booking that moves no cash (a delivery, a security transfer) has no
+  # direction in a cash account and keeps its bare figure, as a level does.
+  defp signed_money(%{type: "balance_adjustment"}, %Decimal{} = amount, _account_ids),
+    do: PortfolixirWeb.Format.money(amount)
+
   defp signed_money(%{type: "cash_transfer"} = transaction, %Decimal{} = amount, account_ids) do
     if receiving_view?(transaction, account_ids),
-      do: PortfolixirWeb.Format.money(amount),
-      else: PortfolixirWeb.Format.money(outflow(amount))
+      do: flow(amount),
+      else: flow(outflow(amount))
   end
 
   defp signed_money(%{type: type}, %Decimal{} = amount, _account_ids)
        when type in @outflow_kinds,
-       do: PortfolixirWeb.Format.money(outflow(amount))
+       do: flow(outflow(amount))
 
-  defp signed_money(_transaction, %Decimal{} = amount, _account_ids),
-    do: PortfolixirWeb.Format.money(amount)
+  defp signed_money(transaction, %Decimal{} = amount, _account_ids) do
+    if cash_moved(transaction),
+      do: flow(amount),
+      else: PortfolixirWeb.Format.money(amount)
+  end
+
+  defp flow(amount), do: PortfolixirWeb.Format.signed_decimal(amount, 2)
 
   # A zero leaves nothing, so it carries no minus: a buy at price 0 reads
   # "0,00", never "-0,00" (#1209).

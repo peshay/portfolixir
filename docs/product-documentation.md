@@ -1106,13 +1106,15 @@ dash rather than repeating the previous row's figure.
 Each row's **Amount** is the cash the booking moved in its cash account,
 in that account's currency (issue #1209): a buy's fees and taxes are in it,
 a sell's are taken off it, however the booking was entered, so the amounts
-of one account add up to its balance's change. What leaves the account is
-negative, what arrives positive, a zero carries no sign, and a set balance
-shows the level it set. A booking that moves no cash — a delivery, a
-security transfer — shows its quantity × price in the booking's currency.
+of one account add up to its balance's change. What leaves the account
+carries a "-", what arrives an explicit "+" ("+12.40" a tax refund, "-4.90"
+a fee; issue #1147), and neither is coloured: the sign is a direction, not
+a gain or a loss. A zero carries no sign, and a set balance shows the level
+it set, unsigned. A booking that moves no cash — a delivery, a security
+transfer — shows its quantity × price in the booking's currency, unsigned.
 A **cash transfer** moves two accounts, so its sign is the one in view's:
 while the chips select its receiving account and not its sender it reads
-as money arriving ("200.00", as the Balance beside it rises by 200);
+as money arriving ("+200.00", as the Balance beside it rises by 200);
 otherwise it reads from the sender ("-200.00").
 
 The summary above the table states the counts and the cash moved per kind, the

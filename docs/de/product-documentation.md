@@ -1215,14 +1215,17 @@ Der **Betrag** jeder Zeile ist das Geld, das die Buchung auf ihrem
 Verrechnungskonto bewegt hat, in dessen Währung (Issue #1209): Gebühren und
 Steuern eines Kaufs sind darin enthalten, die eines Verkaufs abgezogen, wie
 auch immer die Buchung erfasst wurde, sodass die Beträge eines Kontos sich
-zur Änderung seines Saldos addieren. Was das Konto verlässt, ist negativ, was
-ankommt, positiv, eine Null trägt kein Vorzeichen, und ein gesetzter Saldo
-zeigt den Stand, den er setzt. Eine Buchung, die kein Geld bewegt — eine
-Einlieferung, eine Wertpapierumbuchung —, zeigt Stückzahl × Preis in der
-Währung der Buchung. Eine **Umbuchung** bewegt zwei
+zur Änderung seines Saldos addieren. Was das Konto verlässt, trägt ein „-“,
+was ankommt, ein ausdrückliches „+“ („+12,40“ eine Steuererstattung, „-4,90“
+Gebühren; Issue #1147), und keines von beiden ist eingefärbt: Das
+Vorzeichen ist eine Richtung, kein Gewinn oder Verlust. Eine Null trägt kein
+Vorzeichen, und ein gesetzter Saldo zeigt den Stand, den er setzt, ohne
+Vorzeichen. Eine Buchung, die kein Geld bewegt — eine Einlieferung, eine
+Wertpapierumbuchung —, zeigt Stückzahl × Preis in der Währung der Buchung,
+ohne Vorzeichen. Eine **Umbuchung** bewegt zwei
 Konten, also trägt sie das Vorzeichen des Kontos im Blick: Solange die Chips
 ihr Empfängerkonto auswählen und nicht ihr Senderkonto, liest sie sich als
-ankommendes Geld („200,00“, wie der Saldo daneben um 200 steigt); sonst aus
+ankommendes Geld („+200,00“, wie der Saldo daneben um 200 steigt); sonst aus
 Sicht des Senders („-200,00“).
 
 Die Zusammenfassung über der Tabelle nennt Anzahl und bewegtes Geld je Art,

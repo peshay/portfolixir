@@ -134,9 +134,21 @@ defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
         date: ~D[2026-10-08]
       })
 
+    delivery =
+      book!(%{
+        type: "outbound_delivery",
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: larkspur.id,
+        quantity: "2",
+        price: "41",
+        date: ~D[2026-10-08]
+      })
+
     %{
       world: world,
       savings: savings,
+      delivery: delivery,
       level: level,
       deposit: deposit,
       transfer: transfer,
@@ -163,7 +175,9 @@ defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
   #   (deposit), "-4,90 EUR" (fee), "-964,90 EUR" (buy with its fee) and
   #   "-200,00 EUR" (the transfer, from its sender).
   # - A buy at 0,00 reads "0,00 EUR", with no sign; the set balance is a
-  #   level and reads "3.250,00 EUR", with no sign.
+  #   level and reads "3.250,00 EUR", with no sign; an outbound delivery
+  #   moves no cash, so no account sees a direction, and it keeps its bare
+  #   figure "82,00 EUR".
   # - No amount cell and no phone amount carries a gain/loss colour class
   #   (`is-positive`, `is-negative`).
   # - The phone row's amount and the delete dialog's box read the same
@@ -184,7 +198,8 @@ defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
       {o.buy, "-964,90 EUR"},
       {o.transfer, "-200,00 EUR"},
       {o.zero_buy, "0,00 EUR"},
-      {o.level, "3.250,00 EUR"}
+      {o.level, "3.250,00 EUR"},
+      {o.delivery, "82,00 EUR"}
     ]
 
     for {tx, figure} <- expected do
