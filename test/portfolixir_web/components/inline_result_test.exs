@@ -44,4 +44,70 @@ defmodule PortfolixirWeb.Components.InlineResultTest do
     assert region_children(problem, "status") == 0
     assert region_children(problem, "alert") == 1
   end
+
+  # User story (#1166, Sprint 21 γ8; board 08, N13 = A):
+  # As the operator dismissing an action's answer with the keyboard,
+  # I want the focus to go back to the control that produced it, else to the
+  # section's heading,
+  # so that the next Tab continues where I was, not at the top of the page.
+  #
+  # Acceptance criteria:
+  # - The slot is served by the `InlineResult` hook and carries its targets:
+  #   `data-focus-return` (a trigger the page names, optional) and
+  #   `data-focus-fallback` (the section's heading, else the toolbar's first
+  #   control); a slot that names neither carries neither attribute.
+  # - The dismiss keeps its accessible name ("Dismiss") and is the one
+  #   control the hook answers (`data-role="result-dismiss"`).
+  test "the slot carries the dismiss's focus targets for its hook" do
+    html =
+      render_slot(%{
+        id: "slot",
+        result: {:note, "Saved"},
+        focus_return: "#save-button",
+        focus_fallback: "#section-heading"
+      })
+
+    slot = html |> LazyHTML.from_fragment() |> LazyHTML.query("#slot")
+    assert LazyHTML.attribute(slot, "phx-hook") == ["InlineResult"]
+    assert LazyHTML.attribute(slot, "data-focus-return") == ["#save-button"]
+    assert LazyHTML.attribute(slot, "data-focus-fallback") == ["#section-heading"]
+
+    dismiss =
+      html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#slot-status button[data-role='result-dismiss']")
+
+    assert LazyHTML.attribute(dismiss, "aria-label") == ["Dismiss"]
+    assert LazyHTML.attribute(dismiss, "type") == ["button"]
+
+    bare = render_slot(%{id: "slot", result: nil})
+    refute bare =~ "data-focus-return"
+    refute bare =~ "data-focus-fallback"
+    assert bare =~ ~s(phx-hook="InlineResult")
+  end
+
+  # Acceptance criteria (the hook, `Hooks.InlineResult` in the layout):
+  # - Only the dismiss moves the focus, and it moves it on the click, before
+  #   the server removes the note and the focused button with it.
+  # - The target is the first on the page and visible of: the page's named
+  #   return, the control that had the focus when the result arrived (or the
+  #   control last activated, when the focus sat on the slot or <body>); else
+  #   the fallback. Never <body> (WCAG 2.4.3).
+  test "the InlineResult hook gives the focus back on a dismiss" do
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.InlineResult = {")
+      |> Enum.at(1, "")
+      |> String.split("\n            };\n")
+      |> hd()
+
+    assert hook =~ ~s{getAttribute("data-focus-return")}
+    assert hook =~ ~s{getAttribute("data-focus-fallback")}
+    assert hook =~ ~s{[data-role='result-dismiss']}
+    assert hook =~ "document.activeElement"
+    assert hook =~ "getClientRects().length"
+    assert hook =~ "isConnected"
+    assert hook =~ ".focus("
+  end
 end

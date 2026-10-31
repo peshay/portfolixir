@@ -61,6 +61,32 @@ defmodule Portfolixir.Invariants.CssSharedComponentsTest do
              ~r/margin:\s*12px 0 0;/
   end
 
+  # User story (#1166, Sprint 21 γ8; board 08, N13 = A, rules ① and ②):
+  # As the operator moving through a result with the keyboard,
+  # I want the dismiss and the heading the focus falls back to to draw the
+  # house's 2 px accent ring,
+  # so that neither shows the browser's own `auto 1px` ring, and a heading
+  # brought into view stops below the sticky top bar.
+  #
+  # Acceptance criteria:
+  # - ① `.inline-result__dismiss:focus-visible`: 2px solid accent, 2px offset
+  #   (the button family's rule, issue 1062).
+  # - ② `.result-focus-fallback`: a scroll margin below the sticky top bar;
+  #   its `:focus-visible` the house ring with `{rounded.sm}` corners.
+  test "the dismiss and its fallback heading draw the house ring" do
+    dismiss = block(".inline-result__dismiss:focus-visible")
+    assert dismiss =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert dismiss =~ ~r/outline-offset:\s*2px;/
+
+    assert block(".result-focus-fallback") =~
+             ~r/scroll-margin-top:\s*calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
+
+    heading = block(".result-focus-fallback:focus-visible")
+    assert heading =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert heading =~ ~r/outline-offset:\s*2px;/
+    assert heading =~ ~r/border-radius:\s*var\(--radius-sm\);/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

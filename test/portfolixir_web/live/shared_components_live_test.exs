@@ -75,4 +75,51 @@ defmodule PortfolixirWeb.SharedComponentsLiveTest do
     assert has_element?(snapshots, "#snapshots-action-result.inline-result")
     refute has_element?(snapshots, "#snapshots-action-result .inline-result__region > *")
   end
+
+  # User story (#1166, Sprint 21 γ8; board 08, N13 = A):
+  # As the operator dismissing a page's answer with the keyboard,
+  # I want the focus to fall back to the section's heading when the control
+  # that produced the answer is gone,
+  # so that it never drops to the page body.
+  #
+  # Acceptance criteria:
+  # - Every page's slot names a fallback that is on the page: the section's
+  #   heading (`tabindex="-1"`, `.result-focus-fallback`), and on Securities,
+  #   which has no section heading, the toolbar's first control, the search
+  #   field; the Quotes tab's release result falls back to the tab itself.
+  # - The history keeps its delete's landing, `#transaction-history-heading`.
+  test "every result slot names a fallback that is on the page", %{conn: conn} do
+    WorldFixtures.base_world(name: "Shared", currency: "EUR")
+    security = security!("Larkspur Rail AG")
+
+    # {page, slot, fallback, whether the fallback is a heading}
+    pages = [
+      {"/portfolios", "accounts-result", "#accounts-heading", true},
+      {"/securities", "securities-action-result", "#securities-search", false},
+      {"/securities/#{security.id}?tab=quotes", "quotes-release-result", "#detail-tab-quotes",
+       false},
+      {"/snapshots", "snapshots-action-result", "#snapshots-heading", true},
+      {"/transactions", "transactions-result", "#transaction-history-heading", true},
+      {"/buckets", "buckets-result", "#views-heading", true},
+      {"/risk", "policy-rules-result", "#policy-rules-title", true},
+      {"/classifications/new", "classifications-result", "#classification-create-heading", true}
+    ]
+
+    for {path, slot, fallback, heading?} <- pages do
+      {:ok, view, _html} = live(conn, path)
+
+      assert has_element?(
+               view,
+               "##{slot}[phx-hook='InlineResult'][data-focus-fallback='#{fallback}']"
+             ),
+             "#{path}: ##{slot} names no fallback #{fallback}"
+
+      assert has_element?(view, fallback), "#{path}: #{fallback} is not on the page"
+
+      if heading? do
+        assert has_element?(view, "#{fallback}.result-focus-fallback[tabindex='-1']"),
+               "#{path}: #{fallback} cannot take the focus"
+      end
+    end
+  end
 end
