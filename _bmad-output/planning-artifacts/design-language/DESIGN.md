@@ -1560,7 +1560,9 @@ components invented for it:
   (ADR-0015's amendment), so "100,00 USD" beside "-806,00 EUR" and "88,10
   EUR" for the same USD security are each right without the reader
   comparing figures. A split's ratio and a dash (a dividend, a split's
-  Price cell) carry no suffix.
+  Price cell) carry no suffix — on the security's Transaktionen tab too,
+  whose Preis already named the booking's currency and printed "— USD" on
+  a row with no price.
 - **`.phone-row__ids` breaks anywhere** (`overflow-wrap: anywhere`): a stored
   name with no break opportunity wraps inside its phone row instead of
   running over the figures and off a 390 px screen. Its text is the flex

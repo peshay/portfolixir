@@ -2057,10 +2057,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <td class="num"><%= Format.decimal(tx.quantity, 4) %></td>
                     <%!-- The history's stored-digits rule (R10c, amended
                          2026-10-07): every stored digit up to four places,
-                         so one booking reads the same here and there. --%>
+                         so one booking reads the same here and there. Its
+                         currency rule too (#1148, pick N11 A): a dash
+                         carries no suffix. --%>
                     <td class="num" data-role="price">
                       <%= PortfolixirWeb.TransactionManagementLive.stored_figure(tx.price) %>
-                      <small><%= tx.currency_code %></small>
+                      <small :if={tx.price}><%= tx.currency_code %></small>
                     </td>
                     <%!-- #1213 (board 09, N9 variant A): a cross-currency
                          row names each figure's currency — the fees and
