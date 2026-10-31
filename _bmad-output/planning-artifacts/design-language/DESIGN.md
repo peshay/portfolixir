@@ -5630,10 +5630,14 @@ image-URL bullet and its status sentence.
   missing. Upload the image again, or remove the logo." (de "Die
   gespeicherte Logodatei fehlt. Das Bild erneut hochladen oder das Logo
   entfernen.").
-- **The source is a word** (found while drawing 1, Voice and Tone): "Current
-  logo source: manually uploaded" for the manual source, "found
-  automatically" for every discovery adapter; the stored adapter name never
-  reaches the sentence, and a meta-test keeps it so.
+- **The source is a word** (found while drawing 1, Voice and Tone): a logo
+  discovery stored reads "Current logo source: found automatically"
+  (de "Aktuelle Logo-Quelle: automatisch gefunden") for every adapter; the
+  stored adapter name never reaches the sentence, and a meta-test keeps it
+  so. A manual logo, uploaded here or set over the API, is always locked and
+  reads "A manual logo is set (discovery will not overwrite it)." as before;
+  the label "manually uploaded" exists for a manual source without the lock,
+  which no current write leaves, so the sentence never prints the raw value.
 - **The API keeps its URL path** (`PUT /api/v1/securities/:id/logo`, under
   the outbound policy): the upload is a screen path the API does not offer,
   as the coverage rule allows; a manual logo as bytes over the API and MCP
