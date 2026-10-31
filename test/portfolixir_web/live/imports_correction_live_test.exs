@@ -1565,6 +1565,53 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "On Test-Cash, the set balance of 2026-07-01 absorbs 25.00 EUR of the 50.00 EUR: its balance changes by -25.00 EUR."
     end
 
+    # User story (#1194, Sprint 21 α7; ADR-0053 A11, K22):
+    # As the operator confirming the correction of a JSON sale whose cash
+    # agrees with the file and whose price does not,
+    # I want the result line to say that the price was corrected and the
+    # cash kept,
+    # so that it never reads "One booking corrected: ." with nothing named.
+    #
+    # Acceptance criteria:
+    # - K22's sale, stored with the file's cash and the price 12.50 by no
+    #   other actor's edit: the confirm writes the price (10.00), and the result
+    #   reads "One booking corrected: the price, the cash kept. The journal
+    #   keeps the previous price."; in German "Eine Buchung korrigiert: der
+    #   Kurs, der Betrag bleibt. Das Journal hält den bisherigen Kurs."
+    test "K22: a price-only confirm says the price was corrected", %{conn: conn} do
+      assert price_only_result(conn) ==
+               "Note One booking corrected: the price, the cash kept. The journal keeps the previous price. ×"
+    end
+
+    test "K22: a price-only confirm says so in German", %{conn: conn} do
+      assert price_only_result(german(conn)) ==
+               "Hinweis Eine Buchung korrigiert: der Kurs, der Betrag bleibt. Das Journal hält den bisherigen Kurs. ×"
+    end
+
+    # K22's sale stored with the file's cash and the price 12.50, by no other
+    # actor's edit; the page re-drops the file and confirms its correction.
+    defp price_only_result(conn) do
+      body = sales_json([{"2026-06-15", "15:30"}], 10)
+      portfolio = portfolio!()
+      apply_as_read_today!(portfolio, body, "history.json")
+
+      sale =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.find(&(&1.type == "sell"))
+
+      {:ok, _} = Ledger.update_transaction(Actor.import_session(), sale, %{price: "12.50"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "history.json", body, "application/json")
+      view |> element("#import-correction-open") |> render_click()
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view, 1_000)
+
+      assert Decimal.equal?(Repo.get!(Transaction, sale.id).price, Decimal.new("10.00"))
+      text(view, "#import-correction-result [role='status']")
+    end
+
     # K17's transfer (ADR-0053 K20): 100.00 from Test-Cash to Test-Savings
     # with a tax unit of -5.00, after a deposit of 1,000.00.
     @k20_json """
