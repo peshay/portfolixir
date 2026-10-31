@@ -9,6 +9,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   alias Mix.Tasks.Portfolixir.BackfillSettlementLegs
   alias Portfolixir.Actor
   alias Portfolixir.Fx
+  alias Portfolixir.Interleave
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.SettlementBackfill
@@ -346,5 +347,70 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
 
     assert Enum.map(untouched, &legs(Ledger.get_transaction(&1.id))) == before
     assert journal_entries(Enum.map(untouched, & &1.id)) == journaled_before
+  end
+
+  # The backfill's candidate read: the one query on transactions that joins
+  # the cash accounts and takes no lock.
+  defp candidate_read?(%{source: "transactions", query: query}),
+    do: query =~ "cash_accounts" and not (query =~ "FOR")
+
+  defp candidate_read?(_metadata), do: false
+
+  # User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09,
+  # point 6, review round B1):
+  # As the operator who enters the broker's legs on an imported booking
+  # while a history backfill runs,
+  # I want the backfill to leave a booking alone once it carries a leg,
+  # even when it read the booking as legless a moment earlier,
+  # so that the broker's rate I typed is never replaced by the hub's.
+  #
+  # Acceptance criteria:
+  # - An owner edit storing 800.00 EUR, 1,012.66 USD and 0.790000 on the
+  #   legless buy, committed right after the backfill read its candidates,
+  #   keeps all three; the backfill derives nothing, counts the row in
+  #   skipped_changed, and journals nothing under settlement_backfill.
+  test "a leg stored after the candidate read is never overwritten" do
+    w = world()
+
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "buy",
+        date: ~D[2026-01-16],
+        quantity: "10",
+        price: "80.00",
+        fees: "5.00",
+        taxes: "1.00",
+        gross_amount: "806.00",
+        currency_code: "EUR"
+      })
+
+    seed_rate!(~D[2026-01-16], "1.25")
+
+    broker_legs = fn ->
+      Ledger.update_transaction(Actor.owner_ui(), Ledger.get_transaction(tx.id), %{
+        settlement_amount: "800.00",
+        security_amount: "1012.66",
+        settlement_fx_rate: "0.790000"
+      })
+    end
+
+    {result, {:ok, _edited}} =
+      Interleave.run(&candidate_read?/1, broker_legs, fn ->
+        SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+      end)
+
+    assert {:ok, %{updated: 0, skipped_no_rate: 0, skipped_changed: 1}} = result
+
+    stored = Ledger.get_transaction(tx.id)
+    assert Decimal.to_string(stored.settlement_amount) == "800.000000"
+    assert Decimal.to_string(stored.security_amount) == "1012.660000"
+    assert Decimal.to_string(stored.settlement_fx_rate) == "0.790000"
+
+    assert [%{actor_label: nil}] =
+             journal_entries([tx.id]) |> Enum.filter(&(&1.operation == :update))
   end
 end
