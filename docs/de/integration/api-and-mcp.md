@@ -701,7 +701,9 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     Ziels über die zusammengeführten Buchungen danach, und die Änderung
     (`change`); `open_lots` den Einstand der offenen Posten ebenso;
     `unmatched_sells` die Verkäufe, die kein Posten deckt, je Seite;
-    `unchanged` ist wahr, wenn sich keine Zahl bewegt. Beträge stehen in der
+    `unchanged` ist wahr, wenn sich kein realisierter Betrag und kein
+    offener Einstand ändert — welchen Posten ein Verkauf schließt, und mit
+    ihm Haltedauern und annualisierte Renditen, kann sich dennoch ändern. Beträge stehen in der
     Währung jedes Trades, nie umgerechnet; `fifo_basis` nennt die Regel.
     `realized_result` in `positions` ist das Ergebnis des Depots nach
     gleitendem Durchschnitt, nicht diese Zahl.

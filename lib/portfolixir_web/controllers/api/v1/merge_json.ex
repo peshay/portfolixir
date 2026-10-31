@@ -133,7 +133,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                 "unless a booking was priced in another, never converted; the realized-gains " <>
                 "read converts them at each close date. unmatched_sells: the sells no lot " <>
                 "covers, per side. Realized and open cost change by the same amount unless a " <>
-                "sell no lot covered before is matched after. unchanged: no figure moves."
+                "sell no lot covered before is matched after. unchanged: no realized amount and no " <>
+                "open cost moves; which lot a sale closes, and with it holding periods and " <>
+                "annualized returns, may."
 
   @security_reimport_note "After the merge every identity of the source resolves to the target: " <>
                             "its ISIN, as the target's ISIN or as a former ISIN of the target " <>

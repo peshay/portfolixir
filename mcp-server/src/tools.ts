@@ -3050,19 +3050,20 @@ const declaredTools: DeclaredTool[] = [
       "the key_equal_pairs (a source booking whose day, kind, depot, cash account and amounts equal a target " +
       "booking's); the splits that collapse or move and the split events after; position_buckets per depot; quotes " +
       "(source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the " +
-      "target's wins; manual_collisions, colliding source quotes typed by hand, with both closes); " +
+      "target's wins; manual_collisions, those typed by hand, with both closes); " +
       "configuration (category_assignments and position_targets, each with its action: move, or drop with the " +
-      "reason collides or stale); events (moved, and possible_duplicates of the same kind on the " +
-      "same day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
+      "reason collides or stale); events (moved; possible_duplicates, same kind and " +
+      "day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
       "adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset " +
       "class and former ISINs; adopted, what the target takes from the source; differences, every source value " +
       "that follows the target instead, a WKN or ticker the catalog refuses among them); reverse, whether merging the other way would pass; and " +
       "outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, " +
       "cost_basis, avg_cost and realized_result (moving-average) of both before and of the target after " +
       "(positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues " +
-      "restates: per close year source, target, after and change, open_lots' cost alike, unchanged (fifo_basis); " +
-      "rounding_differences; the cash accounts a collapsed booking changes. Show the operator the outcomes " +
-      "of both choices; the choices are theirs. Quantities, closes, weights and decimals are strings. A pair that " +
+      "restates: per close year source, target, after and change, open_lots' cost alike, unchanged (no realized amount and no open cost moves; which lot a sale closes " +
+      "may), fifo_basis; " +
+      "rounding_differences; the cash accounts a collapsed booking changes. Show both outcomes; the " +
+      "choices are the operator's. Quantities, closes, weights, decimals: strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +

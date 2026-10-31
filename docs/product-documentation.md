@@ -366,8 +366,9 @@ the merge does:
   security, across every depot. Once the two securities are one, a sale can
   close the other's older lot, so the realized gains of a close year, and
   the cost still open, can change; the preview's *Realized gains (FIFO)*
-  block states them per close year, or says in one line that they do not
-  change.
+  block states them per close year, or says in one line that no realized
+  amount and no open cost moves (which lot a sale closes, and with it
+  holding periods and annualized returns, may still change).
 - **Quotes** fill the gaps of the security you keep; on a day both have a
   quote, the kept security's wins. A close you typed by hand that would be
   dropped this way is listed first. The dropped closes stay in the merge

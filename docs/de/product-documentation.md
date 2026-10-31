@@ -404,8 +404,10 @@ Kennzeichen. Was die Zusammenführung tut:
   kann ein Verkauf den älteren Posten des anderen schließen; die
   realisierten Gewinne eines Abschlussjahres und der noch offene Einstand
   können sich also ändern. Der Block *Realisierte Gewinne (FIFO)* der
-  Vorschau nennt sie je Abschlussjahr oder sagt in einer Zeile, dass sie
-  sich nicht ändern.
+  Vorschau nennt sie je Abschlussjahr oder sagt in einer Zeile, dass sich
+  kein realisierter Betrag und kein offener Einstand ändert (welchen Posten
+  ein Verkauf schließt, und mit ihm Haltedauern und annualisierte Renditen,
+  kann sich dennoch ändern).
 - **Kurse** füllen die Lücken des Wertpapiers, das bleibt; an einem Tag, an
   dem beide einen Kurs haben, gewinnt der des bleibenden. Ein von Hand
   erfasster Schlusskurs, der so entfiele, wird vorher aufgeführt. Die

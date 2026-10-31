@@ -2911,10 +2911,15 @@ records only what the security adds.
   the same amount unless a sale no lot covered before is covered afterwards,
   the proceeds staying. The change column is tabular
   (`td.merge-fifo__change`). A row in another currency than the security's
-  names it after its label. **Unchanged state:** where no figure moves the
-  block is one `.merge-basis` line, "Realized gains (FIFO) do not change." /
-  "Realisierte Gewinne (FIFO) ändern sich nicht.", in place of the head and
-  the table. The figures follow the equal bookings' choice, as the holdings
+  names it after its label. **Unchanged state:** where no realized amount
+  and no open cost moves the block is one `.merge-basis` line, "Realized
+  gains (FIFO): no realized amount and no open cost moves; which lot a sale
+  closes, and with it holding periods and annualized returns, may." /
+  "Realisierte Gewinne (FIFO): Kein realisierter Betrag und kein offener
+  Einstand ändert sich; welchen Posten ein Verkauf schließt, und mit ihm
+  Haltedauern und annualisierte Renditen, kann sich ändern.", in place of
+  the head and the table. It says what it compares — sums — and not that
+  nothing moves: the source's lot can stand open in the target's place. The figures follow the equal bookings' choice, as the holdings
   do. "Open positions" is the Trades tab's own term ("Open positions
   (FIFO)" / "Offene Positionen (FIFO)"), reused with "(cost)" rather than
   the board's new "Offene Posten" (board 04, found while drawing 2).

@@ -624,7 +624,9 @@ confirms with the same `plan_digest`, so both see the same plan.
     closes no trade that year), of the target over the merged rows after,
     and the `change`; `open_lots` the open lots' cost likewise;
     `unmatched_sells` the sells no lot covers, per side; `unchanged` is
-    true when no figure moves. Amounts are in each trade's currency, never
+    true when no realized amount and no open cost moves — which lot a sale
+    closes, and with it holding periods and annualized returns, may still
+    change. Amounts are in each trade's currency, never
     converted; `fifo_basis` states the rule. `realized_result` in
     `positions` is the depot's moving-average result, not this figure.
 

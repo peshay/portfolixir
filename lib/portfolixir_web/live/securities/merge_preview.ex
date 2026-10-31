@@ -288,7 +288,9 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     ~H"""
     <div class="merge-fifo" data-role="merge-fifo">
       <%= if @fifo.unchanged do %>
-        <p class="merge-basis"><%= gettext("Realized gains (FIFO) do not change.") %></p>
+        <p class="merge-basis"><%= gettext(
+            "Realized gains (FIFO): no realized amount and no open cost moves; which lot a sale closes, and with it holding periods and annualized returns, may."
+          ) %></p>
       <% else %>
         <h3 class="merge-block-head"><%= gettext("Realized gains (FIFO)") %></h3>
         <div class="data-table-wrapper merge-wide">

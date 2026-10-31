@@ -45,7 +45,9 @@ defmodule Portfolixir.Lifecycle.MergeFifo do
   and `change`, after less the two before), `open_lots` (per currency: the
   open lots' cost of each side and the change), `unmatched_sells` (the
   number of sells no lot covers, per side) and `unchanged` — true when no
-  figure moves.
+  realized amount, no open cost and no count of uncovered sells moves.
+  It compares sums: which lot a sale closes, and with it holding periods and
+  annualized returns, may still change.
   """
   @spec restatement([struct()], [struct()], [struct()], %{source: String.t(), target: String.t()}) ::
           map()
