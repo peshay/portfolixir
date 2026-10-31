@@ -1570,8 +1570,9 @@ Beispiel-Antwort für Kurssynchronisierung:
     entnommen hat, und `null`, wo dieser Kurs oder diese Kosten nicht
     ableitbar sind. Die realisierten Gewinne nach FIFO
     (`GET /api/v1/realized_gains`, die Trades eines Wertpapiers) ändern sich
-    bei einer Depot-Zusammenführung nicht: Die FIFO-Reihe gehört dem
-    Wertpapier, nicht dem Depot;
+    bei einer Depot-Zusammenführung nicht, außer gleiche Buchungen werden als
+    Duplikate entfernt, was sie aus der Reihe nimmt: Die FIFO-Reihe gehört
+    dem Wertpapier, nicht dem Depot;
     `rounding_differences` nennt je Position und Split-Datum jeden Split
     eines betroffenen Wertpapiers, bei dem die gemeinsam einmal gerundete
     Position am Ende des Split-Tags von den zwei getrennt gerundeten

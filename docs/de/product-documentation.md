@@ -883,8 +883,9 @@ einem Dialog:
    Ergebnis des Depots nach gleitendem Durchschnitt — vorher und nachher
    sowie einen Split, dessen Rundung sich unterscheidet, sobald beide
    Historien vereint sind. Die realisierten Gewinne nach FIFO (Cashflow →
-   Trades, der Trades-Tab eines Wertpapiers) ändern sich nicht: Ihre Reihe
-   gehört dem Wertpapier, nicht dem Depot. **Buchungen, die in beiden Konten
+   Trades, der Trades-Tab eines Wertpapiers) ändern sich nicht, außer gleiche
+   Buchungen werden als Duplikate entfernt, was sie aus der Reihe nimmt: Ihre
+   Reihe gehört dem Wertpapier, nicht dem Depot. **Buchungen, die in beiden Konten
    gleich sind** — gleicher Tag, gleiche Art, gleiche Beträge, typischerweise
    ein Import, der zweimal ankam — stehen mit zwei Wahlmöglichkeiten da,
    *als Duplikate entfernen* oder *beide behalten*, jede mit dem Saldo, zu

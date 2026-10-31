@@ -3383,7 +3383,7 @@ const declaredTools: DeclaredTool[] = [
     "Preview merging a depot (id, the source) into another depot of the same portfolio (target_id, the one to " +
       "keep) — a read that writes nothing (ADR-0050 §7, §10). Answers the plan_digest " +
       "portfolixir.securities_accounts.merge takes, both depots (cash_account_id, bucket_ids, former_names, " +
-      "transaction_count), the guards, the security transfers between the two (the merge deletes them), the " +
+      "transaction_count), the guards, the security transfers between the two (deleted), the " +
       "key_equal_pairs (a source booking whose day, kind, security, cash account and amounts equal a target " +
       "booking's), position_buckets (per security: both depots' effective buckets and what the merge does with " +
       "the source's override — carry, drop_redundant, drop_unheld, clear_target or none), the names the target " +
@@ -3391,12 +3391,12 @@ const declaredTools: DeclaredTool[] = [
       "booking count after, the bookings moved and deleted, positions (every security the source holds: " +
       "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
       "after — moving-average figures, restated as both depots' lots combine; the FIFO realized gains do not " +
-      "change), rounding_differences (per " +
+      "change unless equal bookings are removed), rounding_differences (per " +
       "position and split date, the combined position rounded once less the two rounded apart — expected, " +
       "never a refusal, no bound per split), the cash accounts a collapsed booking changes, the flows it " +
       "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
-      "collapsed transfer names, with its quantity before and after. " +
-      "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +
+      "collapsed transfer names, with quantity before and after. " +
+      "positions_basis states how. Show the operator both outcomes; the choice is " +
       "theirs. Quantities and decimals are strings. A pair that may not merge answers 409 with errors.code " +
       "(same_account, not_live, portfolio_mismatch, buckets_mismatch or position_buckets_mismatch naming each " +
       "position whose buckets differ while both depots hold it, or whose override to carry holds more than one " +

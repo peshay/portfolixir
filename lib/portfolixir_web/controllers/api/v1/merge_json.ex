@@ -60,8 +60,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                      "currency less the cost it removed at the running average, fees and taxes " <>
                      "not included; null where a price or cost in the security's currency is " <>
                      "not derivable. The FIFO realized gains (GET /api/v1/realized_gains, a " <>
-                     "security's trades) do not change: the FIFO queue belongs to the " <>
-                     "security, not the depot. source and target are before the merge (null where the depot " <>
+                     "security's trades) do not change unless equal bookings are removed as " <>
+                     "duplicates, which takes them out of the queue: the FIFO queue belongs to " <>
+                     "the security, not the depot. source and target are before the merge (null where the depot " <>
                      "holds no booking of the security), after is the target afterwards. " <>
                      "rounding_differences: each split of an affected security where the " <>
                      "combined position rounded once differs, at the end of the split's day, " <>

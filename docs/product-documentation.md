@@ -807,7 +807,8 @@ everything. It takes two steps in one dialog:
    (moving avg.)* — the depot's result by moving average — before and after,
    and a split whose rounding differs once both histories are combined. The
    realized gains by FIFO (Cash flow → Trades, a security's Trades tab) do not
-   change: their queue belongs to the security, not the depot. **Bookings that are equal in both accounts** —
+   change unless equal bookings are removed as duplicates, which takes them out
+   of the queue: their queue belongs to the security, not the depot. **Bookings that are equal in both accounts** —
    same day, same kind, same amounts, typically one import that landed twice
    — are listed with two choices, *remove as duplicates* or *keep both*,
    each with the balance it leads to (for cash accounts); *remove as

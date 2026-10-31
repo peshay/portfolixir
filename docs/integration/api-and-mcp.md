@@ -1454,7 +1454,9 @@ Example quote sync response:
     security's currency less the cost it removed at the running average, and
     `null` where that price or cost is not derivable. The FIFO realized
     gains (`GET /api/v1/realized_gains`, a security's trades) do not change
-    in a depot merge: the FIFO queue belongs to the security, not the depot;
+    in a depot merge unless equal bookings are removed as duplicates, which
+    takes them out of the queue: the FIFO queue belongs to the security, not
+    the depot;
     `rounding_differences` lists, per position and split date, each split
     of an affected security where the combined position rounded once
     differs, at the end of the split's day, from the two positions rounded

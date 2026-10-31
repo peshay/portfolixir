@@ -2782,10 +2782,12 @@ adds. Built by Sprint 16 Lane L5a in
     gain/loss", and the basis line names it — "the depot's result by moving
     average over both depots' buys" — and ends with one sentence: "Realized
     gains by FIFO (Cash flow → Trades, a security's Trades tab) do not
-    change: the FIFO queue belongs to the security, not the depot." / "Die
-    realisierten Gewinne nach FIFO (Cashflow → Trades, der Trades-Tab eines
-    Wertpapiers) ändern sich nicht: Die FIFO-Reihe gehört dem Wertpapier,
-    nicht dem Depot." Two figures called "realized" never stand side by side
+    change unless equal bookings are removed as duplicates, which takes them
+    out of the queue: the FIFO queue belongs to the security, not the
+    depot." / "Die realisierten Gewinne nach FIFO (Cashflow → Trades, der
+    Trades-Tab eines Wertpapiers) ändern sich nicht, außer gleiche Buchungen
+    werden als Duplikate entfernt, was sie aus der Reihe nimmt: Die
+    FIFO-Reihe gehört dem Wertpapier, nicht dem Depot." Two figures called "realized" never stand side by side
     unnamed.
 - **The confirm** is `.button-danger` "Merge into <target>" at the band's
   end. While the equal bookings' choice is missing it is disabled —
