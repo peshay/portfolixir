@@ -2030,7 +2030,13 @@ Hinweise zählen, ist hier eine Zeile. Es sind dieselben Felder, die
 ein Agent über `fields=` der Bestands-API auswählt, aus derselben Projektion
 gelesen — mit den Trennzeichen Ihrer Sprache und mit der Währung der Zeile
 hinter jedem Geldbetrag, damit ein Marktwert seine Währung nennt, auch wenn
-die Spalte Währung abgeschaltet ist. Die Auswahl liegt im Browser und
+die Spalte Währung abgeschaltet ist. Die Zahlen lesen sich wie im Rest der
+App (Issue #1125): Marktwert und G&V als Geldbetrag mit zwei Stellen
+(„2.569,68 EUR“), die G&V mit Vorzeichen und in ihrer Gewinn- oder
+Verlustfarbe; Ø Kosten und letzter Kurs, wie die Historie einen gespeicherten
+Preis zeigt, jede Stelle bis zu vier Nachkommastellen („128,4838 EUR“, ein
+Durchschnitt von 100 ÷ 3 als „33,3333“); die Stückzahl mit ihren eigenen
+Stellen. API und MCP liefern jede Stelle. Die Auswahl liegt im Browser und
 übersteht ein Neuladen; alle Haken zu entfernen fällt auf die Vorgaben
 zurück. Die Auswahl steht über der Tabelle und erscheint nur, wenn es eine
 Tabelle zu konfigurieren gibt. Auf dem Telefon (unter 560 px) stehen die

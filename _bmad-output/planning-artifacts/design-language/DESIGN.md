@@ -6877,8 +6877,15 @@ issue 1142 changes (plan D-14):
   and "%" glued on ("+18,7%", "-5,1%", "0,0%" unsigned), in its sign colour
   decided on the percent as shown (`is-positive` / `is-negative` /
   `is-flat`, issue 1010's rule that every signed cell of a data table
-  carries its colour). The table's money columns keep the projection's
-  unrounded digits; a percentage is not one of them.
+  carries its colour). *Amended 2026-10-31 (issue 1125, Sprint 21 pick
+  N5 = A, board `mockups/ux-design-2026-10-09/04-wealth-income` ①, citing
+  ADR-0016 §4):* the table's money columns print as money (`Format.money`,
+  two places); its price columns ("Ø Kosten", "Letzter Kurs") as the
+  history prints a stored price (R10c, `stored_figure/1`); quantities keep
+  their digits; a space precedes every suffix ("2.569,68 EUR", where it
+  read "2.569,676EUR"). "G&V" joins the signed cells: `Format.signed_decimal`
+  with two places, in its sign colour decided on the figure as displayed
+  (found while drawing 1). The API and MCP keep serving every digit.
 - **The security's Holdings tab, "%"** (found while drawing 11). It kept the
   form #1060 retired on the Trades tab: two decimals and a breaking space
   ("+18,71 %"), so "0,00 %" wrapped onto two lines in its 60 px cell at

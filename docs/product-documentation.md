@@ -1845,7 +1845,13 @@ the totals and the notes count is a row here. These are the same fields an agent
 holdings API's `fields=` sparse fieldset, read from the same projection, so
 a figure here is the figure there — with your locale's separators, and with
 the row's currency after every money figure, so a market value states its
-currency even when the Currency column is switched off. The choice is stored
+currency even when the Currency column is switched off. The figures read as
+the rest of the app reads them (issue #1125): the market value and the P&L
+as money, two places ("2,569.68 EUR"), the P&L signed and in its gain or
+loss colour; the average cost and the latest price as the history prints a
+stored price, every digit up to four places ("128.4838 EUR", an average of
+100 ÷ 3 as "33.3333"); the quantity with its own digits. The API and MCP
+serve every digit. The choice is stored
 in the browser and survives a reload; clearing every box falls back to the
 defaults rather than leaving a table with no columns. The picker sits above
 the table, and appears only when there is a table to configure. On a phone

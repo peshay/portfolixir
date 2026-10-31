@@ -2513,11 +2513,14 @@ defmodule PortfolixirWeb.PortfolioLive do
                     data-role="holdings-position"
                     data-security-id={row.security_id}
                   >
+                    <%!-- #1125 (board 04, N5 A): a text space before the
+                         suffix, as the contribution table's sum row has it,
+                         so a cell reads "2.569,68 EUR". --%>
                     <td :for={key <- @holdings_columns} {holdings_cell_attrs(row, key)}>
                       <%= holdings_cell(row, key) %><SecurityNames.twin_id
                         :if={key == "security"}
                         tag={row.twin_id}
-                      /><small
+                      /><%= if holdings_currency(row, key), do: " " %><small
                         :if={holdings_currency(row, key)}
                         class="value-suffix"
                       ><%= row.currency_code %></small>
@@ -2689,6 +2692,17 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  # #1125 (board 04, found while drawing 1): "P&L" is a signed figure, so it
+  # carries its sign colour, decided on the figure as displayed (#1149).
+  defp holdings_cell_attrs(row, "unrealized_pnl_abs") do
+    case Format.displayed_sign(row.unrealized_pnl_abs, 2) do
+      :positive -> %{class: "num is-positive"}
+      :negative -> %{class: "num is-negative"}
+      :zero -> %{class: "num is-flat"}
+      nil -> holdings_num_attrs("unrealized_pnl_abs")
+    end
+  end
+
   defp holdings_cell_attrs(_row, key), do: holdings_num_attrs(key)
 
   defp holdings_column_label("depot"), do: gettext("Depot")
@@ -2709,10 +2723,17 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_cell(row, "isin"), do: row.isin
   defp holdings_cell(row, "wkn"), do: row.wkn
   defp holdings_cell(row, "currency"), do: row.currency_code
-  defp holdings_cell(row, "avg_cost"), do: holdings_decimal(row.avg_cost)
-  defp holdings_cell(row, "latest_price"), do: holdings_decimal(row.latest_price)
-  defp holdings_cell(row, "market_value"), do: holdings_decimal(row.market_value)
-  defp holdings_cell(row, "unrealized_pnl_abs"), do: holdings_decimal(row.unrealized_pnl_abs)
+  # #1125 (board 04, pick N5 A; ADR-0016 §4): money at the human boundary
+  # is two places, a price per unit the history's stored figure (R10c) — so
+  # Wealth, the Kurse tab and the history print one stored quote alike — and
+  # a signed P&L carries its "+". The API and MCP serve every digit.
+  defp holdings_cell(row, "avg_cost"), do: holdings_price(row.avg_cost)
+  defp holdings_cell(row, "latest_price"), do: holdings_price(row.latest_price)
+  defp holdings_cell(row, "market_value"), do: Format.money(row.market_value)
+
+  defp holdings_cell(row, "unrealized_pnl_abs"),
+    do: Format.signed_decimal(row.unrealized_pnl_abs, 2)
+
   # Found while drawing 4 (board 02): a percentage, not the raw fraction —
   # DESIGN.md's percent form, one decimal with the sign and "%" glued on
   # ("+18,7%"), where it printed every digit of 0.1871… under a "%" header.
@@ -2730,9 +2751,8 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
-  # The projection's own values, unrounded: this table is the human read of
-  # what the API serves, so a figure here is the figure there. The separators
-  # are the reader's, though — `1234.5` beside a neighbouring table's
+  # A quantity keeps the projection's own digits (#1125 leaves them); the
+  # separators are the reader's — `1234.5` beside a neighbouring table's
   # `1.234,50` is the page disagreeing with itself for no gain. An absent
   # value is an em dash rather than a blank cell.
   defp holdings_decimal(nil), do: "—"
@@ -2740,6 +2760,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_decimal(%Decimal{} = value), do: PortfolixirWeb.Format.exact(value)
 
   defp holdings_decimal(value), do: to_string(value)
+
+  defp holdings_price(%Decimal{} = price), do: TransactionManagementLive.stored_figure(price)
+  defp holdings_price(_none), do: "—"
 
   defp holdings_percent(%Decimal{} = fraction), do: Format.signed_percent(fraction) <> "%"
   defp holdings_percent(_none), do: "—"
