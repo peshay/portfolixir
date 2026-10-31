@@ -4242,13 +4242,13 @@ msgid "Row %{row}: %{message}"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:642
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:376
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:378
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:660
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:388
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:390
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr ""
@@ -4313,7 +4313,7 @@ msgstr ""
 msgid "%{field} is not valid UTF-8 text"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:258
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:260
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"
 msgstr ""
@@ -4323,7 +4323,7 @@ msgstr ""
 msgid "unknown PP CSV type %{type}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:254
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:256
 #, elixir-autogen, elixir-format
 msgid "unknown PP transaction type %{type}"
 msgstr ""
@@ -5812,12 +5812,12 @@ msgstr ""
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:401
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:403
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:453
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:455
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr ""
@@ -7906,7 +7906,7 @@ msgstr ""
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:432
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:434
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr ""
@@ -11642,8 +11642,8 @@ msgid "sell without a counter account — row not imported"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:490
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:573
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:576
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:657
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:660
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr ""
@@ -12287,7 +12287,7 @@ msgstr ""
 msgid "“%{name}” deleted."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:555
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:639
 #, elixir-autogen, elixir-format
 msgid "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards."
 msgstr ""
@@ -12600,4 +12600,24 @@ msgstr ""
 #: lib/portfolixir/imports/portfolio_performance.ex:330
 #, elixir-autogen, elixir-format
 msgid "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — row not imported. Book the transfer by hand without it; if money did move, book that as a tax refund of its own."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:567
+#, elixir-autogen, elixir-format
+msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:548
+#, elixir-autogen, elixir-format
+msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand, with its fees less the refund (%{net})."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:559
+#, elixir-autogen, elixir-format
+msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:540
+#, elixir-autogen, elixir-format
+msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand, with its fees less the refund (%{net})."
 msgstr ""

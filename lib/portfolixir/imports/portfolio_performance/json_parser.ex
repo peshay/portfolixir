@@ -32,8 +32,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   Numbers are decoded via `Jason.decode/2` with `floats: :decimals` so
   no float passes through. Unknown PP types end up in `preview.errors`
   rather than as silent `Entry` skips, and so does a row whose booking or
-  security currency the catalog does not list (#948), and a credit whose own
-  booking would move 0 or less (ADR-0053 A5, #1118).
+  security currency the catalog does not list (#948), a row with a FEE unit
+  below zero (ADR-0053 A9, #1177), a delivery or a transfer with a negative
+  TAX unit (A8, #1188), and a credit whose own booking would move 0 or less
+  (A5, #1118).
 
   A negative TAX unit is split off into a `tax_refund` companion, and the
   row's own booking leaves it out of its `amount`, which already holds it
@@ -341,12 +343,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       # #1044: a transfer without its other side first; then E25 S4 (G24)
       # and S5 (F33): a security that names nothing, and text the ledger would
       # refuse, are this row's error; so is a currency the catalog does not
-      # list (#948); then a refund the row's own cash leg cannot carry
-      # (ADR-0053 A8, #1188); then a credit that would book 0 or less (A5,
-      # #1118).
+      # list (#948); then a fee refund (ADR-0053 A9, #1177); then a refund
+      # the row's own cash leg cannot carry (A8, #1188); then a credit that
+      # would book 0 or less (A5, #1118).
       case counter_error(entry) || PortfolioPerformance.row_error(entry) do
         nil ->
-          refund_refusal(entry, refund_amounts) ||
+          fee_refusal(entry, Map.get(raw, "units")) || refund_refusal(entry, refund_amounts) ||
             credit_refusal(kind, amount, refund_amounts, entry)
 
         message ->
@@ -485,6 +487,88 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       {message, refused} -> {:refused, message, refused}
     end
   end
+
+  # ADR-0053 A9 (the amendment of 2026-10-09, #1177): a FEE unit below zero
+  # is a fee refund, which no ledger kind books yet, so the row is an error
+  # named with its remedy until a fee-refund kind exists. The units fold
+  # does not change: the would-be entry keeps the fee every stored row was
+  # hashed with, the magnitudes summed (7.00 for FEE 5.00 and FEE -2.00),
+  # and the preview keeps it beside the row error as A8 keeps its rows. The
+  # message names the refunded fee and the fees less it, as Portfolio
+  # Performance nets them, in the reader's notation. A sale is "the sale",
+  # every other kind "the booking" (board ux-design-2026-10-09/07-imports ③).
+  defp fee_refusal(%Entry{} = entry, units) do
+    fees = fee_units(units)
+
+    case Enum.filter(fees, &Decimal.negative?/1) do
+      [] ->
+        nil
+
+      refunds ->
+        locale = Gettext.get_locale(PortfolixirWeb.Gettext)
+
+        written = %{
+          fee: refunds |> Enum.reduce(&Decimal.add/2) |> Decimals.format_locale(locale),
+          net: fees |> Enum.reduce(&Decimal.add/2) |> Decimals.format_locale(locale),
+          stored: Decimals.format_locale(entry.fees, locale)
+        }
+
+        {:refused, fee_message(entry.kind, written),
+         %{entry: entry, message: stored_fee_message(entry.kind, written)}}
+    end
+  end
+
+  # The FEE units of a row whose units `sum_units/1` read, each with its
+  # sign; a unit without an amount reads as none.
+  defp fee_units(units) when is_list(units) do
+    Enum.flat_map(units, fn
+      %{"type" => "FEE"} = unit ->
+        case Decimals.parse(Map.get(unit, "amount", 0)) do
+          {:ok, %Decimal{} = amount} -> [amount]
+          _none -> []
+        end
+
+      _other ->
+        []
+    end)
+  end
+
+  defp fee_units(_units), do: []
+
+  defp fee_message("sell", written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand, with its fees less the refund (%{net}).",
+        fee: written.fee,
+        net: written.net
+      )
+
+  defp fee_message(_kind, written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand, with its fees less the refund (%{net}).",
+        fee: written.fee,
+        net: written.net
+      )
+
+  # A row imported before A9 refused it holds the cash the file states (its
+  # `amount`) and the fees summed by magnitude, which stay as stored until
+  # the fee-refund record (#1177); the remedy would book it twice.
+  defp stored_fee_message("sell", written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation.",
+        fee: written.fee,
+        stored: written.stored
+      )
+
+  defp stored_fee_message(_kind, written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation.",
+        fee: written.fee,
+        stored: written.stored
+      )
 
   # ADR-0053 A8: a refund split off a delivery, a security transfer or a
   # cash transfer, named in the reader's notation as A5's figures are.
