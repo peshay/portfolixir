@@ -2109,7 +2109,10 @@ round). The foot carries **Record transaction**
 Esc discard the draft; focus returns to the control. Built for creating a
 booking and shaped — one panel, stacked, pre-fillable fields — for the edit
 view (#809) to reuse. The holdings table left the route: it duplicated
-Wealth → Holdings.
+Wealth → Holdings. *Amended 2026-10-31 (Sprint 21 α6, pick N12 = A):* the
+drawer also books and corrects the seven one-amount cash kinds in a cash
+form of its own; see "Amendment 2026-10-31 — The booking drawer books the
+one-amount cash kinds".
 
 ### Securities detail overview — a reading surface *(C7-A / A8, issue 804)*
 
@@ -6664,3 +6667,65 @@ succeed").
   the page's inline result (`#accounts-result`), the stored name in
   `<bdi>`, as a merge reports its result; the row disappearing is no longer
   the only word.
+
+## Amendment 2026-10-31 — The booking drawer books the one-amount cash kinds *(Sprint 21 pick N12 = A, board `mockups/ux-design-2026-10-09/03-history-drawer`; issues 1052 and 1206, the plan's D-6, α6)*
+
+Amends Components → Booking drawer and the H2b amendment ("Edit on the
+kinds the drawer does not book").
+
+- **One drawer, the kind first.** The Typ select lists Kauf, Verkauf,
+  Dividende, Zinsen, Einlage, Entnahme, Gebühren, Steuern, Steuererstattung
+  — never a split (K10). A cash kind turns the same
+  `dialog.detail-pane.booking-drawer` into the cash form, `#transaction-form`
+  as before: Typ, Datum, Verrechnungskonto (a select, "Verrechnungskonto
+  auswählen" first; the account fixes the currency, as the depot does for a
+  trade, #473), Wertpapier where the kind names one — required for a
+  dividend ("Wertpapier auswählen"), optional for interest, fee, tax and tax
+  refund ("Kein Wertpapier"), absent for a deposit and a removal — then
+  "Betrag (EUR)", paired with "Steuern (EUR)" for a dividend or interest as
+  Stückzahl and Preis are paired; the label names the chosen account's
+  currency, and reads plain "Betrag" until an account is chosen. The first
+  four fields take full rows (`label:nth-child(-n + 4)`); a kind without
+  taxes leaves the amount as the grid's fifth and last label, which takes
+  the full row (`label:nth-child(5):last-child`). Notizen stands open below;
+  the cash form has no "Kosten und Notiz" disclosure.
+- **The direction line** (`.form-help[data-role="cash-direction"]`) under
+  the fields says which way the cash moves, so a sign is never typed: "Wird
+  Test-Cash gutgeschrieben." (dividend, interest, deposit, tax refund) or
+  "Wird von Test-Cash abgebucht." (removal, fee, tax); before an account is
+  chosen, "Die Währung wird durch das gewählte Verrechnungskonto bestimmt."
+- **The sub line** of a new cash booking: "Bucht auf das gewählte
+  Verrechnungskonto, in dessen Währung." An edit keeps the shared one
+  ("Korrigiert die Buchung an Ort und Stelle; …").
+- **Edit opens the same form prefilled.** The kind and the cash account are
+  disabled controls (a different kind is a different booking; another
+  account re-denominates the amount); the date, the amount, the taxes, the
+  security and the note are corrected in place, and the server keeps the
+  stored kind and account whatever a save carries. The help line
+  `#booking-edit-help` states the limit with **Löschen…** as its remedy:
+  "Art und Verrechnungskonto einer gebuchten Transaktion stehen fest; eine
+  Buchung der falschen Art oder auf dem falschen Konto wird gelöscht und neu
+  erfasst." The foot reads **Änderungen speichern** and **Abbrechen**.
+- **An imported booking** carries one attention note at the top of the form
+  (`data_note`, `data-role="booking-imported"`): "Diese Buchung stammt aus
+  einem Import. Hier korrigiert, bleibt sie so: Ein erneuter Import
+  derselben Datei bucht sie nicht noch einmal, und die Import-Korrektur
+  nennt sie als von Hand bearbeitet." (ADR-0053 A11.)
+- **The refusal is the drawer's pair:** the field error under the amount
+  ("muss größer als 0 sein", `aria-invalid`) and the page's result, a
+  problem ("Betrag muss größer als 0 sein"); what was typed stays.
+- **The sheet's foot stays at its edge.** Under 720 px the cash form (and a
+  buy with its costs open) is taller than the 88 vh sheet, so
+  `.booking-drawer__foot` is sticky at the sheet's bottom edge on the
+  sheet's background, with a hairline above it, while the fields scroll
+  (board 03, found while drawing 4).
+- **The notes-only drawer now serves** a cash transfer, the deliveries, a
+  security transfer, the balance snapshot, the split, and a cash kind
+  stored in another currency than its account's (an API booking with its
+  rate: correcting the amount alone would leave the rate stale; board 03,
+  found while drawing 3). Its help line reads "…; die Oberfläche bucht
+  Käufe, Verkäufe und Kontobuchungen, diese Art nicht. …".
+- **No new money semantics:** the form writes through
+  `Ledger.create_transaction/3` and `Ledger.update_transaction/3`, the
+  functions the API uses; the tests pin each write against the API's answer
+  for the same write (`booking_drawer_cash_kinds_live_test.exs`).

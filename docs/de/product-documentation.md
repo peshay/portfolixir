@@ -1034,11 +1034,41 @@ abgeleiteten Bestände folgen, und das Journal hält die Änderung fest.“ (Iss
 Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
 Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
 
+**Die Kontobuchungen** (Issues #1052 und #1206, Sprint 21): Die Schublade
+bucht und korrigiert auch die sieben Kontobuchungen mit einem Betrag —
+Dividende, Zinsen, Einlage, Entnahme, Gebühren, Steuern und
+Steuererstattung. Wer eine davon als Typ wählt, bekommt das Formular für
+Kontobuchungen: Datum, **Verrechnungskonto** (es setzt die Währung, wie ein
+Depot bei einem Kauf), ein Wertpapier, wo die Art eines kennt (Pflicht bei
+einer Dividende; „Kein Wertpapier“ bei Zinsen, Gebühren, Steuern und einer
+Steuererstattung; keines bei Einlage und Entnahme), den **Betrag** in der
+Währung des Kontos — bei einer Dividende oder Zinsen neben den
+einbehaltenen **Steuern** — und die Notiz. Ein Vorzeichen wird nie
+getippt: Eine Zeile unter dem Betrag sagt, wohin das Geld geht („Wird
+Test-Cash gutgeschrieben.“ oder „Wird von Test-Cash abgebucht.“). Damit
+lässt sich die Abhilfe einer abgelehnten Importzeile auf dem Bildschirm
+erledigen: Verkauf, Gebühren und Steuererstattung werden drei Buchungen in
+der Schublade. Die Schublade schreibt über dieselben Ledger-Funktionen wie
+die API, eine Buchung oder Korrektur hier ist also derselbe Schreibvorgang
+wie über die API. **Bearbeiten** an einer solchen Buchung öffnet dasselbe
+Formular, vorbefüllt; **Art und Verrechnungskonto stehen fest** — eine
+Buchung der falschen Art oder auf dem falschen Konto wird gelöscht und neu
+erfasst —, Datum, Betrag, Steuern, Wertpapier und Notiz werden an Ort und
+Stelle korrigiert; der Kontostand bewegt sich um die Differenz, und das
+Audit-Journal hält die Änderung fest. Eine Buchung aus einem Import sagt das
+im Formular: Dieselbe Datei bucht sie nicht noch einmal, und die
+Import-Korrektur nennt sie als von Hand bearbeitet, statt sie zu
+überschreiben. Auf dem Telefon ist das Formular höher als das Sheet; **Änderungen
+speichern** und **Abbrechen** bleiben deshalb an seiner Unterkante, während
+die Felder darüber scrollen.
+
 **Die Arten, die die Schublade nicht bucht** (Issue #912): Die Schublade
-erfasst und korrigiert Käufe und Verkäufe. **Bearbeiten** an jeder anderen
-Buchung — einer Dividende, einer Einlage, einer Umbuchung, einer
-Einlieferung, einem gesetzten Saldo, einem Split — öffnet die Schublade
-**nur für die Notiz**: Die Angaben der Buchung stehen fest da (Typ, Datum und
+erfasst und korrigiert Käufe, Verkäufe und die Kontobuchungen oben.
+**Bearbeiten** an jeder anderen Buchung — einer Umbuchung, einer
+Einlieferung, einem gesetzten Saldo, einem Split — und an einer
+Kontobuchung, die in einer anderen Währung als der ihres Kontos gespeichert
+ist (über die API mit ihrem Kurs gebucht, den das Formular nicht trägt),
+öffnet die Schublade **nur für die Notiz**: Die Angaben der Buchung stehen fest da (Typ, Datum und
 was die Art speichert — das Wertpapier, das Verrechnungskonto oder beide
 Konten einer Umbuchung, das Depot, den Betrag, die Steuern, Stückzahl und
 Preis, jede Zahl mit den Stellen, mit denen sie gespeichert ist), und nur

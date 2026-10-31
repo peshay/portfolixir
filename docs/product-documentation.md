@@ -944,9 +944,35 @@ records the change." This is the human view of a capability the API and the
 MCP companion have had since before the two-way coverage
 rule; nothing new was added to either.
 
+**The cash kinds** (issues #1052 and #1206, Sprint 21): the drawer also
+books and corrects the seven one-amount cash kinds — dividend, interest,
+deposit, removal, fee, tax and tax refund. Choosing one of them as the type
+turns the form into the cash form: the date, the **cash account** (it sets
+the currency, as a depot does for a trade), a security where the kind names
+one (required for a dividend; "No security" for interest, a fee, a tax or a
+tax refund; none for a deposit or a removal), the **amount** in the
+account's currency — beside the withheld **taxes** for a dividend or
+interest — and the note. No sign is typed: one line under the amount says
+which way the cash moves ("Credited to Test-Cash." or "Debited from
+Test-Cash."). It is the import's remedy for a refused row, finished on a
+screen: a sale, a fee and a tax refund become three drawer bookings. The
+drawer writes through the same ledger functions the API uses, so a booking
+or a correction here is the same write as over the API. **Edit** on such a
+booking opens the same form, prefilled; its **kind and its cash account are
+fixed** — a booking of the wrong kind or on the wrong account is deleted and
+recorded again — and the date, the amount, the taxes, the security and the
+note are corrected in place; the balance moves by the difference, and the
+audit journal records the edit. A booking an import brought in says so on
+the form: the same file does not book it again, and the import's correction
+names it as edited by hand instead of rewriting it. On a phone the form is
+taller than the sheet, so the sheet's **Save changes** and **Cancel** stay
+at its bottom edge while the fields scroll above them.
+
 **The kinds the drawer does not book** (issue #912): the drawer records and
-corrects buys and sells. **Edit** on any other booking — a dividend, a
-deposit, a transfer, a delivery, a set balance, a split — opens the drawer
+corrects buys, sells and the cash kinds above. **Edit** on any other
+booking — a transfer, a delivery, a set balance, a split — and on a cash
+kind stored in another currency than its account's (booked over the API
+with its rate, which the form does not carry) opens the drawer
 **notes-only**: the booking's own facts are shown and fixed (the type, the
 date and whatever the kind stores — the security, the cash account or both
 accounts of a transfer, the depot, the amount, the taxes, the quantity and
