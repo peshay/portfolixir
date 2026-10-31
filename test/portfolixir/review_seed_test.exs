@@ -176,18 +176,22 @@ defmodule Portfolixir.ReviewSeedTest do
   # the two-scales bonds of step 16d.
   #
   # Acceptance criteria:
-  # - "Tamarisk Systems Inc." is held in the Demo Depot, bought at 41.20
-  #   with a stored close of 412.00 on the booking's day: the
-  #   implausible_quote predicate names it, one booking outside, ratio 10.
+  # - "Tamarisk Systems Inc." is held in the Demo Depot, its quotes right
+  #   (41.20 on the booking's day) and its booking wrong (bought at 4.12, a
+  #   price typed a place off): the implausible_quote predicate names it,
+  #   one booking outside, ratio 10. The quotes are right so that no stored
+  #   close moves the Demo Depot's value history (the review of γ2, S3).
   # - A second run adds no security or booking.
   test "the review seed carries a held security whose quote does not match its booking" do
     seed!()
     tamarisk = Repo.one!(from(s in Security, where: s.name == "Tamarisk Systems Inc."))
 
-    assert %{kind: "buy", bookings_outside: 1, ratio: ratio} =
+    assert %{kind: "buy", bookings_outside: 1, ratio: ratio, price: price, close: close} =
              DataQuality.implausible_quote_finding(tamarisk)
 
     assert Decimal.equal?(ratio, 10)
+    assert Decimal.equal?(price, Decimal.new("4.12"))
+    assert Decimal.equal?(close, Decimal.new("41.20"))
 
     rows = row_counts()
     seed!()
