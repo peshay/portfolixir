@@ -751,7 +751,11 @@ Kreditlinie, Reserve) — die Spaltenüberschrift beschriftet ihn einmal für di
 ganze Tabelle, statt in jeder Zeile daneben zu stehen (Issue #806); ein Geldkonto ohne verknüpftes Depot
 bekommt eine eigene Zeile. Ein von mehreren Depots geteiltes Konto trägt
 seine Bedienelemente nur unter seinem ersten Depot — spätere Zeilen zeigen
-*geteilt — oben verwaltet*.
+*geteilt — oben verwaltet*. Wo die Tabelle nicht in ihre Spalte passt — auf
+dem Telefon, auf dem Tablet oder in einem schmalen Fenster mit geöffneter
+Seitenleiste —, stapeln sich jedes Depot und sein Verrechnungskonto zu einer
+Karte, sodass keine Spalte abgeschnitten wird (#1145); der Saldo und *Saldo
+setzen* bleiben je auf einer Zeile.
 
 **Bucket-Chips (#559).** Jede Zeile zeigt ihre Bucket-Zugehörigkeiten als
 Chips — den exklusiven **Scope**-Bucket als gefüllten Chip, freie **Tags**

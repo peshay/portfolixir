@@ -687,7 +687,10 @@ cash account indented directly beneath it, carrying the account currency and
 the labeled per-account **liquidity role** selector (free cash, credit line,
 reserve); a cash account no depot links to gets its own row. A cash account
 shared by several depots carries its controls under its first depot only —
-later rows read *shared — managed above*.
+later rows read *shared — managed above*. Wherever the table does not fit
+its column — on a phone, on a tablet, or in a narrow window with the sidebar
+open — each depot and its cash account stack into a card, so no column is
+cut off (#1145); the balance and *Set balance* stay on one line each.
 
 **Bucket chips (#559).** Each row shows its bucket memberships as chips —
 the exclusive **scope** bucket as a filled chip, free **tags** as outline

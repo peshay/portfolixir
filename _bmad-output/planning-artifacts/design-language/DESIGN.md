@@ -275,7 +275,8 @@ components:
     overflow: 'a real <button> disclosure that expands the cell in place (issue 842, Sprint 14 pick E2-A, 2026-09-23; board ux-design-2026-09-20/02-bucket-overflow-chip). Two states: collapsed it reads "+N more" (DE "+N anzeigen") over the first four chips; expanded every assigned chip renders and it reads "Show fewer ▲" (DE "weniger"), the caret aria-hidden. aria-expanded as a string, the 2px accent focus ring, the 44px floor under pointer: coarse. It never opens the picker — the + control does. No meaning in the cell lives only in a title attribute: the overflow carries none, the scope sub-line replaced the "Both" micro-label, and a chip title only repeats that chip own visible name past its truncation'
     scope: 'a sub-line under the chips saying what the set applies to — depot and cash account, the depot, or the cash account — readable without interacting; it replaces the "Both" micro-label whose meaning lived in a title attribute (issue 806, variant A)'
     actions: 'row actions behind the kebab of the Tables pattern, never as a fourth control in the cell: "Tag separately" sits there'
-    role: 'the Liquidity role select carries its label visually-hidden above 640 px — the column head states it once for the whole table; under 640 px the head is hidden too, so the label shows beside the select (`.liquidity-role-field__label`, {typography.control-label} size at 11px, weight 600, {colors.text-muted}) with the role''s ⓘ beside the word (amended 2026-10-07, issue 1085, board ux-design-2026-10-04/07-floor rule ⑦)'
+    card: 'the accounts table becomes the phone''s card wherever its wrapper is narrower than 840px — a container query on the wrapper (`container: accounts / inline-size`, `@container accounts (width < 840px)`), not a viewport breakpoint, so the sidebar''s 220, 72 or 0 px never cuts the table. The bound: 618px of columns that do not depend on the data (Currency 80, the role with its ⓘ 155, Balance 121, Buckets 220, the kebab 42) and the Name column''s 13.5rem (216px) floor make 834px, and a seven-digit balance adds 4px. A longer name breaks inside its cell (`overflow-wrap: anywhere`), so no stored name moves the bound; the wrapper stays `overflow: visible`, so the bucket picker still escapes it. The amount and "Set balance" never wrap (`white-space: nowrap`). Added 2026-10-31, issue 1145, pick N15 = A of board ux-design-2026-10-09/05-accounts'
+    role: 'the Liquidity role select carries its label visually-hidden only where the table shows its head (`@container accounts (width >= 840px)`, the complement of the card''s query; above 640 px until 2026-10-31) — the column head states it once for the whole table; in the card the head is hidden too, so the label shows beside the select (`.liquidity-role-field__label`, {typography.control-label} size at 11px, weight 600, {colors.text-muted}) with the role''s ⓘ beside the word (amended 2026-10-07, issue 1085, board ux-design-2026-10-04/07-floor rule ⑦)'
     target-size: 'under @media (pointer: coarse) the chip''s × and + are {spacing.touch-target} squares, and a chip holding a × gives up its block and right padding so the × fills its end (46px on touch), its corners the pill''s end (0 left, {rounded.full} right) and no shadow at any width; the role select and "Set balance" take {spacing.touch-target} min-height, and the role field keeps {spacing.3} between label, ⓘ and select so the ⓘ''s touch ring stays off the select. On the desktop the + is the 22px circle it declares (`min-height: 0`). Added 2026-10-07, issue 1085, rule ⑧, and the review of U5'
   security-metric-grid:
     placement: 'under the price chart on the securities detail chart tab, never on a tab of its own — a moving average means its distance to the price and its crossing with the other average, and separating the figures from the series makes both unreadable (issue 824, pick D1-A)'
@@ -2725,7 +2726,9 @@ the batch; silence adopts it). Built by Sprint 16 Lane L5a in
   `AppShell.row_menu` takes an optional `caption_name` / `caption_kind` and
   renders `.row-context-menu__caption` ("**Tagesgeld (alt)** · Cash
   account"), shown under 720 px only, where the sheet no longer hangs at its
-  row. **Under 640 px** each band's rows become a two-column grid, so every
+  row. **In the card** (under 640 px; since Sprint 21's N15 = A wherever
+  the table's wrapper is narrower than 840 px) each band's rows become a
+  two-column grid, so every
   kebab sits at the end of its own name line; the hover tint covers the
   whole line.
 - **Two sub-lines under the name**, both `.account-sub` at 12 px as their own
@@ -6352,12 +6355,37 @@ accent at 2 px (see "The view switcher's quiet controls" below).
   1200 leaves room for longer names. Narrower, the accounts table's own
   width decides (issue 1145) and the line wraps, as "Stand …" did at 768
   and 1024 px.
+- **The card wherever the table does not fit** *(Sprint 21 pick N15 = A,
+  board `mockups/ux-design-2026-10-09/05-accounts` ①, issue 1145)*: the
+  table's wrapper is a query container (`container: accounts /
+  inline-size`), and the card — the hidden head, the stacked band, every
+  kebab at the end of its own name line, the role label and both row ⓘ,
+  the static picker — is chosen by `@container accounts (width < 840px)`
+  instead of `@media (max-width: 640px)`. Between the phone rule and the
+  width the table needs, it grew past its non-scrolling wrapper and
+  `.workspace-page`'s clip cut its kebab column, then its bucket cell (at
+  768 px, and at 1024 px with the sidebar open). A container query, not a
+  viewport breakpoint, because the sidebar moves the table's width by 220,
+  72 or 0 px at one viewport. **The bound:** 618 px of columns that do not
+  depend on the data (Währung 80, Liquiditätsrolle with its ⓘ 155, Saldo
+  121, Buckets 220, the kebab 42) and the Name column's floor of 13.5 rem
+  (216 px, which holds a 27-letter compound on a cash row's indented line)
+  make 834 px; a seven-digit balance widens Saldo by 4 px, so 840. A name
+  longer than the floor breaks inside its cell (`overflow-wrap: anywhere`),
+  so no stored name moves the bound. The amount and "Saldo setzen" never
+  wrap (`white-space: nowrap`; the amount dropped "EUR" to a second line).
+  The wrapper stays `overflow: visible`, so the bucket picker still
+  escapes it. **Not built:** N15 B (the wrapper scrolls; the picker and the
+  head's two ⓘ panels would move to the top layer) and C (the table gives
+  up 80 px and stays cut). Front matter: `bucket-cell.card`.
 - **The role label's breakpoint** (⑦): the select's label renders as
   `.liquidity-role-field__label` (11 px, 600, {colors.text-muted}) and is
-  visually hidden only above 640 px (`@media (width > 640px)`, the exact
-  complement of the card layout's `max-width: 640px`; `min-width: 641px`
+  visually hidden only where the table shows its head
+  (`@container accounts (width >= 840px)`, the exact complement of the
+  card's `width < 840px`; it was `@media (width > 640px)` against
+  `max-width: 640px` until Sprint 21's N15 = A; `min-width: 641px` once
   left fractional widths between them with neither), where the column head
-  states it. At 640 px and below the head is hidden too, so the card now
+  states it. In the card the head is hidden too, so the card now
   reads "Liquiditätsrolle ⓘ
   [Verfügbares Cash]": the role's ⓘ (issue 1090) stands beside its word
   instead of opening the row alone (measured at 390 px: the label 94 × 15,

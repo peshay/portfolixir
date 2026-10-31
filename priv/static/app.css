@@ -1504,6 +1504,15 @@ li + li {
   font-size: 12px;
 }
 
+/* The balance and its action keep their words whole (issue 1145, board
+   ux-design-2026-10-09/05-accounts, any N15 variant): the amount dropped
+   "EUR" to a second line and "Saldo setzen" wrapped inside a 60 × 48 button
+   at 768 and 1024 px. The date line above keeps wrapping under 1200 px. */
+.cash-balance__amount,
+.cash-balance__action {
+  white-space: nowrap;
+}
+
 .balance-dialog-form {
   display: flex;
   flex-direction: column;
@@ -7368,10 +7377,25 @@ button.income-bar-label.is-active {
   margin: 0;
 }
 
-/* The popover picker must be able to escape the table box; the four-column
-   accounts table is narrow enough to live without horizontal scrolling. */
+/* The popover picker must be able to escape the table box, so the accounts
+   table does not scroll: where it would not fit, it is the card instead. */
 .data-table-wrapper:has(.accounts-table) {
   overflow: visible;
+}
+
+/* The card follows the table's own width, not the viewport's (issue 1145,
+   pick N15 = A of board ux-design-2026-10-09/05-accounts): the wrapper is
+   the query container, and `@container accounts (width < 840px)` below
+   selects the card. Between the 640 px phone rule and the width the table
+   needs, it grew past its wrapper and `.workspace-page`'s clip cut the
+   kebab column and then the bucket cell (768 px; 1024 px with the sidebar
+   open). The bound: 618 px of columns that do not depend on the data
+   (Currency 80, the role with its ⓘ 155, Balance 121, Buckets 220, the
+   kebab 42) and the Name column's 216 px floor make 834 px; a seven-digit
+   balance adds 4 px, so 840. The sidebar moves the table's width by 220,
+   72 or 0 px at one viewport; the container query is right for all three. */
+.data-table-wrapper:has(> .accounts-table) {
+  container: accounts / inline-size;
 }
 
 /* ...and because it does not scroll, it must fit: the scrolling tables'
@@ -7385,6 +7409,19 @@ button.income-bar-label.is-active {
 
 .accounts-table thead th {
   border-right: 0;
+}
+
+/* The Name column keeps the bound's 216 px as its floor, and a longer name
+   breaks inside its cell, so no stored name moves the bound: without the
+   floor, `overflow-wrap: anywhere` alone let the table's automatic layout
+   break a 27-letter name over three lines at 1200 px (board 05, found while
+   drawing 1). */
+.accounts-table thead th:first-child {
+  min-width: 13.5rem;
+}
+
+.accounts-table .cell-name {
+  overflow-wrap: anywhere;
 }
 
 .accounts-table tbody td {
@@ -7476,8 +7513,8 @@ button.income-bar-label.is-active {
   white-space: nowrap;
 }
 
-/* The row copies of the two ⓘ serve the phone card, whose head is hidden;
-   above 640 px the head carries them once. */
+/* The row copies of the two ⓘ serve the card, whose head is hidden; where
+   the table shows its head, the head carries them once. */
 .accounts-term-info--phone {
   display: none;
 }
@@ -7503,12 +7540,13 @@ button.income-bar-label.is-active {
 }
 
 /* The role select's label is hidden only where the column head states it
-   (issue 1085, rule ⑦ of board ux-design-2026-10-04/07-floor): under 640 px
+   (issue 1085, rule ⑦ of board ux-design-2026-10-04/07-floor): in the card
    the head is hidden too, and the phone card showed "Verfügbares Cash" with
-   no name — and the role's ⓘ beside nothing. `width > 640px` is the exact
-   complement of the card layout's `max-width: 640px`; `min-width: 641px`
-   left fractional widths between the two with neither. */
-@media (width > 640px) {
+   no name — and the role's ⓘ beside nothing. `width >= 840px` is the exact
+   complement of the card's `width < 840px` (issue 1145, N15 = A; it was
+   `width > 640px` against `max-width: 640px`); `min-width: 641px` once left
+   fractional widths between the two with neither. */
+@container accounts (width >= 840px) {
   .accounts-table .liquidity-role-field__label {
     position: absolute;
     width: 1px;
@@ -7838,10 +7876,13 @@ button.income-bar-label.is-active {
   }
 }
 
-/* Small screens: each band stacks into a card (plain block fallback — no
-   display: contents), the header row is visually hidden but stays readable
-   for assistive tech, and the picker reverts to a static full-width panel. */
-@media (max-width: 640px) {
+/* Wherever the table does not fit its wrapper (issue 1145, N15 = A; the
+   bound is derived at the container rule above), each band stacks into a
+   card (plain block fallback — no display: contents), the header row is
+   visually hidden but stays readable for assistive tech, and the picker
+   reverts to a static full-width panel. Under 640 px of viewport the
+   wrapper is always narrower than 840 px, so the phone keeps its card. */
+@container accounts (width < 840px) {
   .accounts-table thead {
     position: absolute;
     width: 1px;
@@ -9905,9 +9946,10 @@ input.num {
   white-space: nowrap;
 }
 
-/* Under 640 px every entity's kebab sits at the end of its own name line,
-   now that a band carries two (board 01 ④). */
-@media (max-width: 640px) {
+/* In the card every entity's kebab sits at the end of its own name line,
+   now that a band carries two (board 01 ④); the card is the accounts
+   container's `width < 840px` (issue 1145, N15 = A). */
+@container accounts (width < 840px) {
   .accounts-table tbody.account-pair tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
