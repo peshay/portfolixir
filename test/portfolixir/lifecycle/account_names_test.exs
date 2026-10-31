@@ -722,4 +722,24 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
       0 -> Enum.reverse(acc)
     end
   end
+
+  # User story (#1192, Sprint 21 β5):
+  # As the maintainer reading the account-name guard,
+  # I want the two name-error helpers that no caller reaches to be gone,
+  # so that the guard's public surface is what the forms and the API call,
+  # and no message is kept working for a caller that never came.
+  #
+  # Acceptance criteria:
+  # - Portfolios.securities_account_name_error/2 and
+  #   AccountNames.name_error/3 are no longer exported; the guard's own
+  #   read, AccountNames.conflict/4, stays.
+  test "the name-error helpers without a caller are gone" do
+    # function_exported?/3 is false for a module not loaded yet (#936).
+    Code.ensure_loaded!(Portfolios)
+    Code.ensure_loaded!(AccountNames)
+
+    refute function_exported?(Portfolios, :securities_account_name_error, 2)
+    refute function_exported?(AccountNames, :name_error, 3)
+    assert function_exported?(AccountNames, :conflict, 4)
+  end
 end
