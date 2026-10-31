@@ -30,7 +30,10 @@ defmodule Portfolixir.Invariants.CssClosingActRepairsTest do
     assert focus =~ ~r/outline:\s*2px solid var\(--color-accent\);/
     assert focus =~ ~r/outline-offset:\s*2px;/
 
-    assert block(".confirm-delete-blocked .modal-footer") =~ ~r/padding:\s*0 18px 18px;/
+    # F27's scoped rule became the rule for every dialog's own footer (#1138,
+    # Sprint 21 γ8): the blocked-delete dialogs' footer is the dialog's child.
+    assert block(".modal > .modal-footer:not(.modal-footer--band)") =~
+             ~r/padding:\s*0 18px 18px;/
 
     phone =
       case Regex.run(
