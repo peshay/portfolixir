@@ -222,7 +222,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # percent view prints the axis's signed percent against the first close
   # ("+10,4%"), a percent series its value with one decimal, and a price
   # series its close at two places, the Quotes table's and the pane head's
-  # form ("41,40").
+  # form, with the chart's currency ("41,40 USD"). The hook appends nothing,
+  # so a label that names its currency reads it once (the review of γ2).
   defp point_display(%{label: label}, _geometry, _assigns) when is_binary(label), do: label
 
   defp point_display(q, %{percent_mode?: true} = geometry, _assigns) do
@@ -239,7 +240,15 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp point_display(q, _geometry, %{value_mode: :percent_values}),
     do: Format.signed_decimal(chart_decimal(q.close), 1) <> "%"
 
-  defp point_display(q, _geometry, _assigns), do: Format.decimal(chart_decimal(q.close), 2)
+  defp point_display(q, _geometry, assigns) do
+    case assigns.currency_code do
+      code when is_binary(code) and code != "" ->
+        Format.decimal(chart_decimal(q.close), 2) <> " " <> code
+
+      _none ->
+        Format.decimal(chart_decimal(q.close), 2)
+    end
+  end
 
   # The zero line (gain/loss boundary) on the raw value scale; only rendered
   # when 0 actually sits inside the padded range.

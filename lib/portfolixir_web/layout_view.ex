@@ -931,7 +931,7 @@ defmodule PortfolixirWeb.LayoutView do
                 this.crosshair.hidden = false;
 
                 var tx = this.transactionAt(payload.txs, px);
-                this.renderTooltip(shownDate, close, payload.currency, payload.mode, tx);
+                this.renderTooltip(shownDate, close, tx);
 
                 this.positionTooltip(cssX, cssY, frameRect.width);
               },
@@ -954,7 +954,7 @@ defmodule PortfolixirWeb.LayoutView do
                 }
                 return null;
               },
-              renderTooltip: function (shownDate, close, currency, mode, tx) {
+              renderTooltip: function (shownDate, close, tx) {
                 // Built through the DOM API (#770): every value is text, never markup.
                 var tooltip = this.tooltip;
                 tooltip.textContent = "";
@@ -965,10 +965,10 @@ defmodule PortfolixirWeb.LayoutView do
                   tooltip.appendChild(node);
                 };
                 // #1163: every string is the server's display string in the
-                // page's language; a percent point carries no currency.
-                var suffix = currency && mode !== "percent" ? " " + currency : "";
+                // page's language, a price already with its unit; nothing
+                // is appended here.
                 line("chart-tooltip__date", String(shownDate));
-                line("chart-tooltip__price", String(close) + suffix);
+                line("chart-tooltip__price", String(close));
                 if (tx) {
                   line(
                     "chart-tooltip__tx chart-tooltip__tx--" + String(tx.type).replace(/[^a-z_]/g, ""),
