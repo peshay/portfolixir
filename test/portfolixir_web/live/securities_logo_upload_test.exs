@@ -120,7 +120,8 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
   # so that I store the image I meant and know why another one was refused.
   #
   # Acceptance criteria:
-  # - Nothing chosen: "Image file", "Choose image…", the basis line naming
+  # - Nothing chosen: "Image file" (a label of the file input), "Choose
+  #   image…", the basis line naming
   #   PNG, JPEG or WebP and the store's own size limit, "Save logo" disabled.
   # - A chosen PNG shows its name and a × "Remove the selection"; "Save logo"
   #   is enabled; saving stores it as a locked manual logo, closes the dialog,
@@ -138,6 +139,18 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
     html = render(view)
 
     assert html =~ "Image file"
+
+    # The field's name is a label of the file input, so the input is named
+    # "Image file" first, the chooser's words after it.
+    [input_id] =
+      view
+      |> element("#logo-upload-form input[type=file]")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.attribute("id")
+
+    assert has_element?(view, ~s(#logo-upload-form label[for="#{input_id}"]), "Image file")
+    assert has_element?(view, ~s(#logo-upload-form label[for="#{input_id}"]), "Choose image…")
     assert html =~ "Choose image…"
     assert html =~ "PNG, JPEG or WebP, at most 256 KB."
     assert has_element?(view, "#logo-upload-form button[type=submit][disabled]")
