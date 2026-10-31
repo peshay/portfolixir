@@ -6871,7 +6871,13 @@ they already have (UX-DR25 clauses 1 and 2).
   Nachladen der Wechselkurse unter „Alle Trades“ speichert ihn und leitet
   daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung." The
   remedy points at the backfill control under "Alle Trades"; the tab carries
-  no control of its own.
+  no control of its own. *Amended 2026-10-31 (#1198):* one sentence per
+  trade, not per lot — a trade that closes several lots without their leg
+  reads once, its lots counted and dated: "1 Trade ohne Umrechnung: 2 Käufe,
+  die er schließt, vom 12.02.2025, 12.03.2025, haben keinen Gegenwert in
+  USD, der Währung des Verkaufs; … Abhilfe: ein Wechselkurs für jeden dieser
+  Tage — …" Before, such a trade read "1 Trade ohne Umrechnung" once per
+  lot.
 - **The Trades facet** (Income, `#realized-excluded`) and **the Overview
   card** (`data-role="trades-card-excluded"`) leave the trade out of the
   rows, the matrix and the three figures, and name it in the exclusion note

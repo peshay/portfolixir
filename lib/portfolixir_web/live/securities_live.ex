@@ -2210,15 +2210,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
           id="detail-closed-trades-unavailable"
           data-role="trades-unavailable"
         >
-          <span :for={{trade, lot} <- unavailable_lots(@trades.closed_trades)}>
-            <%= ngettext(
-              "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
-              "%{count} trades not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trades' cost and result are missing, and they count in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
-              1,
-              lot_date: Format.date(lot.open_date),
-              lot_currency: lot.currency_code,
-              currency: trade.currency_code || @currency_code
-            ) %>
+          <span :for={{trade, [lot | _] = lots} <- unavailable_lots(@trades.closed_trades)}>
+            <%= if lots == [lot] do %>
+              <%= ngettext(
+                "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
+                "%{count} trades not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trades' cost and result are missing, and they count in no total. Remedy: a rate for %{lot_date} — the rate backfill under “All trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
+                1,
+                lot_date: Format.date(lot.open_date),
+                lot_currency: lot.currency_code,
+                currency: trade.currency_code || @currency_code
+              ) %>
+            <% else %>
+              <%!-- One sentence per trade, the count its lots that lack the leg. --%>
+              <%= ngettext(
+                "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
+                "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
+                length(lots),
+                lot_dates: Enum.map_join(lots, ", ", &Format.date(&1.open_date)),
+                currency: trade.currency_code || @currency_code
+              ) %>
+            <% end %>
           </span>
         </AppShell.data_note>
 
@@ -2513,13 +2524,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp no_return_sentence, do: gettext("no return, no cost basis")
 
-  # #1198 (board 09, pick N8 A): every lot a closed trade could not enter in
-  # its sale's currency, with its trade, for the tab's note.
+  # #1198 (board 09, pick N8 A): each unavailable closed trade with the lots
+  # it could not enter in its sale's currency, for the tab's note.
   defp unavailable_lots(trades) do
-    for %{unavailable_reason: reason} = trade <- trades,
+    for %{unavailable_reason: reason, lots_missing_leg: [_ | _] = lots} = trade <- trades,
         reason != nil,
-        lot <- trade.lots_missing_leg,
-        do: {trade, lot}
+        do: {trade, lots}
   end
 
   defp unconvertible_lot_currency(%{lots_missing_leg: [lot | _]}), do: lot.currency_code
