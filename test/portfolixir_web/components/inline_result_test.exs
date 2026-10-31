@@ -110,4 +110,29 @@ defmodule PortfolixirWeb.Components.InlineResultTest do
     assert hook =~ "isConnected"
     assert hook =~ ".focus("
   end
+
+  # Acceptance criteria (the review of γ8, S1: a result that replaces another):
+  # - A result that replaces another — a second role change on Accounts
+  #   answering the first — names its own trigger, not the first one's: the
+  #   hook notes the trigger whenever the result on show differs from the one
+  #   before (`noteNeeded(previous, current)`, over a snapshot of the slot's
+  #   text), not only when the slot goes from empty to a result.
+  # - A busy line or an empty slot is no result (`snapshot()` is null), so a
+  #   result arriving after its busy line is noted too.
+  # - ExUnit cannot drive the hook; the closing act's browser pass checks the
+  #   replacement on Accounts (two role changes, Enter on the ×).
+  test "the InlineResult hook re-notes the trigger when a result replaces another" do
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.InlineResult = {")
+      |> Enum.at(1, "")
+      |> String.split("\n            };\n")
+      |> hd()
+
+    assert hook =~ "if (this.noteNeeded(this.shown, shown)) this.noteTrigger();"
+    assert hook =~ "return current !== null && current !== previous;"
+    assert hook =~ ~s{if (!this.el.querySelector("[data-role='result-dismiss']")) return null;}
+    refute hook =~ "shown && !this.shown"
+  end
 end
