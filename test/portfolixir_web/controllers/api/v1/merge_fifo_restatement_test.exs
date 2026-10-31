@@ -447,6 +447,30 @@ defmodule PortfolixirWeb.Api.V1.MergeFifoRestatementTest do
     assert fifo["years"] == []
     assert fifo["unavailable_trades"] == %{"source" => 0, "target" => 0, "after" => 1}
     assert fifo["unchanged"] == false
+
+    # User story (#1198, Sprint 21 α3; the amendment's D-5, "α3's
+    # unavailable state appears in the preview's after-figure, named"):
+    # As the operator confirming that merge on the page,
+    # I want the restatement to name the sale that becomes not convertible,
+    # with the count on each side,
+    # so that a change the table shows is never a trade that left every sum
+    # without my being told.
+    #
+    # Acceptance criteria:
+    # - Under the restatement, one sentence in the realized facet's words:
+    #   afterwards 1 sale is not convertible and in no sum, before 0 on the
+    #   source and 0 on the target.
+    view = to_security_preview(ctx, source, target)
+
+    assert view
+           |> element("#security-merge-dialog [data-role='merge-fifo-unavailable']")
+           |> render()
+           |> Floki.parse_fragment!()
+           |> Floki.text()
+           |> String.replace(~r/\s+/, " ")
+           |> String.trim() ==
+             "Afterwards 1 sale is not convertible — a buy it closes has no figure in the " <>
+               "sale's currency — and is in no sum above; before, source 0 · target 0."
   end
 
   defp to_security_preview(ctx, source, target) do
