@@ -2646,6 +2646,35 @@ Board `ux-design-2026-09-23/02-position-soll-entry`, variant A, as built.
   unchanged; it simply no longer vanishes between the first keystroke and the
   save — it is the only place a parent at 65 % over children adding up to 60 %
   shows, because the Σ footer counts the parent alone.
+- **An archived version is read-only** *(issue 1187, Sprint 21 γ6; board
+  `ux-design-2026-10-09/06-classifications` ④, before/after; ADR-0027 §3 and
+  its note of 2026-10-08)*. Picked in "Plan version:", an archived version
+  steers nothing and opens read-only:
+  - **The version bar** keeps the picker and "Rename", which act on the
+    version, not its targets; "Duplicate plan", "Activate this plan" and the
+    draft's hint are not rendered for it.
+  - **A `note` data note** under the bar (`data-role="soll-archived-note"`,
+    in a `role="status"` region) says "Archived — this version steers nothing
+    and is read-only; the Wealth page follows the active plan. To change it,
+    activate it or duplicate it as a draft." and carries the two remedies
+    inside it (H6.1): "Activate" · "Duplicate as draft", `.link-button`s that
+    fire the bar's own `activate_soll_plan` and `duplicate_soll_plan`.
+  - **The weights are `disabled`,** category and position inputs alike, as
+    the cash target already is for any version; "Save plan" and "Copy from
+    another view…" are not rendered (a copy-in fills inputs nothing can
+    save); "Delete plan" stays, because deleting a version is not a write
+    into it.
+  - **The context refuses too.** `Targets.writable_plan/1` is the one rule:
+    the plan-addressed writes (`edit_plan/5`, `set_targets/5`,
+    `delete_target/4`, `delete_position_target/5`) answer
+    `{:error, :plan_archived}`, and the API's `plan_id` reads it for its
+    "is archived: activate it, or duplicate it into a draft". A form loaded
+    while the version was active and saved after another tab archived it
+    gets the problem note "Not saved: “Plan 2025” is archived and steers
+    nothing. Activate it or duplicate it as a draft, then edit." in the
+    page's result slot, the name in `<bdi>`, brought into view and focused as
+    every plan refusal is (Plan refusals name their row, issue 945), and the
+    editor reloads on that version, read-only.
 
 ## Amendment 2026-09-25 — Wealth → Risk: the rule's name as a link, and the rename *(Sprint 16 pick G7-A, issue 872)*
 

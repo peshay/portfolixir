@@ -1498,6 +1498,13 @@ strategy is restructured without losing the old plan:
 - **Activate this plan** (*Diesen Plan aktivieren*) swaps the draft in; the
   previously active plan is archived in the same transaction, so old and new
   plan stay side by side for reference.
+- An **archived** version is **read-only**: it steers nothing, so its target
+  inputs are disabled and **Save plan** and **Copy from another view…** are not
+  offered. A note says so and carries the two ways back: **Activate**
+  (*Aktivieren*) makes it the active plan again, **Duplicate as draft** (*Als
+  Entwurf duplizieren*) copies it into a draft to edit. The API refuses the
+  same write ("is archived: activate it, or duplicate it into a draft"), by
+  the same rule.
 - **Rename** (*Umbenennen*) renames the selected version — e.g. to drop a
   "(Entwurf)" suffix after activation.
 - **Delete plan** on a draft or archived version removes just that version,

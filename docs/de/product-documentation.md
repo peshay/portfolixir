@@ -1651,6 +1651,13 @@ aktiven Plan. So wird eine Strategie umgebaut, ohne den alten Plan zu verlieren:
 - **Diesen Plan aktivieren** schaltet den Entwurf scharf; der zuvor aktive
   Plan wird in derselben Transaktion archiviert — alter und neuer Plan bleiben
   nebeneinander einsehbar.
+- Eine **archivierte** Version ist **nur lesbar**: Sie steuert nichts, darum
+  sind ihre Zielfelder gesperrt, und **Plan speichern** und **Aus anderer
+  Ansicht übernehmen…** werden nicht angeboten. Ein Hinweis sagt das und nennt
+  die zwei Wege zurück: **Aktivieren** macht sie wieder zum aktiven Plan,
+  **Als Entwurf duplizieren** kopiert sie in einen Entwurf zum Bearbeiten. Die
+  API verweigert denselben Schreibzugriff („is archived: activate it, or
+  duplicate it into a draft") nach derselben Regel.
 - **Umbenennen** benennt die ausgewählte Version um — z. B. um nach der
   Aktivierung ein „(Entwurf)"-Suffix loszuwerden.
 - **Plan löschen** entfernt bei einem Entwurf oder archivierten Plan nur diese
