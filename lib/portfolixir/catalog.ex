@@ -154,18 +154,41 @@ defmodule Portfolixir.Catalog do
   Like `list_securities/1` but returns `%SecurityWithMetrics{}` wrappers,
   enriched with latest/prev/1M/1Y closes from quote history. Sort on metric
   columns is applied in Elixir post-enrichment (DB sort falls back to
-  `{:name, :asc}` for that case).
+  `{:name, :asc}` for that case, so ties keep name order), and `:limit` and
+  `:offset` then cut the sorted rows: a page is never cut by name before a
+  metric sort (#1186).
   """
   def list_securities_with_metrics(opts \\ []) when is_list(opts) do
     sort = opts[:sort] || {:name, :asc}
 
+    # A paged delta read keeps its change order (K17), and pages in its query.
+    {page, query_opts} =
+      if metric_sort?(sort) and is_nil(opts[:delta]),
+        do: Keyword.split(opts, [:limit, :offset]),
+        else: {[], opts}
+
     rows =
-      opts
+      query_opts
       |> list_securities()
       |> Quotes.attach_metrics()
 
-    # A paged delta read keeps its change order (K17).
-    if opts[:delta], do: rows, else: sort_metric_rows(rows, sort)
+    if opts[:delta], do: rows, else: rows |> sort_metric_rows(sort) |> apply_page(page)
+  end
+
+  @doc """
+  Whether `sort` (`{field_key, direction}`) sorts by a quote metric, which
+  only `list_securities_with_metrics/1` can apply (#1186).
+  """
+  def metric_sort?({key, _dir}), do: match?(%Field{source: :metric}, SecurityFields.get(key))
+  def metric_sort?(_sort), do: false
+
+  defp apply_page(rows, page) do
+    rows = Enum.drop(rows, page[:offset] || 0)
+
+    case page[:limit] do
+      nil -> rows
+      limit -> Enum.take(rows, limit)
+    end
   end
 
   @doc """

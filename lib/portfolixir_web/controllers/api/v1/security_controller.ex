@@ -79,7 +79,17 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   # the agent's set is the SAME set the dashboard counts and the securities page
   # links to — the point of the story was that there were three copies of the
   # rule and only two of them had a caller.
-  defp list_by(opts, nil), do: Catalog.list_securities(opts)
+  #
+  # #1186: a metric sort (latest_price and the other quote figures) sorts the
+  # enriched rows and pages after it, as the data-quality sets do; the plain
+  # query would fall back to name order. A delta read keeps its change order.
+  defp list_by(opts, nil) do
+    if Catalog.metric_sort?(opts[:sort]) and is_nil(opts[:delta]) do
+      opts |> Catalog.list_securities_with_metrics() |> Enum.map(& &1.security)
+    else
+      Catalog.list_securities(opts)
+    end
+  end
 
   defp list_by(opts, id) do
     id
