@@ -70,7 +70,7 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     WorldFixtures.buy!(world, wren, quantity: "10", price: "50", fees: "1", date: ~D[2026-07-01])
     WorldFixtures.sell!(world, wren, quantity: "10", price: "60", fees: "1", date: ~D[2026-08-14])
 
-    %{arbolia: arbolia}
+    %{arbolia: arbolia, world: world}
   end
 
   defp text(html),
@@ -204,6 +204,62 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
 
     assert de_note =~
              "1 Trade ohne Umrechnung: 2 Käufe, die er schließt, vom 01.04.2025, haben keinen Gegenwert in USD"
+  end
+
+  # User story (#1198, the α closing act's UAT):
+  # As the operator reading the Trades facet's and the Overview card's
+  # exclusion notes,
+  # I want a security name that ends in a full stop to end the sentence
+  # once,
+  # so that the note never reads "… Arbolia Inc..".
+  #
+  # Acceptance criteria:
+  # - Arbolia Inc.'s unavailable trade and Kestrel Inc.'s sale with no rate
+  #   on its close date: the facet reads "… excluded from every total:
+  #   Arbolia Inc." and "… excluded from every total: Kestrel Inc."; the
+  #   card "… left out of the trades: Kestrel Inc. The rate backfill is
+  #   under “All trades”." and "… left out of the trades: Arbolia Inc.";
+  #   no note holds "Inc..".
+  test "a name ending in a full stop ends the note's sentence once", %{conn: conn} do
+    world = seed!()
+
+    kestrel =
+      WorldFixtures.create_security!(name: "Kestrel Inc.", ticker: "KSTL", currency: "USD")
+
+    for {type, date, price} <- [{"buy", ~D[2026-01-05], "50"}, {"sell", ~D[2026-03-02], "60"}] do
+      WorldFixtures.cross_trade!(world.world, kestrel,
+        type: type,
+        quantity: "10",
+        price: price,
+        settled: "#{price}0.00",
+        gross: "#{price}0.00",
+        date: date
+      )
+    end
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+
+    assert view |> element("[data-role=realized-excluded-missing-leg]") |> render() |> text() =~
+             ~r/excluded from every total: Arbolia Inc\.$/
+
+    assert view |> element("[data-role=realized-excluded-no-rate]") |> render() |> text() =~
+             ~r/excluded from every total: Kestrel Inc\.$/
+
+    {:ok, card, _html} = live(conn, "/")
+    render_async(card)
+
+    card_note =
+      card
+      |> element("#dashboard-trades [data-role='trades-card-excluded']")
+      |> render()
+      |> text()
+
+    assert card_note =~
+             "left out of the trades: Kestrel Inc. The rate backfill is under “All trades”."
+
+    assert card_note =~ "left out of the trades: Arbolia Inc."
+    refute card_note =~ "Inc.."
   end
 
   # A buy or sell as a database stored it before #1199's refusal of a
