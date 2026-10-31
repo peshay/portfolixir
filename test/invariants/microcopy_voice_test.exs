@@ -86,4 +86,52 @@ defmodule Portfolixir.Invariants.MicrocopyVoiceTest do
 
     assert offending == [], "\"journaled\" in source strings:\n" <> Enum.join(offending, "\n")
   end
+
+  # User story (#1157, Sprint 21 γ8; board ux-design-2026-10-09/08-shared-copy,
+  # "#1157"; EXPERIENCE.md → Voice and Tone, the impersonal voice):
+  # As the operator reading the German interface while an action runs,
+  # I want its progress label said in the impersonal passive,
+  # so that "Suche…" does not read as the noun "Search" and no label speaks
+  # in the first person ("Synchronisiere…").
+  #
+  # Acceptance criteria:
+  # - Every msgid whose first word ends in "-ing" and that ends in "…" has a
+  #   German msgstr with "wird" or "werden" ("Wird importiert…").
+  # - The board's five labels read as it gives them: "Wird gesucht…",
+  #   "Logo wird gesucht…", "Wird synchronisiert…", "Wird gespeichert…",
+  #   "Wird nachgeladen…".
+  @progress_labels %{
+    "Searching…" => "Wird gesucht…",
+    "Looking up logo…" => "Logo wird gesucht…",
+    "Syncing…" => "Wird synchronisiert…",
+    "Saving…" => "Wird gespeichert…",
+    "Backfilling…" => "Wird nachgeladen…"
+  }
+
+  test "a running action's German label is the impersonal passive" do
+    entries =
+      @de
+      |> File.read!()
+      |> String.split(~r/\n\n+/)
+      |> Enum.flat_map(fn entry ->
+        case Regex.run(~r/^msgid "(.*)"\nmsgstr "(.*)"$/m, entry) do
+          [_, msgid, msgstr] -> [{msgid, msgstr}]
+          nil -> []
+        end
+      end)
+
+    offending =
+      for {msgid, msgstr} <- entries,
+          msgid =~ ~r/^[A-Z][a-z]*ing\b.*…$/u,
+          not (msgstr =~ ~r/\b([Ww]ird|werden)\b/u),
+          do: "#{msgid} → #{msgstr}"
+
+    assert offending == [], "first-person progress labels:\n" <> Enum.join(offending, "\n")
+
+    found = Map.new(entries)
+
+    for {msgid, msgstr} <- @progress_labels do
+      assert found[msgid] == msgstr
+    end
+  end
 end
