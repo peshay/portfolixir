@@ -1350,6 +1350,78 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert corrections_journal() == []
     end
 
+    # The simulations the test process starts (each opens its read-only
+    # transaction with this statement), counted while `fun` runs.
+    defp simulations(fun) do
+      test_pid = self()
+      handler = "correction-simulations-#{System.unique_integer([:positive])}"
+
+      :ok =
+        :telemetry.attach(
+          handler,
+          [:portfolixir, :repo, :query],
+          fn _event, _measurements, metadata, _config ->
+            if self() == test_pid and metadata[:query] == "SET TRANSACTION READ ONLY",
+              do: send(test_pid, :simulation)
+          end,
+          nil
+        )
+
+      try do
+        result = fun.()
+        {result, count_simulations(0)}
+      after
+        :telemetry.detach(handler)
+      end
+    end
+
+    defp count_simulations(n) do
+      receive do
+        :simulation -> count_simulations(n + 1)
+      after
+        0 -> n
+      end
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12, the follow-up on the
+    # dry run's cost):
+    # As the operator dropping a large file,
+    # I want the correction to run the apply's simulation only when a row
+    # could be matched by its figures,
+    # so that a re-drop whose rows all hit their hashes, or a file no old
+    # reading can match, is listed in the time the hash lookup takes.
+    #
+    # Acceptance criteria:
+    # - K23's history stored under the old reading. Its own re-drop (every
+    #   row a hash hit) lists the sale by its hash and runs no simulation.
+    # - The same file with a new dividend (no hash hit, but its cash is what
+    #   its hash reads, so no old reading differs) runs none either.
+    # - The drifted re-export in a portfolio that holds no booking runs none
+    #   and lists nothing.
+    # - The drifted re-export in the stored portfolio runs one, and lists
+    #   the sale by its figures.
+    test "A12: the simulation runs only when a row without a hash hit has an old reading" do
+      portfolio = portfolio!("A12 the run")
+      history = [deposit("2026-03-02", 1100.0), purchase("2026-03-03", 10.0, 100.0)]
+      stored = history ++ [sale("2026-06-15", "15:30", 120.0)]
+      apply!(old_reading(parse_rows(stored)), portfolio)
+
+      assert {[%Item{row: 3, match: :hash}], 0} =
+               simulations(fn -> listed(parse_rows(stored), portfolio) end)
+
+      with_dividend = stored ++ [dividend("2026-07-15", 9.13)]
+
+      assert {[%Item{row: 3, match: :hash}], 0} =
+               simulations(fn -> listed(parse_rows(with_dividend), portfolio) end)
+
+      drifted = history ++ [sale("2026-06-15", "15:31", 120.0)]
+      empty = portfolio!("A12 holds nothing")
+      assert {[], 0} = simulations(fn -> listed(parse_rows(drifted), empty) end)
+
+      assert {[%Item{row: 3, match: :figures}], 1} =
+               simulations(fn -> listed(parse_rows(drifted), portfolio) end)
+    end
+
     # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule, K24):
     # As the operator with two equal sales on one day,
     # I want a row matched by its figures corrected only when exactly one
