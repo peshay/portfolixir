@@ -206,6 +206,25 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
     Enum.map(preview.errors, & &1.row)
   end
 
+  # Test-Cash and a Test-Depot that settles on it, in `portfolio`.
+  defp accounts!(portfolio) do
+    {:ok, cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Test-Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, _depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Test-Depot"
+      })
+
+    :ok
+  end
+
   defp held(portfolio) do
     portfolio.id
     |> Ledger.holdings_for_portfolio()
@@ -227,14 +246,20 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
   # Acceptance criteria:
   # - K16, JSON and PP CSV alike: the delivery is the one row error; the
   #   deposit of 1,000.00 and the purchase of 5 shares for 501.00 book:
-  #   Test-Cash 499.00, Test-Depot holds 5 Arbolia Inc. (Today the apply
-  #   answers insert_failed on the split-off refund and stores nothing.)
+  #   Test-Cash 499.00, Test-Depot holds 5 Arbolia Inc. With Test-Cash and
+  #   Test-Depot in place, as a mapping places them, the apply of b9413da
+  #   answers insert_failed on the split-off refund ("2.tax_refund.1",
+  #   "3.tax_refund.1") and stores nothing.
   # - K17, JSON and PP CSV alike: the transfer is the row error and the
   #   deposit books: Test-Cash 1,000.00, and nothing books on Test-Savings.
   #   (Today Test-Cash 900.00 and Test-Savings 105.00.)
   test "a delivery or a transfer with a negative tax unit is left out, and the rest books" do
     for name <- ["k16_delivery_negative_tax.json", "k16_delivery_negative_tax.csv"] do
       portfolio = target("K16 " <> name)
+      # The depot first appears on the delivery, which names no cash
+      # account, so it is linked to Test-Cash beforehand, as an operator's
+      # mapping links it: the apply then reaches the split-off refund.
+      accounts!(portfolio)
       refused = apply_refusing!(name, portfolio)
 
       assert Decimal.equal?(cash(portfolio, "Test-Cash"), Decimal.new("499.00")), name
