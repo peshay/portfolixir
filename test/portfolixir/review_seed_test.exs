@@ -276,7 +276,8 @@ defmodule Portfolixir.ReviewSeedTest do
   # - The file previews with one row error, the delivery's, naming its
   #   remedy; the deposit and the purchase preview.
   # - Applied, "Girokonto Lieferung" reads 499.00 and "Depot Lieferung"
-  #   holds 5 "Arbolia Inc.".
+  #   holds 5 "Quillmere Optics AG" (a name of its own: the seed's "Arbolia
+  #   Inc." is a USD security, and a twin name in EUR read as the same one).
   # - The seed does not import it, so a second run adds nothing for it (the
   #   first test pins the bookings across two runs).
   test "the seed names a delivery with a negative tax that previews with one row error" do
@@ -309,8 +310,10 @@ defmodule Portfolixir.ReviewSeedTest do
     balance = [portfolio_id: portfolio.id] |> Ledger.cash_balances() |> Map.fetch!(giro)
     assert Decimal.equal?(balance, Decimal.new("499.00"))
 
-    assert [%{security_name: "Arbolia Inc.", quantity: quantity}] =
+    assert [%{security_name: "Quillmere Optics AG", quantity: quantity}] =
              Ledger.holdings_for_portfolio(portfolio.id)
+
+    refute File.read!(file) =~ "Arbolia"
 
     assert Decimal.equal?(quantity, 5)
   end
