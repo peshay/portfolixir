@@ -258,6 +258,55 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
     assert texts(german, matches <> " li") == ["„Tagesgeld“, jetzt Tagesgeld Neu · 1 Buchung"]
   end
 
+  # User story (#1181, Sprint 21 γ7; board 07 ⑨): As the operator on the
+  # import's done page, on Risk and on Tax, I want "View transactions",
+  # "New rule" and "Cancel" drawn as the family's outline secondary button,
+  # so that none of them reads as plain text or as disabled beside the
+  # primary.
+  #
+  # Acceptance criteria:
+  # - The done page's "View transactions" is `a.button-secondary` to
+  #   `/transactions`, beside the primary.
+  # - In `app.css`, `.button-secondary` joins `.button-ghost`'s two selector
+  #   lists (shape; transparent fill, border and text colour) and its hover,
+  #   all before `.button`, so Tax's `button button-secondary` keeps
+  #   `.button`'s size; a link carrying it is an inline-flex box centred on
+  #   its text, at least 34 px tall; the Tax-page rule that made it a muted
+  #   text colour is gone.
+  # - The focus ring's selector still names `.button-secondary`.
+  test "the secondary action is the family's outline button", %{conn: conn} do
+    _portfolio = portfolio!()
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, "first.json", json([deposit("1000.00")]))
+    confirm(view)
+
+    assert has_element?(
+             view,
+             ".import-done .actions a.button-secondary[href='/transactions']",
+             "View transactions"
+           )
+
+    css = File.read!("priv/static/app.css")
+    [before_button | _] = String.split(css, "\n.button,\n.button-danger {", parts: 2)
+
+    assert before_button =~
+             ~r/\.button-primary,\n\.button-ghost,\n\.button-secondary \{\n  font: inherit;/
+
+    assert before_button =~
+             ~r/\.button-ghost,\n\.button-secondary \{\n  background: transparent;\n  border-color: var\(--color-border\);\n  color: var\(--color-text\);\n\}/
+
+    assert before_button =~ ~r/\.button-ghost:hover,\n\.button-secondary:hover \{/
+
+    assert css =~
+             ~r/a\.button-secondary \{\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  box-sizing: border-box;\n  min-height: 34px;\n  text-decoration: none;\n\}/
+
+    refute css =~ ~r/\.button-secondary \{\n  color: var\(--color-text-muted\);\n\}/
+
+    assert css =~
+             ":is(.button, .button-primary, .button-ghost, .button-danger, .button-secondary):focus-visible"
+  end
+
   # --- the exports -------------------------------------------------------------
 
   defp history do
