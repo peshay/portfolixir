@@ -92,29 +92,38 @@ defmodule Portfolixir.Portfolios do
   (the account dialog's all-or-nothing save), the lock and the record are
   held to that transaction's end: the caller takes it before its other locks.
   """
-  def default_portfolio(%Actor{} = actor) do
+  def default_portfolio(%Actor{} = actor),
+    do: actor |> ensure_default_portfolio() |> elem(1)
+
+  @doc """
+  `default_portfolio/1`, saying whether this call created the record
+  (`{:created, portfolio}`) or found it (`{:existing, portfolio}`): the
+  import's result names a record it created (board 07 ⑨, #1178).
+  """
+  @spec ensure_default_portfolio(Actor.t()) :: {:created | :existing, Portfolio.t()}
+  def ensure_default_portfolio(%Actor{} = actor) do
     case first_portfolio() do
       nil -> create_default_portfolio(actor)
-      portfolio -> portfolio
+      portfolio -> {:existing, portfolio}
     end
   end
 
   defp create_default_portfolio(actor) do
-    {:ok, portfolio} =
+    {:ok, resolved} =
       Repo.transaction(fn ->
         Repo.query!(@default_portfolio_lock_sql, [@default_portfolio_lock_key])
 
         case first_portfolio() do
           nil ->
             {:ok, portfolio} = create_portfolio(actor, @default_portfolio)
-            portfolio
+            {:created, portfolio}
 
           portfolio ->
-            portfolio
+            {:existing, portfolio}
         end
       end)
 
-    portfolio
+    resolved
   end
 
   @doc """

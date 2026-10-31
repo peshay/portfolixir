@@ -3109,7 +3109,9 @@ interne Portfolio-Bindung geschieht automatisch und erfordert nie eine Auswahl
 Portfoliodatensatz hält, sagt die Vorschau das unter dem Quellformat: *Noch
 kein Portfoliodatensatz: Der Import legt „Default“ (EUR) an und bucht darin.*
 Der Datensatz erscheint danach unter **Portfoliodatensätze (Kompatibilität)**
-auf Konten & Depots.
+auf Konten & Depots, und das Ergebnis nach dem Import nennt ihn noch einmal:
+*Der Import hat den Portfoliodatensatz „Default“ (EUR) angelegt und darin
+gebucht.*
 
 Parser-Warnungen erscheinen in einer Notiz **Achtung** unter den Anzahlen je
 Art, mit einer scrollbaren Liste der Zeilen und einem Kopier-Button. Der

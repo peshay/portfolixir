@@ -2827,7 +2827,9 @@ binding happens automatically and never needs a choice (see the Portfolios
 section). On an instance that holds no portfolio record yet, the preview says
 so under the source format: *No portfolio record yet: the import creates
 “Default” (EUR) and books into it.* The record then shows under **Portfolio
-records (compatibility)** on Accounts & depots.
+records (compatibility)** on Accounts & depots, and the result after the
+import names it once more: *The import created the portfolio record “Default”
+(EUR) and booked into it.*
 
 The parsed preview and account mapping are preserved in memory across language
 switches. Switching the UI language while reviewing an import returns to the

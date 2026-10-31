@@ -937,6 +937,20 @@ defmodule PortfolixirWeb.ImportsLive do
         ·
         <%= gettext("Skipped duplicates: %{n}", n: @result.skipped_duplicates) %>
       </p>
+      <%!-- #1178 (board 07 ⑨): the record a first import created on a fresh
+           instance, in #1173's preview words; the name and currency are
+           stored data. --%>
+      <p :if={@result.created_portfolio} class="muted" data-role="import-portfolio">
+        <%= StoredText.isolate(
+          gettext(
+            "The import created the portfolio record “%{name}” (%{currency}) and booked into it.",
+            name: StoredText.slot(:name),
+            currency: StoredText.slot(:currency)
+          ),
+          name: @result.created_portfolio.name,
+          currency: @result.created_portfolio.base_currency_code
+        ) %>
+      </p>
 
       <%!-- ADR-0053 §6 (board 09 A): the import confirmed before the
            correction leaves those bookings as they were (K8); the result

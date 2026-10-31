@@ -197,7 +197,10 @@ defmodule Portfolixir.Imports.Applier do
               remembered_names: [],
               # ADR-0050 §2, §7 step 4: rows inserted on an account on or
               # before an anchor a cash merge restated, which absorbs them.
-              behind_restated_anchor: []
+              behind_restated_anchor: [],
+              # Board 07 ⑨ (#1178): the portfolio record this import created
+              # (`%{id, name, base_currency_code}`), or nil.
+              created_portfolio: nil
 
     @type t :: %__MODULE__{}
   end
@@ -284,7 +287,10 @@ defmodule Portfolixir.Imports.Applier do
     Repo.transaction(
       fn ->
         with {:ok, portfolio_id, result} <-
-               resolve_portfolio(Map.get(params, :portfolio), %Result{}),
+               resolve_portfolio(
+                 Map.get(params, :portfolio),
+                 %Result{created_portfolio: Map.get(params, :created_portfolio)}
+               ),
              :ok <- AccountNames.lock_identity(portfolio_id),
              :ok <- lock_file_isins(flat_entries, params),
              {:ok, cash_plan} <-
@@ -1050,16 +1056,28 @@ defmodule Portfolixir.Imports.Applier do
   # is created under the default-portfolio lock and committed at once
   # (`Portfolios.default_portfolio/1`); a failed import leaves it, as it
   # leaves an account the operator created first.
+  #
+  # A record it created is named in the result (board 07 ⑨, #1178).
   defp resolve_default_portfolio(params) do
     case Map.get(params, :portfolio) do
       nil ->
-        %{id: id} = Portfolios.default_portfolio(Actor.import_session())
-        Map.put(params, :portfolio, {:existing, id})
+        case Portfolios.ensure_default_portfolio(Actor.import_session()) do
+          {:created, portfolio} ->
+            params
+            |> Map.put(:portfolio, {:existing, portfolio.id})
+            |> Map.put(:created_portfolio, created_portfolio(portfolio))
+
+          {:existing, %{id: id}} ->
+            Map.put(params, :portfolio, {:existing, id})
+        end
 
       _choice ->
         params
     end
   end
+
+  defp created_portfolio(portfolio),
+    do: Map.take(portfolio, [:id, :name, :base_currency_code])
 
   defp resolve_portfolio({:existing, id}, result) when is_integer(id) do
     {:ok, id, result}
@@ -1070,8 +1088,11 @@ defmodule Portfolixir.Imports.Applier do
            name: name,
            base_currency_code: ccy
          }) do
-      {:ok, %{id: id}} -> {:ok, id, result}
-      {:error, changeset} -> {:error, {:portfolio_create_failed, changeset}}
+      {:ok, %{id: id} = portfolio} ->
+        {:ok, id, %Result{result | created_portfolio: created_portfolio(portfolio)}}
+
+      {:error, changeset} ->
+        {:error, {:portfolio_create_failed, changeset}}
     end
   end
 

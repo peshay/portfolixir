@@ -3342,7 +3342,15 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   is nothing to say (UX-DR2), and the line is absent. The companion's
   `first_setup` prompt says the same: accounts and imports bind to the
   earliest record, which the first import or account creates as "Default"
-  (EUR).
+  (EUR). *Amended 2026-10-31 (issue 1178; board
+  `mockups/ux-design-2026-10-09/07-imports` ⑨):* **the done page names the
+  record the import created**, in the preview's words: a muted line right
+  under the counts (`<p class="muted" data-role="import-portfolio">`, no CSS
+  of its own), "The import created the portfolio record “Default” (EUR) and
+  booked into it." / "Der Import hat den Portfoliodatensatz „Default“ (EUR)
+  angelegt und darin gebucht.", read from the apply's result
+  (`created_portfolio`), the name and the currency set in `<bdi>`. An import
+  that found a record says nothing.
 - **A row none of whose bookings is new needs no decision** — the account
   rows' rule (board 04, note 4: an ambiguous cash or depot name with nothing
   new is left undecided and blocks nothing), and since 2026-10-06 the
