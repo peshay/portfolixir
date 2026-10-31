@@ -2544,13 +2544,20 @@ defmodule Portfolixir.DocsTest do
   # - The English and German handbooks name the table, its formula, the three
   #   remainder lines, the ten-largest limit with "show all", the unvalued
   #   note, and that the sum row equals the money figure beside the TTWROR.
+  # - Since #928 (Sprint 21 α4): the handbooks and the API references say a
+  #   coupon naming its bond is that position's income, and the interest
+  #   line holds the interest bookings that name no security.
   test "the docs describe the contribution table and its sum in English and German" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",
            [
              "### Contribution by position",
              "end value − start value − flows + income − costs",
-             "interest, standalone fees and taxes, and the currency effect on cash",
+             # #928 (ADR-0051's amendment of 2026-10-09): a coupon naming its
+             # bond is that position's income; the line keeps the rest.
+             "plus the dividends and the bond coupons that name it, as credited",
+             "interest that names no security (account interest, and a coupon stored without its bond",
+             "standalone fees and taxes, and the currency effect on cash",
              "the sum row equals the money figure in the badge",
              "the ten largest by absolute amount",
              "counted zero"
@@ -2559,10 +2566,22 @@ defmodule Portfolixir.DocsTest do
            [
              "### Beitrag je Position",
              "Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten",
-             "Zinsen, einzelne Gebühren und Steuern sowie der Währungseffekt auf Bargeld",
+             "Dividenden und der Anleihekupons, die die Position nennen",
+             "Zinsen ohne Wertpapier (Kontozinsen und ein Kupon, der ohne seine Anleihe gebucht ist",
+             "einzelne Gebühren und Steuern sowie der Währungseffekt auf Bargeld",
              "die Summenzeile ist genau der Betrag im Abzeichen",
              "die zehn mit dem größten Betrag",
              "null gezählt"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "where `income` is the dividends and the interest bookings that name the position's security (a bond's coupon)",
+             "`interest` (the interest bookings that name no security: account interest, and every coupon stored without its bond)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "wobei `income` die Dividenden und die Zinsbuchungen sind, die das Wertpapier der Position nennen (der Kupon einer Anleihe)",
+             "`interest` (die Zinsbuchungen ohne Wertpapier: Kontozinsen und jeder Kupon, der ohne seine Anleihe gebucht ist)"
            ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
