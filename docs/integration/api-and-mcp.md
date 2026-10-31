@@ -1848,13 +1848,16 @@ Example account payloads:
   currency at `settlement_amount` ÷ quantity, its fees and taxes as
   recorded. An imported purchase sold through the booking form so reads
   `basis` `"1007.5"`, `realized_pnl_abs` `"188.75"` USD and `realized_base`
-  `"151"`. A lot without the leg it needs (or priced in a third currency, or
-  booked in another account's currency) makes the trade unavailable: the
+  `"151"`. A lot without the leg it needs (or booked in another account's
+  currency), or a lot or a sell priced in a third currency (a row stored
+  before issue #1199, even where the two share it), makes the trade
+  unavailable: the
   trades read keeps it with its sell's own figures (`proceeds`,
   `sell_fees`, `avg_sell_price`), `null` for `basis`, `avg_buy_price`,
   `buy_fees`, `buy_taxes`, `realized_pnl_abs`, `realized_pnl_pct` and
   `annualized_return`, `unavailable_reason` `"missing_settlement_leg"` and
-  `lots_missing_leg` (`open_date`, `currency_code` of each such lot);
+  `lots_missing_leg` (`open_date`, `currency_code` of each such lot; a sell
+  in a third currency names every lot it closes);
   `GET /api/v1/realized_gains` leaves it out of `trades`, the matrix and the
   summary and counts it in `excluded`, whose `by_reason` tells
   `missing_settlement_leg` from `no_rate` (a sale with no close-date rate).

@@ -1998,14 +1998,16 @@ Beispiel-Payloads für Konten:
   `settlement_amount` ÷ Stückzahl, seine Gebühren und Steuern wie erfasst.
   Ein importierter Kauf, über das Buchungsformular verkauft, liest so
   `basis` `"1007.5"`, `realized_pnl_abs` `"188.75"` USD und `realized_base`
-  `"151"`. Ein Lot ohne das nötige Bein (oder in einer dritten Währung, oder
-  in der Währung eines anderen Kontos gebucht) macht den Trade
-  unverfügbar: Der Trades-Read behält ihn mit den eigenen Zahlen seines
+  `"151"`. Ein Lot ohne das nötige Bein (oder in der Währung eines anderen
+  Kontos gebucht) oder ein Lot oder Verkauf in einer dritten Währung (eine
+  vor Issue #1199 gespeicherte Zeile, auch wenn beide sie teilen) macht den
+  Trade unverfügbar: Der Trades-Read behält ihn mit den eigenen Zahlen seines
   Verkaufs (`proceeds`, `sell_fees`, `avg_sell_price`), `null` für
   `basis`, `avg_buy_price`, `buy_fees`, `buy_taxes`, `realized_pnl_abs`,
   `realized_pnl_pct` und `annualized_return`, `unavailable_reason`
   `"missing_settlement_leg"` und `lots_missing_leg` (`open_date`,
-  `currency_code` jedes solchen Lots); `GET /api/v1/realized_gains` lässt
+  `currency_code` jedes solchen Lots; ein Verkauf in einer dritten Währung
+  nennt jedes Lot, das er schließt); `GET /api/v1/realized_gains` lässt
   ihn aus `trades`, der Matrix und der Zusammenfassung und zählt ihn in
   `excluded`, dessen `by_reason` `missing_settlement_leg` von `no_rate`
   (ein Verkauf ohne Kurs am Schlussdatum) unterscheidet. Jeder verfügbare

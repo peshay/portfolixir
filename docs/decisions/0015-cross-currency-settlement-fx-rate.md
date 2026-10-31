@@ -332,6 +332,23 @@ Two neighbours decide what a fix can rest on:
    currency reads byte-identical figures**, the import form's included: the
    conversion runs only where a sell closes a lot booked in another
    currency.
+
+   *Note (2026-10-31, #1198, the Sprint 21 money batch's follow-up):*
+   point 3 comes first for a lot or a sell priced in a third currency, a
+   row stored before point 1's refusal. Such a row's fees and taxes are in
+   its cash account's currency, and no stored leg converts them into its
+   price's, so a trade that adds them reads two currencies under one code,
+   even where its sell and every lot it closes are priced in that one
+   third currency. `Ledger.transaction_for_matcher/2` flags a buy or sell
+   priced in neither its security's currency nor its account's, and the
+   matcher makes a closed trade with a flagged sell or a flagged lot
+   unavailable (`missing_settlement_leg`): a flagged lot is named in
+   `lots_missing_leg`, and a flagged sell names every lot it closes, since
+   no lot enters a sell whose fees are not in its price's currency. Before
+   the note such a trade was summed: a dollar share bought through a franc
+   account (900.00 CHF, fees 2.00 CHF) and sold, in a stored row, at
+   110 CHF through the euro account with fees of 3.00 EUR read basis 902
+   and realized 195 under CHF.
 5. **The basis says so.** `Ledger.trade_fees_basis/0`, which the trades and
    realized-gains payloads carry as `computation_basis.fees_and_taxes`,
    drops its "#1198, an open decision" clause and states points 2 to 4, and
