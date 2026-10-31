@@ -24,7 +24,8 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 
 **Benannte Tokens** (E25). `PORTFOLIXIR_API_TOKENS` fügt weitere Tokens als
 `name=token`-Einträge hinzu, durch Kommas getrennt (`scripts=<token>`; ein Name
-hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`). Ein Schreibzugriff mit
+hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`, beginnend mit einem Buchstaben
+oder einer Ziffer). Ein Schreibzugriff mit
 einem davon wird mit diesem Namen als `actor_label` im Journal verbucht
 (`GET /api/v1/journal`), und eine damit ausgeführte Zusammenführung hält den
 Namen in ihrem Protokoll fest (`GET /api/v1/merges`), genommen aus dem Eintrag,

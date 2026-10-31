@@ -23,7 +23,7 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 
 **Named tokens** (E25). `PORTFOLIXIR_API_TOKENS` adds further tokens as
 `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32
-characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled
+characters of `a-z`, `0-9`, `_` and `-`, starting with a letter or a digit). A write made with one is journaled
 with that name as `actor_label` (`GET /api/v1/journal`), and a merge applied
 with one records it on its merge record (`GET /api/v1/merges`), taken from the
 entry the presented token matched, never from the request.
