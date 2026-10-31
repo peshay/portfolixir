@@ -20,6 +20,7 @@ defmodule Portfolixir.LockRace.PreviewDryRunTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Isin
   alias Portfolixir.Imports
+  alias Portfolixir.Ledger
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.LockRace
@@ -266,6 +267,125 @@ defmodule Portfolixir.LockRace.PreviewDryRunTest do
       })
     )
     |> Map.fetch!(:status)
+  end
+
+  # User story (#1205, Sprint 21 α7; ADR-0053 A12; the H53 review of the
+  # correction's confirm):
+  # As the operator who confirms a correction while my agent renames
+  # another cash account of the same portfolio,
+  # I want the confirm to wait for the rename and correct every line it
+  # listed, the one found by its figures too,
+  # so that a confirmed correction is never silently cut down to the lines
+  # found by their hashes.
+  #
+  # Acceptance criteria:
+  # - K23's world: the sale stored under the old reading (120.00, the
+  #   refund 25.00 beside it), its re-export drifted by a minute; the
+  #   correction lists it by its figures, with a confirm.
+  # - The confirm, raced against a rename of another cash account of the
+  #   portfolio that holds the account-identity lock, waits for it, then
+  #   corrects the sale: 120.00 → 95.00, Race-Cash 1,120.00; nothing is
+  #   listed afterwards.
+  test "the correction's confirm waits for a rename in flight and corrects the line found by its figures",
+       %{db: db} do
+    security = %{"name" => "Race Arbolia Inc.", "isin" => isin("XQ", 1), "currency" => "EUR"}
+
+    sale = fn time ->
+      %{
+        "type" => "SALE",
+        "account" => "Race-Cash",
+        "portfolio" => "Race-Depot",
+        "date" => "2026-06-15",
+        "time" => time,
+        "currency" => "EUR",
+        "amount" => num("120.00"),
+        "shares" => num("10"),
+        "security" => security,
+        "units" => [
+          %{"type" => "FEE", "amount" => num("5.00")},
+          %{"type" => "TAX", "amount" => num("-25.00")}
+        ]
+      }
+    end
+
+    history = [
+      %{
+        "type" => "DEPOSIT",
+        "account" => "Race-Cash",
+        "date" => "2026-03-02",
+        "currency" => "EUR",
+        "amount" => num("1100.00")
+      },
+      %{
+        "type" => "PURCHASE",
+        "account" => "Race-Cash",
+        "portfolio" => "Race-Depot",
+        "date" => "2026-03-03",
+        "time" => "10:00",
+        "currency" => "EUR",
+        "amount" => num("100.00"),
+        "shares" => num("10"),
+        "security" => security
+      }
+    ]
+
+    {portfolio, other, drifted} =
+      ScratchDatabase.run(db, fn ->
+        {:ok, portfolio} =
+          Portfolios.create_portfolio(Actor.owner_ui(), %{
+            name: "Synthetic Correction Target",
+            base_currency_code: "EUR"
+          })
+
+        # As the importer booked it before ADR-0053's amendment: the sale's
+        # cash cell whole, priced the old way, the refund beside it.
+        stored = preview!(history ++ [sale.("15:30")])
+
+        old_reading =
+          Enum.map(stored.entries, fn entry ->
+            %{entry | gross_amount: entry.hash_amount, price: entry.hash_price || entry.price}
+          end)
+
+        {:ok, _} = Imports.apply(%{stored | entries: old_reading}, %{portfolio_id: portfolio.id})
+
+        {:ok, other} =
+          Portfolios.create_cash_account(Actor.owner_ui(), %{
+            portfolio_id: portfolio.id,
+            name: "Race-Other",
+            currency_code: "EUR"
+          })
+
+        drifted = preview!(history ++ [sale.("15:31")])
+
+        assert [%{row: 3, state: :confirm, match: :figures}] =
+                 Imports.cash_corrections(drifted, portfolio_id: portfolio.id)
+
+        {portfolio, other, drifted}
+      end)
+
+    {{:ok, _renamed}, corrected} =
+      LockRace.race!(
+        db,
+        {fn ->
+           Portfolios.update_cash_account(Actor.owner_ui(), other, %{name: "Race-Other 2"})
+         end, &LockRace.lock?/1},
+        fn ->
+          Imports.correct_cash(Imports.correction_actor(), drifted, portfolio_id: portfolio.id)
+        end
+      )
+
+    assert {:ok, [%{row: 3, match: :figures}]} = corrected
+
+    ScratchDatabase.run(db, fn ->
+      cash = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Race-Cash"))
+
+      assert [portfolio_id: portfolio.id]
+             |> Ledger.cash_balances()
+             |> Map.fetch!(cash.id)
+             |> Decimal.equal?(Decimal.new("1120"))
+
+      assert Imports.cash_corrections(drifted, portfolio_id: portfolio.id) == []
+    end)
   end
 
   # --- files -------------------------------------------------------------------------
