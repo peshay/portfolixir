@@ -595,14 +595,10 @@ defmodule Portfolixir.Portfolios.Targets do
   """
   def delete_target(%Actor{} = actor, portfolio_id, category_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(category_id) do
-    with :ok <- ensure_writable_ref(opts) do
-      portfolio_id
-      |> scoped_query(opts)
-      |> where([t], t.category_id == ^category_id and is_nil(t.security_id))
-      |> select([t], t)
-      |> Repo.all()
-      |> delete_targets(actor)
-    end
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], t.category_id == ^category_id and is_nil(t.security_id))
+    |> delete_in_plan(actor, opts)
   end
 
   @doc """
@@ -613,14 +609,24 @@ defmodule Portfolixir.Portfolios.Targets do
   """
   def delete_position_target(%Actor{} = actor, portfolio_id, category_id, security_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(category_id) and is_integer(security_id) do
-    with :ok <- ensure_writable_ref(opts) do
-      portfolio_id
-      |> scoped_query(opts)
-      |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
-      |> select([t], t)
-      |> Repo.all()
-      |> delete_targets(actor)
-    end
+    portfolio_id
+    |> scoped_query(opts)
+    |> where([t], t.category_id == ^category_id and t.security_id == ^security_id)
+    |> delete_in_plan(actor, opts)
+  end
+
+  # The archived check, the read and the deletes in one transaction (#1187,
+  # the review of γ6): the check's share lock on the plan row lasts until the
+  # deletes have run, so an activation cannot archive the plan in between.
+  defp delete_in_plan(query, actor, opts) do
+    Repo.transaction(fn ->
+      with :ok <- ensure_writable_ref(opts),
+           {:ok, count} <- query |> select([t], t) |> Repo.all() |> delete_targets(actor) do
+        count
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   @doc """
@@ -969,7 +975,9 @@ defmodule Portfolixir.Portfolios.Targets do
   `plan:` to steer a specific version.
 
   Returns `:ok`, `{:error, :not_found}` / `{:error, :plan_mismatch}` (bad
-  `plan:`), or `{:error, %Ecto.Changeset{}}` (a weight out of range).
+  `plan:`), `{:error, :plan_archived}` (a `plan:` naming an archived version,
+  `writable_plan/1`), or `{:error, %Ecto.Changeset{}}` (a weight out of
+  range).
   """
   def set_cash_target(%Actor{} = actor, portfolio_id, weight, opts \\ [])
       when is_integer(portfolio_id) do
@@ -992,8 +1000,33 @@ defmodule Portfolixir.Portfolios.Targets do
       {_weight, nil, _plan_ref} ->
         {:error, :not_found}
 
-      {_weight, %TargetPlan{} = plan, _} ->
+      {_weight, %TargetPlan{} = plan, nil} ->
         write_cash_target(actor, plan, weight)
+
+      {_weight, %TargetPlan{} = plan, _plan_ref} ->
+        write_version_cash_target(actor, plan, weight)
+    end
+  end
+
+  # A cash write that names its version meets the target writes' rule
+  # (#1187, the review of γ6): the version row is locked in the mode the
+  # update takes anyway (an activation's archive takes it too), its status
+  # read under that lock, and the write refused for an archived version.
+  defp write_version_cash_target(actor, %TargetPlan{id: plan_id}, weight) do
+    Repo.transaction(fn ->
+      locked = Repo.one(from(p in TargetPlan, where: p.id == ^plan_id, lock: "FOR NO KEY UPDATE"))
+
+      with %TargetPlan{} <- locked || {:error, :not_found},
+           :ok <- writable_plan(locked),
+           :ok <- write_cash_target(actor, locked, weight) do
+        :ok
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -1090,8 +1123,10 @@ defmodule Portfolixir.Portfolios.Targets do
   end
 
   # A write that names its version reads the version's status under a share
-  # lock, so an activation in another tab that archives it waits for this
-  # write or is seen by it (#1187).
+  # lock (#1187). Every caller runs it inside the transaction that then
+  # writes, so the lock is held to that commit: an activation in another tab
+  # that archives the version waits for the write, or the write, reading
+  # after the activation committed, sees the version archived.
   defp fetch_plan_for_write(plan_id) do
     case Repo.one(from(p in TargetPlan, where: p.id == ^plan_id, lock: "FOR SHARE")) do
       nil -> {:error, :not_found}
