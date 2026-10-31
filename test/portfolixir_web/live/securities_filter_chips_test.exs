@@ -256,4 +256,55 @@ defmodule PortfolixirWeb.SecuritiesFilterChipsTest do
     refute has_element?(view, "[data-role='more-filters-count']")
     assert view |> element("#sec-chip-unclassified") |> render() =~ ~s(aria-pressed="true")
   end
+
+  # User story (#1104, Sprint 21 γ2; board 02, pick N6 A): As the operator
+  # reading the securities list in German, I want a builder condition on a
+  # boolean field to read "Stillgelegt: nein", so that the chip names the set
+  # the list shows in my language instead of "Stillgelegt = false".
+  #
+  # Acceptance criteria:
+  # - A boolean condition renders as "<field>: ja" / "<field>: nein", one rule
+  #   for every boolean field (Stillgelegt, Benchmark), with no trailing space.
+  # - The stored filter stays `is_retired:is_false` (the URL is unchanged).
+  # - For a boolean field the builder labels its select "Wert" and offers the
+  #   chip's two words, "ja" and "nein".
+  test "a boolean builder condition reads field: ja / nein, and the builder speaks the same words",
+       %{conn: conn} do
+    WorldFixtures.create_security!(name: "Active Equity", ticker: "ACT")
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/securities?locale=de&filter[]=is_retired:is_false&filter[]=is_benchmark:is_true"
+      )
+
+    chips =
+      view
+      |> element("#filter-chips")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("li.chip > span")
+      |> Enum.map(&Floki.text/1)
+
+    assert "Stillgelegt: nein" in chips
+    assert "Benchmark: ja" in chips
+    refute Enum.any?(chips, &(&1 =~ "= false" or &1 =~ "= true"))
+
+    view |> element("#more-filters-toggle") |> render_click()
+    view |> element("#securities-filter-form") |> render_change(%{"field" => "is_retired"})
+
+    form = view |> element("#securities-filter-form") |> render() |> Floki.parse_fragment!()
+
+    assert ["Wert"] ==
+             form
+             |> Floki.find("[data-role='filter-operator-label']")
+             |> Enum.map(&String.trim(Floki.text(&1)))
+
+    assert ["ja", "nein"] ==
+             form
+             |> Floki.find("select[name='operator'] option")
+             |> Enum.map(&String.trim(Floki.text(&1)))
+
+    refute Floki.text(form) =~ "ist falsch"
+  end
 end
