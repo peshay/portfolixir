@@ -454,8 +454,8 @@ defmodule PortfolixirWeb.ImportsLive do
                   </tr>
                 </thead>
                 <tbody>
+                  <%= for line <- @correction_lines do %>
                   <tr
-                    :for={line <- @correction_lines}
                     data-transaction-id={line.id}
                     data-state={line.kept? && "kept"}
                   >
@@ -474,6 +474,24 @@ defmodule PortfolixirWeb.ImportsLive do
                     <% end %>
                     <td class={["num", sign_class(line.difference)]}><%= Format.signed_decimal(line.difference, 2) %></td>
                   </tr>
+                  <tr
+                    :for={other <- line.others}
+                    data-transaction-id={line.id}
+                    data-state={line.kept? && "kept"}
+                    data-role="import-correction-account"
+                  >
+                    <td class="num"></td>
+                    <td></td>
+                    <td><bdi><%= other.name %></bdi></td>
+                    <td class={["num", sign_class(other.booked)]}><%= Format.signed_decimal(other.booked, 2) %></td>
+                    <%= if line.kept? do %>
+                      <td class="num import-correction__kept"><%= gettext("kept") %></td>
+                    <% else %>
+                      <td class={["num", sign_class(other.stated)]}><%= Format.signed_decimal(other.stated, 2) %></td>
+                    <% end %>
+                    <td class={["num", sign_class(other.difference)]}><%= Format.signed_decimal(other.difference, 2) %></td>
+                  </tr>
+                  <% end %>
                 </tbody>
               </table>
             </div>
@@ -485,7 +503,8 @@ defmodule PortfolixirWeb.ImportsLive do
               class="phone-rows"
               aria-label={gettext("Bookings with a different amount")}
             >
-              <li :for={line <- @correction_lines} class="phone-row">
+              <%= for line <- @correction_lines do %>
+              <li class="phone-row">
                 <span class="phone-row__body">
                   <span class="phone-row__name"><bdi><%= line.security || line.account %></bdi></span>
                   <span class="phone-row__ids"><span><%= gettext("Row %{row}", row: line.row) %> · <%= line.date %> · <%= line.kind %><%= if line.security && line.account do %> · <bdi><%= line.account %></bdi><% end %></span></span>
@@ -497,6 +516,17 @@ defmodule PortfolixirWeb.ImportsLive do
                 </span>
                 <.correction_state line={line} />
               </li>
+              <li :for={other <- line.others} class="phone-row" data-role="import-correction-account">
+                <span class="phone-row__body">
+                  <span class="phone-row__name"><bdi><%= other.name %></bdi></span>
+                  <span class="phone-row__ids"><span><%= gettext("Row %{row}", row: line.row) %> · <%= line.date %> · <%= line.kind %></span></span>
+                </span>
+                <span class="phone-row__figures">
+                  <span class={["phone-row__figure", sign_class(other.difference)]}><%= Format.signed_decimal(other.difference, 2) %></span>
+                  <span class="phone-row__figure2"><%= Format.signed_decimal(other.booked, 2) %> → <%= if line.kept? do %><span class="import-correction__kept"><%= gettext("kept") %></span><% else %><%= Format.signed_decimal(other.stated, 2) %><% end %></span>
+                </span>
+              </li>
+              <% end %>
             </ul>
             <p
               :if={@correction_fixable != [] and not @corrections_pending}
@@ -2272,9 +2302,19 @@ defmodule PortfolixirWeb.ImportsLive do
       booked: item.booked,
       stated: item.stated,
       difference: item.difference,
+      others: other_accounts(item),
       legs: legs_lines(tx, changes),
       price: price_lines(tx, changes)
     }
+  end
+
+  # Every other cash account the booking moves (a transfer's receiver), on a
+  # line of its own under the booking: as booked, as the file states it, and
+  # their difference (ADR-0053 A10).
+  defp other_accounts(%Correction.Item{transaction: tx, accounts: accounts}) do
+    for %{account: account, booked: booked, stated: stated, delta: delta} <- accounts,
+        account.id != tx.cash_account_id,
+        do: %{name: account.name, booked: booked, stated: stated, difference: delta}
   end
 
   defp legs_lines(tx, %{settlement_amount: settlement} = changes) do

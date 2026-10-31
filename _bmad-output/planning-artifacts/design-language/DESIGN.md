@@ -6611,6 +6611,13 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
     korrigieren., and **Eintrag N beansprucht dieselbe Buchung** — bleibt,
     wie es ist. A refused booking edited by hand reads as edited. On a phone
     row the state is the row's last child and spans it.
+  - **Each cash account on a line of its own** *(amended 2026-10-31, #1193;
+    ADR-0053 A10, K20)*: a booking that moves a second cash account (a
+    transfer's receiver) shows it on a line under its booking, in the table
+    (`tr[data-role="import-correction-account"]`, the account's name in the
+    „Buchung“ cell, Zeile and Datum empty) and as a phone row of its own:
+    gebucht, korrigiert (or **bleibt**), Differenz. K20's transfer reads
+    Test-Cash -100,00 bleibt 0,00, then Test-Savings +105,00 bleibt -5,00.
   - *Amended 2026-10-31 (Sprint 21 follow-up; ADR-0053 A9, A10, and its
     note of 2026-10-31 under A12):* a refused line gives the remedy of the
     rule that refused its row — A5's sale and booking, A8's transfer and

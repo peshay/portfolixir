@@ -96,7 +96,8 @@ defmodule Portfolixir.Imports.Correction do
     confirm writes, its signed cash effect on its own cash account as stored
     (`booked`) and as the file states it (`stated`), their `difference`, and
     the change of every cash account it moves (`accounts`, each
-    `%{account: %CashAccount{}, delta: Decimal}`).
+    `%{account: %CashAccount{}, booked: Decimal, stated: Decimal, delta:
+    Decimal}`).
     """
 
     @type t :: %__MODULE__{
@@ -106,7 +107,14 @@ defmodule Portfolixir.Imports.Correction do
             booked: Decimal.t(),
             stated: Decimal.t(),
             difference: Decimal.t(),
-            accounts: [%{account: %Portfolixir.Portfolios.CashAccount{}, delta: Decimal.t()}]
+            accounts: [
+              %{
+                account: %Portfolixir.Portfolios.CashAccount{},
+                booked: Decimal.t(),
+                stated: Decimal.t(),
+                delta: Decimal.t()
+              }
+            ]
           }
 
     defstruct [
@@ -950,8 +958,8 @@ defmodule Portfolixir.Imports.Correction do
     |> legs_of(account_id)
   end
 
-  # How the correction moves each cash account the booking touches; an
-  # account it leaves as it was is not named.
+  # How the correction moves each cash account the booking touches, as
+  # booked and as corrected; an account it leaves as it was is not named.
   defp account_deltas(%Transaction{} = before, %Transaction{} = corrected) do
     legs_before = cash_legs(before)
     legs_after = cash_legs(corrected)
@@ -960,8 +968,13 @@ defmodule Portfolixir.Imports.Correction do
     |> Enum.filter(&match?(%CashAccount{}, &1))
     |> Enum.uniq_by(& &1.id)
     |> Enum.flat_map(fn %CashAccount{id: id} = account ->
-      delta = Decimal.sub(legs_of(legs_after, id), legs_of(legs_before, id))
-      if Decimal.equal?(delta, 0), do: [], else: [%{account: account, delta: delta}]
+      booked = legs_of(legs_before, id)
+      stated = legs_of(legs_after, id)
+      delta = Decimal.sub(stated, booked)
+
+      if Decimal.equal?(delta, 0),
+        do: [],
+        else: [%{account: account, booked: booked, stated: stated, delta: delta}]
     end)
   end
 

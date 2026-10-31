@@ -1604,9 +1604,9 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # - Stored under Sprint 20's reading: the table shows Test-Cash -100.00
     #   kept 0.00 and, on a line of its own, Test-Savings +105.00 kept
     #   -5.00; the phone rows show the same two accounts.
-    # - Stored under the old reading: Test-Cash -95.00 kept -5.00 and
-    #   Test-Savings +100.00 kept 0.00.
     # - No confirm.
+    # - Stored under the old reading (the second test): Test-Cash -95.00
+    #   kept -5.00 and Test-Savings +100.00 kept 0.00.
     test "K20: a refused transfer shows each account it moves", %{conn: conn} do
       portfolio = portfolio!()
       apply_as_sprint_20!(portfolio, @k20_json)
@@ -1627,10 +1627,13 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "-5.00 +105.00 → kept"
 
       refute has_element?(view, "#import-correction-open")
+    end
 
-      Repo.delete_all(Transaction)
-      old = portfolio!()
-      apply_before_the_amendment!(old, @k20_json)
+    test "K20: a refused transfer stored under the old reading shows each account it moves", %{
+      conn: conn
+    } do
+      portfolio = portfolio!()
+      apply_before_the_amendment!(portfolio, @k20_json)
 
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "history.json", @k20_json, "application/json")
