@@ -1201,6 +1201,53 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert listed(parse_rows(drifted), portfolio) == []
     end
 
+    # User story (#1205, #1194, Sprint 21 α7; ADR-0053 A11, A12; the
+    # decision noted under A12 on 2026-10-31):
+    # As the operator who booked a sale by hand, with the figures an old
+    # import would have stored,
+    # I want a drifted re-export's row that its figures match to name it as
+    # made by hand, without a confirm,
+    # so that a correction never rewrites a figure I made, whether I edited
+    # an imported booking or entered it myself.
+    #
+    # Acceptance criteria:
+    # - K23's history stored under the old reading, its sale then deleted
+    #   and entered again by hand with the same figures (120.00, price
+    #   12.50, no import hash): Test-Cash 1,145.00.
+    # - The drifted re-export (15:30 → 15:31) lists the sale as matched by
+    #   its figures, edited since its import (the date of its entry), with
+    #   no confirm; the confirm writes nothing and Test-Cash stays 1,145.00.
+    test "A12: a booking entered by hand that a drifted row's figures match is named, not rewritten" do
+      portfolio = portfolio!("A12 by hand")
+      history = [deposit("2026-03-02", 1100.0), purchase("2026-03-03", 10.0, 100.0)]
+      apply!(old_reading(parse_rows(history ++ [sale("2026-06-15", "15:30", 120.0)])), portfolio)
+
+      imported = booking(portfolio, "sell")
+      {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), imported)
+
+      {:ok, by_hand} =
+        Ledger.create_transaction(
+          Actor.owner_ui(),
+          imported
+          |> Map.take(@fields -- [:id, :import_hash])
+          |> Map.reject(fn {_field, value} -> is_nil(value) end)
+        )
+
+      assert is_nil(by_hand.import_hash)
+      assert balances(portfolio) == %{"Test-Cash" => "1145"}
+
+      drifted = history ++ [sale("2026-06-15", "15:31", 120.0)]
+
+      assert [%Item{row: 3, match: :figures} = line] = listed(parse_rows(drifted), portfolio)
+      assert line.transaction.id == by_hand.id
+      assert line.state == :edited
+      assert line.edited_on == Date.utc_today()
+
+      assert correct!(parse_rows(drifted), portfolio) == []
+      assert balances(portfolio) == %{"Test-Cash" => "1145"}
+      assert corrections_journal() == []
+    end
+
     # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule, K24):
     # As the operator with two equal sales on one day,
     # I want a row matched by its figures corrected only when exactly one
