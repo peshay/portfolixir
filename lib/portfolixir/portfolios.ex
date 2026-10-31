@@ -86,9 +86,11 @@ defmodule Portfolixir.Portfolios do
   lock, in a short transaction of its own, read again under the lock first
   (security review 2026-10-12, H54): two writers resolving the default on a
   fresh instance take turns, and the second finds the record the first
-  committed instead of creating a second "Default". Called outside any
-  transaction, so the record is committed when it returns; a caller that
-  opens a long transaction (the import) resolves it before that.
+  committed instead of creating a second "Default". Called outside a
+  transaction, the record is committed when it returns; a caller that opens
+  a long transaction (the import) resolves it before that. Called inside one
+  (the account dialog's all-or-nothing save), the lock and the record are
+  held to that transaction's end: the caller takes it before its other locks.
   """
   def default_portfolio(%Actor{} = actor) do
     case first_portfolio() do

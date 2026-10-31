@@ -51,7 +51,7 @@ defmodule Portfolixir.LockTable do
   | 6 | **Cash account create** (`Portfolios.create_cash_account/2`) | `adv(account identity, portfolio)` (the name guard) → INSERT (`FK` on the portfolio). |
   | 7 | **Former names** (`Lifecycle.AccountNames.remember/4`, `remove_former_name/3`) | `adv(account identity, portfolio)` → cash `NKU` → UPDATE. Locks no booking. |
   | 8 | **Hardened delete** (`Portfolios.delete_cash_account/2` → `Lifecycle.Delete.delete/2`) | cash `U` → reference count (plain reads) → bucket links (cash `NKU`, held; buckets `S`) → DELETE. Locks no booking. |
-  | 9 | **Importer** (`Imports.Applier.apply/2`, both paths, one transaction of up to ten minutes) | Mapped path without a portfolio: the default portfolio is resolved first, before the transaction opens, in a short one of its own that commits it (`Portfolios.default_portfolio/1`: `adv(default portfolio)`, then the record read again and created when none exists; H54). Then, in the import's transaction, `adv(account identity, portfolio)` → remembered names (row 7: cash `NKU`) → per row: an account it creates (INSERT, `FK`) → cash the row names `KS`, id order (`Ledger.locked_cash_account_currencies/1`) → INSERT booking (`FK`) → the bucket tag (row 11). Locks no stored booking. |
+  | 9 | **Importer** (`Imports.Applier.apply/2`, both paths, one transaction of up to ten minutes) | Mapped path without a portfolio: the default portfolio is resolved first, before the transaction opens, in a short one of its own that commits it (`Portfolios.default_portfolio/1`: `adv(default portfolio)`, then the record read again and created when none exists; H54). Then, in the import's transaction, `adv(account identity, portfolio)` → remembered names (row 7: cash `NKU`) → per row: a security it creates with an ISIN takes `adv(ISIN writes)` there (`Catalog.create_security/2` → `IdentifierAliases.guard_isin_not_aliased/2`), mid-transaction, after the cash `NKU` and `KS` locks of the rows before it: **this breaks the rule above** and can deadlock with an ISIN change (#1287) → an account it creates (INSERT, `FK`) → cash the row names `KS`, id order (`Ledger.locked_cash_account_currencies/1`) → INSERT booking (`FK`) → the bucket tag (row 11). Locks no stored booking. |
   | 10 | **Import correction** (`Imports.Correction.apply/3`) | `adv(account identity, portfolio)` → the listed bookings `NKU` (`detect(lock: true)`) → per booking row 3, which changes amounts only and so takes no cash lock. |
   | 11 | **Bucket writers** (`Buckets.set_cash_account_buckets/3`, `set_depot_default_buckets/3`, `set_position_override/4`, `delete_bucket/2`) | the owner (depot or cash) `NKU` → an override's security `KS` → buckets `S`, id order. `delete_bucket/2`: views, depots, cash `NKU`, each in id order → the bucket `U`. Locks no booking. |
   | 12 | **Depot merge** (`Lifecycle.DepotMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, portfolio)` → both depots `U`, id order → every booking either names `U`, id order → the portfolio's split rows of their securities `U` → its writes on rows it holds (override writes: security `KS`, buckets `S`; the source deleted; the target `U` for its names). Locks no cash: a moved booking keeps its cash account. |
@@ -60,6 +60,8 @@ defmodule Portfolixir.LockTable do
   | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the security `KS` (H60); a security merged away meanwhile: the anchor read again by id, then `adv(split event, its new security)` → that security `KS`, once → the event's rows `U`, id order → DELETE each (row 4, held). |
   | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. An edit answered `:raced` keeps the drawer open and says to try again. |
   | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking; it changes settlement legs only and so takes no cash lock. A booking answered `:raced` stops the run as `{:error, {id, :raced}}`, and the mix task says to re-run it. |
+  | 18 | **Depot create and relink** (`Portfolios.create_securities_account/2`, `update_securities_account/3`) | A create: `adv(account identity, portfolio)` (the name guard) → INSERT (`FK` on the portfolio and on the linked cash: cash `KS`). A relink to another cash account: depot `NKU` (the journal's lock step) → UPDATE (`FK`: the new cash `KS`); with a rename, `adv(account identity, portfolio)` → depot `U` first (`Lifecycle.AccountNames.with_stored/3`). Locks no booking. |
+  | 19 | **Former-names backfill** (`Lifecycle.FormerNamesBackfill`, run by a migration) | per account, in id order: cash (or depot) `U` → UPDATE of its former names, journaled. Locks no booking. |
 
   ## Where two rows meet
 
@@ -76,11 +78,15 @@ defmodule Portfolixir.LockTable do
     * Rows 9 and 10 against row 1: all three take the portfolio's
       account-identity lock first, so they serialize on it before any row
       lock.
-    * Row 9's default-portfolio lock (H54) is held only by the short
-      transaction that creates the record, which takes no other lock but the
-      new row's and the journal's; every other writer that resolves the
-      default (the API's and the screen's account creates) takes it outside
-      any transaction. It closes no cycle.
+    * Row 9's default-portfolio lock (H54) is taken first by whoever holds
+      it: the import resolves the default in a short transaction of its own
+      before it opens its long one, and the API's account creates outside
+      any transaction. The screen's account dialog resolves it inside its
+      own all-or-nothing transaction (`Portfolios.all_or_nothing/1`), after
+      at most the insert of a new tag bucket and before its
+      account-identity lock and its cash and depot inserts, and holds it
+      to its commit. No holder waits there on a lock a writer queued on the
+      default-portfolio lock holds, so it closes no cycle.
     * Row 1 against row 12: the cash merge locks the depots linked to its
       source after the bookings, the depot merge its depots before theirs.
       Two merges whose rows overlap can close a cycle; both run under
