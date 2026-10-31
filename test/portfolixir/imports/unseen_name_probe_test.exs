@@ -348,6 +348,44 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
              %{cash_accounts: [], depots: []}
   end
 
+  # User story (#1195, Sprint 21 α8; ADR-0050 as amended on 2026-10-09,
+  # point 1):
+  # As the operator whose new file name resolves onto the same account as
+  # the name its transfer comes from,
+  # I want the name to stay unknown after the dry run answers,
+  # so that the resolution the probe exists to question is never prefilled
+  # on a transfer the import only drops.
+  #
+  # Acceptance criteria (amendment point 1):
+  # - Tagesgeld renamed "Tagesgeld Extra" in Portfolixir (keeping
+  #   "Tagesgeld" as a former name); the history re-exported under the old
+  #   names plus a transfer of 50.00 EUR from "Tagesgeld Extra" to
+  #   "Tagesgeld": the first pass names "Tagesgeld Extra" unknown. The dry
+  #   run, which resolves both of its legs onto Tagesgeld, counts the
+  #   transfer internal_transfer 1, new 0, and still names it: an internal
+  #   transfer is void, not booked. (Mutation: counting an internal
+  #   transfer as booked releases the name.)
+  test "a name whose rows are internal transfers stays unknown", %{portfolio: portfolio} do
+    applied!(portfolio, history())
+
+    {:ok, _renamed} =
+      Portfolios.update_cash_account(agent(), named!("Tagesgeld"), %{name: "Tagesgeld Extra"})
+
+    assert named!("Tagesgeld Extra").former_names == ["Tagesgeld"]
+
+    drop = parse!(history() ++ [transfer("Tagesgeld Extra", "Tagesgeld", "50.00", "2026-03-02")])
+
+    assert Imports.reimport_counts(drop, portfolio_id: portfolio.id, dry_run: false).unseen_names ==
+             %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+
+    refined = Imports.reimport_counts(drop, portfolio_id: portfolio.id)
+
+    assert %{internal_transfer: 1, economics: 0, new: 0} =
+             refined.cash_accounts["Tagesgeld Extra"]
+
+    assert refined.unseen_names == %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+  end
+
   # User story (#1195, Sprint 21 α8; ADR-0050 as amended on 2026-10-09, P10):
   # As the operator whose file carries a name two of my accounts share from
   # before the name guard,
