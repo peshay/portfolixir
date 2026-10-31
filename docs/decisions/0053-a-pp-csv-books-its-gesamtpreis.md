@@ -759,6 +759,22 @@ by any actor other than the importer (`import_session`) counts as made by
 hand. The line reads edited since its import, with the date of the entry,
 and carries no confirm (`Correction.detect/3`, #1205, #1194).
 
+**Note (2026-10-31): where A12's economic keys are read.** Since the
+preview's dry run became a lock-free simulation (ADR-0050's note of
+2026-10-31, H53), it stops while another writer holds the portfolio's
+account-identity lock. Read that way by the confirm, a rename of another
+account in flight cut a confirmed correction down to its hash hits without
+a word. The confirm now reads the keys inside its own transaction, under
+the identity lock it already holds (`Applier.economic_keys_in_transaction/2`),
+so it waits for that writer as the apply does. The Imports page takes the
+keys from the one background dry run that refines its counts, and does not
+simulate the file again in the page's process; until that run answers, the
+section lists what the hash lookup found, says it is still comparing by date
+and figures, and offers no confirm. The run is made only when a row no
+stored hash holds reads otherwise under A4's old reading and the portfolio
+holds a booking (`Correction.economic_keys_needed?/2`); otherwise the hash
+lookup alone lists the correction (#1205).
+
 **Everything else in §6 and A6 holds:**
 
 - a separate confirm, which writes only the lines that carry one;

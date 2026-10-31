@@ -6665,6 +6665,21 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
     different amount”."). A hash a merge retired, or an A9 row no account
     differs on, keeps its 2026-10-08 sentence ("already imported … cannot
     be corrected here"): there is no line to point to.
+  - **While the dry run has not answered** *(built 2026-10-31; ADR-0053's
+    consequences ask for the state, and board 07 draws no frame or string
+    for it, so it is decided here and flips by comment)*: a row found by
+    its date and figures needs the page's background dry run. Until it
+    answers, the section lists what the import hash found and offers no
+    confirm, no total and no dialog; its body carries `aria-busy="true"`
+    and DESIGN.md's recomputing cue (the `.spinner`, the basis, the word)
+    above the sentence: „über den Import-Hash gefunden · Abgleich über
+    Datum und Beträge läuft“ (EN "found by import hash · comparing by date
+    and figures"). With nothing found by hash yet, the section is a `note`
+    holding the cue alone, „Abgleich über Datum und Beträge läuft“, and it
+    goes when the answer finds nothing. The cue shows at once, as #1195's
+    withheld row's does. A file no row of which can be matched by its
+    figures (every row a hash hit, or no old reading differs) never shows
+    the state.
   - **Deviations from board 07, with their reasons** *(recorded 2026-10-31)*:
     - **A price-only line keeps its confirm** (against found while drawing
       5, which made it always a kept line). ADR-0053 K22 wins: a JSON

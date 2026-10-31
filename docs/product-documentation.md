@@ -3304,6 +3304,13 @@ line stays, the section has no confirm. When an account has a set balance
 dated on or after a corrected booking, the dialog says that the set balance
 absorbs the change (or which part of it), and the result names it.
 
+A row found by its figures needs the import's own dry run, which the page
+makes once, in the background, for its counts and for this section. Until it
+answers, the section lists what the import hash found, says "comparing by
+date and figures", and offers no confirm; then the rest of the list appears.
+The confirm reads the figures again under the import's lock, so an account
+renamed meanwhile is waited for, not skipped.
+
 ### Security matching and the mapping step
 
 Securities in the file resolve against existing records through a

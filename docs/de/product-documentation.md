@@ -3647,6 +3647,14 @@ Abschnitt keine Bestätigung. Hat ein Konto einen gesetzten Saldo am oder nach
 dem Datum einer korrigierten Buchung, sagt der Dialog, dass dieser Saldo die
 Änderung aufnimmt (oder welchen Teil davon), und das Ergebnis nennt ihn.
 
+Eine über ihre Zahlen gefundene Zeile braucht den eigenen Probelauf des
+Imports, den die Seite einmal im Hintergrund macht, für ihre Zählungen und
+für diesen Abschnitt. Bis er antwortet, zeigt der Abschnitt, was der
+Import-Hash gefunden hat, sagt „Abgleich über Datum und Beträge läuft“ und
+bietet keine Bestätigung an; danach erscheint der Rest der Liste. Die
+Bestätigung liest die Zahlen unter der Sperre des Imports noch einmal, ein
+inzwischen umbenanntes Konto wird also abgewartet, nicht übergangen.
+
 ### Wertpapier-Matching und der Zuordnungsschritt
 
 Wertpapiere in der Datei werden über eine deterministische **Leiter stabiler
