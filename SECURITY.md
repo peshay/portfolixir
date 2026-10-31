@@ -44,7 +44,10 @@ asks everyone to wait, the operator included, while existing sessions keep
 working, and restarting the application clears it, because the counts live in
 memory only; every server-side fetch of a caller- or provider-supplied URL
 passes a deny-by-default policy (https only, public addresses only, provider
-hosts only), and every outbound client, the provider adapters included,
+hosts only, except the logo URL an operator or a token points the instance at,
+which may name any public https host and is journaled with that host under
+the actor who asked, security review 2026-10-12, H61), and every outbound
+client, the provider adapters included,
 follows a redirect only when the hop passes the same policy on that client's
 own hosts, never to plain http, for a few hops at most, and without any header
 that could carry a credential once the host changes (E25); and the documented

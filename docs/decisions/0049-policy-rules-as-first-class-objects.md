@@ -17,8 +17,8 @@ description: "Decision for gate B3.6 (FR-43). A policy rule is a stored predicat
   journaled with every change to its definition. **Amended in Sprint 16 by
   the security review's G30 and decision T-8** (the second amendment after
   §11): every version names its author, operator or agent. **Amended in
-Sprint 21 by the security review's H14 and decision T-16** (in that
-amendment): the rule names who last named it.
+  Sprint 21 by the security review's H14 and decision T-16** (in that
+  amendment): the rule names who last named it.
 - **Date:** 2026-09-23
 - **Answers:** FR-43. §11 lists the asks it answers and the ones it defers, per
   [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html).
