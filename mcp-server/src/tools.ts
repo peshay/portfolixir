@@ -3558,7 +3558,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.targets.list",
     "List target weights",
-    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan; optional plan_id reads that plan version, refused as on portfolixir.targets.set. Optional since (ISO8601 UTC) makes this a delta read: only rows changed strictly after it return, a row counting as changed when it OR its plan changed (activating a version re-delivers the rows it swapped in). The response carries as_of, the next since (a later read may re-deliver a row but never skips one), and a delta_note; deletions are NOT represented: a removed row, or one left by a plan no longer active, shows only on a full read.",
+    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects its plan; optional plan_id reads that plan version, 422 on plan_id when archived or of another portfolio, classification or view. Optional since (ISO8601 UTC) makes this a delta read: only rows changed strictly after it return, a row changing when it OR its plan does (activating a version re-delivers its rows). The response carries as_of, the next since (a later read may re-deliver a row but never skips one) and a delta_note; deletions are NOT represented: a removed row, or one of a plan no longer active, shows only on a full read.",
     targetsListSchema,
     targetsListZ
   ),
