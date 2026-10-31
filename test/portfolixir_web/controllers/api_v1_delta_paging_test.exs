@@ -279,6 +279,10 @@ defmodule PortfolixirWeb.ApiV1DeltaPagingTest do
     assert first["delta_note"] =~ "without `~<id>`"
     assert first["delta_note"] =~ "poll again later, not at once"
 
+    # A cursor belongs to the read that answered it, and paging is by it.
+    assert first["delta_note"] =~ "A cursor belongs to the read that answered it"
+    assert first["delta_note"] =~ "page by `as_of`, never by `offset`"
+
     # Polling at once re-reads the held page: nothing is lost, nothing moves.
     assert {200, again} = poll("/api/v1/transactions", first["as_of"], extra)
     assert again["has_more"] == true

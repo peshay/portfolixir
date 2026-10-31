@@ -928,6 +928,39 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (security review 2026-10-12, K17):
+  # As the agent paging a delta read from the API reference,
+  # I want the reference to say what the server answers,
+  # so that I follow the cursor of the right read and stop at the right page.
+  #
+  # Acceptance criteria:
+  # - `has_more` is true when more rows matched than the page holds, not
+  #   whenever the page is full.
+  # - A cursor belongs to the read that answered it; with `since`, paging is
+  #   by `as_of`, never by `offset`.
+  # - The research log's `limit` keeps, in a delta read, the oldest entries
+  #   after `since`.
+  test "the API reference describes the paged delta read as the server answers it (K17)" do
+    flat = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+    en = flat.("docs/integration/api-and-mcp.md")
+    de = flat.("docs/de/integration/api-and-mcp.md")
+
+    refute en =~ "whose page is full also carries"
+    assert en =~ "when more rows matched than the page holds, also carries `has_more: true`"
+    assert en =~ "A cursor belongs to the read that answered it"
+    assert en =~ "With `since`, page by `as_of`, never by `offset`"
+    assert en =~ "in a delta read, the oldest after `since`"
+
+    refute de =~ "mit voller Seite trägt zusätzlich"
+
+    assert de =~
+             "wenn mehr Zeilen passten, als die Seite enthält, trägt zusätzlich `has_more: true`"
+
+    assert de =~ "Ein Cursor gehört zu dem Read, der ihn geliefert hat"
+    assert de =~ "Mit `since` nach `as_of` blättern, nie mit `offset`"
+    assert de =~ "in einem Delta-Read die ältesten nach `since`"
+  end
+
   # User story (#844):
   # As a reader of the published documentation site,
   # I want every page's front matter to parse,

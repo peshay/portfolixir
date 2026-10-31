@@ -1271,15 +1271,36 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.events.list"
     ]) {
       assert.match(description(name), /has_more=true/, name);
-      assert.match(description(name), /cursor past the last (row|entry)|cursor past its last row/, name);
+      // One wording for the cursor, as the docs and the delta note say it.
+      assert.match(description(name), /a cursor at the page's last (row|entry)/, name);
+      assert.doesNotMatch(description(name), /cursor past/, name);
       assert.match(description(name), /truncated/, name);
       // A page held at the in-flight bound: no ~id, poll again later.
       assert.match(description(name), /no ~id/, name);
       assert.match(description(name), /poll later/, name);
+      // A cursor belongs to the read that answered it, and a delta read
+      // pages by it alone.
+      assert.match(description(name), /this read's next since/, name);
+      assert.match(description(name), /page by as_of/, name);
     }
+
+    for (const name of [
+      "portfolixir.securities.list",
+      "portfolixir.transactions.list",
+      "portfolixir.events.list"
+    ]) {
+      assert.match(description(name), /with since, page by as_of, never offset/, name);
+    }
+
+    // A delta read's page of the log holds the oldest entries after since.
+    assert.match(description("portfolixir.notes.list"), /in a delta read, the oldest after since/);
+    const notesLimit = listTools().find((tool) => tool.name === "portfolixir.notes.list")
+      ?.inputSchema.properties?.limit as { description?: string } | undefined;
+    assert.match(notesLimit?.description ?? "", /in a delta read, the oldest after since/);
 
     const rules = description("portfolixir.policy_rules.list");
     assert.match(rules, /paged as in portfolixir\.securities\.list/);
+    assert.match(rules, /the top-level as_of is the cursor, not data\.as_of/);
     assert.match(rules, /truncated/);
   });
 
