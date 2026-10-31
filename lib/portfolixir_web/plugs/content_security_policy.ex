@@ -8,7 +8,8 @@ defmodule PortfolixirWeb.ContentSecurityPolicy do
   attributes (the data-driven colours and tree indents the pages render —
   an attribute cannot carry a nonce, and CSS is not the injection vector the
   policy exists for); images from the instance plus `data:` URLs (the chart
-  export draws its SVG into a canvas through one); connections to the
+  export draws its SVG into a canvas through one) and `blob:` URLs (the
+  Manage-logo dialog previews the chosen file through one, H38); connections to the
   instance and to its own WebSocket origin; no plugins, no foreign frames,
   forms only to the instance.
 
@@ -67,7 +68,10 @@ defmodule PortfolixirWeb.ContentSecurityPolicy do
       {"default-src", ["'self'"]},
       {"script-src", ["'self'" | nonce_source(nonce)]},
       {"style-src", ["'self'", "'unsafe-inline'"]},
-      {"img-src", ["'self'", "data:"]},
+      # blob: admits object URLs, which only the page's own scripts can mint
+      # (LiveView's upload preview); it reaches no other origin, so it
+      # widens nothing an attacker can point the page at.
+      {"img-src", ["'self'", "data:", "blob:"]},
       {"connect-src", ["'self'" | socket_sources(host)]},
       {"font-src", ["'self'"]},
       {"object-src", ["'none'"]},
