@@ -1422,6 +1422,55 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
                simulations(fn -> listed(parse_rows(drifted), portfolio) end)
     end
 
+    # User story (#1205, #1193, Sprint 21 α7; the plan's D-7 and the lock
+    # table's row 10):
+    # As the operator whose confirm locks many bookings of a portfolio,
+    # I want it to lock them in id order,
+    # so that two writers taking the same bookings never take them in
+    # opposite orders.
+    #
+    # Acceptance criteria:
+    # - In K23's drifted world, every statement the confirm sends that locks
+    #   several bookings (`FOR NO KEY UPDATE` on `transactions`, not the
+    #   journal's lock of one row by its id) orders them by id.
+    test "the confirm takes the bookings' row locks in id order" do
+      portfolio = portfolio!("Row locks by id")
+      history = [deposit("2026-03-02", 1100.0), purchase("2026-03-03", 10.0, 100.0)]
+      apply!(old_reading(parse_rows(history ++ [sale("2026-06-15", "15:30", 120.0)])), portfolio)
+      drifted = parse_rows(history ++ [sale("2026-06-15", "15:31", 120.0)])
+
+      test_pid = self()
+      handler = "correction-row-locks-#{System.unique_integer([:positive])}"
+
+      :ok =
+        :telemetry.attach(
+          handler,
+          [:portfolixir, :repo, :query],
+          fn _event, _measurements, metadata, _config ->
+            query = metadata[:query]
+
+            if self() == test_pid and is_binary(query) and
+                 String.starts_with?(query, ~s(SELECT)) and
+                 query =~ ~s(FROM "transactions") and query =~ "FOR NO KEY UPDATE" and
+                 not String.contains?(query, "\"id\" = $1)"),
+               do: send(test_pid, {:row_lock, query})
+          end,
+          nil
+        )
+
+      try do
+        assert [_corrected] = correct!(drifted, portfolio)
+      after
+        :telemetry.detach(handler)
+      end
+
+      locks = Stream.repeatedly(fn -> receive do: ({:row_lock, q} -> q), after: (0 -> nil) end)
+      locks = Enum.take_while(locks, & &1)
+
+      assert length(locks) >= 2
+      assert Enum.all?(locks, &(&1 =~ ~r/ORDER BY \w+\."id"/)), Enum.join(locks, "\n")
+    end
+
     # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule, K24):
     # As the operator with two equal sales on one day,
     # I want a row matched by its figures corrected only when exactly one
