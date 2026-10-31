@@ -373,11 +373,13 @@ defmodule Portfolixir.Imports.Applier do
   # writer keeps). A security the run creates, and an ISIN change it records,
   # take their locks again, which the transaction already holds. Taken row by
   # row instead, after the bookings before it, the lock closed a cycle with
-  # another import or an ISIN change.
+  # another import or an ISIN change. A mapping whose id is no integer is
+  # left to `execute_security_mapping/4`, which refuses it as invalid.
   defp lock_file_isins(flat_entries, params) do
     changed =
       for {_key, {:existing, id, :record_isin_change}} <-
             Map.get(params, :security_mappings, %{}),
+          is_integer(id),
           do: id
 
     isins = for entry <- flat_entries, %{isin: isin} <- file_ref(entry), do: isin
