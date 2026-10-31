@@ -101,7 +101,21 @@ defmodule Portfolixir.Imports.Correction do
             accounts: [%{account: %Portfolixir.Portfolios.CashAccount{}, delta: Decimal.t()}]
           }
 
-    defstruct [:row, :transaction, :changes, :booked, :stated, :difference, accounts: []]
+    defstruct [
+      :row,
+      :transaction,
+      :changes,
+      :booked,
+      :stated,
+      :difference,
+      :edited_on,
+      :matches,
+      :claimed_by,
+      :refusal,
+      accounts: [],
+      state: :confirm,
+      match: :hash
+    ]
   end
 
   @trade_kinds ~w(buy sell)

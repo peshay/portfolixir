@@ -749,4 +749,491 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert corrections_journal() == []
     end
   end
+
+  # ADR-0053's amendment of 2026-10-09, A10 to A12 (#1193, #1194, #1205;
+  # Sprint 21 α7): the correction lists a stored booking whose row the
+  # preview now refuses (A10), names a booking edited by hand since its
+  # import instead of rewriting it (A11), and finds a drifted re-export's
+  # row by its figures under A4's old-reading key (A12). Every figure is the
+  # ADR's own, exact in Decimal; the names are its synthetic Test-Cash,
+  # Test-Savings, Test-Depot and Arbolia Inc. (USEXMPL10014).
+  describe "what the correction lists (ADR-0053 amendment of 2026-10-09, A10–A12)" do
+    @arbolia %{"name" => "Arbolia Inc.", "isin" => "USEXMPL10014", "currency" => "EUR"}
+
+    defp json(rows), do: Jason.encode!(%{"version" => 1, "transactions" => rows})
+
+    defp deposit(date, amount),
+      do: %{
+        "type" => "DEPOSIT",
+        "account" => "Test-Cash",
+        "date" => date,
+        "currency" => "EUR",
+        "amount" => amount
+      }
+
+    defp purchase(date, shares, amount),
+      do: %{
+        "type" => "PURCHASE",
+        "account" => "Test-Cash",
+        "portfolio" => "Test-Depot",
+        "date" => date,
+        "time" => "10:00",
+        "currency" => "EUR",
+        "amount" => amount,
+        "shares" => shares,
+        "security" => @arbolia
+      }
+
+    # K9's shape: FEE 5.00 and TAX -25.00 beside the amount.
+    defp sale(date, time, amount),
+      do: %{
+        "type" => "SALE",
+        "account" => "Test-Cash",
+        "portfolio" => "Test-Depot",
+        "date" => date,
+        "time" => time,
+        "currency" => "EUR",
+        "amount" => amount,
+        "shares" => 10.0,
+        "security" => @arbolia,
+        "units" => [%{"type" => "FEE", "amount" => 5.0}, %{"type" => "TAX", "amount" => -25.0}]
+      }
+
+    defp dividend(date, amount),
+      do: %{
+        "type" => "DIVIDEND",
+        "account" => "Test-Cash",
+        "date" => date,
+        "currency" => "EUR",
+        "amount" => amount,
+        "security" => @arbolia
+      }
+
+    defp parse_rows(rows) do
+      {:ok, preview} = PortfolioPerformance.parse(json(rows), filename: "history.json")
+      preview
+    end
+
+    # What an importer before A5 stored for a row A5 now refuses: its
+    # would-be entry under the old reading, with the refund beside it.
+    defp stored_with_refused(%Preview{entries: entries, refused_credits: refused} = preview) do
+      refused_entries = Enum.map(refused, & &1.entry)
+
+      old_reading(%{
+        preview
+        | entries: Enum.sort_by(entries ++ refused_entries, & &1.source_row),
+          refused_credits: [],
+          errors: []
+      })
+    end
+
+    # A8 (built by α5 on its own branch) refuses a cash transfer that carries
+    # a tax refund, and keeps its would-be entry as A5 keeps a refused
+    # credit's (`refused_credits`). The preview is shaped so here.
+    defp refused_like_a8(%Preview{entries: entries} = preview, row) do
+      {[refused], kept} = Enum.split_with(entries, &(&1.source_row == row))
+
+      message =
+        "transfer with Gesamtpreis 100.00 and a tax refund of 5.00: a refund beside a " <>
+          "transfer would book on one of its accounts only — row not imported."
+
+      %{
+        preview
+        | entries: kept,
+          errors: [%{row: row, message: message}],
+          refused_credits: [%{row: row, entry: refused, message: message}]
+      }
+    end
+
+    defp listed(preview, portfolio),
+      do: Imports.cash_corrections(preview, portfolio_id: portfolio.id)
+
+    defp states(items), do: Enum.map(items, &{&1.row, &1.state})
+
+    # A refused line's cash accounts, each as stored, as the file states it,
+    # and their difference.
+    defp per_account(%Item{accounts: accounts}) do
+      Map.new(accounts, fn %{account: account, booked: booked, stated: stated, delta: delta} ->
+        {account.name, {norm(booked), norm(stated), norm(delta)}}
+      end)
+    end
+
+    defp realized(portfolio) do
+      sale = booking(portfolio, "sell")
+
+      %{closed_trades: [trade]} =
+        Ledger.list_trades_for_security(sale.security_id, latest_price: Decimal.new("10.00"))
+
+      norm(trade.realized_pnl_abs)
+    end
+
+    # User story (#1193, Sprint 21 α7; ADR-0053 A10, K19):
+    # As the operator who imported #1118's sale before A5 refused it,
+    # I want the re-drop to list the stored sale per cash account, its
+    # stored figure against the file's, without a confirm,
+    # so that I see the 25.00 too much and replace the sale by hand, and no
+    # write the ledger would refuse is ever offered.
+    #
+    # Acceptance criteria:
+    # - Stored under the old reading (the sale at 20.10, priced 2.51, the
+    #   refund 25.00 beside it), Test-Cash reads 945.10.
+    # - The re-drop lists the sale, not correctable here: Test-Cash +45.10
+    #   as stored, +20.10 as the file states, difference -25.00.
+    # - Its row error still says the row is already imported.
+    # - The confirm writes nothing: Test-Cash stays 945.10.
+    test "K19: a stored sale the preview now refuses is listed without a confirm" do
+      portfolio = portfolio!("K19")
+
+      preview =
+        parse_rows([
+          deposit("2026-04-01", 1000.0),
+          purchase("2026-04-02", 10.0, 100.0),
+          sale("2026-04-15", "15:30", 20.10)
+        ])
+
+      assert [%{row: 3}] = preview.refused_credits
+      apply!(stored_with_refused(preview), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "945.1"}
+      assert norm(booking(portfolio, "sell").price) == "2.51"
+
+      assert [%Item{row: 3, state: :refused} = line] = listed(preview, portfolio)
+      assert per_account(line) == %{"Test-Cash" => {"45.1", "20.1", "-25"}}
+
+      assert [%{row: 3, message: message}] =
+               Imports.row_errors(preview, portfolio_id: portfolio.id)
+
+      assert message =~ "already imported"
+
+      assert correct!(preview, portfolio) == []
+      assert balances(portfolio) == %{"Test-Cash" => "945.1"}
+      assert corrections_journal() == []
+    end
+
+    # User story (#1193, #1188, Sprint 21 α7; ADR-0053 A10, K20):
+    # As the operator whose cash transfer with a tax refund was imported
+    # before A8 refused it,
+    # I want the re-drop to list the transfer on both its accounts, stored
+    # against the file, without a confirm,
+    # so that I see which account holds the refund PP never moved.
+    #
+    # Acceptance criteria:
+    # - Stored under Sprint 20's reading (the transfer at 105.00, the
+    #   refund 5.00 on Test-Cash): Test-Cash -100.00 as stored and as the
+    #   file states; Test-Savings +105.00 as stored, +100.00 per the file.
+    # - Stored under the old reading (the transfer at 100.00, the refund
+    #   beside it): Test-Cash -95.00 against -100.00; Test-Savings +100.00
+    #   on both sides.
+    # - Nothing is written.
+    test "K20: a stored transfer A8 now refuses is listed on both accounts without a confirm" do
+      rows = [
+        deposit("2026-02-09", 1000.0),
+        %{
+          "type" => "CASH_TRANSFER",
+          "account" => "Test-Cash",
+          "otherAccount" => "Test-Savings",
+          "date" => "2026-02-10",
+          "currency" => "EUR",
+          "amount" => 100.0,
+          "units" => [%{"type" => "TAX", "amount" => -5.0}]
+        }
+      ]
+
+      sprint20 = portfolio!("K20 Sprint 20 reading")
+      apply!(parse_rows(rows), sprint20)
+      assert balances(sprint20) == %{"Test-Cash" => "900", "Test-Savings" => "105"}
+
+      refused = refused_like_a8(parse_rows(rows), 2)
+      assert [%Item{row: 2, state: :refused} = line] = listed(refused, sprint20)
+
+      assert per_account(line) == %{
+               "Test-Cash" => {"-100", "-100", "0"},
+               "Test-Savings" => {"105", "100", "-5"}
+             }
+
+      assert correct!(refused, sprint20) == []
+      assert balances(sprint20) == %{"Test-Cash" => "900", "Test-Savings" => "105"}
+
+      old = portfolio!("K20 old reading")
+      apply!(old_reading(parse_rows(rows)), old)
+      assert [%Item{row: 2, state: :refused} = line] = listed(refused, old)
+
+      assert per_account(line) == %{
+               "Test-Cash" => {"-95", "-100", "-5"},
+               "Test-Savings" => {"100", "100", "0"}
+             }
+
+      assert correct!(refused, old) == []
+      assert corrections_journal() == []
+    end
+
+    # User story (#1194, Sprint 21 α7; ADR-0053 A11, K21, K26):
+    # As the operator who set a dividend's amount by hand after importing it,
+    # I want the re-drop to name it as edited since its import and leave it,
+    # so that a correction never rewrites a figure I made, while the sale
+    # stored under the old reading is still corrected.
+    #
+    # Acceptance criteria:
+    # - Stored under the old reading: Test-Cash 1,154.13; the dividend set
+    #   to 9.20 by hand: 1,154.20.
+    # - The re-drop lists the sale with a confirm (120.00 → 95.00, price
+    #   12.50 → 10.00) and the dividend as edited since its import (9.20
+    #   stored, 9.13 per the file), without a confirm.
+    # - After the confirm Test-Cash reads 1,129.20: PP's 1,129.13 plus the
+    #   operator's 0.07, kept. The journal holds one update, under
+    #   `owner_ui` labelled "import correction", with its before-image.
+    # - A second drop lists the dividend alone, still edited, with no
+    #   confirm.
+    test "K21: a booking edited by hand since its import is named, not rewritten" do
+      portfolio = portfolio!("K21")
+
+      rows = [
+        deposit("2026-03-02", 1100.0),
+        purchase("2026-03-03", 10.0, 100.0),
+        dividend("2026-05-15", 9.13),
+        sale("2026-06-15", "15:30", 120.0)
+      ]
+
+      apply!(old_reading(parse_rows(rows)), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1154.13"}
+
+      {:ok, _} =
+        Ledger.update_transaction(Actor.owner_ui(), booking(portfolio, "dividend"), %{
+          gross_amount: "9.20"
+        })
+
+      assert balances(portfolio) == %{"Test-Cash" => "1154.2"}
+
+      items = listed(parse_rows(rows), portfolio)
+      assert states(items) == [{3, :edited}, {4, :confirm}]
+      assert figures(items) == [{3, "9.2", "9.13", "-0.07"}, {4, "120", "95", "-25"}]
+      [edited, sale_line] = items
+      assert edited.edited_on == Date.utc_today()
+      assert norm(sale_line.changes.price) == "10"
+
+      [corrected] = correct!(parse_rows(rows), portfolio)
+      assert corrected.row == 4
+      assert balances(portfolio) == %{"Test-Cash" => "1129.2"}
+      assert norm(booking(portfolio, "dividend").gross_amount) == "9.2"
+
+      assert [entry] =
+               corrections_journal() |> Enum.filter(&(&1.actor_label == "import correction"))
+
+      assert entry.actor_type == :owner_ui
+      assert entry.resource_id == to_string(corrected.transaction.id)
+      assert entry.before["gross_amount"] == "120.000000"
+
+      assert states(listed(parse_rows(rows), portfolio)) == [{3, :edited}]
+    end
+
+    # User story (#1194, Sprint 21 α7; ADR-0053 A11, K21's last sentence):
+    # As the operator whose cross-currency sale got its settlement legs from
+    # the backfill after its import,
+    # I want that sale still corrected,
+    # so that a system job's legs never count as a hand edit.
+    #
+    # Acceptance criteria:
+    # - The sale's only update since its import is the backfill's
+    #   (`system_job`, "settlement_backfill"); the re-drop lists it with a
+    #   confirm, and the confirm corrects it.
+    test "K21: a sale whose only update is the backfill's legs keeps its confirm" do
+      portfolio = portfolio!("K21 backfill")
+      apply!(old_reading(parse!(@cross_currency_json, "fx.json")), portfolio)
+      assert booking(portfolio, "sell").security_amount == nil
+
+      :ok = usd_rate!()
+
+      assert {:ok, %{updated: updated}} =
+               Ledger.SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+
+      assert updated >= 1
+      assert %Decimal{} = booking(portfolio, "sell").security_amount
+
+      assert [%Item{row: 3, state: :confirm}] =
+               listed(parse!(@cross_currency_json, "fx.json"), portfolio)
+
+      assert [%Item{row: 3}] = correct!(parse!(@cross_currency_json, "fx.json"), portfolio)
+      assert norm(booking(portfolio, "sell").gross_amount) == "95"
+    end
+
+    # User story (#1194, Sprint 21 α7; ADR-0053 A11, K22):
+    # As the operator whose JSON sale holds the file's cash but the old price,
+    # I want it listed on its price with a confirm that writes the price
+    # alone,
+    # so that its realized result leaves the refund out.
+    #
+    # Acceptance criteria:
+    # - Stored at the cash 95.00 and the price 12.50, its journal holding no
+    #   other actor's edit: the realized result reads +20.00.
+    # - The re-drop lists it with a confirm: 95.00 on both sides (0.00) and
+    #   the price 12.50 → 10.00.
+    # - The confirm writes the price alone; the realized result reads -5.00.
+    test "K22: a JSON sale whose cash agrees is listed on its price" do
+      portfolio = portfolio!("K22")
+
+      rows = [
+        deposit("2026-03-02", 1100.0),
+        purchase("2026-03-03", 10.0, 100.0),
+        sale("2026-06-15", "15:30", 120.0)
+      ]
+
+      apply!(parse_rows(rows), portfolio)
+
+      {:ok, _} =
+        Ledger.update_transaction(Actor.import_session(), booking(portfolio, "sell"), %{
+          price: "12.50"
+        })
+
+      assert realized(portfolio) == "20"
+
+      assert [%Item{row: 3, state: :confirm, changes: changes} = line] =
+               listed(parse_rows(rows), portfolio)
+
+      assert figures([line]) == [{3, "95", "95", "0"}]
+      assert Map.keys(changes) == [:price]
+      assert norm(changes.price) == "10"
+
+      before = snapshot()
+      correct!(parse_rows(rows), portfolio)
+      assert changed_fields(before, snapshot()) == %{line.transaction.id => [:price]}
+      assert realized(portfolio) == "-5"
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12, K23, K26):
+    # As the operator re-dropping a re-export whose sale's time moved by a
+    # minute,
+    # I want the sale stored under the old reading found by its figures and
+    # offered for correction,
+    # so that a drifted re-export does not leave it 25.00 too high without a
+    # word.
+    #
+    # Acceptance criteria:
+    # - Stored under the old reading: Test-Cash 1,145.00. The re-export
+    #   (15:30 → 15:31) books nothing.
+    # - It lists the sale as matched by its figures, with a confirm:
+    #   120.00 → 95.00, price 12.50 → 10.00.
+    # - After the confirm Test-Cash reads 1,120.00, PP's balance; a second
+    #   drop lists nothing.
+    test "K23: a drifted re-export's row is matched by its figures, with a confirm" do
+      portfolio = portfolio!("K23")
+      history = [deposit("2026-03-02", 1100.0), purchase("2026-03-03", 10.0, 100.0)]
+      apply!(old_reading(parse_rows(history ++ [sale("2026-06-15", "15:30", 120.0)])), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1145"}
+
+      drifted = history ++ [sale("2026-06-15", "15:31", 120.0)]
+      before = snapshot()
+      assert apply!(parse_rows(drifted), portfolio).created_transactions == 0
+      assert snapshot() == before
+
+      assert [%Item{row: 3, state: :confirm, match: :figures, changes: changes} = line] =
+               listed(parse_rows(drifted), portfolio)
+
+      assert figures([line]) == [{3, "120", "95", "-25"}]
+      assert norm(changes.price) == "10"
+
+      assert [_corrected] = correct!(parse_rows(drifted), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1120"}
+      assert listed(parse_rows(drifted), portfolio) == []
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule, K24):
+    # As the operator with two equal sales on one day,
+    # I want a row matched by its figures corrected only when exactly one
+    # stored booking holds them and no other row claims it,
+    # so that the correction never corrects the wrong twin.
+    #
+    # Acceptance criteria:
+    # - Stored under the old reading: Test-Cash 1,190.00 (PP: 1,140.00).
+    # - (i) Both times moved: both sales are listed, two bookings matching
+    #   each; nothing is confirmable and the confirm writes nothing.
+    # - (ii) Only B's time moved: A is listed with a confirm (its hash
+    #   hit), B without one (two bookings match). The confirm corrects A:
+    #   1,165.00. A second drop lists B with a confirm (one booking
+    #   matches now); its confirm brings Test-Cash to 1,140.00.
+    test "K24: a row matched by its figures has a confirm only without a twin" do
+      history = [deposit("2026-06-01", 1100.0), purchase("2026-06-02", 20.0, 200.0)]
+      stored = history ++ [sale("2026-06-15", "15:30", 120.0), sale("2026-06-15", "16:10", 120.0)]
+
+      both = portfolio!("K24 both moved")
+      apply!(old_reading(parse_rows(stored)), both)
+      assert balances(both) == %{"Test-Cash" => "1190"}
+
+      both_moved =
+        history ++ [sale("2026-06-15", "15:31", 120.0), sale("2026-06-15", "16:11", 120.0)]
+
+      items = listed(parse_rows(both_moved), both)
+      assert states(items) == [{3, :twin}, {4, :twin}]
+      assert Enum.all?(items, &(&1.matches == 2))
+      assert correct!(parse_rows(both_moved), both) == []
+      assert balances(both) == %{"Test-Cash" => "1190"}
+
+      one = portfolio!("K24 B moved")
+      apply!(old_reading(parse_rows(stored)), one)
+
+      b_moved =
+        history ++ [sale("2026-06-15", "15:30", 120.0), sale("2026-06-15", "16:11", 120.0)]
+
+      items = listed(parse_rows(b_moved), one)
+      assert states(items) == [{3, :confirm}, {4, :twin}]
+      assert Enum.map(items, & &1.match) == [:hash, :figures]
+
+      assert [%Item{row: 3}] = correct!(parse_rows(b_moved), one)
+      assert balances(one) == %{"Test-Cash" => "1165"}
+
+      assert [%Item{row: 4, state: :confirm, match: :figures}] = listed(parse_rows(b_moved), one)
+      assert [%Item{row: 4}] = correct!(parse_rows(b_moved), one)
+      assert balances(one) == %{"Test-Cash" => "1140"}
+    end
+
+    # User story (Sprint 21 α7, the plan's round trip 3; ADR-0053 K19, K21
+    # and K23 on one account, K26):
+    # As the operator re-dropping a JSON history imported under the old
+    # reading, with one booking edited by hand, one row whose time drifted,
+    # and one stored sale the preview now refuses,
+    # I want exactly those three lines, and a confirm that corrects the
+    # drifted sale alone,
+    # so that the 25.07 left on the account is named on the page.
+    #
+    # Acceptance criteria:
+    # - PP shows Test-Cash at 1,049.23; stored under the old reading it reads
+    #   1,099.23 (the refused sale's 25.00 and the drifted sale's 25.00 too
+    #   high); after the hand edit of 0.07, 1,099.30.
+    # - The re-drop lists the refused sale (no confirm), the dividend as
+    #   edited (no confirm), and the drifted sale matched by its figures,
+    #   with a confirm.
+    # - After the confirm Test-Cash reads 1,074.30: 25.07 above PP, the
+    #   refused sale's 25.00 and the kept edit's 0.07, each still listed.
+    test "round trip 3: the refused, the edited and the drifted on one account" do
+      portfolio = portfolio!("Round trip 3")
+
+      history = fn time ->
+        [
+          deposit("2026-03-02", 1100.0),
+          purchase("2026-03-03", 10.0, 100.0),
+          purchase("2026-04-02", 10.0, 100.0),
+          sale("2026-04-15", "11:00", 20.10),
+          dividend("2026-05-15", 9.13),
+          sale("2026-06-15", time, 120.0)
+        ]
+      end
+
+      apply!(stored_with_refused(parse_rows(history.("15:30"))), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1099.23"}
+
+      {:ok, _} =
+        Ledger.update_transaction(Actor.owner_ui(), booking(portfolio, "dividend"), %{
+          gross_amount: "9.20"
+        })
+
+      assert balances(portfolio) == %{"Test-Cash" => "1099.3"}
+
+      drifted = parse_rows(history.("15:31"))
+      items = listed(drifted, portfolio)
+      assert states(items) == [{4, :refused}, {5, :edited}, {6, :confirm}]
+      assert Enum.map(items, & &1.match) == [:hash, :hash, :figures]
+
+      assert [%Item{row: 6}] = correct!(drifted, portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1074.3"}
+      assert states(listed(drifted, portfolio)) == [{4, :refused}, {5, :edited}]
+    end
+  end
 end
