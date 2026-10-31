@@ -256,13 +256,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   (`stored_credit_message/1`). The row's kind comes from `entry`.
   """
   @spec credit_refusal(:debit | :credit | nil, Entry.t(), map()) ::
-          nil | {String.t(), %{entry: Entry.t(), message: String.t()}}
+          nil | {String.t(), %{rule: :a5, entry: Entry.t(), message: String.t()}}
   def credit_refusal(direction, %Entry{} = entry, written) do
     written = Map.put(written, :kind, entry.kind)
 
     case credit_error(direction, entry.gross_amount, written) do
       nil -> nil
-      message -> {message, %{entry: entry, message: stored_credit_message(written)}}
+      message -> {message, %{rule: :a5, entry: entry, message: stored_credit_message(written)}}
     end
   end
 
@@ -297,10 +297,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   kind.
   """
   @spec refund_refusal(Entry.t(), String.t() | nil) ::
-          nil | {String.t(), %{entry: Entry.t(), message: String.t()}}
+          nil | {String.t(), %{rule: :a8, entry: Entry.t(), message: String.t()}}
   def refund_refusal(%Entry{kind: kind, companion_entries: [_ | _]} = entry, refund)
       when kind in @refund_uncarried_kinds do
-    {refund_message(kind, refund), %{entry: entry, message: stored_refund_message(kind, refund)}}
+    {refund_message(kind, refund),
+     %{rule: :a8, entry: entry, message: stored_refund_message(kind, refund)}}
   end
 
   def refund_refusal(%Entry{}, _refund), do: nil

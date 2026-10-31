@@ -2404,7 +2404,29 @@ defmodule PortfolixirWeb.ImportsLive do
   defp correction_state_parts(%Correction.Item{state: :refused} = item, _rows, _preview),
     do: {gettext("Not corrected automatically"), "— " <> refused_remedy(item)}
 
-  defp refused_remedy(%Correction.Item{refusal: %{kind: "sell"} = refusal}),
+  # The remedy of the rule that refused the row (ADR-0053 A10): A9's fee
+  # refund keeps its fees as stored (#1177) and only its cash is set by hand;
+  # A8's refund beside a transfer or a delivery; A5's credit that nets to
+  # nothing.
+  defp refused_remedy(%Correction.Item{refusal: %{rule: :a9, kind: "sell"} = refusal}),
+    do:
+      gettext(
+        "stays as it is: the import does not book a fee refund yet, so the sale's fees stay as stored, %{fees}. Put it right by hand in the %{history}: change the sale to %{cash}; the tax refund is already booked.",
+        fees: Format.money(refusal.fees),
+        cash: Format.money(refusal.rest),
+        history: "%{history}"
+      )
+
+  defp refused_remedy(%Correction.Item{refusal: %{rule: :a9} = refusal}),
+    do:
+      gettext(
+        "stays as it is: the import does not book a fee refund yet, so the booking's fees stay as stored, %{fees}. Put it right by hand in the %{history}: change the booking to %{cash}; the tax refund is already booked.",
+        fees: Format.money(refusal.fees),
+        cash: Format.money(refusal.rest),
+        history: "%{history}"
+      )
+
+  defp refused_remedy(%Correction.Item{refusal: %{rule: :a5, kind: "sell"} = refusal}),
     do:
       gettext(
         "stays as it is: once the tax refund of %{refund} is split off, %{rest} would remain for the sale per the file, and a sale books more than zero. Put it right by hand in the %{history}: change the sale to %{gross} without fees, enter the fees of %{fees} as a booking of their own; the tax refund is already booked.",
@@ -2415,7 +2437,7 @@ defmodule PortfolixirWeb.ImportsLive do
         history: "%{history}"
       )
 
-  defp refused_remedy(%Correction.Item{refusal: %{kind: "cash_transfer"} = refusal}),
+  defp refused_remedy(%Correction.Item{refusal: %{rule: :a8, kind: "cash_transfer"} = refusal}),
     do:
       gettext(
         "stays as it is: a tax refund of %{refund} beside a transfer books on one of its accounts only. Put it right by hand in the %{history}: set the transfer to %{gross}, and delete the tax refund beside it unless money moved.",
@@ -2424,14 +2446,13 @@ defmodule PortfolixirWeb.ImportsLive do
         history: "%{history}"
       )
 
-  defp refused_remedy(%Correction.Item{refusal: %{kind: kind} = refusal})
-       when kind in ["inbound_delivery", "outbound_delivery", "security_transfer"],
-       do:
-         gettext(
-           "stays as it is: a delivery moves no cash to carry the tax refund of %{refund} beside it. Put it right by hand in the %{history}: delete the tax refund beside it unless money moved.",
-           refund: Format.money(refusal.refund),
-           history: "%{history}"
-         )
+  defp refused_remedy(%Correction.Item{refusal: %{rule: :a8} = refusal}),
+    do:
+      gettext(
+        "stays as it is: a delivery moves no cash to carry the tax refund of %{refund} beside it. Put it right by hand in the %{history}: delete the tax refund beside it unless money moved.",
+        refund: Format.money(refusal.refund),
+        history: "%{history}"
+      )
 
   defp refused_remedy(%Correction.Item{refusal: refusal}),
     do:

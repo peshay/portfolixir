@@ -20,8 +20,15 @@ defmodule Portfolixir.Imports.Preview do
   A row A8 refuses (a delivery or a transfer with a tax refund, #1188) or
   A9 refuses (a JSON row with a negative FEE unit, #1177) is kept the same
   way, its would-be entry built as before, so its hash does not move.
+  `rule` names the amendment's rule that refused the row (`:a5`, `:a8` or
+  `:a9`), so the correction gives that rule's remedy (#1193).
   """
-  @type refused_credit :: %{row: pos_integer(), entry: Entry.t(), message: String.t()}
+  @type refused_credit :: %{
+          row: pos_integer(),
+          rule: :a5 | :a8 | :a9,
+          entry: Entry.t(),
+          message: String.t()
+        }
 
   @type t :: %__MODULE__{
           format: :json | :csv,

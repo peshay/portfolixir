@@ -523,7 +523,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         }
 
         {:refused, fee_message(entry.kind, Decimal.negative?(net), written),
-         %{entry: entry, message: stored_fee_message(entry.kind, written)}}
+         %{rule: :a9, entry: entry, message: stored_fee_message(entry.kind, written)}}
     end
   end
 

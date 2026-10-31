@@ -425,17 +425,21 @@ defmodule Portfolixir.Imports.Correction do
   end
 
   # A10 (#1193): a row the preview refuses (A5's credit that nets to
-  # nothing, and A8's refund beside a delivery or a transfer, kept in
-  # `refused_credits` with their would-be entries) whose would-be booking a
+  # nothing, A8's refund beside a delivery or a transfer, and A9's negative
+  # FEE unit, kept in `refused_credits` with their would-be entries) whose
+  # would-be booking a
   # live transaction holds by its content hash. It is listed, not
   # correctable here: per cash account the row moves, the booking and the
   # refund stored beside it (found by the refund's hash with its row),
   # against the row's cash cell, which in Portfolio Performance is all the
   # row moves. The correction never deletes a booking, and no cash it
   # could write makes such a booking right, so the line carries no confirm.
-  # A hash a merge retired has no live booking to list.
+  # A hash a merge retired has no live booking to list, and a booking whose
+  # every cash account agrees with the file is not listed either (A10's A9
+  # rows: a fee refund alone moves no account's figure). The line keeps the
+  # rule that refused its row (A5, A8 or A9), so its remedy is that rule's.
   defp refused_items(%Preview{refused_credits: refused}, portfolio_id, lock?) do
-    Enum.flat_map(refused, fn %{row: row, entry: %Entry{} = entry} ->
+    Enum.flat_map(refused, fn %{row: row, entry: %Entry{} = entry} = refusal ->
       flat = Entry.flatten([entry])
       [parent_hashes | refund_hashes] = Applier.row_hashes(flat, portfolio_id)
       stored = stored_by_hash(List.flatten([parent_hashes | refund_hashes]), lock?)
@@ -445,7 +449,9 @@ defmodule Portfolixir.Imports.Correction do
           refunds =
             Enum.flat_map(refund_hashes, &List.wrap(Enum.find_value(&1, fn h -> stored[h] end)))
 
-          [refused_item(row, entry, transaction, refunds)]
+          row
+          |> refused_item(entry, transaction, refunds, refusal.rule)
+          |> List.wrap()
 
         nil ->
           []
@@ -455,7 +461,7 @@ defmodule Portfolixir.Imports.Correction do
 
   @credit_kinds ~w(sell dividend interest deposit tax_refund)
 
-  defp refused_item(row, %Entry{} = entry, %Transaction{} = transaction, refunds) do
+  defp refused_item(row, %Entry{} = entry, %Transaction{} = transaction, refunds, rule) do
     refund = entry.companion_entries |> Enum.map(& &1.gross_amount) |> sum()
     cell = cash_cell(entry, refund)
 
@@ -477,6 +483,12 @@ defmodule Portfolixir.Imports.Correction do
         %{account: account, booked: booked, stated: stated, delta: Decimal.sub(stated, booked)}
       end)
 
+    if Enum.all?(accounts, &Decimal.equal?(&1.delta, 0)),
+      do: nil,
+      else: refused_line(row, entry, transaction, accounts, {rule, refund, cell})
+  end
+
+  defp refused_line(row, entry, transaction, accounts, {rule, refund, cell}) do
     own = Enum.find(accounts, &(&1.account.id == transaction.cash_account_id)) || hd(accounts)
 
     %Item{
@@ -489,8 +501,11 @@ defmodule Portfolixir.Imports.Correction do
       accounts: accounts,
       state: :refused,
       refusal: %{
+        rule: rule,
         kind: transaction.type,
         refund: refund,
+        # What the row's own booking books today (A1): for A5 what would
+        # remain, for A9 the cash a hand correction sets.
         rest: entry.gross_amount,
         fees: entry.fees || Decimal.new(0),
         # The cash a by-hand booking of the row takes, its fees booked as a
