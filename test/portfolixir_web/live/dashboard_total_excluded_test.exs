@@ -120,7 +120,7 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
 
     assert has_element?(
              view,
-             "[data-role='wealth-card-excluded'] a[href='/portfolio']",
+             "[data-role='wealth-card-excluded'] a[href='/portfolio?period=ytd']",
              "Details in Vermögen →"
            )
 
@@ -447,6 +447,71 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     assert note_text(view) ==
              "Nicht in der Summe: 1 gehaltene Position ohne Preis — " <>
                "Harborline Freight Inc. Details in Vermögen →"
+  end
+
+  # A view on the depot alone, so the remembered choice differs from the
+  # card's Everything.
+  defp remember_view!(conn, world, name) do
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "neu"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+      conn,
+      "portfolixir_view",
+      Integer.to_string(view.id)
+    )
+  end
+
+  # User story (#1122, Sprint 21 γ1; board 01 ④, option 3, adopted by Sprint
+  # 20's D-4): As the operator following "Details in Vermögen →" from the
+  # Overview's total, I want Wealth to open on the card's period, and the note
+  # to say when Wealth is scoped to another view than the total counts, so
+  # that I do not land on a 240,00 EUR scope with no notes and wonder where
+  # the named rows went — without the Overview making a view choice for me.
+  #
+  # Acceptance criteria:
+  # - The card's `href` and the note's link are `/portfolio?period=ytd`; no
+  #   `?view=` (nothing is stored, #1081's rule).
+  # - With the remembered view „Nur Neuzugang“ and the card on „Alles“, one
+  #   sentence before the link reads "Vermögen ist gerade auf die Ansicht
+  #   „Nur Neuzugang“ eingegrenzt; diese Summe zählt „Alles“." (English
+  #   "Wealth is currently scoped to the view “Nur Neuzugang”; this total
+  #   counts “Everything”."), both names set in `<bdi>`.
+  # - With the views equal the note is as before (the board sentence test
+  #   above).
+  test "the note names the active view where it differs, and the links carry the period",
+       %{conn: conn} do
+    world = world()
+    usd_account!(world, "USD Settlement", "1850")
+    conn = remember_view!(conn, world, "Nur Neuzugang")
+
+    {:ok, view, _html} = de_live(conn, "/")
+    render_async(view)
+
+    assert note_text(view) ==
+             "Nicht in der Summe: 1 Verrechnungskonto ohne Wechselkurs zu EUR — " <>
+               "USD Settlement (1.850,00 USD). Vermögen ist gerade auf die Ansicht " <>
+               "„Nur Neuzugang“ eingegrenzt; diese Summe zählt „Alles“. Details in Vermögen →"
+
+    assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio?period=ytd']")
+
+    assert has_element?(
+             view,
+             "[data-role='wealth-card-view'] bdi",
+             "Nur Neuzugang"
+           )
+
+    assert has_element?(view, "[data-role='wealth-card-view'] bdi", "Alles")
+    refute has_element?(view, "a[href*='view=']")
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert note_text(view) =~
+             "USD Settlement (1,850.00 USD). Wealth is currently scoped to the view " <>
+               "“Nur Neuzugang”; this total counts “Everything”. Details in Wealth →"
   end
 
   # User story (#1081, review round; D-3):

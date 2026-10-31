@@ -122,7 +122,7 @@ defmodule PortfolixirWeb.DashboardTest do
     # total incl. cash.
     expected = Format.money(Valuation.for_view(nil, base_currency: "EUR").total_with_cash)
     assert html =~ "Everything"
-    assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio']")
+    assert has_element?(view, "a#dashboard-wealth-card[href='/portfolio?period=ytd']")
     # The value sits in its own count-up digits span beside the currency.
     assert html =~ ">#{expected}</span>"
     assert html =~ "EUR"

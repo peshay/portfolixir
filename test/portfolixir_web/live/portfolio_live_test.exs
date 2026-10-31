@@ -733,6 +733,41 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ "8.0"
   end
 
+  # User story (#1122, Sprint 21 γ1; board 01 ④, option 3): As the operator
+  # arriving on Wealth from the Overview's year-to-date total, I want Wealth
+  # to open on that period, read from the address and stored nowhere, so that
+  # the figures I land on are the card's period and my next visit opens at
+  # 1J as before.
+  #
+  # Acceptance criteria:
+  # - `/portfolio?period=ytd` opens with the YTD token pressed and active.
+  # - A token Wealth does not offer (`?period=bogus`, a range) opens at 1J.
+  # - A later `/portfolio` opens at 1J: the arrival stored nothing.
+  # - The view switcher's accessible name reads „Aktive Ansicht“ in German,
+  #   the word the Overview's view sentence uses (board 01, found while
+  #   drawing 4).
+  test "Wealth reads ?period= on arrival and stores nothing", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?period=ytd")
+    render_async(view)
+
+    assert has_element?(view, ~s(button[phx-value-period="ytd"][aria-pressed="true"]))
+    assert has_element?(view, ~s(button[phx-value-period="1y"][aria-pressed="false"]))
+
+    for bogus <- ["bogus", "2026-01-01..2026-02-01", ""] do
+      {:ok, view, _html} = live(conn, "/portfolio?" <> URI.encode_query(%{"period" => bogus}))
+      assert has_element?(view, ~s(button[phx-value-period="1y"][aria-pressed="true"]))
+    end
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    assert has_element?(view, ~s(button[phx-value-period="1y"][aria-pressed="true"]))
+
+    {:ok, view, _html} = live(conn, "/portfolio?locale=de")
+    assert has_element?(view, ~s(.view-switcher[aria-label="Aktive Ansicht"]))
+    assert has_element?(view, ~s(.view-switcher__options[aria-label="Aktive Ansicht"]))
+  end
+
   # User story (#563):
   # As a local portfolio maintainer,
   # I want a previous-year picker and a custom from/to range next to the
