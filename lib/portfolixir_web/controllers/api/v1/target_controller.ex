@@ -189,7 +189,8 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp drift_basis(%Decimal{}, _plan),
     do:
       "drift_weight = actual weight of the security in the steering basis (securities + counting cash, " <>
-        "view-scoped) minus its position target, as the allocation read computes it; rows without a " <>
+        "view-scoped) minus its position target, renormalised as the allocation renormalises a short " <>
+        "plan (ADR-0040), as the allocation read computes it; rows without a " <>
         "drift (no allocation row for the security) are filtered out; the comparison is on |drift_weight|, inclusive"
 
   def delete_position(
