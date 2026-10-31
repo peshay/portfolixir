@@ -652,30 +652,45 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     source = security!("Fund B")
     buy!(ctx, source, "1", "10.00", ~D[2025-01-10])
 
-    {:ok, view, _html} = live(ctx.conn, "/securities")
-    open_menu(view, source)
-    view |> element("#row-menu-#{source.id} [data-role='menu-merge']") |> render_click()
-    search(view, "Fund A")
-    pick(view, target)
-    view |> element("#security-merge-dialog [data-role='merge-continue']") |> render_click()
-
-    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+    refusal = identity_refusal(ctx, source, target, "/securities")
 
     assert refusal =~
              "after the merge, 1 identifier of the two would no longer lead to the target:"
 
     for lead <- leads(refusal), do: refute(lead =~ "Fund B")
 
-    assert has_element?(
-             view,
-             "#security-merge-dialog .merge-refusal__position .merge-refusal__kind",
-             "Name of the source:"
-           )
-
-    assert has_element?(view, "#security-merge-dialog .merge-refusal__position bdi", "Fund B")
-    refute has_element?(view, "#security-merge-dialog .merge-refusal__position bdi.mono")
+    # Each value is labelled by the side it belongs to on this page, in the
+    # direct reason and in the reverse one alike (board 04: "Name des Ziels:").
+    pairs = value_pairs(refusal)
+    assert {"Name of the source:", "Fund B"} in pairs
+    assert {"Name of the target:", "Fund A"} in pairs
+    refute {"Name of the source:", "Fund A"} in pairs
+    refute {"Name of the target:", "Fund B"} in pairs
+    refute refusal =~ ~s(<bdi class="mono">)
 
     assert refusal =~ "This version has no way around it; both securities stay unchanged."
+
+    german = value_pairs(identity_refusal(ctx, source, target, "/securities?locale=de"))
+    assert {"Name der Quelle:", "Fund B"} in german
+    assert {"Name des Ziels:", "Fund A"} in german
+    refute {"Name der Quelle:", "Fund A"} in german
+  end
+
+  defp identity_refusal(ctx, source, target, path) do
+    {:ok, view, _html} = live(ctx.conn, path)
+    open_menu(view, source)
+    view |> element("#row-menu-#{source.id} [data-role='menu-merge']") |> render_click()
+    search(view, target.name)
+    pick(view, target)
+    view |> element("#security-merge-dialog [data-role='merge-continue']") |> render_click()
+    view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+  end
+
+  # The refusal's data lines as {kind label, value} (H11, board 04).
+  defp value_pairs(refusal) do
+    ~r/<span class="merge-refusal__kind">\s*(.*?)\s*<\/span>\s*<bdi[^>]*>(.*?)<\/bdi>/s
+    |> Regex.scan(refusal, capture: :all_but_first)
+    |> Enum.map(fn [kind, value] -> {kind, value} end)
   end
 
   # User story:
