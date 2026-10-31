@@ -241,9 +241,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       "trade whose sell and lots are booked in one currency among them, converts " <>
       "realized_pnl_abs from currency_code at the EUR hub rate stored on its close date " <>
       "(D-1, issue #724; a trade in #{base} needs none), and is excluded without one " <>
-      "(by_reason.no_rate). Where the hub " <>
-      "rate moved between purchase and sale, the two paths part: the first is the cash " <>
-      "moved, the second the trade's result at the sale date's rate."
+      "(by_reason.no_rate). Where the hub rate moved between purchase and sale, the two " <>
+      "paths part: the first is the cash moved, the second the trade's result at the sale " <>
+      "date's rate."
   end
 
   # #1198 (the ADR-0015 amendment of 2026-10-09, point 3): every sale out of
@@ -410,7 +410,6 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   defp convert_trade(%{unavailable_reason: :missing_settlement_leg} = trade, _base),
     do: {:excluded, :missing_settlement_leg, trade}
 
-  #
   # The ADR-0015 amendment's note of 2026-10-31 (#1198): a trade whose sell
   # closes a lot booked in another currency, and whose sell and lots all
   # moved cash in the base currency through their stored legs, reads the
