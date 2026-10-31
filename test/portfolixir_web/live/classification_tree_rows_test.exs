@@ -121,6 +121,64 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
   # A value is a value only when every visible row carries one: while the
   # holdings load, every market value is nil, and a zero there would read as
   # "this category is worth nothing" rather than "not known yet".
+  # User story (#1158, Sprint 21 γ6, board 06 ③, before/after):
+  # As the operator opening a category on a 390 px phone,
+  # I want each security row to fit the screen as a two-line row, the
+  # Wealth Positions row's shape (UX-DR27),
+  # so that a long name wraps instead of pushing the quantity and the value
+  # past the screen's edge, where `.workspace-page` clips them.
+  #
+  # Acceptance criteria:
+  # - The list of rows never wraps as a flex line (`flex-wrap: nowrap`): a
+  #   wrapping line took the width of its widest row and caused the overflow.
+  # - Under 560 px of the page the row is a grid: the name (600, wrapping)
+  #   over "TICKER · CCY", the value (600) over the quantity with its unit
+  #   word ("units" / "Stück", 12 px, muted) on the right.
+  # - The unit word is in the markup and shown under 560 px only; the row
+  #   stays the drag source (`draggable`, `data-drag-security`).
+  test "a security row is a two-line row on a phone and stays the drag source", %{conn: conn} do
+    %{classification: classification} = tree()
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    render_async(view)
+    doc = view |> render() |> Floki.parse_document!()
+
+    [row] =
+      doc
+      |> Floki.find(~s(li.dnd-row[data-role="security-row"]))
+      |> Enum.filter(&(text(Floki.find(&1, ".row-name")) == "Active ETF"))
+
+    assert Floki.attribute(row, "draggable") == ["true"]
+    assert [_id] = Floki.attribute(row, "data-drag-security")
+
+    assert text(Floki.find(row, ~s([data-role="security-quantity"]))) == "10.00 units"
+
+    assert text(Floki.find(row, ~s([data-role="security-quantity"] .row-quantity__unit))) ==
+             "units"
+
+    css = File.read!("priv/static/app.css")
+
+    assert css =~ ~r/\n\.classifications-detail \.cat-securities \{[^}]*flex-wrap: nowrap;/
+    assert css =~ ~r/\n\.dnd-row \.row-quantity__unit \{\s*display: none;\s*\}/
+
+    phone =
+      case Regex.run(
+             ~r/@container classifications \(max-width: 560px\) \{\n  \/\* Security rows on two lines[^\n]*\n(.*?)\n\}\n/s,
+             css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no 560 px container block for the two-line security row")
+      end
+
+    assert phone =~
+             ~r/\.dnd-row \{[^}]*display: grid;[^}]*grid-template-columns: auto auto minmax\(0, 1fr\) auto;/
+
+    assert phone =~ ~r/\.row-name \{[^}]*grid-column: 1 \/ 4;[^}]*white-space: normal;/
+    assert phone =~ ~r/\.row-value \{[^}]*grid-column: 4;[^}]*grid-row: 1;/
+    assert phone =~ ~r/\.row-quantity \{[^}]*grid-column: 4;[^}]*grid-row: 2;/
+    assert phone =~ ~r/\.row-quantity__unit \{\s*display: inline;/
+  end
+
   test "the value cell is a dash until the holdings land", %{conn: conn} do
     %{classification: classification} = tree()
 
