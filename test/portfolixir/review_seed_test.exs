@@ -10,6 +10,7 @@ defmodule Portfolixir.ReviewSeedTest do
   import ExUnit.CaptureIO
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Quote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications
@@ -184,7 +185,7 @@ defmodule Portfolixir.ReviewSeedTest do
     tamarisk = Repo.one!(from(s in Security, where: s.name == "Tamarisk Systems Inc."))
 
     assert %{kind: "buy", bookings_outside: 1, ratio: ratio} =
-             Portfolixir.Catalog.DataQuality.implausible_quote_finding(tamarisk)
+             DataQuality.implausible_quote_finding(tamarisk)
 
     assert Decimal.equal?(ratio, 10)
 
