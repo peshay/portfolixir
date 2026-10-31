@@ -5667,15 +5667,22 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
       … Enter the booking by hand, …" / "Buchung … Die Buchung von Hand
       erfassen, …". It is named first, before the two above and A5's.
       **A refund larger than the fees** nets below zero, a fee the ledger
-      refuses, so its remedy names the cash instead *(review S1)*: "booking
-      with a negative fee (-2.00): the import does not book a fee refund yet
-      — row not imported. Enter the booking by hand at the cash Portfolio
-      Performance shows, Gesamtpreis 1,003.00, without a fee." / "… Die
-      Buchung von Hand mit dem Geld erfassen, das Portfolio Performance
-      zeigt, Gesamtpreis 1.003,00, ohne Gebühr." ("Book the sale …" / "Den
-      Verkauf … buchen"); a row that moves no cash reads "… Enter the
-      booking by hand without a fee." / "… Die Buchung ohne Gebühr von Hand
-      erfassen."
+      refuses, so its remedy names what the drawer takes to book the
+      Gesamtpreis without a fee *(review S1; amended 2026-10-31, #1188:
+      the drawer has no cash field for a buy or sell in one currency)*. A
+      purchase of 10 with FEE 1.00 and FEE -2.00 (net -1.00) and `amount`
+      1,003.00: "booking with a negative fee (-2.00): the import does not
+      book a fee refund yet — row not imported. Enter the booking by hand
+      without a fee, at the price 100.30 (Gesamtpreis 1,003.00 ÷ 10)." /
+      "… Die Buchung von Hand ohne Gebühr erfassen, zum Kurs 100,30
+      (Gesamtpreis 1.003,00 ÷ 10)." ("Book the sale …" / "Den Verkauf …
+      buchen"); across currencies "… without a fee, with the settlement
+      amount 20.10 (the Gesamtpreis Portfolio Performance shows)." / "… ohne
+      Gebühr …, mit dem Abrechnungsbetrag 20,10 (der Gesamtpreis, den
+      Portfolio Performance zeigt)."; any other kind keeps "… at the cash
+      Portfolio Performance shows, Gesamtpreis 20.10, without a fee."; a row
+      that moves no cash reads "… Enter the booking by hand without a fee."
+      / "… Die Buchung ohne Gebühr von Hand erfassen."
     - Already imported (a transfer stored under Sprint 20's reading, a
       booking stored with its fees summed): the reason, then "— already
       imported, and it cannot be corrected here. Do not book the transfer

@@ -3174,8 +3174,12 @@ und die Gebühren abzüglich der Erstattung, die Nettogebühr, die Portfolio
 Performance zeigt: die Zeile mit dieser Nettogebühr von Hand buchen, mit dem
 Geldbetrag, den Portfolio Performance zeigt. Ist die Erstattung größer als die
 Gebühren, läge die Nettogebühr unter null, was das Hauptbuch ablehnt: die
-Warnung nennt dann den Geldbetrag, den `amount` als Gesamtpreis, ohne Gebühr
-zu buchen. Bisher zählte der Import die erstattete Gebühr zu den Gebühren: ein
+Warnung sagt dann, was einzugeben ist, um den `amount`, den Gesamtpreis, ohne
+Gebühr zu buchen. Die Buchungsmaske bucht einen Kauf oder Verkauf in der
+Währung seines Wertpapiers als Stück × Kurs, die Warnung nennt also den Kurs,
+den Gesamtpreis geteilt durch die Stückzahl (1.003,00 für 10 Stück: der Kurs
+100,30); ein Kauf oder Verkauf über Währungen hinweg nimmt den Gesamtpreis als
+Abrechnungsbetrag; jede andere Buchung als ihren Geldbetrag. Bisher zählte der Import die erstattete Gebühr zu den Gebühren: ein
 solcher Kauf buchte seinen Geldbetrag richtig, aber eine zu hohe Gebühr und
 einen zu niedrigen Kurs. Eine so früher importierte Zeile sagt, dass sie
 bereits importiert ist, und nennt ihre gespeicherten Gebühren, die vorerst

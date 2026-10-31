@@ -11636,8 +11636,8 @@ msgid "sell without a counter account — row not imported"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:490
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:724
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:727
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:799
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:802
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr ""
@@ -12282,7 +12282,7 @@ msgstr ""
 msgid "“%{name}” deleted."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:706
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:781
 #, elixir-autogen, elixir-format
 msgid "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards."
 msgstr ""
@@ -12597,22 +12597,22 @@ msgstr ""
 msgid "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — row not imported. Book the transfer by hand without it; if money did move, book that as a tax refund of its own."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:615
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:690
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:596
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:671
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand, with its fees less the refund (%{net})."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:607
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:682
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:588
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:663
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand, with its fees less the refund (%{net})."
 msgstr ""
@@ -12878,22 +12878,22 @@ msgstr ""
 msgid "provisional · recomputing"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:580
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:655
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand at the cash Portfolio Performance shows, Gesamtpreis %{cash}, without a fee."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:573
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:630
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:565
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:622
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand at the cash Portfolio Performance shows, Gesamtpreis %{cash}, without a fee."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:558
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:597
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee."
 msgstr ""
@@ -12937,7 +12937,7 @@ msgstr ""
 msgid "booking with %{cell} %{total}: nothing would remain for the booking — already imported; listed under “Already imported, with a different amount”."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:634
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:709
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}; listed under “Already imported, with a different amount”."
 msgstr ""
@@ -12967,7 +12967,7 @@ msgstr ""
 msgid "sell with %{cell} %{total}: nothing would remain for the sale — already imported; listed under “Already imported, with a different amount”."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:626
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:701
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}; listed under “Already imported, with a different amount”."
 msgstr ""
@@ -13014,4 +13014,24 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:4001
 #, elixir-autogen, elixir-format
 msgid "already imported, with a different amount — not corrected by this import"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:637
+#, elixir-autogen, elixir-format
+msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee, at the price %{price} (Gesamtpreis %{cash} ÷ %{quantity})."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:647
+#, elixir-autogen, elixir-format
+msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee, with the settlement amount %{settlement} (the Gesamtpreis Portfolio Performance shows)."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:604
+#, elixir-autogen, elixir-format
+msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee, at the price %{price} (Gesamtpreis %{cash} ÷ %{quantity})."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:614
+#, elixir-autogen, elixir-format
+msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee, with the settlement amount %{settlement} (the Gesamtpreis Portfolio Performance shows)."
 msgstr ""

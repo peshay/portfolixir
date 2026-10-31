@@ -54,6 +54,49 @@ defmodule Portfolixir.Imports.Decimals do
   def format_locale(%Decimal{} = value, "de"), do: format_de(value)
   def format_locale(%Decimal{} = value, _locale), do: format_cents(value, ",", ".")
 
+  @doc """
+  Write a price in the notation of `locale` as `format_locale/2` writes
+  money, but with every digit up to six places and at least two:
+  `#Decimal<100.3>` → `"100.30"`, `#Decimal<0.201>` → `"0,201"` in German.
+  """
+  def format_price_locale(%Decimal{} = value, locale) do
+    rounded = value |> Decimal.round(6) |> Decimal.normalize()
+    places = max(2, -min(rounded.exp, 0))
+    point = if locale == "de", do: ",", else: "."
+
+    case value |> Decimal.round(places) |> Decimal.to_string(:normal) |> String.split(".") do
+      [int, frac] -> group(int, locale) <> point <> frac
+      [int] -> group(int, locale)
+    end
+  end
+
+  @doc """
+  Write a quantity in the notation of `locale`, its digits as stored and no
+  trailing zeros: `#Decimal<10.0>` → `"10"`, `#Decimal<2.5>` → `"2,5"` in
+  German.
+  """
+  def format_quantity_locale(%Decimal{} = value, locale) do
+    point = if locale == "de", do: ",", else: "."
+
+    case value |> Decimal.normalize() |> Decimal.to_string(:normal) |> String.split(".") do
+      [int, frac] -> group(int, locale) <> point <> frac
+      [int] -> group(int, locale)
+    end
+  end
+
+  defp group("-" <> int, locale), do: "-" <> group(int, locale)
+
+  defp group(int, locale) do
+    separator = if locale == "de", do: ".", else: ","
+
+    int
+    |> String.reverse()
+    |> String.graphemes()
+    |> Enum.chunk_every(3)
+    |> Enum.map_join(separator, &Enum.join/1)
+    |> String.reverse()
+  end
+
   defp format_cents(value, group, point) do
     rounded = Decimal.round(value, 2)
     sign = if Decimal.negative?(rounded), do: "-", else: ""

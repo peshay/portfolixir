@@ -2889,7 +2889,12 @@ The warning names the refunded fee and the fees less the refund, which is the
 net fee Portfolio Performance shows: book the row by hand with that net fee,
 at the cash Portfolio Performance shows. When the refund is larger than the
 fees, the net fee would be below zero, which the ledger refuses: the warning
-then names the cash, the `amount` as the Gesamtpreis, to book without a fee.
+then says what to enter to book the `amount`, the Gesamtpreis, without a fee.
+The booking drawer books a buy or sell in its security's currency as quantity
+× price, so the warning names the price, the Gesamtpreis divided by the
+quantity (1,003.00 for 10 shares: the price 100.30); a buy or sell across
+currencies takes the Gesamtpreis as its settlement amount; any other booking
+takes it as its cash.
 Before, the import added the refunded fee to the fees: such a purchase booked
 its cash right, but too high a fee and too low a price. A row imported that
 way earlier says it is already imported, naming its fees as stored, which stay

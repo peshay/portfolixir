@@ -500,10 +500,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # every other kind "the booking" (board ux-design-2026-10-09/07-imports ③).
   #
   # A refund larger than the fees nets below zero, a fee the ledger refuses
-  # (`Ledger.Transaction`), so that remedy names the cash Portfolio
-  # Performance shows, the row's `amount` as "Gesamtpreis", to book without
-  # a fee; a row that moves no cash (a delivery, a security transfer) or has
-  # no `amount` is booked without a fee.
+  # (`Ledger.Transaction`), so that remedy names what the booking drawer
+  # takes to book the cash Portfolio Performance shows, the row's `amount`
+  # as "Gesamtpreis", without a fee (#1188): a buy or sell in its security's
+  # currency books quantity × price, so its remedy names the price,
+  # Gesamtpreis ÷ quantity; a cross-currency one asks its settlement amount,
+  # the Gesamtpreis; any other kind takes the cash itself. A row that moves
+  # no cash (a delivery, a security transfer) or has no `amount` is booked
+  # without a fee.
   defp fee_refusal(%Entry{} = entry, amount, units) do
     fees = fee_units(units)
 
@@ -522,6 +526,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
           stored: Decimals.format_locale(entry.fees, locale)
         }
 
+        written = Map.merge(written, drawer_figures(entry, amount, locale))
+
         {:refused, fee_message(entry.kind, Decimal.negative?(net), written),
          %{
            rule: :a9,
@@ -531,6 +537,39 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
          }}
     end
   end
+
+  # What the drawer takes for a buy or sell booked without a fee: in its
+  # security's currency the price that books the Gesamtpreis (`:price`, with
+  # the `:quantity` it divides by), across currencies the settlement amount
+  # (`:settlement`). Any other row takes its cash, and names neither.
+  defp drawer_figures(
+         %Entry{kind: kind, quantity: %Decimal{} = quantity} = entry,
+         %Decimal{} = amount,
+         locale
+       )
+       when kind in ~w(buy sell) do
+    cond do
+      not Decimal.gt?(quantity, 0) ->
+        %{}
+
+      cross_currency?(entry) ->
+        %{settlement: Decimals.format_locale(amount, locale)}
+
+      true ->
+        %{
+          price: amount |> Decimal.div(quantity) |> Decimals.format_price_locale(locale),
+          quantity: Decimals.format_quantity_locale(quantity, locale)
+        }
+    end
+  end
+
+  defp drawer_figures(_entry, _amount, _locale), do: %{}
+
+  defp cross_currency?(%Entry{currency_code: currency, security: %{currency: security}})
+       when is_binary(security),
+       do: security != currency
+
+  defp cross_currency?(_entry), do: false
 
   defp fee_cash(%Entry{kind: kind}, _amount, _locale) when kind in @no_cash_kinds, do: nil
   defp fee_cash(_entry, %Decimal{} = amount, locale), do: Decimals.format_locale(amount, locale)
@@ -560,6 +599,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         fee: written.fee
       )
 
+  defp fee_message("sell", true, %{price: price} = written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee, at the price %{price} (Gesamtpreis %{cash} ÷ %{quantity}).",
+        fee: written.fee,
+        price: price,
+        cash: written.cash,
+        quantity: written.quantity
+      )
+
+  defp fee_message("sell", true, %{settlement: settlement} = written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee, with the settlement amount %{settlement} (the Gesamtpreis Portfolio Performance shows).",
+        fee: written.fee,
+        settlement: settlement
+      )
+
   defp fee_message("sell", true, written),
     do:
       gettext(
@@ -573,6 +630,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       gettext(
         "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee.",
         fee: written.fee
+      )
+
+  defp fee_message(_kind, true, %{price: price} = written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee, at the price %{price} (Gesamtpreis %{cash} ÷ %{quantity}).",
+        fee: written.fee,
+        price: price,
+        cash: written.cash,
+        quantity: written.quantity
+      )
+
+  defp fee_message(_kind, true, %{settlement: settlement} = written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee, with the settlement amount %{settlement} (the Gesamtpreis Portfolio Performance shows).",
+        fee: written.fee,
+        settlement: settlement
       )
 
   defp fee_message(_kind, true, written),
