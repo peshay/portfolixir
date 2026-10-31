@@ -421,7 +421,7 @@ defmodule Portfolixir.Catalog do
         source: :security,
         before: security
       )
-      |> Multi.prepend(isin_write_lock(attrs))
+      |> Multi.prepend(isin_write_lock(security, attrs))
 
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
@@ -435,11 +435,19 @@ defmodule Portfolixir.Catalog do
   # journal's row lock (E25 S6 review round, F49): every ISIN writer — the
   # ISIN change, an import, an alias edit — takes the advisory lock first and
   # the security's row after it, and two writers taking the two in opposite
-  # orders could deadlock.
-  defp isin_write_lock(attrs) do
-    if Map.has_key?(attrs, :isin) or Map.has_key?(attrs, "isin"),
-      do: Multi.run(Multi.new(), :isin_write_lock, &IdentifierAliases.lock_isin_writes/2),
-      else: Multi.new()
+  # orders could deadlock. The locks are the security's own, then those of
+  # the ISIN it writes and the one it replaces (one per ISIN, security
+  # review 2026-10-12, H53).
+  defp isin_write_lock(security, attrs) do
+    if Map.has_key?(attrs, :isin) or Map.has_key?(attrs, "isin") do
+      new_isin = Map.get(attrs, :isin) || Map.get(attrs, "isin")
+
+      Multi.run(Multi.new(), :isin_write_lock, fn repo, _changes ->
+        IdentifierAliases.lock_security_isin_writes(repo, [security.id], [new_isin])
+      end)
+    else
+      Multi.new()
+    end
   end
 
   @doc """

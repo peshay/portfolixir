@@ -36,21 +36,33 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   alias Portfolixir.Repo
 
   # All cross-table ISIN uniqueness checks take this advisory transaction lock
-  # first, so two concurrent security-ISIN writes serialize instead of both
+  # first, so two concurrent writes of one ISIN serialize instead of both
   # passing the check before either commits (ADR-0029 §3 "serialized check").
   #
-  # The lock is the two-key form (key, scope). The scope is 0 -- one lock for
-  # the whole database -- unless the transaction has set
-  # `portfolixir.isin_write_lock_scope`, which only the test sandbox does
-  # (#1018): a sandboxed test never commits, so it held the one lock until it
-  # ended and every other async test writing an ISIN waited for it. Each test's
-  # transaction scopes the lock to itself; its own writers still serialize. A
-  # session that once set the value reads it back as '' afterwards, hence the
-  # nullif.
+  # The lock is the two-key form (key, ISIN): one lock per normalized ISIN
+  # (security review 2026-10-12, H53), so a long transaction serializes only
+  # the writers of its own ISINs, never every identifier writer of the
+  # instance. A writer takes the lock of every ISIN it writes into either
+  # column (a security's ISIN, a former ISIN), in ascending key order, so two
+  # writers of the same two ISINs never wait on each other crosswise; two
+  # ISINs that share a key only serialize more than they must. A writer of a
+  # stored security's ISIN (an edit, an ISIN change, a merge) takes the
+  # security's own key of this lock first, in ascending id order, and the
+  # ISIN keys after it, the stored ISIN among them, read under that key: two
+  # writers of one security queue there, and the ISIN its write replaces or
+  # moves into the alias table is the one it locked.
+  #
+  # The key folds in a scope, '0' for the whole database, unless the
+  # transaction has set `portfolixir.isin_write_lock_scope`, which only the
+  # test sandbox does (#1018): a sandboxed test never commits, so it held its
+  # locks until it ended and every other async test writing the same ISIN
+  # waited for it. Each test's transaction scopes the locks to itself; its own
+  # writers still serialize. A session that once set the value reads it back
+  # as '' afterwards, hence the nullif.
   @isin_write_lock_key 727_202_907
-  @isin_write_lock_sql """
-  SELECT pg_advisory_xact_lock($1,
-    coalesce(nullif(current_setting('portfolixir.isin_write_lock_scope', true), '')::integer, 0))
+  # The scope a transaction's locks fold in: '0' for the whole database.
+  @isin_write_lock_scope_sql """
+  SELECT coalesce(nullif(current_setting('portfolixir.isin_write_lock_scope', true), ''), '0')
   """
 
   @doc """
@@ -70,7 +82,9 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     note = Keyword.get(opts, :note)
 
     Repo.transaction(fn ->
-      acquire_isin_write_lock(Repo)
+      # The security's key, then the ISIN that becomes the alias (the stored
+      # one) and the one that becomes the security's.
+      acquire_security_isin_write_lock(Repo, [security.id], [new_isin])
 
       # The ISIN that becomes the alias is the stored one, read under the
       # row's lock, not the caller's copy (E25 S6, F49).
@@ -115,7 +129,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     normalized = IdentifierAlias.normalize_isin(former_isin)
 
     Repo.transaction(fn ->
-      acquire_isin_write_lock(Repo)
+      acquire_isin_write_lock(Repo, [normalized])
 
       with :ok <- ensure_merged_isin_not_live(normalized),
            {:ok, alias_row} <-
@@ -209,7 +223,11 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
       source: :alias,
       before: alias_row
     )
-    |> Multi.prepend(Multi.run(Multi.new(), :isin_write_lock, &lock_isin_writes/2))
+    |> Multi.prepend(
+      Multi.run(Multi.new(), :isin_write_lock, fn repo, _changes ->
+        lock_isin_writes(repo, [alias_row.former_isin, attr(attrs, :former_isin)])
+      end)
+    )
     |> Repo.transaction()
     |> case do
       {:ok, %{alias: updated}} -> {:ok, updated}
@@ -251,7 +269,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
         {:ok, :not_applicable}
 
       isin ->
-        acquire_isin_write_lock(repo)
+        acquire_isin_write_lock(repo, [isin])
         check_isin_against_aliases(repo, changeset, isin)
     end
   end
@@ -437,24 +455,85 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   end
 
   @doc """
-  Takes the ISIN write lock as an `Ecto.Multi` step, for a writer that must
-  hold it before the journal's row lock (E25 S6 review round, F49): the
-  lock every ISIN writer takes first.
+  Takes the ISIN write lock of each of `isins` (normalized; blanks and
+  repeats taken once) for the rest of the transaction, in ascending key
+  order, answered as an `Ecto.Multi` step result, for a writer that must
+  hold them before the journal's row lock (E25 S6 review round, F49): the
+  locks every ISIN writer takes first. The lock is one per ISIN (security
+  review 2026-10-12, H53).
   """
-  @spec lock_isin_writes(Ecto.Repo.t(), map()) :: {:ok, :locked}
-  def lock_isin_writes(repo, _changes) do
-    :ok = acquire_isin_write_lock(repo)
+  @spec lock_isin_writes(Ecto.Repo.t(), [String.t() | nil]) :: {:ok, :locked}
+  def lock_isin_writes(repo, isins) when is_list(isins) do
+    :ok = acquire_isin_write_lock(repo, isins)
     {:ok, :locked}
+  end
+
+  @doc """
+  The ISIN write locks of a writer of stored securities' ISINs (an edit, an
+  ISIN change, a merge): the key of each of `security_ids` first, in
+  ascending id order, then the ISIN keys of `isins` and of each security's
+  stored ISIN, read under its key, in ascending key order (security review
+  2026-10-12, H53). Answered as an `Ecto.Multi` step result.
+  """
+  @spec lock_security_isin_writes(Ecto.Repo.t(), [integer()], [String.t() | nil]) ::
+          {:ok, :locked}
+  def lock_security_isin_writes(repo, security_ids, isins)
+      when is_list(security_ids) and is_list(isins) do
+    :ok = acquire_security_isin_write_lock(repo, security_ids, isins)
+    {:ok, :locked}
+  end
+
+  defp acquire_security_isin_write_lock(repo, security_ids, isins) do
+    ids = security_ids |> Enum.reject(&is_nil/1) |> Enum.uniq() |> Enum.sort()
+    scope = lock_scope(repo)
+
+    Enum.each(ids, &take_lock(repo, lock_key_for(scope, "security:#{&1}")))
+
+    stored = repo.all(from(s in Security, where: s.id in ^ids, select: s.isin))
+    acquire_isin_write_lock(repo, isins ++ stored, scope)
+  end
+
+  @doc """
+  The second key of the ISIN write lock of `name` (a normalized ISIN, or
+  "security:<id>" for a security's own key) under `scope` ("0" for the whole
+  database): the first four bytes of its SHA-256, signed. Computed here, so
+  no input reaches the lock statement but an integer.
+  """
+  @spec lock_key_for(String.t(), String.t()) :: integer()
+  def lock_key_for(scope, name) when is_binary(scope) and is_binary(name) do
+    <<key::signed-32, _rest::binary>> = :crypto.hash(:sha256, scope <> ":" <> name)
+    key
   end
 
   @doc "The first key of the ISIN write lock (`pg_advisory_xact_lock(int, int)`)."
   @spec isin_write_lock_key() :: integer()
   def isin_write_lock_key, do: @isin_write_lock_key
 
-  defp acquire_isin_write_lock(repo) do
-    repo.query!(@isin_write_lock_sql, [@isin_write_lock_key])
-    :ok
+  defp lock_scope(repo) do
+    %{rows: [[scope]]} = repo.query!(@isin_write_lock_scope_sql, [])
+    scope
   end
+
+  defp acquire_isin_write_lock(repo, isins, scope \\ nil) do
+    case isins |> Enum.map(&IdentifierAlias.normalize_isin/1) |> Enum.reject(&is_nil/1) do
+      [] ->
+        :ok
+
+      normalized ->
+        scope = scope || lock_scope(repo)
+
+        normalized
+        |> Enum.map(&lock_key_for(scope, &1))
+        |> Enum.uniq()
+        |> Enum.sort()
+        |> Enum.each(&take_lock(repo, &1))
+    end
+  end
+
+  defp take_lock(repo, key),
+    do: repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@isin_write_lock_key, key])
+
+  defp attr(attrs, field), do: Map.get(attrs, field) || Map.get(attrs, Atom.to_string(field))
 
   defp error_changeset(field, message, keys \\ []) do
     %IdentifierAlias{}

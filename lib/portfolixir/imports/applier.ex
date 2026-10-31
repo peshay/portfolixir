@@ -160,6 +160,11 @@ defmodule Portfolixir.Imports.Applier do
   @spec transaction_timeout() :: pos_integer()
   def transaction_timeout, do: @transaction_timeout
 
+  # Security review 2026-10-12, H53: the dry run never waits for a lock. A
+  # lock its reads would have to wait for (a table rebuilt by a migration,
+  # say) stops it after this long, and the counts stay on the hash layers.
+  @dry_run_lock_wait "1s"
+
   import Ecto.Query
 
   defmodule Result do
@@ -316,7 +321,7 @@ defmodule Portfolixir.Imports.Applier do
 
     Repo.transaction(
       fn ->
-        case run_auto(flat_entries, portfolio_id, default_currency, params) do
+        case run_auto(flat_entries, portfolio_id, default_currency, params, false) do
           {:ok, final_state} -> final_state.result
           {:error, reason} -> Repo.rollback(reason)
         end
@@ -328,12 +333,17 @@ defmodule Portfolixir.Imports.Applier do
 
   # The auto-resolving apply's body, inside the caller's transaction: every
   # unmapped name resolved as the preview's prefill resolves it, every row
-  # judged in file order.
-  defp run_auto(flat_entries, portfolio_id, default_currency, params) do
-    :ok = AccountNames.lock_identity(portfolio_id)
+  # judged in file order. `simulate?` is the preview's dry run (H53): it
+  # takes no lock and writes nothing, and every security, account and
+  # booking the run would create is kept in memory instead, under a negative
+  # id no stored row has, so the file's later rows resolve and are judged
+  # against it as the apply's own run judges them.
+  defp run_auto(flat_entries, portfolio_id, default_currency, params, simulate?) do
+    unless simulate?, do: :ok = AccountNames.lock_identity(portfolio_id)
 
     state =
       base_state(portfolio_id, default_currency, params, %Result{})
+      |> Map.merge(%{simulate: simulate?})
       |> Map.merge(%{
         cash_by_name: %{},
         pending_cash: %{},
@@ -348,19 +358,30 @@ defmodule Portfolixir.Imports.Applier do
 
   # What the apply would do with every row, under the preview's prefill,
   # without writing anything (ADR-0050 §2–§5; the L3–L5 review round, F2):
-  # the auto-resolving apply run in a transaction that always rolls back,
-  # answering each row's outcome in file order — `:inserted`, `:collapsed`,
-  # `{:duplicate, layer}`, `:internal_transfer`, `:skipped` or
+  # the auto-resolving apply simulated in a read-only transaction that always
+  # rolls back, answering each row's outcome in file order — `:inserted`,
+  # `:collapsed`, `{:duplicate, layer}`, `:internal_transfer`, `:skipped` or
   # `{:unresolved, key, reason}`. `:error` when the run stops (an ambiguous
-  # name, a refused write) or the database gives up on it (a lost or timed
-  # out connection): the counts then fall back to the hash layers.
+  # name, a refused write), when a writer of the portfolio's account names is
+  # in flight, when a read would wait for a lock, or when the database gives
+  # up on it (a lost or timed out connection): the counts then fall back to
+  # the hash layers.
+  #
+  # Security review 2026-10-12, H53: a preview that is only being looked at
+  # holds no lock another writer waits for. The run takes neither the
+  # account-identity lock nor the ISIN write lock, inserts nothing (so no
+  # trigger takes the import-hash lock), and reads the currencies without a
+  # row lock; the database refuses any write it would still send.
   defp dry_run_outcomes(_flat_entries, nil), do: :error
 
   defp dry_run_outcomes(flat_entries, portfolio_id) do
     fn ->
-      case run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}) do
-        {:ok, final_state} -> Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes)})
-        {:error, _reason} -> Repo.rollback(:stopped)
+      with :ok <- open_dry_run(portfolio_id),
+           {:ok, final_state} <-
+             run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true) do
+        Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes)})
+      else
+        _stopped -> Repo.rollback(:stopped)
       end
     end
     |> Repo.transaction(timeout: @transaction_timeout)
@@ -373,6 +394,31 @@ defmodule Portfolixir.Imports.Applier do
     end
   rescue
     DBConnection.ConnectionError -> :error
+    # A lock the dry run would wait for, or a write it would send.
+    Postgrex.Error -> :error
+  end
+
+  # The dry run's transaction is read-only and waits for no lock. Where a
+  # writer of the portfolio's account names holds their lock (a rename, a
+  # merge, an apply), the dry run does not take it, as the apply does, but
+  # stops at once: its counts would read the names mid-change.
+  defp open_dry_run(portfolio_id) do
+    Repo.query!("SET TRANSACTION READ ONLY")
+    Repo.query!("SET LOCAL lock_timeout = '#{@dry_run_lock_wait}'")
+
+    %{rows: [[free?]]} =
+      Repo.query!(
+        """
+        SELECT NOT EXISTS (
+          SELECT 1 FROM pg_locks
+          WHERE locktype = 'advisory' AND granted AND objsubid = 2
+            AND classid::bigint = $1 AND objid::bigint = $2
+            AND pid <> pg_backend_pid())
+        """,
+        [AccountNames.lock_key(), AccountNames.lock_portfolio_key(portfolio_id)]
+      )
+
+    if free?, do: :ok, else: :error
   end
 
   @doc """
@@ -392,10 +438,14 @@ defmodule Portfolixir.Imports.Applier do
   def economic_keys(%Preview{entries: entries}, portfolio_id) when is_integer(portfolio_id) do
     flat_entries = Entry.flatten(entries)
 
+    # The same read-only, lock-free simulation as `dry_run_outcomes/2` (H53).
     fn ->
-      case run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}) do
-        {:ok, final_state} -> Repo.rollback({:dry_run, final_state.economic_keys})
-        {:error, _reason} -> Repo.rollback(:stopped)
+      with :ok <- open_dry_run(portfolio_id),
+           {:ok, final_state} <-
+             run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true) do
+        Repo.rollback({:dry_run, final_state.economic_keys})
+      else
+        _stopped -> Repo.rollback(:stopped)
       end
     end
     |> Repo.transaction(timeout: @transaction_timeout)
@@ -405,6 +455,7 @@ defmodule Portfolixir.Imports.Applier do
     end
   rescue
     DBConnection.ConnectionError -> :error
+    Postgrex.Error -> :error
   end
 
   @doc """
@@ -426,12 +477,15 @@ defmodule Portfolixir.Imports.Applier do
   or on whatever later layer skipped the first. A row counted
   `:new` by its hash is then judged the way the apply judges it, under the
   preview's prefill (live name, then former name): the auto-resolving apply
-  runs in a transaction that always rolls back, and a row it skips as an
-  equal economic booking or an in-run collapse counts `:economics`, a
-  transfer whose two legs resolve to one account `:internal_transfer`. So a
-  drifted re-export after a merge counts nothing `:new`. Where that run
-  stops (a name the prefill finds ambiguous), or with `dry_run: false`, the
-  hash layers stand alone.
+  is simulated in a read-only transaction that always rolls back, keeping
+  what it would create in memory and taking no lock another writer waits
+  for (security review 2026-10-12, H53), and a row it skips as an equal
+  economic booking or an in-run collapse counts `:economics`, a transfer
+  whose two legs resolve to one account `:internal_transfer`. So a drifted
+  re-export after a merge counts nothing `:new`. Where that run stops (a
+  name the prefill finds ambiguous, a writer of the portfolio's account
+  names in flight, a read that would wait for a lock), or with
+  `dry_run: false`, the hash layers stand alone.
   A row still `:new` may be skipped by a decision the operator makes in the
   preview (a security choice, another account); an account whose rows are
   none of them `:new` is never created.
@@ -814,6 +868,13 @@ defmodule Portfolixir.Imports.Applier do
       # tier, refused when a row needs the name.
       ambiguous_names: %{},
       result: result,
+      # H53: the dry run's in-memory record of what it would create — the
+      # next negative id, the content hashes it would have stored, and the
+      # currency of each cash account it would have created.
+      simulate: false,
+      next_simulated_id: -1,
+      run_hashes: MapSet.new(),
+      simulated_currencies: %{},
       existing_dedup_keys: load_existing_dedup_keys(portfolio_id),
       # ADR-0050 §2, §7 step 4: the anchors per account where a cash merge
       # restated one; empty, and no further read, where none did.
@@ -1238,7 +1299,7 @@ defmodule Portfolixir.Imports.Applier do
       nil ->
         import_hash = ImportHash.companion(parent_hash, index, entry, state.portfolio_id)
 
-        case hash_layer(companion_hashes(import_hash, entry, state.portfolio_id)) do
+        case hash_layer(companion_hashes(import_hash, entry, state.portfolio_id), state) do
           nil -> insert_companion(entry, import_hash, outcome == :collapsed, state)
           layer -> {:ok, record_duplicate(state, entry, layer)}
         end
@@ -1337,7 +1398,7 @@ defmodule Portfolixir.Imports.Applier do
         import_hash = ImportHash.compute(entry, state.portfolio_id)
         legacy_hash = ImportHash.legacy(entry, state.portfolio_id)
 
-        case hash_layer(Enum.reject([import_hash, legacy_hash], &is_nil/1)) do
+        case hash_layer(Enum.reject([import_hash, legacy_hash], &is_nil/1), state) do
           nil -> do_process_entry(entry, import_hash, state)
           layer -> {:ok, record_duplicate(state, entry, layer)}
         end
@@ -1379,8 +1440,11 @@ defmodule Portfolixir.Imports.Applier do
   # A row whose fields carry the hash's separator is also looked up by the
   # hash the Sprint 15 formula gave it (E25 S5, F36): a row stored before the
   # hash became injective keeps being recognised, so nothing books twice.
-  defp hash_layer(hashes) do
+  # The dry run (H53) stores nothing, so a row repeating one it would have
+  # inserted is found in its own record first.
+  defp hash_layer(hashes, state) do
     cond do
+      Enum.any?(hashes, &MapSet.member?(state.run_hashes, &1)) -> :hash
       Repo.exists?(from(t in Transaction, where: t.import_hash in ^hashes)) -> :hash
       Repo.exists?(from(r in RetiredImportHash, where: r.import_hash in ^hashes)) -> :retired
       true -> nil
@@ -1812,8 +1876,8 @@ defmodule Portfolixir.Imports.Applier do
       feed: "PORTFOLIO_PERFORMANCE"
     }
 
-    case Catalog.create_security(Actor.import_session(), attrs) do
-      {:ok, security} ->
+    case write_security(attrs, state) do
+      {:ok, security, state} ->
         state =
           state
           |> Map.update!(:live_index, &SecurityResolver.put_security(&1, security))
@@ -1828,6 +1892,31 @@ defmodule Portfolixir.Imports.Applier do
         {:error, {:security_create_failed, changeset}}
     end
   end
+
+  # The apply creates the security through the catalog's journaled write. The
+  # dry run (H53) keeps it in memory under the next negative id, refused
+  # where its changeset refuses it, as the write would refuse it; what only
+  # the database checks (a unique index the index already rules out) it does
+  # not reach.
+  defp write_security(attrs, %{simulate: true} = state) do
+    attrs
+    |> then(&Security.changeset(%Security{}, &1))
+    |> simulated_row(state)
+  end
+
+  defp write_security(attrs, state) do
+    with {:ok, security} <- Catalog.create_security(Actor.import_session(), attrs),
+         do: {:ok, security, state}
+  end
+
+  # A changeset's row, held in memory under the next negative id (H53).
+  defp simulated_row(%Ecto.Changeset{valid?: true} = changeset, state) do
+    id = state.next_simulated_id
+    row = changeset |> Ecto.Changeset.apply_changes() |> Map.put(:id, id)
+    {:ok, row, %{state | next_simulated_id: id - 1}}
+  end
+
+  defp simulated_row(%Ecto.Changeset{} = changeset, _state), do: {:error, changeset}
 
   # --- account resolution (ADR-0050 §4: resolving creates nothing) ---
 
@@ -1959,10 +2048,11 @@ defmodule Portfolixir.Imports.Applier do
   defp create_cash(pp_name, name, currency, state) do
     attrs = %{portfolio_id: state.portfolio_id, name: name, currency_code: currency}
 
-    case Portfolios.create_cash_account(Actor.import_session(), attrs) do
-      {:ok, cash} ->
+    case write_account(CashAccount, attrs, state) do
+      {:ok, cash, state} ->
         state =
           state
+          |> Map.update!(:simulated_currencies, &simulated_currency(&1, cash))
           |> Map.update!(:cash_by_name, &Map.put(&1, pp_name, cash.id))
           |> Map.update!(:pending_cash, &Map.delete(&1, pp_name))
           |> bump_result(:created_cash_accounts)
@@ -2032,8 +2122,8 @@ defmodule Portfolixir.Imports.Applier do
   defp create_depot(pp_name, name, cash_id, state) do
     attrs = %{portfolio_id: state.portfolio_id, cash_account_id: cash_id, name: name}
 
-    case Portfolios.create_securities_account(Actor.import_session(), attrs) do
-      {:ok, depot} ->
+    case write_account(SecuritiesAccount, attrs, state) do
+      {:ok, depot, state} ->
         state =
           state
           |> Map.update!(:depot_by_name, &Map.put(&1, pp_name, depot.id))
@@ -2047,6 +2137,29 @@ defmodule Portfolixir.Imports.Applier do
         {:error, {:depot_create_failed, name, changeset}}
     end
   end
+
+  # The apply creates an account through the portfolio's journaled write,
+  # under the name guard; the dry run (H53) keeps it in memory, refused where
+  # its changeset refuses it. The name it creates is one the resolution found
+  # nowhere in the portfolio, so the guard would pass it.
+  defp write_account(schema, attrs, %{simulate: true} = state),
+    do: schema |> struct() |> schema.changeset(attrs) |> simulated_row(state)
+
+  defp write_account(CashAccount, attrs, state) do
+    with {:ok, cash} <- Portfolios.create_cash_account(Actor.import_session(), attrs),
+         do: {:ok, cash, state}
+  end
+
+  defp write_account(SecuritiesAccount, attrs, state) do
+    with {:ok, depot} <- Portfolios.create_securities_account(Actor.import_session(), attrs),
+         do: {:ok, depot, state}
+  end
+
+  defp simulated_currency(currencies, %CashAccount{id: id, currency_code: currency})
+       when id < 0,
+       do: Map.put(currencies, id, currency)
+
+  defp simulated_currency(currencies, _cash), do: currencies
 
   # --- transaction attrs by kind ---
 
@@ -2381,12 +2494,38 @@ defmodule Portfolixir.Imports.Applier do
     end)
   end
 
+  # The dry run (H53) inserts nothing: the booking's changeset is validated
+  # as the apply validates it, and the row is recorded as the run's own,
+  # with its content hash, so a later repeat of it is found. What only the
+  # database checks (a constraint, a trigger's refusal) it does not reach;
+  # such a row counts new, so it releases no name.
+  defp insert_new_transaction(entry, attrs, run_key, %{simulate: true} = state) do
+    changeset =
+      %Transaction{}
+      |> Transaction.import_changeset(attrs)
+      |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs, state))
+
+    if changeset.valid? do
+      state =
+        state
+        |> bump_result(:created_transactions)
+        |> Map.put(:outcome, :inserted)
+        |> Map.update!(:seen_run_keys, &MapSet.put(&1, run_key))
+        |> Map.update!(:run_hashes, &MapSet.put(&1, attrs[:import_hash]))
+        |> record_behind_restated_anchor(entry, Ecto.Changeset.apply_changes(changeset))
+
+      {:ok, state}
+    else
+      {:error, %{row: entry.source_row, reason: {:insert_failed, changeset}}}
+    end
+  end
+
   defp insert_new_transaction(entry, attrs, run_key, state) do
     changeset =
       %Transaction{}
       |> Transaction.import_changeset(attrs)
       |> Transaction.validate_cash_account_currency(
-        cash_currencies_for(attrs),
+        cash_currencies_for(attrs, state),
         security_currency_for(attrs, state)
       )
 
@@ -2513,6 +2652,7 @@ defmodule Portfolixir.Imports.Applier do
   # key-share lock in id order (`Ledger.locked_cash_account_currencies/1`),
   # inside the apply's transaction, so a currency change of the account
   # cannot commit between this check and the import's commit.
+  #
   # #1199: the importer's copy of the third-currency refusal reads the
   # security's currency as the run resolved it.
   defp security_currency_for(attrs, state) do
@@ -2522,7 +2662,19 @@ defmodule Portfolixir.Imports.Applier do
     end
   end
 
-  defp cash_currencies_for(attrs),
+  # The dry run (H53) takes no row lock: it reads the stored accounts'
+  # currencies as they stand and its own accounts' from its record.
+  defp cash_currencies_for(attrs, %{simulate: true} = state) do
+    ids = Enum.reject([attrs[:cash_account_id], attrs[:counter_cash_account_id]], &is_nil/1)
+    {simulated, stored} = Enum.split_with(ids, &(&1 < 0))
+
+    from(c in CashAccount, where: c.id in ^stored, select: {c.id, c.currency_code})
+    |> Repo.all()
+    |> Map.new()
+    |> Map.merge(Map.take(state.simulated_currencies, simulated))
+  end
+
+  defp cash_currencies_for(attrs, _state),
     do:
       Ledger.locked_cash_account_currencies([
         attrs[:cash_account_id],

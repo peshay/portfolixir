@@ -132,12 +132,22 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   # Set on a remount from the summary without walking the entries: the
-  # catalog list, the parser warnings and the background-count token.
+  # catalog list, the parser warnings and the background-count token. The
+  # dry run's answer is parked with the summary (security review
+  # 2026-10-12, H53): a remount of a preview it already answered shows that
+  # answer instead of running the dry run again, and only one parked before
+  # the answer came runs it.
   defp reread_assigns(socket, preview) do
     socket
     |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
     |> assign(:row_errors, Imports.row_errors(preview))
-    |> refine_counts(preview)
+    |> refine_unless_answered(preview)
+  end
+
+  defp refine_unless_answered(socket, preview) do
+    if Map.get(socket.assigns.account_states, :refined, false),
+      do: assign(socket, :counts_token, nil),
+      else: refine_counts(socket, preview)
   end
 
   # Only the summary of the preview this page parked: another tab of the
@@ -1473,7 +1483,8 @@ defmodule PortfolixirWeb.ImportsLive do
       resolutions: %{"cash" => %{}, "depot" => %{}},
       counts: %{"cash" => %{}, "depot" => %{}, "security" => %{}, total: @empty_counts},
       unseen: %{"cash" => MapSet.new(), "depot" => MapSet.new()},
-      pending: false
+      pending: false,
+      refined: false
     })
   end
 
@@ -1486,7 +1497,8 @@ defmodule PortfolixirWeb.ImportsLive do
       resolutions: %{"cash" => cash, "depot" => depots},
       counts: state_counts(counts),
       unseen: unseen_sets(counts.unseen_names),
-      pending: false
+      pending: false,
+      refined: false
     })
     |> refine_counts(preview)
   end
@@ -1567,7 +1579,10 @@ defmodule PortfolixirWeb.ImportsLive do
           pp_name <- MapSet.difference(set, unseen[group]),
           do: {group, pp_name}
 
-    states = %{states | counts: state_counts(counts), unseen: unseen, pending: false}
+    states =
+      states
+      |> Map.merge(%{counts: state_counts(counts), unseen: unseen, pending: false})
+      |> Map.put(:refined, true)
 
     socket
     |> assign(:account_states, states)

@@ -409,7 +409,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   #      ISIN lock only when it creates a security), and every cash or depot
   #      merge and name writer takes first; so an import and a security
   #      merge never hold row locks the other waits on;
-  #   2. the ISIN write lock every identifier writer takes first;
+  #   2. the ISIN write locks of both securities and of their ISINs, which
+  #      every identifier writer of those securities and ISINs takes first;
   #   3. every depot either security's bookings or overrides name, FOR NO
   #      KEY UPDATE in id order — before the securities, because the
   #      position-override writers lock the depot, then key-share-lock the
@@ -427,7 +428,9 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     Repo.all(from(p in Portfolio, select: p.id))
     |> AccountNames.lock_identity()
 
-    {:ok, :locked} = IdentifierAliases.lock_isin_writes(Repo, %{})
+    # The ISIN write locks of both securities, then of both their ISINs
+    # (one per ISIN, H53): the merge writes no other ISIN into either column.
+    {:ok, :locked} = IdentifierAliases.lock_security_isin_writes(Repo, ids, [])
     depot_ids = named_depots(ids)
 
     Repo.all(

@@ -59,6 +59,12 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #                    (#330, closing act on U7, finding 7). The save that
   #                    follows goes through `Catalog.create_security/2` or
   #                    `Catalog.update_security/3`, classified above.
+  #   :simulate_no_write — `changeset/2` of a new row, validated and applied
+  #                    in memory, never handed to a Repo write: the import
+  #                    preview's dry run keeps what the apply would create
+  #                    in memory (security review 2026-10-12, H53). The
+  #                    apply's own creations go through
+  #                    `Catalog.create_security/2`, classified above.
   @expected_writers %{
     {"lib/portfolixir/portfolios.ex", :create_cash_account, "CashAccount.changeset"} => :insert,
     {"lib/portfolixir/portfolios.ex", :update_cash_account, "CashAccount.changeset"} => :update,
@@ -85,6 +91,8 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
      "SecuritiesAccount.reassign_changeset"} => :cash_link_only,
     {"lib/portfolixir/lifecycle/security_merge.ex", :stored_asset_class, "Security.changeset"} =>
       :replay_no_write,
+    {"lib/portfolixir/imports/applier.ex", :write_security, "Security.changeset"} =>
+      :simulate_no_write,
     {"lib/portfolixir_web/live/securities/security_form_dialog.ex", :refuse, "Security.changeset"} =>
       :check_no_write
   }
