@@ -2348,6 +2348,18 @@ dialog.modal::backdrop {
   margin-top: var(--space-2);
 }
 
+/* ── Issue 1138 (Sprint 21 γ8, board ux-design-2026-10-09/08-shared-copy) ──
+   A footer that is the dialog's own child — a sibling of the body, as in the
+   Manage-logo dialog and the two "cannot delete" dialogs — takes the body's
+   18 px padding itself: without it the last button sat flush with the
+   dialog's right and bottom edges, and `dialog.modal { overflow-y: auto }`
+   cut its focus ring. A band footer keeps its own (`.modal-footer--band`).
+   It replaces the blocked-delete dialogs' scoped rule (board 06 "after",
+   board 07 F27). */
+.modal > .modal-footer:not(.modal-footer--band) {
+  padding: 0 18px 18px;
+}
+
 .dialog-choose {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2759,12 +2771,6 @@ dialog.modal::backdrop {
   .row-context-menu__item {
     min-height: 44px;
   }
-}
-
-/* The footer is a sibling of the body here, so it takes the body's padding
-   itself (board 06 "after", board 07 F27). */
-.confirm-delete-blocked .modal-footer {
-  padding: 0 18px 18px;
 }
 
 .confirm-delete-blocked .modal-body p {
