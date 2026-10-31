@@ -1096,20 +1096,33 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
 
   # User story (#1198, Sprint 21 α3; point 3 ahead of point 4, the note of
   # 2026-10-31):
-  # As the operator with a buy and a sale of a dollar share both priced in
-  # francs through my euro account, rows stored before #1199's refusal,
+  # As the operator with a dollar share bought at a franc price through my
+  # euro account, a row stored before #1199's refusal, and sold at a franc
+  # price through my franc account,
   # I want their closed trade named unavailable although the sale and the lot
   # share one currency,
   # so that the lot's euro fees are never added to a franc basis.
   #
   # Acceptance criteria (exact Decimal expectations, risk-tier):
-  # - A stored buy of 10 at 90 CHF, fees 5.00 EUR, closed by a stored sale of
-  #   10 at 100 CHF, fees 3.00 EUR, both through the EUR account: the trade is
-  #   unavailable, missing_settlement_leg, basis null, the lot named by its
-  #   date and CHF. Before: basis 905 and realized 92 under CHF.
+  # - A stored buy of 10 at 90 CHF through the EUR account, fees 5.00 EUR,
+  #   closed by a sale of 10 at 100 CHF through the CHF account (legs
+  #   1,000.00 CHF, 1,250.00 USD, 0.800000; fees 3.00 CHF, cash 997.00): the
+  #   trade is in CHF, unavailable, missing_settlement_leg, basis and
+  #   realized_pnl_abs null, the lot named by its date and CHF. Before: basis
+  #   905 and realized 92 under CHF.
   # - Mutation: not reading the lot's third-currency flag turns it red.
-  test "a lot and a sale both priced in a third currency make the closed trade unavailable" do
+  test "a lot priced in a third currency makes the closed trade unavailable, even in that currency" do
     {world, fund} = cross_world()
+
+    swiss =
+      Map.merge(
+        world,
+        add_depot(world.portfolio,
+          cash_currency: "CHF",
+          cash_name: "Franc Cash",
+          depot_name: "Franc Depot"
+        )
+      )
 
     stored_trade!(world, fund, %{
       type: "buy",
@@ -1124,18 +1137,17 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
       gross_amount: Decimal.new("805")
     })
 
-    stored_trade!(world, fund, %{
+    account_currency_trade!(swiss, fund,
       type: "sell",
       date: ~D[2025-05-02],
-      quantity: Decimal.new("10"),
-      price: Decimal.new("100"),
-      fees: Decimal.new("3"),
-      currency_code: "CHF",
-      security_amount: Decimal.new("1111.11"),
-      settlement_amount: Decimal.new("888.89"),
-      settlement_fx_rate: Decimal.new("0.800000"),
-      gross_amount: Decimal.new("885.89")
-    })
+      quantity: "10",
+      price: "100",
+      fees: "3",
+      security_amount: "1250",
+      settled: "1000",
+      rate: "0.8",
+      gross: "997"
+    )
 
     assert [trade] = closed(fund)
     assert trade.currency_code == "CHF"
