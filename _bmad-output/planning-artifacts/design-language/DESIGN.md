@@ -4313,9 +4313,15 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
 children (body and figures), no logo, no kebab, no bar.
 
 - **A position:** the name (600, wrapping) over "Anfang → Ende" — or, not
-  held at both ends, the held words — then "Zufluss x" / "Abfluss x" and
-  "Erträge x" where not zero and the "N Tage null" marker; on the right the
-  Beitrag (14 px/600, sign colour).
+  held at both ends, the held words — then "Zufluss in die Position x" /
+  "Abfluss aus der Position x" (#1090), "Erträge x" and "Kosten x" where not
+  zero and the "N Tage null" marker; on the right the Beitrag (14 px/600,
+  sign colour). *Amended 2026-10-31 (issue 1123, board
+  `mockups/ux-design-2026-10-09/04-wealth-income` ②, before/after):* the
+  costs clause follows the basis line's order (flows, income, costs) and
+  prints the desktop "Kosten" column's figure, unsigned, so "zu Beginn nicht
+  im Bestand · Zufluss in die Position 920,00 · Kosten 10,00" over "+32,50"
+  reconciles. The remainder row's "Gebühren/Steuern" is unchanged.
 - **"N kleinere Positionen …"** and the same control, as a row of its own.
 - **The remainder** as one row on the {colors.bg-muted} band: "Keiner
   Position zugeordnet" over "Zinsen +x · Gebühren/Steuern −y · Währung +z",

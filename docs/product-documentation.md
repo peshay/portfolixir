@@ -2242,7 +2242,9 @@ table of zeros, and on a phone the table becomes two-line rows. There a
 row's flow names its side — "inflow into the position 2,000.00", "outflow
 from the position 1,420.00" — because the flow is the position's own: money
 paid into it by buying, or taken out of it by selling, not money leaving the
-portfolio.
+portfolio. The row also names the position's costs where they are not zero,
+"costs 10.00", the desktop Costs column's figure, so a phone row reconciles
+as the table does (issue #1123).
 Two different securities with the same name each show what tells them apart
 after the name, in the table and in the phone rows: the ISIN where both
 have one and they differ, else the WKN on the same terms, else the record's

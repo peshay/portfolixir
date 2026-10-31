@@ -863,7 +863,8 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   # - Numbers carry the German separators and their sign.
   # - Beside the table, two-line phone rows carry each shown position, the
   #   remainder and the sum; the stylesheet shows them under 560 px and hides
-  #   the table there.
+  #   the table there. A position's row names its costs where not zero
+  #   ("Kosten 5,00", #1123).
   test "German labels, house formats and the two-line phone rows", %{conn: conn} do
     %{alpha: alpha} = sum_world()
 
@@ -907,7 +908,7 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
              3
 
     assert text_of(view, "#contribution-phone-rows li[data-security-id='#{alpha.id}']") ==
-             "Alpha Industrial AG zu Beginn nicht im Bestand · Zufluss in die Position 1.000,00 +195,00"
+             "Alpha Industrial AG zu Beginn nicht im Bestand · Zufluss in die Position 1.000,00 · Kosten 5,00 +195,00"
 
     assert text_of(view, "#contribution-phone-rows [data-role='contribution-phone-rest']") ==
              "Keiner Position zugeordnet Zinsen +12,00 · Gebühren/Steuern -7,00 · Währung 0,00 +5,00"

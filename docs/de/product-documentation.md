@@ -2466,7 +2466,9 @@ Tabelle zu zweizeiligen Einträgen. Dort nennt ein Eintrag die Richtung seines
 Flusses — „Zufluss in die Position 2.000,00“, „Abfluss aus der Position
 1.420,00“ —, denn der Fluss gehört der Position: Geld, das ein Kauf in sie
 hineinträgt oder ein Verkauf aus ihr herausholt, nicht Geld, das das
-Portfolio verlässt. Zwei verschiedene Wertpapiere mit demselben
+Portfolio verlässt. Der Eintrag nennt auch die Kosten der Position, wo sie
+nicht null sind, „Kosten 10,00“, die Zahl der Spalte Kosten am Desktop, damit
+ein Eintrag aufgeht wie die Tabelle (Issue #1123). Zwei verschiedene Wertpapiere mit demselben
 Namen zeigen hinter dem Namen, was sie unterscheidet, in der Tabelle wie in
 den Einträgen auf dem Telefon: die ISIN, wo beide eine haben und sie sich
 unterscheiden, sonst ebenso die WKN, sonst die Nummer des Datensatzes

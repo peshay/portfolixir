@@ -619,14 +619,22 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     do: gettext("Currency %{amount}", amount: signed_money(amount))
 
   # The phone row's second line: the two ends (or, held at one end or
-  # neither, the words for it), the flows and the income where they are not
-  # zero, and the marker of a position that counted zero.
+  # neither, the words for it), the flows, the income and the costs where
+  # they are not zero — the basis line's order — and the marker of a
+  # position that counted zero. #1123 (board 04 ②): the costs are the
+  # desktop column's figure, unsigned, so a phone row reconciles too.
   defp phone_line(position) do
     ends =
       held_note(position) ||
         "#{Format.money(position.start_value)} → #{Format.money(position.end_value)}"
 
-    [ends, phone_flow(position.net_flows), phone_income(position.income), phone_zero(position)]
+    [
+      ends,
+      phone_flow(position.net_flows),
+      phone_income(position.income),
+      phone_costs(position.costs),
+      phone_zero(position)
+    ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" · ")
   end
@@ -653,6 +661,12 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     if Decimal.compare(income, 0) == :eq,
       do: nil,
       else: gettext("income %{amount}", amount: Format.money(income))
+  end
+
+  defp phone_costs(costs) do
+    if Decimal.compare(costs, 0) == :eq,
+      do: nil,
+      else: gettext("costs %{amount}", amount: Format.money(costs))
   end
 
   defp phone_zero(%{unvalued_days: 0}), do: nil
