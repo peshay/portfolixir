@@ -886,6 +886,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
 
       assert [%Item{row: 3, state: :refused} = line] = listed(preview, portfolio)
       assert per_account(line) == %{"Test-Cash" => {"45.1", "20.1", "-25"}}
+      assert Map.get(line.refusal, :rule) == :a5
 
       assert [%{row: 3, message: message}] =
                Imports.row_errors(preview, portfolio_id: portfolio.id)
@@ -940,6 +941,8 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
                "Test-Savings" => {"105", "100", "-5"}
              }
 
+      assert Map.get(line.refusal, :rule) == :a8
+
       assert correct!(refused, sprint20) == []
       assert balances(sprint20) == %{"Test-Cash" => "900", "Test-Savings" => "105"}
 
@@ -954,6 +957,79 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
 
       assert correct!(refused, old) == []
       assert corrections_journal() == []
+    end
+
+    # A JSON sale of 10 Arbolia Inc. with A9's fee units (FEE 5.00 and FEE
+    # -2.00) beside `units`, after a deposit of 1,000.00 and a purchase of
+    # 100.00.
+    defp fee_refund_history(units) do
+      [
+        deposit("2026-04-01", 1000.0),
+        purchase("2026-04-02", 10.0, 100.0),
+        %{
+          sale("2026-04-15", "15:30", 120.0)
+          | "units" =>
+              [%{"type" => "FEE", "amount" => 5.0}, %{"type" => "FEE", "amount" => -2.0}] ++ units
+        }
+      ]
+    end
+
+    # User story (#1193, #1177, Sprint 21 α7; ADR-0053 A9, A10):
+    # As the operator who imported a JSON sale with a refunded fee before A9
+    # refused it,
+    # I want the re-drop to leave it out of the correction when no cash
+    # account's stored figure differs,
+    # so that no line asks me to change a sale whose cash is already right.
+    #
+    # Acceptance criteria:
+    # - Stored as the file states it (the sale at 120.00, fees 7.00, no
+    #   negative tax): Test-Cash 1,020.00, and nothing is listed.
+    # - Its row error still says that the row is already imported.
+    test "A10: a stored A9 sale whose every account agrees is not listed" do
+      portfolio = portfolio!("A9 agreeing")
+      preview = parse_rows(fee_refund_history([]))
+
+      assert [%{row: 3}] = preview.refused_credits
+      apply!(stored_as_refused(preview), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1020"}
+      assert norm(booking(portfolio, "sell").fees) == "7"
+
+      assert listed(preview, portfolio) == []
+
+      assert [%{row: 3, message: message}] =
+               Imports.row_errors(preview, portfolio_id: portfolio.id)
+
+      assert message =~ "already imported"
+    end
+
+    # User story (#1193, #1177, Sprint 21 α7; ADR-0053 A9, A10):
+    # As the operator whose JSON sale with a refunded fee and a tax refund
+    # was imported under the old reading,
+    # I want the line to carry the rule that refused its row, A9,
+    # so that its remedy is A9's (its fees stay as stored) and not A5's.
+    #
+    # Acceptance criteria:
+    # - Stored under the old reading (the sale at 120.00, the refund 25.00
+    #   beside it): Test-Cash 1,045.00.
+    # - Listed, not correctable here: Test-Cash +145.00 as stored, +120.00
+    #   as the file states, difference -25.00; its refusal names A9, and the
+    #   cash a hand correction sets, 95.00.
+    # - K19's sale carries A5, K20's transfer A8.
+    test "A10: a stored A9 sale with a tax refund is listed under A9's rule" do
+      portfolio = portfolio!("A9 with a tax refund")
+      preview = parse_rows(fee_refund_history([%{"type" => "TAX", "amount" => -25.0}]))
+
+      assert [%{row: 3}] = preview.refused_credits
+      apply!(stored_with_refused(preview), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1045"}
+
+      assert [%Item{row: 3, state: :refused, refusal: refusal} = line] =
+               listed(preview, portfolio)
+
+      assert per_account(line) == %{"Test-Cash" => {"145", "120", "-25"}}
+      assert Map.get(refusal, :rule) == :a9
+      assert norm(refusal.rest) == "95"
+      assert correct!(preview, portfolio) == []
     end
 
     # User story (#1194, Sprint 21 α7; ADR-0053 A11, K21, K26):

@@ -1186,6 +1186,45 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       refute has_element?(view, ".import-correction__total")
     end
 
+    # User story (#1193, #1177, Sprint 21 α7; ADR-0053 A9, A10):
+    # As the operator re-dropping a JSON sale with a refunded fee and a tax
+    # refund, imported under the old reading before A9 refused it,
+    # I want its line to give A9's remedy, not A5's,
+    # so that I set the sale's cash and leave its fees as stored, and am
+    # never told to book its fees on their own.
+    #
+    # Acceptance criteria:
+    # - The sale (FEE 5.00, FEE -2.00, TAX -25.00, amount 120.00) reads
+    #   "kept", +145.00 as stored, -25.00, and its state reads "Not
+    #   corrected automatically — stays as it is: the import does not book
+    #   a fee refund yet, so the sale's fees stay as stored, 7.00. Put it
+    #   right by hand in the history: change the sale to 95.00; the tax
+    #   refund is already booked."
+    test "a stored A9 sale gives A9's remedy", %{conn: conn} do
+      portfolio = portfolio!()
+
+      body = """
+      {"version": 1, "transactions": [
+        {"type": "DEPOSIT", "account": "Test-Cash", "date": "2026-04-01", "currency": "EUR", "amount": 1000.0},
+        {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-04-02", "time": "10:00", "currency": "EUR", "amount": 100.0, "shares": 10.0, #{@arbolia}},
+        {"type": "SALE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-04-15", "time": "15:30", "currency": "EUR", "amount": 120.0, "shares": 10.0, #{@arbolia},
+         "units": [{"type": "FEE", "amount": 5.0}, {"type": "FEE", "amount": -2.0}, {"type": "TAX", "amount": -25.0}]}
+      ]}
+      """
+
+      apply_before_the_amendment!(portfolio, body)
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1045"))
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "history.json", body, "application/json")
+
+      line = text(view, "#import-correction-table tbody tr:nth-child(1)")
+      assert line =~ "+145.00 kept -25.00"
+
+      assert line =~
+               "Not corrected automatically — stays as it is: the import does not book a fee refund yet, so the sale's fees stay as stored, 7.00. Put it right by hand in the history: change the sale to 95.00; the tax refund is already booked."
+    end
+
     # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule; board 07):
     # As the operator whose two equal sales both drifted,
     # I want each listed with the count of the bookings that match it, and
