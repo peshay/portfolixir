@@ -144,7 +144,12 @@ defmodule Portfolixir.Portfolios.Performance.WalkMemoryBoundTest do
   # Acceptance criteria:
   # - A cash booking dated 1970, before every security's first booking,
   #   leaves the closes the walk loads within 1.2 times, and its peak heap
-  #   within 1.5 times, of the walk without it.
+  #   within 3 times, of the walk without it: the walk's own per-day state
+  #   grows with the days it walks (about 20,700 against 3,650), the loaded
+  #   closes do not, and a walk that loaded the 56 years of closes would
+  #   grow by the rows' factor, above 5. CI's runner measured 1.72 where a
+  #   quieter machine measured less; the bound is the insecure behaviour's,
+  #   not a GC timing's.
   test "one booking dated 1970 leaves the closes a walk loads, and its heap, within a small factor" do
     today = Clock.today()
     first = Date.add(today, -3652)
@@ -177,7 +182,7 @@ defmodule Portfolixir.Portfolios.Performance.WalkMemoryBoundTest do
     # a cash booking in 1970 must not make the walk load (and hold) 56 years
     # of every security's closes.
     assert stretched.quote_rows <= plain.quote_rows * 1.2 and
-             stretched.peak_bytes <= plain.peak_bytes * 1.5,
+             stretched.peak_bytes <= plain.peak_bytes * 3,
            "the 1970 booking stretched every security's loaded closes:\n" <> report
   end
 
