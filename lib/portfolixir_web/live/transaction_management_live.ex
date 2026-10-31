@@ -305,7 +305,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 </span>
               <% end %>
               <p class="summary-basis" data-role="summary-basis">
-                <%= gettext("Counts and the cash moved per kind of the transactions this filter selects, summed per currency, unsigned and not converted.") %>
+                <%= gettext("Counts and the cash moved per kind of the transactions this filter selects, summed per currency in each kind's own direction and not converted; a sell whose fees and taxes exceed its proceeds lowers the sells' sum.") %>
               </p>
             </div>
 

@@ -12616,11 +12616,6 @@ msgstr ""
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand, with its fees less the refund (%{net})."
 msgstr ""
 
-#: lib/portfolixir_web/live/transaction_management_live.ex:308
-#, elixir-autogen, elixir-format
-msgid "Counts and the cash moved per kind of the transactions this filter selects, summed per currency, unsigned and not converted."
-msgstr ""
-
 #: lib/portfolixir_web/live/classifications_live.ex:472
 #, elixir-autogen, elixir-format
 msgid "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. Cost is what the shares cost without the buys' fees and taxes, so the result is before them; a closed trade's cost includes them. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value."
@@ -12898,4 +12893,9 @@ msgstr ""
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:553
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee."
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:308
+#, elixir-autogen, elixir-format
+msgid "Counts and the cash moved per kind of the transactions this filter selects, summed per currency in each kind's own direction and not converted; a sell whose fees and taxes exceed its proceeds lowers the sells' sum."
 msgstr ""

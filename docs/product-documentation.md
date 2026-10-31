@@ -1110,8 +1110,10 @@ as money arriving ("200.00", as the Balance beside it rises by 200);
 otherwise it reads from the sender ("-200.00").
 
 The summary above the table states the counts and the cash moved per kind, the
-same figure as the Amount column, with **one total per currency**. Amounts are
-never converted or added across currencies; converting them would make them a
+same figure as the Amount column, with **one total per currency**. Each kind
+is summed in its own direction — a buy's cash out, a sale's cash in — so a
+sale whose fees and taxes exceed its proceeds, a worthless write-off, lowers
+the sales' total and can take it below zero. Amounts are never converted or added across currencies; converting them would make them a
 different figure needing its own rate basis. The rows are sectioned by month,
 and each month head carries the month and its **count** alone — *September
 2026*, *6 transactions* (issue #1083): a sum across buys, deposits, sales and

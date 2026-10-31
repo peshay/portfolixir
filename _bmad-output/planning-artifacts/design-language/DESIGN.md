@@ -1487,10 +1487,14 @@ components invented for it:
   fee of 1,00 reads -965,00, as the Saldo falls 965,00 (it read -964,00).
   The summary sums the same figure, so Σ Betrag over one account equals the
   Saldo's change; its basis line reads "Anzahl und bewegtes Geld je Art der
-  Transaktionen, die dieser Filter auswählt — je Währung summiert, ohne
-  Vorzeichen und nicht umgerechnet." (English "Counts and the cash moved
-  per kind of the transactions this filter selects, summed per currency,
-  unsigned and not converted."). A zero is unsigned: a buy at 0,00 reads
+  Transaktionen, die dieser Filter auswählt — je Währung in der Richtung
+  ihrer Art summiert und nicht umgerechnet; ein Verkauf, dessen Gebühren
+  und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe."
+  (English "Counts and the cash moved per kind of the transactions this
+  filter selects, summed per currency in each kind's own direction and not
+  converted; a sell whose fees and taxes exceed its proceeds lowers the
+  sells' sum."; it read "summed per currency, unsigned and not converted"
+  until the leg's sign reached the sum). A zero is unsigned: a buy at 0,00 reads
   "0,00", never "-0,00". A booking that moves no cash (a delivery, a
   security transfer) keeps its stored amount, else quantity × price, in the
   booking's currency; a split has none. The currency suffix of a row that

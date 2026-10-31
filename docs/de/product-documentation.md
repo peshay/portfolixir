@@ -1221,8 +1221,12 @@ ankommendes Geld („200,00“, wie der Saldo daneben um 200 steigt); sonst aus
 Sicht des Senders („-200,00“).
 
 Die Zusammenfassung über der Tabelle nennt Anzahl und bewegtes Geld je Art,
-dieselbe Zahl wie die Spalte Betrag, mit **einer Summe je Währung**. Die
-Beträge werden nie umgerechnet oder über Währungen hinweg addiert — eine
+dieselbe Zahl wie die Spalte Betrag, mit **einer Summe je Währung**. Jede
+Art wird in ihrer eigenen Richtung summiert — bei einem Kauf das abfließende
+Geld, bei einem Verkauf das zufließende —, sodass ein Verkauf, dessen
+Gebühren und Steuern seinen Erlös übersteigen, etwa eine wertlose
+Ausbuchung, die Summe der Verkäufe mindert und sie unter null bringen kann.
+Die Beträge werden nie umgerechnet oder über Währungen hinweg addiert — eine
 Umrechnung wäre eine andere Kennzahl und bräuchte ihre eigene Kursbasis. Die
 Zeilen sind nach Monaten gegliedert, und jeder Monatskopf trägt den Monat und
 allein seine **Anzahl** — *September 2026*, *6 Transaktionen* (Issue #1083):
