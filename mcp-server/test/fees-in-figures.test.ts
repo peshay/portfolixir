@@ -16,7 +16,9 @@ import { listTools } from "../src/tools.js";
 // - portfolios.category_results: invested leaves them out, so the result
 //   is before them.
 // - trades.list: a closed trade's basis includes the buy's, its proceeds are
-//   net of the sell's; an open lot's figures leave them out.
+//   net of the sell's; an open lot's prices, base_cost and P&L leave them
+//   out, and its buy_fees/buy_taxes are the whole buy's, for
+//   original_quantity, the share already sold being in the closed trade's.
 describe("fees and taxes in the figures (#1212)", () => {
   const description = (name: string) =>
     listTools().find((tool) => tool.name === name)?.description ?? "";
@@ -35,6 +37,9 @@ describe("fees and taxes in the figures (#1212)", () => {
   it("trades.list says which of its figures carry them", () => {
     const text = description("portfolixir.trades.list");
     assert.match(text, /basis includes the buys' fees and taxes, proceeds are net of the sell's/);
-    assert.match(text, /an open lot's figures leave them out/);
+    assert.match(
+      text,
+      /an open lot's prices, base_cost and P&L leave them out; its buy_fees\/buy_taxes are the whole buy's, for original_quantity, the share already sold being in the closed trade's/
+    );
   });
 });

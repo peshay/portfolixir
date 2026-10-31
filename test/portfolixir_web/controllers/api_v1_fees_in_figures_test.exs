@@ -241,10 +241,12 @@ defmodule PortfolixirWeb.ApiV1FeesInFiguresTest do
   #   unrealized P&L and its decomposition are measured against them, and
   #   that a closed trade's basis counts them once the shares are sold.
   # - Trades: computation_basis.fees_and_taxes_in_figures says an open lot's
-  #   buy prices, base_cost and unrealized P&L are without them (beside it in
-  #   buy_fees and buy_taxes), a closed trade's basis includes the buy's,
-  #   prorated, its proceeds are net of the sell's, and realized_pnl_abs is
-  #   after all four.
+  #   buy prices, base_cost and unrealized P&L are without them, that its
+  #   buy_fees and buy_taxes are the whole buy's, for original_quantity (the
+  #   open lot 15 of 20 carries buy_fees 2.00 while the closed trade's basis
+  #   already holds 0.50 of them), a closed trade's basis includes the
+  #   buy's, prorated, its proceeds are net of the sell's, and
+  #   realized_pnl_abs is after all four.
   # - Category result: basis_note says invested is the members' base_cost,
   #   without the buys' fees and taxes, so the result is before them.
   # - The statement is the same on every form of the holdings read
@@ -271,8 +273,16 @@ defmodule PortfolixirWeb.ApiV1FeesInFiguresTest do
     %{"data" => trades} = get_json(conn, "/api/v1/securities/#{s.wrenfield.id}/trades")
     traded = trades["computation_basis"]["fees_and_taxes_in_figures"]
 
-    assert traded =~ "An open lot's buy_price, buy_price_native, base_cost and unrealized_pnl_*"
-    assert traded =~ "without the buy's fees and taxes, which buy_fees and buy_taxes state"
+    assert traded =~
+             "An open lot's buy_price, buy_price_native, base_cost and unrealized_pnl_* are " <>
+               "without the buy's fees and taxes."
+
+    assert traded =~
+             "Its buy_fees and buy_taxes are the whole buy's, for original_quantity, the " <>
+               "quantity the lot opened with (split-adjusted); the share already in a closed " <>
+               "trade's basis is in that trade's buy_fees and buy_taxes."
+
+    refute traded =~ "which buy_fees and buy_taxes state beside them"
 
     assert traded =~
              "A closed trade's basis includes the buy fees and taxes of the lots it closes"
