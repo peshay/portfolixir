@@ -66,7 +66,7 @@ colors:
   # token lands there.
   danger-soft: '#ffe4e6'
   danger-soft-dark: 'rgb(225 29 72 / 0.16)'
-  # buy marker reuses positive-green in light mode (meets 3:1 on chart surface); dark keeps the brighter pair
+  # buy marker reuses positive-green in light mode (5.12:1 on the chart frame, {colors.bg}); dark keeps the brighter pair
   tx-buy: '#047857'
   tx-buy-dark: '#10b981'
   tx-sell: '#ef4444'
@@ -417,7 +417,7 @@ components:
     selected: '{components.selected-row}'
     scroller: 'own overflow-x container — required, UX-DR15, see Layout & Spacing'
   chart-frame:
-    background: '{colors.chart-surface}'
+    background: '{colors.bg} — as built, `.chart-frame` paints `--color-bg` in both themes (issue 1200)'
     border: '1px solid {colors.border}'
     radius: '{rounded.md}'
     aspect-ratio: '3 / 1'
@@ -531,7 +531,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 - Accent as text: **all three accents pass at body size in both modes**, on every surface a link or an accent word sits on — the canvas, panels, muted wells, the accent's own tint and the attention and problem notes (computed table below). Until Sprint 18 coral passed only as large text in light mode (`#e11d48`, 4.38:1 on the canvas) while the build used it as body-size link text everywhere; issue 908 (pick H5) moved {colors.accent-coral} to `#ce1b42`, and the closest row is now coral on its own tint and on {colors.danger-soft} at 4.53:1.
 - Semantic colors ({colors.positive} / {colors.danger} / {colors.warning}) pass ≥ 4.5:1 on all standard surfaces in both modes — including {colors.warning} on {colors.warning-soft} (4.84:1 light, 8.45:1 dark once the dark tint exists).
 - **A label on an accent fill is normal text and takes the 4.5:1 bar** — it is not an "indicator" exempt at 3:1. This is why {colors.on-accent} is theme-dependent (added 2026-08-05).
-- Meaningful graphics (chart lines, buy/sell markers) ≥ 3:1 against {colors.chart-surface}.
+- Meaningful graphics (chart lines, buy/sell markers) ≥ 3:1 against {colors.bg}, the colour `.chart-frame` paints in both themes (issue 1200).
 - **The settling bar is a meaningful graphic** and takes the same 3:1 floor, against {colors.bg-elevated} in both themes — it is the only carrier of "this number is still moving" for a user who cannot perceive the digit colour step. It also carries a **minimum rendered length of 8px**: a bar that starts at zero width is invisible for the first frames of a 600ms count, which is exactly when the not-final signal matters most. The bar grows from that minimum to full slot width, not from nothing (added 2026-08-05, closing the last accessibility finding).
 - Focus indicator: solid 2px accent outline ≥ 3:1 against adjacent colors; the 18%-opacity soft ring is decoration, never the indicator (see EXPERIENCE Accessibility Floor).
 - **A state distinction must survive `forced-colors: active` (binding, added 2026-08-05).** Under forced colors the author palette is replaced by a small system palette: {colors.text-muted} and {colors.text} collapse to one value, tints are dropped, and a thin bar drawn as a background disappears into the canvas. Any state whose only carrier is a colour step therefore ceases to exist for that reader — which is the pending state's failure arriving through a second door. Every distinction the design depends on is carried by text, a glyph, or a border, and the colour step is the reinforcement. `app.css` contains **zero** `forced-colors` rules today; the behavioural rule is in EXPERIENCE Accessibility Floor and the per-state carriers are in {components.value-slot} and {components.data-note}.
@@ -547,7 +547,7 @@ Three positions on this coexist in the project and **cannot all be true**: the c
 
 What binds today, regardless of that gate:
 
-- A category swatch is a **meaningful graphic** and takes the 3:1 floor against {colors.chart-surface} — the same commitment the buy/sell markers take. A swatch below it must not be the only channel distinguishing two segments.
+- A category swatch is a **meaningful graphic** and takes the 3:1 floor against {colors.bg}, the chart frame's colour — the same commitment the buy/sell markers take. A swatch below it must not be the only channel distinguishing two segments.
 - Category colour never carries a fact colour already owns. Over/underweight, gain/loss and severity stay on {colors.positive} / {colors.danger} / {colors.warning}, on top of whatever hue the category has.
 - **Series colour** (multi-series charts: the two snapshot polylines, stacked income segments) is not category colour. Series are separated by **direct labelling first**, and colour second — which is the constraint that caps stacked income segments at three plus a remainder (EXPERIENCE.md).
 
@@ -608,6 +608,8 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 
 **Recomputed 2026-10-08 (issue 1170): the chart rows, against {colors.bg}.** `.chart-frame` paints `--color-bg` in both themes — the token both halos took in Sprint 19's closing act — not {colors.chart-surface}, the card colour the four marker rows were measured against. Each marker row keeps its colour and gives its chart-surface figure beside the new one. New rows give the markers as the build paints them (`--color-positive` for buy, `--color-danger` for sell) and the axis text (`--color-text-muted`, the 9 px values and dates), each on the frame. One pair is under its floor, as it was on chart-surface: `#10b981` on the light frame, 2.37:1 against 3:1 for graphics — a colour the light build does not paint; the light buy marker it paints, `#047857`, measures 5.12:1. Every other chart pair clears its floor. The commitments above (meaningful graphics ≥ 3:1 against {colors.chart-surface}) and `{components.chart-frame}`'s background still name chart-surface; which surface the chart should be is not this recomputation's to settle.
 
+**Settled 2026-10-31 (issue 1200, variant A): the chart is the frame's {colors.bg}, as built.** The build is the reference, and no picture changes: the graphics commitment, the category-swatch rule and `{components.chart-frame}`'s background now name {colors.bg}, the colour `.chart-frame` paints in both themes, and every chart row below is already measured against it. {colors.chart-surface} stays a token for what still paints it, not the chart. The light {colors.tx-buy} is `#047857` (frontmatter), measured in the "buy marker as built" row at 5.12:1; the `tx-buy #10b981` light row measures {colors.tx-buy-dark} on the light frame, a pairing the build never paints and no light surface may use, kept to show why the light token is the darker green.
+
 **Recomputed 2026-10-03 (Sprint 18 pick H5, issue 908): the coral rows, after {colors.accent-coral} was darkened from `#e11d48` to `#ce1b42` in light mode.** Every other figure in the table was re-checked to two decimals and is correct. One verdict was inverted and is corrected ("accent-coral / bg-elevated 4.70 — fail normal text": 4.70 passed). New rows give every accent on the surfaces where a remedy link actually sits — {colors.bg-muted} (note-severity data note), {colors.warning-soft} (attention) and {colors.danger-soft} (problem). The "selected" rows are re-keyed to the accent tints: since issue 644 `--color-selected` is `var(--color-accent-soft)`, so `#ede9fe` was only the violet case, and `selected-dark #1f2c42` cited a colour `app.css` no longer has. **The thinnest margins are stated, not absorbed:** coral on coral-soft and on danger-soft (the same `#ffe4e6`) clears the bar by 0.03, teal on danger-soft by 0.06; lightening either tint later reopens those rows.
 
 **Recomputed 2026-08-05 (accessibility pass): the four `{colors.danger}` rows**, after the token was darkened from `#dc2626` to `#b91c1c` to close the danger-tint gate. The `#dc2626` figures are kept in the gate section above as the before/after evidence and are wrong everywhere else. The `{colors.tx-sell}` rows below still cite `#ef4444`, the declared token; the build resolves `--color-danger` for that marker and defines no `--color-tx-*` (Violations), so the shipped light-mode sell marker now measures 6.47:1 on {colors.chart-surface}, not the 3.76:1 this table records for the token (6.04:1 on {colors.bg}, the chart frame it sits on — issue 1170).
@@ -649,7 +651,7 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | danger #b91c1c / danger-soft #ffe4e6 | 5.39 | pass | problem-severity data note |
 | warning #b45309 / bg | 4.69 | pass | stale timestamps |
 | warning / bg-elevated | 5.02 | pass | warning alerts |
-| tx-buy #10b981 / bg #f6f7fa (the chart frame) | **2.37** | **fail 3:1 graphics** (2.54 on chart-surface) | buy markers on light charts painted `#10b981`; the build paints the row after next |
+| tx-buy #10b981 / bg #f6f7fa (the chart frame) | **2.37** | **fail 3:1 graphics** (2.54 on chart-surface) | not painted: `#10b981` is {colors.tx-buy-dark}; the light {colors.tx-buy} is `#047857`, the row after next (issue 1200) |
 | tx-sell #ef4444 / bg (the chart frame) | 3.51 | pass 3:1 graphics (fail as text; 3.76 on chart-surface) | sell markers |
 | buy marker as built, positive #047857 / bg (the chart frame) | 5.12 | pass 3:1 graphics | light buy markers (`--color-positive`) |
 | sell marker as built, danger #b91c1c / bg (the chart frame) | 6.04 | pass 3:1 graphics | light sell markers (`--color-danger`) |
