@@ -143,7 +143,54 @@ defmodule Portfolixir.LockRace.IsinWriteLockTest do
     assert {:ok, %Result{created_securities: 0, created_transactions: 2}} = imported
   end
 
+  # User story (security review 2026-10-12, H53):
+  # As the operator correcting a security's ISIN while an ISIN change of the
+  # same security onto another ISIN is recorded,
+  # I want the two writers to queue on the security's own key of the ISIN
+  # write lock,
+  # so that each replaces the ISIN it locked, never one the other has just
+  # written.
+  #
+  # Acceptance criteria:
+  # - The security stored under ISIN A; an ISIN change onto B, whose key
+  #   sorts before A's, held after its first ISIN write lock; an ISIN edit
+  #   onto C run into it: the edit waits for the change, though the two
+  #   share no ISIN but the stored one, whose lock the change, holding the
+  #   security's key, has not yet taken. (Mutation: without the security's
+  #   key the change's first lock is B's, and the edit, locking A and C,
+  #   passes it and writes over a stored ISIN the change is replacing.)
+  # - Both land in order: the change records A as a former ISIN, and the
+  #   edit then writes C over B.
+  test "an ISIN edit waits on the security's key for an ISIN change of it", %{db: db} do
+    a = isin("XK", 1)
+    b = isin_keyed_before(a)
+    c = isin("XK", 900)
+    security = security!("Synthetic Keyed AG", a)
+
+    {changed, edited} =
+      LockRace.race!(
+        db,
+        {fn -> Catalog.record_isin_change(Actor.owner_ui(), security, b) end, isin_write_lock?()},
+        fn -> Catalog.update_security(Actor.owner_ui(), security, %{isin: c}) end
+      )
+
+    assert {:ok, %{security: %{isin: ^b}, alias: %{former_isin: ^a}}} = changed
+    assert {:ok, %Security{isin: ^c}} = edited
+    assert Repo.get!(Security, security.id).isin == c
+  end
+
   # --- the world ---------------------------------------------------------------------
+
+  # A synthetic ISIN whose write-lock key, in the database-wide scope the
+  # races run under, sorts before `isin`'s.
+  defp isin_keyed_before(isin) do
+    key = &IdentifierAliases.lock_key_for("0", &1)
+
+    Enum.find_value(2..500, fn n ->
+      candidate = isin("XK", n)
+      if key.(candidate) < key.(isin), do: candidate
+    end)
+  end
 
   # A pause predicate: the writer's first ISIN write lock.
   defp isin_write_lock? do
