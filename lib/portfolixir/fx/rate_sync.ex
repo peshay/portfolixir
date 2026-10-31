@@ -110,7 +110,8 @@ defmodule Portfolixir.Fx.RateSync do
   `settlement_legs` counts the legs the run derived once its rates were
   stored (#1196): `%{status: :completed, derived: n, skipped_no_rate: n,
   skipped_changed: n}` (`skipped_changed`: rows that gained a leg after the
-  run read them, or were deleted); `%{status: :not_run, ...}` with every
+  run read them, whose cash or another input of their legs changed since,
+  or were deleted); `%{status: :not_run, ...}` with every
   count 0 when it stored no rate; or, when the ledger refused a row,
   `%{status: :stopped, ...}` with every count nil and
   `stopped_at_transaction_id: id`, the rates stored all the same.

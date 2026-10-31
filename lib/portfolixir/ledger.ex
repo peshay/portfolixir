@@ -1635,23 +1635,49 @@ defmodule Portfolixir.Ledger do
   the caller read it (the operator entered the broker's figures meanwhile)
   is left as it is and answered `{:error, :legs_stored}`, nothing written
   or journaled: a leg once stored is never rewritten with the hub's.
+
+  The legs are derived from `transaction` as the caller read it, so a row
+  whose derivation inputs changed since (its cash, fees, taxes, quantity,
+  price, type, date, currency or security; an edit or the import
+  correction committed meanwhile) is left as it is too and answered
+  `{:error, :inputs_changed}`: legs derived from a cash the row no longer
+  carries are never stored, nor offered to the settlement guard.
   """
   @spec derive_settlement_legs(Actor.t(), Transaction.t(), map()) ::
           {:ok, Transaction.t()}
-          | {:error, Ecto.Changeset.t() | :legs_stored | :not_found | :raced}
+          | {:error, Ecto.Changeset.t() | :legs_stored | :inputs_changed | :not_found | :raced}
   def derive_settlement_legs(%Actor{} = actor, %Transaction{} = transaction, legs)
       when is_map(legs) do
     still_without_legs =
       Multi.run(Multi.new(), :legs_still_missing, fn _repo, changes ->
         locked = Journal.locked_row(changes)
 
-        if is_nil(locked.security_amount) and is_nil(locked.settlement_amount) and
-             is_nil(locked.settlement_fx_rate),
-           do: {:ok, :missing},
-           else: {:error, :legs_stored}
+        cond do
+          not (is_nil(locked.security_amount) and is_nil(locked.settlement_amount) and
+                   is_nil(locked.settlement_fx_rate)) ->
+            {:error, :legs_stored}
+
+          not same_leg_inputs?(locked, transaction) ->
+            {:error, :inputs_changed}
+
+          true ->
+            {:ok, :missing}
+        end
       end)
 
     update_transaction(actor, transaction, legs, still_without_legs)
+  end
+
+  # #1196: the fields the settlement backfill derives a row's legs from.
+  @leg_inputs ~w(type date currency_code security_id gross_amount fees taxes quantity price)a
+
+  defp same_leg_inputs?(%Transaction{} = locked, %Transaction{} = read) do
+    Enum.all?(@leg_inputs, fn field ->
+      case {Map.fetch!(locked, field), Map.fetch!(read, field)} do
+        {%Decimal{} = now, %Decimal{} = then} -> Decimal.equal?(now, then)
+        {now, then} -> now == then
+      end
+    end)
   end
 
   defp update_transaction(actor, transaction, attrs, %Multi{} = precondition) do
@@ -1792,9 +1818,11 @@ defmodule Portfolixir.Ledger do
   defp transaction_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
     do: {:error, :not_found}
 
-  # #1196: the row gained a leg after the backfill read it.
-  defp transaction_write_result({:error, :legs_still_missing, :legs_stored, _changes}),
-    do: {:error, :legs_stored}
+  # #1196: the row gained a leg, or its legs' inputs changed, after the
+  # backfill read it.
+  defp transaction_write_result({:error, :legs_still_missing, reason, _changes})
+       when reason in [:legs_stored, :inputs_changed],
+       do: {:error, reason}
 
   defp transaction_write_result({:error, :raced}), do: {:error, :raced}
 

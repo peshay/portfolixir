@@ -3024,8 +3024,9 @@ level (d)).
   `settlement_legs`: `{status, derived, skipped_no_rate, skipped_changed,
   stopped_at_transaction_id}`, where `status` is `completed` (`derived`
   bookings gained their legs, `skipped_no_rate` still lack a rate for their
-  date, `skipped_changed` gained a leg or were deleted after the run read
-  them, and are left as they are), `not_run` (no rate was stored, every
+  date, `skipped_changed` gained a leg, had their cash or another input of
+  their legs changed, or were deleted after the run read them, and are left
+  as they are until a re-run), `not_run` (no rate was stored, every
   count `0`) or `stopped` (the ledger refused a booking: the rates stay
   stored, the counts are `null`, `stopped_at_transaction_id` names it, and a
   re-run derives the rest; after the automatic run stops it does not retry

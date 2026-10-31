@@ -46,9 +46,12 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   Runs the backfill. Returns `{:ok, summary}` with `updated`,
   `skipped_no_rate`, `skipped_no_rate_rows` (transaction ids with their
   dates, so the skips are actionable) and `skipped_changed` (rows that
-  gained a leg after the candidate read, or were deleted: each write
-  re-checks under the row's lock that none of the three legs is stored,
-  #1196), or `{:error, {transaction_id, changeset}}` on the first failing
+  gained a leg after the candidate read, whose cash, fees, taxes or another
+  input of their legs changed since, or were deleted: each write re-checks
+  under the row's lock that none of the three legs is stored and that the
+  row still reads as the legs were derived from, #1196, and a re-run
+  derives the changed row from what it stores then), or
+  `{:error, {transaction_id, changeset}}` on the first failing
   update (nothing further is attempted).
   An update that lost a lock cycle with a concurrent write (#1214) stops it
   the same way as `{:error, {transaction_id, :raced}}`: nothing was written
@@ -147,11 +150,20 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
            settlement_amount: settlement_amount,
            settlement_fx_rate: rate
          }) do
-      {:ok, _transaction} -> {:ok, :updated}
-      # #1196: the row gained a leg after the candidate read, or is gone.
-      {:error, reason} when reason in [:legs_stored, :not_found] -> {:ok, :changed}
-      {:error, :raced} -> {:error, :raced}
-      {:error, changeset} -> {:error, changeset}
+      {:ok, _transaction} ->
+        {:ok, :updated}
+
+      # #1196: the row gained a leg after the candidate read, its cash (or
+      # another input of its legs) changed since, or it is gone; a re-run
+      # derives from the row as stored then.
+      {:error, reason} when reason in [:legs_stored, :inputs_changed, :not_found] ->
+        {:ok, :changed}
+
+      {:error, :raced} ->
+        {:error, :raced}
+
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 end

@@ -19,8 +19,9 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
 
   Idempotent: a row that carries any of the three fields, or is priced in a
   third currency, is never touched, and neither is one that gains a field
-  while the task runs (counted as "skipped (changed)", with a row deleted
-  meanwhile). Rows whose booking date has no stored rate are
+  or whose cash (or another input of its legs) is edited while the task
+  runs (counted as "skipped (changed)", with a row deleted meanwhile; a
+  re-run derives the edited row). Rows whose booking date has no stored rate are
   skipped and listed — store a rate for that date and re-run; nothing is
   ever guessed.
   """

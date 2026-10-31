@@ -59,7 +59,7 @@ defmodule Portfolixir.LockTable do
   | 14 | **Split booking** (`Ledger.Splits.book_split/2`) | `adv(split event, security)` → the security `KS` (H60) → the fan-out read (plain reads) → INSERT one booking per portfolio (`FK` on portfolio; the security's `KS` already held). |
   | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the security `KS` (H60); a security merged away meanwhile: the anchor read again by id, then `adv(split event, its new security)` → that security `KS`, once → the event's rows `U`, id order → DELETE each (row 4, held). |
   | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. An edit answered `:raced` keeps the drawer open and says to try again. |
-  | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking (`Ledger.derive_settlement_legs/3`, which re-checks under the row's lock that no leg is stored, #1196); it changes settlement legs only and so takes no cash lock. A booking answered `:raced` stops the run as `{:error, {id, :raced}}`, and the mix task says to re-run it. Also reached from `Fx.RateSync.backfill/1` and `backfill_when_needed/1` after their rate upsert, under the in-VM `:fx_backfill` `SingleFlight` key (a Registry entry, not a database lock), where `:raced` answers `settlement_legs.status` `stopped`; the locks are unchanged. |
+  | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking (`Ledger.derive_settlement_legs/3`, which re-checks under the row's lock that no leg is stored and that the inputs of the legs, read lock-free with the candidates, are unchanged: the cash, fees, taxes, quantity, price, type, date, currency and security; otherwise it writes nothing and the run counts the booking in `skipped_changed`, #1196); it changes settlement legs only and so takes no cash lock. A booking answered `:raced` stops the run as `{:error, {id, :raced}}`, and the mix task says to re-run it. Also reached from `Fx.RateSync.backfill/1` and `backfill_when_needed/1` after their rate upsert, under the in-VM `:fx_backfill` `SingleFlight` key (a Registry entry, not a database lock), where `:raced` answers `settlement_legs.status` `stopped`; the locks are unchanged. |
   | 18 | **Depot create and relink** (`Portfolios.create_securities_account/2`, `update_securities_account/3`) | A create: `adv(account identity, portfolio)` (the name guard) → INSERT (`FK` on the portfolio and on the linked cash: cash `KS`). A relink to another cash account: depot `NKU` (the journal's lock step) → UPDATE (`FK`: the new cash `KS`); with a rename, `adv(account identity, portfolio)` → depot `U` first (`Lifecycle.AccountNames.with_stored/3`). Locks no booking. |
   | 19 | **Former-names backfill** (`Lifecycle.FormerNamesBackfill`, run by a migration) | per account, in id order: cash (or depot) `U` → UPDATE of its former names, journaled. Locks no booking. |
   | 20 | **The import preview's dry run** (`Imports.Applier.reimport_counts/3`, run by the Imports page, and `Imports.Applier.economic_keys/2`, the same simulation, run by the import correction) | None: a read-only transaction that writes nothing (security review 2026-10-12, H53). It takes neither the account-identity lock (a holder of it stops the dry run at once) nor an ISIN write lock, inserts nothing, and reads the cash currencies without `KS`; a read that would wait for a lock stops it after a short wait. Locks no row. |
@@ -87,6 +87,14 @@ defmodule Portfolixir.LockTable do
       booking and ask for nothing row 10 holds (row 3's cash `KS` is a lock
       row 10 never takes): row 10 waits for that booking, or the writer
       waits for row 10's.
+    * Row 17 against rows 3 and 10: row 17 derives a booking's legs from
+      its lock-free candidate read, so an edit (row 3) or a confirm (row
+      10) that commits a new cash while row 17 waits on that booking leaves
+      the derivation stale. No cycle: each holds one booking at a time, as
+      above. The re-check under the booking's lock compares the inputs of
+      the legs with that read and leaves a changed booking for a re-run, so
+      no leg is stored off a cash the booking no longer carries and the
+      settlement guard never stops the run on it (#1196).
     * Row 9 against another import and against the ISIN writers of the
       catalog (an ISIN change, an ISIN edit, row 13): each takes its ISIN
       write locks before any row lock, a writer of a stored security's ISIN
