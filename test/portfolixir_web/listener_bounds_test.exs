@@ -18,7 +18,8 @@ defmodule PortfolixirWeb.ListenerBoundsTest do
   @release_env %{
     "SECRET_KEY_BASE" => String.duplicate("k7Qm", 16),
     "PHX_HOST" => "portfolixir.example",
-    "DATABASE_URL" => "ecto://portfolixir:synthetic@db.example/portfolixir_prod",
+    "DATABASE_URL" =>
+      "ecto://portfolixir:#{String.duplicate("p9Wq", 8)}@db.example/portfolixir_prod",
     "PORTFOLIXIR_API_TOKEN" => String.duplicate("t3Zx", 12)
   }
 
