@@ -82,7 +82,17 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
     assert data["base_currency"] == "EUR"
     assert [%{"year" => 2026, "months" => months, "total" => "190.1"}] = data["annual"]
     assert months["3"] == "190.1"
-    assert data["excluded"] == %{"count" => 1, "securities" => ["Pound Equity"]}
+
+    assert data["excluded"] == %{
+             "count" => 1,
+             "securities" => ["Pound Equity"],
+             # #1198 (Sprint 21 α3): by_reason tells a missing rate from a missing leg.
+             "by_reason" => %{
+               "no_rate" => %{"count" => 1, "securities" => ["Pound Equity"]},
+               "missing_settlement_leg" => %{"count" => 0, "securities" => []}
+             }
+           }
+
     assert data["conversion_note"] =~ "EUR hub"
 
     basis = data["computation_basis"]

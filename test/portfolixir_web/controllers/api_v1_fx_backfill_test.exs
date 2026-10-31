@@ -72,7 +72,17 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
     )
 
     before = get_json(conn, "/api/v1/realized_gains")["data"]
-    assert before["excluded"] == %{"count" => 1, "securities" => ["Pound Equity"]}
+
+    assert before["excluded"] == %{
+             "count" => 1,
+             "securities" => ["Pound Equity"],
+             # #1198 (Sprint 21 α3): by_reason tells a missing rate from a missing leg.
+             "by_reason" => %{
+               "no_rate" => %{"count" => 1, "securities" => ["Pound Equity"]},
+               "missing_settlement_leg" => %{"count" => 0, "securities" => []}
+             }
+           }
+
     assert before["annual"] == []
 
     # The historical series carries the close date (and a neighbour that must
@@ -121,7 +131,15 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
            }
 
     after_backfill = get_json(conn, "/api/v1/realized_gains")["data"]
-    assert after_backfill["excluded"] == %{"count" => 0, "securities" => []}
+
+    assert after_backfill["excluded"] == %{
+             "count" => 0,
+             "securities" => [],
+             "by_reason" => %{
+               "no_rate" => %{"count" => 0, "securities" => []},
+               "missing_settlement_leg" => %{"count" => 0, "securities" => []}
+             }
+           }
 
     # 40 GBP realized at the exact 2026-02-20 rate, in the engine's own
     # arithmetic (EUR-hub triangulation: amount × (1 / rate)), full precision.

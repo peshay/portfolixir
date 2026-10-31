@@ -121,8 +121,12 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
                "realized_pnl_abs per FIFO-matched closed trade (proceeds net of sell fees and taxes, minus consumed basis)",
              "window" => "full ledger history, grouped by each trade's close date",
              "reference" => "EUR hub rates at or before each close date (D-1, issue #724)",
+             # #1198 (Sprint 21 α3): the second exclusion reason joins the gaps.
              "gaps" =>
-               "a sale with no stored close-date rate is excluded from the converted totals and named in excluded"
+               "a sale with no stored close-date rate is excluded from the converted totals and " <>
+                 "named in excluded (by_reason.no_rate); so is a sale that closes a lot with no " <>
+                 "settlement leg in its currency, never summed (by_reason.missing_settlement_leg, " <>
+                 "fees_and_taxes)"
            }
   end
 
@@ -159,7 +163,10 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
              "realized_pnl_abs" => "490",
              "realized_pnl_pct" => pct("490", "1005"),
              "holding_period_days" => 545,
-             "currency_code" => "EUR"
+             "currency_code" => "EUR",
+             # #1198 (Sprint 21 α3): every available trade says so.
+             "unavailable_reason" => nil,
+             "lots_missing_leg" => []
            }
 
     assert closed["annualized_return"] == "0.304701"
