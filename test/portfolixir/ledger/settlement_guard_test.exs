@@ -238,6 +238,27 @@ defmodule Portfolixir.Ledger.SettlementGuardTest do
                })
     end
 
+    # User story (#1199, Sprint 21 α1; the ADR-0015 amendment of 2026-10-09,
+    # point 1):
+    # As the operator moving an old cross-currency booking onto another
+    # security,
+    # I want the guard to check the booking again,
+    # so that the security, which decides whether a trade is cross-currency
+    # at all, is a trigger like the currency, the cash account and the depot.
+    #
+    # Acceptance criteria:
+    # - An edit that changes only the security of a row that misses the
+    #   guard is refused on gross_amount, as an edit of an amount is.
+    test "an edit that changes the security is re-checked", %{legacy: legacy, world: w} do
+      other = create_security!(name: "US Guard Twin", ticker: "USGT", currency: "USD")
+
+      assert {:error, changeset} =
+               Ledger.update_transaction(Actor.owner_ui(), legacy, %{security_id: other.id})
+
+      assert [_message] = gross_error(changeset)
+      assert Repo.get!(Transaction, legacy.id).security_id == w.security.id
+    end
+
     test "the read-only check lists the row and rewrites nothing", %{legacy: legacy} do
       assert [row] = SettlementGuard.violations()
       assert row.id == legacy.id

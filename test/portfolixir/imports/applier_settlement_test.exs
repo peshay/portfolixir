@@ -266,4 +266,70 @@ defmodule Portfolixir.Imports.ApplierSettlementTest do
     assert Decimal.equal?(tx.security_amount, Decimal.new("500.00"))
     assert Decimal.equal?(tx.settlement_fx_rate, Decimal.new("0.80"))
   end
+
+  # User story (#1199, Sprint 21 α1; the ADR-0015 amendment of 2026-10-09,
+  # point 1 and identity 5):
+  # As a maintainer importing a file into an account that already exists,
+  # I want an entry priced in neither its security's currency nor its
+  # account's refused and named by its row,
+  # so that the importer's copy of the currency check refuses what the
+  # ledger refuses, and no rate stored between the entry's currency and the
+  # security's lets a third currency in.
+  #
+  # Acceptance criteria:
+  # - A buy of the USD security priced in CHF into the existing EUR account,
+  #   with the CHF and USD hub rates stored (so the import derives legs from
+  #   CHF to USD), is refused: the apply names row 2 and the error on
+  #   currency_code names USD and EUR. Before the check it was booked.
+  # - Nothing of that apply is stored.
+  test "an entry priced in a third currency into an existing account is refused by its row" do
+    portfolio = portfolio!()
+    usd_security!()
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-15],
+          rate: "1.25",
+          source: "manual"
+        },
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: ~D[2026-01-15],
+          rate: "0.90",
+          source: "manual"
+        }
+      ])
+
+    # The first apply creates "PP Cash" in EUR, the currency of its booking.
+    first = apply!(buy_entry(%{}), portfolio)
+
+    assert Repo.get!(Portfolixir.Portfolios.CashAccount, first.cash_account_id).currency_code ==
+             "EUR"
+
+    chf_entry =
+      buy_entry(%{
+        source_row: 2,
+        date: ~D[2026-01-15],
+        currency_code: "CHF",
+        gross_amount: Decimal.new("720.00"),
+        quantity: Decimal.new("8"),
+        price: Decimal.new("90.00")
+      })
+
+    assert {:error, %{row: 2, reason: {:insert_failed, changeset}}} =
+             Applier.apply(%Preview{entries: [chf_entry]}, %{
+               portfolio_id: portfolio.id,
+               default_currency_code: "EUR"
+             })
+
+    assert errors_on(changeset)[:currency_code] == [
+             "must be USD (the security's currency) or EUR (the cash account's)"
+           ]
+
+    assert Repo.aggregate(Transaction, :count) == 1
+  end
 end

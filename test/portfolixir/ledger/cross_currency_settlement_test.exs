@@ -4,10 +4,13 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, create_security!: 1, put_quote!: 3]
 
+  alias Portfolixir.Actor
   alias Portfolixir.Fx
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Valuation
+  alias Portfolixir.Repo
 
   # User story:
   # As a local portfolio maintainer who buys a USD security through a EUR
@@ -191,6 +194,156 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
 
       balances = Ledger.cash_balances(portfolio_id: world.portfolio.id)
       assert Decimal.equal?(balances[world.cash.id], Decimal.new("-1000.00"))
+    end
+  end
+
+  # -- #1199, Sprint 21 α1: a trade priced in a third currency ------------------
+
+  # A buy of the USD security through the EUR account, priced in CHF, with a
+  # settlement rate and figures the settlement guard accepts: 10 at 90 CHF,
+  # settled 800.00 EUR, cash 800.00 EUR. Synthetic.
+  defp third_currency_attrs(w, overrides \\ %{}) do
+    Map.merge(
+      %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        quantity: Decimal.new("10"),
+        price: Decimal.new("90.00"),
+        currency_code: "CHF",
+        security_amount: Decimal.new("1000.00"),
+        settlement_amount: Decimal.new("800.00"),
+        settlement_fx_rate: Decimal.new("0.888889"),
+        gross_amount: Decimal.new("800.00")
+      },
+      overrides
+    )
+  end
+
+  # The row as a database holds it from before the check: written past the
+  # changeset, under the journal's actor, as history already stored looks.
+  defp stored_third_currency_buy!(w) do
+    {:ok, tx} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+        Repo.insert!(struct!(Transaction, third_currency_attrs(w)))
+      end)
+
+    tx
+  end
+
+  defp currency_error(changeset), do: errors_on(changeset)[:currency_code]
+
+  defp transaction_journal(operation),
+    do: Journal.list_entries(resource_type: "transaction", operation: operation)
+
+  # User story (#1199, Sprint 21 α1; the ADR-0015 amendment of 2026-10-09,
+  # point 1 and identity 5):
+  # As the operator booking a trade,
+  # I want a buy or sell priced in neither its security's currency nor its
+  # cash account's refused, with both allowed currencies named,
+  # so that no closed trade ever adds a lot in a currency no stored leg
+  # converts.
+  #
+  # Acceptance criteria:
+  # - Through a EUR account, a new buy of a USD security priced in CHF, with
+  #   a settlement rate, is refused with an error on currency_code naming
+  #   USD and EUR; nothing is stored and nothing is journaled.
+  # - The same buy priced in USD (the security's currency) or in EUR (the
+  #   account's, with its legs) is accepted.
+  describe "a trade priced in a third currency (#1199, identity 5)" do
+    test "a new buy priced in neither the security's currency nor the account's is refused" do
+      w = world()
+
+      assert {:error, changeset} =
+               Ledger.create_transaction(Actor.owner_ui(), third_currency_attrs(w))
+
+      assert [message] = currency_error(changeset)
+      assert message =~ "USD"
+      assert message =~ "EUR"
+      assert Repo.aggregate(Transaction, :count) == 0
+      assert transaction_journal(:create) == []
+    end
+
+    test "a sell priced in a third currency is refused the same way" do
+      w = world()
+
+      assert {:error, changeset} =
+               Ledger.create_transaction(
+                 Actor.owner_ui(),
+                 third_currency_attrs(w, %{type: "sell"})
+               )
+
+      assert [_message] = currency_error(changeset)
+    end
+
+    test "a buy priced in the security's or the account's currency is accepted" do
+      w = world()
+
+      assert {:ok, _usd} = cross_currency_buy(w, %{})
+
+      assert {:ok, _eur} =
+               Ledger.create_transaction(
+                 Actor.owner_ui(),
+                 third_currency_attrs(w, %{currency_code: "EUR", price: Decimal.new("80.00")})
+               )
+    end
+
+    # Acceptance criteria (identity 5, the stored row):
+    # - A stored buy priced in CHF, written as it was before the check, takes
+    #   a notes-only edit: it is saved, journaled, and every figure stays.
+    # - An update that changes a field the check reads -- the currency, the
+    #   security, the cash account or the type -- runs it, as the
+    #   settlement guard does (D-5), and is refused on currency_code.
+    test "a notes-only edit of a stored third-currency row passes and keeps its figures" do
+      w = world()
+      stored = stored_third_currency_buy!(w)
+
+      assert {:ok, updated} =
+               Ledger.update_transaction(Actor.owner_ui(), stored, %{notes: "checked the note"})
+
+      assert updated.notes == "checked the note"
+      assert updated.currency_code == "CHF"
+
+      for field <- [:quantity, :price, :security_amount, :settlement_amount, :gross_amount] do
+        assert Decimal.equal?(Map.fetch!(updated, field), Map.fetch!(stored, field))
+      end
+
+      assert Decimal.equal?(updated.settlement_fx_rate, Decimal.new("0.888889"))
+      assert [entry] = transaction_journal(:update)
+      assert entry.resource_id == to_string(stored.id)
+    end
+
+    test "an update that changes the currency, the security, the cash account or the type is checked" do
+      w = world()
+      stored = stored_third_currency_buy!(w)
+      twin = create_security!(name: "US Equity Twin", ticker: "USXT", currency: "USD")
+
+      {:ok, other_cash} =
+        Portfolixir.Portfolios.create_cash_account(Actor.owner_ui(), %{
+          portfolio_id: w.portfolio.id,
+          name: "Second EUR Cash",
+          currency_code: "EUR"
+        })
+
+      for attrs <- [
+            %{currency_code: "GBP"},
+            %{security_id: twin.id},
+            %{cash_account_id: other_cash.id},
+            %{type: "sell"}
+          ] do
+        assert {:error, changeset} = Ledger.update_transaction(Actor.owner_ui(), stored, attrs),
+               "#{inspect(attrs)} was not checked"
+
+        assert [_message] = currency_error(changeset),
+               "#{inspect(attrs)}: #{inspect(changeset.errors)}"
+      end
+
+      assert transaction_journal(:update) == []
     end
   end
 end

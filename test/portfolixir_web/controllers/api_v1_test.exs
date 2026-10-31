@@ -462,6 +462,122 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert message =~ "(1818.181818)"
   end
 
+  # User story (#1199, Sprint 21 α1; the ADR-0015 amendment of 2026-10-09,
+  # point 1 and identity 5):
+  # As an API/MCP client booking a USD security through a EUR cash account,
+  # I want a buy priced in a third currency refused with both allowed
+  # currencies named, and a stored one still open to a note,
+  # so that an agent learns at once which currency to send, and history
+  # written before the rule is never revalidated behind my back.
+  #
+  # Acceptance criteria:
+  # - A new buy priced in CHF, with a settlement rate, answers 422 on
+  #   currency_code: "must be USD (the security's currency) or EUR (the
+  #   cash account's)"; nothing is stored or journaled (before: 201).
+  # - A stored buy priced in CHF, written as it was before the check, takes
+  #   a notes-only PATCH: 200, journaled, every figure unchanged.
+  test "refuses a trade priced in a third currency and lets a stored one take a note", %{
+    conn: conn
+  } do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Third Currency Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "EUR Cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "US Equity Third",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    attrs = %{
+      "portfolio_id" => portfolio.id,
+      "securities_account_id" => depot.id,
+      "security_id" => security.id,
+      "type" => "buy",
+      "date" => "2026-04-01",
+      "quantity" => "10",
+      "price" => "90.00",
+      "currency_code" => "CHF",
+      "security_amount" => "1000.00",
+      "settlement_amount" => "800.00",
+      "settlement_fx_rate" => "0.888889",
+      "gross_amount" => "800.00"
+    }
+
+    errors =
+      conn
+      |> post_json("/api/v1/transactions", %{"transaction" => attrs})
+      |> json_response(422)
+      |> Map.fetch!("errors")
+
+    assert errors["currency_code"] == [
+             "must be USD (the security's currency) or EUR (the cash account's)"
+           ]
+
+    assert Ledger.list_transactions_for_portfolio(portfolio.id) == []
+    assert Portfolixir.Journal.list_entries(resource_type: "transaction") == []
+
+    # The row as a database holds it from before the check.
+    {:ok, stored} =
+      Portfolixir.Repo.transaction(fn ->
+        {type, _label} = Portfolixir.Actor.to_columns(Portfolixir.Actor.owner_ui())
+
+        Portfolixir.Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [
+          type
+        ])
+
+        Portfolixir.Repo.insert!(%Portfolixir.Ledger.Transaction{
+          portfolio_id: portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-04-01],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("90.00"),
+          currency_code: "CHF",
+          security_amount: Decimal.new("1000.00"),
+          settlement_amount: Decimal.new("800.00"),
+          settlement_fx_rate: Decimal.new("0.888889"),
+          gross_amount: Decimal.new("800.00")
+        })
+      end)
+
+    updated =
+      conn
+      |> patch_json("/api/v1/transactions/#{stored.id}", %{
+        "transaction" => %{"notes" => "a note on an old booking"}
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert updated["notes"] == "a note on an old booking"
+    assert updated["currency_code"] == "CHF"
+    assert updated["price"] == "90"
+    assert updated["settlement_fx_rate"] == "0.888889"
+    assert updated["gross_amount"] == "800"
+
+    assert [_entry] =
+             Portfolixir.Journal.list_entries(resource_type: "transaction", operation: :update)
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want online security search and quote maintenance exposed through the API,
