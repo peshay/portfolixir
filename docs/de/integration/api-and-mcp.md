@@ -212,8 +212,11 @@ U+FFA0), U+17B4–U+17B5, U+180B–U+180F oder U+FFF0–U+FFF8 — oder einen
 Variantenselektor ohne eine Basis, die er variieren kann. Ein Selektor aus
 U+FE00–U+FE0F ist erlaubt nach einem Piktogramm (die Darstellung eines
 Emojis), der Ziffer, `#` oder `*` einer Tastenkappe, einem CJK-Ideogramm,
-einem mathematischen Operator oder einem Buchstaben von Myanmar, Phags-pa,
-Manichäisch oder den ägyptischen Hieroglyphen; einer aus U+E0100–U+E01EF
+einem mathematischen Operator, einem CJK-Satzzeichen voller Breite (U+3001,
+U+3002, U+FF01, U+FF0C, U+FF0E, U+FF1A, U+FF1B, U+FF1F), einem
+typografischen Anführungszeichen (U+2018, U+2019, U+201C, U+201D) oder einem
+Buchstaben von Myanmar, Phags-pa, Manichäisch oder den ägyptischen
+Hieroglyphen; einer aus U+E0100–U+E01EF
 nur nach einem CJK-Ideogramm; ein Selektor neben einem anderen nie. Ein Verbinder der Breite null U+200D ist erlaubt, wo er zwei
 Piktogramme verbindet, wie in einem Emoji aus mehreren (eine Person am
 Laptop, eine Familie, die Regenbogenflagge): Das Zeichen vor ihm ist ein

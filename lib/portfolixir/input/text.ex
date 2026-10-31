@@ -26,8 +26,11 @@ defmodule Portfolixir.Input.Text do
       U+180B–U+180F and the reserved U+FFF0–U+FFF8 — and a variation
       selector with no base it can vary. A selector of U+FE00–U+FE0F stands
       after a pictograph, a keycap's digit, `#` or `*`, a CJK ideograph, a
-      mathematical operator or a letter of the scripts with standardized
-      variants (Myanmar, Phags-pa, Manichaean, Egyptian hieroglyphs); one of
+      mathematical operator, a CJK fullwidth punctuation mark (U+3001,
+      U+3002, U+FF01, U+FF0C, U+FF0E, U+FF1A, U+FF1B, U+FF1F), a curly
+      quotation mark (U+2018, U+2019, U+201C, U+201D) or a letter of the
+      scripts with standardized variants (Myanmar, Phags-pa, Manichaean,
+      Egyptian hieroglyphs); one of
       U+E0100–U+E01EF (the ideographic variation selectors) only after a CJK
       ideograph; a selector next to another one is refused as before. They
       render as nothing on the operator's screen but reach an agent intact,
@@ -81,7 +84,7 @@ defmodule Portfolixir.Input.Text do
   # Ideographic Variation Database).
   @pictograph "\\x{00A9}\\x{00AE}\\x{203C}\\x{2049}\\x{2122}\\x{2139}\\x{2190}-\\x{21FF}\\x{2300}-\\x{23FF}\\x{24C2}\\x{25A0}-\\x{27BF}\\x{2934}\\x{2935}\\x{2B00}-\\x{2BFF}\\x{3030}\\x{303D}\\x{3297}\\x{3299}\\x{1F000}-\\x{1FAFF}"
   @ideograph "\\x{3400}-\\x{4DBF}\\x{4E00}-\\x{9FFF}\\x{F900}-\\x{FAFF}\\x{20000}-\\x{3FFFF}"
-  @variant_base "#{@pictograph}#{@ideograph}\\x{23}\\x{2A}\\x{30}-\\x{39}\\x{1000}-\\x{109F}\\x{2200}-\\x{22FF}\\x{2A00}-\\x{2AFF}\\x{A840}-\\x{A87F}\\x{A9E0}-\\x{A9FF}\\x{AA60}-\\x{AA7F}\\x{10AC0}-\\x{10AFF}\\x{13000}-\\x{1345F}"
+  @variant_base "#{@pictograph}#{@ideograph}\\x{23}\\x{2A}\\x{30}-\\x{39}\\x{1000}-\\x{109F}\\x{2200}-\\x{22FF}\\x{2A00}-\\x{2AFF}\\x{A840}-\\x{A87F}\\x{A9E0}-\\x{A9FF}\\x{AA60}-\\x{AA7F}\\x{10AC0}-\\x{10AFF}\\x{13000}-\\x{143FF}\\x{2018}\\x{2019}\\x{201C}\\x{201D}\\x{3001}\\x{3002}\\x{FF01}\\x{FF0C}\\x{FF0E}\\x{FF1A}\\x{FF1B}\\x{FF1F}"
   @selector "\\x{FE00}-\\x{FE0F}\\x{E0100}-\\x{E01EF}"
   @invisible ~r/[\x{00AD}\x{034F}\x{061C}\x{115F}\x{1160}\x{17B4}\x{17B5}\x{180B}-\x{180F}\x{200B}\x{200C}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E00FF}\x{E01F0}-\x{E0FFF}]|(?<![#{@pictograph}])(?<![#{@pictograph}]\x{FE0F})\x{200D}|\x{200D}(?![#{@pictograph}])|(?<![#{@variant_base}])[\x{FE00}-\x{FE0F}]|(?<![#{@ideograph}])[\x{E0100}-\x{E01EF}]|[#{@selector}](?=[#{@selector}])/u
 

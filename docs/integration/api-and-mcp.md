@@ -192,7 +192,9 @@ U+1D173–U+1D17A), the combining grapheme joiner U+034F, a Hangul filler
 U+FFF0–U+FFF8 — or a variation selector with no base it can vary. A
 selector of U+FE00–U+FE0F passes after a pictograph (an emoji's
 presentation), a keycap's digit, `#` or `*`, a CJK ideograph, a mathematical
-operator or a letter of Myanmar, Phags-pa, Manichaean or the Egyptian
+operator, a CJK fullwidth punctuation mark (U+3001, U+3002, U+FF01, U+FF0C,
+U+FF0E, U+FF1A, U+FF1B, U+FF1F), a curly quotation mark (U+2018, U+2019,
+U+201C, U+201D) or a letter of Myanmar, Phags-pa, Manichaean or the Egyptian
 hieroglyphs; one of U+E0100–U+E01EF only after a CJK ideograph; a selector
 next to another one never.
 A zero-width joiner U+200D passes where it joins two pictographs, as in an

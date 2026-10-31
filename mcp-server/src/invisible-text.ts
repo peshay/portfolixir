@@ -102,9 +102,9 @@ const IDEOGRAPHS: readonly Range[] = [
 // The bases a selector of U+FE00-U+FE0F can vary (H12): a written-out
 // superset of the bases in StandardizedVariants.txt and
 // emoji-variation-sequences.txt — the pictographs, a keycap's digit, # or *,
-// the CJK ideographs, the mathematical operators, Myanmar, Phags-pa,
-// Manichaean and the Egyptian hieroglyphs. Portfolixir.Input.Text names the
-// same ranges.
+// the CJK ideographs, the mathematical operators, the CJK fullwidth
+// punctuation, the curly quotation marks, Myanmar, Phags-pa, Manichaean and
+// the Egyptian hieroglyphs. Portfolixir.Input.Text names the same ranges.
 const VARIANT_BASES: readonly Range[] = [
   ...PICTOGRAPHS,
   ...IDEOGRAPHS,
@@ -118,7 +118,15 @@ const VARIANT_BASES: readonly Range[] = [
   [0xa9e0, 0xa9ff],
   [0xaa60, 0xaa7f],
   [0x10ac0, 0x10aff],
-  [0x13000, 0x1345f]
+  [0x13000, 0x143ff],
+  [0x2018, 0x2019],
+  [0x201c, 0x201d],
+  [0x3001, 0x3002],
+  [0xff01, 0xff01],
+  [0xff0c, 0xff0c],
+  [0xff0e, 0xff0e],
+  [0xff1a, 0xff1b],
+  [0xff1f, 0xff1f]
 ];
 
 function within(codePoint: number | undefined, ranges: readonly Range[]): boolean {
