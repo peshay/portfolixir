@@ -273,8 +273,9 @@ eine Zeile daher erneut liefern, überspringt aber keine.
 Wertpapiers, die Policy-Regeln eines Portfolios — liefern ihre Zeilen nach
 ältester Änderung zuerst, und jeder ihrer Reads, Delta oder voll, spiegelt
 `limit` und `truncated` (wahr, wenn mehr Zeilen passten, als die Antwort
-enthält). Ein Delta-Read mit voller Seite trägt zusätzlich `has_more: true`,
-und sein `as_of` ist dann ein Cursor auf die letzte Zeile der Seite,
+enthält). Passten mehr Zeilen, als die Seite enthält, trägt ein Delta-Read
+zusätzlich `has_more: true`, und sein `as_of` ist dann ein Cursor auf die
+letzte Zeile der Seite,
 `<ISO8601-Zeitpunkt>~<id>`: als nächstes `since` übergeben und sofort weiter
 lesen. Zeilen mit demselben Stempel (ein Import schreibt Tausende in einer
 Sekunde) unterscheidet die id, sodass eine Seitengrenze zwischen ihnen keine
@@ -282,9 +283,14 @@ Sekunde) unterscheidet die id, sodass eine Seitengrenze zwischen ihnen keine
 Grenze: Ist die letzte Zeile der Seite neuer, ist `as_of` die Grenze, ohne
 `~<id>`, und `has_more` bleibt wahr — der Rest wartet hinter einem noch
 laufenden Schreibvorgang, also später erneut abfragen, nicht sofort: Bis
-dieser endet, liefert ein sofortiger Read dieselbe Seite. Eine nicht volle
-Seite trägt `has_more: false` und die Grenze, wie bisher. Ein fehlerhafter Cursor ist
-dasselbe `422` wie jedes ungültige `since`.
+dieser endet, liefert ein sofortiger Read dieselbe Seite. Eine Seite, hinter
+der nichts mehr wartet, trägt `has_more: false` und die Grenze, wie bisher —
+auch wenn sie genau `limit` Zeilen enthält. Ein Cursor gehört zu dem Read,
+der ihn geliefert hat: Er trägt dessen Zeilen-id, sodass ein anderer Read mit
+ihm seine eigenen Zeilen in der Sekunde des Cursors überspränge. Mit `since`
+nach `as_of` blättern, nie mit `offset`: Ein Cursor neben `offset`
+überspringt ebenfalls Zeilen. Ein fehlerhafter Cursor ist dasselbe `422` wie
+jedes ungültige `since`.
 
 **Löschungen sind
 in einem Delta-Read nicht repräsentiert**; wer Löschungen erkennen muss,
@@ -795,9 +801,9 @@ Feldnamen, und aus Eingaben entsteht nie ein Atom.
 - `GET /api/v1/securities/:security_id/notes` — das Log, neueste zuerst
   (nach `as_of`, dann Schreibzeit), mit dem abgeleiteten `thesis_state` und
   einer `log_note`, die den Nur-anhängen-Kontrakt benennt.
-  `limit` behält die neuesten Einträge (Standard 1000, max. 10000);
-  `thesis_state` leitet sich immer aus dem ganzen Log ab, und die Antwort
-  nennt das angewandte `limit`.
+  `limit` behält die neuesten Einträge, in einem Delta-Read die ältesten nach
+  `since` (Standard 1000, max. 10000); `thesis_state` leitet sich immer aus
+  dem ganzen Log ab, und die Antwort nennt das angewandte `limit`.
 - `POST /api/v1/securities/:security_id/notes` — hängt einen Eintrag aus
   einem `note`-Objekt an (`201`); journalisiert unter dem API-Token-Akteur.
   Ein `as_of` nach heute (dem Kalendertag der Instanz) liefert `422` auf

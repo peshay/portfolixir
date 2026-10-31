@@ -29,8 +29,12 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   (transactions, securities, a security's research log and events, a
   portfolio's policy rules) parse `since` with `parse_page/1` and answer
   with `put_page_envelope/4`: rows oldest change first, `has_more` true when
-  the page is full, and then an `as_of` that is a cursor at the page's last
-  row, `<ISO8601 instant>~<id>`, which the next read takes as its `since`.
+  more rows matched than the page holds (the read fetches one row past the
+  limit), and then an `as_of` that is a cursor at the page's last row,
+  `<ISO8601 instant>~<id>`, which the next read of the same kind takes as its
+  `since`. A cursor belongs to the read that answered it: it carries that
+  read's row id, so another read would skip its own rows on the cursor's
+  second; and a delta read pages by `as_of` alone, never by `offset`.
   Rows sharing one stamp (an import writes thousands within a second) are
   told apart by the id, so a page boundary inside them skips none and
   repeats none. A cursor never lies past the read's own bound (see
@@ -56,7 +60,8 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
                "without `~<id>` means the rest waits behind a write still in flight, so poll " <>
                "again later, not at once. `as_of` never lies later than the start of the " <>
                "oldest write still in flight, so the next read may re-deliver a row but never " <>
-               "skips one."
+               "skips one. A cursor belongs to the read that answered it: pass it to no other " <>
+               "read. With `since`, page by `as_of`, never by `offset`."
 
   @paged_delta_note "Rows created or updated strictly after `since` (UTC), by their " <>
                       "updated_at, oldest change first. Deletions are not represented - a " <>

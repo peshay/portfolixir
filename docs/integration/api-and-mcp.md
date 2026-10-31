@@ -247,8 +247,9 @@ read may therefore re-deliver a row, but never skips one.
 — transactions, securities, a security's notes and events, a portfolio's
 policy rules — return their rows oldest change first, and every read of
 them, delta or full, echoes `limit` and `truncated` (true when more rows
-matched than the answer holds). A delta read whose page is full also carries
-`has_more: true`, and its `as_of` is then a cursor at the page's last row,
+matched than the answer holds). A delta read, when more rows matched than
+the page holds, also carries `has_more: true`, and its `as_of` is then a
+cursor at the page's last row,
 `<ISO8601 instant>~<id>`: pass it as the next `since` and read again at
 once. Rows sharing one stamp (an import writes thousands within a second)
 are told apart by the id, so a page boundary among them skips none and
@@ -256,8 +257,12 @@ repeats none. A cursor never lies past the bound above: when the page's last
 row is newer, `as_of` is the bound, without `~<id>`, and `has_more` stays
 true — the rest waits behind a write still in flight, so poll again later,
 not at once: until that write ends, a read at once returns the same page.
-A page that is not full carries `has_more: false` and the bound, as
-before. A malformed cursor is the same `422` as any invalid `since`.
+A page with nothing behind it carries `has_more: false` and the bound, as
+before — also when it holds exactly `limit` rows. A cursor belongs to the
+read that answered it: it carries that read's row id, so passed to another
+read it would skip that read's rows on the cursor's second. With `since`,
+page by `as_of`, never by `offset`: a cursor beside `offset` skips rows too.
+A malformed cursor is the same `422` as any invalid `since`.
 
 **Deletions are not
 represented** in a delta read; a caller that must detect deletions performs a
@@ -710,9 +715,9 @@ input.
 - `GET /api/v1/securities/:security_id/notes` — the log, newest first (by
   `as_of`, then write time), with the derived `thesis_state` and a `log_note`
   stating the append-only contract.
-  `limit` keeps the newest entries (default 1000, max 10000); `thesis_state`
-  always derives from the whole log, and the answer echoes the applied
-  `limit`.
+  `limit` keeps the newest entries — in a delta read, the oldest after
+  `since` (default 1000, max 10000); `thesis_state` always derives from the
+  whole log, and the answer echoes the applied `limit`.
 - `POST /api/v1/securities/:security_id/notes` — appends one entry from a
   `note` object (`201`); journaled under the API-token actor. An `as_of`
   after today (the instance's calendar day) answers `422` on `as_of` ("must

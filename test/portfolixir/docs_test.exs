@@ -954,7 +954,7 @@ defmodule Portfolixir.DocsTest do
     refute de =~ "mit voller Seite trägt zusätzlich"
 
     assert de =~
-             "wenn mehr Zeilen passten, als die Seite enthält, trägt zusätzlich `has_more: true`"
+             "Passten mehr Zeilen, als die Seite enthält, trägt ein Delta-Read zusätzlich `has_more: true`"
 
     assert de =~ "Ein Cursor gehört zu dem Read, der ihn geliefert hat"
     assert de =~ "Mit `since` nach `as_of` blättern, nie mit `offset`"
