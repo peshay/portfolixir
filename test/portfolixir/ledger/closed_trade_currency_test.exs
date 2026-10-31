@@ -978,4 +978,170 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert trade.unavailable_reason == :missing_settlement_leg
     assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "CHF"}]
   end
+
+  # A buy or sell as a database stored it before #1199's check: written past
+  # the changeset, under the journal's actor. The ledger now refuses a new
+  # booking priced in a third currency, so a third-currency row is a stored
+  # row's case (the ADR-0015 amendment of 2026-10-09, identity 5).
+  defp stored_trade!(world, security, attrs) do
+    {:ok, tx} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Repo.insert!(
+          struct!(
+            Transaction,
+            Map.merge(
+              %{
+                portfolio_id: world.portfolio.id,
+                securities_account_id: world.depot.id,
+                cash_account_id: world.cash.id,
+                security_id: security.id,
+                taxes: Decimal.new("0")
+              },
+              attrs
+            )
+          )
+        )
+      end)
+
+    tx
+  end
+
+  defp chf_rate!(dates) do
+    {:ok, _} =
+      dates
+      |> Enum.map(fn date ->
+        %{base_currency: "EUR", quote_currency: "CHF", date: date, rate: "0.95", source: "manual"}
+      end)
+      |> Fx.upsert_many()
+  end
+
+  # User story (#1198, Sprint 21 α3; point 3, "a lot or a sell priced in a
+  # third currency"):
+  # As the operator whose dollar share was bought through a franc account and
+  # sold, in a row stored before #1199's refusal, at a franc price through my
+  # euro account,
+  # I want that closed trade named unavailable, not computed,
+  # so that no figure subtracts a sale's euro fees from a franc price and no
+  # total sums the result.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - A buy of 10 at 100 USD through the CHF account (legs 1,000.00 USD,
+  #   900.00 CHF, 0.900000; fees 2.00 CHF, cash 902.00) and a stored sale of
+  #   10 at 110 CHF through the EUR account, fees 3.00 EUR: the trade is in
+  #   CHF, unavailable_reason missing_settlement_leg, basis and
+  #   realized_pnl_abs null, the lot named by its date and USD; the sale's
+  #   own avg_sell_price 110 and sell_fees 3 stay. Before: basis 902,
+  #   realized 195, unavailable_reason nil.
+  # - The realized-gains report leaves it out of trades and names it in
+  #   excluded under missing_settlement_leg, though the close date has a CHF
+  #   rate.
+  # - Mutation: not reading the sale's third-currency flag turns it red.
+  test "a sale priced in a third currency makes its closed trade unavailable" do
+    {world, fund} = cross_world()
+    chf_rate!([~D[2025-04-01], ~D[2025-05-02]])
+
+    swiss =
+      Map.merge(
+        world,
+        add_depot(world.portfolio,
+          cash_currency: "CHF",
+          cash_name: "Franc Cash",
+          depot_name: "Franc Depot"
+        )
+      )
+
+    cross_trade!(swiss, fund,
+      type: "buy",
+      quantity: "10",
+      price: "100",
+      settled: "900.00",
+      fees: "2.00",
+      gross: "902.00",
+      date: ~D[2025-04-01]
+    )
+
+    stored_trade!(world, fund, %{
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("110"),
+      fees: Decimal.new("3"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1222.22"),
+      settlement_amount: Decimal.new("1100.00"),
+      settlement_fx_rate: Decimal.new("0.900000"),
+      gross_amount: Decimal.new("1097.00")
+    })
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "CHF"
+    assert trade.unavailable_reason == :missing_settlement_leg
+    assert is_nil(trade.basis)
+    assert is_nil(trade.realized_pnl_abs)
+    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "USD"}]
+    assert exactly?(trade.avg_sell_price, "110")
+    assert exactly?(trade.sell_fees, "3")
+
+    report = RealizedGains.report(base_currency: "EUR")
+    refute Enum.any?(report.trades, &(&1.security_id == fund.id))
+
+    assert report.excluded.by_reason.missing_settlement_leg == %{
+             count: 1,
+             securities: ["Dollar Fund"]
+           }
+  end
+
+  # User story (#1198, Sprint 21 α3; point 3 ahead of point 4, the note of
+  # 2026-10-31):
+  # As the operator with a buy and a sale of a dollar share both priced in
+  # francs through my euro account, rows stored before #1199's refusal,
+  # I want their closed trade named unavailable although the sale and the lot
+  # share one currency,
+  # so that the lot's euro fees are never added to a franc basis.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - A stored buy of 10 at 90 CHF, fees 5.00 EUR, closed by a stored sale of
+  #   10 at 100 CHF, fees 3.00 EUR, both through the EUR account: the trade is
+  #   unavailable, missing_settlement_leg, basis null, the lot named by its
+  #   date and CHF. Before: basis 905 and realized 92 under CHF.
+  # - Mutation: not reading the lot's third-currency flag turns it red.
+  test "a lot and a sale both priced in a third currency make the closed trade unavailable" do
+    {world, fund} = cross_world()
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1000"),
+      settlement_amount: Decimal.new("800"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("805")
+    })
+
+    stored_trade!(world, fund, %{
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("100"),
+      fees: Decimal.new("3"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1111.11"),
+      settlement_amount: Decimal.new("888.89"),
+      settlement_fx_rate: Decimal.new("0.800000"),
+      gross_amount: Decimal.new("885.89")
+    })
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "CHF"
+    assert trade.unavailable_reason == :missing_settlement_leg
+    assert is_nil(trade.basis)
+    assert is_nil(trade.realized_pnl_abs)
+    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "CHF"}]
+  end
 end

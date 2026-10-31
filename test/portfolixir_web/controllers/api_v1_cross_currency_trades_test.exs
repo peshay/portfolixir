@@ -11,7 +11,10 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
 
   import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, cross_trade!: 3]
 
+  alias Portfolixir.Actor
   alias Portfolixir.Fx
+  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
 
   defp get_json(conn, path) do
     conn
@@ -373,6 +376,80 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
                "no_rate" => %{"count" => 0, "securities" => []},
                "missing_settlement_leg" => %{"count" => 1, "securities" => ["Wire Legless Fund"]}
              }
+           }
+  end
+
+  # User story (#1198, Sprint 21 α3; point 3, "a lot or a sell priced in a
+  # third currency"):
+  # As the operating LLM agent reading a dollar share's trades, its buy and
+  # sale both priced in francs through a euro account (rows stored before
+  # #1199's refusal),
+  # I want the closed trade unavailable and named, not a franc basis with
+  # euro fees added,
+  # so that I never sum a figure that mixes two currencies.
+  #
+  # Acceptance criteria:
+  # - closed_trades[0]: currency_code CHF, basis and realized_pnl_abs null,
+  #   unavailable_reason missing_settlement_leg, lots_missing_leg
+  #   [{open_date 2025-04-01, currency_code CHF}]. Before: basis 905,
+  #   realized_pnl_abs 92.
+  # - /api/v1/realized_gains names it under by_reason.missing_settlement_leg.
+  test "a lot and a sale priced in a third currency read unavailable over the API", %{
+    conn: conn
+  } do
+    world = base_world(name: "Wire Franc", cash_name: "Franc Wire Cash", depot_name: "Franc Wire")
+    fund = create_security!(name: "Wire Franc Fund", ticker: "WFF", currency: "USD")
+
+    for {type, date, price, fees, gross} <- [
+          {"buy", ~D[2025-04-01], "90", "5", "805"},
+          {"sell", ~D[2025-05-02], "100", "3", "885.89"}
+        ] do
+      # Written past the changeset, as a database stored it before #1199.
+      {:ok, _row} =
+        Repo.transaction(fn ->
+          {actor, _label} = Actor.to_columns(Actor.owner_ui())
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [actor])
+
+          Repo.insert!(%Transaction{
+            portfolio_id: world.portfolio.id,
+            securities_account_id: world.depot.id,
+            cash_account_id: world.cash.id,
+            security_id: fund.id,
+            type: type,
+            date: date,
+            quantity: Decimal.new("10"),
+            price: Decimal.new(price),
+            fees: Decimal.new(fees),
+            taxes: Decimal.new("0"),
+            currency_code: "CHF",
+            settlement_fx_rate: Decimal.new("0.888889"),
+            gross_amount: Decimal.new(gross)
+          })
+        end)
+    end
+
+    %{"data" => data} = get_json(conn, "/api/v1/securities/#{fund.id}/trades")
+    assert [trade] = data["closed_trades"]
+
+    assert Map.take(trade, [
+             "currency_code",
+             "basis",
+             "realized_pnl_abs",
+             "unavailable_reason",
+             "lots_missing_leg"
+           ]) == %{
+             "currency_code" => "CHF",
+             "basis" => nil,
+             "realized_pnl_abs" => nil,
+             "unavailable_reason" => "missing_settlement_leg",
+             "lots_missing_leg" => [%{"open_date" => "2025-04-01", "currency_code" => "CHF"}]
+           }
+
+    %{"data" => gains} = get_json(conn, "/api/v1/realized_gains")
+
+    assert gains["excluded"]["by_reason"]["missing_settlement_leg"] == %{
+             "count" => 1,
+             "securities" => ["Wire Franc Fund"]
            }
   end
 
