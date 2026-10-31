@@ -6,6 +6,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, create_security!: 1]
 
+  alias Mix.Tasks.Portfolixir.BackfillSettlementLegs
   alias Portfolixir.Actor
   alias Portfolixir.Fx
   alias Portfolixir.Journal
@@ -244,7 +245,8 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   # - A stored third-currency row (priced in CHF through a EUR account,
   #   with a rate and no security_amount, written as stored before #1199's
   #   check) is not touched although a CHF rate is stored: no journal entry,
-  #   no field changed. The mix task narrows with the same set.
+  #   no field changed; nor is the same row stored with no leg at all. The
+  #   mix task narrows with the same set.
   # - A booking-form row with its legs gets no journal entry.
   test "only rows booked in their account's currency with no leg stored are derived (identity 6)" do
     w = world()
@@ -302,6 +304,11 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         settlement_fx_rate: Decimal.new("0.944444")
       })
 
+    # The same, written with no leg at all: the account-currency condition,
+    # not the legs-missing one, keeps it out.
+    third_currency_bare =
+      stored_before_the_check!(%Transaction{third_currency | id: nil, settlement_fx_rate: nil})
+
     seed_rate!(~D[2026-01-16], "1.25")
 
     {:ok, _} =
@@ -315,7 +322,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         }
       ])
 
-    untouched = [booked_with_legs, third_currency]
+    untouched = [booked_with_legs, third_currency, third_currency_bare]
     before = Enum.map(untouched, &legs(Ledger.get_transaction(&1.id)))
     journaled_before = journal_entries(Enum.map(untouched, & &1.id))
 
@@ -334,7 +341,9 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
     assert journal_entries(Enum.map(untouched, & &1.id)) == journaled_before
 
     # The mix task runs the same narrowed set: the third-currency row stays.
-    Mix.Tasks.Portfolixir.BackfillSettlementLegs.run([])
+    assert ExUnit.CaptureIO.capture_io(fn -> BackfillSettlementLegs.run([]) end) =~
+             "rows updated:          0"
+
     assert Enum.map(untouched, &legs(Ledger.get_transaction(&1.id))) == before
     assert journal_entries(Enum.map(untouched, & &1.id)) == journaled_before
   end

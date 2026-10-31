@@ -2123,7 +2123,21 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       upserted: upserted,
       # `latest` = the daily feed; `history` = the one-shot backfill of the
       # provider's historical series (issue #737).
-      scope: result |> Map.get(:scope, :latest) |> Atom.to_string()
+      scope: result |> Map.get(:scope, :latest) |> Atom.to_string(),
+      # #1196: the settlement legs a history run derived once its rates were
+      # stored; null for the daily sync, which derives none.
+      settlement_legs: fx_settlement_legs(Map.get(result, :settlement_legs))
+    }
+  end
+
+  defp fx_settlement_legs(nil), do: nil
+
+  defp fx_settlement_legs(%{status: status} = legs) do
+    %{
+      status: Atom.to_string(status),
+      derived: legs.derived,
+      skipped_no_rate: legs.skipped_no_rate,
+      stopped_at_transaction_id: Map.get(legs, :stopped_at_transaction_id)
     }
   end
 

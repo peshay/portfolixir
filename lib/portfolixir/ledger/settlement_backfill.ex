@@ -5,10 +5,12 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
 
   A Portfolio Performance export books a cross-currency trade in the
   **account** currency, so historic imported rows carry no security-currency
-  leg. For every `buy`/`sell` whose `currency_code` differs from its
-  security's currency and whose `security_amount` is still nil, this
-  backfill derives the three linked ADR-0015 figures from the **stored** hub
-  rate at the row's booking date:
+  leg. For every `buy`/`sell` booked in its cash account's currency, not its
+  security's, with none of the three legs stored (ADR-0015's amendment of
+  2026-10-09, point 6, #1196: a row priced in a third currency, or one
+  carrying any leg, is never rewritten), this backfill derives the three
+  linked ADR-0015 figures from the **stored** hub rate at the row's booking
+  date:
 
     * `settlement_amount`  — `quantity x price` in the booked (account)
       currency, the cash leg as recorded;
@@ -24,7 +26,9 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   until a rate for that date is stored and the backfill is re-run. Re-running
   is safe — rows with a `security_amount` are never touched again.
 
-  Invoked via `mix portfolixir.backfill_settlement_legs`.
+  Invoked via `mix portfolixir.backfill_settlement_legs`, and as the last
+  step of every history backfill that stores rates
+  (`Portfolixir.Fx.RateSync.backfill/1`, #1196), under the same actor.
   """
 
   import Ecto.Query
@@ -73,15 +77,20 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
     end)
   end
 
-  # Cross-currency trades still missing their native leg: booked currency
-  # differs from the security currency and no security_amount is stored.
+  # The import form still missing its legs (ADR-0015's amendment of
+  # 2026-10-09, point 6, #1196): a buy or sell booked in its cash account's
+  # currency, not its security's, with none of the three legs stored. A row
+  # priced in a third currency, or one carrying any leg, is never a
+  # candidate: before, a stored third-currency row's rate was rewritten.
   defp candidates do
     Repo.all(
       from(t in Transaction,
         join: s in assoc(t, :security),
+        join: c in assoc(t, :cash_account),
         where:
-          t.type in ["buy", "sell"] and is_nil(t.security_amount) and
-            t.currency_code != s.currency_code,
+          t.type in ["buy", "sell"] and t.currency_code == c.currency_code and
+            t.currency_code != s.currency_code and is_nil(t.security_amount) and
+            is_nil(t.settlement_amount) and is_nil(t.settlement_fx_rate),
         order_by: [asc: t.date, asc: t.id],
         preload: [:security]
       )
@@ -90,7 +99,9 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
 
   # The settlement leg is read off the row's cash amount where it has one
   # (the guard's relation, inverted — a rounded Kurs × quantity can miss it by
-  # more than the guard's cent), else quantity × price as before.
+  # more than the guard's cent), else quantity × price as before: the
+  # arithmetic of `Imports.Applier.derived_settlement_legs/4`, so a derived
+  # row carries the legs an import stores when the rate is already there.
   defp backfill_row(actor, %Transaction{} = transaction) do
     settlement_amount =
       SettlementGuard.trade_amount(

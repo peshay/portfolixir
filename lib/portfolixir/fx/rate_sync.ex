@@ -21,6 +21,11 @@ defmodule Portfolixir.Fx.RateSync do
   conversion (a realized gain at its own close date) can find its rate. It
   does not change the rate-availability rule: a date the provider never
   published stays absent, and the consumer keeps excluding and naming it.
+  Once it has stored rates, the same single-flight run derives the
+  settlement legs they make derivable (#1196, ADR-0015's amendment of
+  2026-10-09, point 6): `Portfolixir.Ledger.SettlementBackfill.run/1`,
+  journaled under `Actor.system_job("settlement_backfill")`. The daily
+  `sync/1` derives none.
 
   `backfill_when_needed/1` (#1120, D-5 of the Sprint 20 plan, amending
   Sprint 9's D-1 to "on demand, and once by itself when needed") is that
@@ -35,9 +40,11 @@ defmodule Portfolixir.Fx.RateSync do
   use GenServer
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Fx
   alias Portfolixir.Fx.HistoryGaps
+  alias Portfolixir.Ledger.SettlementBackfill
   alias Portfolixir.SingleFlight
 
   @default_interval :timer.hours(12)
@@ -96,9 +103,16 @@ defmodule Portfolixir.Fx.RateSync do
   Synchronously fetch and persist the provider's **historical** series (the
   one-shot backfill, issue #737).
 
-  Returns `{:ok, %{provider: atom, status: :ok, upserted: integer, scope: :history}}`,
-  `{:error, :history_unsupported}` when the provider publishes no history, or
-  `{:error, reason}`.
+  Returns `{:ok, %{provider: atom, status: :ok, upserted: integer, scope:
+  :history, settlement_legs: map}}`, `{:error, :history_unsupported}` when
+  the provider publishes no history, or `{:error, reason}`.
+
+  `settlement_legs` counts the legs the run derived once its rates were
+  stored (#1196): `%{status: :completed, derived: n, skipped_no_rate: n}`;
+  `%{status: :not_run, derived: 0, skipped_no_rate: 0}` when it stored no
+  rate; or, when the ledger refused a row, `%{status: :stopped, derived:
+  nil, skipped_no_rate: nil, stopped_at_transaction_id: id}`, the rates
+  stored all the same.
 
   Options:
     * `:provider` – adapter module, overrides config.
@@ -218,7 +232,9 @@ defmodule Portfolixir.Fx.RateSync do
     if history?(provider) do
       case safe_fetch_history(provider, opts) do
         {:ok, rows} when is_list(rows) ->
-          persist(provider, rows, :history)
+          with {:ok, result} <- persist(provider, rows, :history) do
+            {:ok, Map.put(result, :settlement_legs, derive_settlement_legs(result.upserted))}
+          end
 
         {:error, reason} ->
           Logger.warning("fx history fetch failed via #{inspect(provider)}: #{inspect(reason)}")
@@ -232,6 +248,45 @@ defmodule Portfolixir.Fx.RateSync do
       {:error, :history_unsupported}
     end
   end
+
+  # #1196 (ADR-0015's amendment of 2026-10-09, point 6): once the history's
+  # upsert has stored rates, the same single-flight run derives the
+  # settlement legs they make derivable, under the actor the mix task
+  # journals under. A row the ledger refuses stops the derivation as it
+  # stops the task: the rates stay stored, the stop is logged and answered.
+  # Without a stored rate the derivation does not run. The daily sync never
+  # reaches here, so it derives no legs (the amendment's limit).
+  defp derive_settlement_legs(0), do: %{status: :not_run, derived: 0, skipped_no_rate: 0}
+
+  defp derive_settlement_legs(_upserted) do
+    case SettlementBackfill.run(Actor.system_job("settlement_backfill")) do
+      {:ok, %{updated: derived, skipped_no_rate: skipped}} ->
+        if derived + skipped > 0 do
+          Logger.info(
+            "fx history backfill derived #{derived} settlement leg(s); " <>
+              "#{skipped} booking(s) still have no rate for their date"
+          )
+        end
+
+        %{status: :completed, derived: derived, skipped_no_rate: skipped}
+
+      {:error, {transaction_id, reason}} ->
+        Logger.warning(
+          "settlement-leg derivation stopped at transaction ##{transaction_id}: " <>
+            "#{stop_reason(reason)}; the rates stay stored, a re-run derives the rest"
+        )
+
+        %{
+          status: :stopped,
+          derived: nil,
+          skipped_no_rate: nil,
+          stopped_at_transaction_id: transaction_id
+        }
+    end
+  end
+
+  defp stop_reason(:raced), do: "its update lost a lock cycle with a concurrent write"
+  defp stop_reason(%Ecto.Changeset{errors: errors}), do: "refused, #{inspect(errors)}"
 
   # function_exported?/3 is false for a module not loaded yet, so the
   # provider is loaded first; otherwise the answer would depend on whether

@@ -51,6 +51,10 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
         "from the catalog's own data",
     {"Mix.Tasks.Portfolixir.BackfillSettlementLegs", "settlement_backfill"} =>
       "an operator-run, one-shot repair of settlement legs from recorded transactions",
+    {"Portfolixir.Fx.RateSync", "settlement_backfill"} =>
+      "the same settlement-leg repair, run as the last step of a history backfill that " <>
+        "stored rates (#1196, ADR-0015's amendment of 2026-10-09): it derives the legs of " <>
+        "imported trades from those stored rates, journaled per row; it fetches nothing",
     {"Mix.Tasks.Portfolixir.SeedScopeBuckets", "portfolio_scope_seed"} =>
       "an operator-run seed turning portfolios into scope buckets and views (ADR-0024)",
     {"Mix.Tasks.Portfolixir.Derived.Measure", "derived_measure"} =>
