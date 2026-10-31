@@ -45,7 +45,8 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
   #   a "+", both `is-flat`, never `is-positive`.
   # - The contribution table's sum reads "0.00 EUR" without a sign or a
   #   gain colour, and equals the badge's money; the position's row reads
-  #   "0.00" uncoloured in the table and in its phone row.
+  #   "0.00" uncoloured in the table and in its phone row, with no drift bar
+  #   beside it.
   test "Wealth's badge and the contribution sum read a fraction of a cent as an unsigned zero",
        %{conn: conn} do
     fraction_of_a_cent_world()
@@ -72,6 +73,14 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
     assert text(Enum.take(figure, 1)) == "0.00"
 
     assert Floki.find(doc, "#contribution-table tr[data-role='contribution-row'] .is-positive") ==
+             []
+
+    # Review SF-1: the bar beside a figure that reads zero is not drawn — no
+    # `is-over` fill beside "0.00".
+    assert Floki.find(
+             doc,
+             "#contribution-table tr[data-role='contribution-row'] .drift-bar__fill"
+           ) ==
              []
 
     phone =
@@ -195,5 +204,193 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
     tax_cells = taxes |> Floki.find("td.num") |> Enum.map(&text([&1]))
     assert Enum.count(tax_cells, &(&1 == "–")) == 12
     assert List.last(tax_cells) == "0.00"
+  end
+
+  # The review of the γ4 range (SF-1): the rule holds wherever a sign class
+  # is decided, beyond the surfaces board 04 drew. Each pin below is a
+  # figure of a fraction of a cent, or of a fraction of a basis point, that
+  # reads zero where it is printed.
+  describe "every other sign class decides on the figure as displayed (#1149, review SF-1)" do
+    # User story (#1149, review SF-1):
+    # As the operator comparing a snapshot with what really happened,
+    # I want a frozen return of +0.004 % to read "0.0%" in body ink,
+    # so that the comparison does not call a flat hold a gain.
+    #
+    # Acceptance criteria:
+    # - The "Frozen (hold)" and "Real" figures read "0.0%", no "+", and
+    #   carry no gain colour.
+    test "the snapshot comparison's returns", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Snap", currency: "EUR")
+      stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+
+      WorldFixtures.deposit!(world, "10000", ~D[2026-01-02], [])
+      WorldFixtures.buy!(world, stock, quantity: "5", price: "100", date: ~D[2026-01-05])
+      WorldFixtures.put_quote!(stock, ~D[2026-02-14], "100")
+      WorldFixtures.put_quote!(stock, ~D[2026-03-10], "100.004")
+
+      {:ok, _} =
+        Portfolixir.Portfolios.Snapshots.create_snapshot(Portfolixir.Actor.owner_ui(), %{
+          name: "Flat hold",
+          as_of: ~D[2026-02-15]
+        })
+
+      {:ok, view, _html} = live(conn, "/snapshots")
+
+      doc =
+        view
+        |> element("[data-role=snapshot-row] a[data-role=snapshot-select]")
+        |> render_click()
+        |> Floki.parse_document!()
+
+      for role <- ~w(kpi-frozen kpi-real) do
+        figure = Floki.find(doc, ~s([data-role="#{role}"] strong))
+        assert text(figure) == "0.0%", role
+        refute classes(figure) =~ "is-positive", role
+      end
+    end
+
+    # User story (#1149, review SF-1):
+    # As the operator previewing a sale,
+    # I want a lot that gains 0.004 EUR to read "0.00" in body ink,
+    # so that the preview does not colour a break-even sale as a gain.
+    #
+    # Acceptance criteria:
+    # - The preview's total reads "0.00" and carries no `is-positive`.
+    test "the sell preview's gain", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Drawer", depot_name: "Main", cash_name: "Cash")
+      stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+      WorldFixtures.deposit!(world, "5000", ~D[2026-01-02])
+      WorldFixtures.buy!(world, stock, quantity: "1", price: "100", date: ~D[2026-01-10])
+
+      {:ok, view, _html} = live(conn, "/transactions")
+      view |> element("#open-booking") |> render_click()
+
+      view
+      |> element("#transaction-form")
+      |> render_change(%{
+        "transaction" => %{
+          "type" => "sell",
+          "date" => "2026-06-01",
+          "securities_account_id" => to_string(world.depot.id),
+          "security_id" => to_string(stock.id),
+          "quantity" => "1",
+          "price" => "100.004",
+          "fees" => "0",
+          "taxes" => "0",
+          "notes" => ""
+        }
+      })
+
+      total = view |> document() |> Floki.find("#booking-drawer [data-role='preview-total']")
+      assert text(total) == "0.00 EUR"
+      refute classes(total) =~ "is-positive"
+    end
+
+    # User story (#1149, review SF-1):
+    # As the operator scanning the securities list,
+    # I want a day change of +0.004 % to read "0.00 %" uncoloured,
+    # so that the list agrees with its own digits.
+    #
+    # Acceptance criteria:
+    # - The day-change cell's figure reads "0.00 %" and carries
+    #   `decimal-neutral`, never `decimal-positive`.
+    test "the securities list's day change", %{conn: conn} do
+      stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+      today = Clock.today()
+      WorldFixtures.put_quotes!(stock, [{Date.add(today, -1), "100"}, {today, "100.004"}])
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      figures =
+        view
+        |> document()
+        |> Floki.find("table span")
+        |> Enum.filter(&(text([&1]) == "0.00 %"))
+
+      assert [_ | _] = figures
+      assert Enum.map(figures, &classes([&1])) |> Enum.uniq() == ["decimal-neutral"]
+    end
+
+    # User story (#1149, review SF-1):
+    # As the operator reading the Risk tab,
+    # I want a maximum drawdown of -0.004 % to read "0.0" in body ink,
+    # so that a drawdown that reads zero is not coloured as a loss.
+    #
+    # Acceptance criteria:
+    # - The max-drawdown figure reads "0.0" and carries no `is-negative`.
+    test "the Risk tab's maximum drawdown", %{conn: conn} do
+      world = WorldFixtures.base_world()
+      stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+      day = fn offset -> Date.add(Date.utc_today(), offset) end
+
+      WorldFixtures.deposit!(world, "10000", day.(-400))
+      WorldFixtures.buy!(world, stock, quantity: "100", price: "100", date: day.(-400))
+
+      WorldFixtures.put_quotes!(
+        stock,
+        for(offset <- -400..0, do: {day.(offset), if(offset == -100, do: "99.996", else: "100")})
+      )
+
+      {:ok, view, _html} = live(conn, "/risk")
+
+      [figure] =
+        view
+        |> document()
+        |> Floki.find(~s([data-role="risk-metric-max-drawdown"] span))
+        |> Enum.filter(&(text([&1]) == "0.0"))
+
+      refute classes([figure]) =~ "is-negative"
+    end
+
+    # User story (#1149, review SF-1):
+    # As the operator reading the allocation's drift,
+    # I want a category 0.004 EUR under its target to read "0.00" in body
+    # ink,
+    # so that a drift that reads zero is not coloured as an underweight.
+    #
+    # Acceptance criteria:
+    # - The category's drift cell reads "0.00 EUR" and carries no
+    #   `is-negative`.
+    test "the allocation's drift", %{conn: conn} do
+      owner = Portfolixir.Actor.owner_ui()
+      world = WorldFixtures.base_world(name: "Drift", cash_name: "Giro", depot_name: "Depot")
+      {:ok, tree} = Classifications.create_classification(owner, %{name: "Strategie"})
+
+      {:ok, growth} =
+        Classifications.create_category(owner, %{classification_id: tree.id, name: "Wachstum"})
+
+      {:ok, income} =
+        Classifications.create_category(owner, %{classification_id: tree.id, name: "Ertrag"})
+
+      helios = WorldFixtures.create_security!(name: "Helios Solar Systems SE", ticker: "HSS")
+      harbor = WorldFixtures.create_security!(name: "Harbor Light Utilities SE", ticker: "HLU")
+
+      for {security, category} <- [{helios, growth}, {harbor, income}] do
+        {:ok, _} = Classifications.assign_security(owner, security.id, tree.id, category.id)
+      end
+
+      WorldFixtures.deposit!(world, "200.008", ~D[2026-01-02])
+      WorldFixtures.buy!(world, helios, quantity: "1", price: "100", date: ~D[2026-01-05])
+      WorldFixtures.buy!(world, harbor, quantity: "1", price: "100.008", date: ~D[2026-01-05])
+
+      {:ok, _} =
+        Portfolixir.Portfolios.Targets.set_targets(owner, world.portfolio.id, tree.id, [
+          %{"category_id" => growth.id, "target_weight" => "0.5"},
+          %{"category_id" => income.id, "target_weight" => "0.5"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification=#{tree.id}")
+      render_async(view)
+
+      [row] =
+        view
+        |> document()
+        |> Floki.find("table.drift-table tbody tr")
+        |> Enum.filter(&(&1 |> Floki.find("td:first-child") |> text() =~ "Wachstum"))
+
+      [drift] = Floki.find(row, "td.col-subject")
+      assert text([drift]) == "0.00 EUR"
+      refute classes([drift]) =~ "is-negative"
+    end
   end
 end
