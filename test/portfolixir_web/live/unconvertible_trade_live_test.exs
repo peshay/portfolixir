@@ -14,6 +14,8 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   alias Portfolixir.Actor
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
   alias Portfolixir.WorldFixtures
 
   # An imported buy of 10 Arbolia at 80.00 EUR into the EUR account with no
@@ -188,6 +190,196 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
 
     assert de_note =~
              "1 Trade ohne Umrechnung: 2 Käufe, die er schließt, vom 01.04.2025, haben keinen Gegenwert in USD"
+  end
+
+  # A buy or sell as a database stored it before #1199's refusal of a
+  # booking priced in a third currency: written past the changeset, under
+  # the journal's actor (as `closed_trade_currency_test.exs` writes it).
+  defp stored_trade!(world, security, attrs) do
+    {:ok, tx} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Repo.insert!(
+          struct!(
+            Transaction,
+            Map.merge(
+              %{
+                portfolio_id: world.portfolio.id,
+                securities_account_id: world.depot.id,
+                cash_account_id: world.cash.id,
+                security_id: security.id,
+                taxes: Decimal.new("0")
+              },
+              attrs
+            )
+          )
+        )
+      end)
+
+    tx
+  end
+
+  # A dollar fund with a euro and a franc account.
+  defp third_currency_world! do
+    world =
+      WorldFixtures.base_world(name: "Muster", cash_name: "Test-Cash", depot_name: "Depot Muster")
+
+    fund = WorldFixtures.create_security!(name: "Dollar Fund", ticker: "DFD", currency: "USD")
+
+    swiss =
+      Map.merge(
+        world,
+        WorldFixtures.add_depot(world.portfolio,
+          cash_currency: "CHF",
+          cash_name: "Franc Cash",
+          depot_name: "Franc Depot"
+        )
+      )
+
+    {world, swiss, fund}
+  end
+
+  # User story (#1198, Sprint 21 α3; the ADR-0015 amendment of 2026-10-09,
+  # point 3, "a lot or a sell priced in a third currency"):
+  # As the operator whose closed trade is unavailable because a booking is
+  # priced in a currency that is neither its security's nor its account's,
+  # I want the note and the cell's reason to say that, and the remedy to be
+  # correcting that booking,
+  # so that I am not told a buy in CHF has no figure in CHF, nor sent to a
+  # rate backfill that cannot help.
+  #
+  # Acceptance criteria:
+  # - A stored buy of 10 Dollar Fund at 90 CHF through the EUR account,
+  #   sold at 100 CHF through the franc account: the note reads "1 trade
+  #   not convertible: the buy of 2025-04-01 is priced in a currency that is
+  #   neither the security's nor its account's (CHF); the trade's cost and
+  #   result are missing, and it counts in no total. Remedy: correct the
+  #   stored booking's currency or amounts."; the cells' title "Not
+  #   convertible: a buy priced in CHF, neither the security's nor its
+  #   account's currency"; no backfill named.
+  # - A buy of 10 at 100 USD through the franc account and a stored sale at
+  #   110 CHF through the EUR account: "1 trade not convertible: the sale of
+  #   2025-05-02 is priced in a currency that is neither the security's nor
+  #   its account's (CHF); … Remedy: correct the stored booking's currency
+  #   or amounts."; the title "Not convertible: the sale is priced in CHF,
+  #   neither the security's nor its account's currency".
+  # - In German: "… Der Kauf vom 01.04.2025 ist in einer Währung bepreist,
+  #   die weder die des Wertpapiers noch die seines Kontos ist (CHF); …
+  #   Abhilfe: Währung oder Beträge der gespeicherten Buchung korrigieren."
+  test "a lot priced in a third currency names the booking to correct, not a rate", %{
+    conn: conn
+  } do
+    {world, swiss, fund} = third_currency_world!()
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1000"),
+      settlement_amount: Decimal.new("800"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("805")
+    })
+
+    {:ok, _sell} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: swiss.portfolio.id,
+        securities_account_id: swiss.depot.id,
+        cash_account_id: swiss.cash.id,
+        security_id: fund.id,
+        type: "sell",
+        date: ~D[2025-05-02],
+        quantity: "10",
+        price: "100",
+        fees: "3",
+        taxes: "0",
+        currency_code: "CHF",
+        security_amount: "1250",
+        settlement_amount: "1000",
+        settlement_fx_rate: "0.8",
+        gross_amount: "997"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{fund.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: the buy of 2025-04-01 is priced in a currency that is neither the security's nor its account's (CHF); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored booking's currency or amounts."
+
+    refute note =~ "backfill"
+
+    row = view |> element("#detail-closed-trades-table tbody tr") |> render()
+
+    for dash <- row |> Floki.parse_fragment!() |> Floki.find("td[data-role=trade-unconvertible]") do
+      assert Floki.attribute(dash, "title") == [
+               "Not convertible: a buy priced in CHF, neither the security's nor its account's currency"
+             ]
+    end
+
+    {:ok, de_view, _html} = live(conn, "/securities/#{fund.id}?tab=trades&locale=de")
+    de_note = de_view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert de_note =~
+             "1 Trade ohne Umrechnung: Der Kauf vom 01.04.2025 ist in einer Währung bepreist, die weder die des Wertpapiers noch die seines Kontos ist (CHF); Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: Währung oder Beträge der gespeicherten Buchung korrigieren."
+  end
+
+  # User story (#1198, Sprint 21 α3; point 3, the sale itself): as above,
+  # for a sale priced in a currency that is neither the security's nor its
+  # account's — its acceptance criteria the second item above.
+  test "a sale priced in a third currency names the booking to correct, not a rate", %{
+    conn: conn
+  } do
+    {world, swiss, fund} = third_currency_world!()
+
+    WorldFixtures.cross_trade!(swiss, fund,
+      type: "buy",
+      quantity: "10",
+      price: "100",
+      settled: "900.00",
+      fees: "2.00",
+      gross: "902.00",
+      date: ~D[2025-04-01]
+    )
+
+    stored_trade!(world, fund, %{
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("110"),
+      fees: Decimal.new("3"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1222.22"),
+      settlement_amount: Decimal.new("1100.00"),
+      settlement_fx_rate: Decimal.new("0.900000"),
+      gross_amount: Decimal.new("1097.00")
+    })
+
+    {:ok, view, _html} = live(conn, "/securities/#{fund.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: the sale of 2025-05-02 is priced in a currency that is neither the security's nor its account's (CHF); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored booking's currency or amounts."
+
+    refute note =~ "backfill"
+
+    row = view |> element("#detail-closed-trades-table tbody tr") |> render()
+
+    for dash <- row |> Floki.parse_fragment!() |> Floki.find("td[data-role=trade-unconvertible]") do
+      assert Floki.attribute(dash, "title") == [
+               "Not convertible: the sale is priced in CHF, neither the security's nor its account's currency"
+             ]
+    end
+
+    {:ok, de_view, _html} = live(conn, "/securities/#{fund.id}?tab=trades&locale=de")
+    de_note = de_view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert de_note =~
+             "1 Trade ohne Umrechnung: Der Verkauf vom 02.05.2025 ist in einer Währung bepreist, die weder die des Wertpapiers noch die seines Kontos ist (CHF); Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: Währung oder Beträge der gespeicherten Buchung korrigieren."
   end
 
   # Legless buys of 5 Arbolia at 80.00 EUR on each of `dates` and one sale
