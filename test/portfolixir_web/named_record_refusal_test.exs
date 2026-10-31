@@ -13,7 +13,6 @@ defmodule PortfolixirWeb.NamedRecordRefusalTest do
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.FieldLabel
-  alias PortfolixirWeb.NamedRecordRefusal
 
   defp security!(name, isin) do
     {:ok, security} =
