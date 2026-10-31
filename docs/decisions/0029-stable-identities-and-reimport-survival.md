@@ -580,7 +580,7 @@ books nothing; every other row's price input is its booked price. The #533
 economic key is checked under the old reading too, the hash's amount and
 price (A4).
 
-## Note (2026-10-31): an interest booking keeps its security, and its key is also read without one (ADR-0051, amended)
+## Note (2026-10-31): a coupon keeps its security; its key is read without one too (ADR-0051)
 
 The [amendment of 2026-10-09](0051-contribution-analysis.html) to ADR-0051
 (#928) has the importer store the security an `INTEREST` row names, so a

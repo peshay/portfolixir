@@ -2395,10 +2395,11 @@ einschließlich der Währungsbewegung, gilt: Beitrag = Endwert − Anfangswert �
 Zu-/Abflüsse + Erträge − Kosten. Das ist der Wert am Ende des Zeitraums,
 abzüglich des Werts zum Schluss des Vortags, abzüglich der Käufe und zuzüglich
 der Verkäufe (jeweils zum Kurs des Buchungstags), zuzüglich der gutgeschriebenen
-Dividenden und der Anleihekupons, die die Position nennen, und abzüglich der Gebühren und Steuern der eigenen Käufe und
-Verkäufe der Position. Bei einem währungsübergreifenden Handel zählen Gebühren
-und Steuern in der Währung seines Verrechnungskontos, in der der Broker sie
-berechnet. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
+Dividenden und der Anleihekupons, die die Position nennen, und abzüglich der
+Gebühren und Steuern der eigenen Käufe und Verkäufe der Position. Bei einem
+währungsübergreifenden Handel zählen Gebühren und Steuern in der Währung
+seines Verrechnungskontos, in der der Broker sie berechnet. Jede Zeile zeigt
+diese fünf Zahlen neben dem Beitrag,
 sodass sich jede Zahl von Hand nachprüfen lässt. Die Zeilen sind nach Beitrag
 sortiert, der größte zuerst, und ein Balken unter jeder Zahl zeigt ihre Größe
 im Vergleich zur größten. Auch eine Position, die nur einen Teil des

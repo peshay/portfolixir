@@ -2180,9 +2180,9 @@ contribution is end value − start value − flows + income − costs: the valu
 at the end of the period, minus the value at the close of the day before it,
 minus what was bought and plus what was sold (each at its booking day's
 rate), plus the dividends and the bond coupons that name it, as credited,
-minus the fees and taxes of the position's own trades. A cross-currency trade's fees and taxes count in its
-cash account's currency, the currency the broker charges them in. Each row
-shows those five figures beside the
+minus the fees and taxes of the position's own trades. A cross-currency
+trade's fees and taxes count in its cash account's currency, the currency
+the broker charges them in. Each row shows those five figures beside the
 contribution, so every number can be checked by hand; the rows are sorted by
 contribution, largest first, and a bar under each figure shows its size
 against the largest. A position held for only part of the period has its
