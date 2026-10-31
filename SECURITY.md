@@ -115,6 +115,33 @@ tokens locks that address until the lock runs out or the companion restarts,
 and the lock answers only wrong tokens, so the operator's agent, whose token
 is correct, keeps working (#974).
 
+Since the Sprint 21 security batch (the whole-system review of 2026-10-12,
+its triage's Part 7; the **third hardening baseline**, after E21 and E25):
+the throttle's counts are bounded in number as well as in time, an IPv6
+source counting as its /64, with a ceiling on sources not yet counted (H03)
+and the same cap on the companion (H49); a trusted-proxy block wide enough to
+cover the clients is ignored and named at startup (H04); a release refuses to
+boot on an empty, placeholder or short database password, and on a
+`DATABASE_URL` whose shape or TLS settings it cannot read, naming the
+variable and never its value (H18, H72, K03); a refused principal name is
+quoted only when it is shaped like a name and shorter than the token floor
+(H22); an open page is held to its login's lifetime (H19); the token floor
+stays a length check and a token with few distinct characters is named at
+start (H20); a remembered preference is read only from a cookie the instance
+signed, sent once, `__Host-` on HTTPS, and off loopback over plain HTTP only
+with the instance's own Referer (K02, H41); the development socket's origins
+are the Host guard's names (K18); the listener bounds its connections,
+acceptors and read timeout and speaks no cleartext HTTP/2, and the deployment
+guide puts the header-phase deadline on the reverse proxy (H09, H27); every
+Compose service rotates its logs (H70), a log entry's control characters are
+written as visible escapes (H69), and a crashing live page is logged by topic
+and event name only (H71); every protective switch reads one vocabulary and
+an unread one is named at boot (H06); the derived rebuild starts without the
+web listener (K05); the measurement ledger is seeded beside real records only
+on an explicit flag (K04); and the companion refuses to start when Node's
+environment proxy would carry its API calls (K16). The groups S3 to S8 are
+recorded in the same Part 7 and in the paragraphs below where they apply.
+
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted
 to the cookie's expiry, and bound to the password it was issued under. The
