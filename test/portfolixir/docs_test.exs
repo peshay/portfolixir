@@ -2214,6 +2214,12 @@ defmodule Portfolixir.DocsTest do
   #   twice, the name remembered) and what "+ Create new" does, and that a
   #   first import and a file whose every name is known are prefilled as
   #   before.
+  # - #1195 (Sprint 21 α8; ADR-0050 as amended on 2026-10-09): that such a
+  #   row is withheld with a provisional count until the counts are
+  #   refined, that a name whose bookings are all booked is then prefilled
+  #   unless a choice was made, that a remembered former name asks once
+  #   more for a new booking, and that a counting that stops releases
+  #   nothing.
   test "the handbook says why a renamed account's row waits for a choice" do
     for {path, fragments, stale} <- [
           {"docs/product-documentation.md",
@@ -2229,8 +2235,15 @@ defmodule Portfolixir.DocsTest do
              # a booking under it has been imported.
              "which an import maps by itself once a booking under the new name has been imported",
              "*+ Create new* books the rows on a new account",
-             "is prefilled as before"
-           ], "so the next import prefills it by itself"},
+             "is prefilled as before",
+             # #1195 (ADR-0050 as amended on 2026-10-09): the dry run's
+             # answer releases a name whose bookings are all booked, and a
+             # remembered former name asks again only for a new booking.
+             "its count reads *provisional · recomputing*",
+             "is prefilled with that account once the counts are refined, unless you have chosen already",
+             "a later file that brings a new booking under the new name asks once more",
+             "If the counting stops"
+           ], ["so the next import prefills it by itself", "until then the row asks again, and"]},
           {"docs/de/product-documentation.md",
            [
              "**Ein Name, unter dem nichts importiert ist.**",
@@ -2242,8 +2255,16 @@ defmodule Portfolixir.DocsTest do
              "behält den neuen Namen als früheren Namen dieses Kontos",
              "den ein Import selbst zuordnet, sobald eine Buchung unter dem neuen Namen importiert ist",
              "*+ Neu anlegen* bucht die Zeilen auf ein neues Konto",
-             "wird wie bisher vorbelegt"
-           ], "sodass der nächste Import ihn selbst vorbelegt"}
+             "wird wie bisher vorbelegt",
+             "ihre Zahl lautet *vorläufig · wird neu berechnet*",
+             "wird die Zeile mit diesem Konto vorbelegt, sobald die Zählung verfeinert ist, sofern Sie nicht schon gewählt haben",
+             "eine spätere Datei, die unter dem neuen Namen eine neue Buchung bringt, fragt noch einmal",
+             "Bricht die Zählung ab"
+           ],
+           [
+             "sodass der nächste Import ihn selbst vorbelegt",
+             "bis dahin fragt die Zeile erneut, und"
+           ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
 
@@ -2251,7 +2272,9 @@ defmodule Portfolixir.DocsTest do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
 
-      refute doc =~ stale, "#{path}: #{stale}"
+      for stale <- stale do
+        refute doc =~ stale, "#{path}: #{stale}"
+      end
     end
   end
 
