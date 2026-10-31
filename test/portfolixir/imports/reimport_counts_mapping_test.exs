@@ -5,7 +5,9 @@ defmodule Portfolixir.Imports.ReimportCountsMappingTest do
   # pinned here on the context, and end to end on the page in
   # `PortfolixirWeb.ImportsRecountLiveTest`. Every name, amount and
   # identifier is synthetic.
-  use Portfolixir.DataCase, async: true
+  # async: false — the applier's after-commit enrichment runs in a task that
+  # outlives an async test's connection.
+  use Portfolixir.DataCase, async: false
 
   import Ecto.Query
 
