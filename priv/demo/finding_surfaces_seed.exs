@@ -16,7 +16,11 @@
 # currency's first rate, a cross-currency buy with fees and taxes in EUR, a
 # USD-based portfolio whose holdings the EUR category result names with their
 # native cost, one of them held in a EUR portfolio as well, and bonds priced
-# on two scales in both directions, one of them without an asset class. The
+# on two scales in both directions, one of them without an asset class; and
+# the Sprint 21 security surfaces (17, amendment D-12): a policy rule the
+# agent renamed, a tax statement the agent recorded, a security merge ready
+# to try whose two sides both closed trades, a USD dividend no stored rate
+# converts to EUR, and a split of a security held in two portfolios. The
 # Gesamtpreis row error (#1076) is a file the walkthrough drops by hand:
 # priv/demo/pp_csv_gesamtpreis_demo.csv.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
@@ -1325,7 +1329,9 @@ defmodule ReviewSeed.OfflineQuotes do
   @impl true
   def fetch(_security, _opts) do
     today = Date.utc_today()
-    {:ok, for(back <- 140..1//-1, do: %{date: Date.add(today, -back), close: Decimal.new("18.40")})}
+
+    {:ok,
+     for(back <- 140..1//-1, do: %{date: Date.add(today, -back), close: Decimal.new("18.40")})}
   end
 end
 
@@ -1658,5 +1664,163 @@ for %{name: name, closes: [opening, latest]} <- bonds do
 end
 
 IO.puts("Sprint 19 surfaces: Tagesgeld CHF, Larkspur, #{usd_portfolio.name}, three bonds")
+
+# 17. The Sprint 21 security surfaces (amendment D-12: each S story that
+#     draws on a page adds its shape here). Each scenario is created only
+#     when its row is not there yet, so a re-run adds nothing. The agent is
+#     an API token, as Actor.author/1 reads it. Every booking that moves the
+#     Demo Depot's return lies more than 90 days back (step 16's note), and
+#     the one close written beside today's repeats the earlier one.
+agent = Actor.api_token_rw("review seed")
+
+# 17a. H14: a rule the operator created and the agent renamed. Its version
+#      stays the operator's; its name carries the Agent mark on Wealth ->
+#      Risk and in the rule dialog (name_author agent).
+if rule_named.("Barreserve höchstens 30 %", nil) == nil do
+  unnamed =
+    seed_rule.(
+      "Barobergrenze",
+      nil,
+      %{subject_type: "cash", measure: "weight", kind: "cap", threshold: "30", severity: "warn"},
+      Date.add(today, -30)
+    )
+
+  {:ok, _} = PolicyRules.rename_rule(agent, unnamed, %{name: "Barreserve höchstens 30 %"})
+end
+
+# 17b. K12: a statement the agent recorded, for a second institution in the
+#      same tax year: the Tax page reads "recorded · Agent", and the trim
+#      budget's basis line marks the institution (agent_institutions).
+unless Enum.any?(Tax.list_snapshots(), &(&1.institution == "Beispiel Direktbank")) do
+  {:ok, _} =
+    Tax.create_snapshot(
+      agent,
+      %{
+        institution: "Beispiel Direktbank",
+        holder: "Owner",
+        tax_year: today.year - 1,
+        as_of: Date.new!(today.year - 1, 12, 31),
+        taxable_income: Decimal.new("380.00"),
+        allowance_granted: Decimal.new("0"),
+        allowance_used: Decimal.new("0"),
+        loss_pot_equities: Decimal.new("0"),
+        loss_pot_other: Decimal.new("0"),
+        loss_carryforward_prior_years: Decimal.new("0"),
+        withholding_tax_pot: Decimal.new("0"),
+        withholding_tax_credited: Decimal.new("0"),
+        capital_gains_tax_withheld: Decimal.new("95.00"),
+        solidarity_surcharge_withheld: Decimal.new("5.22"),
+        church_tax_withheld: Decimal.new("0")
+      },
+      today: today
+    )
+end
+
+# 17c. K11: ready to try, a merge whose two sides both closed trades. Each
+#      copy of Thornbury Water Fund bought 10 and sold 5; pooled into one
+#      queue, the target's May sale closes the source's older January lot
+#      (5 x 105 - 5 x 100 = +25 instead of 5 x 105 - 5 x 110 = -25), so the
+#      preview's fifo_realized states 2025 for both sides and a change of
+#      +50, in the realized result and the open lots' cost alike.
+if security_by_isin.("XS0000000165") == nil do
+  source = new_security.("Thornbury Water Fund", "XS0000000165", "EUR")
+  target = new_security.("Thornbury Water Fund", "XS0000000173", "EUR")
+  trade.(source, "buy", "10", "100.00", ~D[2025-01-06])
+  trade.(target, "buy", "10", "110.00", ~D[2025-02-03])
+  trade.(source, "sell", "5", "120.00", ~D[2025-04-07])
+  trade.(target, "sell", "5", "105.00", ~D[2025-05-05])
+end
+
+# 17d. K07: an income booking with no rate path to the base currency. A USD
+#      dividend on Harborline (step 15c) into the US Broker account of the
+#      EUR Demo Depot; the seed stores no USD rate (step 4), so the income
+#      report leaves it out of every total and names it under excluded.
+harborline_paid? =
+  harborline.id
+  |> Ledger.list_transactions_for_security()
+  |> Enum.any?(&(&1.type == "dividend"))
+
+unless harborline_paid? do
+  us_depot = depot_named.("US Depot")
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: us_depot.id,
+      cash_account_id: us_depot.cash_account_id,
+      security_id: harborline.id,
+      type: "dividend",
+      date: Date.add(today, -200),
+      quantity: "10",
+      gross_amount: "4.00",
+      currency_code: "USD"
+    })
+end
+
+# 17e. K09: a split held across two portfolios. Wexmoor Instruments AG is
+#      bought in the Demo Depot and in a second EUR portfolio, "Family
+#      Depot", then split 2:1: the split flow books one row in each, and
+#      both holdings double (20 and 12 shares), as does every open lot of
+#      the security's one FIFO queue.
+if find_security.("Wexmoor Instruments AG") == nil do
+  wexmoor = equity.("Wexmoor Instruments AG", "WXI")
+  trade.(wexmoor, "buy", "10", "40.00", Date.add(today, -400))
+
+  {:ok, family} =
+    Portfolios.create_portfolio(owner, %{name: "Family Depot", base_currency_code: "EUR"})
+
+  {:ok, family_cash} =
+    Portfolios.create_cash_account(owner, %{
+      portfolio_id: family.id,
+      name: "Family Cash",
+      currency_code: "EUR"
+    })
+
+  {:ok, family_depot} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: family.id,
+      cash_account_id: family_cash.id,
+      name: "Family Depot"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: family.id,
+      cash_account_id: family_cash.id,
+      type: "deposit",
+      date: Date.add(today, -390),
+      gross_amount: "500.00",
+      currency_code: "EUR"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: family.id,
+      securities_account_id: family_depot.id,
+      cash_account_id: family_cash.id,
+      security_id: wexmoor.id,
+      type: "buy",
+      date: Date.add(today, -380),
+      quantity: "6",
+      price: "41.00",
+      currency_code: "EUR"
+    })
+
+  {:ok, [_, _]} =
+    Splits.book_split(owner, %{
+      security_id: wexmoor.id,
+      date: Date.add(today, -200),
+      ratio_numerator: 2,
+      ratio_denominator: 1
+    })
+
+  {:ok, _} =
+    Catalog.upsert_quotes(owner, wexmoor.id, [
+      %{date: Date.add(today, -199), close: "20.40"},
+      %{date: today, close: "20.40"}
+    ])
+end
+
+IO.puts("Sprint 21 surfaces: an agent-named rule and statement, Thornbury, Wexmoor")
 
 IO.puts("review seed done (timber position: #{timber_state})")

@@ -16,9 +16,9 @@ defmodule Portfolixir.ReviewSeedTest do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Income
-  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Tax
   alias Portfolixir.Tax.StatementSnapshot
 
@@ -138,10 +138,10 @@ defmodule Portfolixir.ReviewSeedTest do
            "no USD income booking is excluded from the Demo Depot's income"
 
     # K09: one split row per portfolio, both holdings scaled.
-    fernhill = Repo.one!(from(s in Security, where: s.name == "Fernhill Instruments AG"))
+    wexmoor = Repo.one!(from(s in Security, where: s.name == "Wexmoor Instruments AG"))
 
     splits =
-      fernhill.id
+      wexmoor.id
       |> Ledger.list_transactions_for_security()
       |> Enum.filter(&(&1.type == "split"))
 
@@ -149,7 +149,7 @@ defmodule Portfolixir.ReviewSeedTest do
     assert splits |> Enum.map(& &1.portfolio_id) |> Enum.uniq() |> length() == 2
 
     held =
-      fernhill.id
+      wexmoor.id
       |> Ledger.holdings_for_security()
       |> Map.new(&{&1.portfolio.id, &1.quantity})
 
