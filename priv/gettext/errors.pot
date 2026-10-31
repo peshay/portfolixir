@@ -227,3 +227,53 @@ msgstr ""
 ## Portfolixir.Catalog.Security: a whole-number attribute typed at write (H37).
 msgid "%{key} must be a whole number"
 msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:66
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", a former name of cash account #%{holder_id} in this portfolio"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:76
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", a former name of securities account #%{holder_id} in this portfolio"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:61
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", the name of cash account #%{holder_id} in this portfolio"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:71
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", the name of securities account #%{holder_id} in this portfolio"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:50
+#, elixir-autogen, elixir-format
+msgid "is a former name of cash account #%{holder_id} (\"%{holder_name}\"): an import naming it books there. Remove it from that account's former names first"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:56
+#, elixir-autogen, elixir-format
+msgid "is a former name of securities account #%{holder_id} (\"%{holder_name}\"): an import naming it books there. Remove it from that account's former names first"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:33
+#, elixir-autogen, elixir-format
+msgid "is already the current ISIN of \"%{security_name}\" (security #%{security_id})"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:38
+#, elixir-autogen, elixir-format
+msgid "is recorded as a former ISIN of \"%{security_name}\" (security #%{security_id})"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:44
+#, elixir-autogen, elixir-format
+msgid "is recorded as a former ISIN of \"%{security_name}\" (security #%{security_id}); delete that alias or record an ISIN change instead"
+msgstr ""
+
+#: lib/portfolixir_web/named_record_refusal.ex:28
+#, elixir-autogen, elixir-format
+msgid "is still the current ISIN of \"%{security_name}\" (security #%{security_id})"
+msgstr ""

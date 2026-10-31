@@ -219,3 +219,53 @@ msgstr "wird bei „Saldo gesetzt“ und einem Split nie gesetzt"
 ## Portfolixir.Catalog.Security: a whole-number attribute typed at write (H37).
 msgid "%{key} must be a whole number"
 msgstr "%{key} muss eine ganze Zahl sein"
+
+#: lib/portfolixir_web/named_record_refusal.ex:66
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", a former name of cash account #%{holder_id} in this portfolio"
+msgstr "enthalten „%{former_name}“, einen früheren Namen von Verrechnungskonto #%{holder_id} in diesem Portfolio"
+
+#: lib/portfolixir_web/named_record_refusal.ex:76
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", a former name of securities account #%{holder_id} in this portfolio"
+msgstr "enthalten „%{former_name}“, einen früheren Namen von Depot #%{holder_id} in diesem Portfolio"
+
+#: lib/portfolixir_web/named_record_refusal.ex:61
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", the name of cash account #%{holder_id} in this portfolio"
+msgstr "enthalten „%{former_name}“, den Namen von Verrechnungskonto #%{holder_id} in diesem Portfolio"
+
+#: lib/portfolixir_web/named_record_refusal.ex:71
+#, elixir-autogen, elixir-format
+msgid "include \"%{former_name}\", the name of securities account #%{holder_id} in this portfolio"
+msgstr "enthalten „%{former_name}“, den Namen von Depot #%{holder_id} in diesem Portfolio"
+
+#: lib/portfolixir_web/named_record_refusal.ex:50
+#, elixir-autogen, elixir-format
+msgid "is a former name of cash account #%{holder_id} (\"%{holder_name}\"): an import naming it books there. Remove it from that account's former names first"
+msgstr "ist ein früherer Name von Verrechnungskonto #%{holder_id} („%{holder_name}“): Ein Import unter diesem Namen bucht dort. Zuerst aus den früheren Namen jenes Kontos entfernen"
+
+#: lib/portfolixir_web/named_record_refusal.ex:56
+#, elixir-autogen, elixir-format
+msgid "is a former name of securities account #%{holder_id} (\"%{holder_name}\"): an import naming it books there. Remove it from that account's former names first"
+msgstr "ist ein früherer Name von Depot #%{holder_id} („%{holder_name}“): Ein Import unter diesem Namen bucht dort. Zuerst aus den früheren Namen jenes Depots entfernen"
+
+#: lib/portfolixir_web/named_record_refusal.ex:33
+#, elixir-autogen, elixir-format
+msgid "is already the current ISIN of \"%{security_name}\" (security #%{security_id})"
+msgstr "ist bereits die aktuelle ISIN von „%{security_name}“ (Wertpapier #%{security_id})"
+
+#: lib/portfolixir_web/named_record_refusal.ex:38
+#, elixir-autogen, elixir-format
+msgid "is recorded as a former ISIN of \"%{security_name}\" (security #%{security_id})"
+msgstr "ist als frühere ISIN von „%{security_name}“ (Wertpapier #%{security_id}) erfasst"
+
+#: lib/portfolixir_web/named_record_refusal.ex:44
+#, elixir-autogen, elixir-format
+msgid "is recorded as a former ISIN of \"%{security_name}\" (security #%{security_id}); delete that alias or record an ISIN change instead"
+msgstr "ist als frühere ISIN von „%{security_name}“ (Wertpapier #%{security_id}) erfasst; diesen Alias löschen oder stattdessen einen ISIN-Wechsel erfassen"
+
+#: lib/portfolixir_web/named_record_refusal.ex:28
+#, elixir-autogen, elixir-format
+msgid "is still the current ISIN of \"%{security_name}\" (security #%{security_id})"
+msgstr "ist noch die aktuelle ISIN von „%{security_name}“ (Wertpapier #%{security_id})"

@@ -5005,7 +5005,25 @@ and the domain is unchanged.
   and the snapshot form also interpolate changeset messages by hand, and
   they print the raw field key in front of each ("name can't be blank").
   Translating the message alone would leave a half-German line, so they
-  wait for a story that gives their fields labels too.
+  wait for a story that gives their fields labels too. *Amended 2026-10-31
+  (issue 1191, Sprint 21 board `mockups/ux-design-2026-10-09/08-shared-copy`):*
+  the security merge dialog's refusal line now states the changeset as the
+  Imports page does (`FieldLabel.changeset_message/1`): the field by its
+  label, the message through the `errors` domain.
+- **The named-record refusals read German on the screen** *(issue 1191,
+  Sprint 21 γ8; H8.8, ADR-0054)*: the ten sentences
+  `PortfolixirWeb.NamedRecordRefusal` swaps in for a refusal that names
+  another security or account (a current or former ISIN, a former name)
+  are `errors` msgids with German translations, the record by kind and id
+  and its stored name as a binding: "Frühere Namen enthalten „Tagesgeld“,
+  einen früheren Namen von Verrechnungskonto #12 in diesem Portfolio"
+  (rename) and "Nichts wurde zusammengeführt: Eine Zeile ließ sich nicht
+  schreiben (Frühere ISIN ist als frühere ISIN von „Larkspur Rail AG“
+  (Wertpapier #31) erfasst). Erneut prüfen." (merge). Both dialogs name the
+  field by its label (`FieldLabel.label/1`), so a sentence never starts with
+  its verb ("include …") or a raw key ("former_isin"). The API and the MCP
+  companion keep the agent's English sentence: only the screen's path swaps
+  it.
 - **The account dialog's text fields are tied to their errors** (K13,
   board 07; UX-DR13's error association): each `.field-error` carries an
   id, and its field `aria-invalid` and `aria-describedby` naming it. A name

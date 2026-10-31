@@ -12,42 +12,72 @@ defmodule PortfolixirWeb.NamedRecordRefusal do
 
   The operator's screens keep the sentence they showed before, the stored
   name in it: `screen/1` swaps such a message for that sentence, for the
-  page's own renderer to fill from the same bindings. Any other message
-  passes through unchanged.
+  page's own renderer to translate through the `errors` domain and fill from
+  the same bindings (German since #1191). Any other message passes through
+  unchanged.
   """
 
-  @nouns ["cash account", "securities account"]
+  use Gettext, backend: PortfolixirWeb.Gettext
 
-  @sentences Map.merge(
-               %{
-                 "is still the current ISIN of security #%{security_id}" =>
-                   ~s|is still the current ISIN of "%{security_name}" (security #%{security_id})|,
-                 "is already the current ISIN of security #%{security_id}" =>
-                   ~s|is already the current ISIN of "%{security_name}" (security #%{security_id})|,
-                 "is recorded as a former ISIN of security #%{security_id}" =>
-                   ~s|is recorded as a former ISIN of "%{security_name}" (security #%{security_id})|,
-                 ("is recorded as a former ISIN of security #%{security_id}; delete that alias " <>
-                    "or record an ISIN change instead") =>
-                   ~s|is recorded as a former ISIN of "%{security_name}" (security #%{security_id}); | <>
-                     "delete that alias or record an ISIN change instead"
-               },
-               Map.new(
-                 for noun <- @nouns,
-                     {message, sentence} <- [
-                       {"is a former name of #{noun} #%{holder_id}: an import naming it books " <>
-                          "there. Remove it from that account's former names first",
-                        ~s|is a former name of #{noun} #%{holder_id} ("%{holder_name}"): an import | <>
-                          "naming it books there. Remove it from that account's former names first"},
-                       {"include the name of #{noun} #%{holder_id} in this portfolio",
-                        ~s|include "%{former_name}", the name of #{noun} #%{holder_id} in this | <>
-                          "portfolio"},
-                       {"include a former name of #{noun} #%{holder_id} in this portfolio",
-                        ~s|include "%{former_name}", a former name of #{noun} #%{holder_id} in | <>
-                          "this portfolio"}
-                     ],
-                     do: {message, sentence}
-               )
-             )
+  # The screen's sentences go through the `errors` domain with the page's
+  # other refusals, so they read German on the German screen (#1191, Sprint
+  # 21 board 08); the agent's sentences, the keys, stay untranslated. Written
+  # out, one per noun, for the extractor to see each msgid.
+  @sentences %{
+    "is still the current ISIN of security #%{security_id}" =>
+      dgettext_noop(
+        "errors",
+        ~s|is still the current ISIN of "%{security_name}" (security #%{security_id})|
+      ),
+    "is already the current ISIN of security #%{security_id}" =>
+      dgettext_noop(
+        "errors",
+        ~s|is already the current ISIN of "%{security_name}" (security #%{security_id})|
+      ),
+    "is recorded as a former ISIN of security #%{security_id}" =>
+      dgettext_noop(
+        "errors",
+        ~s|is recorded as a former ISIN of "%{security_name}" (security #%{security_id})|
+      ),
+    ("is recorded as a former ISIN of security #%{security_id}; delete that alias " <>
+       "or record an ISIN change instead") =>
+      dgettext_noop(
+        "errors",
+        ~s|is recorded as a former ISIN of "%{security_name}" (security #%{security_id}); delete that alias or record an ISIN change instead|
+      ),
+    ("is a former name of cash account #%{holder_id}: an import naming it books " <>
+       "there. Remove it from that account's former names first") =>
+      dgettext_noop(
+        "errors",
+        ~s|is a former name of cash account #%{holder_id} ("%{holder_name}"): an import naming it books there. Remove it from that account's former names first|
+      ),
+    ("is a former name of securities account #%{holder_id}: an import naming it books " <>
+       "there. Remove it from that account's former names first") =>
+      dgettext_noop(
+        "errors",
+        ~s|is a former name of securities account #%{holder_id} ("%{holder_name}"): an import naming it books there. Remove it from that account's former names first|
+      ),
+    "include the name of cash account #%{holder_id} in this portfolio" =>
+      dgettext_noop(
+        "errors",
+        ~s|include "%{former_name}", the name of cash account #%{holder_id} in this portfolio|
+      ),
+    "include a former name of cash account #%{holder_id} in this portfolio" =>
+      dgettext_noop(
+        "errors",
+        ~s|include "%{former_name}", a former name of cash account #%{holder_id} in this portfolio|
+      ),
+    "include the name of securities account #%{holder_id} in this portfolio" =>
+      dgettext_noop(
+        "errors",
+        ~s|include "%{former_name}", the name of securities account #%{holder_id} in this portfolio|
+      ),
+    "include a former name of securities account #%{holder_id} in this portfolio" =>
+      dgettext_noop(
+        "errors",
+        ~s|include "%{former_name}", a former name of securities account #%{holder_id} in this portfolio|
+      )
+  }
 
   @doc """
   The screen's message for a changeset error: the sentence the screen showed

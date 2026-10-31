@@ -38,9 +38,9 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
   alias Portfolixir.Lifecycle.Delete
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
-  alias PortfolixirWeb.NamedRecordRefusal
   alias PortfolixirWeb.Securities.MergePreview
   alias PortfolixirWeb.StoredText
 
@@ -616,18 +616,10 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
     )
   end
 
-  # #965: a refusal that names another security keeps the dialog's sentence.
-  defp changeset_errors(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn error ->
-      {message, opts} = NamedRecordRefusal.screen(error)
-
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.map_join("; ", fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
-  end
+  # #965: a refusal that names another security keeps the dialog's sentence;
+  # #1191: through the `errors` domain, the field named by its label, never
+  # by its key ("former_isin").
+  defp changeset_errors(changeset), do: FieldLabel.changeset_message(changeset)
 
   # -- copy -------------------------------------------------------------------------
 
