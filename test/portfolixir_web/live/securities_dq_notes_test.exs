@@ -8,7 +8,9 @@ defmodule PortfolixirWeb.SecuritiesDqNotesTest do
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
-  import Portfolixir.WorldFixtures, only: [base_world: 0, buy!: 3, put_quote!: 3]
+
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 0, base_world: 1, buy!: 3, create_security!: 1, put_quote!: 3, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -204,5 +206,135 @@ defmodule PortfolixirWeb.SecuritiesDqNotesTest do
 
     assert block(".workspace-panel > .dq-bulk-action") =~
              ~r/margin:\s*12px clamp\(14px, 2\.2vw, 24px\) 0;/
+  end
+
+  # User story (#1112, Sprint 21 γ2; board 02, pick N7 A): As the operator
+  # opening a bond whose stored quotes are around 1 beside bookings around
+  # 100, I want its Overview to say so above the figures it falsifies and
+  # link to its Quotes tab, so that "Wert 98,10" and a five-figure
+  # unrealised loss do not stand there with no word.
+  #
+  # Acceptance criteria:
+  # - A problem note in the Overview's W1 slot, above the six figures
+  #   (`data-role="two-scales-reverse-note"`), with W1's anatomy: the bold
+  #   lead, the facts, the consequence and remedy, the link "Kurse" to the
+  #   Quotes tab.
+  # - The latest quote and the latest booking in the band, as stored
+  #   ("0,981", "98,4"), each with its date.
+  # - The forward note does not render, nor the implausible-quote note: a
+  #   security on two scales is left to that finding, so W1 holds one note.
+  test "a reverse two-scales bond's Overview carries its own note, linking to Kurse",
+       %{conn: conn} do
+    world = base_world()
+    quoted_on = Clock.today()
+
+    brackwater = bond!(%{name: "Brackwater Anleihe 2031 2,50%", isin: "DE000000000B"})
+    buy!(world, brackwater, quantity: "100", price: "98.4", date: ~D[2026-03-12])
+    # A quote on the booking's day would trip the implausible-quote guard
+    # too; the two-scales finding names the cause, so it alone is shown.
+    put_quote!(brackwater, ~D[2026-03-12], "0.98")
+    put_quote!(brackwater, quoted_on, "0.981")
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{brackwater.id}")
+
+    assert has_element?(
+             view,
+             ~s(#detail-tab-panel-overview > [data-role="two-scales-reverse-note"].data-note--problem)
+           )
+
+    assert text(view, ~s([data-role="two-scales-reverse-note"])) =~
+             "Auf zwei Skalen bepreist: Kurse um 1 (zuletzt 0,981 am #{PortfolixirWeb.Format.date(quoted_on, "de")}), " <>
+               "gebuchter Preis je Stück um 100 (1 Buchung: 98,4 am 12.03.2026). " <>
+               "Dann zählen Wert, Gewinn und Gewicht hundertfach zu niedrig. " <>
+               "Die gespeicherten Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert: Kurse"
+
+    assert has_element?(
+             view,
+             ~s([data-role="two-scales-reverse-note"] a[href="/securities/#{brackwater.id}?tab=quotes"]),
+             "Kurse"
+           )
+
+    # The note sits above the figures it concerns.
+    panel = view |> element("#detail-tab-panel-overview") |> render()
+
+    assert :binary.match(panel, "two-scales-reverse-note") <
+             :binary.match(panel, "overview-metrics")
+
+    refute has_element?(view, ~s([data-role="two-scales-note"]))
+    refute has_element?(view, ~s([data-role="implausible-quote-note"]))
+  end
+
+  # The board's Arbolia: held, sold 03.04.2026 at 61,40 USD with no quote
+  # that day and 618,90 the day before.
+  defp arbolia! do
+    usd = base_world(name: "USD Depot", currency: "USD")
+    arbolia = create_security!(name: "Arbolia Inc.", ticker: "ARBL", currency: "USD")
+    buy!(usd, arbolia, quantity: "50", price: "58.20", currency: "USD", date: ~D[2025-11-03])
+    sell!(usd, arbolia, quantity: "10", price: "61.40", currency: "USD", date: ~D[2026-04-03])
+    put_quote!(arbolia, ~D[2026-04-02], "618.90")
+    put_quote!(arbolia, Clock.today(), "619.40")
+    {usd, arbolia}
+  end
+
+  # User story (#1112's widening of 2026-10-08, Sprint 21 γ2; board 02, pick
+  # N7 A): As the operator opening a held security whose quotes contradict
+  # its own bookings, I want its Overview to name the booking and the quote
+  # and link to Kurse and Transaktionen, so that a "+22.320,00" that is
+  # wrong is not read as a gain on the tab a security opens on.
+  #
+  # Acceptance criteria:
+  # - A problem note in the W1 slot (`data-role="implausible-quote-note"`):
+  #   the bold lead, Wealth's entry ("Verkauf 03.04.2026 zu 61,4 USD · Kurs
+  #   02.04.2026: 618,9 USD, das 10,08-Fache"), the rule, the consequence,
+  #   the remedy, then the links Kurse · Transaktionen, Kurse first.
+  # - With more than one booking outside the band it names the latest and
+  #   how many ("2 Buchungen, zuletzt: …").
+  # - A security whose quotes agree with its bookings carries no note.
+  test "an implausible quote is named on the security's Overview, Kurse before Transaktionen",
+       %{conn: conn} do
+    {usd, arbolia} = arbolia!()
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{arbolia.id}")
+
+    assert has_element?(
+             view,
+             ~s(#detail-tab-panel-overview > [data-role="implausible-quote-note"].data-note--problem)
+           )
+
+    assert text(view, ~s([data-role="implausible-quote-note"])) =~
+             "Kurs passt nicht zu den Buchungen: Verkauf 03.04.2026 zu 61,4 USD · " <>
+               "Kurs 02.04.2026: 618,9 USD, das 10,08-Fache " <>
+               "(am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück). " <>
+               "Wert oder Einstand dieser Position ist daher falsch. " <>
+               "Die Kursquelle prüfen (Ticker, Börse), dann die Buchung: Kurse · Transaktionen"
+
+    links =
+      view
+      |> element(~s([data-role="implausible-quote-note"]))
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.attribute("a", "href")
+
+    assert links == [
+             "/securities/#{arbolia.id}?tab=quotes",
+             "/securities/#{arbolia.id}?tab=transactions"
+           ]
+
+    # A second booking outside the band: the note names the latest and the
+    # count.
+    buy!(usd, arbolia, quantity: "5", price: "60", currency: "USD", date: ~D[2026-04-02])
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{arbolia.id}")
+
+    assert text(view, ~s([data-role="implausible-quote-note"])) =~
+             "Kurs passt nicht zu den Buchungen: 2 Buchungen, zuletzt: Verkauf 03.04.2026 zu 61,4 USD"
+
+    # Quotes that agree with the bookings: no note.
+    larkspur = create_security!(name: "Larkspur Rail AG", ticker: "LKR")
+    buy!(base_world(), larkspur, quantity: "29", price: "33.20", date: ~D[2026-03-02])
+    put_quote!(larkspur, ~D[2026-03-02], "33.10")
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{larkspur.id}")
+    refute has_element?(view, ~s([data-role="implausible-quote-note"]))
   end
 end
