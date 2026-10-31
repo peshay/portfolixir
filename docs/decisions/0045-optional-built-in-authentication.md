@@ -218,3 +218,20 @@ still binds loopback unless told otherwise.
 | Should authentication cover the API too? | **Answered, no:** the bearer tokens stay the agent's credential (§3). |
 | Multi-user, roles, per-portfolio access? | **Deferred, with reason:** NFR-6 says one operator; the parking lot (#340) holds multi-user as a vision item, and nothing in this review needs it. |
 | Should the UI password gate Phase 3 credential storage? | **Deferred to the Phase 3 ADR:** this ADR discharges the precondition; how Phase 3 uses it is that ADR's to say. |
+
+## Note (2026-10-31): the claims pinned, and one sentence narrowed (security review 2026-10-12, H25)
+
+Nothing above changes; this note records what the code does where the
+record's words reach further, and which tests now hold its claims.
+
+- **"One new test family in the invariant suite"** (Consequences) is wider
+  than what shipped: the Host guard, the cookie attributes and the socket
+  mount are tested beside the modules they exercise
+  (`test/portfolixir_web/host_guard_test.exs`, `session_hardening_test.exs`,
+  `ui_auth_test.exs`), not under `test/invariants/`. `mix test` runs both,
+  so the guarantee is the same; only the location differs.
+- **Pinned since:** the LiveView signing salt a release derives from
+  `SECRET_KEY_BASE` (§2; `live_socket_origin_test.exs`), the password absent
+  from the log at debug level on a right and a wrong login (§1), and the API
+  refusing a logged-in session without a bearer token and the UI password as
+  a bearer token (§1, §3; `ui_auth_boundaries_test.exs`).

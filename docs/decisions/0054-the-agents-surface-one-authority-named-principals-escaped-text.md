@@ -240,3 +240,11 @@ is withdrawn.
   standardized variant), not only in a run. A security's name, and the
   import's lookalike skeleton, drop every default-ignorable code point; the
   skeleton reads a Hangul filler as the space it renders as.
+
+## Note (2026-10-31): a principal's name starts with a letter or a digit (security review 2026-10-12, H25)
+
+§3's "a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`" is wider
+than the code, which also requires the first character to be a letter or a
+digit (`Portfolixir.RuntimeConfig`, pinned by `api_token_policy_test.exs`):
+`-x` and `_x` are refused at boot. The rule is the stricter one; §3 is read
+with it.
