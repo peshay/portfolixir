@@ -90,7 +90,9 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
             phx-change="validate_logo_upload"
             phx-drop-target={@upload.ref}
           >
-            <span class="logo-override__label"><%= gettext("Image file") %></span>
+            <%!-- The field's name labels the input; the chooser below is its
+                 second label, so the input reads "Image file, Choose image…". --%>
+            <label for={@upload.ref} class="logo-override__label"><%= gettext("Image file") %></label>
             <label for={@upload.ref} class="logo-override__choose">
               <AppShell.icon name={:upload} size={14} />
               <span><%= gettext("Choose image…") %></span>
