@@ -12716,8 +12716,8 @@ msgstr "Über Datum und Beträge gefunden: Portfolio Performance schreibt diese 
 #, elixir-autogen, elixir-format
 msgid "It was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgid_plural "They were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Gebucht ist, wie eine frühere Version des Imports ihre Zeile las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
+msgstr[1] "Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
 
 #: lib/portfolixir_web/live/imports_live.ex:2259
 #, elixir-autogen, elixir-format
@@ -12738,50 +12738,50 @@ msgstr "Bei %{account} nimmt der gesetzte Saldo vom %{date} die %{amount} auf: S
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from this file and stays as it is; its line says why."
 msgid_plural "%{count} bookings already imported differ from this file and stay as they are; each line says why."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine bereits importierte Buchung weicht von dieser Datei ab und bleibt, wie sie ist; die Zeile nennt den Grund."
+msgstr[1] "%{count} bereits importierte Buchungen weichen von dieser Datei ab und bleiben, wie sie sind; jede Zeile nennt den Grund."
 
 #: lib/portfolixir_web/live/imports_live.ex:2188
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from this file."
 msgid_plural "%{count} bookings already imported differ from this file."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine bereits importierte Buchung weicht von dieser Datei ab."
+msgstr[1] "%{count} bereits importierte Buchungen weichen von dieser Datei ab."
 
 #: lib/portfolixir_web/live/imports_live.ex:2203
 #, elixir-autogen, elixir-format
 msgid "One stays as it is; its line says why."
 msgid_plural "%{count} stay as they are; each line says why."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine bleibt, wie sie ist; die Zeile nennt den Grund."
+msgstr[1] "%{count} bleiben, wie sie sind; jede Zeile nennt den Grund."
 
 #: lib/portfolixir_web/live/imports_live.ex:2247
 #, elixir-autogen, elixir-format
 msgid "One stored booking matches"
 msgid_plural "%{count} stored bookings match"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine gespeicherte Buchung passt"
+msgstr[1] "%{count} gespeicherte Buchungen passen"
 
 #: lib/portfolixir_web/live/imports_live.ex:2158
 #, elixir-autogen, elixir-format
 msgid "The one booking the step corrects, together %{total}: %{accounts}."
 msgid_plural "The %{count} bookings the step corrects, together %{total}: %{accounts}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Die eine Buchung, die der Schritt korrigiert, zusammen %{total}: %{accounts}."
+msgstr[1] "Die %{count} Buchungen, die der Schritt korrigiert, zusammen %{total}: %{accounts}."
 
 #: lib/portfolixir_web/live/imports_live.ex:2640
 #, elixir-autogen, elixir-format
 msgid "The other line of the list stays as it is."
 msgid_plural "The other %{count} lines of the list stay as they are."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Der übrige Eintrag der Liste bleibt, wie er ist."
+msgstr[1] "Die %{count} übrigen Einträge der Liste bleiben, wie sie sind."
 
 #: lib/portfolixir_web/live/imports_live.ex:2193
 #, elixir-autogen, elixir-format
 msgid "The step below corrects one of them:"
 msgid_plural "The step below corrects %{count} of them:"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine davon korrigiert der Schritt unten:"
+msgstr[1] "%{count} davon korrigiert der Schritt unten:"
 
 #: lib/portfolixir_web/live/imports_live.ex:2317
 #, elixir-autogen, elixir-format
