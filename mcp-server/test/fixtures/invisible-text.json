@@ -210,6 +210,11 @@
       "input": "cap \u2229\ufe00",
       "escaped": "cap \u2229\ufe00",
       "count": 0
+    },
+    {
+      "input": "\u3001\ufe00 and \uff01\ufe01 and \u201c\ufe00quoted\u201d\ufe01",
+      "escaped": "\u3001\ufe00 and \uff01\ufe01 and \u201c\ufe00quoted\u201d\ufe01",
+      "count": 0
     }
   ]
 }
