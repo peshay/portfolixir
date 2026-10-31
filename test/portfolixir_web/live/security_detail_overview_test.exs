@@ -92,11 +92,14 @@ defmodule PortfolixirWeb.SecurityDetailOverviewTest do
       html = panel(view)
 
       # 10 shares bought at 100, priced at 110: 1,100.00 value, +100.00 (+10 %).
+      # #1201 (Sprint 21 γ2, board 02 ⑦) flips the percent on purpose to
+      # DESIGN.md's form: one decimal, the sign glued on, no space.
       assert html =~ "10.0000"
       assert html =~ "Main Depot"
       assert html =~ "1,100.00"
       assert html =~ "+100.00"
-      assert html =~ "+10.00 %"
+      assert html =~ "+10.0%"
+      refute html =~ "+10.00 %"
 
       # The unrealised figure states what it is measured against.
       unrealised = view |> element(~s([data-role="overview-unrealised"])) |> render()
@@ -307,5 +310,122 @@ defmodule PortfolixirWeb.SecurityDetailOverviewTest do
     assert html =~ "Wert"
     assert html =~ "Unrealisiert"
     assert render(view) =~ "Bearbeiten"
+  end
+
+  # A security whose day change is a fraction of a basis point: 1,000.00
+  # yesterday, 1,000.04 today (+0.004 %), and 800.00 a year and more ago,
+  # when ten units were bought (+25.005 % over the year and on cost).
+  defp flat_day_world do
+    world = WorldFixtures.base_world()
+    today = Portfolixir.Clock.today()
+
+    security =
+      WorldFixtures.create_security!(
+        name: "Larkspur Rail AG",
+        ticker: "LKRL",
+        isin: "DE000000000L",
+        asset_class: "equity"
+      )
+
+    WorldFixtures.deposit!(world, "10000", Date.add(today, -400))
+    WorldFixtures.buy!(world, security, quantity: "10", price: "800", date: Date.add(today, -400))
+
+    WorldFixtures.put_quotes!(security, [
+      {Date.add(today, -400), "800.00"},
+      {Date.add(today, -1), "1000.00"},
+      {today, "1000.04"}
+    ])
+
+    %{world: world, security: security}
+  end
+
+  defp figure(view, role) do
+    view
+    |> element(~s([data-role="#{role}"]))
+    |> render()
+    |> Floki.parse_fragment!()
+  end
+
+  defp class_of(fragment, selector) do
+    fragment |> Floki.find(selector) |> Floki.attribute("class") |> List.first("")
+  end
+
+  # User story (#1201, Sprint 21 γ2; board 02, ⑦): As the operator reading a
+  # security's Overview tab, I want its percentages in the app's one percent
+  # form, coloured by the figure as shown, so that a day change of +0,0041 %
+  # no longer prints "0,00 %" in the gain colour and the tab reads as the
+  # Holdings and Trades tabs do.
+  #
+  # Acceptance criteria:
+  # - Tagesänderung and 1J print one decimal with the sign glued on and no
+  #   space ("0,0%", "+25,0%"); a percent that rounds to 0,0 is unsigned and
+  #   in body ink (`is-flat`), never in the gain colour.
+  # - Unrealisiert keeps its amount at two places, coloured by the amount as
+  #   shown; its sub-line's percent ("+25,0%") is a `decimal-positive` /
+  #   `decimal-negative` span inside the muted line.
+  test "the Overview's percentages read one decimal, the sign glued on, coloured as shown",
+       %{conn: conn} do
+    %{security: security} = flat_day_world()
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?locale=de")
+
+    day = figure(view, "overview-day-change")
+    assert day |> Floki.find("dd") |> Floki.text() |> String.trim() == "0,0%"
+    assert class_of(day, "dd") =~ "is-flat"
+    refute class_of(day, "dd") =~ "is-positive"
+
+    one_y = figure(view, "overview-1y")
+    assert one_y |> Floki.find("dd") |> Floki.text() =~ "+25,0%"
+    assert class_of(one_y, "dd") =~ "is-positive"
+
+    unrealised = figure(view, "overview-unrealised")
+    assert unrealised |> Floki.find("dd") |> Floki.text() =~ "+2.000,40"
+    assert class_of(unrealised, "dd") =~ "is-positive"
+
+    assert ["+25,0%"] ==
+             unrealised
+             |> Floki.find(".overview-metric__sub span.decimal-positive")
+             |> Enum.map(&Floki.text/1)
+
+    refute Floki.raw_html(unrealised) =~ " %"
+  end
+
+  # User story (#1201, Sprint 21 γ2; board 02, ⑦ and found while drawing 4):
+  # As the operator scanning the securities list, I want its Tagesänderung %,
+  # Performance 1M and Performance 1J columns and the phone row's day change
+  # in the same percent form and colour rule as the Overview tab, so that no
+  # list cell keeps the retired "+0,42 %" form.
+  #
+  # Acceptance criteria:
+  # - The three percent columns print one decimal with the sign glued on;
+  #   a percent that rounds to 0,0 is unsigned and `is-flat`.
+  # - The phone row's day change takes the same form and colour.
+  test "the list's percent columns and the phone row's day change take the same form",
+       %{conn: conn} do
+    %{security: security} = flat_day_world()
+
+    {:ok, view, _html} = live(conn, "/securities?locale=de")
+
+    view
+    |> element("#securities-table")
+    |> render_hook("set_columns", %{
+      "columns" => ["name", "day_change_pct", "performance_1m", "performance_1y"]
+    })
+
+    row = view |> element("#security-row-#{security.id}") |> render() |> Floki.parse_fragment!()
+
+    cells =
+      row
+      |> Floki.find("td.num span")
+      |> Enum.map(&{String.trim(Floki.text(&1)), &1 |> Floki.attribute("class") |> List.first()})
+
+    assert {"0,0%", "is-flat"} in cells
+    assert {"+25,0%", "decimal-positive"} in cells
+    refute Floki.raw_html(row) =~ " %"
+
+    phone = figure(view, "phone-row")
+    change = Floki.find(phone, ".phone-row__figure2 span")
+    assert change |> Floki.text() |> String.trim() == "0,0%"
+    assert change |> Floki.attribute("class") |> List.first() == "is-flat"
   end
 end
