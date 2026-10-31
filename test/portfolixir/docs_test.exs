@@ -2040,21 +2040,22 @@ defmodule Portfolixir.DocsTest do
   #
   # Acceptance criteria:
   # - Beside the refusal's remedy, the negative-tax section says that such a
-  #   row imported before says it is already imported and cannot be
-  #   corrected here, not to enter it again, and that its correction is
-  #   still open (#1193).
+  #   row imported before says it is already imported and points to its
+  #   line under "Already imported, with a different amount" (#1193, Sprint
+  #   21 α7, board ux-design-2026-10-09/07-imports ①), and not to enter it
+  #   again.
   test "the handbook says a refused row already imported is not entered again" do
     for {path, fragment} <- [
           {"docs/product-documentation.md",
            "If such a row was imported before Portfolixir refused it, its warning says " <>
-             "instead that it is already imported and cannot be corrected here, as its cash " <>
-             "would be 0 or less: do not enter it again; how such a booking is corrected is " <>
-             "still an open question (issue #1193)."},
+             "instead that it is already imported and points to its line under \"Already " <>
+             "imported, with a different amount\", where its figures and the remedy by hand " <>
+             "stand (see below): do not enter it again."},
           {"docs/de/product-documentation.md",
            "Wurde eine solche Zeile importiert, bevor Portfolixir sie zurückwies, sagt ihre " <>
-             "Warnung stattdessen, dass sie bereits importiert ist und hier nicht korrigiert " <>
-             "werden kann, da die Gutschrift 0 oder weniger wäre: nicht noch einmal erfassen; " <>
-             "wie eine solche Buchung korrigiert wird, ist noch offen (Issue #1193)."}
+             "Warnung stattdessen, dass sie bereits importiert ist, und verweist auf ihre " <>
+             "Zeile unter „Bereits importiert, mit anderem Betrag“, wo ihre Beträge und die " <>
+             "Abhilfe von Hand stehen (siehe unten): nicht noch einmal erfassen."}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
       assert doc =~ fragment, "#{path}: #{fragment}"

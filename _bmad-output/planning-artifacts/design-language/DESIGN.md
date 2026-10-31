@@ -6611,6 +6611,20 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
     korrigieren., and **Eintrag N beansprucht dieselbe Buchung** — bleibt,
     wie es ist. A refused booking edited by hand reads as edited. On a phone
     row the state is the row's last child and spans it.
+  - *Amended 2026-10-31 (Sprint 21 follow-up; ADR-0053 A9, A10, and its
+    note of 2026-10-31 under A12):* a refused line gives the remedy of the
+    rule that refused its row — A5's sale and booking, A8's transfer and
+    delivery, and A9's fee refund beside a tax refund: **Nicht automatisch
+    korrigierbar** — bleibt, wie es ist: Eine Gebührenerstattung bucht der
+    Import noch nicht, die Gebühren des Verkaufs bleiben also wie
+    gespeichert bei 7,00. In der Historie von Hand richtigstellen: den
+    Verkauf auf 95,00 ändern; die Steuererstattung ist schon gebucht. („der
+    Buchung“ / „die Buchung“ for any other kind.) A refused booking on whose
+    every account the stored figure agrees with the file is not listed (an
+    A9 row without a negative tax). A booking entered by hand (a create by
+    any actor other than the importer) that a row's figures match reads
+    **Seit dem Import von Hand geändert** with the date of its entry, not
+    confirmable.
   - **"Von Hand"** means any journal actor other than the importer and the
     correction itself — an API token included (board 07, found while
     drawing 11); a backfill's settlement legs, a merge's re-pointing and a
@@ -6642,10 +6656,33 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
     wrap; it scrolls only when even its min-content does not fit (board 07,
     found while drawing 1). The price stays in the detail lines; no „Kurs“
     column.
-  - **What does not change:** the parser warning of a stored refused row
-    keeps its 2026-10-08 sentence ("already imported … cannot be corrected
-    here"); the board's pointer to the section is not built (see the
-    sprint's findings).
+  - **The parser warning of a stored refused row** *(amended 2026-10-31,
+    the board's pointer built)*: when the section lists its stored booking
+    (a live booking holds the row's hash and a cash account's figure
+    differs), the warning keeps the refusal's figures and ends „— bereits
+    importiert; aufgeführt unter „Bereits importiert, mit anderem Betrag“.“
+    (EN "— already imported; listed under “Already imported, with a
+    different amount”."). A hash a merge retired, or an A9 row no account
+    differs on, keeps its 2026-10-08 sentence ("already imported … cannot
+    be corrected here"): there is no line to point to.
+  - **Deviations from board 07, with their reasons** *(recorded 2026-10-31)*:
+    - **A price-only line keeps its confirm** (against found while drawing
+      5, which made it always a kept line). ADR-0053 K22 wins: a JSON
+      trade whose stored price differs from the file's is listed with a
+      confirm unless its journal names a hand edit, whether its cash
+      differs or agrees, and the confirm then writes the price alone. The
+      board assumed only a hand edit separates a JSON trade's cash from its
+      price (A2 derives one from the other); a booking stored with the
+      file's cash but the old price and no other actor's edit is the case
+      K22 pins, and the identities are the acceptance tests.
+    - **The absorbing set balance is the latest, not the first** (against
+      ⑧'s "the first set balance on or after its earliest corrected
+      booking"). `Correction.absorbing_balances/1` names, per account, its
+      latest set balance dated on or after a corrected booking: the balance
+      the account shows is read from its latest anchor (ADR-0009), so the
+      latest one is what keeps it where it is; an earlier set balance no
+      longer holds it, and naming that one would name a figure the account
+      no longer reads from.
 
 ## Amendment 2026-10-08 — A return on no cost basis, and the percent cells it changes *(Sprint 20 board `mockups/ux-design-2026-10-07/02-money-findings`, before/after; issue 1142, PR β B3; the board's found-while-drawing 4, 9, 10 and 11)*
 

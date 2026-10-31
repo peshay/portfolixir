@@ -3144,45 +3144,49 @@ Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gege
 Gib den Zeilen Datum, Wertpapier, Stückzahl und Konten der zurückgewiesenen
 Zeile, lege die Datei wie einen Export ab und ordne ihr Depot und ihr
 Verrechnungskonto denen zu, auf denen der Verkauf bucht. Wurde eine solche
-Zeile importiert, bevor Portfolixir sie zurückwies, sagt ihre Warnung stattdessen, dass sie bereits importiert ist
-und hier nicht korrigiert werden kann, da die Gutschrift 0 oder weniger wäre:
-nicht noch einmal erfassen; wie eine solche Buchung korrigiert wird, ist noch
-offen (Issue #1193).
+Zeile importiert, bevor Portfolixir sie zurückwies, sagt ihre Warnung
+stattdessen, dass sie bereits importiert ist, und verweist auf ihre Zeile
+unter „Bereits importiert, mit anderem Betrag“, wo ihre Beträge und die
+Abhilfe von Hand stehen (siehe unten): nicht noch einmal erfassen.
 
 **Eine Lieferung oder Umbuchung mit Steuererstattung.** Eine negative Steuer
 auf einer Ein- oder Auslieferung, einer Wertpapierumbuchung oder einer
 Umbuchung wird mit einer Parser-Warnung ausgelassen, in jedem Format, und der
-Rest der Datei wird importiert. Eine Lieferung oder Wertpapierumbuchung
-bewegt kein Geld, die Erstattung hätte also kein Konto; eine Umbuchung bewegt
-ihr Geld zwischen zwei Konten, und eine von ihr abgespaltene Erstattung
-landete nur auf einer Seite, das empfangende Konto um die Erstattung zu
-hoch. Portfolio Performance bewegt für eine Lieferung kein Geld und für eine
+Rest der Datei wird importiert. Eine Lieferung oder Wertpapierumbuchung bewegt
+kein Geld, die Erstattung hätte also kein Konto; eine Umbuchung bewegt ihr
+Geld zwischen zwei Konten, und eine von ihr abgespaltene Erstattung landete
+nur auf einer Seite, das empfangende Konto um die Erstattung zu hoch.
+Portfolio Performance bewegt für eine Lieferung kein Geld und für eine
 Umbuchung nur ihren Betrag. Die Warnung nennt die Zeile und was zu tun ist:
 die Lieferung oder Umbuchung ohne die Erstattung von Hand buchen (eine
 Umbuchung mit dem Betrag, den Portfolio Performance als bewegt zeigt, dem
 `Gesamtpreis` einer CSV-Zeile oder dem `amount` einer JSON-Zeile) und, nur
 wenn Geld geflossen ist, das als eigene Steuererstattung. Bisher ließ eine
 solche Lieferung die ganze Datei beim Bestätigen scheitern. Eine so früher
-importierte Umbuchung sagt stattdessen, dass sie bereits importiert ist und
-hier nicht korrigiert werden kann: nicht noch einmal buchen.
+importierte Umbuchung sagt stattdessen, dass sie bereits importiert ist, und
+verweist auf ihre Zeile unter „Bereits importiert, mit anderem Betrag“: nicht
+noch einmal buchen.
 
 **Eine Gebührenerstattung.** Eine JSON-Zeile mit einer negativen Gebühr wird
 mit einer Parser-Warnung ausgelassen, bis Portfolixir eine Art für eine
 erstattete Gebühr hat (Issue #1177). Die Warnung nennt die erstattete Gebühr
 und die Gebühren abzüglich der Erstattung, die Nettogebühr, die Portfolio
 Performance zeigt: die Zeile mit dieser Nettogebühr von Hand buchen, mit dem
-Geldbetrag, den Portfolio Performance zeigt. Ist die Erstattung größer als
-die Gebühren, läge die Nettogebühr unter null, was das Hauptbuch ablehnt: die
+Geldbetrag, den Portfolio Performance zeigt. Ist die Erstattung größer als die
+Gebühren, läge die Nettogebühr unter null, was das Hauptbuch ablehnt: die
 Warnung nennt dann den Geldbetrag, den `amount` als Gesamtpreis, ohne Gebühr
-zu buchen. Bisher zählte der Import die
-erstattete Gebühr zu den Gebühren: ein solcher Kauf buchte seinen Geldbetrag
-richtig, aber eine zu hohe Gebühr und einen zu niedrigen Kurs. Eine so früher
-importierte Zeile sagt, dass sie bereits importiert ist, und nennt ihre
-gespeicherten Gebühren, die vorerst bleiben, wie sie sind. Eine CSV ist nicht
-betroffen: die `Gebühren` von Portfolio Performance verrechnen die
-Gebührenposten, eine Zeile, deren Posten unter null fallen, scheitert also an
-der `Gesamtpreis`-Prüfung oben, und eine negative `Gebühren` eines Konverters
-gilt als ihre Gebühr.
+zu buchen. Bisher zählte der Import die erstattete Gebühr zu den Gebühren: ein
+solcher Kauf buchte seinen Geldbetrag richtig, aber eine zu hohe Gebühr und
+einen zu niedrigen Kurs. Eine so früher importierte Zeile sagt, dass sie
+bereits importiert ist, und nennt ihre gespeicherten Gebühren, die vorerst
+bleiben, wie sie sind. Nur wenn dieselbe Zeile auch eine negative Steuer
+trägt, weicht ein gespeicherter Kontobetrag ab: Die Zeile steht dann unter
+„Bereits importiert, mit anderem Betrag“, ihre Warnung verweist dorthin, und
+ihre Abhilfe setzt den Betrag der Buchung von Hand und lässt ihre Gebühren.
+Eine CSV ist nicht betroffen: die `Gebühren` von Portfolio Performance
+verrechnen die Gebührenposten, eine Zeile, deren Posten unter null fallen,
+scheitert also an der `Gesamtpreis`-Prüfung oben, und eine negative `Gebühren`
+eines Konverters gilt als ihre Gebühr.
 
 Eine Historie, die importiert wurde, bevor Portfolixir die Erstattung aus
 ihrer Buchung nahm, hat eine solche Erstattung doppelt gezählt, neben einer
@@ -3612,16 +3616,22 @@ Buchung, warum:
 - **Nicht automatisch korrigierbar** — eine gespeicherte Buchung, deren Zeile
   die Vorschau jetzt ablehnt (ein Verkauf, dem nach der abgespaltenen
   Steuererstattung nichts bliebe, eine Umbuchung oder Einlieferung mit
-  Steuererstattung): Die Zeile zeigt je Verrechnungskonto die Buchung und die
-  Erstattung daneben, wie gespeichert, gegen das, was die Datei bewegt, und
-  die Abhilfe von Hand in der Historie. Was die Zeile buchen würde, kann das
-  Ledger nicht speichern, und die Korrektur löscht nie eine Buchung.
+  Steuererstattung, eine Gebührenerstattung neben einer Steuererstattung):
+  Die Zeile zeigt je Verrechnungskonto die Buchung und die Erstattung
+  daneben, wie gespeichert, gegen das, was die Datei bewegt, und die Abhilfe
+  von Hand in der Historie, die zum Grund der Ablehnung passt (die einer
+  Gebührenerstattung lässt die Gebühren wie gespeichert). Was die Zeile
+  buchen würde, kann das Ledger nicht speichern, und die Korrektur löscht nie
+  eine Buchung. Eine abgelehnte Buchung, deren gespeicherter Betrag auf jedem
+  Konto mit der Datei übereinstimmt, steht nicht in der Liste.
 - **Seit dem Import von Hand geändert** (mit dem Datum) — eine Buchung, deren
   Betrag, Kurs, Stückzahl, Gebühren oder Steuern du oder ein Agent nach dem
   Import geändert habt, wie das Audit-Journal es festhält: Sie bleibt, wie du
   sie gemacht hast, und die Zeile nennt, was die Datei sagt. Die
   Abrechnungsbeine aus dem Backfill, die Umhängung bei einer Zusammenführung
-  und eine Notiz sind keine solche Änderung.
+  und eine Notiz sind keine solche Änderung. Eine Buchung, die du oder ein
+  Agent von Hand erfasst habt und zu der die Beträge einer Zeile passen, gilt
+  ebenso als von Hand gemacht, mit dem Datum ihrer Erfassung.
 - **N gespeicherte Buchungen passen** — eine über ihre Zahlen gefundene Zeile,
   zu der zwei gespeicherte Buchungen passen (zwei gleiche Verkäufe an einem
   Tag): die richtige von Hand korrigieren. Eine Zeile, deren Buchung eine

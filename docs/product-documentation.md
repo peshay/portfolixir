@@ -2861,11 +2861,11 @@ Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gege
 ```
 
 Give the rows the refused row's date, security, shares and accounts, drop the
-file like an export, and map its depot and cash account onto the ones the
-sale books on. If such a row was imported before Portfolixir refused it, its warning says instead that it is already imported
-and cannot be corrected here, as its cash would be 0 or less: do not enter it
-again; how such a booking is corrected is still an open question (issue
-#1193).
+file like an export, and map its depot and cash account onto the ones the sale
+books on. If such a row was imported before Portfolixir refused it, its
+warning says instead that it is already imported and points to its line under
+"Already imported, with a different amount", where its figures and the remedy
+by hand stand (see below): do not enter it again.
 
 **A delivery or a transfer with a tax refund.** A negative tax on an inbound
 or outbound delivery, a security transfer or a cash transfer is left out with
@@ -2874,28 +2874,32 @@ delivery or a security transfer moves no cash, so the refund would have no
 account; a cash transfer moves its cash between two accounts, and a refund
 split off it would land on one side only, leaving the receiving account too
 high by the refund. Portfolio Performance moves no cash for a delivery, and
-for a transfer only its amount. The warning names the row and its remedy:
-book the delivery or the transfer by hand without the refund (a transfer at
-the amount Portfolio Performance shows as moved, a CSV row's `Gesamtpreis`
-or a JSON row's `amount`), and, only if money did move, book that as a tax
-refund of its own. Before, such a delivery made the whole file fail when the
-import was confirmed. A transfer imported that way earlier says instead that
-it is already imported and cannot be corrected here: do not book it again.
+for a transfer only its amount. The warning names the row and its remedy: book
+the delivery or the transfer by hand without the refund (a transfer at the
+amount Portfolio Performance shows as moved, a CSV row's `Gesamtpreis` or a
+JSON row's `amount`), and, only if money did move, book that as a tax refund
+of its own. Before, such a delivery made the whole file fail when the import
+was confirmed. A transfer imported that way earlier says instead that it is
+already imported and points to its line under "Already imported, with a
+different amount": do not book it again.
 
 **A fee refund.** A JSON row with a negative fee unit is left out with a
-parser warning until Portfolixir has a kind for a refunded fee (issue
-#1177). The warning names the refunded fee and the fees less the refund,
-which is the net fee Portfolio Performance shows: book the row by hand with
-that net fee, at the cash Portfolio Performance shows. When the refund is
-larger than the fees, the net fee would be below zero, which the ledger
-refuses: the warning then names the cash, the `amount` as the Gesamtpreis,
-to book without a fee. Before, the import
-added the refunded fee to the fees: such a purchase booked its cash right,
-but too high a fee and too low a price. A row imported that way earlier says
-it is already imported, naming its fees as stored, which stay as they are for
-now. A CSV is not affected: Portfolio Performance's `Gebühren` nets the fee
-units, so a row whose units net below zero fails the `Gesamtpreis` check
-above, and a converter's negative `Gebühren` is read as its fee.
+parser warning until Portfolixir has a kind for a refunded fee (issue #1177).
+The warning names the refunded fee and the fees less the refund, which is the
+net fee Portfolio Performance shows: book the row by hand with that net fee,
+at the cash Portfolio Performance shows. When the refund is larger than the
+fees, the net fee would be below zero, which the ledger refuses: the warning
+then names the cash, the `amount` as the Gesamtpreis, to book without a fee.
+Before, the import added the refunded fee to the fees: such a purchase booked
+its cash right, but too high a fee and too low a price. A row imported that
+way earlier says it is already imported, naming its fees as stored, which stay
+as they are for now. Only when the same row also carries a negative tax does
+an account's stored figure differ: the row is then listed under "Already
+imported, with a different amount", its warning points there, and its remedy
+sets the booking's cash by hand and keeps its fees. A CSV is not affected:
+Portfolio Performance's `Gebühren` nets the fee units, so a row whose units
+net below zero fails the `Gesamtpreis` check above, and a converter's negative
+`Gebühren` is read as its fee.
 
 A history imported before Portfolixir took the refund out of its booking
 counted such a refund twice, beside a booking that already held it, and
@@ -3273,15 +3277,20 @@ its *Corrected* column and says why under its booking:
 
 - **Not corrected automatically** — a stored booking whose row the preview
   now refuses (a sale that nets to nothing once its tax refund is split off,
-  a transfer or a delivery with a tax refund): the line shows, per cash
-  account, the booking and the refund beside it as stored against what the
-  file moves, and the remedy by hand in the history. The ledger cannot store
-  what the row would book, and the correction never deletes a booking.
+  a transfer or a delivery with a tax refund, a fee refund beside a tax
+  refund): the line shows, per cash account, the booking and the refund
+  beside it as stored against what the file moves, and the remedy by hand in
+  the history, the one for the reason the row is refused (a fee refund's
+  keeps its fees as stored). The ledger cannot store what the row would
+  book, and the correction never deletes a booking. A refused booking on
+  whose every account the stored figure agrees with the file is not listed.
 - **Changed by hand since its import** (with the date) — a booking whose
   cash, price, quantity, fees or taxes you or an agent changed after the
   import, as the audit journal records it: it stays as you made it, and the
   line names what the file states. A settlement leg a backfill wrote, a
-  merge's re-pointing and a note are not such a change.
+  merge's re-pointing and a note are not such a change. A booking you or an
+  agent entered by hand, which a row's figures match, counts as made by hand
+  too, with the date of its entry.
 - **N stored bookings match** — a row found by its figures that two stored
   bookings match (two equal sales on one day): correct the right one by hand.
   A row whose booking another row of the file claims says so too.
