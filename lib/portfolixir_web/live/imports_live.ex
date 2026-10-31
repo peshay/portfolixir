@@ -531,7 +531,10 @@ defmodule PortfolixirWeb.ImportsLive do
                   <div class="source">
                     <small><%= gettext("PP account") %></small>
                     <%= pp_name %>
-                    <.mapping_count counts={row_counts(@account_states, "cash", pp_name)} />
+                    <.mapping_count
+                      counts={row_counts(@account_states, "cash", pp_name)}
+                      provisional={provisional?(@account_states, "cash", pp_name)}
+                    />
                   </div>
                   <div :if={nothing_to_map?(assigns, "cash", pp_name)} class="mapping-target">
                     <.nothing_to_map />
@@ -575,7 +578,10 @@ defmodule PortfolixirWeb.ImportsLive do
                   <div class="source">
                     <small><%= gettext("PP depot") %></small>
                     <%= pp_name %>
-                    <.mapping_count counts={row_counts(@account_states, "depot", pp_name)} />
+                    <.mapping_count
+                      counts={row_counts(@account_states, "depot", pp_name)}
+                      provisional={provisional?(@account_states, "depot", pp_name)}
+                    />
                   </div>
                   <%!-- #1168: with no select, the row's target is its last
                        child and it takes the cash rows' two columns. --%>
@@ -1187,15 +1193,21 @@ defmodule PortfolixirWeb.ImportsLive do
     if token == socket.assigns.counts_token do
       {:noreply,
        socket
-       |> update(:account_states, &Map.put(&1, :counts, state_counts(counts)))
+       |> take_refined_counts(counts)
        |> repark()}
     else
       {:noreply, socket}
     end
   end
 
-  # The hash-layer counts stand when the dry run fails.
-  def handle_async(:refine_counts, {:exit, _reason}, socket), do: {:noreply, socket}
+  # The hash-layer counts stand when the dry run fails, and every withheld
+  # row stays withheld (#1195).
+  def handle_async(:refine_counts, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> update(:account_states, &Map.put(&1, :pending, false))
+     |> repark()}
+  end
 
   def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
     PreviewStore.delete(socket.assigns.session_token)
@@ -1449,15 +1461,19 @@ defmodule PortfolixirWeb.ImportsLive do
   # dropped by its token.
   #
   # The names unknown to the stored history (ADR-0050 §2 as amended on
-  # 2026-10-07, #904) are read from the first pass: they rest on the stored
-  # content hashes alone, so the refined pass names the same ones.
+  # 2026-10-07, #904) are read from the first pass, on the stored content
+  # hashes alone. The refined pass can only release one (the amendment of
+  # 2026-10-09, #1195): a name whose rows the dry run finds all booked on its
+  # resolution. Until it answers, `pending` holds, and a withheld row says
+  # its count is provisional.
   defp assign_account_states(socket, nil) do
     socket
     |> assign(:counts_token, nil)
     |> assign(:account_states, %{
       resolutions: %{"cash" => %{}, "depot" => %{}},
       counts: %{"cash" => %{}, "depot" => %{}, "security" => %{}, total: @empty_counts},
-      unseen: %{"cash" => MapSet.new(), "depot" => MapSet.new()}
+      unseen: %{"cash" => MapSet.new(), "depot" => MapSet.new()},
+      pending: false
     })
   end
 
@@ -1469,13 +1485,14 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:account_states, %{
       resolutions: %{"cash" => cash, "depot" => depots},
       counts: state_counts(counts),
-      unseen: %{
-        "cash" => MapSet.new(counts.unseen_names.cash_accounts),
-        "depot" => MapSet.new(counts.unseen_names.depots)
-      }
+      unseen: unseen_sets(counts.unseen_names),
+      pending: false
     })
     |> refine_counts(preview)
   end
+
+  defp unseen_sets(%{cash_accounts: cash, depots: depots}),
+    do: %{"cash" => MapSet.new(cash), "depot" => MapSet.new(depots)}
 
   # The security rows are counted on the hash layers alone (#923), so the
   # refined pass leaves them as the first pass had them.
@@ -1494,13 +1511,114 @@ defmodule PortfolixirWeb.ImportsLive do
 
       socket
       |> assign(:counts_token, token)
+      |> update(:account_states, &Map.put(&1, :pending, true))
       |> CappedAsync.start_async(:refine_counts, fn ->
+        await_refine_gate()
         {token, Imports.reimport_counts(preview)}
       end)
     else
       assign(socket, :counts_token, nil)
     end
   end
+
+  # The test seam P10 needs (ADR-0050 as amended on 2026-10-09): a test that
+  # names itself under `:imports_refine_gate` reads the page before the dry
+  # run answers. A refinement started on that test's behalf (the test is
+  # among the task's callers) tells it so and waits for its release; every
+  # other one, and every one outside such a test, runs at once.
+  defp await_refine_gate do
+    gate = Application.get_env(:portfolixir, :imports_refine_gate)
+
+    if is_pid(gate) and gate in Process.get(:"$callers", []) do
+      send(gate, {:imports_refine_gate, self()})
+
+      receive do
+        {:imports_refine_gate, :release} -> :ok
+      after
+        30_000 -> :ok
+      end
+    end
+
+    :ok
+  end
+
+  # A withheld row whose count the dry run may still change (#1195).
+  defp provisional?(states, group, pp_name),
+    do: Map.get(states, :pending, false) and unseen?(states, group, pp_name)
+
+  # The dry run's answer (ADR-0050 as amended on 2026-10-09, point 2): the
+  # refined counts, and the names it releases. A released name loses the
+  # note and takes its prefill, into the mapping and into the record of what
+  # the preview prefilled (so a choice changed from it is a remap to
+  # remember), unless the operator has already chosen for that row: a choice
+  # stands. The answer only releases, so a name the first pass prefilled is
+  # never withheld by it. A dry run that stopped answers the hash layers'
+  # counts and names every name the first pass named, so it releases nothing.
+  defp take_refined_counts(socket, counts) do
+    states = socket.assigns.account_states
+    refined = unseen_sets(counts.unseen_names)
+
+    unseen =
+      Map.new(states.unseen, fn {group, set} ->
+        {group, MapSet.intersection(set, refined[group])}
+      end)
+
+    released =
+      for {group, set} <- states.unseen,
+          pp_name <- MapSet.difference(set, unseen[group]),
+          do: {group, pp_name}
+
+    states = %{states | counts: state_counts(counts), unseen: unseen, pending: false}
+
+    socket
+    |> assign(:account_states, states)
+    |> prefill_released(released)
+  end
+
+  defp prefill_released(socket, []), do: socket
+
+  defp prefill_released(socket, released) do
+    states = socket.assigns.account_states
+
+    mapping =
+      Enum.reduce(released, socket.assigns.mapping, fn {group, pp_name}, mapping ->
+        value = prefill(false, resolution(states, group, pp_name), pp_name)
+
+        if released_unchosen?(mapping, group, pp_name),
+          do:
+            mapping
+            |> put_row_choice(group, pp_name, value)
+            |> put_in([:prefill, group, pp_name], value),
+          else: mapping
+      end)
+
+    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
+
+    socket
+    |> assign(:mapping, mapping)
+    |> assign_remember_outcomes()
+  end
+
+  # A withheld row the operator has not chosen for: it still shows the
+  # preview's own (empty) prefill.
+  defp released_unchosen?(mapping, group, pp_name) do
+    prefilled = get_in(mapping, [:prefill, group, pp_name])
+
+    is_map_key(Map.fetch!(mapping, mapping_group(group)), pp_name) and
+      row_choice(mapping, group, pp_name) in [prefilled, nil, ""] and prefilled in [nil, ""]
+  end
+
+  defp mapping_group("cash"), do: :cash
+  defp mapping_group("depot"), do: :depot
+
+  defp row_choice(mapping, "cash", pp_name), do: Map.get(mapping.cash, pp_name)
+  defp row_choice(mapping, "depot", pp_name), do: get_in(mapping.depot, [pp_name, "target"])
+
+  defp put_row_choice(mapping, "cash", pp_name, value),
+    do: %{mapping | cash: Map.put(mapping.cash, pp_name, value)}
+
+  defp put_row_choice(mapping, "depot", pp_name, value),
+    do: %{mapping | depot: Map.update!(mapping.depot, pp_name, &Map.put(&1, "target", value))}
 
   defp row_counts(states, group, pp_name),
     do: states.counts |> Map.fetch!(group) |> Map.get(pp_name, @empty_counts)
@@ -1617,30 +1735,44 @@ defmodule PortfolixirWeb.ImportsLive do
   # --- the row's parts ---
 
   attr(:counts, :map, required: true)
+  attr(:provisional, :boolean, default: false)
 
   # Per row (board 04): how many of its bookings are already imported (by
   # content hash, a merge's retired hash, or an equal booking the apply finds
   # by its economics), how many internal transfers are dropped, and how many
   # are new — "nothing to create" when none is. A booking that names two
   # accounts counts in both rows.
+  #
+  # #1195 (board 07 ④, Nachher 1): a withheld row's count while the dry run
+  # runs is the hash layers' first count, the one row state that can still
+  # change, so it dims and carries the recomputing cue (DESIGN.md → the
+  # recomputing cue) with its basis, "provisional".
   defp mapping_count(assigns) do
+    ~H"""
+    <span class="mapping-count" data-role="mapping-count" aria-busy={@provisional && "true"}><%= if @provisional do %><span class="stale-value"><.count_words counts={@counts} /></span><span class="recomputing-cue"><span class="spinner"></span><%= gettext("provisional · recomputing") %></span><% else %><.count_words counts={@counts} /><% end %></span>
+    """
+  end
+
+  attr(:counts, :map, required: true)
+
+  defp count_words(assigns) do
     counts = assigns.counts
     assigns = assign(assigns, hits: already_imported(counts), transfers: counts.internal_transfer)
 
     ~H"""
-    <span class="mapping-count" data-role="mapping-count"><%= if @hits > 0 do %><%= ngettext(
-          "%{count} booking already imported",
-          "%{count} bookings already imported",
-          @hits
-        ) %> · <% end %><%= if @transfers > 0 do %><%= ngettext(
-          "%{count} internal transfer dropped",
-          "%{count} internal transfers dropped",
-          @transfers
-        ) %> · <% end %><b><%= cond do
-          @counts.new == 0 -> gettext("nothing to create")
-          @hits + @transfers > 0 -> ngettext("%{count} new", "%{count} new", @counts.new)
-          true -> ngettext("%{count} booking new", "%{count} bookings new", @counts.new)
-        end %></b></span>
+    <%= if @hits > 0 do %><%= ngettext(
+      "%{count} booking already imported",
+      "%{count} bookings already imported",
+      @hits
+    ) %> · <% end %><%= if @transfers > 0 do %><%= ngettext(
+      "%{count} internal transfer dropped",
+      "%{count} internal transfers dropped",
+      @transfers
+    ) %> · <% end %><b><%= cond do
+      @counts.new == 0 -> gettext("nothing to create")
+      @hits + @transfers > 0 -> ngettext("%{count} new", "%{count} new", @counts.new)
+      true -> ngettext("%{count} booking new", "%{count} bookings new", @counts.new)
+    end %></b>
     """
   end
 

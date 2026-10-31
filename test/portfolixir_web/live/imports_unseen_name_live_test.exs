@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
+  alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
@@ -357,7 +358,7 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     assert render_async(view, 1_000) =~ "Created transactions: 1"
 
     assert booked_after(marker, portfolio) == [
-             {"interest", ~D[2026-03-31], "1.35", "Tagesgeld", nil}
+             {"interest", ~D[2026-03-31], "1.350000", "Tagesgeld", nil}
            ]
 
     {:ok, view, _html} = live(conn, "/imports")
@@ -489,6 +490,57 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     assert selected(view, "depot", "Depot Muster") == ""
     assert note(view, "depot", "Depot Muster") == @depot_note
     assert has_element?(view, "#pp-import-confirm[disabled]")
+  end
+
+  # User story (#1195, Sprint 21 α8; plan D-5, after H07 and H08):
+  # As the operator who reloads the page, switches the language or opens a
+  # second tab while a preview is parked,
+  # I want a row the dry run released to stay released, and one it did not
+  # to stay withheld,
+  # so that the remount shows what the answer showed.
+  #
+  # Acceptance criteria:
+  # - P8's drifted drop, answered: "Depot Muster" carries Depot Muster. A
+  #   remount of the parked preview carries it too, with no note.
+  # - P9's drop, answered and remounted: "Tagesgeld Extra" still reads
+  #   "Decide…" with the note.
+  test "a released row survives a remount from the parked preview", %{conn: conn} do
+    portfolio = portfolio!()
+    applied!(portfolio, history())
+    depot = named!(SecuritiesAccount, "Depot Muster")
+    conn = init_test_session(conn, %{"_csrf_token" => "PPPPPPPPPPPPPPPPPPPPP195"})
+    on_exit(fn -> PreviewStore.delete(PreviewStore.key_for("PPPPPPPPPPPPPPPPPPPPP195")) end)
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload!(view, history(time: "10:30"))
+    assert selected(view, "depot", "Depot Muster") == "existing:#{depot.id}"
+
+    {:ok, remounted, _html} = live(conn, "/imports")
+    render_async(remounted)
+
+    assert selected(remounted, "depot", "Depot Muster") == "existing:#{depot.id}"
+    assert unseen_notes(remounted) == []
+
+    {:ok, _renamed} =
+      Portfolios.update_cash_account(Actor.owner_ui(), named!(CashAccount, "Tagesgeld"), %{
+        name: "Tagesgeld Extra"
+      })
+
+    conn = init_test_session(build_conn(), %{"_csrf_token" => "QQQQQQQQQQQQQQQQQQQQQ195"})
+    on_exit(fn -> PreviewStore.delete(PreviewStore.key_for("QQQQQQQQQQQQQQQQQQQQQ195")) end)
+
+    {:ok, view, _html} = live(conn, "/imports")
+
+    upload!(
+      view,
+      history(savings: "Tagesgeld Extra") ++ [interest("Tagesgeld Extra", "1.35", "2026-03-31")]
+    )
+
+    {:ok, remounted, _html} = live(conn, "/imports")
+    render_async(remounted)
+
+    assert selected(remounted, "cash", "Tagesgeld Extra") == ""
+    assert note(remounted, "cash", "Tagesgeld Extra") == @cash_note
   end
 
   # User story:

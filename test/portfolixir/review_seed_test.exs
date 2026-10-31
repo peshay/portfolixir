@@ -350,6 +350,48 @@ defmodule Portfolixir.ReviewSeedTest do
     |> Enum.sort()
   end
 
+  # User story (#1195, Sprint 21 α8; plan D-14):
+  # As the reviewer walking the import preview's rename probe,
+  # I want the review seed to hold twin account names, imported history
+  # under one of them,
+  # so that a drop naming the other twin shows the row the probe withholds.
+  #
+  # Acceptance criteria:
+  # - The Demo Depot holds "Rücklage" and "RÜCKLAGE", two cash accounts
+  #   whose names differ only in letter case; "Rücklage" and "Rücklage
+  #   Giro" carry the imported bookings (an import hash each), "RÜCKLAGE"
+  #   none.
+  # - A second run adds no account and no booking.
+  test "the review seed holds twin account names" do
+    seed!()
+
+    twins =
+      Portfolios.list_cash_accounts()
+      |> Enum.filter(&(&1.name in ["Rücklage", "RÜCKLAGE", "Rücklage Giro"]))
+      |> Map.new(&{&1.name, &1})
+
+    assert Map.keys(twins) |> Enum.sort() == ["RÜCKLAGE", "Rücklage", "Rücklage Giro"]
+    assert twins["Rücklage"].portfolio_id == twins["RÜCKLAGE"].portfolio_id
+
+    imported = fn account ->
+      Repo.aggregate(
+        from(t in Transaction,
+          where:
+            (t.cash_account_id == ^account.id or t.counter_cash_account_id == ^account.id) and
+              not is_nil(t.import_hash)
+        ),
+        :count
+      )
+    end
+
+    assert {imported.(twins["Rücklage"]), imported.(twins["Rücklage Giro"]),
+            imported.(twins["RÜCKLAGE"])} == {2, 2, 0}
+
+    rows = Map.put(row_counts(), :cash_accounts, length(Portfolios.list_cash_accounts()))
+    seed!()
+    assert Map.put(row_counts(), :cash_accounts, length(Portfolios.list_cash_accounts())) == rows
+  end
+
   defp stored_class(name) do
     Repo.one!(from(s in Security, where: s.name == ^name, select: s.asset_class))
   end

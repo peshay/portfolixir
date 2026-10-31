@@ -20,7 +20,8 @@
 # the Sprint 21 security surfaces (17, amendment D-12): a policy rule the
 # agent renamed, a tax statement the agent recorded, a security merge ready
 # to try whose two sides both closed trades, a USD dividend no stored rate
-# converts to EUR, and a split of a security held in two portfolios; and
+# converts to EUR, a split of a security held in two portfolios, and twin
+# account names that differ only in letter case (α8); and
 # the Sprint 21 money surfaces (18 and 19, plan D-14): a bond whose coupon
 # was imported with it, a dollar security imported from a EUR account and
 # sold by hand, and one whose lot has no leg in its sale's currency. The
@@ -1862,7 +1863,62 @@ if find_security.("Wexmoor Instruments AG") == nil do
     ])
 end
 
-IO.puts("Sprint 21 surfaces: an agent-named rule and statement, Thornbury, Wexmoor")
+# 17f. α8 (#1195, plan D-14): twin names. "Rücklage" and "Rücklage Giro"
+#      arrive by a Portfolio Performance import into the Demo Depot (a
+#      deposit, a transfer between them and an interest payment); then
+#      "RÜCKLAGE", a cash account whose name differs from "Rücklage" only in
+#      letter case, is created by hand, empty. Names compare exactly (#973),
+#      so the two are two accounts. The walkthrough drops the same three rows
+#      with "Rücklage" written "RÜCKLAGE": no booking was imported under that
+#      name while "Rücklage Giro" has, so the row is withheld; the dry run
+#      books its rows on the empty twin, where they count new, so it stays
+#      withheld once the dry run answers. Dropped unchanged, the file asks
+#      nothing.
+if cash_named.("RÜCKLAGE") == nil do
+  twin_rows = [
+    %{
+      "type" => "DEPOSIT",
+      "account" => "Rücklage Giro",
+      "date" => Date.to_iso8601(Date.add(today, -150)),
+      "currency" => "EUR",
+      "amount" => Jason.Fragment.new("800.00")
+    },
+    %{
+      "type" => "CASH_TRANSFER",
+      "account" => "Rücklage Giro",
+      "otherAccount" => "Rücklage",
+      "date" => Date.to_iso8601(Date.add(today, -145)),
+      "currency" => "EUR",
+      "amount" => Jason.Fragment.new("600.00")
+    },
+    %{
+      "type" => "INTEREST",
+      "account" => "Rücklage",
+      "date" => Date.to_iso8601(Date.add(today, -120)),
+      "currency" => "EUR",
+      "amount" => Jason.Fragment.new("1.20")
+    }
+  ]
+
+  unless cash_named.("Rücklage") do
+    {:ok, twin_preview} =
+      Imports.parse_portfolio_performance(
+        Jason.encode!(%{"version" => 1, "transactions" => twin_rows}),
+        filename: "twin_names.json"
+      )
+
+    {:ok, _} = Imports.apply(twin_preview, %{portfolio_id: portfolio.id})
+  end
+
+  {:ok, _} =
+    Portfolios.create_cash_account(owner, %{
+      portfolio_id: portfolio.id,
+      name: "RÜCKLAGE",
+      currency_code: "EUR"
+    })
+end
+
+IO.puts("Sprint 21 surfaces: an agent-named rule and statement, Thornbury, Wexmoor, twin names")
 
 # 18. Sprint 21 PR 1, the money surfaces (plan D-14: each story that needs a
 #     shape for the round trips adds it here).
