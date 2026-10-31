@@ -1020,8 +1020,92 @@ defmodule Portfolixir.Ledger do
       # currency, so open lots carry the same cost pair as the holdings fold.
       native_unit_price: native_unit_price(tx, security_currency),
       settlement_unit_price: settlement_unit_price(tx),
-      settlement_currency: matcher_settlement_currency(tx, security_currency)
+      settlement_currency: matcher_settlement_currency(tx, security_currency),
+      # #1198 (the ADR-0015 amendment of 2026-10-09, point 2): the row in the
+      # other currency its own stored legs reach, for a sell in that currency.
+      legs: matcher_legs(tx, security_currency)
     }
+  end
+
+  # The one other currency a buy or sell's own stored legs reach, per share
+  # with its fees and taxes in that currency, as `%{currency => leg}`, or
+  # `%{}` (the ADR-0015 amendment of 2026-10-09, point 2; ADR-0033's fold
+  # rule: the legs are transaction data, never a rate looked up):
+  #
+  #   * a row booked in its cash account's currency, not its security's (the
+  #     Portfolio Performance import's form), reaches the security's
+  #     currency through its native leg: `security_amount` ÷ quantity a
+  #     share, and its fees and taxes, which are in the account's currency,
+  #     ÷ its own `settlement_fx_rate`;
+  #   * a row booked in its security's currency through an account in
+  #     another (the booking form's) reaches the account's currency through
+  #     its settlement leg: `settlement_amount` ÷ quantity a share, and its
+  #     fees and taxes as recorded, which are in that currency already.
+  #
+  # A row without the leg, or priced in a third currency, reaches nothing
+  # but its own currency: a sell in another makes the trade unavailable
+  # (point 3). Full precision, nothing rounded (ADR-0016).
+  defp matcher_legs(%Transaction{type: type} = tx, security_currency)
+       when type in ["buy", "sell"] and is_binary(security_currency) do
+    case tx.cash_account do
+      %CashAccount{currency_code: account}
+      when is_binary(account) and account != security_currency ->
+        cond do
+          tx.currency_code == account -> native_leg(tx, security_currency)
+          tx.currency_code == security_currency -> settlement_leg(tx, account)
+          true -> %{}
+        end
+
+      _same_or_none ->
+        %{}
+    end
+  end
+
+  defp matcher_legs(_tx, _security_currency), do: %{}
+
+  defp native_leg(tx, security_currency) do
+    with true <- positive_decimal?(tx.quantity),
+         %Decimal{} = amount <- tx.security_amount,
+         {:ok, fees} <- at_own_rate(tx.fees, tx.settlement_fx_rate),
+         {:ok, taxes} <- at_own_rate(tx.taxes, tx.settlement_fx_rate) do
+      %{
+        security_currency => %{
+          unit_price: Decimal.div(amount, tx.quantity),
+          fees: fees,
+          taxes: taxes
+        }
+      }
+    else
+      _no_native_leg -> %{}
+    end
+  end
+
+  defp settlement_leg(tx, account_currency) do
+    with true <- positive_decimal?(tx.quantity),
+         %Decimal{} = amount <- tx.settlement_amount do
+      %{
+        account_currency => %{
+          unit_price: Decimal.div(amount, tx.quantity),
+          fees: tx.fees || @zero,
+          taxes: tx.taxes || @zero
+        }
+      }
+    else
+      _no_settlement_leg -> %{}
+    end
+  end
+
+  # An amount in the account's currency into the security's at the row's own
+  # rate (account units per one security unit, so amount ÷ rate). Zero needs
+  # no rate; any other amount without a positive rate has no leg.
+  defp at_own_rate(nil, _rate), do: {:ok, @zero}
+
+  defp at_own_rate(%Decimal{} = amount, rate) do
+    cond do
+      Decimal.equal?(amount, @zero) -> {:ok, amount}
+      positive_decimal?(rate) -> {:ok, Decimal.div(amount, rate)}
+      true -> :error
+    end
   end
 
   # A booking's fees and taxes are in its cash account's currency, the
@@ -1056,31 +1140,38 @@ defmodule Portfolixir.Ledger do
   defp in_price_currency(amount, _tx, _security_currency), do: amount
 
   @doc """
-  The rule by which a closed trade's fees and taxes enter its basis and
-  proceeds (the ADR-0015 amendment of 2026-10-07, #1108), as the sentence the
-  trades and realized-gains payloads carry (the AGENTS.md metric rule). It
-  names what the matcher computes where a security's trades are booked in
-  more than one currency: each lot as booked, unconverted, under the sell's
-  currency_code (#1198, an open decision the sentence does not take).
+  The rule by which a closed trade's lots, fees and taxes enter its basis
+  and proceeds, as the sentence the trades and realized-gains payloads carry
+  (the AGENTS.md metric rule): the ADR-0015 amendment of 2026-10-07 (#1108)
+  for the fees' currency, and the amendment of 2026-10-09, points 2 to 5
+  (#1198), for a closed trade in one currency whatever booked its lots.
   """
   @spec trade_fees_basis() :: String.t()
   def trade_fees_basis do
     "A trade's fees and taxes are read in its cash account's currency, the currency of the " <>
-      "cash leg they are part of. A cross-currency trade booked in the security's currency " <>
-      "(ADR-0015) converts them into that currency at the trade's own stored " <>
-      "settlement_fx_rate (account units per one security unit, so fee / rate), the broker's " <>
-      "rate for that cash leg, never a hub rate, before they enter basis and proceeds. A " <>
-      "trade booked in its account's currency (a Portfolio Performance import's form), a " <>
-      "trade booked in a third currency, a trade without a stored rate and a trade without a " <>
-      "cash account add them as recorded. Each buy and sell so enters in the currency it is " <>
-      "booked in, and a closed trade's currency_code is its sell's: where the sell and every " <>
-      "lot it closes are booked in one currency, buy_fees, buy_taxes, sell_fees, sell_taxes, " <>
-      "basis, proceeds and realized_pnl_abs are all in currency_code. Where a security's " <>
-      "trades are booked in more than one currency, as when a Portfolio Performance import's " <>
-      "form meets a trade booked in the security's currency, a closed trade can close a lot " <>
-      "booked in another currency than its sell: its buy_fees, buy_taxes and basis then add " <>
-      "amounts in two currencies, unconverted, under currency_code, and so does every figure " <>
-      "computed from them (issue #1198, an open decision)."
+      "cash leg they are part of. A trade booked in the security's currency through an " <>
+      "account in another (ADR-0015) converts them into the security's currency at its own " <>
+      "stored settlement_fx_rate (account units per one security unit, so fee / rate), the " <>
+      "broker's rate for that cash leg, never a hub rate. A closed trade is in its sell's " <>
+      "currency_code, and every lot it closes enters in that currency through the lot's own " <>
+      "stored settlement legs, never through a rate looked up: a lot booked in the sell's " <>
+      "currency enters as booked; a lot booked in its cash account's currency, closed by a " <>
+      "sell in the security's currency, enters at security_amount / quantity a share, its " <>
+      "fees and taxes / its own settlement_fx_rate; a lot booked in the security's currency, " <>
+      "closed by a sell in its cash account's currency, enters at settlement_amount / " <>
+      "quantity a share, its fees and taxes as recorded. Full precision, nothing rounded. A " <>
+      "lot without the leg it needs, or one no leg of which reaches the sell's currency (a " <>
+      "lot or a sell priced in a third currency, a lot booked in another account's currency " <>
+      "than the sell's), makes the closed trade unavailable: unavailable_reason " <>
+      "missing_settlement_leg, lots_missing_leg names each such lot by its open_date and " <>
+      "currency_code, the sell's own figures stay (quantity, dates, avg_sell_price, " <>
+      "sell_fees, sell_taxes, proceeds), every figure derived from the lots is null, and the " <>
+      "trade is in no total. A trade whose sell and lots are booked in one currency reads " <>
+      "them as booked, so buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and " <>
+      "realized_pnl_abs are all in currency_code for every available trade. An imported " <>
+      "lot's legs come from the EUR hub rate stored for its booking date (ADR-0033), not " <>
+      "from a broker's: where the broker settled at another rate that day, the lot enters " <>
+      "at the hub's conversion of the cash it moved."
   end
 
   @doc """
@@ -1091,7 +1182,9 @@ defmodule Portfolixir.Ledger do
   @spec realized_pnl_pct_basis() :: String.t()
   def realized_pnl_pct_basis do
     "realized_pnl_pct is realized_pnl_abs / basis, a fraction (0.1 = 10 %) in the trade's " <>
-      "currency_code. It is null, never 0, where basis is 0, a buy booked at a price of 0 " <>
+      "currency_code, for every trade: each lot it closes enters in that currency " <>
+      "(fees_and_taxes), and it is null where the trade is unavailable " <>
+      "(missing_settlement_leg). It is null, never 0, where basis is 0, a buy booked at a price of 0 " <>
       "with no fees or taxes (a bonus or free share): a return on no cost is undefined, and " <>
       "0 would read as a flat trade. realized_pnl_abs still states the result, and " <>
       "annualized_return is then null with annualized_return_reason no_cost_basis."

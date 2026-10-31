@@ -31,7 +31,8 @@ defmodule Portfolixir.Lifecycle.MergeFifo do
   @type side :: %{
           realized: %{{integer(), String.t()} => Decimal.t()},
           open: %{String.t() => Decimal.t()},
-          unmatched: non_neg_integer()
+          unmatched: non_neg_integer(),
+          unavailable: non_neg_integer()
         }
 
   @doc """
@@ -44,8 +45,11 @@ defmodule Portfolixir.Lifecycle.MergeFifo do
   `target` and `after`, each `nil` where that side closes no trade in it,
   and `change`, after less the two before), `open_lots` (per currency: the
   open lots' cost of each side and the change), `unmatched_sells` (the
-  number of sells no lot covers, per side) and `unchanged` — true when no
-  realized amount, no open cost and no count of uncovered sells moves.
+  number of sells no lot covers, per side), `unavailable_trades` (per side
+  the closed trades that close a lot with no settlement leg in their sell's
+  currency, which are in no sum: the ADR-0015 amendment of 2026-10-09,
+  point 3, #1198) and `unchanged` — true when no realized amount, no open
+  cost and no count of uncovered sells or unavailable trades moves.
   It compares sums: which lot a sale closes, and with it holding periods and
   annualized returns, may still change.
   """
@@ -96,22 +100,33 @@ defmodule Portfolixir.Lifecycle.MergeFifo do
 
     unmatched = %{source: source.unmatched, target: target.unmatched, after: merged.unmatched}
 
+    unavailable = %{
+      source: source.unavailable,
+      target: target.unavailable,
+      after: merged.unavailable
+    }
+
     %{
       years: years,
       open_lots: open_lots,
       unmatched_sells: unmatched,
+      unavailable_trades: unavailable,
       unchanged:
         Enum.all?(years ++ open_lots, &Decimal.equal?(&1.change, @zero)) and
-          unmatched.after == unmatched.source + unmatched.target
+          unmatched.after == unmatched.source + unmatched.target and
+          unavailable.after == unavailable.source + unavailable.target
     }
   end
 
   defp side(rows, currency) do
     matched = Ledger.match_trades(rows, currency)
 
+    {available, unavailable} =
+      Enum.split_with(matched.closed_trades, &is_nil(&1.unavailable_reason))
+
     %{
       realized:
-        Enum.reduce(matched.closed_trades, %{}, fn trade, acc ->
+        Enum.reduce(available, %{}, fn trade, acc ->
           key = {trade.close_date.year, trade.currency_code || currency}
           Map.update(acc, key, trade.realized_pnl_abs, &Decimal.add(&1, trade.realized_pnl_abs))
         end),
@@ -120,7 +135,8 @@ defmodule Portfolixir.Lifecycle.MergeFifo do
           cost = TradeMatcher.lot_cost(lot)
           Map.update(acc, lot.currency_code || currency, cost, &Decimal.add(&1, cost))
         end),
-      unmatched: length(matched.orphan_sells)
+      unmatched: length(matched.orphan_sells),
+      unavailable: length(unavailable)
     }
   end
 

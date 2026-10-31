@@ -44,7 +44,10 @@ defmodule Portfolixir.Ledger.TradeReturn do
   @min_holding_days 365
 
   @type reason ::
-          :no_cost_basis | :holding_period_under_365_days | IRR.reason()
+          :missing_settlement_leg
+          | :no_cost_basis
+          | :holding_period_under_365_days
+          | IRR.reason()
 
   @doc """
   The annualized return of a closed trade from `TradeMatcher.match/1`:
@@ -57,6 +60,11 @@ defmodule Portfolixir.Ledger.TradeReturn do
           annualized_return_reason: reason() | nil
         }
   def annualized(trade, opts \\ [])
+
+  # #1198 (the ADR-0015 amendment of 2026-10-09, point 3): a trade a lot of
+  # which has no leg in the sell's currency has no cost to annualize.
+  def annualized(%{unavailable_reason: :missing_settlement_leg}, _opts),
+    do: none(:missing_settlement_leg)
 
   # #1142: no cost, nothing to annualize — the first reason, before the
   # holding period's and the solver's.
@@ -97,7 +105,9 @@ defmodule Portfolixir.Ledger.TradeReturn do
       "because annualizing a short window explodes the figure; and null with the solver's " <>
       "reason when no rate solves the flows: no_sign_change (proceeds or cost not positive, " <>
       "a total loss among them), no_root (no convergence inside the solver's budget) or " <>
-      "amount_out_of_range. Dividends and interest are not flows: income received while " <>
-      "the trade was open is not included."
+      "amount_out_of_range. It is null with missing_settlement_leg where the closed trade is " <>
+      "unavailable, a lot it closes having no leg in its sell's currency (fees_and_taxes). " <>
+      "Dividends and interest are not flows: income received while the trade was open is " <>
+      "not included."
   end
 end

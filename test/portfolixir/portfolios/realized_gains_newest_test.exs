@@ -149,7 +149,16 @@ defmodule Portfolixir.Portfolios.RealizedGainsNewestTest do
              {"Longacre Rail", ~D[2026-01-01]}
            ]
 
-    assert newest.excluded == %{count: 1, securities: ["Unrated Pound plc"]}
+    # #1198: excluded.by_reason tells a missing rate from a missing leg.
+    assert newest.excluded == %{
+             count: 1,
+             securities: ["Unrated Pound plc"],
+             by_reason: %{
+               no_rate: %{count: 1, securities: ["Unrated Pound plc"]},
+               missing_settlement_leg: %{count: 0, securities: []}
+             }
+           }
+
     assert Enum.all?(newest.trades, &Map.has_key?(&1, :annualized_return))
   end
 
@@ -159,7 +168,14 @@ defmodule Portfolixir.Portfolios.RealizedGainsNewestTest do
     assert RealizedGains.newest_trades(5) == %{
              base_currency: "EUR",
              trades: [],
-             excluded: %{count: 0, securities: []}
+             excluded: %{
+               count: 0,
+               securities: [],
+               by_reason: %{
+                 no_rate: %{count: 0, securities: []},
+                 missing_settlement_leg: %{count: 0, securities: []}
+               }
+             }
            }
   end
 

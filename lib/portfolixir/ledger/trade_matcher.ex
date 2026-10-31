@@ -25,6 +25,18 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   `settlement_fx_rate` before they arrive here (the ADR-0015 amendment of
   2026-10-07, #1108). The rate is transaction data, never a lookup.
 
+  A closed trade is in its sell's `currency_code`, whatever booked its lots
+  (the ADR-0015 amendment of 2026-10-09, point 2, #1198). A lot booked in
+  that currency enters as booked; a lot booked in another enters through
+  its own stored legs, which `Ledger` hands over as transaction data
+  (`:legs`, `%{currency => %{unit_price, fees, taxes}}`), never through a
+  rate looked up. A lot with no leg in the sell's currency makes the trade
+  unavailable (point 3): it keeps the sell's own figures, `nil` for every
+  figure derived from the lots, `unavailable_reason: :missing_settlement_leg`
+  and `lots_missing_leg` (each such lot's open date and booking currency).
+  A trade whose sell and lots share one currency computes exactly as before
+  (point 4); its `unavailable_reason` is `nil` and `lots_missing_leg` `[]`.
+
   Matching still considers only the priced `buy`/`sell` kinds. A `split`
   (ADR-0028 §3) is a named mandatory change site: it scales open lot
   quantities by its ratio and divides the per-share `buy_price`, keeping
@@ -50,6 +62,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
           optional(:fees) => Decimal.t(),
           optional(:taxes) => Decimal.t(),
           optional(:currency_code) => String.t(),
+          optional(:legs) => %{optional(String.t()) => map()},
           optional(:split_ratio_numerator) => pos_integer(),
           optional(:split_ratio_denominator) => pos_integer()
         }
@@ -103,6 +116,9 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       buy_price_native: Map.get(tx, :native_unit_price, tx.price),
       settlement_unit_price: Map.get(tx, :settlement_unit_price, tx.price),
       settlement_currency: Map.get(tx, :settlement_currency, Map.get(tx, :currency_code)),
+      # #1198: the lot in each other currency its stored legs reach, per
+      # share with its fees and taxes in that currency (`Ledger`).
+      legs: Map.get(tx, :legs, %{}),
       # The portfolio that bought the lot; a split scales the lot whatever
       # it is (K09).
       portfolio_id: Map.get(tx, :portfolio_id)
@@ -149,7 +165,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
         # The per-unit legs divide like the buy price, so the lot's total
         # cost pair stays invariant through the split (ADR-0028 §3).
         buy_price_native: scale_unit_price(lot.buy_price_native, numerator, denominator),
-        settlement_unit_price: scale_unit_price(lot.settlement_unit_price, numerator, denominator)
+        settlement_unit_price:
+          scale_unit_price(lot.settlement_unit_price, numerator, denominator),
+        legs:
+          Map.new(lot.legs, fn {currency, leg} ->
+            {currency,
+             %{leg | unit_price: scale_unit_price(leg.unit_price, numerator, denominator)}}
+          end)
     }
   end
 
@@ -214,6 +236,85 @@ defmodule Portfolixir.Ledger.TradeMatcher do
 
   defp finalize_sell(state, tx, consumed_lots, _remaining_after_orphan) do
     consumed = Enum.reverse(consumed_lots)
+    currency = Map.get(tx, :currency_code)
+    entered = Enum.map(consumed, &enter(&1, currency))
+
+    trade =
+      case Enum.reject(entered, &match?({:ok, _lot}, &1)) do
+        [] ->
+          closed_trade(tx, Enum.map(entered, fn {:ok, lot} -> lot end))
+
+        missing ->
+          unavailable_trade(tx, consumed, Enum.map(missing, fn {:missing, lot} -> lot end))
+      end
+
+    %{state | closed: [trade | state.closed]}
+  end
+
+  # #1198 (the ADR-0015 amendment of 2026-10-09, point 2): a lot enters the
+  # sell's currency as booked where it is booked in it, so a one-currency
+  # trade computes exactly as before (point 4); otherwise through its own
+  # stored leg in that currency, its price per share and its fees and taxes
+  # replaced by the leg's, or not at all (point 3).
+  defp enter(%{currency_code: currency} = lot, currency), do: {:ok, lot}
+
+  defp enter(lot, currency) do
+    case Map.get(lot.legs, currency) do
+      %{unit_price: %Decimal{} = price, fees: %Decimal{} = fees, taxes: %Decimal{} = taxes} ->
+        {:ok, %{lot | buy_price: price, buy_fees: fees, buy_taxes: taxes}}
+
+      _no_leg ->
+        {:missing, lot}
+    end
+  end
+
+  # Point 3: never summed. The sell's own figures stay; every figure derived
+  # from the lots is nil; the reason and the lots that lack their leg are
+  # named, so a reader can say what fixes it.
+  defp unavailable_trade(tx, consumed, missing) do
+    total_qty = sum_decimals(consumed, & &1.quantity)
+    sell_fees = fee(tx, :fees)
+    sell_taxes = fee(tx, :taxes)
+
+    %{
+      open_date: List.first(consumed).open_date,
+      close_date: tx.date,
+      quantity: total_qty,
+      avg_buy_price: nil,
+      avg_sell_price: tx.price,
+      buy_fees: nil,
+      buy_taxes: nil,
+      sell_fees: sell_fees,
+      sell_taxes: sell_taxes,
+      basis: nil,
+      proceeds: proceeds(total_qty, tx.price, sell_fees, sell_taxes),
+      realized_pnl_abs: nil,
+      realized_pnl_pct: nil,
+      holding_period_days: holding_period_days(consumed, tx.date, total_qty),
+      currency_code: Map.get(tx, :currency_code),
+      lots: Enum.map(consumed, &%{open_date: &1.open_date, quantity: &1.quantity, cost: nil}),
+      unavailable_reason: :missing_settlement_leg,
+      lots_missing_leg:
+        Enum.map(missing, &%{open_date: &1.open_date, currency_code: &1.currency_code})
+    }
+  end
+
+  defp proceeds(quantity, price, fees, taxes) do
+    quantity |> Decimal.mult(price) |> Decimal.sub(fees) |> Decimal.sub(taxes)
+  end
+
+  defp holding_period_days(consumed, close_date, total_qty) do
+    consumed
+    |> Enum.reduce(Decimal.new(0), fn lot, acc ->
+      days = Decimal.new(Date.diff(close_date, lot.open_date))
+      Decimal.add(acc, Decimal.mult(lot.quantity, days))
+    end)
+    |> safe_div(total_qty)
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+  end
+
+  defp closed_trade(tx, consumed) do
     total_qty = sum_decimals(consumed, & &1.quantity)
 
     # Use the sum of lot-level gross amounts as the basis (not avg * qty)
@@ -245,27 +346,12 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       |> Decimal.add(allocated_buy_fees)
       |> Decimal.add(allocated_buy_taxes)
 
-    proceeds =
-      Decimal.sub(Decimal.mult(total_qty, tx.price), sell_fees)
-      |> Decimal.sub(sell_taxes)
+    proceeds = proceeds(total_qty, tx.price, sell_fees, sell_taxes)
 
     realized = Decimal.sub(proceeds, basis)
     realized_pct = return_on(realized, basis)
 
-    weighted_open_date_days =
-      consumed
-      |> Enum.reduce(Decimal.new(0), fn lot, acc ->
-        days = Decimal.new(Date.diff(tx.date, lot.open_date))
-        Decimal.add(acc, Decimal.mult(lot.quantity, days))
-      end)
-      |> safe_div(total_qty)
-
-    holding_period_days =
-      weighted_open_date_days
-      |> Decimal.round(0)
-      |> Decimal.to_integer()
-
-    trade = %{
+    %{
       open_date: List.first(consumed).open_date,
       close_date: tx.date,
       quantity: total_qty,
@@ -279,12 +365,12 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       proceeds: proceeds,
       realized_pnl_abs: realized,
       realized_pnl_pct: realized_pct,
-      holding_period_days: holding_period_days,
+      holding_period_days: holding_period_days(consumed, tx.date, total_qty),
       currency_code: Map.get(tx, :currency_code),
-      lots: Enum.map(consumed, &consumed_lot/1)
+      lots: Enum.map(consumed, &consumed_lot/1),
+      unavailable_reason: nil,
+      lots_missing_leg: []
     }
-
-    %{state | closed: [trade | state.closed]}
   end
 
   # #984 (Sprint 17 T1): the lots a sell consumed, oldest first, each with

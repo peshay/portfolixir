@@ -602,7 +602,14 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       currency_code: trade.currency_code,
       # #984: computation_basis.annualized_return states the rule.
       annualized_return: decimal(trade.annualized_return),
-      annualized_return_reason: reason(trade.annualized_return_reason)
+      annualized_return_reason: reason(trade.annualized_return_reason),
+      # #1198: computation_basis.fees_and_taxes states the rule; null and []
+      # on every available trade.
+      unavailable_reason: reason(Map.get(trade, :unavailable_reason)),
+      lots_missing_leg:
+        trade
+        |> Map.get(:lots_missing_leg, [])
+        |> Enum.map(&%{open_date: date(&1.open_date), currency_code: &1.currency_code})
     }
   end
 

@@ -135,7 +135,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                 "covers, per side. Realized and open cost change by the same amount unless a " <>
                 "sell no lot covered before is matched after. unchanged: no realized amount and no " <>
                 "open cost moves; which lot a sale closes, and with it holding periods and " <>
-                "annualized returns, may."
+                "annualized returns, may. unavailable_trades: per side the closed trades that " <>
+                "close a lot with no settlement leg in their sell's currency, in no sum (#1198); " <>
+                "unchanged is false when that count, or the count of unmatched sells, moves."
 
   @security_reimport_note "After the merge every identity of the source resolves to the target: " <>
                             "its ISIN, as the target's ISIN or as a former ISIN of the target " <>
@@ -643,6 +645,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
           }
         end),
       unmatched_sells: fifo.unmatched_sells,
+      unavailable_trades: fifo.unavailable_trades,
       unchanged: fifo.unchanged
     }
   end

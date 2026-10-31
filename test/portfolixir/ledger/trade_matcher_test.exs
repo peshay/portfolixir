@@ -199,7 +199,10 @@ defmodule Portfolixir.Ledger.TradeMatcherTest do
                realized_pnl_abs: trade.realized_pnl_abs,
                realized_pnl_pct: trade.realized_pnl_pct,
                holding_period_days: 364,
-               currency_code: "USD"
+               currency_code: "USD",
+               # #1198: every available trade says so.
+               unavailable_reason: nil,
+               lots_missing_leg: []
              }
 
       assert Decimal.equal?(trade.basis, Decimal.new("2014"))
