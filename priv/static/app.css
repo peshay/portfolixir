@@ -4544,7 +4544,7 @@ input[pattern]:invalid:not(:placeholder-shown) {
   color: var(--color-text);
 }
 
-/* #1195 (board 07 ④, Nachher 1): a withheld row's count while the dry run
+/* Issue 1195 (board 07 ④, Nachher 1): a withheld row's count while the dry run
    runs is provisional — it dims (the pending treatment, .stale-value) and
    the recomputing cue stands under it, inside the count's own block. */
 .mapping-count .stale-value b {

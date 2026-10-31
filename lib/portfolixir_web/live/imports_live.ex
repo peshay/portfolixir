@@ -1532,10 +1532,9 @@ defmodule PortfolixirWeb.ImportsLive do
     if is_pid(gate) and gate in Process.get(:"$callers", []) do
       send(gate, {:imports_refine_gate, self()})
 
+      # No timeout: the task ends with the page that started it.
       receive do
         {:imports_refine_gate, :release} -> :ok
-      after
-        30_000 -> :ok
       end
     end
 
