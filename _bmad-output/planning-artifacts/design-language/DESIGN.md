@@ -6818,8 +6818,11 @@ kinds the drawer does not book").
 - **An imported booking** carries one attention note at the top of the form
   (`data_note`, `data-role="booking-imported"`): "Diese Buchung stammt aus
   einem Import. Hier korrigiert, bleibt sie so: Ein erneuter Import
-  derselben Datei bucht sie nicht noch einmal, und die Import-Korrektur
-  nennt sie als von Hand bearbeitet." (ADR-0053 A11.)
+  derselben Datei bucht sie nicht noch einmal, und sind Betrag oder
+  Steuern geändert, nennt die Import-Korrektur sie als von Hand
+  bearbeitet." (ADR-0053 A11: only a changed figure is an edit — the cash,
+  the price, the quantity, the fees or the taxes; a changed date, security
+  or note is not.)
 - **The refusal is the drawer's pair:** the field error under the amount
   ("muss größer als 0 sein", `aria-invalid`) and the page's result, a
   problem ("Betrag muss größer als 0 sein"); what was typed stays.

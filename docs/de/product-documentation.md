@@ -1056,9 +1056,10 @@ Buchung der falschen Art oder auf dem falschen Konto wird gelöscht und neu
 erfasst —, Datum, Betrag, Steuern, Wertpapier und Notiz werden an Ort und
 Stelle korrigiert; der Kontostand bewegt sich um die Differenz, und das
 Audit-Journal hält die Änderung fest. Eine Buchung aus einem Import sagt das
-im Formular: Dieselbe Datei bucht sie nicht noch einmal, und die
-Import-Korrektur nennt sie als von Hand bearbeitet, statt sie zu
-überschreiben. Auf dem Telefon ist das Formular höher als das Sheet; **Änderungen
+im Formular: Dieselbe Datei bucht sie nicht noch einmal, und sind Betrag
+oder Steuern hier geändert, nennt die Import-Korrektur sie als von Hand
+bearbeitet, statt sie zu überschreiben (ein geändertes Datum, Wertpapier
+oder eine Notiz ist keine solche Änderung). Auf dem Telefon ist das Formular höher als das Sheet; **Änderungen
 speichern** und **Abbrechen** bleiben deshalb an seiner Unterkante, während
 die Felder darüber scrollen.
 

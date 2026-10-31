@@ -963,8 +963,10 @@ fixed** — a booking of the wrong kind or on the wrong account is deleted and
 recorded again — and the date, the amount, the taxes, the security and the
 note are corrected in place; the balance moves by the difference, and the
 audit journal records the edit. A booking an import brought in says so on
-the form: the same file does not book it again, and the import's correction
-names it as edited by hand instead of rewriting it. On a phone the form is
+the form: the same file does not book it again, and once its amount or
+taxes are changed here, the import's correction names it as edited by hand
+instead of rewriting it (a changed date, security or note is not such an
+edit). On a phone the form is
 taller than the sheet, so the sheet's **Save changes** and **Cancel** stay
 at its bottom edge while the fields scroll above them.
 

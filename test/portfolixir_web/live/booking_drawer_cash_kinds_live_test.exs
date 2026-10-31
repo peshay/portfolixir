@@ -483,7 +483,7 @@ defmodule PortfolixirWeb.BookingDrawerCashKindsLiveTest do
     view = open_edit(conn, tx)
 
     assert view |> element("[data-role='booking-imported']") |> render() |> text() =~
-             "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and the import's correction names it as edited by hand."
+             "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and once its amount or taxes are changed, the import's correction names it as edited by hand."
 
     render_submit(view, "save_transaction", %{
       "transaction" => %{

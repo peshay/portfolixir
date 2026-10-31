@@ -2860,7 +2860,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         data-role="booking-imported"
       >
         <%= gettext(
-          "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and the import's correction names it as edited by hand."
+          "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and once its amount or taxes are changed, the import's correction names it as edited by hand."
         ) %>
       </AppShell.data_note>
       <div class="form-grid">

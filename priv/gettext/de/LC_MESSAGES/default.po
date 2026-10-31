@@ -12684,8 +12684,8 @@ msgstr "Art und Verrechnungskonto einer gebuchten Transaktion stehen fest; eine 
 
 #: lib/portfolixir_web/live/transaction_management_live.ex:2862
 #, elixir-autogen, elixir-format
-msgid "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and the import's correction names it as edited by hand."
-msgstr "Diese Buchung stammt aus einem Import. Hier korrigiert, bleibt sie so: Ein erneuter Import derselben Datei bucht sie nicht noch einmal, und die Import-Korrektur nennt sie als von Hand bearbeitet."
+msgid "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and once its amount or taxes are changed, the import's correction names it as edited by hand."
+msgstr "Diese Buchung stammt aus einem Import. Hier korrigiert, bleibt sie so: Ein erneuter Import derselben Datei bucht sie nicht noch einmal, und sind Betrag oder Steuern geändert, nennt die Import-Korrektur sie als von Hand bearbeitet."
 
 #: lib/portfolixir_web/live/imports_live.ex:2401
 #, elixir-autogen, elixir-format
