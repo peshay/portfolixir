@@ -1495,8 +1495,11 @@ components invented for it:
   security transfer) keeps its stored amount, else quantity × price, in the
   booking's currency; a split has none. The currency suffix of a row that
   moves cash is its cash account's (ADR-0015, amendment of 2026-10-07,
-  point 1). The test pins Σ Betrag = Δ Saldo for a drawer buy, an API buy
-  without a gross amount, a buy at 0 and a sell.
+  point 1). The sign is the leg's, not the kind's: a sell of 1 × 0,00 with
+  a fee of 1,00 (a worthless write-off) reads -1,00 as the Saldo falls
+  1,00, and takes 1,00 off the Verkauf sum. The test pins Σ Betrag =
+  Δ Saldo for a drawer buy, an API buy without a gross amount, a buy at 0,
+  a sell and that write-off.
 - **The security's Transaktionen tab names a cross-currency row's
   currencies** *(Sprint 21 α11, issue 1213; board 09, pick N9 A)*. A row
   booked in another currency than its cash account's (the drawer's
