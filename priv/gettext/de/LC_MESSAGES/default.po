@@ -8213,7 +8213,7 @@ msgstr "Buckets: %{names}"
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:773
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:778
 #: lib/portfolixir_web/live/securities/merge_preview.ex:893
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1534
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1540
 #, elixir-autogen, elixir-format
 msgid "no buckets"
 msgstr "keine Buckets"
@@ -8476,7 +8476,7 @@ msgid "Remedy: change that booking's kind back to the one it was imported as, or
 msgstr "Abhilfe: die Art dieser Buchung auf die zurücksetzen, mit der sie importiert wurde, oder sie löschen, dann erneut prüfen."
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:837
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1581
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1587
 #, elixir-autogen, elixir-format
 msgid "Remedy: go back and choose another target."
 msgstr "Abhilfe: zurückgehen und ein anderes Ziel wählen."
@@ -8525,7 +8525,7 @@ msgstr[1] "Wählen, was mit den %{count} gleichen Buchungen geschieht."
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:406
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:457
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1647
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1653
 #, elixir-autogen, elixir-format
 msgid "%{count} booking moved"
 msgid_plural "%{count} bookings moved"
@@ -8543,7 +8543,7 @@ msgstr[0] "%{count} entfernt"
 msgstr[1] "%{count} entfernt"
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:98
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1622
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1628
 #, elixir-autogen, elixir-format
 msgid "Choice for the equal booking missing"
 msgid_plural "Choice for %{count} equal bookings missing"
@@ -8863,7 +8863,7 @@ msgstr[1] "Name von %{count} Konten"
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:426
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:781
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1649
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1655
 #, elixir-autogen, elixir-format
 msgid "%{count} duplicate removed"
 msgid_plural "%{count} duplicates removed"
@@ -8892,7 +8892,7 @@ msgstr[0] "%{count} wechselt"
 msgstr[1] "%{count} wechseln"
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:434
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1659
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1665
 #, elixir-autogen, elixir-format
 msgid "%{count} quote added"
 msgid_plural "%{count} quotes added"
@@ -8900,14 +8900,14 @@ msgstr[0] "%{count} Kurs ergänzt"
 msgstr[1] "%{count} Kurse ergänzt"
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:437
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1660
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1666
 #, elixir-autogen, elixir-format
 msgid "%{count} setting dropped"
 msgid_plural "%{count} settings dropped"
 msgstr[0] "%{count} Einstellung entfallen"
 msgstr[1] "%{count} Einstellungen entfallen"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1517
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1523
 #, elixir-autogen, elixir-format
 msgid "%{depot} — source: %{source} · target: %{target}"
 msgstr "%{depot} — Quelle: %{source} · Ziel: %{target}"
@@ -8971,7 +8971,7 @@ msgstr "Ein Termin bucht nichts. Ein doppelter lässt sich danach im Tab Termine
 msgid "An import that names the source books to the target afterwards."
 msgstr "Ein Import, der die Quelle nennt, bucht danach zum Ziel."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1619
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1625
 #, elixir-autogen, elixir-format
 msgid "Choice for the ISIN missing"
 msgstr "Wahl der ISIN fehlt"
@@ -9036,7 +9036,7 @@ msgstr "ISIN danach"
 msgid "ISIN change on"
 msgstr "ISIN-Wechsel am"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1674
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1680
 #, elixir-autogen, elixir-format
 msgid "ISIN now %{isin}."
 msgstr "ISIN jetzt %{isin}."
@@ -9061,7 +9061,7 @@ msgstr "Stammdaten, die sich unterscheiden"
 msgid "Merge the other way"
 msgstr "Andersherum zusammenführen"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1671
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1677
 #, elixir-autogen, elixir-format
 msgid "Merged into %{target}: %{parts}."
 msgstr "Zusammengeführt in %{target}: %{parts}."
@@ -9127,32 +9127,32 @@ msgstr "Adresse der Kursquelle"
 msgid "Quotes on days with both values"
 msgstr "Kurse an Tagen mit beiden Werten"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1564
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1570
 #, elixir-autogen, elixir-format
 msgid "Remedy: book the split on the security that lacks it, or delete the wrong split, then check again."
 msgstr "Abhilfe: den Split bei dem Wertpapier buchen, dem er fehlt, oder den falschen Split löschen, dann erneut prüfen."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1552
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1558
 #, elixir-autogen, elixir-format
 msgid "Remedy: give the position the same buckets in both, then check again."
 msgstr "Abhilfe: der Position in beiden dieselben Buckets geben, dann erneut prüfen."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1540
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1546
 #, elixir-autogen, elixir-format
 msgid "Remedy: go back and choose a target in the same currency."
 msgstr "Abhilfe: zurückgehen und ein Ziel in derselben Währung wählen."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1543
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1549
 #, elixir-autogen, elixir-format
 msgid "Remedy: mark both the same, then check again."
 msgstr "Abhilfe: beide gleich markieren, dann erneut prüfen."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1546
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1552
 #, elixir-autogen, elixir-format
 msgid "Remedy: reactivate the target, then check again."
 msgstr "Abhilfe: das Ziel reaktivieren, dann erneut prüfen."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1549
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1555
 #, elixir-autogen, elixir-format
 msgid "Remedy: set “treat synced quotes as raw” the same on both, then check again."
 msgstr "Abhilfe: „Synchronisierte Kurse als roh behandeln“ bei beiden gleich setzen, dann erneut prüfen."
@@ -9289,7 +9289,7 @@ msgstr "Die Position des Ziels hat dieselben Buckets."
 msgid "The target's value applies."
 msgstr "Der Wert des Ziels gilt."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1579
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1585
 #, elixir-autogen, elixir-format
 msgid "This version has no way around it; both securities stay unchanged."
 msgstr "Diese Version kennt keinen Weg darum herum; beide Wertpapiere bleiben unverändert."
@@ -9343,12 +9343,12 @@ msgid_plural "bookings move to the target"
 msgstr[0] "Buchung wechselt zum Ziel"
 msgstr[1] "Buchungen wechseln zum Ziel"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1688
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1694
 #, elixir-autogen, elixir-format
 msgid "bookings of the source"
 msgstr "Buchungen der Quelle"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1689
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1695
 #, elixir-autogen, elixir-format
 msgid "bookings of the target"
 msgstr "Buchungen des Ziels"
@@ -9444,7 +9444,7 @@ msgid_plural "quotes of the source fill gaps in the target"
 msgstr[0] "Kurs der Quelle füllt eine Lücke im Ziel"
 msgstr[1] "Kurse der Quelle füllen Lücken im Ziel"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1699
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1705
 #, elixir-autogen, elixir-format
 msgid "quotes of the source"
 msgstr "Kurse der Quelle"
@@ -9606,12 +9606,12 @@ msgstr[1] "%{count} interne Umbuchungen entfallen: Die beiden Konten jeder Umbuc
 msgid "Buy without an amount in %{account} on %{date} · no. %{id}"
 msgstr "Kauf ohne Betrag in %{account} am %{date} · Nr. %{id}"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1570
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1576
 #, elixir-autogen, elixir-format
 msgid "Remedy: change its kind back to the one it was imported as, or delete it, then check again."
 msgstr "Abhilfe: seine Art auf die zurücksetzen, als die er importiert wurde, oder ihn löschen, dann erneut prüfen."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1558
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1564
 #, elixir-autogen, elixir-format
 msgid "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
 msgstr "Abhilfe: den Split mit dem falschen Verhältnis im Tab Transaktionen löschen, dann erneut prüfen."
@@ -9631,7 +9631,7 @@ msgstr "Verkauf ohne Betrag in %{account} am %{date} · Nr. %{id}"
 msgid "Set balance of %{account} on %{date} · no. %{id}"
 msgstr "Gesetzter Saldo von %{account} am %{date} · Nr. %{id}"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1528
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1534
 #, elixir-autogen, elixir-format
 msgid "Split on %{date} · no. %{id}"
 msgstr "Split am %{date} · Nr. %{id}"
@@ -9731,7 +9731,7 @@ msgstr "Neu eingegeben ist er sauber."
 msgid "Retracted by #%{id}:"
 msgstr "Zurückgezogen durch #%{id}:"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1576
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1582
 #, elixir-autogen, elixir-format
 msgid "Remedy: correct or clear the source's ISIN in its master data, then check again."
 msgstr "Abhilfe: die ISIN der Quelle in ihren Stammdaten korrigieren oder leeren, dann erneut prüfen."
@@ -9792,7 +9792,7 @@ msgstr "stillgelegt"
 msgid "“%{name}”"
 msgstr "„%{name}“"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1595
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1601
 #, elixir-autogen, elixir-format
 msgid "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again."
 msgstr "Abhilfe: den Split vom %{date} (%{ratio}) auch bei %{security} buchen oder den falschen Split löschen, dann erneut prüfen."
@@ -10198,7 +10198,7 @@ msgstr[0] "%{count} gesetzter Saldo desselben Tages entfallen"
 msgstr[1] "%{count} gesetzte Salden desselben Tages entfallen"
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:802
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1653
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1659
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} split collapsed"
@@ -12469,32 +12469,32 @@ msgstr "korrigiert"
 msgid "Church tax rate"
 msgstr "Kirchensteuersatz"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1496
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1502
 #, elixir-autogen, elixir-format
 msgid "%{kind} of a security merged in earlier (as imported):"
 msgstr "%{kind} eines früher zusammengeführten Wertpapiers (wie importiert):"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1493
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1499
 #, elixir-autogen, elixir-format
 msgid "%{kind} of a security merged in earlier:"
 msgstr "%{kind} eines früher zusammengeführten Wertpapiers:"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1484
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1490
 #, elixir-autogen, elixir-format
 msgid "%{kind} of the source (as imported):"
 msgstr "%{kind} der Quelle (wie importiert):"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1481
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1487
 #, elixir-autogen, elixir-format
 msgid "%{kind} of the source:"
 msgstr "%{kind} der Quelle:"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1490
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1496
 #, elixir-autogen, elixir-format
 msgid "%{kind} of the target (as imported):"
 msgstr "%{kind} des Ziels (wie importiert):"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1487
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1493
 #, elixir-autogen, elixir-format
 msgid "%{kind} of the target:"
 msgstr "%{kind} des Ziels:"
@@ -12532,31 +12532,31 @@ msgstr "Die ISIN der Quelle hat eine falsche Prüfziffer, und die Zusammenführu
 msgid "the target's ISIN fails its check digit, and that merge would write it onto this security."
 msgstr "Die ISIN des Ziels hat eine falsche Prüfziffer, und diese Zusammenführung würde sie auf dieses Wertpapier schreiben."
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1501
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1507
 #, elixir-autogen, elixir-format
 msgctxt "identifier kind"
 msgid "Former ISIN"
 msgstr "Frühere ISIN"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1500
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1506
 #, elixir-autogen, elixir-format
 msgctxt "identifier kind"
 msgid "ISIN"
 msgstr "ISIN"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1504
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1510
 #, elixir-autogen, elixir-format
 msgctxt "identifier kind"
 msgid "Name"
 msgstr "Name"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1503
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1509
 #, elixir-autogen, elixir-format
 msgctxt "identifier kind"
 msgid "Ticker"
 msgstr "Ticker"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1502
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1508
 #, elixir-autogen, elixir-format
 msgctxt "identifier kind"
 msgid "WKN"
