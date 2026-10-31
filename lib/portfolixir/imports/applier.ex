@@ -2046,7 +2046,15 @@ defmodule Portfolixir.Imports.Applier do
             quantity: entry.quantity
           }
 
-        kind when kind in ["interest", "deposit", "removal"] ->
+        # ADR-0051's amendment of 2026-10-09 (#928): an interest booking
+        # keeps the security its row names, a bond's coupon its bond, and no
+        # depot: a CSV interest row names none, and a JSON row's `portfolio`
+        # stays unread, so no depot is created for a coupon. A row naming
+        # no security stores none.
+        "interest" ->
+          %{cash_account_id: ids.cash_id, security_id: ids.security_id}
+
+        kind when kind in ["deposit", "removal"] ->
           %{cash_account_id: ids.cash_id}
 
         kind when kind in ["fee", "tax", "tax_refund"] ->
