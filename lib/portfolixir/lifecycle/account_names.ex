@@ -351,24 +351,6 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   end
 
   @doc """
-  What the name guard would answer for a new account of `schema` named `name`
-  in `portfolio_id`: the field error's message, or `nil` when the name is
-  free. Read-only and unlocked — for a form that must refuse a taken name
-  before it writes anything else; the write itself is still guarded.
-  """
-  @spec name_error(schema(), integer() | nil, String.t()) :: String.t() | nil
-  def name_error(schema, portfolio_id, name) when schema in @schemas and is_binary(name) do
-    case name_conflict(schema, portfolio_id, name, nil) do
-      nil ->
-        nil
-
-      conflict ->
-        {message, keys} = conflict_message(schema, conflict)
-        String.replace(message, "%{holder_id}", to_string(keys[:holder_id]))
-    end
-  end
-
-  @doc """
   What the name guard would find for `name` on an account of `schema` in
   `portfolio_id` other than `except_id` (`nil` for a new account), read-only
   and unlocked — for a form that names the holder in the operator's

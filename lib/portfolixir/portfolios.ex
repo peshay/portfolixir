@@ -362,15 +362,6 @@ defmodule Portfolixir.Portfolios do
     AccountNames.remove_former_name(actor, cash_account, name)
   end
 
-  @doc """
-  The name guard's answer for a new depot named `name` in `portfolio_id`
-  (ADR-0050 §4) — the message a create would fail with, or `nil` when the
-  name is free — for a form that creates something else first.
-  """
-  def securities_account_name_error(portfolio_id, name) when is_binary(name) do
-    AccountNames.name_error(SecuritiesAccount, portfolio_id, name)
-  end
-
   def list_securities_accounts do
     Repo.all(
       from(account in SecuritiesAccount,

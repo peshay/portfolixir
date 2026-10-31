@@ -264,9 +264,6 @@ defmodule PortfolixirWeb.RefuseBeforeBindingTest do
 
       assert AccountNames.conflict(SecuritiesAccount, world.portfolio.id, "Depot\u0000", nil) ==
                nil
-
-      assert AccountNames.name_error(SecuritiesAccount, world.portfolio.id, "Depot\u0000") ==
-               nil
     end
   end
 end
