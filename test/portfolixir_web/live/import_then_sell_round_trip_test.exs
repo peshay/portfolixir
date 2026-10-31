@@ -135,4 +135,132 @@ defmodule PortfolixirWeb.ImportThenSellRoundTripTest do
     assert exactly?(row.realized_base, "151.00")
     assert Decimal.equal?(row.realized_base, Decimal.sub(sell.gross_amount, buy.gross_amount))
   end
+
+  # A purchase of 20 Lakeside Turbines (CHF) for 1,004.00 EUR from
+  # "Franc-Cash": 1,000.00 EUR of shares and a fee of 4.00.
+  @franc_json """
+  {
+    "version": 1,
+    "transactions": [
+      {
+        "type": "DEPOSIT",
+        "account": "Franc-Cash",
+        "date": "2026-07-10",
+        "currency": "EUR",
+        "amount": 2000.0
+      },
+      {
+        "type": "PURCHASE",
+        "account": "Franc-Cash",
+        "portfolio": "Franc-Depot",
+        "date": "2026-07-11",
+        "time": "10:15",
+        "currency": "EUR",
+        "amount": 1004.0,
+        "shares": 20.0,
+        "security": {
+          "name": "Lakeside Turbines AG",
+          "isin": "CH00LAKETRB2",
+          "ticker": "LKT",
+          "currency": "CHF"
+        },
+        "units": [
+          {"type": "FEE", "amount": 4.0}
+        ]
+      }
+    ]
+  }
+  """
+
+  defp text(nodes),
+    do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
+
+  # User story (#1198, Sprint 21 α3; D-1 round trip 1 with a moving rate, the
+  # ADR-0015 amendment's note of 2026-10-31):
+  # As the operator who imported a franc share bought from my euro account
+  # and sold it in the booking drawer in francs, while the franc moved
+  # against the euro,
+  # I want the Trades facet and the Overview card to read the euros the two
+  # bookings moved,
+  # so that the result agrees with my bank's statement.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - With 1 EUR = 0.94 CHF stored for the purchase's date, the import books
+  #   the buy in EUR with its legs: 1,000.00 EUR, 940.00 CHF, 1.063830.
+  # - With 0.95 stored for the sale's date, the drawer sells the 20 at 55 CHF,
+  #   settled 1,157.90 EUR, fee 3.00 EUR: cash 1,154.90 EUR.
+  # - The realized-gains read, the facet's row and the Overview card read
+  #   150.90 EUR = 1,154.90 − 1,004.00. Before: 161.46 EUR, the franc result
+  #   converted at 1 / 0.95.
+  test "an imported franc buy sold in the drawer while the rate moved reads the cash it moved",
+       %{conn: conn} do
+    {:ok, _} =
+      [{~D[2026-07-11], "0.94"}, {~D[2026-10-21], "0.95"}]
+      |> Enum.map(fn {date, rate} ->
+        %{base_currency: "EUR", quote_currency: "CHF", date: date, rate: rate, source: "manual"}
+      end)
+      |> Fx.upsert_many()
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Franc Round Trip",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, preview} = PortfolioPerformance.parse(@franc_json, filename: "franc_round_trip.json")
+    assert preview.errors == []
+    assert {:ok, _result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    buy = Repo.get_by!(Transaction, type: "buy")
+    assert buy.currency_code == "EUR"
+    assert exactly?(buy.gross_amount, "1004.00")
+    assert exactly?(buy.settlement_amount, "1000.00")
+    assert exactly?(buy.security_amount, "940.00")
+    assert exactly?(buy.settlement_fx_rate, "1.063830")
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#open-booking") |> render_click()
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" => %{
+        "type" => "sell",
+        "date" => "2026-10-21",
+        "securities_account_id" => to_string(buy.securities_account_id),
+        "security_id" => to_string(buy.security_id),
+        "quantity" => "20",
+        "price" => "55",
+        "fees" => "3",
+        "taxes" => "0",
+        "notes" => "",
+        "settlement_amount" => "1157.90",
+        "settlement_fx_rate" => "1.052636"
+      }
+    })
+
+    sell = Repo.get_by!(Transaction, type: "sell")
+    assert sell.currency_code == "CHF"
+    assert exactly?(sell.gross_amount, "1154.90")
+
+    assert [row] = RealizedGains.report(base_currency: "EUR").trades
+    assert exactly?(row.realized_base, "150.90")
+    assert Decimal.equal?(row.realized_base, Decimal.sub(sell.gross_amount, buy.gross_amount))
+
+    {:ok, facet, _html} = live(conn, "/cashflow?tab=realized")
+
+    assert facet
+           |> render()
+           |> Floki.parse_document!()
+           |> Floki.find("td[data-role='trade-result']")
+           |> text() =~ "+150.90 EUR"
+
+    {:ok, overview, _html} = live(conn, "/")
+
+    assert overview
+           |> render()
+           |> Floki.parse_document!()
+           |> Floki.find("[data-role='closed-trade'] .num")
+           |> text() =~ "+150.90"
+  end
 end

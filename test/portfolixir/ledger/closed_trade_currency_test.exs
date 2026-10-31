@@ -831,6 +831,128 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert exactly?(realized_row(fund).realized_base, "151.00")
   end
 
+  # The franc moving against the euro between a purchase and its sale: 1 EUR
+  # = 0.94 CHF on the purchase's date and 0.95 CHF on the sale's, stored as
+  # EUR per CHF (the close-date read converts at 1 / 0.95).
+  defp moving_chf_rates! do
+    {:ok, _} =
+      [{~D[2026-07-11], "0.94"}, {~D[2026-10-21], "0.95"}]
+      |> Enum.map(fn {date, rate} ->
+        %{base_currency: "EUR", quote_currency: "CHF", date: date, rate: rate, source: "manual"}
+      end)
+      |> Fx.upsert_many()
+  end
+
+  # User story (#1198, Sprint 21 α3; the ADR-0015 amendment of 2026-10-09,
+  # identity 1 with a moving rate, the note of 2026-10-31):
+  # As the operator who imported a franc share bought from my euro account
+  # and sold it through the booking form in francs, while the franc moved
+  # against the euro,
+  # I want the realized result in euros to be the cash the two bookings
+  # moved,
+  # so that it agrees with my bank's statement, not with the trade's franc
+  # result converted at the sale date's rate.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - Imported buy of 20 at 50.00 EUR, fee 4.00 EUR (cash 1,004.00), legs
+  #   1,000.00 EUR, 940.00 CHF, 1.063830 (the hub's 0.94 that day); booking-
+  #   form sale of 20 at 55 CHF, settled 1,157.90 EUR, fee 3.00 EUR (cash
+  #   1,154.90; the hub's 0.95 that day).
+  # - The closed trade stays in francs, the lot entering at its native leg:
+  #   basis 943.76, proceeds 1,097.15, realized 153.39 CHF (to the cent).
+  # - The realized-gains report, its realized_total and the Overview card's
+  #   newest trades read 150.90 EUR = 1,154.90 − 1,004.00, the sale's
+  #   settlement less the lot's, and name the path: settlement_legs.
+  #   Before: 161.46 EUR, the franc result at 1 / 0.95.
+  # - A franc round trip booked wholly through the booking form, the same
+  #   rates, keeps the close-date conversion (point 4, one currency): 100
+  #   CHF = 100 / 0.95 EUR, path close_date_rate.
+  # - Mutation: converting the trade's franc result at the close date where
+  #   both sides carry their legs turns this red.
+  test "an imported lot sold in the security's currency reads the cash it moved when the rate moved (identity 1)" do
+    world = base_world(name: "Franc Move", cash_name: "Franc Cash", depot_name: "Franc Depot")
+    moving_chf_rates!()
+    works = create_security!(name: "Lakeside Turbines AG", ticker: "LKT", currency: "CHF")
+    form = create_security!(name: "Lakeside Form AG", ticker: "LKF", currency: "CHF")
+
+    buy =
+      account_currency_trade!(world, works,
+        type: "buy",
+        date: ~D[2026-07-11],
+        quantity: "20",
+        price: "50",
+        fees: "4",
+        security_amount: "940",
+        settled: "1000",
+        rate: "1.063830",
+        gross: "1004"
+      )
+
+    sell =
+      cross_trade!(world, works,
+        type: "sell",
+        quantity: "20",
+        price: "55",
+        settled: "1157.90",
+        fees: "3.00",
+        gross: "1154.90",
+        date: ~D[2026-10-21]
+      )
+
+    assert [trade] = closed(works)
+    assert trade.currency_code == "CHF"
+    assert exactly?(Decimal.round(trade.basis, 2), "943.76")
+    assert exactly?(Decimal.round(trade.proceeds, 2), "1097.15")
+    assert exactly?(Decimal.round(trade.realized_pnl_abs, 2), "153.39")
+
+    cash_moved = Decimal.sub(sell.gross_amount, buy.gross_amount)
+    assert exactly?(cash_moved, "150.90")
+
+    row = realized_row(works)
+    assert exactly?(row.realized_base, "150.90")
+    assert Decimal.equal?(row.realized_base, cash_moved)
+    assert row.realized_base_source == :settlement_legs
+
+    assert %{trades: [newest]} = RealizedGains.newest_trades(1, base_currency: "EUR")
+    assert newest.security_id == works.id
+    assert exactly?(newest.realized_base, "150.90")
+    assert newest.realized_base_source == :settlement_legs
+
+    cross_trade!(world, form,
+      quantity: "20",
+      price: "50",
+      settled: "1063.83",
+      gross: "1063.83",
+      date: ~D[2026-07-11]
+    )
+
+    cross_trade!(world, form,
+      type: "sell",
+      quantity: "20",
+      price: "55",
+      settled: "1157.89",
+      gross: "1157.89",
+      date: ~D[2026-10-21]
+    )
+
+    assert [one_currency] = closed(form)
+    assert exactly?(one_currency.realized_pnl_abs, "100")
+
+    form_row = realized_row(form)
+
+    assert Decimal.equal?(
+             form_row.realized_base,
+             Decimal.mult(Decimal.new("100"), Decimal.div(Decimal.new("1"), Decimal.new("0.95")))
+           )
+
+    assert form_row.realized_base_source == :close_date_rate
+
+    assert Decimal.equal?(
+             RealizedGains.report(base_currency: "EUR").summary.realized_total,
+             Decimal.add(row.realized_base, form_row.realized_base)
+           )
+  end
+
   # User story (#1198, Sprint 21 α3; identity 3, the fallback of point 3):
   # As the operator whose imported dollar share came in before any rate was
   # stored, so it carries no legs, and was then sold in dollars,

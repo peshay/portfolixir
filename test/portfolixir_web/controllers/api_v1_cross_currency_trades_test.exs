@@ -285,6 +285,87 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
     assert [%{"realized_base" => "151"}] = gains["trades"]
   end
 
+  # User story (#1198, Sprint 21 α3; identity 1 with a moving rate over the
+  # API, the ADR-0015 amendment's note of 2026-10-31):
+  # As the operating LLM agent,
+  # I want the realized-gains read to answer a franc share imported from a
+  # euro account and sold in francs, while the franc moved, with the euros
+  # the two bookings moved, and to say which path made the figure,
+  # so that the result I quote agrees with the operator's bank.
+  #
+  # Acceptance criteria:
+  # - 1 EUR = 0.94 CHF on the purchase's date, 0.95 on the sale's. Imported
+  #   buy of 20 at 50.00 EUR, fee 4.00 EUR (cash 1004.00; legs 1000.00 EUR,
+  #   940.00 CHF, 1.063830); booking-form sale of 20 at 55 CHF settled
+  #   1157.90 EUR, fee 3.00 EUR (cash 1154.90).
+  # - trades[0] reads currency_code CHF, realized_base "150.9" (1154.90 −
+  #   1004.00; before: "161.4631712862627113801894664887884", the franc
+  #   result at 1 / 0.95) and realized_base_source "settlement_legs";
+  #   summary.realized_total "150.9".
+  # - computation_basis.realized_base states both paths.
+  test "GET /api/v1/realized_gains reads the cash moved when the rate moved between buy and sale",
+       %{conn: conn} do
+    world = base_world(name: "Wire Franc", cash_name: "Franc Wire Cash", depot_name: "Franc Wire")
+    works = create_security!(name: "Wire Franc Works", ticker: "WFW", currency: "CHF")
+
+    {:ok, _} =
+      [{~D[2026-07-11], "0.94"}, {~D[2026-10-21], "0.95"}]
+      |> Enum.map(fn {date, rate} ->
+        %{base_currency: "EUR", quote_currency: "CHF", date: date, rate: rate, source: "manual"}
+      end)
+      |> Fx.upsert_many()
+
+    {:ok, _buy} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: works.id,
+        type: "buy",
+        date: ~D[2026-07-11],
+        quantity: "20",
+        price: "50",
+        fees: "4",
+        currency_code: "EUR",
+        security_amount: "940",
+        settlement_amount: "1000",
+        settlement_fx_rate: "1.063830",
+        gross_amount: "1004"
+      })
+
+    cross_trade!(world, works,
+      type: "sell",
+      quantity: "20",
+      price: "55",
+      settled: "1157.90",
+      fees: "3.00",
+      gross: "1154.90",
+      date: ~D[2026-10-21]
+    )
+
+    %{"data" => data} = get_json(conn, "/api/v1/realized_gains")
+
+    assert [trade] = data["trades"]
+
+    assert Map.take(trade, [
+             "security_id",
+             "currency_code",
+             "realized_base",
+             "realized_base_source"
+           ]) == %{
+             "security_id" => works.id,
+             "currency_code" => "CHF",
+             "realized_base" => "150.9",
+             "realized_base_source" => "settlement_legs"
+           }
+
+    assert data["summary"]["realized_total"] == "150.9"
+
+    basis = data["computation_basis"]["realized_base"]
+    assert basis =~ "settlement_legs"
+    assert basis =~ "close_date_rate"
+  end
+
   # User story (#1198, Sprint 21 α3; identity 3 over the API):
   # As the operating LLM agent,
   # I want a closed trade whose lot has no leg in the sale's currency kept on
