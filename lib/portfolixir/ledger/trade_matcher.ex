@@ -32,11 +32,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   (`:legs`, `%{currency => %{unit_price, fees, taxes}}`), never through a
   rate looked up. A lot with no leg in the sell's currency makes the trade
   unavailable (point 3), and so does a lot or a sell priced in a third
-  currency (`:third_currency`), even where the two share it: it keeps the sell's own figures, `nil` for every
-  figure derived from the lots, `unavailable_reason: :missing_settlement_leg`
-  and `lots_missing_leg` (each such lot's open date and booking currency).
-  A trade whose sell and lots share one currency computes exactly as before
-  (point 4); its `unavailable_reason` is `nil` and `lots_missing_leg` `[]`.
+  currency (`:third_currency`), even where the two share it: it keeps the
+  sell's own figures, `nil` for every figure derived from the lots,
+  `unavailable_reason: :missing_settlement_leg` and `lots_missing_leg` (each
+  such lot's open date and booking currency; a third-currency sell names
+  every lot it closes). A trade whose sell and lots share one currency, not
+  a third, computes exactly as before (point 4); its `unavailable_reason` is
+  `nil` and `lots_missing_leg` `[]`.
 
   Matching still considers only the priced `buy`/`sell` kinds. A `split`
   (ADR-0028 §3) is a named mandatory change site: it scales open lot

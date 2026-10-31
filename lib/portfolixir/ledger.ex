@@ -1183,11 +1183,10 @@ defmodule Portfolixir.Ledger do
       "than the sell's), makes the closed trade unavailable: unavailable_reason " <>
       "missing_settlement_leg, lots_missing_leg names each such lot by its open_date and " <>
       "currency_code (a sell priced in a third currency names every lot it closes), the " <>
-      "sell's own figures stay (quantity, dates, avg_sell_price, " <>
-      "sell_fees, sell_taxes, proceeds), every figure derived from the lots is null, and the " <>
-      "trade is in no total. A trade whose sell and lots are booked in one currency, not a " <>
-      "third, reads " <>
-      "them as booked, so buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and " <>
+      "sell's own figures stay (quantity, dates, avg_sell_price, sell_fees, sell_taxes, " <>
+      "proceeds), every figure derived from the lots is null, and the trade is in no total. " <>
+      "A trade whose sell and lots are booked in one currency, not a third, reads them as " <>
+      "booked, so buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and " <>
       "realized_pnl_abs are all in currency_code for every available trade. An imported " <>
       "lot's legs come from the EUR hub rate stored for its booking date (ADR-0033), not " <>
       "from a broker's: where the broker settled at another rate that day, the lot enters " <>
