@@ -74,6 +74,7 @@ defmodule Portfolixir.Imports.Correction do
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Journal
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
@@ -194,15 +195,13 @@ defmodule Portfolixir.Imports.Correction do
   defp mark_edited([]), do: []
 
   defp mark_edited(items) do
-    ids = Enum.map(items, &to_string(&1.transaction.id))
-
     edited_on =
-      from(e in JournalEntry,
-        where:
-          e.resource_type == "transaction" and e.resource_id in ^ids and
-            e.operation == :update and is_nil(e.scenario_id)
+      items
+      |> Enum.map(&to_string(&1.transaction.id))
+      |> Enum.uniq()
+      |> Enum.flat_map(
+        &Journal.list_entries(resource_type: "transaction", resource_id: &1, operation: :update)
       )
-      |> Repo.all()
       |> Enum.filter(&hand_edit?/1)
       |> Enum.group_by(& &1.resource_id, &DateTime.to_date(&1.inserted_at))
       |> Map.new(fn {id, dates} -> {id, Enum.max(dates, Date)} end)
@@ -371,6 +370,59 @@ defmodule Portfolixir.Imports.Correction do
   """
   @spec confirmable([Item.t()]) :: [Item.t()]
   def confirmable(items), do: Enum.filter(items, &(&1.state == :confirm))
+
+  @doc """
+  The set balances that absorb what `items` change (#1197): per cash account
+  the lines move, its latest balance anchor (ADR-0009) when it is dated on
+  or after one of their bookings, as `%{account: %CashAccount{}, date:
+  Date, amount: Decimal, absorbed: Decimal, change: Decimal}` — `amount`
+  what the lines move on the account, `absorbed` the part of it booked on
+  or before the anchor (the anchor holds the balance against it), `change`
+  the rest, which still moves the balance. Accounts without such an anchor
+  are left out. Read-only.
+  """
+  @spec absorbing_balances([Item.t()]) :: [map()]
+  def absorbing_balances(items) do
+    moves =
+      for %Item{transaction: transaction, accounts: accounts} <- items,
+          %{account: account, delta: delta} <- accounts,
+          do: {account, transaction.date, delta}
+
+    account_ids = moves |> Enum.map(fn {account, _, _} -> account.id end) |> Enum.uniq()
+
+    anchors =
+      from(t in Transaction,
+        where: t.type == "balance_adjustment" and t.cash_account_id in ^account_ids,
+        group_by: t.cash_account_id,
+        select: {t.cash_account_id, max(t.date)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    moves
+    |> Enum.group_by(fn {account, _, _} -> account end, fn {_, date, delta} -> {date, delta} end)
+    |> Enum.flat_map(fn {account, dated} ->
+      with %Date{} = anchor <- Map.get(anchors, account.id),
+           absorbed when absorbed != [] <-
+             Enum.filter(dated, fn {date, _} -> Date.compare(date, anchor) != :gt end) do
+        amount = dated |> Enum.map(&elem(&1, 1)) |> sum()
+        absorbed = absorbed |> Enum.map(&elem(&1, 1)) |> sum()
+
+        [
+          %{
+            account: account,
+            date: anchor,
+            amount: amount,
+            absorbed: absorbed,
+            change: Decimal.sub(amount, absorbed)
+          }
+        ]
+      else
+        _not_absorbed -> []
+      end
+    end)
+    |> Enum.sort_by(& &1.account.id)
+  end
 
   # A10 (#1193): a row the preview refuses (A5's credit that nets to
   # nothing, and A8's refund beside a delivery or a transfer, kept in
