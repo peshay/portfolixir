@@ -292,10 +292,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   (K25), and the message the row shows instead when the stored history
   already holds that hash. `refund` is the refund split off, written as the
   message quotes it: a CSV row's in the file's notation, a JSON row's in
-  the reader's. The sentences are board ux-design-2026-10-09/07-imports ③'s,
-  one per kind.
+  the reader's (`nil` when none is split off, and then nothing is refused).
+  The sentences are board ux-design-2026-10-09/07-imports ③'s, one per
+  kind.
   """
-  @spec refund_refusal(Entry.t(), String.t()) ::
+  @spec refund_refusal(Entry.t(), String.t() | nil) ::
           nil | {String.t(), %{entry: Entry.t(), message: String.t()}}
   def refund_refusal(%Entry{kind: kind, companion_entries: [_ | _]} = entry, refund)
       when kind in @refund_uncarried_kinds do

@@ -17,6 +17,9 @@ defmodule Portfolixir.Imports.Preview do
   the row's message when the stored history already holds that hash (a
   live booking, or a hash a merge retired), the row having been imported
   under an older reading (#1118; how such a booking is corrected is #1193).
+  A row A8 refuses (a delivery or a transfer with a tax refund, #1188) or
+  A9 refuses (a JSON row with a negative FEE unit, #1177) is kept the same
+  way, its would-be entry built as before, so its hash does not move.
   """
   @type refused_credit :: %{row: pos_integer(), entry: Entry.t(), message: String.t()}
 
