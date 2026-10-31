@@ -390,6 +390,7 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
   # - A stored price keeps every digit, trailing zeros trimmed, at least two
   #   places: 41,1234 and 93,1046 as stored, 24 as 24,00 (R10c).
   # - The phone row's size and the delete dialog's box read the same.
+  # - Each names the price's own currency since #1148: "41,1234 EUR".
   # - The English page reads 41.1234.
   test "the price column and the phone size keep the stored digits", %{conn: conn} do
     world = WorldFixtures.base_world(name: "Preis", cash_name: "Demo Cash", depot_name: "Depot 1")
@@ -424,19 +425,19 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
       |> text()
     end
 
-    assert price.(fine) == "93,1046"
-    assert price.(four) == "41,1234"
-    assert price.(whole) == "24,00"
+    assert price.(fine) == "93,1046 EUR"
+    assert price.(four) == "41,1234 EUR"
+    assert price.(whole) == "24,00 EUR"
 
-    assert size.(fine) == "0,537 × 93,1046"
-    assert size.(four) == "12 × 41,1234"
-    assert size.(whole) == "5 × 24,00"
+    assert size.(fine) == "0,537 × 93,1046 EUR"
+    assert size.(four) == "12 × 41,1234 EUR"
+    assert size.(whole) == "5 × 24,00 EUR"
 
     # The delete dialog's box reads the phone row's size (found while
     # drawing, item 3).
     view |> element("#tx-kebab-#{four.id}") |> render_click()
     view |> element("#tx-delete-#{four.id}") |> render_click()
-    assert view |> element("#booking-delete-subject") |> render() =~ "12 × 41,1234"
+    assert view |> element("#booking-delete-subject") |> render() =~ "12 × 41,1234 EUR"
 
     {:ok, view, _html} = live(conn, "/transactions")
 
@@ -497,17 +498,17 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
       |> text()
     end
 
-    assert price.(derived) == "72,6212"
-    assert price.(four) == "41,1234"
-    assert price.(whole) == "24,00"
+    assert price.(derived) == "72,6212 EUR"
+    assert price.(four) == "41,1234 EUR"
+    assert price.(whole) == "24,00 EUR"
 
-    assert size.(derived) == "17 × 72,6212"
-    assert size.(four) == "12 × 41,1234"
-    assert size.(whole) == "5 × 24,00"
+    assert size.(derived) == "17 × 72,6212 EUR"
+    assert size.(four) == "12 × 41,1234 EUR"
+    assert size.(whole) == "5 × 24,00 EUR"
 
     view |> element("#tx-kebab-#{derived.id}") |> render_click()
     view |> element("#tx-delete-#{derived.id}") |> render_click()
-    assert view |> element("#booking-delete-subject") |> render() =~ "17 × 72,6212"
+    assert view |> element("#booking-delete-subject") |> render() =~ "17 × 72,6212 EUR"
 
     tab_price = fn security ->
       {:ok, tab, _html} = live(conn, "/securities/#{security.id}?tab=transactions&locale=de")
@@ -570,11 +571,11 @@ defmodule PortfolixirWeb.TransactionHistoryU1LiveTest do
       |> text()
     end
 
-    assert price.(tiny) == "0,000045"
-    assert price.(small) == "0,00123"
+    assert price.(tiny) == "0,000045 EUR"
+    assert price.(small) == "0,00123 EUR"
 
-    assert size.(tiny) == "1.000.000 × 0,000045"
-    assert size.(small) == "5.000 × 0,00123"
+    assert size.(tiny) == "1.000.000 × 0,000045 EUR"
+    assert size.(small) == "5.000 × 0,00123 EUR"
 
     tab_price = fn security ->
       {:ok, tab, _html} = live(conn, "/securities/#{security.id}?tab=transactions&locale=de")

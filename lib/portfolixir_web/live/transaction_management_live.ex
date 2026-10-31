@@ -401,11 +401,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                               <% "price" -> %>
                                 <%!-- #1073: the price with the digits it was
                                       stored with (R10c), as the notes drawer
-                                      shows it. --%>
-                                <%= if transaction.type == "split" do %>
+                                      shows it. #1148 (board 03, pick N11 A):
+                                      in its own currency, the booking's, as
+                                      the value suffix; a dash carries none. --%>
+                                <%= if transaction.type == "split" or is_nil(transaction.price) do %>
                                   <td class="num" data-role="price">—</td>
                                 <% else %>
-                                  <td class="num" data-role="price"><%= stored_figure(transaction.price) %></td>
+                                  <td class="num" data-role="price"><%= stored_figure(transaction.price) %><small class="value-suffix"><%= transaction.currency_code %></small></td>
                                 <% end %>
                               <% "gross_amount" -> %>
                                 <%!-- The booking's money as the cash account sees it,
@@ -1923,12 +1925,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   The booking's size as the history's phone row shows it — quantity × price,
   the quantity alone, a split's ratio — or `nil` (#799); the delete dialog's
   second figure (U1, #912). The price keeps its stored digits, as the Price
-  column does (#1073).
+  column does (#1073), and names its own currency, the booking's (#1148,
+  board 03, pick N11 A): "8 × 100,00 USD". A split's ratio carries none.
   """
   def phone_size(%{type: "split"} = transaction), do: split_ratio_label(transaction)
 
-  def phone_size(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
-    do: "#{format_quantity(quantity)} × #{stored_figure(price)}"
+  def phone_size(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price} = transaction),
+    do: "#{format_quantity(quantity)} × #{stored_figure(price)} #{transaction.currency_code}"
 
   def phone_size(%{quantity: %Decimal{} = quantity}),
     do:

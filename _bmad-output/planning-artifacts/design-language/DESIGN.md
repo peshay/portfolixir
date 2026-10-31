@@ -1550,7 +1550,17 @@ components invented for it:
   digits up to two places past its first non-zero one, and never fewer than
   four places, so 0,000045 reads 0,000045 and 0,001234 reads 0,00123. A
   price of 1 or more keeps the four-place cap. No non-zero price prints as
-  zero.
+  zero. *Amended 2026-10-31 (Sprint 21 γ3, issue 1148; board
+  `mockups/ux-design-2026-10-09/03-history-drawer`, pick N11 A):* **the
+  price names its own currency**, the booking's (`currency_code`), as the
+  value suffix (`<small class="value-suffix">`) in the Price cell, and after
+  the price in the phone row's size and the delete dialog's box ("8 ×
+  100,00 USD"). It is the security's currency for a cross-currency trade
+  and the account's for a trade an import booked in the account's currency
+  (ADR-0015's amendment), so "100,00 USD" beside "-806,00 EUR" and "88,10
+  EUR" for the same USD security are each right without the reader
+  comparing figures. A split's ratio and a dash (a dividend, a split's
+  Price cell) carry no suffix.
 - **`.phone-row__ids` breaks anywhere** (`overflow-wrap: anywhere`): a stored
   name with no break opportunity wraps inside its phone row instead of
   running over the figures and off a 390 px screen. Its text is the flex

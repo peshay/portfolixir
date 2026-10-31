@@ -1146,7 +1146,10 @@ through — the account whose view the amount is, by the same name its chip
 carries; a cash transfer names both, sender first ("Checking → Savings"),
 and a security transfer names both of its depots the same way ("Depot 1 →
 Depot 2"); a booking with no cash account, such as a delivery, names its
-depot; a split names none. **Price** shows a price with the digits it was
+depot; a split names none. **Price** names the price's own currency, the
+booking's ("100.00 USD" beside an amount of "-806.00 EUR" for a dollar
+security bought through a euro account; issue #1148), and a booking with
+no price reads a bare dash. It shows a price with the digits it was
 stored with, up to four decimal places: 41.1234 stays 41.1234, 24 reads
 24.00, and a price an import derived as amount ÷ shares, stored as
 72.621176, reads 72.6212 — as it does on the security's **Transactions**
@@ -1174,8 +1177,8 @@ with the holdings, to **Wealth → Holdings → Positions** (issue #814).
 to two-line rows under the same month heads — the date and the kind over the
 security or account the booking touched (both accounts of a cash transfer,
 sender first, as the Account column names them), the signed amount with its
-currency over the size (quantity × price, the price with its stored digits;
-the quantity alone; a split's ratio) on the right, the running balance
+currency over the size (quantity × price, the price with its stored digits
+and its currency, "8 × 100.00 USD"; the quantity alone; a split's ratio) on the right, the running balance
 beneath it while the chips narrow to one account — so nothing scrolls
 sideways, and a long name with no space wraps inside its row (issue #1073);
 the column picker keeps its meaning above 560 px.

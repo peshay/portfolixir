@@ -1262,7 +1262,10 @@ Namen, den auch sein Chip trägt; eine Umbuchung nennt beide, den Sender
 zuerst („Girokonto → Tagesgeld“), und eine Wertpapierumbuchung nennt ebenso
 ihre beiden Depots („Depot 1 → Depot 2“); eine Buchung ohne
 Verrechnungskonto, etwa eine Einlieferung, nennt ihr Depot; ein Split nennt
-keines. **Preis** zeigt einen Preis mit den Stellen, mit denen er
+keines. **Preis** nennt die eigene Währung des Preises, die der Buchung
+(„100,00 USD“ neben einem Betrag von „-806,00 EUR“ für ein Dollar-Wertpapier,
+über ein Euro-Konto gekauft; Issue #1148), und eine Buchung ohne Preis zeigt
+einen bloßen Gedankenstrich. Er zeigt einen Preis mit den Stellen, mit denen er
 gespeichert wurde, bis zu vier Nachkommastellen: 41,1234 bleibt 41,1234, 24
 liest sich 24,00, und ein Preis, den ein Import als Betrag ÷ Stückzahl
 abgeleitet und als 72,621176 gespeichert hat, liest sich 72,6212 — wie im
@@ -1293,8 +1296,8 @@ zweizeiligen Zeilen unter denselben Monatsköpfen — Datum und Art über dem
 Wertpapier oder Konto, das die Buchung berührt hat (bei einer Umbuchung beide
 Konten, den Sender zuerst, wie die Spalte Konto sie nennt), rechts der Betrag mit
 Vorzeichen und Währung über der Größe (Stückzahl × Preis, der Preis mit
-seinen gespeicherten Stellen; die Stückzahl allein; das Verhältnis eines
-Splits), darunter der laufende Saldo, solange die Chips auf ein Konto
+seinen gespeicherten Stellen und seiner Währung, „8 × 100,00 USD“; die
+Stückzahl allein; das Verhältnis eines Splits), darunter der laufende Saldo, solange die Chips auf ein Konto
 eingrenzen — sodass nichts seitwärts scrollt und ein langer Name ohne
 Leerzeichen in seiner Zeile umbricht (Issue #1073); die Spaltenauswahl
 behält oberhalb von 560 px ihre Bedeutung.

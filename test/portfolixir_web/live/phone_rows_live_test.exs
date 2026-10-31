@@ -165,7 +165,7 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
     assert text(Floki.find(buy, ".phone-row__name")) == "2026-02-24 · Buy"
     assert text(Floki.find(buy, ".phone-row__ids")) == "Fresh AG"
     assert text(Floki.find(buy, ".phone-row__figure")) == "-1,263.00 EUR"
-    assert text(Floki.find(buy, ".phone-row__figure2")) == "30 × 42.10"
+    assert text(Floki.find(buy, ".phone-row__figure2")) == "30 × 42.10 EUR"
 
     deposit = row_for(rows, "Deposit")
     assert text(Floki.find(deposit, ".phone-row__ids")) == "Giro"
@@ -187,7 +187,7 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
     buy = row_for(rows, "Kauf")
     assert text(Floki.find(buy, ".phone-row__name")) == "24.02.2026 · Kauf"
     assert text(Floki.find(buy, ".phone-row__figure")) == "-1.263,00 EUR"
-    assert text(Floki.find(buy, ".phone-row__figure2")) == "30 × 42,10"
+    assert text(Floki.find(buy, ".phone-row__figure2")) == "30 × 42,10 EUR"
     assert text(Floki.find(row_for(rows, "Dividende"), ".phone-row__figure2")) == "50 Stück"
 
     {:ok, view, _html} = live(conn, "/securities?locale=de")
