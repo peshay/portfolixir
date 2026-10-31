@@ -39,6 +39,64 @@ defmodule PortfolixirWeb.FormatTest do
     assert Format.percent(nil) == "—"
   end
 
+  # User story (#1149, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ③):
+  # As the operator reading any money or percent figure,
+  # I want a figure that reads zero to carry no sign,
+  # so that a sale that netted -0,004 EUR reads "0,00" in the Realized matrix
+  # and nowhere "-0,00" or "-0,0", the rule the signed forms already keep.
+  #
+  # Acceptance criteria:
+  # - Format.money/2 and Format.percent/2 print a value that rounds to zero
+  #   without a sign, from either side, including Decimal's own negative
+  #   zero.
+  # - Every other output of the two is unchanged: the sweep below pins the
+  #   exact strings of both, in both locales, over the value shapes every
+  #   call site passes (amounts, losses, large figures, fractions of a cent,
+  #   fractions above one), and only the rows marked :changed moved.
+  @money_and_percent_sweep [
+    # {function, input, German, English, :kept | :changed}
+    {:money, "1234567.891", "1.234.567,89", "1,234,567.89", :kept},
+    {:money, "4250", "4.250,00", "4,250.00", :kept},
+    {:money, "-98765.4", "-98.765,40", "-98,765.40", :kept},
+    {:money, "0.5", "0,50", "0.50", :kept},
+    {:money, "12", "12,00", "12.00", :kept},
+    {:money, "0", "0,00", "0.00", :kept},
+    {:money, "0.00", "0,00", "0.00", :kept},
+    {:money, "0.004", "0,00", "0.00", :kept},
+    {:money, "0.005", "0,01", "0.01", :kept},
+    {:money, "-0.005", "-0,01", "-0.01", :kept},
+    {:money, "-1234.5", "-1.234,50", "-1,234.50", :kept},
+    {:money, "-0", "0,00", "0.00", :changed},
+    {:money, "-0.001", "0,00", "0.00", :changed},
+    {:money, "-0.004", "0,00", "0.00", :changed},
+    {:money, "-0.0049", "0,00", "0.00", :changed},
+    {:percent, "0.185", "18,5", "18.5", :kept},
+    {:percent, "3", "300,0", "300.0", :kept},
+    {:percent, "0", "0,0", "0.0", :kept},
+    {:percent, "-0.051", "-5,1", "-5.1", :kept},
+    {:percent, "0.00004", "0,0", "0.0", :kept},
+    {:percent, "0.0005", "0,1", "0.1", :kept},
+    {:percent, "-0.0005", "-0,1", "-0.1", :kept},
+    {:percent, "-1.5", "-150,0", "-150.0", :kept},
+    {:percent, "12.3456", "1.234,6", "1,234.6", :kept},
+    {:percent, "-0", "0,0", "0.0", :changed},
+    {:percent, "-0.00004", "0,0", "0.0", :changed},
+    {:percent, "-0.0004", "0,0", "0.0", :changed},
+    {:percent, "-0.00049", "0,0", "0.0", :changed}
+  ]
+
+  test "money and percent print no negative zero, and nothing else of theirs moves" do
+    moved =
+      for {fun, input, de, en, _change} <- @money_and_percent_sweep,
+          {locale, expected} <- [{"de", de}, {"en", en}],
+          actual = apply(Format, fun, [Decimal.new(input), locale]),
+          actual != expected,
+          do: {fun, input, locale, actual, expected}
+
+    assert moved == []
+  end
+
   test "defaults to the current gettext locale" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 
