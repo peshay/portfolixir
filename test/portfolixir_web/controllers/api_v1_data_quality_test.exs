@@ -344,6 +344,10 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
   #   walks the closes up (10, 20, then 30, 40, then the unpriced one).
   # - data_quality=missing_logo, a set paged in its query, walks the same
   #   pages: it, too, pages after the metric sort.
+  # - A delta read (since=) under the same metric sort keeps its change order
+  #   (oldest change first) and its page, on both: limit=2&offset=2 answers
+  #   the third and fourth created (C, D), not the metric's (D, B) nor the
+  #   first page again (A, B), which a page dropped before the read would.
   test "a metric sort sorts the whole set and pages after it", %{conn: conn} do
     today = Date.utc_today()
 
@@ -379,6 +383,9 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
       assert page.(asc) == ["B Beta AG", "D Delta AG"], asc
       assert page.(asc <> "&offset=2") == ["A Alpha AG", "C Gamma AG"], asc
       assert page.(asc <> "&offset=4") == ["E Unpriced AG"], asc
+
+      delta = set <> "since=2000-01-01T00:00:00Z&sort=latest_price&direction=desc"
+      assert page.(delta <> "&limit=2&offset=2") == ["C Gamma AG", "D Delta AG"], delta
     end
   end
 
