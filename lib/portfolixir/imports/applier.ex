@@ -2218,12 +2218,34 @@ defmodule Portfolixir.Imports.Applier do
   # still recognised and not booked twice. It errs towards "already booked",
   # as ADR-0029's legacy hash does, and the result names the row it skipped.
   # The in-run key is the booked one alone.
+  #
+  # ADR-0051's amendment of 2026-10-09 (#928, I11): an interest row naming a
+  # security is also asked for **with no security**, under each of those
+  # readings, because the importer stored every interest booking without its
+  # security before. A coupon stored then is recognised in a drifted
+  # re-export and not booked twice; a pair of equal coupons of two bonds an
+  # earlier import collapsed into one booking books nothing either.
   defp booked_before?(existing_keys, key, %Entry{} = entry, attrs) do
     MapSet.member?(existing_keys, key) or
-      case old_reading(entry, attrs) do
-        nil -> false
-        old_attrs -> MapSet.member?(existing_keys, DedupKey.of(old_attrs))
-      end
+      Enum.any?(
+        earlier_readings(entry, attrs),
+        &MapSet.member?(existing_keys, DedupKey.of(&1))
+      )
+  end
+
+  # The attrs of every reading a booking stored before could hold, other
+  # than the booked one: the hash's old reading, and each reading of a
+  # security-linked interest row without its security.
+  defp earlier_readings(%Entry{} = entry, attrs) do
+    old_readings = List.wrap(old_reading(entry, attrs))
+
+    case attrs do
+      %{type: "interest", security_id: security_id} when not is_nil(security_id) ->
+        old_readings ++ Enum.map([attrs | old_readings], &%{&1 | security_id: nil})
+
+      _other ->
+        old_readings
+    end
   end
 
   # The booking's attrs as the hash reads its row: the hash amount as its
