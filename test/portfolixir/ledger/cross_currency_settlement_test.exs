@@ -314,8 +314,9 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
     # - A stored buy priced in CHF, written as it was before the check, takes
     #   a notes-only edit: it is saved, journaled, and every figure stays.
     # - An update that changes a field the check reads -- the currency, the
-    #   security, the cash account or the type -- runs it, as the
-    #   settlement guard does (D-5), and is refused on currency_code.
+    #   security, the cash account, the depot, the type or an amount -- runs
+    #   it, as the settlement guard does (D-5), and is refused on
+    #   currency_code.
     test "a notes-only edit of a stored third-currency row passes and keeps its figures" do
       w = world()
       stored = stored_third_currency_buy!(w)
@@ -335,7 +336,7 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
       assert entry.resource_id == to_string(stored.id)
     end
 
-    test "an update that changes the currency, the security, the cash account or the type is checked" do
+    test "an update that changes the currency, the security, the cash account, the depot, the type or an amount is checked" do
       w = world()
       stored = stored_third_currency_buy!(w)
       twin = create_security!(name: "US Equity Twin", ticker: "USXT", currency: "USD")
@@ -347,11 +348,23 @@ defmodule Portfolixir.Ledger.CrossCurrencySettlementTest do
           currency_code: "EUR"
         })
 
+      # A second depot on the same EUR account: only the depot changes.
+      {:ok, other_depot} =
+        Portfolixir.Portfolios.create_securities_account(Actor.owner_ui(), %{
+          portfolio_id: w.portfolio.id,
+          cash_account_id: w.cash.id,
+          name: "Second Depot"
+        })
+
       for attrs <- [
             %{currency_code: "GBP"},
             %{security_id: twin.id},
             %{cash_account_id: other_cash.id},
-            %{type: "sell"}
+            %{securities_account_id: other_depot.id},
+            %{type: "sell"},
+            # An amount, the cash and its settlement moved together so the
+            # settlement guard agrees and the currency check is what refuses.
+            %{settlement_amount: Decimal.new("801.00"), gross_amount: Decimal.new("801.00")}
           ] do
         assert {:error, changeset} = Ledger.update_transaction(Actor.owner_ui(), stored, attrs),
                "#{inspect(attrs)} was not checked"
