@@ -201,12 +201,13 @@ Here Example Bank Cash ends at 5.895,56 EUR (10.000,00 − 3.221,00 − 501,50 +
 ## The JSON v1 variant, for other currencies and for ISINs
 Portfolio Performance's JSON v1 export carries a currency per row and a security's ISIN, WKN and ticker, and the Imports page reads it as well. The file is one object, {"version": 1, "transactions": [...]}; the file name ends in .json; each transaction has:
 - type: PURCHASE, SALE, DIVIDEND, INTEREST, DEPOSIT, REMOVAL, FEE, TAX, TAX_REFUND, CASH_TRANSFER, INBOUND_DELIVERY, OUTBOUND_DELIVERY or SECURITY_TRANSFER;
-- date (YYYY-MM-DD) and, when known, time (HH:MM);
+- date (YYYY-MM-DD) and, when known, time (HH:MM or HH:MM:SS);
 - account (the cash account), portfolio (the depot; on a DIVIDEND, the depot the dividend is booked to), otherAccount (where a CASH_TRANSFER's money arrives), otherPortfolio (where a SECURITY_TRANSFER's shares arrive); a transfer without its other side is refused;
 - currency: the cash account's currency, one currency per account, and one Portfolixir supports: the currencies its security dialog offers (EUR, USD, GBP, CHF and the other ISO codes listed there, GBX for pence); a row whose currency, or whose security's currency, is any other code is refused;
-- amount: the cash effect, as Betrag above (a PURCHASE's total including its fees and taxes, a SALE's net proceeds, a DIVIDEND's net credit), and shares: the quantity, both written as decimal strings, with a point before any decimals, such as "1203.00", or without decimals, such as "20"; the price is derived from them;
+- amount: the cash effect, as Betrag above (a PURCHASE's total including its fees and taxes, a SALE's net proceeds, a DIVIDEND's net credit), and shares: the quantity, both written as decimal strings, with a point before any decimals, such as "1203.00", or without decimals, such as "20"; the price is derived from them. A JSON v1 delivery books no cost basis: the importer reads no amount on a row that moves no cash;
 - units: the fees and taxes inside amount, as [{"type": "FEE", "amount": "3.00"}, {"type": "TAX", "amount": "1.20"}];
-- security: {"name", "isin", "wkn", "ticker", "currency"}; an ISIN must carry a valid check digit, and the currency must be a supported one, or the row is refused. Securities match by ISIN first, then by WKN, ticker and name.
+- security: required on PURCHASE, SALE, DIVIDEND and the three share movements, as {"name", "isin", "wkn", "ticker", "currency"}; an ISIN must carry a valid check digit, and the currency must be a supported one, or the row is refused. Securities match by ISIN first, then by WKN, ticker and name.
+Rows that agree in date and time, type, security, shares, amount, units, account and other side are one booking to the importer: give separate ones distinct times, derived from the source (its own time, or 00:00:01, 00:00:02 and so on in source order), never from the clock.
 \`\`\`json
 ${PP_JSON_V1_EXAMPLE}\`\`\`
 
