@@ -1526,6 +1526,87 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert html =~ "remap"
     end
 
+    # User story (#1130, Sprint 21 γ7; board ux-design-2026-10-09/07-imports
+    # ⑤): As the operator whose file misses securities that carry strategy
+    # configuration, I want that finding as an attention data note with its
+    # word and glyph, each security a link to its page, so that it reads as
+    # a finding like the page's other notes and the accent banner UX-DR17
+    # retired is gone from the page and from the stylesheet.
+    #
+    # Acceptance criteria:
+    # - `#import-unmatched-config` is ONE `attention` data note
+    #   (`data-role="unmatched-config"`): the severity word, the heading
+    #   "Configured securities this import does not touch", the remedy
+    #   sentence and the list, the strings unchanged.
+    # - Each listed security links to its page, its ISIN beside it.
+    # - Nothing on the page and nothing in `app.css` carries
+    #   `.import-warning-box`; under 560 px the note joins the ONE selector
+    #   list of notes that carry a list.
+    test "the leftover-configuration list is an attention data note linking each security",
+         %{conn: conn} do
+      portfolio = setup_portfolio()
+      leftover = create_security!(%{name: "Leftover AG", isin: "DE000LEFT003"})
+      attach_assignment!(leftover)
+
+      {:ok, cash} =
+        Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          name: "Cash",
+          currency_code: "EUR"
+        })
+
+      {:ok, depot} =
+        Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: "Depot"
+        })
+
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: portfolio.id,
+          type: "buy",
+          date: ~D[2024-01-02],
+          currency_code: "EUR",
+          security_id: leftover.id,
+          securities_account_id: depot.id,
+          cash_account_id: cash.id,
+          quantity: Decimal.new("1"),
+          price: Decimal.new("10"),
+          gross_amount: Decimal.new("10")
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_sample(view)
+
+      note =
+        "#import-unmatched-config.data-note.data-note--attention[data-role='unmatched-config']"
+
+      assert has_element?(view, note <> " .data-note__word", "Attention")
+
+      assert has_element?(
+               view,
+               note <> " .data-note__body h3",
+               "Configured securities this import does not touch"
+             )
+
+      assert has_element?(view, note <> " .data-note__body p", "record the ISIN change")
+
+      assert view |> element(note <> " li") |> render() |> Floki.parse_fragment!() |> Floki.text() =~
+               "Leftover AG · DE000LEFT003"
+
+      assert has_element?(view, note <> " li a[href='/securities/#{leftover.id}']", "Leftover AG")
+
+      refute render(view) =~ "import-warning-box"
+
+      css = File.read!("priv/static/app.css")
+      refute css =~ ".import-warning-box"
+
+      [_, phone] = String.split(css, "/* ②b A note that carries a list", parts: 2)
+      [wrap_list | _] = String.split(phone, "{", parts: 2)
+      assert wrap_list =~ ~s([data-role="unmatched-config"])
+    end
+
     # User story (2026-07-29, issue #607):
     # As a maintainer importing a small file that adds a few bookings,
     # I want the leftover-configuration check to stay quiet and say why,
