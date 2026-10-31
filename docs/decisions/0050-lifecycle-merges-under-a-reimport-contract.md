@@ -1124,7 +1124,10 @@ What changed, with no change to points 1 to 5:
 - **It runs once per parked preview.** Its answer is parked with the
   preview's summary, so a remount (a reload, a language switch, a second
   tab) shows it; only a preview parked before the answer came runs it
-  again.
+  again. A dry run stopped by a writer in flight is parked as answered too:
+  a remount never runs it again, and the rows it withheld stay withheld
+  until the file is dropped again (whether a remount should run it again
+  is #1308).
 - **The ISIN write lock is one per normalized ISIN** (ADR-0029 §3's
   serialized check), so a long transaction serializes only the writers of
   its own ISINs. Two ISINs that share a key serialize more than they must.

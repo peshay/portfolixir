@@ -2220,7 +2220,7 @@ defmodule Portfolixir.DocsTest do
   #   refined, that a name whose bookings are all booked is then prefilled
   #   unless a choice was made, that a remembered former name asks once
   #   more for a new booking, and that a counting that stops releases
-  #   nothing.
+  #   nothing, a writer in the portfolio under way among its causes (H53).
   test "the handbook says why a renamed account's row waits for a choice" do
     for {path, fragments, stale} <- [
           {"docs/product-documentation.md",
@@ -2243,7 +2243,8 @@ defmodule Portfolixir.DocsTest do
              "its count reads *provisional · recomputing*",
              "is prefilled with that account once the counts are refined, unless you have chosen already",
              "a later file that brings a new booking under the new name asks once more",
-             "If the counting stops"
+             "If the counting stops",
+             "or because a rename, a merge or another import in the portfolio is under way"
            ], ["so the next import prefills it by itself", "until then the row asks again, and"]},
           {"docs/de/product-documentation.md",
            [
@@ -2260,7 +2261,8 @@ defmodule Portfolixir.DocsTest do
              "ihre Zahl lautet *vorläufig · wird neu berechnet*",
              "wird die Zeile mit diesem Konto vorbelegt, sobald die Zählung verfeinert ist, sofern Sie nicht schon gewählt haben",
              "eine spätere Datei, die unter dem neuen Namen eine neue Buchung bringt, fragt noch einmal",
-             "Bricht die Zählung ab"
+             "Bricht die Zählung ab",
+             "oder weil im Portfolio gerade eine Umbenennung, eine Zusammenführung oder ein anderer Import läuft"
            ],
            [
              "sodass der nächste Import ihn selbst vorbelegt",

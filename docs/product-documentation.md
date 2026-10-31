@@ -3155,7 +3155,8 @@ re-export whose times drifted, an account renamed in Portfolixir and in
 Portfolio Performance alike, or the same file again after you remembered the
 mapping), the row is prefilled with that account once the counts are refined,
 unless you have chosen already. If the counting stops, for example on a name
-two accounts share, every such row stays withheld.
+two accounts share, or because a rename, a merge or another import in the
+portfolio is under way, every such row stays withheld.
 
 **What each row of the mapping step says.** Every cash account and depot of
 the file counts its bookings: how many are **already imported**, how many

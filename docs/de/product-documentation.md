@@ -3472,7 +3472,9 @@ Portfolixir und in Portfolio Performance gleich umbenannt wurde, oder dieselbe
 Datei noch einmal, nachdem Sie die Zuordnung gemerkt haben), wird die Zeile
 mit diesem Konto vorbelegt, sobald die Zählung verfeinert ist, sofern Sie
 nicht schon gewählt haben. Bricht die Zählung ab, etwa an einem Namen, den
-zwei Konten tragen, bleibt jede solche Zeile zurückgehalten.
+zwei Konten tragen, oder weil im Portfolio gerade eine Umbenennung, eine
+Zusammenführung oder ein anderer Import läuft, bleibt jede solche Zeile
+zurückgehalten.
 
 **Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
 Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** sind,
