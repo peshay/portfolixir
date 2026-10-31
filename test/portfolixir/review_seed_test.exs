@@ -11,6 +11,7 @@ defmodule Portfolixir.ReviewSeedTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quote
+  alias Portfolixir.Classifications
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports
   alias Portfolixir.Ledger
@@ -22,6 +23,7 @@ defmodule Portfolixir.ReviewSeedTest do
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Tax
   alias Portfolixir.Tax.StatementSnapshot
 
@@ -272,6 +274,41 @@ defmodule Portfolixir.ReviewSeedTest do
              Ledger.holdings_for_portfolio(portfolio.id)
 
     assert Decimal.equal?(quantity, 5)
+  end
+
+  # User story (#1185, Sprint 21 β2; plan D-14):
+  # As the reviewer walking an agent's plan reads on the review instance,
+  # I want the seed to carry an archived plan version beside the active one,
+  # so that the walkthrough reads it back, sees the reads refuse it by
+  # plan_id as the writes do, and finds it in the SOLL editor's versions.
+  #
+  # Acceptance criteria:
+  # - The Demo Depot's Gesamt plan of the Strategies tree has exactly one
+  #   archived version beside its active one, and its targets differ from
+  #   the active plan's.
+  # - A second run adds no plan version and keeps the active plan.
+  test "the review seed carries an archived plan version (D-14)" do
+    seed!()
+    demo = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot"))
+    strategies = Enum.find(Classifications.list_classifications(), &(&1.name == "Strategies"))
+    plans = fn -> Targets.list_plans(demo.id, classification_id: strategies.id, view: nil) end
+    weights = fn plan -> plan.id |> plan_rows(demo.id) end
+
+    first = plans.()
+    assert [active] = Enum.filter(first, &(&1.status == "active"))
+    assert [archived] = Enum.filter(first, &(&1.status == "archived"))
+    assert weights.(archived) != [] and weights.(archived) != weights.(active)
+
+    seed!()
+    assert Enum.map(plans.(), &{&1.id, &1.status}) == Enum.map(first, &{&1.id, &1.status})
+  end
+
+  defp plan_rows(plan_id, portfolio_id) do
+    portfolio_id
+    |> Targets.list_targets(plan: plan_id)
+    |> Enum.concat(Targets.list_position_targets(portfolio_id, plan: plan_id))
+    |> Enum.map(&{&1.category_id, &1.security_id, Decimal.to_string(&1.target_weight)})
+    |> Enum.sort()
   end
 
   defp stored_class(name) do
