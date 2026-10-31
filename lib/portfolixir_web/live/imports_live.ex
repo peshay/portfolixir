@@ -249,8 +249,14 @@ defmodule PortfolixirWeb.ImportsLive do
         decision_resolutions:
           Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk])),
         correction_lines:
-          Enum.map(assigns.corrections, &correction_line(&1, file_rows(assigns.preview))),
-        correction_totals: correction_totals(assigns.corrections),
+          Enum.map(
+            assigns.corrections,
+            &correction_line(&1, file_rows(assigns.preview), assigns.preview)
+          ),
+        # Board 07, pick N21 A: the total, the button and the dialog count
+        # only the lines the confirm writes (ADR-0053 A10–A12).
+        correction_fixable: Correction.confirmable(assigns.corrections),
+        correction_totals: correction_totals(Correction.confirmable(assigns.corrections)),
         nothing_to_import: nothing_to_import?(assigns.account_states.counts.total),
         # Found while drawing 3 (board 01): a file that books nothing
         # creates no account, so a tag "for new accounts" changes nothing.
@@ -388,11 +394,7 @@ defmodule PortfolixirWeb.ImportsLive do
                    true for both readings the correction meets, a CSV
                    row's gross value (ADR-0053 §1) and a cash amount that
                    also held the refund booked beside it (A1). --%>
-              <%= ngettext(
-                "One booking already imported differs from this file: it was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
-                "%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
-                length(@corrections)
-              ) %>
+              <%= correction_finding(length(@corrections), length(@correction_fixable)) %>
             </p>
             <div class="data-table-wrapper" id="import-correction-table-wrapper">
               <table class="data-table" id="import-correction-table">
@@ -411,15 +413,24 @@ defmodule PortfolixirWeb.ImportsLive do
                   </tr>
                 </thead>
                 <tbody>
-                  <tr :for={line <- @correction_lines} data-transaction-id={line.id}>
+                  <tr
+                    :for={line <- @correction_lines}
+                    data-transaction-id={line.id}
+                    data-state={line.kept? && "kept"}
+                  >
                     <td class="num"><%= line.row %></td>
                     <td><%= line.date %></td>
                     <td>
                       <%= line.kind %><%= if line.security do %> · <bdi><%= line.security %></bdi><% end %><%= if line.account do %> · <bdi><%= line.account %></bdi><% end %><%= if line.counter do %> → <bdi><%= line.counter %></bdi><% end %>
                       <.correction_detail line={line} />
+                      <.correction_state line={line} />
                     </td>
                     <td class={["num", sign_class(line.booked)]}><%= Format.signed_decimal(line.booked, 2) %></td>
-                    <td class={["num", sign_class(line.stated)]}><%= Format.signed_decimal(line.stated, 2) %></td>
+                    <%= if line.kept? do %>
+                      <td class="num import-correction__kept"><%= gettext("kept") %></td>
+                    <% else %>
+                      <td class={["num", sign_class(line.stated)]}><%= Format.signed_decimal(line.stated, 2) %></td>
+                    <% end %>
                     <td class={["num", sign_class(line.difference)]}><%= Format.signed_decimal(line.difference, 2) %></td>
                   </tr>
                 </tbody>
@@ -441,12 +452,19 @@ defmodule PortfolixirWeb.ImportsLive do
                 </span>
                 <span class="phone-row__figures">
                   <span class={["phone-row__figure", sign_class(line.difference)]}><%= Format.signed_decimal(line.difference, 2) %></span>
-                  <span class="phone-row__figure2"><%= Format.signed_decimal(line.booked, 2) %> → <%= Format.signed_decimal(line.stated, 2) %></span>
+                  <span class="phone-row__figure2"><%= Format.signed_decimal(line.booked, 2) %> → <%= if line.kept? do %><span class="import-correction__kept"><%= gettext("kept") %></span><% else %><%= Format.signed_decimal(line.stated, 2) %><% end %></span>
                 </span>
+                <.correction_state line={line} />
               </li>
             </ul>
-            <p class="import-correction__total"><%= total_line(@correction_totals) %></p>
-            <div class="import-correction__foot">
+            <p :if={@correction_fixable != []} class="import-correction__total">
+              <%= total_line(
+                @correction_totals,
+                length(@correction_fixable),
+                length(@corrections) > length(@correction_fixable)
+              ) %>
+            </p>
+            <div :if={@correction_fixable != []} class="import-correction__foot">
               <button
                 type="button"
                 id="import-correction-open"
@@ -457,7 +475,7 @@ defmodule PortfolixirWeb.ImportsLive do
                 <%= ngettext(
                   "Correct one booking…",
                   "Correct %{count} bookings…",
-                  length(@corrections)
+                  length(@correction_fixable)
                 ) %>
               </button>
               <p class="summary-basis">
@@ -469,8 +487,9 @@ defmodule PortfolixirWeb.ImportsLive do
       </section>
 
       <.correction_dialog
-        :if={@correcting and @corrections != []}
-        corrections={@corrections}
+        :if={@correcting and @correction_fixable != []}
+        corrections={@correction_fixable}
+        kept={length(@corrections) - length(@correction_fixable)}
         totals={@correction_totals}
         file_rows={file_rows(@preview)}
       />
@@ -812,12 +831,16 @@ defmodule PortfolixirWeb.ImportsLive do
       <%!-- ADR-0053 §6 (board 09 A): the import confirmed before the
            correction leaves those bookings as they were (K8); the result
            says so, with the remedy, so nothing is dropped silently. --%>
-      <div :if={@corrections != []} class="import-skipped" data-role="correction-not-applied">
+      <div
+        :if={Correction.confirmable(@corrections) != []}
+        class="import-skipped"
+        data-role="correction-not-applied"
+      >
         <p class="muted">
           <%= ngettext(
             "One booking already imported with a different amount from the file is not corrected. Drop the same file again to correct it.",
             "%{count} bookings already imported with a different amount from the file are not corrected. Drop the same file again to correct them.",
-            length(@corrections)
+            length(Correction.confirmable(@corrections))
           ) %>
         </p>
       </div>
@@ -1105,18 +1128,30 @@ defmodule PortfolixirWeb.ImportsLive do
   # confirm, apart from "Confirm import". It opens only on a listed booking,
   # and runs once at a time.
   def handle_event("open_correction", _params, socket) do
-    {:noreply, assign(socket, :correcting, socket.assigns.corrections != [])}
+    {:noreply,
+     assign(socket, :correcting, Correction.confirmable(socket.assigns.corrections) != [])}
   end
 
   def handle_event("cancel_correction", _params, socket),
     do: {:noreply, assign(socket, :correcting, false)}
 
-  def handle_event("confirm_correction", _params, socket)
-      when socket.assigns.correction_running or socket.assigns.corrections == [] do
-    {:noreply, assign(socket, :correcting, false)}
+  def handle_event("confirm_correction", _params, socket) do
+    if socket.assigns.correction_running or
+         Correction.confirmable(socket.assigns.corrections) == [],
+       do: {:noreply, assign(socket, :correcting, false)},
+       else: confirm_correction(socket)
   end
 
-  def handle_event("confirm_correction", _params, socket) do
+  def handle_event("dismiss_correction_result", _params, socket),
+    do: {:noreply, assign(socket, :correction_result, nil)}
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # Only the lines that carry a confirm are written (ADR-0053 A10–A12);
+  # with none, the section has no confirm and a pushed one changes nothing.
+  defp confirm_correction(socket) do
     preview = socket.assigns.preview
 
     {:noreply,
@@ -1128,13 +1163,6 @@ defmodule PortfolixirWeb.ImportsLive do
        Imports.correct_cash(Imports.correction_actor(), preview)
      end)}
   end
-
-  def handle_event("dismiss_correction_result", _params, socket),
-    do: {:noreply, assign(socket, :correction_result, nil)}
-
-  # An event this page does not know, or a payload it cannot read, changes
-  # nothing (E25 S4, F17).
-  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info({:park_preview, park}, socket) do
@@ -1985,9 +2013,15 @@ defmodule PortfolixirWeb.ImportsLive do
   # A split-off refund (listed when its cash was changed by hand) is named
   # by its row and kind, as the rest of the page names it (the α closing
   # act, EC-F7).
-  defp correction_line(%Correction.Item{transaction: tx, changes: changes} = item, file_rows) do
+  defp correction_line(
+         %Correction.Item{transaction: tx, changes: changes} = item,
+         file_rows,
+         preview
+       ) do
     %{
       id: tx.id,
+      kept?: item.state != :confirm,
+      state: correction_state_parts(item, file_rows, preview),
       row: row_label(file_rows, item.row),
       date: Format.date(tx.date),
       kind: kind_label(tx.type),
@@ -2085,14 +2119,13 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
 
-  defp total_line(totals) do
+  # Board 07, N21 A: with lines the confirm leaves, the total names the
+  # bookings it counts.
+  defp total_line(totals, count, kept?) do
     case correction_total(totals) do
       {total, currency} ->
         StoredText.isolate(
-          gettext("Together %{total}: %{accounts}.",
-            total: StoredText.slot(:total),
-            accounts: StoredText.slot(:accounts)
-          ),
+          together_sentence(count, kept?),
           total:
             {:safe,
              [
@@ -2111,6 +2144,178 @@ defmodule PortfolixirWeb.ImportsLive do
           accounts: accounts_markup(totals)
         )
     end
+  end
+
+  defp together_sentence(_count, false),
+    do:
+      gettext("Together %{total}: %{accounts}.",
+        total: StoredText.slot(:total),
+        accounts: StoredText.slot(:accounts)
+      )
+
+  defp together_sentence(count, true),
+    do:
+      ngettext(
+        "The one booking the step corrects, together %{total}: %{accounts}.",
+        "The %{count} bookings the step corrects, together %{total}: %{accounts}.",
+        count,
+        total: StoredText.slot(:total),
+        accounts: StoredText.slot(:accounts)
+      )
+
+  # The section's finding (board 07, N21 A, and its found while drawing 2):
+  # board 03's cause sentence covers only the lines the confirm corrects; a
+  # second sentence names the lines that stay, each line saying why.
+  defp correction_finding(total, total),
+    do:
+      ngettext(
+        "One booking already imported differs from this file: it was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
+        "%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
+        total
+      )
+
+  defp correction_finding(total, 0),
+    do:
+      ngettext(
+        "One booking already imported differs from this file and stays as it is; its line says why.",
+        "%{count} bookings already imported differ from this file and stay as they are; each line says why.",
+        total
+      )
+
+  defp correction_finding(total, fixable) do
+    Enum.join(
+      [
+        ngettext(
+          "One booking already imported differs from this file.",
+          "%{count} bookings already imported differ from this file.",
+          total
+        ),
+        ngettext(
+          "The step below corrects one of them:",
+          "The step below corrects %{count} of them:",
+          fixable
+        ),
+        ngettext(
+          "It was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
+          "They were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
+          fixable
+        ),
+        ngettext(
+          "One stays as it is; its line says why.",
+          "%{count} stay as they are; each line says why.",
+          total - fixable
+        )
+      ],
+      " "
+    )
+  end
+
+  # A line's state under its booking (board 07, N21 A): `{lead, rest}` for a
+  # line the confirm leaves — the reason in bold, then what to do, a
+  # "%{history}" in it standing for the link to the history — `{nil, text}`
+  # for a line found by its figures, and `nil` for a plain hash hit.
+  defp correction_state_parts(%Correction.Item{state: :confirm, match: :figures}, _rows, preview),
+    do:
+      {nil,
+       if(preview && preview.format == :csv,
+         do:
+           gettext(
+             "Found by its date and figures: Portfolio Performance has written this row differently since the import."
+           ),
+         else:
+           gettext(
+             "Found by its date and figures: Portfolio Performance has written this entry differently since the import."
+           )
+       )}
+
+  defp correction_state_parts(%Correction.Item{state: :confirm}, _rows, _preview), do: nil
+
+  defp correction_state_parts(%Correction.Item{state: :edited} = item, _rows, _preview) do
+    rest =
+      if Decimal.equal?(item.booked, item.stated),
+        do: gettext("stays as it is. The amount agrees with the file; the price does not."),
+        else:
+          gettext("stays as it is. Per the file: %{stated}.",
+            stated: Format.signed_decimal(item.stated, 2)
+          )
+
+    {gettext("Changed by hand since its import"), "(#{Format.date(item.edited_on)}) — " <> rest}
+  end
+
+  defp correction_state_parts(%Correction.Item{state: :twin, matches: count}, _rows, _preview),
+    do:
+      {ngettext("One stored booking matches", "%{count} stored bookings match", count),
+       gettext(
+         "its date and figures — stays as it is. Correct the right one by hand in the %{history}.",
+         history: "%{history}"
+       )}
+
+  defp correction_state_parts(%Correction.Item{state: :claimed} = item, rows, _preview),
+    do:
+      {gettext("%{row} claims the same booking", row: row_label(rows, item.claimed_by)),
+       "— " <> gettext("stays as it is.")}
+
+  defp correction_state_parts(%Correction.Item{state: :refused} = item, _rows, _preview),
+    do: {gettext("Not corrected automatically"), "— " <> refused_remedy(item)}
+
+  defp refused_remedy(%Correction.Item{refusal: %{kind: "sell"} = refusal}),
+    do:
+      gettext(
+        "stays as it is: once the tax refund of %{refund} is split off, %{rest} would remain for the sale per the file, and a sale books more than zero. Put it right by hand in the %{history}: change the sale to %{gross} without fees, enter the fees of %{fees} as a booking of their own; the tax refund is already booked.",
+        refund: Format.money(refusal.refund),
+        rest: Format.money(refusal.rest),
+        gross: Format.money(refusal.gross),
+        fees: Format.money(refusal.fees),
+        history: "%{history}"
+      )
+
+  defp refused_remedy(%Correction.Item{refusal: %{kind: "cash_transfer"} = refusal}),
+    do:
+      gettext(
+        "stays as it is: a tax refund of %{refund} beside a transfer books on one of its accounts only. Put it right by hand in the %{history}: set the transfer to %{gross}, and delete the tax refund beside it unless money moved.",
+        refund: Format.money(refusal.refund),
+        gross: Format.money(refusal.gross),
+        history: "%{history}"
+      )
+
+  defp refused_remedy(%Correction.Item{refusal: %{kind: kind} = refusal})
+       when kind in ["inbound_delivery", "outbound_delivery", "security_transfer"],
+       do:
+         gettext(
+           "stays as it is: a delivery moves no cash to carry the tax refund of %{refund} beside it. Put it right by hand in the %{history}: delete the tax refund beside it unless money moved.",
+           refund: Format.money(refusal.refund),
+           history: "%{history}"
+         )
+
+  defp refused_remedy(%Correction.Item{refusal: refusal}),
+    do:
+      gettext(
+        "stays as it is: once the tax refund of %{refund} is split off, %{rest} would remain for the booking per the file, and a booking books more than zero. Put it right by hand in the %{history}: delete the booking and the tax refund beside it, then book what Portfolio Performance shows.",
+        refund: Format.money(refusal.refund),
+        rest: Format.money(refusal.rest || Decimal.new(0)),
+        history: "%{history}"
+      )
+
+  # The state under a booking: a line the confirm leaves leads with its
+  # reason in bold; a line found by its figures says so, muted.
+  attr(:line, :map, required: true)
+
+  defp correction_state(%{line: %{state: nil}} = assigns), do: ~H""
+
+  defp correction_state(%{line: %{state: {nil, text}}} = assigns) do
+    assigns = assign(assigns, :text, text)
+
+    ~H"""
+    <span class="import-correction__state"><%= @text %></span>
+    """
+  end
+
+  defp correction_state(%{line: %{state: {lead, rest}}} = assigns) do
+    assigns = assign(assigns, lead: lead, rest: String.split(rest, "%{history}", parts: 2))
+
+    ~H"""
+    <span class="import-correction__state import-correction__state--kept" data-state="kept"><b><%= @lead %></b> <%= hd(@rest) %><%= if match?([_, _], @rest) do %><.link navigate="/transactions"><%= gettext("history") %></.link><%= List.last(@rest) %><% end %></span>
+    """
   end
 
   # The dialog's subject box: the bookings, their rows and accounts, the
@@ -2132,23 +2337,71 @@ defmodule PortfolixirWeb.ImportsLive do
   # What changes, said back before the confirm: each account, then each
   # trade whose settlement or price changes with its cash, then the
   # recalculation (board 09 A).
+  # #1197 (board 07 ⑧, found while drawing 12): an account whose later set
+  # balance absorbs the change is named with that balance, and the part it
+  # absorbs where it absorbs only part; "Afterwards" says only what still
+  # moves.
   defp correction_consequence(items, totals) do
-    changes =
-      totals
-      |> Enum.map(fn {account, delta} ->
-        account
-        |> account_change(delta)
-        |> Phoenix.HTML.safe_to_string()
-      end)
-      |> ReferenceCounts.and_list()
+    absorbing = Map.new(Correction.absorbing_balances(items), &{&1.account.id, &1})
 
-    [
-      StoredText.isolate(gettext("Afterwards %{changes}.", changes: StoredText.slot(:changes)),
-        changes: {:safe, changes}
-      )
-    ] ++
+    moving =
+      Enum.flat_map(totals, fn {account, delta} ->
+        case Map.get(absorbing, account.id) do
+          nil -> [{account, delta}]
+          %{change: change} -> if Decimal.equal?(change, 0), do: [], else: [{account, change}]
+        end
+      end)
+
+    afterwards =
+      if moving == [] do
+        []
+      else
+        changes =
+          moving
+          |> Enum.map(fn {account, delta} ->
+            account
+            |> account_change(delta)
+            |> Phoenix.HTML.safe_to_string()
+          end)
+          |> ReferenceCounts.and_list()
+
+        [
+          StoredText.isolate(
+            gettext("Afterwards %{changes}.", changes: StoredText.slot(:changes)),
+            changes: {:safe, changes}
+          )
+        ]
+      end
+
+    afterwards ++
+      Enum.map(Map.values(absorbing), &absorbed_sentence/1) ++
       Enum.flat_map(items, &trade_changes/1) ++
       [gettext("Balances, valuation, return and income are recalculated.")]
+  end
+
+  defp absorbed_sentence(%{account: account} = absorbing) do
+    currency = account.currency_code
+
+    translated =
+      if Decimal.equal?(absorbing.change, 0),
+        do:
+          gettext(
+            "On %{account}, the set balance of %{date} absorbs the %{amount}: its balance stays as it is.",
+            account: StoredText.slot(:account),
+            date: Format.date(absorbing.date),
+            amount: amount(Decimal.abs(absorbing.amount), currency)
+          ),
+        else:
+          gettext(
+            "On %{account}, the set balance of %{date} absorbs %{absorbed} of the %{amount}: its balance changes by %{change}.",
+            account: StoredText.slot(:account),
+            date: Format.date(absorbing.date),
+            absorbed: amount(Decimal.abs(absorbing.absorbed), currency),
+            amount: amount(Decimal.abs(absorbing.amount), currency),
+            change: signed_amount(absorbing.change, currency)
+          )
+
+    StoredText.isolate(translated, account: account.name)
   end
 
   defp account_change(account, delta) do
@@ -2258,7 +2511,41 @@ defmodule PortfolixirWeb.ImportsLive do
         totals: StoredText.slot(:totals)
       )
 
-    {:note, StoredText.isolate(message, totals: accounts_markup(totals))}
+    held =
+      corrected
+      |> Correction.absorbing_balances()
+      |> Enum.map(fn absorbing ->
+        translated =
+          if Decimal.equal?(absorbing.change, 0),
+            do:
+              gettext("— the set balance of %{date} holds %{account}'s balance",
+                date: Format.date(absorbing.date),
+                account: StoredText.slot(:account)
+              ),
+            else:
+              gettext("— the set balance of %{date} holds %{absorbed} of %{account}'s change",
+                date: Format.date(absorbing.date),
+                absorbed:
+                  amount(Decimal.abs(absorbing.absorbed), absorbing.account.currency_code),
+                account: StoredText.slot(:account)
+              )
+
+        [" ", StoredText.isolate(translated, account: absorbing.account.name)]
+      end)
+
+    totals_markup =
+      {:safe,
+       [
+         totals |> accounts_markup() |> Phoenix.HTML.safe_to_string()
+         | Enum.map(held, fn parts ->
+             Enum.map(parts, fn
+               text when is_binary(text) -> text
+               safe -> Phoenix.HTML.safe_to_string(safe)
+             end)
+           end)
+       ]}
+
+    {:note, StoredText.isolate(message, totals: totals_markup)}
   end
 
   defp correction_refusal(%Ecto.Changeset{} = changeset),
@@ -2295,6 +2582,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # confirm is primary, not danger: nothing is lost, every replaced value
   # stays in the journal and in the file.
   attr(:corrections, :list, required: true)
+  attr(:kept, :integer, default: 0)
   attr(:totals, :list, required: true)
   attr(:file_rows, :map, required: true)
 
@@ -2347,6 +2635,13 @@ defmodule PortfolixirWeb.ImportsLive do
         </p>
         <p class="hint" data-role="import-correction-consequence">
           <%= correction_sentences(@consequence) %>
+        </p>
+        <p :if={@kept > 0} class="hint" data-role="import-correction-kept">
+          <%= ngettext(
+            "The other line of the list stays as it is.",
+            "The other %{count} lines of the list stay as they are.",
+            @kept
+          ) %>
         </p>
         <p class="hint" data-role="import-correction-journal">
           <%= gettext(

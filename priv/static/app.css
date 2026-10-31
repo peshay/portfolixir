@@ -4375,6 +4375,46 @@ input[pattern]:invalid:not(:placeholder-shown) {
   display: block;
 }
 
+/* Sprint 21 α7 (board 07, pick N21 A): a line's state, under its booking
+   in the legs' basis voice. A line found by its figures says so, muted; a
+   line the confirm leaves leads with its reason in bold, in the table's
+   text colour, then what the operator does, and its Corrected cell reads
+   the word "kept", muted, instead of a figure. */
+.import-correction__state {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+
+.import-correction__state--kept {
+  color: var(--color-text);
+}
+
+.import-correction__state--kept b {
+  font-weight: 650;
+}
+
+#import-correction-table td.import-correction__kept,
+#import-correction-phone-rows .import-correction__kept {
+  color: var(--color-text-muted);
+}
+
+/* The table takes its min-content as its floor, not its max-content (the
+   wrapper's rule for every table): it fills the note, its text cells wrap,
+   and it still scrolls when even its min-content does not fit (board 07,
+   found while drawing 1). */
+.data-table-wrapper > #import-correction-table {
+  min-width: min-content;
+}
+
+/* On a phone row the state spans the row, under the subject and the
+   figures. */
+#import-correction-phone-rows .phone-row > .import-correction__state {
+  grid-column: 1 / -1;
+}
+
 /* ①b' The total, per account, in the body's voice: what the confirm will
    move. */
 .import-correction__total {

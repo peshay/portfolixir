@@ -1257,8 +1257,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       render_async(view, 1_000)
       assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1000"))
 
+      # The account's name is isolated in <bdi>; the text helper joins the
+      # nodes with a space.
       assert text(view, "#import-correction-result") =~
-               "— the set balance of 2026-07-01 holds Test-Cash's balance"
+               ~r/— the set balance of 2026-07-01 holds Test-Cash ?'s balance/
     end
 
     test "a set balance between two corrected bookings absorbs only part", %{conn: conn} do
