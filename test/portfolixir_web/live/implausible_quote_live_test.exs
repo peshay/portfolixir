@@ -283,4 +283,98 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
              "Wrenfield Gardens AG (buy 2026-05-12 at 48.2 EUR · quote 2026-05-12: 4.87 EUR, " <>
                "0.10 times that)"
   end
+
+  # The line's text after the finding's link, up to the next finding.
+  defp effect(view, role), do: text(view, ~s(#dashboard-dq-line [data-role="#{role}-effect"]))
+
+  # User story (#1121, the card half, Sprint 21 γ1; board 01 ③, pick N3 A):
+  # As the operator reading the Overview's total, I want the data-quality
+  # line to say what a bond on two scales and a held security whose quotes
+  # contradict its bookings do to the total above, so that I know the figure
+  # I just read is wrong, not only that a list somewhere has entries.
+  #
+  # Acceptance criteria:
+  # - After the two-scales link, outside it, in the note's body: "— gehalten
+  #   zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig" for
+  #   one bond (English "— if held, it counts a hundredfold too high or too
+  #   low in the total above").
+  # - After the implausible-quote link, outside it: "— ihr Wert in der Summe
+  #   oben oder ihr Einstand ist daher falsch" for two (English "— so their
+  #   value in the total above, or their cost, is wrong").
+  # - Each link keeps its count and noun alone, to its pre-filtered list.
+  # - The card stays silent: no note in the card's section names either
+  #   finding, and the line keeps the problem severity.
+  test "the line says what each wrongly valued finding does to the total above", %{conn: conn} do
+    world = base_world(name: "EUR Depot")
+    arbolia!()
+    wrenfield!(world)
+    two_scales_bond!(world)
+
+    {:ok, view, _html} = live(german(conn), "/")
+    render_async(view)
+
+    assert text(view, ~s(#dashboard-dq-line a[data-role="dq-two-scales"])) ==
+             "eine Anleihe auf zwei Skalen bepreist"
+
+    assert effect(view, "dq-two-scales") ==
+             "— gehalten zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig"
+
+    assert text(view, ~s(#dashboard-dq-line a[data-role="dq-implausible-quote"])) ==
+             "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"
+
+    assert effect(view, "dq-implausible-quote") ==
+             "— ihr Wert in der Summe oben oder ihr Einstand ist daher falsch"
+
+    # The clause is the note's body text, never inside the link.
+    refute has_element?(view, ~s(#dashboard-dq-line a [data-role$="-effect"]))
+    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    refute has_element?(view, "#dashboard-wealth .data-note", "Skalen")
+    refute has_element?(view, "#dashboard-wealth .data-note", "Buchungen")
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert effect(view, "dq-two-scales") ==
+             "— if held, it counts a hundredfold too high or too low in the total above"
+
+    assert effect(view, "dq-implausible-quote") ==
+             "— so their value in the total above, or their cost, is wrong"
+  end
+
+  test "the effect clauses read in their other number", %{conn: conn} do
+    world = base_world(name: "EUR Depot")
+    wrenfield!(world)
+    two_scales_bond!(world)
+
+    {:ok, bond} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Plover Anleihe 2029 1,50%",
+        currency_code: "EUR",
+        asset_class: "bond"
+      })
+
+    buy!(world, bond, quantity: "5000", price: "0.97", date: ~D[2026-03-12])
+    put_quote!(bond, ~D[2026-03-12], "96.80")
+
+    {:ok, view, _html} = live(german(conn), "/")
+    render_async(view)
+
+    assert text(view, ~s(#dashboard-dq-line a[data-role="dq-two-scales"])) ==
+             "2 Anleihen auf zwei Skalen bepreist"
+
+    assert effect(view, "dq-two-scales") ==
+             "— gehalten zählt jede in der Summe oben hundertfach zu hoch oder zu niedrig"
+
+    assert effect(view, "dq-implausible-quote") ==
+             "— sein Wert in der Summe oben oder sein Einstand ist daher falsch"
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert effect(view, "dq-two-scales") ==
+             "— each one held counts a hundredfold too high or too low in the total above"
+
+    assert effect(view, "dq-implausible-quote") ==
+             "— so its value in the total above, or its cost, is wrong"
+  end
 end
