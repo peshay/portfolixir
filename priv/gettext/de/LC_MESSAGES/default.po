@@ -13101,32 +13101,32 @@ msgid "Wealth is currently scoped to the view “%{active}”; this total counts
 msgstr "Vermögen ist gerade auf die Ansicht „%{active}“ eingegrenzt; diese Summe zählt „%{card}“."
 
 #: lib/portfolixir_web/live/income_live.ex:352
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}"
 msgid_plural "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}"
-msgstr[0] "%{count} Verkauf konnte nicht konvertiert werden — kein gespeicherter Wechselkurs an seinem Schlussdatum — und ist aus jeder Summe ausgeschlossen: %{securities}."
-msgstr[1] "%{count} Verkäufe konnten nicht konvertiert werden — kein gespeicherter Wechselkurs an ihren Schlussdaten — und sind aus jeder Summe ausgeschlossen: %{securities}."
+msgstr[0] "%{count} Verkauf konnte nicht konvertiert werden — kein gespeicherter Wechselkurs an seinem Schlussdatum — und ist aus jeder Summe ausgeschlossen: %{securities}"
+msgstr[1] "%{count} Verkäufe konnten nicht konvertiert werden — kein gespeicherter Wechselkurs an ihren Schlussdaten — und sind aus jeder Summe ausgeschlossen: %{securities}"
 
 #: lib/portfolixir_web/live/income_live.ex:370
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "%{count} sale is not convertible — a buy it closes has no figure in the sale's currency — and is excluded from every total: %{securities}"
 msgid_plural "%{count} sales are not convertible — a buy each closes has no figure in its sale's currency — and are excluded from every total: %{securities}"
-msgstr[0] "%{count} Verkauf ist ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — und aus jeder Summe ausgeschlossen: %{securities}."
-msgstr[1] "%{count} Verkäufe sind ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen Gegenwert in der Währung ihres Verkaufs — und aus jeder Summe ausgeschlossen: %{securities}."
+msgstr[0] "%{count} Verkauf ist ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — und aus jeder Summe ausgeschlossen: %{securities}"
+msgstr[1] "%{count} Verkäufe sind ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen Gegenwert in der Währung ihres Verkaufs — und aus jeder Summe ausgeschlossen: %{securities}"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:705
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}"
 msgid_plural "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}"
-msgstr[0] "%{count} Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: %{securities}."
-msgstr[1] "%{count} Verkäufe ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen Gegenwert in der Währung ihres Verkaufs — fehlen bei den Trades: %{securities}."
+msgstr[0] "%{count} Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: %{securities}"
+msgstr[1] "%{count} Verkäufe ohne Umrechnung — je ein Kauf, den sie schließen, hat keinen Gegenwert in der Währung ihres Verkaufs — fehlen bei den Trades: %{securities}"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:687
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”."
 msgid_plural "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”."
-msgstr[0] "%{count} Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: %{securities}. Das Nachladen der Wechselkurse steht unter „Alle Trades“."
-msgstr[1] "%{count} Verkäufe ohne gespeicherten Wechselkurs an ihren Schlussdaten fehlen bei den Trades: %{securities}. Das Nachladen der Wechselkurse steht unter „Alle Trades“."
+msgstr[0] "%{count} Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: %{securities} Das Nachladen der Wechselkurse steht unter „Alle Trades“."
+msgstr[1] "%{count} Verkäufe ohne gespeicherten Wechselkurs an ihren Schlussdaten fehlen bei den Trades: %{securities} Das Nachladen der Wechselkurse steht unter „Alle Trades“."
 
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:669
 #, elixir-autogen, elixir-format
