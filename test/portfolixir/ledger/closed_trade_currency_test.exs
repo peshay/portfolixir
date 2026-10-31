@@ -830,4 +830,152 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert Decimal.equal?(trade.realized_pnl_abs, cash_moved)
     assert exactly?(realized_row(fund).realized_base, "151.00")
   end
+
+  # User story (#1198, Sprint 21 α3; identity 3, the fallback of point 3):
+  # As the operator whose imported dollar share came in before any rate was
+  # stored, so it carries no legs, and was then sold in dollars,
+  # I want that closed trade named unavailable with the lot that lacks its
+  # leg, and left out of every total,
+  # so that no figure adds euros under a dollar code.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - The trades read keeps the trade with its sale's own figures (quantity,
+  #   dates, avg_sell_price 120, sell_fees 3.75 USD, proceeds 1,196.25 USD),
+  #   null for avg_buy_price, buy_fees, buy_taxes, basis, every lot's cost,
+  #   realized_pnl_abs, realized_pnl_pct and annualized_return, the reason
+  #   missing_settlement_leg, and the lot that lacks its leg: opened
+  #   2025-04-01, booked in EUR.
+  # - Beside it a EUR security bought 10 at 50.00 EUR, fees 1.00, and sold 10
+  #   at 60.00 EUR, fees 1.00: realized 98.00 EUR. The realized-gains report
+  #   names the dollar trade in excluded (reason missing_settlement_leg, apart
+  #   from a missing close-date rate) and reads realized_total 98.00 EUR over
+  #   trade_count 1, hit_rate 1.0000. Before: 410.20 EUR over two trades.
+  # - The Overview card's newest trades leave it out and name it the same
+  #   way.
+  # - Once the lot's legs are stored (identity 6 derives them), the trade
+  #   reads identity 1 and realized_total 249.00 EUR.
+  # - Mutations: entering the lot as booked when its leg is missing turns it
+  #   red, and so does leaving the trade out without naming it.
+  test "a lot without its leg makes the closed trade unavailable and named (identity 3)" do
+    {world, fund} = cross_world()
+    buy = imported_buy!(world, fund, false)
+    form_sale!(world, fund)
+
+    mill = create_security!(name: "Euro Mill Three", ticker: "EM3")
+    buy!(world, mill, quantity: "10", price: "50", fees: "1", date: ~D[2025-04-01])
+    sell!(world, mill, quantity: "10", price: "60", fees: "1", date: ~D[2025-05-02])
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "USD"
+    assert exactly?(trade.quantity, "10")
+    assert trade.open_date == ~D[2025-04-01]
+    assert trade.close_date == ~D[2025-05-02]
+    assert exactly?(trade.avg_sell_price, "120")
+    assert exactly?(trade.sell_fees, "3.75")
+    assert exactly?(trade.proceeds, "1196.25")
+
+    for key <- [
+          :avg_buy_price,
+          :buy_fees,
+          :buy_taxes,
+          :basis,
+          :realized_pnl_abs,
+          :realized_pnl_pct,
+          :annualized_return
+        ] do
+      assert is_nil(Map.fetch!(trade, key)), "#{key} is #{inspect(Map.fetch!(trade, key))}"
+    end
+
+    assert [%{cost: nil}] = trade.lots
+    assert trade.unavailable_reason == :missing_settlement_leg
+    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "EUR"}]
+
+    report = RealizedGains.report(base_currency: "EUR")
+    assert [only] = report.trades
+    assert only.security_id == mill.id
+    assert exactly?(report.summary.realized_total, "98.00")
+    assert report.summary.trade_count == 1
+    assert exact(report.summary.hit_rate) == "1.0000"
+
+    assert report.excluded.count == 1
+    assert report.excluded.securities == ["Dollar Fund"]
+    assert report.excluded.by_reason.no_rate == %{count: 0, securities: []}
+
+    assert report.excluded.by_reason.missing_settlement_leg == %{
+             count: 1,
+             securities: ["Dollar Fund"]
+           }
+
+    newest = RealizedGains.newest_trades(5, base_currency: "EUR")
+    assert Enum.map(newest.trades, & &1.security_id) == [mill.id]
+    assert newest.excluded.by_reason.missing_settlement_leg.securities == ["Dollar Fund"]
+
+    # The legs the history backfill derives (identity 6), stored by hand.
+    {:ok, _} =
+      Ledger.update_transaction(Actor.owner_ui(), buy, %{
+        security_amount: "1000",
+        settlement_amount: "800",
+        settlement_fx_rate: "0.8"
+      })
+
+    assert [derived] = closed(fund)
+    assert is_nil(derived.unavailable_reason)
+    assert exactly?(derived.basis, "1007.50")
+    assert exactly?(derived.realized_pnl_abs, "188.75")
+    assert exactly?(RealizedGains.report(base_currency: "EUR").summary.realized_total, "249.00")
+  end
+
+  # User story (#1198, Sprint 21 α3; point 3, "a lot booked in the currency
+  # of another account than the sell's"):
+  # As the operator holding one dollar share in a euro depot and a franc
+  # depot,
+  # I want a dollar sale closing a lot booked in francs named unavailable,
+  # not converted through a leg that does not reach the sale's currency,
+  # so that only a lot's own legs ever convert it.
+  #
+  # Acceptance criteria:
+  # - A lot booked in CHF through a CHF account (legs to USD stored) closed by
+  #   a sale in EUR through the EUR account is unavailable, missing_settlement_leg,
+  #   the lot named by its date and CHF.
+  test "a lot booked in another account's currency than the sale's is unavailable" do
+    {world, fund} = cross_world()
+
+    swiss =
+      Map.merge(
+        world,
+        add_depot(world.portfolio,
+          cash_currency: "CHF",
+          cash_name: "Franc Cash",
+          depot_name: "Franc Depot"
+        )
+      )
+
+    account_currency_trade!(swiss, fund,
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: "10",
+      price: "90",
+      security_amount: "1000",
+      settled: "900",
+      rate: "0.9",
+      gross: "900"
+    )
+
+    account_currency_trade!(world, fund,
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: "10",
+      price: "96",
+      security_amount: "1200",
+      settled: "960",
+      rate: "0.8",
+      gross: "960"
+    )
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "EUR"
+    assert is_nil(trade.basis)
+    assert trade.unavailable_reason == :missing_settlement_leg
+    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "CHF"}]
+  end
 end

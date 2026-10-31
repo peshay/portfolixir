@@ -391,6 +391,64 @@ defmodule PortfolixirWeb.Api.V1.MergeFifoRestatementTest do
 
   # -- helpers ------------------------------------------------------------------
 
+  # User story (#1198, Sprint 21 α3; the ADR-0015 amendment of 2026-10-09,
+  # point 3):
+  # As the operator about to merge a duplicate dollar security whose pooled
+  # queue would close a lot that has no leg in the sale's currency,
+  # I want the preview to count that closed trade as unavailable, outside
+  # every sum, rather than add euros under a dollar code,
+  # so that the restatement I am shown is the realized gains I will read.
+  #
+  # Acceptance criteria:
+  # - The source holds a lot booked in EUR without legs, the target a sale
+  #   of it in USD with its legs. After the merge the sale closes that lot:
+  #   no year is restated (the trade is in no sum), unavailable_trades reads
+  #   source 0, target 0, after 1, and unchanged is false.
+  test "security merge: a pooled trade without its leg is counted unavailable, never summed",
+       ctx do
+    depot = depot!(ctx, "Depot Dollar")
+
+    {:ok, target} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Harbour Dollar",
+        currency_code: "USD",
+        asset_class: "etf"
+      })
+
+    {:ok, source} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Harbour Dollar",
+        currency_code: "USD",
+        asset_class: "etf"
+      })
+
+    trade!(ctx, depot, source, "buy", "10", "80", ~D[2025-01-02])
+
+    {:ok, _sale} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: ctx.portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: ctx.cash.id,
+        security_id: target.id,
+        type: "sell",
+        date: ~D[2025-03-03],
+        quantity: "10",
+        price: "120",
+        currency_code: "USD",
+        security_amount: "1200",
+        settlement_amount: "960",
+        settlement_fx_rate: "0.8",
+        gross_amount: "960"
+      })
+
+    preview = security_preview!(ctx, source, target)
+    fifo = preview["outcome_by_collapse_key_equal"]["false"]["fifo_realized"]
+
+    assert fifo["years"] == []
+    assert fifo["unavailable_trades"] == %{"source" => 0, "target" => 0, "after" => 1}
+    assert fifo["unchanged"] == false
+  end
+
   defp to_security_preview(ctx, source, target) do
     {:ok, view, _html} = live(ctx.ui, "/securities")
 

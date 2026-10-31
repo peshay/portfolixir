@@ -161,6 +161,96 @@ defmodule Portfolixir.Portfolios.RealizedGainsTest do
     assert report.excluded.securities == ["Pound Equity"]
   end
 
+  # User story (#1198, Sprint 21 α3; the ADR-0015 amendment of 2026-10-09,
+  # point 3 and identity 3):
+  # As the operator reading the realized gains,
+  # I want a sale left out because a lot it closes has no leg in its
+  # currency named apart from a sale left out for a missing close-date rate,
+  # so that I reach for the right remedy: the lot's legs, not a rate.
+  #
+  # Acceptance criteria:
+  # - A GBP sale with no close-date rate and a USD sale closing a EUR-booked
+  #   lot without legs are both out of the matrix, the trades and the three
+  #   figures: the month reads the EUR trade's 50 alone, trade_count 1.
+  # - excluded counts both (count 2, both securities), and by_reason names
+  #   each under its own reason: no_rate the pound sale,
+  #   missing_settlement_leg the dollar sale.
+  test "a sale without a leg is excluded apart from a sale without a rate" do
+    world = WorldFixtures.base_world()
+
+    eur = WorldFixtures.create_security!(name: "Euro Equity", ticker: "EEQ", currency: "EUR")
+    WorldFixtures.buy!(world, eur, quantity: "1", price: "100", date: ~D[2026-01-05])
+    WorldFixtures.sell!(world, eur, quantity: "1", price: "150", date: ~D[2026-02-10])
+
+    gbp = WorldFixtures.create_security!(name: "Pound Equity", ticker: "PEQ", currency: "GBP")
+
+    gbp_world =
+      Map.merge(
+        world,
+        WorldFixtures.add_depot(world.portfolio,
+          currency: "GBP",
+          cash_name: "GBP Cash",
+          depot_name: "GBP Depot"
+        )
+      )
+
+    WorldFixtures.buy!(gbp_world, gbp,
+      quantity: "2",
+      price: "10",
+      date: ~D[2026-01-09],
+      currency: "GBP"
+    )
+
+    WorldFixtures.sell!(gbp_world, gbp,
+      quantity: "2",
+      price: "30",
+      date: ~D[2026-02-20],
+      currency: "GBP"
+    )
+
+    usd = WorldFixtures.create_security!(name: "Dollar Equity", ticker: "DEQ", currency: "USD")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-02-25],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    # Imported in the account's currency before a rate was stored: no legs.
+    WorldFixtures.buy!(world, usd, quantity: "10", price: "80", date: ~D[2026-01-12])
+
+    WorldFixtures.cross_trade!(world, usd,
+      type: "sell",
+      quantity: "10",
+      price: "120",
+      settled: "960.00",
+      gross: "960.00",
+      date: ~D[2026-02-25]
+    )
+
+    report = RealizedGains.report(base_currency: "EUR")
+
+    assert [%{year: 2026} = year_row] = report.annual
+    assert Decimal.equal?(year_row.months[2], Decimal.new("50"))
+    assert [%{security_id: id}] = report.trades
+    assert id == eur.id
+    assert report.summary.trade_count == 1
+
+    assert report.excluded.count == 2
+    assert report.excluded.securities == ["Dollar Equity", "Pound Equity"]
+    assert report.excluded.by_reason.no_rate == %{count: 1, securities: ["Pound Equity"]}
+
+    assert report.excluded.by_reason.missing_settlement_leg == %{
+             count: 1,
+             securities: ["Dollar Equity"]
+           }
+  end
+
   # D-1 (signed 2026-08-20), the rate-availability clause verbatim:
   # "a sale whose booking-date rate is not stored is excluded from the
   # converted total and named on the surface (count + securities), NEVER
