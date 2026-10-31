@@ -280,11 +280,12 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   follows, and links to the security's Transactions tab, where the quantity
   is checked against the statement. It converts nothing.
 
-  It renders the forward direction only (quotes near 100, bookings near 1),
-  the one its sentence states. The reverse direction (#1068) is named in
-  Wealth's `dq-two-scales-reverse` note and served in the API's reading
-  with its direction; this pane has no board for it yet, so it says
-  nothing rather than the forward sentence.
+  The forward direction (quotes near 100, bookings near 1) links to the
+  Transactions tab. The reverse direction (#1068; #1112, board
+  `ux-design-2026-10-09/02-securities`, N7 A: quotes near 1, bookings near
+  100) has its own sentence and links to the Quotes tab, where the stored
+  quotes are checked, because both its consequence and its remedy point
+  the other way (`data-role="two-scales-reverse-note"`).
   """
   def two_scales_note(%{bond: %{two_scales: %{direction: :forward} = finding}} = assigns) do
     assigns = assign(assigns, :finding, finding)
@@ -308,6 +309,33 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       ) %>
       <.link patch={"/securities/#{@security.id}?tab=transactions"}>
         <%= gettext("Transactions") %>
+      </.link>
+    </AppShell.data_note>
+    """
+  end
+
+  def two_scales_note(%{bond: %{two_scales: %{direction: :reverse} = finding}} = assigns) do
+    assigns = assign(assigns, :finding, finding)
+
+    ~H"""
+    <AppShell.data_note severity={:problem} data-role="two-scales-reverse-note">
+      <strong><%= gettext("Priced on two scales:") %></strong>
+      <%= gettext("quotes around 1 (latest %{close} on %{date}),",
+        close: Format.exact(@finding.latest_quote.close),
+        date: Format.date(@finding.latest_quote.date)
+      ) %>
+      <%= ngettext(
+        "booked price per unit around 100 (1 booking: %{price} on %{date}).",
+        "booked price per unit around 100 (%{count} bookings, the last %{price} on %{date}).",
+        @finding.unit_scale_bookings,
+        price: Format.exact(@finding.last_unit_scale_booking.price),
+        date: Format.date(@finding.last_unit_scale_booking.date)
+      ) %>
+      <%= gettext(
+        "That means value, gain and weight count a hundred times too low. Check the stored quotes — a quote around 1 is not a percent of face:"
+      ) %>
+      <.link patch={"/securities/#{@security.id}?tab=quotes"}>
+        <%= gettext("Quotes") %>
       </.link>
     </AppShell.data_note>
     """

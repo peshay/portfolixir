@@ -163,6 +163,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_notes, [])
      |> assign(:detail_thesis_state, ThesisState.none())
      |> assign(:detail_bond, nil)
+     |> assign(:detail_implausible, nil)
      |> assign(:dq_two_scales, [])
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
@@ -1422,6 +1423,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           thesis_state={@detail_thesis_state}
           note_editing?={@detail_note_editing?}
           bond={@detail_bond}
+          implausible={@detail_implausible}
         />
       <% end %>
 
@@ -1601,6 +1603,56 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp detail_valuation_status(assigns), do: ~H""
 
   attr(:security, :map, required: true)
+  attr(:bond, :map, default: nil)
+  attr(:implausible, :map, default: nil)
+
+  # The Overview's W1 slot (#1112, board 02, N7 A): one case per finding, a
+  # problem note above the figures it makes wrong. A bond on two scales
+  # gets its direction's note (`BondStrip.two_scales_note/1`); any security
+  # whose quotes contradict its bookings the implausible-quote note. The
+  # guard leaves a security on two scales to that finding, so the slot holds
+  # at most one note.
+  defp overview_finding_note(%{bond: %{two_scales: %{direction: _}}} = assigns) do
+    ~H"""
+    <BondStrip.two_scales_note security={@security} bond={@bond} />
+    """
+  end
+
+  defp overview_finding_note(%{implausible: %{} = _finding} = assigns) do
+    ~H"""
+    <AppShell.data_note severity={:problem} data-role="implausible-quote-note">
+      <strong><%= gettext("Quote does not match the bookings:") %></strong>
+      <%= ngettext("%{entry}", "%{count} bookings, the last: %{entry}", @implausible.bookings_outside,
+        entry: implausible_entry(@implausible)
+      ) %>
+      <%= gettext(
+        "(on a booking's day, below half or above twice the price per unit). The value or the cost of this position is therefore wrong. Check the quote source (ticker, exchange), then the booking:"
+      ) %>
+      <.link patch={"/securities/#{@security.id}?tab=quotes"}><%= gettext("Quotes") %></.link>
+      ·
+      <.link patch={"/securities/#{@security.id}?tab=transactions"}><%= gettext("Transactions") %></.link>
+    </AppShell.data_note>
+    """
+  end
+
+  defp overview_finding_note(assigns), do: ~H""
+
+  # Wealth's entry for the booking (#1101), its figures as `Format.exact`
+  # writes them and the ratio at two places.
+  defp implausible_entry(finding) do
+    gettext(
+      "%{kind} %{date} at %{price} %{currency} · quote %{quote_date}: %{close} %{currency}, %{ratio} times that",
+      kind: tx_type_label(finding.kind),
+      date: Format.date(finding.date),
+      price: Format.exact(finding.price),
+      currency: finding.currency_code,
+      quote_date: Format.date(finding.quote_date),
+      close: Format.exact(finding.close),
+      ratio: Format.decimal(finding.ratio, 2)
+    )
+  end
+
+  attr(:security, :map, required: true)
   attr(:latest, :map, default: nil)
   attr(:metrics, :map, required: true)
   attr(:holdings, :list, required: true)
@@ -1613,6 +1665,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:note_editing?, :boolean, default: false)
   # #330 (ADR-0052, pick H3-A): a bond's reading, nil for any other security.
   attr(:bond, :map, default: nil)
+  # #1112 (board 02, N7 A): the security's implausible_quote finding, or nil.
+  attr(:implausible, :map, default: nil)
 
   # #804 (review C7/A8, owner's pick 2026-09-14): the first tab answers "what
   # is this, how does it stand, what do I think about it" — six figures, the
@@ -1630,8 +1684,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       class="detail-tab-panel detail-tab-panel--overview"
     >
       <%!-- #330 (W1): above the figures it concerns, inside the section
-           whose data it describes (UX-DR17). --%>
-      <BondStrip.two_scales_note security={@security} bond={@bond} />
+           whose data it describes (UX-DR17). #1112 (board 02, N7 A): one
+           note per finding, at most one, since a security on two scales is
+           left to that finding. --%>
+      <.overview_finding_note security={@security} bond={@bond} implausible={@implausible} />
       <div class="overview-reading">
         <div class="overview-reading__main">
           <dl class="overview-metrics">
@@ -6199,6 +6255,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
         transactions: transaction_rows,
         status: status
       )
+    )
+    # #1112 (board 02, N7 A): the predicate's own finding, so the Overview
+    # names what the list's `implausible_quote` chip and Wealth name.
+    |> assign(
+      :detail_implausible,
+      DataQuality.implausible_quote_finding(socket.assigns.selected_security)
     )
     |> assign(:detail_classifications, load_security_classifications(id))
     |> assign(:detail_lineage, %{

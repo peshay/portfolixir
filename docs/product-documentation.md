@@ -541,8 +541,19 @@ per unit, and itself at most 5. The quotes are then not percent of face,
 and the bond counts a hundred times **too low** in every total. Wealth names
 it in a problem note of its own, each name linking to the security's
 **Quotes** tab, where the stored quotes are checked; again nothing is
-converted. The security's own Overview does not name the reverse case yet
+converted. The security's own Overview names it too, in a problem note at
+the top with the latest quote, the booking and a link to its **Quotes** tab
 (#1112).
+
+**A quote that does not match the bookings.** A held security whose stored
+quote on a booking's day — or the latest within seven days before it — is
+below half or above twice the booked price per unit is named in a problem
+note at the top of its Overview (#1112): the booking, the quote of its day
+and the ratio ("Sell 2026-04-03 at 61.4 USD · quote 2026-04-02: 618.9 USD,
+10.08 times that"; with several, how many and the latest), that the value
+or the cost of the position is therefore wrong, and links to its **Quotes**
+and **Transactions** tabs — the quote source first, then the booking. A
+bond on two scales carries only its two-scales note.
 
 **Which securities the guard reads.** A security is read as a bond — its
 Overview shows the bond block, and the guard reads it — when its asset class

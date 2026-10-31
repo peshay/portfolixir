@@ -244,6 +244,22 @@ defmodule Portfolixir.Catalog.DataQuality do
   def count(id, opts) when is_binary(id), do: length(list(id, opts))
 
   @doc """
+  The `implausible_quote` finding of one security, or `nil`: the
+  predicate's own rule — held, and the guard over its bookings, which
+  leaves a security on two scales to that finding — for a surface that
+  shows one security (#1112, the security's Overview). The finding is
+  `Portfolixir.Portfolios.QuotePlausibility`'s: the latest booking outside
+  the band, the quote it was compared with, the ratio and how many
+  bookings are outside.
+  """
+  @spec implausible_quote_finding(Security.t()) :: map() | nil
+  def implausible_quote_finding(%Security{id: id} = security) do
+    if id in HeldSecurities.held_ids() do
+      security |> List.wrap() |> QuotePlausibility.findings_among() |> List.first()
+    end
+  end
+
+  @doc """
   Narrows rows **that were already loaded with `list_opts/1`** to those
   matching the in-memory half of `id`: the quote conditions, the FX check
   and the two-scales guard. The quote conditions also leave a retired row

@@ -25,7 +25,9 @@
 # account names that differ only in letter case (α8); and
 # the Sprint 21 money surfaces (18 and 19, plan D-14): a bond whose coupon
 # was imported with it, a dollar security imported from a EUR account and
-# sold by hand, and one whose lot has no leg in its sale's currency. The
+# sold by hand, and one whose lot has no leg in its sale's currency; and a
+# held security whose quote of a booking's day is ten times its booked price
+# (20, Sprint 21 γ2). The
 # Gesamtpreis row error (#1076) is a file the
 # walkthrough drops by hand: priv/demo/pp_csv_gesamtpreis_demo.csv; so are
 # the coupon file's second drop and its re-export, and the delivery with a
@@ -2063,5 +2065,59 @@ for name <- ["Kestrel Bay Resources Inc.", "Arbolia Inc."],
 end
 
 IO.puts("Sprint 21 α3: Kestrel Bay (188.75 CAD = 151.00 EUR), Arbolia (not convertible)")
+
+# 20. Sprint 21 γ2 (#1112, board 02, pick N7 A; plan D-14): a held
+#     security whose quote of a booking's day contradicts its booked price,
+#     so a security's Overview carries the implausible-quote note beside the
+#     two-scales bonds of step 16d (whose reverse bond carries the reverse
+#     note). "Tamarisk Systems Inc." (EUR) is bought 10 at 41.20 in the Demo
+#     Depot 150 days back, with a close of 412.00 stored for that day — a
+#     quote on the wrong unit, ten times the price — and 41.30 the day after,
+#     so the Demo Depot's value is off for that one day only. A deposit of
+#     412.00 EUR the same day pays for it. Created only when the security is
+#     not there yet, quotes with it, so a re-run adds nothing.
+if find_security.("Tamarisk Systems Inc.") == nil do
+  bought_on = Date.add(today, -150)
+
+  {:ok, tamarisk} =
+    Catalog.create_security(owner, %{
+      name: "Tamarisk Systems Inc.",
+      ticker_symbol: "TMSK",
+      currency_code: "EUR",
+      asset_class: "equity"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: cash.id,
+      type: "deposit",
+      date: bought_on,
+      gross_amount: "412.00",
+      currency_code: "EUR"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: depot.id,
+      cash_account_id: cash.id,
+      security_id: tamarisk.id,
+      type: "buy",
+      date: bought_on,
+      quantity: "10",
+      price: "41.20",
+      currency_code: "EUR"
+    })
+
+  {:ok, _} =
+    Catalog.upsert_quotes(owner, tamarisk.id, [
+      %{date: bought_on, close: "412.00"},
+      %{date: Date.add(bought_on, 1), close: "41.30"},
+      %{date: Date.add(today, -1), close: "41.80"}
+    ])
+end
+
+IO.puts("Sprint 21 γ2: Tamarisk Systems Inc. (a quote ten times its booking)")
 
 IO.puts("review seed done (timber position: #{timber_state})")

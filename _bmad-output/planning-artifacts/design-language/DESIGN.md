@@ -5672,9 +5672,39 @@ but `bond` and `government_bond`, read as the effective class.
   (one finding per note, UX-DR17). The rule: the latest stored quote is
   1/500 to 1/20 of a booked price per unit, the forward band inverted, and
   itself at most 5 (100 ÷ 20), so a percent quote beside a denomination
-  booked per piece is not called "Kurse um 1". The security's own Overview
-  note (W1) states the forward direction only; a reverse finding renders
-  nothing there yet (issue 1112, needs a board).
+  booked per piece is not called "Kurse um 1". ~~The security's own
+  Overview note (W1) states the forward direction only; a reverse finding
+  renders nothing there yet (issue 1112, needs a board).~~ **Amended
+  (issue 1112, Sprint 21, board `ux-design-2026-10-09/02-securities`, pick
+  N7 A):** the security's Overview renders the reverse note in the W1 slot
+  (`data-role="two-scales-reverse-note"`), W1's anatomy turned round:
+  "**Auf zwei Skalen bepreist:** Kurse um 1 (zuletzt 0,981 am <date>),
+  gebuchter Preis je Stück um 100 (1 Buchung: 98,4 am <date>). Dann zählen
+  Wert, Gewinn und Gewicht hundertfach zu niedrig. Die gespeicherten Kurse
+  prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert: Kurse" — the last
+  word a link to the Quotes tab (the forward note's goes to Transaktionen);
+  with several bookings "(3 Buchungen, zuletzt 98,4 am …)".
+- **The implausible-quote note on any security's Overview** *(issue 1112's
+  widening of 2026-10-08, Sprint 21, board `ux-design-2026-10-09/02-securities`,
+  pick N7 A)*: a **problem** note in the same W1 slot
+  (`data-role="implausible-quote-note"`), for a held security the
+  `implausible_quote` predicate names (`Catalog.DataQuality`), with the same
+  anatomy — the bold lead, the facts, the consequence, the remedy, the
+  links: "**Kurs passt nicht zu den Buchungen:** Verkauf 03.04.2026 zu 61,4
+  USD · Kurs 02.04.2026: 618,9 USD, das 10,08-Fache (am Buchungstag unter
+  der Hälfte oder über dem Doppelten des Preises je Stück). Wert oder
+  Einstand dieser Position ist daher falsch. Die Kursquelle prüfen (Ticker,
+  Börse), dann die Buchung: Kurse · Transaktionen". The entry is Wealth's
+  (`dq-implausible-quote`), naming the latest booking outside the band;
+  with more than one, "2 Buchungen, zuletzt: Verkauf …", as W1 counts its
+  bookings. Kurse comes first, because the remedy checks the quote source
+  first. The Quotes tab stays silent for a reader arriving from Wealth's
+  entry: the entry already states the booking, the quote and the ratio, and
+  the Overview carries the note one tap back.
+- **W1 holds at most one of the three notes** — forward, reverse,
+  implausible quote — since the implausible-quote guard leaves a security
+  on two scales to that finding. The slot is one function of the Overview
+  with one case per finding (`overview_finding_note/1`).
 - **The "ohne Anlageklasse" badge** *(2026-10-06, issue 1068, board 02,
   pin 3)*: a named bond that shows no asset class — none stored, none
   inferred, as the list and the dialog show it — carries `badge

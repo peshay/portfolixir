@@ -429,7 +429,8 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     refute render(wealth) =~ "Ostsee Holz ("
 
     # The unclassed bond is read as a bond on its own Overview too; the
-    # reverse case has no Overview note yet, and never the forward sentence.
+    # reverse case never carries the forward sentence (since #1112 it has a
+    # note of its own, pinned in securities_dq_notes_test.exs).
     {:ok, detail, _html} = live(german(conn), "/securities/#{unclassed.id}")
     assert has_element?(detail, ~s([data-role="bond-strip"]))
     assert text(detail, ~s([data-role="two-scales-note"])) =~ "Kurse um 100"
@@ -437,6 +438,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     {:ok, detail, _html} = live(german(conn), "/securities/#{reverse.id}")
     assert has_element?(detail, ~s([data-role="bond-strip"]))
     refute has_element?(detail, ~s([data-role="two-scales-note"]))
+    assert has_element?(detail, ~s([data-role="two-scales-reverse-note"]))
 
     {:ok, detail, _html} = live(german(conn), "/securities/#{share.id}")
     refute has_element?(detail, ~s([data-role="bond-strip"]))

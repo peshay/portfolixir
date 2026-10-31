@@ -102,7 +102,13 @@ The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
   reverse) and "Ostsee Logistik 4,10% 2028/2033" (no asset class, a coupon
   and a maturity date, booked as Kestrel is), all held: Wealth names them,
   the unclassed one with its "ohne Anlageklasse" badge, and the Overview's
-  data-quality line counts them.
+  data-quality line counts them. The list it opens (`?dq=two_scales`)
+  carries a note per direction (#1121), and Birkenhain's own Overview the
+  reverse note (#1112).
+- **A quote that does not match its booking (#1112):** "Tamarisk Systems
+  Inc.", held in the Demo Depot, bought at 41.20 with a stored close of
+  412.00 on the booking's day: its Overview carries the implausible-quote
+  note, and the list's `?dq=implausible_quote` names it.
 - **What the total leaves out (#1081):** the USD cash with no rate and the
   delivered position with no price are named under the Overview's "Alles"
   card.

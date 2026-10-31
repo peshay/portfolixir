@@ -594,7 +594,19 @@ Prozent vom Nennwert, und die Anleihe zählt hundertfach **zu niedrig** in
 jeder Summe. Vermögen nennt sie in einem eigenen Problem-Hinweis, jeder Name
 verlinkt auf den Tab **Kurse** des Wertpapiers, wo die gespeicherten Kurse
 geprüft werden; auch hier wird nichts umgerechnet. Die eigene Übersicht des
-Wertpapiers nennt den umgekehrten Fall noch nicht (#1112).
+Wertpapiers nennt ihn ebenfalls, in einem Problem-Hinweis oben mit dem
+letzten Kurs, der Buchung und einem Link auf ihren Tab **Kurse** (#1112).
+
+**Ein Kurs, der nicht zu den Buchungen passt.** Ein gehaltenes Wertpapier,
+dessen gespeicherter Kurs am Tag einer Buchung — oder der letzte bis zu
+sieben Tage davor — unter der Hälfte oder über dem Doppelten des gebuchten
+Preises je Stück liegt, wird in einem Problem-Hinweis oben in seiner
+Übersicht genannt (#1112): die Buchung, der Kurs ihres Tages und das
+Verhältnis („Verkauf 03.04.2026 zu 61,4 USD · Kurs 02.04.2026: 618,9 USD,
+das 10,08-Fache“; bei mehreren, wie viele und die letzte), dass Wert oder
+Einstand der Position daher falsch ist, und Links auf seine Tabs **Kurse**
+und **Transaktionen** — erst die Kursquelle, dann die Buchung. Eine Anleihe
+auf zwei Skalen trägt nur ihren Zwei-Skalen-Hinweis.
 
 **Welche Wertpapiere der Wächter liest.** Ein Wertpapier gilt als Anleihe —
 seine Übersicht zeigt den Anleiheblock, und der Wächter liest es —, wenn
