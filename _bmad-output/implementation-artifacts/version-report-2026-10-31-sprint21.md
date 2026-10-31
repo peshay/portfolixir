@@ -26,7 +26,7 @@ are the last session's, of 2026-10-31.
 | `actions/setup-node`, `actions/upload-artifact` | 7.0.0 → 7.1.0; 7.0.1 → 7.0.2 | "chore(ci): actions/setup-node 7.0.0 -> 7.1.0, actions/upload-artifact 7.0.1 -> 7.0.2" | Dependabot #1228 and #1227 (2026-10-16). Both stay pinned by the tag's commit, with the version in a comment; each digest was read from the action's own tag (`git ls-remote`) and matches the PR's. `setup-node` moves in both places the workflow uses it: Lane S's H63 row moved the live-feed audits into a job of their own, which sets up Node too, after the PR was opened, so the PR's one-line diff would have left the second pin behind. |
 | `@modelcontextprotocol/sdk` (the companion) | 1.32.1 → 1.32.2 | "chore(deps): @modelcontextprotocol/sdk 1.32.1 -> 1.32.2 in the companion" | Dependabot #1281, from its run of 2026-10-30 (the package was published on 2026-10-23, the day of the previous run). A patch inside `^1.13.0`, lock only; the companion's tests, build and schema budget are unchanged by it. |
 | `actions/setup-python` | 7.0.0 → 7.1.0 | "chore(ci): actions/setup-python 7.0.0 -> 7.1.0" | Dependabot #1282 (2026-10-30), pinned by the tag's commit, read from the action's own tag. |
-| `phoenix_html` | 4.3.0 → 4.4.0 | "chore(deps): phoenix_html 4.3.0 -> 4.4.0" | Published 2026-10-30 with no Dependabot PR yet; the lane had left it unread. On 2026-10-31 its advisory reached hex.pm (EEF-CVE-2026-117645, medium: attribute injection through unvalidated attribute names in `attributes_escape/1`, the function HEEx uses for dynamic attributes) and turned `mix hex.audit` red on the branch with nobody pushing, so the lane takes the fix release, as it takes every advisory. Lock only, inside `~> 4.1`. |
+| `phoenix_html` | 4.3.0 → 4.4.0 | "chore(deps): phoenix_html 4.3.0 -> 4.4.0" | Published 2026-10-30 with no Dependabot PR yet; the lane had left it unread. Between the lane's audit of 2026-10-30 and the one of 2026-10-31 its advisory reached hex.pm (EEF-CVE-2026-117645, medium: attribute injection through unvalidated attribute names in `attributes_escape/1`, the function HEEx uses for dynamic attributes) and turned `mix hex.audit` red on the branch with nobody pushing, so the lane takes the fix release, as it takes every advisory. Lock only, inside `~> 4.1`. |
 | Compose's database image digest | `postgres:18.6-alpine3.24` `77f58511…` → `10a5c69a…` | "chore(docker): the Compose database image moves to the rebuilt 18.6-alpine3.24 digest" | Dependabot #1283 (2026-10-30): the same PostgreSQL 18.6 on the same Alpine line, rebuilt on 2026-10-26; the digest is the tag's index digest read from Docker Hub. `docker-compose.dev.yml` moves with `docker-compose.yml`, which Dependabot does not watch, so both files run one image. Proven by CI's `compose-smoke` job on the PR. |
 
 Every row is its own commit, never mixed into a security row (ADR-0036
@@ -150,25 +150,27 @@ reads the new image the same way.
 
 ## Gate results on the branch's head
 
-<!-- GATES: filled from the full required check list run before the push -->
-Run on the sprint branch carrying Lane M and Lane S before the push, on the
-local toolchain Elixir 1.18.5 / OTP 27.3.4.18, PostgreSQL 16, Node 22 (CI runs
-the companion on Node 26; `npm install` warns `EBADENGINE` locally and runs).
+Run on the sprint branch's final head, Lane M, Lane S and the closing act's
+fixes, on 2026-10-31 on a quiet machine, before the push; local toolchain
+Elixir 1.18.5 / OTP 27.3.4.18, PostgreSQL 16, Node 22 (CI runs the companion on
+Node 26; `npm install` warns `EBADENGINE` locally and runs). The suite took
+506 s here against 385 s on the branch's base: the batch added about 360
+tests.
 
 | Gate | Result |
 | --- | --- |
-| `mix format --check-formatted` | pending |
-| `mix compile --force --warnings-as-errors` | pending |
-| `mix gettext.extract --check-up-to-date` | pending |
-| `mix test` | pending |
-| `mix coveralls` | pending |
-| `mix credo --strict` | pending |
-| `mix sobelow --skip --exit` | pending |
-| `mix dialyzer --format short` | pending |
-| `mix deps.unlock --check-unused` | pending |
-| `mix hex.audit` | pending |
-| `mix deps.audit` | pending |
-| `pre-commit run --all-files` | pending |
-| `npm test --prefix mcp-server` | pending |
-| `npm run build --prefix mcp-server` | pending |
-| `npm audit --audit-level=high --prefix mcp-server` | pending |
+| `mix format --check-formatted` | clean |
+| `mix compile --force --warnings-as-errors` | clean |
+| `mix gettext.extract --check-up-to-date` | up to date |
+| `mix test` | 5102 tests, 9 properties, 0 failures (506 s) |
+| `mix coveralls` | 94.4 % total (5102 tests, 9 properties, 0 failures) |
+| `mix credo --strict` | no issues |
+| `mix sobelow --skip --exit` | exit 0 |
+| `mix dialyzer --format short` | 0 errors |
+| `mix deps.unlock --check-unused` | exit 0 |
+| `mix hex.audit` | no retired or advisory packages |
+| `mix deps.audit` | no vulnerabilities |
+| `pre-commit run --all-files` | all hooks pass |
+| `npm test --prefix mcp-server` | 252 tests, 0 failures |
+| `npm run build --prefix mcp-server` | clean |
+| `npm audit --audit-level=high --prefix mcp-server` | 0 vulnerabilities |
