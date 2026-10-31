@@ -386,6 +386,85 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert exact(lot.buy_taxes) == "0.000000"
   end
 
+  # User story (#1198, Sprint 21 α3; the ADR-0015 amendment of 2026-10-09,
+  # identity 4):
+  # As a maintainer whose cross-currency round trip came wholly from a
+  # Portfolio Performance import, booked in my account's currency,
+  # I want its closed trade to read exactly what it read before a closed
+  # trade was put in one currency,
+  # so that the conversion runs only where a sell closes a lot booked in
+  # another currency, and the import-only round trip's result in euros stays
+  # the cash it moved.
+  #
+  # Acceptance criteria:
+  # - Identity 1's imported buy (10 at 80.00 EUR, fees 5.00 and taxes 1.00
+  #   EUR, legs 800.00 EUR, 1,000.00 USD, 0.800000) sold through an import
+  #   (10 at 96.00 EUR, fees 3.00 EUR, legs 960.00 EUR, 1,200.00 USD,
+  #   0.800000) reads basis 806.00, proceeds 957.00 and realized 151.00 EUR,
+  #   digit for digit; option (a) would read 1,007.50, 1,196.25 and 188.75
+  #   USD.
+  test "an import-only cross-currency round trip reads byte-identical figures (identity 4)" do
+    world = base_world(name: "Import Only", cash_name: "Import Cash", depot_name: "Import Depot")
+    usd_rate!([~D[2025-04-01], ~D[2025-05-02]])
+    fund = create_security!(name: "Import Round Fund", ticker: "IRF", currency: "USD")
+
+    account_currency_trade!(world, fund,
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: "10",
+      price: "80",
+      fees: "5",
+      taxes: "1",
+      security_amount: "1000",
+      settled: "800",
+      rate: "0.8",
+      gross: "806"
+    )
+
+    account_currency_trade!(world, fund,
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: "10",
+      price: "96",
+      fees: "3",
+      security_amount: "1200",
+      settled: "960",
+      rate: "0.8",
+      gross: "957"
+    )
+
+    assert [trade] = closed(fund)
+
+    assert trade |> Map.take(@trade_keys) |> exact() == %{
+             open_date: ~D[2025-04-01],
+             close_date: ~D[2025-05-02],
+             quantity: "10.000000000000",
+             avg_buy_price: "80.000000",
+             avg_sell_price: "96.000000",
+             buy_fees: "5.000000",
+             buy_taxes: "1.000000",
+             sell_fees: "3.000000",
+             sell_taxes: "0.000000",
+             basis: "806.000000000000000000",
+             proceeds: "957.000000000000000000",
+             realized_pnl_abs: "151.000000000000000000",
+             realized_pnl_pct: "0.1873449131513647642679900744416873",
+             holding_period_days: 31,
+             currency_code: "EUR",
+             lots: [
+               %{
+                 open_date: ~D[2025-04-01],
+                 quantity: "10.000000000000",
+                 cost: "806.000000000000000000"
+               }
+             ],
+             annualized_return: nil,
+             annualized_return_reason: :holding_period_under_365_days
+           }
+
+    assert exact(realized_row(fund).realized_base) == "151.000000000000000000"
+  end
+
   # -- identities 1 and 3: a closed trade in one currency ------------------------
 
   defp exactly?(%Decimal{} = value, expected), do: Decimal.equal?(value, Decimal.new(expected))
