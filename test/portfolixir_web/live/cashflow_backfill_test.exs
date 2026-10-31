@@ -198,4 +198,102 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
     {:ok, costs, _} = live(conn, "/cashflow?tab=costs")
     assert costs |> element(~s([data-role="costs-excluded"])) |> render() =~ "fx-backfill-button"
   end
+
+  # User story (#1150, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ⑤ and its found while drawing 7 and 8; the issue's comment of
+  # 2026-10-31):
+  # As the operator reading the Cash-flow page in German,
+  # I want the backfill control and the Flows and Costs notes and ⓘ to say
+  # "Wechselkurs", never "Kurs",
+  # so that the control beside a note about exchange rates does not read as
+  # a fetch of security quotes.
+  #
+  # Acceptance criteria:
+  # - The control's sentence opens "Die tägliche Synchronisation der
+  #   Wechselkurse kann einen vergangenen Tag nicht nachtragen." and the
+  #   button reads "Historische Wechselkurse nachladen"; a result reads
+  #   "Nachladen hat 1 Wechselkurs gespeichert."
+  # - The Flows and Costs notes say "kein gespeicherter Wechselkurs"; their
+  #   ⓘ say "zum Wechselkurs", "kein Wechselkurs gespeichert" and "zum
+  #   Wechselkurs eines Nachbartags".
+  # - None of them says "Kurssynchronisation", "Historische Kurse" or "kein
+  #   gespeicherter Kurs".
+  test "the German backfill control and the Flows and Costs notes say Wechselkurs", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Flows", currency: "EUR")
+
+    gbp_world =
+      Map.merge(
+        world,
+        WorldFixtures.add_depot(world.portfolio,
+          currency: "GBP",
+          cash_name: "GBP Cash",
+          depot_name: "GBP Depot"
+        )
+      )
+
+    WorldFixtures.deposit!(gbp_world, "100", ~D[2026-02-20], currency: "GBP")
+
+    {:ok, _} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: gbp_world.cash.id,
+        type: "fee",
+        date: ~D[2026-02-20],
+        gross_amount: "5",
+        currency_code: "GBP"
+      })
+
+    for {tab, role, note_word} <- [
+          {"flows", "flows-excluded", "kein gespeicherter Wechselkurs zu seinem Buchungsdatum"},
+          {"costs", "costs-excluded", "kein gespeicherter Wechselkurs zu seinem Buchungsdatum"}
+        ] do
+      {:ok, view, _} = live(conn, "/cashflow?tab=#{tab}&locale=de")
+      note = view |> element(~s([data-role="#{role}"])) |> render()
+      info = view |> element(~s([data-role="facet-composition"])) |> render()
+
+      assert note =~ note_word, tab
+
+      assert note =~
+               "Die tägliche Synchronisation der Wechselkurse kann einen vergangenen Tag nicht nachtragen.",
+             tab
+
+      assert view |> element("#fx-backfill-button") |> render() =~
+               "Historische Wechselkurse nachladen"
+
+      assert info =~ "zum Wechselkurs", tab
+      assert info =~ "kein Wechselkurs gespeichert", tab
+      assert info =~ "zum Wechselkurs eines Nachbartags", tab
+
+      for old <- [
+            "Kurssynchronisation",
+            "Historische Kurse",
+            "kein gespeicherter Kurs",
+            "zum Kurs",
+            "kein Kurs"
+          ] do
+        refute note =~ old, "#{tab}: #{old}"
+        refute info =~ old, "#{tab}: #{old}"
+      end
+    end
+
+    Fake.put_shared_history_response(
+      {:ok,
+       [
+         %{
+           base_currency: "EUR",
+           quote_currency: "GBP",
+           date: ~D[2026-02-19],
+           rate: "0.90",
+           source: "ecb"
+         }
+       ]}
+    )
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=costs&locale=de")
+    view |> element("#fx-backfill-button") |> render_click()
+    render_async(view)
+
+    assert view |> element(~s([data-role="fx-backfill-result"])) |> render() =~
+             "Nachladen hat 1 Wechselkurs gespeichert."
+  end
 end

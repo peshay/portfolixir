@@ -93,8 +93,8 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   #   EUR, USD, and the remedy, its control named as the Cash flow page
   #   labels it ("Backfill historical rates" on Cash flow → "Trades"); in
   #   German "1 Trade ohne Umrechnung: Der Kauf vom 12.02.2025 ist in EUR
-  #   gebucht …" and "„Historische Kurse nachladen“ unter Cashflow →
-  #   „Trades“".
+  #   gebucht …" and "„Historische Wechselkurse nachladen“ unter Cashflow →
+  #   „Trades“" (the button's label since #1150).
   test "the Trades tab keeps the unavailable row with its reason and names the remedy", %{
     conn: conn
   } do
@@ -140,7 +140,7 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
              "1 Trade ohne Umrechnung: Der Kauf vom 12.02.2025 ist in EUR gebucht und hat keinen Gegenwert in USD, der Währung des Verkaufs"
 
     assert de_note =~
-             "Abhilfe: ein Wechselkurs für den 12.02.2025 — „Historische Kurse nachladen“ unter Cashflow → „Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung."
+             "Abhilfe: ein Wechselkurs für den 12.02.2025 — „Historische Wechselkurse nachladen“ unter Cashflow → „Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung."
 
     assert de_view |> element("#detail-closed-trades-phone-rows li") |> render() |> text() =~
              "ohne Umrechnung"
