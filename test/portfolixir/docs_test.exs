@@ -3595,7 +3595,11 @@ defmodule Portfolixir.DocsTest do
   #   and realized-gains reads, computation_basis.currency on the Costs read,
   #   and the income read's currency rule.
   # - It names the closed trade whose lots are booked in another currency
-  #   than its sell, issue #1198, an open decision (closing act, BCH-1).
+  #   than its sell (closing act, BCH-1), since #1198 (Sprint 21 α3, the
+  #   ADR-0015 amendment of 2026-10-09) as decided: the trade is in its
+  #   sell's currency, each lot through its own legs, and a lot without one
+  #   makes it unavailable, named apart in excluded; the handbook says so in
+  #   both languages, and the refusal of a third currency (#1199).
   test "the docs state the currency a booking's fees and taxes are read in, in English and German" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",
@@ -3608,7 +3612,12 @@ defmodule Portfolixir.DocsTest do
              "in the trade's currency, a trade across currencies converting them at its own rate",
              "Each fee and tax is read in the currency of the cash account it was charged to",
              "an unconvertible cost is named by that currency",
-             "A payment is read in the currency of the account it was credited to"
+             "A payment is read in the currency of the account it was credited to",
+             "**A closed trade is in its sale's currency, whatever booked its lots**",
+             "realise 188.75 USD — 151.00 EUR, the cash the two bookings moved",
+             "its trade is **not convertible**",
+             "apart from a sale with no rate on its close date",
+             "is refused (issue #1199)"
            ]},
           {"docs/de/product-documentation.md",
            [
@@ -3620,7 +3629,12 @@ defmodule Portfolixir.DocsTest do
              "in der Währung des Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs umgerechnet",
              "Jede Gebühr und jede Steuer wird in der Währung des Verrechnungskontos gelesen, dem sie belastet wurde",
              "unkonvertierbare Kosten werden nach dieser Währung benannt",
-             "Eine Zahlung wird in der Währung des Kontos gelesen, dem sie gutgeschrieben wurde"
+             "Eine Zahlung wird in der Währung des Kontos gelesen, dem sie gutgeschrieben wurde",
+             "**Ein geschlossener Trade steht in der Währung seines Verkaufs, gleich wie seine Lots gebucht wurden**",
+             "realisieren 188,75 USD — 151,00 EUR, das Geld, das die beiden Buchungen bewegt haben",
+             "sein Trade steht **ohne Umrechnung**",
+             "getrennt von einem Verkauf ohne Kurs an seinem Schlussdatum",
+             "wird abgelehnt (Issue #1199)"
            ]},
           {"docs/integration/api-and-mcp.md",
            [
@@ -3629,9 +3643,11 @@ defmodule Portfolixir.DocsTest do
              "`computation_basis.currency`",
              "named by the cash account's currency",
              "read in its cash account's currency",
-             "closes a lot booked in another currency than its sell adds the amounts as " <>
-               "booked, unconverted, in two currencies under one `currency_code`: issue " <>
-               "#1198, an open decision"
+             "a closed trade is in its sell's `currency_code` whatever booked its lots",
+             "through its own stored legs, never a rate looked up",
+             "`unavailable_reason` `\"missing_settlement_leg\"`",
+             "whose `by_reason` tells `missing_settlement_leg` from `no_rate`",
+             "answers 422 on `currency_code`, naming both (issue #1199)"
            ]},
           {"docs/de/integration/api-and-mcp.md",
            [
@@ -3640,9 +3656,13 @@ defmodule Portfolixir.DocsTest do
              "`computation_basis.currency`",
              "nach der Währung des Verrechnungskontos benannt",
              "in der Währung ihres Verrechnungskontos gelesen",
-             "der ein Lot in einer anderen Währung als sein Verkauf schließt, addiert die " <>
-               "Beträge wie gebucht, unumgerechnet, in zwei Währungen unter einem " <>
-               "`currency_code`: Issue #1198, eine offene Entscheidung"
+             "steht ein geschlossener Trade im `currency_code` seines Verkaufs, gleich wie " <>
+               "seine Lots gebucht wurden",
+             "über seine eigenen gespeicherten Beine in diese Währung ein, nie über einen " <>
+               "nachgeschlagenen Kurs",
+             "`unavailable_reason` `\"missing_settlement_leg\"`",
+             "dessen `by_reason` `missing_settlement_leg` von `no_rate`",
+             "antwortet 422 auf `currency_code` und nennt beide (Issue #1199)"
            ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")

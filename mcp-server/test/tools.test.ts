@@ -631,6 +631,44 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // User story (#1198 and #1199, Sprint 21 α1 and α3; the ADR-0015
+  // amendment of 2026-10-09):
+  // As the operating LLM agent,
+  // I want the trade tools to say that a closed trade is in its sell's
+  // currency and when it is unavailable, the realized-gains tool to name
+  // both exclusion reasons, and the transaction writes to name the
+  // third-currency refusal,
+  // so that I never sum an unavailable trade and send a currency the ledger
+  // takes.
+  //
+  // Acceptance criteria:
+  // - trades.list names the sell's currency_code, the lot's own legs,
+  //   unavailable_reason missing_settlement_leg and lots_missing_leg.
+  // - cashflow.realized_gains names excluded's by_reason, no_rate and
+  //   missing_settlement_leg.
+  // - transactions.create names the 422 on currency_code; transactions.update
+  //   names security_id among the fields that re-check and the currency.
+  // - securities.merge_preview names unavailable_trades.
+  it("names a closed trade in one currency, its unavailable state and the third-currency refusal", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((t) => t.name === name)?.description ?? "";
+
+    const trades = describe("portfolixir.trades.list");
+    assert.match(trades, /in its sell's currency_code, each lot entering through its own settlement legs/);
+    assert.match(trades, /unavailable_reason is missing_settlement_leg/);
+    assert.match(trades, /lots_missing_leg/);
+
+    const gains = describe("portfolixir.cashflow.realized_gains");
+    assert.match(gains, /by_reason: no_rate, missing_settlement_leg/);
+
+    assert.match(describe("portfolixir.transactions.create"), /currency_code: the security's or the account's, else 422/);
+    const update = describe("portfolixir.transactions.update");
+    assert.match(update, /currency_code, security_id, cash_account_id/);
+    assert.match(update, /and the trade's currency/);
+
+    assert.match(describe("portfolixir.securities.merge_preview"), /unavailable_trades/);
+  });
+
   // User story (#984 rescoped, Sprint 17 T1b; UX-DR25):
   // As the operating LLM agent,
   // I want the realized-gains tool to tell me it names the sells no buy was

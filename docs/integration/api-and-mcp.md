@@ -1839,11 +1839,30 @@ Example account payloads:
   EUR with 3.00 EUR in fees read `basis` `"1007.5"`, `proceeds`
   `"1196.25"`, `realized_pnl_abs` `"188.75"` and `realized_base` `"151"`.
   A trade booked in its account's currency (a Portfolio Performance
-  import's form), in a third currency or without a stored rate adds them as
-  recorded. A closed trade that closes a lot booked in another currency
-  than its sell adds the amounts as booked, unconverted, in two currencies
-  under one `currency_code`: issue #1198, an open decision.
-  `computation_basis.fees_and_taxes` states the rule and names that case.
+  import's form) adds them as recorded. Since issue #1198 (the ADR-0015
+  amendment of 2026-10-09) a closed trade is in its sell's `currency_code`
+  whatever booked its lots: each lot enters in that currency through its
+  own stored legs, never a rate looked up — an imported lot sold in the
+  security's currency at `security_amount` ÷ quantity, its fees and taxes ÷
+  its own `settlement_fx_rate`; a booking-form lot sold in the account's
+  currency at `settlement_amount` ÷ quantity, its fees and taxes as
+  recorded. An imported purchase sold through the booking form so reads
+  `basis` `"1007.5"`, `realized_pnl_abs` `"188.75"` USD and `realized_base`
+  `"151"`. A lot without the leg it needs (or priced in a third currency, or
+  booked in another account's currency) makes the trade unavailable: the
+  trades read keeps it with its sell's own figures (`proceeds`,
+  `sell_fees`, `avg_sell_price`), `null` for `basis`, `avg_buy_price`,
+  `buy_fees`, `buy_taxes`, `realized_pnl_abs`, `realized_pnl_pct` and
+  `annualized_return`, `unavailable_reason` `"missing_settlement_leg"` and
+  `lots_missing_leg` (`open_date`, `currency_code` of each such lot);
+  `GET /api/v1/realized_gains` leaves it out of `trades`, the matrix and the
+  summary and counts it in `excluded`, whose `by_reason` tells
+  `missing_settlement_leg` from `no_rate` (a sale with no close-date rate).
+  Every available trade carries `unavailable_reason` `null` and
+  `lots_missing_leg` `[]`. `computation_basis.fees_and_taxes` states the
+  rule. A new buy or sell priced in neither its security's currency nor its
+  cash account's answers 422 on `currency_code`, naming both (issue
+  #1199).
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,

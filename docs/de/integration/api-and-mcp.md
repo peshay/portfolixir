@@ -1987,12 +1987,33 @@ Beispiel-Payloads für Konten:
   120 USD für 960,00 EUR mit 3,00 EUR Gebühren, lesen `basis` `"1007.5"`,
   `proceeds` `"1196.25"`, `realized_pnl_abs` `"188.75"` und `realized_base`
   `"151"`. Ein Trade in der Kontowährung (die Form eines Portfolio-
-  Performance-Imports), in einer dritten Währung oder ohne gespeicherten Kurs
-  addiert sie wie erfasst. Ein geschlossener Trade, der ein Lot in einer
-  anderen Währung als sein Verkauf schließt, addiert die Beträge wie
-  gebucht, unumgerechnet, in zwei Währungen unter einem `currency_code`:
-  Issue #1198, eine offene Entscheidung.
-  `computation_basis.fees_and_taxes` nennt die Regel und diesen Fall.
+  Performance-Imports) addiert sie wie erfasst. Seit Issue #1198 (die
+  Ergänzung von ADR-0015 vom 09.10.2026) steht ein geschlossener Trade im
+  `currency_code` seines Verkaufs, gleich wie seine Lots gebucht wurden:
+  Jedes Lot geht über seine eigenen gespeicherten Beine in diese Währung
+  ein, nie über einen nachgeschlagenen Kurs — ein importiertes Lot, in der
+  Wertpapierwährung verkauft, zu `security_amount` ÷ Stückzahl, seine
+  Gebühren und Steuern ÷ seinem eigenen `settlement_fx_rate`; ein Lot aus
+  dem Buchungsformular, in der Kontowährung verkauft, zu
+  `settlement_amount` ÷ Stückzahl, seine Gebühren und Steuern wie erfasst.
+  Ein importierter Kauf, über das Buchungsformular verkauft, liest so
+  `basis` `"1007.5"`, `realized_pnl_abs` `"188.75"` USD und `realized_base`
+  `"151"`. Ein Lot ohne das nötige Bein (oder in einer dritten Währung, oder
+  in der Währung eines anderen Kontos gebucht) macht den Trade
+  unverfügbar: Der Trades-Read behält ihn mit den eigenen Zahlen seines
+  Verkaufs (`proceeds`, `sell_fees`, `avg_sell_price`), `null` für
+  `basis`, `avg_buy_price`, `buy_fees`, `buy_taxes`, `realized_pnl_abs`,
+  `realized_pnl_pct` und `annualized_return`, `unavailable_reason`
+  `"missing_settlement_leg"` und `lots_missing_leg` (`open_date`,
+  `currency_code` jedes solchen Lots); `GET /api/v1/realized_gains` lässt
+  ihn aus `trades`, der Matrix und der Zusammenfassung und zählt ihn in
+  `excluded`, dessen `by_reason` `missing_settlement_leg` von `no_rate`
+  (ein Verkauf ohne Kurs am Schlussdatum) unterscheidet. Jeder verfügbare
+  Trade trägt `unavailable_reason` `null` und `lots_missing_leg` `[]`.
+  `computation_basis.fees_and_taxes` nennt die Regel. Ein neuer Kauf oder
+  Verkauf in weder der Währung seines Wertpapiers noch der seines
+  Verrechnungskontos antwortet 422 auf `currency_code` und nennt beide
+  (Issue #1199).
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,

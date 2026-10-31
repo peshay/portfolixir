@@ -2574,6 +2574,28 @@ bringen 1.196,25 USD und realisieren 188,75 USD — 151,00 EUR, die erhaltenen
 importierter Trade ist in der Kontowährung gebucht, seine Gebühren mit ihm,
 und braucht keine Umrechnung.
 
+**Ein geschlossener Trade steht in der Währung seines Verkaufs, gleich wie
+seine Lots gebucht wurden** (Issue #1198, die Ergänzung von ADR-0015 vom
+09.10.2026). Ein aus Portfolio Performance importierter Kauf ist in Euro
+gebucht, sein Dollar-Gegenwert daneben gespeichert; über das
+Buchungsformular in Dollar verkauft, geht er mit diesem Dollar-Gegenwert in
+den Trade ein, seine Gebühren und Steuern zu seinem eigenen Kurs
+umgerechnet: Dieselben 10 Stück, importiert für 806,00 EUR und verkauft für
+957,00 EUR, realisieren 188,75 USD — 151,00 EUR, das Geld, das die beiden
+Buchungen bewegt haben. Das umgekehrte Paar geht den anderen Weg: Ein
+Dollar-Kauf, über einen Euro-Import verkauft, geht mit den Euro ein, die er
+gekostet hat. Ein Kauf ohne Dollar-Gegenwert — importiert, bevor für seinen
+Tag ein Kurs gespeichert war — lässt sich nicht umrechnen, sein Trade steht
+**ohne Umrechnung**: Der Trades-Tab des Wertpapiers behält die Zeile mit
+einem Begründungsstrich, wo Einstand und Ergebnis stünden, und ein Hinweis
+nennt den Kauf und die Abhilfe (ein Wechselkurs für seinen Tag, den das
+Nachladen der Wechselkurse speichert und aus dem es den Gegenwert ableitet,
+oder der Gegenwert an der Buchung); die Trades-Facette und die Karte der
+Übersicht lassen ihn aus jeder Summe und nennen ihn in ihrem
+Ausschluss-Hinweis, getrennt von einem Verkauf ohne Kurs an seinem
+Schlussdatum. Ein Kauf oder Verkauf in weder der Währung seines Wertpapiers
+noch der seines Kontos wird abgelehnt (Issue #1199).
+
 **Verkäufe ohne zugeordneten Kauf** werden ebenfalls benannt (Issue #984).
 Der Matcher ordnet jeden Verkauf früheren **Käufen** desselben Wertpapiers
 zu, zuerst gekauft, zuerst verkauft, in einer Warteschlange über alle Depots,

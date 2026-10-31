@@ -2342,6 +2342,25 @@ and realise 188.75 USD — 151.00 EUR, the 957.00 EUR received less the
 806.00 EUR paid. A trade imported from Portfolio Performance is booked in
 the account's currency, its fees with it, and needs no conversion.
 
+**A closed trade is in its sale's currency, whatever booked its lots**
+(issue #1198, the ADR-0015 amendment of 2026-10-09). A purchase imported
+from Portfolio Performance is booked in euros with its dollar figure stored
+beside it; sold through the booking form in dollars, it enters the trade at
+that dollar figure, its fees and taxes converted at its own rate: the same
+10 shares imported for 806.00 EUR and sold for 957.00 EUR realise 188.75 USD
+— 151.00 EUR, the cash the two bookings moved. The reverse pair works the
+other way round: a dollar purchase sold through a euro import enters at the
+euros it cost. A purchase whose dollar figure is missing — imported before
+any rate was stored for its day — cannot be converted, so its trade is
+**not convertible**: the security's Trades tab keeps the row with a reason
+dash where the cost and the result would be, and a note names the purchase
+and the remedy (a rate for its day, which the rate backfill stores and
+derives the figure from, or the figure on the booking); the Trades facet
+and the Overview card leave it out of every total and name it in their
+exclusion note, apart from a sale with no rate on its close date. A buy or
+sell priced in neither its security's currency nor its account's is
+refused (issue #1199).
+
 **Sells with no matched buy** are named too (issue #984). The matcher pairs
 each sell with earlier **buys** of the same security, first in, first out,
 in one queue across every depot, and an inbound delivery opens no lot — so
