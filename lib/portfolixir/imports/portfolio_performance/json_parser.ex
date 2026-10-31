@@ -348,7 +348,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       # would book 0 or less (A5, #1118).
       case counter_error(entry) || PortfolioPerformance.row_error(entry) do
         nil ->
-          fee_refusal(entry, Map.get(raw, "units")) || refund_refusal(entry, refund_amounts) ||
+          fee_refusal(entry, amount, Map.get(raw, "units")) ||
+            refund_refusal(entry, refund_amounts) ||
             credit_refusal(kind, amount, refund_amounts, entry)
 
         message ->
@@ -497,7 +498,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # message names the refunded fee and the fees less it, as Portfolio
   # Performance nets them, in the reader's notation. A sale is "the sale",
   # every other kind "the booking" (board ux-design-2026-10-09/07-imports ③).
-  defp fee_refusal(%Entry{} = entry, units) do
+  #
+  # A refund larger than the fees nets below zero, a fee the ledger refuses
+  # (`Ledger.Transaction`), so that remedy names the cash Portfolio
+  # Performance shows, the row's `amount` as "Gesamtpreis", to book without
+  # a fee; a row that moves no cash (a delivery, a security transfer) or has
+  # no `amount` is booked without a fee.
+  defp fee_refusal(%Entry{} = entry, amount, units) do
     fees = fee_units(units)
 
     case Enum.filter(fees, &Decimal.negative?/1) do
@@ -506,17 +513,23 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
       refunds ->
         locale = Gettext.get_locale(PortfolixirWeb.Gettext)
+        net = Enum.reduce(fees, &Decimal.add/2)
 
         written = %{
           fee: refunds |> Enum.reduce(&Decimal.add/2) |> Decimals.format_locale(locale),
-          net: fees |> Enum.reduce(&Decimal.add/2) |> Decimals.format_locale(locale),
+          net: Decimals.format_locale(net, locale),
+          cash: fee_cash(entry, amount, locale),
           stored: Decimals.format_locale(entry.fees, locale)
         }
 
-        {:refused, fee_message(entry.kind, written),
+        {:refused, fee_message(entry.kind, Decimal.negative?(net), written),
          %{entry: entry, message: stored_fee_message(entry.kind, written)}}
     end
   end
+
+  defp fee_cash(%Entry{kind: kind}, _amount, _locale) when kind in @no_cash_kinds, do: nil
+  defp fee_cash(_entry, %Decimal{} = amount, locale), do: Decimals.format_locale(amount, locale)
+  defp fee_cash(_entry, _amount, _locale), do: nil
 
   # The FEE units of a row whose units `sum_units/1` read, each with its
   # sign; a unit without an amount reads as none.
@@ -535,7 +548,37 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   defp fee_units(_units), do: []
 
-  defp fee_message("sell", written),
+  defp fee_message("sell", true, %{cash: nil} = written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee.",
+        fee: written.fee
+      )
+
+  defp fee_message("sell", true, written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand at the cash Portfolio Performance shows, Gesamtpreis %{cash}, without a fee.",
+        fee: written.fee,
+        cash: written.cash
+      )
+
+  defp fee_message(_kind, true, %{cash: nil} = written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee.",
+        fee: written.fee
+      )
+
+  defp fee_message(_kind, true, written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand at the cash Portfolio Performance shows, Gesamtpreis %{cash}, without a fee.",
+        fee: written.fee,
+        cash: written.cash
+      )
+
+  defp fee_message("sell", false, written),
     do:
       gettext(
         "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand, with its fees less the refund (%{net}).",
@@ -543,7 +586,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         net: written.net
       )
 
-  defp fee_message(_kind, written),
+  defp fee_message(_kind, false, written),
     do:
       gettext(
         "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand, with its fees less the refund (%{net}).",

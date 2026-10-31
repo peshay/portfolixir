@@ -5648,6 +5648,16 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
       buchen, mit den Gebühren abzüglich der Erstattung (3,00)."; "booking
       … Enter the booking by hand, …" / "Buchung … Die Buchung von Hand
       erfassen, …". It is named first, before the two above and A5's.
+      **A refund larger than the fees** nets below zero, a fee the ledger
+      refuses, so its remedy names the cash instead *(review S1)*: "booking
+      with a negative fee (-2.00): the import does not book a fee refund yet
+      — row not imported. Enter the booking by hand at the cash Portfolio
+      Performance shows, Gesamtpreis 1,003.00, without a fee." / "… Die
+      Buchung von Hand mit dem Geld erfassen, das Portfolio Performance
+      zeigt, Gesamtpreis 1.003,00, ohne Gebühr." ("Book the sale …" / "Den
+      Verkauf … buchen"); a row that moves no cash reads "… Enter the
+      booking by hand without a fee." / "… Die Buchung ohne Gebühr von Hand
+      erfassen."
     - Already imported (a transfer stored under Sprint 20's reading, a
       booking stored with its fees summed): the reason, then "— already
       imported, and it cannot be corrected here. Do not book the transfer

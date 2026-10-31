@@ -3165,7 +3165,10 @@ mit einer Parser-Warnung ausgelassen, bis Portfolixir eine Art für eine
 erstattete Gebühr hat (Issue #1177). Die Warnung nennt die erstattete Gebühr
 und die Gebühren abzüglich der Erstattung, die Nettogebühr, die Portfolio
 Performance zeigt: die Zeile mit dieser Nettogebühr von Hand buchen, mit dem
-Geldbetrag, den Portfolio Performance zeigt. Bisher zählte der Import die
+Geldbetrag, den Portfolio Performance zeigt. Ist die Erstattung größer als
+die Gebühren, läge die Nettogebühr unter null, was das Hauptbuch ablehnt: die
+Warnung nennt dann den Geldbetrag, den `amount` als Gesamtpreis, ohne Gebühr
+zu buchen. Bisher zählte der Import die
 erstattete Gebühr zu den Gebühren: ein solcher Kauf buchte seinen Geldbetrag
 richtig, aber eine zu hohe Gebühr und einen zu niedrigen Kurs. Eine so früher
 importierte Zeile sagt, dass sie bereits importiert ist, und nennt ihre

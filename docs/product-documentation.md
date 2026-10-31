@@ -2879,7 +2879,10 @@ it is already imported and cannot be corrected here: do not book it again.
 parser warning until Portfolixir has a kind for a refunded fee (issue
 #1177). The warning names the refunded fee and the fees less the refund,
 which is the net fee Portfolio Performance shows: book the row by hand with
-that net fee, at the cash Portfolio Performance shows. Before, the import
+that net fee, at the cash Portfolio Performance shows. When the refund is
+larger than the fees, the net fee would be below zero, which the ledger
+refuses: the warning then names the cash, the `amount` as the Gesamtpreis,
+to book without a fee. Before, the import
 added the refunded fee to the fees: such a purchase booked its cash right,
 but too high a fee and too low a price. A row imported that way earlier says
 it is already imported, naming its fees as stored, which stay as they are for
