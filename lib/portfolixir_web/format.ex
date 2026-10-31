@@ -15,12 +15,16 @@ defmodule PortfolixirWeb.Format do
   @doc """
   Formats a Decimal as a money amount with two decimals, e.g. `1.234,50` (de)
   or `1,234.50` (en). Non-numbers render as an em dash.
+
+  A value that rounds to zero reads without a sign from either side: `-0.004`
+  reads `0,00`, never `-0,00` (#1149; the signed forms' rule, `signed_text/2`).
   """
   def money(value, locale \\ nil)
 
   def money(%Decimal{} = value, locale) do
     value
     |> Decimal.round(2)
+    |> unsigned_zero()
     |> Decimal.to_string(:normal)
     |> localize(locale || current_locale())
   end
@@ -30,12 +34,16 @@ defmodule PortfolixirWeb.Format do
   @doc """
   Formats a Decimal fraction as a percentage with one decimal, e.g. `0.185`
   → `18,5` (de) / `18.5` (en). The percent sign is left to the caller.
+
+  A fraction that rounds to `0,0` reads without a sign from either side,
+  never `-0,0` (#1149), as `money/2`.
   """
   def percent(value, locale \\ nil)
 
   def percent(%Decimal{} = value, locale) do
     value
     |> percent_as_displayed()
+    |> unsigned_zero()
     |> Decimal.to_string(:normal)
     |> localize(locale || current_locale())
   end
@@ -205,6 +213,12 @@ defmodule PortfolixirWeb.Format do
 
   # A fraction as the one-decimal percent it is displayed as.
   defp percent_as_displayed(value), do: value |> Decimal.mult(100) |> Decimal.round(1)
+
+  # A rounded figure that reads zero, without the negative zero a small loss
+  # rounds to (`Decimal.to_string/2` prints it as "-0.00").
+  defp unsigned_zero(rounded) do
+    if sign(rounded) == :zero, do: Decimal.abs(rounded), else: rounded
+  end
 
   defp sign(rounded) do
     case Decimal.compare(rounded, 0) do
