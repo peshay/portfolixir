@@ -10,14 +10,18 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
   account currency without the ADR-0015 settlement fields, so their
   per-position P&L mixed price moves with purchase-date FX. This task derives
   `security_amount` / `settlement_amount` / `settlement_fx_rate` for every
-  `buy`/`sell` whose currency differs from its security's currency, using the
-  stored hub rate at each row's booking date, and journals every update under
-  a `settlement_backfill` system actor (ADR-0017 — auditable, with the
-  pre-image recorded).
+  `buy`/`sell` booked in its cash account's currency, not its security's,
+  with none of the three fields stored (ADR-0015's amendment of 2026-10-09,
+  point 6, #1196), using the stored hub rate at each row's booking date, and
+  journals every update under a `settlement_backfill` system actor
+  (ADR-0017 — auditable, with the pre-image recorded). Every history
+  backfill that stores rates runs the same derivation as its last step.
 
-  Idempotent: rows that already carry a `security_amount` are never touched.
-  Rows whose booking date has no stored rate are skipped and listed — store a
-  rate for that date and re-run; nothing is ever guessed.
+  Idempotent: a row that carries any of the three fields, or is priced in a
+  third currency, is never touched, and neither is one that gains a field
+  while the task runs. Rows whose booking date has no stored rate are
+  skipped and listed — store a rate for that date and re-run; nothing is
+  ever guessed.
   """
 
   use Mix.Task
