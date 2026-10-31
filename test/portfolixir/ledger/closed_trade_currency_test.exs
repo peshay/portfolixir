@@ -625,4 +625,209 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert Decimal.equal?(lot.buy_fees, Decimal.div(Decimal.new("4.90"), Decimal.new("0.921408")))
     assert exact(lot.buy_taxes) == "0"
   end
+
+  # -- #1198, Sprint 21 α3: a closed trade is in one currency, whatever booked
+  # its lots (the ADR-0015 amendment of 2026-10-09, points 2 to 5) -----------
+
+  # Identity 1's imported purchase: 10 at 80.00 EUR into the EUR account,
+  # fees 5.00 and taxes 1.00 EUR (cash 806.00), with the legs the import
+  # stores when the rate is there (800.00 EUR, 1,000.00 USD, 0.800000), or
+  # none when it was not.
+  defp imported_buy!(world, fund, legs?) do
+    legs =
+      if legs?,
+        do: [security_amount: "1000", settled: "800", rate: "0.8"],
+        else: [security_amount: nil, settled: nil, rate: nil]
+
+    account_currency_trade!(
+      world,
+      fund,
+      [
+        type: "buy",
+        date: ~D[2025-04-01],
+        quantity: "10",
+        price: "80",
+        fees: "5",
+        taxes: "1",
+        gross: "806"
+      ] ++ legs
+    )
+  end
+
+  # Identity 1's sale through the booking form: 10 at 120 USD, settled
+  # 960.00 EUR, fees 3.00 EUR (cash 957.00).
+  defp form_sale!(world, fund) do
+    cross_trade!(world, fund,
+      type: "sell",
+      quantity: "10",
+      price: "120",
+      settled: "960.00",
+      fees: "3.00",
+      gross: "957.00",
+      date: ~D[2025-05-02]
+    )
+  end
+
+  # User story (#1198, Sprint 21 α3; identity 1, round trip 1 of the plan's
+  # D-1):
+  # As the operator who imported a dollar share bought from my euro account
+  # and sold it through the booking form in dollars,
+  # I want the closed trade in the sale's currency, the imported lot entering
+  # through its own stored legs,
+  # so that its result in euros is the cash the two bookings moved.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - The lot enters at 100 USD a share (1,000.00 USD ÷ 10), its fees and
+  #   taxes at 6.25 and 1.25 USD (÷ 0.800000), the sale's fees at 3.75 USD:
+  #   basis 1,007.50 USD, proceeds 1,196.25 USD, realized 188.75 USD.
+  # - The realized-gains report and the Overview card's newest trades read
+  #   151.00 EUR = 957.00 − 806.00. Before: basis 806.00, realized 390.25
+  #   under USD, read as 312.20 EUR.
+  # - Mutation: entering the lot at its booked price with its fees converted
+  #   (basis 807.50) turns this red.
+  test "an imported lot sold through the booking form enters at its native leg (identity 1)" do
+    {world, fund} = cross_world()
+    buy = imported_buy!(world, fund, true)
+    sell = form_sale!(world, fund)
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "USD"
+    assert exactly?(trade.avg_buy_price, "100")
+    assert exactly?(trade.buy_fees, "6.25")
+    assert exactly?(trade.buy_taxes, "1.25")
+    assert exactly?(trade.sell_fees, "3.75")
+    assert exactly?(trade.basis, "1007.50")
+    assert exactly?(trade.proceeds, "1196.25")
+    assert exactly?(trade.realized_pnl_abs, "188.75")
+
+    assert Decimal.equal?(
+             trade.realized_pnl_pct,
+             Decimal.div(Decimal.new("188.75"), Decimal.new("1007.50"))
+           )
+
+    assert [%{cost: lot_cost}] = trade.lots
+    assert exactly?(lot_cost, "1007.50")
+
+    assert is_nil(trade.unavailable_reason)
+
+    cash_moved = Decimal.sub(sell.gross_amount, buy.gross_amount)
+    assert exactly?(cash_moved, "151.00")
+    assert exactly?(realized_row(fund).realized_base, "151.00")
+
+    assert %{trades: [newest]} = RealizedGains.newest_trades(1, base_currency: "EUR")
+    assert exactly?(newest.realized_base, "151.00")
+    assert exactly?(newest.basis, "1007.50")
+  end
+
+  # User story (#1198, Sprint 21 α3; identity 2a, the shape #1198 records):
+  # As the operator holding a dollar share bought once through the booking
+  # form and once through an import,
+  # I want a sale of both to add their costs in one currency,
+  # so that the basis is 2,000 USD, never 1,000 USD plus 800 EUR.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - Booking-form buy of 10 at 100 USD settled 800.00 EUR, imported buy of
+  #   10 at 80.00 EUR (legs 800.00 EUR, 1,000.00 USD, 0.800000), booking-form
+  #   sale of 20 at 120 USD settled 1,920.00 EUR, no fees: basis 2,000 USD,
+  #   realized 400 USD = 320.00 EUR = 1,920.00 − 800.00 − 800.00,
+  #   realized_pnl_pct 0.2. Before: 1,800 and 600 under USD, 480.00 EUR,
+  #   0.3333….
+  test "a sale closing a form lot and an imported lot adds them in one currency (identity 2a)" do
+    {world, fund} = cross_world()
+    usd_rate!([~D[2025-04-02]])
+
+    cross_trade!(world, fund,
+      quantity: "10",
+      price: "100",
+      settled: "800.00",
+      gross: "800.00",
+      date: ~D[2025-04-01]
+    )
+
+    account_currency_trade!(world, fund,
+      type: "buy",
+      date: ~D[2025-04-02],
+      quantity: "10",
+      price: "80",
+      security_amount: "1000",
+      settled: "800",
+      rate: "0.8",
+      gross: "800"
+    )
+
+    cross_trade!(world, fund,
+      type: "sell",
+      quantity: "20",
+      price: "120",
+      settled: "1920.00",
+      gross: "1920.00",
+      date: ~D[2025-05-02]
+    )
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "USD"
+    assert exactly?(trade.basis, "2000")
+    assert exactly?(trade.realized_pnl_abs, "400")
+    assert exactly?(trade.realized_pnl_pct, "0.2")
+    assert exactly?(realized_row(fund).realized_base, "320.00")
+  end
+
+  # User story (#1198, Sprint 21 α3; identity 2b, the reverse pair):
+  # As the operator who bought a dollar share through the booking form and
+  # whose sale came in through an import in euros,
+  # I want the closed trade in euros, the lot entering at the euros it cost,
+  # so that a gain never reads as a loss.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - Booking-form buy of 10 at 100 USD settled 800.00 EUR, fees 5.00 and
+  #   taxes 1.00 EUR (cash 806.00); imported sale of 10 at 96.00 EUR (cash
+  #   957.00, fees 3.00 EUR; legs 960.00 EUR, 1,200.00 USD, 0.800000). The
+  #   trade is in EUR; the lot enters at 80.00 EUR a share, its fees and
+  #   taxes as recorded: basis 806.00 EUR, proceeds 957.00 EUR, realized
+  #   151.00 EUR = 957.00 − 806.00. Before: basis 1,007.50 and realized
+  #   −50.50 under EUR.
+  # - Mutation: dividing the lot's fees by its rate when it enters its
+  #   account's currency (basis 807.50 EUR) turns this red.
+  test "a form lot closed by an imported sale enters at its settlement leg (identity 2b)" do
+    {world, fund} = cross_world()
+
+    buy =
+      cross_trade!(world, fund,
+        quantity: "10",
+        price: "100",
+        settled: "800.00",
+        fees: "5.00",
+        taxes: "1.00",
+        gross: "806.00",
+        date: ~D[2025-04-01]
+      )
+
+    sell =
+      account_currency_trade!(world, fund,
+        type: "sell",
+        date: ~D[2025-05-02],
+        quantity: "10",
+        price: "96",
+        fees: "3",
+        security_amount: "1200",
+        settled: "960",
+        rate: "0.8",
+        gross: "957"
+      )
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "EUR"
+    assert exactly?(trade.avg_buy_price, "80")
+    assert exactly?(trade.buy_fees, "5.00")
+    assert exactly?(trade.buy_taxes, "1.00")
+    assert exactly?(trade.basis, "806.00")
+    assert exactly?(trade.proceeds, "957.00")
+    assert exactly?(trade.realized_pnl_abs, "151.00")
+    assert [%{cost: lot_cost}] = trade.lots
+    assert exactly?(lot_cost, "806.00")
+
+    cash_moved = Decimal.sub(sell.gross_amount, buy.gross_amount)
+    assert Decimal.equal?(trade.realized_pnl_abs, cash_moved)
+    assert exactly?(realized_row(fund).realized_base, "151.00")
+  end
 end
