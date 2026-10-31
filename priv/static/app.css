@@ -8640,7 +8640,7 @@ select:disabled {
 
 /* ===== Overview KPI strip (issue 798, UX-DR2 as amended 2026-09-14) ===== */
 /* Four fixed cells of the stat anatomy with a sub-line each, in one framed
-   row; two by two under 560 px. Each cell is a link to the surface that
+   row; two by two under 680 px. Each cell is a link to the surface that
    owns its figure, the basis line under the strip names the view, the
    period and the currency. */
 .kpi-strip__cells {
@@ -8755,7 +8755,11 @@ select:disabled {
   margin: 0;
 }
 
-@media (max-width: 560px) {
+/* Two by two under 680 px, not 560 (issue 1114, Sprint 21 pick N2 A): the
+   widest value, a date, needs 680 px for four columns to hold it inside the
+   content box with a wide fallback font (DejaVu Sans measured clear from
+   665 px), since the app names Inter but ships no font file. */
+@media (max-width: 680px) {
   .kpi-strip__cells {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

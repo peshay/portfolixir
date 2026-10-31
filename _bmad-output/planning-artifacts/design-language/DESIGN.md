@@ -247,7 +247,7 @@ components:
     value-suffix: '<small class="value-suffix"> after the digits, {typography.stat-label} size, {colors.text-muted}, 4px gap; digits never wrap'
     sub-line: '.stat__sub — 12px/500 {colors.text-muted}, its figures 650 {colors.text}, signed ones in their sign colour'
   kpi-strip:
-    frame: '1px solid {colors.border}, {rounded.lg}, {shadows.panel}; cells divided by 1px {colors.border}; two by two under 560px'
+    frame: '1px solid {colors.border}, {rounded.lg}, {shadows.panel}; cells divided by 1px {colors.border}; two by two under 680px'
     cell: 'a link, 84px min, 14/16px padding; label {typography.stat-label}; value 20px/700 {colors.text} (signed: {colors.positive}/{colors.danger}); sub-line 12px {colors.text-muted}'
     stale-sub-line: '{colors.warning}, weight 600, :alert_triangle at 12px before the count; rendered only when the count is > 0'
     basis-line: 'view · period to date · currency · what the quotes cell measures'
@@ -1942,8 +1942,17 @@ sub-line only when n > 0.
 
 - **Frame** (`.kpi-strip__cells`): one {colors.border} frame with
   {rounded.lg} and {shadows.panel}, the cells divided by 1 px
-  {colors.border}; two by two under 560 px (the third cell loses its left
-  border, the second row gains a top border).
+  {colors.border}; two by two under 680 px (the third cell loses its left
+  border, the second row gains a top border). *Amended 2026-10-31 (issue
+  1114, Sprint 21 γ1; board `mockups/ux-design-2026-10-09/01-overview`, pick
+  N2 A):* the switch moved from 560 to 680 px, the 560 px block's three
+  rules moved, not added to. The widest value, a date ("02.10.2026"), is the
+  floor, and it depends on the reader's font: the app names Inter but ships
+  no font file, and with DejaVu Sans, the common Linux fallback, four
+  columns cross the cell's edge up to 597 px and sit in the padding up to
+  664 px. 680 px clears it with 15 px to spare for a wider fallback. The
+  value keeps its 20 px at every width; between 561 and 680 px the strip is
+  59 px taller (186 px at 600 px).
 - **Cell** (`.kpi-strip__cell`): a link, 84 px minimum, 14/16 px padding;
   {typography.stat-label} label, 20 px weight-700 value in {colors.text}
   (signed values in their sign colour, a not-computable value as a muted
