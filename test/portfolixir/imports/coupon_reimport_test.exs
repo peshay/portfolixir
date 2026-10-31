@@ -58,6 +58,14 @@ defmodule Portfolixir.Imports.CouponReimportTest do
   }
   """
 
+  # A coupon with withheld tax as a Portfolio Performance CSV writes it:
+  # Betrag 400,00, Steuern 105,50, Gesamtpreis 294,50 (the cash).
+  @taxed_coupon_csv """
+  Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+  2025-03-02 00:00:00;Einlage;;;;10.000,00;;;10.000,00;Coupon-Cash;;;
+  2026-04-15 09:30:00;Zinsen;Larkspur Rail AG 4,00 % Anleihe 2031;;;400,00;;105,50;294,50;Coupon-Cash;;;
+  """
+
   setup do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Actor.owner_ui(), %{
@@ -221,6 +229,60 @@ defmodule Portfolixir.Imports.CouponReimportTest do
               t.security_id == ^larkspur.id
         )
         |> Repo.delete_all()
+      end)
+
+    :ok
+  end
+
+  # User story (#928, Sprint 21 α4; ADR-0051 I11 with ADR-0053 §4 and A4):
+  # As the operator whose instance imported a taxed coupon from a Portfolio
+  # Performance CSV before ADR-0053 booked its Gesamtpreis and before the
+  # importer kept its bond,
+  # I want a re-export of that history with the coupon's time moved to book
+  # nothing,
+  # so that a coupon stored under both old readings is still found by its
+  # figures.
+  #
+  # Acceptance criteria:
+  # - The CSV applied, its coupon then stored as it was before both changes
+  #   (cash 400.00, the Betrag, and no security), and re-exported with the
+  #   coupon at 09:31 instead of 09:30: the coupon misses its content hash
+  #   and is found by its economic key read with no security under the old
+  #   cash reading.
+  # - Nothing is inserted or created; the deposit is a hash hit and the
+  #   coupon is named under `economics`, in the result and in the preview.
+  test "a coupon stored under the old cash reading and without its bond is found by its figures",
+       %{portfolio: portfolio} do
+    apply!(@taxed_coupon_csv, "coupon.csv", portfolio)
+    store_under_old_readings!(portfolio)
+
+    moved = String.replace(@taxed_coupon_csv, "2026-04-15 09:30:00", "2026-04-15 09:31:00")
+    refute moved == @taxed_coupon_csv
+
+    before = counts()
+
+    counted = Imports.reimport_counts(parse!(moved, "coupon.csv"), portfolio_id: portfolio.id)
+    assert counted.total.hash == 1
+    assert counted.total.economics == 1
+    assert counted.total.new == 0
+
+    again = apply!(moved, "coupon.csv", portfolio)
+    assert again.created_transactions == 0
+    assert again.already_imported == %{hash: 1, retired: 0, economics: 1}
+    assert [%{row: 3}] = Enum.filter(again.duplicate_entries, &(&1.layer == :economics))
+    assert counts() == before
+  end
+
+  # The taxed coupon as an import before ADR-0053 and before this amendment
+  # stored it: the Betrag as its cash, and no security (a test actor for the
+  # journal guard).
+  defp store_under_old_readings!(portfolio) do
+    {:ok, {1, _}} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+        from(t in Transaction, where: t.portfolio_id == ^portfolio.id and t.type == "interest")
+        |> Repo.update_all(set: [security_id: nil, gross_amount: Decimal.new("400.00")])
       end)
 
     :ok
