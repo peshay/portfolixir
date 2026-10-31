@@ -754,6 +754,22 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool!.description ?? "", /excluded/i);
   });
 
+  // User story (#1210, Sprint 21 γ4; ADR-0015's amendment of 2026-10-07,
+  // identity 2):
+  // As the operating LLM agent,
+  // I want the costs tool to say that each month carries its own total,
+  // so that I read months[m].total instead of adding fees and taxes.
+  //
+  // Acceptance criteria:
+  // - The description names a total per month as well as per year, and the
+  //   basis field that states it.
+  it("says the costs roll-up carries a total per month (#1210)", () => {
+    const tool = listTools().find((t) => t.name === "portfolixir.cashflow.costs");
+    assert.ok(tool, "cashflow.costs tool missing");
+    assert.match(tool!.description ?? "", /total per month and per year/);
+    assert.match(tool!.description ?? "", /computation_basis\.totals/);
+  });
+
   // User story (issue #732, extending FR-37):
   // As the operating LLM agent syncing the catalog,
   // I want `fields` on securities.list too,

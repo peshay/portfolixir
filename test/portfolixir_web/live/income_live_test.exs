@@ -607,6 +607,54 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     assert table =~ "2.00"
   end
 
+  # User story (#1210, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ④ and found while drawing 5):
+  # As the operator reading the Costs matrix,
+  # I want the "Total" row to print each month's fees + taxes,
+  # so that a January with 5.00 of fees and 1.00 of taxes shows its 6.00
+  # instead of an empty span.
+  #
+  # Acceptance criteria:
+  # - The Total row has a cell per month, then the year's total: 14 cells,
+  #   no colspan.
+  # - A month's cell is its read's total ("6.00"); a month that sums to zero
+  #   is the matrix's quiet dash "–"; the year's total stays a figure.
+  test "the Costs matrix's Total row prints each month's total (#1210)", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Month Costs", currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Charged ETF", ticker: "CHG")
+
+    WorldFixtures.buy!(world, security,
+      quantity: "10",
+      price: "100",
+      fees: "5.00",
+      taxes: "1.00",
+      date: ~D[2026-01-15]
+    )
+
+    WorldFixtures.buy!(world, security,
+      quantity: "1",
+      price: "100",
+      fees: "9.90",
+      date: ~D[2026-03-02]
+    )
+
+    {:ok, _view, html} = live(conn, "/cashflow?tab=costs")
+
+    [total_row] =
+      html |> Floki.parse_document!() |> Floki.find("#costs-annual tbody tr.totals-row")
+
+    cells = Floki.find(total_row, "td")
+    assert length(cells) == 14
+    assert Floki.attribute(cells, "colspan") == []
+
+    figures =
+      cells
+      |> Enum.drop(1)
+      |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+
+    assert figures == ["6.00", "–", "9.90"] ++ List.duplicate("–", 9) ++ ["15.90"]
+  end
+
   # User story (#724 D-1 / #726, and the two rules the Sprint 8 design
   # amendment records as UX-DR25 and UX-DR26):
   # As a local portfolio maintainer whose figure is incomplete,

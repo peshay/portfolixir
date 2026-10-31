@@ -186,6 +186,56 @@ defmodule Portfolixir.Portfolios.CostsTest do
     assert report.computation_basis.currency =~ "cash account's currency"
   end
 
+  # User story (#1210, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ④; ADR-0015's amendment of 2026-10-07, identity 2):
+  # As the operating LLM agent and the operator reading the Costs report,
+  # I want each month's total of fees and taxes served with its basis,
+  # so that a January with 5.00 of fees and 1.00 of taxes reads 6.00 without
+  # anyone adding the two by hand.
+  #
+  # Acceptance criteria (exact Decimal expectations):
+  # - Every month carries `total` = its fees + its taxes: identity 2's month
+  #   reads 6.00 EUR, a month with a 10.00 refund only -10.00, an empty month
+  #   0.
+  # - The twelve month totals sum to the year's total.
+  # - computation_basis.totals states how a month's and a year's totals are
+  #   formed.
+  test "every month carries its total of fees and taxes, with its basis (#1210)" do
+    world = WorldFixtures.base_world(name: "Month Totals", cash_name: "Totals Cash")
+    fund = WorldFixtures.create_security!(name: "Totals Fund", ticker: "TTF", currency: "USD")
+
+    rate!("USD", ~D[2026-05-01], "1.25")
+    rate!("USD", ~D[2026-05-05], "1.25")
+    WorldFixtures.deposit!(world, "2000", ~D[2026-05-04])
+
+    WorldFixtures.cross_trade!(world, fund,
+      quantity: "10",
+      price: "100",
+      settled: "790.00",
+      fees: "5.00",
+      taxes: "1.00",
+      gross: "796.00",
+      date: ~D[2026-05-05]
+    )
+
+    standalone!(world, "tax_refund", "10.00", ~D[2026-07-03])
+
+    report = Costs.report(base_currency: "EUR")
+
+    assert [%{year: 2026} = year] = report.annual
+    assert Decimal.equal?(year.months[5].total, Decimal.new("6.00"))
+    assert Decimal.equal?(year.months[7].total, Decimal.new("-10.00"))
+    assert Decimal.equal?(year.months[1].total, Decimal.new("0"))
+
+    month_sum =
+      year.months |> Map.values() |> Enum.reduce(Decimal.new(0), &Decimal.add(&1.total, &2))
+
+    assert Decimal.equal?(month_sum, year.total)
+
+    assert report.computation_basis.totals =~ "fees plus its taxes"
+    assert report.computation_basis.totals =~ "year"
+  end
+
   # User story (#1107):
   # As a maintainer whose account's currency has no stored rate on a day,
   # I want a cost that cannot be converted named by the currency it is in,

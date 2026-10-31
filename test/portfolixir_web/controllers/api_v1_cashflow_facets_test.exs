@@ -257,4 +257,36 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
     assert basis["series"] =~ "gross"
     assert basis["gaps"] =~ "excluded"
   end
+
+  # User story (#1210, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ④; ADR-0015's amendment of 2026-10-07, identity 2):
+  # As the operating LLM agent,
+  # I want each month of the Costs read to carry its total with the basis
+  # that forms it,
+  # so that I read a month's costs as one figure instead of adding fees and
+  # taxes myself.
+  #
+  # Acceptance criteria:
+  # - `months[m].total` is a Decimal string: fees + taxes of that month,
+  #   "12" for a January of 9.90 and 2.10, "0" for an empty month.
+  # - `computation_basis.totals` states the month's and the year's total.
+  test "GET /api/v1/costs serves each month's total with its basis", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Charged ETF", ticker: "CHG")
+
+    WorldFixtures.buy!(world, security,
+      quantity: "10",
+      price: "100",
+      fees: "9.90",
+      taxes: "2.10",
+      date: ~D[2026-01-15]
+    )
+
+    %{"data" => data} = get_json(conn, "/api/v1/costs")
+
+    assert [%{"year" => 2026} = year] = data["annual"]
+    assert year["months"]["1"] == %{"fees" => "9.9", "taxes" => "2.1", "total" => "12"}
+    assert year["months"]["2"] == %{"fees" => "0", "taxes" => "0", "total" => "0"}
+    assert data["computation_basis"]["totals"] =~ "fees plus its taxes"
+  end
 end
