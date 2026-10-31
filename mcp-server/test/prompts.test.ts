@@ -362,6 +362,68 @@ describe("the companion's prompts", () => {
     );
   });
 
+  // User story (#1216, Sprint 21 β1):
+  // As the user's agent converting an export with the import_converter
+  // prompt,
+  // I want the prompt's rules to say what the importer reads and to agree with
+  // its own example,
+  // so that I do not have to choose between a rule and the example that
+  // contradicts it.
+  //
+  // Acceptance criteria:
+  // - The JSON v1 decimal rule names decimal strings with and without
+  //   decimals, each with its example ("1203.00" and "20", as the example row
+  //   writes them), and no longer asks for a decimal point on every amount and
+  //   share count (Imports.Decimals.parse/1 reads both).
+  // - import_converter's description, its heading and first_setup's second
+  //   intake path say the converter writes a CSV, or JSON v1 when the export
+  //   carries ISINs or other currencies, as the prompt body and the pages do.
+  it("import_converter's rules, description and heading say what the importer reads", async () => {
+    const text = await promptText("import_converter");
+
+    assert.doesNotMatch(text, /both written as strings with a decimal point/);
+    assert.match(
+      text,
+      /shares: the quantity, both written as decimal strings, with a point before any decimals, such as "1203\.00", or without decimals, such as "20"/
+    );
+    assert.ok(PP_JSON_V1_EXAMPLE.includes('"amount": "1203.00", "shares": "20"'), "the example row");
+
+    const [heading] = text.split("\n");
+    assert.equal(
+      heading,
+      "# Import converter: a bank or broker export to Portfolio Performance CSV v1 or JSON v1"
+    );
+    assert.match(
+      text,
+      /produce a file in the Portfolio Performance CSV v1 format, or JSON v1 when the export carries ISINs or other currencies\./
+    );
+
+    for (const profile of MCP_PROFILES) {
+      const companion = await connectCompanion(undefined, { profile });
+
+      try {
+        const { prompts } = await companion.mcp.listPrompts();
+        const converter = prompts.find((prompt) => prompt.name === "import_converter");
+
+        assert.doesNotMatch(converter?.description ?? "", /to the Portfolio Performance CSV v1 file/);
+        assert.match(
+          converter?.description ?? "",
+          /to a Portfolio Performance CSV v1 file, or JSON v1 when the export carries ISINs or other currencies, which the instance's Imports page previews and applies/
+        );
+      } finally {
+        await companion.close();
+      }
+    }
+
+    const setup = await promptText("first_setup", {}, "book");
+
+    assert.doesNotMatch(setup, /turns the export into a Portfolio Performance CSV file, which/);
+    assert.match(
+      setup,
+      /turns the export into a Portfolio Performance CSV file, or JSON v1 when the export carries ISINs or other currencies, which the operator drops on the Imports page as in path 1/
+    );
+  });
+
   // User story (ADR-0053 A7, the amendment of 2026-10-07; #1098):
   // As the user's agent converting an export that records a tax refund,
   // I want the import_converter prompt to say where a refund of tax goes,
