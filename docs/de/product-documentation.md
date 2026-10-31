@@ -3550,13 +3550,48 @@ zu korrigieren.
 
 Die Korrektur braucht die Datei, weil keine gespeicherte Buchung festhält,
 aus welchem Format sie stammt. Sie findet eine Buchung über den Inhalts-Hash,
-den ihre Zeile noch trägt: Eine Zeile, die sich seither in Portfolio
-Performance geändert hat (eine bearbeitete Buchung, eine verschobene
-Uhrzeit), trifft keinen gespeicherten Hash, wird über Datum, Wertpapier,
-Stückzahl und Betrag als bereits gebucht erkannt und nicht aufgelistet. Wie
-der Import ist die Korrektur eine Handlung des Betreibers, ohne API-Route und
-ohne MCP-Tool; ein Agent liest die korrigierten Buchungen über jeden
-bestehenden Lesezugriff.
+den ihre Zeile noch trägt, und seit Sprint 21 auch über ihre Zahlen: Eine
+Zeile, die sich seither in Portfolio Performance geändert hat (eine
+verschobene Uhrzeit, eine ergänzte ISIN, ein umbenanntes Konto), trifft keinen
+gespeicherten Hash, doch eine unter der alten Lesart gespeicherte Buchung mit
+demselben Datum, Wertpapier, derselben Stückzahl und denselben Beträgen wird
+trotzdem gefunden. Wie der Import ist die Korrektur eine Handlung des
+Betreibers, ohne API-Route und ohne MCP-Tool; ein Agent liest die
+korrigierten Buchungen über jeden bestehenden Lesezugriff.
+
+**Zeilen, die die Korrektur lässt, wie sie sind** (Nachtrag zu ADR-0053 vom
+2026-10-09, #1193, #1194, #1205). Jede aufgeführte Buchung ist eine Zeile der
+einen Tabelle, in der Reihenfolge der Datei. Eine Zeile, die der Schritt nicht
+schreibt, liest **bleibt** in der Spalte *Korrigiert* und sagt unter ihrer
+Buchung, warum:
+
+- **Nicht automatisch korrigierbar** — eine gespeicherte Buchung, deren Zeile
+  die Vorschau jetzt ablehnt (ein Verkauf, dem nach der abgespaltenen
+  Steuererstattung nichts bliebe, eine Umbuchung oder Einlieferung mit
+  Steuererstattung): Die Zeile zeigt je Verrechnungskonto die Buchung und die
+  Erstattung daneben, wie gespeichert, gegen das, was die Datei bewegt, und
+  die Abhilfe von Hand in der Historie. Was die Zeile buchen würde, kann das
+  Ledger nicht speichern, und die Korrektur löscht nie eine Buchung.
+- **Seit dem Import von Hand geändert** (mit dem Datum) — eine Buchung, deren
+  Betrag, Kurs, Stückzahl, Gebühren oder Steuern du oder ein Agent nach dem
+  Import geändert habt, wie das Audit-Journal es festhält: Sie bleibt, wie du
+  sie gemacht hast, und die Zeile nennt, was die Datei sagt. Die
+  Abrechnungsbeine aus dem Backfill, die Umhängung bei einer Zusammenführung
+  und eine Notiz sind keine solche Änderung.
+- **N gespeicherte Buchungen passen** — eine über ihre Zahlen gefundene Zeile,
+  zu der zwei gespeicherte Buchungen passen (zwei gleiche Verkäufe an einem
+  Tag): die richtige von Hand korrigieren. Eine Zeile, deren Buchung eine
+  andere Zeile der Datei beansprucht, sagt das ebenso.
+
+Eine über ihre Zahlen gefundene Zeile, zu der genau eine Buchung passt,
+behält ihre Bestätigung und sagt „Über Datum und Beträge gefunden“. Ein
+JSON-Kauf oder -Verkauf wird aufgeführt, wenn sein Betrag oder sein Kurs
+abweicht; ein Verkauf mit passendem Betrag, aber anderem Kurs wird also nur
+im Kurs korrigiert. Die Summe, **N Buchungen korrigieren…** und der Dialog
+zählen nur die Zeilen, die der Schritt schreibt; bleibt jede Zeile, hat der
+Abschnitt keine Bestätigung. Hat ein Konto einen gesetzten Saldo am oder nach
+dem Datum einer korrigierten Buchung, sagt der Dialog, dass dieser Saldo die
+Änderung aufnimmt (oder welchen Teil davon), und das Ergebnis nennt ihn.
 
 ### Wertpapier-Matching und der Zuordnungsschritt
 

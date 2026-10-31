@@ -6537,6 +6537,62 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   file) never shows it" — since A6 a converter file whose negative Steuern
   was counted twice shows the section too. The new row-error reasons of
   Part 9's list are recorded in the 2026-10-06 amendment above.
+- *Amended 2026-10-31 (Sprint 21 α7, pick N21 = A, board
+  `mockups/ux-design-2026-10-09/07-imports`; ADR-0053 A10–A12; issues 1193,
+  1194, 1205, 1197):*
+  - **Four line states, one table, file order.** A hash hit or a row found
+    by its figures that one booking alone matches keeps its confirm; a row
+    found by its figures says so in a muted state line under its booking
+    (`.import-correction__state`): „Über Datum und Beträge gefunden:
+    Portfolio Performance schreibt diesen Eintrag seit dem Import anders.“
+    (a CSV: „diese Zeile“). A line the confirm leaves reads **bleibt** in its
+    „Korrigiert“ cell (`td.import-correction__kept`, muted; `tr[data-state=
+    "kept"]`) and states its reason under its booking in the text colour,
+    the reason bold (`.import-correction__state--kept`): **Nicht automatisch
+    korrigierbar** (a stored booking whose row the preview refuses, its
+    figures per cash account and the remedy by hand, „Historie“ a link to
+    `/transactions`), **Seit dem Import von Hand geändert** (date) — bleibt,
+    wie es ist. Laut Datei: +7,80. (or „Der Betrag stimmt mit der Datei
+    überein, der Kurs nicht.“), **2 gespeicherte Buchungen passen** zu Datum
+    und Beträgen — bleibt, wie es ist. Die richtige von Hand in der Historie
+    korrigieren., and **Eintrag N beansprucht dieselbe Buchung** — bleibt,
+    wie es ist. A refused booking edited by hand reads as edited. On a phone
+    row the state is the row's last child and spans it.
+  - **"Von Hand"** means any journal actor other than the importer and the
+    correction itself — an API token included (board 07, found while
+    drawing 11); a backfill's settlement legs, a merge's re-pointing and a
+    note are not a hand edit.
+  - **The split sentence.** All lines confirmable: the sentence as before.
+    Mixed: „7 bereits importierte Buchungen weichen von dieser Datei ab. 3
+    davon korrigiert der Schritt unten: [the cause sentence] 4 bleiben, wie
+    sie sind; jede Zeile nennt den Grund.“ — the cause covers only the
+    lines the confirm corrects. Only kept lines: „Eine bereits importierte
+    Buchung weicht von dieser Datei ab und bleibt, wie sie ist; die Zeile
+    nennt den Grund.“, with **no total and no button**.
+  - **The confirm counts what it writes.** The total („Die 3 Buchungen, die
+    der Schritt korrigiert, zusammen -23,61 EUR: …“ when lines stay), the
+    button („3 Buchungen korrigieren…“), the dialog's subject and the done
+    page's not-applied note count only the confirmable lines; the dialog
+    adds „Die 4 übrigen Einträge der Liste bleiben, wie sie sind.“
+    (`data-role="import-correction-kept"`).
+  - **A set balance that absorbs the change (#1197).** Per account, when
+    its latest set balance is dated on or after a corrected booking, the
+    dialog names it: „Bei Tagesgeld nimmt der gesetzte Saldo vom 01.10.2026
+    die 1,20 EUR auf: Sein Kontostand bleibt, wie er ist.“; where it absorbs
+    only part (a set balance between two corrected bookings): „… nimmt der
+    gesetzte Saldo vom 01.07.2026 25,00 EUR der 50,00 EUR auf: Sein
+    Kontostand ändert sich um -25,00 EUR.“ „Danach …“ names only what still
+    moves. The result adds „— den Kontostand von Tagesgeld hält der gesetzte
+    Saldo vom 01.10.2026“.
+  - **The table's floor.** `.data-table-wrapper > #import-correction-table
+    { min-width: min-content }`: the table fills the note and its text cells
+    wrap; it scrolls only when even its min-content does not fit (board 07,
+    found while drawing 1). The price stays in the detail lines; no „Kurs“
+    column.
+  - **What does not change:** the parser warning of a stored refused row
+    keeps its 2026-10-08 sentence ("already imported … cannot be corrected
+    here"); the board's pointer to the section is not built (see the
+    sprint's findings).
 
 ## Amendment 2026-10-08 — A return on no cost basis, and the percent cells it changes *(Sprint 20 board `mockups/ux-design-2026-10-07/02-money-findings`, before/after; issue 1142, PR β B3; the board's found-while-drawing 4, 9, 10 and 11)*
 

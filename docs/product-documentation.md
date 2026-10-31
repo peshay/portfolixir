@@ -3219,12 +3219,41 @@ uncorrected; drop the same file again to correct them.
 
 The correction needs the file, because no stored booking records which
 format it came from. It finds a booking by the content hash its row still
-carries: a row that changed in Portfolio Performance since (an edited
-booking, a moved time of day) matches no stored hash, is recognised as
-already booked by its date, security, quantity and amount, and is not listed.
-Like the import, the correction is an operator action with no API route and
-no MCP tool; an agent reads the corrected bookings through every existing
-read.
+carries and, since Sprint 21, also by its figures: a row that changed in
+Portfolio Performance since (a moved time of day, an added ISIN, a renamed
+account) matches no stored hash, but a booking stored under the old reading
+with the same date, security, quantity and figures is still found. Like the
+import, the correction is an operator action with no API route and no MCP
+tool; an agent reads the corrected bookings through every existing read.
+
+**Lines the correction leaves as they are** (ADR-0053's amendment of
+2026-10-09, #1193, #1194, #1205). Every listed booking is a line of the one
+table, in file order. A line the confirm does not write reads **kept** in
+its *Corrected* column and says why under its booking:
+
+- **Not corrected automatically** — a stored booking whose row the preview
+  now refuses (a sale that nets to nothing once its tax refund is split off,
+  a transfer or a delivery with a tax refund): the line shows, per cash
+  account, the booking and the refund beside it as stored against what the
+  file moves, and the remedy by hand in the history. The ledger cannot store
+  what the row would book, and the correction never deletes a booking.
+- **Changed by hand since its import** (with the date) — a booking whose
+  cash, price, quantity, fees or taxes you or an agent changed after the
+  import, as the audit journal records it: it stays as you made it, and the
+  line names what the file states. A settlement leg a backfill wrote, a
+  merge's re-pointing and a note are not such a change.
+- **N stored bookings match** — a row found by its figures that two stored
+  bookings match (two equal sales on one day): correct the right one by hand.
+  A row whose booking another row of the file claims says so too.
+
+A line found by its figures that exactly one booking matches keeps its
+confirm and says "Found by its date and figures". A JSON purchase or sale is
+listed when its cash or its price differs, so a sale whose cash agrees but
+whose price does not is corrected on its price alone. The total, **Correct N
+bookings…** and the dialog count only the lines the confirm writes; when every
+line stays, the section has no confirm. When an account has a set balance
+dated on or after a corrected booking, the dialog says that the set balance
+absorbs the change (or which part of it), and the result names it.
 
 ### Security matching and the mapping step
 
