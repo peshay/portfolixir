@@ -1,8 +1,9 @@
 defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
-  # Sprint 21 γ3 (board 03 `ux-design-2026-10-09/03-history-drawer`, pick
-  # N10 A): the transaction history's Betrag carries its direction as an
-  # explicit sign, "+" on every inflow and no colour (#1147) — in the table,
-  # the phone row and the delete dialog's box, which repeats the row.
+  # Sprint 21 γ3 (board 03 `ux-design-2026-10-09/03-history-drawer`, picks
+  # N10 A and N11 A): the transaction history's Betrag carries its direction
+  # as an explicit sign, "+" on every inflow and no colour (#1147), and its
+  # Preis names the price's own currency (#1148) — in the table, the phone
+  # row and the delete dialog's box, which repeats the row.
   #
   # Every name, figure and date is synthetic.
   use PortfolixirWeb.ConnCase
@@ -11,6 +12,7 @@ defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Splits
   alias Portfolixir.WorldFixtures
 
   defp text(nodes),
@@ -243,5 +245,117 @@ defmodule PortfolixirWeb.TransactionHistorySignPriceTest do
 
     assert text(cell(view, o.deposit, "amount")) == "+1,500.00 EUR"
     assert text(cell(view, o.fee, "amount")) == "-4.90 EUR"
+  end
+
+  # User story (#1148, Sprint 21 γ3; board 03, pick N11 A):
+  # As the operator reading a USD security bought through a EUR account,
+  # I want the Preis to name its own currency beside the Betrag's,
+  # so that "100,00" beside "-806,00 EUR" does not read as euros, and a
+  # price an import booked in the account's currency says EUR without my
+  # comparing figures.
+  #
+  # Acceptance criteria:
+  # - The cross-currency buy (8 × 100,00 USD settled 800,00 EUR plus 6,00
+  #   EUR costs) reads Preis "100,00 USD", the currency as the value suffix
+  #   (`small.value-suffix`), beside "-806,00 EUR".
+  # - The same USD security bought at 88,10 in the account's currency reads
+  #   "88,10 EUR"; a EUR security's buy reads "48,20 EUR"; a sale through a
+  #   USD account reads "61,40 USD".
+  # - A dividend has no price: its Preis reads "—" and carries no suffix; a
+  #   split's Preis reads "—" with no suffix and its ratio none.
+  # - The phone row's size reads "8 × 100,00 USD", "5 × 88,10 EUR"; the
+  #   delete dialog's box repeats it.
+  test "the Preis names the price's own currency, a dash none", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(name: "Muster", cash_name: "Test-Cash", depot_name: "Depot Muster")
+
+    usd =
+      WorldFixtures.add_depot(world.portfolio,
+        cash_currency: "USD",
+        cash_name: "USD-Konto",
+        depot_name: "Depot USD"
+      )
+
+    us_world = Map.put(usd, :portfolio, world.portfolio)
+
+    arbolia =
+      WorldFixtures.create_security!(name: "Arbolia Inc.", ticker: "ARBL", currency: "USD")
+
+    wrenfield = WorldFixtures.create_security!(name: "Wrenfield Gardens AG", ticker: "WGA")
+
+    WorldFixtures.deposit!(world, "5000", ~D[2026-09-01])
+
+    WorldFixtures.buy!(us_world, arbolia,
+      quantity: "20",
+      price: "55",
+      date: ~D[2026-09-02],
+      currency: "USD"
+    )
+
+    sale =
+      WorldFixtures.sell!(us_world, arbolia,
+        quantity: "10",
+        price: "61.40",
+        fees: "4.90",
+        date: ~D[2026-10-01],
+        currency: "USD"
+      )
+
+    imported =
+      WorldFixtures.buy!(world, arbolia, quantity: "5", price: "88.10", date: ~D[2026-10-03])
+
+    dividend =
+      book!(%{
+        type: "dividend",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: arbolia.id,
+        gross_amount: "80.00",
+        date: ~D[2026-10-05]
+      })
+
+    eur_buy =
+      WorldFixtures.buy!(world, wrenfield, quantity: "20", price: "48.20", date: ~D[2026-10-06])
+
+    cross =
+      WorldFixtures.cross_trade!(world, arbolia,
+        quantity: "8",
+        price: "100",
+        settled: "800.00",
+        fees: "6.00",
+        gross: "806.00",
+        date: ~D[2026-10-08]
+      )
+
+    {:ok, [split]} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: wrenfield.id,
+        date: ~D[2026-10-09],
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    price = cell(view, cross, "price")
+    assert text(price) == "100,00 USD"
+    assert price |> Floki.find("small.value-suffix") |> text() == "USD"
+    assert text(cell(view, cross, "amount")) == "-806,00 EUR"
+
+    assert text(cell(view, imported, "price")) == "88,10 EUR"
+    assert text(cell(view, eur_buy, "price")) == "48,20 EUR"
+    assert text(cell(view, sale, "price")) == "61,40 USD"
+
+    for priceless <- [dividend, split] do
+      dash = cell(view, priceless, "price")
+      assert text(dash) == "—"
+      assert Floki.find(dash, "small") == []
+    end
+
+    assert phone(view, cross, "phone-size") == "8 × 100,00 USD"
+    assert phone(view, imported, "phone-size") == "5 × 88,10 EUR"
+    assert phone(view, split, "phone-size") == "2:1"
+
+    assert {"-806,00 EUR", "8 × 100,00 USD"} = delete_box(view, cross)
   end
 end
