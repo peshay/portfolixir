@@ -1565,6 +1565,83 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "On Test-Cash, the set balance of 2026-07-01 absorbs 25.00 EUR of the 50.00 EUR: its balance changes by -25.00 EUR."
     end
 
+    # K17's transfer (ADR-0053 K20): 100.00 from Test-Cash to Test-Savings
+    # with a tax unit of -5.00, after a deposit of 1,000.00.
+    @k20_json """
+    {"version": 1, "transactions": [
+      {"type": "DEPOSIT", "account": "Test-Cash", "date": "2026-02-09", "currency": "EUR", "amount": 1000.0},
+      {"type": "CASH_TRANSFER", "account": "Test-Cash", "otherAccount": "Test-Savings", "date": "2026-02-10", "currency": "EUR", "amount": 100.0,
+       "units": [{"type": "TAX", "amount": -5.0}]}
+    ]}
+    """
+
+    # Sprint 20's reading (release 2026.10.13): the row A8 now refuses
+    # booked as the preview keeps it, its refund split off beside it.
+    defp apply_as_sprint_20!(portfolio, body) do
+      {:ok, %Preview{} = preview} = PortfolioPerformance.parse(body, filename: "history.json")
+
+      entries =
+        (preview.entries ++ Enum.map(preview.refused_credits, & &1.entry))
+        |> Enum.sort_by(& &1.source_row)
+
+      {:ok, _result} =
+        Imports.apply(%{preview | entries: entries, errors: [], refused_credits: []}, %{
+          portfolio_id: portfolio.id
+        })
+
+      :ok
+    end
+
+    # User story (#1193, Sprint 21 α7; ADR-0053 A10, K20):
+    # As the operator re-dropping a transfer with a tax refund that was
+    # imported before A8 refused it,
+    # I want its line to show each cash account the transfer moves, as
+    # stored, and the difference to the file,
+    # so that I see that Test-Savings holds the refund Portfolio Performance
+    # never moved, not only that Test-Cash agrees.
+    #
+    # Acceptance criteria:
+    # - Stored under Sprint 20's reading: the table shows Test-Cash -100.00
+    #   kept 0.00 and, on a line of its own, Test-Savings +105.00 kept
+    #   -5.00; the phone rows show the same two accounts.
+    # - Stored under the old reading: Test-Cash -95.00 kept -5.00 and
+    #   Test-Savings +100.00 kept 0.00.
+    # - No confirm.
+    test "K20: a refused transfer shows each account it moves", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_as_sprint_20!(portfolio, @k20_json)
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "history.json", @k20_json, "application/json")
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(1)") =~
+               "-100.00 kept 0.00"
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(2)") ==
+               "Test-Savings +105.00 kept -5.00"
+
+      assert text(view, "#import-correction-phone-rows li:nth-child(2)") =~
+               "Test-Savings"
+
+      assert text(view, "#import-correction-phone-rows li:nth-child(2)") =~
+               "-5.00 +105.00 → kept"
+
+      refute has_element?(view, "#import-correction-open")
+
+      Repo.delete_all(Transaction)
+      old = portfolio!()
+      apply_before_the_amendment!(old, @k20_json)
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "history.json", @k20_json, "application/json")
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(1)") =~
+               "-95.00 kept -5.00"
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(2)") ==
+               "Test-Savings +100.00 kept 0.00"
+    end
+
     # User story (board 07, N21 A and found while drawing 1):
     # As the operator reading a state sentence beside the figures,
     # I want the table to fill the note and wrap, not to widen past it,
