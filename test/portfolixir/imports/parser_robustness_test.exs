@@ -447,4 +447,31 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert {:ok, %Preview{entries: [_, _], errors: []}} =
              PortfolioPerformance.parse(crlf, filename: "crlf.csv")
   end
+
+  # User story (security review 2026-10-12, H59):
+  # As an operator,
+  # I want a JSON array or object below the document's own keys bounded at a
+  # thousand elements before the file is decoded,
+  # so that one transaction cannot make the decoder build what no export
+  # holds.
+  #
+  # Acceptance criteria:
+  # - A transaction's units list of 1,001 elements is a named file error.
+  # - One of 1,000 elements is decoded (and is its row's error, being past
+  #   the units one booking carries).
+  test "a nested JSON array is bounded at a thousand elements before decoding" do
+    units = fn count -> List.duplicate(%{"type" => "FEE", "amount" => "1.00"}, count) end
+
+    assert {:error, :malformed_payload} =
+             PortfolioPerformance.parse(json([Map.put(base_tx(), "units", units.(1_001))]),
+               filename: "u.json"
+             )
+
+    assert {:ok, %Preview{entries: [], errors: [%{row: 1, message: message}]}} =
+             PortfolioPerformance.parse(json([Map.put(base_tx(), "units", units.(1_000))]),
+               filename: "u.json"
+             )
+
+    assert message =~ "units"
+  end
 end
