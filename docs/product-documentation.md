@@ -702,9 +702,9 @@ the depot*, *applies to the cash account* — so a cell can be read without
 touching it, and an empty set reads as the words *no bucket* rather than as a
 blank cell. The **Buckets** column head carries an ⓘ that says what a
 bucket is — a tag on depots and cash accounts that a view picks to narrow
-every figure to its accounts — and on a phone, where the head is hidden, each
-chip group opens with the word **Buckets** and the same ⓘ beside it (issues
-#1090, #1162). **Tag
+every figure to its accounts — and wherever the table shows as cards (see
+above), where the head is hidden, each chip group opens with the word
+**Buckets** and the same ⓘ beside it (issues #1090, #1162). **Tag
 separately** moved out of the cell into the row's **kebab menu**, which
 splits the group so each side can be tagged on its own
 (differing sets always render split). At most four chips are shown per group — further chips
@@ -1694,9 +1694,9 @@ design recorded in
 [ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
 
 Each cash account carries a **liquidity role** (the selector sits next to the
-account on the Accounts & depots page, and the ⓘ on its column head — on a
-phone, where the head is hidden, the label *Liquidity role* stands beside the
-selector with the ⓘ next to it (#1085) — says in one sentence how each role
+account on the Accounts & depots page, and the ⓘ on its column head — in
+the card layout, where the head is hidden, the label *Liquidity role* stands
+beside the selector with the ⓘ next to it (#1085, #1145) — says in one sentence how each role
 counts; the API/MCP field is `liquidity_role`). It is
 one of three values: **free cash** (the default — genuine deployable cash),
 **credit line** (an overdraft or Lombard facility, whose negative balance is a

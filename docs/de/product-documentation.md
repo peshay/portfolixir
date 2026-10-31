@@ -766,9 +766,10 @@ Depot*, *Gilt für das Verrechnungskonto* —, sodass eine Zelle gelesen werden
 kann, ohne sie anzufassen; eine leere Menge liest sich als *Kein Bucket*
 statt als leere Zelle. Der Spaltenkopf **Buckets** trägt ein ⓘ, das sagt,
 was ein Bucket ist — ein Tag für Depots und Verrechnungskonten, den eine
-Ansicht auswählt, um jede Kennzahl auf seine Konten einzugrenzen —; auf dem
-Telefon, wo der Kopf verborgen ist, beginnt jede Chip-Gruppe mit dem Wort
-**Buckets** und demselben ⓘ daneben (Issues #1090, #1162). **Getrennt taggen** ist aus der Zelle in das
+Ansicht auswählt, um jede Kennzahl auf seine Konten einzugrenzen —; überall,
+wo die Tabelle als Karten erscheint (siehe oben) und der Kopf verborgen ist,
+beginnt jede Chip-Gruppe mit dem Wort **Buckets** und demselben ⓘ daneben
+(Issues #1090, #1162). **Getrennt taggen** ist aus der Zelle in das
 **Kebab-Menü** der Zeile gewandert.
 Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
 zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der
@@ -1865,9 +1866,9 @@ eine Banking-App zu verwandeln. Dies folgt dem in
 
 Jedes Geldkonto trägt eine **Liquiditätsrolle** (`liquidity_role`; der Selektor
 sitzt neben dem Konto auf der Seite Konten & Depots, und das ⓘ an ihrem
-Spaltenkopf — auf dem Telefon, wo der Kopf verborgen ist, steht die
+Spaltenkopf — in der Kartenansicht, wo der Kopf verborgen ist, steht die
 Beschriftung *Liquiditätsrolle* neben dem Selektor und das ⓘ daneben
-(#1085) — sagt in einem Satz, wie jede Rolle zählt). Sie ist einer von drei Werten:
+(#1085, #1145) — sagt in einem Satz, wie jede Rolle zählt). Sie ist einer von drei Werten:
 **free cash** (Standard — echtes verfügbares Cash), **credit line** (eine
 Überziehungs- oder Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist
 und deren ungenutzter Rahmen nie Liquidität ist) oder **reserve** (ein

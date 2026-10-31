@@ -113,8 +113,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <th><%= gettext("Currency") %></th>
                     <%!-- #1090 (board 08 ④): the two domain words are
                          defined where they first appear, each by an ⓘ on its
-                         head; under 640 px the head is hidden and the same
-                         ⓘ rides in the rows (`term_info/1`). --%>
+                         head; in the card (the wrapper under 840 px, #1145)
+                         the head is hidden and the same ⓘ rides in the rows. --%>
                     <th class="accounts-term-head">
                       <%= gettext("Liquidity role") %><.term_info term={:liquidity_role} />
                     </th>
@@ -741,11 +741,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       phx-change="set_liquidity_role"
     >
       <input type="hidden" name="account_id" value={@cash.id} />
-      <%!-- #806 (variant A): the column is headed "Liquidity role", so above
-           640 px the label is for assistive technology only. #1085 (rule ⑦,
-           board 07): under 640 px the head is hidden too, so there the label
-           shows beside the select, with the role's ⓘ beside the word
-           (`.liquidity-role-field__label`, hidden above 640 px). --%>
+      <%!-- #806 (variant A): the column is headed "Liquidity role", so beside
+           the head the label is for assistive technology only. #1085 (rule ⑦):
+           in the card (the table's wrapper under 840 px, #1145) the head is
+           hidden too, so there the label shows beside the select, with the
+           role's ⓘ beside it (`.liquidity-role-field__label`). --%>
       <label class="liquidity-role-field__label" for={"liquidity-role-#{@cash.id}"}>
         <%= gettext("Liquidity role") %>
       </label>
