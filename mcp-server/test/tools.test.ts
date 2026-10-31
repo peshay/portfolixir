@@ -2561,7 +2561,8 @@ describe("Portfolixir MCP tools", () => {
   //   refusals inline (422 on plan_id when archived or of another portfolio,
   //   classification or view), since the read profile does not list
   //   targets.set, and list_positions points to targets.list; list_positions
-  //   says its drift basis names a draft.
+  //   says its drift basis names a draft, and that a short plan's position
+  //   targets are renormalised (ADR-0040), as its drift_basis says.
   it("forwards plan_id through the target reads (#1185)", async () => {
     const { client, requests } = createRecordingClient({ data: { targets: [], position_targets: [] } });
 
@@ -2600,6 +2601,10 @@ describe("Portfolixir MCP tools", () => {
     );
     assert.match(describe("portfolixir.targets.list_positions"), /plan_id: as on portfolixir\.targets\.list/);
     assert.match(describe("portfolixir.targets.list_positions"), /drift_basis names a draft/);
+    assert.match(
+      describe("portfolixir.targets.list_positions"),
+      /minus its position target, renormalised for a short plan \(ADR-0040\)/
+    );
   });
 
   // User story (#1143, #945's API half):
