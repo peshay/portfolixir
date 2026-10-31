@@ -65,7 +65,7 @@ defmodule PortfolixirWeb.TaxLive do
       |> assign(:current_path, "/tax")
       |> assign(:today, today)
       |> assign(:currency, @currency)
-      |> assign(:form_errors, nil)
+      |> assign(form_errors: nil, posted: nil)
       |> assign(:order_errors, nil)
       |> assign(:editing_id, nil)
       |> assign(:statement_form_open?, false)
@@ -94,7 +94,7 @@ defmodule PortfolixirWeb.TaxLive do
   @impl true
   def handle_event("open_statement_form", _params, socket) do
     {:noreply,
-     assign(socket, statement_form_open?: true, editing_id: nil, form_errors: nil)
+     assign(socket, statement_form_open?: true, editing_id: nil, form_errors: nil, posted: nil)
      |> load_editing()}
   end
 
@@ -105,7 +105,7 @@ defmodule PortfolixirWeb.TaxLive do
      socket
      |> assign(:statement_form_open?, open?)
      |> assign(:editing_id, if(open?, do: socket.assigns.editing_id))
-     |> assign(:form_errors, nil)
+     |> assign(form_errors: nil, posted: nil)
      |> load_editing()}
   end
 
@@ -115,11 +115,15 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("record_statement", %{"statement" => params}, socket) do
+    # What was typed stays on a refusal (H36; board 07 frame 3): the form
+    # re-renders the posted values until the form is closed or saved.
+    socket = assign(socket, :posted, LiveParam.form(params))
+
     case save_statement(socket, LiveParam.map(params)) do
       {:ok, snapshot} ->
         socket =
           socket
-          |> assign(form_errors: nil, editing_id: nil, statement_form_open?: false)
+          |> assign(form_errors: nil, posted: nil, editing_id: nil, statement_form_open?: false)
           |> push_patch(to: scope_path(snapshot.holder, snapshot.tax_year))
 
         {:noreply, socket}
@@ -150,7 +154,7 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("edit_statement", %{"id" => id}, socket) do
     {:noreply,
      socket
-     |> assign(editing_id: LiveParam.id(id), form_errors: nil)
+     |> assign(editing_id: LiveParam.id(id), form_errors: nil, posted: nil)
      |> assign(statement_form_open?: true, row_menu: nil)
      |> load_editing()}
   end
@@ -158,7 +162,7 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("cancel_edit", _params, socket) do
     {:noreply,
      socket
-     |> assign(editing_id: nil, form_errors: nil, statement_form_open?: false)
+     |> assign(editing_id: nil, form_errors: nil, posted: nil, statement_form_open?: false)
      |> load_editing()}
   end
 
@@ -533,6 +537,10 @@ defmodule PortfolixirWeb.TaxLive do
     if field in StatementSnapshot.money_fields(), do: field_label(field), else: to_string(field)
   end
 
+  # A posted value while a refusal stands, else the stored or default one.
+  defp posted(%{} = params, key, default), do: Map.get(params, key, default)
+  defp posted(_none, _key, default), do: default
+
   defp value_of(nil, _field), do: nil
   # #869: a stored figure opens in the page's locale, its trailing zeros
   # dropped as every stored figure opening in a field is ("12000", "140,25").
@@ -779,7 +787,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <input
                   type="text"
                   name="statement[holder]"
-                  value={(@editing && @editing.holder) || @holder}
+                  value={posted(@posted, "holder", (@editing && @editing.holder) || @holder)}
                   list="tax-holders"
                   required
                   aria-invalid={invalid?(@form_errors, :holder) && "true"}
@@ -794,7 +802,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <input
                   type="number"
                   name="statement[tax_year]"
-                  value={(@editing && @editing.tax_year) || @tax_year}
+                  value={posted(@posted, "tax_year", (@editing && @editing.tax_year) || @tax_year)}
                   min="1990"
                   max="2200"
                   required
@@ -805,7 +813,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <input
                   type="text"
                   name="statement[institution]"
-                  value={@editing && @editing.institution}
+                  value={posted(@posted, "institution", @editing && @editing.institution)}
                   required
                   aria-invalid={invalid?(@form_errors, :institution) && "true"}
                   aria-describedby={invalid?(@form_errors, :institution) && "tax-form-error"}
@@ -819,7 +827,7 @@ defmodule PortfolixirWeb.TaxLive do
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                   maxlength="10"
                   name="statement[as_of]"
-                  value={@editing && Date.to_iso8601(@editing.as_of)}
+                  value={posted(@posted, "as_of", @editing && Date.to_iso8601(@editing.as_of))}
                   required
                   aria-invalid={invalid?(@form_errors, :as_of) && "true"}
                   aria-describedby={invalid?(@form_errors, :as_of) && "tax-form-error"}
@@ -848,7 +856,7 @@ defmodule PortfolixirWeb.TaxLive do
                     inputmode="decimal"
                     class="num"
                     name={"statement[#{field}]"}
-                    value={value_of(@editing, field)}
+                    value={posted(@posted, Atom.to_string(field), value_of(@editing, field))}
                     aria-invalid={invalid?(@form_errors, field) && "true"}
                     aria-describedby={amount_describedby(@form_errors, field)}
                   />
@@ -857,7 +865,11 @@ defmodule PortfolixirWeb.TaxLive do
 
               <label class="tax-form__wide">
                 <%= gettext("Note") %>
-                <input type="text" name="statement[note]" value={@editing && @editing.note} />
+                <input
+                  type="text"
+                  name="statement[note]"
+                  value={posted(@posted, "note", @editing && @editing.note)}
+                />
               </label>
 
               <div class="tax-form__actions">
