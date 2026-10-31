@@ -394,4 +394,41 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
 
     assert Enum.map(shown, & &1.security_id) == Enum.to_list(1..10)
   end
+
+  # User story (#928, Sprint 21 α4; board 09 ④, ADR-0051's amendment of
+  # 2026-10-09, point 5):
+  # As a local portfolio maintainer whose bond's coupon is now that bond's
+  # income,
+  # I want the note under the interest line to say what the line still
+  # holds,
+  # so that I do not look for my coupon there, and know why an older one may
+  # still be there.
+  #
+  # Acceptance criteria:
+  # - English: "Interest bookings that name no security: account interest,
+  #   and coupons stored without their bond".
+  # - German: "Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die
+  #   ohne ihre Anleihe gebucht sind".
+  # - The note names no release date.
+  test "the interest line's note says it holds the interest naming no security" do
+    note = fn html ->
+      sentence(html, "[data-role='contribution-remainder'][data-line='interest'] small")
+    end
+
+    assert note.(render_table(result([position(1, "10")]))) ==
+             "Interest bookings that name no security: account interest, and coupons " <>
+               "stored without their bond"
+
+    previous = Gettext.get_locale(PortfolixirWeb.Gettext)
+
+    try do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      assert note.(render_table(result([position(1, "10")]))) ==
+               "Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre " <>
+                 "Anleihe gebucht sind"
+    after
+      Gettext.put_locale(PortfolixirWeb.Gettext, previous)
+    end
+  end
 end

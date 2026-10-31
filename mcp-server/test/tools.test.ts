@@ -1523,6 +1523,29 @@ describe("Portfolixir MCP tools", () => {
     assert.match(String(reconcile?.description), /tax_refund/);
   });
 
+  // User story (#928, Sprint 21 α4; ADR-0051's amendment of 2026-10-09,
+  // point 2):
+  // As an agent booking a bond's coupon with transactions.create,
+  // I want the description to say that an interest booking may name the
+  // security whose coupon it is,
+  // so that I name the bond and the coupon counts as that position's income
+  // instead of landing in the interest line.
+  //
+  // Acceptance criteria:
+  // - The create tool's description carries the sentence "An interest
+  //   booking may name the security whose coupon it is".
+  // - The sentence costs no budget: the description pays its bytes by a trim
+  //   (test/schema-budget.test.ts holds every profile to its ceiling).
+  it("says an interest booking may name the security whose coupon it is (#928)", () => {
+    const transactionCreate = listTools().find(
+      (tool) => tool.name === "portfolixir.transactions.create"
+    );
+    assert.match(
+      String(transactionCreate?.description),
+      /An interest booking may name the security whose coupon it is/
+    );
+  });
+
   it("creates every ledger kind directly over the API (FR-31, request shape)", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 

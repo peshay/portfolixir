@@ -11,11 +11,13 @@ defmodule Portfolixir.ReviewSeedTest do
 
   alias Portfolixir.Catalog.Quote
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Imports
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Income
+  alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
@@ -157,6 +159,64 @@ defmodule Portfolixir.ReviewSeedTest do
     assert held |> Map.values() |> Enum.reduce(&Decimal.add/2) |> Decimal.equal?(32)
 
     rows = row_counts()
+    seed!()
+    assert row_counts() == rows
+  end
+
+  # User story (#928, Sprint 21 α4; plan D-1 round trip 2, D-14):
+  # As the UAT persona walking round trip 2, the coupon, on the review
+  # instance in the German UI,
+  # I want the seed to carry a bond whose coupon was imported with it, and
+  # the file and its re-export beside the seed,
+  # so that Wealth's contribution table shows the coupon as the bond's
+  # income and a second drop of either file books nothing.
+  #
+  # Acceptance criteria:
+  # - The portfolio "Anleihen" holds ADR-0051's I12 history, imported from
+  #   priv/demo/pp_json_bond_coupon_demo.json: over 2026-01-01 to
+  #   2026-06-30 the bond "Larkspur Rail AG 4,00 % Anleihe 2031" contributes
+  #   525.00 with income 400.00, the interest line is 1.10, and the result
+  #   526.10.
+  # - Dropping the same file again books nothing (every row a hash hit), and
+  #   neither does its re-export with the coupon's time moved
+  #   (priv/demo/pp_json_bond_coupon_reexport_demo.json; the coupon is found
+  #   by its figures, under economics).
+  # - A second run of the seed adds nothing.
+  test "the review seed carries round trip 2, a bond with a coupon (D-14)" do
+    seed!()
+    anleihen = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Anleihen"))
+    assert anleihen, "no portfolio Anleihen"
+
+    bond =
+      Repo.one!(from(s in Security, where: s.name == "Larkspur Rail AG 4,00 % Anleihe 2031"))
+
+    {:ok, contribution} =
+      Contribution.for_portfolio(anleihen.id,
+        period: {:range, ~D[2026-01-01], ~D[2026-06-30]},
+        today: ~D[2026-06-30]
+      )
+
+    row = Enum.find(contribution.positions, &(&1.security_id == bond.id))
+    assert Decimal.equal?(row.income, Decimal.new("400.00"))
+    assert Decimal.equal?(row.contribution, Decimal.new("525.00"))
+    assert Decimal.equal?(contribution.remainder.interest, Decimal.new("1.10"))
+    assert Decimal.equal?(contribution.totals.result, Decimal.new("526.10"))
+
+    rows = row_counts()
+
+    for {file, layers} <- [
+          {"priv/demo/pp_json_bond_coupon_demo.json", %{hash: 4, retired: 0, economics: 0}},
+          {"priv/demo/pp_json_bond_coupon_reexport_demo.json",
+           %{hash: 3, retired: 0, economics: 1}}
+        ] do
+      {:ok, preview} =
+        Imports.parse_portfolio_performance(File.read!(file), filename: Path.basename(file))
+
+      assert {:ok, result} = Imports.apply(preview, %{portfolio_id: anleihen.id})
+      assert result.created_transactions == 0, file
+      assert result.already_imported == layers, file
+    end
+
     seed!()
     assert row_counts() == rows
   end
