@@ -1982,7 +1982,8 @@ Beispiel-Payloads für Konten:
   Hub-Kurs, bevor sie in `basis` und `proceeds` eingehen. `basis`,
   `proceeds`, `realized_pnl_abs` und `realized_pnl_pct` stehen also im
   `currency_code` des Trades, und `realized_base` ist das Geld, das die Runde
-  bewegt hat, wenn Broker- und Hub-Kurs übereinstimmen: 10 Stück, gekauft zu
+  bewegt hat, wenn Broker- und Hub-Kurs übereinstimmen und der Hub-Kurs
+  sich zwischen Kauf und Verkauf nicht bewegt hat: 10 Stück, gekauft zu
   100 USD für 800,00 EUR mit 6,00 EUR Gebühren und Steuern und verkauft zu
   120 USD für 960,00 EUR mit 3,00 EUR Gebühren, lesen `basis` `"1007.5"`,
   `proceeds` `"1196.25"`, `realized_pnl_abs` `"188.75"` und `realized_base`
@@ -1998,7 +1999,22 @@ Beispiel-Payloads für Konten:
   `settlement_amount` ÷ Stückzahl, seine Gebühren und Steuern wie erfasst.
   Ein importierter Kauf, über das Buchungsformular verkauft, liest so
   `basis` `"1007.5"`, `realized_pnl_abs` `"188.75"` USD und `realized_base`
-  `"151"`. Ein Lot ohne das nötige Bein (oder in der Währung eines anderen
+  `"151"`. Ein solcher Trade, dessen Verkauf ein in einer anderen Währung
+  gebuchtes Lot schließt, liest `realized_base` als das Geld, das seine
+  Buchungen bewegt haben, wo der Verkauf und jedes Lot, das er schließt, ihr
+  gespeichertes Bein in der Basiswährung tragen: die Abrechnung des
+  Verkaufs abzüglich der der Lots (anteilig), Gebühren und Steuern wie
+  erfasst, ohne nachgeschlagenen Kurs (die Notiz vom 31.10.2026 zur
+  Ergänzung von ADR-0015). Hat sich der Hub-Kurs zwischen Kauf und Verkauf
+  bewegt, ist das nicht das Ergebnis des Trades zum Kurs des Schlussdatums:
+  Eine Franken-Aktie, für 1.004,00 EUR bei 0,94 Franken je Euro importiert
+  und über das Buchungsformular für 1.154,90 EUR bei 0,95 verkauft, liest
+  `realized_base` `"150.9"`, wo die Umrechnung ihrer 153,39 CHF zum
+  Schlussdatum 161,46 las. Jeder Trade nennt seinen Weg in
+  **`realized_base_source`**, `"settlement_legs"` oder `"close_date_rate"`
+  (jeder andere Trade, einer, dessen Verkauf und Lots in einer Währung
+  gebucht sind), und `computation_basis.realized_base` nennt beide. Ein
+  Lot ohne das nötige Bein (oder in der Währung eines anderen
   Kontos gebucht) oder ein Lot oder Verkauf in einer dritten Währung (eine
   vor Issue #1199 gespeicherte Zeile, auch wenn beide sie teilen) macht den
   Trade unverfügbar: Der Trades-Read behält ihn mit den eigenen Zahlen seines

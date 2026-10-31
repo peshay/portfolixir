@@ -1834,7 +1834,8 @@ Example account payloads:
   never at a hub rate, before they enter `basis` and `proceeds`. So
   `basis`, `proceeds`, `realized_pnl_abs` and `realized_pnl_pct` are in the
   trade's `currency_code`, and `realized_base` is the cash the round trip
-  moved when the broker's rate and the hub's agree: 10 bought at 100 USD for
+  moved when the broker's rate and the hub's agree and the hub rate did not
+  move between purchase and sale: 10 bought at 100 USD for
   800.00 EUR with 6.00 EUR in fees and taxes and sold at 120 USD for 960.00
   EUR with 3.00 EUR in fees read `basis` `"1007.5"`, `proceeds`
   `"1196.25"`, `realized_pnl_abs` `"188.75"` and `realized_base` `"151"`.
@@ -1848,7 +1849,20 @@ Example account payloads:
   currency at `settlement_amount` ÷ quantity, its fees and taxes as
   recorded. An imported purchase sold through the booking form so reads
   `basis` `"1007.5"`, `realized_pnl_abs` `"188.75"` USD and `realized_base`
-  `"151"`. A lot without the leg it needs (or booked in another account's
+  `"151"`. Such a trade, whose sell closes a lot booked in another
+  currency, reads `realized_base` as the cash its bookings moved where the
+  sell and every lot it closes carry their stored leg in the base currency:
+  the sale's settlement less the lots' (prorated), fees and taxes as
+  recorded, no rate looked up (the ADR-0015 amendment's note of
+  2026-10-31). Where the hub rate moved between purchase and sale this is
+  not the trade's result at the close date's rate: a franc share imported
+  for 1,004.00 EUR at 0.94 francs a euro and sold through the booking form
+  for 1,154.90 EUR at 0.95 reads `realized_base` `"150.9"`, where the
+  close-date conversion of its 153.39 CHF read 161.46. Every trade names
+  its path in **`realized_base_source`**, `"settlement_legs"` or
+  `"close_date_rate"` (every other trade, a trade whose sell and lots are
+  booked in one currency among them), and `computation_basis.realized_base`
+  states both. A lot without the leg it needs (or booked in another account's
   currency), or a lot or a sell priced in a third currency (a row stored
   before issue #1199, even where the two share it), makes the trade
   unavailable: the

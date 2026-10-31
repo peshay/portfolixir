@@ -614,6 +614,26 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool!.description ?? "", /close date/i);
   });
 
+  // User story (#1198, Sprint 21 α3; the ADR-0015 amendment's note of
+  // 2026-10-31):
+  // As the operating LLM agent,
+  // I want the realized-gains tool to say that a sale closing a lot booked
+  // in another currency reads the base-currency cash its bookings moved, and
+  // which field names the path,
+  // so that I do not explain its realized_base as a close-date conversion.
+  //
+  // Acceptance criteria:
+  // - The description names the cash moved and realized_base_source, beside
+  //   the close-date EUR-hub conversion every other sale keeps.
+  it("names the two paths of realized_base on the realized-gains tool", () => {
+    const description =
+      listTools().find((t) => t.name === "portfolixir.cashflow.realized_gains")?.description ?? "";
+
+    assert.match(description, /cash its bookings moved/);
+    assert.match(description, /realized_base_source/);
+    assert.match(description, /EUR hub rate of ITS OWN close date/);
+  });
+
   // User story (#984 rescoped, Sprint 17 T1):
   // As the operating LLM agent,
   // I want both tools that serve closed trades to name the annualized return,

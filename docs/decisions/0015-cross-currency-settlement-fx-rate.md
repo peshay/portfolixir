@@ -404,6 +404,44 @@ lookup ADR-0033's fold rule forbids. Where broker and hub agree, a closed
 trade's realized result in the base currency is then the cash its bookings
 moved, whichever way each was booked (identities 1 and 2b).
 
+*Note (2026-10-31, #1198, the Sprint 21 α closing act):* the sentence above
+held only while the hub rate stood still. Converting a trade's result at
+the close date converts the lots' cost at the sale's rate too, so where the
+rate moved between purchase and sale the result parts from the cash moved
+even when broker and hub agree on each day. Identities 1 and 2b could not
+show it: 1 EUR = 1.25 USD on every date, so 188.75 USD × 0.8 = 151.00 =
+957.00 − 806.00 either way, and 2b's trade is in its account's currency, so
+its close-date conversion is the identity. The closing act's walk did: a
+franc share imported from a euro account (20 at 50.00 EUR, fee 4.00, cash
+1,004.00; legs at the hub's 0.94 francs a euro) and sold through the
+booking form at 55 CHF (settled 1,157.90 EUR, fee 3.00, cash 1,154.90; the
+hub's 0.95) read 153.39 CHF and 161.46 EUR, where the cash moved was
+**150.90 EUR**. So a closed trade whose sell closes a lot booked in another
+currency, where the sell and every lot it closes moved cash in the base
+currency and carry their stored leg in it, reads `realized_base` as the
+cash its bookings moved: the trade re-read in that currency through the
+same legs (point 2), the sale's settlement less each lot's prorated, fees
+and taxes as recorded, no rate looked up and none needed on the close
+date. Every other trade keeps the close-date conversion: one whose sell or
+lot lacks the leg in the base currency, one whose lot's buy moved cash in
+another currency, one whose cash account is not in the base currency, and
+one whose sell and lots share one currency (point 4, byte-identical; the
+2026-10-07 amendment's identity 3 keeps 148.00 EUR, which the cash moved
+would read as 198.50 because there the broker's rate is not the hub's).
+Each realized-gains row names its path in `realized_base_source`
+(`settlement_legs`, `close_date_rate`), and `computation_basis.realized_base`
+states both. The trades read, the Trades tab and every figure in the
+trade's currency are unchanged. Pinned in `Ledger.ClosedTradeCurrencyTest`
+(the walk's figures, beside a franc round trip booked wholly through the
+form that keeps the close-date path at the same rates), over
+`GET /api/v1/realized_gains` (`PortfolixirWeb.ApiV1CrossCurrencyTradesTest`)
+and end to end through the import, the drawer, the Trades facet and the
+Overview card (`PortfolixirWeb.ImportThenSellRoundTripTest`). Mutation
+check: converting the trade's result at the close date where both sides
+carry their legs turns them red (161.46). Whether a trade booked in one
+currency should read the cash moved too, where the rate moved, is an open
+question for the owner; until decided, point 4 holds.
+
 **Not taken.**
 
 - **(a) Every import-form row into the security's currency.** It moves
