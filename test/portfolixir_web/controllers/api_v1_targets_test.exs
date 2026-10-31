@@ -1341,4 +1341,87 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
              "#{path}?#{query}"
     end
   end
+
+  # User story (#1185, Sprint 21 β2):
+  # As the operator's agent reading a draft plan's drift before I activate it
+  # (ADR-0027),
+  # I want the position read's drift_basis to say that a short plan's targets
+  # are renormalised, as the allocation renormalises them (ADR-0040),
+  # so that I can reproduce the drift_weight from the basis it states.
+  #
+  # Acceptance criteria:
+  # - A view plan's draft, read by plan_id alone, with Core at 0.9, a held
+  #   position at 0.6 and an unheld one at 0.3, and no cash target in the
+  #   view, steers 0.9 in all: each position target renormalises by 0.9, so
+  #   the held security (the whole steering basis) drifts 1 - 0.6 / 0.9 =
+  #   0.333… and the unheld one 0 - 0.3 / 0.9 = -0.333…, where "actual weight
+  #   minus its position target" alone would give 0.4 and -0.3.
+  # - drift_basis says so: "renormalised as the allocation renormalises a
+  #   short plan (ADR-0040)", on the active plan's basis and on the draft's,
+  #   which still names the draft.
+  test "a short draft's drift is renormalised, and its drift_basis says so", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: held} =
+      setup_world()
+
+    pid = portfolio.id
+    targets = "/api/v1/portfolios/#{pid}/targets"
+
+    unheld = create_security!(name: "Core Satellite", ticker: "CSAT", asset_class: "equity")
+
+    {:ok, _} =
+      Classifications.assign_security(Actor.owner_ui(), unheld.id, classification.id, core.id)
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Short View", include_all: true})
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "view" => view.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "1"}]
+    })
+    |> json_response(200)
+
+    [%{id: active_id}] =
+      Targets.list_plans(pid, classification_id: classification.id, view: view.id)
+
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active_id, %{name: "Short Draft"})
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "view" => view.id,
+      "plan_id" => draft.id,
+      "targets" => [
+        %{"category_id" => core.id, "target_weight" => "0.9"},
+        %{"category_id" => core.id, "security_id" => held.id, "target_weight" => "0.6"},
+        %{"category_id" => core.id, "security_id" => unheld.id, "target_weight" => "0.3"}
+      ]
+    })
+    |> json_response(200)
+
+    data =
+      get_json(conn, "/api/v1/portfolios/#{pid}/position_targets?min_drift=0&plan_id=#{draft.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    drift = fn security ->
+      data["position_targets"]
+      |> Enum.find(&(&1["security_id"] == security.id))
+      |> Map.fetch!("drift_weight")
+      |> Decimal.new()
+      |> Decimal.round(6)
+    end
+
+    assert Decimal.equal?(drift.(held), Decimal.new("0.333333"))
+    assert Decimal.equal?(drift.(unheld), Decimal.new("-0.333333"))
+
+    clause = "renormalised as the allocation renormalises a short plan (ADR-0040)"
+    assert data["drift_basis"] =~ clause
+    assert data["drift_basis"] =~ "plan_id #{draft.id} names a draft"
+
+    active =
+      get_json(conn, "/api/v1/portfolios/#{pid}/position_targets?min_drift=0&view=#{view.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert active["drift_basis"] =~ clause
+  end
 end
