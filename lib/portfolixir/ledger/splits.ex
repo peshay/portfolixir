@@ -269,6 +269,93 @@ defmodule Portfolixir.Ledger.Splits do
     )
   end
 
+  @doc """
+  The read-only check of stored split events that miss a positioned
+  portfolio (#1292): every event, its rows sharing `(security_id, date,
+  normalized ratio)`, that carries no row for a portfolio holding a non-zero
+  position in the security entering the effective date.
+
+  Since K09 a split scales every open FIFO lot of the security once,
+  whatever portfolio the lot belongs to (ADR-0015, note of 2026-10-28),
+  while the holdings fold scales a portfolio's position only through its own
+  row (ADR-0028 §1): a missing row leaves that portfolio's lots scaled and
+  its holding unscaled. The split flow books no such event since K10; one
+  stored before, or through an import, is listed here.
+
+  "Positioned" is the split flow's own set (`book_split/2`): the
+  transactions dated strictly before the date, folded per portfolio, so
+  re-booking the identical split adds exactly the rows listed missing.
+
+  Returns `%{as_of, note, remedy, rows}`; each row carries the security
+  (`security_id`, `security_name`, `isin`), `date`, `ratio_numerator`,
+  `ratio_denominator`, the booked rows' `booked_portfolio_ids` and
+  `transaction_ids`, and `missing_portfolios`, each with `portfolio_id`,
+  `portfolio_name` and `quantity_before` (a Decimal). Rows are ordered by
+  date, then security. Reads only: nothing is booked or rewritten.
+  """
+  def incomplete_events_report do
+    rows =
+      from(t in Transaction, where: t.type == "split", order_by: [t.portfolio_id, t.id])
+      |> Repo.all()
+      |> Enum.group_by(& &1.security_id)
+      |> Enum.flat_map(fn {security_id, splits} -> incomplete_events(security_id, splits) end)
+      |> Enum.sort_by(&{Date.to_gregorian_days(&1.date), &1.security_id})
+
+    %{
+      as_of: Clock.today(),
+      note:
+        "Stored split events whose rows miss a portfolio that held the security " <>
+          "entering the effective date: that portfolio's FIFO lots are scaled by the " <>
+          "split while its holding is not.",
+      remedy:
+        "Book the same split again through the split flow (POST /api/v1/splits with the " <>
+          "security, date and ratio shown): it adds only the missing rows. If the split " <>
+          "is wrong, delete the whole event instead (DELETE /api/v1/splits/:transaction_id). " <>
+          "Nothing is changed automatically.",
+      rows: rows
+    }
+  end
+
+  defp incomplete_events(security_id, splits) do
+    transactions = Ledger.list_transactions_for_security(security_id)
+    accounts = Projection.account_portfolios(transactions)
+    names = portfolio_names(transactions)
+    security = Enum.find_value(transactions, & &1.security)
+
+    splits
+    |> Enum.group_by(&{&1.date, normalized_row_ratio(&1)})
+    |> Enum.flat_map(fn {{date, ratio}, rows} ->
+      before = transactions |> positions_before(date) |> sum_by_portfolio(accounts)
+      booked = rows |> Enum.map(& &1.portfolio_id) |> Enum.uniq()
+
+      case before |> positioned_ids() |> Enum.reject(&(&1 in booked)) |> Enum.sort() do
+        [] -> []
+        missing -> [incomplete_event(security, date, ratio, rows, missing, before, names)]
+      end
+    end)
+  end
+
+  defp incomplete_event(security, date, {p, q}, rows, missing, before, names) do
+    %{
+      security_id: security.id,
+      security_name: security.name,
+      isin: security.isin,
+      date: date,
+      ratio_numerator: p,
+      ratio_denominator: q,
+      booked_portfolio_ids: rows |> Enum.map(& &1.portfolio_id) |> Enum.uniq() |> Enum.sort(),
+      transaction_ids: rows |> Enum.map(& &1.id) |> Enum.sort(),
+      missing_portfolios:
+        Enum.map(missing, fn portfolio_id ->
+          %{
+            portfolio_id: portfolio_id,
+            portfolio_name: Map.get(names, portfolio_id),
+            quantity_before: Map.fetch!(before, portfolio_id)
+          }
+        end)
+    }
+  end
+
   # The anchor is read without a lock and the whole day's split rows of its
   # security are then locked in id order: every delete of the event locks in
   # the same order, so two cannot deadlock on each other's halves. The anchor
