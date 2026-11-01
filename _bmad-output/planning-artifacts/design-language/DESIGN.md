@@ -3506,10 +3506,13 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   for a search without one; the basis line `.mapping-remap__basis` "The
   catalog is searched by name, ISIN, WKN and ticker; nothing is suggested."
   A pick closes the picker into the line, and the ISIN-change offer follows
-  the chosen target as before. The plain creations' `<details>` leaves its
-  `open` to the browser (`phx-mounted`, `JS.ignore_attributes(["open"])`):
-  the server renders none, and a patch removing it would fold the section
-  shut around an open picker. **The keyboard keeps its place:** the opened
+  the chosen target as before. The plain creations' `<details>`
+  (`#import-plain-creates`) carries the shell's `DisclosureState` hook: the
+  server renders no `open`, and a patch removing the one the browser set
+  would fold the section shut around an open picker. A decision row's
+  search lists only securities its cards do not show, so no security
+  stands twice in the row's radio group; a search that finds only those
+  says "No other security matches." / "Kein anderes Wertpapier passt." **The keyboard keeps its place:** the opened
   picker's search field takes the focus as it mounts, and after a pick the
   row's "Change…" does (a decision row's "Search for another security…"
   after a pick from its search); at rest no control takes it. The cards,

@@ -768,11 +768,12 @@ defmodule PortfolixirWeb.ImportsLive do
           <% end %>
 
           <%= if @plain_create_resolutions != [] do %>
-            <%!-- The γ7 review, R-B1: the server renders no `open`, so a
-                 patch would remove the one the browser set and fold the
-                 section shut around an open picker; LiveView leaves it to
-                 the browser. --%>
-            <details data-role="plain-creates" phx-mounted={JS.ignore_attributes(["open"])}>
+            <%!-- The γ7 review, R-B1 (design critic D, DD-B1): the server
+                 renders no `open`, so a patch would remove the one the
+                 browser set and fold the section shut around an open
+                 picker; the shell's `DisclosureState` hook restores it
+                 after each patch (#869). --%>
+            <details id="import-plain-creates" data-role="plain-creates" phx-hook="DisclosureState">
               <summary>
                 <%= ngettext(
                   "%{count} new security will be created",
@@ -841,7 +842,13 @@ defmodule PortfolixirWeb.ImportsLive do
                   >
                     <%= gettext("Search for another security…") %>
                   </button>
-                  <.security_remap :if={remap_open?(@remap, res)} res={res} remap={@remap} mapping={@mapping} />
+                  <.security_remap
+                    :if={remap_open?(@remap, res)}
+                    res={res}
+                    remap={@remap}
+                    mapping={@mapping}
+                    shown={Enum.map(decision_cards(res, @mapping, @remap.known), & &1.id)}
+                  />
                   <.isin_change_offer mapping={@mapping} known={@remap.known} res={res} />
                   <%= if res.status == :config_at_risk and security_choice(@mapping, res) == "create" do %>
                     <label>
@@ -2237,6 +2244,7 @@ defmodule PortfolixirWeb.ImportsLive do
   attr(:remap, :map, required: true)
   attr(:mapping, :map, required: true)
   attr(:create, :boolean, default: false)
+  attr(:shown, :list, default: nil)
 
   # The opened picker: the merge dialog's search field and radio cards,
   # inside the row; "+ Create new" first where the row's default is a
@@ -2247,7 +2255,10 @@ defmodule PortfolixirWeb.ImportsLive do
     assigns =
       assign(assigns,
         query: Map.get(assigns.remap.query, key, ""),
-        hits: Map.get(assigns.remap.hits, key, []),
+        hits:
+          assigns.remap.hits
+          |> Map.get(key, [])
+          |> Enum.reject(&(&1.id in (assigns.shown || []))),
         choice: security_choice(assigns.mapping, assigns.res)
       )
 
@@ -2272,8 +2283,13 @@ defmodule PortfolixirWeb.ImportsLive do
           placeholder={gettext("Name, ISIN, WKN or ticker")}
         />
       </label>
+      <%!-- Design critic D, DD-S2: a decision row's search lists only
+           what its cards do not show, so no security stands twice in the
+           row's one radio group. --%>
       <p :if={@query != "" and @hits == []} class="mapping-remap__empty">
-        <%= gettext("No security matches.") %>
+        <%= if @shown,
+          do: gettext("No other security matches."),
+          else: gettext("No security matches.") %>
       </p>
       <fieldset
         :if={@create or @hits != []}
