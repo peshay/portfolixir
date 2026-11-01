@@ -49,9 +49,14 @@ config :portfolixir, Portfolixir.Portfolios.Performance.Warmup, enabled?: false
 config :portfolixir, Portfolixir.Derived.Refresher, enabled?: false
 config :portfolixir, Portfolixir.Derived.PostCommit, enabled?: false
 
+# The search kills a provider task at timeout_ms + 500. No test relies on
+# that kill (a test of the timeout passes its own), so the budget is a cap,
+# not a delay: at 1000 a loaded machine killed a provider still parsing its
+# stubbed payload, and the search answered no hits (SearchPayloadBoundsTest,
+# the same class as #1268).
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   providers: [Portfolixir.Catalog.SecuritySearch.Fake],
-  timeout_ms: 1000
+  timeout_ms: 10_000
 
 config :portfolixir, Portfolixir.Catalog.QuoteSync,
   enabled?: false,
