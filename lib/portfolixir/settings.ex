@@ -44,9 +44,13 @@ defmodule Portfolixir.Settings do
     Repo.one(from(s in Setting, where: s.key == ^key, select: s.value))
   end
 
-  @doc "Upserts the preference under `key` (one row per key)."
+  # The raw keyed writers are private (#1272): a public one could set or clear
+  # the default view around `set_default_view/2`, which journals it under its
+  # setter's actor (H61). Each instance-state key gets its own public helper.
+
+  # Upserts the value under `key` (one row per key).
   @spec put(String.t(), String.t()) :: :ok
-  def put(key, value) when is_binary(key) and is_binary(value) do
+  defp put(key, value) when is_binary(key) and is_binary(value) do
     %Setting{}
     |> Setting.changeset(%{key: key, value: value})
     |> Repo.insert!(
@@ -57,9 +61,9 @@ defmodule Portfolixir.Settings do
     :ok
   end
 
-  @doc "Deletes the preference under `key`; a missing key is a no-op."
+  # Deletes the value under `key`; a missing key is a no-op.
   @spec delete(String.t()) :: :ok
-  def delete(key) when is_binary(key) do
+  defp delete(key) when is_binary(key) do
     Repo.delete_all(from(s in Setting, where: s.key == ^key))
     :ok
   end

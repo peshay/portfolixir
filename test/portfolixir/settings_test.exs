@@ -5,27 +5,29 @@ defmodule Portfolixir.SettingsTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Settings
 
-  # User story:
-  # As a local portfolio maintainer,
-  # I want a minimal server-side preference store,
-  # so that my default view and dismissed notices survive across sessions and
-  # browsers (client-only storage cannot feed the LiveView mount).
+  # User story (#1272):
+  # As the maintainer of the audit journal,
+  # I want the raw keyed writers of the preference store to be private,
+  # so that no caller can set or clear the default view around
+  # `set_default_view/2`, the path that journals it under its setter's actor.
   #
   # Acceptance criteria:
-  # - A preference is a keyed string value; reading an unset key returns nil.
-  # - Writing an existing key overwrites it (single row per key).
-  # - Deleting a key returns the read to nil.
-  test "stores, overwrites and deletes keyed preferences" do
-    assert Settings.get("greeting") == nil
+  # - `Settings.put/2` and `Settings.delete/1` are not public.
+  # - Each instance-state key is still written, overwritten and cleared
+  #   through its own helper, and reads back through `get/1`.
+  test "the raw keyed writers are private, the per-key helpers still write" do
+    Code.ensure_loaded!(Settings)
+    refute function_exported?(Settings, :put, 2)
+    refute function_exported?(Settings, :delete, 1)
 
-    :ok = Settings.put("greeting", "hello")
-    assert Settings.get("greeting") == "hello"
+    assert Settings.get("portfolio_migration_notice_dismissed") == nil
 
-    :ok = Settings.put("greeting", "servus")
-    assert Settings.get("greeting") == "servus"
+    :ok = Settings.dismiss_migration_notice()
+    :ok = Settings.dismiss_migration_notice()
+    assert Settings.get("portfolio_migration_notice_dismissed") == "true"
 
-    :ok = Settings.delete("greeting")
-    assert Settings.get("greeting") == nil
+    :ok = Settings.reset_migration_notice()
+    assert Settings.get("portfolio_migration_notice_dismissed") == nil
   end
 
   # User story:
