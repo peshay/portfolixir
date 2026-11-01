@@ -7564,3 +7564,64 @@ they already have (UX-DR25 clauses 1 and 2).
   sentence and whose last name ends in a full stop („Arbolia Inc.“) ends it
   once — „… ausgeschlossen: Arbolia Inc.“, never „Inc..“; in every reason
   sentence of the facet and the card.
+
+## Amendment 2026-11-01 — One valuation rule on the figures, and a dividend's Brutto *(Sprint 22 R8, board `mockups/ux-design-2026-11-01-sprint22/02-figures` ① and ②; issues 1316, 1332, 1331; plan D-6, and the D-9 finding that rides R8; ADR-0010's amendment of 2026-06-10)*
+
+ADR-0010 values a position without a quote at its own last trade price,
+and every total already counted it that way. The rows under those totals
+now take the same rule from the same function
+(`Valuation.price_points/2`, which the holdings reads call), so a row and
+its total cannot disagree, and the rows name the price's source.
+
+**The cell note** (`.data-table td .cell-note`, new CSS, board ①): a
+second line under a figure that says where it comes from or why it is
+missing. It is `.contribution-table__note` lifted to any data-table cell:
+`display: block`, 12 px, weight 500, `--color-text-muted`, `nowrap`. It is
+words, never colour alone (UX-DR7).
+
+**The security's Bestände tab** (`#detail-tab-panel-holdings`), top to
+bottom:
+
+1. The ⓘ „Kurs- & Währungsbeitrag“ pill, unchanged.
+2. One row per depot. „Aktueller Wert“ is quantity × the price the
+   valuation uses, in the security's currency. A trade-priced row carries
+   the cell note „zum Handelspreis“ under its figure, and the cell's title
+   names the price and its date („Kein aktueller Kurs: zum letzten eigenen
+   Handelspreis von 19,20 EUR (14.03.2025) bewertet“). Its G/V, %, Kurs-
+   and Währungsbeitrag are computed against that price like a quoted row's.
+   A row with no price at all (no quote and no own trade) reads „—“ with
+   the cell note „kein Preis“.
+3. The „Gesamt“ row sums the valued rows' values and the P&L of the rows
+   that carry one. With no valued row it reads „—“, never „0,00“.
+4. Under the table, when a row has no price, one **attention** data note
+   (`data-role="holdings-unvalued"`, `.detail-holdings-unvalued`, a
+   `--space-3` gap above) names the rows the total leaves out, UX-DR25:
+   „1 Position fehlt in der Summe — für dieses Wertpapier ist kein Preis
+   bekannt (kein Kurs und kein eigener Handel): Demo Depot (5 Stück).“
+
+**Wealth's Positionen table** (`#holdings-positions-table`):
+
+- The basis line reads „Eine Zeile je Depot und Wertpapier, bewertet zum
+  zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen
+  Handelspreis. Marktwert in EUR, wie ihn die Summe zählt.“ The currency is
+  the page portfolio's base currency.
+- „Letzter Kurs“ is the price the valuation uses, in the security's
+  currency. A trade-priced row carries the cell note „Handelspreis ·
+  14.03.2025“. A row with no price reads „—“ with „kein Preis · nicht in
+  der Summe“.
+- „Marktwert“ is the **base-currency** figure the total sums: the view
+  valuation's own `market_value` for the same depot and security, a USD
+  row converted at the latest stored rate, suffixed with the base currency
+  (D-9: it was the security's currency, so a USD row never added up to the
+  EUR total). Until the valuation lands, a row already in the base
+  currency reads its own value and any other reads „—“.
+- „G&V“ stays in the security's currency with its suffix, as „Ø Kosten“
+  and „Letzter Kurs“ do; the agent's holdings read is in that currency too.
+- Every cell carries `data-column` with its column key. The phone rows
+  (quantity only) do not change.
+
+**The security's Transaktionen tab, Brutto** (board ②): a dividend's or an
+interest booking's Brutto is Income's gross, the cash credited plus the
+tax withheld (`Income.gross_of/1`): 7,50 cash with 1,98 tax reads 9,48.
+It is in the cash account's currency. A trade's Brutto is unchanged. No
+new string and no CSS.
