@@ -7338,7 +7338,9 @@ has no result to state, and a zero would claim it is flat").
     that does not change the parent keeps "Kategorie aktualisiert".
   - **The new parent chain renders open** (found while drawing, 6):
     categories render closed unless the tree is filtered, so the moved row
-    would otherwise leave the screen.
+    would otherwise leave the screen. ✎ opens the edited category and its
+    ancestors the same way, so the edit form is on the screen at once
+    (issue 1323; the γ closing act, DC2).
   - **The refusal past level 32** is a problem in the slot, brought into
     view and focused as "Hinzufügen"'s is, the form left open: "Nicht
     verschoben: Unter „Stufe 31“ käme eine Kategorie auf Ebene 33 — eine

@@ -1594,10 +1594,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  # The edited category and every category above it render open (#1323):
+  # categories render closed unless the server holds them open, so the
+  # re-render dropped the open state the operator gave the row in the
+  # browser, and the edit form with it. The move's own mechanism
+  # (`opened_ids`, #1211) keeps it.
   def handle_event("edit_category", %{"id" => id}, socket) do
     case LiveParam.fetch_id(id) do
-      {:ok, category_id} -> {:noreply, assign(socket, :editing_id, category_id)}
-      :error -> {:noreply, socket}
+      {:ok, category_id} ->
+        chain = open_chain(socket.assigns.tree, category_id)
+
+        {:noreply,
+         socket
+         |> assign(:editing_id, category_id)
+         |> assign(:opened_ids, MapSet.union(socket.assigns.opened_ids, MapSet.new(chain)))}
+
+      :error ->
+        {:noreply, socket}
     end
   end
 
@@ -2104,6 +2117,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
       )
     )
   end
+
+  # The edited category's chain; with no tree loaded, the category alone.
+  defp open_chain(%{flat: flat}, category_id), do: ancestor_chain(flat, category_id)
+  defp open_chain(_tree, category_id), do: [category_id]
 
   # The category and its ancestors, by the tree as loaded before the move
   # (the move changes no ancestor of the new parent).
