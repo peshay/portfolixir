@@ -295,3 +295,101 @@ state them:
 
 **A setting, not a check:** making `compose-smoke` a required check is a
 branch-protection setting only the owner can change.
+
+## Since version 3 — 2026-11-01 (Sprint 21 close-out)
+
+Sprint 21's plan (D-5) appends this section instead of a fourth version. The
+announcement is still the owner's call, and the recommendation above stands
+on its own terms. Sprint 21 ran as three PRs (the amendment's D-3), none
+merged at this record, each merged by the owner in order:
+
+- **the sprint PR #1296**: Lane M and Lane S, the fix batch of the security
+  review of 2026-10-12, contract entry 18;
+- **stacked PR 1 #1318**: α and β, the money after the first import,
+  contract entry 19;
+- **stacked PR 2**: γ, the screens on boards 01 to 08, and the close-out,
+  contract entry 20.
+
+Each is above the 100 commits at which GitHub refuses "Rebase and merge", so
+each lands by a fast-forward, as Sprint 16's #914 did. Each merge makes a
+calendar release; the next planning PR records them.
+
+### The money list
+
+Every issue of the plan's first exit criterion closes by keyword, so the list
+of open money issues above empties once #1296 and #1318 merge:
+
+| Issue | What changes | Closes with |
+|---|---|---|
+| #1198 | a closed trade is in one currency; a lot without stored legs makes it unavailable and named, outside the totals | #1318 |
+| #1199 | a buy or sell priced in a third currency is refused | #1318 |
+| #1196 | the history derives a first import's missing settlement legs, journaled | #1318 |
+| #928 | a bond's coupon is its position's income (computation version 4) | #1318 |
+| #1188 | a refund the row's cash leg cannot carry is a named row error, and the rest previews | #1318 |
+| #1193 | the correction lists a stored refusal without a confirm | #1318 |
+| #1194 | the correction names a booking edited by hand and keeps it | #1318 |
+| #1205 | the correction matches a drifted re-export by its figures, with a confirm | #1318 |
+| #1195 | the rename probe releases a name the dry run finds all booked | #1318 |
+| #1209 | the history's Betrag says what it counts | #1318 |
+| #1212 | a holding's Einstand and a closed trade's basis say what they count | #1318 |
+| #1214 | an account move and a cash merge no longer deadlock | #1296 |
+| #1052 | the booking drawer books and corrects a dividend, a deposit or a fee in place (with #1206) | #1318 |
+
+**What stays open:** #1177's two Portfolio Performance types,
+`INTEREST_CHARGE` and `FEE_REFUND`. The import books no fee refund yet; such a
+row is a named row error in the preview, never booked silently. Its answer is
+two new ledger kinds by an ADR-0028 amendment.
+
+**Found by the round trips and filed, not built:** #1313 (`Decide:`), the
+Imports page books into the default portfolio, so a file already imported
+into another portfolio is booked again there.
+
+### The count
+
+The plan's fourth exit criterion, fewer than 60 open issues at the close-out,
+**fails**:
+
+- **186 open** at this record, read through the API on 2026-11-01: agentic
+  136 (six of them also `needs-decision`), `needs-decision` 7, tracking 6,
+  `needs-uat` 2, and 41 filed by the closing acts without a label yet.
+- **75 close by the three PRs' keywords** (14, 21 and about 40), which leaves
+  **about 111** after the merges.
+- **Where it failed:** the filing, not the closing. The sprint filed 95 issues
+  since the amendment's planning merge, against the 34 the plan's arithmetic
+  allowed; every finding beside a story was filed as a thin pointer, as
+  `AGENTS.md`'s "stay in scope" orders. Nothing was withheld to make the
+  count.
+- **Open questions:** seven issues carry `needs-decision`; four more are
+  titled "Decide:" without the label yet (#1308, #1309, #1313, #1319).
+
+### Upgrade notes of the three merges
+
+Take a database backup first, as the deployment guide's "Upgrade" section
+says.
+
+- **The sprint PR #1296** (the deployment guide and `SECURITY.md` say each):
+  - the companion's image runs Node 26 (26.13.0, the LTS release), and a
+    from-source companion needs Node 26;
+  - CI's live-feed audits run as a job of their own, `advisories`, so a new
+    advisory turns that job red, not the whole quality job;
+  - a release refuses to boot on an empty, placeholder, short or missing
+    database password, on a `DATABASE_URL` it cannot read or that contradicts
+    `DATABASE_SSL`, on a Unix-socket URL, and on a bad
+    `DATABASE_SSL_CA_FILE` (`sslmode=require` now verifies);
+  - it warns at start on an overbroad trusted-proxy block, a token with few
+    distinct characters, an unread protective switch and a non-positive
+    stored exchange rate; the companion refuses to start when Node's proxy
+    would carry its API calls and `NO_PROXY` does not name the API host;
+  - the listener bounds itself (body 2,000,000 bytes, nesting, socket
+    frames), and the guide puts the header-phase deadline on the reverse
+    proxy; Compose services rotate their logs.
+- **Stacked PR 1 #1318:** run `mix portfolixir.backfill_settlement_legs`
+  once, or the Trades tab's rate backfill, if the instance holds a
+  cross-currency import made before it. Every derived leg is journaled;
+  third-currency rows and rows carrying any leg are never rewritten.
+- **Stacked PR 2:** none beyond the screens.
+
+**The checks only the owner can run** (above) stand, with #1318's backfill
+added to the upgrade, and two questions on the PRs: T-19 on #1296 (the
+stored cross-currency trades with a rate and neither amount) and A12 on #1318
+(a booking made by hand and the correction's figure match).
