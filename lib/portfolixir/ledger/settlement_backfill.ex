@@ -25,8 +25,12 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   (ADR-0017) — a one-time data repair, not a silent mutation. A row whose
   booking date has no stored rate is **skipped and counted**, never guessed
   (ADR-0033 requirement 4): its decomposition stays honestly unavailable
-  until a rate for that date is stored and the backfill is re-run. Re-running
-  is safe — rows with a `security_amount` are never touched again.
+  until a rate for that date is stored and the backfill is re-run. A row
+  whose trade amount is zero (a buy booked at a price of 0, a free allotment)
+  is **skipped and counted apart** (#1311): it has no ratio to store as a
+  rate, and no stored rate changes that, so it is never counted as waiting
+  for one. Re-running is safe — rows with a `security_amount` are never
+  touched again.
 
   Invoked via `mix portfolixir.backfill_settlement_legs`, and as the last
   step of every history backfill that stores rates
@@ -45,7 +49,9 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   @doc """
   Runs the backfill. Returns `{:ok, summary}` with `updated`,
   `skipped_no_rate`, `skipped_no_rate_rows` (transaction ids with their
-  dates, so the skips are actionable) and `skipped_changed` (rows that
+  dates, so the skips are actionable), `skipped_zero_amount` and
+  `skipped_zero_amount_rows` (rows whose trade amount is zero, which no rate
+  converts into a leg, #1311) and `skipped_changed` (rows that
   gained a leg after the candidate read, whose cash, fees, taxes or another
   input of their legs changed since, or were deleted: each write re-checks
   under the row's lock that none of the three legs is stored and that the
@@ -58,7 +64,14 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   for that row, and a re-run picks it up.
   """
   def run(%Actor{} = actor) do
-    empty = %{updated: 0, skipped_no_rate: 0, skipped_no_rate_rows: [], skipped_changed: 0}
+    empty = %{
+      updated: 0,
+      skipped_no_rate: 0,
+      skipped_no_rate_rows: [],
+      skipped_zero_amount: 0,
+      skipped_zero_amount_rows: [],
+      skipped_changed: 0
+    }
 
     candidates()
     |> Enum.reduce_while({:ok, empty}, fn
@@ -79,6 +92,17 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
                 summary
                 | skipped_no_rate: summary.skipped_no_rate + 1,
                   skipped_no_rate_rows: summary.skipped_no_rate_rows ++ [row]
+              }}}
+
+          {:ok, :zero_amount} ->
+            row = %{transaction_id: transaction.id, date: transaction.date}
+
+            {:cont,
+             {:ok,
+              %{
+                summary
+                | skipped_zero_amount: summary.skipped_zero_amount + 1,
+                  skipped_zero_amount_rows: summary.skipped_zero_amount_rows ++ [row]
               }}}
 
           {:error, :raced} ->
@@ -124,6 +148,17 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
         transaction.taxes
       ) || Decimal.mult(transaction.quantity, transaction.price)
 
+    # #1311: a zero amount (a free allotment) converts to zero at any rate,
+    # and zero over zero is no rate to store; whether its date has a rate is
+    # beside the point, so it is counted apart, before any rate is read.
+    if Decimal.equal?(settlement_amount, 0) do
+      {:ok, :zero_amount}
+    else
+      derive_row(actor, transaction, settlement_amount)
+    end
+  end
+
+  defp derive_row(actor, transaction, settlement_amount) do
     case Fx.convert(
            settlement_amount,
            transaction.currency_code,
@@ -132,7 +167,7 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
          ) do
       {:ok, %Decimal{} = security_amount} ->
         if Decimal.equal?(security_amount, 0) do
-          {:ok, :no_rate}
+          {:ok, :zero_amount}
         else
           apply_update(actor, transaction, settlement_amount, security_amount)
         end

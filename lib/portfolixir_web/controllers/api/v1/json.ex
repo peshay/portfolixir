@@ -2236,6 +2236,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       derived: legs.derived,
       skipped_no_rate: legs.skipped_no_rate,
       skipped_changed: legs.skipped_changed,
+      # #1311: a zero amount (a free allotment), apart from a missing rate.
+      skipped_zero_amount: Map.get(legs, :skipped_zero_amount),
       stopped_at_transaction_id: Map.get(legs, :stopped_at_transaction_id)
     }
   end

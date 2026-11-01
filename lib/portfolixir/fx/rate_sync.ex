@@ -109,9 +109,11 @@ defmodule Portfolixir.Fx.RateSync do
 
   `settlement_legs` counts the legs the run derived once its rates were
   stored (#1196): `%{status: :completed, derived: n, skipped_no_rate: n,
-  skipped_changed: n}` (`skipped_changed`: rows that gained a leg after the
-  run read them, whose cash or another input of their legs changed since,
-  or were deleted); `%{status: :not_run, ...}` with every
+  skipped_changed: n, skipped_zero_amount: n}` (`skipped_changed`: rows that
+  gained a leg after the run read them, whose cash or another input of their
+  legs changed since, or were deleted; `skipped_zero_amount`: rows whose
+  trade amount is zero, a free allotment, which no rate converts into a leg,
+  #1311); `%{status: :not_run, ...}` with every
   count 0 when it stored no rate; or, when the ledger refused a row,
   `%{status: :stopped, ...}` with every count nil and
   `stopped_at_transaction_id: id`, the rates stored all the same.
@@ -259,15 +261,28 @@ defmodule Portfolixir.Fx.RateSync do
   # Without a stored rate the derivation does not run. The daily sync never
   # reaches here, so it derives no legs (the amendment's limit).
   defp derive_settlement_legs(0),
-    do: %{status: :not_run, derived: 0, skipped_no_rate: 0, skipped_changed: 0}
+    do: %{
+      status: :not_run,
+      derived: 0,
+      skipped_no_rate: 0,
+      skipped_changed: 0,
+      skipped_zero_amount: 0
+    }
 
   defp derive_settlement_legs(_upserted) do
     case SettlementBackfill.run(Actor.system_job("settlement_backfill")) do
-      {:ok, %{updated: derived, skipped_no_rate: skipped, skipped_changed: changed}} ->
-        if derived + skipped + changed > 0 do
+      {:ok,
+       %{
+         updated: derived,
+         skipped_no_rate: skipped,
+         skipped_changed: changed,
+         skipped_zero_amount: zero
+       }} ->
+        if derived + skipped + changed + zero > 0 do
           Logger.info(
             "fx history backfill derived #{derived} settlement leg(s); " <>
               "#{skipped} booking(s) still have no rate for their date, " <>
+              "#{zero} have a zero amount no rate converts, " <>
               "#{changed} gained a leg or were deleted meanwhile"
           )
         end
@@ -276,7 +291,8 @@ defmodule Portfolixir.Fx.RateSync do
           status: :completed,
           derived: derived,
           skipped_no_rate: skipped,
-          skipped_changed: changed
+          skipped_changed: changed,
+          skipped_zero_amount: zero
         }
 
       {:error, {transaction_id, reason}} ->
@@ -290,6 +306,7 @@ defmodule Portfolixir.Fx.RateSync do
           derived: nil,
           skipped_no_rate: nil,
           skipped_changed: nil,
+          skipped_zero_amount: nil,
           stopped_at_transaction_id: transaction_id
         }
     end

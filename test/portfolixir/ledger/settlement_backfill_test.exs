@@ -145,6 +145,71 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
     assert is_nil(reloaded.settlement_fx_rate)
   end
 
+  # User story (#1311, Sprint 22 R5):
+  # As a maintainer whose import carries a free allotment, a buy booked at a
+  # price of 0,
+  # I want the backfill to count it apart from the rows still waiting for a
+  # rate, and to name it,
+  # so that its answer never asks for a rate that is already stored and that
+  # no re-run can make useful.
+  #
+  # Acceptance criteria:
+  # - With EUR→USD stored for 2026-01-16, a EUR-booked buy of 5 of the USD
+  #   security at 0.00 (no cash) beside an ordinary buy of 10 at 80.00: the
+  #   run derives the ordinary row (800.00 EUR, 1,000.00 USD, 0.800000),
+  #   counts skipped_no_rate 0 with no row named, and skipped_zero_amount 1,
+  #   naming the free allotment by its id and date. Before: skipped_no_rate
+  #   1, the allotment named as having no rate.
+  # - A free allotment dated before any rate is a zero amount too, not a
+  #   missing rate: no rate could give it a leg.
+  # - The allotment keeps no leg and no journal entry; a re-run counts it the
+  #   same way and writes nothing.
+  # - The task prints "skipped (zero amount): 1" and names the row.
+  test "a zero-amount row is counted apart from a missing rate (#1311)" do
+    w = world()
+    seed_rate!(~D[2026-01-16], "1.25")
+    ordinary = legacy_import_buy!(w)
+    allotment = legacy_import_buy!(w, quantity: "5", price: "0")
+    early = legacy_import_buy!(w, quantity: "2", price: "0", date: ~D[2025-11-03])
+
+    assert {:ok, summary} = SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+    assert summary.updated == 1
+    assert summary.skipped_no_rate == 0
+    assert summary.skipped_no_rate_rows == []
+    assert summary.skipped_changed == 0
+    assert summary.skipped_zero_amount == 2
+
+    assert summary.skipped_zero_amount_rows == [
+             %{transaction_id: early.id, date: ~D[2025-11-03]},
+             %{transaction_id: allotment.id, date: ~D[2026-01-16]}
+           ]
+
+    derived = Ledger.get_transaction(ordinary.id)
+    assert Decimal.equal?(derived.settlement_amount, Decimal.new("800.00"))
+    assert Decimal.equal?(derived.security_amount, Decimal.new("1000.00"))
+    assert Decimal.to_string(derived.settlement_fx_rate) == "0.800000"
+
+    for row <- [allotment, early] do
+      assert legs(Ledger.get_transaction(row.id)) == {nil, nil, nil}
+    end
+
+    assert backfill_updates([allotment.id, early.id]) == []
+
+    assert {:ok, rerun} = SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+    assert rerun.updated == 0
+    assert rerun.skipped_no_rate == 0
+    assert rerun.skipped_zero_amount == 2
+    assert backfill_updates([allotment.id, early.id]) == []
+
+    output = ExUnit.CaptureIO.capture_io(fn -> BackfillSettlementLegs.run([]) end)
+    assert output =~ "skipped (no rate):     0\n"
+    assert output =~ "skipped (zero amount): 2\n"
+
+    assert output =~
+             "skipped transaction ##{allotment.id} (2026-01-16): a zero amount, " <>
+               "which no rate converts into a leg"
+  end
+
   # User story (counter-metric):
   # As a maintainer with ordinary same-currency rows and already-settled
   # ADR-0015 rows,
@@ -220,6 +285,14 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         order_by: [asc: e.id]
       )
     )
+  end
+
+  # The journal entries the backfill wrote for these rows: none for a row it
+  # passed over.
+  defp backfill_updates(transaction_ids) do
+    transaction_ids
+    |> journal_entries()
+    |> Enum.filter(&(&1.operation == :update))
   end
 
   defp legs(%Transaction{} = transaction) do
