@@ -4699,7 +4699,7 @@ msgstr "Für dieses Wertpapier ist kein Preis verfügbar."
 #: lib/portfolixir_web/live/transaction_management_live.ex:1888
 #, elixir-autogen, elixir-format
 msgid "No security-currency cost is derivable from the recorded booking (no settlement legs, no stored rate at the booking date)."
-msgstr "Aus der erfassten Buchung ist kein Einstand in Wertpapierwährung ableitbar (keine Abrechnungsbeine, kein gespeicherter Kurs am Buchungstag)."
+msgstr "Aus der erfassten Buchung ist kein Einstand in Wertpapierwährung ableitbar (keine Abrechnungsbeine, kein gespeicherter Wechselkurs am Buchungstag)."
 
 #: lib/portfolixir_web/live/securities_live.ex:3568
 #, elixir-autogen, elixir-format
@@ -12346,7 +12346,7 @@ msgstr[1] "%{count} Zahlungen konnten nicht umgerechnet werden — kein gespeich
 #: lib/portfolixir_web/live/income_live.ex:911
 #, elixir-autogen, elixir-format
 msgid "Dividends and interest booked in the ledger for this portfolio; the other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet. Amounts converted to %{currency} via the EUR hub at the most recent stored rate on or before each booking date; a payment with no such rate is excluded and named. Original currency retained."
-msgstr "Im Ledger gebuchte Dividenden und Zinsen dieses Portfolios; die drei anderen Facetten umfassen alle Portfolios — bei mehr als einem Portfolio sind ihre Zahlen also weiter gefasst als diese. Ohne realisierte Gewinne aus Verkäufen, Ein- und Auszahlungen sowie Kosten — jede hat ihre eigene Cashflow-Facette. Beträge über den EUR-Hub zum letzten gespeicherten Kurs an oder vor dem jeweiligen Buchungsdatum in %{currency} umgerechnet; eine Zahlung ohne solchen Kurs ist ausgeschlossen und genannt. Originalwährung beibehalten."
+msgstr "Im Ledger gebuchte Dividenden und Zinsen dieses Portfolios; die drei anderen Facetten umfassen alle Portfolios — bei mehr als einem Portfolio sind ihre Zahlen also weiter gefasst als diese. Ohne realisierte Gewinne aus Verkäufen, Ein- und Auszahlungen sowie Kosten — jede hat ihre eigene Cashflow-Facette. Beträge über den EUR-Hub zum letzten gespeicherten Wechselkurs an oder vor dem jeweiligen Buchungsdatum in %{currency} umgerechnet; eine Zahlung ohne solchen Wechselkurs ist ausgeschlossen und genannt. Originalwährung beibehalten."
 
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:98
 #, elixir-autogen, elixir-format

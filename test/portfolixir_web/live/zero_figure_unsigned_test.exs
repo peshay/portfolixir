@@ -290,12 +290,13 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
 
     # User story (#1149, review SF-1):
     # As the operator scanning the securities list,
-    # I want a day change of +0.004 % to read "0.00 %" uncoloured,
+    # I want a day change of +0.004 % to read "0.0%" (issue 1201's one-decimal
+    # form) uncoloured,
     # so that the list agrees with its own digits.
     #
     # Acceptance criteria:
-    # - The day-change cell's figure reads "0.00 %" and carries
-    #   `decimal-neutral`, never `decimal-positive`.
+    # - The day-change cell's figure reads "0.0%" and carries `is-flat`,
+    #   never `decimal-positive`.
     test "the securities list's day change", %{conn: conn} do
       stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
       today = Clock.today()
@@ -307,10 +308,10 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
         view
         |> document()
         |> Floki.find("table span")
-        |> Enum.filter(&(text([&1]) == "0.00 %"))
+        |> Enum.filter(&(text([&1]) == "0.0%"))
 
       assert [_ | _] = figures
-      assert Enum.map(figures, &classes([&1])) |> Enum.uniq() == ["decimal-neutral"]
+      assert Enum.map(figures, &classes([&1])) |> Enum.uniq() == ["is-flat"]
     end
 
     # User story (#1149, review SF-1):
