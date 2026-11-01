@@ -265,6 +265,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 102_911,
     book: 171_982,
     full: 206_537
+  },
+  {
+    since: "2026-11-01",
+    why:
+      "Sprint 21, stacked PR 2 (the UI batch): the Costs read's month totals paid their bytes in " +
+      "the same tool, and the ceilings are lowered once, at the end, to the figures measured " +
+      "with the whole PR (the amendment's D-9; D-10's rule)",
+    read: 102_909,
+    book: 171_980,
+    full: 206_535
   }
 ];
 

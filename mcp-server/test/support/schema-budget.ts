@@ -271,6 +271,16 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 102911,
     book: 171982,
     full: 206537
+  },
+  {
+    since: "2026-11-01",
+    why:
+      "Sprint 21, stacked PR 2 (the UI batch): the Costs read's month totals paid their bytes in " +
+      "the same tool, and the ceilings are lowered once, at the end, to the figures measured " +
+      "with the whole PR (the amendment's D-9; D-10's rule)",
+    read: 102909,
+    book: 171980,
+    full: 206535
   }
 ];
 
