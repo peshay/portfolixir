@@ -181,6 +181,72 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
     end
   end
 
+  # User story (#1180 correction's pending cue; the γ closing act's
+  # accessibility pass, A-F7):
+  # As the operator reading the import correction's "comparing by date and
+  # figures" while the dry run runs,
+  # I want the pending cue inside the attention note to clear the text
+  # floor in dark mode,
+  # so that the one word that says the list is not final is readable: the
+  # muted cue measured 4.22:1 on the note's dark tint.
+  #
+  # Acceptance criteria:
+  # - Inside a data note the cue inherits the note's ink
+  #   (`.data-note .recomputing-cue { color: inherit; }`): the attention
+  #   note's warning on its tint, the note-severity note's muted ink on its
+  #   well (unchanged).
+  # - The attention ink clears 4.5:1 on its tint composited over the canvas
+  #   and over the panel, in all four token blocks.
+  # - DESIGN.md's computed contrast table carries the cue's rows, light and
+  #   dark, each figure the one computed here from app.css.
+  test "the pending cue inside an attention note clears the text floor" do
+    assert @css =~ ~r/\n\.data-note \.recomputing-cue \{\s*color: inherit;\s*\}/
+
+    assert @css =~
+             ~r/\n\.data-note--attention \{[^}]*background: var\(--color-warning-soft\);[^}]*color: var\(--color-warning\);/
+
+    for {block_name, tokens} <- [
+          {":root", root()},
+          {~s([data-theme="light"]), light()},
+          {"prefers-color-scheme: dark", dark_media()},
+          {~s([data-theme="dark"]), dark()}
+        ],
+        base <- ~w(color-bg-elevated color-bg) do
+      tint = flatten(color(tokens, "color-warning-soft"), color(tokens, base))
+      ratio = contrast(color(tokens, "color-warning"), tint)
+
+      assert ratio >= @bar,
+             "#{block_name}: the cue's warning on warning-soft over #{base} measures " <>
+               "#{Float.round(ratio, 2)}:1"
+    end
+
+    rows =
+      "_bmad-output/planning-artifacts/design-language/DESIGN.md"
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.filter(&String.starts_with?(&1, "| "))
+
+    {light, night} = {root(), dark_media()}
+
+    expected = [
+      {"recomputing-cue in an attention note, warning #b45309 / warning-soft over bg-elevated",
+       color(light, "color-warning"),
+       flatten(color(light, "color-warning-soft"), color(light, "color-bg-elevated"))},
+      {"recomputing-cue in an attention note, warning-dark #fbbf24 / warning-soft-dark over bg-elevated-dark",
+       color(night, "color-warning"),
+       flatten(color(night, "color-warning-soft"), color(night, "color-bg-elevated"))}
+    ]
+
+    for {pair, ink, ground} <- expected do
+      figure = :erlang.float_to_binary(contrast(ink, ground), decimals: 2)
+      row = Enum.find(rows, &String.starts_with?(&1, "| #{pair} |")) || flunk("no row: #{pair}")
+      [_pair, ratio | _] = row |> String.split("|", trim: true) |> Enum.map(&String.trim/1)
+
+      assert String.trim(ratio, "*") == figure,
+             "#{pair}: the table says #{ratio}, app.css #{figure}"
+    end
+  end
+
   # --- tokens ----------------------------------------------------------------
 
   defp root, do: tokens(~r/\A:root \{(.*?)\n\}/s)
