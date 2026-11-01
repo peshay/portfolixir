@@ -226,7 +226,14 @@ Its exit criteria:
 
 **No criterion counts open issues** (the sprint workflow's §3 as amended;
 Sprint 21's retrospective). The count after Lane Z is reported, not judged:
-about 27 open, of which 12 are polish trackers.
+66 open (the 39 issues this sprint builds, 7 that stay open, 2 `needs-uat`
+and 18 trackers, 12 of them polish trackers). About 27 remain after this
+sprint's keywords close its 39.
+
+*Corrected 2026-11-01 by the implementation session:* this sentence first
+read "about 27 open, of which 12 are polish trackers" for the count after
+Lane Z. That was the count after this sprint's merges; the count after Lane
+Z, recounted when Lane Z finished, is 66.
 
 **To flip by comment:** name a criterion to drop or add.
 
@@ -457,3 +464,27 @@ The story that builds each surface writes its anatomy into `DESIGN.md`.
    with whether it carries it.
 8. The close-out's two counts: the regressions the sprint introduced and
    the older findings, by severity.
+
+## Implementation checklist (kept by the implementation session)
+
+The implementation session's state, ticked as each commit group lands on
+`agent/claude/sprint-22` (the sprint PR) or `agent/claude/sprint-22-ui`
+(the stacked PR). Lane Z was done by the planning session: polish trackers
+#1355 to #1366.
+
+Sprint PR:
+
+- [ ] F1 #1345 · [ ] F2 #1268 · [ ] F3 #1273 · [ ] three green CI runs on Lane F's head
+- [ ] M: BMAD re-pin · [ ] #1346 · [ ] #1347 · [ ] #1348 · [ ] version report
+- [ ] R1 #1291 · [ ] R2 #1269 #1272 #1271 · [ ] R3 #1306 #1305 #1307 #1219
+- [ ] R4 #1313 · [ ] R5 #1310 #1311 #1317 · [ ] R6 #1292 #1290
+- [ ] R7 #1309 · [ ] R8 #1316 #1332 #1331 · [ ] R9 #1274 #1293
+- [ ] R10 #1335 #1337
+- [ ] closing act and its fixes · [ ] briefing · [ ] promotion
+
+Stacked PR:
+
+- [ ] A1 #1254 · [ ] A2 #1294 #1295 · [ ] A3 #1301 #1315 · [ ] A4 #957
+- [ ] U1 #1299 · [ ] U2 #1333 · [ ] U3 #1330 · [ ] U4 #1343
+- [ ] I #1351 #1350 #1336 #1342
+- [ ] closing act and its fixes · [ ] close-out · [ ] briefing · [ ] promotion
