@@ -417,10 +417,14 @@ defmodule PortfolixirWeb.Router do
     # the per-portfolio fan-out, and the delete removes it whole from any of
     # its rows (Sprint 18 U1, #912).
     post("/splits/preview", SplitController, :preview)
+    # #1292: the read-only check of split events missing a positioned
+    # portfolio, beside #1290's rate-only trades (reads only, Sprint 22 R6).
+    get("/splits/incomplete", LedgerDataQualityController, :incomplete_splits)
     post("/splits", SplitController, :create)
     delete("/splits/:transaction_id", SplitController, :delete)
 
     get("/transactions", TransactionController, :index)
+    get("/transactions/rate_only", LedgerDataQualityController, :rate_only_trades)
     post("/transactions", TransactionController, :create)
     get("/transactions/:id", TransactionController, :show)
     patch("/transactions/:id", TransactionController, :update)

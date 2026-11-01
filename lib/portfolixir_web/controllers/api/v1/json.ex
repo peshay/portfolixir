@@ -811,6 +811,74 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   end
 
   @doc """
+  Serializes the split events missing a positioned portfolio (#1292): the
+  ratio parts stay integers, each missing portfolio's quantity entering the
+  date is a Decimal string.
+  """
+  def incomplete_splits(report) do
+    %{
+      as_of: date(report.as_of),
+      note: report.note,
+      remedy: report.remedy,
+      rows:
+        Enum.map(report.rows, fn row ->
+          %{
+            security_id: row.security_id,
+            security_name: row.security_name,
+            isin: row.isin,
+            date: date(row.date),
+            ratio_numerator: row.ratio_numerator,
+            ratio_denominator: row.ratio_denominator,
+            booked_portfolio_ids: row.booked_portfolio_ids,
+            transaction_ids: row.transaction_ids,
+            missing_portfolios:
+              Enum.map(row.missing_portfolios, fn missing ->
+                %{
+                  portfolio_id: missing.portfolio_id,
+                  portfolio_name: missing.portfolio_name,
+                  quantity_before: decimal(missing.quantity_before)
+                }
+              end)
+          }
+        end)
+    }
+  end
+
+  @doc """
+  Serializes the stored rate-only cross-currency trades (#1290): every
+  financial figure a Decimal string.
+  """
+  def rate_only_trades(report) do
+    %{
+      as_of: date(report.as_of),
+      note: report.note,
+      remedy: report.remedy,
+      rows:
+        Enum.map(report.rows, fn row ->
+          %{
+            id: row.id,
+            portfolio_id: row.portfolio_id,
+            security_id: row.security_id,
+            security_name: row.security_name,
+            cash_account_id: row.cash_account_id,
+            cash_account_currency_code: row.cash_account_currency_code,
+            date: date(row.date),
+            type: row.type,
+            currency_code: row.currency_code,
+            quantity: decimal(row.quantity),
+            price: decimal(row.price),
+            fees: decimal(row.fees),
+            taxes: decimal(row.taxes),
+            settlement_fx_rate: decimal(row.settlement_fx_rate),
+            booked_cash: decimal(row.booked_cash),
+            expected_cash: decimal(row.expected_cash),
+            difference: decimal(row.difference)
+          }
+        end)
+    }
+  end
+
+  @doc """
   Serializes a `Portfolixir.Portfolios.Reconcile` result (ADR-0029 §6): the
   self-describing basis, the verbatim resolution guidance, matched rows with
   their `matched_via` tier and Decimal-string quantities/delta, ambiguous rows

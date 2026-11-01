@@ -60,9 +60,11 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.create",
       "portfolixir.transactions.update",
       "portfolixir.transactions.delete",
+      "portfolixir.transactions.rate_only",
       "portfolixir.splits.preview",
       "portfolixir.splits.create",
       "portfolixir.splits.delete",
+      "portfolixir.splits.incomplete",
       "portfolixir.holdings.list",
       "portfolixir.cashflow.realized_gains",
       "portfolixir.cashflow.external_flows",
@@ -1079,6 +1081,80 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].token, "Bearer api-token");
     assert.match(result.content[0].text, /-400/);
     assert.match(result.content[0].text, /Doomed Co./);
+  });
+
+  // User story (#1292):
+  // As the operating LLM agent,
+  // I want the stored split events that miss a positioned portfolio as a
+  // read-only tool,
+  // so that a portfolio whose lots a split scales while its holding stays
+  // unscaled is visible to me, with the remedy the API states.
+  //
+  // Acceptance criteria:
+  // - portfolixir.splits.incomplete is a read-only GET of
+  //   /api/v1/splits/incomplete, takes no argument, and passes the rows,
+  //   Decimal strings included, through unchanged.
+  it("issues a GET to /splits/incomplete for portfolixir.splits.incomplete", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        as_of: "2026-11-01",
+        note: "split events missing a portfolio",
+        remedy: "Book the same split again through the split flow",
+        rows: [
+          {
+            security_id: 9,
+            security_name: "Split Gap Co",
+            isin: null,
+            date: "2026-02-02",
+            ratio_numerator: 2,
+            ratio_denominator: 1,
+            booked_portfolio_ids: [1],
+            transaction_ids: [41],
+            missing_portfolios: [{ portfolio_id: 2, portfolio_name: "Portfolio B", quantity_before: "7.5" }]
+          }
+        ]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.splits.incomplete", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/splits/incomplete");
+    assert.match(result.content[0].text, /"quantity_before":\s*"7\.5"/);
+
+    const definition = listTools().find((tool) => tool.name === "portfolixir.splits.incomplete");
+    assert.equal(definition?.annotations?.readOnlyHint, true);
+  });
+
+  // User story (#1290):
+  // As the operating LLM agent,
+  // I want the stored cross-currency trades with a settlement rate and
+  // neither amount as a read-only tool,
+  // so that T-19's rows reach me without a console, with the remedy the API
+  // states.
+  //
+  // Acceptance criteria:
+  // - portfolixir.transactions.rate_only is a read-only GET of
+  //   /api/v1/transactions/rate_only, takes no argument, and passes the rows,
+  //   Decimal strings included, through unchanged.
+  it("issues a GET to /transactions/rate_only for portfolixir.transactions.rate_only", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        as_of: "2026-11-01",
+        note: "trades with a settlement rate and neither amount",
+        remedy: "Record the cash the broker settled as the trade's gross_amount",
+        rows: [{ id: 41, booked_cash: "2004.9", expected_cash: "2004.908", difference: "-0.008" }]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.transactions.rate_only", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/transactions/rate_only");
+    assert.match(result.content[0].text, /"difference":\s*"-0\.008"/);
+
+    const definition = listTools().find((tool) => tool.name === "portfolixir.transactions.rate_only");
+    assert.equal(definition?.annotations?.readOnlyHint, true);
   });
 
   // User story:
