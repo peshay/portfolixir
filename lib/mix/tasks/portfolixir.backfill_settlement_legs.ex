@@ -23,7 +23,8 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
   runs (counted as "skipped (changed)", with a row deleted meanwhile; a
   re-run derives the edited row). Rows whose booking date has no stored rate are
   skipped and listed — store a rate for that date and re-run; nothing is
-  ever guessed.
+  ever guessed. Rows whose trade amount is zero (a free allotment) are
+  skipped and listed apart: no rate converts them into a leg (#1311).
   """
 
   use Mix.Task
@@ -43,6 +44,7 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
         Settlement-leg backfill complete:
           rows updated:          #{summary.updated}
           skipped (no rate):     #{summary.skipped_no_rate}
+          skipped (zero amount): #{summary.skipped_zero_amount}
           skipped (changed):     #{summary.skipped_changed}
         """)
 
@@ -50,6 +52,13 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
           Mix.shell().info(
             "  skipped transaction ##{row.transaction_id} (#{row.date}): " <>
               "no stored rate at or before the booking date"
+          )
+        end)
+
+        Enum.each(summary.skipped_zero_amount_rows, fn row ->
+          Mix.shell().info(
+            "  skipped transaction ##{row.transaction_id} (#{row.date}): " <>
+              "a zero amount, which no rate converts into a leg"
           )
         end)
 

@@ -740,7 +740,13 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
                  history: series
                )
 
-      assert counts == %{status: :completed, derived: 2, skipped_no_rate: 0, skipped_changed: 0}
+      assert counts == %{
+               status: :completed,
+               derived: 2,
+               skipped_no_rate: 0,
+               skipped_changed: 0,
+               skipped_zero_amount: 0
+             }
 
       for buy <- fresh_buys do
         assert stored_legs(Repo.get!(Transaction, buy.id)) ==
@@ -822,7 +828,14 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
         )
 
       assert {:ok, %{settlement_legs: counts}} = result
-      assert counts == %{status: :completed, derived: 1, skipped_no_rate: 0, skipped_changed: 1}
+
+      assert counts == %{
+               status: :completed,
+               derived: 1,
+               skipped_no_rate: 0,
+               skipped_changed: 1,
+               skipped_zero_amount: 0
+             }
 
       assert stored_legs(Repo.get!(Transaction, kept.id)) ==
                {"800.000000", "1000.000000", "0.800000"}

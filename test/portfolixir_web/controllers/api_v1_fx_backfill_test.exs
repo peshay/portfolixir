@@ -128,6 +128,8 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
                "derived" => 0,
                "skipped_no_rate" => 0,
                "skipped_changed" => 0,
+               # #1311: a zero amount, counted apart from a missing rate.
+               "skipped_zero_amount" => 0,
                "stopped_at_transaction_id" => nil
              }
            }
@@ -231,8 +233,24 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
   #   and a second one dated before any rate, answers settlement_legs
   #   {status "completed", derived 1, skipped_no_rate 1}; the first buy now
   #   carries 800.00 EUR, 1,000.00 USD and 0.800000.
+  # - #1311: a free allotment beside them, a buy of 3 at 0.00 on the rate's
+  #   day, is counted under skipped_zero_amount 1, not skipped_no_rate, and
+  #   keeps no leg. Before: skipped_no_rate 2.
   test "scope=history answers the settlement legs it derived and skipped", %{conn: conn} do
     buy = legless_import_buy!()
+
+    {:ok, allotment} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: buy.portfolio_id,
+        securities_account_id: buy.securities_account_id,
+        cash_account_id: buy.cash_account_id,
+        security_id: buy.security_id,
+        type: "buy",
+        date: ~D[2026-01-21],
+        quantity: "3",
+        price: "0",
+        currency_code: "EUR"
+      })
 
     {:ok, early} =
       Ledger.create_transaction(Actor.owner_ui(), %{
@@ -257,8 +275,11 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              "derived" => 1,
              "skipped_no_rate" => 1,
              "skipped_changed" => 0,
+             "skipped_zero_amount" => 1,
              "stopped_at_transaction_id" => nil
            }
+
+    assert Ledger.get_transaction(allotment.id).security_amount == nil
 
     derived = Ledger.get_transaction(buy.id)
     assert Decimal.to_string(derived.settlement_amount) == "800.000000"
@@ -297,6 +318,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              "derived" => nil,
              "skipped_no_rate" => nil,
              "skipped_changed" => nil,
+             "skipped_zero_amount" => nil,
              "stopped_at_transaction_id" => buy.id
            }
 
@@ -320,6 +342,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              "derived" => 1,
              "skipped_no_rate" => 0,
              "skipped_changed" => 0,
+             "skipped_zero_amount" => 0,
              "stopped_at_transaction_id" => nil
            }
 
