@@ -135,6 +135,34 @@ defmodule Portfolixir.Invariants.CssSharedComponentsTest do
     refute @css =~ ~r/\n\.logo-override__choose:focus-within \{/
   end
 
+  # User story (#1166 accessibility pass, Sprint 21 γ8; the γ closing act,
+  # A-F6):
+  # As the keyboard operator,
+  # I want every link-button, every link inside a data note and the search
+  # fields to draw the house's 2 px accent ring,
+  # so that "Anders zuordnen…", "Anderes Wertpapier suchen…", the archived
+  # note's "Aktivieren", the bond links in the two-scales notes and the
+  # picker's searchbox show the focus as every other control does, not the
+  # browser's `auto 1px` ring or none at all.
+  #
+  # Acceptance criteria:
+  # - One top-level rule names `.link-button:focus-visible`,
+  #   `.data-note a:focus-visible` and `.search-field:focus-within` and
+  #   draws the 2 px accent outline at a 2 px offset.
+  # - The search field's input keeps `outline: none`: the field, which holds
+  #   the glyph and the input, draws the ring around both.
+  test "link-buttons, links in a note and the search fields draw the house ring" do
+    [_, body] =
+      Regex.run(
+        ~r/\n\.link-button:focus-visible,\n\.data-note a:focus-visible,\n\.search-field:focus-within \{([^}]*)\}/,
+        @css
+      ) || flunk("no shared focus rule for link-buttons, note links and search fields")
+
+    assert body =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert body =~ ~r/outline-offset:\s*2px;/
+    assert block(".search-field input") =~ ~r/outline:\s*none;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body
