@@ -51,6 +51,31 @@ defmodule Portfolixir.WriteActorTest do
   # Writers of allowlisted market-data tables (never journaled, ADR-0017).
   @allowlisted_writers MapSet.new([{Portfolixir.Fx, :upsert_many, 1}])
 
+  # System-job writers (#1269): writes no person or token asks for — the boot
+  # seed of the built-in trees and the two background logo jobs. Each journals
+  # under a fixed `Actor.system_job/1` inside its own body, because a job has
+  # no requester whose actor it could take. Excluded by class, not
+  # grandfathered, and held to that class below: no web-layer module (the
+  # pages, the JSON API the MCP companion calls) may call one, or a request
+  # would write under the job's identity instead of its own, and each entry
+  # must still reach an `Actor.system_job/1` call and still be a writer.
+  @system_job_writers %{
+    {Portfolixir.Catalog, :put_logo_attributes, 2} =>
+      "the background logo discovery's write, journaled as system_job logo",
+    {Portfolixir.Catalog, :put_logo_file_mark, 3} =>
+      "the logo reconciliation's compare-and-set, journaled as system_job logo_reconcile",
+    {Portfolixir.Classifications, :ensure_builtins, 0} =>
+      "the idempotent seed of the built-in trees, journaled as system_job builtin_seed",
+    {Portfolixir.Classifications, :seed_builtins_on_boot, 0} =>
+      "the application start's config-gated call of ensure_builtins/0"
+  }
+
+  # The classifier must not pass vacuously (#1269): it once kept only the
+  # last call it visited in a body and so read 7 writers instead of 62. A
+  # count below this floor means it stopped seeing writers; raise the floor
+  # when writers are added, never lower it to make a red run pass.
+  @writer_floor 62
+
   # Pre-existing public context writers not yet actor-first (later leaf-first
   # slices: Portfolios/Classifications → Ledger → Imports). SHRINK-ONLY: a stale
   # entry (no longer a non-actor-first writer) fails this test, forcing removal as
@@ -178,6 +203,43 @@ defmodule Portfolixir.WriteActorTest do
              Enum.map_join(violations, "\n", &inspect/1)
   end
 
+  test "the classifier reads at least the known number of public writers" do
+    count = @context_files |> Map.keys() |> Enum.flat_map(&writers/1) |> length()
+
+    assert count >= @writer_floor,
+           "the classifier found #{count} public context writers, fewer than the " <>
+             "#{@writer_floor} known — it stopped seeing writers (#1269)"
+  end
+
+  test "every system-job writer is still a writer that journals under a system job" do
+    bad =
+      for {{module, name, arity} = entry, _reason} <- @system_job_writers,
+          not Enum.any?(writers(module), &match?({^name, ^arity, false}, &1)) or
+            not reaches_system_job?(module, name),
+          do: entry
+
+    assert bad == [],
+           "system-job entries that no longer write without an actor, or no longer " <>
+             "reach Actor.system_job/1 — remove or fix them:\n" <>
+             Enum.map_join(bad, "\n", &inspect/1)
+  end
+
+  test "no web-layer module calls a system-job writer" do
+    names =
+      MapSet.new(@system_job_writers, fn {{module, name, _}, _} -> {short(module), name} end)
+
+    callers =
+      for file <- Path.wildcard("lib/portfolixir_web/**/*.ex"),
+          call <- remote_calls(file |> File.read!() |> Code.string_to_quoted!()),
+          MapSet.member?(names, call),
+          do: {file, call}
+
+    assert callers == [],
+           "a web-layer module calls a system-job writer, so a request would write " <>
+             "under the job's identity — give the write path an actor:\n" <>
+             Enum.map_join(callers, "\n", &inspect/1)
+  end
+
   test "no grandfather entry is stale (the list only shrinks)" do
     current = current_non_actor_writers()
 
@@ -251,6 +313,50 @@ defmodule Portfolixir.WriteActorTest do
              ["securities"]
   end
 
+  # User story (#1269):
+  # As the maintainer of the audit journal,
+  # I want the classifier to call a function a writer when ANY node of its
+  # body is a Repo/Multi write, not only when the last node it visits is,
+  # so that the gate checks every public writer instead of the few whose
+  # final call happens to write.
+  #
+  # Acceptance criteria:
+  # - A write followed by a non-write call (a return value, a broadcast) is
+  #   still classified as a write, directly and through a local helper.
+  # - A function with no write anywhere is not a writer.
+  test "the classifier sees a write that is not the last call of a body" do
+    source = """
+    defmodule Synthetic do
+      def write_then_ok(attrs) do
+        Repo.insert!(attrs)
+        :ok
+      end
+
+      def write_then_call(attrs) do
+        {:ok, row} = Repo.update(attrs)
+        Phoenix.PubSub.broadcast(:pubsub, "topic", row)
+      end
+
+      def multi_then_commit(attrs) do
+        Multi.new() |> Multi.insert(:row, attrs) |> Repo.transaction()
+      end
+
+      def via_helper(attrs), do: helper(attrs) |> Enum.count()
+
+      def reader(id), do: Repo.get(Thing, id)
+
+      defp helper(attrs) do
+        Repo.delete_all(attrs)
+        Logger.info("deleted")
+      end
+    end
+    """
+
+    names = source |> writers_in() |> Enum.map(fn {name, _arity, _actor?} -> name end)
+
+    assert Enum.sort(names) == [:multi_then_commit, :via_helper, :write_then_call, :write_then_ok]
+  end
+
   defp classification_gaps(tables, extra_sets \\ []) do
     sets =
       [
@@ -277,7 +383,58 @@ defmodule Portfolixir.WriteActorTest do
 
   defp excluded?(module, name, arity) do
     key = {module, name, arity}
-    MapSet.member?(@migration_helpers, key) or MapSet.member?(@allowlisted_writers, key)
+
+    MapSet.member?(@migration_helpers, key) or MapSet.member?(@allowlisted_writers, key) or
+      Map.has_key?(@system_job_writers, key)
+  end
+
+  defp short(module), do: module |> Module.split() |> List.last() |> String.to_existing_atom()
+
+  # {last alias segment, function} of every remote call in `ast`.
+  defp remote_calls(ast) do
+    {_, calls} =
+      Macro.prewalk(ast, [], fn
+        {{:., _, [{:__aliases__, _, segs}, fun]}, _, _args} = node, acc when is_atom(fun) ->
+          {node, [{List.last(segs), fun} | acc]}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    calls
+  end
+
+  # Whether `name` in `module`'s file reaches an `Actor.system_job/1` call,
+  # in its own body or through same-file helpers.
+  defp reaches_system_job?(module, name) do
+    clauses =
+      @context_files
+      |> Map.fetch!(module)
+      |> File.read!()
+      |> Code.string_to_quoted!()
+      |> collect_defs()
+
+    defined = clauses |> Enum.map(& &1.name) |> MapSet.new()
+    by_name = Enum.group_by(clauses, & &1.name)
+    reachable = reach(MapSet.new([name]), [name], by_name, defined)
+
+    Enum.any?(clauses, fn clause ->
+      MapSet.member?(reachable, clause.name) and
+        {:Actor, :system_job} in remote_calls(clause.body)
+    end)
+  end
+
+  defp reach(seen, [], _by_name, _defined), do: seen
+
+  defp reach(seen, [name | rest], by_name, defined) do
+    new =
+      by_name
+      |> Map.get(name, [])
+      |> Enum.flat_map(&collect_local_calls(&1.body, defined))
+      |> Enum.reject(&MapSet.member?(seen, &1))
+      |> Enum.uniq()
+
+    reach(Enum.into(new, seen), new ++ rest, by_name, defined)
   end
 
   defp current_non_actor_writers do
@@ -292,9 +449,10 @@ defmodule Portfolixir.WriteActorTest do
 
   # Returns [{name, arity, actor_first?}] for every public function of `module`
   # that transitively reaches a Repo/Multi write.
-  defp writers(module) do
-    file = Map.fetch!(@context_files, module)
-    clauses = file |> File.read!() |> Code.string_to_quoted!() |> collect_defs()
+  defp writers(module), do: @context_files |> Map.fetch!(module) |> File.read!() |> writers_in()
+
+  defp writers_in(source) do
+    clauses = source |> Code.string_to_quoted!() |> collect_defs()
     defined_names = clauses |> Enum.map(& &1.name) |> MapSet.new()
 
     direct =
@@ -362,8 +520,8 @@ defmodule Portfolixir.WriteActorTest do
   defp has_write_call?(body) do
     {_, found} =
       Macro.prewalk(body, false, fn
-        {{:., _, [{:__aliases__, _, segs}, fun]}, _, _args} = node, _acc when is_atom(fun) ->
-          {node, write_call?(List.last(segs), fun)}
+        {{:., _, [{:__aliases__, _, segs}, fun]}, _, _args} = node, acc when is_atom(fun) ->
+          {node, acc or write_call?(List.last(segs), fun)}
 
         node, acc ->
           {node, acc}
