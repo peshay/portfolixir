@@ -221,6 +221,9 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
     # Acceptance criteria:
     # - The "Frozen (hold)" and "Real" figures read "0.0%", no "+", and
     #   carry no gain colour.
+    # - Both carry `is-flat` (body ink), as Wealth's cards do: without a
+    #   class the card's `.stat strong` gives them the accent (the γ closing
+    #   act, DB1).
     test "the snapshot comparison's returns", %{conn: conn} do
       world = WorldFixtures.base_world(name: "Snap", currency: "EUR")
       stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
@@ -248,6 +251,7 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
         figure = Floki.find(doc, ~s([data-role="#{role}"] strong))
         assert text(figure) == "0.0%", role
         refute classes(figure) =~ "is-positive", role
+        assert classes(figure) =~ "is-flat", role
       end
     end
 
@@ -321,6 +325,8 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
     #
     # Acceptance criteria:
     # - The max-drawdown figure reads "0.0" and carries no `is-negative`.
+    # - It carries `is-flat` (body ink), never the card's accent (the γ
+    #   closing act, DB1).
     test "the Risk tab's maximum drawdown", %{conn: conn} do
       world = WorldFixtures.base_world()
       stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
@@ -343,6 +349,7 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
         |> Enum.filter(&(text([&1]) == "0.0"))
 
       refute classes([figure]) =~ "is-negative"
+      assert classes([figure]) =~ "is-flat"
     end
 
     # User story (#1149, review SF-1):
