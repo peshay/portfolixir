@@ -60,6 +60,9 @@ defmodule PortfolixirWeb.Router do
     plug(PortfolixirWeb.ApiAuthPlug)
     # #840: an id past the bigint range is refused here, for every route.
     plug(PortfolixirWeb.Api.V1.IdRangeGuard)
+    # #1291 (ADR-0003, amended): a write refuses a JSON number in a money,
+    # quantity, price, fee, tax or rate field, for every route.
+    plug(PortfolixirWeb.Api.V1.DecimalStringGuard)
   end
 
   scope "/", PortfolixirWeb do
