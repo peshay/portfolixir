@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const S = __dirname + '/out/';
-const label = { heute: 'Heute', A: 'A · ⓘ an der Überschrift + Hinweise einzeilig', B: 'B · ⓘ + Hinweise gesammelt (Probleme bleiben offen)', C: 'C · Schalter „Erklärungen“ (aus) + Hinweise einzeilig' };
+const label = { heute: 'Heute', A: 'A · ⓘ an der Überschrift + Hinweise einzeilig', B: 'B · ⓘ + Hinweise gesammelt (Probleme bleiben offen)', C: 'C · Schalter „Erklärungen“ (aus) + Hinweise einzeilig', R: 'Nachher · beschlossen: ⓘ für Methodensätze, Basis sichtbar, Hinweise gesammelt' };
 const make = async (b, name, cols, out, colW) => {
   const p = await b.newPage({ viewport: { width: cols.length * (colW + 24) + 24, height: 400 } });
   const html = `<html><body style="margin:0;padding:12px;background:#e9ebf1;font:600 22px Inter,system-ui,sans-serif;display:flex;gap:24px;align-items:flex-start">
@@ -11,9 +11,12 @@ const make = async (b, name, cols, out, colW) => {
 };
 (async () => {
   const b = await chromium.launch();
-  for (const n of ['uebersicht', 'vermoegen', 'steuern', 'snapshots', 'cashflow', 'risiko'])
-    await make(b, n + '-1280', ['heute', 'A', 'B', 'C'], `vergleich-${n}.png`, 640);
-  await make(b, 'uebersicht-390', ['heute', 'A', 'B'], 'vergleich-uebersicht-handy.png', 390);
-  await make(b, 'vermoegen-390', ['heute', 'A', 'B'], 'vergleich-vermoegen-handy.png', 390);
+  const mode = process.env.MODE || 'all';
+  for (const n of ['uebersicht', 'vermoegen', 'steuern', 'snapshots', 'cashflow', 'risiko']) {
+    if (mode !== 'final') await make(b, n + '-1280', ['heute', 'A', 'B', 'C'], `vergleich-${n}.png`, 640);
+    await make(b, n + '-1280', ['heute', 'R'], `final-${n}.png`, 900);
+  }
+  for (const n of ['uebersicht', 'vermoegen'])
+    await make(b, n + '-390', ['heute', 'R'], `final-${n}-handy.png`, 390);
   await b.close();
 })();

@@ -15,6 +15,9 @@
   .i1-info > .i1-pop .metric-tooltip > summary { display:none; }
   .i1-info > .i1-pop .metric-tooltip p { position:static; display:block; width:auto; box-shadow:none; border:0; padding:0; margin-top:6px; background:none; }
   .i1-clamp .data-note__body { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+  .i1-r .i1-clamp .data-note__body { -webkit-line-clamp:2; }
+  @media (max-width: 600px) { .i1-r .i1-clamp .data-note__body { -webkit-line-clamp:3; } }
+  .i1-basis-kept { }
   .i1-more { margin-left:auto; flex:none; align-self:center; font-size:12px; white-space:nowrap; color:inherit; text-decoration:underline; background:none; border:0; cursor:pointer; padding:0 0 0 8px; }
   .i1-group { border:1px solid var(--color-border); border-radius:8px; margin: 8px 0; }
   .i1-group > summary { display:flex; gap:10px; align-items:center; padding:10px 12px; cursor:pointer; list-style:none; font-size:13px; }
@@ -59,6 +62,37 @@
       h.appendChild(d);
     });
   }
+  // R, the adopted recommendation (owner, 2026-11-01): A for explanations,
+  // B for notes, with two corrections. The short basis clauses (view, period,
+  // currency, as-of) stay visible; only the method sentences move into the
+  // section's ⓘ. A line that already carries its own ⓘ stays as it is, and a
+  // hint inside a card or with a link is data, not an explanation.
+  if (V === 'R') {
+    document.body.classList.add('i1-r');
+    const LONG = 42;
+    const cands = [...document.querySelectorAll('p.summary-basis, div.summary-basis, p.hint')]
+      .filter(e => !e.closest('table') && !e.closest('.data-note') && !e.closest('form') && !e.closest('.stat, .metric-card, .kpi-strip__cell')
+        && !e.querySelector('details, a, button') && e.innerText.trim().length > 0);
+    const groups = new Map();
+    cands.forEach(e => {
+      const h = headingFor(e);
+      if (!h) return;
+      const clauses = e.innerText.trim().split(/\s+·\s+/);
+      const keep = clauses.filter(c => c.length <= LONG && !/[.;:]\s/.test(c));
+      const move = clauses.filter(c => !keep.includes(c));
+      if (move.length === 0) return;
+      if (!groups.has(h)) groups.set(h, []);
+      groups.get(h).push(move.join(' · '));
+      if (keep.length) { e.textContent = keep.join(' · '); e.classList.add('i1-basis-kept'); } else e.remove();
+    });
+    groups.forEach((texts, h) => {
+      const d = document.createElement('details'); d.className = 'i1-info';
+      d.innerHTML = '<summary aria-label="Zu diesem Abschnitt">ⓘ</summary><div class="i1-pop"></div>';
+      const pop = d.querySelector('.i1-pop');
+      texts.forEach(t => { const p = document.createElement('p'); p.textContent = t; pop.appendChild(p); });
+      h.appendChild(d);
+    });
+  }
   if (V === 'C') {
     expl.forEach(e => e.classList.add('i1-explain'));
     document.body.classList.add('i1-explain-off');
@@ -78,7 +112,7 @@
 
   const notes = [...document.querySelectorAll('.data-note')].filter(n => !n.closest('table'));
   if (V === 'A' || V === 'C') notes.forEach(clamp);
-  if (V === 'B') {
+  if (V === 'B' || V === 'R') {
     // Group notes that share a parent; Problems stay visible (clamped), the rest fold into one line.
     const byParent = new Map();
     notes.forEach(n => { const p = n.parentElement; if (!byParent.has(p)) byParent.set(p, []); byParent.get(p).push(n); });
@@ -87,7 +121,7 @@
       const rest = ns.filter(n => sev(n) !== 'problem');
       problems.forEach(clamp);
       if (rest.length === 0) return;
-      if (rest.length === 1 && ns.length === 1) { clamp(rest[0]); return; }
+      if (rest.length === 1 && (ns.length === 1 || V === 'R')) { clamp(rest[0]); return; }
       const cnt = { attention: 0, note: 0 }; rest.forEach(n => cnt[sev(n)]++);
       const worst = cnt.attention ? 'attention' : 'note';
       const d = document.createElement('details'); d.className = 'i1-group i1-group--' + worst;
@@ -95,12 +129,20 @@
       if (cnt.attention) chips.push(`<span class="i1-chip i1-chip--attention">⚠ ${cnt.attention} Achtung</span>`);
       if (cnt.note) chips.push(`<span class="i1-chip i1-chip--note">✳ ${cnt.note} Hinweis${cnt.note>1?'e':''}</span>`);
       const lead = rest.length === 1 ? rest[0].querySelector('.data-note__body').innerText.trim().split(/[:.(—]/)[0] : 'Nicht alles in den Summen ist aktuell oder vollständig';
-      d.innerHTML = `<summary>${chips.join('')}<span class="i1-group__lead">${lead}</span><span class="i1-group__toggle">anzeigen ▸</span></summary><div class="i1-group__body"></div>`;
+      const leadHtml = V === 'R' ? '' : `<span class="i1-group__lead">${lead}</span>`;
+      d.innerHTML = `<summary>${chips.join('')}${leadHtml}<span class="i1-group__toggle">${V === 'R' ? 'Details anzeigen' : 'anzeigen'} ▸</span></summary><div class="i1-group__body"></div>`;
       const body = d.querySelector('.i1-group__body');
       rest[0].before(d);
       rest.forEach(n => body.appendChild(n));
       // Problems first, then the folded line.
       problems.forEach(p => d.before(p));
+    });
+  }
+  if (V === 'R') {
+    // "mehr" only where the clamp actually cuts the text.
+    document.querySelectorAll('.i1-clamp').forEach(n => {
+      const b = n.querySelector('.data-note__body'), m = n.querySelector('.i1-more');
+      if (b && m && b.scrollHeight <= b.clientHeight + 1) m.remove();
     });
   }
 })();

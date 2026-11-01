@@ -9,7 +9,7 @@ const W = +(process.env.W || 1280);
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: W, height: 900 } });
   for (const [name, path] of pages) {
-    for (const v of ['heute', 'A', 'B', 'C']) {
+    for (const v of (process.env.VARIANTS || 'heute,A,B,C,R').split(',')) {
       await p.goto('http://localhost:4003' + path + '?locale=de', { waitUntil: 'networkidle' });
       await p.waitForTimeout(500);
       if (v !== 'heute') await p.evaluate(([v, js]) => { window.__I1 = v; eval(js); }, [v, proposal]);
@@ -26,10 +26,10 @@ const W = +(process.env.W || 1280);
       await p.waitForTimeout(300);
       await p.screenshot({ path: `${S}${name}-${W}-${v}.png` });
       await p.setViewportSize({ width: W, height: 900 });
-      if (v === 'A' && name === 'vermoegen') {
+      if ((v === 'A' || v === 'R') && name === 'vermoegen') {
         // one ⓘ opened, to show what it holds
-        await p.evaluate(() => { const d = [...document.querySelectorAll('.i1-info')].find(x => /Beitrag/.test(x.parentElement.innerText)) || document.querySelector('.i1-info'); d.open = true; d.scrollIntoView({block:'center'}); });
-        await p.screenshot({ path: `${S}${name}-${W}-A-open.png` });
+        await p.evaluate(() => { const d = [...document.querySelectorAll('.i1-info')].find(x => /Beitrag/.test(x.parentElement.innerText)) || document.querySelector('.i1-info'); if (!d) return; d.open = true; d.scrollIntoView({block:'center'}); });
+        await p.screenshot({ path: `${S}${name}-${W}-${v}-open.png` });
       }
     }
   }
