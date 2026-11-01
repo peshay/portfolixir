@@ -494,7 +494,15 @@ defmodule Portfolixir.Imports.ReimportContractTest do
       portfolio: portfolio
     } do
       assert Imports.reimport_counts(parse!(household())).total ==
-               %{hash: 0, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 4}
+               %{
+                 hash: 0,
+                 retired: 0,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 held_back: 0,
+                 new: 4
+               }
 
       preview = parse!(household())
       assert {:ok, _} = Imports.apply(preview, create_everything(preview))
@@ -517,6 +525,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                unimportable: 1,
                economics: 0,
                internal_transfer: 0,
+               held_back: 0,
                new: 1
              }
 
@@ -527,6 +536,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 1,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 0
                },
                "Savings" => %{
@@ -535,6 +545,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 0
                },
                "Holiday" => %{
@@ -543,6 +554,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 1
                }
              }
@@ -554,6 +566,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 0
                }
              }
@@ -580,6 +593,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                unimportable: 0,
                economics: 0,
                internal_transfer: 0,
+               held_back: 0,
                new: 2
              }
 
@@ -590,6 +604,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 2
                }
              }
@@ -665,6 +680,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 1
                },
                keys["Other Fund"] => %{
@@ -673,6 +689,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 1,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 1
                }
              }
@@ -713,6 +730,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 1
                },
                keys["EXF001"] => %{
@@ -721,6 +739,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
                  unimportable: 0,
                  economics: 0,
                  internal_transfer: 0,
+                 held_back: 0,
                  new: 1
                }
              }

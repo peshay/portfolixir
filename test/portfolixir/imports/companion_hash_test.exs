@@ -18,6 +18,11 @@ defmodule Portfolixir.Imports.CompanionHashTest do
 
   @security %{isin: "DE000ACME008", wkn: nil, ticker: nil, name: "Synthetic AG", currency: "EUR"}
 
+  # Several tests here hold one history in a fresh portfolio per case, so
+  # every apply includes the others' rows deliberately (ADR-0050 as amended
+  # on 2026-11-01, #1313: held back by default).
+  defp every_portfolio, do: Enum.map(Portfolios.list_portfolios(), & &1.id)
+
   defp portfolio! do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Actor.owner_ui(), %{
@@ -104,13 +109,23 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     portfolio = portfolio!()
     preview = %Preview{entries: [buy(1), sell(2, "5", "12.00"), sell(3, "10", "12.00")]}
 
-    assert {:ok, result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert {:ok, result} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     assert result.created_transactions == 5
     assert result.duplicate_entries == []
     assert [a, b] = refunds(portfolio)
     refute a == b
 
-    assert {:ok, again} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert {:ok, again} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     assert again.created_transactions == 0
     assert length(again.duplicate_entries) == 5
     assert count(portfolio) == 5
@@ -130,7 +145,10 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     preview = %Preview{entries: [buy(1), sell(2, "5", "12.00")]}
 
     assert {:ok, %{created_transactions: 3}} =
-             Imports.apply(preview, %{portfolio_id: portfolio.id})
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     # The refund as an import before this change stored it: hashed as a row
     # of its own.
@@ -145,9 +163,17 @@ defmodule Portfolixir.Imports.CompanionHashTest do
       end)
 
     assert %{total: %{hash: 3, new: 0}} =
-             Imports.reimport_counts(preview, portfolio_id: portfolio.id)
+             Imports.reimport_counts(preview,
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             )
 
-    assert {:ok, again} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert {:ok, again} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     assert again.created_transactions == 0
     assert Enum.map(again.duplicate_entries, & &1.layer) == [:hash, :hash, :hash]
     assert count(portfolio) == 3
@@ -166,7 +192,10 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     unimportable = %{sell(2, "5", "7.50") | gross_amount: nil, kind: "fee"}
 
     assert {:ok, result} =
-             Imports.apply(%Preview{entries: [unimportable]}, %{portfolio_id: portfolio.id})
+             Imports.apply(%Preview{entries: [unimportable]}, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     assert result.created_transactions == 0
     assert [%{row: 2}, %{row: "2.tax_refund.1", reason: reason}] = result.skipped_entries
@@ -189,14 +218,20 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     unimportable = %{sell(2, "5", "7.50") | gross_amount: nil, kind: "fee"}
 
     counts =
-      Imports.reimport_counts(%Preview{entries: [unimportable]}, portfolio_id: portfolio.id)
+      Imports.reimport_counts(%Preview{entries: [unimportable]},
+        portfolio_id: portfolio.id,
+        include_portfolios: every_portfolio()
+      )
 
     assert %{unimportable: 2, new: 0, hash: 0} = counts.total
     assert %{unimportable: 2, new: 0} = counts.cash_accounts["Cash"]
     assert %{unimportable: 2, new: 0} = counts.depots["Depot"]
 
     alone =
-      Imports.reimport_counts(%Preview{entries: [refund(2, "7.50")]}, portfolio_id: portfolio.id)
+      Imports.reimport_counts(%Preview{entries: [refund(2, "7.50")]},
+        portfolio_id: portfolio.id,
+        include_portfolios: every_portfolio()
+      )
 
     assert %{unimportable: 0, new: 1} = alone.total
   end
@@ -240,7 +275,10 @@ defmodule Portfolixir.Imports.CompanionHashTest do
       preview = %Preview{entries: [buy(1), sell(2, "5", "12.00")]}
 
       assert {:ok, %{created_transactions: 3}} =
-               Imports.apply(preview, %{portfolio_id: portfolio.id})
+               Imports.apply(preview, %{
+                 portfolio_id: portfolio.id,
+                 include_portfolios: every_portfolio()
+               })
 
       if formula == :sprint15, do: store_refund_under_sprint15!(portfolio, refund(2, "12.00"))
 
@@ -252,9 +290,17 @@ defmodule Portfolixir.Imports.CompanionHashTest do
       {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), sale)
 
       assert %{total: %{hash: 2, new: 1}} =
-               Imports.reimport_counts(preview, portfolio_id: portfolio.id)
+               Imports.reimport_counts(preview,
+                 portfolio_id: portfolio.id,
+                 include_portfolios: every_portfolio()
+               )
 
-      assert {:ok, again} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+      assert {:ok, again} =
+               Imports.apply(preview, %{
+                 portfolio_id: portfolio.id,
+                 include_portfolios: every_portfolio()
+               })
+
       assert again.created_transactions == 1, "formula #{formula}"
 
       assert [%{row: "2.tax_refund.1", layer: :hash}] =
@@ -282,20 +328,34 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     without_refund = %Preview{entries: [buy(1), %{sell(2, "5", "12.00") | companion_entries: []}]}
 
     assert {:ok, %{created_transactions: 2}} =
-             Imports.apply(without_refund, %{portfolio_id: portfolio.id})
+             Imports.apply(without_refund, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     with_refund = %Preview{entries: [buy(1), sell(2, "5", "12.00")]}
 
     assert %{total: %{hash: 2, new: 1}} =
-             Imports.reimport_counts(with_refund, portfolio_id: portfolio.id)
+             Imports.reimport_counts(with_refund,
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             )
 
-    assert {:ok, result} = Imports.apply(with_refund, %{portfolio_id: portfolio.id})
+    assert {:ok, result} =
+             Imports.apply(with_refund, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     assert result.created_transactions == 1
     assert Enum.map(result.duplicate_entries, & &1.row) |> Enum.sort() == [1, 2]
     assert [_] = refunds(portfolio)
 
     assert {:ok, %{created_transactions: 0}} =
-             Imports.apply(with_refund, %{portfolio_id: portfolio.id})
+             Imports.apply(with_refund, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     assert count(portfolio) == 3
   end
@@ -313,12 +373,18 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     preview = %Preview{entries: [buy(1), sell(2, "5", "12.00")]}
 
     assert {:ok, %{created_transactions: 3}} =
-             Imports.apply(preview, %{portfolio_id: portfolio.id})
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     drifted = %{sell(2, "5", "12.00") | price: Decimal.new("50.0000001")}
 
     assert {:ok, again} =
-             Imports.apply(%Preview{entries: [buy(1), drifted]}, %{portfolio_id: portfolio.id})
+             Imports.apply(%Preview{entries: [buy(1), drifted]}, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     assert again.created_transactions == 0
 
@@ -364,14 +430,18 @@ defmodule Portfolixir.Imports.CompanionHashTest do
 
       # The preview counts what the apply will collapse as already booked.
       counts =
-        Imports.reimport_counts(%Preview{entries: [twin, collapsed]}, portfolio_id: portfolio.id)
+        Imports.reimport_counts(%Preview{entries: [twin, collapsed]},
+          portfolio_id: portfolio.id,
+          include_portfolios: every_portfolio()
+        )
 
       assert Map.take(counts.total, [:new, :economics]) ==
                if(twin_refund?, do: %{new: 2, economics: 2}, else: %{new: 2, economics: 1})
 
       assert {:ok, result} =
                Imports.apply(%Preview{entries: [twin, collapsed]}, %{
-                 portfolio_id: portfolio.id
+                 portfolio_id: portfolio.id,
+                 include_portfolios: every_portfolio()
                })
 
       assert [%{row: 3} | _] = result.collapsed_duplicates
@@ -420,7 +490,10 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     preview = %Preview{entries: [old.(buy(1)), sale, twin]}
 
     assert {:ok, %{created_transactions: 4}} =
-             Imports.apply(preview, %{portfolio_id: portfolio.id})
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
 
     [source] = Portfolios.list_cash_accounts() |> Enum.filter(&(&1.name == "Cash (old)"))
     [target] = Portfolios.list_cash_accounts() |> Enum.filter(&(&1.name == "Cash"))
@@ -437,9 +510,17 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     assert [_] = refunds(portfolio)
 
     assert %{total: %{hash: 3, retired: 1, new: 0}} =
-             Imports.reimport_counts(preview, portfolio_id: portfolio.id)
+             Imports.reimport_counts(preview,
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             )
 
-    assert {:ok, again} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert {:ok, again} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     assert again.created_transactions == 0
 
     assert Enum.map(again.duplicate_entries, &{&1.row, &1.layer}) ==
@@ -455,7 +536,12 @@ defmodule Portfolixir.Imports.CompanionHashTest do
 
     {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), kept)
 
-    assert {:ok, rebooked} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert {:ok, rebooked} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     assert rebooked.created_transactions == 1
 
     assert Enum.map(rebooked.duplicate_entries, &{&1.row, &1.layer}) ==

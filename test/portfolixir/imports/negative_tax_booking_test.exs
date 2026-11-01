@@ -55,6 +55,11 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
   2022-02-14 00:00:00;Dividende;Arbolia Inc.;400;;208,48;;26,99;181,49;Test-Cash;;;
   """
 
+  # Each test here holds its own copy of one history in several portfolios
+  # on purpose, so every apply includes the others' rows deliberately (ADR-0050
+  # as amended on 2026-11-01, #1313: held back by default).
+  defp every_portfolio, do: Enum.map(Portfolios.list_portfolios(), & &1.id)
+
   defp target(name) do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Actor.owner_ui(), %{name: name, base_currency_code: "EUR"})
@@ -66,7 +71,12 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
     {:ok, preview} = PortfolioPerformance.parse(body, filename: filename)
     assert preview.errors == []
 
-    assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert {:ok, %Result{} = result} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     result
   end
 
@@ -202,7 +212,13 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
   # previews book, the refused ones are left out. Answers the rows named.
   defp apply_refusing!(name, portfolio) do
     {:ok, preview} = PortfolioPerformance.parse(fixture(name), filename: name)
-    assert {:ok, %Result{}} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    assert {:ok, %Result{}} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     Enum.map(preview.errors, & &1.row)
   end
 

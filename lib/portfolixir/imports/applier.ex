@@ -151,6 +151,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
@@ -207,7 +208,12 @@ defmodule Portfolixir.Imports.Applier do
               # (`%{kind, name, account_id, count}`), and how many bookings
               # in all.
               former_name_matches: [],
-              former_name_bookings: 0
+              former_name_bookings: 0,
+              # ADR-0050 as amended on 2026-11-01 (#1313): rows held back
+              # because another portfolio already holds their content hash,
+              # each `%{row, portfolio_id}`; booked only when the apply's
+              # `include_portfolios` names that portfolio.
+              held_back_entries: []
 
     @type t :: %__MODULE__{}
   end
@@ -244,8 +250,16 @@ defmodule Portfolixir.Imports.Applier do
   """
   @type security_key :: (SecurityResolver.ref() -> String.t())
 
+  @typedoc """
+  The other portfolios whose already-imported rows the apply books anyway
+  (ADR-0050 as amended on 2026-11-01, #1313): a row whose content hash
+  another portfolio holds is held back unless that portfolio is named here.
+  """
+  @type include_portfolios :: [integer()]
+
   @type apply_params :: %{
           required(:portfolio_id) => integer(),
+          optional(:include_portfolios) => include_portfolios(),
           optional(:default_currency_code) => String.t(),
           optional(:security_mappings) => %{String.t() => security_mapping()},
           optional(:approved_resolutions) => %{String.t() => approved_resolution()},
@@ -268,6 +282,7 @@ defmodule Portfolixir.Imports.Applier do
           required(:cash_accounts) => %{String.t() => account_choice()},
           required(:depots) => %{String.t() => depot_mapping()},
           optional(:remember) => remember(),
+          optional(:include_portfolios) => include_portfolios(),
           optional(:bucket_tag) => String.t() | nil,
           optional(:default_currency_code) => String.t(),
           optional(:security_mappings) => %{String.t() => security_mapping()},
@@ -309,7 +324,8 @@ defmodule Portfolixir.Imports.Applier do
                portfolio_id
                |> base_state(default_currency, params, result)
                |> Map.merge(cash_plan)
-               |> Map.merge(depot_plan),
+               |> Map.merge(depot_plan)
+               |> put_held_back(flat_entries, params),
              {:ok, state} <- remember_mapped_names(state, params),
              state = resolve_unmapped_names(state, flat_entries),
              {:ok, state} <- execute_security_mappings(flat_entries, state),
@@ -376,6 +392,7 @@ defmodule Portfolixir.Imports.Applier do
         pending_depots: %{}
       })
       |> resolve_unmapped_names(flat_entries)
+      |> put_held_back(flat_entries, params)
 
     with {:ok, state} <- execute_security_mappings(flat_entries, state),
          {:ok, final_state} <- reduce_entries(flat_entries, state),
@@ -432,14 +449,14 @@ defmodule Portfolixir.Imports.Applier do
   # name the mapping names as the mapped apply binds it, and the rest as the
   # prefill resolves them, so the preview's count after a choice is what the
   # confirm skips and books.
-  defp simulate(flat_entries, portfolio_id, mapping \\ nil)
+  defp simulate(flat_entries, portfolio_id, mapping \\ nil, include \\ [])
 
-  defp simulate(_flat_entries, nil, _mapping), do: :error
+  defp simulate(_flat_entries, nil, _mapping, _include), do: :error
 
-  defp simulate(flat_entries, portfolio_id, mapping) do
+  defp simulate(flat_entries, portfolio_id, mapping, include) do
     fn ->
       with :ok <- open_dry_run(portfolio_id),
-           {:ok, final_state} <- run_dry(flat_entries, portfolio_id, mapping) do
+           {:ok, final_state} <- run_dry(flat_entries, portfolio_id, mapping, include) do
         Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes), final_state.economic_keys})
       else
         _stopped -> Repo.rollback(:stopped)
@@ -456,19 +473,22 @@ defmodule Portfolixir.Imports.Applier do
     Postgrex.Error -> :error
   end
 
-  defp run_dry(flat_entries, portfolio_id, nil),
-    do: run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}, true)
+  defp run_dry(flat_entries, portfolio_id, nil, include) do
+    params = %{portfolio_id: portfolio_id, include_portfolios: include}
+    run_auto(flat_entries, portfolio_id, "EUR", params, true)
+  end
 
   # The mapped apply's own planning (`plan_mapped_cash/3`,
   # `plan_mapped_depots/2`) over the operator's choices, then the
   # auto-resolving run's body for every name they leave open. It remembers
   # no name and records no ISIN change: neither changes which account or
   # security a row resolves onto, and the dry run writes nothing.
-  defp run_dry(flat_entries, portfolio_id, mapping) do
+  defp run_dry(flat_entries, portfolio_id, mapping, include) do
     cash_mapping = Map.get(mapping, :cash_accounts, %{})
 
     params = %{
       portfolio_id: portfolio_id,
+      include_portfolios: include,
       security_mappings:
         Map.new(Map.get(mapping, :security_mappings, %{}), fn
           {key, {:existing, id, :record_isin_change}} -> {key, {:existing, id}}
@@ -485,6 +505,7 @@ defmodule Portfolixir.Imports.Applier do
         |> Map.merge(cash_plan)
         |> Map.merge(depot_plan)
         |> resolve_unmapped_names(flat_entries)
+        |> put_held_back(flat_entries, params)
 
       with {:ok, state} <- execute_security_mappings(flat_entries, state),
            do: reduce_entries(flat_entries, state)
@@ -649,18 +670,21 @@ defmodule Portfolixir.Imports.Applier do
           cash_accounts: %{String.t() => layer_counts()},
           depots: %{String.t() => layer_counts()},
           securities: %{String.t() => layer_counts()},
-          unseen_names: unseen_names()
+          unseen_names: unseen_names(),
+          held_back: [held_back_group()]
         }
   def reimport_counts(%Preview{entries: entries}, portfolio_id, opts \\ []) do
     flat_entries = Entry.flatten(entries)
-    hash_layers = row_layers(flat_entries, portfolio_id)
+    include = include_portfolios(Keyword.get(opts, :include_portfolios, []))
+    hits = cross_portfolio_hits(flat_entries, portfolio_id)
+    hash_layers = hold_back(row_layers(flat_entries, portfolio_id), hits, include)
 
     # `dry_run: false` counts on the hash layers alone: one read, where the
     # dry run costs what the apply costs (the Imports view shows these first
     # and refines them in the background, the closing act, EH-1).
     simulation =
       if Keyword.get(opts, :dry_run, true),
-        do: simulate(flat_entries, portfolio_id, Keyword.get(opts, :mapping)),
+        do: simulate(flat_entries, portfolio_id, Keyword.get(opts, :mapping), include),
         else: :error
 
     outcomes =
@@ -680,7 +704,16 @@ defmodule Portfolixir.Imports.Applier do
           hash_layers
       end
 
-    empty = %{hash: 0, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 0}
+    empty = %{
+      hash: 0,
+      retired: 0,
+      unimportable: 0,
+      economics: 0,
+      internal_transfer: 0,
+      held_back: 0,
+      new: 0
+    }
+
     judged = judge_rows(flat_entries, layers)
 
     counts =
@@ -716,6 +749,7 @@ defmodule Portfolixir.Imports.Applier do
     counts
     |> Map.put(:securities, securities)
     |> Map.put(:unseen_names, unseen)
+    |> Map.put(:held_back, held_back_groups(judged, hits, include))
     |> put_economic_keys(simulation, Keyword.get(opts, :economic_keys, false))
   end
 
@@ -748,7 +782,7 @@ defmodule Portfolixir.Imports.Applier do
       |> Enum.reduce({%{}, nil}, fn {entry, {layer, _key}}, {acc, parent_layer} ->
         case entry.companion_index do
           nil -> {held_names(acc, entry, layer), layer}
-          _companion when parent_layer == :unimportable -> {acc, parent_layer}
+          _companion when parent_layer in [:unimportable, :held_back] -> {acc, parent_layer}
           _companion -> {held_names(acc, entry, layer), parent_layer}
         end
       end)
@@ -794,6 +828,9 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp held_names(acc, _entry, :unimportable), do: acc
+  # A held-back row (#1313) books nothing, as an unimportable one does: a
+  # name it alone carries asks for no choice.
+  defp held_names(acc, _entry, :held_back), do: acc
 
   defp held_names(acc, entry, layer) do
     held? = layer in [:hash, :retired]
@@ -827,6 +864,11 @@ defmodule Portfolixir.Imports.Applier do
         {entry, _layer_key}, {acc, seen, parent_layer}
         when parent_layer in [nil, :unimportable] ->
           {[{entry, :unimportable} | acc], seen, parent_layer}
+
+        # A refund split off a held-back row is held back with it, as the
+        # apply holds it back (#1313).
+        {entry, _layer_key}, {acc, seen, :held_back} ->
+          {[{entry, :held_back} | acc], seen, :held_back}
 
         {entry, layer_key}, {acc, seen, parent_layer} ->
           {layer, seen} = in_file_repeat(layer_key, seen)
@@ -879,7 +921,155 @@ defmodule Portfolixir.Imports.Applier do
   defp later_layer(:new, {:duplicate, :economics}), do: :economics
   defp later_layer(:new, :collapsed), do: :economics
   defp later_layer(:new, :internal_transfer), do: :internal_transfer
+  # A held-back row is judged last (#1313): an earlier layer the dry run
+  # reaches comes first.
+  defp later_layer(:held_back, {:duplicate, :economics}), do: :economics
+  defp later_layer(:held_back, :collapsed), do: :economics
+  defp later_layer(:held_back, :internal_transfer), do: :internal_transfer
   defp later_layer(layer, _outcome), do: layer
+
+  # ADR-0050 as amended on 2026-11-01 (#1313): a row the first check finds
+  # new in the target portfolio but held by another portfolio's content hash
+  # (`cross_portfolio_hits/2`) is held back, unless that portfolio is
+  # included. Every other layer stands: a hash hit in the target portfolio
+  # comes first.
+  defp hold_back(layers, hits, include) do
+    Enum.zip_with(layers, hits, fn
+      {:new, key}, portfolio_id when is_integer(portfolio_id) ->
+        if portfolio_id in include, do: {:new, key}, else: {:held_back, key}
+
+      layer_key, _hit ->
+        layer_key
+    end)
+  end
+
+  @typedoc """
+  One other portfolio's held-back rows, as `reimport_counts/3` lists them
+  (#1313): the portfolio, how many rows of the file it already holds that
+  the target portfolio does not, those rows in file order, and whether the
+  operator included them.
+  """
+  @type held_back_group :: %{
+          portfolio_id: integer(),
+          portfolio_name: String.t(),
+          count: pos_integer(),
+          entries: [Entry.t()],
+          included: boolean()
+        }
+
+  # A group lists its portfolio's rows as judged: held back, or, once the
+  # operator included the portfolio, new (the rows the confirm then books).
+  defp held_back_groups(judged, hits, include) do
+    names = portfolio_names()
+
+    judged
+    |> Enum.zip(hits)
+    |> Enum.reduce(%{}, fn
+      {{entry, layer}, portfolio_id}, acc when is_integer(portfolio_id) ->
+        if layer == :held_back or (layer == :new and portfolio_id in include),
+          do: Map.update(acc, portfolio_id, [entry], &[entry | &1]),
+          else: acc
+
+      _row, acc ->
+        acc
+    end)
+    |> Enum.sort_by(fn {portfolio_id, _entries} -> portfolio_id end)
+    |> Enum.map(fn {portfolio_id, entries} ->
+      %{
+        portfolio_id: portfolio_id,
+        portfolio_name: Map.get(names, portfolio_id, ""),
+        count: length(entries),
+        entries: Enum.reverse(entries),
+        included: portfolio_id in include
+      }
+    end)
+  end
+
+  # A companion's hit is its parent's: the apply holds a refund back with the
+  # row it was split from.
+  defp companion_hits(flat_entries, hits) do
+    {hits, _parent} =
+      flat_entries
+      |> Enum.zip(hits)
+      |> Enum.map_reduce(nil, fn
+        {%Entry{companion_index: nil}, hit}, _parent -> {hit, hit}
+        {_companion, _hit}, parent -> {parent, parent}
+      end)
+
+    hits
+  end
+
+  defp portfolio_names do
+    from(p in Portfolio, select: {p.id, p.name}) |> Repo.all() |> Map.new()
+  end
+
+  @doc """
+  Per row of `flat_entries` (`Entry.flatten/1`'s order), the id of the
+  lowest-numbered OTHER portfolio than `portfolio_id` that already holds
+  the row's content hash — a live transaction or a retired hash, by every
+  hash the first check looks up (`row_hashes/2`) computed for that
+  portfolio —, or `nil` (ADR-0050 as amended on 2026-11-01, #1313, point
+  1). An unimportable row has none; a companion has its parent's. With no
+  `portfolio_id` every portfolio is another. Read-only: one query per table
+  over the whole file.
+  """
+  @spec cross_portfolio_hits([Entry.t()], integer() | nil) :: [integer() | nil]
+  def cross_portfolio_hits(flat_entries, portfolio_id) do
+    others =
+      from(p in Portfolio, order_by: [asc: p.id], select: p.id)
+      |> Repo.all()
+      |> Enum.reject(&(&1 == portfolio_id))
+
+    hits = other_hits(flat_entries, others)
+
+    flat_entries
+    |> Enum.zip(hits)
+    |> Enum.map(fn {entry, hit} -> if unimportable(entry) == nil, do: hit end)
+    |> then(&companion_hits(flat_entries, &1))
+  end
+
+  defp other_hits(flat_entries, []), do: Enum.map(flat_entries, fn _entry -> nil end)
+
+  defp other_hits(flat_entries, others) do
+    per_portfolio =
+      Enum.map(others, fn other_id ->
+        flat_entries |> row_identities(other_id) |> Enum.map(&{other_id, elem(&1, 1)})
+      end)
+
+    lookups = for rows <- per_portfolio, {_id, hashes} <- rows, hash <- hashes, do: hash
+
+    held =
+      MapSet.union(held_hashes(Transaction, lookups), held_hashes(RetiredImportHash, lookups))
+
+    per_portfolio
+    |> Enum.zip()
+    |> Enum.map(fn row ->
+      row
+      |> Tuple.to_list()
+      |> Enum.find_value(fn {other_id, hashes} ->
+        if Enum.any?(hashes, &MapSet.member?(held, &1)), do: other_id
+      end)
+    end)
+  end
+
+  # Only integer ids include a portfolio; anything else includes nothing.
+  defp include_portfolios(include) when is_list(include), do: Enum.filter(include, &is_integer/1)
+  defp include_portfolios(_include), do: []
+
+  # The apply judges again (the amendment, point 3): the cross-portfolio
+  # hits are read inside the import transaction, after its locks, and a row
+  # whose portfolio is not included is held back where it would be inserted
+  # (`insert_transaction/4`).
+  defp put_held_back(state, flat_entries, params) do
+    include = include_portfolios(Map.get(params, :include_portfolios, []))
+
+    hits =
+      flat_entries
+      |> cross_portfolio_hits(state.portfolio_id)
+      |> Enum.map(fn hit -> if hit in include, do: nil, else: hit end)
+
+    Map.put(state, :held_back_hits, hits)
+  end
 
   # A new row whose content hash an earlier row of the file already carries
   # is held by the time the apply reaches it.
@@ -896,6 +1086,7 @@ defmodule Portfolixir.Imports.Applier do
           unimportable: non_neg_integer(),
           economics: non_neg_integer(),
           internal_transfer: non_neg_integer(),
+          held_back: non_neg_integer(),
           new: non_neg_integer()
         }
 
@@ -1032,7 +1223,8 @@ defmodule Portfolixir.Imports.Applier do
     :alias_matches,
     :security_overrides,
     :remembered_names,
-    :behind_restated_anchor
+    :behind_restated_anchor,
+    :held_back_entries
   ]
 
   defp enrich_after_commit({:ok, %Result{} = result}) do
@@ -1482,8 +1674,12 @@ defmodule Portfolixir.Imports.Applier do
     initial_state =
       Map.merge(initial_state, %{parent: nil, outcome: nil, outcomes: [], economic_keys: %{}})
 
-    Enum.reduce_while(entries, {:ok, initial_state}, fn entry, {:ok, state} ->
-      case process_row(entry, state) do
+    hits = Map.get(initial_state, :held_back_hits) || Enum.map(entries, fn _entry -> nil end)
+
+    entries
+    |> Enum.zip(hits)
+    |> Enum.reduce_while({:ok, initial_state}, fn {entry, hit}, {:ok, state} ->
+      case process_row(entry, Map.put(state, :held_back_hit, hit)) do
         {:ok, state} -> {:cont, {:ok, %{state | outcomes: [state.outcome | state.outcomes]}}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -1545,6 +1741,10 @@ defmodule Portfolixir.Imports.Applier do
          %{parent: %{outcome: {:unresolved, key, cause}}} = state
        ),
        do: {:ok, record_unresolved(state, entry, key, cause)}
+
+  # #1313: a refund split off a held-back row is held back with it.
+  defp process_companion(entry, _index, %{parent: %{outcome: {:held_back, other_id}}} = state),
+    do: {:ok, record_held_back(state, entry, other_id)}
 
   defp process_companion(entry, _index, state) do
     parent_row = state.parent && state.parent.row
@@ -1684,6 +1884,22 @@ defmodule Portfolixir.Imports.Applier do
     end
   end
 
+  # ADR-0050 as amended on 2026-11-01 (#1313): another portfolio holds the
+  # row's content hash and the operator did not include it. Nothing resolves,
+  # nothing is created, nothing books.
+  defp record_held_back(state, %Entry{} = entry, other_id) do
+    state
+    |> Map.put(:outcome, {:held_back, other_id})
+    |> Map.update!(:result, fn %Result{} = r ->
+      %Result{
+        r
+        | held_back_entries: [
+            %{row: entry.source_row, portfolio_id: other_id} | r.held_back_entries
+          ]
+      }
+    end)
+  end
+
   defp record_skip(state, %Entry{} = entry, reason) when is_binary(reason) do
     state
     |> Map.put(:outcome, :skipped)
@@ -1705,6 +1921,10 @@ defmodule Portfolixir.Imports.Applier do
     cond do
       internal_transfer?(entry, refs) ->
         {:ok, record_internal_transfer(state, entry)}
+
+      # A held-back row (#1313) books nothing, so it needs no name.
+      is_integer(state.held_back_hit) and ambiguous_ref(refs) != nil ->
+        {:ok, record_held_back(state, entry, state.held_back_hit)}
 
       ambiguous = ambiguous_ref(refs) ->
         {:error, ambiguous_account_error(ambiguous, state)}
@@ -2583,6 +2803,15 @@ defmodule Portfolixir.Imports.Applier do
 
       collapse? and MapSet.member?(state.seen_run_keys, run_key(key, entry)) ->
         {:ok, state |> bump_result(:skipped_duplicates) |> record_collapsed(entry)}
+
+      # ADR-0050 as amended on 2026-11-01 (#1313): a row every layer would
+      # book, but whose content hash another portfolio holds, is held back
+      # unless the operator included that portfolio. It is judged last, so
+      # a booking this portfolio already has still counts as one, and the
+      # row's economic keys are read as before (ADR-0053 A12); nothing is
+      # materialized for it.
+      Map.get(state, :held_back_hit) |> is_integer() ->
+        {:ok, record_held_back(state, entry, state.held_back_hit)}
 
       true ->
         with {:ok, state, attrs} <- materialize_accounts(entry, attrs, state) do
