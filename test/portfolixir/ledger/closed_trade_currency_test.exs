@@ -1100,11 +1100,135 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert [trade] = closed(fund)
     assert trade.currency_code == "EUR"
     assert is_nil(trade.basis)
-    assert trade.unavailable_reason == :missing_settlement_leg
+    # #1310: no rate gives a franc-paid lot a figure in euros (its legs reach
+    # dollars only), so the reason is its own, not a missing leg.
+    assert trade.unavailable_reason == :other_account_currency
 
     assert trade.lots_missing_leg == [
-             %{open_date: ~D[2025-04-01], currency_code: "CHF", reason: :missing_settlement_leg}
+             %{open_date: ~D[2025-04-01], currency_code: "CHF", reason: :other_account_currency}
            ]
+  end
+
+  # User story (#1310, Sprint 22 R5; the issue's third case):
+  # As the operator who bought a dollar share through my dollar account and
+  # sold it through my euro account, the sale imported in euros,
+  # I want the closed trade named unavailable for the cause it has, a lot
+  # paid in another currency than the sale's, which no leg bridges,
+  # so that I am not told to backfill a rate that is stored and changes
+  # nothing.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - A buy of 10 at 100 USD through the USD account (2025-04-01) and an
+  #   import-form sale of 10 at 96.00 EUR through the EUR account, fees 3.00
+  #   EUR (cash 957.00), stored without legs; 1 EUR = 1.25 USD.
+  # - The settlement backfill derives the sale's legs: updated 1. The trade
+  #   is still unavailable, because it is in the sale's currency (EUR) and
+  #   the lot's own legs reach only dollars: its account is in dollars, so no
+  #   leg of it can ever be in euros, and no rate is looked up (point 2).
+  # - Its reason is other_account_currency, the lot named with it (USD);
+  #   the sale's own figures stay: proceeds 957 EUR, sell_fees 3; basis
+  #   null. Before: missing_settlement_leg, whose remedy (a rate) cannot
+  #   apply.
+  # - The realized-gains report names it under
+  #   by_reason.other_account_currency, apart from the other reasons.
+  test "a dollar-account lot sold through the euro account reads its own reason after the backfill" do
+    {world, fund} = cross_world()
+    dollar = Map.merge(world, add_depot(world.portfolio, cash_currency: "USD"))
+    buy!(dollar, fund, quantity: "10", price: "100", currency: "USD", date: ~D[2025-04-01])
+
+    account_currency_trade!(world, fund,
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: "10",
+      price: "96",
+      fees: "3",
+      gross: "957",
+      security_amount: nil,
+      settled: nil,
+      rate: nil
+    )
+
+    assert {:ok, %{updated: 1}} =
+             Ledger.SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "EUR"
+    assert trade.unavailable_reason == :other_account_currency
+    assert is_nil(trade.basis)
+    assert is_nil(trade.realized_pnl_abs)
+    assert exactly?(trade.proceeds, "957")
+    assert exactly?(trade.sell_fees, "3")
+    assert trade.annualized_return_reason == :other_account_currency
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "USD", reason: :other_account_currency}
+           ]
+
+    report = RealizedGains.report(base_currency: "EUR")
+    refute Enum.any?(report.trades, &(&1.security_id == fund.id))
+
+    assert report.excluded.by_reason.other_account_currency == %{
+             count: 1,
+             securities: ["Dollar Fund"]
+           }
+
+    assert report.excluded.by_reason.missing_settlement_leg == %{count: 0, securities: []}
+  end
+
+  # User story (#1311, Sprint 22 R5):
+  # As the operator whose import carries a free allotment of a dollar share
+  # into my euro account, later sold through the booking form,
+  # I want the closed trade named unavailable for its zero-amount lot, which
+  # the rate backfill does not complete,
+  # so that I am not told to backfill a rate that is already stored.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - An import-form buy of 5 at 0.00 EUR (no cash) on 2025-04-01, the rate
+  #   stored: the backfill counts it under skipped_zero_amount 1 and derives
+  #   nothing. A booking-form sale of 5 at 120 USD settled 480.00 EUR, no
+  #   fees: the trade is in USD, unavailable_reason zero_amount, the lot
+  #   named with it (EUR); proceeds 600 USD; basis null. Before:
+  #   missing_settlement_leg, whose remedy is a rate.
+  # - The realized-gains report names it under by_reason.zero_amount.
+  test "a zero-amount lot makes its trade unavailable for a reason of its own (#1311)" do
+    {world, fund} = cross_world()
+
+    account_currency_trade!(world, fund,
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: "5",
+      price: "0",
+      gross: nil,
+      security_amount: nil,
+      settled: nil,
+      rate: nil
+    )
+
+    assert {:ok, %{updated: 0, skipped_zero_amount: 1, skipped_no_rate: 0}} =
+             Ledger.SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+
+    cross_trade!(world, fund,
+      type: "sell",
+      quantity: "5",
+      price: "120",
+      settled: "480.00",
+      gross: "480.00",
+      date: ~D[2025-05-02]
+    )
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "USD"
+    assert trade.unavailable_reason == :zero_amount
+    assert is_nil(trade.basis)
+    assert exactly?(trade.proceeds, "600")
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "EUR", reason: :zero_amount}
+           ]
+
+    report = RealizedGains.report(base_currency: "EUR")
+    assert report.excluded.by_reason.zero_amount == %{count: 1, securities: ["Dollar Fund"]}
+    assert report.excluded.by_reason.missing_settlement_leg == %{count: 0, securities: []}
   end
 
   # A buy or sell as a database stored it before #1199's check: written past

@@ -2083,6 +2083,20 @@ Beispiel-Payloads für Konten:
   `GET /api/v1/realized_gains` zählt einen solchen Trade unter
   `excluded.by_reason.third_currency`, getrennt von
   `missing_settlement_leg` und `no_rate`.
+  Zwei weitere Ursachen, die kein Kurs behebt, haben eigene Werte, je am
+  Trade, am Lot und unter `excluded.by_reason`:
+  `"other_account_currency"`, wo ein Lot über ein Konto bezahlt wurde, das
+  weder in der Währung des Wertpapiers noch in der des Verkaufs geführt ist,
+  sodass keines seiner Beine je in der Währung des Verkaufs stehen kann
+  (eine Dollar-Aktie, über ein Dollar-Konto gekauft und über ein Euro-Konto
+  verkauft; das Nachladen gibt dem Verkauf seine Beine, und der Trade bleibt
+  unverfügbar; Abhilfe: Währung oder Beträge der gespeicherten Buchungen
+  korrigieren), und `"zero_amount"`, wo einem Lot mit Betrag null, einer
+  Gratiszuteilung, sein Bein fehlt, das das Nachladen der Kurse nicht
+  ergänzt (Issue #1311; Abhilfe: die Beträge von Hand auf der Buchung
+  erfassen). Der Grund eines Trades ist der erste, den seine Lots nennen,
+  aus `third_currency`, `other_account_currency`, `zero_amount` und
+  `missing_settlement_leg`.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,

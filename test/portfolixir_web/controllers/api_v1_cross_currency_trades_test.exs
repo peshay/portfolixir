@@ -213,7 +213,9 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
       assert basis =~ "through the lot's own stored settlement legs, never through a rate", path
       assert basis =~ "lots_missing_leg", path
       # #1310: the two reasons, each with its remedy.
-      assert basis =~ "unavailable_reason is third_currency where", path
+      assert basis =~ "third_currency where the sell or a lot is priced in neither", path
+      assert basis =~ "other_account_currency where a lot was paid through an account", path
+      assert basis =~ "zero_amount where a lot of zero amount", path
       assert basis =~ "else missing_settlement_leg (a rate for", path
       assert basis =~ "proceeds, sell_fees and sell_taxes are null too", path
       assert basis =~ "all in currency_code for every available trade", path
@@ -475,7 +477,9 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
                "no_rate" => %{"count" => 0, "securities" => []},
                "missing_settlement_leg" => %{"count" => 1, "securities" => ["Wire Legless Fund"]},
                # #1310: the third reason, its own bucket.
-               "third_currency" => %{"count" => 0, "securities" => []}
+               "third_currency" => %{"count" => 0, "securities" => []},
+               "other_account_currency" => %{"count" => 0, "securities" => []},
+               "zero_amount" => %{"count" => 0, "securities" => []}
              }
            }
   end

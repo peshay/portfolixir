@@ -81,7 +81,9 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
                "no_rate" => %{"count" => 1, "securities" => ["Pound Equity"]},
                "missing_settlement_leg" => %{"count" => 0, "securities" => []},
                # #1310: the third reason.
-               "third_currency" => %{"count" => 0, "securities" => []}
+               "third_currency" => %{"count" => 0, "securities" => []},
+               "other_account_currency" => %{"count" => 0, "securities" => []},
+               "zero_amount" => %{"count" => 0, "securities" => []}
              }
            }
 
@@ -143,7 +145,9 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
                "no_rate" => %{"count" => 0, "securities" => []},
                "missing_settlement_leg" => %{"count" => 0, "securities" => []},
                # #1310: the third reason.
-               "third_currency" => %{"count" => 0, "securities" => []}
+               "third_currency" => %{"count" => 0, "securities" => []},
+               "other_account_currency" => %{"count" => 0, "securities" => []},
+               "zero_amount" => %{"count" => 0, "securities" => []}
              }
            }
 

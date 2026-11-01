@@ -145,7 +145,10 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
                  "close-date rate and is never excluded for one; a sale that closes a lot with " <>
                  "no settlement leg in its currency is excluded too, never summed " <>
                  "(by_reason.missing_settlement_leg, fees_and_taxes), and so is a sale whose " <>
-                 "sell or lot is priced in a third currency (by_reason.third_currency)"
+                 "sell or lot is priced in a third currency (by_reason.third_currency), one that " <>
+                 "closes a lot paid through an account in neither the security's currency nor " <>
+                 "the sale's (by_reason.other_account_currency), and one that closes a lot of " <>
+                 "zero amount without its leg (by_reason.zero_amount); no rate fixes the last three"
            }
   end
 
