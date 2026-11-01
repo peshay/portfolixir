@@ -1783,8 +1783,11 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
 - **Value suffix:** inside {components.value-slot} the currency renders as a
   `<small>` at {typography.stat-label} size and {colors.text-muted}, 4 px
   after the digits. The digits keep tabular numerals and never wrap.
-- **Matrix zero:** "–" (en dash) centred, {colors.text-subtle}, in the cell
-  where a sum is 0,00. *Amended 2026-10-31 (issue 1149, board
+- **Matrix zero:** "–" (en dash) centred, {colors.text-muted}, in the cell
+  where a sum is 0,00. *Amended 2026-11-01 (the γ closing act, DB2):*
+  {colors.text-subtle} measured 2.64:1 on the panel (3.03:1 dark), below
+  the text floor and barred for content by the computed contrast table;
+  {colors.text-muted} measures 5.89:1 (5.91:1 dark), the table's rows. *Amended 2026-10-31 (issue 1149, board
   `mockups/ux-design-2026-10-09/04-wealth-income`, found while drawing 4 and
   5):* "0,00" means displayed as 0,00 — a month of 0,004 or −0,004 is the
   dash too — and the rule holds in every matrix of the Cash-flow page: the

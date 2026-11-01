@@ -6200,11 +6200,12 @@ thead .col-subject {
 .income-bar--empty {
   fill: var(--color-border);
 }
-/* Matrix zero (DESIGN.md → Matrix zero): an en dash, centred, subtle. */
+/* Matrix zero (DESIGN.md → Matrix zero): an en dash, centred, quiet in
+   text-muted, the lowest step content may take (the γ closing act, DB2). */
 .matrix-zero {
   display: block;
   text-align: center;
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
 }
 .income-bars {
   width: 100%;
