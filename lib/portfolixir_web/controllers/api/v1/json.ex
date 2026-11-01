@@ -669,6 +669,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       currency_basis_note: holdings_currency_basis_note(),
       # #1142 (plan D-6): the percentages' rules, null on a zero cost basis.
       computation_basis: %{
+        latest_price: Ledger.holding_price_basis(),
         unrealized_pnl_pct: Ledger.unrealized_pnl_pct_basis(),
         decomposition_pct: PnlDecomposition.pct_basis(),
         # #1212 (Sprint 21 α11): whether the buys' fees and taxes are in
@@ -705,6 +706,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     :avg_cost,
     :cost_basis,
     :latest_price,
+    :price_source,
+    :price_date,
     :market_value,
     :unrealized_pnl_abs,
     :unrealized_pnl_pct,
@@ -735,6 +738,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       avg_cost: decimal(holding.avg_cost),
       cost_basis: decimal(holding.cost_basis),
       latest_price: decimal(holding.latest_price),
+      # #1316, #1332 (ADR-0010): where the price comes from — the latest
+      # quote, or the last own trade price when the security has none.
+      price_source: reason(holding.price_source),
+      price_date: date(holding.price_date),
       market_value: decimal(holding.market_value),
       unrealized_pnl_abs: decimal(holding.unrealized_pnl_abs),
       unrealized_pnl_pct: decimal(holding.unrealized_pnl_pct),

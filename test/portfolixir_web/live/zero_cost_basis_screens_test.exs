@@ -9,7 +9,9 @@ defmodule PortfolixirWeb.ZeroCostBasisScreensTest do
   # booked as a buy at 0,00 on 03.03.2025, 25 bought at 38,50 on 11.11.2025,
   # 8 sold on 13.08.2026 at 41,25 (+330,00 EUR), latest close 41,80;
   # "Fennwick Labs AG", 15 shares delivered in at no price, latest close
-  # 22,40 (336,00 EUR); "Kestrel Robotik SE", held with no quote.
+  # 22,40 (336,00 EUR); "Kestrel Robotik SE", delivered in with no quote and
+  # no own trade, so it has no price at all (a bought one is valued at its
+  # trade price, ADR-0010; #1316).
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
@@ -51,7 +53,17 @@ defmodule PortfolixirWeb.ZeroCostBasisScreensTest do
     put_quote!(fennwick, ~D[2026-10-06], "22.40")
 
     kestrel = create_security!(name: "Kestrel Robotik SE", ticker: "KRS")
-    buy!(world, kestrel, quantity: "40", price: "52.10", date: ~D[2025-03-14])
+
+    {:ok, _delivery} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: kestrel.id,
+        type: "inbound_delivery",
+        date: ~D[2025-03-14],
+        quantity: "40",
+        currency_code: "EUR"
+      })
 
     %{world: world, larkspur: larkspur, fennwick: fennwick, kestrel: kestrel}
   end

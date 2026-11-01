@@ -5,6 +5,8 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Valuation
+  alias Portfolixir.WorldFixtures
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -428,5 +430,111 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
     assert lot["total_return_base_abs"] == "80"
     assert lot["decomposed"] == true
     assert lot["undecomposed_reason"] == nil
+  end
+
+  # User story (#1316, #1332; ADR-0010's amendment of 2026-06-10; Sprint 22
+  # plan D-6):
+  # As an API client (and the LLM I connect over MCP),
+  # I want the holdings read to value a position without a quote at its last
+  # own trade price, the way the valuation and its total do, and to name the
+  # price's source,
+  # so that the holdings rows and the portfolio total cannot disagree about
+  # whether a position has a value.
+  #
+  # Acceptance criteria:
+  # - A position with no quote reads latest_price = the last own trade
+  #   price, market_value = quantity x that price and its P&L, with
+  #   price_source "trade" and the trade's price_date.
+  # - A quoted position reads price_source "quote" and the quote's date.
+  # - A position with neither reads null figures and price_source null.
+  # - The rows' market values sum to the valuation's total for one-currency
+  #   positions, Decimal-exactly.
+  # - computation_basis.latest_price states the rule.
+  test "a position without a quote is valued at its last own trade price, its source named",
+       %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Trade Price World")
+
+    quoted = WorldFixtures.create_security!(name: "Quoted Co", ticker: "QTD")
+    unquoted = WorldFixtures.create_security!(name: "Helios Example", ticker: "HEL")
+    dark = WorldFixtures.create_security!(name: "Dark Bond", ticker: "DRK")
+
+    WorldFixtures.deposit!(world, "5000", ~D[2025-01-02])
+
+    WorldFixtures.buy!(world, quoted,
+      quantity: "10",
+      price: "100",
+      date: ~D[2025-01-05]
+    )
+
+    WorldFixtures.put_quote!(quoted, ~D[2025-06-30], "120.50")
+
+    WorldFixtures.buy!(world, unquoted,
+      quantity: "15",
+      price: "18.00",
+      date: ~D[2025-01-10]
+    )
+
+    WorldFixtures.buy!(world, unquoted,
+      quantity: "5",
+      price: "19.20",
+      date: ~D[2025-03-14]
+    )
+
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: dark.id,
+        type: "inbound_delivery",
+        date: ~D[2025-02-01],
+        quantity: "5",
+        currency_code: "EUR"
+      })
+
+    response =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/holdings")
+      |> json_response(200)
+
+    rows = Map.new(response["data"], &{&1["security_id"], &1})
+
+    trade = rows[unquoted.id]
+    assert_decimal(trade["latest_price"], "19.20")
+    assert_decimal(trade["market_value"], "384.00")
+    assert_decimal(trade["unrealized_pnl_abs"], "18.00")
+    assert trade["price_source"] == "trade"
+    assert trade["price_date"] == "2025-03-14"
+
+    quote = rows[quoted.id]
+    assert_decimal(quote["market_value"], "1205.00")
+    assert quote["price_source"] == "quote"
+    assert quote["price_date"] == "2025-06-30"
+
+    none = rows[dark.id]
+    assert none["latest_price"] == nil
+    assert none["market_value"] == nil
+    assert none["price_source"] == nil
+    assert none["price_date"] == nil
+
+    assert response["computation_basis"]["latest_price"] =~ "last own trade price"
+
+    rows_sum =
+      response["data"]
+      |> Enum.map(& &1["market_value"])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&Decimal.new/1)
+      |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+
+    valuation = Valuation.for_portfolio(world.portfolio.id)
+    assert Decimal.equal?(rows_sum, Decimal.new("1589.00"))
+    assert Decimal.equal?(rows_sum, valuation.total_value)
+  end
+
+  defp assert_decimal(actual, expected) do
+    assert is_binary(actual), "expected a Decimal string, got #{inspect(actual)}"
+
+    assert Decimal.equal?(Decimal.new(actual), Decimal.new(expected)),
+           "expected #{expected}, got #{actual}"
   end
 end

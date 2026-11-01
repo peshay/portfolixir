@@ -1893,9 +1893,18 @@ Beispiel-Payloads für Konten:
   den `latest_price`, `market_value` und `unrealized_pnl_abs`/`unrealized_pnl_pct`
   gegen diesen Preis, plus `security_name` und `currency_code`. Diese Größen
   sind in der **eigenen** Währung des Wertpapiers — durch das Kostenpaar der
-  Ledger-Faltung erzwungen (ADR-0033), nicht länger eine Annahme; ein
-  Bestand, dessen Wertpapier keinen Kurs hat, liefert `null` für Preis,
-  Marktwert und G/V. Jede Zeile trägt zusätzlich die
+  Ledger-Faltung erzwungen (ADR-0033), nicht länger eine Annahme. Seit den
+  Issues #1316 und #1332 wird eine Zeile nach der Regel bepreist, die die
+  Summe der Bewertung verwendet (ADR-0010): der letzte Schlusskurs, sonst
+  der letzte eigene Handelspreis (ein Kauf oder Verkauf, über alle
+  Portfolios; ein in einer anderen Währung gebuchter Handel wird zum
+  zuletzt gespeicherten Kurs in die des Wertpapiers umgerechnet), sodass
+  die Zeilen diese Summe ergeben. Jede Zeile nennt sie in `price_source`
+  (`"quote"` oder `"trade"`) und `price_date`, und
+  `computation_basis.latest_price` nennt die Regel. Nur ein Bestand ohne
+  Kurs und ohne eigenen Handel liefert `null` für Preis, Marktwert und
+  G/V, mit `price_source` `null`: er steht in keiner Summe. Jede Zeile
+  trägt zusätzlich die
   ADR-0033-Zerlegung des G/V in Basiswährung: `base_cost` (der
   Abrechnungsbetrag, das gezahlte Geld vor Gebühren und Steuern, mit seiner
   `base_currency`),

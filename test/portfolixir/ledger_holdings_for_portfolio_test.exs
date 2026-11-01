@@ -76,7 +76,8 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
     # Sec A in a second depot: its own moving average.
     trade!(world, depot_two, a, "buy", "3", "100", ~D[2026-01-10])
 
-    # Sec B: held but no price available.
+    # Sec B: held with no quote, so valued at its last own trade price
+    # (ADR-0010; #1316, #1332).
     trade!(world, depot_one, b, "buy", "4", "50", ~D[2026-01-05])
 
     # Sec C: fully sold, so it must not appear.
@@ -108,10 +109,12 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
 
     b_one = row_for(holdings, b.id, depot_one.id)
     assert Decimal.equal?(b_one.quantity, Decimal.new("4"))
-    assert b_one.latest_price == nil
-    assert b_one.market_value == nil
-    assert b_one.unrealized_pnl_abs == nil
-    assert b_one.unrealized_pnl_pct == nil
+    assert Decimal.equal?(b_one.latest_price, Decimal.new("50"))
+    assert Decimal.equal?(b_one.market_value, Decimal.new("200"))
+    assert Decimal.equal?(b_one.unrealized_pnl_abs, Decimal.new("0"))
+    assert b_one.price_source == :trade
+    assert b_one.price_date == ~D[2026-01-05]
+    assert a_one.price_source == :quote
 
     assert row_for(holdings, c.id, depot_one.id) == nil
   end

@@ -117,8 +117,18 @@ defmodule PortfolixirWeb.SecurityDetailOverviewTest do
       security =
         WorldFixtures.create_security!(name: "Placeholder Anleihe 2031", ticker: nil, isin: nil)
 
-      WorldFixtures.deposit!(world, "1000", ~D[2026-02-02])
-      WorldFixtures.buy!(world, security, quantity: "5", price: "100", date: ~D[2026-02-02])
+      # #1316 (ADR-0010): a bought position is valued at its trade price, so
+      # an unpriced one is delivered in, with no quote and no own trade.
+      {:ok, _delivery} =
+        Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          security_id: security.id,
+          type: "inbound_delivery",
+          date: ~D[2026-02-02],
+          quantity: "5",
+          currency_code: "EUR"
+        })
 
       {:ok, view, _html} = live(conn, "/securities/#{security.id}")
 

@@ -93,7 +93,7 @@ defmodule Portfolixir.Portfolios.CategoryResult do
          scope when not is_tuple(scope) <- Buckets.load_scope(portfolio_id, view_id) do
       holdings =
         portfolio_id
-        |> Ledger.holdings_for_portfolio(opts)
+        |> Ledger.holdings_for_portfolio(quote_priced(opts))
         |> in_scope(scope)
 
       currency = base_currency(portfolio_id)
@@ -168,11 +168,17 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   defp hub_holdings(opts, narrow) do
     Enum.flat_map(Portfolios.list_portfolios(), fn portfolio ->
       portfolio.id
-      |> Ledger.holdings_for_portfolio(opts)
+      |> Ledger.holdings_for_portfolio(quote_priced(opts))
       |> narrow.()
       |> Enum.map(&in_hub_currency(&1, portfolio.base_currency_code))
     end)
   end
+
+  # The roll-up prices its members by quotes alone, as it did before the
+  # holdings read took the valuation's trade-price fallback (#1316, #1332;
+  # Sprint 22's R8): a trade-priced member stays excluded and named with
+  # `no_usable_price` until a decision moves this read to ADR-0010's rule.
+  defp quote_priced(opts), do: Keyword.put(opts, :trade_fallback, false)
 
   defp in_scope(holdings, scope) do
     Enum.filter(
