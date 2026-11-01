@@ -131,13 +131,15 @@ defmodule Portfolixir.Imports do
           cash_accounts: %{String.t() => Applier.layer_counts()},
           depots: %{String.t() => Applier.layer_counts()},
           securities: %{String.t() => Applier.layer_counts()},
-          unseen_names: Applier.unseen_names()
+          unseen_names: Applier.unseen_names(),
+          held_back: [Applier.held_back_group()]
         }
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
     Applier.reimport_counts(preview, import_portfolio_id(opts),
       dry_run: Keyword.get(opts, :dry_run, true),
       economic_keys: Keyword.get(opts, :economic_keys, false),
-      mapping: Keyword.get(opts, :mapping)
+      mapping: Keyword.get(opts, :mapping),
+      include_portfolios: Keyword.get(opts, :include_portfolios, [])
     )
   end
 

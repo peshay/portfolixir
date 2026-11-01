@@ -64,10 +64,21 @@ defmodule Portfolixir.Imports.CouponImportTest do
     %{portfolio: portfolio}
   end
 
+  # Each test here holds its own copy of one history in several portfolios
+  # on purpose, so every apply includes the others' rows deliberately (ADR-0050
+  # as amended on 2026-11-01, #1313: held back by default).
+  defp every_portfolio, do: Enum.map(Portfolios.list_portfolios(), & &1.id)
+
   defp apply!(body, filename, portfolio) do
     {:ok, preview} = PortfolioPerformance.parse(body, filename: filename)
     assert preview.errors == []
-    assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    assert {:ok, %Result{} = result} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               include_portfolios: every_portfolio()
+             })
+
     result
   end
 

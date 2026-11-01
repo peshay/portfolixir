@@ -628,7 +628,9 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   # The layers on which the apply skips a row before it resolves any security
   # (ADR-0050 §3; the applier's per-row order): an unimportable line, then a
-  # held or retired content hash (an in-file repeat counts `:hash`).
+  # held or retired content hash (an in-file repeat counts `:hash`). A row
+  # held back because another portfolio holds it (#1313) is judged after the
+  # ladder, so its key may be resolved.
   @skipped_before_resolution [:hash, :retired, :unimportable]
 
   @doc """

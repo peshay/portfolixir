@@ -642,6 +642,7 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
                    unimportable: 1,
                    economics: 0,
                    internal_transfer: 0,
+                   held_back: 0,
                    new: 0
                  }
       end
