@@ -49,39 +49,83 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 21's money stories (version 19): stacked PR 1's one entry, its
-    # items named by their issues and its summary grouped by the plan's α and
-    # β stories. #1214 is entry 18's (the amendment's D-3). No route, tool or
-    # prompt is added or removed.
-    assert newest["version"] == 19
-    assert newest["date"] == "2026-10-31"
-    assert newest["summary"] =~ "Sprint 21, the money after the first import"
+    # Sprint 21's UI batch (version 20): stacked PR 2's one entry (the
+    # amendment's D-3), #1210's month totals on the Costs read, its one item;
+    # the γ stories' screens are named as screens, with the two places where
+    # code under a screen moved (#1187's archived-plan rule, #1149's Format)
+    # and the stored note #1179 renames. No route, tool or prompt is added or
+    # removed.
+    assert newest["version"] == 20
+    assert newest["date"] == "2026-11-01"
+    assert newest["summary"] =~ "Sprint 21, the UI batch"
     assert newest["endpoints"] == []
     assert newest["tools"] == []
     # The read serves no prompts list; the manifest holds it.
     assert hd(Contract.entries()).prompts == []
-    refute newest["summary"] =~ "#1214"
+    assert newest["summary"] =~ "γ4"
+    assert newest["summary"] =~ "boards 01 to 08"
+    assert newest["summary"] =~ "byte-identical"
+    assert newest["summary"] =~ "Format"
+
+    for id <-
+          ~w(#1210 #1104 #1112 #1114 #1121 #1122 #1123 #1125 #1130 #1138 #1139 #1145 #1147 #1148 #1149 #1150 #1151 #1155 #1157 #1158 #1160 #1161 #1162 #1163 #1165 #1166 #1169 #1171 #1178 #1179 #1180 #1181 #1187 #1191 #1201 #1207 #1208 #1211 #962 H45) do
+      assert newest["summary"] =~ id, id
+    end
+
+    # γ4 (#1210): each month of the Costs read carries its total, with its
+    # basis quoted from Portfolixir.Portfolios.Costs.
+    assert [costs] = newest["parameters"]
+    assert String.starts_with?(costs, "GET /api/v1/costs (portfolixir.cashflow.costs")
+    assert costs =~ "annual[].months"
+    assert costs =~ "excluded"
+    assert costs =~ "\"-4\""
+
+    assert costs =~
+             "each month's total is that month's fees plus its taxes, both after the " <>
+               "conversion above; a year's fees_total, taxes_total and total sum its " <>
+               "twelve months; an excluded cost is in no total"
+
+    assert costs =~
+             "a year/month matrix of fees, taxes and a total per month and per year " <>
+               "(computation_basis.totals)"
+
+    assert costs =~ "(#1210"
+
+    # Sprint 21's money stories (version 19): stacked PR 1's one entry, its
+    # items named by their issues and its summary grouped by the plan's α and
+    # β stories. #1214 is entry 18's (the amendment's D-3). No route, tool or
+    # prompt is added or removed.
+    money = Enum.find(data["entries"], &(&1["version"] == 19))
+
+    assert money["version"] == 19
+    assert money["date"] == "2026-10-31"
+    assert money["summary"] =~ "Sprint 21, the money after the first import"
+    assert money["endpoints"] == []
+    assert money["tools"] == []
+    # The read serves no prompts list; the manifest holds it.
+    assert Enum.find(Contract.entries(), &(&1.version == 19)).prompts == []
+    refute money["summary"] =~ "#1214"
 
     for story <- ["α1", "α2", "α3", "α4", "α11", "β1", "β2", "β3"] do
-      assert newest["summary"] =~ story, story
+      assert money["summary"] =~ story, story
     end
 
     for id <- ~w(#1199 #1196 #1198 #928 #1212 #1216 #1185 #1186) do
-      assert newest["summary"] =~ id, id
+      assert money["summary"] =~ id, id
 
       assert Enum.any?(
-               newest["parameters"],
+               money["parameters"],
                &(&1 =~ "(#{id}" or &1 =~ "#{id})" or &1 =~ "#{id};" or &1 =~ ", #{id}")
              ),
              id
     end
 
     # α8, α9 and H53 rewrite the import preview, which has no route or tool.
-    assert newest["summary"] =~ "the import preview stories change nothing an agent sees"
+    assert money["summary"] =~ "the import preview stories change nothing an agent sees"
 
     # α1 (#1199): a trade priced in a third currency is a 422 naming both.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/transactions and PATCH") and
                  &1 =~ "must be USD (the security's currency) or EUR (the cash account's)" and
                  &1 =~ "security_id" and &1 =~ "(#1199")
@@ -89,7 +133,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # α2 (#1196): a history run derives the settlement legs and counts them.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/exchange_rates/sync") and
                  &1 =~ "settlement_legs" and &1 =~ "not_run" and
                  &1 =~ "stopped_at_transaction_id" and &1 =~ "skipped_changed" and
@@ -98,49 +142,49 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # α3 (#1198): a closed trade in its sale's currency, or unavailable.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities/:security_id/trades") and
                  &1 =~ "unavailable_reason" and &1 =~ "lots_missing_leg" and
                  &1 =~ "by_reason" and &1 =~ "missing_settlement_leg" and &1 =~ "(#1198")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities/:id/merge_preview") and
                  &1 =~ "unavailable_trades" and &1 =~ "(#1198")
            )
 
     # α4 (#928): a coupon naming its bond is its income, at version 4.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(&1 =~ "portfolixir.views.contribution" and
                  &1 =~ "computation version 3 to 4" and &1 =~ "remainder.interest" and
                  &1 =~ "(#928")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/income") and
                  &1 =~ "positions" and &1 =~ "(#928")
            )
 
     # α11 (#1212): the reads state whether fees and taxes are in a figure.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(&1 =~ "fees_and_taxes_in_figures" and &1 =~ "basis_note" and
                  &1 =~ "portfolixir.portfolios.category_results" and &1 =~ "(#1212")
            )
 
     # β1 (#1216): the converter prompt says what the importer reads.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(&1 =~ "import_converter" and &1 =~ "first_setup" and &1 =~ "\"20\"" and
                  &1 =~ "(#1216)")
            )
 
     # β2 (#1185): the target reads take a draft's plan_id.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/targets") and
                  &1 =~ "plan_id" and &1 =~ "is a plan of another classification" and
                  &1 =~ "names a draft" and &1 =~ "portfolixir.targets.list_positions" and
@@ -149,7 +193,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # β3 (#1186): a metric sort sorts the whole list and pages after it.
     assert Enum.any?(
-             newest["parameters"],
+             money["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities?sort=") and
                  &1 =~ "performance_1y" and &1 =~ "pages after" and &1 =~ "(#1186)")
            )
