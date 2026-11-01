@@ -49,32 +49,54 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 22's R1 (version 21; #1291, ADR-0003 amended 2026-11-01): every
+    # write refuses a JSON number in a financial field with a named 422. Dated
+    # strictly after entry 20, so since=2026-11-01 still returns it. No
+    # route, tool or prompt is added or removed.
+    assert newest["version"] == 21
+    assert newest["date"] == "2026-11-02"
+    assert newest["summary"] =~ "Sprint 22, R1"
+    assert newest["summary"] =~ "#1291"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+    # The read serves no prompts list; the manifest holds it.
+    assert hd(Contract.entries()).prompts == []
+    assert [refusal] = newest["parameters"]
+    assert String.starts_with?(refusal, "Every POST, PUT, PATCH and DELETE under /api/v1")
+    assert refusal =~ ~s(["must be a decimal string"])
+    assert refusal =~ "1234567890.12345678"
+    assert refusal =~ "ADR-0003, amendment of 2026-11-01"
+
+    for field <- ~w(amount quantity price close fees taxes settlement_fx_rate church_tax_rates) do
+      assert refusal =~ field, field
+    end
+
     # Sprint 21's UI batch (version 20): stacked PR 2's one entry (the
     # amendment's D-3), #1210's month totals on the Costs read, its one item;
     # the γ stories' screens are named as screens, with the two places where
     # code under a screen moved (#1187's archived-plan rule, #1149's Format)
     # and the stored note #1179 renames. No route, tool or prompt is added or
-    # removed.
-    assert newest["version"] == 20
-    assert newest["date"] == "2026-11-01"
-    assert newest["summary"] =~ "Sprint 21, the UI batch"
-    assert newest["endpoints"] == []
-    assert newest["tools"] == []
-    # The read serves no prompts list; the manifest holds it.
-    assert hd(Contract.entries()).prompts == []
-    assert newest["summary"] =~ "γ4"
-    assert newest["summary"] =~ "boards 01 to 08"
-    assert newest["summary"] =~ "byte-identical"
-    assert newest["summary"] =~ "Format"
+    # removed. Found by version from Sprint 22 on.
+    ui_batch = Enum.find(data["entries"], &(&1["version"] == 20))
+
+    assert ui_batch["date"] == "2026-11-01"
+    assert ui_batch["summary"] =~ "Sprint 21, the UI batch"
+    assert ui_batch["endpoints"] == []
+    assert ui_batch["tools"] == []
+    assert Enum.find(Contract.entries(), &(&1.version == 20)).prompts == []
+    assert ui_batch["summary"] =~ "γ4"
+    assert ui_batch["summary"] =~ "boards 01 to 08"
+    assert ui_batch["summary"] =~ "byte-identical"
+    assert ui_batch["summary"] =~ "Format"
 
     for id <-
           ~w(#1210 #1104 #1112 #1114 #1121 #1122 #1123 #1125 #1130 #1138 #1139 #1145 #1147 #1148 #1149 #1150 #1151 #1155 #1157 #1158 #1160 #1161 #1162 #1163 #1165 #1166 #1169 #1171 #1178 #1179 #1180 #1181 #1187 #1191 #1201 #1207 #1208 #1211 #962 H45) do
-      assert newest["summary"] =~ id, id
+      assert ui_batch["summary"] =~ id, id
     end
 
     # γ4 (#1210): each month of the Costs read carries its total, with its
     # basis quoted from Portfolixir.Portfolios.Costs.
-    assert [costs] = newest["parameters"]
+    assert [costs] = ui_batch["parameters"]
     assert String.starts_with?(costs, "GET /api/v1/costs (portfolixir.cashflow.costs")
     assert costs =~ "annual[].months"
     assert costs =~ "excluded"

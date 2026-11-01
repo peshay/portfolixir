@@ -41,6 +41,32 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 21,
+      # Sprint 22's sprint PR, R1 (#1291; ADR-0003, amendment of 2026-11-01):
+      # every write refuses a JSON number in a financial field. Dated the day
+      # after entry 20, because since= compares strictly after a date and a
+      # client that read entry 20 on 2026-11-01 must see this one.
+      date: ~D[2026-11-02],
+      summary:
+        "Sprint 22, R1: every write under /api/v1 refuses a JSON number, a float or an " <>
+          "integer, in a money, quantity, price, fee, tax or exchange-rate field with a 422 " <>
+          "naming the field, errors.<field> [\"must be a decimal string\"], and writes " <>
+          "nothing, where the number was cast through a binary float and a value past about " <>
+          "17 significant digits was stored as a different number (#1291). A decimal string " <>
+          "is accepted as before, and reads are unchanged. The MCP companion's tools already " <>
+          "send these fields as strings, so an agent using them sees no change; no route, " <>
+          "tool or prompt is added or removed.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "Every POST, PUT, PATCH and DELETE under /api/v1, no tool changed: a JSON number in a financial field of the body, at any depth (inside the transaction, security, parameters, profile, allowance_order or statement_snapshot object, and in every row of a list such as the quote batch's quotes), answers 422 with errors naming each such field once, [\"must be a decimal string\"], before the write runs, so nothing is stored; a list under a financial key, church_tax_rates, is refused when one of its items is a number. The fields: amount, gross_amount, security_amount, settlement_amount, face_value, amount_granted, the tax snapshot's money fields (taxable_income, allowance_granted, allowance_used, loss_pot_equities, loss_pot_other, loss_carryforward_prior_years, withholding_tax_pot, withholding_tax_credited), quantity, price, close, fees, taxes, the tax rates and withheld amounts (capital_gains_tax_rate, solidarity_surcharge_rate, church_tax_rate, church_tax_rates, capital_gains_tax_withheld, solidarity_surcharge_withheld, church_tax_withheld), settlement_fx_rate and coupon_rate, and any field named with the suffix _amount, _price, _rate, _rates or _withheld. A POST /api/v1/transactions with \"price\": 100.1 answers {\"errors\": {\"price\": [\"must be a decimal string\"]}}, where it answered 201; with \"price\": \"100.1\" it answers 201 as before, and a quantity of \"1234567890.12345678\" is stored exactly, where the same value as a number was stored as 1234567890.1234567. A JSON null keeps the answer it had, and fields outside these families (ids, tax_year, split ratio terms, target weights, policy thresholds) are unchanged. A security's free-form attributes are not read (#1291; ADR-0003, amendment of 2026-11-01)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 20,
       # Sprint 21's stacked PR 2, the UI batch: the PR's one entry (the
       # amendment of 2026-10-27, D-3), its one item #1210's month totals on
