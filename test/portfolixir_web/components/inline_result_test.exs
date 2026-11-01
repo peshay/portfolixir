@@ -161,4 +161,35 @@ defmodule PortfolixirWeb.Components.InlineResultTest do
     assert hook =~ "answersShown: function (control) {"
     assert hook =~ ~s{return this.shown !== null && !control.closest("dialog, [role='dialog']");}
   end
+
+  # Acceptance criteria (the γ closing act's re-check, board 08 / #1166: an
+  # answer from a row menu):
+  # - "ISIN kopieren" from one row's kebab, then from another's, answers with
+  #   the same text twice, so the second menu item is the trigger at its
+  #   click (G1 above). The item leaves the page with its menu, so it is not
+  #   usable at the dismiss, and the focus fell through to the page's
+  #   fallback, the search field, rather than to the second row's kebab,
+  #   which held the focus after the menu closed.
+  # - A control inside a row menu (`[role='menu'][data-trigger]`, the
+  #   PositionedMenu hook's markup) is therefore anchored to the menu's
+  #   opener: the hook records the element the menu's `data-trigger` names,
+  #   on the activation and as the last action alike, so the dismiss gives
+  #   the focus to the kebab that opened the menu.
+  # - ExUnit cannot drive the hook; the re-check's browser pass is the
+  #   sequence kebab 3, "ISIN kopieren", kebab 12, "ISIN kopieren", Enter on
+  #   the ×, expecting kebab 12.
+  test "the InlineResult hook anchors an answer from a row menu to the menu's opener" do
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.InlineResult = {")
+      |> Enum.at(1, "")
+      |> String.split("\n            };\n")
+      |> hd()
+
+    assert hook =~ "anchor: function (control) {"
+    assert hook =~ ~s{control.closest("[role='menu'][data-trigger]")}
+    assert hook =~ ~s{document.getElementById(menu.getAttribute("data-trigger"))}
+    assert hook =~ "control = self.anchor(control);"
+  end
 end
