@@ -232,6 +232,31 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
            "the unscoped 0-2-1 rule loses to the page's later shrink rule"
   end
 
+  # User story (#1155, Sprint 21 γ8; board 08, N14 = A; the γ closing act,
+  # DD-S4):
+  # As the operator reading Wealth's allocation tree on a 390 px phone,
+  # I want a position row's name to wrap, as the flat positions' names do,
+  # so that a twin's identifier after the name is not hidden under the
+  # pinned Drift column.
+  #
+  # Acceptance criteria:
+  # - Under 560 px the tree's position rows (`.drift-table tr.is-position`)
+  #   join the flat positions' name rule: the first cell takes the 9 rem
+  #   share and wraps (`white-space: normal`, `overflow-wrap: break-word`),
+  #   overriding the phone block's `table { white-space: nowrap }`.
+  test "under 560 px the allocation tree's position names wrap as the flat positions' do" do
+    [_, selectors, body] =
+      Regex.run(
+        ~r/@media \(max-width: 560px\) \{\n((?:  [^{\n]+,\n)*  \.drift-table\[data-role="flat-positions"\] td:first-child(?:,\n  [^{\n]+)*) \{([^}]*)\}/,
+        @css
+      ) || flunk("no phone rule for the flat positions' names")
+
+    assert selectors =~ ".drift-table tr.is-position td:first-child"
+    assert body =~ ~r/white-space:\s*normal;/
+    assert body =~ ~r/overflow-wrap:\s*break-word;/
+    assert body =~ ~r/min-width:\s*9rem;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body
