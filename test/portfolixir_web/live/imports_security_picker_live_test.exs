@@ -228,10 +228,11 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
   # section.
   #
   # Acceptance criteria:
-  # - The plain creations' `<details>` tells LiveView to keep the `open`
-  #   the browser set on it across every patch
-  #   (`phx-mounted`: `ignore_attrs` of `open`), since the server renders
-  #   no `open` and a patch would otherwise remove it.
+  # - The plain creations' `<details>` keeps the `open` the browser set on
+  #   it across every patch with the shell's `DisclosureState` hook (an id
+  #   of its own; the house fix for a `<details>` inside a live form, #869),
+  #   since the server renders no `open` and a patch would otherwise
+  #   remove it.
   # - It still does after the picker opened, a search and a pick.
   test "the plain creations' section keeps the open state the browser gave it", %{
     conn: conn,
@@ -317,6 +318,44 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     assert remap_cards =~ ".focus()"
   end
 
+  # User story (H45, Sprint 21 γ7, Q1 B; design critic D, DD-S2): As the
+  # operator searching for another security on a decision row, I want the
+  # search to list only securities the row's cards do not already show, so
+  # that one security never stands twice in the row's one radio group.
+  #
+  # Acceptance criteria:
+  # - A search on a decision row that finds its candidates and one other
+  #   security lists only the other one under the search; each candidate
+  #   stays one card above.
+  # - A search that finds only the row's candidates says "No other security
+  #   matches."
+  test "a decision row's search lists only securities its cards do not show", %{
+    conn: conn,
+    bright: [bright_a, bright_b]
+  } do
+    other = security!(%{name: "Brightwater Harbour AG"})
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, [purchase(@brightwater, "2026-01-17")])
+
+    decision = "#import-security-mapping [data-role='security-decision']"
+
+    view
+    |> element(decision <> " button.link-button", "Search for another security…")
+    |> render_click()
+
+    search(view, "Brightwater Utilities SE", "Brightwater")
+
+    for id <- [bright_a.id, bright_b.id],
+        do: assert(length(ids(view, decision <> " .merge-target[data-id='#{id}']")) == 1)
+
+    assert ids(view, decision <> " .mapping-remap .merge-target") == ["#{other.id}"]
+
+    search(view, "Brightwater Utilities SE", "Brightwater Utilities")
+    refute has_element?(view, decision <> " .mapping-remap .merge-target")
+    assert has_element?(view, decision <> " .mapping-remap__empty", "No other security matches.")
+  end
+
   # --- the file ----------------------------------------------------------------
 
   defp purchase(security, date) do
@@ -400,25 +439,22 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     |> Enum.map(fn ops -> Enum.any?(Jason.decode!(ops), &match?(["focus", _], &1)) end)
   end
 
-  # Whether the plain creations' <details> carries LiveView's instruction to
-  # leave its `open` attribute to the browser.
+  # Whether the plain creations' <details> carries the shell's hook that
+  # restores the `open` the browser set on it after each patch.
   defp keeps_open?(view) do
-    [details] =
-      view
-      |> render()
-      |> Floki.parse_document!()
-      |> Floki.find("#import-security-mapping details[data-role='plain-creates']")
-
-    case Floki.attribute(details, "phx-mounted") do
-      [ops] ->
-        ["ignore_attrs", %{"attrs" => ["open"]}] in Enum.map(Jason.decode!(ops), &drop_nil_to/1)
-
-      [] ->
-        false
-    end
+    has_element?(
+      view,
+      "#import-security-mapping details#import-plain-creates[data-role='plain-creates'][phx-hook='DisclosureState']"
+    )
   end
 
-  defp drop_nil_to([op, args]), do: [op, Map.reject(args, fn {_k, v} -> is_nil(v) end)]
+  defp ids(view, selector) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> Enum.flat_map(&Floki.attribute(&1, "data-id"))
+  end
 
   defp text(view, selector) do
     view
