@@ -4300,6 +4300,8 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(sync?.inputSchema.properties.scope.enum, ["latest", "history"]);
     assert.match(sync?.description ?? "", /BACKFILL/);
     assert.match(sync?.description ?? "", /stays excluded/);
+    // #1311 (Sprint 22 R5): a zero amount is counted apart from a missing rate.
+    assert.match(sync?.description ?? "", /skipped_no_rate, skipped_changed, skipped_zero_amount/);
 
     await assert.rejects(
       callTool(client, "portfolixir.exchange_rates.sync", { scope: "everything" })

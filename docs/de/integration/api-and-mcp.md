@@ -3400,6 +3400,13 @@ Scope-Leiter).
   ist der neue Lauf dieser Aufruf oder die Mix-Aufgabe). `scope=latest` antwortet mit `settlement_legs: null`: die tägliche
   Synchronisierung leitet keine Beine ab. Eine Buchung, die schon ein Bein
   trägt oder in einer dritten Währung bepreist ist, bleibt immer unberührt.
+  Seit Issue #1311 trägt `settlement_legs` auch `skipped_zero_amount`
+  (`null` bei einem Halt, `0`, wenn der Lauf nichts abgeleitet hat): die
+  Buchungen, deren Handelsbetrag null ist, etwa eine Gratiszuteilung zum
+  Preis 0, die kein Kurs in ein Bein umrechnet, sodass ein neuer Lauf sie
+  nie ändert. `skipped_no_rate` zählt sie nicht mehr und zählt nur die
+  Buchungen, deren Tag noch keinen Kurs hat; die Mix-Aufgabe listet die
+  Zeilen mit Betrag null getrennt auf, nach ID und Datum.
 
 ## Klassifizierungen
 
