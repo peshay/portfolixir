@@ -72,7 +72,14 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # The read serves no prompts list; the manifest holds it.
     assert hd(Contract.entries()).prompts == []
-    assert [refusal, incomplete_splits, rate_only, _income] = newest["parameters"]
+    assert [refusal, incomplete_splits, rate_only, _income, trades] = newest["parameters"]
+    assert newest["summary"] =~ "R5"
+    assert String.starts_with?(trades, "GET /api/v1/securities/:security_id/trades")
+    assert trades =~ "third_currency"
+    assert trades =~ "other_account_currency"
+    assert trades =~ "zero_amount"
+    assert trades =~ "skipped_zero_amount"
+    assert trades =~ "(#1310, #1311, #1317)"
     assert String.starts_with?(incomplete_splits, "GET /api/v1/splits/incomplete")
     assert incomplete_splits =~ "remedy"
     assert incomplete_splits =~ "(#1292)"
