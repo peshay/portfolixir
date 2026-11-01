@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Bonds
+  alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
@@ -2103,7 +2104,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </thead>
             <tbody>
               <%= for tx <- @rows do %>
-                <tr class={"tx-row tx-row--#{tx.type}"}>
+                <tr class={"tx-row tx-row--#{tx.type}"} data-tx-id={tx.id}>
                   <td><%= Format.date(tx.date) %></td>
                   <td>
                     <span class={"badge tx-badge tx-badge--#{tx.type}"}>
@@ -2787,20 +2788,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:buckets, :list, default: [])
 
   defp holdings_tab_panel(assigns) do
-    totals =
-      Enum.reduce(assigns.holdings, %{value: Decimal.new(0), cost: Decimal.new(0)}, fn h, acc ->
-        if h.current_value && h.cost_basis do
-          %{
-            value: Decimal.add(acc.value, h.current_value),
-            cost: Decimal.add(acc.cost, h.cost_basis)
-          }
-        else
-          acc
-        end
-      end)
+    # #1316 (board 02 ①; ADR-0010): the rows are priced by the valuation's
+    # rule, so the total is their sum — the valued rows' values, and the P&L
+    # of the rows that carry one. A row with no price is in neither: the
+    # total reads "—" when no row is valued, and the rows left out are named
+    # under the table, never summed as 0,00.
+    {valued, unvalued} = Enum.split_with(assigns.holdings, &(not is_nil(&1.current_value)))
 
-    total_pnl = Decimal.sub(totals.value, totals.cost)
-    assigns = assign(assigns, :totals, totals) |> assign(:total_pnl, total_pnl)
+    assigns =
+      assigns
+      |> assign(:total_value, sum_or_nil(valued, :current_value))
+      |> assign(:total_pnl, sum_or_nil(valued, :unrealized_pnl_abs))
+      |> assign(:unvalued, unvalued)
 
     ~H"""
     <section
@@ -2863,12 +2862,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <%= Format.decimal(h.avg_cost, 2) %>
                     <small><%= @currency_code %></small>
                   </td>
-                  <td class="num">
+                  <%!-- #1316 (board 02 ①): the figure says where its price
+                       comes from when it is not a quote, and a row with no
+                       price says so instead of a bare dash. --%>
+                  <td class="num" title={holding_value_title(h, @currency_code)}>
                     <%= if h.current_value do %>
                       <%= Format.decimal(h.current_value, 2) %>
                       <small><%= @currency_code %></small>
+                      <small :if={h.price_source == :trade} class="cell-note">
+                        <%= gettext("at trade price") %>
+                      </small>
                     <% else %>
-                      —
+                      —<small class="cell-note"><%= gettext("no price known") %></small>
                     <% end %>
                   </td>
                   <td class={["num", pnl_class(h.unrealized_pnl_abs)]}>
@@ -2916,9 +2921,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tfoot>
               <tr class="totals-row">
                 <td colspan="3"><%= gettext("Total") %></td>
-                <td class="num">
-                  <%= Format.decimal(@totals.value, 2) %>
-                  <small><%= @currency_code %></small>
+                <td class="num" data-role="holdings-total-value">
+                  <%= if @total_value do %>
+                    <%= Format.decimal(@total_value, 2) %>
+                    <small><%= @currency_code %></small>
+                  <% else %>
+                    —
+                  <% end %>
                 </td>
                 <td class={["num", pnl_class(@total_pnl)]}>
                   <%= signed_decimal_or_dash(@total_pnl, 2) %>
@@ -2927,6 +2936,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </tr>
             </tfoot>
           </table>
+        </div>
+        <%!-- UX-DR25 (board 02 ① 1b): the rows the total leaves out are
+             named beside it, with the reason. --%>
+        <div :if={@unvalued != []} class="detail-holdings-unvalued">
+          <AppShell.data_note severity={:attention} data-role="holdings-unvalued">
+            <%= ngettext(
+              "%{count} position is missing from the total — no price is known for this security (no quote and no own trade): %{rows}.",
+              "%{count} positions are missing from the total — no price is known for this security (no quote and no own trade): %{rows}.",
+              length(@unvalued),
+              rows: unvalued_rows_label(@unvalued)
+            ) %>
+          </AppShell.data_note>
         </div>
       <% end %>
     </section>
@@ -3585,6 +3606,43 @@ defmodule PortfolixirWeb.SecuritiesLive do
     Format.signed_decimal(decimal_for_display(value), places)
   end
 
+  # #1316: the Bestände tab's total over its valued rows; nil, never 0,
+  # when no row carries the figure.
+  defp sum_or_nil(rows, key) do
+    case rows |> Enum.map(&Map.get(&1, key)) |> Enum.reject(&is_nil/1) do
+      [] -> nil
+      figures -> Enum.reduce(figures, &Decimal.add(&2, &1))
+    end
+  end
+
+  # The trade-priced value's title: the price and its date, the detail
+  # head's words (board 02 ①).
+  defp holding_value_title(%{price_source: :trade, latest_price: %Decimal{} = price} = h, code) do
+    gettext("No current quote: valued at the last own trade price of %{price} %{currency}%{date}",
+      price: Format.decimal(price, 2),
+      currency: code,
+      date: if(h.price_date, do: " (#{Format.date(h.price_date)})", else: "")
+    )
+  end
+
+  defp holding_value_title(_holding, _code), do: nil
+
+  # The rows the total leaves out, by depot and quantity: "Demo Depot
+  # (5 units)" — the history's unit words, the quantity's own digits.
+  defp unvalued_rows_label(rows) do
+    Enum.map_join(rows, ", ", fn h ->
+      quantity =
+        ngettext(
+          "%{quantity} unit",
+          "%{quantity} units",
+          TransactionManagementLive.plural_count(h.quantity),
+          quantity: Format.exact(h.quantity)
+        )
+
+      "#{(h.depot && h.depot.name) || "—"} (#{quantity})"
+    end)
+  end
+
   # Why a row's ADR-0033 decomposition is unavailable — terse, impersonal,
   # shown as the dash's title. Nil (no hint) for decomposed rows.
   defp undecomposed_hint(%{decomposed: true}), do: nil
@@ -3617,6 +3675,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp split_ratio_label(_tx), do: "—"
 
+  # #1331 (board 02 ②; plan D-6): a dividend's or an interest booking's
+  # Brutto is Income's gross — the cash credited plus the tax withheld —
+  # never the cash alone, so one booking has one gross on every screen.
+  defp tx_gross(%{type: type} = tx) when type in ~w(dividend interest),
+    do: Income.gross_of(tx)
+
   defp tx_gross(%{quantity: q, price: p} = tx) do
     with %Decimal{} = quantity <- decimal_for_display(q),
          %Decimal{} = price <- decimal_for_display(p) do
@@ -3645,6 +3709,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # The currency of `tx_gross/1`'s figure: quantity × price is in the
   # booking's currency, a stored gross amount is cash, in the account's.
+  defp tx_gross_currency(%{type: type, cash_account: %{currency_code: code}})
+       when type in ~w(dividend interest),
+       do: code
+
   defp tx_gross_currency(%{quantity: %Decimal{}, price: %Decimal{}} = tx), do: tx.currency_code
   defp tx_gross_currency(%{cash_account: %{currency_code: code}}), do: code
 

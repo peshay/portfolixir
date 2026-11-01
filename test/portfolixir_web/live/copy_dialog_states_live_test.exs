@@ -66,7 +66,9 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
     #
     # Acceptance criteria:
     # - The basis line reads "One row per depot and security, valued at the
-    #   latest stored price." and names neither the API nor a projection.
+    #   latest stored price or, without a quote, at the last own trade price."
+    #   (#1332), then the market value's currency (D-9), and names neither
+    #   the API nor a projection.
     test "the Positions basis line is about the rows", %{conn: conn} do
       Classifications.ensure_builtins()
       world_with_holding()
@@ -76,7 +78,9 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
       basis = view |> element("[data-role='positions-basis']") |> render() |> text()
 
       assert String.trim(basis) ==
-               "One row per depot and security, valued at the latest stored price."
+               "One row per depot and security, valued at the latest stored price or, " <>
+                 "without a quote, at the last own trade price. " <>
+                 "Market value in EUR, the figure the total sums."
 
       refute basis =~ "API"
       refute basis =~ "projection"

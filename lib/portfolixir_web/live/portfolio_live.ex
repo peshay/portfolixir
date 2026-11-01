@@ -758,6 +758,9 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket =
       socket
       |> assign(:valuation, valuation)
+      # #1332 (D-9): the positions' market values are the ones this total
+      # sums, so they land with it.
+      |> assign_base_values(valuation)
       |> assign(:negative_report, negative_report)
       |> assign(:two_scales, two_scales)
       |> assign(:implausible_quotes, implausible_quotes)
@@ -2512,8 +2515,15 @@ defmodule PortfolixirWeb.PortfolioLive do
                screen's nouns. That the table is the API's own projection
                stays true and is said where it helps: the API guide and the
                column picker's grouping. --%>
+          <%!-- #1332 (board 02 ①) and D-9: the rule the total uses, named,
+               and the currency the market value is in. --%>
           <p class="summary-basis" data-role="positions-basis">
-            <%= gettext("One row per depot and security, valued at the latest stored price.") %>
+            <%= gettext(
+              "One row per depot and security, valued at the latest stored price or, without a quote, at the last own trade price."
+            ) %>
+            <%= gettext("Market value in %{currency}, the figure the total sums.",
+              currency: @portfolio.base_currency_code
+            ) %>
           </p>
           <%= if @holding_rows == [] do %>
             <div id="no-positions" class="empty-state" role="status">
@@ -2545,14 +2555,21 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <%!-- #1125 (board 04, N5 A): a text space before the
                          suffix, as the contribution table's sum row has it,
                          so a cell reads "2.569,68 EUR". --%>
-                    <td :for={key <- @holdings_columns} {holdings_cell_attrs(row, key)}>
+                    <td
+                      :for={key <- @holdings_columns}
+                      data-column={key}
+                      {holdings_cell_attrs(row, key)}
+                    >
                       <%= holdings_cell(row, key) %><SecurityNames.twin_id
                         :if={key == "security"}
                         tag={row.twin_id}
                       /><%= if holdings_currency(row, key), do: " " %><small
                         :if={holdings_currency(row, key)}
                         class="value-suffix"
-                      ><%= row.currency_code %></small>
+                      ><%= holdings_currency(row, key) %></small>
+                      <small :if={holdings_cell_note(row, key)} class="cell-note">
+                        <%= holdings_cell_note(row, key) %>
+                      </small>
                     </td>
                   </tr>
                 </tbody>
@@ -2662,8 +2679,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Everything, the way every other section's read does.
   defp assign_holding_rows(socket) do
     case holding_rows(socket.assigns[:active_view_id]) do
-      {:ok, rows} -> assign(socket, :holding_rows, rows)
-      {:error, :view_not_found} -> degrade_to_everything(socket)
+      {:ok, rows} ->
+        assign(socket, :holding_rows, put_base_values(rows, socket.assigns[:valuation], socket))
+
+      {:error, :view_not_found} ->
+        degrade_to_everything(socket)
     end
   end
 
@@ -2696,6 +2716,44 @@ defmodule PortfolixirWeb.PortfolioLive do
       {:ok, rows}
     end
   end
+
+  # #1332 and the D-9 finding (board 02 ①): the Marktwert column is the
+  # base-currency figure the page's total sums — the view valuation's own
+  # `market_value` for the same (depot, security), the row and the total
+  # priced and converted by one function (`Valuation`), a USD row at the
+  # latest stored rate. Until that read lands, a row already in the base
+  # currency reads its own value (the same price, no conversion); any other
+  # waits for the valuation and reads "—", never a figure in another
+  # currency under a total it does not add to.
+  defp assign_base_values(%{assigns: %{holding_rows: rows}} = socket, valuation),
+    do: assign(socket, :holding_rows, put_base_values(rows, valuation, socket))
+
+  defp assign_base_values(socket, _valuation), do: socket
+
+  defp put_base_values(rows, valuation, socket) do
+    {positions, base} = valuation_positions(valuation, socket)
+
+    Enum.map(rows, fn row ->
+      base_value =
+        case Map.fetch(positions, {row.securities_account_id, row.security_id}) do
+          {:ok, position} -> position.market_value
+          :error -> own_base_value(row, base)
+        end
+
+      Map.merge(row, %{base_market_value: base_value, base_market_currency: base})
+    end)
+  end
+
+  defp valuation_positions(%{positions: positions, base_currency: base}, _socket) do
+    {Map.new(positions, &{{&1.securities_account_id, &1.security_id}, &1}), base}
+  end
+
+  # The valuation is read in the page portfolio's base currency (load_overview/1).
+  defp valuation_positions(_none, socket),
+    do: {%{}, socket.assigns.portfolio.base_currency_code}
+
+  defp own_base_value(%{currency_code: code, market_value: value}, code), do: value
+  defp own_base_value(_row, _base), do: nil
 
   defp holdings_num_attrs(key)
        when key in ~w(quantity avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct),
@@ -2758,7 +2816,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # a signed P&L carries its "+". The API and MCP serve every digit.
   defp holdings_cell(row, "avg_cost"), do: holdings_price(row.avg_cost)
   defp holdings_cell(row, "latest_price"), do: holdings_price(row.latest_price)
-  defp holdings_cell(row, "market_value"), do: Format.money(row.market_value)
+  defp holdings_cell(row, "market_value"), do: Format.money(row.base_market_value)
 
   defp holdings_cell(row, "unrealized_pnl_abs"),
     do: Format.signed_decimal(row.unrealized_pnl_abs, 2)
@@ -2822,8 +2880,23 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_money?(key), do: key in ~w(avg_cost latest_price market_value unrealized_pnl_abs)
 
   defp holdings_currency(row, key) do
-    if holdings_money?(key) and holdings_cell(row, key) != "—", do: row.currency_code
+    if holdings_money?(key) and holdings_cell(row, key) != "—", do: holdings_suffix(row, key)
   end
+
+  # The market value is the base-currency figure (#1332, D-9); the price
+  # and its P&L stay in the security's own currency.
+  defp holdings_suffix(row, "market_value"), do: row.base_market_currency
+  defp holdings_suffix(row, _key), do: row.currency_code
+
+  # #1332 (board 02 ①): the price cell's second line names a price that is
+  # not a quote, and a row with no price says it is in no total.
+  defp holdings_cell_note(%{price_source: :trade} = row, "latest_price"),
+    do: gettext("Trade price · %{date}", date: Format.date(row.price_date))
+
+  defp holdings_cell_note(%{latest_price: nil}, "latest_price"),
+    do: gettext("no price · not in the total")
+
+  defp holdings_cell_note(_row, _key), do: nil
 
   # -- components -------------------------------------------------------------
 

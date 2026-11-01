@@ -2057,7 +2057,8 @@ annualisierten, die ein kurzes Fenster aufblähen würde (ADR-0034).
 
 **Positionen** (Issue #814) listet die Bestandsprojektion, die diese Instanz
 über die API ausliefert — eine Zeile je Depot und Wertpapier, bewertet zum
-zuletzt gespeicherten Kurs, wie die Zeile unter der Überschrift sagt — mit
+zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen
+Handelspreis, wie die Zeile unter der Überschrift sagt (Issue #1332) — mit
 einer **Spalten**-Auswahl über die Felder
 genau dieser Projektion: neben den Vorgaben Depot, Wertpapier und Stückzahl
 ISIN, WKN, Währung, durchschnittlicher Einstand, letzter Preis, Marktwert und
@@ -2075,7 +2076,14 @@ App (Issue #1125): Marktwert und G&V als Geldbetrag mit zwei Stellen
 Verlustfarbe; Ø Kosten und letzter Kurs, wie die Historie einen gespeicherten
 Preis zeigt, jede Stelle bis zu vier Nachkommastellen („128,4838 EUR“, ein
 Durchschnitt von 100 ÷ 3 als „33,3333“); die Stückzahl mit ihren eigenen
-Stellen. API und MCP liefern jede Stelle. Die Auswahl liegt im Browser und
+Stellen. API und MCP liefern jede Stelle. Eine Position, die zum letzten
+Handelspreis bewertet ist, zeigt diesen Preis mit „Handelspreis · Datum“
+darunter, ihren Marktwert und ihre G&V; eine Position ganz ohne Preis liest
+„kein Preis · nicht in der Summe“. Der **Marktwert** steht in der
+Basiswährung des Portfolios, die Zahl, die die Summe zählt — eine
+USD-Position zum zuletzt gespeicherten Kurs umgerechnet —, damit die Zeilen
+die Summe darüber ergeben; Preis, Ø Kosten und G&V bleiben in der Währung
+des Wertpapiers, jeweils mit ihrem Zusatz. Die Auswahl liegt im Browser und
 übersteht ein Neuladen; alle Haken zu entfernen fällt auf die Vorgaben
 zurück. Die Auswahl steht über der Tabelle und erscheint nur, wenn es eine
 Tabelle zu konfigurieren gibt. Auf dem Telefon (unter 560 px) stehen die
@@ -2724,7 +2732,16 @@ Verrechnungskonto gebucht ist, die Währung jeder Zahl: Gebühren und Steuern
 stehen in der des Kontos („5,00 EUR“), Preis und Brutto in der der Buchung
 („1.000,00 USD“), außer einem ohne Preis gespeicherten Brutto, das Geld ist
 und in der des Kontos steht; eine fehlende Zahl ist ein bloßer Strich, und
-eine Zeile in einer Währung bleibt, wie sie ist. Ein offener Lot oder ein
+eine Zeile in einer Währung bleibt, wie sie ist. Das **Brutto** einer
+Dividende oder einer Zinszahlung ist dort das Brutto, das die Facette
+Erträge liest, das gutgeschriebene Geld plus die einbehaltene Steuer: 7,50
+gutgeschrieben bei 1,98 einbehaltenen liest 9,48 (Issue #1331). Der Tab
+**Bestände** des Wertpapiers bewertet eine Position wie die Summe des
+Portfolios (Issue #1316): zum letzten Kurs oder, ohne Kurs, zum letzten
+eigenen Handelspreis, mit „zum Handelspreis“ unter der Zahl, damit die
+Zeilen ihr **Gesamt** ergeben. Eine Position ganz ohne Preis liest „—“ mit
+„kein Preis“, das Gesamt liest „—“ statt 0,00, und ein Hinweis unter der
+Tabelle nennt die Zeilen, die in der Summe fehlen. Ein offener Lot oder ein
 abgeschlossener Trade ohne Kosten zeigt in seiner Spalte „%“ den Strich mit
 „Keine Rendite: keine Kostenbasis“, ebenso der Tab **Bestände** des
 Wertpapiers und die optionale Spalte **G&V %** im Vermögen für Stücke, die
