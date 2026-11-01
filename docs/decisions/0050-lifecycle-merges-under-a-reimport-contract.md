@@ -34,6 +34,10 @@ description: "Decision for #328 and #608, taken together because they are one op
   nothing before that answer; a former name still counts for nothing on its
   own (#1195). See "Amendment (2026-10-09)" below. Adopted by the merge of
   the Sprint 21 planning PR.
+- **Amended:** 2026-11-01: the preview reads the content hashes of every
+  portfolio, names a row already imported into another portfolio and holds
+  it back by default (#1313). See "Amendment (2026-11-01)" below. Adopted by
+  the merge of the Sprint 22 planning PR.
 - **Opens nothing else.** No scope gate is touched. Cross-portfolio moves,
   unmerge and merger/spin-off stay out (§14).
 
@@ -1156,6 +1160,60 @@ What changed, with no change to points 1 to 5:
   simulation does not reach. A booking the apply would have refused there
   counts new instead of stopping the dry run, so it releases no name, and
   the apply still judges every row again on every layer (point 5).
+
+## Amendment (2026-11-01): a row already imported into another portfolio is held back
+
+**Status:** adopted by the merge of the Sprint 22 planning PR. The change is
+risk-tier (import idempotency, ADR-0036): it changes which rows a confirm
+books, so it is the owner's and is signed before the batch that builds it.
+It answers #1313 with the recommended answer on that issue.
+
+### Why
+
+The Imports page books into the default portfolio (ADR-0024), and §3's
+content hash covers the file's fields **plus the portfolio**. A history
+first imported into another portfolio, through the API or before the
+default changed, therefore previews as new on the page, and one confirm
+books it a second time. Nothing in the preview says so. The Sprint 21 UAT
+persona met it on round trip 2. Booking a history twice is the silent error
+§2's probe exists to prevent.
+
+### What changes
+
+1. **The preview reads the hashes of every portfolio.** For each row it
+   computes, besides the hash of the target portfolio (§3, unchanged), the
+   hash the same row has in every other portfolio of the instance, and
+   looks them up among the stored transactions and the retired hashes.
+2. **A hit in another portfolio is named and held back by default.** The
+   row reads "already imported into <portfolio>" and is not booked unless
+   the operator includes it deliberately, per portfolio group. A deliberate
+   include books the row as today: the key, the hash and the apply's
+   conditions are unchanged, so the second copy is the operator's choice,
+   journaled under the operator's actor as every import row is.
+3. **The apply judges again.** The confirm re-reads the cross-portfolio
+   hits under its locks (row 9 of the lock table, unchanged) and skips a
+   held-back row that has since become one, as it skips every row a layer
+   refuses.
+
+### What does not change
+
+No key, no hash input, no stored row and no apply condition. The importer
+still books into one portfolio per run. A portfolio choice on the Imports
+page is a larger change (ADR-0024) and stays out.
+
+### The identities the building batch pins
+
+- **X1.** A file imported through the API into portfolio B, then dropped on
+  the page (default portfolio A): every row reads "already imported into
+  B", the confirm books nothing, and the done page counts them as held
+  back.
+- **X2.** The same drop with B's group included: the rows book into A as
+  today, each once, and a third drop books nothing (§3's hash in A).
+- **X3.** A file whose rows are half in B and half new: the new half books,
+  the B half is held back, and the counts add up to the file's rows.
+
+**What would reopen it:** an operator who keeps one history in two
+portfolios on purpose and finds the hold-back in the way.
 
 ## References
 
