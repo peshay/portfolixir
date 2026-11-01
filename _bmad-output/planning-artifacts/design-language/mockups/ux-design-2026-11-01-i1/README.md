@@ -11,15 +11,33 @@ injected. The PNGs are not committed (they are regenerated in a minute, and
 the repository should not grow by megabytes per discussion; see I10). The
 board that a planning PR needs is drawn once a variant is chosen.
 
+## Decision (owner, 2026-11-01)
+
+The recommendation is adopted, as variant **R** in `proposal.js`, tracked by
+**#1351**:
+
+- **Explanations:** a section's method sentences move into one ⓘ beside the
+  section heading; the short basis clauses (view · period · currency ·
+  as-of) stay visible.
+- **Data notes:** two lines, three on a phone, "mehr" only where the text is
+  cut; problems always visible; two or more attention/note items in one
+  block fold into one line with their counts.
+- UX-DR11 and UX-DR25 stand. The count of excluded rows stays visible; their
+  names are one tap away.
+
+`out/final-*.png` show today beside R. The prototype decides by clause length
+which basis clauses stay; the real change classifies each text by the
+inventory.
+
 ## How to regenerate
 
 On the review seed (`priv/demo/finding_surfaces_seed.exs`, synthetic data
 only; its header gives the database and port), with the server on port 4003:
 
 ```bash
-node render.js          # 1280 px: every page, today and variants A, B, C
+node render.js          # 1280 px: every page, today and variants A, B, C, R
 W=390 node render.js    # the phone frames
-node compose.js         # side-by-side comparisons into out/
+node compose.js         # side-by-side comparisons into out/ (MODE=final: today and R only)
 ```
 
 ## Inventory, in numbers
