@@ -4733,8 +4733,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   # Decided on the figure as displayed (#1149): `places` is the precision
-  # the cell prints at — two for money, four for a fraction printed as
-  # percentage points with two decimals — so "0,00 %" is neutral.
+  # the cell prints at — two, for the money cells, its one caller — so an
+  # amount that reads "0,00" is neutral.
   defp decimal_class(value, places) do
     case value |> decimal_for_display() |> Format.displayed_sign(places) do
       :positive -> "decimal-positive"
