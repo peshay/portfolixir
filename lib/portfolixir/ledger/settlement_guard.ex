@@ -61,6 +61,7 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   import Ecto.Changeset, only: [get_field: 2, add_error: 4, changed?: 2]
   import Ecto.Query, only: [from: 2]
 
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Repo
@@ -342,6 +343,92 @@ defmodule Portfolixir.Ledger.SettlementGuard do
         ]
       end
     end)
+  end
+
+  @doc """
+  The stored rate-only cross-currency trades (#1290; H35, T-19), read-only:
+  every buy or sell booked in another currency than its cash account's that
+  carries a `settlement_fx_rate` and neither a `gross_amount` nor a
+  `settlement_amount` — the shape `validate_rate_only/1` refuses on a new
+  write — **whatever the size of its gap**, where `violations/0` keeps its
+  one-cent filter.
+
+  Returns `%{as_of, note, remedy, rows}`. Each row carries the stored
+  figures, the security's name, the cash account and its currency, the cash
+  the projection books for it (`booked_cash`: quantity × price with fees and
+  taxes, in the booking currency's units), the cash its own rate implies
+  (`expected_cash`, in the account's currency) and `difference` (`booked -
+  expected`), all exact Decimals; ordered by date, then id. The settlement
+  backfill never derives such a row (it carries a leg), so the remedy is the
+  operator's: record the cash the broker settled. Nothing is rewritten.
+  """
+  @spec rate_only_report() :: %{
+          as_of: Date.t(),
+          note: String.t(),
+          remedy: String.t(),
+          rows: [map()]
+        }
+  def rate_only_report do
+    rows =
+      from(t in Transaction,
+        join: c in CashAccount,
+        on: c.id == t.cash_account_id,
+        left_join: s in assoc(t, :security),
+        where:
+          t.type in ^@guarded_types and not is_nil(t.settlement_fx_rate) and
+            is_nil(t.gross_amount) and is_nil(t.settlement_amount) and
+            t.currency_code != c.currency_code,
+        order_by: [t.date, t.id],
+        select: %{
+          id: t.id,
+          portfolio_id: t.portfolio_id,
+          security_id: t.security_id,
+          security_name: s.name,
+          cash_account_id: t.cash_account_id,
+          cash_account_currency_code: c.currency_code,
+          date: t.date,
+          type: t.type,
+          currency_code: t.currency_code,
+          quantity: t.quantity,
+          price: t.price,
+          fees: t.fees,
+          taxes: t.taxes,
+          settlement_amount: t.settlement_amount,
+          settlement_fx_rate: t.settlement_fx_rate
+        }
+      )
+      |> Repo.all()
+      |> Enum.map(&rate_only_row/1)
+
+    %{
+      as_of: Clock.today(),
+      note:
+        "Stored cross-currency trades with a settlement rate and neither a cash amount nor " <>
+          "a settlement amount: the ledger books quantity × price with fees and taxes, in the " <>
+          "security's currency, as the account's cash, and never applies the rate.",
+      remedy:
+        "Record the cash the broker settled as the trade's gross_amount (PATCH " <>
+          "/api/v1/transactions/:id, or edit the booking on the Transactions page); the " <>
+          "settlement backfill does not touch these rows. Nothing is changed automatically.",
+      rows: rows
+    }
+  end
+
+  # A row without quantity or price books no cash the guard can name; it is
+  # listed with the booked and expected cash left nil.
+  defp rate_only_row(row) do
+    booked = booked_cash(row.type, row)
+
+    expected =
+      if is_nil(booked),
+        do: nil,
+        else: expected_cash(row.type, stored_settlement(row), row.fees, row.taxes)
+
+    difference = if is_nil(booked), do: nil, else: Decimal.sub(booked, expected)
+
+    row
+    |> Map.delete(:settlement_amount)
+    |> Map.merge(%{booked_cash: booked, expected_cash: expected, difference: difference})
   end
 
   defp stored_settlement(%{settlement_amount: %Decimal{} = settlement}), do: settlement
