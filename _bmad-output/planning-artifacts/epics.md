@@ -734,8 +734,11 @@ fails.**
    this record; the three PRs' keywords close 76 (14, 22 and about 40), which
    leaves about 110. The sprint filed 95 since the amendment's planning merge,
    against the 34 the plan's arithmetic allowed, each finding beside a story
-   as a thin pointer. Four "Decide:" filings and two labelled
-   `needs-decision` issues carry no recommended answer yet.
+   as a thin pointer. Every `needs-decision` issue now carries its
+   recommended answer (the close-out's registry pass). 58 filings still have
+   no area parent and 37 no label: the owner's Lane Z item after the merges,
+   with the parent for each listed in `sprint-status.yaml`'s Sprint 21
+   entry.
 
 The records are in `sprint-status.yaml`'s Sprint 21 entry and in the "Since
 version 3" section of `launch-readiness-2026-10-09-sprint20.md`.

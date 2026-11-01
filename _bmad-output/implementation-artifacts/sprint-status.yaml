@@ -154,9 +154,10 @@ story_location: _bmad-output/implementation-artifacts
 #      patch, #1323; the picker's section closing on a re-render).
 #   4. Fewer than 60 open issues at the close-out: FAIL, at the filing
 #      step, not the closing step.
-#      - 186 open at this record: agentic 136 (six of them also
-#        needs-decision), needs-decision 7, tracking 6, needs-uat 2, and 41
-#        filed by the closing acts without a label yet.
+#      - 186 open at this record, after this session's registry pass:
+#        agentic 140 (ten of them also needs-decision), needs-decision 11,
+#        tracking 6, needs-uat 2, and 37 filed by the closing acts without
+#        a label yet.
 #      - 95 of them were filed since the amendment's planning merge
 #        (#1241-#1342, the two PRs aside): #1241 by its Lane Z; ten at the
 #        sprint branch's opening (#1242-#1251); 39 by Lane S's integration
@@ -171,10 +172,11 @@ story_location: _bmad-output/implementation-artifacts
 #        acts filed every finding beside a story as a thin pointer, as
 #        AGENTS.md's "stay in scope" orders, so the count rose instead of
 #        falling. Nothing was withheld to make it (D-13).
-#      - Every needs-decision issue with its recommended answer: not met.
-#        #1264 and #1291 (labelled) and four "Decide:" filings without a
-#        label (#1308, #1309, #1313, #1319) name their options and no
-#        recommended answer.
+#      - Every needs-decision issue with its recommended answer: met after
+#        the registry pass. #1308, #1309, #1313 and #1319 gained agentic and
+#        needs-decision, and those four, #1264 and #1291 each carry a
+#        comment with the recommended answer, what builds it and what would
+#        reopen the other answer (2026-11-01).
 #
 # WHAT "DONE" MEANS, ITEM BY ITEM (the plan's list as the amendment
 # changes it):
@@ -245,8 +247,20 @@ story_location: _bmad-output/implementation-artifacts
 #
 # FILED AND NOT BUILT (Scope Lock): the 95 above. Thirty-seven sit under
 # an area tracker (#416 8, #417 7, #418 1, #419 5, #420 16). Fifty-eight
-# have none at this record: #1278, #1284-#1295 and #1297-#1300 (labelled
-# agentic) and the 41 without a label (#1301-#1342, #1318 aside).
+# have none at this record (#1278, #1284-#1295, #1297-#1317 and
+# #1319-#1342), and 37 of them have no label (#1301-#1342, #1318 and the
+# four "Decide:" issues aside). This session's bulk writes were refused as
+# an external bulk write, so both are the owner's LANE Z ITEM AFTER THE
+# MERGES: agentic on the 37, and each of the 58 under its area tracker,
+# chosen by the surface the issue names:
+#   #416: 1287, 1290, 1292, 1297, 1298, 1299, 1300, 1303, 1304, 1305,
+#     1306, 1307, 1308, 1311, 1313, 1325, 1326, 1327, 1331, 1335, 1337;
+#   #417: 1278, 1284, 1285, 1288, 1315, 1323, 1324, 1328, 1329, 1333,
+#     1334;
+#   #418: 1293, 1309, 1310, 1316, 1317, 1320, 1321, 1322, 1332, 1336,
+#     1339, 1341;
+#   #419: 1291, 1294, 1295, 1301;
+#   #420: 1286, 1289, 1302, 1312, 1314, 1319, 1330, 1338, 1340, 1342.
 #
 # THE OWNER'S QUESTIONS: T-19 (#1296) and A12's hand-made booking (#1318,
 # decision 1). The owner's checks are in launch-readiness-2026-10-09-
@@ -287,9 +301,10 @@ story_location: _bmad-output/implementation-artifacts
 #   failed in the browser. Carry forward: every UI story's review takes a
 #   browser pass, not only the closing act's.
 # * FILING HELD; PARENTING AND LABELLING DID NOT. Every finding was filed
-#   as a thin pointer, but 58 of the 95 have no area parent and 41 no
-#   label at this record, and four "Decide:" filings carry no recommended
-#   answer. Carry forward: the filing helper sets the parent and the label
+#   as a thin pointer, but 58 of the 95 have no area parent and 37 no
+#   label at this record; four "Decide:" filings lacked their label and,
+#   with two labelled ones, their recommended answer until the close-out's
+#   registry pass. Carry forward: the filing helper sets the parent and the label
 #   in the same call, and a closing act's filings are listed against the
 #   rule before the close-out.
 # * THE COUNT CRITERION MEASURED FILINGS. Criterion 4 failed because the

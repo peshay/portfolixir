@@ -349,9 +349,10 @@ into another portfolio is booked again there.
 The plan's fourth exit criterion, fewer than 60 open issues at the close-out,
 **fails**:
 
-- **186 open** at this record, read through the API on 2026-11-01: agentic
-  136 (six of them also `needs-decision`), `needs-decision` 7, tracking 6,
-  `needs-uat` 2, and 41 filed by the closing acts without a label yet.
+- **186 open** at this record, read through the API on 2026-11-01 after the
+  close-out's registry pass: agentic 140 (ten of them also
+  `needs-decision`), `needs-decision` 11, tracking 6, `needs-uat` 2, and 37
+  filed by the closing acts without a label yet.
 - **76 close by the three PRs' keywords** (14, 22 and about 40), which leaves
   **about 110** after the merges.
 - **Where it failed:** the filing, not the closing. The sprint filed 95 issues
@@ -359,8 +360,12 @@ The plan's fourth exit criterion, fewer than 60 open issues at the close-out,
   allowed; every finding beside a story was filed as a thin pointer, as
   `AGENTS.md`'s "stay in scope" orders. Nothing was withheld to make the
   count.
-- **Open questions:** seven issues carry `needs-decision`; four more are
-  titled "Decide:" without the label yet (#1308, #1309, #1313, #1319).
+- **Open questions:** eleven issues carry `needs-decision`, each with its
+  recommended answer; #1308, #1309, #1313, #1319, #1264 and #1291 got theirs
+  as comments at the close-out.
+- **Left for the owner's Lane Z pass after the merges:** `agentic` on the 37
+  unlabelled filings and an area parent for 58; `sprint-status.yaml`'s
+  Sprint 21 entry lists the parent for each.
 
 ### Upgrade notes of the three merges
 
