@@ -1426,6 +1426,47 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
              "„<bdi>USA</bdi>“ liegt jetzt auf der obersten Ebene."
   end
 
+  # User story (#1211, Sprint 21 γ6, board 06 ②; the γ closing act, DC2;
+  # closes #1323):
+  # As the operator pressing ✎ on a category,
+  # I want the category I edit to stay open, with every category above it,
+  # so that its edit form and its "Parent" select are on the screen, not
+  # collapsed away until I reopen the row.
+  #
+  # Acceptance criteria:
+  # - ✎ on "Deutschland" (under "Europa") renders both `details.cat-node`
+  #   open, the edit form inside "Deutschland": the server keeps the open
+  #   state (`opened_ids`) the re-render would otherwise drop, the
+  #   mechanism the move uses for its new parent chain.
+  # - ✎ on the top-level "Europa" renders it open.
+  test "the edit button keeps the edited category and its ancestors open", %{conn: conn} do
+    %{classification: classification, europe: europe, germany: germany} = regions_tree()
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    refute has_element?(view, "details.cat-node[open][data-category='#{germany.id}']")
+
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{germany.id}']")
+    |> render_click()
+
+    assert has_element?(view, "details.cat-node[open][data-category='#{germany.id}']")
+    assert has_element?(view, "details.cat-node[open][data-category='#{europe.id}']")
+
+    assert has_element?(
+             view,
+             "details.cat-node[open][data-category='#{germany.id}'] form.cat-edit-form"
+           )
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    view
+    |> element("button[phx-click='edit_category'][phx-value-id='#{europe.id}']")
+    |> render_click()
+
+    assert has_element?(view, "details.cat-node[open][data-category='#{europe.id}']")
+  end
+
   # User story (#1211, Sprint 21 γ6, board 06 ②, pick N18 A, the refusal):
   # As the operator moving a category whose sub-tree would then reach past
   # the tree's last level,
