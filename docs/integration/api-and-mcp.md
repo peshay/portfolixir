@@ -98,8 +98,32 @@ protocol's JSON-RPC error shape.
 
 All responses use JSON envelopes with either `data` or `errors`. Financial
 decimals are serialized as strings, including quantities, prices, fees, taxes,
-quote closes, and monetary totals. Request payloads for those values should also
-send strings.
+quote closes, and monetary totals. Request payloads send those values as
+strings too.
+
+**Decimal strings on writes.** Every write under `/api/v1` (`POST`, `PUT`,
+`PATCH`, `DELETE`) refuses a JSON number — a float or an integer alike — in a
+money, quantity, price, fee, tax or exchange-rate field with `422` naming the
+field, `{"errors": {"price": ["must be a decimal string"]}}`, and stores
+nothing (ADR-0003, amendment of 2026-11-01). A JSON number is decoded as a
+binary float, so a value past about 17 significant digits would be stored as a
+different number than the one sent: `"1234567890.12345678"` sent as a string
+is stored exactly, and the same value as a number is refused rather than
+rounded to `1234567890.1234567`. The rule reads the body at any depth — inside
+a wrapper object such as `transaction`, in every row of a list such as a quote
+batch's `quotes`, and in each item of a list of rates such as
+`church_tax_rates` — and names each offending field once. The fields:
+`amount`, `gross_amount`, `security_amount`, `settlement_amount`,
+`face_value`, `amount_granted`, a tax year's allowances, a statement
+snapshot's money fields and withheld taxes, `quantity`, `price`, `close`,
+`fees`, `taxes`, the tax rates (`capital_gains_tax_rate`,
+`solidarity_surcharge_rate`, `church_tax_rate`, `church_tax_rates`),
+`settlement_fx_rate` and `coupon_rate`, and any field named with the suffix
+`_amount`, `_price`, `_rate`, `_rates` or `_withheld`. A decimal string is
+accepted as before and a JSON `null` keeps the answer it had; ids, years,
+split ratio terms, target weights and policy thresholds are not covered by
+this rule, and reads are unchanged. The MCP companion's tools already send
+these fields as strings.
 
 The errors the server answers itself, rather than an endpoint, use the same
 envelope with their own status: an unreadable body, or one nesting arrays and
@@ -949,7 +973,7 @@ every security payload (and selectable with `fields=`):
 stored amount follows (**Other stored amounts** above): a finer value is
 rounded half up before it is checked, so `"3.1234567"` is stored and
 answered as `"3.123457"`. Send them as strings, as every decimal; a JSON
-number is cast the way every decimal field casts one.
+number answers `422` naming the field (**Decimal strings on writes** above).
 
 `null` clears a field, nothing is required, an impossible value is a `422`
 naming its field with nothing written, and the fields are kept when the
