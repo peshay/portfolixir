@@ -300,24 +300,25 @@ branch-protection setting only the owner can change.
 
 Sprint 21's plan (D-5) appends this section instead of a fourth version. The
 announcement is still the owner's call, and the recommendation above stands
-on its own terms. Sprint 21 ran as three PRs (the amendment's D-3), none
-merged at this record, each merged by the owner in order:
+on its own terms. Sprint 21 ran as three PRs (the amendment's D-3), all three
+merged on 2026-11-01 in order:
 
 - **the sprint PR #1296**: Lane M and Lane S, the fix batch of the security
   review of 2026-10-12, contract entry 18;
 - **stacked PR 1 #1318**: α and β, the money after the first import,
   contract entry 19;
-- **stacked PR 2**: γ, the screens on boards 01 to 08, and the close-out,
-  contract entry 20.
+- **stacked PR 2 #1344**: γ, the screens on boards 01 to 08, and the
+  close-out, contract entry 20.
 
-Each is above the 100 commits at which GitHub refuses "Rebase and merge", so
-each lands by a fast-forward, as Sprint 16's #914 did. Each merge makes a
-calendar release; the next planning PR records them.
+Each was above the 100 commits at which GitHub refuses "Rebase and merge", so
+each landed by a fast-forward, as Sprint 16's #914 did, pushed on the owner's
+explicit go: releases 2026.11.1, 2026.11.2 and 2026.11.3, `main` at `4cd6641`
+(recorded by the retro PR after the merges).
 
 ### The money list
 
 Every issue of the plan's first exit criterion closes by keyword, so the list
-of open money issues above empties once #1296 and #1318 merge:
+of open money issues above emptied with #1296's and #1318's merges:
 
 | Issue | What changes | Closes with |
 |---|---|---|
