@@ -348,10 +348,13 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
   #   worklist's name column has a fixed share and wraps inside it.
   #   (Measured on the review seed at 390 px: the name column 377 → 144 px,
   #   the category head from 394 px, off-screen, to 161 px.)
+  # - The rule may be shared with other selectors (the allocation tree's
+  #   position names since the Sprint 21 γ closing act, DD-S4): the pin
+  #   reads the worklist's selector wherever it sits in the rule's list.
   test "the worklist's security names wrap under 560 px" do
     app_css = File.read!("priv/static/app.css")
 
     assert app_css =~
-             ~r/@media \(max-width: 560px\) \{\s*\.drift-table\[data-role="flat-positions"\] td:first-child \{[^}]*width: 9rem;[^}]*white-space: normal;/s
+             ~r/@media \(max-width: 560px\) \{\s*(?:[^{\n]+,\s*)*\.drift-table\[data-role="flat-positions"\] td:first-child(?:,\s*[^{\n]+)* \{[^}]*width: 9rem;[^}]*white-space: normal;/s
   end
 end
