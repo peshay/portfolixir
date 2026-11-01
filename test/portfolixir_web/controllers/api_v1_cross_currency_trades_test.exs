@@ -211,8 +211,11 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
 
       assert basis =~ "A closed trade is in its sell's currency_code", path
       assert basis =~ "through the lot's own stored settlement legs, never through a rate", path
-      assert basis =~ "unavailable_reason missing_settlement_leg", path
       assert basis =~ "lots_missing_leg", path
+      # #1310: the two reasons, each with its remedy.
+      assert basis =~ "unavailable_reason is third_currency where", path
+      assert basis =~ "else missing_settlement_leg (a rate for", path
+      assert basis =~ "proceeds, sell_fees and sell_taxes are null too", path
       assert basis =~ "all in currency_code for every available trade", path
       assert basis =~ "the EUR hub rate stored for its booking date (ADR-0033)", path
       refute basis =~ "open decision", path
@@ -442,7 +445,14 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
              "annualized_return" => nil,
              "annualized_return_reason" => "missing_settlement_leg",
              "unavailable_reason" => "missing_settlement_leg",
-             "lots_missing_leg" => [%{"open_date" => "2025-04-01", "currency_code" => "EUR"}],
+             # #1310: each lot names why it did not enter, a rate's remedy here.
+             "lots_missing_leg" => [
+               %{
+                 "open_date" => "2025-04-01",
+                 "currency_code" => "EUR",
+                 "reason" => "missing_settlement_leg"
+               }
+             ],
              "currency_code" => "USD"
            }
 
@@ -455,7 +465,9 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
              "securities" => ["Wire Legless Fund"],
              "by_reason" => %{
                "no_rate" => %{"count" => 0, "securities" => []},
-               "missing_settlement_leg" => %{"count" => 1, "securities" => ["Wire Legless Fund"]}
+               "missing_settlement_leg" => %{"count" => 1, "securities" => ["Wire Legless Fund"]},
+               # #1310: the third reason, its own bucket.
+               "third_currency" => %{"count" => 0, "securities" => []}
              }
            }
   end
@@ -471,10 +483,14 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
   #
   # Acceptance criteria:
   # - closed_trades[0]: currency_code CHF, basis and realized_pnl_abs null,
-  #   unavailable_reason missing_settlement_leg, lots_missing_leg
-  #   [{open_date 2025-04-01, currency_code CHF}]. Before: basis 905,
-  #   realized_pnl_abs 92.
-  # - /api/v1/realized_gains names it under by_reason.missing_settlement_leg.
+  #   unavailable_reason third_currency (#1310), lots_missing_leg
+  #   [{open_date 2025-04-01, currency_code CHF, reason third_currency}];
+  #   the sale is priced in a third currency too, so proceeds, sell_fees and
+  #   sell_taxes are null and annualized_return_reason is third_currency.
+  #   Before #1198's note: basis 905, realized_pnl_abs 92; before #1310:
+  #   missing_settlement_leg and proceeds 997, 3 EUR off 1,000 CHF.
+  # - /api/v1/realized_gains names it under by_reason.third_currency, and
+  #   by_reason.missing_settlement_leg stays empty.
   test "a lot and a sale priced in a third currency read unavailable over the API", %{
     conn: conn
   } do
@@ -514,23 +530,44 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
 
     assert Map.take(trade, [
              "currency_code",
+             "avg_sell_price",
              "basis",
+             "proceeds",
+             "sell_fees",
+             "sell_taxes",
              "realized_pnl_abs",
+             "annualized_return_reason",
              "unavailable_reason",
              "lots_missing_leg"
            ]) == %{
              "currency_code" => "CHF",
+             "avg_sell_price" => "100",
              "basis" => nil,
+             "proceeds" => nil,
+             "sell_fees" => nil,
+             "sell_taxes" => nil,
              "realized_pnl_abs" => nil,
-             "unavailable_reason" => "missing_settlement_leg",
-             "lots_missing_leg" => [%{"open_date" => "2025-04-01", "currency_code" => "CHF"}]
+             "annualized_return_reason" => "third_currency",
+             "unavailable_reason" => "third_currency",
+             "lots_missing_leg" => [
+               %{
+                 "open_date" => "2025-04-01",
+                 "currency_code" => "CHF",
+                 "reason" => "third_currency"
+               }
+             ]
            }
 
     %{"data" => gains} = get_json(conn, "/api/v1/realized_gains")
 
-    assert gains["excluded"]["by_reason"]["missing_settlement_leg"] == %{
+    assert gains["excluded"]["by_reason"]["third_currency"] == %{
              "count" => 1,
              "securities" => ["Wire Franc Fund"]
+           }
+
+    assert gains["excluded"]["by_reason"]["missing_settlement_leg"] == %{
+             "count" => 0,
+             "securities" => []
            }
   end
 

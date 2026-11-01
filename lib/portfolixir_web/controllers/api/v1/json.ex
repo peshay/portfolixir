@@ -609,7 +609,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       lots_missing_leg:
         trade
         |> Map.get(:lots_missing_leg, [])
-        |> Enum.map(&%{open_date: date(&1.open_date), currency_code: &1.currency_code})
+        |> Enum.map(
+          &%{
+            open_date: date(&1.open_date),
+            currency_code: &1.currency_code,
+            # #1310: why this lot did not enter, missing_settlement_leg or
+            # third_currency.
+            reason: reason(Map.get(&1, :reason))
+          }
+        )
     }
   end
 

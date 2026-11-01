@@ -79,7 +79,9 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              # #1198 (Sprint 21 α3): by_reason tells a missing rate from a missing leg.
              "by_reason" => %{
                "no_rate" => %{"count" => 1, "securities" => ["Pound Equity"]},
-               "missing_settlement_leg" => %{"count" => 0, "securities" => []}
+               "missing_settlement_leg" => %{"count" => 0, "securities" => []},
+               # #1310: the third reason.
+               "third_currency" => %{"count" => 0, "securities" => []}
              }
            }
 
@@ -137,7 +139,9 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              "securities" => [],
              "by_reason" => %{
                "no_rate" => %{"count" => 0, "securities" => []},
-               "missing_settlement_leg" => %{"count" => 0, "securities" => []}
+               "missing_settlement_leg" => %{"count" => 0, "securities" => []},
+               # #1310: the third reason.
+               "third_currency" => %{"count" => 0, "securities" => []}
              }
            }
 

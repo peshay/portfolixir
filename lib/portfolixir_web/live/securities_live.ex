@@ -1433,7 +1433,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <%= if @detail_tab == "trades" do %>
         <.trades_tab_panel
           trades={@detail_trades}
-          transactions={@detail_transaction_rows}
           currency_code={@selected_security.currency_code}
         />
       <% end %>
@@ -2160,18 +2159,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   attr(:trades, :map, required: true)
-  attr(:transactions, :list, default: [])
   attr(:currency_code, :string, default: nil)
 
   defp trades_tab_panel(assigns) do
-    third_sales = third_currency_sales(assigns.transactions, assigns.currency_code)
-
     assigns =
       update(assigns, :trades, fn trades ->
         %{
           trades
-          | closed_trades:
-              Enum.map(trades.closed_trades, &Map.put(&1, :third, third_case(&1, third_sales)))
+          | closed_trades: Enum.map(trades.closed_trades, &Map.put(&1, :third, third_case(&1)))
         }
       end)
 
@@ -2310,7 +2305,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, are priced in a currency that is neither the security's nor its account's (%{currency}); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored bookings' currency or amounts.",
                   length(third_lots),
                   lot_dates: lot_dates(third_lots),
-                  currency: trade.currency_code
+                  currency: third_lot_currency(third_lots)
                 ) %>
               <% nil -> %>
             <%= if lots == [lot] do %>
@@ -2643,35 +2638,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp lot_dates(lots),
     do: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", ")
 
-  # Point 3 (the ADR-0015 amendment of 2026-10-09): the security's sales
-  # priced in neither its currency nor their account's, by date and
-  # currency, as `Ledger` flags them for the matcher.
-  defp third_currency_sales(transactions, security_currency) when is_binary(security_currency) do
-    for %{type: "sell", cash_account: %{currency_code: account}} = tx <- transactions,
-        is_binary(account),
-        tx.currency_code not in [security_currency, account],
-        into: MapSet.new(),
-        do: {tx.date, tx.currency_code}
-  end
+  # Why an unavailable trade has no figure, when it is a third currency
+  # (#1310, read off the trade's own reason): the sale itself (`:sale`, the
+  # one case whose proceeds the ledger leaves nil, its fees being in its
+  # account's currency), or the lots priced in a third currency
+  # (`{:lots, lots}`); `nil` for a trade whose lots lack their leg.
+  defp third_case(%{unavailable_reason: :third_currency, proceeds: nil}), do: :sale
 
-  defp third_currency_sales(_transactions, _security_currency), do: MapSet.new()
+  defp third_case(%{unavailable_reason: :third_currency} = trade),
+    do: {:lots, Enum.filter(trade.lots_missing_leg, &(&1.reason == :third_currency))}
 
-  # Why an unavailable trade has no figure, when it is a third currency: the
-  # sale itself (`:sale`), or the lots priced in the sale's own currency,
-  # which enter it as booked unless that currency is a third one
-  # (`{:lots, lots}`); `nil` for a lot that lacks its leg.
-  defp third_case(%{unavailable_reason: nil}, _third_sales), do: nil
+  defp third_case(_trade), do: nil
 
-  defp third_case(trade, third_sales) do
-    if MapSet.member?(third_sales, {trade.close_date, trade.currency_code}) do
-      :sale
-    else
-      case Enum.filter(trade.lots_missing_leg, &(&1.currency_code == trade.currency_code)) do
-        [] -> nil
-        lots -> {:lots, lots}
-      end
-    end
-  end
+  # The currency a third-currency lot is priced in, which need not be the
+  # sale's: a franc buy closed by a dollar sale names francs.
+  defp third_lot_currency([lot | _lots]), do: lot.currency_code
+
+  defp third_lot_currency(_lots), do: nil
 
   defp unconvertible_title(%{third: :sale} = trade, _currency_code),
     do:
@@ -2680,11 +2663,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         currency: trade.currency_code
       )
 
-  defp unconvertible_title(%{third: {:lots, _lots}} = trade, _currency_code),
+  defp unconvertible_title(%{third: {:lots, lots}}, _currency_code),
     do:
       gettext(
         "Not convertible: a buy priced in %{currency}, neither the security's nor its account's currency",
-        currency: trade.currency_code
+        currency: third_lot_currency(lots)
       )
 
   defp unconvertible_title(trade, currency_code) do
@@ -2701,11 +2684,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         currency: trade.currency_code
       )
 
-  defp unconvertible_sentence(%{third: {:lots, _lots}} = trade, _currency_code),
+  defp unconvertible_sentence(%{third: {:lots, lots}}, _currency_code),
     do:
       gettext(
         "not convertible, a buy priced in %{currency}, neither the security's nor its account's currency",
-        currency: trade.currency_code
+        currency: third_lot_currency(lots)
       )
 
   defp unconvertible_sentence(trade, currency_code) do

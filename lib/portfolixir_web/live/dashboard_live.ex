@@ -718,6 +718,27 @@ defmodule PortfolixirWeb.DashboardLive do
               )
             ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
               do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
+            <%!-- #1310: a sale or a buy priced in a third currency, which no
+                 rate fixes, in a sentence of its own, with no backfill
+                 pointer. --%>
+            <span
+              :if={@card.excluded.by_reason.third_currency.count > 0}
+              data-role="trades-card-excluded-third-currency"
+            ><%= StoredText.ending_on(
+              Enum.join(@card.excluded.by_reason.third_currency.securities, ", "),
+              &ngettext(
+                "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}.",
+                "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}.",
+                @card.excluded.by_reason.third_currency.count,
+                securities: &1
+              ),
+              &ngettext(
+                "%{count} sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: %{securities}",
+                "%{count} sales not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — are left out of the trades: %{securities}",
+                @card.excluded.by_reason.third_currency.count,
+                securities: &1
+              )
+            ) %></span>
           </AppShell.data_note>
           <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
             <%!-- Counts what the card shows: five at most (closing act γ n3).

@@ -1191,11 +1191,17 @@ defmodule Portfolixir.Ledger do
       "quantity a share, its fees and taxes as recorded. Full precision, nothing rounded. A " <>
       "lot without the leg it needs, or one no leg of which reaches the sell's currency (a " <>
       "lot or a sell priced in a third currency, a lot booked in another account's currency " <>
-      "than the sell's), makes the closed trade unavailable: unavailable_reason " <>
-      "missing_settlement_leg, lots_missing_leg names each such lot by its open_date and " <>
-      "currency_code (a sell priced in a third currency names every lot it closes), the " <>
-      "sell's own figures stay (quantity, dates, avg_sell_price, sell_fees, sell_taxes, " <>
-      "proceeds), every figure derived from the lots is null, and the trade is in no total. " <>
+      "than the sell's), makes the closed trade unavailable: lots_missing_leg names each " <>
+      "such lot by its open_date, currency_code and reason (a sell priced in a third " <>
+      "currency names every lot it closes), the sell's own figures stay (quantity, dates, " <>
+      "avg_sell_price, sell_fees, sell_taxes, proceeds), every figure derived from the lots " <>
+      "is null, and the trade is in no total. unavailable_reason is third_currency where " <>
+      "the sell or a lot it names is priced in neither the security's currency nor its " <>
+      "cash account's, a row stored before that was refused, which no rate fixes (correct " <>
+      "the stored booking's currency or amounts), else missing_settlement_leg (a rate for " <>
+      "the lot's date, or the figure in the sell's currency on the booking); where the " <>
+      "sell itself is priced in a third currency, proceeds, sell_fees and sell_taxes are " <>
+      "null too, its fees being in its account's currency. " <>
       "A trade whose sell and lots are booked in one currency, not a third, reads them as " <>
       "booked, so buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and " <>
       "realized_pnl_abs are all in currency_code for every available trade. An imported " <>
@@ -1214,7 +1220,8 @@ defmodule Portfolixir.Ledger do
     "realized_pnl_pct is realized_pnl_abs / basis, a fraction (0.1 = 10 %) in the trade's " <>
       "currency_code, for every trade: each lot it closes enters in that currency " <>
       "(fees_and_taxes), and it is null where the trade is unavailable " <>
-      "(missing_settlement_leg). It is null, never 0, where basis is 0, a buy booked at a price of 0 " <>
+      "(missing_settlement_leg, third_currency). It is null, never 0, where basis is 0, a buy " <>
+      "booked at a price of 0 " <>
       "with no fees or taxes (a bonus or free share): a return on no cost is undefined, and " <>
       "0 would read as a flat trade. realized_pnl_abs still states the result, and " <>
       "annualized_return is then null with annualized_return_reason no_cost_basis."
