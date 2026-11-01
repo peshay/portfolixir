@@ -25,7 +25,9 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Buckets => "lib/portfolixir/buckets.ex",
     Portfolixir.Tax => "lib/portfolixir/tax.ex",
     Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex",
-    Portfolixir.Lifecycle => "lib/portfolixir/lifecycle.ex"
+    Portfolixir.Lifecycle => "lib/portfolixir/lifecycle.ex",
+    # #1272: the preference store, whose default-view key is journaled (H61).
+    Portfolixir.Settings => "lib/portfolixir/settings.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -70,11 +72,28 @@ defmodule Portfolixir.WriteActorTest do
       "the application start's config-gated call of ensure_builtins/0"
   }
 
+  # Instance-state writers of the preference store (#1272): each writes one
+  # fixed key of the `settings` table, an unarmed scope table whose instance
+  # state the instance writes without an actor by design
+  # (`Portfolixir.Journal.Allowlist`, H61). The one key that is not instance
+  # state, the default view, is written only by the actor-first
+  # `set_default_view/2`; the raw `put/2` and `delete/1` are private, and the
+  # check below fails if an entry reaches `@default_view_key`.
+  @instance_state_writers %{
+    {Portfolixir.Settings, :dismiss_migration_notice, 0} =>
+      "the one-time portfolio-migration notice's dismissal",
+    {Portfolixir.Settings, :reset_migration_notice, 0} =>
+      "the seed rollback's reset of that dismissal",
+    {Portfolixir.Settings, :add_fx_history_sought, 1} =>
+      "the currencies a completed FX history backfill sought (#1120)"
+  }
+
   # The classifier must not pass vacuously (#1269): it once kept only the
-  # last call it visited in a body and so read 7 writers instead of 62. A
+  # last call it visited in a body and so read 7 writers instead of 62 (66
+  # with the preference store, #1272). A
   # count below this floor means it stopped seeing writers; raise the floor
   # when writers are added, never lower it to make a red run pass.
-  @writer_floor 62
+  @writer_floor 66
 
   # Pre-existing public context writers not yet actor-first (later leaf-first
   # slices: Portfolios/Classifications → Ledger → Imports). SHRINK-ONLY: a stale
@@ -221,6 +240,21 @@ defmodule Portfolixir.WriteActorTest do
     assert bad == [],
            "system-job entries that no longer write without an actor, or no longer " <>
              "reach Actor.system_job/1 — remove or fix them:\n" <>
+             Enum.map_join(bad, "\n", &inspect/1)
+  end
+
+  test "no instance-state writer reaches the default-view key (#1272)" do
+    bad =
+      for {{module, name, arity} = entry, _reason} <- @instance_state_writers,
+          not Enum.any?(writers(module), &match?({^name, ^arity, false}, &1)) or
+            module
+            |> reachable_clauses(name)
+            |> Enum.any?(&mentions_attribute?(&1.body, :default_view_key)),
+          do: entry
+
+    assert bad == [],
+           "instance-state entries that no longer write without an actor, or that " <>
+             "reach the default-view key the journaled set_default_view/2 owns:\n" <>
              Enum.map_join(bad, "\n", &inspect/1)
   end
 
@@ -385,7 +419,7 @@ defmodule Portfolixir.WriteActorTest do
     key = {module, name, arity}
 
     MapSet.member?(@migration_helpers, key) or MapSet.member?(@allowlisted_writers, key) or
-      Map.has_key?(@system_job_writers, key)
+      Map.has_key?(@system_job_writers, key) or Map.has_key?(@instance_state_writers, key)
   end
 
   defp short(module), do: module |> Module.split() |> List.last() |> String.to_existing_atom()
@@ -407,6 +441,14 @@ defmodule Portfolixir.WriteActorTest do
   # Whether `name` in `module`'s file reaches an `Actor.system_job/1` call,
   # in its own body or through same-file helpers.
   defp reaches_system_job?(module, name) do
+    module
+    |> reachable_clauses(name)
+    |> Enum.any?(&({:Actor, :system_job} in remote_calls(&1.body)))
+  end
+
+  # The clauses of `name` in `module`'s file and of every same-file function
+  # it reaches.
+  defp reachable_clauses(module, name) do
     clauses =
       @context_files
       |> Map.fetch!(module)
@@ -415,13 +457,18 @@ defmodule Portfolixir.WriteActorTest do
       |> collect_defs()
 
     defined = clauses |> Enum.map(& &1.name) |> MapSet.new()
-    by_name = Enum.group_by(clauses, & &1.name)
-    reachable = reach(MapSet.new([name]), [name], by_name, defined)
+    reachable = reach(MapSet.new([name]), [name], Enum.group_by(clauses, & &1.name), defined)
+    Enum.filter(clauses, &MapSet.member?(reachable, &1.name))
+  end
 
-    Enum.any?(clauses, fn clause ->
-      MapSet.member?(reachable, clause.name) and
-        {:Actor, :system_job} in remote_calls(clause.body)
-    end)
+  defp mentions_attribute?(body, attribute) do
+    {_, found} =
+      Macro.prewalk(body, false, fn
+        {:@, _, [{^attribute, _, _}]} = node, _acc -> {node, true}
+        node, acc -> {node, acc}
+      end)
+
+    found
   end
 
   defp reach(seen, [], _by_name, _defined), do: seen
