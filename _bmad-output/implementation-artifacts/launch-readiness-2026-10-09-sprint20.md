@@ -352,8 +352,8 @@ The plan's fourth exit criterion, fewer than 60 open issues at the close-out,
 - **186 open** at this record, read through the API on 2026-11-01: agentic
   136 (six of them also `needs-decision`), `needs-decision` 7, tracking 6,
   `needs-uat` 2, and 41 filed by the closing acts without a label yet.
-- **75 close by the three PRs' keywords** (14, 21 and about 40), which leaves
-  **about 111** after the merges.
+- **76 close by the three PRs' keywords** (14, 22 and about 40), which leaves
+  **about 110** after the merges.
 - **Where it failed:** the filing, not the closing. The sprint filed 95 issues
   since the amendment's planning merge, against the 34 the plan's arithmetic
   allowed; every finding beside a story was filed as a thin pointer, as
