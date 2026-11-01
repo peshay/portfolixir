@@ -3591,6 +3591,24 @@ zwei Konten tragen, oder weil im Portfolio gerade eine Umbenennung, eine
 Zusammenführung oder ein anderer Import läuft, bleibt jede solche Zeile
 zurückgehalten.
 
+**Eine Datei, die bereits in ein anderes Portfolio importiert ist.** Die
+Import-Seite bucht in Ihr Standardportfolio, und der Import erkennt eine
+Buchung an ihrem Inhalt innerhalb eines Portfolios. Eine Datei, deren
+Buchungen ein anderes Portfolio schon enthält — dort von einem Agenten, einem
+Skript oder vor einem Wechsel des Standards importiert —, würde deshalb ein
+zweites Mal buchen. Die Vorschau liest jedes Portfolio und hält solche
+Buchungen zurück: An ihrem Kopf steht je Portfolio ein Hinweis, etwa
+*Bereits im Portfolio „Anleihen“ importiert: 4 Einträge — nicht übernommen*,
+der sich öffnet und sie auflistet (Datum, Art, Konto und Wertpapier,
+Betrag). Die Zeilen der Zuordnung zählen sie als *4 Buchungen in „Anleihen“
+importiert*, und eine Zeile ohne weitere Buchungen verlangt keine Wahl.
+**Import bestätigen** bucht keine davon, und die Abschlussseite nennt sie
+noch einmal. Führen Sie die Historie mit Absicht in beiden Portfolios,
+schalten Sie unter dem Hinweis *Trotzdem übernehmen* ein: Das bucht die
+ganze Gruppe ein zweites Mal, in Ihr Standardportfolio, und das andere
+Portfolio behält seine. Jede Buchung wird dort trotzdem nur einmal gebucht;
+ein erneutes Ablegen der Datei findet sie bereits importiert.
+
 **Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
 Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** sind,
 wie viele **interne Umbuchungen entfallen** und wie viele neu sind, oder

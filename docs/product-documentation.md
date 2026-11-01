@@ -3261,6 +3261,22 @@ unless you have chosen already. If the counting stops, for example on a name
 two accounts share, or because a rename, a merge or another import in the
 portfolio is under way, every such row stays withheld.
 
+**A file already imported into another portfolio.** The Imports page books
+into your default portfolio, and the import recognises a booking by its
+content within one portfolio. A file whose bookings another portfolio
+already holds — imported there by an agent, a script, or before your default
+changed — would therefore book a second time. The preview reads every
+portfolio and holds such bookings back: at its head, one note per portfolio
+reads, for example, *Already imported into portfolio “Anleihen”: 4 entries —
+not taken over*, and opens to list them (date, kind, account and security,
+amount). The mapping rows count them as *4 bookings imported into
+“Anleihen”*, and a row with nothing else asks for no choice. **Confirm
+import** books none of them, and the done page names them again. If you keep
+the history in both portfolios on purpose, switch on *Take over anyway* under
+the note: it books the whole group a second time, into your default
+portfolio, and the other portfolio keeps its own. Each booking is still
+booked once there; dropping the file again finds them already imported.
+
 **What each row of the mapping step says.** Every cash account and depot of
 the file counts its bookings: how many are **already imported**, how many
 **internal transfers are dropped**, and how many are new, or *nothing to
