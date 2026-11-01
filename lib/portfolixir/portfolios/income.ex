@@ -22,8 +22,10 @@ defmodule Portfolixir.Portfolios.Income do
   account in `gross_amount` and the withheld tax in the transaction's `taxes`
   field (the dividend's TAX units, see the import parsers). The income report
   therefore reads `net = gross_amount`, `withheld tax = taxes`, and
-  `gross = net + withheld tax`. Interest carries no withholding here, so its
-  gross equals its amount.
+  `gross = net + withheld tax`. An `interest` booking, a bond's coupon
+  included, is read the same way: a bank withholds tax on interest too, and
+  the ledger stores it in `taxes` alike (#1309, the Sprint 22 plan's D-5).
+  A booking without taxes has gross equal to net.
 
   ## Currency
 
@@ -121,7 +123,8 @@ defmodule Portfolixir.Portfolios.Income do
     %{
       series:
         "dividend and interest bookings of the portfolio; gross is net (gross_amount) plus " <>
-          "the dividend's withheld tax (taxes), interest carries no withholding",
+          "the withheld tax (taxes), read alike on a dividend and on an interest booking, " <>
+          "a bond's coupon included; a booking without taxes has gross equal to net",
       currency:
         "each booking is read in its cash account's currency, the currency it was " <>
           "credited in, and converted from it",
@@ -140,7 +143,9 @@ defmodule Portfolixir.Portfolios.Income do
   # and `currency` keep the original visible.
   defp entry(tx, base_currency) do
     native_net = tx.gross_amount || @zero
-    native_tax = if tx.type == "dividend", do: tx.taxes || @zero, else: @zero
+    # #1309 (D-5, Sprint 22): interest, a bond's coupon included, is read
+    # as a dividend is; the tax withheld on it is stored in taxes alike.
+    native_tax = tx.taxes || @zero
     native_gross = Decimal.add(native_net, native_tax)
     cash_currency = cash_currency(tx)
 
