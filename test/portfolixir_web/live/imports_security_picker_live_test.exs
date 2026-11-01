@@ -251,6 +251,72 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     assert keeps_open?(view)
   end
 
+  # User story (H45, Sprint 21 γ7, Q1 B; the γ7 review, R-S1): As the
+  # operator mapping a security with the keyboard, I want the focus in the
+  # search field when the picker opens, on "Change…" once I picked, and the
+  # cards browsed with the arrow keys without each arrow committing a pick,
+  # so that I never lose my place to the page's top and can look at every
+  # card before I choose one.
+  #
+  # Acceptance criteria:
+  # - At rest no row's control takes the focus (`phx-mounted` focus on no
+  #   "Map elsewhere…").
+  # - The opened picker's search field takes the focus as it mounts.
+  # - After a pick, that row's "Change…" takes the focus as it mounts; no
+  #   other row's control does.
+  # - The picker's cards and a decision row's cards are a `RemapCards`
+  #   group (`phx-hook`, an id of their own): the arrow keys, Home and End
+  #   move the focus between the cards without checking one; Space or Enter
+  #   picks the focused card, and Enter never submits the import.
+  test "the picker keeps the keyboard's place: focus on open and on pick, cards browsed by arrow",
+       %{conn: conn, larkspur: larkspur} do
+    {:ok, view, _html} = live(conn, "/imports")
+
+    upload(view, [
+      purchase(@sorrel, "2026-01-15"),
+      purchase(@holding, "2026-01-16"),
+      purchase(@brightwater, "2026-01-17")
+    ])
+
+    assert focus_on_mount(view, "#import-security-mapping button.link-button") == []
+
+    holding = row(view, "Larkspur Rail Holding AG")
+    view |> element(holding <> " button.link-button", "Map elsewhere…") |> render_click()
+    assert focus_on_mount(view, holding <> " .mapping-remap input[type='search']") == [true]
+
+    cards = holding <> " .mapping-remap fieldset.merge-targets"
+
+    assert has_element?(
+             view,
+             cards <>
+               "[phx-hook='RemapCards'][id='remap-cards-#{key("Larkspur Rail Holding AG")}']"
+           )
+
+    decision = "#import-security-mapping [data-role='security-decision'] fieldset.merge-targets"
+
+    assert has_element?(
+             view,
+             decision <>
+               "[phx-hook='RemapCards'][id='decision-cards-#{key("Brightwater Utilities SE")}']"
+           )
+
+    search(view, "Larkspur Rail Holding AG", "Lark")
+    choose(view, "Larkspur Rail Holding AG", "existing:#{larkspur.id}")
+
+    assert focus_on_mount(view, holding <> " button.link-button") == [true]
+    assert focus_on_mount(view, row(view, "Sorrel Bay Foods AG") <> " button.link-button") == []
+
+    hook = File.read!("lib/portfolixir_web/layout_view.ex")
+    [_, remap_cards] = String.split(hook, "Hooks.RemapCards = {", parts: 2)
+    [remap_cards | _] = String.split(remap_cards, "\n            };", parts: 2)
+
+    for key <- ~w(ArrowDown ArrowUp ArrowRight ArrowLeft Home End Enter),
+        do: assert(remap_cards =~ ~s("#{key}"), "RemapCards does not handle #{key}")
+
+    assert remap_cards =~ "preventDefault"
+    assert remap_cards =~ ".focus()"
+  end
+
   # --- the file ----------------------------------------------------------------
 
   defp purchase(security, date) do
@@ -320,6 +386,18 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     view
     |> element("form#pp-import-apply")
     |> render_change(%{"security" => %{key(name) => %{"choice" => choice}}})
+  end
+
+  # For each element `selector` finds, whether it takes the focus as it
+  # mounts (`phx-mounted` holding a focus command); elements without one
+  # are left out.
+  defp focus_on_mount(view, selector) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> Enum.flat_map(&Floki.attribute(&1, "phx-mounted"))
+    |> Enum.map(fn ops -> Enum.any?(Jason.decode!(ops), &match?(["focus", _], &1)) end)
   end
 
   # Whether the plain creations' <details> carries LiveView's instruction to
