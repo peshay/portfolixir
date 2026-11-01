@@ -373,14 +373,30 @@ drawn over the review seed with the shipped `priv/static/app.css`:
 - **Board 01, I1 (#1351, #1350, #1336, #1342):** Wealth, Overview and Cash
   flow before and after, the anatomy numbered, and the classification rule
   that decides per text whether it is a basis clause, a method sentence, a
-  data fact or a problem. Variant R was adopted by you on 2026-11-01; no
-  other variant is drawn.
+  data fact or a problem, with the texts that must not move. Variant R was
+  adopted by you on 2026-11-01; no other variant is drawn. **Q1, three
+  corrections found while drawing R on the real markup, the default unless
+  a comment flips them:** a note that names rows left out of a total never
+  folds, it only clamps (otherwise R would hide the excluded rows' count
+  the owner kept visible); a note's remedy control stays visible under the
+  clamp; texts are classified one by one, not by the prototype's clause
+  length.
 - **Board 02, figures on screen (#1316, #1332, #1331, #1274, #1293,
   #1343):** before and after.
 - **Board 03, drawer, import and accounts (#1335, #1337, #1313, #1219,
-  #1299, #1333):** before and after; **Q2, #1313's held-back rows,** is a
-  choice between a collapsed group per portfolio and marked rows inline,
-  with the recommendation in the board's README.
+  #1299, #1333):** before and after. **Q2, #1313's held-back rows: variant
+  A is recommended,** one collapsed group per other portfolio, held back,
+  with a "Trotzdem übernehmen" toggle and its rows one tap away. "Already in
+  that portfolio" is one fact about a set of rows; variant B (each row
+  marked inline) asks it once per row, adds the preview's first row table,
+  and invites a partial copy of a history. Say "B" to flip it.
+- **Found while drawing, placed by D-2's rule:** Wealth's Marktwert is in
+  the security's currency, so a USD row never adds up to the EUR total
+  (S2, on R8's surface: R8 shows the base figure the total sums); Income's
+  "Je Position" needs one row per payment currency (R9); the twin-account
+  name belongs in the drawer's account selects and Wealth's cash table too
+  (U2); the sell preview's lot table cuts off Bruttogewinn at the drawer's
+  width (S3, on R10's surface).
 
 The story that builds each surface writes its anatomy into `DESIGN.md`.
 
