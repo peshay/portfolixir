@@ -179,13 +179,17 @@ defmodule Portfolixir.LedgerHoldingsForSecurityTest do
     assert Ledger.holdings_for_security(w.security.id) == []
   end
 
-  test "returns nil current value when no quote is available" do
+  # #1316 (ADR-0010's amendment of 2026-06-10): with no quote the position is
+  # valued at its last own trade price, as the portfolio total values it,
+  # and the row names the source.
+  test "values a position with no quote at its last own trade price" do
     w = setup_world()
     tx!(w, w.depot_a, w.cash_a, w.portfolio_a, "buy", ~D[2026-01-10], "10", "100.00")
 
     [holding] = Ledger.holdings_for_security(w.security.id)
-    assert is_nil(holding.current_value)
-    assert is_nil(holding.unrealized_pnl_abs)
-    assert is_nil(holding.unrealized_pnl_pct)
+    assert Decimal.equal?(holding.current_value, Decimal.new("1000.00"))
+    assert Decimal.equal?(holding.unrealized_pnl_abs, Decimal.new("0"))
+    assert holding.price_source == :trade
+    assert holding.price_date == ~D[2026-01-10]
   end
 end

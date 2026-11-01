@@ -315,6 +315,8 @@ const holdingFieldNames = [
   "avg_cost",
   "cost_basis",
   "latest_price",
+  "price_source",
+  "price_date",
   "market_value",
   "unrealized_pnl_abs",
   "unrealized_pnl_pct",
@@ -3485,7 +3487,7 @@ const declaredTools: DeclaredTool[] = [
     splitDeleteZ
   ),
   tool("portfolixir.splits.incomplete", "Incomplete splits (data quality)", "Stored split events missing a portfolio that held the security entering the date (its FIFO lots scaled, its holding not): security, date, ratio, booked_portfolio_ids, transaction_ids, missing_portfolios with quantity_before (Decimal string); as_of, note, remedy. Fix: rebook the split via portfolixir.splits.create (adds the missing rows only), or splits.delete.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price, market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement leg, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly; cost_basis and base_cost leave out the buys' fees and taxes (computation_basis). decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; currency_basis_note states each field's currency. Decimal strings. Each row carries isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a per-security EUR view across portfolios, portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id. Optional fields selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. security_id, quantity, market_value) for routine reads.", {
+  tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price (quote, else last own trade; price_source), market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement leg, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly; cost_basis and base_cost leave out the buys' fees and taxes (computation_basis). decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; currency_basis_note states each field's currency. Decimal strings. Rows carry isin and wkn (null if absent): broker reconciliation needs no securities.list join. Base-currency totals and cash quote: portfolixir.portfolios.valuation; a per-security EUR view across portfolios: portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id. Optional fields selects a sparse fieldset: each row then carries exactly those fields — prefer a small one (e.g. security_id, quantity, market_value).", {
     type: "object",
     additionalProperties: false,
     required: ["portfolio_id"],

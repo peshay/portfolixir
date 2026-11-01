@@ -170,6 +170,68 @@ defmodule Portfolixir.Portfolios.Valuation do
   end
 
   @doc """
+  The price every held position of `security_ids` is valued at, by the rule
+  the totals use (#1316, #1332; ADR-0010's amendment of 2026-06-10): the
+  latest quote close, else the latest own trade price across all
+  portfolios, else none.
+
+  Returns `%{security_id => %{price: Decimal | nil, price_source: :quote |
+  :trade | nil, price_date: Date.t() | nil}}`, with `price` in the
+  **security's own currency** — the currency the holdings reads state their
+  figures in. A trade booked in another currency is converted at the latest
+  stored rate; with no rate path the price is `nil`, as no value can be
+  stated in the security's currency, while `price_source` still names the
+  trade. The holdings reads (`Portfolixir.Ledger.holdings_for_portfolio/2`
+  and `holdings_for_security/2`) price their rows through this, so a row and
+  the total it adds into are priced by one function (`price_for/4`).
+
+  Options: `:prices` (for tests, `%{security_id => Decimal}` native quote
+  overrides, as `for_portfolio/2` takes them), `:pricing_context`, and
+  `trade_fallback: false`, which leaves a trade-priced security unpriced —
+  the per-category result's quote-only pricing, kept until its own
+  decision (`Portfolixir.Portfolios.CategoryResult`).
+  """
+  def price_points(security_ids, opts \\ []) when is_list(security_ids) do
+    prices = Keyword.get(opts, :prices, %{})
+    trade_fallback? = Keyword.get(opts, :trade_fallback, true)
+    security_ids = Enum.uniq(security_ids)
+
+    context =
+      PricingContext.fetch(opts, fn -> PricingContext.for_securities(security_ids) end)
+
+    Map.new(security_ids, fn security_id ->
+      security = security(context, security_id)
+      security_currency = security && security.currency_code
+
+      {price, price_currency, price_source} =
+        case price_for(security_id, prices, context, security_currency) do
+          {_price, _currency, :trade} when not trade_fallback? -> {nil, nil, nil}
+          resolved -> resolved
+        end
+
+      {security_id,
+       %{
+         price: in_security_currency(price, price_currency, security_currency, context),
+         price_source: price_source,
+         price_date: price_date(security_id, price_source, context)
+       }}
+    end)
+  end
+
+  defp in_security_currency(nil, _from, _to, _context), do: nil
+  defp in_security_currency(price, same, same, _context), do: price
+  defp in_security_currency(price, _from, nil, _context), do: price
+
+  defp in_security_currency(price, from, to, context) when is_binary(from) do
+    case PricingContext.convert(context, price, from, to) do
+      {:ok, converted} -> converted
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp in_security_currency(_price, _from, _to, _context), do: nil
+
+  @doc """
   The global valuation status of one security (#406).
 
   Resolves the price with exactly the semantics the portfolio totals use

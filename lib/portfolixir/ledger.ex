@@ -38,10 +38,12 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Repo
 
   @zero Decimal.new("0")
   @one Decimal.new("1")
+  @no_price_point %{price: nil, price_source: nil, price_date: nil}
   @hub "EUR"
 
   def list_transactions(opts \\ []) when is_list(opts) do
@@ -344,9 +346,15 @@ defmodule Portfolixir.Ledger do
   guessed number; when the native leg itself is missing,
   `cost_basis`/`avg_cost`/unrealized P&L are nil too.
 
-  Pass `:prices` (`%{security_id => Decimal}`) to inject comparison prices for
-  tests; missing securities fall back to `Catalog.Quotes.adjusted_latest/1`
-  (the split-adjusted display basis, ADR-0028 §2). Pass `:fx_rates`
+  Each row is priced by the rule the valuation's total uses
+  (`Valuation.price_points/2`, ADR-0010's amendment of 2026-06-10): the
+  latest quote close in the split-adjusted display basis (ADR-0028 §2), else
+  the last own trade price across all portfolios, else none. The row names
+  it in `price_source` (`:quote | :trade | nil`) and `price_date` (#1316,
+  #1332); `trade_fallback: false` prices by quotes alone (the per-category
+  result's rule, `Portfolixir.Portfolios.CategoryResult`). Pass `:prices`
+  (`%{security_id => Decimal}`) to inject comparison prices for tests (read
+  as quotes). Pass `:fx_rates`
   (`%{currency => Decimal}`, base units per 1 security-currency unit) to
   inject the current hub rate for tests; otherwise rates resolve from the
   stored EUR-hub rates exactly like the valuation.
@@ -358,9 +366,20 @@ defmodule Portfolixir.Ledger do
     transactions = portfolio_transactions_with_security(portfolio_id)
     lots = cost_lots(transactions)
     securities = securities_by_id(transactions)
+    positions = Positions.calculate(transactions)
 
-    transactions
-    |> Positions.calculate()
+    # #1316, #1332 (ADR-0010; plan D-6): every row is priced by the rule the
+    # valuation's total uses — quote, else the last own trade price — so a
+    # row and the total it adds into cannot disagree.
+    points =
+      positions
+      |> Enum.map(fn {{_account_id, security_id}, _quantity} -> security_id end)
+      |> Valuation.price_points(
+        prices: prices,
+        trade_fallback: Keyword.get(opts, :trade_fallback, true)
+      )
+
+    positions
     |> Enum.map(fn {{account_id, security_id} = key, quantity} ->
       build_holding_row(
         account_id,
@@ -368,7 +387,7 @@ defmodule Portfolixir.Ledger do
         Map.get(securities, security_id),
         quantity,
         lot_for(lots, key),
-        holding_price(security_id, prices),
+        Map.get(points, security_id, @no_price_point),
         base_currency,
         fx_rates
       )
@@ -410,7 +429,7 @@ defmodule Portfolixir.Ledger do
          security,
          quantity,
          lot,
-         latest_price,
+         point,
          base_currency,
          fx_rates
        ) do
@@ -434,7 +453,8 @@ defmodule Portfolixir.Ledger do
       |> Map.merge(base_cost_fields(lot, base_currency))
 
     base
-    |> put_holding_valuation(latest_price)
+    |> put_holding_valuation(point.price)
+    |> put_price_source(point)
     |> put_decomposition(:market_value, lot, security_currency, base_currency, fx_rates)
   end
 
@@ -540,12 +560,20 @@ defmodule Portfolixir.Ledger do
     })
   end
 
-  defp holding_price(security_id, prices) do
-    case Map.get(prices, security_id) do
-      %Decimal{} = price -> price
-      _ -> adjusted_latest_close(security_id)
-    end
-  end
+  # Where a row's price comes from (`Valuation.price_points/2`): named only
+  # when the row carries a price, so a source never stands beside a dash.
+  defp put_price_source(row, %{price: %Decimal{}} = point),
+    do: Map.merge(row, %{price_source: point.price_source, price_date: point.price_date})
+
+  defp put_price_source(row, _no_price),
+    do: Map.merge(row, %{price_source: nil, price_date: nil})
+
+  # The `:latest_price` test injection of `holdings_for_security/2`: an
+  # injected price stands for a quote, as `Valuation`'s `:prices` does.
+  defp injected_price_point(%Decimal{} = price),
+    do: %{price: price, price_source: :quote, price_date: nil}
+
+  defp injected_price_point(_none), do: @no_price_point
 
   # Latest close in the current display basis (ADR-0028 §2): a stale raw
   # close from before a split's effective date is divided by the cumulative
@@ -570,14 +598,19 @@ defmodule Portfolixir.Ledger do
   decomposition as `holdings_for_portfolio/2` (each row against its own
   portfolio's base currency), so the two surfaces cannot disagree.
 
-  Pass `:latest_price` to inject the comparison price for tests; otherwise
-  reads it from `Catalog.Quotes.adjusted_latest/1` (the split-adjusted
-  display basis, ADR-0028 §2). Pass `:fx_rates` to inject current hub rates
-  for tests (see `holdings_for_portfolio/2`).
+  Rows are priced as `holdings_for_portfolio/2`'s are, by
+  `Valuation.price_points/2` (the latest quote, else the last own trade
+  price, ADR-0010), each naming its `price_source` and `price_date`. Pass
+  `:latest_price` to inject the comparison price for tests (read as a
+  quote). Pass `:fx_rates` to inject current hub rates for tests (see
+  `holdings_for_portfolio/2`).
   """
   def holdings_for_security(security_id, opts \\ []) when is_integer(security_id) do
-    latest_price =
-      Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
+    point =
+      case Keyword.fetch(opts, :latest_price) do
+        {:ok, price} -> injected_price_point(price)
+        :error -> Map.fetch!(Valuation.price_points([security_id]), security_id)
+      end
 
     fx_rates = Keyword.get(opts, :fx_rates, %{})
     security = Repo.get(Security, security_id)
@@ -602,7 +635,8 @@ defmodule Portfolixir.Ledger do
         cost_basis: cost_basis
       }
       |> Map.merge(base_cost_fields(lot, base_currency))
-      |> decorate_holding(latest_price)
+      |> decorate_holding(point.price)
+      |> put_price_source(point)
       |> put_decomposition(:current_value, lot, security_currency, base_currency, fx_rates)
     end)
     |> Enum.sort_by(& &1.portfolio.name)
@@ -1235,6 +1269,18 @@ defmodule Portfolixir.Ledger do
       "with no fees or taxes (a bonus or free share): a return on no cost is undefined, and " <>
       "0 would read as a flat trade. realized_pnl_abs still states the result, and " <>
       "annualized_return is then null with annualized_return_reason no_cost_basis."
+  end
+
+  @doc """
+  The holdings read's price rule, stated in its `computation_basis`
+  (#1316, #1332; ADR-0010's amendment of 2026-06-10): the rule the
+  valuation's total uses, so the rows add up to it.
+  """
+  @spec holding_price_basis() :: String.t()
+  def holding_price_basis do
+    "the latest quote close, else the last own trade price (ADR-0010), as the " <>
+      "valuation total prices it; price_source: quote | trade, price_date its date; " <>
+      "null with no price, then in no total"
   end
 
   @doc """

@@ -1745,8 +1745,16 @@ Example account payloads:
   `unrealized_pnl_abs`/`unrealized_pnl_pct` against that price, plus
   `security_name` and `currency_code`. Those figures are in the security's
   **own** currency — enforced by the cost pair the ledger fold carries
-  (ADR-0033), no longer an assumption; a holding whose security has no quote
-  returns `null` price, market value and P&L. Each row additionally carries
+  (ADR-0033), no longer an assumption. Since issues #1316 and #1332 a row is
+  priced by the rule the valuation's total uses (ADR-0010): the latest quote
+  close, else the last own trade price (a buy or sell, across all
+  portfolios; a trade booked in another currency is converted into the
+  security's at the latest stored rate), so the rows add up to that total.
+  Each row names it in `price_source` (`"quote"` or `"trade"`) and
+  `price_date`, and `computation_basis.latest_price` states the rule. Only
+  a holding with neither a quote nor an own trade returns `null` price,
+  market value and P&L, with `price_source` `null`: it is in no total.
+  Each row additionally carries
   the ADR-0033 base-currency P&L decomposition: `base_cost` (the
   settlement leg, the cash paid before fees and taxes, with its
   `base_currency`),
