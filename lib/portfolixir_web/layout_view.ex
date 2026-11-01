@@ -1448,7 +1448,9 @@ defmodule PortfolixirWeb.LayoutView do
                   if (!target || !target.closest || self.el.contains(target)) return;
                   var control = event.submitter ||
                     target.closest("button, a[href], input, select, textarea, summary, [phx-click]");
-                  if (control) self.lastAction = control;
+                  if (!control) return;
+                  self.lastAction = control;
+                  if (self.answersShown(control)) self.trigger = control;
                 };
                 this.onDismiss = function (event) {
                   var target = event.target;
@@ -1481,6 +1483,15 @@ defmodule PortfolixirWeb.LayoutView do
               snapshot: function () {
                 if (!this.el.querySelector("[data-role='result-dismiss']")) return null;
                 return this.el.textContent.replace(/\s+/g, " ").trim();
+              },
+              // A control activated outside the slot while a result is on
+              // show is answered by this slot (a replacement or a clear), so
+              // it is the trigger at once: an answer with the same text
+              // patches nothing and `updated` never runs (the γ closing act,
+              // G1). Inside an open dialog the opener, activated before,
+              // stays the trigger, as the dialog's controls leave with it.
+              answersShown: function (control) {
+                return this.shown !== null && !control.closest("dialog, [role='dialog']");
               },
               // Pure: a result present now that differs from the one before
               // (none, a busy line, or another result) is a new answer.

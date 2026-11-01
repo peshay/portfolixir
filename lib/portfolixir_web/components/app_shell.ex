@@ -459,7 +459,9 @@ defmodule PortfolixirWeb.AppShell do
   `InlineResult` hook moves it on the ×'s click to the first on the page and
   visible of: `focus_return` (a selector for the trigger, when the page names
   it), the control that had the focus when the result arrived (or the one
-  last activated, when the focus sat on the slot or on `<body>`); else
+  last activated, when the focus sat on the slot or on `<body>`; a control
+  activated while a result is on show is the trigger at once, since an answer
+  with the same text patches nothing); else
   `focus_fallback`, the section's heading (`tabindex="-1"`,
   `.result-focus-fallback`) or, on a page without one, the toolbar's first
   control. Only the dismiss moves the focus. Both are CSS selectors, as the
