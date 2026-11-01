@@ -529,6 +529,9 @@ scope"); none of them is part of the row's own fix.
 | Refuted or no action in Part 5 | 4 | – | – | – | – | 4 | – |
 | **All** | **79** | **73** | **0** | **2** | **0** | **4** | **30** |
 
+*Since this table (2026-11-01):* H45 shipped in stacked PR 2's γ7, so S4's
+row reads 17 of 17 shipped there; its line below names the commits.
+
 Every promoted reproduction test was red before its fix in the commit order
 (each fixer ran it red and committed it on its own; each group's reviewer
 re-ran the red at the test commit) and is green at the head; no gate was
@@ -689,8 +692,15 @@ behind their red-first acceptance tests.
   route and normalise the id-range redirect target (H26)`.
 - **H37** — shipped: `fix(catalog): type the whole-number attributes at write
   and order the numeric attribute sort only over numeric text (H37)`.
-- **H45** — deferred to stacked PR 2, γ7, by the amendment's D-4: the picker
-  it changes is built there, against its Q board.
+- **H45** — shipped in stacked PR 2, γ7 (moved there by the amendment's D-4,
+  built against its Q board, recorded 2026-11-01): `test(imports): pin a
+  security mapping that carries no catalog list per row, its creation as the
+  row's line and its search opened on ask (H45)`, `fix(imports): no security
+  row carries the catalog: creation is the row's line, and a search opens on
+  the operator's ask (H45)` and `fix(imports): the security rows read their
+  chosen targets in one batch, and a target pushed without a search is read
+  for its line (H45)`; the catalog's references follow in `chore(i18n): the
+  catalog's references follow the Imports page's lines (H45, #1180, #1179)`.
 - **H59** — shipped: `fix(imports): bound a CSV's rows and lines and a JSON
   body's shape before either is built (H59)` and `fix(imports): count a CSV's
   lines in one pass over its bytes (H59)`; the numeric cell's own bound is
