@@ -944,6 +944,16 @@ or a transfer, and A5's credit that nets to nothing. They gain:
   interest payment, a fee or a tax books with or without one and is not
   refused. Its place is after a transfer without its other side and
   before `row_error/1`. No hash changes: such a row was never stored.
+- **A negative `amount` on a row that moves cash (#1307).** Portfolio
+  Performance writes the amount as a magnitude, the kind carrying the sign.
+  A removal of `-10.00` previewed without a word, and the apply skipped it
+  as "without an amount", the wrong reason; a credit was called A5's
+  booking that nets to nothing. It is now refused at the preview, "removal
+  with a negative amount (-10.00): give the magnitude; the kind carries the
+  sign — row not imported", each kind in its own words, the figure in the
+  reader's notation. Its place is first among the money checks, after
+  `row_error/1` and before A9, A8 and A5. No hash changes: a ledger
+  booking's cash is above zero, so no such row was ever stored.
 
 ## References
 

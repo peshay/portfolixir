@@ -4238,13 +4238,13 @@ msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:642
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:381
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:384
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — die Buchung in der Quelle korrigieren und erneut importieren"
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:660
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:393
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:396
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (nach %{latest}) — die Buchung in der Quelle korrigieren und erneut importieren"
@@ -4309,7 +4309,7 @@ msgstr "%{field} enthält ein Steuerzeichen"
 msgid "%{field} is not valid UTF-8 text"
 msgstr "%{field} ist kein gültiger UTF-8-Text"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:261
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:262
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"
 msgstr "Fehlender Transaktionstyp"
@@ -4319,7 +4319,7 @@ msgstr "Fehlender Transaktionstyp"
 msgid "unknown PP CSV type %{type}"
 msgstr "Unbekannter PP-CSV-Typ %{type}"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:257
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:258
 #, elixir-autogen, elixir-format
 msgid "unknown PP transaction type %{type}"
 msgstr "Unbekannter PP-Transaktionstyp %{type}"
@@ -5800,12 +5800,12 @@ msgstr "Die Datei ist nicht als Portfolio-Performance-Export lesbar."
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr "Die Datei hat %{n} Zeilen; der Import ist auf höchstens %{max} ausgelegt."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:406
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:409
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr "ungültiges Datum %{date}"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:469
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:472
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr "ungültige Position %{unit}"
@@ -7894,7 +7894,7 @@ msgstr "Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpap
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr "Die Datei ergibt %{n} Einträge (ihre Zeilen und die daraus abgespaltenen Steuererstattungen); der Import ist auf höchstens %{max} ausgelegt."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:448
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:451
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr "mehr Positionen (Gebühren und Steuern), als eine Buchung trägt"
@@ -11626,8 +11626,8 @@ msgid "sell without a counter account — row not imported"
 msgstr "Verkauf ohne Gegenkonto — Zeile nicht übernommen"
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:490
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:812
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:815
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:818
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"
@@ -12270,7 +12270,7 @@ msgstr "„%{name}“ löschen? Hat das Depot noch Buchungen, wird das Löschen 
 msgid "“%{name}” deleted."
 msgstr "„%{name}“ gelöscht."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:794
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:797
 #, elixir-autogen, elixir-format
 msgid "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards."
 msgstr "%{name}: Der Ticker aus der Datei ist kein gültiges Ticker-Symbol und wird nicht übernommen; das Wertpapier wird ohne Ticker angelegt. Den Ticker danach am Wertpapier erfassen."
@@ -12585,22 +12585,22 @@ msgstr "Umbuchung mit Steuererstattung %{refund}: Eine Umbuchung bewegt Geld zwi
 msgid "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — row not imported. Book the transfer by hand without it; if money did move, book that as a tax refund of its own."
 msgstr "Umbuchung mit Steuererstattung %{refund}: Eine Umbuchung bewegt Geld zwischen zwei Konten, eine abgespaltene Erstattung landete nur auf einer Seite — Zeile nicht übernommen. Die Umbuchung ohne sie von Hand buchen; ist Geld geflossen, das als eigene Steuererstattung."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:703
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:706
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — bereits importiert mit Gebühren von %{stored} und hier nicht zu korrigieren. Die Buchung nicht noch einmal erfassen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:684
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:687
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand, with its fees less the refund (%{net})."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand erfassen, mit den Gebühren abzüglich der Erstattung (%{net})."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:695
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:698
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — bereits importiert mit Gebühren von %{stored} und hier nicht zu korrigieren. Den Verkauf nicht noch einmal buchen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:676
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:679
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand, with its fees less the refund (%{net})."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand buchen, mit den Gebühren abzüglich der Erstattung (%{net})."
@@ -12859,22 +12859,22 @@ msgstr "ohne Umrechnung, ein Kauf in %{lot_currency} ohne Gegenwert in %{currenc
 msgid "provisional · recomputing"
 msgstr "vorläufig · wird neu berechnet"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:668
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:671
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand at the cash Portfolio Performance shows, Gesamtpreis %{cash}, without a fee."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand mit dem Geld erfassen, das Portfolio Performance zeigt, Gesamtpreis %{cash}, ohne Gebühr."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:643
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:646
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Die Buchung ohne Gebühr von Hand erfassen."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:635
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:638
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand at the cash Portfolio Performance shows, Gesamtpreis %{cash}, without a fee."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand mit dem Geld buchen, das Portfolio Performance zeigt, Gesamtpreis %{cash}, ohne Gebühr."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:610
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:613
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Den Verkauf ohne Gebühr von Hand buchen."
@@ -12911,7 +12911,7 @@ msgstr "Buchung mit %{cell} %{total} und Steuererstattung %{refund}: Der Buchung
 msgid "booking with %{cell} %{total}: nothing would remain for the booking — already imported; listed under “Already imported, with a different amount”."
 msgstr "Buchung mit %{cell} %{total}: Der Buchung bliebe nichts — bereits importiert; aufgeführt unter „Bereits importiert, mit anderem Betrag“."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:722
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:725
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}; listed under “Already imported, with a different amount”."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — bereits importiert mit Gebühren von %{stored}; aufgeführt unter „Bereits importiert, mit anderem Betrag“."
@@ -12941,7 +12941,7 @@ msgstr "Verkauf mit %{cell} %{total} und Steuererstattung %{refund}: Dem Verkauf
 msgid "sell with %{cell} %{total}: nothing would remain for the sale — already imported; listed under “Already imported, with a different amount”."
 msgstr "Verkauf mit %{cell} %{total}: Dem Verkauf bliebe nichts — bereits importiert; aufgeführt unter „Bereits importiert, mit anderem Betrag“."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:714
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:717
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}; listed under “Already imported, with a different amount”."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — bereits importiert mit Gebühren von %{stored}; aufgeführt unter „Bereits importiert, mit anderem Betrag“."
@@ -12990,22 +12990,22 @@ msgstr "%{amount} gespeichert"
 msgid "already imported, with a different amount — not corrected by this import"
 msgstr "bereits importiert, mit anderem Betrag — von diesem Import nicht korrigiert"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:650
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:653
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee, at the price %{price} (Gesamtpreis %{cash} ÷ %{quantity})."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand ohne Gebühr erfassen, zum Kurs %{price} (Gesamtpreis %{cash} ÷ %{quantity})."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:660
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:663
 #, elixir-autogen, elixir-format
 msgid "booking with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Enter the booking by hand without a fee, with the settlement amount %{settlement} (the Gesamtpreis Portfolio Performance shows)."
 msgstr "Buchung mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand ohne Gebühr erfassen, mit dem Abrechnungsbetrag %{settlement} (der Gesamtpreis, den Portfolio Performance zeigt)."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:617
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:620
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee, at the price %{price} (Gesamtpreis %{cash} ÷ %{quantity})."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand ohne Gebühr buchen, zum Kurs %{price} (Gesamtpreis %{cash} ÷ %{quantity})."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:627
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:630
 #, elixir-autogen, elixir-format
 msgid "sell with a negative fee (%{fee}): the import does not book a fee refund yet — row not imported. Book the sale by hand without a fee, with the settlement amount %{settlement} (the Gesamtpreis Portfolio Performance shows)."
 msgstr "Verkauf mit einer negativen Gebühr (%{fee}): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand ohne Gebühr buchen, mit dem Abrechnungsbetrag %{settlement} (der Gesamtpreis, den Portfolio Performance zeigt)."
@@ -13619,32 +13619,82 @@ msgstr[1] "bucht die %{count} Einträge ein zweites Mal, in „%{target}“; „
 msgid "unreadable time “%{time}”: use HH:MM or HH:MM:SS — row not imported"
 msgstr "Uhrzeit „%{time}“ nicht lesbar: HH:MM oder HH:MM:SS angeben — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:826
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:918
 #, elixir-autogen, elixir-format
 msgid "dividend without a security — row not imported"
 msgstr "Dividende ohne Wertpapier — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:829
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:921
 #, elixir-autogen, elixir-format
 msgid "inbound delivery without a security — row not imported"
 msgstr "Einlieferung ohne Wertpapier — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:830
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:922
 #, elixir-autogen, elixir-format
 msgid "outbound delivery without a security — row not imported"
 msgstr "Auslieferung ohne Wertpapier — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:827
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:919
 #, elixir-autogen, elixir-format
 msgid "purchase without a security — row not imported"
 msgstr "Kauf ohne Wertpapier — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:828
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:920
 #, elixir-autogen, elixir-format
 msgid "sale without a security — row not imported"
 msgstr "Verkauf ohne Wertpapier — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:831
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:923
 #, elixir-autogen, elixir-format
 msgid "security transfer without a security — row not imported"
 msgstr "Wertpapierumbuchung ohne Wertpapier — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:871
+#, elixir-autogen, elixir-format
+msgid "deposit with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Einlage mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:857
+#, elixir-autogen, elixir-format
+msgid "dividend with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Dividende mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:885
+#, elixir-autogen, elixir-format
+msgid "fee with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Gebühren mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:864
+#, elixir-autogen, elixir-format
+msgid "interest with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Zinsen mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:843
+#, elixir-autogen, elixir-format
+msgid "purchase with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Kauf mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:878
+#, elixir-autogen, elixir-format
+msgid "removal with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Entnahme mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:850
+#, elixir-autogen, elixir-format
+msgid "sale with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Verkauf mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:899
+#, elixir-autogen, elixir-format
+msgid "tax refund with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Steuererstattung mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:892
+#, elixir-autogen, elixir-format
+msgid "tax with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Steuern mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:906
+#, elixir-autogen, elixir-format
+msgid "transfer with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported"
+msgstr "Umbuchung mit negativem Betrag (%{amount}): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"

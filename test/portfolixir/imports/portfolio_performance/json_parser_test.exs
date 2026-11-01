@@ -424,11 +424,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
                      "for the sale — row not imported. Book the sale by hand, and the refund " <>
                      "as a tax refund of its own."
                },
+               # #1307: a negative amount is named for its sign, before A5.
                %{
                  row: 4,
                  message:
-                   "sell with Gesamtpreis -1,234.50: nothing would remain for the sale — " <>
-                     "row not imported. Book the sale by hand."
+                   "sale with a negative amount (-1,234.50): give the magnitude; the kind " <>
+                     "carries the sign — row not imported"
                }
              ]
     end

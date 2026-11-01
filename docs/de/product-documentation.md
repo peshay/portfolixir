@@ -3404,6 +3404,12 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   Worten. Bisher sah eine solche Zeile in der Vorschau unauffällig aus, und
   das Bestätigen lehnte dann die ganze Datei ab. Zinsen, Gebühren und
   Steuern buchen mit oder ohne Wertpapier.
+- **Eine JSON-Zeile, die Geld bewegt, mit negativem `amount`** (Issue
+  #1307): Portfolio Performance schreibt den Betrag ohne Vorzeichen, die Art
+  trägt es. *Entnahme mit negativem Betrag (-10,00): den Betrag ohne
+  Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen*, jede Art
+  in ihren eigenen Worten. `10.00` schreiben und die Datei erneut ablegen.
+  Sie wird vor den Gründen oben genannt.
 - **Eine JSON-Zeile, deren `time` der Parser nicht lesen kann** (Issue
   #1306): *Uhrzeit „9:15 AM“ nicht lesbar: HH:MM oder HH:MM:SS angeben —
   Zeile nicht übernommen*. Die Uhrzeit gehört zu dem, was zwei Buchungen

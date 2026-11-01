@@ -160,4 +160,84 @@ defmodule Portfolixir.Imports.JsonRowRefusalsTest do
     balance = Ledger.cash_balances(portfolio_id: portfolio.id) |> Map.fetch!(cash.id)
     assert Decimal.equal?(balance, Decimal.new("887.50"))
   end
+
+  # User story (#1307):
+  # As the operator dropping a Portfolio Performance JSON export,
+  # I want a cash row with a negative `amount` named at the preview with
+  # its real reason,
+  # so that I learn to give the magnitude, instead of a silent preview and
+  # an apply that skips the row as having no amount.
+  #
+  # Acceptance criteria:
+  # - A removal of "-10.00" is "removal with a negative amount (-10.00):
+  #   give the magnitude; the kind carries the sign — row not imported";
+  #   a deposit, a sale and a transfer read the same in their own words.
+  # - In German: "Entnahme mit negativem Betrag (-10,00): den Betrag ohne
+  #   Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen".
+  # - The deposit of 1000.00 and a removal of 10.00 book; Test-Cash ends at
+  #   990.00, and the apply skips nothing.
+  test "a cash row with a negative amount is named at the preview with its reason" do
+    negative = fn type, extra ->
+      ~s({"type": "#{type}", "account": "Test-Cash", "portfolio": "Test-Depot",
+        "date": "2025-03-05", "currency": "EUR", "amount": "-10.00"#{extra}})
+    end
+
+    rows = [
+      @deposit,
+      negative.("REMOVAL", ""),
+      negative.("DEPOSIT", ""),
+      negative.("SALE", ~s(, "shares": "1", #{@arbolia})),
+      negative.("CASH_TRANSFER", ~s(, "otherAccount": "Test-Savings")),
+      ~s({"type": "REMOVAL", "account": "Test-Cash", "date": "2025-03-05",
+        "currency": "EUR", "amount": "10.00"})
+    ]
+
+    preview = parse!(rows)
+
+    assert preview.errors == [
+             %{
+               row: 2,
+               message:
+                 "removal with a negative amount (-10.00): give the magnitude; the kind carries the sign — row not imported"
+             },
+             %{
+               row: 3,
+               message:
+                 "deposit with a negative amount (-10.00): give the magnitude; the kind carries the sign — row not imported"
+             },
+             %{
+               row: 4,
+               message:
+                 "sale with a negative amount (-10.00): give the magnitude; the kind carries the sign — row not imported"
+             },
+             %{
+               row: 5,
+               message:
+                 "transfer with a negative amount (-10.00): give the magnitude; the kind carries the sign — row not imported"
+             }
+           ]
+
+    assert preview.refused_credits == []
+    assert Enum.map(preview.entries, & &1.kind) == ~w(deposit removal)
+
+    german =
+      Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+        parse!([negative.("REMOVAL", "")])
+      end)
+
+    assert german.errors == [
+             %{
+               row: 1,
+               message:
+                 "Entnahme mit negativem Betrag (-10,00): den Betrag ohne Vorzeichen angeben, die Art trägt es — Zeile nicht übernommen"
+             }
+           ]
+
+    {:ok, result} = Imports.apply(preview, %{portfolio_id: (portfolio = target("Negative")).id})
+    assert result.skipped_entries == []
+
+    [cash] = Portfolios.list_cash_accounts_for_portfolio(portfolio.id)
+    balance = Ledger.cash_balances(portfolio_id: portfolio.id) |> Map.fetch!(cash.id)
+    assert Decimal.equal?(balance, Decimal.new("990.00"))
+  end
 end

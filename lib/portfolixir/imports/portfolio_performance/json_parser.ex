@@ -35,8 +35,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   security currency the catalog does not list (#948), a row with a FEE unit
   below zero (ADR-0053 A9, #1177), a delivery or a transfer with a negative
   TAX unit (A8, #1188), a credit whose own booking would move 0 or less
-  (A5, #1118), a `time` the parser cannot read (#1306), and a kind that
-  books on a security without one (#1305).
+  (A5, #1118), a `time` the parser cannot read (#1306), a kind that
+  books on a security without one (#1305), and a negative `amount` on a row
+  that moves cash (#1307).
 
   A negative TAX unit is split off into a `tax_refund` companion, and the
   row's own booking leaves it out of its `amount`, which already holds it
@@ -345,12 +346,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       # books on a security without one (#1305); then E25 S4 (G24)
       # and S5 (F33): a security that names nothing, and text the ledger would
       # refuse, are this row's error; so is a currency the catalog does not
-      # list (#948); then a fee refund (ADR-0053 A9, #1177); then a refund
+      # list (#948); then a negative `amount` on a row that moves cash
+      # (#1307); then a fee refund (ADR-0053 A9, #1177); then a refund
       # the row's own cash leg cannot carry (A8, #1188); then a credit that
       # would book 0 or less (A5, #1118).
       case counter_error(entry) || security_error(entry) || PortfolioPerformance.row_error(entry) do
         nil ->
-          fee_refusal(entry, amount, Map.get(raw, "units")) ||
+          negative_amount_error(kind, amount) ||
+            fee_refusal(entry, amount, Map.get(raw, "units")) ||
             refund_refusal(entry, refund_amounts) ||
             credit_refusal(kind, amount, refund_amounts, entry)
 
@@ -815,6 +818,95 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     do: gettext("transfer without a counter account — row not imported")
 
   defp counter_error(%Entry{}), do: nil
+
+  # #1307: Portfolio Performance writes a row's `amount` as a magnitude and
+  # its kind carries the sign. A negative one on a row that moves cash
+  # previewed without a word, and the apply then skipped it as "without an
+  # amount", the wrong reason; on a credit A5 called it a booking that nets
+  # to nothing. It is the row's error, named first among the money checks,
+  # its figure in the reader's notation. A ledger booking's cash is above
+  # zero, so no such row was ever stored and no hash is affected.
+  defp negative_amount_error(kind, %Decimal{} = amount) when kind not in @no_cash_kinds do
+    if Decimal.negative?(amount) do
+      {:error,
+       negative_amount_message(
+         kind,
+         Decimals.format_locale(amount, Gettext.get_locale(PortfolixirWeb.Gettext))
+       )}
+    end
+  end
+
+  defp negative_amount_error(_kind, _amount), do: nil
+
+  defp negative_amount_message("buy", amount),
+    do:
+      gettext(
+        "purchase with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("sell", amount),
+    do:
+      gettext(
+        "sale with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("dividend", amount),
+    do:
+      gettext(
+        "dividend with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("interest", amount),
+    do:
+      gettext(
+        "interest with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("deposit", amount),
+    do:
+      gettext(
+        "deposit with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("removal", amount),
+    do:
+      gettext(
+        "removal with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("fee", amount),
+    do:
+      gettext(
+        "fee with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("tax", amount),
+    do:
+      gettext(
+        "tax with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("tax_refund", amount),
+    do:
+      gettext(
+        "tax refund with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
+
+  defp negative_amount_message("cash_transfer", amount),
+    do:
+      gettext(
+        "transfer with a negative amount (%{amount}): give the magnitude; the kind carries the sign — row not imported",
+        amount: amount
+      )
 
   # #1305: the ledger books these kinds on a security
   # (`Ledger.Transaction`'s per-kind required fields), so a row naming none
