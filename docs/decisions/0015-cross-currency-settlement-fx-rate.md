@@ -18,6 +18,10 @@ description: Decision to allow booking a security in its own currency while sett
   currency is refused; and a history backfill that stores rates derives the
   settlement legs they make derivable (#1198, #1199, #1196; see "Amendment
   (2026-10-09)" below). Adopted by the merge of the Sprint 21 planning PR.
+- **Amended:** 2026-11-01: a cross-currency row stored without its
+  settlement legs is corrected in the currency it is stored in, never
+  re-booked in the security's currency in place (#1335). See "Amendment
+  (2026-11-01)" below. Adopted by the merge of the Sprint 22 planning PR.
 
 ## Context
 
@@ -608,3 +612,45 @@ in the amendment of 2026-10-07:
   (`Lifecycle.PlanDigest` reads the legs).
 - Nothing here creates, stores or transmits an order. Nothing new calls
   out: the derivation reads the rates the backfill has just stored.
+
+## Amendment (2026-11-01): a row without its legs is corrected in the currency it is stored in
+
+**Status:** adopted by the merge of the Sprint 22 planning PR. Risk tier
+(how a stored booking is corrected, ADR-0036), so it is the owner's and is
+signed before the batch that builds it. It answers #1335.
+
+**Why.** An import made before #1196 can store a buy of a security priced
+in one currency, paid from an account in another, with no settlement legs:
+the row is stored in the account's currency (80.00 EUR), and every read
+says so (the history, the Trades tab: "ist in EUR gebucht"). The booking
+drawer opened it with the price currency of the security/account pair
+("Preis (USD) 80") and empty settlement fields. Saving it either refused
+the edit, even of a note, or, once a settlement amount was typed, re-booked
+80.00 EUR as 80.00 USD: a stored figure changed its currency without anyone
+deciding to (the Sprint 21 γ closing act's design critic; the triage of
+2026-11-01).
+
+**What changes.**
+
+1. **The drawer opens such a row in its stored currency.** The price reads
+   in the row's `currency_code`, the settlement fieldset is not offered,
+   and a sentence names the remedy: the Trades tab's rate backfill derives
+   the legs from the stored rates (the amendment of 2026-10-09, #1196).
+2. **A correction keeps the stored currency.** Quantity, price, fees,
+   taxes, date and notes are corrected as on any one-currency row. No edit
+   in the drawer turns the row into a cross-currency booking; that happens
+   only through the derivation, journaled under `settlement_backfill`.
+3. **Once the legs exist,** the row is an ordinary cross-currency booking
+   and the drawer opens it as one (unchanged).
+
+**The identity the building batch pins.**
+
+- **L1.** The review seed's legless USD buy (80.00 EUR): the drawer shows
+  "Preis (EUR) 80,00" and no settlement fields; a note edit saves and
+  changes no figure; a price edit to 81 stores 81.00 EUR; the API's read of
+  the row is unchanged in every other field; after the rate backfill the
+  same row opens with its legs.
+
+**What does not change:** the API's writes (they already refuse a
+settlement amount without its pair, §1 and the amendment of 2026-10-07),
+the derivation, and every read.
