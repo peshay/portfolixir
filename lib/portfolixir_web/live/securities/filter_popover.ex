@@ -131,7 +131,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   def handle_event("filter_change", params, socket) do
     field_key = field_or_default(params["field"], socket.assigns.field_key)
     field = SecurityFields.get(field_key)
-    operator = operator_or_default(params["operator"], default_operator(field))
+    operator = field_operator(params["operator"], field)
 
     {:noreply,
      socket
@@ -202,6 +202,18 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   end
 
   defp operator_or_default(_value, default), do: default
+
+  # The operator a changed form names, read against the field it now names:
+  # switching the column posts the previous field's operator, which a boolean
+  # field does not offer (`eq` from Name), so the field's default stands in
+  # and the builder shows one "Value" select, never a value input beside it
+  # (#1104; the γ closing act, DA1).
+  defp field_operator(value, %Field{operators: operators} = field) do
+    op = operator_or_default(value, nil)
+    if op in operators, do: op, else: default_operator(field)
+  end
+
+  defp field_operator(_value, field), do: default_operator(field)
 
   defp default_field_key do
     case SecurityFields.filterable() do
