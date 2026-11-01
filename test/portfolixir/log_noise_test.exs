@@ -1,5 +1,12 @@
 defmodule Portfolixir.LogNoiseTest do
-  use ExUnit.Case, async: true
+  # Not async (#1345): this file adds and removes a :logger handler while
+  # ExUnit's capture server adds and removes its own (and :default) around
+  # every capture_log in the async tests. OTP's logger_server reads the
+  # primary handler list when it receives remove_handler but writes it back
+  # only after the handler's removing_handler callback, so an add_handler
+  # that lands in between is overwritten by the stale list: this file's
+  # handler, or the capture server's, silently stops receiving events.
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
