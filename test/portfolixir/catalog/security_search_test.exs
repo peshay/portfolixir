@@ -53,9 +53,16 @@ defmodule Portfolixir.Catalog.SecuritySearchTest do
 
     {{:ok, results}, log} =
       with_log(fn ->
+        # #1268: the stream kills a provider task at timeout_ms + 500, and
+        # the crashing task logs its warning only after it has raised and
+        # been rescued. At 500 (a 1 s kill) a loaded machine can kill it
+        # before it logs, so the capture sees nothing; the budget is a cap,
+        # not a delay, so a generous one costs a passing run nothing. The
+        # capture's other loss (a stale :logger handler list) is fixed by
+        # LogNoiseTest running not async (#1345).
         SecuritySearch.search("anything",
           providers: [crashing, healthy],
-          timeout_ms: 500
+          timeout_ms: 10_000
         )
       end)
 
