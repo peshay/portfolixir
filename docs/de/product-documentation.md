@@ -2797,9 +2797,11 @@ zeigt einen **Jahresüberblick** — eine Jahr-×-Monat-Matrix, aufgeteilt in ei
 eine **Pro-Position-Tabelle** mit, für jedes Wertpapier, dem Brutto-Gezahlten, der
 einbehaltenen Steuer, dem Netto, der Anzahl der Zahlungen und dem Datum der
 letzten. Das **Brutto** einer Dividende ist das gutgeschriebene Netto-Cash plus
-die auf der Transaktion erfasste einbehaltene Steuer; Zinsen
-(Portfolio-Performance INTEREST: Kontozinsen oder Anleihekupons) tragen keine
-Quellensteuer und werden als eigene Reihe neben Dividenden geführt. Ein Kupon,
+die auf der Transaktion erfasste einbehaltene Steuer. Zinsen
+(Portfolio-Performance INTEREST: Kontozinsen oder Anleihekupons) werden
+genauso gelesen — eine mit einbehaltener Steuer gebuchte Zinszahlung zeigt
+Brutto = Netto + Steuer, eine ohne Steuer gebuchte Brutto gleich Netto — und
+werden als eigene Reihe neben Dividenden geführt. Ein Kupon,
 der seine Anleihe nennt, wie ihn ein Import einer Portfolio-Performance-Datei
 jetzt speichert, ist die Zeile dieser Anleihe in der Pro-Position-Tabelle und
 in „Top-Beiträge“; Zinsen ohne Wertpapier teilen sich die Zeile „Zinsen“.

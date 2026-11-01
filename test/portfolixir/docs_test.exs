@@ -555,7 +555,12 @@ defmodule Portfolixir.DocsTest do
     assert api_docs =~ "GET /api/v1/portfolios/:portfolio_id/income"
     assert api_docs =~ "portfolixir.portfolios.income"
     assert normalized_api_docs =~ "retrospective income report"
-    assert normalized_api_docs =~ "the withheld tax, from the dividend's TAX units"
+
+    assert normalized_api_docs =~
+             "the withheld tax stored on the transaction, a dividend's or an interest booking's"
+
+    # #1309 (the Sprint 22 plan's D-5): interest is read as a dividend is.
+    refute normalized_api_docs =~ "interest carries no withholding"
     assert normalized_api_docs =~ "converted via the EUR hub"
 
     assert product_docs =~ "## Income (dividends and interest)"

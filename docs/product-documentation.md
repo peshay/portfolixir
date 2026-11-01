@@ -2542,9 +2542,11 @@ shows an **annual overview** — a year × month matrix split into a *Dividends*
 an *Interest* series, each year with a totals column — and a **per-position
 table** with, for each security, the gross paid, the withheld tax, the net, the
 number of payments and the date of the last one. A dividend's **gross** is the
-net cash credited plus the withheld tax recorded on the transaction; interest
-(Portfolio Performance INTEREST: account interest or bond coupons) carries no
-withholding and is tracked as its own series next to dividends. A coupon that
+net cash credited plus the withheld tax recorded on the transaction. Interest
+(Portfolio Performance INTEREST: account interest or bond coupons) is read the
+same way — an interest payment booked with withheld tax shows gross = net +
+tax, one booked without tax shows gross equal to net — and is tracked as its
+own series next to dividends. A coupon that
 names its bond, as an import of a Portfolio Performance file now stores it,
 is that bond's row in the per-position table and in "Top contributors";
 interest that names no security shares the row "Interest". The matrix, the

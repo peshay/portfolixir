@@ -2253,13 +2253,18 @@ Example account payloads:
   that security's row, and the interest naming none shares the row with
   `security_id` `null` (#928): `security_id`, `security_name`,
   `security_currency` (the original booking currency), `gross`, `tax` (the
-  withheld tax, from the dividend's TAX units stored on the transaction), `net`
+  withheld tax stored on the transaction, a dividend's or an interest
+  booking's), `net`
   (`gross - tax`), `payment_count` and `last_payment`. `transactions` is the
   per-transaction detail for a year drilldown (`kind`, `date`, `year`,
   `security_id`/`security_name`, `currency`, the native `native_gross`/
   `native_tax`/`native_net`, the base-currency `gross`/`tax`/`net`, and
   `converted`). A dividend's gross is its net cash (`gross_amount`) plus the
-  withheld tax; interest carries no withholding. All amounts are Decimal strings
+  withheld tax (`taxes`), and an interest booking's, a bond's coupon included,
+  is read the same way: an interest row booked with withheld taxes reads
+  `gross` = net + tax, `tax` = the stored taxes, `net` = the cash credited; one
+  booked without taxes has `gross` equal to `net` (#1309). Nothing stored
+  changes, and the writes keep accepting taxes on interest. All amounts are Decimal strings
   in the portfolio's `base_currency`, converted via the EUR hub at the most
   recent stored rate on or before each booking date (the same mechanics as the
   valuation endpoint), with the original currency retained. A booking with no

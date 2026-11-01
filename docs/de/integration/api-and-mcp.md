@@ -2436,14 +2436,19 @@ Beispiel-Payloads für Konten:
   ohne Wertpapier teilen sich die Zeile mit `security_id` `null` (#928):
   `security_id`,
   `security_name`, `security_currency` (die ursprüngliche Buchungswährung),
-  `gross`, `tax` (die einbehaltene Steuer, aus den auf der Transaktion
-  gespeicherten TAX-Einheiten der Dividende), `net` (`gross - tax`),
+  `gross`, `tax` (die auf der Transaktion gespeicherte einbehaltene Steuer,
+  einer Dividende oder einer Zinsbuchung), `net` (`gross - tax`),
   `payment_count` und `last_payment`. `transactions` ist das Detail je Transaktion
   für eine Jahres-Aufschlüsselung (`kind`, `date`, `year`,
   `security_id`/`security_name`, `currency`, das native `native_gross`/
   `native_tax`/`native_net`, das `gross`/`tax`/`net` in Basiswährung und
   `converted`). Das Brutto einer Dividende ist ihr Netto-Cash (`gross_amount`) plus
-  die einbehaltene Steuer; Zinsen tragen keine Quellensteuer. Alle Beträge sind
+  die einbehaltene Steuer (`taxes`), und eine Zinsbuchung, der Kupon einer
+  Anleihe eingeschlossen, wird genauso gelesen: eine mit einbehaltener Steuer
+  gebuchte Zinszeile liest `gross` = Netto + Steuer, `tax` = die gespeicherte
+  Steuer, `net` = das gutgeschriebene Cash; eine ohne Steuer gebuchte hat
+  `gross` gleich `net` (#1309). Gespeichert ändert sich nichts, und die
+  Schreibpfade nehmen Steuern auf Zinsen weiter an. Alle Beträge sind
   Decimal-Strings in der `base_currency` des Portfolios, umgerechnet über den
   EUR-Hub zum letzten gespeicherten Wechselkurs an oder vor dem jeweiligen
   Buchungsdatum (dieselbe Mechanik wie der Bewertungs-Endpunkt), mit

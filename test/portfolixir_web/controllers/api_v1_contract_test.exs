@@ -72,7 +72,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # The read serves no prompts list; the manifest holds it.
     assert hd(Contract.entries()).prompts == []
-    assert [refusal, incomplete_splits, rate_only] = newest["parameters"]
+    assert [refusal, incomplete_splits, rate_only, _income] = newest["parameters"]
     assert String.starts_with?(incomplete_splits, "GET /api/v1/splits/incomplete")
     assert incomplete_splits =~ "remedy"
     assert incomplete_splits =~ "(#1292)"
@@ -87,6 +87,27 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     for field <- ~w(amount quantity price close fees taxes settlement_fx_rate church_tax_rates) do
       assert refusal =~ field, field
     end
+
+    # Sprint 22's R7 (#1309, the plan's D-5): Income reads the withheld tax
+    # on an interest booking as on a dividend; the item quotes the basis the
+    # read now serves, from Portfolixir.Portfolios.Income.
+    assert newest["summary"] =~ "#1309"
+
+    income =
+      Enum.find(
+        newest["parameters"],
+        &String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/income")
+      )
+
+    assert is_binary(income)
+    assert income =~ "portfolixir.portfolios.income"
+    assert income =~ "gross 100.00, tax 26.38 and net 73.62"
+    assert income =~ "the writes keep accepting taxes on interest"
+
+    assert income =~
+             "gross is net (gross_amount) plus the withheld tax (taxes), read alike on a " <>
+               "dividend and on an interest booking, a bond's coupon included; a booking " <>
+               "without taxes has gross equal to net"
 
     # Sprint 21's UI batch (version 20): stacked PR 2's one entry (the
     # amendment's D-3), #1210's month totals on the Costs read, its one item;
