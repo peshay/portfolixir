@@ -228,6 +228,81 @@ defmodule PortfolixirWeb.ImportsRecountLiveTest do
              "3 bookings already imported · 1 new"
   end
 
+  # User story (#1180, Sprint 21 γ7, pick N20 A; the γ7 review, R-S3 (a)):
+  # As the operator who changes a row's choice twice while the page is
+  # still counting, I want one count at a time and the last choice counted
+  # once the running count answers, so that the page never races two dry
+  # runs and the count I read follows my last choice.
+  #
+  # Acceptance criteria:
+  # - While the page's first dry run has not answered, two changes start no
+  #   second dry run.
+  # - Once the first answers, the page counts again under the last choice:
+  #   the row reads "3 bookings already imported · 1 new" (Tagesgeld), not
+  #   "4 bookings new" (the first choice, "+ Create new").
+  test "one dry run at a time, and a change made during one is counted when it answers",
+       %{conn: conn} do
+    portfolio = portfolio!()
+    applied!(portfolio, history())
+    tagesgeld = named!(CashAccount, "Tagesgeld")
+
+    drop =
+      history(savings: "Tagesgeld Extra") ++ [interest("Tagesgeld Extra", "1.40", "2026-03-31")]
+
+    hold_refine!()
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_unanswered!(view, drop)
+    assert_receive {:imports_refine_gate, first}, 5_000
+
+    form = element(view, "form#pp-import-apply")
+    render_change(form, keyed(%{"cash" => %{"Tagesgeld Extra" => "create:Tagesgeld Extra"}}))
+    render_change(form, keyed(%{"cash" => %{"Tagesgeld Extra" => "existing:#{tagesgeld.id}"}}))
+
+    refute_receive {:imports_refine_gate, _second}, 300
+
+    Application.delete_env(:portfolixir, :imports_refine_gate)
+    send(first, {:imports_refine_gate, :release})
+    # The first run's answer, then the count it starts under the last choice.
+    render_async(view)
+    render_async(view)
+
+    assert count_text(view, "cash", "Tagesgeld Extra") == "3 bookings already imported · 1 new"
+  end
+
+  # User story (#1180, Sprint 21 γ7, pick N20 A; ADR-0050 as amended on
+  # 2026-10-09, #1195; the γ7 review, R-S3 (b)): As the operator who maps a
+  # withheld name onto the account it was renamed from, I want the recount
+  # under my choice to count its rows as booked but not to release the name
+  # as known, so that the release stays judged on the name's own resolution
+  # and the row keeps saying why it asked.
+  #
+  # Acceptance criteria:
+  # - The renamed history mapped onto Tagesgeld recounts to "3 bookings
+  #   already imported · nothing to create".
+  # - The row keeps its unseen-name note: the mapped recount releases
+  #   nothing.
+  test "a recount under the operator's mapping releases no withheld name", %{conn: conn} do
+    portfolio = portfolio!()
+    applied!(portfolio, history())
+    tagesgeld = named!(CashAccount, "Tagesgeld")
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload!(view, history(savings: "Tagesgeld Extra"))
+    note = row("cash", "Tagesgeld Extra") <> " [data-role='mapping-unseen-name']"
+    assert has_element?(view, note)
+
+    view
+    |> element("form#pp-import-apply")
+    |> render_change(keyed(%{"cash" => %{"Tagesgeld Extra" => "existing:#{tagesgeld.id}"}}))
+
+    render_async(view)
+
+    assert count_text(view, "cash", "Tagesgeld Extra") ==
+             "3 bookings already imported · nothing to create"
+
+    assert has_element?(view, note)
+  end
+
   # --- the exports ---------------------------------------------------------------
 
   defp history(names \\ []) do
@@ -297,6 +372,19 @@ defmodule PortfolixirWeb.ImportsRecountLiveTest do
     |> render_upload("synthetic.json")
 
     render_async(view)
+  end
+
+  # The upload alone: the page as it reads before the dry run answers.
+  defp upload_unanswered!(view, rows) do
+    file_input(view, "#pp-import-form", :pp_file, [
+      %{
+        name: "synthetic.json",
+        content: body(rows),
+        type: "application/json",
+        last_modified: 1_700_000_000_000
+      }
+    ])
+    |> render_upload("synthetic.json")
   end
 
   # The page's dry run, once started on this test's behalf, waits until
