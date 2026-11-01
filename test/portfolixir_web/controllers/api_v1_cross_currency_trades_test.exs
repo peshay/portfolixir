@@ -367,6 +367,14 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
     basis = data["computation_basis"]["realized_base"]
     assert basis =~ "settlement_legs"
     assert basis =~ "close_date_rate"
+
+    # #1317 (Sprint 22 R5): the reference and the gaps name the path this
+    # trade was read on, not the close-date rate alone.
+    assert data["computation_basis"]["reference"] =~
+             "settlement_legs: no rate, the trade's own stored settlement legs"
+
+    assert data["computation_basis"]["gaps"] =~
+             "a sale read on the settlement_legs path needs no close-date rate"
   end
 
   # User story (#1198, Sprint 21 α3; identity 3 over the API):

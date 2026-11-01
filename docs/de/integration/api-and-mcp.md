@@ -2040,7 +2040,13 @@ Beispiel-Payloads für Konten:
   Schlussdatum 161,46 las. Jeder Trade nennt seinen Weg in
   **`realized_base_source`**, `"settlement_legs"` oder `"close_date_rate"`
   (jeder andere Trade, einer, dessen Verkauf und Lots in einer Währung
-  gebucht sind), und `computation_basis.realized_base` nennt beide. Ein
+  gebucht sind), und `computation_basis.realized_base` nennt beide. Seit
+  Issue #1317 nennen auch `computation_basis.reference` und
+  `computation_basis.gaps` beide Wege: Die Referenz ist für
+  `close_date_rate` der am Schlussdatum gespeicherte Hub-Kurs (nie der
+  eines Nachbartags) und für `settlement_legs` kein Kurs, und die Lücken
+  sagen, dass ein über seine Abrechnungsbeine gelesener Trade nie unter
+  `no_rate` ausgeschlossen wird. Ein
   Lot ohne das nötige Bein (oder in der Währung eines anderen
   Kontos gebucht) oder ein Lot oder Verkauf in einer dritten Währung (eine
   vor Issue #1199 gespeicherte Zeile, auch wenn beide sie teilen) macht den

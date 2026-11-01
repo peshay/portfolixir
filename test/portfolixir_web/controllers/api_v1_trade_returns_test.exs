@@ -126,15 +126,26 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
              "series" =>
                "realized_pnl_abs per FIFO-matched closed trade (proceeds net of sell fees and taxes, minus consumed basis)",
              "window" => "full ledger history, grouped by each trade's close date",
-             "reference" => "EUR hub rates at or before each close date (D-1, issue #724)",
+             # #1317 (Sprint 22 R5): the reference and the gaps name both paths
+             # of realized_base, changed deliberately; a trade read on its
+             # settlement legs needs no close-date rate. "At or before" was
+             # never true: the close-date path reads the rate stored on that
+             # day only (Fx.convert_on/4).
+             "reference" =>
+               "close_date_rate: the EUR hub rate stored on each trade's close date, never a " <>
+                 "neighbouring day's (D-1, issue #724); settlement_legs: no rate, the trade's " <>
+                 "own stored settlement legs in the base currency, the cash its bookings moved " <>
+                 "(realized_base_source, realized_base)",
              # #1198 (Sprint 21 α3): the second exclusion reason joins the gaps;
              # #1310 (Sprint 22 R5): the third.
              "gaps" =>
-               "a sale with no stored close-date rate is excluded from the converted totals and " <>
-                 "named in excluded (by_reason.no_rate); so is a sale that closes a lot with no " <>
-                 "settlement leg in its currency, never summed (by_reason.missing_settlement_leg, " <>
-                 "fees_and_taxes), and a sale whose sell or lot is priced in a third currency " <>
-                 "(by_reason.third_currency)"
+               "a sale read on the close_date_rate path with no rate stored on its close date " <>
+                 "is excluded from the converted totals and named in excluded " <>
+                 "(by_reason.no_rate); a sale read on the settlement_legs path needs no " <>
+                 "close-date rate and is never excluded for one; a sale that closes a lot with " <>
+                 "no settlement leg in its currency is excluded too, never summed " <>
+                 "(by_reason.missing_settlement_leg, fees_and_taxes), and so is a sale whose " <>
+                 "sell or lot is priced in a third currency (by_reason.third_currency)"
            }
   end
 

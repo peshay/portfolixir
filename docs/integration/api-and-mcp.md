@@ -1886,7 +1886,11 @@ Example account payloads:
   its path in **`realized_base_source`**, `"settlement_legs"` or
   `"close_date_rate"` (every other trade, a trade whose sell and lots are
   booked in one currency among them), and `computation_basis.realized_base`
-  states both. A lot without the leg it needs (or booked in another account's
+  states both. Since issue #1317 `computation_basis.reference` and
+  `computation_basis.gaps` name both paths too: the reference is the hub
+  rate stored on the close date for `close_date_rate` (never a neighbouring
+  day's) and no rate for `settlement_legs`, and the gaps say that a trade
+  read on its settlement legs is never excluded under `no_rate`. A lot without the leg it needs (or booked in another account's
   currency), or a lot or a sell priced in a third currency (a row stored
   before issue #1199, even where the two share it), makes the trade
   unavailable: the
