@@ -7710,3 +7710,44 @@ its figures (`Portfolixir.Imports.RefusedMatch`) and names it. Built in
   nothing) keeps its remedy: its by-hand booking moves a cash the file does
   not state, so a match by the remaining figures could name another booking
   of the same day.
+
+## Amendment 2026-11-01 — Income's figures in their own currency, the converted net beside them *(Sprint 22 R9, board `mockups/ux-design-2026-11-01-sprint22/02-figures` ③; issues 1274 and 1293; the D-9 finding "Je Position needs one row per payment currency")*
+
+A money figure stands under the currency it is in. Income's two row
+tables printed a converted payment's base-currency figures beside a
+„Währung“ column that named the payment's own currency, so a USD dividend
+read „11,04 · 1,66 · 9,38 · USD“ in euros. The column is now true for the
+figures beside it, and the one converted figure has a labelled column of
+its own: a column, not a suffix, because it is also the figure the totals
+sum.
+
+**The drilled year's payments** (`#income-detail`, behind „Daten als
+Tabelle“), left to right: Datum, Typ, Wertpapier (or „Zinsen“), Brutto,
+Steuern, Netto, Währung, „Netto (EUR)“.
+
+- Brutto, Steuern and Netto are the payment's own figures, in the cash
+  account's currency, which „Währung“ names: 125,00 · 25,00 · 100,00 ·
+  USD.
+- „Netto (EUR)“ (msgid „Net (%{currency})“, the portfolio's base
+  currency) is the converted net, at the stored rate on or before the
+  payment's date: 80,00 at 1 EUR = 1,25 USD.
+- A payment no rate converts (K07) keeps its own figures and reads „—“
+  with the cell note „ohne Umrechnung“ (`.data-table td .cell-note`, R8's
+  rule) in „Netto (EUR)“, never a converted figure (UX-DR25 clause 2).
+- The purpose line reads „Jede Zahlung des Jahres mit Brutto, Steuer und
+  Netto in ihrer Währung, das Netto auch in EUR.“
+
+**„Je Position“** (`#income-positions`) takes the same shape: Wertpapier,
+Währung, Brutto, Einbehaltene Steuer, Netto, „Netto (EUR)“, Zahlungen,
+Letzte Zahlung. „Währung“ is the payment's currency, no longer the
+security's, so a position paid in two currencies has **one row per
+currency** (a USD security paid into a USD and a EUR account has a USD row
+and a EUR row). A payment no rate converts is in no row, as it is in no
+total; the attention note above the annual overview names it. „Top-Beiträge“
+keeps its base-currency figures and does not change.
+
+**A year of unconverted payments** (issue 1293) keeps its year: its bar
+label reads „0,00“ and drills like any other, and the drilled table lists
+its payments with „ohne Umrechnung“. The attention note names a payment
+that names no security as „Zinsen“ beside the securities of its currency:
+„Betroffene Währungen: USD (Harborline Freight Inc, Zinsen).“ No new CSS.
