@@ -35,7 +35,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   security currency the catalog does not list (#948), a row with a FEE unit
   below zero (ADR-0053 A9, #1177), a delivery or a transfer with a negative
   TAX unit (A8, #1188), a credit whose own booking would move 0 or less
-  (A5, #1118), and a `time` the parser cannot read (#1306).
+  (A5, #1118), a `time` the parser cannot read (#1306), and a kind that
+  books on a security without one (#1305).
 
   A negative TAX unit is split off into a `tax_refund` companion, and the
   row's own booking leaves it out of its `amount`, which already holds it
@@ -340,13 +341,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         companion_entries: companions
       }
 
-      # #1044: a transfer without its other side first; then E25 S4 (G24)
+      # #1044: a transfer without its other side first; then a kind that
+      # books on a security without one (#1305); then E25 S4 (G24)
       # and S5 (F33): a security that names nothing, and text the ledger would
       # refuse, are this row's error; so is a currency the catalog does not
       # list (#948); then a fee refund (ADR-0053 A9, #1177); then a refund
       # the row's own cash leg cannot carry (A8, #1188); then a credit that
       # would book 0 or less (A5, #1118).
-      case counter_error(entry) || PortfolioPerformance.row_error(entry) do
+      case counter_error(entry) || security_error(entry) || PortfolioPerformance.row_error(entry) do
         nil ->
           fee_refusal(entry, amount, Map.get(raw, "units")) ||
             refund_refusal(entry, refund_amounts) ||
@@ -813,6 +815,25 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     do: gettext("transfer without a counter account — row not imported")
 
   defp counter_error(%Entry{}), do: nil
+
+  # #1305: the ledger books these kinds on a security
+  # (`Ledger.Transaction`'s per-kind required fields), so a row naming none
+  # would preview clean and then fail the whole file at the apply on
+  # "Security can't be blank"; it is the row's error instead. An interest
+  # payment, a fee or a tax books with or without one.
+  defp security_error(%Entry{security: nil, kind: kind}) do
+    case kind do
+      "dividend" -> gettext("dividend without a security — row not imported")
+      "buy" -> gettext("purchase without a security — row not imported")
+      "sell" -> gettext("sale without a security — row not imported")
+      "inbound_delivery" -> gettext("inbound delivery without a security — row not imported")
+      "outbound_delivery" -> gettext("outbound delivery without a security — row not imported")
+      "security_transfer" -> gettext("security transfer without a security — row not imported")
+      _books_without_one -> nil
+    end
+  end
+
+  defp security_error(%Entry{}), do: nil
 
   # PP sometimes exports letter-spaced names: "I b e r d r o l a S . A . A c c i o n e s".
   # When the strict majority of whitespace-separated tokens are single characters

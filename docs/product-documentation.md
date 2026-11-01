@@ -3088,6 +3088,13 @@ confirm. These rows are left out the same way, each named with its row:
   imported. Enter the booking by hand, with its fees less the refund
   (3.00).* A sale reads *sell … Book the sale by hand, …*. It is named before
   the reasons above.
+- **A JSON row of a kind that books on a security, without one** (issue
+  #1305): a `DIVIDEND`, `PURCHASE`, `SALE`, `INBOUND_DELIVERY`,
+  `OUTBOUND_DELIVERY` or `SECURITY_TRANSFER` with no `security`, *dividend
+  without a security — row not imported*, each kind in its own words.
+  Before, such a row previewed clean and the confirm then refused the whole
+  file. An interest payment, a fee or a tax books with or without a
+  security.
 - **A JSON row whose `time` the parser cannot read** (issue #1306): *unreadable
   time “9:15 AM”: use HH:MM or HH:MM:SS — row not imported*. The time of day
   is part of what tells two bookings apart, so a time read as none would let

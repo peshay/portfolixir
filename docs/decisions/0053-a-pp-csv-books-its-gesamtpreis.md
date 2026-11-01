@@ -936,6 +936,14 @@ or a transfer, and A5's credit that nets to nothing. They gain:
   imported". An absent or blank time is still no time, and every value
   read before reads as it did, so no stored hash moves. Its place is with
   the date's checks, before anything else of the row is read.
+- **A kind that books on a security, without one (#1305).** A dividend, a
+  purchase, a sale, a delivery either way or a security transfer without a
+  `security` previewed clean, and the apply then refused the whole file on
+  "Security can't be blank". It is now refused at the preview, "dividend
+  without a security — row not imported", each kind in its own words. An
+  interest payment, a fee or a tax books with or without one and is not
+  refused. Its place is after a transfer without its other side and
+  before `row_error/1`. No hash changes: such a row was never stored.
 
 ## References
 

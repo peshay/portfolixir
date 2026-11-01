@@ -99,4 +99,65 @@ defmodule Portfolixir.Imports.JsonRowRefusalsTest do
              %{row: 3, message: "unreadable time “915”: use HH:MM or HH:MM:SS — row not imported"}
            ]
   end
+
+  @arbolia ~s("security": {"name": "Arbolia Inc.", "isin": "DE000ACME016", "currency": "EUR"})
+
+  # User story (#1305):
+  # As the operator dropping a Portfolio Performance JSON export,
+  # I want a row of a kind that books on a security, but names none, named
+  # as that row's error,
+  # so that the preview never looks clean while the confirm then refuses
+  # the whole file on "Security can't be blank".
+  #
+  # Acceptance criteria:
+  # - A dividend of 12.50 without a `security` is "dividend without a
+  #   security — row not imported"; a purchase, a sale, a delivery either
+  #   way and a security transfer read the same in their own words.
+  # - An interest payment, a fee or a tax without a security is no such
+  #   row: it previews.
+  # - The file's other rows book: the deposit of 1000.00, the purchase of
+  #   10 Arbolia Inc. for 100.00, the interest of 12.50, the fee and the tax
+  #   of 12.50 each; Test-Cash ends at 887.50.
+  test "a row of a kind that books on a security, but names none, is a row error" do
+    no_security = fn type, extra ->
+      ~s({"type": "#{type}", "account": "Test-Cash", "portfolio": "Test-Depot",
+        "date": "2025-03-04", "currency": "EUR", "amount": "12.50"#{extra}})
+    end
+
+    preview =
+      parse!([
+        @deposit,
+        ~s({"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot",
+          "date": "2025-03-02", "currency": "EUR", "amount": "100.00", "shares": "10",
+          #{@arbolia}}),
+        no_security.("DIVIDEND", ""),
+        no_security.("PURCHASE", ~s(, "shares": "1")),
+        no_security.("SALE", ~s(, "shares": "1")),
+        no_security.("INBOUND_DELIVERY", ~s(, "shares": "1")),
+        no_security.("OUTBOUND_DELIVERY", ~s(, "shares": "1")),
+        no_security.("SECURITY_TRANSFER", ~s(, "shares": "1", "otherPortfolio": "Depot-2")),
+        no_security.("INTEREST", ""),
+        no_security.("FEE", ""),
+        no_security.("TAX", "")
+      ])
+
+    assert preview.errors == [
+             %{row: 3, message: "dividend without a security — row not imported"},
+             %{row: 4, message: "purchase without a security — row not imported"},
+             %{row: 5, message: "sale without a security — row not imported"},
+             %{row: 6, message: "inbound delivery without a security — row not imported"},
+             %{row: 7, message: "outbound delivery without a security — row not imported"},
+             %{row: 8, message: "security transfer without a security — row not imported"}
+           ]
+
+    assert Enum.map(preview.entries, & &1.kind) == ~w(deposit buy interest fee tax)
+
+    transactions = apply!(preview, portfolio = target("No security"))
+    assert [buy] = booked(transactions, "buy")
+    assert Decimal.equal?(buy.quantity, Decimal.new("10"))
+
+    [cash] = Portfolios.list_cash_accounts_for_portfolio(portfolio.id)
+    balance = Ledger.cash_balances(portfolio_id: portfolio.id) |> Map.fetch!(cash.id)
+    assert Decimal.equal?(balance, Decimal.new("887.50"))
+  end
 end

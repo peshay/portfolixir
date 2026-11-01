@@ -3397,6 +3397,13 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   erfassen, mit den Gebühren abzüglich der Erstattung (3,00).* Ein Verkauf
   lautet *Verkauf … Den Verkauf von Hand buchen, …*. Sie wird vor den
   Gründen oben genannt.
+- **Eine JSON-Zeile einer Art, die auf ein Wertpapier bucht, ohne eines**
+  (Issue #1305): ein `DIVIDEND`, `PURCHASE`, `SALE`, `INBOUND_DELIVERY`,
+  `OUTBOUND_DELIVERY` oder `SECURITY_TRANSFER` ohne `security`, *Dividende
+  ohne Wertpapier — Zeile nicht übernommen*, jede Art in ihren eigenen
+  Worten. Bisher sah eine solche Zeile in der Vorschau unauffällig aus, und
+  das Bestätigen lehnte dann die ganze Datei ab. Zinsen, Gebühren und
+  Steuern buchen mit oder ohne Wertpapier.
 - **Eine JSON-Zeile, deren `time` der Parser nicht lesen kann** (Issue
   #1306): *Uhrzeit „9:15 AM“ nicht lesbar: HH:MM oder HH:MM:SS angeben —
   Zeile nicht übernommen*. Die Uhrzeit gehört zu dem, was zwei Buchungen
