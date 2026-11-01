@@ -28,7 +28,7 @@ msgstr ""
 
 #: lib/portfolixir_web/components/column_picker.ex:61
 #: lib/portfolixir_web/live/buckets_live.ex:435
-#: lib/portfolixir_web/live/imports_live.ex:3569
+#: lib/portfolixir_web/live/imports_live.ex:3595
 #: lib/portfolixir_web/live/income_live.ex:1139
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:66
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:125
@@ -723,7 +723,7 @@ msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:64
 #: lib/portfolixir_web/field_label.ex:56
-#: lib/portfolixir_web/live/imports_live.ex:3790
+#: lib/portfolixir_web/live/imports_live.ex:3816
 #: lib/portfolixir_web/live/portfolio_live.ex:2741
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1022
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:426
@@ -1010,7 +1010,7 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:267
 #: lib/portfolixir_web/live/buckets_live.ex:488
 #: lib/portfolixir_web/live/classifications_live.ex:1172
-#: lib/portfolixir_web/live/imports_live.ex:3617
+#: lib/portfolixir_web/live/imports_live.ex:3643
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:216
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:158
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:689
@@ -1479,9 +1479,9 @@ msgstr ""
 msgid "(import) %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2261
-#: lib/portfolixir_web/live/imports_live.ex:2519
-#: lib/portfolixir_web/live/imports_live.ex:2689
+#: lib/portfolixir_web/live/imports_live.ex:2287
+#: lib/portfolixir_web/live/imports_live.ex:2545
+#: lib/portfolixir_web/live/imports_live.ex:2715
 #, elixir-autogen, elixir-format
 msgid "+ Create new: %{name}"
 msgstr ""
@@ -1491,7 +1491,7 @@ msgstr ""
 msgid "Bulk-import Portfolio Performance CSV or JSON exports."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4618
+#: lib/portfolixir_web/live/imports_live.ex:4644
 #, elixir-autogen, elixir-format
 msgid "CSV missing columns: %{cols}"
 msgstr ""
@@ -1536,13 +1536,13 @@ msgstr ""
 msgid "Drop a Portfolio Performance export here"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4582
+#: lib/portfolixir_web/live/imports_live.ex:4608
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:187
 #, elixir-autogen, elixir-format
 msgid "File too large."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4583
+#: lib/portfolixir_web/live/imports_live.ex:4609
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:188
 #, elixir-autogen, elixir-format
 msgid "File type not accepted."
@@ -1574,22 +1574,22 @@ msgstr ""
 msgid "Imports"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4615
+#: lib/portfolixir_web/live/imports_live.ex:4641
 #, elixir-autogen, elixir-format
 msgid "Invalid CSV: %{message}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4604
+#: lib/portfolixir_web/live/imports_live.ex:4630
 #, elixir-autogen, elixir-format
 msgid "The file is not valid JSON (at character %{position}). Remedy: export it again from Portfolio Performance."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4510
+#: lib/portfolixir_web/live/imports_live.ex:4536
 #, elixir-autogen, elixir-format
 msgid "Invalid cash account id."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4584
+#: lib/portfolixir_web/live/imports_live.ex:4610
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:189
 #, elixir-autogen, elixir-format
 msgid "Only one file at a time."
@@ -1615,12 +1615,12 @@ msgstr ""
 msgid "Pick a cash account…"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4534
+#: lib/portfolixir_web/live/imports_live.ex:4560
 #, elixir-autogen, elixir-format
 msgid "Pick a target and cash account for depot %{n}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4517
+#: lib/portfolixir_web/live/imports_live.ex:4543
 #, elixir-autogen, elixir-format
 msgid "Pick a target for cash account %{n}."
 msgstr ""
@@ -1640,12 +1640,12 @@ msgstr ""
 msgid "Source format: %{format}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4588
+#: lib/portfolixir_web/live/imports_live.ex:4614
 #, elixir-autogen, elixir-format
 msgid "Unknown file format — expected Portfolio Performance JSON or CSV."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4593
+#: lib/portfolixir_web/live/imports_live.ex:4619
 #, elixir-autogen, elixir-format
 msgid "Unsupported PP JSON version: %{v}"
 msgstr ""
@@ -1670,7 +1670,7 @@ msgstr ""
 msgid "Warnings"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4620
+#: lib/portfolixir_web/live/imports_live.ex:4646
 #, elixir-autogen, elixir-format
 msgid "The CSV file is empty."
 msgstr ""
@@ -2446,7 +2446,7 @@ msgstr ""
 msgid "is unclassified"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4672
+#: lib/portfolixir_web/live/imports_live.ex:4698
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{errors}"
 msgstr ""
@@ -2859,7 +2859,7 @@ msgstr ""
 msgid "No target plan for this view — showing actual allocation only."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4848
+#: lib/portfolixir_web/live/imports_live.ex:4874
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{reason}"
 msgstr ""
@@ -2894,22 +2894,22 @@ msgstr ""
 msgid "Still to map before import:"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4299
+#: lib/portfolixir_web/live/imports_live.ex:4325
 #, elixir-autogen, elixir-format
 msgid "cash account for depot: %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4288
+#: lib/portfolixir_web/live/imports_live.ex:4314
 #, elixir-autogen, elixir-format
 msgid "cash account: %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4297
+#: lib/portfolixir_web/live/imports_live.ex:4323
 #, elixir-autogen, elixir-format
 msgid "depot and its cash account: %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4298
+#: lib/portfolixir_web/live/imports_live.ex:4324
 #, elixir-autogen, elixir-format
 msgid "target depot: %{name}"
 msgstr ""
@@ -3016,8 +3016,8 @@ msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:327
 #: lib/portfolixir_web/live/buckets_live.ex:307
-#: lib/portfolixir_web/live/imports_live.ex:2569
 #: lib/portfolixir_web/live/imports_live.ex:2595
+#: lib/portfolixir_web/live/imports_live.ex:2621
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:84
 #, elixir-autogen, elixir-format
 msgid "Accounts & depots"
@@ -3533,7 +3533,7 @@ msgstr ""
 msgid "August"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4685
+#: lib/portfolixir_web/live/imports_live.ex:4711
 #, elixir-autogen, elixir-format
 msgid "Bucket tag: %{errors}"
 msgstr ""
@@ -3589,12 +3589,12 @@ msgstr ""
 msgid "That name belongs to a scope bucket — pick a different tag name."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4471
+#: lib/portfolixir_web/live/imports_live.ex:4497
 #, elixir-autogen, elixir-format
 msgid "The bucket tag is too long — bucket names carry at most 100 characters."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4481
+#: lib/portfolixir_web/live/imports_live.ex:4507
 #, elixir-autogen, elixir-format
 msgid "The bucket tag names an existing scope bucket. Scope buckets are exclusive and cannot be used as import tags — pick a different tag name."
 msgstr ""
@@ -4101,12 +4101,12 @@ msgstr ""
 msgid "%{n} securities were mapped manually."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4124
+#: lib/portfolixir_web/live/imports_live.ex:4150
 #, elixir-autogen, elixir-format
 msgid "A likely match differs on a stronger identifier — possibly an ISIN change that has not been recorded yet. Map it explicitly (optionally recording the ISIN change) or create a new security."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4690
+#: lib/portfolixir_web/live/imports_live.ex:4716
 #, elixir-autogen, elixir-format
 msgid "A selected security no longer exists — review the security mapping and confirm again."
 msgstr ""
@@ -4116,34 +4116,34 @@ msgstr ""
 msgid "Configured securities this import does not touch"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4442
+#: lib/portfolixir_web/live/imports_live.ex:4468
 #, elixir-autogen, elixir-format
 msgid "Confirm the flagged creation of security %{name}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4111
+#: lib/portfolixir_web/live/imports_live.ex:4137
 #, elixir-autogen, elixir-format
 msgid "Creating this security would leave strategy configuration (category assignments or position targets) stranded on: %{names}. Map it to the existing security, or explicitly confirm the creation."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4446
+#: lib/portfolixir_web/live/imports_live.ex:4472
 #, elixir-autogen, elixir-format
 msgid "Decide how to import security %{name}."
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:651
 #: lib/portfolixir_web/live/imports_live.ex:703
-#: lib/portfolixir_web/live/imports_live.ex:2694
+#: lib/portfolixir_web/live/imports_live.ex:2720
 #, elixir-autogen, elixir-format
 msgid "Decide…"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4137
+#: lib/portfolixir_web/live/imports_live.ex:4163
 #, elixir-autogen, elixir-format
 msgid "Different identifiers point at different existing securities. Decide which one this entry belongs to."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4429
+#: lib/portfolixir_web/live/imports_live.ex:4455
 #, elixir-autogen, elixir-format
 msgid "Invalid security id."
 msgstr ""
@@ -4155,12 +4155,12 @@ msgstr ""
 msgid "PP security"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4092
+#: lib/portfolixir_web/live/imports_live.ex:4118
 #, elixir-autogen, elixir-format
 msgid "Record %{isin} as an ISIN change (the current ISIN %{current} becomes a former-ISIN alias)"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4696
+#: lib/portfolixir_web/live/imports_live.ex:4722
 #, elixir-autogen, elixir-format
 msgid "Recording the ISIN change failed: %{errors}"
 msgstr ""
@@ -4170,7 +4170,7 @@ msgstr ""
 msgid "Securities from the export"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4118
+#: lib/portfolixir_web/live/imports_live.ex:4144
 #, elixir-autogen, elixir-format
 msgid "Several existing securities share this identifier — pick the right one or create a new security."
 msgstr ""
@@ -4180,32 +4180,32 @@ msgstr ""
 msgid "This import references no securities."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4102
+#: lib/portfolixir_web/live/imports_live.ex:4128
 #, elixir-autogen, elixir-format
 msgid "matched via ISIN"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4104
+#: lib/portfolixir_web/live/imports_live.ex:4130
 #, elixir-autogen, elixir-format
 msgid "matched via WKN"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4103
+#: lib/portfolixir_web/live/imports_live.ex:4129
 #, elixir-autogen, elixir-format
 msgid "matched via former ISIN"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4106
+#: lib/portfolixir_web/live/imports_live.ex:4132
 #, elixir-autogen, elixir-format
 msgid "matched via name"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4105
+#: lib/portfolixir_web/live/imports_live.ex:4131
 #, elixir-autogen, elixir-format
 msgid "matched via ticker"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4282
+#: lib/portfolixir_web/live/imports_live.ex:4308
 #, elixir-autogen, elixir-format
 msgid "security: %{name}"
 msgstr ""
@@ -4224,12 +4224,12 @@ msgid_plural "%{count} securities match existing records"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4705
+#: lib/portfolixir_web/live/imports_live.ex:4731
 #, elixir-autogen, elixir-format
 msgid "Creating the security failed: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4840
+#: lib/portfolixir_web/live/imports_live.ex:4866
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{message}"
 msgstr ""
@@ -5538,7 +5538,7 @@ msgstr ""
 msgid "Derived from"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4822
+#: lib/portfolixir_web/live/imports_live.ex:4848
 #: lib/portfolixir_web/live/securities_live.ex:3203
 #: lib/portfolixir_web/live/securities_live.ex:6392
 #, elixir-autogen, elixir-format
@@ -5771,27 +5771,27 @@ msgstr ""
 msgid "Fetching the historical series…"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4710
+#: lib/portfolixir_web/live/imports_live.ex:4736
 #, elixir-autogen, elixir-format
 msgid "Creating the account %{name} failed: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4717
+#: lib/portfolixir_web/live/imports_live.ex:4743
 #, elixir-autogen, elixir-format
 msgid "Creating the portfolio failed: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4735
+#: lib/portfolixir_web/live/imports_live.ex:4761
 #, elixir-autogen, elixir-format
 msgid "Import failed. Nothing was written."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4630
+#: lib/portfolixir_web/live/imports_live.ex:4656
 #, elixir-autogen, elixir-format
 msgid "The file could not be read as a Portfolio Performance export."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4642
+#: lib/portfolixir_web/live/imports_live.ex:4668
 #, elixir-autogen, elixir-format
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr ""
@@ -5868,12 +5868,12 @@ msgid_plural "Too many attempts. Wait %{count} seconds."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4577
+#: lib/portfolixir_web/live/imports_live.ex:4603
 #, elixir-autogen, elixir-format
 msgid "an existing booking has the same date, security, quantity and amount"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4569
+#: lib/portfolixir_web/live/imports_live.ex:4595
 #, elixir-autogen, elixir-format
 msgid "an identical row was imported before (stored content hash)"
 msgstr ""
@@ -7845,12 +7845,12 @@ msgid_plural "Skipped %{count} internal transfers: both sides lead to the same a
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4874
+#: lib/portfolixir_web/live/imports_live.ex:4900
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{kind} %{date} · %{from} → %{to}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4574
+#: lib/portfolixir_web/live/imports_live.ex:4600
 #, elixir-autogen, elixir-format
 msgid "a row with this content was removed by a merge (retired content hash)"
 msgstr ""
@@ -7860,7 +7860,7 @@ msgstr ""
 msgid "An account mapped in this preview was merged or deleted since it was opened. The account mapping was refreshed from the current accounts; review it before confirming again. Nothing was written."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4722
+#: lib/portfolixir_web/live/imports_live.ex:4748
 #, elixir-autogen, elixir-format
 msgid "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written."
 msgstr ""
@@ -7870,7 +7870,7 @@ msgstr ""
 msgid "The new name applies to the rule with all its versions."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4625
+#: lib/portfolixir_web/live/imports_live.ex:4651
 #, elixir-autogen, elixir-format
 msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
 msgstr ""
@@ -7880,12 +7880,12 @@ msgstr ""
 msgid "security without a name and without an ISIN — row not imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4636
+#: lib/portfolixir_web/live/imports_live.ex:4662
 #, elixir-autogen, elixir-format
 msgid "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4650
+#: lib/portfolixir_web/live/imports_live.ex:4676
 #, elixir-autogen, elixir-format
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr ""
@@ -7940,8 +7940,8 @@ msgstr ""
 msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4131
-#: lib/portfolixir_web/live/imports_live.ex:4729
+#: lib/portfolixir_web/live/imports_live.ex:4157
+#: lib/portfolixir_web/live/imports_live.ex:4755
 #, elixir-autogen, elixir-format
 msgid "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
 msgstr ""
@@ -8348,7 +8348,7 @@ msgstr ""
 msgid "Equal means: same day, same kind, same amounts."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3823
+#: lib/portfolixir_web/live/imports_live.ex:3849
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:556
 #: lib/portfolixir_web/live/securities/merge_preview.ex:626
 #: lib/portfolixir_web/live/securities/merge_preview.ex:643
@@ -8478,8 +8478,8 @@ msgstr ""
 msgid "bookings of %{name} %{before} → %{after}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2288
-#: lib/portfolixir_web/live/imports_live.ex:3233
+#: lib/portfolixir_web/live/imports_live.ex:2314
+#: lib/portfolixir_web/live/imports_live.ex:3259
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:509
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:1359
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:658
@@ -8634,40 +8634,40 @@ msgstr ""
 msgid "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2439
+#: lib/portfolixir_web/live/imports_live.ex:2465
 #, elixir-autogen, elixir-format
 msgid "%{count} booking already imported"
 msgid_plural "%{count} bookings already imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2450
+#: lib/portfolixir_web/live/imports_live.ex:2476
 #, elixir-autogen, elixir-format
 msgid "%{count} booking new"
 msgid_plural "%{count} bookings new"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2759
+#: lib/portfolixir_web/live/imports_live.ex:2785
 #, elixir-autogen, elixir-format
 msgid "%{count} entry is already imported; the others cannot be imported."
 msgid_plural "%{count} entries are already imported; the others cannot be imported."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2449
+#: lib/portfolixir_web/live/imports_live.ex:2475
 #, elixir-autogen, elixir-format
 msgid "%{count} new"
 msgid_plural "%{count} new"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2515
+#: lib/portfolixir_web/live/imports_live.ex:2541
 #, elixir-autogen, elixir-format
 msgid "+ Create new: %{name} — not possible: %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2658
+#: lib/portfolixir_web/live/imports_live.ex:2684
 #, elixir-autogen, elixir-format
 msgid "Holds for this import only. A future import suggests “%{prefill}” again."
 msgstr ""
@@ -8679,7 +8679,7 @@ msgid_plural "%{count} bookings lie on or before a set balance a merge adjusted;
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2585
+#: lib/portfolixir_web/live/imports_live.ex:2611
 #, elixir-autogen, elixir-format
 msgid "Remember this mapping"
 msgstr ""
@@ -8689,29 +8689,29 @@ msgstr ""
 msgid "Remembered for future imports:"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4855
+#: lib/portfolixir_web/live/imports_live.ex:4881
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{description}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4867
+#: lib/portfolixir_web/live/imports_live.ex:4893
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{description} — set balance of %{account} on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2566
+#: lib/portfolixir_web/live/imports_live.ex:2592
 #, elixir-autogen, elixir-format
 msgid "The choice holds for this import's new bookings and cannot be remembered while more than one account carries the name. Once only one does, the import maps the name to it: renaming or merging under"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2777
+#: lib/portfolixir_web/live/imports_live.ex:2803
 #, elixir-autogen, elixir-format
 msgid "The entry is already imported."
 msgid_plural "All %{count} entries are already imported."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2799
+#: lib/portfolixir_web/live/imports_live.ex:2825
 #, elixir-autogen, elixir-format
 msgid "The import creates nothing: no booking, no account, no depot, no security."
 msgstr ""
@@ -8721,7 +8721,7 @@ msgstr ""
 msgid "a former name of %{account}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3804
+#: lib/portfolixir_web/live/imports_live.ex:3830
 #, elixir-autogen, elixir-format
 msgid "a row of the file"
 msgstr ""
@@ -8737,19 +8737,19 @@ msgid "at %{depots}"
 msgstr ""
 
 #: lib/portfolixir_web/account_names.ex:95
-#: lib/portfolixir_web/live/imports_live.ex:2312
+#: lib/portfolixir_web/live/imports_live.ex:2338
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:640
 #: lib/portfolixir_web/live/securities/merge_preview.ex:157
 #, elixir-autogen, elixir-format
 msgid "created %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2554
+#: lib/portfolixir_web/live/imports_live.ex:2580
 #, elixir-autogen, elixir-format
 msgid "matched by a former name — %{account}, formerly “%{name}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2561
+#: lib/portfolixir_web/live/imports_live.ex:2587
 #, elixir-autogen, elixir-format
 msgid "no account under this name; it is created only with its first new booking"
 msgstr ""
@@ -8766,7 +8766,7 @@ msgstr ""
 msgid "no. %{id}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2448
+#: lib/portfolixir_web/live/imports_live.ex:2474
 #, elixir-autogen, elixir-format
 msgid "nothing to create"
 msgstr ""
@@ -8776,53 +8776,53 @@ msgstr ""
 msgid "with %{cash}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2664
+#: lib/portfolixir_web/live/imports_live.ex:2690
 #, elixir-autogen, elixir-format
 msgid "“%{name}” becomes a former name of %{account} and is then no longer a former name of %{from}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2591
+#: lib/portfolixir_web/live/imports_live.ex:2617
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3654
+#: lib/portfolixir_web/live/imports_live.ex:3680
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is now a former name of %{account} and no longer of %{from}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3647
+#: lib/portfolixir_web/live/imports_live.ex:3673
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is now a former name of %{account}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3662
+#: lib/portfolixir_web/live/imports_live.ex:3688
 #, elixir-autogen, elixir-format
 msgid "“%{name}” was not remembered: it is the name of %{holder}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2718
+#: lib/portfolixir_web/live/imports_live.ex:2744
 #, elixir-autogen, elixir-format
 msgid "%{count} cash account carries “%{name}” as a former name (%{labels}), so there is no prefill."
 msgid_plural "%{count} cash accounts carry “%{name}” as a former name (%{labels}), so there is no prefill."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2709
+#: lib/portfolixir_web/live/imports_live.ex:2735
 #, elixir-autogen, elixir-format
 msgid "%{count} cash account is named “%{name}” (%{labels}), so there is no prefill."
 msgid_plural "%{count} cash accounts are named “%{name}” (%{labels}), so there is no prefill."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2736
+#: lib/portfolixir_web/live/imports_live.ex:2762
 #, elixir-autogen, elixir-format
 msgid "%{count} depot carries “%{name}” as a former name (%{labels}), so there is no prefill."
 msgid_plural "%{count} depots carry “%{name}” as a former name (%{labels}), so there is no prefill."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2727
+#: lib/portfolixir_web/live/imports_live.ex:2753
 #, elixir-autogen, elixir-format
 msgid "%{count} depot is named “%{name}” (%{labels}), so there is no prefill."
 msgid_plural "%{count} depots are named “%{name}” (%{labels}), so there is no prefill."
@@ -9048,7 +9048,7 @@ msgstr ""
 msgid "Merged into %{target}: %{parts}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2229
+#: lib/portfolixir_web/live/imports_live.ex:2255
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:185
 #, elixir-autogen, elixir-format
 msgid "Name, ISIN, WKN or ticker"
@@ -9560,21 +9560,21 @@ msgctxt "merge side"
 msgid "Target"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2768
+#: lib/portfolixir_web/live/imports_live.ex:2794
 #, elixir-autogen, elixir-format
 msgid "%{count} entry is already imported."
 msgid_plural "%{count} entries are already imported."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2443
+#: lib/portfolixir_web/live/imports_live.ex:2469
 #, elixir-autogen, elixir-format
 msgid "%{count} internal transfer dropped"
 msgid_plural "%{count} internal transfers dropped"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2788
+#: lib/portfolixir_web/live/imports_live.ex:2814
 #, elixir-autogen, elixir-format
 msgid "%{count} internal transfer is dropped: both of its accounts are one account now."
 msgid_plural "%{count} internal transfers are dropped: both accounts of each are one account now."
@@ -9765,8 +9765,8 @@ msgctxt "security state"
 msgid "retired"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2811
-#: lib/portfolixir_web/live/imports_live.ex:3794
+#: lib/portfolixir_web/live/imports_live.ex:2837
+#: lib/portfolixir_web/live/imports_live.ex:3820
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:677
 #: lib/portfolixir_web/live/securities/merge_preview.ex:814
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1288
@@ -9779,7 +9779,7 @@ msgstr ""
 msgid "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4610
+#: lib/portfolixir_web/live/imports_live.ex:4636
 #, elixir-autogen, elixir-format
 msgid "The file is not valid JSON. Remedy: export it again from Portfolio Performance."
 msgstr ""
@@ -11825,28 +11825,28 @@ msgstr ""
 msgid "last booking %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3323
+#: lib/portfolixir_web/live/imports_live.ex:3349
 #, elixir-autogen, elixir-format
 msgid "%{account} has %{amount} less"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3328
+#: lib/portfolixir_web/live/imports_live.ex:3354
 #, elixir-autogen, elixir-format
 msgid "%{account} has %{amount} more"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3280
+#: lib/portfolixir_web/live/imports_live.ex:3306
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{changes}."
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:428
-#: lib/portfolixir_web/live/imports_live.ex:2811
+#: lib/portfolixir_web/live/imports_live.ex:2837
 #, elixir-autogen, elixir-format
 msgid "Already imported, with a different amount"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3289
+#: lib/portfolixir_web/live/imports_live.ex:3315
 #, elixir-autogen, elixir-format
 msgid "Balances, valuation, return and income are recalculated."
 msgstr ""
@@ -11861,12 +11861,12 @@ msgstr ""
 msgid "Bookings with a different amount"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3565
+#: lib/portfolixir_web/live/imports_live.ex:3591
 #, elixir-autogen, elixir-format
 msgid "Correct booked amounts"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3627
+#: lib/portfolixir_web/live/imports_live.ex:3653
 #, elixir-autogen, elixir-format
 msgid "Correct one booking"
 msgid_plural "Correct %{count} bookings"
@@ -11881,43 +11881,43 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/imports_live.ex:1414
-#: lib/portfolixir_web/live/imports_live.ex:3625
+#: lib/portfolixir_web/live/imports_live.ex:3651
 #, elixir-autogen, elixir-format
 msgid "Correcting…"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:476
-#: lib/portfolixir_web/live/imports_live.ex:3589
+#: lib/portfolixir_web/live/imports_live.ex:3615
 #, elixir-autogen, elixir-format
 msgid "Difference"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3604
+#: lib/portfolixir_web/live/imports_live.ex:3630
 #, elixir-autogen, elixir-format
 msgid "Each change is kept in the journal with the previous amount; the import hashes stay as they are, so importing the same file again books nothing."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3413
+#: lib/portfolixir_web/live/imports_live.ex:3439
 #, elixir-autogen, elixir-format
 msgid "No booking was corrected: each already agrees with this file."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3388
+#: lib/portfolixir_web/live/imports_live.ex:3414
 #, elixir-autogen, elixir-format
 msgid "On the purchase of %{security} on %{date}, the price changes with it: %{price}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3374
+#: lib/portfolixir_web/live/imports_live.ex:3400
 #, elixir-autogen, elixir-format
 msgid "On the purchase of %{security} on %{date}, the settlement changes with it: %{cash} = %{native}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3395
+#: lib/portfolixir_web/live/imports_live.ex:3421
 #, elixir-autogen, elixir-format
 msgid "On the sale of %{security} on %{date}, the price changes with it: %{price}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3381
+#: lib/portfolixir_web/live/imports_live.ex:3407
 #, elixir-autogen, elixir-format
 msgid "On the sale of %{security} on %{date}, the settlement changes with it: %{cash} = %{native}."
 msgstr ""
@@ -11929,56 +11929,56 @@ msgid_plural "%{count} bookings already imported with a different amount from th
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3462
+#: lib/portfolixir_web/live/imports_live.ex:3488
 #, elixir-autogen, elixir-format
 msgid "One booking corrected: %{totals}. The journal keeps the previous amount."
 msgid_plural "%{count} bookings corrected: %{totals}. The journal keeps the previous amounts."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3028
+#: lib/portfolixir_web/live/imports_live.ex:3054
 #, elixir-autogen, elixir-format
 msgid "Per account: %{accounts}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2940
+#: lib/portfolixir_web/live/imports_live.ex:2966
 #, elixir-autogen, elixir-format
 msgid "Price booked: %{price}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2941
+#: lib/portfolixir_web/live/imports_live.ex:2967
 #, elixir-autogen, elixir-format
 msgid "Price per the file: %{price}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4822
+#: lib/portfolixir_web/live/imports_live.ex:4848
 #, elixir-autogen, elixir-format
 msgid "Row"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3237
+#: lib/portfolixir_web/live/imports_live.ex:3263
 #, elixir-autogen, elixir-format
 msgid "Row %{rows}"
 msgid_plural "Rows %{rows}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4828
+#: lib/portfolixir_web/live/imports_live.ex:4854
 #, elixir-autogen, elixir-format
 msgid "Row %{row}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4886
+#: lib/portfolixir_web/live/imports_live.ex:4912
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: the correction was refused: %{reason}. Nothing was corrected."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2927
+#: lib/portfolixir_web/live/imports_live.ex:2953
 #, elixir-autogen, elixir-format
 msgid "Settlement booked: %{cash} = %{native}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2931
+#: lib/portfolixir_web/live/imports_live.ex:2957
 #, elixir-autogen, elixir-format
 msgid "Settlement per the file: %{cash} = %{native}"
 msgstr ""
@@ -11988,7 +11988,7 @@ msgstr ""
 msgid "The correction failed unexpectedly. Nothing was corrected."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3036
+#: lib/portfolixir_web/live/imports_live.ex:3062
 #, elixir-autogen, elixir-format
 msgid "Together %{total}: %{accounts}."
 msgstr ""
@@ -11998,27 +11998,27 @@ msgstr ""
 msgid "a step of its own, apart from “Confirm import”"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3510
+#: lib/portfolixir_web/live/imports_live.ex:3536
 #, elixir-autogen, elixir-format
 msgid "the booking no longer exists"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3512
+#: lib/portfolixir_web/live/imports_live.ex:3538
 #, elixir-autogen, elixir-format
 msgid "the ledger refused the change"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2605
+#: lib/portfolixir_web/live/imports_live.ex:2631
 #, elixir-autogen, elixir-format
 msgid "No booking under this name has been imported yet, though the file's other names have. If the account was renamed in Portfolio Performance, choose the existing account here; otherwise “+ Create new”."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2611
+#: lib/portfolixir_web/live/imports_live.ex:2637
 #, elixir-autogen, elixir-format
 msgid "No booking under this name has been imported yet, though the file's other names have. If the depot was renamed in Portfolio Performance, choose the existing depot here; otherwise “+ Create new”."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2500
+#: lib/portfolixir_web/live/imports_live.ex:2526
 #, elixir-autogen, elixir-format
 msgid "No mapping needed: the import books nothing under this name."
 msgstr ""
@@ -12033,17 +12033,17 @@ msgstr ""
 msgid "No portfolio record yet: the import creates “%{name}” (%{currency}) and books into it."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3741
+#: lib/portfolixir_web/live/imports_live.ex:3767
 #, elixir-autogen, elixir-format
 msgid "%{kind} is never imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3744
+#: lib/portfolixir_web/live/imports_live.ex:3770
 #, elixir-autogen, elixir-format
 msgid "%{kind} without an amount — nothing to book"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3725
+#: lib/portfolixir_web/live/imports_live.ex:3751
 #, elixir-autogen, elixir-format
 msgid "%{row} (%{kind})"
 msgstr ""
@@ -12055,49 +12055,49 @@ msgid_plural "Skipped %{count} unimportable records:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3747
+#: lib/portfolixir_web/live/imports_live.ex:3773
 #, elixir-autogen, elixir-format
 msgid "the row itself was not imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3056
+#: lib/portfolixir_web/live/imports_live.ex:3082
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from this file: it was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgid_plural "%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2673
+#: lib/portfolixir_web/live/imports_live.ex:2699
 #, elixir-autogen, elixir-format
 msgid "“%{name}” becomes a former name of %{account}; once a booking under the name has been imported, a future import maps the name by itself."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3771
+#: lib/portfolixir_web/live/imports_live.ex:3797
 #, elixir-autogen, elixir-format
 msgid "a likely match, %{name}, differs on a stronger identifier — possibly an ISIN change not recorded yet"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3784
+#: lib/portfolixir_web/live/imports_live.ex:3810
 #, elixir-autogen, elixir-format
 msgid "creating it would leave strategy configuration (category assignments or position targets) stranded on: %{names}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3778
+#: lib/portfolixir_web/live/imports_live.ex:3804
 #, elixir-autogen, elixir-format
 msgid "different identifiers point at different existing securities: %{names}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3792
+#: lib/portfolixir_web/live/imports_live.ex:3818
 #, elixir-autogen, elixir-format
 msgid "name and currency"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3791
+#: lib/portfolixir_web/live/imports_live.ex:3817
 #, elixir-autogen, elixir-format
 msgid "ticker and currency"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3762
+#: lib/portfolixir_web/live/imports_live.ex:3788
 #, elixir-autogen, elixir-format
 msgid "one existing security shares this identifier: %{identifier}"
 msgid_plural "%{count} existing securities share this identifier: %{identifier}"
@@ -12457,7 +12457,7 @@ msgstr ""
 msgid "%{kind} of the target:"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4477
+#: lib/portfolixir_web/live/imports_live.ex:4503
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:483
 #, elixir-autogen, elixir-format
 msgid "New tag %{message}."
@@ -12656,103 +12656,103 @@ msgstr ""
 msgid "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and once its amount or taxes are changed, the import's correction names it as edited by hand."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3140
+#: lib/portfolixir_web/live/imports_live.ex:3166
 #, elixir-autogen, elixir-format
 msgid "%{row} claims the same booking"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3127
+#: lib/portfolixir_web/live/imports_live.ex:3153
 #, elixir-autogen, elixir-format
 msgid "Changed by hand since its import"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3111
+#: lib/portfolixir_web/live/imports_live.ex:3137
 #, elixir-autogen, elixir-format
 msgid "Found by its date and figures: Portfolio Performance has written this entry differently since the import."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3107
+#: lib/portfolixir_web/live/imports_live.ex:3133
 #, elixir-autogen, elixir-format
 msgid "Found by its date and figures: Portfolio Performance has written this row differently since the import."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3083
+#: lib/portfolixir_web/live/imports_live.ex:3109
 #, elixir-autogen, elixir-format
 msgid "It was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgid_plural "They were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3144
+#: lib/portfolixir_web/live/imports_live.ex:3170
 #, elixir-autogen, elixir-format
 msgid "Not corrected automatically"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3305
+#: lib/portfolixir_web/live/imports_live.ex:3331
 #, elixir-autogen, elixir-format
 msgid "On %{account}, the set balance of %{date} absorbs %{absorbed} of the %{amount}: its balance changes by %{change}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3298
+#: lib/portfolixir_web/live/imports_live.ex:3324
 #, elixir-autogen, elixir-format
 msgid "On %{account}, the set balance of %{date} absorbs the %{amount}: its balance stays as it is."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3064
+#: lib/portfolixir_web/live/imports_live.ex:3090
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from this file and stays as it is; its line says why."
 msgid_plural "%{count} bookings already imported differ from this file and stay as they are; each line says why."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3073
+#: lib/portfolixir_web/live/imports_live.ex:3099
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from this file."
 msgid_plural "%{count} bookings already imported differ from this file."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3088
+#: lib/portfolixir_web/live/imports_live.ex:3114
 #, elixir-autogen, elixir-format
 msgid "One stays as it is; its line says why."
 msgid_plural "%{count} stay as they are; each line says why."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3132
+#: lib/portfolixir_web/live/imports_live.ex:3158
 #, elixir-autogen, elixir-format
 msgid "One stored booking matches"
 msgid_plural "%{count} stored bookings match"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3043
+#: lib/portfolixir_web/live/imports_live.ex:3069
 #, elixir-autogen, elixir-format
 msgid "The one booking the step corrects, together %{total}: %{accounts}."
 msgid_plural "The %{count} bookings the step corrects, together %{total}: %{accounts}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3597
+#: lib/portfolixir_web/live/imports_live.ex:3623
 #, elixir-autogen, elixir-format
 msgid "The other line of the list stays as it is."
 msgid_plural "The other %{count} lines of the list stay as they are."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3078
+#: lib/portfolixir_web/live/imports_live.ex:3104
 #, elixir-autogen, elixir-format
 msgid "The step below corrects one of them:"
 msgid_plural "The step below corrects %{count} of them:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3223
+#: lib/portfolixir_web/live/imports_live.ex:3249
 #, elixir-autogen, elixir-format
 msgid "history"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3133
+#: lib/portfolixir_web/live/imports_live.ex:3159
 #, elixir-autogen, elixir-format
 msgid "its date and figures — stays as it is. Correct the right one by hand in the %{history}."
 msgstr ""
@@ -12765,47 +12765,47 @@ msgstr ""
 msgid "kept"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3141
+#: lib/portfolixir_web/live/imports_live.ex:3167
 #, elixir-autogen, elixir-format
 msgid "stays as it is."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3123
+#: lib/portfolixir_web/live/imports_live.ex:3149
 #, elixir-autogen, elixir-format
 msgid "stays as it is. Per the file: %{stated}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3121
+#: lib/portfolixir_web/live/imports_live.ex:3147
 #, elixir-autogen, elixir-format
 msgid "stays as it is. The amount agrees with the file; the price does not."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3190
+#: lib/portfolixir_web/live/imports_live.ex:3216
 #, elixir-autogen, elixir-format
 msgid "stays as it is: a delivery moves no cash to carry the tax refund of %{refund} beside it. Put it right by hand in the %{history}: delete the tax refund beside it unless money moved."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3181
+#: lib/portfolixir_web/live/imports_live.ex:3207
 #, elixir-autogen, elixir-format
 msgid "stays as it is: a tax refund of %{refund} beside a transfer books on one of its accounts only. Put it right by hand in the %{history}: set the transfer to %{gross}, and delete the tax refund beside it unless money moved."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3198
+#: lib/portfolixir_web/live/imports_live.ex:3224
 #, elixir-autogen, elixir-format
 msgid "stays as it is: once the tax refund of %{refund} is split off, %{rest} would remain for the booking per the file, and a booking books more than zero. Put it right by hand in the %{history}: delete the booking and the tax refund beside it, then book what Portfolio Performance shows."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3170
+#: lib/portfolixir_web/live/imports_live.ex:3196
 #, elixir-autogen, elixir-format
 msgid "stays as it is: once the tax refund of %{refund} is split off, %{rest} would remain for the sale per the file, and a sale books more than zero. Put it right by hand in the %{history}: change the sale to %{gross} without fees, enter the fees of %{fees} as a booking of their own; the tax refund is already booked."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3481
+#: lib/portfolixir_web/live/imports_live.ex:3507
 #, elixir-autogen, elixir-format
 msgid "— the set balance of %{date} holds %{absorbed} of %{account}'s change"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3476
+#: lib/portfolixir_web/live/imports_live.ex:3502
 #, elixir-autogen, elixir-format
 msgid "— the set balance of %{date} holds %{account}'s balance"
 msgstr ""
@@ -12844,7 +12844,7 @@ msgstr ""
 msgid "not convertible, a buy in %{lot_currency} with no figure in %{currency}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2405
+#: lib/portfolixir_web/live/imports_live.ex:2431
 #, elixir-autogen, elixir-format
 msgid "provisional · recomputing"
 msgstr ""
@@ -12881,12 +12881,12 @@ msgid_plural "Afterwards %{count} sales are not convertible — a buy each close
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3161
+#: lib/portfolixir_web/live/imports_live.ex:3187
 #, elixir-autogen, elixir-format
 msgid "stays as it is: the import does not book a fee refund yet, so the booking's fees stay as stored, %{fees}. Put it right by hand in the %{history}: change the booking to %{cash}; the tax refund is already booked."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3152
+#: lib/portfolixir_web/live/imports_live.ex:3178
 #, elixir-autogen, elixir-format
 msgid "stays as it is: the import does not book a fee refund yet, so the sale's fees stay as stored, %{fees}. Put it right by hand in the %{history}: change the sale to %{cash}; the tax refund is already booked."
 msgstr ""
@@ -12951,19 +12951,19 @@ msgstr ""
 msgid "found by import hash · comparing by date and figures"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3416
+#: lib/portfolixir_web/live/imports_live.ex:3442
 #, elixir-autogen, elixir-format
 msgid "No booking was corrected."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3434
+#: lib/portfolixir_web/live/imports_live.ex:3460
 #, elixir-autogen, elixir-format
 msgid "One more booking with a different amount from the file was found since the list was shown and is not corrected. Drop the same file again to correct it."
 msgid_plural "%{count} more bookings with a different amount from the file were found since the list was shown and are not corrected. Drop the same file again to correct them."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3453
+#: lib/portfolixir_web/live/imports_live.ex:3479
 #, elixir-autogen, elixir-format
 msgid "One booking corrected: the price, the cash kept. The journal keeps the previous price."
 msgid_plural "%{count} bookings corrected: the prices, the cash kept. The journal keeps the previous prices."
@@ -12975,7 +12975,7 @@ msgstr[1] ""
 msgid "%{amount} stored"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4580
+#: lib/portfolixir_web/live/imports_live.ex:4606
 #, elixir-autogen, elixir-format
 msgid "already imported, with a different amount — not corrected by this import"
 msgstr ""
@@ -13220,90 +13220,90 @@ msgstr[1] ""
 msgid "quotes around 1 (latest %{close} on %{date}),"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2405
+#: lib/portfolixir_web/live/imports_live.ex:2431
 #, elixir-autogen, elixir-format
 msgid "counted before the choice · recomputing"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:3236
+#: lib/portfolixir_web/live/imports_live.ex:3262
 #, elixir-autogen, elixir-format
 msgid "Entry %{rows}"
 msgid_plural "Entries %{rows}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4827
+#: lib/portfolixir_web/live/imports_live.ex:4853
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4854
+#: lib/portfolixir_web/live/imports_live.ex:4880
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: %{description}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4862
+#: lib/portfolixir_web/live/imports_live.ex:4888
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: %{description} — set balance of %{account} on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4671
+#: lib/portfolixir_web/live/imports_live.ex:4697
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4873
+#: lib/portfolixir_web/live/imports_live.ex:4899
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: %{kind} %{date} · %{from} → %{to}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4838
+#: lib/portfolixir_web/live/imports_live.ex:4864
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4847
+#: lib/portfolixir_web/live/imports_live.ex:4873
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4881
+#: lib/portfolixir_web/live/imports_live.ex:4907
 #, elixir-autogen, elixir-format
 msgid "Entry %{row}: the correction was refused: %{reason}. Nothing was corrected."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4836
+#: lib/portfolixir_web/live/imports_live.ex:4862
 #, elixir-autogen, elixir-format
 msgid "— entry not imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4836
+#: lib/portfolixir_web/live/imports_live.ex:4862
 #, elixir-autogen, elixir-format
 msgid "— row not imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2817
+#: lib/portfolixir_web/live/imports_live.ex:2843
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from the file, though: correct it under %{section} below."
 msgid_plural "%{count} bookings already imported differ from the file, though: correct them under %{section} below."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2824
+#: lib/portfolixir_web/live/imports_live.ex:2850
 #, elixir-autogen, elixir-format
 msgid "One booking already imported differs from the file, though: see why under %{section} below."
 msgid_plural "%{count} bookings already imported differ from the file, though: see why under %{section} below."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4799
+#: lib/portfolixir_web/live/imports_live.ex:4825
 #, elixir-autogen, elixir-format
 msgid "One entry the preview refused was not imported:"
 msgid_plural "%{count} entries the preview refused were not imported:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4805
+#: lib/portfolixir_web/live/imports_live.ex:4831
 #, elixir-autogen, elixir-format
 msgid "One row the preview refused was not imported:"
 msgid_plural "%{count} rows the preview refused were not imported:"
@@ -13322,7 +13322,7 @@ msgid_plural "%{count} bookings booked through a former name:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4773
+#: lib/portfolixir_web/live/imports_live.ex:4799
 #, elixir-autogen, elixir-format
 msgid "One entry collapsed onto the same resolved booking within this file."
 msgid_plural "%{count} entries collapsed onto the same resolved booking within this file."
@@ -13336,52 +13336,52 @@ msgid_plural "%{count} records matched via a former ISIN."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4779
+#: lib/portfolixir_web/live/imports_live.ex:4805
 #, elixir-autogen, elixir-format
 msgid "One row collapsed onto the same resolved booking within this file."
 msgid_plural "%{count} rows collapsed onto the same resolved booking within this file."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:4756
+#: lib/portfolixir_web/live/imports_live.ex:4782
 #, elixir-autogen, elixir-format
 msgid "“%{name}”, now %{account} · %{count} booking"
 msgid_plural "“%{name}”, now %{account} · %{count} bookings"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2189
+#: lib/portfolixir_web/live/imports_live.ex:2215
 #, elixir-autogen, elixir-format
 msgid "Change…"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2182
+#: lib/portfolixir_web/live/imports_live.ex:2208
 #, elixir-autogen, elixir-format
 msgid "Created as new: %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2216
+#: lib/portfolixir_web/live/imports_live.ex:2242
 #, elixir-autogen, elixir-format
 msgid "Map elsewhere: %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2189
+#: lib/portfolixir_web/live/imports_live.ex:2215
 #, elixir-autogen, elixir-format
 msgid "Map elsewhere…"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:815
-#: lib/portfolixir_web/live/imports_live.ex:2236
+#: lib/portfolixir_web/live/imports_live.ex:2262
 #, elixir-autogen, elixir-format
 msgid "Map to"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2181
+#: lib/portfolixir_web/live/imports_live.ex:2207
 #, elixir-autogen, elixir-format
 msgid "Mapped to: %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2233
+#: lib/portfolixir_web/live/imports_live.ex:2259
 #, elixir-autogen, elixir-format
 msgid "No security matches."
 msgstr ""
@@ -13391,17 +13391,17 @@ msgstr ""
 msgid "Search for another security…"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2228
+#: lib/portfolixir_web/live/imports_live.ex:2254
 #, elixir-autogen, elixir-format
 msgid "Search securities: name, ISIN, WKN or ticker"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2247
+#: lib/portfolixir_web/live/imports_live.ex:2273
 #, elixir-autogen, elixir-format
 msgid "The catalog is searched by name, ISIN, WKN and ticker; nothing is suggested."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:2311
+#: lib/portfolixir_web/live/imports_live.ex:2337
 #, elixir-autogen, elixir-format
 msgid "no ISIN"
 msgstr ""
