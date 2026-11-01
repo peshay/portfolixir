@@ -36,10 +36,7 @@ defmodule Portfolixir.Catalog.SecuritySearchTest do
     provider_b = make_stub_module([second, third])
 
     {:ok, results} =
-      SecuritySearch.search("anything",
-        providers: [provider_a, provider_b],
-        timeout_ms: 500
-      )
+      SecuritySearch.search("anything", providers: [provider_a, provider_b])
 
     online_ids = Enum.map(results, & &1.online_id)
     assert "x" in online_ids
