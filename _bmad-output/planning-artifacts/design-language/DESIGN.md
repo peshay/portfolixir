@@ -2192,7 +2192,10 @@ short identifier after its name; a unique name stays bare.
   and its phone rows), Wealth's allocation tree position rows, its
   unassigned positions and the flat positions (decided over every position
   of the allocation), and the Overview's "Closed trades" card (over the
-  trades it lists). A payload that carries a security's id and name but no
+  trades it lists). Under 560 px the tree's position names wrap in the flat
+  positions' 9 rem share, so the tag is never under the pinned Drift column
+  (the γ closing act, DD-S4). A payload that carries a security's id and
+  name but no
   identifier reads the twins' ISIN and WKN from the catalog in one query,
   and only where two names collide (`SecurityNames.put_catalog_twin_ids/2`).
   The security's Trades tab lists one security and is unchanged. The

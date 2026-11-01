@@ -6676,9 +6676,13 @@ button.income-bar-label.is-active {
    act; DESIGN.md: a name wraps). The phone rule `table { white-space:
    nowrap }` kept a long catalogue name on one line wider than the screen,
    so every other column started off-screen. The name column takes a fixed
-   share and wraps inside it; the figures keep their nowrap. */
+   share and wraps inside it; the figures keep their nowrap. The tree's
+   position rows take the same rule, so a twin's identifier after the name
+   is not hidden under the pinned Drift column (issue 1155; the γ closing
+   act, DD-S4). */
 @media (max-width: 560px) {
-  .drift-table[data-role="flat-positions"] td:first-child {
+  .drift-table[data-role="flat-positions"] td:first-child,
+  .drift-table tr.is-position td:first-child {
     width: 9rem;
     min-width: 9rem;
     white-space: normal;
