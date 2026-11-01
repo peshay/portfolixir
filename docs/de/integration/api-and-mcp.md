@@ -107,8 +107,35 @@ JSON-RPC-Fehlerform.
 
 Alle Antworten nutzen JSON-Umschläge mit entweder `data` oder `errors`.
 Finanz-Decimals werden als Strings serialisiert, einschließlich Mengen, Preise,
-Gebühren, Steuern, Kurs-Schlusswerte und monetärer Summen. Request-Payloads für
-diese Werte sollten ebenfalls Strings senden.
+Gebühren, Steuern, Kurs-Schlusswerte und monetärer Summen. Request-Payloads
+senden diese Werte ebenfalls als Strings.
+
+**Decimal-Strings beim Schreiben.** Jeder Schreibzugriff unter `/api/v1`
+(`POST`, `PUT`, `PATCH`, `DELETE`) lehnt eine JSON-Zahl — eine
+Gleitkommazahl ebenso wie eine ganze Zahl — in einem Geld-, Mengen-, Preis-,
+Gebühren-, Steuer- oder Wechselkursfeld mit `422` ab, das das Feld nennt,
+`{"errors": {"price": ["must be a decimal string"]}}`, und speichert nichts
+(ADR-0003, Ergänzung vom 2026-11-01). Eine JSON-Zahl wird als binäre
+Gleitkommazahl dekodiert, sodass ein Wert mit mehr als etwa 17 signifikanten
+Stellen als eine andere Zahl gespeichert würde als die gesendete:
+`"1234567890.12345678"` als String gesendet wird exakt gespeichert, derselbe
+Wert als Zahl wird abgelehnt, statt auf `1234567890.1234567` gerundet zu
+werden. Die Regel liest den Body in beliebiger Tiefe — in einem
+Hüllobjekt wie `transaction`, in jeder Zeile einer Liste wie `quotes` eines
+Kurs-Batches und in jedem Eintrag einer Liste von Sätzen wie
+`church_tax_rates` — und nennt jedes betroffene Feld einmal. Die Felder:
+`amount`, `gross_amount`, `security_amount`, `settlement_amount`,
+`face_value`, `amount_granted`, die Freibeträge eines Steuerjahrs, die
+Geldfelder und einbehaltenen Steuern eines Bescheinigungs-Snapshots,
+`quantity`, `price`, `close`, `fees`, `taxes`, die Steuersätze
+(`capital_gains_tax_rate`, `solidarity_surcharge_rate`, `church_tax_rate`,
+`church_tax_rates`), `settlement_fx_rate` und `coupon_rate` sowie jedes Feld
+mit der Endung `_amount`, `_price`, `_rate`, `_rates` oder `_withheld`. Ein
+Decimal-String wird wie bisher angenommen, und ein JSON-`null` behält seine
+bisherige Antwort; IDs, Jahre, Glieder eines Split-Verhältnisses,
+Zielgewichte und Schwellen von Regeln fallen nicht unter diese Regel, und
+Lesezugriffe bleiben unverändert. Die Tools des MCP-Begleiters senden diese
+Felder bereits als Strings.
 
 Die Fehler, die der Server selbst statt eines Endpunkts beantwortet, nutzen
 denselben Umschlag mit ihrem eigenen Status: ein unlesbarer Body, oder einer, der
@@ -1018,8 +1045,8 @@ in jeder Wertpapier-Antwort enthalten (und mit `fields=` wählbar):
 der jeder gespeicherte Betrag folgt (**Andere gespeicherte Beträge** oben):
 Ein feinerer Wert wird vor der Prüfung kaufmännisch gerundet, `"3.1234567"`
 wird also als `"3.123457"` gespeichert und gemeldet. Gesendet werden sie als
-Strings, wie jedes Decimal; eine JSON-Zahl wird so umgewandelt, wie jedes
-Decimal-Feld eine umwandelt.
+Strings, wie jedes Decimal; eine JSON-Zahl liefert `422` mit dem Namen des
+Felds (**Decimal-Strings beim Schreiben** oben).
 
 `null` löscht ein Feld, Pflicht ist keines, ein unmöglicher Wert ist ein
 `422`, der sein Feld nennt, ohne dass etwas geschrieben wird, und die Felder
