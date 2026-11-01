@@ -148,6 +148,39 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
            "a marker row is still measured against chart-surface"
   end
 
+  # User story (#1149/#1210, Sprint 21 γ4; the γ closing act, DB2):
+  # As the operator reading the Cash-flow matrices,
+  # I want the quiet dash of a month that sums to zero to clear the text
+  # floor,
+  # so that "nothing this month" is readable content, not a disabled-looking
+  # mark at 2.64:1.
+  #
+  # Acceptance criteria:
+  # - The colour `.matrix-zero` takes is a token that clears 4.5:1 on the
+  #   panel the matrices sit on (`--color-bg-elevated`) and on the canvas
+  #   (`--color-bg`), in `:root`, `[data-theme="light"]`, the dark media
+  #   block and `[data-theme="dark"]`: text-muted (5.89 / 5.91 on the panel,
+  #   the computed contrast table's rows), never text-subtle (2.64 / 3.03).
+  test "the matrices' quiet dash clears the text floor in both themes" do
+    [_, token] =
+      Regex.run(~r/\n\.matrix-zero \{[^}]*?\n  color: var\(--([a-z-]+)\);/, @css) ||
+        flunk("no colour on .matrix-zero")
+
+    for {block_name, tokens} <- [
+          {":root", root()},
+          {~s([data-theme="light"]), light()},
+          {"prefers-color-scheme: dark", dark_media()},
+          {~s([data-theme="dark"]), dark()}
+        ],
+        ground <- ~w(color-bg-elevated color-bg) do
+      ratio = contrast(color(tokens, token), color(tokens, ground))
+
+      assert ratio >= @bar,
+             "#{block_name}: .matrix-zero's #{token} on #{ground} measures " <>
+               "#{Float.round(ratio, 2)}:1, below #{@bar}:1"
+    end
+  end
+
   # --- tokens ----------------------------------------------------------------
 
   defp root, do: tokens(~r/\A:root \{(.*?)\n\}/s)
