@@ -2150,3 +2150,12 @@ issue state and the merge commits on `main`.
   progress for the owner's announcement decision alone, and
   `launch-readiness-2026-10-09-sprint20.md`, with its "Since version 3"
   section, is the input.
+
+  **Sprint 22 planned 2026-11-01** (`sprint-plan-2026-11-01-sprint22.md`,
+  adopted by the merge of its planning PR, which signs ADR-0026's severity
+  amendment and four risk-tier decisions: ADR-0003 for #1291, ADR-0050 for
+  #1313, ADR-0015 for #1335 and the plan's D-5 for #1309). A severity pass
+  over every open issue sorts the backlog: every S1 and S2 builds, with I1
+  (#1351); the S3s move onto twelve per-screen polish trackers under the
+  area trackers. Not E26's scope: the epic stays in progress for the
+  owner's announcement decision alone.
