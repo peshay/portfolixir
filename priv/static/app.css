@@ -2926,7 +2926,10 @@ img.security-logo {
   font-weight: inherit;
 }
 
-.logo-override__choose:focus-within {
+/* The file input is the label's sibling, not its child, so the ring rides
+   the sibling's focus (the γ closing act's accessibility pass, A-F3; the
+   radio cards' `:has(input:focus-visible)` pattern). */
+.logo-override__choose:has(+ input:focus-visible) {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
