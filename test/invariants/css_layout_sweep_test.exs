@@ -208,6 +208,30 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert block(".metric-tooltip--labelled summary") =~ ~r/width:\s*auto/
   end
 
+  # User story (#1211, Sprint 21 γ6; board 06 ②, pick N18 A; the γ closing
+  # act, DC1):
+  # As the operator editing a category on a phone or a desktop,
+  # I want the "Parent" select capped at the board's width,
+  # so that a 31-level chain's option neither runs the select 589 px past a
+  # 390 px screen nor wraps the edit form to three lines at 1200 px.
+  #
+  # Acceptance criteria:
+  # - The cap outranks the page's own "controls shrink to the column" rule
+  #   (`.classifications-detail :is(.inline-form, .cat-edit-form) :is(select,
+  #   input)`, specificity 0-2-1, later in the file), which reset it to
+  #   `max-width: 100%`: the select's rule is scoped to the page as well
+  #   (0-3-1), so it wins wherever it sits.
+  # - The cap is `min(16rem, 100%)`: the board's 16 rem, never wider than
+  #   the column on a phone.
+  test "the category edit form's parent select keeps its 16 rem cap over the page's shrink rule" do
+    select = block(".classifications-detail .cat-edit-form .recolor-label select")
+    assert select =~ ~r/max-width:\s*min\(16rem, 100%\);/
+    assert select =~ ~r/min-width:\s*0;/
+
+    refute @css =~ ~r/\n\.cat-edit-form \.recolor-label select \{/,
+           "the unscoped 0-2-1 rule loses to the page's later shrink rule"
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body
