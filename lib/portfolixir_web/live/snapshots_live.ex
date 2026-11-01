@@ -692,12 +692,15 @@ defmodule PortfolixirWeb.SnapshotsLive do
   defp signed_percent(value), do: Format.signed_percent(value)
 
   # Gain/loss colour by sign, never the accent (UX-DR7), decided on the
-  # percent as displayed (#1149): "0,0%" carries none.
+  # percent as displayed (#1149): "0,0%" is `is-flat`, body ink, as Wealth's
+  # cards are; no class would leave it the stat card's accent (the γ closing
+  # act, DB1). A missing figure keeps no class.
   defp sign_class(value) do
     case Format.displayed_percent_sign(value) do
       :positive -> "is-positive"
       :negative -> "is-negative"
-      _zero -> nil
+      :zero -> "is-flat"
+      nil -> nil
     end
   end
 end

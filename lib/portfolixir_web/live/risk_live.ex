@@ -271,7 +271,7 @@ defmodule PortfolixirWeb.RiskLive do
                 metric={@risk.metrics.max_drawdown[@window]}
               >
                 <:value :let={m}>
-                  <span class={negative?(m.value) && "is-negative"}><%= signed_percent(m.value) %></span><small class="value-suffix">%</small>
+                  <span class={drawdown_class(m.value)}><%= signed_percent(m.value) %></span><small class="value-suffix">%</small>
                 </:value>
                 <:sub :let={m}>
                   <%= Format.date(m.peak_date) %> → <%= Format.date(m.trough_date) %> ·
@@ -746,6 +746,11 @@ defmodule PortfolixirWeb.RiskLive do
     do: value |> Decimal.mult(100) |> Format.displayed_sign(1) == :negative
 
   defp negative?(_value), do: false
+
+  # A drawdown reads as a loss, or, where it reads zero, in body ink: no
+  # class would leave it the stat card's accent (#1149; the γ closing act,
+  # DB1).
+  defp drawdown_class(value), do: if(negative?(value), do: "is-negative", else: "is-flat")
 
   defp signed_percent(%Decimal{} = value), do: Format.signed_decimal(Decimal.mult(value, 100), 1)
 
