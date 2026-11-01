@@ -7164,6 +7164,19 @@ button.income-bar-label.is-active {
   border-radius: var(--radius-md);
 }
 
+/* The import preview's correction slot is a `focusable` slot and the
+   corrections' focus fallback (issue 1166; the γ closing act's
+   accessibility pass, A-F2): the same margin and ring. */
+#import-correction-result {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+#import-correction-result:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
 /* Dismissing the result gives the focus back where the operator was
    editing: the input the refusal named, else the plan editor's heading, else
    the tree's (cascade layer 2 of the PR γ closing act). Each stops below the
