@@ -1904,6 +1904,22 @@ Example account payloads:
   rule. A new buy or sell priced in neither its security's currency nor its
   cash account's answers 422 on `currency_code`, naming both (issue
   #1199).
+  Since issue #1310 an unavailable trade tells its two causes apart.
+  `unavailable_reason` is `"third_currency"` where the sell or a lot it
+  names is priced in neither the security's currency nor its account's (a
+  row stored before issue #1199), which no rate fixes: the remedy is to
+  correct the stored booking's currency or amounts. It is
+  `"missing_settlement_leg"` otherwise, whose remedy is a rate for the
+  lot's date or the figure in the sell's currency on the booking. Each
+  entry of `lots_missing_leg` carries its own `reason`, one of the two, so
+  a trade closing a legless lot and a third-currency lot names each. Where
+  the sell itself is priced in a third currency, `proceeds`, `sell_fees`
+  and `sell_taxes` are `null` too, since its fees are in its account's
+  currency and no figure under the sell's code could state them;
+  `annualized_return_reason` reads the trade's reason.
+  `GET /api/v1/realized_gains` counts such a trade under
+  `excluded.by_reason.third_currency`, apart from
+  `missing_settlement_leg` and `no_rate`.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,
