@@ -2135,6 +2135,39 @@ Beispiel-Payloads für Konten:
   sind. Selbstbeschreibend mit `as_of`-Lesedatum und `note`. Nichts wird
   automatisch repariert; korrigiere die Transaktionshistorie des
   Wertpapiers.
+- `GET /api/v1/splits/incomplete` liefert die **Prüfung unvollständiger
+  Splits** (#1292): jedes gespeicherte Split-Ereignis (seine Zeilen teilen
+  Wertpapier, Datum und gekürztes Verhältnis), dem eine Zeile für ein
+  Portfolio fehlt, das das Wertpapier zum Stichtag hielt — die Menge, für die
+  `POST /api/v1/splits` bucht. Die FIFO-Lots eines solchen Portfolios
+  skaliert der Split, seinen Bestand nicht. Jede Zeile nennt das Wertpapier
+  (`security_id`, `security_name`, `isin`), das `date`, die ganzzahligen
+  `ratio_numerator` und `ratio_denominator`, die `booked_portfolio_ids` und
+  `transaction_ids` der gebuchten Zeilen und `missing_portfolios`, jedes mit
+  `portfolio_id`, `portfolio_name` und `quantity_before` (ein
+  Decimal-String). Selbstbeschreibend mit `as_of`, `note` und `remedy`:
+  buche denselben Split erneut über `POST /api/v1/splits`, das nur die
+  fehlenden Zeilen ergänzt, oder lösche ein falsches Ereignis mit
+  `DELETE /api/v1/splits/:transaction_id`. Rein lesend und ohne Obergrenze,
+  wie der Bericht zu negativen Beständen; nichts wird gebucht oder
+  umgeschrieben.
+- `GET /api/v1/transactions/rate_only` liefert die **Trades nur mit Kurs**
+  (#1290): jeden gespeicherten Kauf oder Verkauf in einer anderen Währung als
+  der seines Verrechnungskontos, der einen `settlement_fx_rate`, aber weder
+  `gross_amount` noch `settlement_amount` trägt — die Form, die ein neuer
+  Schreibzugriff abgelehnt bekommt (H35) —, unabhängig von der Größe der
+  Abweichung. Jede Zeile trägt ihre IDs, `security_name`,
+  `cash_account_currency_code`, `date`, `type`, `currency_code` und als
+  Decimal-Strings `quantity`, `price`, `fees`, `taxes`,
+  `settlement_fx_rate`, `booked_cash` (Menge × Kurs plus Gebühren und
+  Steuern bei einem Kauf, abzüglich bei einem Verkauf: das Geld, das das
+  Ledger bucht), `expected_cash` (dasselbe mit Menge × Kurs × Rate als
+  Abrechnungsbetrag) und `difference` (`booked_cash - expected_cash`).
+  Selbstbeschreibend mit `as_of`, `note` und `remedy`: trage den vom Broker
+  abgerechneten Betrag als `gross_amount` des Trades ein
+  (`PATCH /api/v1/transactions/:id`), danach erscheint die Zeile nicht mehr;
+  der Settlement-Backfill fasst diese Zeilen nicht an. Rein lesend und ohne
+  Obergrenze.
 - `POST /api/v1/holdings/reconcile` vergleicht eine **vom Nutzer gelieferte
   externe Positionsliste** (Brokerauszug oder Depotübersicht, clientseitig in
   Zeilen geparst) mit den aus dem Ledger abgeleiteten Beständen — **strikt
@@ -4300,6 +4333,10 @@ lässt sich nicht lesen.
   Nebenbeträge-statt-Brutto-Regel
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
+- `portfolixir.splits.incomplete` — die Prüfung unvollständiger Splits
+  (#1292), rein lesend, mit ihrer Abhilfe
+- `portfolixir.transactions.rate_only` — die gespeicherten Trades nur mit
+  Kurs (#1290), rein lesend, mit ihrer Abhilfe
 - `portfolixir.holdings.reconcile` — rein lesender Vergleich einer
   eingefügten externen Positionsliste mit dem Ledger; die Tool-Beschreibung
   lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu

@@ -1970,6 +1970,36 @@ Example account payloads:
   truly negative total. Self-describing with an `as_of` read date and a
   `note`. Nothing is repaired automatically; fix the security's transaction
   history.
+- `GET /api/v1/splits/incomplete` returns the **incomplete-split check**
+  (#1292): every stored split event (its rows sharing security, date and
+  normalized ratio) that carries no row for a portfolio holding the security
+  entering the effective date — the set `POST /api/v1/splits` books for. Such
+  a portfolio's FIFO lots are scaled by the split while its holding is not.
+  Each row names the security (`security_id`, `security_name`, `isin`), the
+  `date`, the integer `ratio_numerator` and `ratio_denominator`, the booked
+  rows' `booked_portfolio_ids` and `transaction_ids`, and
+  `missing_portfolios`, each with `portfolio_id`, `portfolio_name` and
+  `quantity_before` (a Decimal string). Self-describing with `as_of`, a
+  `note` and a `remedy`: book the same split again through
+  `POST /api/v1/splits`, which adds only the missing rows, or delete a wrong
+  event with `DELETE /api/v1/splits/:transaction_id`. Read-only and
+  uncapped, like the negative-holdings report; nothing is booked or
+  rewritten.
+- `GET /api/v1/transactions/rate_only` returns the **rate-only trades**
+  (#1290): every stored buy or sell booked in another currency than its cash
+  account's that carries a `settlement_fx_rate` but neither `gross_amount`
+  nor `settlement_amount` — the shape a new write is refused for (H35) —
+  whatever the size of its gap. Each row carries its ids, `security_name`,
+  `cash_account_currency_code`, `date`, `type`, `currency_code`, and as
+  Decimal strings `quantity`, `price`, `fees`, `taxes`,
+  `settlement_fx_rate`, `booked_cash` (quantity × price plus fees and taxes
+  on a buy, less on a sell: the cash the ledger books), `expected_cash` (the
+  same with quantity × price × rate as the settlement) and `difference`
+  (`booked_cash - expected_cash`). Self-describing with `as_of`, a `note`
+  and a `remedy`: record the cash the broker settled as the trade's
+  `gross_amount` (`PATCH /api/v1/transactions/:id`), after which the row is
+  no longer listed; the settlement backfill does not touch these rows.
+  Read-only and uncapped.
 - `POST /api/v1/holdings/reconcile` compares a **user-supplied external
   position list** (a broker statement or depot overview, parsed client-side
   into rows) against the ledger-derived holdings — **strictly read-only**:
@@ -3950,6 +3980,10 @@ API may have committed it, and its answer cannot be read.
   legs-not-gross series rule
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
+- `portfolixir.splits.incomplete` — the incomplete-split check (#1292),
+  read-only, with its remedy
+- `portfolixir.transactions.rate_only` — the stored rate-only trades
+  (#1290), read-only, with its remedy
 - `portfolixir.holdings.reconcile` — read-only compare of a pasted external
   position list against the ledger; its description steers the agent toward
   booking the missing transaction of the correct kind instead of balance

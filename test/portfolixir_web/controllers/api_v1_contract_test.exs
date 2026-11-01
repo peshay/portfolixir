@@ -51,17 +51,34 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # Sprint 22's R1 (version 21; #1291, ADR-0003 amended 2026-11-01): every
     # write refuses a JSON number in a financial field with a named 422. Dated
-    # strictly after entry 20, so since=2026-11-01 still returns it. No
-    # route, tool or prompt is added or removed.
+    # strictly after entry 20, so since=2026-11-01 still returns it. R1 adds
+    # no route, tool or prompt; R6 (#1292, #1290) adds two read-only
+    # data-quality reads and their tools, one item each.
     assert newest["version"] == 21
     assert newest["date"] == "2026-11-02"
     assert newest["summary"] =~ "Sprint 22, R1"
     assert newest["summary"] =~ "#1291"
-    assert newest["endpoints"] == []
-    assert newest["tools"] == []
+    assert newest["summary"] =~ "R6"
+
+    assert newest["endpoints"] == [
+             "GET /api/v1/splits/incomplete",
+             "GET /api/v1/transactions/rate_only"
+           ]
+
+    assert newest["tools"] == [
+             "portfolixir.splits.incomplete",
+             "portfolixir.transactions.rate_only"
+           ]
+
     # The read serves no prompts list; the manifest holds it.
     assert hd(Contract.entries()).prompts == []
-    assert [refusal] = newest["parameters"]
+    assert [refusal, incomplete_splits, rate_only] = newest["parameters"]
+    assert String.starts_with?(incomplete_splits, "GET /api/v1/splits/incomplete")
+    assert incomplete_splits =~ "remedy"
+    assert incomplete_splits =~ "(#1292)"
+    assert String.starts_with?(rate_only, "GET /api/v1/transactions/rate_only")
+    assert rate_only =~ "difference -0.008"
+    assert rate_only =~ "(#1290)"
     assert String.starts_with?(refusal, "Every POST, PUT, PATCH and DELETE under /api/v1")
     assert refusal =~ ~s(["must be a decimal string"])
     assert refusal =~ "1234567890.12345678"
