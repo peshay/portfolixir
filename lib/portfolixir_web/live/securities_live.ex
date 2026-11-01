@@ -11,7 +11,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.LogoDiscovery
-  alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
@@ -5757,7 +5756,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # Re-trigger protection (#566): while a lookup is running (busy state in the
   # inline-result slot) a second trigger is a no-op; the result of the running
-  # lookup re-arms the action.
+  # lookup re-arms the action. The lookup goes through Catalog.rediscover_logo/3
+  # with the API's options, so a locked logo stays as the API leaves it
+  # (#1271, ADR-0002): a locked row answers :skip without a lookup.
   defp dispatch_row_action(socket, "update_logo", %Security{} = sec) do
     if match?({:busy, _}, socket.assigns.action_result) do
       {:noreply, socket}
@@ -5768,7 +5769,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, task} =
         CappedAsync.start_child(Portfolixir.LogoSupervisor, fn ->
           await_watch()
-          result = LogoLookup.run(Actor.owner_ui(), sec, [])
+          result = Catalog.rediscover_logo(Actor.owner_ui(), sec, logo_opts())
           send(parent, {:logo_update_done, sec_id, result})
         end)
 
