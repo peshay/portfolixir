@@ -34,8 +34,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   rather than as silent `Entry` skips, and so does a row whose booking or
   security currency the catalog does not list (#948), a row with a FEE unit
   below zero (ADR-0053 A9, #1177), a delivery or a transfer with a negative
-  TAX unit (A8, #1188), and a credit whose own booking would move 0 or less
-  (A5, #1118).
+  TAX unit (A8, #1188), a credit whose own booking would move 0 or less
+  (A5, #1118), and a `time` the parser cannot read (#1306).
 
   A negative TAX unit is split off into a `tax_refund` companion, and the
   row's own booking leaves it out of its `amount`, which already holds it
@@ -403,6 +403,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # A date that is not even a string (#768).
   defp parse_date(other), do: {:error, gettext("invalid date %{date}", date: inspect(other))}
 
+  # #1306: a time is a hash input, so a value the parser cannot read is the
+  # row's error, never "no time": two same-day rows whose times were both
+  # dropped would share one content hash, and the second would count as
+  # already imported. An absent or blank time is no time; every value read
+  # before reads as it did, so no stored hash moves.
   defp parse_time(nil), do: {:ok, nil}
 
   defp parse_time(value) when is_binary(value) do
@@ -413,13 +418,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         _ -> value
       end
 
-    case Time.from_iso8601(padded) do
-      {:ok, _time} = ok -> ok
-      {:error, _} -> {:ok, nil}
+    cond do
+      String.trim(value) == "" ->
+        {:ok, nil}
+
+      match?({:ok, _time}, Time.from_iso8601(padded)) ->
+        Time.from_iso8601(padded)
+
+      true ->
+        {:error, PortfolioPerformance.time_message(value)}
     end
   end
 
-  defp parse_time(_other), do: {:ok, nil}
+  defp parse_time(other), do: {:error, PortfolioPerformance.time_message(other)}
 
   # Folds the `units` array. Negative TAX units are extracted into a
   # `refunds` list — the parent entry takes `Decimal.abs/1` of every
