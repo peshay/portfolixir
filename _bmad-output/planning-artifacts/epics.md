@@ -729,13 +729,13 @@ fails.**
 3. **The UI batch matches its boards: pass, with the fixes named.** The
    design critics found every built surface matching its board; the UAT
    persona passed the seven screens, Classifications and Imports after their
-   two blockers were fixed.
-4. **Fewer than 60 open issues: fail, at the filing step.** 186 were open at
+   two blockers were fixed; a browser re-check confirmed the fixes.
+4. **Fewer than 60 open issues: fail, at the filing step.** 187 were open at
    this record; the three PRs' keywords close 76 (14, 22 and about 40), which
-   leaves about 110. The sprint filed 95 since the amendment's planning merge,
+   leaves about 111. The sprint filed 96 since the amendment's planning merge,
    against the 34 the plan's arithmetic allowed, each finding beside a story
    as a thin pointer. Every `needs-decision` issue now carries its
-   recommended answer (the close-out's registry pass). 58 filings still have
+   recommended answer (the close-out's registry pass). 59 filings still have
    no area parent and 37 no label: the owner's Lane Z item after the merges,
    with the parent for each listed in `sprint-status.yaml`'s Sprint 21
    entry.

@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-11-01 (Sprint 21 CLOSED OUT, under the amendment's three PRs, none merged yet: the sprint PR #1296 (Lane M, Lane S), stacked PR 1 #1318 (alpha, beta) and stacked PR 2 (gamma and this close-out), each merged by the owner in order after the one below, by a fast-forward because each passes GitHub's 100-commit rebase limit; the four amendments of 2026-10-09 built as signed, the security triage's 73 rows on #1296, H53 on #1318 and H45 on stacked PR 2; D-1's criteria 1 to 3 pass once the three merge and criterion 4 FAILS (186 open issues, about 110 after the merges, against fewer than 60, because the sprint filed 95); E26 stays in progress for the owner's announcement decision alone, and launch-readiness-2026-10-09-sprint20.md gains its "Since version 3" section; earlier, 2026-10-27 (Sprint 21 AMENDED, not yet built: sprint-plan-2026-10-27-sprint21-amendment.md, adopted by the merge of its planning PR -- the fix batch of the 2026-10-12 security review (triage adopted by #1238; T-11's hotfix #1239 on main) joins Sprint 21 as Lane S and builds first, as the sprint PR; alpha and beta follow as stacked PR 1 and gamma with the close-out as stacked PR 2; seven items move between the plans (#1214, #1202, #1204, #1189 and #1218 into S; H53 into alpha9, H45 into gamma7); the Q design picks on the security boards; ADR-0042 amended 2026-10-27: the idea list (planning-artifacts/ideas.md) is the stage before the registry; earlier, 2026-10-09 (Sprint 21 PLANNED: sprint-plan-2026-10-09-sprint21.md, adopted by the merge of its planning PR, which SIGNS four risk-tier amendments dated 2026-10-09 -- ADR-0015 (#1198, #1199, #1196: a closed trade is in one currency, whatever booked its lots), ADR-0053 (#1188, #1193, #1194, #1205: what the parsers refuse and what the correction lists), ADR-0050 (#1195: the probe reads the dry run) and ADR-0051 (#928: a bond's coupon is its position's income) -- the money after the first import and the UI batch on nine boards, as one sprint PR (Lane M, alpha, beta) and one stacked PR (gamma and the close-out); earlier the same day, Sprint 20 CLOSED OUT, under ADR-0026's two-PR amendment of 2026-10-08: the sprint PR #1184 (Lane M, alpha, beta) rebase-merged, release 2026.10.13, and the stacked PR #1215 (gamma and this close-out) merges by rebase after it; every H issue closes, the four round trips pass, the build route is proven by CI's compose-smoke and the agent's launch test PASSES from source, and 84 open issues pass the fewer-than-100 criterion once #1215 merges; E26 stays in progress for the owner's announcement decision alone, launch-readiness-2026-10-09-sprint20.md is its input; earlier, 2026-10-07, Sprint 20 PLANNED: sprint-plan-2026-10-07-sprint20.md, adopted by the merge of its planning PR, which SIGNS three risk-tier amendments -- ADR-0053 (#1098 confirmed: the JSON import books a split-off negative tax twice; #1118), ADR-0015 (#1108, #1107: a cross-currency booking's fees and taxes are in the account's currency) and ADR-0050 (#904: the fail-closed probe; #973) -- and a decision pass that answers all 46 needs-decision issues, 27 of them not planned; three lane PRs, the numbers a switcher's import books, no screen lane; earlier the same day, Sprint 19 CLOSED OUT: alpha #1100, beta #1129 and gamma #1144 merged in order, releases 2026.10.10-2026.10.12; every H issue closed and the first-look test PASS; the agent's launch test PASSES on the from-source route and is not proven on the build route, which needs a Debian mirror this machine cannot reach; 132 open issues FAIL the fewer-than-100 criterion; E26 stays in progress, launch-readiness-2026-10-07-sprint19.md is the input; earlier, Sprint 19 PLANNED: sprint-plan-2026-10-04-sprint19.md, adopted by the merge of its planning PR, which SIGNS ADR-0053 (#1076, risk-tier: a PP CSV books its Gesamtpreis, the hash keeps reading Betrag, a separate correction) -- trust before the announcement in three lane PRs, four exit criteria including fewer than 100 open issues; earlier the same day, Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-11-01 (Sprint 21 CLOSED OUT, under the amendment's three PRs, none merged yet: the sprint PR #1296 (Lane M, Lane S), stacked PR 1 #1318 (alpha, beta) and stacked PR 2 (gamma and this close-out), each merged by the owner in order after the one below, by a fast-forward because each passes GitHub's 100-commit rebase limit; the four amendments of 2026-10-09 built as signed, the security triage's 73 rows on #1296, H53 on #1318 and H45 on stacked PR 2; D-1's criteria 1 to 3 pass once the three merge and criterion 4 FAILS (187 open issues, about 111 after the merges, against fewer than 60, because the sprint filed 96); E26 stays in progress for the owner's announcement decision alone, and launch-readiness-2026-10-09-sprint20.md gains its "Since version 3" section; earlier, 2026-10-27 (Sprint 21 AMENDED, not yet built: sprint-plan-2026-10-27-sprint21-amendment.md, adopted by the merge of its planning PR -- the fix batch of the 2026-10-12 security review (triage adopted by #1238; T-11's hotfix #1239 on main) joins Sprint 21 as Lane S and builds first, as the sprint PR; alpha and beta follow as stacked PR 1 and gamma with the close-out as stacked PR 2; seven items move between the plans (#1214, #1202, #1204, #1189 and #1218 into S; H53 into alpha9, H45 into gamma7); the Q design picks on the security boards; ADR-0042 amended 2026-10-27: the idea list (planning-artifacts/ideas.md) is the stage before the registry; earlier, 2026-10-09 (Sprint 21 PLANNED: sprint-plan-2026-10-09-sprint21.md, adopted by the merge of its planning PR, which SIGNS four risk-tier amendments dated 2026-10-09 -- ADR-0015 (#1198, #1199, #1196: a closed trade is in one currency, whatever booked its lots), ADR-0053 (#1188, #1193, #1194, #1205: what the parsers refuse and what the correction lists), ADR-0050 (#1195: the probe reads the dry run) and ADR-0051 (#928: a bond's coupon is its position's income) -- the money after the first import and the UI batch on nine boards, as one sprint PR (Lane M, alpha, beta) and one stacked PR (gamma and the close-out); earlier the same day, Sprint 20 CLOSED OUT, under ADR-0026's two-PR amendment of 2026-10-08: the sprint PR #1184 (Lane M, alpha, beta) rebase-merged, release 2026.10.13, and the stacked PR #1215 (gamma and this close-out) merges by rebase after it; every H issue closes, the four round trips pass, the build route is proven by CI's compose-smoke and the agent's launch test PASSES from source, and 84 open issues pass the fewer-than-100 criterion once #1215 merges; E26 stays in progress for the owner's announcement decision alone, launch-readiness-2026-10-09-sprint20.md is its input; earlier, 2026-10-07, Sprint 20 PLANNED: sprint-plan-2026-10-07-sprint20.md, adopted by the merge of its planning PR, which SIGNS three risk-tier amendments -- ADR-0053 (#1098 confirmed: the JSON import books a split-off negative tax twice; #1118), ADR-0015 (#1108, #1107: a cross-currency booking's fees and taxes are in the account's currency) and ADR-0050 (#904: the fail-closed probe; #973) -- and a decision pass that answers all 46 needs-decision issues, 27 of them not planned; three lane PRs, the numbers a switcher's import books, no screen lane; earlier the same day, Sprint 19 CLOSED OUT: alpha #1100, beta #1129 and gamma #1144 merged in order, releases 2026.10.10-2026.10.12; every H issue closed and the first-look test PASS; the agent's launch test PASSES on the from-source route and is not proven on the build route, which needs a Debian mirror this machine cannot reach; 132 open issues FAIL the fewer-than-100 criterion; E26 stays in progress, launch-readiness-2026-10-07-sprint19.md is the input; earlier, Sprint 19 PLANNED: sprint-plan-2026-10-04-sprint19.md, adopted by the merge of its planning PR, which SIGNS ADR-0053 (#1076, risk-tier: a PP CSV books its Gesamtpreis, the hash keeps reading Betrag, a separate correction) -- trust before the announcement in three lane PRs, four exit criteria including fewer than 100 open issues; earlier the same day, Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -151,21 +151,24 @@ story_location: _bmad-output/implementation-artifacts
 #      passed the Overview, the securities pages, the history, Wealth and
 #      Accounts, and Classifications and Imports once their two blockers
 #      were fixed (a category's edit form, the pencil, closing on any
-#      patch, #1323; the picker's section closing on a re-render).
+#      patch, #1323; the picker's section closing on a re-render); a
+#      browser re-check of both screens and of board 08 confirmed the
+#      fixes and found one more, fixed on the branch (#1166: an answer
+#      from a row menu now gives the focus back to the menu's opener).
 #   4. Fewer than 60 open issues at the close-out: FAIL, at the filing
 #      step, not the closing step.
-#      - 186 open at this record, after this session's registry pass:
+#      - 187 open at this record, after this session's registry pass:
 #        agentic 140 (ten of them also needs-decision), needs-decision 11,
-#        tracking 6, needs-uat 2, and 37 filed by the closing acts without
+#        tracking 6, needs-uat 2, and 38 filed by the closing acts without
 #        a label yet.
-#      - 95 of them were filed since the amendment's planning merge
-#        (#1241-#1342, the two PRs aside): #1241 by its Lane Z; ten at the
+#      - 96 of them were filed since the amendment's planning merge
+#        (#1241-#1343, the two PRs aside): #1241 by its Lane Z; ten at the
 #        sprint branch's opening (#1242-#1251); 39 by Lane S's integration
-#        and closing act (#1252-#1295); 21 by #1318 (#1297-#1317); 24 by
-#        stacked PR 2 so far (#1319-#1342). Eight more came at Sprint 21's
+#        and closing act (#1252-#1295); 21 by #1318 (#1297-#1317); 25 by
+#        stacked PR 2 (#1319-#1343, the last by its closing act's re-check). Eight more came at Sprint 21's
 #        planning merge (#1219-#1226).
 #      - The keywords close 76 (14, 22 and about 40), which leaves about
-#        110 after the three merges.
+#        111 after the three merges.
 #      - D-1's arithmetic left 90 after the planning merge, closed 65 by
 #        keyword and allowed 34 filings; the amendment kept the threshold
 #        and expected S to file about ten. The integration and the closing
@@ -245,20 +248,20 @@ story_location: _bmad-output/implementation-artifacts
 # and left to the next lane: BMAD 6.12.4, OTP 27.3.4.19 and Debian
 # 20261027.
 #
-# FILED AND NOT BUILT (Scope Lock): the 95 above. Thirty-seven sit under
-# an area tracker (#416 8, #417 7, #418 1, #419 5, #420 16). Fifty-eight
+# FILED AND NOT BUILT (Scope Lock): the 96 above. Thirty-seven sit under
+# an area tracker (#416 8, #417 7, #418 1, #419 5, #420 16). Fifty-nine
 # have none at this record (#1278, #1284-#1295, #1297-#1317 and
-# #1319-#1342), and 37 of them have no label (#1301-#1342, #1318 and the
+# #1319-#1343), and 38 of them have no label (#1301-#1343, #1318 and the
 # four "Decide:" issues aside). This session's bulk writes were refused as
 # an external bulk write, so both are the owner's LANE Z ITEM AFTER THE
-# MERGES: agentic on the 37, and each of the 58 under its area tracker,
+# MERGES: agentic on the 38, and each of the 59 under its area tracker,
 # chosen by the surface the issue names:
 #   #416: 1287, 1290, 1292, 1297, 1298, 1299, 1300, 1303, 1304, 1305,
 #     1306, 1307, 1308, 1311, 1313, 1325, 1326, 1327, 1331, 1335, 1337;
 #   #417: 1278, 1284, 1285, 1288, 1315, 1323, 1324, 1328, 1329, 1333,
 #     1334;
 #   #418: 1293, 1309, 1310, 1316, 1317, 1320, 1321, 1322, 1332, 1336,
-#     1339, 1341;
+#     1339, 1341, 1343;
 #   #419: 1291, 1294, 1295, 1301;
 #   #420: 1286, 1289, 1302, 1312, 1314, 1319, 1330, 1338, 1340, 1342.
 #
@@ -301,14 +304,14 @@ story_location: _bmad-output/implementation-artifacts
 #   failed in the browser. Carry forward: every UI story's review takes a
 #   browser pass, not only the closing act's.
 # * FILING HELD; PARENTING AND LABELLING DID NOT. Every finding was filed
-#   as a thin pointer, but 58 of the 95 have no area parent and 37 no
+#   as a thin pointer, but 59 of the 96 have no area parent and 38 no
 #   label at this record; four "Decide:" filings lacked their label and,
 #   with two labelled ones, their recommended answer until the close-out's
 #   registry pass. Carry forward: the filing helper sets the parent and the label
 #   in the same call, and a closing act's filings are listed against the
 #   rule before the close-out.
 # * THE COUNT CRITERION MEASURED FILINGS. Criterion 4 failed because the
-#   sprint filed 95 issues, not because it closed too few (76). A count
+#   sprint filed 96 issues, not because it closed too few (76). A count
 #   threshold that a sprint's own findings can break rewards withholding
 #   them. Carry forward: the next plan weighs a count criterion against
 #   the filing rule before it adopts one.
