@@ -3517,7 +3517,11 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   keys, Home and End move the focus between them without checking one (a
   native radio group would check on each arrow, and a check is a pick that
   closes the picker), Space or Enter picks the focused card, and Enter
-  never submits the import form around them. **A decision row's candidates are its
+  never submits the import form around them. **An open picker is throwaway
+  state:** a reload or a language switch remounts the page from the parked
+  preview and mapping, so it closes every open picker and drops its query
+  and hits, while every choice made in one stays (it is part of the parked
+  mapping). **A decision row's candidates are its
   cards**, "+ Create new" after them, nothing preselected ("Decide…" is gone
   from the security rows), and "Search for another security…" / "Anderes
   Wertpapier suchen…" opens the same search under them for the rare case
