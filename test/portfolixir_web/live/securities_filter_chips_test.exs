@@ -307,4 +307,58 @@ defmodule PortfolixirWeb.SecuritiesFilterChipsTest do
 
     refute Floki.text(form) =~ "ist falsch"
   end
+
+  # User story (#1104, Sprint 21 γ2; board 02, pick N6 A; the γ closing act,
+  # DA1): As the operator switching the builder's column from a text field to
+  # a boolean one, I want the builder to show the boolean field's one "Value"
+  # select, so that it never reads "Wert" twice with an empty value input
+  # beside "Wert [ja]".
+  #
+  # Acceptance criteria:
+  # - The form posts the previous field's operator (`eq` for Name) with the
+  #   new field; an operator the new field does not offer falls back to that
+  #   field's default, so the value input is not rendered.
+  # - The form reads "Value" / "Wert" once, its select offers "yes" / "no"
+  #   ("ja" / "nein"), the first chosen; in English and in German.
+  test "switching the column from Name to Retired shows one Value select, no value input",
+       %{conn: conn} do
+    WorldFixtures.create_security!(name: "Active Equity", ticker: "ACT")
+
+    for {locale, value_word, yes_no} <- [
+          {"en", "Value", ["yes", "no"]},
+          {"de", "Wert", ["ja", "nein"]}
+        ] do
+      {:ok, view, _html} = live(conn, "/securities?locale=#{locale}")
+
+      view |> element("#more-filters-toggle") |> render_click()
+
+      view
+      |> element("#securities-filter-form")
+      |> render_change(%{"field" => "name", "operator" => "eq", "value" => ""})
+
+      view
+      |> element("#securities-filter-form")
+      |> render_change(%{"field" => "is_retired", "operator" => "eq", "value" => ""})
+
+      form = view |> element("#securities-filter-form") |> render() |> Floki.parse_fragment!()
+
+      assert [value_word] ==
+               form
+               |> Floki.find("label > span")
+               |> Enum.map(&String.trim(Floki.text(&1)))
+               |> Enum.filter(&(&1 == value_word))
+
+      assert Floki.find(form, "[name='value']") == []
+
+      assert yes_no ==
+               form
+               |> Floki.find("select[name='operator'] option")
+               |> Enum.map(&String.trim(Floki.text(&1)))
+
+      assert ["is_true"] ==
+               form
+               |> Floki.find("select[name='operator'] option[selected]")
+               |> Floki.attribute("value")
+    end
+  end
 end
