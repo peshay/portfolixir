@@ -1449,6 +1449,7 @@ defmodule PortfolixirWeb.LayoutView do
                   var control = event.submitter ||
                     target.closest("button, a[href], input, select, textarea, summary, [phx-click]");
                   if (!control) return;
+                  control = self.anchor(control);
                   self.lastAction = control;
                   if (self.answersShown(control)) self.trigger = control;
                 };
@@ -1492,6 +1493,16 @@ defmodule PortfolixirWeb.LayoutView do
               // stays the trigger, as the dialog's controls leave with it.
               answersShown: function (control) {
                 return this.shown !== null && !control.closest("dialog, [role='dialog']");
+              },
+              // A control inside a row menu leaves the page with its menu, so
+              // the menu's opener (the kebab `data-trigger` names, the
+              // PositionedMenu's markup) stands for it: the focus returns to
+              // the row, not to the page's fallback (the γ closing act's
+              // re-check, board 08).
+              anchor: function (control) {
+                var menu = control.closest("[role='menu'][data-trigger]");
+                var opener = menu && document.getElementById(menu.getAttribute("data-trigger"));
+                return opener || control;
               },
               // Pure: a result present now that differs from the one before
               // (none, a busy line, or another result) is a new answer.
