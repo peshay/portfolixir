@@ -2059,6 +2059,24 @@ Beispiel-Payloads für Konten:
   Verkauf in weder der Währung seines Wertpapiers noch der seines
   Verrechnungskontos antwortet 422 auf `currency_code` und nennt beide
   (Issue #1199).
+  Seit Issue #1310 unterscheidet ein unverfügbarer Trade seine beiden
+  Ursachen. `unavailable_reason` ist `"third_currency"`, wo der Verkauf
+  oder ein Lot, das er nennt, weder in der Währung des Wertpapiers noch in
+  der seines Kontos bepreist ist (eine vor Issue #1199 gespeicherte Zeile),
+  was kein Kurs behebt: Abhilfe ist, Währung oder Beträge der gespeicherten
+  Buchung zu korrigieren. Sonst ist er `"missing_settlement_leg"`, dessen
+  Abhilfe ein Kurs für das Datum des Lots ist oder der Gegenwert in der
+  Währung des Verkaufs auf der Buchung. Jeder Eintrag von
+  `lots_missing_leg` trägt seinen eigenen `reason`, einen der beiden, sodass
+  ein Trade, der ein Lot ohne Bein und ein Lot in einer dritten Währung
+  schließt, jedes benennt. Ist der Verkauf selbst in einer dritten Währung
+  bepreist, sind auch `proceeds`, `sell_fees` und `sell_taxes` `null`, denn
+  seine Gebühren stehen in der Währung seines Kontos, und keine Zahl unter
+  dem Währungscode des Verkaufs könnte sie nennen;
+  `annualized_return_reason` liest den Grund des Trades.
+  `GET /api/v1/realized_gains` zählt einen solchen Trade unter
+  `excluded.by_reason.third_currency`, getrennt von
+  `missing_settlement_leg` und `no_rate`.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,

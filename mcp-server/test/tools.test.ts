@@ -695,6 +695,13 @@ describe("Portfolixir MCP tools", () => {
     assert.match(update, /and the trade's currency/);
 
     assert.match(describe("portfolixir.securities.merge_preview"), /unavailable_trades/);
+
+    // #1310 (Sprint 22 R5): a third currency is a reason of its own, on the
+    // trade and on each lot, and a third-currency sale states no proceeds.
+    assert.match(trades, /third_currency/);
+    assert.match(trades, /each lot with its reason/);
+    assert.match(trades, /a sell's proceeds null too/);
+    assert.match(gains, /by_reason: no_rate, missing_settlement_leg, third_currency/);
   });
 
   // User story (#984 rescoped, Sprint 17 T1b; UX-DR25):
