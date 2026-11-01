@@ -41,8 +41,8 @@ Gemeinschaftskonto je doppelt zählt.
    Zeile zeigt ihre Bucket-Zugehörigkeiten als Chips.
    <!-- screenshot: accounts-depots-bucket-chips -->
 2. Klicke auf jeder ausschließlich eigenen Zeile den **+**-Chip (**Bucket
-   hinzufügen**), tippe `Meins` in das Feld **Neuer Tag** und klicke **Tag
-   anlegen**. Der Tag wird in einem Schritt erstellt und zugewiesen.
+   hinzufügen**), tippe `Meins` in das Feld **Neuer Bucket** und klicke
+   **Bucket anlegen**. Der Bucket wird in einem Schritt erstellt und zugewiesen.
 3. Markiere die Zeilen des Partners genauso mit einem neuen Tag
    `Partner`. Gemeinsame Konten bekommen **beide** Tags — Buckets sind freie,
    überlappende Etiketten, ein Gemeinschaftskonto darf `Meins` und `Partner`
@@ -83,7 +83,7 @@ Brokern und braucht eine eigene Zielallokation samt Drift-Verfolgung —
 unabhängig von allem anderen im Bestand.
 
 1. Markiere auf **Konten & Depots** jedes Depot der Strategie mit einem neuen
-   Tag `Altersvorsorge` (der **+**-Chip → **Neuer Tag** → **Tag anlegen**),
+   Tag `Altersvorsorge` (der **+**-Chip → **Neuer Bucket** → **Bucket anlegen**),
    egal bei welchem Broker es liegt.
 2. Lege auf **Ansichten** eine Ansicht `Altersvorsorge` an, die den Bucket
    `Altersvorsorge` einbezieht (Schritte 4–5 oben).

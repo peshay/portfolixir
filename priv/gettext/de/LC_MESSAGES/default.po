@@ -3390,7 +3390,7 @@ msgstr "Depot & Konto anlegen"
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:908
 #, elixir-autogen, elixir-format
 msgid "Create tag"
-msgstr "Tag anlegen"
+msgstr "Bucket anlegen"
 
 #: lib/portfolixir_web/components/view_switcher.ex:91
 #, elixir-autogen, elixir-format
@@ -3441,7 +3441,7 @@ msgstr "Neues Depot mit Verrechnungskonto"
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:906
 #, elixir-autogen, elixir-format
 msgid "New tag"
-msgstr "Neuer Tag"
+msgstr "Neuer Bucket"
 
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:192
 #, elixir-autogen, elixir-format
@@ -3624,7 +3624,7 @@ msgstr "Getrennt taggen"
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:168
 #, elixir-autogen, elixir-format
 msgid "Tags apply to depot & cash"
-msgstr "Tags gelten für Depot & Verrechnungskonto"
+msgstr "Buckets gelten für Depot & Verrechnungskonto"
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:236
 #, elixir-autogen, elixir-format

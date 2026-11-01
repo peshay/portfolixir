@@ -802,7 +802,7 @@ vollständige Menge. Lange Namen (etwa ein langer
 Bucket-Tag, beim Import vergeben) werden gekürzt; der volle Name erscheint beim
 Überfahren des Chips. Die Chips sind die Gruppierungs-UI: das **+** öffnet
 ein kleines Picker-Popover mit den übrigen Buckets plus einem Inline-Feld
-**Neuer Tag**, das einen Tag in einem Schritt anlegt und zuweist, und das
+**Neuer Bucket**, das einen Bucket in einem Schritt anlegt und zuweist, und das
 **×** auf einem Chip entfernt die Zugehörigkeit. Auf einem Touchscreen
 sind **×** und **+** 44-Pixel-Ziele (#1085). Änderungen an einer
 zusammengeführten Gruppe gelten für Depot und Verrechnungskonto gemeinsam.
