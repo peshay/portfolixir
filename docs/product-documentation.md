@@ -3095,6 +3095,12 @@ confirm. These rows are left out the same way, each named with its row:
   Before, such a row previewed clean and the confirm then refused the whole
   file. An interest payment, a fee or a tax books with or without a
   security.
+- **A JSON row that moves cash with a negative `amount`** (issue #1307):
+  Portfolio Performance writes the amount without its sign, and the kind
+  carries it. *removal with a negative amount (-10.00): give the magnitude;
+  the kind carries the sign — row not imported*, each kind in its own words.
+  Write `10.00` and drop the file again. It is named before the reasons
+  above.
 - **A JSON row whose `time` the parser cannot read** (issue #1306): *unreadable
   time “9:15 AM”: use HH:MM or HH:MM:SS — row not imported*. The time of day
   is part of what tells two bookings apart, so a time read as none would let
