@@ -242,7 +242,52 @@ defmodule Portfolixir.WorkflowDocsTest do
 
     # #321's working agreement, preserved before the issue is closed by hand.
     assert File.read!("docs/development/sprint-workflow.md") =~ "One topic = one issue"
-    assert File.read!("AGENTS.md") =~ "file a new issue immediately"
+    # The duty to record at once survives ADR-0026's amendment of 2026-11-01,
+    # which decides by severity where a finding is recorded, never whether.
+    assert File.read!("AGENTS.md") =~ "Record a defect found on the way at once"
+  end
+
+  # User story (idea I14, the Sprint 22 planning PR):
+  # As the owner, I want every review finding to carry a severity and a
+  # closing act to review its diff, so that a sprint's own reviews stop
+  # growing the backlog faster than the sprint closes it, while no defect
+  # that matters goes unrecorded.
+  #
+  # Acceptance criteria (ADR-0026, amendment of 2026-11-01):
+  # - ADR-0026 carries the dated amendment, and the decision index names it;
+  # - the sprint workflow defines S1, S2 and S3, bounds a lens to five
+  #   findings, keeps "Nothing is withheld" and names the per-screen polish
+  #   list as a `tracking` issue;
+  # - AGENTS.md's "Stay in scope" records a finding by its severity and
+  #   cites the amendment.
+  test "a finding carries a severity, and a closing act reviews its diff" do
+    adr = File.read!("docs/decisions/0026-epic-batch-workflow.md")
+
+    assert adr =~
+             "## Amendment: a closing act reviews its diff, and every finding carries a severity (2026-11-01"
+
+    assert File.read!("docs/decisions/index.md") =~ "severity amendment 2026-11-01"
+
+    workflow =
+      "docs/development/sprint-workflow.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+
+    for phrase <- [
+          "A closing act reviews its diff and what the diff changes.",
+          "reports at most five findings, ranked by severity",
+          "**S1** (a figure, booking, stored record or derivation can be wrong;",
+          "**S2** (a defect the operator or the agent meets in normal use:",
+          "**S3** (polish:",
+          "Nothing is withheld to make a count.",
+          "A polish list is one `tracking` issue per screen",
+          "The close-out counts the regressions the sprint introduced"
+        ] do
+      assert workflow =~ phrase, "the sprint workflow does not say: #{phrase}"
+    end
+
+    agents = "AGENTS.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+    assert agents =~ "by its severity"
+    assert agents =~ "polish list"
+    assert agents =~ "ADR-0026, amendment of 2026-11-01"
   end
 
   # Acceptance criteria (ADR-0042, amendment of 2026-10-27):
