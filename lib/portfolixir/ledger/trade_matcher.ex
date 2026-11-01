@@ -36,9 +36,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   sell's own figures, `nil` for every figure derived from the lots, its
   `unavailable_reason` and `lots_missing_leg` (each such lot's open date,
   booking currency and `reason`; a third-currency sell names every lot it
-  closes). The reason is `:third_currency` where the sell or a lot it names
-  is priced in a third currency, which no rate fixes, else
-  `:missing_settlement_leg` (#1310). A third-currency sell's `proceeds`,
+  closes). The reason is, first match wins: `:third_currency` where the sell
+  or a lot it names is priced in a third currency; `:other_account_currency`
+  where a lot was paid through an account in neither the security's currency
+  nor the sale's, so no leg of it can be in the sale's currency; `:zero_amount`
+  where a lot of zero amount lacks its leg, which the rate backfill does not
+  complete; else `:missing_settlement_leg`, which a rate for the lot's date
+  fixes (#1310, #1311). A third-currency sell's `proceeds`,
   `sell_fees` and `sell_taxes` are `nil` too: its fees are in its account's
   currency, under its price's code no figure. A trade whose sell and lots
   share one currency, not a third, computes exactly as before (point 4); its
@@ -66,6 +70,10 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   """
 
   alias Portfolixir.Ledger.Projection
+
+  # A trade's reason is its lots' first in this order: a cause no rate
+  # fixes comes before one a rate does (#1310, #1311).
+  @reason_order [:third_currency, :other_account_currency, :zero_amount, :missing_settlement_leg]
 
   @type tx :: %{
           required(:type) => String.t(),
@@ -138,6 +146,8 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       legs: Map.get(tx, :legs, %{}),
       # Point 3: a lot priced in a third currency enters no closed trade.
       third_currency: Map.get(tx, :third_currency, false),
+      # #1310: the security's currency, the other end of the lot's own legs.
+      security_currency: Map.get(tx, :security_currency),
       # The note of 2026-10-31: the currency of the cash the lot's buy moved.
       cash_currency: Map.get(tx, :cash_currency),
       # The portfolio that bought the lot; a split scales the lot whatever
@@ -298,7 +308,24 @@ defmodule Portfolixir.Ledger.TradeMatcher do
         {:ok, %{lot | buy_price: price, buy_fees: fees, buy_taxes: taxes}}
 
       _no_leg ->
-        {:missing, :missing_settlement_leg, lot}
+        {:missing, missing_reason(lot, currency), lot}
+    end
+  end
+
+  # Why a lot has no leg in the sale's currency (#1310, #1311). Its own legs
+  # reach only the security's currency and its account's: a sale in neither
+  # is a currency no stored leg of the lot can ever bridge, whatever rate is
+  # stored (:other_account_currency). A lot of zero amount (a free
+  # allotment) is one the rate backfill does not complete (:zero_amount).
+  # Otherwise the leg could be stored, from a rate for the lot's date or by
+  # hand (:missing_settlement_leg).
+  defp missing_reason(lot, currency) do
+    reachable = Enum.filter([lot.security_currency, lot.cash_currency], &is_binary/1)
+
+    cond do
+      length(reachable) == 2 and currency not in reachable -> :other_account_currency
+      Decimal.equal?(lot.buy_price, 0) -> :zero_amount
+      true -> :missing_settlement_leg
     end
   end
 
@@ -370,10 +397,8 @@ defmodule Portfolixir.Ledger.TradeMatcher do
         {fees, taxes, proceeds(total_qty, tx.price, fees, taxes)}
       end
 
-    reason =
-      if Enum.any?(missing, &match?({:missing, :third_currency, _lot}, &1)),
-        do: :third_currency,
-        else: :missing_settlement_leg
+    reasons = Enum.map(missing, fn {:missing, lot_reason, _lot} -> lot_reason end)
+    reason = Enum.find(@reason_order, &(&1 in reasons))
 
     %{
       open_date: List.first(consumed).open_date,

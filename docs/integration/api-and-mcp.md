@@ -1924,6 +1924,18 @@ Example account payloads:
   `GET /api/v1/realized_gains` counts such a trade under
   `excluded.by_reason.third_currency`, apart from
   `missing_settlement_leg` and `no_rate`.
+  Two more causes no rate fixes have values of their own, each on the
+  trade, on the lot and under `excluded.by_reason`:
+  `"other_account_currency"` where a lot was paid through an account in
+  neither the security's currency nor the sale's, so none of its legs can
+  ever be in the sale's currency (a dollar share bought through a dollar
+  account and sold through a euro account; the backfill gives the sale its
+  legs, and the trade stays unavailable; remedy: correct the stored
+  bookings' currency or amounts), and `"zero_amount"` where a lot of zero
+  amount, a free allotment, lacks its leg, which the rate backfill does not
+  complete (issue #1311; remedy: enter the figures on the booking by hand).
+  A trade's reason is the first its lots name of `third_currency`,
+  `other_account_currency`, `zero_amount` and `missing_settlement_leg`.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,

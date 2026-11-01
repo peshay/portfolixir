@@ -405,6 +405,44 @@ defmodule PortfolixirWeb.IncomeLive do
                     securities: &1
                   )
                 ) %></span>
+                <%!-- #1310: a buy paid in a currency no leg bridges, which no rate fixes. --%>
+                <span
+                  :if={@realized.excluded.by_reason.other_account_currency.count > 0}
+                  data-role="realized-excluded-other-account"
+                ><%= StoredText.ending_on(
+                  Enum.join(@realized.excluded.by_reason.other_account_currency.securities, ", "),
+                  &ngettext(
+                    "%{count} sale is not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — and is excluded from every total: %{securities}.",
+                    "%{count} sales are not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — and are excluded from every total: %{securities}.",
+                    @realized.excluded.by_reason.other_account_currency.count,
+                    securities: &1
+                  ),
+                  &ngettext(
+                    "%{count} sale is not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — and is excluded from every total: %{securities}",
+                    "%{count} sales are not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — and are excluded from every total: %{securities}",
+                    @realized.excluded.by_reason.other_account_currency.count,
+                    securities: &1
+                  )
+                ) %></span>
+                <%!-- #1311: a buy of zero amount, which the rate backfill does not complete. --%>
+                <span
+                  :if={@realized.excluded.by_reason.zero_amount.count > 0}
+                  data-role="realized-excluded-zero-amount"
+                ><%= StoredText.ending_on(
+                  Enum.join(@realized.excluded.by_reason.zero_amount.securities, ", "),
+                  &ngettext(
+                    "%{count} sale is not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — and is excluded from every total: %{securities}.",
+                    "%{count} sales are not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — and are excluded from every total: %{securities}.",
+                    @realized.excluded.by_reason.zero_amount.count,
+                    securities: &1
+                  ),
+                  &ngettext(
+                    "%{count} sale is not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — and is excluded from every total: %{securities}",
+                    "%{count} sales are not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — and are excluded from every total: %{securities}",
+                    @realized.excluded.by_reason.zero_amount.count,
+                    securities: &1
+                  )
+                ) %></span>
                 <.fx_backfill_control
                   backfilling={@fx_backfilling}
                   result={@fx_backfill_result}

@@ -739,6 +739,44 @@ defmodule PortfolixirWeb.DashboardLive do
                 securities: &1
               )
             ) %></span>
+            <%!-- #1310: a buy paid in a currency no leg bridges; no backfill pointer. --%>
+            <span
+              :if={@card.excluded.by_reason.other_account_currency.count > 0}
+              data-role="trades-card-excluded-other-account"
+            ><%= StoredText.ending_on(
+              Enum.join(@card.excluded.by_reason.other_account_currency.securities, ", "),
+              &ngettext(
+                "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}.",
+                "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}.",
+                @card.excluded.by_reason.other_account_currency.count,
+                securities: &1
+              ),
+              &ngettext(
+                "%{count} sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: %{securities}",
+                "%{count} sales not convertible — a buy each closes was paid in another currency than its sale's, which no stored figure bridges — are left out of the trades: %{securities}",
+                @card.excluded.by_reason.other_account_currency.count,
+                securities: &1
+              )
+            ) %></span>
+            <%!-- #1311: a buy of zero amount; no backfill pointer. --%>
+            <span
+              :if={@card.excluded.by_reason.zero_amount.count > 0}
+              data-role="trades-card-excluded-zero-amount"
+            ><%= StoredText.ending_on(
+              Enum.join(@card.excluded.by_reason.zero_amount.securities, ", "),
+              &ngettext(
+                "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}.",
+                "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}.",
+                @card.excluded.by_reason.zero_amount.count,
+                securities: &1
+              ),
+              &ngettext(
+                "%{count} sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: %{securities}",
+                "%{count} sales not convertible — a buy each closes has an amount of zero, which the rate backfill does not complete — are left out of the trades: %{securities}",
+                @card.excluded.by_reason.zero_amount.count,
+                securities: &1
+              )
+            ) %></span>
           </AppShell.data_note>
           <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
             <%!-- Counts what the card shows: five at most (closing act γ n3).

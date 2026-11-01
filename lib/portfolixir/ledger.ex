@@ -1029,6 +1029,10 @@ defmodule Portfolixir.Ledger do
       # its account's currency and no leg converts them into its price's, so
       # a closed trade it is part of is unavailable.
       third_currency: third_currency?(tx, security_currency),
+      # #1310: the security's currency, so a lot that lacks the leg a sale
+      # needs can be told apart: a leg in the sale's currency could be stored
+      # (the security's or the lot's account's), or none ever can.
+      security_currency: security_currency,
       # The ADR-0015 amendment's note of 2026-10-31 (#1198): the currency of
       # the cash the row moved, so a closed trade whose lots are booked in
       # another currency than its sell can also be read in it, the cash its
@@ -1195,11 +1199,17 @@ defmodule Portfolixir.Ledger do
       "such lot by its open_date, currency_code and reason (a sell priced in a third " <>
       "currency names every lot it closes), the sell's own figures stay (quantity, dates, " <>
       "avg_sell_price, sell_fees, sell_taxes, proceeds), every figure derived from the lots " <>
-      "is null, and the trade is in no total. unavailable_reason is third_currency where " <>
-      "the sell or a lot it names is priced in neither the security's currency nor its " <>
-      "cash account's, a row stored before that was refused, which no rate fixes (correct " <>
-      "the stored booking's currency or amounts), else missing_settlement_leg (a rate for " <>
-      "the lot's date, or the figure in the sell's currency on the booking); where the " <>
+      "is null, and the trade is in no total. unavailable_reason is the first of these " <>
+      "its lots name: third_currency where the sell or a lot is priced in neither the " <>
+      "security's currency nor its cash account's, a row stored before that was refused " <>
+      "(correct the stored booking's currency or amounts); other_account_currency where a " <>
+      "lot was paid through an account in neither the security's currency nor the sell's, " <>
+      "so no leg of it can be in the sell's currency (correct the stored bookings' " <>
+      "currency or amounts); zero_amount where a lot of zero amount, a free allotment, " <>
+      "lacks its leg, which the rate backfill does not complete (enter the figures by " <>
+      "hand); else missing_settlement_leg (a rate for the lot's date, or the figure in " <>
+      "the sell's currency on the booking). None of the first three is fixed by a rate. " <>
+      "Where the " <>
       "sell itself is priced in a third currency, proceeds, sell_fees and sell_taxes are " <>
       "null too, its fees being in its account's currency. " <>
       "A trade whose sell and lots are booked in one currency, not a third, reads them as " <>
@@ -1220,7 +1230,7 @@ defmodule Portfolixir.Ledger do
     "realized_pnl_pct is realized_pnl_abs / basis, a fraction (0.1 = 10 %) in the trade's " <>
       "currency_code, for every trade: each lot it closes enters in that currency " <>
       "(fees_and_taxes), and it is null where the trade is unavailable " <>
-      "(missing_settlement_leg, third_currency). It is null, never 0, where basis is 0, a buy " <>
+      "(unavailable_reason). It is null, never 0, where basis is 0, a buy " <>
       "booked at a price of 0 " <>
       "with no fees or taxes (a bonus or free share): a return on no cost is undefined, and " <>
       "0 would read as a flat trade. realized_pnl_abs still states the result, and " <>

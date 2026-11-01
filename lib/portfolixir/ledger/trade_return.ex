@@ -46,6 +46,8 @@ defmodule Portfolixir.Ledger.TradeReturn do
   @type reason ::
           :missing_settlement_leg
           | :third_currency
+          | :other_account_currency
+          | :zero_amount
           | :no_cost_basis
           | :holding_period_under_365_days
           | IRR.reason()
@@ -69,8 +71,9 @@ defmodule Portfolixir.Ledger.TradeReturn do
 
   # #1310: a trade unavailable because its sell or a lot is priced in a
   # third currency has no cost to annualize either, for its own reason.
-  def annualized(%{unavailable_reason: :third_currency}, _opts),
-    do: none(:third_currency)
+  def annualized(%{unavailable_reason: reason}, _opts)
+      when reason in [:third_currency, :other_account_currency, :zero_amount],
+      do: none(reason)
 
   # #1142: no cost, nothing to annualize — the first reason, before the
   # holding period's and the solver's.
@@ -112,9 +115,9 @@ defmodule Portfolixir.Ledger.TradeReturn do
       "reason when no rate solves the flows: no_sign_change (proceeds or cost not positive, " <>
       "a total loss among them), no_root (no convergence inside the solver's budget) or " <>
       "amount_out_of_range. It is null with missing_settlement_leg where the closed trade is " <>
-      "unavailable, a lot it closes having no leg in its sell's currency, and with " <>
-      "third_currency where the sell or a lot it closes is priced in neither the " <>
-      "security's currency nor its account's (fees_and_taxes). " <>
+      "unavailable, a lot it closes having no leg in its sell's currency, and with the " <>
+      "trade's own reason where that is third_currency, other_account_currency or " <>
+      "zero_amount (fees_and_taxes). " <>
       "Dividends and interest are not flows: income received while the trade was open is " <>
       "not included."
   end

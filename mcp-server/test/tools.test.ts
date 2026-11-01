@@ -701,7 +701,8 @@ describe("Portfolixir MCP tools", () => {
     assert.match(trades, /third_currency/);
     assert.match(trades, /each lot with its reason/);
     assert.match(trades, /a sell's proceeds null too/);
-    assert.match(gains, /by_reason: no_rate, missing_settlement_leg, third_currency/);
+    assert.match(gains, /by_reason: no_rate, missing_settlement_leg, third_currency, other_account_currency, zero_amount/);
+    assert.match(trades, /other_account_currency or zero_amount/);
   });
 
   // User story (#984 rescoped, Sprint 17 T1b; UX-DR25):

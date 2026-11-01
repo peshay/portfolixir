@@ -576,6 +576,130 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     end
   end
 
+  # User story (#1310 and #1311, Sprint 22 R5):
+  # As the operator whose closed trade is unavailable for a cause no rate
+  # fixes, a buy paid through an account in another currency than the
+  # sale's, or a buy of zero amount the rate backfill does not complete,
+  # I want the note to name that buy and the remedy that fits,
+  # so that I am not sent to a rate backfill that changes nothing.
+  #
+  # Acceptance criteria:
+  # - A buy of 10 Dollar Fund at 100 USD through a dollar account, sold by
+  #   import at 96.00 EUR through the euro account (legs 960.00 EUR,
+  #   1,200.00 USD, 0.800000): "1 trade not convertible: the buy of
+  #   2025-04-01 was paid in another currency than the sale's (EUR), and
+  #   none of its stored figures can be in EUR; the trade's cost and result
+  #   are missing, and it counts in no total. Remedy: correct the stored
+  #   bookings' currency or amounts."; the cells' title "Not convertible: a
+  #   buy paid in another currency than EUR, the sale's"; no backfill named.
+  # - A free allotment, an import-form buy of 5 at 0.00 EUR without legs,
+  #   sold by hand at 120 USD (settled 480.00 EUR): "1 trade not convertible:
+  #   the buy of 2025-04-01 has an amount of zero and no figure in USD, the
+  #   sale's currency, which the rate backfill does not complete; the
+  #   trade's cost and result are missing, and it counts in no total.
+  #   Remedy: enter the buy's figures in USD on the booking by hand."; the
+  #   title "Not convertible: a buy of zero amount has no figure in USD";
+  #   no backfill named. In German "… Abhilfe: die Beträge des Kaufs in USD
+  #   von Hand auf der Buchung erfassen.".
+  # Before: both read "… has no figure in … Remedy: a rate for 2025-04-01 —
+  # “Backfill historical rates” …".
+  test "a buy paid in another currency, or of zero amount, names a remedy no rate is", %{
+    conn: conn
+  } do
+    {world, _swiss, fund} = third_currency_world!()
+    dollar = Map.merge(world, WorldFixtures.add_depot(world.portfolio, cash_currency: "USD"))
+
+    WorldFixtures.buy!(dollar, fund,
+      quantity: "10",
+      price: "100",
+      currency: "USD",
+      date: ~D[2025-04-01]
+    )
+
+    {:ok, _sale} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: fund.id,
+        type: "sell",
+        date: ~D[2025-05-02],
+        quantity: "10",
+        price: "96",
+        fees: "0",
+        taxes: "0",
+        currency_code: "EUR",
+        security_amount: "1200",
+        settlement_amount: "960",
+        settlement_fx_rate: "0.8",
+        gross_amount: "960"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{fund.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: the buy of 2025-04-01 was paid in another currency than the sale's (EUR), and none of its stored figures can be in EUR; the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored bookings' currency or amounts."
+
+    refute note =~ "backfill"
+
+    row = view |> element("#detail-closed-trades-table tbody tr") |> render()
+
+    for dash <- row |> Floki.parse_fragment!() |> Floki.find("td[data-role=trade-unconvertible]") do
+      assert Floki.attribute(dash, "title") == [
+               "Not convertible: a buy paid in another currency than EUR, the sale's"
+             ]
+    end
+
+    allotted =
+      WorldFixtures.create_security!(name: "Allotted Fund", ticker: "ALF", currency: "USD")
+
+    {:ok, _allotment} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: allotted.id,
+        type: "buy",
+        date: ~D[2025-04-01],
+        quantity: "5",
+        price: "0",
+        currency_code: "EUR"
+      })
+
+    WorldFixtures.cross_trade!(world, allotted,
+      type: "sell",
+      quantity: "5",
+      price: "120",
+      settled: "480.00",
+      gross: "480.00",
+      date: ~D[2025-05-02]
+    )
+
+    {:ok, view, _html} = live(conn, "/securities/#{allotted.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: the buy of 2025-04-01 has an amount of zero and no figure in USD, the sale's currency, which the rate backfill does not complete; the trade's cost and result are missing, and it counts in no total. Remedy: enter the buy's figures in USD on the booking by hand."
+
+    refute note =~ "backfill historical"
+    refute note =~ "Backfill"
+
+    row = view |> element("#detail-closed-trades-table tbody tr") |> render()
+
+    for dash <- row |> Floki.parse_fragment!() |> Floki.find("td[data-role=trade-unconvertible]") do
+      assert Floki.attribute(dash, "title") == [
+               "Not convertible: a buy of zero amount has no figure in USD"
+             ]
+    end
+
+    {:ok, de_view, _html} = live(conn, "/securities/#{allotted.id}?tab=trades&locale=de")
+    de_note = de_view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert de_note =~
+             "Abhilfe: die Beträge des Kaufs in USD von Hand auf der Buchung erfassen."
+  end
+
   # Legless buys of 5 Arbolia at 80.00 EUR on each of `dates` and one sale
   # of 10 at 120 USD, settled 960.00 EUR, that closes them.
   defp two_legless_lots!(dates) do
@@ -763,5 +887,104 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
              "1 sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: Dollar Fund."
 
     refute card_note =~ "backfill"
+  end
+
+  # User story (#1310 and #1311, Sprint 22 R5; the aggregates):
+  # As the operator reading the Trades facet and the Overview card,
+  # I want a sale left out because a buy it closes was paid in a currency no
+  # leg bridges, or has an amount of zero, named in a sentence of its own,
+  # so that I am not pointed to a rate backfill that changes nothing.
+  #
+  # Acceptance criteria:
+  # - A dollar-account buy sold through the euro account (Dollar Fund) and a
+  #   free allotment sold by hand (Allotted Fund): the facet's note says "1
+  #   sale is not convertible — a buy it closes was paid in another currency
+  #   than the sale's, which no stored figure bridges — and is excluded from
+  #   every total: Dollar Fund." and "1 sale is not convertible — a buy it
+  #   closes has an amount of zero, which the rate backfill does not
+  #   complete — and is excluded from every total: Allotted Fund.", and no
+  #   missing-leg sentence; the card says both with "is left out of the
+  #   trades", and no backfill pointer.
+  test "the facet and the card name a bridgeless and a zero-amount sale apart", %{conn: conn} do
+    {world, _swiss, fund} = third_currency_world!()
+    dollar = Map.merge(world, WorldFixtures.add_depot(world.portfolio, cash_currency: "USD"))
+
+    WorldFixtures.buy!(dollar, fund,
+      quantity: "10",
+      price: "100",
+      currency: "USD",
+      date: ~D[2025-04-01]
+    )
+
+    {:ok, _sale} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: fund.id,
+        type: "sell",
+        date: ~D[2025-05-02],
+        quantity: "10",
+        price: "96",
+        currency_code: "EUR",
+        security_amount: "1200",
+        settlement_amount: "960",
+        settlement_fx_rate: "0.8",
+        gross_amount: "960"
+      })
+
+    allotted =
+      WorldFixtures.create_security!(name: "Allotted Fund", ticker: "ALF", currency: "USD")
+
+    {:ok, _allotment} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: allotted.id,
+        type: "buy",
+        date: ~D[2025-04-01],
+        quantity: "5",
+        price: "0",
+        currency_code: "EUR"
+      })
+
+    WorldFixtures.cross_trade!(world, allotted,
+      type: "sell",
+      quantity: "5",
+      price: "120",
+      settled: "480.00",
+      gross: "480.00",
+      date: ~D[2025-05-02]
+    )
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+    note = view |> element("#realized-excluded") |> render() |> text()
+
+    assert note =~
+             "1 sale is not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — and is excluded from every total: Dollar Fund."
+
+    assert note =~
+             "1 sale is not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — and is excluded from every total: Allotted Fund."
+
+    refute has_element?(view, "[data-role=realized-excluded-missing-leg]")
+
+    {:ok, card, _html} = live(conn, "/")
+    render_async(card)
+
+    card_note =
+      card
+      |> element("#dashboard-trades [data-role='trades-card-excluded']")
+      |> render()
+      |> text()
+
+    assert card_note =~
+             "1 sale not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — is left out of the trades: Dollar Fund."
+
+    assert card_note =~
+             "1 sale not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — is left out of the trades: Allotted Fund."
+
+    refute card_note =~ "backfill is under"
   end
 end
