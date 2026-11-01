@@ -99,12 +99,49 @@ complete ([ADR-0026, amendment of 2026-10-08](../decisions/0026-epic-batch-workf
   PRs did, and visual drift passed every review until a role looked for it
   ([ADR-0026](../decisions/0026-epic-batch-workflow.html) step 3;
   [ADR-0038](../decisions/0038-continuous-feedback-and-design-authority.html)).
+- **A closing act reviews its diff and what the diff changes.** Each lens
+  reports at most five findings, ranked by severity (below); a re-check
+  verifies the fixes and files nothing new unless it finds an S1. An audit
+  of older code is a lane a plan schedules, with its scope and budget.
+  *Why:* the lenses read everything around the diff, so every sprint
+  audited the code it passed, with no budget and no end; of Sprint 21's 86
+  open filings, 30 said outright that they predate the sprint
+  ([ADR-0026, amendment of 2026-11-01](../decisions/0026-epic-batch-workflow.html)).
 - **A finding on a surface the PR already changes, small and with its answer
-  in the spec, is fixed on the branch.** One off the PR's surface, or one
-  that needs a choice, is filed. Nothing is withheld to make a count.
+  in the spec, is fixed on the branch**, at any severity. Off the PR's
+  surface, the severity decides where it is recorded, never whether:
+  - **S1** (a figure, booking, stored record or derivation can be wrong; a
+    security boundary can be crossed; a gate silently checks nothing):
+    filed as an issue at once, older than the sprint included;
+  - **S2** (a defect the operator or the agent meets in normal use: a crash,
+    a flow that cannot be completed, a figure contradicted between two
+    surfaces, an API answer that misleads, a flaky test): filed as an issue
+    when the diff's code reaches it, otherwise a line on its screen's polish
+    list;
+  - **S3** (polish: wording, formatting, spacing, focus, layout at some
+    widths, an accessibility refinement that blocks no task, dead code): a
+    line on its screen's polish list.
+
+  One that needs a choice is filed with its recommended answer. Nothing is
+  withheld to make a count.
   *Why:* "confirmed findings fixed on the branch" is the closing act's
   point, and filing what the PR could fix grew the backlog by 51 in Sprint 18
-  (Sprint 19 plan D-14).
+  (Sprint 19 plan D-14); filing every finding as its own story made Sprint
+  21 file 96 and close 76, while the same reviews found the defects that
+  mattered (#1291, #1269, #1292) (ADR-0026, amendment of 2026-11-01).
+- **A polish list is one `tracking` issue per screen** ("Polish: <screen>"),
+  a checklist with one line per finding and its source. A story that
+  touches the screen fixes the list's lines on its branch; a planned polish
+  pass takes one screen at a time as one test-first story, one functional
+  test per screen pinning every line it fixes, written first and seen
+  failing for each line's reason. An S2 keeps a red test of its own.
+  *Why:* a closed record does not remove a defect, so polish is kept, but a
+  screen is read, tested and reviewed once instead of once per line
+  (ADR-0026, amendment of 2026-11-01).
+- **The close-out counts the regressions the sprint introduced** apart from
+  the older findings, and no exit criterion counts open issues. *Why:* a
+  count that a sprint's own honest filings can break rewards withholding
+  them (Sprint 21 retrospective).
 - **The reviewer briefing** says what is new, what changed, where to look and
   which trade-offs are deliberate, with screenshots for UI work.
   *Why:* the owner reviews behavior against the briefing, not lines
@@ -333,8 +370,10 @@ aspirational.
   unread place is a defect (ADR-0042, "Who reads what").
 - **One topic = one issue.** The issue plus the artifacts it points at are
   the complete specification; a session must not need context from earlier
-  sessions. Findings made while working are filed immediately, with their
-  area tracker as parent (#416–#420), after searching the open titles; an
+  sessions. Findings made while working are recorded immediately by their
+  severity (see "The closing act"): an issue with its area tracker as
+  parent (#416–#420), after searching the open titles, or a line on its
+  screen's polish list; an
   idea that is not yet worked out goes into the idea list instead (see
   "Ideas"). *Why:*
   a session's memory ends with it; an issue does not (#321's working
