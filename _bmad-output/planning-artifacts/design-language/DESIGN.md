@@ -711,6 +711,8 @@ Reference (non-normative, decorative): light `border` 1.23:1 and `border-strong`
 | warning #b45309 / warning-soft #fffbeb | 4.84 | pass | attention data note, light |
 | warning-dark #fbbf24 / warning-soft-dark composite #312b17 over bg-dark | 8.45 | pass | attention data note, dark |
 | warning-dark #fbbf24 / warning-soft-dark composite #383423 over bg-elevated-dark | 7.47 | pass | attention data note inside a panel, dark |
+| recomputing-cue in an attention note, warning #b45309 / warning-soft over bg-elevated | 4.84 | pass | the import correction's pending cue, light (2026-11-01, the γ closing act A-F7: the cue inherits the note's ink) |
+| recomputing-cue in an attention note, warning-dark #fbbf24 / warning-soft-dark over bg-elevated-dark | 7.47 | pass | the same, dark; text-muted-dark #8b97a8 measured 4.22 there |
 
 Three of these fail, and the failure is live in the build, not hypothetical: **`.button-primary` (app.css:1587-1591) and `.view-chip.is-active` (4771-4775) set literal `white` on `var(--color-accent)`, and `--color-accent` resolves to the `-dark` variant under `prefers-color-scheme: dark` and `[data-theme="dark"]` (app.css:73-101, 135-163).** In dark mode the primary button's label sits at 1.86–2.72:1 on its own fill. `.theme-choice.is-active` (684) and `.locale-link.is-active` (762) use `var(--color-on-accent)` and inherit the same failure.
 

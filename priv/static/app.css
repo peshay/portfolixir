@@ -6775,6 +6775,14 @@ button.income-bar-label.is-active {
   text-transform: none;
 }
 
+/* Inside a data note the cue takes the note's ink: the muted step measured
+   4.22:1 on the attention note's dark tint, the note's warning 7.47:1 (the
+   γ closing act's accessibility pass, A-F7; DESIGN.md's computed contrast
+   table). A note-severity note's ink is the muted step already. */
+.data-note .recomputing-cue {
+  color: inherit;
+}
+
 /* Settling (owner pick S1): digits dim to the muted step while the count
    runs; the 2px accent bar beneath reports the count's progress and never
    renders below 8px, so the not-final signal exists from the first frame.
