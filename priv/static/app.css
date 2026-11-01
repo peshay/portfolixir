@@ -8616,6 +8616,18 @@ select:disabled {
   text-decoration: underline;
   cursor: pointer;
 }
+/* One focus ring for the text-like controls (the γ closing act's
+   accessibility pass, A-F6): every link-button ("Anders zuordnen…", the
+   archived note's "Aktivieren"), every link inside a data note (the bond
+   links of the two-scales notes) and the search field, whose input sets
+   `outline: none` and so showed no focus at all; the field draws the ring
+   around its glyph and its input. The house's 2 px accent at 2 px. */
+.link-button:focus-visible,
+.data-note a:focus-visible,
+.search-field:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
 /* A remedy inside a data note keeps its place in the sentence and gains the
    44 px floor as its hit area under a coarse pointer (UX-DR6; Sprint 18 U4,
    board ux-design-2026-10-02/06-touch-focus, H6.1 pick A). The padding grows

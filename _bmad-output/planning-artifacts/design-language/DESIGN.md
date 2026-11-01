@@ -1141,7 +1141,10 @@ Note on the last two rows, both measured in the build.
 
 **Two further rules set `outline: none` unconditionally, not only on `:focus-visible`** — strictly worse, because the control then has no focus indicator in any state:
 
-- `.search-field input` (app.css:1389-1397);
+- `.search-field input` (app.css:1389-1397) — *amended 2026-11-01 (the γ
+  closing act, A-F6):* the field draws the 2 px accent ring on
+  `:focus-within`, around its glyph and its input; the input keeps
+  `outline: none`;
 - `.securities-detail-splitter` (app.css:2050-2058) — which carries `tabindex="0"` and `role="separator"` (`securities_live.ex:348-356`), so it is a keyboard-operable control with no visible focus at all, and whose only focus signal today is its handle turning accent-coloured, which is colour-only and fails UX-DR7 as well.
 
 **And four controls have no `:focus-visible` rule whatsoever** — `.segmented-control__option`, `.range-button`, `.chart-toggle`, `.period-buttons .button-mini` — falling back to the UA ring. Those four are exactly the classes {components.selected-segment} consolidates, so the aligned component arrives carrying the focus rule or the alignment story has silently made focus worse. *Amended 2026-10-07 (Sprint 19 PR γ U5, board `mockups/ux-design-2026-10-04/07-floor`):* `.range-button` draws the ring inset (`outline-offset: -2px`, its group clips) and `.chart-toggle` at the 2 px offset; so do the button family and `.icon-button` (Amendment 2026-10-07 — The touch, focus and colour floor, second pass). `.period-buttons .button-mini` still has none. `.area-tab` (app.css:4347-4350) and `.positions-toggle` (4376-4379) indicate focus by a text-colour change only, which is the same colour-only failure as the splitter.
@@ -4860,7 +4863,12 @@ U7, finding 5; board `ux-review-2026-10-03/04-bond-repairs` B4, measured
 follow-up: a remedy written as an `<a>` inside a note (the Overview's
 data-quality links) — issue 1013 names the button. Under a coarse pointer
 the keyboard focus ring of a remedy wraps the 44 px box; `.link-button` has
-no `:focus-visible` rule of its own (the pass's Scope Lock). The delete's
+no `:focus-visible` rule of its own (the pass's Scope Lock). *Amended
+2026-11-01 (the γ closing act, A-F6):* it has one now, shared with every
+link inside a data note and the search field (`.link-button:focus-visible,
+.data-note a:focus-visible, .search-field:focus-within`): the 2 px accent
+ring at a 2 px offset, so no link-button or note link falls back to the
+browser's `auto 1px`. The delete's
 remedies join the rule (U1's closing act R9, Amendment "Deleting a
 booking" below): `.form-help .link-button` (the notes-only drawer's
 "Löschen…") and `.alert-warning .link-button` / `.alert-error .link-button`
