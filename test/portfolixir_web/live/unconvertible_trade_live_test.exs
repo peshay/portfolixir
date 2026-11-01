@@ -514,6 +514,68 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
              "1 Trade ohne Umrechnung: Der Verkauf vom 02.05.2025 ist in einer Währung bepreist, die weder die des Wertpapiers noch die seines Kontos ist (CHF); Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: Währung oder Beträge der gespeicherten Buchung korrigieren."
   end
 
+  # User story (#1310, Sprint 22 R5; the ADR-0015 amendment of 2026-10-09,
+  # point 3):
+  # As the operator whose dollar sale closes a buy stored at a franc price
+  # through my euro account,
+  # I want the note to name the franc buy as the booking to correct, read off
+  # the trade's own reason,
+  # so that I am not sent to a rate backfill because the sale is in another
+  # currency than the buy.
+  #
+  # Acceptance criteria:
+  # - A stored buy of 10 Dollar Fund at 90 CHF through the EUR account,
+  #   sold by hand at 120 USD (settled 960.00 EUR, fee 3.00 EUR): the note
+  #   reads "1 trade not convertible: the buy of 2025-04-01 is priced in a
+  #   currency that is neither the security's nor its account's (CHF); …
+  #   Remedy: correct the stored booking's currency or amounts."; the cells'
+  #   title "Not convertible: a buy priced in CHF, neither the security's nor
+  #   its account's currency"; no backfill named. Before: "the buy of
+  #   2025-04-01 is booked in CHF and has no figure in USD … Remedy: a rate
+  #   for 2025-04-01".
+  test "a franc lot sold in dollars names the booking to correct, not a rate", %{conn: conn} do
+    {world, _swiss, fund} = third_currency_world!()
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1000"),
+      settlement_amount: Decimal.new("800"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("805")
+    })
+
+    WorldFixtures.cross_trade!(world, fund,
+      type: "sell",
+      quantity: "10",
+      price: "120",
+      settled: "960.00",
+      fees: "3.00",
+      gross: "957.00",
+      date: ~D[2025-05-02]
+    )
+
+    {:ok, view, _html} = live(conn, "/securities/#{fund.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: the buy of 2025-04-01 is priced in a currency that is neither the security's nor its account's (CHF); the trade's cost and result are missing, and it counts in no total. Remedy: correct the stored booking's currency or amounts."
+
+    refute note =~ "backfill"
+
+    row = view |> element("#detail-closed-trades-table tbody tr") |> render()
+
+    for dash <- row |> Floki.parse_fragment!() |> Floki.find("td[data-role=trade-unconvertible]") do
+      assert Floki.attribute(dash, "title") == [
+               "Not convertible: a buy priced in CHF, neither the security's nor its account's currency"
+             ]
+    end
+  end
+
   # Legless buys of 5 Arbolia at 80.00 EUR on each of `dates` and one sale
   # of 10 at 120 USD, settled 960.00 EUR, that closes them.
   defp two_legless_lots!(dates) do
@@ -624,5 +686,82 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
            |> render()
            |> text() =~
              "1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: Arbolia Inc."
+  end
+
+  # User story (#1310, Sprint 22 R5; the aggregates):
+  # As the operator reading the Trades facet and the Overview card,
+  # I want a sale left out because it or a buy it closes is priced in a
+  # third currency named in a sentence of its own,
+  # so that I am not told a buy lacks a figure a rate would give it.
+  #
+  # Acceptance criteria:
+  # - A buy of 10 Dollar Fund at 100 USD through the franc account and a
+  #   stored sale at 110 CHF through the euro account: the facet's note says
+  #   "1 sale is not convertible — it or a buy it closes is priced in a
+  #   currency that is neither the security's nor its account's — and is
+  #   excluded from every total: Dollar Fund." and no missing-leg sentence;
+  #   in German "1 Verkauf ist ohne Umrechnung — er oder ein Kauf, den er
+  #   schließt, ist weder in der Währung des Wertpapiers noch in der seines
+  #   Kontos bepreist — und aus jeder Summe ausgeschlossen: Dollar Fund.".
+  # - The card's note says "1 sale not convertible — it or a buy it closes
+  #   is priced in a currency that is neither the security's nor its
+  #   account's — is left out of the trades: Dollar Fund." with no backfill
+  #   pointer. Before: both notes empty of any sentence, the trade counted in
+  #   excluded.count alone.
+  test "the facet and the card name a third-currency sale apart", %{conn: conn} do
+    {world, swiss, fund} = third_currency_world!()
+
+    WorldFixtures.cross_trade!(swiss, fund,
+      type: "buy",
+      quantity: "10",
+      price: "100",
+      settled: "900.00",
+      fees: "2.00",
+      gross: "902.00",
+      date: ~D[2025-04-01]
+    )
+
+    stored_trade!(world, fund, %{
+      type: "sell",
+      date: ~D[2025-05-02],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("110"),
+      fees: Decimal.new("3"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1222.22"),
+      settlement_amount: Decimal.new("1100.00"),
+      settlement_fx_rate: Decimal.new("0.900000"),
+      gross_amount: Decimal.new("1097.00")
+    })
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+
+    note = view |> element("#realized-excluded") |> render() |> text()
+
+    assert note =~
+             "1 sale is not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — and is excluded from every total: Dollar Fund."
+
+    refute has_element?(view, "[data-role=realized-excluded-missing-leg]")
+
+    {:ok, de_view, _html} = live(conn, "/cashflow?tab=realized&locale=de")
+    render_async(de_view)
+
+    assert de_view |> element("#realized-excluded") |> render() |> text() =~
+             "1 Verkauf ist ohne Umrechnung — er oder ein Kauf, den er schließt, ist weder in der Währung des Wertpapiers noch in der seines Kontos bepreist — und aus jeder Summe ausgeschlossen: Dollar Fund."
+
+    {:ok, card, _html} = live(conn, "/")
+    render_async(card)
+
+    card_note =
+      card
+      |> element("#dashboard-trades [data-role='trades-card-excluded']")
+      |> render()
+      |> text()
+
+    assert card_note =~
+             "1 sale not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — is left out of the trades: Dollar Fund."
+
+    refute card_note =~ "backfill"
   end
 end

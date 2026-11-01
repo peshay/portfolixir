@@ -41,8 +41,10 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   unavailable (point 3): it is excluded like a sale with no close-date rate,
   out of the trades, the matrix and the three figures, and named in
   `excluded`, whose `by_reason` tells the two apart because their remedies
-  differ (`no_rate`, `missing_settlement_leg`). `excluded.count` and
-  `excluded.securities` cover both.
+  differ (`no_rate`, `missing_settlement_leg`). A trade whose sell or lot
+  is priced in a third currency is excluded under `third_currency` (#1310),
+  which no rate fixes. `excluded.count` and `excluded.securities` cover all
+  three.
 
   ## The trades, and the three figures over them (#807)
 
@@ -152,14 +154,16 @@ defmodule Portfolixir.Portfolios.RealizedGains do
           "a sale with no stored close-date rate is excluded from the converted totals and " <>
             "named in excluded (by_reason.no_rate); so is a sale that closes a lot with no " <>
             "settlement leg in its currency, never summed (by_reason.missing_settlement_leg, " <>
-            "fees_and_taxes)",
+            "fees_and_taxes), and a sale whose sell or lot is priced in a third currency " <>
+            "(by_reason.third_currency)",
         summary:
           "The three figures are derived from the SAME converted trades as the matrix and the " <>
             "list, never from a wider set: realized_total is their sum in #{base}; hit_rate is " <>
             "the share of them whose realised result is strictly positive (a break-even trade " <>
             "counts as a miss), at scale 4; average_holding_period_days is the unweighted mean " <>
             "of holding_period_days, rounded to a whole day. A sale excluded for a missing " <>
-            "close-date rate or a missing settlement leg is in none of the three. With no " <>
+            "close-date rate, a missing settlement leg or a third currency is in none of the " <>
+            "three. With no " <>
             "closed trades the hit rate and " <>
             "the average holding period are null rather than zero — the average of nothing is " <>
             "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
@@ -257,7 +261,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     |> named()
     |> Map.put(:by_reason, %{
       no_rate: excluded |> rows_for(:no_rate) |> named(),
-      missing_settlement_leg: excluded |> rows_for(:missing_settlement_leg) |> named()
+      missing_settlement_leg: excluded |> rows_for(:missing_settlement_leg) |> named(),
+      # #1310: a third currency, whose remedy is the stored booking, not a rate.
+      third_currency: excluded |> rows_for(:third_currency) |> named()
     })
   end
 
@@ -407,8 +413,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   #
   # #1198: a trade a lot of which has no leg in its sell's currency has no
   # result to convert; it is excluded under its own reason.
-  defp convert_trade(%{unavailable_reason: :missing_settlement_leg} = trade, _base),
-    do: {:excluded, :missing_settlement_leg, trade}
+  defp convert_trade(%{unavailable_reason: reason} = trade, _base)
+       when reason in [:missing_settlement_leg, :third_currency],
+       do: {:excluded, reason, trade}
 
   # The ADR-0015 amendment's note of 2026-10-31 (#1198): a trade whose sell
   # closes a lot booked in another currency, and whose sell and lots all

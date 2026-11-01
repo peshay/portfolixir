@@ -1010,7 +1010,10 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
 
     assert [%{cost: nil}] = trade.lots
     assert trade.unavailable_reason == :missing_settlement_leg
-    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "EUR"}]
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "EUR", reason: :missing_settlement_leg}
+           ]
 
     report = RealizedGains.report(base_currency: "EUR")
     assert [only] = report.trades
@@ -1098,7 +1101,10 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert trade.currency_code == "EUR"
     assert is_nil(trade.basis)
     assert trade.unavailable_reason == :missing_settlement_leg
-    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "CHF"}]
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "CHF", reason: :missing_settlement_leg}
+           ]
   end
 
   # A buy or sell as a database stored it before #1199's check: written past
@@ -1153,17 +1159,51 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
   # - A buy of 10 at 100 USD through the CHF account (legs 1,000.00 USD,
   #   900.00 CHF, 0.900000; fees 2.00 CHF, cash 902.00) and a stored sale of
   #   10 at 110 CHF through the EUR account, fees 3.00 EUR: the trade is in
-  #   CHF, unavailable_reason missing_settlement_leg, basis and
-  #   realized_pnl_abs null, the lot named by its date and USD; the sale's
-  #   own avg_sell_price 110 and sell_fees 3 stay. Before: basis 902,
-  #   realized 195, unavailable_reason nil.
+  #   CHF, unavailable, basis and realized_pnl_abs null, the lot named by its
+  #   date and USD; the sale's own avg_sell_price 110 stays.
+  # - #1310: its reason is third_currency, its own, not
+  #   missing_settlement_leg, whose remedy (a rate) cannot apply; the lot is
+  #   named with that reason; proceeds, sell_fees and sell_taxes are null,
+  #   since the sale's 3.00 EUR of fees under a CHF code is no figure. Before:
+  #   missing_settlement_leg, proceeds 1097 (1,100 CHF less 3 EUR) and
+  #   sell_fees 3.
   # - The realized-gains report leaves it out of trades and names it in
-  #   excluded under missing_settlement_leg, though the close date has a CHF
-  #   rate.
+  #   excluded under third_currency, apart from missing_settlement_leg,
+  #   though the close date has a CHF rate.
+  # - A money identity at a moving rate: beside it a dollar round trip
+  #   through a dollar account, 10 bought at 100 USD while 1 EUR = 1.10 USD
+  #   and sold at 120 USD once 1 EUR = 1.25 USD, reads realized 200 USD =
+  #   realized_base 160 EUR (200 / 1.25, the close date's rate), and the
+  #   report's realized_total is exactly 160 over trade_count 1: the
+  #   excluded trade moves no figure.
   # - Mutation: not reading the sale's third-currency flag turns it red.
   test "a sale priced in a third currency makes its closed trade unavailable" do
     {world, fund} = cross_world()
     chf_rate!([~D[2025-04-01], ~D[2025-05-02]])
+
+    # The moving-rate dollar round trip beside it, on dates of its own.
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2025-02-03],
+          rate: "1.10",
+          source: "manual"
+        },
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2025-06-02],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    dollar = Map.merge(world, add_depot(world.portfolio, cash_currency: "USD"))
+    tracker = create_security!(name: "Dollar Tracker", ticker: "DTR", currency: "USD")
+    buy!(dollar, tracker, quantity: "10", price: "100", currency: "USD", date: ~D[2025-02-03])
+    sell!(dollar, tracker, quantity: "10", price: "120", currency: "USD", date: ~D[2025-06-02])
 
     swiss =
       Map.merge(
@@ -1200,20 +1240,41 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
 
     assert [trade] = closed(fund)
     assert trade.currency_code == "CHF"
-    assert trade.unavailable_reason == :missing_settlement_leg
+    assert trade.unavailable_reason == :third_currency
     assert is_nil(trade.basis)
     assert is_nil(trade.realized_pnl_abs)
-    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "USD"}]
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "USD", reason: :third_currency}
+           ]
+
     assert exactly?(trade.avg_sell_price, "110")
-    assert exactly?(trade.sell_fees, "3")
+    assert exactly?(trade.quantity, "10")
+
+    for key <- [:proceeds, :sell_fees, :sell_taxes] do
+      assert is_nil(Map.fetch!(trade, key)), "#{key} is #{inspect(Map.fetch!(trade, key))}"
+    end
+
+    assert trade.annualized_return_reason == :third_currency
 
     report = RealizedGains.report(base_currency: "EUR")
     refute Enum.any?(report.trades, &(&1.security_id == fund.id))
 
-    assert report.excluded.by_reason.missing_settlement_leg == %{
-             count: 1,
-             securities: ["Dollar Fund"]
-           }
+    assert report.excluded.by_reason.third_currency == %{count: 1, securities: ["Dollar Fund"]}
+    assert report.excluded.by_reason.missing_settlement_leg == %{count: 0, securities: []}
+    assert report.excluded.count == 1
+
+    assert [only] = report.trades
+    assert only.security_id == tracker.id
+    assert exactly?(only.realized_pnl_abs, "200")
+    assert exactly?(only.realized_base, "160")
+    assert only.realized_base_source == :close_date_rate
+    assert exactly?(report.summary.realized_total, "160")
+    assert report.summary.trade_count == 1
+
+    newest = RealizedGains.newest_trades(5, base_currency: "EUR")
+    assert Enum.map(newest.trades, & &1.security_id) == [tracker.id]
+    assert newest.excluded.by_reason.third_currency.securities == ["Dollar Fund"]
   end
 
   # User story (#1198, Sprint 21 α3; point 3 ahead of point 4, the note of
@@ -1229,9 +1290,13 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
   # - A stored buy of 10 at 90 CHF through the EUR account, fees 5.00 EUR,
   #   closed by a sale of 10 at 100 CHF through the CHF account (legs
   #   1,000.00 CHF, 1,250.00 USD, 0.800000; fees 3.00 CHF, cash 997.00): the
-  #   trade is in CHF, unavailable, missing_settlement_leg, basis and
-  #   realized_pnl_abs null, the lot named by its date and CHF. Before: basis
-  #   905 and realized 92 under CHF.
+  #   trade is in CHF, unavailable, basis and realized_pnl_abs null, the lot
+  #   named by its date and CHF. Before #1198's note: basis 905 and realized
+  #   92 under CHF.
+  # - #1310: its reason is third_currency, the lot named with it; the sale's
+  #   own figures stay, since the sale is priced in its account's currency:
+  #   proceeds 997 CHF (10 × 100 − 3), sell_fees 3. Before: the reason
+  #   missing_settlement_leg, whose remedy (a rate) cannot apply.
   # - Mutation: not reading the lot's third-currency flag turns it red.
   test "a lot priced in a third currency makes the closed trade unavailable, even in that currency" do
     {world, fund} = cross_world()
@@ -1273,9 +1338,71 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
 
     assert [trade] = closed(fund)
     assert trade.currency_code == "CHF"
-    assert trade.unavailable_reason == :missing_settlement_leg
+    assert trade.unavailable_reason == :third_currency
     assert is_nil(trade.basis)
     assert is_nil(trade.realized_pnl_abs)
-    assert trade.lots_missing_leg == [%{open_date: ~D[2025-04-01], currency_code: "CHF"}]
+    assert exactly?(trade.proceeds, "997")
+    assert exactly?(trade.sell_fees, "3")
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "CHF", reason: :third_currency}
+           ]
+  end
+
+  # User story (#1310, Sprint 22 R5; the ADR-0015 amendment of 2026-10-09,
+  # point 3):
+  # As the operator whose dollar sale closes an imported buy that still lacks
+  # its legs and a stored buy priced in francs through my euro account,
+  # I want the trade's reason to be the franc buy, which no rate fixes, and
+  # each lot named with its own reason,
+  # so that I correct the booking first and know the other lot waits for a
+  # rate.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - The imported buy of 10 at 80.00 EUR without legs (2025-04-01), a stored
+  #   buy of 10 at 90 CHF through the EUR account (2025-04-02), and a
+  #   booking-form sale of 20 at 120 USD settled 1,920.00 EUR, fees 3.00 EUR:
+  #   unavailable_reason third_currency; lots_missing_leg names the EUR lot
+  #   with missing_settlement_leg and the CHF lot with third_currency, in
+  #   FIFO order; the sale's own figures stay: proceeds 2,396.25 USD
+  #   (20 × 120 − 3.00 ÷ 0.8), sell_fees 3.75.
+  test "a trade closing a legless lot and a third-currency lot names each with its reason" do
+    {world, fund} = cross_world()
+    imported_buy!(world, fund, false)
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-02],
+      quantity: Decimal.new("10"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("1000"),
+      settlement_amount: Decimal.new("800"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("805")
+    })
+
+    cross_trade!(world, fund,
+      type: "sell",
+      quantity: "20",
+      price: "120",
+      settled: "1920.00",
+      fees: "3.00",
+      gross: "1917.00",
+      date: ~D[2025-05-02]
+    )
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "USD"
+    assert trade.unavailable_reason == :third_currency
+    assert is_nil(trade.basis)
+    assert exactly?(trade.proceeds, "2396.25")
+    assert exactly?(trade.sell_fees, "3.75")
+
+    assert trade.lots_missing_leg == [
+             %{open_date: ~D[2025-04-01], currency_code: "EUR", reason: :missing_settlement_leg},
+             %{open_date: ~D[2025-04-02], currency_code: "CHF", reason: :third_currency}
+           ]
   end
 end

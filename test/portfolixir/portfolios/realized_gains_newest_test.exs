@@ -155,7 +155,9 @@ defmodule Portfolixir.Portfolios.RealizedGainsNewestTest do
              securities: ["Unrated Pound plc"],
              by_reason: %{
                no_rate: %{count: 1, securities: ["Unrated Pound plc"]},
-               missing_settlement_leg: %{count: 0, securities: []}
+               missing_settlement_leg: %{count: 0, securities: []},
+               # #1310: the third reason.
+               third_currency: %{count: 0, securities: []}
              }
            }
 
@@ -173,7 +175,9 @@ defmodule Portfolixir.Portfolios.RealizedGainsNewestTest do
                securities: [],
                by_reason: %{
                  no_rate: %{count: 0, securities: []},
-                 missing_settlement_leg: %{count: 0, securities: []}
+                 missing_settlement_leg: %{count: 0, securities: []},
+                 # #1310: the third reason.
+                 third_currency: %{count: 0, securities: []}
                }
              }
            }

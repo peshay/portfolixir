@@ -33,12 +33,16 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   rate looked up. A lot with no leg in the sell's currency makes the trade
   unavailable (point 3), and so does a lot or a sell priced in a third
   currency (`:third_currency`), even where the two share it: it keeps the
-  sell's own figures, `nil` for every figure derived from the lots,
-  `unavailable_reason: :missing_settlement_leg` and `lots_missing_leg` (each
-  such lot's open date and booking currency; a third-currency sell names
-  every lot it closes). A trade whose sell and lots share one currency, not
-  a third, computes exactly as before (point 4); its `unavailable_reason` is
-  `nil` and `lots_missing_leg` `[]`.
+  sell's own figures, `nil` for every figure derived from the lots, its
+  `unavailable_reason` and `lots_missing_leg` (each such lot's open date,
+  booking currency and `reason`; a third-currency sell names every lot it
+  closes). The reason is `:third_currency` where the sell or a lot it names
+  is priced in a third currency, which no rate fixes, else
+  `:missing_settlement_leg` (#1310). A third-currency sell's `proceeds`,
+  `sell_fees` and `sell_taxes` are `nil` too: its fees are in its account's
+  currency, under its price's code no figure. A trade whose sell and lots
+  share one currency, not a third, computes exactly as before (point 4); its
+  `unavailable_reason` is `nil` and `lots_missing_leg` `[]`.
 
   An available trade whose sell closes a lot booked in another currency also
   carries `cash_result` (the amendment's note of 2026-10-31): the trade re-read
@@ -260,7 +264,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
     # it closes enters it.
     entered =
       if Map.get(tx, :third_currency, false),
-        do: Enum.map(consumed, &{:missing, &1}),
+        do: Enum.map(consumed, &{:missing, :third_currency, &1}),
         else: Enum.map(consumed, &enter(&1, currency))
 
     trade =
@@ -271,7 +275,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
           |> Map.put(:cash_result, cash_result(tx, consumed))
 
         missing ->
-          unavailable_trade(tx, consumed, Enum.map(missing, fn {:missing, lot} -> lot end))
+          unavailable_trade(tx, consumed, missing)
       end
 
     %{state | closed: [trade | state.closed]}
@@ -285,7 +289,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   # currency enters not at all, even a sell in that currency: its fees are
   # in its account's currency (point 3 ahead of point 4, the note of
   # 2026-10-31).
-  defp enter(%{third_currency: true} = lot, _currency), do: {:missing, lot}
+  defp enter(%{third_currency: true} = lot, _currency), do: {:missing, :third_currency, lot}
   defp enter(%{currency_code: currency} = lot, currency), do: {:ok, lot}
 
   defp enter(lot, currency) do
@@ -294,7 +298,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
         {:ok, %{lot | buy_price: price, buy_fees: fees, buy_taxes: taxes}}
 
       _no_leg ->
-        {:missing, lot}
+        {:missing, :missing_settlement_leg, lot}
     end
   end
 
@@ -350,11 +354,26 @@ defmodule Portfolixir.Ledger.TradeMatcher do
 
   # Point 3: never summed. The sell's own figures stay; every figure derived
   # from the lots is nil; the reason and the lots that lack their leg are
-  # named, so a reader can say what fixes it.
+  # named, each with its own reason, so a reader can say what fixes it: a
+  # third currency, which no rate fixes, comes first (#1310). A sell priced
+  # in a third currency states no proceeds: its fees and taxes are in its
+  # account's currency, which no leg converts into its price's.
   defp unavailable_trade(tx, consumed, missing) do
     total_qty = sum_decimals(consumed, & &1.quantity)
-    sell_fees = fee(tx, :fees)
-    sell_taxes = fee(tx, :taxes)
+
+    {sell_fees, sell_taxes, proceeds} =
+      if Map.get(tx, :third_currency, false) do
+        {nil, nil, nil}
+      else
+        fees = fee(tx, :fees)
+        taxes = fee(tx, :taxes)
+        {fees, taxes, proceeds(total_qty, tx.price, fees, taxes)}
+      end
+
+    reason =
+      if Enum.any?(missing, &match?({:missing, :third_currency, _lot}, &1)),
+        do: :third_currency,
+        else: :missing_settlement_leg
 
     %{
       open_date: List.first(consumed).open_date,
@@ -367,15 +386,17 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       sell_fees: sell_fees,
       sell_taxes: sell_taxes,
       basis: nil,
-      proceeds: proceeds(total_qty, tx.price, sell_fees, sell_taxes),
+      proceeds: proceeds,
       realized_pnl_abs: nil,
       realized_pnl_pct: nil,
       holding_period_days: holding_period_days(consumed, tx.date, total_qty),
       currency_code: Map.get(tx, :currency_code),
       lots: Enum.map(consumed, &%{open_date: &1.open_date, quantity: &1.quantity, cost: nil}),
-      unavailable_reason: :missing_settlement_leg,
+      unavailable_reason: reason,
       lots_missing_leg:
-        Enum.map(missing, &%{open_date: &1.open_date, currency_code: &1.currency_code}),
+        Enum.map(missing, fn {:missing, lot_reason, lot} ->
+          %{open_date: lot.open_date, currency_code: lot.currency_code, reason: lot_reason}
+        end),
       cash_result: nil
     }
   end

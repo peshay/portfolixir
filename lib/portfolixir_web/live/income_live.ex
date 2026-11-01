@@ -385,6 +385,26 @@ defmodule PortfolixirWeb.IncomeLive do
                     securities: &1
                   )
                 ) %></span>
+                <%!-- #1310: a sale or a buy priced in a third currency, which
+                     no rate fixes, in a sentence of its own. --%>
+                <span
+                  :if={@realized.excluded.by_reason.third_currency.count > 0}
+                  data-role="realized-excluded-third-currency"
+                ><%= StoredText.ending_on(
+                  Enum.join(@realized.excluded.by_reason.third_currency.securities, ", "),
+                  &ngettext(
+                    "%{count} sale is not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — and is excluded from every total: %{securities}.",
+                    "%{count} sales are not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — and are excluded from every total: %{securities}.",
+                    @realized.excluded.by_reason.third_currency.count,
+                    securities: &1
+                  ),
+                  &ngettext(
+                    "%{count} sale is not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — and is excluded from every total: %{securities}",
+                    "%{count} sales are not convertible — each or a buy it closes is priced in a currency that is neither the security's nor its account's — and are excluded from every total: %{securities}",
+                    @realized.excluded.by_reason.third_currency.count,
+                    securities: &1
+                  )
+                ) %></span>
                 <.fx_backfill_control
                   backfilling={@fx_backfilling}
                   result={@fx_backfill_result}
