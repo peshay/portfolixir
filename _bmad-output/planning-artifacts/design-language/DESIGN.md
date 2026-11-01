@@ -7326,8 +7326,11 @@ has no result to state, and a zero would claim it is flat").
     Kategorie", the current parent selected. The category itself and its
     descendants are left out, so the cycle the context refuses cannot be
     picked; a parent that would push the subtree past level 32 is listed and
-    refused on save. The description's basis drops from 14 to 10 rem while
-    the select is there, so the form keeps one line at 1200 px.
+    refused on save. The select is capped at `min(16rem, 100%)`, a rule
+    scoped to the page so it outranks the page's "controls shrink to the
+    column" rule (the γ closing act, DC1); the description's basis drops
+    from 14 to 10 rem while the select is there, so the form keeps one line
+    at 1200 px.
   - **The answer** sits in the page's result slot, as every write here does:
     "„USA“ liegt jetzt unter „Amerika“." / "“USA” now sits under
     “Amerika”.", or "„USA“ liegt jetzt auf der obersten Ebene." / "“USA” now

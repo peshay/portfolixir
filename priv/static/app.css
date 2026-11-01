@@ -5514,11 +5514,13 @@ details[open] > .cat-summary::before {
 /* Issue 1211 (board 06 ②, pick N18 A): the parent select sits in
    `.recolor-label`, the label style the built-in tree's colour field uses;
    the description gives up 4 rem of its basis so the form keeps one line at
-   1200 px with it. */
-.cat-edit-form .recolor-label select {
+   1200 px with it. Scoped to the page (0-3-1) so the cap outranks the
+   page's later "controls shrink to the column" rule (0-2-1), and capped at
+   the column on a phone (the γ closing act, DC1). */
+.classifications-detail .cat-edit-form .recolor-label select {
   width: auto;
   min-width: 0;
-  max-width: 16rem;
+  max-width: min(16rem, 100%);
   font-size: 13px;
 }
 .cat-edit-form:has(select[name="category[parent_id]"]) input[name="category[description]"] {
