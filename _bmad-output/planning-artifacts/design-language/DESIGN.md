@@ -7625,3 +7625,52 @@ interest booking's Brutto is Income's gross, the cash credited plus the
 tax withheld (`Income.gross_of/1`): 7,50 cash with 1,98 tax reads 9,48.
 It is in the cash account's currency. A trade's Brutto is unchanged. No
 new string and no CSS.
+
+## Amendment 2026-11-01 — Import preview: rows already imported into another portfolio *(Sprint 22 pick Q2 = A, board `mockups/ux-design-2026-11-01-sprint22/03-drawer-import` ②; issue 1313, R4; the ADR-0050 amendment of 2026-11-01)*
+
+The Imports page books into the default portfolio (ADR-0024), and the
+content hash names the portfolio, so a file first imported into another
+portfolio (by an agent, a script, or before the default changed) is new on
+the page by its hash. The preview reads the hashes of every portfolio and
+holds such rows back by default. Built in `PortfolixirWeb.ImportsLive`
+(`held_back_group/1`).
+
+- **One group per other portfolio, at the head of the preview.** Under the
+  format line (and the nothing-to-import note when there is one), before
+  the cards: one `attention` data note per portfolio
+  (`data-role="held-back"`, `data-portfolio` its id), never one per row.
+  The note's body is a collapsed `.perf-table-disclosure`
+  (`data-role="held-back-group"`, closed by default), whose summary is the
+  one sentence: „Bereits im Portfolio „Anleihen“ importiert: 4 Einträge —
+  nicht übernommen“ (English "Already imported into portfolio “Anleihen”:
+  4 entries — not taken over", `ngettext`; the name is stored text, isolated).
+  Opened, it lists the group's rows in a `.data-table` inside its
+  `.data-table-wrapper` (UX-DR15): Datum, Art, Konto · Wertpapier ("Account
+  · security", the file's account name and, where the row names one, its
+  security, joined by „ · “), Betrag (`.num`, signed by the side the cash
+  moves, the file's currency after it). The rows are one tap away; nothing
+  is hidden that a row list would show.
+- **One switch per group, under the disclosure.** A `.mapping-remember`
+  block (`data-role="held-back-include"`): a checkbox „Trotzdem übernehmen“
+  ("Take over anyway"), off by default, and its consequence in `<small>`:
+  „bucht die 4 Einträge ein zweites Mal, in „Hauptportfolio“; „Anleihen“
+  behält seine.“ ("books the 4 entries a second time, in “Hauptportfolio”;
+  “Anleihen” keeps its own."). The switch takes the whole group or nothing,
+  so a fragment of a history is never copied. It belongs to the apply form
+  (`form="pp-import-apply"`, field `include_portfolio[<id>]`, a hidden
+  "false" before it), so a change recounts under the choice like any
+  mapping change (#1180's cue) and the confirm sends it.
+- **The mapping rows count the held-back bookings as their own segment.**
+  First in `.mapping-count`: „4 Buchungen in „Anleihen“ importiert“
+  ("4 bookings imported into “Anleihen”"), or, when several groups are held
+  back, „… in einem anderen Portfolio importiert“; then the existing
+  segments. A row whose bookings are all held back reads „… · **nichts
+  anzulegen**“ and gives way to „Keine Zuordnung nötig: …“ (#1168), as an
+  already-imported row does. Switched on, the group's rows count new again
+  and the selects come back.
+- **The done page** names each held-back group in the preview's sentence,
+  one muted line per portfolio under the created and skipped counts
+  (`data-role="held-back-result"`).
+- **Not drawn, decided here.** The nothing-to-import note does not count
+  held-back rows: they are not booked here at all, and the group says so in
+  its own words. The cards and „Anzahl pro Art“ keep counting the file.
