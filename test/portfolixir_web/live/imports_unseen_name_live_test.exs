@@ -630,7 +630,15 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     upload!(view, drop)
 
     form = element(view, "form#pp-import-apply")
-    render_change(form, keyed(%{"cash" => %{"Tagesgeld Extra" => "create:Tagesgeld Extra"}}))
+
+    # The twin's rows are held back by default (#1313); this drop takes
+    # them over deliberately, as the twin's history is the test's own.
+    render_change(
+      form,
+      keyed(%{"cash" => %{"Tagesgeld Extra" => "create:Tagesgeld Extra"}})
+      |> Map.put("include_portfolio", %{"#{twin.id}" => "true"})
+    )
+
     refute has_element?(view, "#pp-import-confirm[disabled]")
 
     marker = max_transaction_id()
@@ -1019,8 +1027,14 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     preview
   end
 
+  # P2's world holds one history in two portfolios on purpose, so the second
+  # copy is included deliberately (ADR-0050 as amended on 2026-11-01, #1313).
   defp applied!(portfolio, rows) do
-    {:ok, _result} = Imports.apply(parse!(rows), %{portfolio_id: portfolio.id})
+    include = Enum.map(Portfolios.list_portfolios(), & &1.id)
+
+    {:ok, _result} =
+      Imports.apply(parse!(rows), %{portfolio_id: portfolio.id, include_portfolios: include})
+
     :ok
   end
 

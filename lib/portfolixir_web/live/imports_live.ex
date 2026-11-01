@@ -336,6 +336,20 @@ defmodule PortfolixirWeb.ImportsLive do
         data-role="nothing-to-import"
       ><%= nothing_to_import(@account_states.counts.total) %><%= if @corrections != [] do %> <%= correction_pointer(length(@corrections), @correction_fixable != []) %><% end %></AppShell.data_note>
 
+      <%!-- ADR-0050 as amended on 2026-11-01 (#1313; board 03 ②, Q2 = A):
+           the rows another portfolio already holds, one collapsed attention
+           group per portfolio at the head of the preview, held back by
+           default. The group says it once, lists its rows one tap away,
+           and its one switch takes the whole group over or nothing; the
+           switch belongs to the apply form, so a change recounts and the
+           confirm sends it. --%>
+      <.held_back_group
+        :for={group <- held_back_groups(@account_states)}
+        group={group}
+        included={group.portfolio_id in included_portfolios(@mapping)}
+        target={@target_portfolio_name}
+      />
+
       <div class="import-stats">
         <div class="import-stat-card">
           <span class="label"><%= gettext("Entries") %></span>
@@ -637,6 +651,7 @@ defmodule PortfolixirWeb.ImportsLive do
                       counts={row_counts(@account_states, "cash", pp_name)}
                       provisional={provisional?(@account_states, "cash", pp_name)}
                       recount={recount_state(assigns, "cash", pp_name)}
+                      held_back_name={held_back_name(@account_states)}
                     />
                   </div>
                   <div :if={nothing_to_map?(assigns, "cash", pp_name)} class="mapping-target">
@@ -685,6 +700,7 @@ defmodule PortfolixirWeb.ImportsLive do
                       counts={row_counts(@account_states, "depot", pp_name)}
                       provisional={provisional?(@account_states, "depot", pp_name)}
                       recount={recount_state(assigns, "depot", pp_name)}
+                      held_back_name={held_back_name(@account_states)}
                     />
                   </div>
                   <%!-- #1168: with no select, the row's target is its last
@@ -996,6 +1012,16 @@ defmodule PortfolixirWeb.ImportsLive do
         <%= gettext("Created transactions: %{n}", n: @result.created_transactions) %>
         ·
         <%= gettext("Skipped duplicates: %{n}", n: @result.skipped_duplicates) %>
+      </p>
+      <%!-- #1313 (board 03 ②): the rows held back because another
+           portfolio holds them, one line per portfolio, in the preview's
+           words. --%>
+      <p
+        :for={group <- Map.get(assigns, :held_back_result, [])}
+        class="muted"
+        data-role="held-back-result"
+      >
+        <%= held_back_sentence(group) %>
       </p>
       <%!-- #1178 (board 07 ⑨): the record a first import created on a fresh
            instance, in #1173's preview words; the name and currency are
@@ -1502,6 +1528,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:applying, false)
      |> assign(:stage, :done)
      |> assign(:result, result)
+     |> assign(:held_back_result, held_back_result(result))
      |> assign(:error, nil)
      |> reload_lookups()
      |> assign_corrections(socket.assigns.preview)
@@ -1693,6 +1720,9 @@ defmodule PortfolixirWeb.ImportsLive do
     # #1173: on an instance with no portfolio record the apply creates the
     # internal default one (ADR-0024), and the preview says so.
     |> assign(:portfolio_missing, Portfolios.count_portfolios() == 0)
+    # #1313: the portfolio the page books into, named by a held-back group's
+    # switch ("books the entries a second time, in …").
+    |> assign(:target_portfolio_name, target_portfolio_name())
     |> assign(:option_tags, option_tags(existing_cash, existing_depots))
     |> assign(:account_names, %{
       "cash" => Map.new(existing_cash, &{&1.id, &1.name}),
@@ -1701,6 +1731,13 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign_new(:cash_pp_names, fn -> [] end)
     |> assign_new(:depot_pp_names, fn -> [] end)
     |> assign_new(:row_names, fn -> row_names([], []) end)
+  end
+
+  defp target_portfolio_name do
+    case Portfolios.first_portfolio() do
+      nil -> Portfolios.default_portfolio_attrs().name
+      portfolio -> portfolio.name
+    end
   end
 
   defp assign_preview_pp_names(socket, preview) do
@@ -1736,6 +1773,7 @@ defmodule PortfolixirWeb.ImportsLive do
     unimportable: 0,
     economics: 0,
     internal_transfer: 0,
+    held_back: 0,
     new: 0
   }
 
@@ -1762,7 +1800,13 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:counts_token, nil)
     |> assign(:account_states, %{
       resolutions: %{"cash" => %{}, "depot" => %{}},
-      counts: %{"cash" => %{}, "depot" => %{}, "security" => %{}, total: @empty_counts},
+      counts: %{
+        "cash" => %{},
+        "depot" => %{},
+        "security" => %{},
+        "held_back" => [],
+        total: @empty_counts
+      },
       unseen: %{"cash" => MapSet.new(), "depot" => MapSet.new()},
       pending: false,
       refined: false
@@ -1771,7 +1815,12 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp assign_account_states(socket, %Preview{} = preview) do
     %{cash_accounts: cash, depots: depots} = Imports.resolve_accounts(preview)
-    counts = Imports.reimport_counts(preview, dry_run: false)
+
+    counts =
+      Imports.reimport_counts(preview,
+        dry_run: false,
+        include_portfolios: included_portfolios(Map.get(socket.assigns, :mapping))
+      )
 
     socket
     |> assign(:account_states, %{
@@ -1794,6 +1843,7 @@ defmodule PortfolixirWeb.ImportsLive do
       "cash" => counts.cash_accounts,
       "depot" => counts.depots,
       "security" => counts.securities,
+      "held_back" => Map.get(counts, :held_back, []),
       total: counts.total
     }
   end
@@ -1809,6 +1859,7 @@ defmodule PortfolixirWeb.ImportsLive do
     if connected?(socket) do
       token = make_ref()
       mapped = dry_run_mapping(socket.assigns)
+      include = included_portfolios(Map.get(socket.assigns, :mapping))
       keys? = Map.get(socket.assigns, :corrections_pending, true)
       Process.send_after(self(), {:recount_cue, token}, @recount_cue_after_ms)
 
@@ -1820,18 +1871,18 @@ defmodule PortfolixirWeb.ImportsLive do
       |> update(:account_states, &Map.put(&1, :pending, true))
       |> CappedAsync.start_async(:refine_counts, fn ->
         await_refine_gate()
-        {token, refined_counts(preview, mapped, keys?)}
+        {token, refined_counts(preview, mapped, keys?, include)}
       end)
     else
       assign(socket, :counts_token, nil)
     end
   end
 
-  defp refined_counts(preview, nil, _keys?),
-    do: Imports.reimport_counts(preview, economic_keys: true)
+  defp refined_counts(preview, nil, _keys?, include),
+    do: Imports.reimport_counts(preview, economic_keys: true, include_portfolios: include)
 
-  defp refined_counts(preview, mapped, keys?) do
-    counts = Imports.reimport_counts(preview, mapping: mapped)
+  defp refined_counts(preview, mapped, keys?, include) do
+    counts = Imports.reimport_counts(preview, mapping: mapped, include_portfolios: include)
 
     keys =
       if keys?,
@@ -1849,8 +1900,15 @@ defmodule PortfolixirWeb.ImportsLive do
     do: %{
       "cash" => mapping.cash,
       "depot" => mapping.depot,
-      "security" => Map.get(mapping, :security, %{})
+      "security" => Map.get(mapping, :security, %{}),
+      "include" => included_portfolios(mapping)
     }
+
+  # ADR-0050 as amended on 2026-11-01 (#1313, board 03 ②, Q2 = A): the
+  # other portfolios whose held-back group the operator switched on ("Take
+  # over anyway"); a mapping parked before the switch includes none.
+  defp included_portfolios(%{include: include}) when is_list(include), do: include
+  defp included_portfolios(_mapping), do: []
 
   # The counts on the page answer the mapping just built (an upload, the
   # accounts read again); the dry run under way counts under it too.
@@ -2444,9 +2502,139 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # --- the row's parts ---
 
+  attr(:group, :map, required: true)
+  # The switch reads the operator's choice, not the counts: a recount under
+  # way must not turn it back off.
+  attr(:included, :boolean, required: true)
+  attr(:target, :string, required: true)
+
+  defp held_back_group(assigns) do
+    ~H"""
+    <AppShell.data_note
+      severity={:attention}
+      data-role="held-back"
+      data-portfolio={@group.portfolio_id}
+    >
+      <details class="perf-table-disclosure" data-role="held-back-group">
+        <summary class="disclosure-summary">
+          <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+          <span><%= held_back_sentence(@group) %></span>
+        </summary>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Date") %></th>
+                <th><%= gettext("Kind") %></th>
+                <th><%= gettext("Account · security") %></th>
+                <th class="num"><%= gettext("Amount") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={entry <- @group.entries}>
+                <td><%= Format.date(entry.date) %></td>
+                <td><%= kind_label(entry.kind) %></td>
+                <td><bdi><%= held_back_where(entry) %></bdi></td>
+                <td class="num"><%= held_back_amount(entry) %></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <div class="mapping-remember" data-role="held-back-include">
+        <input type="hidden" name={"include_portfolio[#{@group.portfolio_id}]"} value="false" form="pp-import-apply" />
+        <label>
+          <input
+            type="checkbox"
+            name={"include_portfolio[#{@group.portfolio_id}]"}
+            value="true"
+            checked={@included}
+            form="pp-import-apply"
+          />
+          <span><%= gettext("Take over anyway") %></span>
+        </label>
+        <small>
+          <%= StoredText.isolate(
+            ngettext(
+              "books the entry a second time, in “%{target}”; “%{portfolio}” keeps its own.",
+              "books the %{count} entries a second time, in “%{target}”; “%{portfolio}” keeps its own.",
+              @group.count,
+              target: StoredText.slot(:target),
+              portfolio: StoredText.slot(:portfolio)
+            ),
+            target: @target,
+            portfolio: @group.portfolio_name
+          ) %>
+        </small>
+      </div>
+    </AppShell.data_note>
+    """
+  end
+
+  # The done page's held-back lines (#1313): per other portfolio, how many
+  # rows the apply held back, under the portfolio's name now.
+  defp held_back_result(%{held_back_entries: [_ | _] = entries}) do
+    names = Map.new(Portfolios.list_portfolios(), &{&1.id, &1.name})
+
+    entries
+    |> Enum.frequencies_by(& &1.portfolio_id)
+    |> Enum.sort()
+    |> Enum.map(fn {id, count} ->
+      %{portfolio_id: id, portfolio_name: Map.get(names, id, ""), count: count}
+    end)
+  end
+
+  defp held_back_result(_result), do: []
+
+  # The held-back groups the counts list (#1313); a summary parked before
+  # them lists none.
+  defp held_back_groups(states), do: Map.get(states.counts, "held_back", [])
+
+  # The one sentence of a group, on the preview and on the done page.
+  defp held_back_sentence(%{count: count, portfolio_name: name}) do
+    StoredText.isolate(
+      ngettext(
+        "Already imported into portfolio “%{portfolio}”: %{count} entry — not taken over",
+        "Already imported into portfolio “%{portfolio}”: %{count} entries — not taken over",
+        count,
+        portfolio: StoredText.slot(:portfolio)
+      ),
+      portfolio: name
+    )
+  end
+
+  defp held_back_where(%{pp_account_name: account, security: security}) do
+    names = [account || "", (security && security[:name]) || ""]
+    names |> Enum.reject(&(&1 == "")) |> Enum.join(" · ")
+  end
+
+  # The row's cash as the file states it, signed by the side it moves.
+  defp held_back_amount(%{gross_amount: nil}), do: "—"
+
+  defp held_back_amount(%{kind: kind, gross_amount: amount, currency_code: currency}) do
+    figure =
+      case PortfolioPerformance.direction(kind, :sending) do
+        :debit -> Format.signed_decimal(Decimal.negate(amount), 2)
+        :credit -> Format.signed_decimal(amount, 2)
+        nil -> Format.decimal(amount, 2)
+      end
+
+    Enum.join(Enum.reject([figure, currency], &is_nil/1), " ")
+  end
+
+  # The portfolio a row's held-back count names: the one group not taken
+  # over, or none when several are.
+  defp held_back_name(states) do
+    case Enum.reject(held_back_groups(states), & &1.included) do
+      [%{portfolio_name: name}] -> name
+      _none_or_several -> nil
+    end
+  end
+
   attr(:counts, :map, required: true)
   attr(:provisional, :boolean, default: false)
   attr(:recount, :atom, default: nil)
+  attr(:held_back_name, :string, default: nil)
 
   # Per row (board 04): how many of its bookings are already imported (by
   # content hash, a merge's retired hash, or an equal booking the apply finds
@@ -2466,7 +2654,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # (`recount: :busy | :cue`).
   defp mapping_count(assigns) do
     ~H"""
-    <span class="mapping-count" data-role="mapping-count" aria-busy={(@provisional or @recount != nil) && "true"}><%= cond do %><% @recount != nil -> %><span class="stale-value"><.count_words counts={@counts} /></span><span :if={@recount == :cue} class="recomputing-cue"><span class="spinner"></span><%= gettext("counted before the choice · recomputing") %></span><% @provisional -> %><span class="stale-value"><.count_words counts={@counts} /></span><span class="recomputing-cue"><span class="spinner"></span><%= gettext("provisional · recomputing") %></span><% true -> %><.count_words counts={@counts} /><% end %></span>
+    <span class="mapping-count" data-role="mapping-count" aria-busy={(@provisional or @recount != nil) && "true"}><%= cond do %><% @recount != nil -> %><span class="stale-value"><.count_words counts={@counts} held_back_name={@held_back_name} /></span><span :if={@recount == :cue} class="recomputing-cue"><span class="spinner"></span><%= gettext("counted before the choice · recomputing") %></span><% @provisional -> %><span class="stale-value"><.count_words counts={@counts} held_back_name={@held_back_name} /></span><span class="recomputing-cue"><span class="spinner"></span><%= gettext("provisional · recomputing") %></span><% true -> %><.count_words counts={@counts} held_back_name={@held_back_name} /><% end %></span>
     """
   end
 
@@ -2494,13 +2682,20 @@ defmodule PortfolixirWeb.ImportsLive do
   defp mapping_row(mapping, "depot", pp_name), do: Map.get(mapping.depot, pp_name)
 
   attr(:counts, :map, required: true)
+  attr(:held_back_name, :string, default: nil)
 
   defp count_words(assigns) do
     counts = assigns.counts
-    assigns = assign(assigns, hits: already_imported(counts), transfers: counts.internal_transfer)
+
+    assigns =
+      assign(assigns,
+        hits: already_imported(counts),
+        transfers: counts.internal_transfer,
+        held_back: Map.get(counts, :held_back, 0)
+      )
 
     ~H"""
-    <%= if @hits > 0 do %><%= ngettext(
+    <%= if @held_back > 0 do %><%= held_back_words(@held_back, @held_back_name) %> · <% end %><%= if @hits > 0 do %><%= ngettext(
       "%{count} booking already imported",
       "%{count} bookings already imported",
       @hits
@@ -2510,10 +2705,31 @@ defmodule PortfolixirWeb.ImportsLive do
       @transfers
     ) %> · <% end %><b><%= cond do
       @counts.new == 0 -> gettext("nothing to create")
-      @hits + @transfers > 0 -> ngettext("%{count} new", "%{count} new", @counts.new)
+      @hits + @transfers + @held_back > 0 -> ngettext("%{count} new", "%{count} new", @counts.new)
       true -> ngettext("%{count} booking new", "%{count} bookings new", @counts.new)
     end %></b>
     """
+  end
+
+  # #1313 (board 03 ②): a row's bookings another portfolio already holds.
+  defp held_back_words(count, nil),
+    do:
+      ngettext(
+        "%{count} booking imported into another portfolio",
+        "%{count} bookings imported into another portfolio",
+        count
+      )
+
+  defp held_back_words(count, name) do
+    StoredText.isolate(
+      ngettext(
+        "%{count} booking imported into “%{portfolio}”",
+        "%{count} bookings imported into “%{portfolio}”",
+        count,
+        portfolio: StoredText.slot(:portfolio)
+      ),
+      portfolio: name
+    )
   end
 
   # Rows the apply skips as already booked, on any of its layers.
@@ -3941,7 +4157,10 @@ defmodule PortfolixirWeb.ImportsLive do
       remember: %{"cash" => %{}, "depot" => %{}},
       # The choice the preview prefilled per file name, as shown: only a
       # choice the operator changed from it is a remap to remember.
-      prefill: %{"cash" => %{}, "depot" => %{}}
+      prefill: %{"cash" => %{}, "depot" => %{}},
+      # #1313: the other portfolios whose held-back rows the operator takes
+      # over anyway; none by default.
+      include: []
     }
   end
 
@@ -4037,8 +4256,34 @@ defmodule PortfolixirWeb.ImportsLive do
         ),
       remember:
         merge_remember(Map.get(current, :remember, blank_mapping().remember), params, row_names),
-      prefill: Map.get(current, :prefill, blank_mapping().prefill)
+      prefill: Map.get(current, :prefill, blank_mapping().prefill),
+      include: merge_include(included_portfolios(current), params, assigns)
     }
+  end
+
+  # "include_portfolio[<id>]" = "true" switches a held-back group on, any
+  # other value off (#1313). Only a group the preview handed out is
+  # addressed; a field the form did not send keeps the switch as it was.
+  defp merge_include(current, params, assigns) do
+    case Map.get(params, "include_portfolio") do
+      %{} = given ->
+        offered = MapSet.new(held_back_groups(assigns.account_states), & &1.portfolio_id)
+
+        switched =
+          for {raw_id, value} <- LiveParam.map(given),
+              {:ok, id} <- [LiveParam.fetch_id(raw_id)],
+              MapSet.member?(offered, id),
+              into: %{},
+              do: {id, value == "true"}
+
+        current
+        |> Enum.reject(&Map.has_key?(switched, &1))
+        |> Enum.concat(for {id, true} <- switched, do: id)
+        |> Enum.sort()
+
+      _absent ->
+        current
+    end
   end
 
   defp by_name(given, names) do
@@ -4381,6 +4626,7 @@ defmodule PortfolixirWeb.ImportsLive do
          cash_accounts: cash_params,
          depots: depot_params,
          remember: remember_params(mapping),
+         include_portfolios: included_portfolios(mapping),
          bucket_tag: bucket_tag,
          security_mappings: security_mappings,
          approved_resolutions: approved
