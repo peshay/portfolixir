@@ -135,4 +135,30 @@ defmodule PortfolixirWeb.Components.InlineResultTest do
     assert hook =~ ~s{if (!this.el.querySelector("[data-role='result-dismiss']")) return null;}
     refute hook =~ "shown && !this.shown"
   end
+
+  # Acceptance criteria (the γ closing act, G1: an answer with the same text):
+  # - A second answer with the same text as the one on show — every role
+  #   change on Accounts answers "Cash account updated" — leaves the slot's
+  #   markup byte-identical, so LiveView sends no patch and `updated` never
+  #   runs. The hook therefore names the trigger on the activation itself:
+  #   a control activated outside the slot while a result is on show is
+  #   answered by that slot (a replacement or a clear), so it becomes the
+  #   trigger at once (`answersShown(control)`); the sequence change A,
+  #   answer, change B, dismiss gives the focus to B, not A.
+  # - An activation inside an open dialog does not rename the trigger: the
+  #   dialog's opener, activated before, stays the trigger, since the
+  #   dialog's own controls leave the page with it.
+  test "the InlineResult hook names the trigger on an activation a shown result answers" do
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.InlineResult = {")
+      |> Enum.at(1, "")
+      |> String.split("\n            };\n")
+      |> hd()
+
+    assert hook =~ "if (self.answersShown(control)) self.trigger = control;"
+    assert hook =~ "answersShown: function (control) {"
+    assert hook =~ ~s{return this.shown !== null && !control.closest("dialog, [role='dialog']");}
+  end
 end
