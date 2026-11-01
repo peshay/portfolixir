@@ -17,4 +17,4 @@ pre-commit==4.7.0
 # dependencies (H65): pre-commit builds no hook environment of its own, which
 # would resolve them from the package index unpinned on every install. The
 # version is the one the hook repository was frozen to before.
-pre-commit-hooks==5.0.0
+pre-commit-hooks==6.0.0
