@@ -3509,7 +3509,15 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   the chosen target as before. The plain creations' `<details>` leaves its
   `open` to the browser (`phx-mounted`, `JS.ignore_attributes(["open"])`):
   the server renders none, and a patch removing it would fold the section
-  shut around an open picker. **A decision row's candidates are its
+  shut around an open picker. **The keyboard keeps its place:** the opened
+  picker's search field takes the focus as it mounts, and after a pick the
+  row's "Change…" does (a decision row's "Search for another security…"
+  after a pick from its search); at rest no control takes it. The cards,
+  the picker's and a decision row's, are a `RemapCards` group: the arrow
+  keys, Home and End move the focus between them without checking one (a
+  native radio group would check on each arrow, and a check is a pick that
+  closes the picker), Space or Enter picks the focused card, and Enter
+  never submits the import form around them. **A decision row's candidates are its
   cards**, "+ Create new" after them, nothing preselected ("Decide…" is gone
   from the security rows), and "Search for another security…" / "Anderes
   Wertpapier suchen…" opens the same search under them for the rare case

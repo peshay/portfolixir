@@ -1347,6 +1347,56 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // H45 (board ux-design-2026-10-27/02-imports-mapping, Q1 B; the
+            // γ7 review, R-S1): the import mapping's radio cards. A native
+            // radio group checks a card on every arrow key, and a check is
+            // a pick that closes the picker, so the arrows, Home and End
+            // only move the focus between the cards here; Space (natively)
+            // or Enter picks the focused card. Enter never reaches the
+            // import form around the cards, which it would submit.
+            Hooks.RemapCards = {
+              mounted: function () {
+                var self = this;
+                this.onKey = function (e) { self.key(e); };
+                this.el.addEventListener("keydown", this.onKey);
+              },
+              destroyed: function () {
+                this.el.removeEventListener("keydown", this.onKey);
+              },
+              key: function (e) {
+                var radios = Array.prototype.slice.call(
+                  this.el.querySelectorAll('input[type="radio"]:not([disabled])')
+                );
+                var i = radios.indexOf(e.target);
+                if (i < 0) return;
+                var next = null;
+                switch (e.key) {
+                  case "ArrowDown":
+                  case "ArrowRight":
+                    next = radios[(i + 1) % radios.length];
+                    break;
+                  case "ArrowUp":
+                  case "ArrowLeft":
+                    next = radios[(i - 1 + radios.length) % radios.length];
+                    break;
+                  case "Home":
+                    next = radios[0];
+                    break;
+                  case "End":
+                    next = radios[radios.length - 1];
+                    break;
+                  case "Enter":
+                    e.preventDefault();
+                    if (!e.target.checked) e.target.click();
+                    return;
+                  default:
+                    return;
+                }
+                e.preventDefault();
+                next.focus();
+              }
+            };
+
             // ADR-0050 §12 (closing act γ D8): a link that opens a merge
             // record (`?merge=<id>#merge-records`) lands on its row, not on
             // the section under the sticky top bar: the opened entry is

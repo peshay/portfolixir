@@ -816,7 +816,11 @@ defmodule PortfolixirWeb.ImportsLive do
                 <div>
                   <p class="muted"><%= decision_text(res) %></p>
                   <input type="hidden" name={"security[#{res.key}][choice]"} value={security_choice(@mapping, res)} />
-                  <fieldset class="merge-targets">
+                  <fieldset
+                    id={"decision-cards-#{res.key}"}
+                    class="merge-targets"
+                    phx-hook="RemapCards"
+                  >
                     <legend class="visually-hidden"><%= gettext("Map to") %></legend>
                     <.security_card
                       :for={security <- decision_cards(res, @mapping, @remap.known)}
@@ -833,6 +837,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     class="link-button"
                     phx-click="open_remap"
                     phx-value-key={res.key}
+                    phx-mounted={@remap.picked == res.key && JS.focus()}
                   >
                     <%= gettext("Search for another security…") %>
                   </button>
@@ -2082,7 +2087,10 @@ defmodule PortfolixirWeb.ImportsLive do
   # What the open pickers hold: the keys open, each one's query and hits, and
   # the securities the rows name (each decision's candidates, each chosen
   # target, each hit) with their booking counts. Never the catalog.
-  defp blank_remap, do: %{open: [], query: %{}, hits: %{}, known: %{}, bookings: %{}}
+  # `picked` is the row whose picker a pick closed last: its control takes
+  # the focus as it comes back (the γ7 review, R-S1).
+  defp blank_remap,
+    do: %{open: [], query: %{}, hits: %{}, known: %{}, bookings: %{}, picked: nil}
 
   defp remap_open?(remap, res), do: res.key in remap.open
 
@@ -2169,7 +2177,9 @@ defmodule PortfolixirWeb.ImportsLive do
           get_in(mapping, [:security, key, "choice"]) != nil,
           do: key
 
-    update(socket, :remap, &%{&1 | open: &1.open -- picked})
+    update(socket, :remap, fn remap ->
+      %{remap | open: remap.open -- picked, picked: List.last(picked) || remap.picked}
+    end)
   end
 
   # A decision row's cards: its candidates, then a target the operator found
@@ -2217,6 +2227,7 @@ defmodule PortfolixirWeb.ImportsLive do
         class="link-button"
         phx-click="open_remap"
         phx-value-key={@res.key}
+        phx-mounted={@remap.picked == @res.key && JS.focus()}
       ><%= if @target, do: gettext("Change…"), else: gettext("Map elsewhere…") %></button>
     </span>
     """
@@ -2256,6 +2267,7 @@ defmodule PortfolixirWeb.ImportsLive do
           maxlength="100"
           autocomplete="off"
           phx-debounce="250"
+          phx-mounted={JS.focus()}
           aria-label={gettext("Search securities: name, ISIN, WKN or ticker")}
           placeholder={gettext("Name, ISIN, WKN or ticker")}
         />
@@ -2263,7 +2275,12 @@ defmodule PortfolixirWeb.ImportsLive do
       <p :if={@query != "" and @hits == []} class="mapping-remap__empty">
         <%= gettext("No security matches.") %>
       </p>
-      <fieldset :if={@create or @hits != []} class="merge-targets">
+      <fieldset
+        :if={@create or @hits != []}
+        id={"remap-cards-#{@res.key}"}
+        class="merge-targets"
+        phx-hook="RemapCards"
+      >
         <legend><%= gettext("Map to") %></legend>
         <.create_card :if={@create} res={@res} choice={@choice} />
         <.security_card
