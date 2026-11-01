@@ -6,6 +6,8 @@ defmodule Portfolixir.Portfolios.Portfolio do
   alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios.Target
 
+  @type t :: %__MODULE__{}
+
   schema "portfolios" do
     field(:name, :string)
     field(:base_currency_code, :string)
