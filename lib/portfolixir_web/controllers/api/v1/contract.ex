@@ -41,6 +41,39 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 20,
+      # Sprint 21's stacked PR 2, the UI batch: the PR's one entry (the
+      # amendment of 2026-10-27, D-3), its one item #1210's month totals on
+      # the Costs read (γ4) and its summary naming every other γ story by its
+      # issue as a screen change, with the two places where code under a
+      # screen moved (#1187, #1149) and the stored note #1179 renames.
+      date: ~D[2026-11-01],
+      summary:
+        "Sprint 21, the UI batch, by the plan's stories: γ4, every month of the Costs read " <>
+          "carries its own total of fees and taxes, and computation_basis.totals states how a " <>
+          "month's and a year's totals are formed (#1210). The other γ stories change screens " <>
+          "only, which follow the boards 01 to 08 (#1104, #1112, #1114, #1121, #1122, #1123, " <>
+          "#1125, #1130, #1138, #1139, #1145, #1147, #1148, #1150, #1151, #1155, #1157, #1158, " <>
+          "#1160, #1161, #1162, #1163, #1165, #1166, #1169, #1171, #1178, #1180, #1181, #1191, " <>
+          "#1201, #1207, #1208, #1211, #962, and H45 in γ7): #1187 moved the archived-plan rule " <>
+          "into the Targets context, which a target write now meets again inside the " <>
+          "transaction that writes, the API's 422 bodies byte-identical; #1149's Format, which " <>
+          "prints a figure that reads zero without a sign, is web-layer only, the API serving " <>
+          "raw Decimals; and #1179, which names a JSON import's rows entries, stores the note " <>
+          "of a tax refund split off a JSON entry as \"Auto-split tax refund from entry <n>\", " <>
+          "where it read \"from row <n>\", a stored text and no field. No route, tool or prompt " <>
+          "is added or removed.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/costs (portfolixir.cashflow.costs, whose description now says \"a year/month matrix of fees, taxes and a total per month and per year (computation_basis.totals)\"): every annual[].months object, \"1\" to \"12\", adds total beside fees and taxes, a Decimal string equal to that month's fees plus its taxes, both the converted figures: a January of 9.90 fees and 2.10 taxes reads {\"fees\": \"9.9\", \"taxes\": \"2.1\", \"total\": \"12\"}, a May of 12.50 USD fees and 2.50 USD taxes at 1 EUR = 1.25 USD reads fees 10, taxes 2 and total 12, an empty month reads total \"0\", and a month holding only a tax_refund of 4 reads taxes and total \"-4\". A cost with no stored rate on its booking date is in no month's total, as it is in no other, and stays named in excluded. A year's fees_total, taxes_total and total are unchanged, total being the sum of its twelve month totals. computation_basis adds totals: \"each month's total is that month's fees plus its taxes, both after the conversion above; a year's fees_total, taxes_total and total sum its twelve months; an excluded cost is in no total\". No parameter is added (#1210; ADR-0015's amendment of 2026-10-07, identity 2)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 19,
       # Sprint 21's stacked PR 1, the money after the first import: the PR's
       # one entry (the amendment of 2026-10-27, D-3), its items named by their
