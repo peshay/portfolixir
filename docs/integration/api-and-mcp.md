@@ -3127,6 +3127,13 @@ level (d)).
   `scope=latest` answers `settlement_legs: null`: the daily sync derives no
   legs. A booking that already carries a leg, or is priced in a third
   currency, is never touched.
+  Since issue #1311 `settlement_legs` also carries `skipped_zero_amount`
+  (`null` on a stop, `0` when the run did not derive): the bookings whose
+  trade amount is zero, such as a free allotment bought at a price of 0,
+  which no rate converts into a leg, so a re-run never changes them.
+  `skipped_no_rate` no longer counts them, and counts only the bookings
+  whose date still has no rate; the mix task lists the zero-amount rows
+  apart, by id and date.
 
 ## Classifications
 
