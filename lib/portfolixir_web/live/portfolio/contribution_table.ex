@@ -642,29 +642,31 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   # The flow is the position's own (the formula's "Zu-/Abflüsse"), so the
   # words name the side: said bare, "Abfluss" beside a gain read as money
   # leaving the portfolio (#1090, board 08 ⑤).
+  # Each clause is there when its figure reads not zero: the displayed sign
+  # at two places (#1149), so 0,004 names no "0,00" (the γ closing act, G4).
   defp phone_flow(flows) do
-    case Decimal.compare(flows, 0) do
-      :gt ->
+    case Format.displayed_sign(flows, 2) do
+      :positive ->
         gettext("inflow into the position %{amount}", amount: Format.money(flows))
 
-      :lt ->
+      :negative ->
         gettext("outflow from the position %{amount}",
           amount: Format.money(Decimal.abs(flows))
         )
 
-      :eq ->
+      _zero ->
         nil
     end
   end
 
   defp phone_income(income) do
-    if Decimal.compare(income, 0) == :eq,
+    if Format.displayed_sign(income, 2) == :zero,
       do: nil,
       else: gettext("income %{amount}", amount: Format.money(income))
   end
 
   defp phone_costs(costs) do
-    if Decimal.compare(costs, 0) == :eq,
+    if Format.displayed_sign(costs, 2) == :zero,
       do: nil,
       else: gettext("costs %{amount}", amount: Format.money(costs))
   end
