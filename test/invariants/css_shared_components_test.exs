@@ -115,6 +115,26 @@ defmodule Portfolixir.Invariants.CssSharedComponentsTest do
     end
   end
 
+  # User story (#1166 accessibility pass, Sprint 21 γ8; the γ closing act,
+  # A-F3):
+  # As the keyboard operator replacing a security's logo,
+  # I want "Choose image…" to show the house ring when its file input has
+  # the focus,
+  # so that I can see where Tab took me.
+  #
+  # Acceptance criteria:
+  # - The chooser is a label beside the visually hidden file input, its
+  #   sibling, not its parent, so `:focus-within` never matched: the ring
+  #   rides `.logo-override__choose:has(+ input:focus-visible)`, 2 px accent
+  #   at a 2 px offset, the radio cards' `:has(input:focus-visible)` pattern.
+  test "the logo dialog's chooser rings when its file input has the keyboard focus" do
+    ring = block(".logo-override__choose:has(+ input:focus-visible)")
+    assert ring =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert ring =~ ~r/outline-offset:\s*2px;/
+
+    refute @css =~ ~r/\n\.logo-override__choose:focus-within \{/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body
