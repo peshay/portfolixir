@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the booking drawer, the import preview and the accounts: a legless buy, rows from another portfolio, an existing booking, a cash-only instance, twin account names (Sprint 22)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<!-- THE PROPOSAL: one rule, ⑤. Every frame is a srcdoc iframe built from
+     the live markup of the review instance (German UI, synthetic review
+     seed), captured with Playwright on 2026-11-01, or — where the instance
+     cannot be put in the state without writing to it — from the templates
+     that render it:
+       transaction_management_live.ex  #booking-drawer (the edit form of the
+                                       imported Arbolia buy, opened and
+                                       closed unsaved; the sell form and its
+                                       #sell-lot-preview; the cash form), the
+                                       history head, #transaction-setup-empty,
+                                       #transaction-chips;
+       imports_live.ex                 the preview head, .import-stats,
+                                       .kind-chips, #parser-warnings-box, the
+                                       mapping panels (from the template; no
+                                       file was dropped on the instance);
+       portfolio_accounts_live.ex      #accounts-table's account pairs.
+     "Heute" frames render app.css as shipped; the others add <style
+     id="proposal">. German strings from priv/gettext/de; new strings are
+     marked dashed. Synthetic data only. -->
+<style id="proposal">
+  /* ⑤ #1333: the twin tag (SecurityNames.twin_id, #1155) reused for an
+     account whose name another portfolio also uses; a portfolio's name is
+     a word, not an identifier, so it drops the tag's monospace. */
+  .twin-id--portfolio {
+    font-family: inherit;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  :root { --mock-ink: #5a6577; }
+  body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+  .mock-board { max-width: 1152px; margin: 0 auto 36px; }
+  .mock-board > h2 { margin: 0 0 4px; font-size: 16px; font-weight: 760; }
+  .mock-board > h2 small { font-weight: 500; color: var(--mock-ink); margin-left: 8px; font-size: 12.5px; }
+  .mock-board > p.mock-note { margin: 0 0 12px; font-size: 12.5px; color: var(--mock-ink); max-width: 124ch; }
+  .mock-note code, .notes code, .pickbar code { font-size: 11.5px; }
+  .mock-frame { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-elevated); overflow: hidden; box-shadow: var(--shadow-panel); }
+  .mock-before { border-color: var(--color-danger); }
+  .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .mock-before > .mock-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .mock-after > .mock-tag { color: var(--color-positive); background: #ecfdf5; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .mock-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-top: 12px; }
+  .cap { margin: 18px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .pickbar { max-width: 1152px; margin: 0 auto 22px; padding: 10px 14px; border: 1px solid var(--color-accent); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-accent-soft); font-size: 12.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 1px; }
+  .co { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px; border-radius: 999px; background: var(--color-accent); color: #fff; font: 700 12px/1 var(--font-sans); vertical-align: 1px; }
+  .notes { flex: 1 1 260px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 4px; }
+  .consequence { padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .dw { width: 422px; flex: none; }
+  .dw iframe { display: block; width: 420px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 03 — the booking drawer, the import preview and the accounts (Sprint 22).</b> <span class="co">1</span><b>#1335 + #1337</b> an imported cross-currency buy without settlement legs opens in its stored booking currency, with the rate backfill named, never re-booked as USD in place; the sell preview prints „24,00 EUR“ · <span class="co">2</span><b>#1313</b> rows already imported into another portfolio are named and held back by default — <b>the one choice on this board:</b> <b>A</b> one collapsed group per portfolio with an include toggle <span class="rec">Recommended A</span> · <b>B</b> the rows inline, each marked and unchecked · <span class="co">3</span><b>#1219</b> a refused row whose booking exists says „bereits gebucht“ and names it · <span class="co">4</span><b>#1299</b> „Transaktion erfassen“ on an instance with cash accounts and no depot · <span class="co">5</span><b>#1333</b> twin account names carry their portfolio's name. A comment naming „#1313 B“ on the planning PR changes the pick; silence adopts A. Every name and figure is synthetic. <b>Dashed = new or changed. Red ring = wrong today.</b></div>
+<p class="phone-only phone-cap"><b>Board 03 at 390&nbsp;px.</b> Real 390-px frames; #1313 recommended A. The drawer is drawn as its bottom sheet, unpinned so it can be read whole. Synthetic data; the reasons are in the 1200-px render.</p>
+
+<!-- ============================ ① ============================ -->
+<section class="mock-board" id="drawer">
+  <h2><span class="co">1</span>#1335 + #1337 — the drawer opens a booking in the currency it is stored in <small>Transaktionen → Historie → 15.04.2026 Kauf Arbolia Inc. → Bearbeiten · Transaktion erfassen → Verkauf</small></h2>
+  <p class="mock-note desk-only"><b>Today (#1335).</b> The Portfolio Performance import booked 10 Arbolia Inc. (a USD security) from „Round Trip Cash“ (EUR) at 80,00 <b>EUR</b>, with no settlement legs: no hub rate was stored for its day. The history, the delete box and the security's Trades tab read it in EUR. The drawer takes the price currency from the security/account pair instead: „Preis (USD) 80“, an empty „Abrechnung in EUR“ fieldset, „Preis in USD · Geld in EUR“. Saving refuses without a settlement amount — even a note edit — and with one, <code>prepare_settled</code> writes <code>currency_code: USD</code>: <b>80 EUR re-booked as 80 USD</b>. <b>After.</b> A cross-currency row with no settlement legs opens in its stored booking currency: „Preis (EUR)“, no settlement fieldset, the account form; a Hinweis says why and where its USD figure comes from — the rate backfill the Trades tab already points to. Saving keeps it in EUR. <b>Today (#1337).</b> The sell preview prints a lot's Kaufpreis „24 EUR“ (and a fractional quantity „2.5“) through <code>format_decimal/1</code>, unlocalized; the history prints „24,00 EUR“. <b>After:</b> the history's stored-figure rule, at least two places, German separators.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dw mock-frame mock-before desk-only"><span class="mock-tag">Heute — „Preis (USD) 80“, leere Abrechnung</span><iframe data-tpl="edit" data-o='{"v":"today"}' title="1 Bearbeiten heute, Desktop"></iframe></div>
+    <div class="dw mock-frame mock-after desk-only"><span class="mock-tag">Nachher — „Preis (EUR) 80“, in EUR gebucht, der Weg zum USD-Gegenwert genannt</span><iframe data-tpl="edit" data-o='{"v":"after"}' data-proposal title="1 Bearbeiten nachher, Desktop"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>A correction that changes the currency.</b> The form the operator opens to fix a note offers a save that books 80,00 USD where 80,00 EUR were paid — or no save at all.</p>
+      <ul>
+        <li><b>The stored booking is the truth.</b> The edit form shows what is stored; it does not derive a currency the booking does not carry (ADR-0015: a booking is in its account's currency until it carries legs).</li>
+        <li><b>The remedy is named, not offered here.</b> The legs come from the history backfill, which derives them for every imported buy at once; the drawer does not invent a rate for one row. Words of the Trades tab's existing note.</li>
+        <li>Price, quantity, fees, taxes, date and note stay editable; the security and depot too, within the same booking currency.</li>
+        <li>New string: the Hinweis. The type list of an edit form keeps Kauf / Verkauf only, as today.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row">
+    <div class="dw mock-frame mock-before desk-only"><span class="mock-tag">Heute — Verkauf-Vorschau: „24 EUR“, „2.5“</span><iframe data-tpl="sell" data-o='{"v":"today"}' title="1 Verkauf heute, Desktop"></iframe></div>
+    <div class="dw mock-frame mock-after desk-only"><span class="mock-tag">Nachher — „24,00 EUR“, „2,5“ wie in der Historie</span><iframe data-tpl="sell" data-o='{"v":"after"}' data-proposal title="1 Verkauf nachher, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, Bearbeiten</span><iframe data-tpl="edit" data-o='{"v":"today","phone":true}' title="1 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px, Bearbeiten</span><iframe data-tpl="edit" data-o='{"v":"after","phone":true}' data-proposal title="1 nachher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — 390 px, Verkauf-Vorschau</span><iframe data-tpl="sell" data-o='{"v":"after","phone":true}' data-proposal title="1 Verkauf nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ ② ============================ -->
+<section class="mock-board" id="other-portfolio">
+  <h2><span class="co">2</span>#1313 — rows already imported into another portfolio are named and held back <small>Transaktionen → Import → Vorschau</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> The Imports page books into the default portfolio (ADR-0024), and the import's content hash includes the portfolio. A file first imported into „Anleihen“ — by an agent over the API, or by a script — previews on the page as four <b>new</b> bookings, offers to create „Coupon-Cash“ and „Coupon-Depot“ a second time, and one confirm books the history twice. <b>Decided (owner-only, the ADR-0050 amendment the plan carries):</b> keep the per-portfolio scope; the preview reads hashes across portfolios, names rows already imported elsewhere and holds them back by default; the operator can include them deliberately. <b>The open choice is the anatomy.</b> Case: <code>kupons-2026.json</code>, four entries, all four imported into „Anleihen“ on 01.11.2026; the page books into „Hauptportfolio“.</p>
+
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „4 Buchungen neu“, „+ Neu anlegen: Coupon-Cash“: ein Bestätigen bucht die Historie doppelt</span><iframe data-tpl="imp" data-o='{"v":"today"}' title="2 heute, Desktop"></iframe></div>
+  </div>
+
+  <p class="cap desk-only">Variante A <span class="rec">empfohlen</span> — one collapsed group per portfolio, held back, with an include toggle</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — „Bereits im Portfolio „Anleihen“ importiert: 4 Einträge — nicht übernommen“; die Zuordnung hat nichts zu tun</span><iframe data-tpl="imp" data-o='{"v":"A"}' data-proposal title="2 A, Desktop"></iframe></div>
+  </div>
+  <p class="cap desk-only">Variante B — the rows inline, each marked, unchecked</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B — eine Zeilenliste, jede Zeile „bereits in „Anleihen““, nicht angehakt</span><iframe data-tpl="imp" data-o='{"v":"B"}' data-proposal title="2 B, Desktop"></iframe></div>
+  </div>
+
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before phone-only"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="imp" data-o='{"v":"today"}' title="2 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px, die Gruppe geöffnet</span><iframe data-tpl="imp" data-o='{"v":"A","open":true}' data-proposal title="2 A geöffnet, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after desk-only"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="imp" data-o='{"v":"B"}' data-proposal title="2 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b></p>
+      <ul>
+        <li><b>The decision is per portfolio, not per row.</b> „This history is already in Anleihen“ is one fact about a set of rows; one sentence and one switch say it, and the switch's consequence (a second copy, in this portfolio) is stated once beside it. B asks the operator to answer the same question four times — or four hundred: a Portfolio Performance export holds the whole history, and the usual case is a file imported elsewhere in full.</li>
+        <li><b>It fits the preview's anatomy.</b> The preview speaks in counts — the cards, „Anzahl pro Art“, „33 Buchungen bereits importiert · 2 neu“ on each mapping row, the nothing-to-import note — and has no row list. A adds one disclosure in that language; B adds the page's first row table, with a checkbox column the apply would have to honour row by row.</li>
+        <li><b>A partial copy is the error B invites.</b> Ticking some rows of an already-imported history books a fragment of it twice; A includes the group or nothing.</li>
+        <li><b>The rows stay inspectable</b> one tap away (the 390-px frame shows the group open), so A hides nothing B shows.</li>
+        <li><b>B fits</b> only if the owner expects files that mix rows from several portfolios with rows that are new, and wants to pick among them.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ③ ============================ -->
+<section class="mock-board" id="already-booked">
+  <h2><span class="co">3</span>#1219 — a refused row whose booking exists says „bereits gebucht“ and names it <small>Transaktionen → Import → Vorschau → Parser-Warnungen</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> A row the import refuses (ADR-0053) carries its remedy — „Den Verkauf von Hand buchen …“. After the operator followed it, the next drop of the same file shows the same row with the same remedy: the hand booking carries no import hash, and a re-export whose hashed fields drifted is not found either. One confirm away from booking it twice. <b>After</b> (the recommended answer): the preview matches the row's booking on the economic layer (<code>DedupKey.of/1</code>) against imported and hand bookings; where one is found the row says „bereits gebucht“ and names it — date, kind, security, quantity, amount, account, and that it was entered by hand — and the remedy becomes „nicht noch einmal buchen“. A row with no match keeps its remedy (entry 14).</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-before desk-only"><span class="mock-tag">Heute — Eintrag 9 rät zum Buchen von Hand, obwohl die Buchung seit dem 20.05.2026 besteht</span><iframe data-tpl="ref" data-o='{"v":"today"}' title="3 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag">Nachher — „bereits gebucht: Verkauf vom 15.05.2026 …“; Eintrag 14 ohne Treffer behält seine Abhilfe</span><iframe data-tpl="ref" data-o='{"v":"after"}' data-proposal title="3 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="ref" data-o='{"v":"today"}' title="3 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="ref" data-o='{"v":"after"}' data-proposal title="3 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>Plain text</b>, because the warnings box is a copyable <code>&lt;pre&gt;</code>: the booking is named in words, not linked.</li>
+        <li><b>„bereits gebucht“</b> is the existing msgstr of „already booked“; the sentence's tail mirrors the existing already-imported variant („… nicht noch einmal buchen“).</li>
+        <li><b>Two bookings that match</b> (same day, equal figures) are both named and neither is chosen — „2 gespeicherte Buchungen passen …“, the correction section's existing words — so the row never names the wrong one (the issue's „what would change the answer“).</li>
+        <li>The done page's refused-rows list reads the same sentence.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ④ ============================ -->
+<section class="mock-board" id="cash-only">
+  <h2><span class="co">4</span>#1299 — „Transaktion erfassen“ on an instance with cash accounts and no depot <small>Transaktionen → Historie</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> The button renders only <code>:if={@securities_accounts != []}</code>, and the page says „Buchungen brauchen ein Depot mit Verrechnungskonto.“ — on an instance whose two cash accounts could take every cash kind the drawer books since Sprint 21 (deposit, removal, interest, fee, tax, tax refund). The operator has to use the API. <b>After.</b> The button shows whenever a cash account exists; the drawer offers the kinds the instance can book and opens on the cash form; the setup line says what needs a depot instead of claiming every booking does.</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — kein Knopf; „Buchungen brauchen ein Depot …“</span><iframe data-tpl="cash" data-o='{"v":"today"}' title="4 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — der Knopf, und die Schublade mit den Geldarten (Typ-Auswahl geöffnet gezeichnet)</span><iframe data-tpl="cash" data-o='{"v":"after"}' data-proposal title="4 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="cash" data-o='{"v":"today","phone":true}' title="4 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px, die Seite</span><iframe data-tpl="cash" data-o='{"v":"after","phone":true,"page":true}' data-proposal title="4 nachher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — 390 px, die Schublade</span><iframe data-tpl="cash" data-o='{"v":"after","phone":true,"sheet":true}' data-proposal title="4 nachher, Schublade, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>The kind list is what the instance can book:</b> Zinsen, Einlage, Entnahme, Gebühren, Steuern, Steuererstattung; Kauf, Verkauf and Dividende need a depot and a security, so they are absent rather than offered and refused. The form opens on Einlage, the first booking a new account takes.</li>
+        <li><b>The setup line stays</b>, reworded to the truth, with its existing link; it is the page's only word on why buys are missing from the list.</li>
+        <li>New string: the setup sentence. No CSS: the drawer's cash form is Sprint 21's (board 03 of 2026-10-09, N12 A).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ⑤ ============================ -->
+<section class="mock-board" id="twins">
+  <h2><span class="co">5</span>#1333 — two same-named accounts read with their portfolio's name <small>Konten &amp; Depots · Transaktionen → Historie → Filter „Konto“</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> Account names are unique per portfolio only. After #1313's case (a file imported once into „Anleihen“ and once on the Imports page) there are two „Coupon-Depot“ and two „Coupon-Cash“, and neither the accounts table nor the history's Konto chips name the portfolio: the pairs cannot be told apart, so the operator may filter or act on the wrong one. <b>After:</b> the twin-names rule of #1155, for accounts — the portfolio's name beside an account's name <i>only</i> where another portfolio has an account of the same name; every other row stays as it is.</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — zweimal „Coupon-Depot / Coupon-Cash“</span><iframe data-tpl="acc" data-o='{"v":"today"}' title="5 Konten heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — „Anleihen“ und „Hauptportfolio“ neben den Zwillingen, sonst nichts</span><iframe data-tpl="acc" data-o='{"v":"after"}' data-proposal title="5 Konten nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — der Konto-Filter: zweimal „Coupon-Cash“</span><iframe data-tpl="chips" data-o='{"v":"today"}' title="5 Filter heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — „Coupon-Cash Anleihen“, „Coupon-Cash Hauptportfolio“</span><iframe data-tpl="chips" data-o='{"v":"after"}' data-proposal title="5 Filter nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, Konten</span><iframe data-tpl="acc" data-o='{"v":"today","phone":true}' title="5 Konten heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px, Konten</span><iframe data-tpl="acc" data-o='{"v":"after","phone":true}' data-proposal title="5 Konten nachher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — 390 px, Filter</span><iframe data-tpl="chips" data-o='{"v":"after"}' data-proposal title="5 Filter nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>Only twins carry it</b>, as a twin security carries its identifier and no other security does: on a one-portfolio instance nothing changes, and the tag means „there is another of this name“.</li>
+        <li><b>The same tag component</b> (<code>SecurityNames.twin_id</code>'s markup, visually hidden „Portfolio“ before the name), muted; rule ⑤ drops its monospace, because a portfolio's name is a word.</li>
+        <li><b>Every list and filter</b> that names an account reads it: the accounts table, the history's Konto chips, the drawer's depot and account selects („Coupon-Depot · Anleihen (Coupon-Cash)“), Wealth's cash table. The two drawn here are the issue's.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds each frame (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the markup
+   captured on the review instance or rendered by the named templates.
+   German labels from priv/gettext/de. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  dots: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>'
+};
+const svg = (n, s = 16, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="${cls}" aria-hidden="true">${P[n]}</svg>`;
+const N = (on, html) => (on ? `<span class="is-new">${html}</span>` : html);
+const CO = (n) => `<b class="co">${n}</b>`;
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+function note(sev, body, attrs = '', isNew = false) {
+  const word = { note: 'Hinweis', attention: 'Achtung' }[sev];
+  const glyph = { note: 'ast', attention: 'tri' }[sev];
+  return `<div class="data-note data-note--${sev}${isNew ? ' is-new' : ''}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(glyph, 14)}</span><span class="data-note__word">${word}</span><div class="data-note__body">${body}</div></div>`;
+}
+function areaTabs(active) {
+  return `<nav class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${[['Historie', 'bars'], ['Import', 'upload']].map(([l, i]) => `<a class="area-tab${l === active ? ' is-active' : ''}"${l === active ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i, 14)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+const page = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+const sel = (opts, chosen) => `<select>${opts.map((o) => `<option${o === chosen ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+
+/* ---------- transaction_management_live.ex: #booking-drawer ---------- */
+function drawer(title, sub, form, extra = '') {
+  return `<dialog open class="detail-pane booking-drawer" aria-labelledby="booking-drawer-title"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2 id="booking-drawer-title">${title}</h2><p class="detail-pane-sub">${sub}</p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></div></header>${form}${extra}</dialog>`;
+}
+const EDIT_SUB = 'Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, und das Journal hält die Änderung fest.';
+const NEW_SUB = 'Bucht gegen das gewählte Depot; das Geld bewegt sich in der Währung seines Geldkontos.';
+const costs = (fees, taxes) => `<details class="transaction-costs"><summary class="disclosure-summary">${svg('chev', 12, 'disclosure-chevron')} Kosten und Notiz</summary><div class="form-grid"><label><span>Gebühren</span><input value="${fees}" class="num"></label><label><span>Steuern</span><input value="${taxes}" class="num"></label></div></details>`;
+const foot = (label) => `<div class="booking-drawer__foot"><button type="submit" class="button-primary">${label}</button><button type="button" class="button-ghost">Abbrechen</button></div>`;
+function edit(o) {
+  const after = o.v === 'after';
+  const priceLabel = after ? N(true, 'Preis (EUR)') + CO(1) : 'Preis (USD)';
+  const grid = `${elide('Typ Kauf · Datum 2026-04-15')}<div class="form-grid"><label><span>Bucht auf Depot</span>${sel(['Round Trip Depot (Round Trip Cash)'], 'Round Trip Depot (Round Trip Cash)')}</label><label><span>Wertpapier</span>${sel(['Arbolia Inc. (ARBL)'], 'Arbolia Inc. (ARBL)')}</label><label style="display:none"></label><label style="display:none"></label><label><span>Stückzahl</span><input value="10" class="num"></label><label><span>${priceLabel}</span><input value="80" class="num"></label></div>`;
+  const settle = `<fieldset class="settlement-fieldset"><legend>Abrechnung in EUR <span class="settlement-fieldset__pair">· Wertpapier in USD, Konto in EUR</span></legend><div class="form-grid"><label><span>Abrechnungsbetrag (EUR)</span><input class="num"></label><label><span>Kurs EUR je USD</span><input class="num"></label></div><p class="form-help" data-role="settlement-help">Der Geldbetrag ist beim Kauf der Abrechnungsbetrag plus Gebühren und Steuern, beim Verkauf abzüglich dieser; Gebühren und Steuern sind in EUR.</p></fieldset><p class="form-help" data-role="derived-currency">Preis in USD · Geld in EUR</p>`;
+  const kept = `<p class="form-help" data-role="derived-currency">Währung: EUR</p>${note('note', 'In EUR gebucht, wie importiert — das Wertpapier notiert in USD, und dieser Kauf hat noch keinen Gegenwert in USD. Speichern lässt ihn in EUR. Den Gegenwert leitet „Historische Wechselkurse nachladen“ unter Cashflow → „Trades“ ab.', ' data-role="legless-booking"', true)}`;
+  return drawer('Transaktion bearbeiten', EDIT_SUB, `<form>${grid}${after ? kept : settle}${costs('5', '1')}${foot('Änderungen speichern')}</form>`);
+}
+function sell(o) {
+  const after = o.v === 'after';
+  const grid = `<div class="form-grid"><label><span>Typ</span>${sel(['Verkauf'], 'Verkauf')}</label><label><span>Datum</span><input type="text" value="2026-11-01"></label><label><span>Bucht auf Depot</span>${sel(['Demo Depot (Demo Cash)'], 'Demo Depot (Demo Cash)')}</label><label><span>Wertpapier</span>${sel(['Kestrel Industrial Group NV (KIGN)'], 'Kestrel Industrial Group NV (KIGN)')}</label><label><span>Stückzahl</span><input value="7,5" class="num"></label><label><span>Preis</span><input value="30" class="num"></label></div><p class="form-help" data-role="derived-currency">Währung: EUR</p>`;
+  const lot = (d, q, qa, p, pa, g, co) => `<tr><td>${d}</td><td>${after ? N(q !== qa, qa) : q}</td><td data-role="preview-buy-price">${after ? N(true, `${pa} <small>EUR</small>`) + (co ? CO(1) : '') : `${p} <small>EUR</small>`}</td><td class="is-positive">${g} <small>EUR</small></td></tr>`;
+  const preview = `<section id="sell-lot-preview" class="workspace-section" data-role="sell-lot-preview"><h3>Von diesem Verkauf verbrauchte Lots (FIFO)</h3><details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled"><summary aria-label="Über den Bruttogewinn">ⓘ Bruttogewinn</summary></details><div class="data-table-wrapper"><table id="sell-lot-preview-table"><thead><tr><th>Eröffnungsdatum</th><th>Verwendete Menge</th><th>Kaufpreis</th><th>Bruttogewinn</th></tr></thead><tbody>${lot('29.10.2026', '5', '5', '24', '24,00', '+30,00', true)}${lot('30.10.2026', '2.5', '2,5', '26.4', '26,40', '+9,00')}</tbody><tfoot><tr class="totals-row"><td colspan="3">Gesamt</td><td class="is-positive" data-role="preview-total">+39,00 <small>EUR</small></td></tr></tfoot></table></div></section>`;
+  return drawer('Transaktion erfassen', NEW_SUB, `<form>${elide('Verkauf · 01.11.2026 · Demo Depot (Demo Cash) · Kestrel Industrial Group NV · Stückzahl 7,5 · Preis 30 · Währung: EUR')}${foot('Transaktion erfassen')}</form>`, preview);
+}
+
+/* ---------- imports_live.ex: the preview ---------- */
+const stats = (cards) => `<div class="import-stats">${cards.map(([l, v, w]) => `<div class="import-stat-card${w ? ' warning' : ''}"><span class="label">${l}</span><span class="value">${v}</span></div>`).join('')}</div>`;
+const kinds = (list) => `<h3>Anzahl pro Art</h3><ul class="kind-chips">${list.map(([k, n]) => `<li class="kind-chip"><span class="name">${k}</span><span class="count">${n}</span></li>`).join('')}</ul>`;
+const head = (fmt) => `<h2>Vorschau</h2><p class="muted">Quellformat: ${fmt}</p>`;
+const cnt = (inner) => `<span class="mapping-count" data-role="mapping-count">${inner}</span>`;
+const NOTHING = '<span class="mapping-basis" data-role="mapping-nothing-new">Keine Zuordnung nötig: Der Import bucht unter diesem Namen nichts.</span>';
+const actions = '<div class="actions"><button type="submit" class="button-primary">Import bestätigen</button><button type="button">Verwerfen</button></div>';
+const ROWS = [['12.03.2026', 'Einlage', 'Coupon-Cash', '+10.000,00 EUR'], ['13.03.2026', 'Kauf', 'Larkspur Rail AG 4,00 % Anleihe 2031 · 100 Stück', '-9.950,00 EUR'], ['30.06.2026', 'Zinsen', 'Larkspur Rail AG 4,00 % Anleihe 2031', '+200,00 EUR'], ['30.09.2026', 'Zinsen', 'Larkspur Rail AG 4,00 % Anleihe 2031', '+200,00 EUR']];
+function imp(o) {
+  const v = o.v;
+  const today = v === 'today';
+  const cashCount = today ? cnt('<b>4 Buchungen neu</b>') : cnt(N(true, '4 Buchungen in „Anleihen“ importiert · <b>nichts anzulegen</b>'));
+  const depCount = today ? cnt('<b>1 Buchung neu</b>') : cnt(N(true, '1 Buchung in „Anleihen“ importiert · <b>nichts anzulegen</b>'));
+  const cashTarget = today ? sel(['+ Neu anlegen: Coupon-Cash'], '+ Neu anlegen: Coupon-Cash') : N(true, NOTHING);
+  const depTarget = today ? sel(['+ Neu anlegen: Coupon-Depot'], '+ Neu anlegen: Coupon-Depot') : N(true, NOTHING);
+  const depCash = today ? sel(['Coupon-Cash (neu)'], 'Coupon-Cash (neu)') : '';
+  const mapping = `<section class="panel inner"><h3>Verrechnungskonten aus dem Export</h3><div class="mapping-grid"><div class="mapping-row"><div class="source"><small>PP-Konto</small>Coupon-Cash${cashCount}</div><div class="mapping-target">${cashTarget}</div></div></div></section><section class="panel inner"><h3>Depots aus dem Export</h3><div class="mapping-grid"><div class="mapping-row depot"><div class="source"><small>PP-Depot</small>Coupon-Depot${depCount}</div><div class="mapping-target">${depTarget}</div>${depCash}</div></div></section>`;
+  let group = '';
+  if (v === 'A') {
+    const rows = ROWS.map(([d, k, s, a]) => `<tr><td>${d}</td><td>${k}</td><td>${s}</td><td class="num">${a}</td></tr>`).join('');
+    group = `<div class="is-new" style="border-radius:10px">${note('attention', `<details class="perf-table-disclosure" data-role="held-back-group"${o.open ? ' open' : ''}><summary class="disclosure-summary">${svg('chev', 12, 'disclosure-chevron')} <span>Bereits im Portfolio „Anleihen“ importiert: <b>4 Einträge</b> — nicht übernommen</span>${CO(2)}</summary><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Datum</th><th>Art</th><th>Konto · Wertpapier</th><th class="num">Betrag</th></tr></thead><tbody>${rows}</tbody></table></div></details><div class="mapping-remember" data-role="held-back-include"><label><input type="checkbox"><span>Trotzdem übernehmen</span></label><small>bucht die 4 Einträge ein zweites Mal, in „Hauptportfolio“; „Anleihen“ behält seine.</small></div>`, ' data-role="held-back"')}</div>`;
+  }
+  let list = '';
+  if (v === 'B') {
+    const rows = ROWS.map(([d, k, s, a], i) => `<tr><td><input type="checkbox" aria-label="Eintrag ${i + 1} übernehmen"></td><td>${d}</td><td>${k}</td><td>${s} <span class="badge badge--neutral">bereits in „Anleihen“</span></td><td class="num">${a}</td></tr>`).join('');
+    list = `<section class="panel inner is-new" data-role="entry-list"><h3>Einträge der Datei${CO(2)}</h3><p class="muted">Angehakte Einträge bucht der Import in „Hauptportfolio“. Ein Eintrag, der bereits in einem anderen Portfolio importiert ist, ist nicht angehakt.</p><div class="data-table-wrapper"><table class="data-table"><thead><tr><th><span class="visually-hidden">Übernehmen</span></th><th>Datum</th><th>Art</th><th>Konto · Wertpapier</th><th class="num">Betrag</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  }
+  const cards = today ? stats([['Einträge', 4], ['Wertpapiere', 1], ['Verrechnungs&shy;konten', 1], ['Depots', 1]]) + kinds([['Einlage', 1], ['Kauf', 1], ['Zinsen', 2]]) : elide('die Karten (Einträge 4 · Wertpapiere 1 · Verrechnungskonten 1 · Depots 1) und „Anzahl pro Art“ — unverändert');
+  return page(areaTabs('Import') + `<section class="workspace-section">${head('JSON')}${group}${cards}${list}<form>${mapping}${elide('„Wertpapiere aus dem Export“: Larkspur Rail AG 4,00 % Anleihe 2031, zugeordnet')}${actions}</form></section>`);
+}
+
+/* ---------- #1219: the parser warnings box ---------- */
+const E9_TODAY = 'Eintrag 9: Verkauf mit einer negativen Gebühr (-1,90): Eine Gebührenerstattung bucht der Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand buchen, mit den Gebühren abzüglich der Erstattung (3,00).';
+const E9_AFTER = 'Eintrag 9: Verkauf mit einer negativen Gebühr (-1,90): Eine Gebührenerstattung bucht der Import noch nicht — <span class="is-new">bereits gebucht: Verkauf vom 15.05.2026, Larkspur Rail AG, 10 Stück, +118,00 EUR auf Test-Cash, von Hand erfasst. Den Verkauf nicht noch einmal buchen.</span>';
+const E14 = 'Eintrag 14: Einlieferung mit Steuererstattung 12,40: Eine Einlieferung bewegt kein Geld, die Erstattung hätte kein Konto — Zeile nicht übernommen. Die Einlieferung ohne sie von Hand buchen; ist Geld geflossen, das als eigene Steuererstattung.';
+function ref(o) {
+  const after = o.v === 'after';
+  const box = note('attention', `<div class="parser-warnings__head"><h3>Parser-Warnungen${after ? CO(3) : ''}</h3><button type="button" class="icon-button" aria-label="Parser-Warnungen kopieren">${svg('copy')}</button></div><pre class="parser-warnings__rows" tabindex="0">${after ? E9_AFTER : E9_TODAY}\n${E14}</pre>`, ' id="parser-warnings-box" data-role="parser-warnings" role="region"');
+  return page(areaTabs('Import') + `<section class="workspace-section">${head('JSON')}${elide('die Karten (Einträge 22 · Wertpapiere 6 · Verrechnungskonten 1 · Depots 1 · Warnungen 2) und „Anzahl pro Art“')}${box}${elide('die Zuordnung der übrigen 20 Einträge, unverändert')}</section>`);
+}
+
+/* ---------- #1299: the history on a cash-only instance ---------- */
+const CASH_KINDS = ['Zinsen', 'Einlage', 'Entnahme', 'Gebühren', 'Steuern', 'Steuererstattung'];
+function cashDrawer(phone) {
+  const type = `<label><span>Typ</span><select size="6" class="is-new" style="height:auto">${CASH_KINDS.map((k) => `<option${k === 'Einlage' ? ' selected' : ''}>${k}</option>`).join('')}</select></label>`;
+  const form = `<form><div class="form-grid">${type}<label><span>Datum</span><input type="text" placeholder="YYYY-MM-DD"></label><label><span>Verrechnungskonto</span>${sel(['Verrechnungskonto auswählen'], 'Verrechnungskonto auswählen')}</label><label><span>Betrag</span><input class="num"></label></div><p class="form-help" data-role="cash-direction">Die Währung wird durch das gewählte Verrechnungskonto bestimmt.</p><label><span>Notizen</span><textarea></textarea></label>${foot('Transaktion erfassen')}</form>`;
+  return drawer('Transaktion erfassen', 'Bucht auf das gewählte Verrechnungskonto, in dessen Währung.', form);
+}
+function cash(o) {
+  const after = o.v === 'after';
+  const setup = after
+    ? `<section id="transaction-setup-empty" class="empty-state" role="status"><p>${N(true, 'Käufe und Verkäufe brauchen ein Depot. Einlagen, Entnahmen, Zinsen, Gebühren und Steuern bucht ein Verrechnungskonto allein.')}</p><a class="button">Depot und Verrechnungskonto anlegen</a></section>`
+    : '<section id="transaction-setup-empty" class="empty-state" role="status"><p>Buchungen brauchen ein Depot mit Verrechnungskonto.</p><a class="button">Depot und Verrechnungskonto anlegen</a></section>';
+  const btn = after ? `<div class="section-head-controls"><span class="is-new" style="display:inline-flex;border-radius:8px"><button type="button" id="open-booking" class="button-primary">${svg('plus', 14)} Transaktion erfassen</button></span>${CO(4)}</div>` : '';
+  const list = `<section id="transaction-list-panel" class="workspace-section"><header class="section-head"><h2>Transaktionshistorie</h2>${btn}</header><div id="no-transactions" class="empty-state" role="status">Noch keine Transaktionen</div></section>`;
+  if (o.sheet) return `<div class="sheet-stage">${cashDrawer(true)}</div>`;
+  const body = areaTabs('Historie') + setup;
+  if (after && !o.phone) return page(body + `<div class="transactions-columns transactions-columns--drawer">${list}${cashDrawer(false)}</div>`);
+  return page(body + `<div class="transactions-columns">${list}</div>`);
+}
+
+/* ---------- #1333: accounts table and the history's Konto chips ---------- */
+const TWIN = (p) => ` <span class="twin-id twin-id--portfolio is-new"><span class="visually-hidden">Portfolio</span> ${p}</span>`;
+function pair(depot, cash, cur, bal, asof, tag, after, first) {
+  const t = after && tag ? TWIN(tag) : '';
+  const co = after && tag && first ? CO(5) : '';
+  return `<tbody class="account-pair" data-role="account-row"><tr class="account-row--depot"><td class="cell-name cell-name--depot"><span class="account-name">${depot}</span>${t}${co}</td><td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td><td class="cell-buckets cell-buckets--pair" rowspan="2"><div class="bucket-chip-group"><div class="bucket-chip-group__label">Buckets</div><span class="bucket-chip-group__empty">Kein Bucket</span> <button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button><div class="bucket-chip-group__scope">Gilt für Depot und Verrechnungskonto</div></div></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für ${depot}">${svg('dots')}</button></td></tr><tr class="account-row--cash"><td class="cell-name cell-name--cash"><span class="account-cash-name">${cash}</span>${t}</td><td class="cell-currency">${cur}</td><td class="cell-role"><form class="liquidity-role-field"><label class="liquidity-role-field__label">Liquiditätsrolle</label><select><option selected>Verfügbares Cash</option></select></form></td><td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">${bal}</span> <span class="cash-balance__asof">letzte Buchung ${asof}</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für ${cash}">${svg('dots')}</button></td></tr></tbody>`;
+}
+function acc(o) {
+  const after = o.v === 'after';
+  const headRow = '<thead><tr><th>Name</th><th>Währung</th><th class="accounts-term-head">Liquiditätsrolle</th><th>Saldo</th><th class="accounts-term-head">Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>';
+  const body = pair('Coupon-Depot', 'Coupon-Cash', 'EUR', '450,00 EUR', '30.09.2026', 'Anleihen', after, true) + pair('Coupon-Depot', 'Coupon-Cash', 'EUR', '450,00 EUR', '01.11.2026', 'Hauptportfolio', after, false) + (o.phone ? '' : pair('Demo Depot', 'Demo Cash', 'EUR', '2.899,90 EUR', '29.10.2026', null, after, false));
+  return page(`<section id="accounts-panel" class="workspace-section"><div class="section-head"><h2>Depots und Verrechnungskonten</h2><button type="button" class="button-primary">${svg('plus', 14)} Depot &amp; Konto anlegen</button></div><div class="data-table-wrapper"><table id="accounts-table" class="data-table accounts-table">${headRow}${body}</table></div>${elide('weitere Depots und Verrechnungskonten ohne Namenszwilling — unverändert')}</section>`);
+}
+function chips(o) {
+  const after = o.v === 'after';
+  const names = ['Broker Verrechnung 1', ['Coupon-Cash', 'Anleihen'], ['Coupon-Cash', 'Hauptportfolio'], 'Demo Cash', 'Dollar Cash', 'Family Cash', 'Rücklage', 'Tagesgeld'];
+  let first = true;
+  const cs = names.map((n) => {
+    if (Array.isArray(n)) {
+      const extra = after ? TWIN(n[1]) + (first ? CO(5) : '') : '';
+      first = false;
+      return `<button type="button" class="filter-chip" aria-pressed="false">${n[0]}${extra}</button>`;
+    }
+    return `<button type="button" class="filter-chip" aria-pressed="false">${n}</button>`;
+  }).join(' ');
+  return page(`<section id="transaction-list-panel" class="workspace-section"><header class="section-head"><h2>Transaktionshistorie</h2><div class="section-head-controls"><button type="button" class="filter-sheet-toggle">${svg('filter')} Filter</button><button type="button" class="button-primary">${svg('plus', 14)} Transaktion erfassen</button></div></header><div id="transaction-chips" class="filter-chips" role="group" aria-label="Historie filtern"><span><span class="filter-chips__family">Konto</span> ${cs}</span></div>${elide('die Typ-Chips, „Geändert seit“ und die Liste — unverändert')}</section>`);
+}
+
+const TPL = { edit, sell, imp, ref, cash, acc, chips };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .app-main{padding-top:4px;padding-bottom:8px} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .co{display:inline-grid;place-items:center;width:18px;height:18px;margin-left:6px;border-radius:999px;background:var(--color-accent);color:#fff;font:700 11px/1 var(--font-sans);vertical-align:1px;} .elide{margin:4px 16px 10px;font-size:12px;color:#5a6577;font-style:italic;} pre span.is-new{outline:none;border-radius:2px;background:color-mix(in srgb,var(--color-accent) 12%,transparent);box-shadow:inset 0 -2px 0 var(--color-accent);} .drawer-stage{padding:12px;} .drawer-stage dialog.booking-drawer, .sheet-stage dialog.booking-drawer, .transactions-columns dialog.booking-drawer{position:static !important;max-height:none !important;overflow:visible !important;} .sheet-stage{padding:16px 0 0;background:color-mix(in srgb,var(--color-text) 18%,var(--color-bg));} .sheet-stage .booking-drawer__foot{position:static !important;margin-bottom:0 !important;}</style>';
+
+let pending = 0;
+function done() { if (--pending === 0) document.body.dataset.ready = '1'; }
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  let html = TPL[f.dataset.tpl](o);
+  if (f.dataset.tpl === 'edit' || f.dataset.tpl === 'sell') html = o.phone ? `<div class="sheet-stage">${html}</div>` : `<div class="drawer-stage">${html}</div>`;
+  pending++;
+  f.addEventListener('load', () => {
+    const d = f.contentDocument;
+    setTimeout(() => {
+      d.querySelectorAll('[data-scroll-end]').forEach((w) => { w.scrollLeft = w.scrollWidth; });
+      f.style.height = Math.ceil(d.documentElement.scrollHeight) + 'px';
+      done();
+    }, 150);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${html}</body></html>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — figures on screen: one valuation rule, a dividend's gross, income's currencies, a zero drawdown (Sprint 22)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<!-- THE PROPOSAL: one rule, ①. Every frame is a srcdoc iframe built from
+     the live markup of the review instance (German UI, synthetic review
+     seed), captured with Playwright on 2026-11-01:
+       securities_live.ex  holdings_tab_panel/1, transactions_tab_panel/1,
+                           the detail pane head and its tab row;
+       portfolio_live.ex   #portfolio-positions with the value columns on,
+                           the Datenqualität notes;
+       income_live.ex      the income facet's basis line, the drilled year's
+                           "Daten als Tabelle" and "Je Position";
+       risk_live.ex        #risk-metrics (metric_card/1).
+     "Heute" frames render app.css as shipped; "Nachher" frames add the
+     <style id="proposal"> block below. German strings from priv/gettext/de;
+     new strings are marked dashed. Synthetic data only. -->
+<style id="proposal">
+  /* ① #1316 + #1332: a cell's second line that names where its figure
+     comes from ("zum Handelspreis", "Handelspreis · 01.07.2025") or why it
+     is missing ("kein Preis · nicht in der Summe"). The anatomy of
+     .contribution-table__note, lifted to any data-table cell. */
+  .data-table td .cell-note {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  :root { --mock-ink: #5a6577; }
+  body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+  .mock-board { max-width: 1152px; margin: 0 auto 36px; }
+  .mock-board > h2 { margin: 0 0 4px; font-size: 16px; font-weight: 760; }
+  .mock-board > h2 small { font-weight: 500; color: var(--mock-ink); margin-left: 8px; font-size: 12.5px; }
+  .mock-board > p.mock-note { margin: 0 0 12px; font-size: 12.5px; color: var(--mock-ink); max-width: 124ch; }
+  .mock-note code, .notes code, .pickbar code { font-size: 11.5px; }
+  .mock-frame { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-elevated); overflow: hidden; box-shadow: var(--shadow-panel); }
+  .mock-before { border-color: var(--color-danger); }
+  .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .mock-before > .mock-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .mock-after > .mock-tag { color: var(--color-positive); background: #ecfdf5; }
+  .mock-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-top: 12px; }
+  .cap { margin: 18px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .pickbar { max-width: 1152px; margin: 0 auto 22px; padding: 10px 14px; border: 1px solid var(--color-accent); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-accent-soft); font-size: 12.5px; }
+  .co { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px; border-radius: 999px; background: var(--color-accent); color: #fff; font: 700 12px/1 var(--font-sans); vertical-align: 1px; }
+  .notes { flex: 1 1 260px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 4px; }
+  .consequence { padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 02 — figures on screen (Sprint 22).</b> Four conformance repairs, each a before/after; no variants, the plan adopts each answer. <span class="co">1</span><b>#1316 + #1332</b> one valuation rule: a position with no quote is valued at its last own trade price, as Wealth's total already counts it, and the row says so; a row a total leaves out is named beside it (UX-DR25) · <span class="co">2</span><b>#1331</b> a dividend's Brutto on the security's Transaktionen tab is cash + withheld tax, Income's definition · <span class="co">3</span><b>#1274</b> (with #1293's table) Income prints a payment's native figures in their own currency and the converted base figure beside them · <span class="co">4</span><b>#1343</b> a zero drawdown names no peak, trough or recovery. Every name and figure is synthetic (the review seed, or invented where the seed has no such case). <b>Dashed = a changed figure or new text</b>; the cells a changed figure derives (G/V, %, the returns) follow it unmarked. <b>Red ring = the wrong label today.</b></div>
+<p class="phone-only phone-cap"><b>Board 02 at 390&nbsp;px.</b> Real 390-px frames, today above, after below. Synthetic data. The reasons are in the 1200-px render.</p>
+
+<!-- ============================ ① ============================ -->
+<section class="mock-board" id="valuation">
+  <h2><span class="co">1</span>#1316 + #1332 — one valuation rule for a position with no quote <small>Wertpapiere → Helios Solar Systems SE → Bestände · Vermögen → Bestände → Positionen</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> Wealth's total (<code>Valuation</code>) values a held position with no quote at its last own trade price and says so in a Hinweis; the Bestände tab and Wealth's Positionen table read <code>Ledger.holdings_*</code>, which is quote-only. So the tab prints „—“ for both Helios rows and <b>„Gesamt 0,00 EUR“</b> (its total adds only rows with value <i>and</i> cost), while the detail head says the same position counts in the totals at 19,20 EUR; and Wealth's rows print „—“ under Letzter Kurs, Marktwert and G&amp;V for eleven positions its total counts. <b>After.</b> The holdings read takes the valuation's rule: no quote → the last own trade price, with <code>price_source</code> named in the payload's computation basis and on the row („zum Handelspreis“; on Wealth the price cell names the source and its date). A row the total still leaves out — no price at all — keeps its dash, says why in the cell, and is named under the total. The KPI figures do not move: Wealth's total already counted these positions.</p>
+
+  <p class="cap desk-only">a · the security's Bestände tab, a position with no quote</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „—“ in jeder Zeile, „Gesamt 0,00 EUR“, der Kopf sagt „in den Summen … bewertet“</span><iframe data-tpl="sec" data-o='{"v":"today"}' title="1a heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — zum Handelspreis bewertet und so genannt; die Zeilen ergeben das Gesamt</span><iframe data-tpl="sec" data-o='{"v":"after"}' data-proposal title="1a nachher, Desktop"></iframe></div>
+  </div>
+
+  <p class="cap desk-only">b · the same tab, a position with no price at all (no quote, no own trade): the total names what it leaves out</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Gesamt 0,00 EUR“ für eine Position, die in keiner Summe ist; kein Wort am Gesamt</span><iframe data-tpl="secnp" data-o='{"v":"today"}' title="1b heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — „—“ statt 0,00, und unter dem Gesamt benannt (UX-DR25)</span><iframe data-tpl="secnp" data-o='{"v":"after"}' data-proposal title="1b nachher, Desktop"></iframe></div>
+  </div>
+
+  <p class="cap desk-only">c · Wealth → Bestände → Positionen, with the optional value columns on</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — der Hinweis zählt elf Positionen zum Handelspreis, die Tabelle zeigt sie als „—“</span><iframe data-tpl="wealth" data-o='{"v":"today"}' title="1c heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — Preis, Marktwert und G&amp;V zum Handelspreis, die Quelle in der Zelle; die Zeile ohne Preis sagt es</span><iframe data-tpl="wealth" data-o='{"v":"after"}' data-proposal title="1c nachher, Desktop"></iframe></div>
+  </div>
+
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, Bestände</span><iframe data-tpl="sec" data-o='{"v":"today"}' data-scroll="th.scroll-to" title="1a heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px, Bestände</span><iframe data-tpl="sec" data-o='{"v":"after"}' data-proposal data-scroll="th.scroll-to" title="1a nachher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — 390 px, ohne Preis</span><iframe data-tpl="secnp" data-o='{"v":"after"}' data-proposal data-scroll="th.scroll-to" title="1b nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>Two answers for one position.</b> The detail head, Wealth's total and the API's valuation count Helios at 384,00 EUR; the tab beneath the head says 0,00. An operator reconciling the tab against Wealth finds a gap with no name.</p>
+      <ul>
+        <li><b>One rule, the valuation's.</b> The holdings read values a position without a quote at its last own trade price and states it in its computation basis (<code>price_source: trade</code>); the tab and Wealth read that, so every surface adds up to the same figure.</li>
+        <li><b>The row says so</b> in a second line, the anatomy of the contribution table's note (rule ①). On Wealth the price cell carries it, with the trade's date, because that column is the price; on the tab, which has no price column, the value cell.</li>
+        <li><b>A row no rule can value</b> (1b) keeps the dash with its reason, the total reads „—“ instead of a false 0,00 when nothing is left, and the attention note under the total names the row and its quantity, in the detail head's own words (UX-DR25: count and name, beside the total).</li>
+        <li><b>At 390 px</b> the Bestände table scrolls as today; the note under it does not. Wealth's phone rows show the quantity only, so they do not change.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ② ============================ -->
+<section class="mock-board" id="gross">
+  <h2><span class="co">2</span>#1331 — a dividend's Brutto is cash plus withheld tax <small>Wertpapiere → Wrenfield Gardens AG → Transaktionen</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> <code>tx_gross/1</code> falls back to the stored <code>gross_amount</code> when a row has no quantity × price; for a dividend that is the cash credited, so the column „Brutto“ prints the net (7,50) beside the tax (1,98) it was net of. Cashflow → Erträge and <code>GET …/income</code> read gross = cash + withheld tax (9,48). <b>After.</b> The tab uses Income's definition for a dividend and an interest payment; a buy or sell keeps quantity × price. The history's Betrag stays the cash moved (+7,50), as it is named.</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — Brutto 7,50 = der Betrag nach Steuern, neben „Steuern 1,98“</span><iframe data-tpl="tx" data-o='{"v":"today"}' title="2 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — Brutto 9,48 = 7,50 + 1,98, wie unter Erträge</span><iframe data-tpl="tx" data-o='{"v":"after"}' data-proposal title="2 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px (Tabelle nach rechts gescrollt)</span><iframe data-tpl="tx" data-o='{"v":"today"}' data-scroll="end" title="2 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px (nach rechts gescrollt)</span><iframe data-tpl="tx" data-o='{"v":"after"}' data-proposal data-scroll="end" title="2 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>Two „gross“ figures for one booking.</b> Erträge → Je Position reads Wrenfield's two dividends as Brutto 17,70 · Einbehaltene Steuer 3,70 · Netto 14,00; this tab sums the same column to 14,00.</p>
+      <ul>
+        <li><b>A fix, not a relabel.</b> Renaming the column „Gutschrift“ would leave two definitions of one figure on two pages; the plan adopts Income's.</li>
+        <li>No new string, no new CSS; the two cells change their figure only. The API's computation basis for the tab's payload names the definition.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ③ ============================ -->
+<section class="mock-board" id="income">
+  <h2><span class="co">3</span>#1274 (+ #1293's tables) — a payment's figures stand in their own currency, the base figure beside them <small>Vermögen → Cashflow → Erträge → 2026 → Daten als Tabelle · Je Position</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> A converted payment prints its <i>base-currency</i> gross, tax and net beside a „Währung“ column that names the cash account's currency: Arbolia's USD dividend reads „11,04 · 1,66 · 9,38 · USD“, which are euros. „Je Position“ does the same with the security's currency. Only K07's unconverted row (Harborline) is right: native figures beside their own currency. <b>After</b> (the board 09 cross-currency shape of the 2026-10-09 pass): Brutto, Steuern and Netto are the payment's own figures in the currency the „Währung“ column names, and a new last column „Netto (EUR)“ carries the converted figure the totals sum. A payment no rate converts keeps its native figures and reads „—“ with „ohne Umrechnung“ there (the Trades tab's existing word) — never a converted figure (UX-DR25 clause 2); the note above the year already names it.</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „11,04 · 1,66 · 9,38 · USD“: Euro unter einem Dollar-Etikett</span><iframe data-tpl="inc" data-o='{"v":"today"}' title="3 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — „12,00 · 1,80 · 10,20 · USD“ und daneben „9,38“ in EUR</span><iframe data-tpl="inc" data-o='{"v":"after"}' data-proposal title="3 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px (Tabellen nach rechts gescrollt)</span><iframe data-tpl="inc" data-o='{"v":"today"}' data-scroll="end" title="3 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px (nach rechts gescrollt)</span><iframe data-tpl="inc" data-o='{"v":"after"}' data-proposal data-scroll="end" title="3 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>A tax figure under the wrong currency.</b> This is the page the operator reads for tax; 1,66 „USD“ withheld is 1,80 USD or 1,66 EUR, and the table says neither.</p>
+      <ul>
+        <li><b>Why a column and not a suffix.</b> The „Währung“ column becomes true for the three figures beside it, so no figure needs a suffix; the one converted figure gets its own labelled column, which is also the figure that sums to the year's total. The facet's basis line already says „Beträge in EUR“ of the totals.</li>
+        <li><b>Je Position</b> takes the same shape. Its „Währung“ was the <i>security's</i> currency; it becomes the payment's. A position paid in two currencies gets one row per currency (found while drawing, README).</li>
+        <li><b>#1293</b> (a year whose payments are all unconverted keeps its row, with zero totals and its excluded count) is a read change with no new anatomy; it is not drawn.</li>
+        <li>New strings: „Netto (EUR)“ (msgid „Net (%{currency})“) and the purpose line's tail „… in ihrer Währung, das Netto auch in EUR“; „ohne Umrechnung“ is the existing msgid „not convertible“.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ④ ============================ -->
+<section class="mock-board" id="drawdown">
+  <h2><span class="co">4</span>#1343 — a zero drawdown names no peak, trough or recovery <small>Vermögen → Risiko → Kennzahlen des Portfolios, Ansicht „Nur Cash“</small></h2>
+  <p class="mock-note desk-only"><b>Today.</b> <code>Statistics.drawdown/1</code> starts every date at the series' first day, and a zero drawdown „recovers on its own day“, so the card reads „0,0 %“ over „01.11.2025 → 01.11.2025 · erholt 01.11.2025“: an episode that never happened. <b>After.</b> When the value is exactly zero the sub-line reads „kein Rückgang im Zeitraum“; a real drawdown that rounds to „-0,0“ keeps its dates. The API's <code>computation_basis</code> is unchanged (it already names the window).</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-before desk-only"><span class="mock-tag">Heute — drei Daten für einen Rückgang, den es nicht gab</span><iframe data-tpl="risk" data-o='{"v":"today"}' title="4 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag">Nachher — „kein Rückgang im Zeitraum“</span><iframe data-tpl="risk" data-o='{"v":"after"}' data-proposal title="4 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="risk" data-o='{"v":"today"}' title="4 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="risk" data-o='{"v":"after"}' data-proposal title="4 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>The rule is the value, not the rounding.</b> Exactly 0 → the sentence; -0,04 % → „-0,0“ with its peak, trough and recovery, because that drop happened.</li>
+        <li>New string „no decline in the period“ / „kein Rückgang im Zeitraum“, in the sub-line's own lower-case style („erholt …“, „nicht erholt“). No CSS.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds each frame (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup captured on the review instance, data swapped for the case drawn.
+   German labels from priv/gettext/de. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const tri = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg>';
+const ast = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></svg>';
+const cols = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/></svg>';
+const chev = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+const N = (on, html) => (on ? `<span class="is-new">${html}</span>` : html);
+const CO = (n) => `<b class="co">${n}</b>`;
+function note(sev, body, attrs = '', isNew = false) {
+  const word = { note: 'Hinweis', attention: 'Achtung' }[sev];
+  const glyph = { note: ast, attention: tri }[sev];
+  return `<div class="data-note data-note--${sev}${isNew ? ' is-new' : ''}"${attrs}><span class="data-note__icon" aria-hidden="true">${glyph}</span><span class="data-note__word">${word}</span><div class="data-note__body">${body}</div></div>`;
+}
+
+/* securities_live.ex: the detail pane head and the tab row */
+const TABS = ['Übersicht', 'Diagramm', 'Transaktionen', 'Trades', 'Kurse', 'Bestände', 'Klassifizierungen', 'Research', 'Termine'];
+function pane(name, sub, status, active, panel, statusCls = '') {
+  const tabs = TABS.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === active ? ' is-active' : ''}" aria-selected="${t === active}">${t}</button>`).join('');
+  return `<aside class="detail-pane" style="margin:12px"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">${name[0]}</span><div><h2>${name}</h2><p class="detail-pane-sub">${sub}</p>${status ? `<p class="detail-pane-status ${statusCls}" data-role="detail-valuation-status">${status}</p>` : ''}</div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button></div></header><nav class="detail-pane-tabs" role="tablist" data-tab-level="2">${tabs}</nav>${panel}</aside>`;
+}
+const BUCKETS = (s) => `<tr class="bucket-override-row"><td colspan="9"><details class="position-buckets"><summary>Buckets: <span data-role="override-state">${s}</span></summary></details></td></tr>`;
+const DECOMP = '<details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="pnl-decomposition-info"><summary aria-label="Über Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary></details>';
+const HOLD_HEAD = '<thead><tr><th>Depot</th><th class="num">Stückzahl</th><th class="num scroll-to">Ø Kosten</th><th class="num">Aktueller Wert</th><th class="num">Unrealisierter G/V</th><th class="num">%</th><th class="num">Kursbeitrag</th><th class="num">Währungsbeitrag</th><th class="num">Gesamt (Basis)</th></tr></thead>';
+const NOPRICE_TITLE = 'Für dieses Wertpapier ist kein Preis verfügbar.';
+function holdRow(r, after) {
+  if (!after || !r.value) {
+    const vcell = after && r.noprice ? '—<small class="cell-note is-new">kein Preis</small>' : '—';
+    return `<tr><td>${r.depot}</td><td class="num">${r.qty}</td><td class="num">${r.avg} <small>EUR</small></td><td class="num">${vcell}</td><td class="num">—</td><td class="num">—</td><td class="num" data-role="price-return">—</td><td class="num" data-role="currency-return">—</td><td class="num" data-role="total-return-base" title="${NOPRICE_TITLE}">—</td></tr>${BUCKETS(r.b)}`;
+  }
+  const pc = r.pnl === '0,00' ? 'is-flat' : 'is-positive';
+  const t = 'Kein aktueller Kurs: zum letzten eigenen Handelspreis von 19,20 EUR (14.03.2025) bewertet';
+  return `<tr><td>${r.depot}</td><td class="num">${r.qty}</td><td class="num">${r.avg} <small>EUR</small></td><td class="num" title="${t}">${N(true, `${r.value} <small>EUR</small>`)}${CO(1)}<small class="cell-note is-new">zum Handelspreis</small></td><td class="num ${pc}">${r.pnl}</td><td class="num ${pc}">${r.pct}</td><td class="num ${pc}" data-role="price-return">${r.pnl}</td><td class="num is-flat" data-role="currency-return">0,00</td><td class="num ${pc}" data-role="total-return-base">${r.pnl} <small>EUR</small></td></tr>${BUCKETS(r.b)}`;
+}
+function sec(o) {
+  const after = o.v === 'after';
+  const rows = [
+    { depot: 'Depot Nord', qty: '15,0000', avg: '18,00', value: '288,00', pnl: '+18,00', pct: '+6,7%', b: 'vom Depot geerbt' },
+    { depot: 'Depot Süd', qty: '5,0000', avg: '19,20', value: '96,00', pnl: '0,00', pct: '0,0%', b: 'bestimmte Buckets' }
+  ];
+  const total = after
+    ? `<td class="num">${N(true, '384,00 <small>EUR</small>')}${CO(1)}</td><td class="num is-positive">+18,00</td>`
+    : '<td class="num">0,00 <small>EUR</small></td><td class="num">0,00</td>';
+  const panel = `<section class="detail-tab-panel detail-tab-panel--holdings">${DECOMP}<div class="data-table-wrap"><table class="data-table detail-holdings-table">${HOLD_HEAD}<tbody>${rows.map((r) => holdRow(r, after)).join('')}</tbody><tfoot><tr class="totals-row"><td colspan="3">Gesamt</td>${total}<td class="num" colspan="4"></td></tr></tfoot></table></div></section>`;
+  return wrap(pane('Helios Solar Systems SE', 'XS0000000124 · EUR', 'Kein aktueller Kurs — in den Summen zum letzten eigenen Handelspreis von 19,20 EUR (14.03.2025) bewertet.', 'Bestände', panel));
+}
+function secnp(o) {
+  const after = o.v === 'after';
+  const r = { depot: 'Demo Depot', qty: '5,0000', avg: '0,00', noprice: true, b: 'vom Depot geerbt' };
+  const total = after
+    ? `<td class="num">${N(true, '—')}${CO(1)}</td><td class="num">—</td>`
+    : '<td class="num">0,00 <small>EUR</small></td><td class="num">0,00</td>';
+  const named = after ? `<div style="margin-top:10px">${note('attention', '1 Position fehlt in der Summe — für dieses Wertpapier ist kein Preis bekannt (kein Kurs und kein eigener Handel): <b>Demo Depot</b> (5 Stück).', ' data-role="holdings-unvalued"', true)}</div>` : '';
+  const panel = `<section class="detail-tab-panel detail-tab-panel--holdings">${DECOMP}<div class="data-table-wrap"><table class="data-table detail-holdings-table">${HOLD_HEAD}<tbody>${holdRow(r, after)}</tbody><tfoot><tr class="totals-row"><td colspan="3">Gesamt</td>${total}<td class="num" colspan="4"></td></tr></tfoot></table></div>${named}</section>`;
+  return wrap(pane('Placeholder Anleihe 2031 3,25%', 'EUR', 'Nicht in den Summen berücksichtigt — für dieses Wertpapier ist kein Preis bekannt (kein Kurs und kein eigener Handel).', 'Bestände', panel, 'badge-warning'));
+}
+
+/* portfolio_live.ex: the KPI cell, the two Datenqualität notes, #portfolio-positions */
+function wealth(o) {
+  const after = o.v === 'after';
+  const kpi = '<section class="workspace-section kpi-band"><div class="kpi-band__support"><article class="stat stat--compact"><span>Wertpapiere</span><strong>69.128,26<small class="value-suffix">EUR</small></strong></article><article class="stat stat--compact"><span>Gesamt inkl. Cash</span><strong>88.307,02<small class="value-suffix">EUR</small></strong></article></div></section>';
+  const dq = `<section class="workspace-section">${elide('Kennzahlen: „Wertpapiere 69.128,26 EUR“ zählt die Positionen zum Handelspreis schon heute — unverändert')}<h2>Datenqualität</h2>${note('note', '11 gehaltene Positionen werden zum letzten Handelspreis bewertet, die Gesamtsumme ist daher nicht aktuell: Cobalt Ridge Logistics SE, Meridian Global Equity ETF, Orchid Bay Pharmaceuticals plc, Pinecrest Utilities SA, Quarry Lane Materials AG, Helios Solar Systems SE, +5')}<div style="height:8px"></div>${note('attention', 'Eine gehaltene Position hat gar keinen Preis und fehlt in den Summen: Placeholder Anleihe 2031 3,25%')}${elide('vier weitere Notizen (Kurse älter als 7 Tage, kein Wechselkurs, zwei Skalen) — unverändert')}</section>`;
+  const E = '<small class="value-suffix">EUR</small>';
+  const q = (p, mv, g, cls = 'is-positive') => ({ p: `${p} ${E}`, mv: `${mv} ${E}`, g: `<td class="num ${cls}">${g} ${E}</td>` });
+  const rows = [
+    ['Coupon-Depot', 'Larkspur Rail AG 4,00 % Anleihe 2031', '100', q('100,25', '10.025,00', '+75,00')],
+    ['Demo Depot', 'Apple Inc. Registered Shares o.N.', '50', q('188,87', '9.443,50', '+943,50')],
+    ['Demo Depot', 'Meridian Global Equity ETF', '65', null, { p: '71,00', d: '01.07.2025', mv: '4.615,00', g: '+469,95' }],
+    ['Demo Depot', 'Placeholder Anleihe 2031 3,25%', '5', null, 'none'],
+    ['Depot Nord', 'Helios Solar Systems SE', '15', null, { p: '19,20', d: '14.03.2025', mv: '288,00', g: '+18,00' }],
+    ['Depot Süd', 'Helios Solar Systems SE', '5', null, { p: '19,20', d: '14.03.2025', mv: '96,00', g: '0,00', flat: true }]
+  ];
+  let first = true;
+  const body = rows.map(([d, s, n, quoted, trade]) => {
+    let cells;
+    if (quoted) cells = `<td class="num">${quoted.p}</td><td class="num">${quoted.mv}</td>${quoted.g}`;
+    else if (!after) cells = '<td class="num">—</td><td class="num">—</td><td class="num">—</td>';
+    else if (trade === 'none') cells = `<td class="num">—${N(true, '<small class="cell-note">kein Preis · nicht in der Summe</small>')}</td><td class="num">—</td><td class="num">—</td>`;
+    else {
+      const co = first ? CO(1) : ''; first = false;
+      cells = `<td class="num">${N(true, `${trade.p} ${E}`)}${co}<small class="cell-note is-new">Handelspreis · ${trade.d}</small></td><td class="num">${trade.mv} ${E}</td><td class="num ${trade.flat ? 'is-flat' : 'is-positive'}">${trade.g} ${E}</td>`;
+    }
+    return `<tr data-role="holdings-position"><td>${d}</td><td>${s}</td><td class="num">${n}</td>${cells}</tr>`;
+  }).join('');
+  const basis = after
+    ? `Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs${N(true, ' oder, ohne Kurs, zum letzten eigenen Handelspreis')}.`
+    : 'Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs.';
+  const pos = `<section id="portfolio-positions" class="workspace-section"><header class="section-head"><h2>Positionen</h2><div class="popover-container"><button type="button" class="button-ghost column-picker-toggle">${cols} Spalten</button></div></header><p class="summary-basis" data-role="positions-basis">${basis}</p><div class="data-table-wrapper"><table id="holdings-positions-table" class="data-table"><thead><tr><th>Depot</th><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Letzter Kurs</th><th class="num">Marktwert</th><th class="num">G&amp;V</th></tr></thead><tbody>${body}</tbody></table></div>${elide('35 weitere Zeilen')}</section>`;
+  return wrap(dq + pos);
+}
+
+/* securities_live.ex transactions_tab_panel/1 */
+function tx(o) {
+  const after = o.v === 'after';
+  const div = (d, tax, cash, gross) => `<tr class="tx-row tx-row--dividend"><td>${d}</td><td><span class="badge tx-badge tx-badge--dividend">Dividende</span></td><td class="num">40,0000</td><td class="num" data-role="price">—</td><td class="num" data-role="fees">0,00</td><td class="num" data-role="taxes">${tax}</td><td class="num" data-role="gross">${after ? N(true, gross) + (d === '12.03.2026' ? CO(2) : '') : cash}</td><td>Demo Depot</td><td></td></tr>`;
+  const buy = '<tr class="tx-row tx-row--buy"><td>10.01.2025</td><td><span class="badge tx-badge tx-badge--buy">Kauf</span></td><td class="num">40,0000</td><td class="num" data-role="price">24,50 <small>EUR</small></td><td class="num" data-role="fees">1,00</td><td class="num" data-role="taxes">0,00</td><td class="num" data-role="gross">980,00</td><td>Demo Depot</td><td></td></tr>';
+  const panel = `<section class="detail-tab-panel detail-tab-panel--transactions"><div class="data-table-wrap"><table class="data-table detail-transactions-table"><thead><tr><th>Datum</th><th>Typ</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Gebühren</th><th class="num">Steuern</th><th class="num">Brutto</th><th>Depot</th><th>Notizen</th></tr></thead><tbody>${div('12.03.2026', '1,98', '7,50', '9,48')}${div('14.03.2025', '1,72', '6,50', '8,22')}${buy}</tbody></table></div></section>`;
+  return wrap(pane('Wrenfield Gardens AG', 'WRG · EUR', '', 'Transaktionen', panel));
+}
+
+/* income_live.ex: the facet's basis line, the K07 note, the drilled year's
+   payments table (open), "Je Position" */
+function inc(o) {
+  const after = o.v === 'after';
+  const basis = '<section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · Dividenden und Zinsen · nur dieses Portfolio <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu dieser Facette">ⓘ</summary></details></div></section>';
+  const k07 = `<section class="workspace-section" role="status">${note('attention', '1 Zahlung konnte nicht umgerechnet werden — kein gespeicherter Wechselkurs nach EUR an oder vor ihrem Buchungstag — und ist aus jeder Summe ausgeschlossen. Betroffene Währung: USD (Harborline Freight Inc).', ' data-role="income-excluded"')}</section>`;
+  const pays = [
+    ['12.03.2026', 'Dividende', 'Wrenfield Gardens AG', ['9,48', '1,98', '7,50'], ['9,48', '1,98', '7,50'], 'EUR', '7,50'],
+    ['15.04.2026', 'Dividende', 'Arbolia Inc.', ['11,04', '1,66', '9,38'], ['12,00', '1,80', '10,20'], 'USD', '9,38', true],
+    ['04.07.2026', 'Zinsen', 'Zinsen', ['1,20', '0,00', '1,20'], ['1,20', '0,00', '1,20'], 'EUR', '1,20'],
+    ['02.10.2026', 'Dividende', 'Harborline Freight Inc', ['4,00', '0,00', '4,00'], ['4,00', '0,00', '4,00'], 'USD', null]
+  ];
+  const payRows = pays.map(([d, k, s, base, nat, cur, eur, x]) => {
+    const f = after ? nat : base;
+    const figs = f.map((v, i) => `<td class="num">${after && x ? N(true, v) + (i === 0 ? CO(3) : '') : v}</td>`).join('');
+    const curCell = !after && x ? `<td><span class="u-wrong">${cur}</span></td>` : `<td>${cur}</td>`;
+    const eurCell = after ? (eur ? `<td class="num">${x ? N(true, eur) : eur}</td>` : '<td class="num">—<small class="cell-note is-new">ohne Umrechnung</small></td>') : '';
+    return `<tr><td>${d}</td><td>${k}</td><td>${s}</td>${figs}${curCell}${eurCell}</tr>`;
+  }).join('');
+  const purpose = after ? `Jede Zahlung des Jahres mit Brutto, Steuer und Netto${N(true, ' in ihrer Währung, das Netto auch in EUR')}.` : 'Jede Zahlung des Jahres mit Brutto, Steuer und Netto.';
+  const eurHead = after ? `<th class="num">${N(true, 'Netto (EUR)')}</th>` : '';
+  const annual = `<section id="income-annual" class="workspace-section"><h2>Jahresübersicht</h2>${elide('2026 gewählt: das Monats-Chart des Jahres und seine Beschriftungen — unverändert')}<details class="perf-table-disclosure" open data-role="income-payments-disclosure"><summary class="disclosure-summary">${chev} Daten als Tabelle</summary><p class="hint" data-role="disclosure-purpose">${purpose}</p><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Brutto</th><th class="num">Steuern</th><th class="num">Netto</th><th>Währung</th>${eurHead}</tr></thead><tbody>${payRows}</tbody></table></div></details></section>`;
+  const posData = [
+    ['Wrenfield Gardens AG', 'EUR', ['9,48', '1,98', '7,50'], ['9,48', '1,98', '7,50'], '7,50', '1', '12.03.2026'],
+    ['Arbolia Inc.', 'USD', ['11,04', '1,66', '9,38'], ['12,00', '1,80', '10,20'], '9,38', '1', '15.04.2026', true],
+    ['Zinsen', 'EUR', ['1,20', '0,00', '1,20'], ['1,20', '0,00', '1,20'], '1,20', '1', '04.07.2026']
+  ];
+  const posRows = posData.map(([s, cur, base, nat, eur, n, last, x]) => {
+    const f = after ? nat : base;
+    const figs = f.map((v) => `<td class="num">${after && x ? N(true, v) : v}</td>`).join('');
+    const curCell = !after && x ? `<td><span class="u-wrong">${cur}</span></td>` : `<td>${cur}</td>`;
+    return `<tr><td>${s}</td>${curCell}${figs}${after ? `<td class="num">${x ? N(true, eur) : eur}</td>` : ''}<td class="num">${n}</td><td>${last}</td></tr>`;
+  }).join('');
+  const pos = `<section id="income-positions" class="workspace-section"><h2>Je Position</h2><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Wertpapier</th><th>Währung</th><th class="num">Brutto</th><th class="num">Einbehaltene Steuer</th><th class="num">Netto</th>${after ? `<th class="num">${N(true, 'Netto (EUR)')}</th>` : ''}<th class="num">Zahlungen</th><th>Letzte Zahlung</th></tr></thead><tbody>${posRows}</tbody></table></div></section>`;
+  return wrap(basis + k07 + annual + elide('„Top-Beiträge“ — Beträge in EUR, ohne Währungsetikett; unverändert') + pos);
+}
+
+/* risk_live.ex: #risk-metrics, a view holding cash only */
+function risk(o) {
+  const after = o.v === 'after';
+  const sub = after ? `${N(true, 'kein Rückgang im Zeitraum')}${CO(4)}` : '01.11.2025 → 01.11.2025 · erholt 01.11.2025';
+  return wrap(`<section class="workspace-section kpi-band" id="risk-metrics"><header class="section-head"><h2>Kennzahlen des Portfolios</h2></header><div class="kpi-band__support"><article class="stat stat--compact"><span>Volatilität, annualisiert</span><strong>0,0<small class="value-suffix">%</small></strong><small class="stat__sub">1 Jahr · 365 Beobachtungen · min. 20</small></article><article class="stat stat--compact"><span>Max. Rückgang</span><strong><span class="is-flat">0,0</span><small class="value-suffix">%</small></strong><small class="stat__sub">${sub}</small></article><article class="stat stat--compact"><span>Risikoadjustierte Rendite</span><strong class="stat-empty">undefiniert — Volatilität ist 0</strong></article><article class="stat stat--compact" data-refused=""><span>Korrelationen</span><strong class="stat-empty">nicht berechenbar</strong><small class="stat__sub">0 von 60 Beobachtungen</small></article></div>${elide('die Grundlage-Zeile — unverändert')}</section>`);
+}
+
+const TPL = { sec, secnp, wealth, tx, inc, risk };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .app-main{padding-top:4px;padding-bottom:8px} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} small.cell-note.is-new{outline-offset:1px} .co{display:inline-grid;place-items:center;width:18px;height:18px;margin-left:6px;border-radius:999px;background:var(--color-accent);color:#fff;font:700 11px/1 var(--font-sans);vertical-align:1px;} .elide{margin:4px 16px 10px;font-size:12px;color:#5a6577;font-style:italic;} .u-wrong{outline:2px solid var(--color-danger);outline-offset:2px;border-radius:3px;}</style>';
+
+let pending = 0;
+function done() { if (--pending === 0) document.body.dataset.ready = '1'; }
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    const d = f.contentDocument;
+    setTimeout(() => {
+      const sc = f.dataset.scroll;
+      if (sc) d.querySelectorAll('.data-table-wrap, .data-table-wrapper, table.data-table').forEach((w) => {
+        if (w.scrollWidth <= w.clientWidth + 2) return;
+        const t = sc === 'end' ? null : w.querySelector(sc);
+        w.scrollLeft = t ? t.offsetLeft - 70 : w.scrollWidth;
+      });
+      f.style.height = Math.ceil(d.documentElement.scrollHeight) + 'px';
+      done();
+    }, 150);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
