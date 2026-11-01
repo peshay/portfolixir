@@ -1291,6 +1291,10 @@ describe("Portfolixir MCP tools", () => {
     assert.match(description, /excluded from every total/);
     assert.match(description, /excluded \(count, currencies/);
     assert.match(description, /computation_basis/);
+    // #1274, #1293: a position row per payment currency, native and
+    // converted; a year of excluded payments keeps its row and its count.
+    assert.match(description, /a row per security and payment currency/);
+    assert.match(description, /excluded_count/);
   });
 
   it("issues a POST to /exchange_rates/sync for portfolixir.exchange_rates.sync", async () => {

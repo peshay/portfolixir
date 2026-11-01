@@ -38,8 +38,11 @@ defmodule Portfolixir.Portfolios.Income do
   **EUR hub** (`Portfolixir.Fx`), at the most recent stored rate **on or before
   the booking date** — the same mechanics `Portfolixir.Portfolios.Valuation`
   uses, reused rather than reimplemented. Each per-transaction detail names
-  the currency its native amounts are in (`currency`, the account's); each
-  per-position row keeps the booking's currency (`security_currency`).
+  the currency its native amounts are in (`currency`, the account's). The
+  per-position table has one row per security and payment currency (#1274):
+  `currency` names it, `native_gross`, `native_tax` and `native_net` are in
+  it, `gross`, `tax` and `net` are their conversion, and `security_currency`
+  is the security's own currency.
 
   A booking with no rate path to the base currency — no stored rate on or
   before its date — is **excluded** from every base-currency figure (the
@@ -49,7 +52,9 @@ defmodule Portfolixir.Portfolios.Income do
   counted at parity, which would add two currencies one to one. The
   per-transaction detail keeps it, flagged `converted: false`, with its
   native amounts and `nil` base-currency `gross`, `tax` and `net`;
-  `unconverted_count` counts it. The chosen basis is
+  `unconverted_count` counts it. A year whose payments are all excluded
+  keeps its `annual` row with zero totals, and every year row carries
+  `excluded_count` (#1293). The chosen basis is
   described in `base_currency`, `conversion_note` and `computation_basis`
   (FR-13, AGENTS.md metric rule).
   """
@@ -88,7 +93,7 @@ defmodule Portfolixir.Portfolios.Income do
       computation_basis: computation_basis(),
       unconverted_count: length(unconverted),
       excluded: excluded(unconverted),
-      annual: annual(converted),
+      annual: annual(converted, unconverted),
       positions: positions(converted),
       transactions: Enum.map(entries, &detail/1)
     }
@@ -96,7 +101,9 @@ defmodule Portfolixir.Portfolios.Income do
 
   # K07: what no total could include, named as the costs facet names it —
   # by the currency it was read in — with the securities of each currency
-  # (an interest payment naming none adds no name; a coupon names its bond).
+  # (a coupon names its bond). An interest payment naming no security adds
+  # no name; interest_count counts it, so an interest-only exclusion still
+  # names what it is (#1293).
   defp excluded(unconverted) do
     %{
       count: length(unconverted),
@@ -113,7 +120,8 @@ defmodule Portfolixir.Portfolios.Income do
               |> Enum.map(& &1.security_name)
               |> Enum.reject(&is_nil/1)
               |> Enum.uniq()
-              |> Enum.sort()
+              |> Enum.sort(),
+            interest_count: Enum.count(group, &is_nil(&1.security_name))
           }
         end)
     }
@@ -134,7 +142,13 @@ defmodule Portfolixir.Portfolios.Income do
         "a payment with no stored rate on or before its booking date is excluded from " <>
           "every total (annual, months, positions) and named in excluded; the transactions " <>
           "list keeps it with converted false, its native amounts and null base-currency " <>
-          "gross, tax and net, never converted at parity"
+          "gross, tax and net, never converted at parity; a year whose payments are all " <>
+          "excluded keeps its annual row with zero totals, and each year's excluded_count " <>
+          "counts its excluded payments",
+      positions:
+        "one row per security and payment currency (the cash account's): native_gross, " <>
+          "native_tax and native_net in that currency, gross, tax and net their conversion; " <>
+          "an excluded payment is in no row"
     }
   end
 
@@ -172,10 +186,10 @@ defmodule Portfolixir.Portfolios.Income do
       month: tx.date.month,
       security_id: tx.security_id,
       security_name: security_name(tx),
+      security_currency: security_currency(tx),
       # The currency the native amounts are in, the cash account's; the
-      # per-position table keeps grouping by the booking's currency.
+      # per-position table groups by it too (#1274).
       currency: cash_currency,
-      booking_currency: tx.currency_code,
       native_gross: native_gross,
       native_tax: native_tax,
       native_net: native_net,
@@ -186,10 +200,20 @@ defmodule Portfolixir.Portfolios.Income do
     }
   end
 
-  defp annual(entries) do
-    entries
-    |> Enum.group_by(& &1.year)
-    |> Enum.map(fn {year, year_entries} -> year_row(year, year_entries) end)
+  # #1293: a year whose payments are all excluded keeps its row, with zero
+  # totals and its excluded count, so the page can drill into the payments
+  # the excluded note counts.
+  defp annual(converted, unconverted) do
+    by_year = Enum.group_by(converted, & &1.year)
+    excluded_by_year = Enum.frequencies_by(unconverted, & &1.year)
+
+    (Map.keys(by_year) ++ Map.keys(excluded_by_year))
+    |> Enum.uniq()
+    |> Enum.map(fn year ->
+      year
+      |> year_row(Map.get(by_year, year, []))
+      |> Map.put(:excluded_count, Map.get(excluded_by_year, year, 0))
+    end)
     |> Enum.sort_by(& &1.year, :desc)
   end
 
@@ -217,9 +241,13 @@ defmodule Portfolixir.Portfolios.Income do
     }
   end
 
+  # #1274 (board 02 ③): one row per security and PAYMENT currency, the cash
+  # account's, so the row's native figures share one currency; a security
+  # paid into a USD and a EUR account has two rows. The base-currency
+  # figures beside them are what the totals sum.
   defp positions(entries) do
     entries
-    |> Enum.group_by(&{&1.security_id, &1.booking_currency})
+    |> Enum.group_by(&{&1.security_id, &1.currency})
     |> Enum.map(fn {{security_id, currency}, group} ->
       position_row(security_id, currency, group)
     end)
@@ -234,7 +262,13 @@ defmodule Portfolixir.Portfolios.Income do
     %{
       security_id: security_id,
       security_name: sample.security_name,
-      security_currency: currency,
+      # The security's own currency; a row naming no security (account
+      # interest) takes its payment currency.
+      security_currency: sample.security_currency || currency,
+      currency: currency,
+      native_gross: sum(group, & &1.native_gross),
+      native_tax: sum(group, & &1.native_tax),
+      native_net: sum(group, & &1.native_net),
       gross: gross,
       tax: tax,
       net: Decimal.sub(gross, tax),
@@ -306,6 +340,9 @@ defmodule Portfolixir.Portfolios.Income do
 
   defp security_name(%{security: %{name: name}}) when is_binary(name), do: name
   defp security_name(_tx), do: nil
+
+  defp security_currency(%{security: %{currency_code: code}}) when is_binary(code), do: code
+  defp security_currency(_tx), do: nil
 
   defp base_currency_for(portfolio_id) do
     case Portfolios.get_portfolio(portfolio_id) do

@@ -200,13 +200,22 @@ defmodule PortfolixirWeb.IncomeLive do
   end
 
   # K07: each currency with the securities it was paid for, as the realized
-  # note names its securities — "CHF (Velden Water AG)"; interest names none.
+  # note names its securities — "CHF (Velden Water AG)"; an interest payment
+  # naming no security is named "Interest" (#1293), so an interest-only
+  # exclusion still says what it is.
   defp excluded_currencies(currencies) do
-    Enum.map_join(currencies, ", ", fn
-      %{currency_code: code, securities: []} -> code
-      %{currency_code: code, securities: names} -> "#{code} (#{Enum.join(names, ", ")})"
+    Enum.map_join(currencies, ", ", fn %{currency_code: code} = entry ->
+      case excluded_names(entry) do
+        [] -> code
+        names -> "#{code} (#{Enum.join(names, ", ")})"
+      end
     end)
   end
+
+  defp excluded_names(%{securities: names, interest_count: count}) when count > 0,
+    do: names ++ [gettext("Interest")]
+
+  defp excluded_names(%{securities: names}), do: names
 
   # #1155 (board 08, N14 = A): a twin's identifier on each closed trade,
   # decided over every trade of the report (the table and its phone rows).
@@ -1277,7 +1286,10 @@ defmodule PortfolixirWeb.IncomeLive do
               <%= gettext("Data as table") %>
             </summary>
             <p class="hint" data-role="disclosure-purpose">
-              <%= gettext("Every payment of the year with gross, tax and net.") %>
+              <%= gettext(
+                "Every payment of the year with gross, tax and net in its currency, the net also in %{currency}.",
+                currency: @income.base_currency
+              ) %>
             </p>
             <div class="data-table-wrapper">
               <table class="data-table">
@@ -1290,6 +1302,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     <th class="num"><%= gettext("Tax") %></th>
                     <th class="num"><%= gettext("Net") %></th>
                     <th><%= gettext("Currency") %></th>
+                    <th class="num"><%= gettext("Net (%{currency})", currency: @income.base_currency) %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1298,12 +1311,15 @@ defmodule PortfolixirWeb.IncomeLive do
                       <td><%= Format.date(tx.date) %></td>
                       <td><%= kind_label(tx.kind) %></td>
                       <td><%= tx.security_name || gettext("Interest") %></td>
-                      <%!-- K07: a payment no rate converts stands in its
-                           own currency, from its native figures. --%>
-                      <td class="num"><%= money(if tx.converted, do: tx.gross, else: tx.native_gross) %></td>
-                      <td class="num"><%= money(if tx.converted, do: tx.tax, else: tx.native_tax) %></td>
-                      <td class="num"><%= money(if tx.converted, do: tx.net, else: tx.native_net) %></td>
+                      <%!-- #1274 (board 02 ③): Gross, Tax and Net are the
+                           payment's own figures, in the currency the
+                           Currency column names; the converted net, the
+                           figure the totals sum, stands in its own column. --%>
+                      <td class="num"><%= money(tx.native_gross) %></td>
+                      <td class="num"><%= money(tx.native_tax) %></td>
+                      <td class="num"><%= money(tx.native_net) %></td>
                       <td><%= tx.currency %></td>
+                      <.base_net_cell converted={tx.converted} net={tx.net} />
                     </tr>
                   <% end %>
                 </tbody>
@@ -1350,6 +1366,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     <th class="num"><%= gettext("Gross") %></th>
                     <th class="num"><%= gettext("Withheld tax") %></th>
                     <th class="num"><%= gettext("Net") %></th>
+                    <th class="num"><%= gettext("Net (%{currency})", currency: @income.base_currency) %></th>
                     <th class="num"><%= gettext("Payments") %></th>
                     <th><%= gettext("Last payment") %></th>
                   </tr>
@@ -1358,9 +1375,12 @@ defmodule PortfolixirWeb.IncomeLive do
                   <%= for row <- @income.positions do %>
                     <tr>
                       <td><%= row.security_name || gettext("Interest") %></td>
-                      <td><%= row.security_currency %></td>
-                      <td class="num"><%= money(row.gross) %></td>
-                      <td class="num"><%= money(row.tax) %></td>
+                      <%!-- #1274: one row per payment currency, its own
+                           figures in it, the converted net beside them. --%>
+                      <td><%= row.currency %></td>
+                      <td class="num"><%= money(row.native_gross) %></td>
+                      <td class="num"><%= money(row.native_tax) %></td>
+                      <td class="num"><%= money(row.native_net) %></td>
                       <td class="num"><%= money(row.net) %></td>
                       <td class="num"><%= row.payment_count %></td>
                       <td><%= Format.date(row.last_payment) %></td>
@@ -1387,6 +1407,24 @@ defmodule PortfolixirWeb.IncomeLive do
   # the biggest year, so the tallest bar fills the plot and the rest scale to
   # it. Every year between the first and the last booking gets a slot (issue
   # 794), an empty one marked, so the axis never skips time.
+  # The drilled year's converted net (#1274). A payment no rate converts
+  # (K07) has no converted figure: a dash with "not convertible" under it,
+  # never its native figure (UX-DR25 clause 2).
+  attr(:converted, :boolean, required: true)
+  attr(:net, :any, required: true)
+
+  defp base_net_cell(%{converted: true} = assigns) do
+    ~H"""
+    <td class="num"><%= money(@net) %></td>
+    """
+  end
+
+  defp base_net_cell(assigns) do
+    ~H"""
+    <td class="num">—<small class="cell-note"><%= gettext("not convertible") %></small></td>
+    """
+  end
+
   defp income_bars([]), do: []
 
   defp income_bars(annual) do

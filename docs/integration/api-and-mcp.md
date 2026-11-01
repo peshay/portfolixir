@@ -2287,15 +2287,21 @@ Example account payloads:
   aggregated three ways (no forecast — the dividend calendar is a separate
   feature). `annual` is a list of years (newest first), each with `months` (a
   map keyed by month number `"1"`–`"12"`, each carrying `dividends` and
-  `interest`), and per-year `dividends_total`, `interest_total` and `total`.
-  `positions` is the per-position table, grouped by security and booking
-  currency: an interest booking that names a security (a bond's coupon) is
+  `interest`), and per-year `dividends_total`, `interest_total`, `total` and
+  `excluded_count`, the year's payments left out of every total for want of
+  a rate (below); a year whose payments are all left out keeps its row, with
+  `"0"` totals (#1293).
+  `positions` is the per-position table, one row per security and payment
+  currency, the cash account's currency (#1274): an interest booking that names a security (a bond's coupon) is
   that security's row, and the interest naming none shares the row with
   `security_id` `null` (#928): `security_id`, `security_name`,
-  `security_currency` (the original booking currency), `gross`, `tax` (the
-  withheld tax stored on the transaction, a dividend's or an interest
-  booking's), `net`
-  (`gross - tax`), `payment_count` and `last_payment`. `transactions` is the
+  `security_currency` (the security's own currency; the payment currency on
+  a row naming no security), `currency` (the payment currency),
+  `native_gross`, `native_tax` and `native_net` (in `currency`), `gross`,
+  `tax` (the withheld tax stored on the transaction, a dividend's or an
+  interest booking's) and `net` (`gross - tax`), converted into the base
+  currency, `payment_count` and `last_payment`. A USD security paid once
+  into a USD account and once into a EUR account has two rows. `transactions` is the
   per-transaction detail for a year drilldown (`kind`, `date`, `year`,
   `security_id`/`security_name`, `currency`, the native `native_gross`/
   `native_tax`/`native_net`, the base-currency `gross`/`tax`/`net`, and
@@ -2310,18 +2316,18 @@ Example account payloads:
   valuation endpoint), with the original currency retained. A booking with no
   such rate path is excluded from every total (`annual`, its months,
   `positions`) and named in `excluded` (`count`, and per currency its
-  `currency_code`, `count` and `securities`), as the other Cash-flow reads
+  `currency_code`, `count`, `securities` and `interest_count`, its payments
+  naming no security), as the other Cash-flow reads
   do; `transactions` keeps it with `converted: false`, its native amounts and
   `null` base-currency `gross`, `tax` and `net` — never its native amount at
   parity (security review 2026-10-12, K07). `unconverted_count` counts it,
   `conversion_note` states the basis and `computation_basis` (`series`,
-  `currency`, `window`, `reference`, `gaps`) the rule.
+  `currency`, `window`, `reference`, `gaps`, `positions`) the rule.
   A booking's cash and withheld tax are read in its cash account's currency,
   the currency it was credited in (the ADR-0015 amendment of 2026-10-07): a
   dividend of a USD security credited to a EUR account is converted from
-  euros, and its `transactions` row's `currency` names EUR, the currency its
-  `native_*` amounts are in, while its `positions` row keeps the booking
-  currency in `security_currency`.
+  euros, and its `transactions` row's and its `positions` row's `currency`
+  name EUR, the currency their `native_*` amounts are in.
   Unknown portfolios return `404 Not Found`.
   Since ADR-0020 a target plan **belongs to a view**: the target read/write
   endpoints accept an optional `view` (a view id). Omitting it (or sending

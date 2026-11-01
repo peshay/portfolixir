@@ -2476,16 +2476,23 @@ Beispiel-Payloads für Konten:
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate
   Funktion). `annual` ist eine Liste von Jahren (neueste zuerst), jedes mit
   `months` (eine Map mit Monatszahl-Schlüsseln `"1"`–`"12"`, jeweils mit
-  `dividends` und `interest`) und je Jahr `dividends_total`, `interest_total` und
-  `total`. `positions` ist die Pro-Position-Tabelle, gruppiert nach
-  Wertpapier und Buchungswährung: eine Zinsbuchung, die ein Wertpapier nennt
+  `dividends` und `interest`) und je Jahr `dividends_total`, `interest_total`,
+  `total` und `excluded_count`, die Zahlungen des Jahres, die mangels
+  Wechselkurs in keiner Summe stehen (unten); ein Jahr, dessen Zahlungen alle
+  ausgeschlossen sind, behält seine Zeile mit `"0"` als Summen (#1293).
+  `positions` ist die Pro-Position-Tabelle, eine Zeile je Wertpapier und
+  Zahlungswährung, der Währung des Verrechnungskontos (#1274): eine Zinsbuchung, die ein Wertpapier nennt
   (der Kupon einer Anleihe), ist die Zeile dieses Wertpapiers, und die Zinsen
   ohne Wertpapier teilen sich die Zeile mit `security_id` `null` (#928):
   `security_id`,
-  `security_name`, `security_currency` (die ursprüngliche Buchungswährung),
-  `gross`, `tax` (die auf der Transaktion gespeicherte einbehaltene Steuer,
-  einer Dividende oder einer Zinsbuchung), `net` (`gross - tax`),
-  `payment_count` und `last_payment`. `transactions` ist das Detail je Transaktion
+  `security_name`, `security_currency` (die eigene Währung des Wertpapiers;
+  auf einer Zeile ohne Wertpapier die Zahlungswährung), `currency` (die
+  Zahlungswährung), `native_gross`, `native_tax` und `native_net` (in
+  `currency`), `gross`, `tax` (die auf der Transaktion gespeicherte
+  einbehaltene Steuer, einer Dividende oder einer Zinsbuchung) und `net`
+  (`gross - tax`), umgerechnet in die Basiswährung, `payment_count` und
+  `last_payment`. Ein USD-Wertpapier, einmal auf ein USD- und einmal auf ein
+  EUR-Konto gezahlt, hat zwei Zeilen. `transactions` ist das Detail je Transaktion
   für eine Jahres-Aufschlüsselung (`kind`, `date`, `year`,
   `security_id`/`security_name`, `currency`, das native `native_gross`/
   `native_tax`/`native_net`, das `gross`/`tax`/`net` in Basiswährung und
@@ -2502,19 +2509,19 @@ Beispiel-Payloads für Konten:
   beibehaltener ursprünglicher Währung. Eine Buchung ohne solchen
   Wechselkurspfad ist
   aus jeder Summe (`annual`, seine Monate, `positions`) ausgeschlossen und in
-  `excluded` genannt (`count`, und je Währung `currency_code`, `count` und
-  `securities`), wie bei den anderen Cashflow-Lesungen; `transactions` behält
+  `excluded` genannt (`count`, und je Währung `currency_code`, `count`,
+  `securities` und `interest_count`, ihre Zahlungen ohne Wertpapier), wie bei den anderen Cashflow-Lesungen; `transactions` behält
   sie mit `converted: false`, ihren nativen Beträgen und `null` für `gross`,
   `tax` und `net` in Basiswährung — nie ihr nativer Betrag zur Parität
   (Sicherheitsprüfung 2026-10-12, K07). `unconverted_count` zählt sie, `conversion_note` nennt die
   Basis und `computation_basis` (`series`, `currency`, `window`, `reference`,
-  `gaps`) die Regel. Bargeld und einbehaltene Steuer einer
+  `gaps`, `positions`) die Regel. Bargeld und einbehaltene Steuer einer
   Buchung werden in der Währung ihres Verrechnungskontos gelesen, der
   Währung, in der sie gutgeschrieben wurden (die Ergänzung von ADR-0015 vom
   07.10.2026): Die Dividende eines USD-Wertpapiers, einem EUR-Konto
   gutgeschrieben, wird aus Euro umgerechnet, und ihre `transactions`-Zeile
-  nennt in `currency` EUR, die Währung ihrer `native_*`-Beträge, während ihre
-  `positions`-Zeile die Buchungswährung in `security_currency` behält.
+  wie ihre `positions`-Zeile nennt in `currency` EUR, die Währung ihrer
+  `native_*`-Beträge.
   Unbekannte Portfolios liefern `404 Not Found`.
   Seit ADR-0020 gehört ein SOLL-Zielplan zu einer **Sicht (View)**: Die
   Lese-/Schreib-Endpunkte für Ziele akzeptieren ein optionales `view` (eine

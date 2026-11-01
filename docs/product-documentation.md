@@ -2555,8 +2555,10 @@ The **Income** facet is the retrospective income report: the dividends and
 interest already booked in the ledger, with no external data or forecast. It
 shows an **annual overview** — a year × month matrix split into a *Dividends* and
 an *Interest* series, each year with a totals column — and a **per-position
-table** with, for each security, the gross paid, the withheld tax, the net, the
-number of payments and the date of the last one. A dividend's **gross** is the
+table** with, for each security and payment currency, the gross paid, the
+withheld tax and the net in that currency, the net in the base currency, the
+number of payments and the date of the last one. A security paid into
+accounts in two currencies has one row per currency. A dividend's **gross** is the
 net cash credited plus the withheld tax recorded on the transaction. Interest
 (Portfolio Performance INTEREST: account interest or bond coupons) is read the
 same way — an interest payment booked with withheld tax shows gross = net +
@@ -2580,19 +2582,25 @@ months — the running total, so a quiet month reads as a plateau rather than as
 a gap, and the shape answers "where did the year stand by April" instead of
 "what came in in April".
 
-Amounts are reported in the portfolio's base currency; the original currency
-stays visible on each row. A payment is read in the currency of the account
-it was credited to: a USD security's dividend credited to a EUR account is
-the euros that arrived, and its row among the year's payments names EUR,
-while the per-position table keeps the booking's currency (the ADR-0015
-amendment of 2026-10-07). The conversion methodology (EUR hub at the most
+The totals, the matrix and the bars are in the portfolio's base currency. A
+payment is read in the currency of the account it was credited to: a USD
+security's dividend credited to a EUR account is the euros that arrived (the
+ADR-0015 amendment of 2026-10-07). A drilled year's payments and the
+per-position rows print **Gross**, **Tax** and **Net** in that payment
+currency, the one the **Currency** column names, and the converted net beside
+them under **Net (EUR)** (the base currency's code), the figure the totals sum
+(#1274): a USD dividend of 100.00 net and 25.00 tax reads 125.00 / 25.00 /
+100.00 USD and, at 1 EUR = 1.25 USD on its date, 80.00 EUR. The conversion methodology (EUR hub at the most
 recent stored rate on or before each booking date — the same conversion the
 valuation uses) sits behind the ⓘ affordance next to the currency line. A
 payment with no such rate — a currency the rate source does not publish, or
 a date before the first stored rate — is in no figure: an attention note
 above the annual overview names how many, their currency and security, and
 offers the historical backfill; the drilled year's payments still list it in
-its own currency. The report is also
+its own currency, with "—" and "not convertible" under the converted net. A
+year whose payments all lack a rate keeps its year, at 0.00, so it can be
+drilled (#1293); the note names an interest payment that names no security
+as "Interest". The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.
 
