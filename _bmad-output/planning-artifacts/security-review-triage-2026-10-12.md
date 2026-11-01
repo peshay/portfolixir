@@ -529,8 +529,10 @@ scope"); none of them is part of the row's own fix.
 | Refuted or no action in Part 5 | 4 | – | – | – | – | 4 | – |
 | **All** | **79** | **73** | **0** | **2** | **0** | **4** | **30** |
 
-*Since this table (2026-11-01):* H45 shipped in stacked PR 2's γ7, so S4's
-row reads 17 of 17 shipped there; its line below names the commits.
+*Since this table (2026-11-01):* H53 shipped in stacked PR 1's α9 and H45 in
+stacked PR 2's γ7, so all 75 rows that call for a fix are shipped across the
+three PRs (S4 17 of 17, S5 4 of 4), and none is deferred; their lines below
+name the commits.
 
 Every promoted reproduction test was red before its fix in the commit order
 (each fixer ran it red and committed it on its own; each group's reviewer
@@ -743,8 +745,44 @@ behind their red-first acceptance tests.
 
 *S5 — Import robustness*
 
-- **H53** — deferred to stacked PR 1, α9, by the amendment's D-4: the lock-free
-  dry run lands with the story that builds its screen.
+- **H53** — shipped in stacked PR 1 #1318, α9 (moved there by the
+  amendment's D-4, recorded 2026-11-01): `test(imports): pin the preview's
+  dry run holding no lock another writer waits for, once per parked preview
+  (H53)`, `fix(imports): the preview's dry run simulates the run read-only
+  and lock-free, once per parked preview, and the ISIN write lock is one per
+  ISIN (H53)` and `docs(adr): ADR-0050's dry-run amendment records the
+  blocking that remains after the lock-free dry run (H53)`, with `test(imports):
+  the dry-run page test aliases its modules in order (H53)`. The follow-ups on
+  the same branch:
+  - the simulation and the importer's refusals: `fix(imports): the simulated
+    insert carries the importer's currency refusal, and the fee-refund strings
+    carry their German forms (#1199, #1188, H53)` and `test(imports): pin the
+    dry run stopping where the apply refuses a third currency or a deposit
+    onto an account it would create in another currency; pins behaviour that
+    landed without its test (#1199, H53)`;
+  - the correction's figure match read from the one run: `test(imports): pin
+    the correction's confirm waiting for a rename in flight and correcting
+    the line found by its figures (#1205, H53)`, `fix(imports): the page
+    simulates the file once for its counts and the correction's figure match,
+    the section stays pending until that run answers, and the confirm reads
+    its keys under its own lock (#1205, H53)` and `docs(imports): ADR-0053,
+    the handbooks and DESIGN.md say where the correction's figure match is
+    read and the section's state until the dry run answers (#1205, H53)`;
+  - the ISIN write locks' order (#1287, the S-closing act's filing):
+    `test(imports): pin two imports and an ISIN change queueing at the ISIN
+    write locks, not deadlocking (#1287, H53)` and `fix(imports): the apply
+    takes the ISIN write locks of its whole file once, right after the
+    account-identity lock (#1287, H53)`;
+  - pins of behaviour that landed without its test: `test(imports): pin the
+    dry run's read-only transaction and its stop under a writer of account
+    names in flight; pins behaviour that landed without its test (H53)` and
+    `test(catalog): pin an ISIN edit queueing on the security's own key for an
+    ISIN change of it; pins behaviour that landed without its test (H53)`;
+  - the stop's record: `docs(imports): a dry run stopped by a writer in
+    flight is parked as answered, the lock table's row 20 names the
+    correction's economic keys, and the handbook names a writer under way as
+    a reason the counting stops, EN and DE (#1195, H53)`; whether a stopped
+    run re-runs is #1308.
 - **H54** — shipped: `fix(imports): the default portfolio is resolved under
   its own lock and committed before the import's transaction (H54)` (T-20);
   a failed first import now leaves the committed Default portfolio behind
