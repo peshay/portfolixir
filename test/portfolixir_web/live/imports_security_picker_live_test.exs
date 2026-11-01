@@ -221,6 +221,36 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     assert has_element?(view, decision <> " .mapping-remap .search-field input[type='search']")
   end
 
+  # User story (H45, Sprint 21 γ7, Q1 B; the γ7 review, R-B1): As the
+  # operator who opened "N new securities will be created" to map one of
+  # them elsewhere, I want the section to stay open while I open the
+  # picker, search and pick, so that my picker never opens into a collapsed
+  # section.
+  #
+  # Acceptance criteria:
+  # - The plain creations' `<details>` tells LiveView to keep the `open`
+  #   the browser set on it across every patch
+  #   (`phx-mounted`: `ignore_attrs` of `open`), since the server renders
+  #   no `open` and a patch would otherwise remove it.
+  # - It still does after the picker opened, a search and a pick.
+  test "the plain creations' section keeps the open state the browser gave it", %{
+    conn: conn,
+    larkspur: larkspur
+  } do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, [purchase(@sorrel, "2026-01-15"), purchase(@holding, "2026-01-16")])
+
+    assert keeps_open?(view)
+
+    holding = row(view, "Larkspur Rail Holding AG")
+    view |> element(holding <> " button.link-button", "Map elsewhere…") |> render_click()
+    search(view, "Larkspur Rail Holding AG", "Lark")
+    assert keeps_open?(view)
+
+    choose(view, "Larkspur Rail Holding AG", "existing:#{larkspur.id}")
+    assert keeps_open?(view)
+  end
+
   # --- the file ----------------------------------------------------------------
 
   defp purchase(security, date) do
@@ -291,6 +321,26 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     |> element("form#pp-import-apply")
     |> render_change(%{"security" => %{key(name) => %{"choice" => choice}}})
   end
+
+  # Whether the plain creations' <details> carries LiveView's instruction to
+  # leave its `open` attribute to the browser.
+  defp keeps_open?(view) do
+    [details] =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#import-security-mapping details[data-role='plain-creates']")
+
+    case Floki.attribute(details, "phx-mounted") do
+      [ops] ->
+        ["ignore_attrs", %{"attrs" => ["open"]}] in Enum.map(Jason.decode!(ops), &drop_nil_to/1)
+
+      [] ->
+        false
+    end
+  end
+
+  defp drop_nil_to([op, args]), do: [op, Map.reject(args, fn {_k, v} -> is_nil(v) end)]
 
   defp text(view, selector) do
     view
