@@ -107,8 +107,9 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
   # - A coupon of "3.1234567" is rounded half up to the column's 6 places
   #   before it is checked and answered as "3.123457"; a face value of
   #   "1000.0000004" as "1000" (ADR-0016's rule, "Other stored amounts").
-  # - A JSON number is cast as every decimal field casts one: a coupon of
-  #   2.5 is answered "2.5", a string.
+  # - A JSON number is refused as every decimal field refuses one (ADR-0003,
+  #   amended 2026-11-01; #1291): a coupon of 2.5 answers 422 naming
+  #   coupon_rate, and "2.5" is answered "2.5", a string.
   test "the coupon and the denomination follow the stored-amount rule", %{conn: conn} do
     %{"data" => created} =
       create_bond!(conn, %{
@@ -120,11 +121,19 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
     assert created["coupon_rate"] == "3.123457"
     assert created["face_value"] == "1000"
 
+    assert %{"errors" => %{"coupon_rate" => ["must be a decimal string"]}} =
+             conn
+             |> patch(
+               "/api/v1/securities/#{created["id"]}",
+               Jason.encode!(%{"security" => %{"coupon_rate" => 2.5}})
+             )
+             |> json_response(422)
+
     patched =
       conn
       |> patch(
         "/api/v1/securities/#{created["id"]}",
-        Jason.encode!(%{"security" => %{"coupon_rate" => 2.5}})
+        Jason.encode!(%{"security" => %{"coupon_rate" => "2.5"}})
       )
       |> json_response(200)
 
