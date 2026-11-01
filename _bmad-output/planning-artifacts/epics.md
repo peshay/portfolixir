@@ -675,6 +675,14 @@ each lands as Sprint 16's #914 did, by a fast-forward. The next planning PR
 records the merges, their CI runs and their calendar releases. The basis also
 includes the issue list read through the API on 2026-11-01.
 
+**Merged 2026-11-01 (addendum by the retro PR):** all three were fast-forwarded
+in order on the owner's explicit go, by the agent's push, because the owner had
+no merge button (each PR above the rebase limit, `main` with a linear-history
+rule): #1296 as release 2026.11.1, #1318 as 2026.11.2 and stacked PR 2, #1344,
+as 2026.11.3; `main` is at `4cd6641`. Twelve of #1296's keyword closes did not
+land, because a comma list links only its first issue, and were closed by hand
+with a note. The Lane Z pass ran the same day. 112 issues are open after it.
+
 **Shipped by Sprint 21, once the three merge.** The money after the first
 import, the security review's fix batch, and the screens that waited for their
 boards.
@@ -716,8 +724,9 @@ boards.
 **The four exit criteria (plan D-1): 1 to 3 pass once the three merge; 4
 fails.**
 
-1. **Every money issue closes by keyword: pass once #1296 and #1318
-   merge.** #1214 is in #1296's Closes lines, the other twelve in #1318's.
+1. **Every money issue closes by keyword: pass, at the merges of
+   2026-11-01.** #1214 is in #1296's Closes lines, the other twelve in
+   #1318's; all thirteen are closed.
 2. **The round trips: pass**, on synthetic data in the German UI. Import then
    sell read 188,75 CAD = 151,00 EUR (CAD stands in for USD: the review seed
    stores no USD rate on purpose), the lot without legs unavailable and
@@ -735,10 +744,11 @@ fails.**
    leaves about 111. The sprint filed 96 since the amendment's planning merge,
    against the 34 the plan's arithmetic allowed, each finding beside a story
    as a thin pointer. Every `needs-decision` issue now carries its
-   recommended answer (the close-out's registry pass). 59 filings still have
-   no area parent and 37 no label: the owner's Lane Z item after the merges,
-   with the parent for each listed in `sprint-status.yaml`'s Sprint 21
-   entry.
+   recommended answer (the close-out's registry pass). After the merges: 112
+   open, because twelve of #1296's keyword closes landed by hand (a comma
+   list links only its first issue) and #1345 was filed by #1344's CI; the
+   Lane Z pass ran the same day, so every filing since #1241 carries
+   `agentic` and its area parent.
 
 The records are in `sprint-status.yaml`'s Sprint 21 entry and in the "Since
 version 3" section of `launch-readiness-2026-10-09-sprint20.md`.
@@ -2131,12 +2141,12 @@ issue state and the merge commits on `main`.
   **Sprint 21 amended 2026-10-27**
   (`sprint-plan-2026-10-27-sprint21-amendment.md`): the security review's
   fix batch builds first, as Lane S, and the sprint runs as three PRs.
-  **Sprint 21 built 2026-11-01**, none merged at the close-out: the sprint
-  PR #1296 (Lane M, Lane S), stacked PR 1 #1318 (α, β) and stacked PR 2 (γ
-  and the close-out), merged by the owner in order. The four amendments are
-  built as signed. D-1's criteria 1 to 3 pass once the three merge; the
-  fourth, fewer than 60 open issues, fails (about 110 after the merges,
-  because the sprint filed 95). Still not E26's scope: the epic stays in
+  **Sprint 21 built and merged 2026-11-01**: the sprint PR #1296 (Lane M,
+  Lane S; release 2026.11.1), stacked PR 1 #1318 (α, β; 2026.11.2) and
+  stacked PR 2 #1344 (γ and the close-out; 2026.11.3), fast-forwarded in
+  order on the owner's go. The four amendments are built as signed. D-1's
+  criteria 1 to 3 pass; the fourth, fewer than 60 open issues, fails (112
+  after the merges, because the sprint filed 96). Still not E26's scope: the epic stays in
   progress for the owner's announcement decision alone, and
   `launch-readiness-2026-10-09-sprint20.md`, with its "Since version 3"
   section, is the input.
