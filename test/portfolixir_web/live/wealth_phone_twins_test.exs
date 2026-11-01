@@ -133,7 +133,14 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
   end
 
   # Every load the page starts, and every load a landing one starts in turn.
-  defp settle(view), do: Enum.each(1..4, fn _round -> render_async(view) end)
+  # Each round waits explicitly (#1273): the suite-wide default is
+  # assert_receive_timeout (2 s, test_helper.exs), and this page's loads
+  # take close to that alone, so under a parallel run a round overran it
+  # with no defect behind it. A timeout, not a delay: a round returns as
+  # soon as its loads finish.
+  @settle_timeout 10_000
+  defp settle(view),
+    do: Enum.each(1..4, fn _round -> render_async(view, @settle_timeout) end)
 
   defp texts(view, selector) do
     view
