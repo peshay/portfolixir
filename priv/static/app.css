@@ -3679,6 +3679,12 @@ input[pattern]:invalid:not(:placeholder-shown) {
   color: var(--color-text-muted);
 }
 
+/* Issue 1316 (board 02 ① 1b): the note naming the rows the total leaves out
+   sits under the table it is about. */
+.detail-holdings-unvalued {
+  margin-top: var(--space-3);
+}
+
 .detail-holdings-table tfoot .totals-row {
   font-weight: 600;
   background: var(--color-bg-muted);
@@ -11493,6 +11499,20 @@ dialog.merge-dialog {
   font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
+}
+
+/* Issues 1316 and 1332 (board ux-design-2026-11-01-sprint22/02 ①): a cell's second
+   line that names where its figure comes from ("zum Handelspreis",
+   "Handelspreis · 01.07.2025") or why it is missing ("kein Preis · nicht in
+   der Summe"). The anatomy of .contribution-table__note, lifted to any
+   data-table cell. */
+.data-table td .cell-note {
+  display: block;
+  margin-left: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 /* The bar rides under its own figure, right-aligned with it: decorative

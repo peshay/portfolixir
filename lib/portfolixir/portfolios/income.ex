@@ -138,6 +138,18 @@ defmodule Portfolixir.Portfolios.Income do
     }
   end
 
+  @doc """
+  The gross of one `dividend` or `interest` booking, in its cash account's
+  currency: the cash credited (`gross_amount`) plus the tax withheld
+  (`taxes`), as this report reads it (see "Gross / withheld tax / net"
+  above). The security page's Transaktionen tab prints this figure as the
+  booking's Brutto, so one booking has one gross on every screen (#1331).
+  """
+  @spec gross_of(map()) :: Decimal.t()
+  def gross_of(%{} = tx) do
+    Decimal.add(Map.get(tx, :gross_amount) || @zero, Map.get(tx, :taxes) || @zero)
+  end
+
   # One normalised income entry, with both native and base-currency amounts. The
   # base-currency amounts feed the matrix and totals; the native gross/tax/net
   # and `currency` keep the original visible.
@@ -146,7 +158,7 @@ defmodule Portfolixir.Portfolios.Income do
     # #1309 (D-5, Sprint 22): interest, a bond's coupon included, is read
     # as a dividend is; the tax withheld on it is stored in taxes alike.
     native_tax = tx.taxes || @zero
-    native_gross = Decimal.add(native_net, native_tax)
+    native_gross = gross_of(tx)
     cash_currency = cash_currency(tx)
 
     {gross, converted?} = convert(native_gross, cash_currency, base_currency, tx.date)

@@ -106,7 +106,9 @@ defmodule PortfolixirWeb.CrossCurrencyLabelsTest do
            ]
 
     assert Enum.slice(cells(same), 3..6) == ["80,00 EUR", "1,50", "0,00", "160,00"]
-    assert Enum.slice(cells(dividend), 4..6) == ["0,00 EUR", "12,00 EUR", "80,00 EUR"]
+    # #1331: a dividend's Brutto is Income's gross, the 80,00 credited plus
+    # the 12,00 withheld, in the account's currency.
+    assert Enum.slice(cells(dividend), 4..6) == ["0,00 EUR", "12,00 EUR", "92,00 EUR"]
   end
 
   # User story (#1213, Sprint 21 α11; N9 variant A):

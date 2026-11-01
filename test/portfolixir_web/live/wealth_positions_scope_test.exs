@@ -87,7 +87,8 @@ defmodule PortfolixirWeb.WealthPositionsScopeTest do
     refute position?(lv, alpha)
 
     assert lv |> element(~s([data-role="positions-basis"])) |> render() =~
-             "One row per depot and security, valued at the latest stored price."
+             "One row per depot and security, valued at the latest stored price or, " <>
+               "without a quote, at the last own trade price."
   end
 
   # User story (#1124; the page's view-gone fallback):

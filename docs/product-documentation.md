@@ -1870,7 +1870,8 @@ one, which would explode a short window (ADR-0034).
 
 **Positions** (issue #814) lists the holdings projection this instance
 serves over the API — one row per depot and security, valued at the latest
-stored price, as the line under the heading says — with a **Columns**
+stored price or, without a quote, at the last own trade price, as the line
+under the heading says (issue #1332) — with a **Columns**
 picker over that projection's own fields: beyond the default depot,
 security and quantity it offers ISIN, WKN,
 currency, average cost, latest price, market value and the unrealised result
@@ -1887,7 +1888,13 @@ as money, two places ("2,569.68 EUR"), the P&L signed and in its gain or
 loss colour; the average cost and the latest price as the history prints a
 stored price, every digit up to four places ("128.4838 EUR", an average of
 100 ÷ 3 as "33.3333"); the quantity with its own digits. The API and MCP
-serve every digit. The choice is stored
+serve every digit. A position valued at its last trade price shows that
+price with "Trade price · date" under it, its market value and its P&L,
+and a position with no price at all reads "no price · not in the total".
+The **market value** is in the portfolio's base currency, the figure the
+total sums — a USD position converted at the latest stored rate — so the
+rows add up to the total above them; the price, the average cost and the
+P&L stay in the security's own currency, each with its suffix. The choice is stored
 in the browser and survives a reload; clearing every box falls back to the
 defaults rather than leaving a table with no columns. The picker sits above
 the table, and appears only when there is a table to configure. On a phone
@@ -2475,7 +2482,15 @@ currency than its cash account names each figure's currency: its fees and
 taxes are in the account's ("5.00 EUR"), its price and gross in the
 booking's ("1,000.00 USD"), except a gross stored without a price, which
 is cash and in the account's; a missing figure is a bare dash, and a row in
-one currency stays as it is. An open lot or a closed trade on no cost shows
+one currency stays as it is. A dividend's or an interest payment's
+**Gross** there is the gross the Income facet reads, the cash credited plus
+the tax withheld: 7.50 credited with 1.98 withheld reads 9.48 (issue
+#1331). The security's **Holdings** tab values a position the way the
+portfolio total does (issue #1316): at the latest quote or, with none, at
+the last own trade price, with "at trade price" under the figure, so its
+rows add up to its **Total**. A position with no price at all reads "—"
+with "no price known", the total reads "—" rather than 0.00, and a note under
+the table names the rows the total leaves out. An open lot or a closed trade on no cost shows
 the dash with "No return: no cost basis" in its "%" column, and so do the
 security's **Holdings** tab and Wealth's optional **P&L %** column for
 shares delivered in at no cost, such as a spin-off (issue #1142); a holding
