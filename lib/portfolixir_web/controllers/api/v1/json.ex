@@ -1849,6 +1849,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       dividends_total: decimal(year.dividends_total),
       interest_total: decimal(year.interest_total),
       total: decimal(year.total),
+      excluded_count: year.excluded_count,
       months:
         Map.new(year.months, fn {month, series} ->
           {Integer.to_string(month),
@@ -1862,6 +1863,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_id: position.security_id,
       security_name: position.security_name,
       security_currency: position.security_currency,
+      currency: position.currency,
+      native_gross: decimal(position.native_gross),
+      native_tax: decimal(position.native_tax),
+      native_net: decimal(position.native_net),
       gross: decimal(position.gross),
       tax: decimal(position.tax),
       net: decimal(position.net),

@@ -143,11 +143,15 @@ defmodule Portfolixir.Portfolios.IncomeTest do
 
     assert income.unconverted_count == 1
     refute Enum.any?(income.positions, &(&1.security_id == security.id))
-    assert income.annual == []
+    # #1293: the year keeps its row, with zero totals and its excluded count.
+    assert [%{year: 2025, excluded_count: 1} = year] = income.annual
+    assert Decimal.equal?(year.total, Decimal.new("0"))
 
     assert income.excluded == %{
              count: 1,
-             currencies: [%{currency_code: "GBP", count: 1, securities: ["UK Payer"]}]
+             currencies: [
+               %{currency_code: "GBP", count: 1, securities: ["UK Payer"], interest_count: 0}
+             ]
            }
 
     [detail] = Enum.filter(income.transactions, &(&1.year == 2025))

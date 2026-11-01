@@ -2811,9 +2811,11 @@ Der **Income**-Bereich ist der retrospektive Ertragsbericht: die bereits im
 Ledger gebuchten Dividenden und Zinsen, ohne externe Daten oder Prognose. Sie
 zeigt einen **Jahresüberblick** — eine Jahr-×-Monat-Matrix, aufgeteilt in eine
 *Dividends*- und eine *Interest*-Reihe, jedes Jahr mit einer Summenspalte — und
-eine **Pro-Position-Tabelle** mit, für jedes Wertpapier, dem Brutto-Gezahlten, der
-einbehaltenen Steuer, dem Netto, der Anzahl der Zahlungen und dem Datum der
-letzten. Das **Brutto** einer Dividende ist das gutgeschriebene Netto-Cash plus
+eine **Pro-Position-Tabelle** mit, für jedes Wertpapier und jede
+Zahlungswährung, dem Brutto-Gezahlten, der einbehaltenen Steuer und dem
+Netto in dieser Währung, dem Netto in der Basiswährung, der Anzahl der
+Zahlungen und dem Datum der letzten. Ein Wertpapier, das auf Konten in zwei
+Währungen gezahlt hat, hat eine Zeile je Währung. Das **Brutto** einer Dividende ist das gutgeschriebene Netto-Cash plus
 die auf der Transaktion erfasste einbehaltene Steuer. Zinsen
 (Portfolio-Performance INTEREST: Kontozinsen oder Anleihekupons) werden
 genauso gelesen — eine mit einbehaltener Steuer gebuchte Zinszahlung zeigt
@@ -2839,13 +2841,17 @@ Gesamtstand, sodass ein ruhiger Monat als Plateau statt als Lücke gelesen wird
 und die Kurve „wo stand das Jahr im April" beantwortet statt „was kam im April
 herein".
 
-Beträge werden in der Basiswährung des Portfolios ausgewiesen; die
-ursprüngliche Währung bleibt je Zeile sichtbar. Eine Zahlung wird in der
-Währung des Kontos gelesen, dem sie gutgeschrieben wurde: Die Dividende
-eines USD-Wertpapiers, einem EUR-Konto gutgeschrieben, sind die Euro, die
-angekommen sind, und ihre Zeile unter den Zahlungen des Jahres nennt EUR,
-während die Tabelle je Position die Währung der Buchung behält (die
-Ergänzung von ADR-0015 vom 07.10.2026). Die Umrechnungsmethodik
+Summen, Matrix und Balken stehen in der Basiswährung des Portfolios. Eine
+Zahlung wird in der Währung des Kontos gelesen, dem sie gutgeschrieben
+wurde: Die Dividende eines USD-Wertpapiers, einem EUR-Konto gutgeschrieben,
+sind die Euro, die angekommen sind (die Ergänzung von ADR-0015 vom
+07.10.2026). Die Zahlungen eines aufgeklappten Jahres und die Zeilen je
+Position zeigen **Brutto**, **Steuern** und **Netto** in dieser
+Zahlungswährung, der, die die Spalte **Währung** nennt, und daneben das
+umgerechnete Netto unter **Netto (EUR)** (der Code der Basiswährung), die
+Zahl, die die Summen addieren (#1274): Eine USD-Dividende von 100,00 netto
+und 25,00 Steuer liest 125,00 / 25,00 / 100,00 USD und, bei 1 EUR = 1,25 USD
+an ihrem Tag, 80,00 EUR. Die Umrechnungsmethodik
 (EUR-Hub zum letzten gespeicherten Wechselkurs an oder vor dem jeweiligen
 Buchungsdatum — dieselbe Umrechnung wie die Bewertung) steht hinter dem ⓘ
 neben der Währungszeile. Eine Zahlung ohne solchen Wechselkurs — eine
@@ -2853,7 +2859,11 @@ Währung, die die Quelle nicht veröffentlicht, oder ein Datum vor dem ersten
 gespeicherten Wechselkurs — steht in keiner Zahl: Ein Achtung-Hinweis über
 der Jahresübersicht nennt, wie viele, ihre Währung und ihr Wertpapier, und
 bietet das Nachladen der historischen Wechselkurse an; die Zahlungen des aufgeklappten
-Jahres listen sie weiter in ihrer eigenen Währung.
+Jahres listen sie weiter in ihrer eigenen Währung, mit „—“ und „ohne
+Umrechnung“ unter dem umgerechneten Netto. Ein Jahr, dessen Zahlungen alle
+keinen Wechselkurs haben, behält sein Jahr, mit 0,00, und lässt sich
+aufklappen (#1293); der Hinweis nennt eine Zinszahlung ohne Wertpapier
+„Zinsen“.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.
 

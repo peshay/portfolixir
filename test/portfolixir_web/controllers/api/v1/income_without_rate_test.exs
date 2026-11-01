@@ -113,7 +113,8 @@ defmodule PortfolixirWeb.Api.V1.IncomeWithoutRateTest do
                %{
                  "currency_code" => "TWD",
                  "count" => 1,
-                 "securities" => ["Synthetic Taipei Payer"]
+                 "securities" => ["Synthetic Taipei Payer"],
+                 "interest_count" => 0
                }
              ]
            }

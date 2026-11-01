@@ -73,8 +73,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # The read serves no prompts list; the manifest holds it.
     assert hd(Contract.entries()).prompts == []
 
-    assert [refusal, incomplete_splits, rate_only, _income, trades, holdings] =
+    assert [refusal, incomplete_splits, rate_only, _income, trades, holdings, income_currency] =
              newest["parameters"]
+
+    # Sprint 22's R9 (#1274, #1293): the income read's per-currency position
+    # rows with native and converted figures, and the unconverted year.
+    assert newest["summary"] =~ "R9"
+    assert String.starts_with?(income_currency, "GET /api/v1/portfolios/:portfolio_id/income")
+    assert income_currency =~ "native_gross 180.00, native_tax 36.00, native_net 144.00"
+    assert income_currency =~ "excluded_count"
+    assert income_currency =~ "interest_count"
+    assert income_currency =~ "(#1274, #1293)"
 
     assert newest["summary"] =~ "R8"
     assert String.starts_with?(holdings, "GET /api/v1/portfolios/:portfolio_id/holdings")
