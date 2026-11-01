@@ -561,6 +561,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
         currency: shown_value(value)
       )
 
+  @doc """
+  The row message for a JSON v1 `time` the parser cannot read (#1306),
+  naming the value as the file wrote it, shown as `currency_message/2`
+  shows a value, and the two forms it reads. The row is refused: a time is
+  a content-hash input, and reading it as no time would fold two same-day
+  rows into one hash (ADR-0053's note of 2026-11-01).
+  """
+  @spec time_message(term()) :: String.t()
+  def time_message(value),
+    do:
+      gettext("unreadable time “%{time}”: use HH:MM or HH:MM:SS — row not imported",
+        time: shown_value(value)
+      )
+
   @shown_max 40
   @controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u
 

@@ -3088,6 +3088,12 @@ confirm. These rows are left out the same way, each named with its row:
   imported. Enter the booking by hand, with its fees less the refund
   (3.00).* A sale reads *sell … Book the sale by hand, …*. It is named before
   the reasons above.
+- **A JSON row whose `time` the parser cannot read** (issue #1306): *unreadable
+  time “9:15 AM”: use HH:MM or HH:MM:SS — row not imported*. The time of day
+  is part of what tells two bookings apart, so a time read as none would let
+  two same-day rows that differ only in it count as one booking. Write it as
+  `09:15` or `09:15:00` and drop the file again; a row without a time, or
+  with a blank one, imports as before.
 - **A JSON row whose currency Portfolixir does not support**, named as the
   file wrote it, in capitals: *currency “EURO” is not supported — row not
   imported* for the booking's currency, and *security currency “XEU” is not

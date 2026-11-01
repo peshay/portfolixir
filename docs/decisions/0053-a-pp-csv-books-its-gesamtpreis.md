@@ -919,6 +919,24 @@ cash cell whole, a JSON trade priced the old way, the refund beside it.
 - Nothing here creates, stores or transmits an order. Nothing acquires data
   the instance does not already hold, and nothing calls out.
 
+## Note (2026-11-01): the refusal list gains three JSON v1 rows
+
+Sprint 22's R3 (the plan of 2026-11-01). The rows the JSON v1 parser
+refuses at the preview, each a row error naming its reason while the rest
+of the file previews and books, were: an unknown type, a value no column
+holds, a currency the catalog does not list (#948), a transfer without its
+other side (#1044), A9's negative FEE unit, A8's refund beside a delivery
+or a transfer, and A5's credit that nets to nothing. They gain:
+
+- **A `time` the parser cannot read (#1306).** The time is a content-hash
+  input (ADR-0029), and reading an unreadable one as no time let two
+  same-day rows that differ only in it share one hash: the second counted
+  as already imported, and one booking stood for two. Such a row is now
+  refused, "unreadable time “9:15 AM”: use HH:MM or HH:MM:SS — row not
+  imported". An absent or blank time is still no time, and every value
+  read before reads as it did, so no stored hash moves. Its place is with
+  the date's checks, before anything else of the row is read.
+
 ## References
 
 - [ADR-0029](0029-stable-identities-and-reimport-survival.html): the identity ladder, the content hash and its 2026-09-25 amendment

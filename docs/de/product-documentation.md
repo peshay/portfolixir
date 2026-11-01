@@ -3397,6 +3397,13 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   erfassen, mit den Gebühren abzüglich der Erstattung (3,00).* Ein Verkauf
   lautet *Verkauf … Den Verkauf von Hand buchen, …*. Sie wird vor den
   Gründen oben genannt.
+- **Eine JSON-Zeile, deren `time` der Parser nicht lesen kann** (Issue
+  #1306): *Uhrzeit „9:15 AM“ nicht lesbar: HH:MM oder HH:MM:SS angeben —
+  Zeile nicht übernommen*. Die Uhrzeit gehört zu dem, was zwei Buchungen
+  unterscheidet; als keine Uhrzeit gelesen, zählten zwei Zeilen desselben
+  Tages, die sich nur darin unterscheiden, als eine Buchung. Sie als `09:15`
+  oder `09:15:00` schreiben und die Datei erneut ablegen; eine Zeile ohne
+  Uhrzeit oder mit leerer wird wie bisher importiert.
 - **Eine JSON-Zeile, deren Währung Portfolixir nicht unterstützt**, benannt so,
   wie die Datei sie schreibt, in Großbuchstaben: *Währung „EURO“ wird nicht
   unterstützt — Zeile nicht übernommen* für die Währung der Buchung und
