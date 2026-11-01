@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.ImportsLive do
   use PortfolixirWeb, :live_view
 
+  alias Phoenix.LiveView.JS
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Imports
@@ -767,7 +768,11 @@ defmodule PortfolixirWeb.ImportsLive do
           <% end %>
 
           <%= if @plain_create_resolutions != [] do %>
-            <details data-role="plain-creates">
+            <%!-- The γ7 review, R-B1: the server renders no `open`, so a
+                 patch would remove the one the browser set and fold the
+                 section shut around an open picker; LiveView leaves it to
+                 the browser. --%>
+            <details data-role="plain-creates" phx-mounted={JS.ignore_attributes(["open"])}>
               <summary>
                 <%= ngettext(
                   "%{count} new security will be created",

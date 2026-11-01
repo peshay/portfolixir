@@ -3506,7 +3506,10 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   for a search without one; the basis line `.mapping-remap__basis` "The
   catalog is searched by name, ISIN, WKN and ticker; nothing is suggested."
   A pick closes the picker into the line, and the ISIN-change offer follows
-  the chosen target as before. **A decision row's candidates are its
+  the chosen target as before. The plain creations' `<details>` leaves its
+  `open` to the browser (`phx-mounted`, `JS.ignore_attributes(["open"])`):
+  the server renders none, and a patch removing it would fold the section
+  shut around an open picker. **A decision row's candidates are its
   cards**, "+ Create new" after them, nothing preselected ("Decide…" is gone
   from the security rows), and "Search for another security…" / "Anderes
   Wertpapier suchen…" opens the same search under them for the rare case
