@@ -1511,4 +1511,44 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert block =~
              ~r/\.accounts-table tbody\.account-pair td\.cell-name \{\s*white-space: normal;/
   end
+
+  # User story (#1162/#1145, Sprint 21 γ5, board 05; the γ closing act, UA1):
+  # As the operator adding a bucket to a depot in German,
+  # I want the bucket picker to say "Bucket" as the card and the page do,
+  # so that "Neuer Tag" does not first read as "new day".
+  #
+  # Acceptance criteria:
+  # - In German the pair picker's caption reads "Buckets gelten für Depot &
+  #   Verrechnungskonto", its field "Neuer Bucket" (placeholder and
+  #   accessible name), its button "Bucket anlegen"; the picker holds no
+  #   "Tag".
+  # - The English msgids are unchanged ("Tags apply to depot & cash", "New
+  #   tag", "Create tag"): "tag" carries no second meaning in English and is
+  #   the guide's word.
+  test "the German bucket picker says Bucket, not Tag", %{conn: conn} do
+    %{depot: depot} = world()
+
+    {:ok, view, _html} = live(conn, "/portfolios?locale=de")
+
+    view
+    |> element("#pair-buckets-#{depot.id} button[data-role='bucket-add']")
+    |> render_click()
+
+    picker = view |> element("#bucket-picker-pair-#{depot.id}") |> render()
+    parsed = Floki.parse_fragment!(picker)
+
+    assert parsed |> Floki.find(".bucket-picker__caption") |> Floki.text() |> String.trim() ==
+             "Buckets gelten für Depot & Verrechnungskonto"
+
+    assert parsed |> Floki.find("input[name='bucket_name']") |> Floki.attribute("placeholder") ==
+             ["Neuer Bucket"]
+
+    assert parsed |> Floki.find("input[name='bucket_name']") |> Floki.attribute("aria-label") ==
+             ["Neuer Bucket"]
+
+    assert parsed |> Floki.find(".bucket-picker__create button") |> Floki.text() |> String.trim() ==
+             "Bucket anlegen"
+
+    refute picker =~ ~r/\bTags?\b/
+  end
 end
