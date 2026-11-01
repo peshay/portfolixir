@@ -87,6 +87,34 @@ defmodule Portfolixir.Invariants.CssSharedComponentsTest do
     assert heading =~ ~r/border-radius:\s*var\(--radius-sm\);/
   end
 
+  # User story (#1166, Sprint 21 γ8; the γ closing act's accessibility pass,
+  # A-F2):
+  # As the keyboard operator whose correction answer takes the focus on the
+  # import preview,
+  # I want the Imports correction's result slot to draw the house ring and
+  # stop below the sticky top bar,
+  # so that it reads as the securities' and the classifications' slots do,
+  # not with the browser's `auto 1px` ring half under the bar.
+  #
+  # Acceptance criteria:
+  # - `#import-correction-result` (a `focusable` slot and the corrections'
+  #   `data-focus-fallback`) carries the top bar's scroll margin, and its
+  #   `:focus-visible` the 2 px accent ring at a 2 px offset with
+  #   `{rounded.md}` corners, as `#securities-action-result` and
+  #   `#classifications-result` do.
+  test "the Imports correction's result slot draws the house ring below the top bar" do
+    for slot <- ~w(#securities-action-result #classifications-result #import-correction-result) do
+      assert block(slot) =~
+               ~r/scroll-margin-top:\s*calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/,
+             slot
+
+      ring = block("#{slot}:focus-visible")
+      assert ring =~ ~r/outline:\s*2px solid var\(--color-accent\);/, slot
+      assert ring =~ ~r/outline-offset:\s*2px;/, slot
+      assert ring =~ ~r/border-radius:\s*var\(--radius-md\);/, slot
+    end
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body
