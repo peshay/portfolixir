@@ -9,7 +9,7 @@
 # snapshot) and, as a cold-cache safety net, from the SessionStart hook.
 #
 # VERSIONS TRACK CI. CI (.github/workflows/ci.yml) is authoritative and runs
-# Elixir 1.18.5 / OTP 27.3.4.18, the exact patch the images ship (see
+# Elixir 1.18.5 / OTP 27.3.4.19, the exact patch the images ship (see
 # _bmad-output/project-context.md: "Do not use language features beyond the CI
 # version"). ci_test pins the defaults below to CI's `elixir-version` /
 # `otp-version` and to both Dockerfiles, so a bump moves all of them at once.
@@ -19,19 +19,19 @@ ELIXIR_VERSION="${ELIXIR_VERSION:-1.18.5}"
 # The exact OTP patch CI and the images run, precompiled for ubuntu-24.04 on
 # builds.hex.pm (the same build source CI's setup-beam uses). List options:
 # builds.hex.pm/builds/otp/ubuntu-24.04/builds.txt
-OTP_VERSION="${OTP_VERSION:-27.3.4.18}"
+OTP_VERSION="${OTP_VERSION:-27.3.4.19}"
 OTP_MAJOR="27"
 UBUNTU="ubuntu-24.04"
 
 # SHA-256 of each archive this script downloads, for the default versions
 # above (E25 S8, F60), so a tampered or swapped download is refused rather
-# than unpacked. OTP: OTP-27.3.4.18.tar.gz for ubuntu-24.04, as the fourth
+# than unpacked. OTP: OTP-27.3.4.19.tar.gz for ubuntu-24.04, as the fourth
 # column of that builds.txt publishes it. Elixir: elixir-otp-27.zip of
 # v1.18.5, as the release's .sha256sum asset and builds.hex.pm's
 # builds/elixir/builds.txt both publish it. Each was also recomputed from the
 # downloaded archive. A version override needs its own checksum override
 # (OTP_SHA256, ELIXIR_SHA256), or the download is refused.
-OTP_SHA256="${OTP_SHA256:-39870293dd82bdf17dd06c7925c4c3c3099dfcfc3258bcd33e1812cdce6584ca}"
+OTP_SHA256="${OTP_SHA256:-8ce4332d7b90fef51f1ecaf4b9fe2a2e363b2c1b6025b0ff044ee1bf7d346f87}"
 ELIXIR_SHA256="${ELIXIR_SHA256:-56a065fa2bc609f49a4a3950d509a6a9aa9a827e8610b717e6cfca74a9090580}"
 
 OTP_DIR=/opt/otp
