@@ -59,12 +59,16 @@ verification, not code, is the bottleneck (ADR-0026).
   does not read code, so a test that failed first stands in for that read (PRD
   §1 "Stakes and quality bar"; ADR-0036).
 - **Stay in scope.** Work only on the requested story or sprint and add no
-  adjacent feature. For a defect or a larger design issue found on the way,
-  file a new issue immediately; a new idea goes into the idea list at once.
-  Neither is solved opportunistically. *Why:* every change
-  stays reviewable against a decision, and a session's memory ends with it
-  while an issue or a list row does not (ADR-0022, Context; E17–E19
-  retrospective §5; ADR-0042, amendment of 2026-10-27).
+  adjacent feature. Record a defect found on the way at once, by its
+  severity: an S1 (money, ledger, security, a gate that checks nothing) or
+  an S2 in code the diff reaches as a new issue, anything else as a line on
+  its screen's polish list; a new idea goes into the idea list. None of
+  them is solved opportunistically. *Why:* every change stays reviewable
+  against a decision, and a session's memory ends with it while an issue or
+  a list row does not; filing every finding as its own issue made each
+  sprint's reviews grow the backlog faster than the sprint closed it
+  (ADR-0022, Context; E17–E19 retrospective §5; ADR-0042, amendment of
+  2026-10-27; ADR-0026, amendment of 2026-11-01).
 - **Do not silently change architecture decisions**; amend the ADR. *Why:* the
   owner reviews decisions, not diffs, so a decision changed in code is changed
   unreviewed (ADR-0026 step 1).

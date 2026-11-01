@@ -17,7 +17,10 @@ description: Feature trees are worked agentically on a single epic branch and ac
   workflow, not by the owner) **and by the two-PR amendment below**
   (2026-10-08 — a sprint is one planning PR and one sprint PR; lanes become
   commit groups; the close-out rides the sprint PR; the owner is asked only
-  what only the owner knows). Everything else here stands.
+  what only the owner knows) **and by the severity amendment below**
+  (2026-11-01 — a closing act reviews its diff, every finding carries a
+  severity, and an S3 or an older S2 goes to its screen's polish list).
+  Everything else here stands.
 - **Date:** 2026-07-12
 
 ## Context
@@ -263,3 +266,80 @@ batch and squash for a small single-concern PR; agents never merge.
   head; every commit passes the gates — still bind a stack.
 - **The Sprint 20 plan's D-9** carries a dated note: its three lanes are
   one sprint PR.
+
+## Amendment: a closing act reviews its diff, and every finding carries a severity (2026-11-01, the Sprint 22 planning PR; idea I14)
+
+**Why.**
+
+- **The closing acts filed more than the sprints closed.** Sprint 18's
+  filings grew the backlog by 51 (Sprint 19 plan D-14). Sprint 21 filed 96
+  and closed 76, and its count criterion failed at the filing step, not
+  the closing step (Sprint 21 retrospective, "the count criterion measured
+  filings").
+- **Most filings were older than the sprint.** Of Sprint 21's 86 open
+  filings, 30 say outright that they predate the sprint, and most of the
+  rest name older code beside a story. The lenses read the diff and
+  everything around it, so every sprint became an audit of the code it
+  passed, with no budget and no end.
+- **Every filing cost a full story.** A filed finding became a test-first
+  story with its own review, and that review read further older code. A
+  missing space before a currency cost the same pipeline as a wrong FIFO
+  lot, and the pipeline fed itself.
+- **The reviews still find what matters.** The same closing acts found a
+  float crossing the API's money boundary (#1291), a gate that checks
+  almost nothing (#1269), a split that scales lots but not holdings
+  (#1292), and the cross-currency realized base that ADR-0015's identities
+  could not see (Sprint 21, #1318's decision 8). A bound must not lose
+  these.
+
+**What changes.**
+
+1. **Every finding carries a severity.**
+   - **S1:** a figure, booking, stored record or ledger derivation can be
+     wrong; a security boundary can be crossed; or a quality gate silently
+     does not check what it claims.
+   - **S2:** a defect the operator or the agent meets in normal use: a
+     crash, a refusal that leaves them unable to act, a flow that cannot be
+     completed, a figure missing or contradicted between two surfaces, an
+     API answer that misleads a client, a flaky test that turns CI red.
+   - **S3:** polish: wording, formatting, spacing, focus, layout at some
+     widths, accessibility refinements that do not block a task, dead code.
+2. **A closing act reviews its diff and what the diff changes.** A lens
+   reports at most five findings, ranked by severity. A re-check verifies
+   the fixes and files nothing new, unless it finds an S1.
+3. **Where a finding goes depends on its severity, not on whether it is
+   recorded.** Nothing is withheld.
+   - **On the PR's surface,** small and with its answer in the spec: fixed
+     on the branch, at any severity (unchanged).
+   - **S1 anywhere,** older than the sprint included: filed as an issue at
+     once.
+   - **S2** in code the diff reaches: filed as an issue. **S2** in older
+     code the lens merely passed: one line on its screen's polish list.
+   - **S3** off the PR's surface: one line on its screen's polish list.
+4. **A polish list is one `tracking` issue per screen** ("Polish:
+   <screen>"), a checklist of one line per finding. It is in the work
+   ledger, not the idea list (ADR-0042). A story that touches the screen
+   fixes the list's lines on its branch. A planned polish pass takes one
+   screen at a time, under one test-first story: one functional test per
+   screen pins every line it fixes, written first and seen failing for each
+   line's reason. An S2 keeps a red test of its own.
+5. **An audit of older code is planned, not incidental.** A sprint that
+   wants one plans it as its own lane, with a scope and a budget.
+6. **A sprint measures the regressions it introduced.** The close-out
+   counts the findings whose cause is in the sprint's own diff apart from
+   the older ones. No exit criterion counts open issues, because a sprint's
+   own honest filings could break it.
+
+**What does not change:** the closing act is mandatory, with its lenses and
+its UAT persona; the risk tier's own verification pass (ADR-0036); the
+test-first rule; filing at once, so a session's memory is never the record.
+
+**Consequences.**
+
+- The backlog stops growing from its own reviews, and a sprint's count of
+  filings says something about its own code.
+- An S2 in older code waits on its polish list until a story or a polish
+  pass reaches its screen. That is the accepted cost: it was invisible
+  before the lens passed it, and it is recorded now.
+- `AGENTS.md`'s "Stay in scope" and the sprint workflow's §3 say this in
+  their own words, with this amendment as their source.
