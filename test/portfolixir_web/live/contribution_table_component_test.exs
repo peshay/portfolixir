@@ -484,4 +484,38 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
       Gettext.put_locale(PortfolixirWeb.Gettext, previous)
     end
   end
+
+  # User story (#1123/#1149, Sprint 21 γ4; the γ closing act, G4):
+  # As the operator reading the contribution table on a phone,
+  # I want a flow, an income or a cost that rounds to zero to be left out of
+  # the phone row,
+  # so that the row never names "inflow into the position 0.00" or
+  # "costs 0.00": a clause is there when its figure reads not zero, the
+  # displayed sign's rule (#1149), not the stored figure's.
+  #
+  # Acceptance criteria:
+  # - Flows 0.004, income 0.003 and costs 0.004 name no clause: the line is
+  #   the two ends alone.
+  # - Flows −0.004 name no "outflow from the position 0.00".
+  # - Flows 0.005 still read "inflow into the position 0.01".
+  test "a sub-cent flow, income or cost names no clause on the phone row" do
+    positions = [
+      position(1, "5", %{net_flows: d("0.004"), income: d("0.003"), costs: d("0.004")}),
+      position(2, "5", %{net_flows: d("-0.004")}),
+      position(3, "5", %{net_flows: d("0.005")})
+    ]
+
+    line = fn html, id ->
+      sentence(
+        html,
+        "#contribution-phone-rows li[data-role='contribution-row'][data-security-id='#{id}'] .phone-row__ids"
+      )
+    end
+
+    html = render_table(result(positions))
+
+    assert line.(html, 1) == "100.00 → 105.00"
+    assert line.(html, 2) == "100.00 → 105.00"
+    assert line.(html, 3) == "100.00 → 105.00 · inflow into the position 0.01"
+  end
 end
