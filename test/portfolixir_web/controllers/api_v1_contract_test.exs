@@ -95,6 +95,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert trades =~ "other_account_currency"
     assert trades =~ "zero_amount"
     assert trades =~ "skipped_zero_amount"
+    # The sync serves the count only; the rows are listed by the mix task.
+    refute trades =~ "skipped_zero_amount_rows"
+    assert trades =~ "mix portfolixir.backfill_settlement_legs"
     assert trades =~ "(#1310, #1311, #1317)"
     assert String.starts_with?(incomplete_splits, "GET /api/v1/splits/incomplete")
     assert incomplete_splits =~ "remedy"
