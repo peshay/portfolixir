@@ -4402,7 +4402,8 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   seiner ersten Zeile — bei zwei oder mehr Gruppen nennt ein Vorspann
   zuerst alle Anzahlen — und wird nie eingeklappt. Zwei oder mehr der übrigen
   Hinweise eines Blocks klappen zu einer Zeile mit ihren Anzahlen zusammen,
-  etwa „1 Achtung · 1 Hinweis — Details anzeigen“.
+  etwa „1 Achtung · 1 Hinweis — Details anzeigen“; geöffnet steht dort
+  „Details ausblenden“.
 - Die Wertpapierauswahl des Imports sagt einem Screenreader, wie viele
   Wertpapiere eine Suche gefunden hat oder dass keines passt (#1342).
 
