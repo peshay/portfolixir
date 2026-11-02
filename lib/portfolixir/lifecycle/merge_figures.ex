@@ -28,6 +28,7 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
 
   import Ecto.Query
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
@@ -252,6 +253,116 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
         change <-
           absorbed(row, account_id, cash_delta(row, account_id), anchors[account_id] || []),
         do: change
+  end
+
+  @doc """
+  The external flows a collapse of `pairs` (`{source_row, target_row}`, the
+  source row collapsed) removes from the performance walk (ADR-0050 §16
+  invariant 9, issue 957), in the order of the pairs, then the flows it moves
+  into a later balance anchor (`collapse_flow_changes/1`, kind `:absorbed`).
+  `[]` without pairs. Every change carries every key, `nil` where it does
+  not apply.
+
+    * `:removed` — a collapsed delivery: its units entered or left the
+      portfolio, an external flow on its date in its depot. `quantity` is the
+      change in the units that day's flow carries (the leg negated), `change`
+      their value at the delivery's booked price in `currency_code`
+      (`valued_at: :booked_price`), or `nil` where the walk values them at
+      the day's price (`valued_at: :market`), as `Performance` does (#779);
+    * `:boundary_removed` — a collapsed security transfer with exactly one
+      leg in view `view_id`: a flow across that view's boundary, never one of
+      the portfolio's own walk. One change per view it straddles, naming the
+      in-view leg's depot; always valued at the day's price.
+
+  The membership is read as it stands: the merge guards keep every
+  position's effective view membership unchanged (§7, §9).
+  """
+  @spec collapse_flow_effects([{map(), map()}]) :: [map()]
+  def collapse_flow_effects([]), do: []
+
+  def collapse_flow_effects(pairs) do
+    rows = Enum.map(pairs, &elem(&1, 0))
+
+    scopes =
+      if Enum.any?(rows, &(&1.type == "security_transfer")), do: view_scopes(), else: []
+
+    removed = Enum.flat_map(rows, &removed_flows(&1, Projection.effects(&1), scopes))
+    removed ++ Enum.map(collapse_flow_changes(pairs), &flow_change/1)
+  end
+
+  defp removed_flows(row, %{external: true, quantities: legs}, _scopes) do
+    for {depot_id, security_id, delta} <- legs do
+      quantity = Decimal.negate(delta)
+
+      {change, currency, valued_at} =
+        case row do
+          %{price: %Decimal{} = price, currency_code: currency} when is_binary(currency) ->
+            {Decimal.mult(quantity, price), currency, :booked_price}
+
+          _ ->
+            {nil, nil, :market}
+        end
+
+      flow_change(%{
+        kind: :removed,
+        securities_account_id: depot_id,
+        security_id: security_id,
+        transaction_id: row.id,
+        date: row.date,
+        quantity: quantity,
+        change: change,
+        currency_code: currency,
+        valued_at: valued_at,
+        collapsed_transaction_id: row.id
+      })
+    end
+  end
+
+  defp removed_flows(%{type: "security_transfer"} = row, effect, scopes) do
+    for {view_id, scope} <- scopes,
+        [{depot_id, security_id, delta}] <- [in_view_legs(effect.quantities, scope)] do
+      flow_change(%{
+        kind: :boundary_removed,
+        view_id: view_id,
+        securities_account_id: depot_id,
+        security_id: security_id,
+        transaction_id: row.id,
+        date: row.date,
+        quantity: Decimal.negate(delta),
+        valued_at: :market,
+        collapsed_transaction_id: row.id
+      })
+    end
+  end
+
+  defp removed_flows(_row, _effect, _scopes), do: []
+
+  defp in_view_legs(legs, scope) do
+    for {depot_id, security_id, _delta} = leg <- legs,
+        Buckets.position_in_scope?(scope, depot_id, security_id),
+        do: leg
+  end
+
+  defp view_scopes do
+    for view <- Buckets.list_views(),
+        %{} = scope <- [Buckets.load_global_scope(view.id)],
+        do: {view.id, scope}
+  end
+
+  defp flow_change(change) do
+    Map.merge(
+      %{
+        cash_account_id: nil,
+        securities_account_id: nil,
+        security_id: nil,
+        view_id: nil,
+        quantity: nil,
+        change: nil,
+        currency_code: nil,
+        valued_at: nil
+      },
+      change
+    )
   end
 
   @doc """
