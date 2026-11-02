@@ -52,9 +52,17 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   # The view's fields at the top level of a PATCH body, outside the `view`
   # object, were dropped and the PATCH answered 200 with the view as it was
   # (#1315): they are refused, naming the field, so the agent learns the
-  # shape instead of believing the view changed.
-  @view_fields ["name", "include_all"]
+  # shape instead of believing the view changed. The bucket sets, the PUT
+  # /buckets body sent to this route by mistake, are refused the same way,
+  # pointing to the route that sets them (closing act).
   @unwrapped ["must be sent inside the view object"]
+  @to_buckets ["is set with PUT /api/v1/views/:id/buckets"]
+  @view_fields [
+    {"name", @unwrapped},
+    {"include_all", @unwrapped},
+    {"include", @to_buckets},
+    {"exclude", @to_buckets}
+  ]
 
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "view", %{})
@@ -74,7 +82,12 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   end
 
   defp wrapped_fields(%{} = body) when not is_struct(body) do
-    case for(field <- @view_fields, Map.has_key?(body, field), into: %{}, do: {field, @unwrapped}) do
+    case for(
+           {field, message} <- @view_fields,
+           Map.has_key?(body, field),
+           into: %{},
+           do: {field, message}
+         ) do
       fields when map_size(fields) == 0 -> :ok
       fields -> {:error, {:unwrapped, fields}}
     end

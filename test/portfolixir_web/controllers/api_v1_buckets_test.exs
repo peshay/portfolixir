@@ -341,6 +341,9 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
   # - A PATCH /views/:id that carries name or include_all at the top level,
   #   outside the view object, answers 422 naming the field and changes
   #   nothing; the wrapped PATCH still applies.
+  # - A PATCH carrying include or exclude at the top level (the PUT
+  #   /buckets body sent to the wrong route) answers 422 naming each, pointing
+  #   to PUT /api/v1/views/:id/buckets, and changes nothing (closing act).
   test "set_buckets honours include_all, and an unwrapped view PATCH is refused",
        %{conn: conn} do
     {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Family"})
@@ -387,6 +390,13 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     assert patch_json(conn, path, %{"view" => %{"name" => "Kept"}, "include_all" => true})
            |> json_response(422) ==
              %{"errors" => %{"include_all" => ["must be sent inside the view object"]}}
+
+    # The bucket sets belong to PUT /buckets; a PATCH carrying them is refused.
+    to_buckets = ["is set with PUT /api/v1/views/:id/buckets"]
+
+    assert patch_json(conn, path, %{"include" => [], "exclude" => [bucket_id]})
+           |> json_response(422) ==
+             %{"errors" => %{"include" => to_buckets, "exclude" => to_buckets}}
 
     assert %{"name" => "Everything", "include_all" => false, "include" => [^bucket_id]} =
              get_json(conn, path) |> json_response(200) |> Map.fetch!("data")

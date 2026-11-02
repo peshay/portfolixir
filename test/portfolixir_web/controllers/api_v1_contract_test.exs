@@ -90,6 +90,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert targets =~ "(#1301)"
     assert String.starts_with?(views, "PUT /api/v1/views/:id/buckets")
     assert views =~ "include_all"
+    assert views =~ ~s(a top-level include or exclude)
+    assert views =~ ~s(["is set with PUT /api/v1/views/:id/buckets"])
     assert views =~ "(#1315)"
 
     for endpoint <-
