@@ -1807,7 +1807,7 @@ defmodule Portfolixir.Imports.Applier do
     case ambiguous_ref(refs) do
       nil ->
         case resolve_security(entry, state) do
-          {:skip, state} ->
+          {status, state} when status in [:skip, :held_back] ->
             {:ok, state}
 
           {:ok, state, security_id} ->
@@ -1974,6 +1974,9 @@ defmodule Portfolixir.Imports.Applier do
       {:skip, state} ->
         {:ok, hold_back_unresolved(state, entry)}
 
+      {:held_back, state} ->
+        {:ok, state}
+
       {:ok, state, security_id} ->
         ids = Map.put(refs, :security_id, security_id)
 
@@ -2052,7 +2055,7 @@ defmodule Portfolixir.Imports.Applier do
   defp first_resolution(entry, ref, key, state) do
     case Map.fetch(state.security_mappings, key) do
       {:ok, :create} ->
-        create_security(entry, ref, key, state)
+        create_unless_held_back(entry, ref, key, state)
 
       {:ok, _executed_at_start} ->
         {:error, {:invalid_security_mapping, key}}
@@ -2102,12 +2105,26 @@ defmodule Portfolixir.Imports.Applier do
       :create ->
         case SecurityResolver.config_at_risk(ref, state.live_index) do
           [] ->
-            create_security(entry, ref, key, state)
+            create_unless_held_back(entry, ref, key, state)
 
           at_risk ->
             cause = {:config_at_risk, Enum.map(at_risk, &named(&1.security))}
             mark_unresolved(entry, key, state, cause)
         end
+    end
+  end
+
+  # ADR-0050 as amended on 2026-11-01 (#1313): a row another portfolio
+  # already holds creates nothing, so a security it alone would create is
+  # not created (the closing act). The decision is not cached: a later row
+  # of the same security that is not held back still creates it. No
+  # booking of this portfolio can be on a security the catalog lacks, so
+  # judging the hold-back here loses no duplicate the economic layer would
+  # have found.
+  defp create_unless_held_back(entry, ref, key, state) do
+    case Map.get(state, :held_back_hit) do
+      other_id when is_integer(other_id) -> {:held_back, record_held_back(state, entry, other_id)}
+      _not_held_back -> create_security(entry, ref, key, state)
     end
   end
 

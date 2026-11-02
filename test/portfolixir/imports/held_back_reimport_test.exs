@@ -355,4 +355,35 @@ defmodule Portfolixir.Imports.HeldBackReimportTest do
     assert Enum.map(result.held_back_entries, & &1.portfolio_name) ==
              List.duplicate("Anleihen", 4)
   end
+
+  # User story (#1313, the closing act):
+  # As the operator whose file is already in "Anleihen" while the security it
+  # names is no longer in the catalog under that identity,
+  # I want the held-back rows to create nothing,
+  # so that a row the confirm does not book leaves no security behind.
+  #
+  # Acceptance criteria:
+  # - With the stored security renamed and given another ISIN since, the
+  #   file's security would be created; the confirm holds all four rows
+  #   back, creates no security and books nothing.
+  test "a held-back row creates no security", %{main: main, bonds: bonds} do
+    import_into!(@coupons, bonds)
+
+    security = Portfolixir.Repo.get_by!(Portfolixir.Catalog.Security, isin: "XSLARKSPUR33")
+
+    {:ok, _changed} =
+      Portfolixir.Catalog.update_security(Actor.owner_ui(), security, %{
+        isin: "XSLARKSPUR90",
+        name: "Quillfield Holdings SE"
+      })
+
+    count = Portfolixir.Repo.aggregate(Portfolixir.Catalog.Security, :count)
+
+    assert {:ok, %Result{} = result} = page_apply(parse!(@coupons))
+    assert result.created_securities == 0
+    assert result.unresolved_entries == []
+    assert length(result.held_back_entries) == 4
+    assert Portfolixir.Repo.aggregate(Portfolixir.Catalog.Security, :count) == count
+    assert booked(main) == []
+  end
 end
