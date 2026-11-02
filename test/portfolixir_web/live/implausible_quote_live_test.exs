@@ -256,8 +256,15 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     for security <- [arbolia, wrenfield] do
       assert has_element?(
                wealth,
-               ~s([data-role="dq-implausible-quote"] a[href="/securities/#{security.id}?tab=quotes"]),
+               ~s([data-role="dq-implausible-quote"] .data-note__actions a[href="/securities/#{security.id}?tab=quotes"]),
                security.name
+             )
+
+      # Pick Q1, correction 2 (closing act): each entry's link, the remedy,
+      # sits in the note's actions, never under the clamp.
+      refute has_element?(
+               wealth,
+               ~s([data-role="dq-implausible-quote"] .data-note__text a[href="/securities/#{security.id}?tab=quotes"])
              )
     end
 
