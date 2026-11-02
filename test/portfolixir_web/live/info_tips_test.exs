@@ -55,4 +55,65 @@ defmodule PortfolixirWeb.InfoTipsTest do
 
     assert rule(".view-switcher__help.metric-tooltip") =~ ~r/margin-left:\s*0;/
   end
+
+  # The client script's block that serves every ⓘ, from its marker comment
+  # to the next hook.
+  defp info_tip_source do
+    "lib/portfolixir_web/layout_view.ex"
+    |> File.read!()
+    |> String.split("// ⓘ panels (issue 1336")
+    |> Enum.at(1, "")
+    |> String.split("Hooks.")
+    |> hd()
+  end
+
+  # User story (#1336):
+  # As the operator reading Cash flow on a phone,
+  # I want a facet's ⓘ panel to open where I can read it,
+  # so that its first lines do not start above the top of the screen or run
+  # past its right edge.
+  #
+  # Acceptance criteria:
+  # - Every ⓘ on Cash flow is a `details.metric-tooltip`, the element the
+  #   client places; the server renders no placement of its own.
+  # - On toggle (one capture listener for every ⓘ, opened by pointer or
+  #   keyboard) the client measures the open panel: it opens upward unless
+  #   its top would be above the viewport, then below
+  #   (`data-place="below"`); it is shifted (`--tip-shift`) so that both
+  #   edges stay 1 rem (16 px) inside the viewport's width. Closing clears
+  #   both. A LiveView patch strips attributes the server did not render, so
+  #   an observer puts the measured placement back while the panel is open.
+  # - The stylesheet reads both: `[data-place="below"]` puts the panel
+  #   under its ⓘ, and every panel is translated by `--tip-shift`.
+  test "an ⓘ panel stays inside the viewport", %{conn: conn} do
+    seed_world()
+
+    for tab <- ["income", "realized", "flows", "costs"] do
+      {:ok, view, _html} = live(conn, "/cashflow?tab=#{tab}")
+
+      assert has_element?(
+               view,
+               "details.metric-tooltip[data-role='facet-info'] > p[role='tooltip']"
+             )
+
+      refute has_element?(view, "details.metric-tooltip[data-place]")
+    end
+
+    js = info_tip_source()
+    assert js =~ ~r/document\.addEventListener\("toggle", function \(event\) \{.*?\}, true\);/s
+    assert js =~ ~s|matches("details.metric-tooltip")|
+    assert js =~ ~r/rect\.top < 0/
+    assert js =~ ~s|setAttribute("data-place", "below")|
+    assert js =~ ~r/var edge = 16;/
+    assert js =~ ~s|style.setProperty("--tip-shift"|
+    assert js =~ ~s|removeAttribute("data-place")|
+    assert js =~ ~s|style.removeProperty("--tip-shift")|
+    assert js =~ ~r/new MutationObserver\(.*attributeFilter: \["data-place", "style"\]/s
+
+    assert rule(~s(.metric-tooltip[data-place="below"] p)) =~
+             ~r/top:\s*calc\(100% \+ 0\.4rem\);\s*bottom:\s*auto;/
+
+    assert rule(".metric-tooltip") =~ ~r/--tip-shift:\s*0px;/
+    assert rule(".metric-tooltip p") =~ ~r/translate:\s*var\(--tip-shift\) 0;/
+  end
 end

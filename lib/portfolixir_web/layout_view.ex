@@ -1270,6 +1270,66 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // ⓘ panels (issue 1336, board ux-design-2026-11-01-sprint22/01-i1
+            // ⑦): every `details.metric-tooltip` is placed by one capture
+            // listener on the document, not one hook per ⓘ, so the ~30 call
+            // sites need no id. A panel opens upward (the stylesheet's
+            // default) unless its top would be above the viewport, then
+            // below (`data-place="below"`); `--tip-shift` moves it so both
+            // edges stay 1 rem inside the viewport's width — Cash flow's
+            // facet panels started above the page top and ran to x = 586 on
+            // a 390 px phone. `toggle` does not bubble, so the listener
+            // captures it. A LiveView patch removes every attribute the
+            // server did not render, so a page that patches while a panel
+            // is open (an async figure landing) stripped the placement: the
+            // observer puts the measured one back.
+            var infoTipPlaces = new WeakMap();
+            window.Portfolixir.placeInfoTip = function (tip) {
+              var panel = tip.querySelector("p[role='tooltip']") || tip.querySelector("p");
+              tip.removeAttribute("data-place");
+              tip.style.removeProperty("--tip-shift");
+              infoTipPlaces.delete(tip);
+              if (!panel || !tip.open) return;
+              var edge = 16;
+              var rect = panel.getBoundingClientRect();
+              if (rect.top < 0) {
+                tip.setAttribute("data-place", "below");
+                rect = panel.getBoundingClientRect();
+              }
+              var width = document.documentElement.clientWidth;
+              var shift = 0;
+              if (rect.right > width - edge) shift = width - edge - rect.right;
+              if (rect.left + shift < edge) shift = edge - rect.left;
+              if (shift) tip.style.setProperty("--tip-shift", Math.round(shift) + "px");
+              infoTipPlaces.set(tip, {
+                place: tip.getAttribute("data-place"),
+                shift: tip.style.getPropertyValue("--tip-shift")
+              });
+            };
+            document.addEventListener("toggle", function (event) {
+              var tip = event.target;
+              if (tip && tip.matches && tip.matches("details.metric-tooltip")) {
+                window.Portfolixir.placeInfoTip(tip);
+              }
+            }, true);
+            new MutationObserver(function (records) {
+              records.forEach(function (record) {
+                var tip = record.target;
+                var placed = infoTipPlaces.get(tip);
+                if (!placed || !tip.open) return;
+                if (placed.place && tip.getAttribute("data-place") !== placed.place) {
+                  tip.setAttribute("data-place", placed.place);
+                }
+                if (placed.shift && tip.style.getPropertyValue("--tip-shift") !== placed.shift) {
+                  tip.style.setProperty("--tip-shift", placed.shift);
+                }
+              });
+            }).observe(document.documentElement, {
+              subtree: true,
+              attributes: true,
+              attributeFilter: ["data-place", "style"]
+            });
+
             // #801: a <details> popover on its trigger. Esc closes it and
             // returns focus to the summary; the server closes it with
             // "close-popover" (naming the details id) once a choice applied.
