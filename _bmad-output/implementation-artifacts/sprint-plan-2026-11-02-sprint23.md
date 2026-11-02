@@ -155,9 +155,9 @@ fixtures.
 | Story | Issues | What it does | Decision | Commits |
 |---|---|---|---|---|
 | R1 | #1370 | the CSV parser refuses an unreadable time as a named row error at preview, as #1306 did for JSON v1; a blank or absent time is still no time; every value read today reads as before, so no stored hash moves (a test over the fixture's times pins it) | ADR-0053's refusal list gains the CSV row (dated note) | 3 |
-| R2 | #1371 | ADR-0053's amendment of 2026-11-02 on every write path: `PATCH /api/v1/transactions/:id` refuses the four-field edit without `gross_amount` (422 naming it), checks the stated cash against §2; the MCP tool's description says so; the drawer shows the prefilled cash field (board 02 ②a); the read-only check `GET /api/v1/transactions/cash_mismatch` with its MCP read; R10's L1 test follows the rule; contract entry 23 | ADR-0053, amended (yours) | 7 |
-| R3 | #1368 | the category result values members by `Valuation.price_points/2` and names the price source, so its roll-up and Wealth's total agree (board 02 ②c) | none (ADR-0010, as Sprint 22's D-6) | 3 |
-| R4 | #1369 | the Trades tab's open lots and the sell preview read the price through `Valuation.price_points/2` and name `price_source` (board 02 ②b) | none (ADR-0010) | 3 |
+| R2 | #1371 | ADR-0053's amendment of 2026-11-02 on every write path: `PATCH /api/v1/transactions/:id` refuses the four-field edit without `gross_amount` (422 naming it), checks the stated cash against §2; the MCP tool's description says so; the drawer shows the prefilled cash field (board 02 ①a); the read-only check `GET /api/v1/transactions/cash_mismatch` with its MCP read; R10's L1 test follows the rule; contract entry 23 | ADR-0053, amended (yours) | 7 |
+| R3 | #1368 | the category result values members by `Valuation.price_points/2` and names the price source, so its roll-up and Wealth's total agree (board 02 ①c) | none (ADR-0010, as Sprint 22's D-6) | 3 |
+| R4 | #1369 | the Trades tab's open lots and the sell preview read the price through `Valuation.price_points/2` and name `price_source` (board 02 ①b) | none (ADR-0010) | 3 |
 
 **Closing act of the sprint PR** (D-7): the money and idempotency lens on
 R1 to R4, the correctness hunter, a dependency lens on M1 (every tool still
@@ -197,7 +197,7 @@ corrections), so each page is a conformance repair: the implementation
 session captures its before and after with Sprint 22's `build.js` as one
 board commit before the first page's code, and the design critic reviews
 against it. Income re-reads R5's two exclusion sentences against board 02
-②d. #1339 (the "Daten als Tabelle" disclosure on Wealth and on Imports)
+①d. #1339 (the "Daten als Tabelle" disclosure on Wealth and on Imports)
 rides it, and every polish line on a touched page is fixed and ticked.
 About 17 commits.
 
@@ -333,15 +333,32 @@ template instead of captured.
   the Overview and the filtered history (variant A recommended against a
   section on Imports); ①b the flow list in both merge previews, before and
   after.
-- **Board 02, money on screen:** ②a the drawer's cash field under the
-  amendment (b recommended, a drawn for contrast); ②b the open lots and the
-  sell preview; ②c the category result; ②d R5's two exclusion sentences on
+- **Board 02, money on screen:** ①a the drawer's cash field under the
+  amendment (b recommended, a drawn for contrast); ①b the open lots and the
+  sell preview; ①c the category result; ①d R5's two exclusion sentences on
   Income and the Overview as Sprint 22 built them (Sprint 22's
   retrospective: they shipped without a board).
 - **Board 03, the audit journal:** A, one page, recommended; B, a fold per
   entity.
 - **Board 04, number colours** (D-11): today, A, B and C (recommended)
   under each accent, light and dark.
+
+The picks are numbered Q1 to Q7 in the board folder's README, each with
+its recommendation and the comment that flips it: Q1 (where the three
+checks are read: A, the Overview's line), Q2 (their severity: problem), Q3
+(the merge preview keeps its "Ändert auch" phrase), Q4 (#1371's (b), signed
+by D-2), Q5 (the journal as one page), Q6 (its entry in the sidebar's
+"Verwaltung" group) and Q7 (the number colours: C, D-11).
+
+**Found while drawing, placed by the severity rule:** seven S3s (two
+exclusion notes on Cash flow and the Overview that offer a remedy that
+cannot act on R5's reasons, a count lead that repeats, "1 Transaktionen",
+a booking without a URL of its own, and others), which go onto their
+screens' polish lists after the merge; a `since=` filter on the journal
+read, which goes into the idea list as I16; and a journal `delete` entry
+whose `after` repeats the deleted record, which V3 checks against ADR-0017
+first: fixed on V3's branch if small and confirmed, filed as an S2
+otherwise, since V3's diff reads it.
 
 The story that builds each surface writes its anatomy into `DESIGN.md`.
 
