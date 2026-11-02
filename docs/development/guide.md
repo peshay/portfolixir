@@ -89,6 +89,47 @@ If pre-commit is not installed:
 
 - `pre-commit install --install-hooks`
 
+## Integrating gettext catalogues
+
+- **Every catalogue integration goes through `scripts/merge_gettext.py`**:
+  merging or cherry-picking several stories' changes to `priv/gettext`
+  (`default.pot`, `errors.pot` and the German `.po` files), never by hand.
+  *Why:* Sprint 22 integrated the stories' German catalogues by hand; a
+  fuzzy-matched msgid kept an old German text and the merge dropped the
+  file's final newline, the sprint's one red CI run (Sprint 22
+  retrospective).
+
+  ```bash
+  python3 scripts/merge_gettext.py BASE OURS THEIRS        # writes into OURS
+  python3 scripts/merge_gettext.py BASE OURS THEIRS -o OUT
+  ```
+
+  `BASE` is the common ancestor. The tool unites both sides' msgids, keeps
+  every msgstr either side changed, and ends the file with one newline. It
+  refuses, exits 1 and writes nothing when both sides changed one msgstr
+  differently, when one side deleted an entry the other re-translated, or
+  when any entry of the result is flagged `fuzzy`; resolve the named msgid
+  and run it again. *Why:* a refusal that names the msgid is cheaper than
+  an old translation found on screen.
+- **Register it as a git merge driver** in your own checkout, so `git merge`,
+  `git cherry-pick` and `git rebase` call it for the catalogues. Both lines
+  are local and not committed; a linked worktree shares them.
+
+  ```bash
+  git config merge.gettext.name "gettext catalogue merge"
+  git config merge.gettext.driver "python3 scripts/merge_gettext.py %O %A %B"
+  printf '%s\n' 'priv/gettext/**/*.po merge=gettext' 'priv/gettext/*.pot merge=gettext' \
+    >> "$(git rev-parse --git-common-dir)/info/attributes"
+  ```
+
+  *Why:* a driver needs a command on the machine, so a committed
+  `.gitattributes` line would name a driver that most clones lack.
+- **After merging, run `mix gettext.extract --merge`, then
+  `mix gettext.extract --check-up-to-date`**, and read its exit status
+  directly. *Why:* the tool unites the `#:` references both sides moved, and
+  only the extractor knows which of them still point at the code; the check
+  is the gate CI runs.
+
 ## Measuring before activating a derived value
 
 Which analytics run the `:durable` lifetime is a configuration decision
