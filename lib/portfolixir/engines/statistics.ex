@@ -136,6 +136,21 @@ defmodule Portfolixir.Engines.Statistics do
     }
   end
 
+  @doc """
+  A `drawdown/1` answer as the metric reads serve it (#1343): a drawdown of
+  exactly 0 at scale 6 is no episode, so its `peak_date`, `trough_date` and
+  `recovery_date` become `nil` — `drawdown/1` dates it at the series' first
+  day, and served as such it names a decline that never happened. The rule
+  is the value, not a display rounding: a real decline, however small, keeps
+  its dates.
+  """
+  @spec without_zero_episode(map()) :: map()
+  def without_zero_episode(%{value: %Decimal{} = value} = drawdown) do
+    if Decimal.equal?(value, @zero),
+      do: %{drawdown | peak_date: nil, trough_date: nil, recovery_date: nil},
+      else: drawdown
+  end
+
   defp step_drawdown(point, state) do
     state =
       if Decimal.compare(point.value, state.peak) != :lt,

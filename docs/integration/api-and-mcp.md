@@ -926,8 +926,9 @@ the quote history it already holds. Nothing is stored and nothing is fetched.
   over the windows `30d`, `90d` and `365d`; `momentum` over `3m`, `6m` and
   `12m`; `distance_to_extremes`, the 52-week high and low with their dates and
   the distance to each. The drawdown carries `peak_date`, `trough_date` and
-  `recovery_date` (`null` while the series is still below the peak).
-  Optional `as_of` (ISO date, default today) bounds the series: closes dated
+  `recovery_date` (`null` while the series is still below the peak; all
+  three `null` when the drawdown is exactly `0`: there was no decline, so
+  none is dated). Optional `as_of` (ISO date, default today) bounds the series: closes dated
   after it are not read. An unknown security is a `404`; a malformed `as_of` a
   `422`.
 
