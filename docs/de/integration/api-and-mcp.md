@@ -1617,10 +1617,16 @@ Beispiel-Antwort für Kurssynchronisierung:
     `booked_price`), oder `null`, wo die Lieferung keinen Kurs trägt und
     die Performance-Rechnung die Stücke zum Kurs des Tages bewertet
     (`valued_at` `market`); `boundary_removed`, eine entfernte Umbuchung,
-    von deren Depots genau eines in der Sicht `view_id` liegt, ein Fluss
-    über die Grenze dieser Sicht und keiner des Portfolios selbst, ein
-    Eintrag je Sicht, deren Grenze sie kreuzt, mit dem Depot in der Sicht,
-    bewertet zum Kurs des Tages; `absorbed`, der Geld-Anteil einer
+    ein entfernter Kauf oder Verkauf, von deren Teilen genau einer in der
+    Sicht `view_id` liegt, ein Fluss über die Grenze dieser Sicht und
+    keiner des Portfolios selbst, ein Eintrag je Sicht, deren Grenze sie
+    kreuzt: Eine Umbuchung nennt das Depot in der Sicht und wird zum Kurs
+    des Tages bewertet; ein Kauf oder Verkauf nennt sein Verrechnungskonto
+    und sein Depot, und `change` ist der gebuchte Wert, den der Fluss der
+    Sicht nicht mehr trägt, in der `currency_code` des Verrechnungskontos
+    (`valued_at` `booked_value`: der Geld-Anteil mit umgekehrtem Vorzeichen,
+    wo das Verrechnungskonto in der Sicht liegt, der Geld-Anteil selbst, wo
+    die Position darin liegt); `absorbed`, der Geld-Anteil einer
     entfernten Buchung, den ein späterer gesetzter Saldo ihres
     Verrechnungskontos nun aufnimmt, mit der `transaction_id` des Saldos,
     `date` und `change`, wie in der Vorschau einer

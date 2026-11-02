@@ -86,11 +86,15 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                 "value at the delivery's booked price in currency_code (valued_at " <>
                 "booked_price), or null where the delivery carries no price and the walk values " <>
                 "the units at the day's price (valued_at market). boundary_removed: a collapsed " <>
-                "security transfer with exactly one depot in the view view_id, a flow across " <>
-                "that view's boundary and none of the portfolio's own; one entry per view it " <>
-                "straddles, securities_account_id the in-view depot, quantity the change in " <>
-                "the units that view's flow carries, valued at the day's price (valued_at " <>
-                "market, change null). absorbed: a collapsed booking's cash leg on " <>
+                "security transfer, buy or sell with exactly one leg in the view view_id, a " <>
+                "flow across that view's boundary and none of the portfolio's own; one entry " <>
+                "per view it straddles. A transfer: securities_account_id the in-view depot, " <>
+                "quantity the change in the units that view's flow carries, valued at the " <>
+                "day's price (valued_at market, change null). A buy or sell: its " <>
+                "cash_account_id and securities_account_id, change the booked value that " <>
+                "view's flow no longer carries in the cash account's currency_code (valued_at " <>
+                "booked_value, quantity null): the cash leg negated where the cash account is " <>
+                "in the view, the cash leg itself where the position is. absorbed: a collapsed booking's cash leg on " <>
                 "cash_account_id that the account's next balance anchor (transaction_id, on " <>
                 "date) now absorbs: the anchor's residual, an external flow, changes by change. " <>
                 "The day's flow of each listed date changes by these entries alone; the " <>

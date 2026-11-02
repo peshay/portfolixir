@@ -269,28 +269,34 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
       their value at the delivery's booked price in `currency_code`
       (`valued_at: :booked_price`), or `nil` where the walk values them at
       the day's price (`valued_at: :market`), as `Performance` does (#779);
-    * `:boundary_removed` — a collapsed security transfer with exactly one
-      leg in view `view_id`: a flow across that view's boundary, never one of
-      the portfolio's own walk. One change per view it straddles, naming the
-      in-view leg's depot; always valued at the day's price.
+    * `:boundary_removed` — a collapsed security transfer, buy or sell with
+      exactly one leg in view `view_id`: a flow across that view's boundary,
+      never one of the portfolio's own walk. One change per view it
+      straddles. A transfer names the in-view leg's depot and is valued at
+      the day's price; a trade names its cash account and depot, and
+      `change` is its booked value across the boundary in the cash
+      account's currency (`valued_at: :booked_value`): the kept cash leg, or
+      the cash it moved negated where the position is the kept leg.
 
   The membership is read as it stands: the merge guards keep every
   position's effective view membership unchanged (§7, §9).
   """
+  @straddling ["security_transfer", "buy", "sell"]
+
   @spec collapse_flow_effects([{map(), map()}]) :: [map()]
   def collapse_flow_effects([]), do: []
 
   def collapse_flow_effects(pairs) do
     rows = Enum.map(pairs, &elem(&1, 0))
 
-    scopes =
-      if Enum.any?(rows, &(&1.type == "security_transfer")), do: view_scopes(), else: []
+    scopes = if Enum.any?(rows, &(&1.type in @straddling)), do: view_scopes(), else: []
+    context = %{scopes: scopes, currencies: cash_currencies(rows)}
 
-    removed = Enum.flat_map(rows, &removed_flows(&1, Projection.effects(&1), scopes))
+    removed = Enum.flat_map(rows, &removed_flows(&1, Projection.effects(&1), context))
     removed ++ Enum.map(collapse_flow_changes(pairs), &flow_change/1)
   end
 
-  defp removed_flows(row, %{external: true, quantities: legs}, _scopes) do
+  defp removed_flows(row, %{external: true, quantities: legs}, _context) do
     for {depot_id, security_id, delta} <- legs do
       quantity = Decimal.negate(delta)
 
@@ -318,7 +324,7 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
     end
   end
 
-  defp removed_flows(%{type: "security_transfer"} = row, effect, scopes) do
+  defp removed_flows(%{type: "security_transfer"} = row, effect, %{scopes: scopes}) do
     for {view_id, scope} <- scopes,
         [{depot_id, security_id, delta}] <- [in_view_legs(effect.quantities, scope)] do
       flow_change(%{
@@ -335,7 +341,54 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
     end
   end
 
-  defp removed_flows(_row, _effect, _scopes), do: []
+  # A trade straddles a view when exactly one of its cash and quantity legs
+  # is in it; the view's flow is then its booked value across the boundary,
+  # as `Performance` states it: the kept cash leg, or the quantity leg worth
+  # the negated cash it moved.
+  defp removed_flows(%{type: type} = row, effect, context) when type in ["buy", "sell"] do
+    [{cash_id, {:add, cash_delta}}] = effect.cash
+    [{depot_id, security_id, _delta}] = effect.quantities
+
+    for {view_id, scope} <- context.scopes,
+        cash_id != nil,
+        cash_in? <- [cash_id != nil and Buckets.cash_in_scope?(scope, cash_id)],
+        cash_in? != Buckets.position_in_scope?(scope, depot_id, security_id) do
+      flow = if cash_in?, do: cash_delta, else: Decimal.negate(cash_delta)
+
+      flow_change(%{
+        kind: :boundary_removed,
+        view_id: view_id,
+        cash_account_id: cash_id,
+        securities_account_id: depot_id,
+        security_id: security_id,
+        transaction_id: row.id,
+        date: row.date,
+        change: Decimal.negate(flow),
+        currency_code: Map.get(context.currencies, cash_id, row.currency_code),
+        valued_at: :booked_value,
+        collapsed_transaction_id: row.id
+      })
+    end
+  end
+
+  defp removed_flows(_row, _effect, _context), do: []
+
+  defp cash_currencies(rows) do
+    case for(
+           %{type: type, cash_account_id: id} <- rows,
+           type in ["buy", "sell"],
+           id != nil,
+           do: id
+         ) do
+      [] ->
+        %{}
+
+      ids ->
+        Map.new(
+          Repo.all(from(a in CashAccount, where: a.id in ^ids, select: {a.id, a.currency_code}))
+        )
+    end
+  end
 
   defp in_view_legs(legs, scope) do
     for {depot_id, security_id, _delta} = leg <- legs,

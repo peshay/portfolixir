@@ -561,6 +561,54 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       assert before == dec("-900")
       assert view_flow(view, ~D[2025-05-12]) == dec("-450")
     end
+
+    # User story:
+    # As the operator collapsing a buy both depots recorded, settled on a
+    # cash account outside the view that holds the depots,
+    # I want the preview to list the flow across that view's boundary the
+    # collapse removes, at the trade's booked value,
+    # so that a view's time-weighted return never moves without my seeing it.
+    #
+    # Acceptance criteria:
+    # - The collapse outcome lists kind boundary_removed for the view the
+    #   buy straddles, with its cash account, depot, security and date, and
+    #   change the booked value that view's flow no longer carries, in the
+    #   cash account's currency (valued_at booked_value, no quantity).
+    # - After the apply, the view's flow on that day differs from before by
+    #   exactly that change.
+    test "a collapsed buy straddling a view is a listed boundary flow at its booked value", ctx do
+      %{source: s, target: t} = ctx
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Core")})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), s, [core.id])
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), t, [core.id])
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: bucket_name("Core view")})
+
+      :ok =
+        Buckets.set_view_buckets(Actor.owner_ui(), view, [core.id], [], include_all: false)
+
+      s_buy = buy!(ctx, s, ctx.cash_t, ctx.meridian, "5", "88.00", ~D[2025-07-01])
+      _t_buy = buy!(ctx, t, ctx.cash_t, ctx.meridian, "5", "88.00", ~D[2025-07-01])
+
+      before = view_flow(view, ~D[2025-07-01])
+      {:ok, preview} = Lifecycle.preview_depot_merge(s.id, t.id)
+
+      changes =
+        for change <- preview.outcomes[true].flow_changes,
+            change.kind != :boundary_removed or change.view_id == view.id,
+            do: change
+
+      assert Enum.map(changes, &flow_line/1) == [
+               {:boundary_removed, s.id, ctx.meridian.id, view.id, ~D[2025-07-01], nil,
+                dec("-440"), "EUR", :booked_value, s_buy.id}
+             ]
+
+      assert Enum.map(changes, & &1.cash_account_id) == [ctx.cash_t.id]
+
+      merge!(ctx, true, preview)
+
+      assert before == dec("880")
+      assert view_flow(view, ~D[2025-07-01]) == dec("440")
+    end
   end
 
   describe "view membership (§7 depot guards, the membership rule)" do
