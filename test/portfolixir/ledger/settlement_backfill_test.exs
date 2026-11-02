@@ -548,12 +548,16 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   end
 
   # The backfill run with an owner edit of the buy's cash committed right
-  # after its candidate read.
-  defp backfill_across_cash_edit(tx, gross_amount) do
+  # after its candidate read; `figures` are the edit's other fields (a cash
+  # stated alone must agree with the stored figures, ADR-0053's amendment of
+  # 2026-11-02).
+  defp backfill_across_cash_edit(tx, gross_amount, figures \\ %{}) do
     cash_edit = fn ->
-      Ledger.update_transaction(Actor.owner_ui(), Ledger.get_transaction(tx.id), %{
-        gross_amount: gross_amount
-      })
+      Ledger.update_transaction(
+        Actor.owner_ui(),
+        Ledger.get_transaction(tx.id),
+        Map.put(figures, :gross_amount, gross_amount)
+      )
     end
 
     {result, {:ok, _edited}} =
@@ -582,16 +586,17 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   # leg is stored off a cash the booking no longer carries.
   #
   # Acceptance criteria:
-  # - The buy's cash set from 806.00 to 816.00 right after the backfill read
-  #   its candidates: the run completes, derives nothing and counts the row
-  #   in skipped_changed; the buy keeps 816.00 and no leg, and nothing is
-  #   journaled under settlement_backfill.
+  # - The buy's cash set from 806.00 to 816.00 (its price corrected to 81.00
+  #   with it) right after the backfill read its candidates: the run
+  #   completes, derives nothing and counts the row in skipped_changed; the
+  #   buy keeps 816.00 and no leg, and nothing is journaled under
+  #   settlement_backfill.
   test "a cash edited after the candidate read derives no leg, and the run goes on" do
     w = world()
     tx = cash_buy!(w)
 
     assert {:ok, %{updated: 0, skipped_no_rate: 0, skipped_changed: 1}} =
-             backfill_across_cash_edit(tx, "816.00")
+             backfill_across_cash_edit(tx, "816.00", %{price: "81.00"})
 
     stored = Ledger.get_transaction(tx.id)
     assert Decimal.to_string(stored.gross_amount) == "816.000000"
