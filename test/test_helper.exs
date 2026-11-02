@@ -12,7 +12,11 @@
 # not a delay: an assertion returns as soon as the async work completes, so a
 # green suite is no slower. `refute_receive_timeout` is deliberately NOT
 # raised -- negative assertions must stay fast.
-ExUnit.start(assert_receive_timeout: 2_000)
+#
+# The browser tests (`@moduletag :browser`, test/browser/) drive a real
+# Chromium through Playwright, which the CI test job does not install; they
+# run on request with `mix test test/browser --only browser`.
+ExUnit.start(assert_receive_timeout: 2_000, exclude: [:browser])
 
 # A warning or an error that reaches the console log without a test capturing
 # it fails the run (#927): see Portfolixir.LogNoise for what counts and why a
