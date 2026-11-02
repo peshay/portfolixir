@@ -1030,7 +1030,7 @@ the app's guess where the operator or the broker had stated a figure.
    shows the cash field on such a row, prefilled with the cash the new
    figures derive, and saves only once the operator has seen it (the field
    is part of the submitted form, so a save always states it). Board
-   `ux-design-2026-11-02-sprint23/02` ②a.
+   `ux-design-2026-11-02-sprint23/02` ①a.
 3. **A cross-currency row with legs** is unchanged: ADR-0015's settlement
    guard already relates its legs and its cash. **A legless cross-currency
    row** that ADR-0015's amendment of 2026-11-01 opens in its stored
