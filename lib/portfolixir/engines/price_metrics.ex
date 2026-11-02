@@ -23,6 +23,8 @@ defmodule Portfolixir.Engines.PriceMetrics do
     * `max_drawdown` — the largest peak-to-trough decline in the window, with
       the day the peak was last touched, the day of the trough, and the first
       day back at the peak (`nil` while unrecovered). Refused below 2 closes.
+      A drawdown of exactly `0` carries `nil` for all three dates: no decline
+      happened, so none is named (#1343).
     * `momentum` — the trailing return between the newest close on or before
       the period's start and the latest close. Refused when the series does not
       reach back to the period's start: a "12M" figure computed over one month
@@ -235,6 +237,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
     slice
     |> Enum.map(&%{date: &1.date, value: &1.close})
     |> Statistics.drawdown()
+    |> Statistics.without_zero_episode()
     |> Map.merge(%{
       window: measured_window(slice),
       observations: length(slice),
