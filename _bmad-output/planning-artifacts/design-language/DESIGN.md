@@ -8294,3 +8294,149 @@ API's order; nothing is computed twice.
 - **Parity.** The LiveView tests compare every row with the API's entry
   for the same pair: count, kind, date, collapsed booking, quantity and
   amount (`test/support/merge_flows_case.ex`).
+
+## Amendment 2026-11-02 — The audit journal *(Sprint 23 V3, idea U2; board `mockups/ux-design-2026-11-02-sprint23/03-journal`, picks Q5 = A and Q6; plan D-5, D-8; ADR-0022's amendment of 2026-11-02)*
+
+The operator's view of `GET /api/v1/journal` (`portfolixir.journal.list`),
+the read the agent has had since Sprint 19. Built in
+`PortfolixirWeb.JournalLive`, `PortfolixirWeb.Journal.Row` (the words and
+the links) and `PortfolixirWeb.Journal.Change` (the change and the fold).
+The page and the API read the journal through one module,
+`PortfolixirWeb.Api.V1.JournalQuery`: the same parameters, the same rows,
+the same page, so what the operator sees is what the agent read.
+
+### Placement
+
+The last entry of the sidebar's „Verwaltung“ group, after
+„Klassifizierungen“: `#nav-journal`, „Audit-Journal“, the clock icon,
+current on `/journal` (Q6). The top bar reads „Audit-Journal“ over „Jede
+gespeicherte Änderung, wer sie machte und was vorher stand“.
+
+### Anatomy, top to bottom
+
+1. **The section** `#journal-panel`, an h2 „Einträge“. No ⓘ: the page
+   carries no method sentence; its basis line says what the list is.
+2. **The chips** (`#journal-chips`, `.filter-chips`, `role="group"`, named
+   „Journal filtern“), two families: „Akteur“ — Alle · Operator · Agent ·
+   Import · System (`owner_ui`, `api_token_rw`, `import_session`,
+   `system_job`; a read-only token writes nothing and has no chip) — and
+   „Vorgang“ — Angelegt · Geändert · Gelöscht · Angelegt oder ersetzt. One
+   actor chip is pressed („Alle“ without a filter); an operation chip
+   pressed again clears its filter. Chips are buttons with `aria-pressed`.
+3. **The kind and the scenarios** (`form#journal-filters.journal-filters`,
+   a wrapping flex row under the chips): the select „Alle Arten“ plus every
+   `resource_type` code a journaled writer files under, each in words
+   (`Row.kind_label/1`: „Transaktion“, „Wertpapier“, „Verrechnungskonto“,
+   „Regel“, „Erfasste Abrechnung“, „Zusammenführung“ …; a code no label
+   knows yet reads as itself, and a kind the URL names that the list does
+   not carry is offered too), and the checkbox „Was-wäre-wenn-Szenarien
+   einbeziehen“ (13 px, inline-flex, 6 px gap).
+4. **The basis line** (`.summary-basis`, `data-role="journal-basis"`), one
+   clause per fact, joined by „ · “: „Neueste zuerst · 7 Einträge · Akteur
+   Agent · Vorgang Gelöscht · Art Wertpapier · ohne
+   Was-wäre-wenn-Szenarien · Zeiten in UTC“. A filter not set has no
+   clause. One entry reads „nur Wertpapier 12“ in place of the kind. A cut
+   answer reads „die neuesten 100 Einträge“ (UX-DR26).
+5. **One entry's history**: with `resource_id` set, a `.hint` under the
+   basis line holds „Alle Einträge zeigen“, back to `/journal`.
+6. **The table** (`.data-table.journal-table` in `.journal-table-wrap`, a
+   reading table at `min-width: 0`, cells wrap, top-aligned; the time, the
+   actor and the operation never wrap). Columns: Zeit (UTC) · Akteur ·
+   Vorgang · Eintrag · Änderung. Each row `#journal-entry-<id>`:
+   - **Zeit (UTC):** the date in the page's notation and the time to the
+     second, UTC, tabular figures („02.11.2026 18:00:23“).
+   - **Akteur:** the actor in words, the token's name (`actor_label`) as
+     the cell's `.cell-note` second line („review seed“). Since ADR-0054
+     tokens carry names people chose, so FU-6's reason to hide the label
+     no longer holds.
+   - **Vorgang:** Angelegt · Geändert · Gelöscht · Angelegt oder ersetzt.
+   - **Eintrag:** the kind, the id and the stored name („Regel 9 ·
+     Barreserve höchstens 30 %“); a booking, which has no name, its kind and
+     date („Transaktion 67 · Einlage 05.05.2025“). The text is a link to the
+     page the entry is read on where one exists — a security (and its
+     quotes, events, notes, former ISINs, category assignments) its own
+     page, an account, a depot and their buckets Accounts & depots, a merge
+     its record (`/portfolios?merge=<id>#merge-records`), a rule Risk, a tax
+     record Tax, a snapshot its comparison, a classification or a category
+     its tree, a target the allocation tab, a bucket or a view the views
+     page — and plain text for a delete, a portfolio, a setting and a
+     retired import row. A booking has no page of its own (found while
+     drawing 6) and links the history. Under it the `.cell-note` „Nur
+     dieser Eintrag“, a patch to `/journal?resource_type=…&resource_id=…`.
+   - **Änderung:** what the operation did (step 7), then the fold (step 8).
+7. **The change lines** (`.journal-change__line`, block, wrapping
+   anywhere): an update — and an upsert that replaced a row — has one line
+   per field whose stored before and after differ, „name: ~~Festgeld~~ →
+   Festgeld Plus“: the stored key as the API names it, the old value
+   `.journal-change__from` (muted, struck, 1 px), the arrow
+   `.journal-change__arrow` (muted, `aria-hidden`; a screen reader hears
+   „geändert in“), the new value. `inserted_at` and `updated_at` move on
+   every update and stay out of the lines. A value is cut at 80 characters
+   with „…“; a list or a map reads as JSON, none as „—“. A create has no
+   line. **A delete reads „gelöscht, mit allen Werten“** — the page reads
+   the operation, not the diff, because a row delete's stored `after`
+   repeats the deleted row (found while drawing 7).
+8. **The fold** (`details.journal-values`, closed, its summary the quiet
+   `.disclosure-summary` with the chevron: „Gespeicherte Werte“): a 12-px
+   table Feld · Vorher · Danach (headers 600, muted). An update lists the
+   changed fields, timestamps included; a create every stored value, its
+   „Vorher“ „—“; a delete every value of its before-image, its „Danach“
+   „—“. A value is cut at 300 characters; the API carries the whole image.
+   Every stored value is set in `<bdi>` (G12.2-B).
+9. **The next page** (`p.journal-more`): when the API's answer is cut,
+   „Ältere Einträge zeigen“ (`data-role="journal-more"`) patches the limit
+   one page (100) larger, up to the API's maximum of 1000. At the maximum
+   a `.hint` (`data-role="journal-at-max"`) reads „Hier stehen die neuesten
+   1000, mehr fasst eine Seite nicht; ein Filter erreicht ältere
+   Einträge.“ A whole answer shows neither.
+10. **Empty:** `#journal-empty`, one `.empty-state` sentence, „Kein Eintrag
+    passt zu diesen Filtern.“, with „Alle Einträge zeigen“; no table. (A
+    fresh instance is never empty: the built-in tax parameters are
+    journaled at migration.)
+
+### The URL is the view
+
+Every control writes its parameter into the URL with `push_patch`, in one
+fixed order — `resource_type`, `resource_id`, `actor_type`, `operation`,
+`include_scenarios`, `limit` (only when not 100) — the API's names and
+values, so a link reproduces the view and an agent's link opens the rows
+it read (the history's `?since=` rule, #731). A filter change starts again
+from the newest page; another kind drops the one entry. A parameter the
+API would refuse with a `422` reads as absent (LiveParam, #868).
+
+### Under 560 px *(UX-DR27)*
+
+The table hides; `ul.phone-rows.journal-rows` shows one `.phone-row` per
+entry, one column (an entry has no figure): the name line (14 px, 600)
+„02.11.2026 18:00:23 · Geändert · Agent (review seed)“; the identifier
+line (12 px, muted) with the entry's link and „Nur dieser Eintrag“; then
+the change lines (13 px) and the fold, full width. The chips wrap, two
+rows per family at 390 px, and the select and the checkbox stack. Nothing
+scrolls sideways. *Beyond the board's phone frame, stated:* the frame drew
+neither the fold nor „Nur dieser Eintrag“; the build keeps both, so a phone
+reads what a desktop reads.
+
+### The `app.css` rules of the pick
+
+One block after `.merge-date-link`: ① `.journal-filters` and
+`.journal-filters__scenarios`; ② `.journal-table` at `min-width: 0`, wrapping,
+top-aligned cells, nowrap time, actor and operation, `td.journal-change` at
+least 16 rem; ③ `.journal-change__line`, `__from`, `__arrow`; ④
+`.journal-values` and its table; ⑤ `.journal-rows .phone-row` one column and
+`.journal-table-wrap` hidden under 560 px; ⑥ `.journal-more`. Every colour is
+a token (`--color-text-muted`), so light and dark and the three accents
+follow without a rule of their own.
+
+### Stated, not settled here
+
+- **Field names are the stored keys** („name“, „cash_account_id“), not
+  words as the board drew them („Name“, „Verrechnungskonto: Festgeld →
+  Festgeld Plus“): the keys are what the agent reads, and words — or an id
+  resolved to a name — for every field of thirty kinds is its own story.
+- **A create says no summary line** where the board wrote one by hand
+  („Steuerjahr 2025 · Stand 31.12.2025 · …“); its fold holds every value.
+- **An entity deleted after an entry** still links from its older
+  entries, to the page that once showed it: the page checks no row's
+  existence, which would cost a read per entry.
+- **No time filter**: „this week?“ is read by paging (found while drawing
+  5, idea I16).
