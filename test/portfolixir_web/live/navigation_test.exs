@@ -348,6 +348,36 @@ defmodule PortfolixirWeb.NavigationTest do
     assert app_css =~ ".app-shell"
   end
 
+  # User story (issue #1330):
+  # As the operator who collapsed the sidebar to its rail,
+  # I want the rail to stay collapsed when a click updates the page,
+  # so that the page under my pointer does not re-flow (the accounts table
+  # flipping to its card layout) because the sidebar re-opened by itself.
+  #
+  # Acceptance criteria:
+  # - The rail's checkbox tells LiveView not to touch it (`phx-update="ignore"`):
+  #   a patch otherwise syncs its `checked` property to the server's render,
+  #   which has none, and re-opens the sidebar.
+  # - The checkbox carries the SidebarRail hook, which owns the collapsed
+  #   state: it remembers each change and re-applies it after every patch.
+  #   (LiveViewTest does not run the client patch; the hook's contract is
+  #   pinned on its source.)
+  test "the collapsed rail keeps its state across a LiveView patch", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+
+    assert has_element?(
+             view,
+             ~s(input#app-sidebar-toggle[type="checkbox"][phx-update="ignore"][phx-hook="SidebarRail"])
+           )
+
+    hook = sidebar_hook_source("SidebarRail")
+    assert hook =~ ~r/mounted: function \(\) \{.*this\.checked = this\.el\.checked;/s
+    assert hook =~ ~r/addEventListener\("change", this\.onChange\)/
+    assert hook =~ ~r/self\.checked = self\.el\.checked;/
+    assert hook =~ ~r/updated: function \(\) \{\s*this\.el\.checked = this\.checked;/s
+    assert hook =~ ~r/removeEventListener\("change", this\.onChange\)/
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want theme and language controls in the top bar instead of a second sidebar collapse control,
@@ -598,5 +628,15 @@ defmodule PortfolixirWeb.NavigationTest do
     escaped_selector = Regex.escape(selector)
     [_, rule] = Regex.run(~r/#{escaped_selector}\s*\{([^}]*)\}/, css)
     rule
+  end
+
+  # A hook's source in layout_view.ex, up to the next hook.
+  defp sidebar_hook_source(name) do
+    "lib/portfolixir_web/layout_view.ex"
+    |> File.read!()
+    |> String.split("Hooks.#{name} = ")
+    |> Enum.at(1, "")
+    |> String.split("Hooks.")
+    |> hd()
   end
 end
