@@ -1312,6 +1312,19 @@ defmodule PortfolixirWeb.LayoutView do
                 window.Portfolixir.placeInfoTip(tip);
               }
             }, true);
+            // Issue 1342 (board 01 ⑧): Escape closes the open ⓘ the focus
+            // is in and returns the focus to its summary. The key is
+            // consumed, so an ⓘ inside a drawer or a dialog closes alone.
+            document.addEventListener("keydown", function (event) {
+              if (event.key !== "Escape" || !event.target || !event.target.closest) return;
+              var tip = event.target.closest("details.metric-tooltip[open]");
+              if (!tip) return;
+              event.preventDefault();
+              event.stopPropagation();
+              tip.removeAttribute("open");
+              var summary = tip.querySelector("summary");
+              if (summary && typeof summary.focus === "function") summary.focus();
+            }, true);
             new MutationObserver(function (records) {
               records.forEach(function (record) {
                 var tip = record.target;

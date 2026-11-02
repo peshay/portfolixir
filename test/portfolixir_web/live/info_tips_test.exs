@@ -116,4 +116,40 @@ defmodule PortfolixirWeb.InfoTipsTest do
     assert rule(".metric-tooltip") =~ ~r/--tip-shift:\s*0px;/
     assert rule(".metric-tooltip p") =~ ~r/translate:\s*var\(--tip-shift\) 0;/
   end
+
+  # User story (#1342, the ⓘ half):
+  # As the keyboard user who opened an ⓘ,
+  # I want Escape to close it and give the focus back to its ⓘ,
+  # so that I need not Tab back to the summary and press it again.
+  #
+  # Acceptance criteria:
+  # - One capture listener on the document answers Escape whose target is
+  #   inside an open `details.metric-tooltip` (its summary, or a link in
+  #   its panel): it closes that ⓘ and focuses its summary.
+  # - It consumes the key (`preventDefault`, `stopPropagation`), so an ⓘ
+  #   inside a drawer or a dialog closes alone and the dialog stays open.
+  # - Every ⓘ on the page is such an element: Wealth's KPI ⓘ, the view
+  #   switcher's and the Cash flow facets' alike.
+  test "Escape closes an open ⓘ and returns the focus to its summary", %{conn: conn} do
+    seed_world()
+    {:ok, view, _html} = live(conn, "/portfolio")
+    assert has_element?(view, "#portfolio-kpis details.metric-tooltip > summary")
+    assert has_element?(view, "details.view-switcher__help.metric-tooltip > summary")
+
+    js = info_tip_source()
+
+    [_, listener] =
+      Regex.run(
+        ~r/document\.addEventListener\("keydown", function \(event\) \{(.*?)\}, true\);/s,
+        js
+      ) ||
+        flunk("no capture keydown listener for the ⓘ")
+
+    assert listener =~ ~s|event.key !== "Escape"|
+    assert listener =~ ~s|closest("details.metric-tooltip[open]")|
+    assert listener =~ "event.preventDefault();"
+    assert listener =~ "event.stopPropagation();"
+    assert listener =~ ~s|tip.removeAttribute("open");|
+    assert listener =~ ~r/summary\.focus\(\)/
+  end
 end
