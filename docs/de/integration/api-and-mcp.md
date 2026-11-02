@@ -2549,8 +2549,10 @@ Beispiel-Payloads für Konten:
   strukturierte Vertrag wie bei den Analyse-Endpunkten.
 - `GET /api/v1/portfolios/:portfolio_id/targets` listet die gespeicherten
   Zielgewichte eines Portfolios (die SOLL-Seite der Allokation). Optionales
-  `classification_id` schränkt die Liste auf einen Baum ein; optionales `view`
-  wählt den Plan (weggelassen = Gesamt); optionales `plan_id` liest diese
+  `classification_id` schränkt die Liste auf einen Baum ein; eines, das keine
+  ID ist, liefert `422` (`{"classification_id": ["is invalid"]}`, Issue
+  #1301), auf diesem Lesepfad und auf `/position_targets`, neben `plan_id` oder
+  allein; optionales `view` wählt den Plan (weggelassen = Gesamt); optionales `plan_id` liest diese
   Planversion, einen Entwurf oder den aktiven Plan, mit den `422` des `PUT`
   unten (Issue #1185). Unbekannte Portfolios liefern `404 Not Found`.
 - `PUT /api/v1/portfolios/:portfolio_id/targets` führt Zielgewichte für eine
