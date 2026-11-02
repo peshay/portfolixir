@@ -352,8 +352,8 @@ defmodule Portfolixir.Ledger do
   latest quote close in the split-adjusted display basis (ADR-0028 §2), else
   the last own trade price across all portfolios, else none. The row names
   it in `price_source` (`:quote | :trade | nil`) and `price_date` (#1316,
-  #1332); `trade_fallback: false` prices by quotes alone (the per-category
-  result's rule, `Portfolixir.Portfolios.CategoryResult`). Pass `:prices`
+  #1332); the per-category result (`Portfolixir.Portfolios.CategoryResult`)
+  rolls these rows up as they are (#1368). Pass `:prices`
   (`%{security_id => Decimal}`) to inject comparison prices for tests (read
   as quotes). Pass `:fx_rates`
   (`%{currency => Decimal}`, base units per 1 security-currency unit) to
@@ -375,10 +375,7 @@ defmodule Portfolixir.Ledger do
     points =
       positions
       |> Enum.map(fn {{_account_id, security_id}, _quantity} -> security_id end)
-      |> Valuation.price_points(
-        prices: prices,
-        trade_fallback: Keyword.get(opts, :trade_fallback, true)
-      )
+      |> Valuation.price_points(prices: prices)
 
     positions
     |> Enum.map(fn {{account_id, security_id} = key, quantity} ->

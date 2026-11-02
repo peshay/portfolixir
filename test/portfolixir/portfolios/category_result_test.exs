@@ -9,14 +9,19 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       create_security!: 1,
       buy!: 3,
       cross_trade!: 3,
+      deliver_untraded!: 3,
       deposit!: 3,
-      deposit!: 4
+      deposit!: 4,
+      put_quote!: 3
     ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
+  alias Portfolixir.Fx
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.CategoryResult
+  alias Portfolixir.Portfolios.Valuation
 
   defp world_with_tree do
     world = base_world()
@@ -189,7 +194,9 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
 
       deposit!(world, "10000", ~D[2026-01-01])
       buy!(world, priced, quantity: "10", price: "100")
-      buy!(world, dark, quantity: "10", price: "50")
+      # Delivered in, never traded: no own trade price to fall back on
+      # (#1368), and no quote either.
+      deliver_untraded!(world, dark, "10")
 
       # Only the first security has a price; the second is unpriceable.
       prices = %{priced.id => Decimal.new("150")}
@@ -824,10 +831,11 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assign!(ashgrove, world.classification, world.core)
       buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
 
-      # A EUR member with no price at all.
+      # A EUR member with no price at all: delivered in, never traded or
+      # quoted (#1368).
       brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
       assign!(brackwater, world.classification, world.platforms)
-      buy!(world.euro, brackwater, quantity: "2", price: "50")
+      deliver_untraded!(world.euro, brackwater, "2")
 
       prices = %{
         kestrel.id => Decimal.new("756.711"),
@@ -1019,7 +1027,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
 
       brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
       assign!(brackwater, world.classification, world.platforms)
-      buy!(world.euro, brackwater, quantity: "2", price: "50")
+      deliver_untraded!(world.euro, brackwater, "2")
 
       prices = %{kestrel.id => Decimal.new("756.711"), harborline.id => Decimal.new("180")}
 
@@ -1077,6 +1085,158 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert dollar.base_currency == "USD"
       assert_decimal(fetch(dollar, world.platforms.id).invested, "1500")
       assert dollar.excluded_members == []
+    end
+  end
+
+  # A EUR portfolio holding four members of "Core", each priced the way
+  # ADR-0010 prices it (every name and amount here is invented):
+  #
+  # - Alpha AG, quoted: 10 at 100,00, now 150,00 -- cost 1.000,00, worth
+  #   1.500,00, result +500,00.
+  # - Beta AG, no quote: 10 at 50,00, then 10 at 61,50, its last own trade
+  #   price -- cost 1.115,00, worth 1.230,00, result +115,00.
+  # - Gamma Inc, a USD security with no quote, bought in EUR at a rate that
+  #   moved: 10 at 110 USD settled at 990,00 EUR (0,90), then 5 at 120 USD
+  #   settled at 480,00 EUR (0,80); the stored EUR-hub rate is now 1,60 USD
+  #   per EUR (0,625). Worth 15 × 120 × 0,625 = 1.125,00 EUR against a cost
+  #   of 1.470,00 EUR, result −345,00.
+  # - Dark AG, delivered in, never traded and never quoted: no rule values
+  #   it.
+  defp trade_priced_world do
+    world = world_with_tree()
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-01],
+          rate: "1.6",
+          source: "manual"
+        }
+      ])
+
+    alpha = create_security!(name: "Alpha AG", ticker: "ALP")
+    beta = create_security!(name: "Beta AG", ticker: "BET")
+    gamma = create_security!(name: "Gamma Inc", ticker: "GAM", currency: "USD")
+    dark = create_security!(name: "Dark AG", ticker: "DRK")
+
+    for security <- [alpha, beta, gamma, dark],
+        do: assign!(security, world.classification, world.core)
+
+    deposit!(world, "10000", ~D[2026-01-01])
+    buy!(world, alpha, quantity: "10", price: "100")
+    buy!(world, beta, quantity: "10", price: "50", date: ~D[2026-01-02])
+    buy!(world, beta, quantity: "10", price: "61.5", date: ~D[2026-02-02])
+
+    cross_trade!(world, gamma,
+      quantity: "10",
+      price: "110",
+      settled: "990",
+      gross: "990",
+      date: ~D[2026-01-02]
+    )
+
+    cross_trade!(world, gamma,
+      quantity: "5",
+      price: "120",
+      settled: "480",
+      gross: "480",
+      date: ~D[2026-02-02]
+    )
+
+    deliver_untraded!(world, dark, "7")
+
+    put_quote!(alpha, ~D[2026-03-02], "150")
+
+    Map.merge(world, %{alpha: alpha, beta: beta, gamma: gamma, dark: dark})
+  end
+
+  # What the valuation (the Wealth total) and the holdings read give for the
+  # covered members, summed: the figures the roll-up must equal exactly.
+  defp wealth_figures(world) do
+    ids = [world.alpha.id, world.beta.id, world.gamma.id]
+    valuation = Valuation.for_portfolio(world.portfolio.id)
+    holdings = Ledger.holdings_for_portfolio(world.portfolio.id)
+
+    sum = fn rows, key ->
+      rows
+      |> Enum.filter(&(&1.security_id in ids))
+      |> Enum.reduce(Decimal.new("0"), &Decimal.add(&2, Map.fetch!(&1, key)))
+    end
+
+    %{
+      value: sum.(valuation.positions, :market_value),
+      invested: sum.(holdings, :base_cost),
+      result: sum.(holdings, :total_return_base_abs)
+    }
+  end
+
+  # User story (#1368; plan R3 and D-4, ADR-0010):
+  # As a local portfolio maintainer reading a category's cost and result
+  # (and the LLM I connect over MCP, reading the same roll-up),
+  # I want a member without a quote valued at its last own trade price, the
+  # rule Wealth and the holdings read already use, with its price source
+  # named,
+  # so that a category's figures add up to what Wealth shows for the same
+  # positions instead of silently leaving trade-priced members out.
+  #
+  # Acceptance criteria:
+  # - A member without a quote is covered at its last own trade price, its
+  #   price_source :trade; a quoted member's is :quote.
+  # - The category's invested, current value and result equal, exactly, the
+  #   sums Wealth's valuation and the holdings read give for those positions,
+  #   also for a USD member at a rate that moved since its buys.
+  # - A member with neither a quote nor a trade price stays excluded and
+  #   named with no_usable_price.
+  # - Every scope (the portfolio read, the every-portfolio read) follows the
+  #   one rule.
+  describe "one valuation rule: a member without a quote at its last own trade price (#1368)" do
+    test "the roll-up reads the same figures as Wealth and names each member's price source" do
+      world = trade_priced_world()
+      wealth = wealth_figures(world)
+
+      # The Wealth side first, so the identity below is against known figures.
+      assert_decimal(wealth.value, "3855")
+      assert_decimal(wealth.invested, "3585")
+      assert_decimal(wealth.result, "270")
+
+      {:ok, by_portfolio} =
+        CategoryResult.for_portfolio(world.portfolio.id, world.classification.id)
+
+      {:ok, everything} = CategoryResult.for_all_portfolios(world.classification.id)
+
+      for result <- [by_portfolio, everything] do
+        core = fetch(result, world.core.id)
+
+        assert Decimal.equal?(core.current_value, wealth.value)
+        assert Decimal.equal?(core.invested, wealth.invested)
+        assert Decimal.equal?(core.result_abs, wealth.result)
+        assert Decimal.equal?(core.result_pct, Decimal.div(wealth.result, wealth.invested))
+
+        assert core.covered_count == 3
+        assert core.member_count == 4
+
+        positions = Map.new(core.positions, &{&1.security_id, &1})
+
+        assert positions[world.alpha.id].price_source == :quote
+        assert positions[world.beta.id].price_source == :trade
+        assert positions[world.beta.id].price_date == ~D[2026-02-02]
+        assert positions[world.gamma.id].price_source == :trade
+
+        assert_decimal(positions[world.beta.id].current_value, "1230")
+        assert_decimal(positions[world.beta.id].result_abs, "115")
+        # The USD member at the moving rate: 15 × 120 × 0,625.
+        assert_decimal(positions[world.gamma.id].current_value, "1125")
+        assert_decimal(positions[world.gamma.id].invested, "1470")
+        assert_decimal(positions[world.gamma.id].result_abs, "-345")
+
+        # Only the member no rule can value stays out, and is named.
+        assert [%{security_name: "Dark AG", reason: :no_usable_price}] = core.excluded
+
+        assert [%{security_id: dark_id, reason: :no_usable_price}] = result.excluded_members
+        assert dark_id == world.dark.id
+      end
     end
   end
 end

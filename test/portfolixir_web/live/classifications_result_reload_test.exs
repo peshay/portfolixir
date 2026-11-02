@@ -4,7 +4,14 @@ defmodule PortfolixirWeb.ClassificationsResultReloadTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3, put_quote!: 3]
+    only: [
+      base_world: 0,
+      buy!: 3,
+      create_security!: 1,
+      deliver_untraded!: 3,
+      deposit!: 3,
+      put_quote!: 3
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
@@ -145,7 +152,7 @@ defmodule PortfolixirWeb.ClassificationsResultReloadTest do
   test "an unassigned member leaves its category and the note", %{conn: conn} = ctx do
     # Charlie AG has no quote, so the roll-up leaves it out and names it.
     charlie = create_security!(name: "Charlie AG", ticker: "CHA")
-    buy!(ctx.world, charlie, quantity: "2", price: "40")
+    deliver_untraded!(ctx.world, charlie, "2")
     assign!(charlie, ctx.classification, ctx.core)
 
     view = open!(conn, ctx.classification)
