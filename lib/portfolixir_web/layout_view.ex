@@ -1443,6 +1443,62 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // I1 (issue 1351, board ux-design-2026-11-01-sprint22/01-i1 ③):
+            // a clamped data note. The stylesheet cuts the text; the hook
+            // shows „mehr“ only where the cut hides text, and on its click
+            // expands the note („weniger“ folds it again). It measures
+            // again when a fold around the note opens (a closed <details>
+            // measures nothing) and when the note's box changes size (a
+            // window resize, the page's scrollbar appearing), and re-applies
+            // its state after each patch, which removes the attributes the
+            // server did not render.
+            Hooks.NoteClamp = {
+              mounted: function () {
+                var self = this;
+                this.expanded = false;
+                this.onClick = function (event) {
+                  var more = event.target.closest && event.target.closest(".data-note__more");
+                  if (!more || !self.el.contains(more)) return;
+                  self.expanded = !self.expanded;
+                  self.apply();
+                };
+                this.onToggle = function (event) {
+                  if (event.target && event.target.contains && event.target.contains(self.el)) self.apply();
+                };
+                this.el.addEventListener("click", this.onClick);
+                document.addEventListener("toggle", this.onToggle, true);
+                if (window.ResizeObserver) {
+                  this.resizeObserver = new ResizeObserver(function () {
+                    self.apply();
+                  });
+                  this.resizeObserver.observe(this.el);
+                }
+                this.apply();
+              },
+              updated: function () {
+                this.apply();
+              },
+              destroyed: function () {
+                this.el.removeEventListener("click", this.onClick);
+                document.removeEventListener("toggle", this.onToggle, true);
+                if (this.resizeObserver) this.resizeObserver.disconnect();
+              },
+              apply: function () {
+                var text = this.el.querySelector(".data-note__text");
+                var more = this.el.querySelector(".data-note__more");
+                if (!text || !more) return;
+                if (this.expanded) {
+                  this.el.setAttribute("data-expanded", "");
+                } else {
+                  this.el.removeAttribute("data-expanded");
+                }
+                var cut = text.scrollHeight > text.clientHeight + 1;
+                more.hidden = !(this.expanded || cut);
+                more.setAttribute("aria-expanded", this.expanded ? "true" : "false");
+                more.textContent = more.getAttribute(this.expanded ? "data-less" : "data-more");
+              }
+            };
+
             // H45 (board ux-design-2026-10-27/02-imports-mapping, Q1 B; the
             // γ7 review, R-S1): the import mapping's radio cards. A native
             // radio group checks a card on every arrow key, and a check is
