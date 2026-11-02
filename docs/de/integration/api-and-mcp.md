@@ -3630,7 +3630,10 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
 - `PATCH /api/v1/views/:id` ändert `name`/`include_all` einer View, gesendet
   in einem `view`-Objekt. Eines der Felder auf oberster Ebene des Bodys,
   außerhalb davon, ergibt `422` mit dem Feldnamen (`{"include_all": ["must be
-  sent inside the view object"]}`) und ändert nichts (Issue #1315).
+  sent inside the view object"]}`) und ändert nichts (Issue #1315). Ebenso
+  ein `include` oder `exclude` auf oberster Ebene, die Bucket-Sets, die `PUT
+  /api/v1/views/:id/buckets` setzt (`{"include": ["is set with PUT
+  /api/v1/views/:id/buckets"]}`).
 - `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`); die
   auf sie bezogenen Pläne samt Zielen und ihre Depot-Schnappschüsse werden je
   als eigene Löschung journalisiert, bevor die View gelöscht wird.

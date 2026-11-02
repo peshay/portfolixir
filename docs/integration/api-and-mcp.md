@@ -3343,7 +3343,10 @@ a view is not journaled: no rule can read it yet.
 - `PATCH /api/v1/views/:id` patches a view's `name`/`include_all`, sent inside
   a `view` object. Either field at the top level of the body, outside it,
   answers `422` naming it (`{"include_all": ["must be sent inside the view
-  object"]}`) and changes nothing (issue #1315).
+  object"]}`) and changes nothing (issue #1315). So does a top-level
+  `include` or `exclude`, the bucket sets, which `PUT
+  /api/v1/views/:id/buckets` sets (`{"include": ["is set with PUT
+  /api/v1/views/:id/buckets"]}`).
 - `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`); the
   plans scoped to it, with their targets, and its depot snapshots are
   journaled one delete each before the view's.
