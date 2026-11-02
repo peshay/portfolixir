@@ -857,7 +857,7 @@ cash cell whole, a JSON trade priced the old way, the refund beside it.
 | A booking edited by hand since its import | #1194, the first case | **Answered.** A11: named from the journal, never rewritten |
 | A JSON trade whose cash agrees while its price does not | #1194, the second case | **Answered.** A11: listed on its cash or its price |
 | A drifted re-export leaves a booking stored under the old reading wrong without a word | #1205 | **Answered.** A12, with the twin rule |
-| A refused row whose re-export drifted | found while writing A10 | **Deferred, with a reason.** A refused row is a preview error, and the dry run does not resolve it, so it has no economic key. A10 therefore finds its stored booking by its hash alone, and its row error gives the refusal's remedy, which would book it a second time. The case needs a refused row (rare) whose re-export also drifted (rare), and fixing it means resolving refused rows outside the apply's run. Filed at the signature |
+| A refused row whose re-export drifted | found while writing A10 | **Deferred, with a reason.** A refused row is a preview error, and the dry run does not resolve it, so it has no economic key. A10 therefore finds its stored booking by its hash alone, and its row error gives the refusal's remedy, which would book it a second time. The case needs a refused row (rare) whose re-export also drifted (rare), and fixing it means resolving refused rows outside the apply's run. Filed at the signature *(Answered for A8's and A9's rows by the note of 2026-11-01, #1219: the row's names resolve read-only and its booking is matched by its figures; A5's rows keep their remedy.)* |
 | A ledger form for a sale whose proceeds are negative | #1193, what would reopen it | **Not taken.** A5 stands: it needs a fee companion that the hash would not read |
 | A per-line choice that lets the file win over a hand edit | #1194, what would reopen it | **Not taken.** Reopened by an operator who asks for it |
 
@@ -919,7 +919,7 @@ cash cell whole, a JSON trade priced the old way, the refund beside it.
 - Nothing here creates, stores or transmits an order. Nothing acquires data
   the instance does not already hold, and nothing calls out.
 
-## Note (2026-11-01): the refusal list gains three JSON v1 rows
+## Note (2026-11-01): the refusal list gains three JSON v1 rows, and a refused row already booked says so
 
 Sprint 22's R3 (the plan of 2026-11-01). The rows the JSON v1 parser
 refuses at the preview, each a row error naming its reason while the rest
@@ -954,6 +954,39 @@ or a transfer, and A5's credit that nets to nothing. They gain:
   reader's notation. Its place is first among the money checks, after
   `row_error/1` and before A9, A8 and A5. No hash changes: a ledger
   booking's cash is above zero, so no such row was ever stored.
+
+**A refused row whose booking already exists (#1219).** A row A8 or A9
+refuses carried its remedy, "book it by hand", even when that booking was
+already stored: entered by hand after an earlier drop (a hand booking
+carries no import hash), or imported from an export whose hashed fields
+drifted since (the deferred ask "a refused row whose re-export drifted"
+below). The preview now matches the remedy's booking by its figures on the
+economic layer and, where it finds it, says "already booked" and names it
+instead of the remedy (board ux-design-2026-11-01-sprint22/03 ③;
+`Imports.RefusedMatch`, `Imports.row_errors/2`):
+
+- **The match.** The row's names resolve read-only, as the apply's prefill
+  resolves them (an account by its live name, then a former one; a
+  security by the matching ladder). `DedupKey.of/1` compares the portfolio,
+  kind, date, security, the accounts the kind books on and the quantity,
+  against every stored booking of the portfolio, imported or by hand. The
+  price, fees and taxes are left out, because the remedy changes how the
+  row splits its cash among them; the cash itself compares beside the key:
+  each account the stored booking moves must move the row's cash cell, the
+  cash Portfolio Performance shows and every A8 and A9 remedy books. A
+  booking a row of the file holds by its content hash is that row's.
+- **Two matches** are both named and neither is chosen, so the row never
+  names a booking other than its own.
+- **A5's rows are not matched.** Their remedy books a cash the file does
+  not state, so a match by the remaining figures could name another booking
+  of the same day: #1219's "what would change the answer". They keep their
+  remedy.
+- **A row whose hash the history holds** keeps A10's message, as before.
+
+No hash, key or apply condition changes, and nothing is written: the match
+only changes what the preview says. *To flip by comment:* "word the remedy
+'if not booked yet'", #1219's fallback.
+
 
 ## References
 

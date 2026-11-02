@@ -342,7 +342,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   `refused` keeps the row's would-be `entry` exactly as the parser built
   it, its split-off refund included, so its content hash does not move
   (K25), and the message the row shows instead when the stored history
-  already holds that hash. `refund` is the refund split off, written as the
+  already holds that hash; `head` and `again` frame the booking a preview
+  names when the remedy's booking is already stored (#1219). `refund` is the refund split off, written as the
   message quotes it: a CSV row's in the file's notation, a JSON row's in
   the reader's (`nil` when none is split off, and then nothing is refused).
   The sentences are board ux-design-2026-10-09/07-imports ③'s, one per
@@ -351,7 +352,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   @spec refund_refusal(Entry.t(), String.t() | nil) ::
           nil
           | {String.t(),
-             %{rule: :a8, entry: Entry.t(), message: String.t(), listed_message: String.t()}}
+             %{
+               rule: :a8,
+               entry: Entry.t(),
+               message: String.t(),
+               listed_message: String.t(),
+               head: String.t(),
+               again: String.t()
+             }}
   def refund_refusal(%Entry{kind: kind, companion_entries: [_ | _]} = entry, refund)
       when kind in @refund_uncarried_kinds do
     {refund_message(kind, refund),
@@ -359,11 +367,50 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
        rule: :a8,
        entry: entry,
        message: stored_refund_message(kind, refund),
-       listed_message: listed_refund_message(kind, refund)
+       listed_message: listed_refund_message(kind, refund),
+       head: refund_head(kind, refund),
+       again: refund_again(kind)
      }}
   end
 
   def refund_refusal(%Entry{}, _refund), do: nil
+
+  # #1219: the refusal's message up to its reason, and the sentence that
+  # ends it when the booking its remedy asks for is already stored (board
+  # ux-design-2026-11-01-sprint22/03 ③): "… — already booked: <booking>.
+  # Do not book the inbound delivery again."
+  defp refund_head("inbound_delivery", refund),
+    do:
+      gettext(
+        "inbound delivery with a tax refund of %{refund}: an inbound delivery moves no cash, so the refund would have no account",
+        refund: refund
+      )
+
+  defp refund_head("outbound_delivery", refund),
+    do:
+      gettext(
+        "outbound delivery with a tax refund of %{refund}: an outbound delivery moves no cash, so the refund would have no account",
+        refund: refund
+      )
+
+  defp refund_head("security_transfer", refund),
+    do:
+      gettext(
+        "security transfer with a tax refund of %{refund}: a security transfer moves no cash, so the refund would have no account",
+        refund: refund
+      )
+
+  defp refund_head("cash_transfer", refund),
+    do:
+      gettext(
+        "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only",
+        refund: refund
+      )
+
+  defp refund_again("inbound_delivery"), do: gettext("Do not book the inbound delivery again.")
+  defp refund_again("outbound_delivery"), do: gettext("Do not book the outbound delivery again.")
+  defp refund_again("security_transfer"), do: gettext("Do not book the security transfer again.")
+  defp refund_again("cash_transfer"), do: gettext("Do not book the transfer again.")
 
   defp refund_message("inbound_delivery", refund),
     do:
