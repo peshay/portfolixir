@@ -3978,6 +3978,26 @@ naming the already-booked event) stays inline in the dialog.
 - Signed key figures (TTWROR, IRR/MWR, net flows, the Overview change
   signal) carry an explicit sign and gain/loss colour at every level;
   unsigned magnitudes keep the accent colour.
+- **Explanations stay out of the way** (#1351; on Wealth's Holdings tab,
+  the Overview and Cash flow, the other pages follow). Under a figure the
+  page keeps its **basis**: the view, the period, the currency, the as-of
+  date, gross or net, the set of rows and a threshold. How a figure is
+  computed sits behind the **ⓘ beside the section's heading** (on Cash
+  flow, the facet's ⓘ): the contribution's formula, the p. a. rule of the
+  closed trades, the rule that makes a dated range due. Every ⓘ opens where
+  it can be read — below its mark when there is no room above, and never
+  past the screen's edge, also on a phone — and **Escape** closes it and
+  returns to it (#1336, #1342). The view switcher's ⓘ is such a panel too
+  (#1350).
+- **Data notes are cut to two lines** (three on a phone), with **more**
+  where the text is cut and **less** to cut it again. A note's remedy — a
+  sync or backfill button, a link, a list of rows — stays in view under the
+  cut. A **problem** always leads its block. A note that says what a total
+  **leaves out** keeps that count in its first line and never folds. Two
+  or more of the other notes in one block fold into one line with their
+  counts, for example "1 Attention · 1 Note — Show details".
+- The import's security picker announces how many securities a search
+  found, or that none did, to a screen reader (#1342).
 
 ## Audit Journal
 
