@@ -212,6 +212,14 @@ msgstr ""
 msgid "must be %{currency} (the currency of the security and of its cash account)"
 msgstr ""
 
+## #1371 (ADR-0053, amendment of 2026-11-02): an edit of a stored-cash
+## trade's figures states its cash.
+msgid "is required when quantity, price, fees or taxes change on a booking that stores its cash"
+msgstr ""
+
+msgid "does not match quantity × price, fees and taxes — expected %{expected}"
+msgstr ""
+
 msgid "must differ from %{field}"
 msgstr ""
 

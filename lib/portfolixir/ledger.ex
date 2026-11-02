@@ -32,6 +32,7 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Ledger.PnlDecomposition
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.StatedCash
   alias Portfolixir.Ledger.TradeMatcher
   alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Ledger.Transaction
@@ -1767,6 +1768,9 @@ defmodule Portfolixir.Ledger do
       changes
       |> Journal.locked_row()
       |> Transaction.changeset(attrs)
+      # ADR-0053, amendment of 2026-11-02 (#1371): an edit of a stored-cash
+      # trade's quantity, price, fees or taxes states its cash, to the cent.
+      |> StatedCash.validate(attrs)
       |> keep_split_facts()
       |> validate_cash_account_currency()
     end)

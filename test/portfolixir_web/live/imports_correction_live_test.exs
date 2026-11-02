@@ -1600,7 +1600,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
         |> Ledger.list_transactions_for_portfolio()
         |> Enum.find(&(&1.type == "sell"))
 
-      {:ok, _} = Ledger.update_transaction(Actor.import_session(), sale, %{price: "12.50"})
+      store_old_price!(sale, "12.50")
 
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "history.json", body, "application/json")
@@ -1770,5 +1770,19 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       assert css =~ ~r/\.phone-row > \.import-correction__state \{\s*grid-column: 1 \/ -1;/
       assert css =~ ~r/\.import-correction__state--kept \{\s*color: var\(--color-text\);/
     end
+  end
+
+  # A sale stored with the file's cash and an older price, as an import
+  # stored it before ADR-0053 A2; written below the ledger, since an edit of
+  # the price alone on a stored-cash trade states its cash since #1371 (the
+  # ADR-0053 amendment of 2026-11-02). No actor's edit is journaled.
+  defp store_old_price!(%Transaction{} = row, price) do
+    {:ok, stored} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'import_session', true)")
+        row |> Ecto.Changeset.change(price: Decimal.new(price)) |> Repo.update!()
+      end)
+
+    stored
   end
 end
