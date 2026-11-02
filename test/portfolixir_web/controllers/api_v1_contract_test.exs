@@ -79,10 +79,21 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # the read-only cash check, one item, and the summary says so.
     assert newest["summary"] =~ "R2 (#1371"
     assert newest["endpoints"] == ["GET /api/v1/transactions/cash_mismatch"]
-    assert [cash_mismatch] = r2
+    assert [cash_mismatch, stated_cash] = r2
     assert String.starts_with?(cash_mismatch, "GET /api/v1/transactions/cash_mismatch, new")
     assert cash_mismatch =~ "stored_cash 806, derived_cash 816, difference -10"
     assert cash_mismatch =~ "(#1371)"
+
+    # The PATCH's new 422, the rule the read lists the old rows of.
+    assert String.starts_with?(stated_cash, "PATCH /api/v1/transactions/:id ")
+    assert newest["summary"] =~ "does not state gross_amount"
+
+    assert stated_cash =~
+             "is required when quantity, price, fees or taxes change on a booking that " <>
+               "stores its cash"
+
+    assert stated_cash =~ ~s(expected <amount>"], 816.00 in the example)
+    assert stated_cash =~ "(#1371; ADR-0053, amendment of 2026-11-02)"
 
     # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
     # outside K17's five delta reads echoes its limit and truncated. Dated
