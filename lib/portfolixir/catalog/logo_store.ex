@@ -19,7 +19,7 @@ defmodule Portfolixir.Catalog.LogoStore do
     * Body must be at most `:max_bytes` (default 256 KiB).
   """
 
-  import Ecto.Query, only: [where: 3, order_by: 3]
+  import Ecto.Query, only: [from: 2, where: 3, order_by: 3]
 
   require Logger
 
@@ -104,13 +104,68 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- image_bytes_ok(response.body, ext),
          :ok <- File.mkdir_p(storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
-         :ok <- File.write(file_path, response.body),
          {:ok, updated} <-
-           update_security_attributes(actor, security, ext, source, url_opts(url, source, opts)) do
+           write_then_record(
+             security,
+             file_path,
+             response.body,
+             Keyword.get(opts, :lock, false),
+             fn ->
+               update_security_attributes(
+                 actor,
+                 security,
+                 ext,
+                 source,
+                 url_opts(url, source, opts)
+               )
+             end
+           ) do
       delete_other_logo_files(security, storage_dir, ext)
       broadcast_logo_change(updated.id)
       {:ok, updated}
     end
+  end
+
+  # The fetched file goes to a temporary name first and replaces the stored
+  # one only under the row's lock, once the logo is known not to be locked
+  # against this write (the closing act): a discovery whose logo an override,
+  # an upload or a removal locked during its lookup leaves the logo
+  # directory as it was, and a file that cannot take the final name leaves
+  # the row as it was. The temporary name is the final one plus a fixed
+  # suffix in the same directory, so the rename is atomic and no
+  # user-controlled segment enters the path. `Catalog.put_logo_attributes/3`
+  # re-checks the lock under the same lock.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp write_then_record(security, file_path, body, sets_lock?, record) do
+    partial = file_path <> ".partial"
+
+    with :ok <- File.write(partial, body) do
+      try do
+        Repo.transaction(fn ->
+          with :ok <- unlocked_for(security, sets_lock?),
+               :ok <- File.rename(partial, file_path),
+               {:ok, updated} <- record.() do
+            updated
+          else
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
+      after
+        File.rm(partial)
+      end
+    end
+  end
+
+  # A write that does not itself decide the lock (a discovery) may not
+  # replace a locked logo; the row is read under its lock.
+  defp unlocked_for(_security, true), do: :ok
+
+  defp unlocked_for(%Security{id: id}, false) do
+    attributes =
+      Repo.one(from(s in Security, where: s.id == ^id, lock: "FOR UPDATE", select: s.attributes))
+
+    locked? = (attributes || %{})["logo_locked"] == true
+    if locked?, do: {:error, :locked}, else: :ok
   end
 
   # A manual override records the host its URL named (H61): the one fetch a
