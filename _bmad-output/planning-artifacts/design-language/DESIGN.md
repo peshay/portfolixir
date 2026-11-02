@@ -8064,3 +8064,29 @@ page lands.
   unvalued note (`#contribution-unvalued-note`) names rows the sum counted
   at zero: it clamps and never folds. Measured at 390 px: the panel spans
   x = 16 to 374.
+
+### Übersicht, as built
+
+- **The value card's note** (`#wealth-card-excluded`): it names what the
+  total leaves out, so it clamps and never folds; „Nicht in der Summe: …“
+  leads its text, and „Details in Vermögen →“ sits in its actions, visible
+  under the clamp. The view sentence stays in the text.
+- **Abgeschlossene Trades**: „Abgeschlossene Trades“ and the section's ⓘ
+  sit in `.section-title` inside `.section-head`, „Alle Trades →“ at its
+  end as before. The ⓘ holds „p. a. erst ab 365 Tagen Haltedauer und nur,
+  wo ein Zinssatz die Zahlungen löst“; the basis line keeps „Die 5 zuletzt
+  abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig
+  von der Ansicht“. The exclusion note (`#trades-card-excluded`) and the
+  load error clamp.
+- **Fällig**: „Fällig“ and its ⓘ in `.section-title`. The ⓘ holds „Ein als
+  Zeitraum oder Monat angegebener Termin gilt als fällig, sobald irgendein
+  Tag, auf den er fallen kann, im Horizont liegt.“; the basis line keeps
+  the set and the window.
+- **Ziel-Abweichungen** and the **KPI strip** do not change: their lines
+  are basis clauses, and the strip's already ends in its own ⓘ.
+- **Datenqualität**: the line (`#dashboard-dq-line`) clamps at its
+  severity and stays visible.
+
+Each split line's msgid is cut into one per clause; no translation changed.
+Measured on the review seed at 390 px: both section panels span x = 16 to
+374, and every note shows three lines with „mehr“.
