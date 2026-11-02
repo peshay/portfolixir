@@ -9,7 +9,7 @@ import { before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/server";
 
 import { MCP_PROFILES, type McpProfile } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
@@ -337,7 +337,8 @@ function assertConversation(conversation: Conversation, api: FakeApi, transport:
 // tool its profile leaves out, an unknown prompt, a request without its
 // params, a method the companion does not offer). The request asks for the
 // protocol version today's hosts send, so a host that changes nothing sees
-// nothing change.
+// nothing change. The move to v2 changed two of the refusals (an unknown
+// prompt, a tools/call without params), and contract entry 23 says how.
 //
 // The golden file is the agent's view: it changes only together with a
 // contract entry saying what an agent sees change. To rewrite it, run the

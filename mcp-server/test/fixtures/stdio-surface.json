@@ -6287,14 +6287,14 @@
       },
       "tools/call without params": {
         "error": {
-          "code": -32603,
-          "message": "[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"params\"\n    ],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  }\n]"
+          "code": -32602,
+          "message": "Invalid tools/call request: [\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"params\"\n    ],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  }\n]"
         }
       },
       "prompts/get an unknown prompt": {
         "error": {
           "code": -32602,
-          "message": "MCP error -32602: Prompt no_such_prompt not found"
+          "message": "Prompt no_such_prompt not found"
         }
       },
       "resources/list, not offered": {
