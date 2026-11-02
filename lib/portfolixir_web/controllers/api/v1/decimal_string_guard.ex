@@ -56,10 +56,6 @@ defmodule PortfolixirWeb.Api.V1.DecimalStringGuard do
   @suffixes ~w(_amount _price _rate _rates _withheld)
   @opaque_subtrees ~w(attributes)
 
-  @doc "The 422 message a refused field carries."
-  @spec message() :: String.t()
-  def message, do: @message
-
   @impl true
   def init(opts), do: opts
 
