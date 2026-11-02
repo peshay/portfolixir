@@ -472,15 +472,17 @@ The implementation session's state, ticked as each commit group lands on
 (the stacked PR). Lane Z was done by the planning session: polish trackers
 #1355 to #1366.
 
-Sprint PR:
+Sprint PR (#1367):
 
-- [ ] F1 #1345 · [ ] F2 #1268 · [ ] F3 #1273 · [ ] three green CI runs on Lane F's head
-- [ ] M: BMAD re-pin · [ ] #1346 · [ ] #1347 · [ ] #1348 · [ ] version report
-- [ ] R1 #1291 · [ ] R2 #1269 #1272 #1271 · [ ] R3 #1306 #1305 #1307 #1219
-- [ ] R4 #1313 · [ ] R5 #1310 #1311 #1317 · [ ] R6 #1292 #1290
-- [ ] R7 #1309 · [ ] R8 #1316 #1332 #1331 · [ ] R9 #1274 #1293
-- [ ] R10 #1335 #1337
-- [ ] closing act and its fixes · [ ] briefing · [ ] promotion
+- [x] F1 #1345 · [x] F2 #1268 (and the test configuration's search budget, the same class) · [x] F3 #1273 · [x] three green CI runs on Lane F's head (`4046548`, `13c7b13`, `14c70d7`, none re-run)
+- [x] M: [x] BMAD 6.12.4 · [ ] #1346 (declined with its findings) · [x] #1347 · [x] #1348 · [x] OTP 27.3.4.19 and bookworm 20261027 · [x] version report
+- [x] R1 #1291 · [x] R2 #1269 #1272 #1271 · [x] R3 #1306 #1305 #1307 #1219
+- [x] R4 #1313 · [x] R5 #1310 #1311 #1317 · [x] R6 #1292 #1290
+- [x] R7 #1309 · [x] R8 #1316 #1332 #1331 · [x] R9 #1274 #1293
+- [x] R10 #1335 #1337
+- [x] closing act (money and idempotency lens, correctness hunter, security lens, UAT persona) and its fixes · [x] briefing · [ ] promotion
+
+Filed by the closing act and the stories (ADR-0026's amendment of 2026-11-01): #1368 (S2), #1369 (S2), #1370 (S1), #1371 (S1, needs-decision); polish lines on #1355, #1364 and #1365.
 
 Stacked PR:
 
