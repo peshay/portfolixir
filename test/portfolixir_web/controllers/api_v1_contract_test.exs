@@ -118,8 +118,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert category_prices =~ "no_usable_price"
     assert category_prices =~ "(#1368; ADR-0010)"
 
-    # Every item belongs to one of the entry's stories.
-    assert length(params) == 3 + 2 + 1
+    # Sprint 23, R4 (#1369): the open lots of the trades read name the
+    # price they are valued at, the holdings read's rule. Its own item.
+    assert newest["summary"] =~ "Sprint 23, R4: "
+    assert newest["summary"] =~ "(#1369)"
+    assert [open_lots] = by_issue.("(#1369)")
+    assert String.starts_with?(open_lots, "GET /api/v1/securities/:security_id/trades")
+    assert open_lots =~ "price_source"
+    assert open_lots =~ "price_date"
+    assert open_lots =~ "computation_basis.latest_price"
+
+    # Every item belongs to one of the entry's stories: M1 three, R2 two,
+    # R3 one, R4 one.
+    assert length(params) == 3 + 2 + 1 + 1
 
     # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
     # outside K17's five delta reads echoes its limit and truncated. Dated

@@ -1108,8 +1108,10 @@ one booking, and `DELETE /api/v1/splits/:transaction_id`
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
 and in total — sale proceeds minus the FIFO purchase cost of the consumed
-lots, before fees, priced at the entered price (or the latest stored price
-until one is typed). The figure is indicative and not a net figure; booking
+lots, before fees, priced at the entered price (or, until one is typed, at
+the price the holdings use: the latest stored price or, with none, the last
+own trade price, which the preview names, "Priced at the last own trade
+price: 19.20 (2025-03-14).", issue #1369). The figure is indicative and not a net figure; booking
 the sale changes nothing about how the cost basis is stored (holdings keep
 their moving-average basis, the trades tab keeps the FIFO matching). Lots
 are matched first-in, first-out across all depots, split-scaled like the
@@ -2531,7 +2533,11 @@ portfolio total does (issue #1316): at the latest quote or, with none, at
 the last own trade price, with "at trade price" under the figure, so its
 rows add up to its **Total**. A position with no price at all reads "—"
 with "no price known", the total reads "—" rather than 0.00, and a note under
-the table names the rows the total leaves out. An open lot or a closed trade on no cost shows
+the table names the rows the total leaves out. The Trades tab's **Open
+positions (FIFO)** take the same price (issue #1369): a lot of a security
+without a quote reads its last own trade price under **Latest** with
+"Trade price · 2025-03-14" beneath it, and its unrealised P&L and returns
+are computed against it. An open lot or a closed trade on no cost shows
 the dash with "No return: no cost basis" in its "%" column, and so do the
 security's **Holdings** tab and Wealth's optional **P&L %** column for
 shares delivered in at no cost, such as a spin-off (issue #1142); a holding
