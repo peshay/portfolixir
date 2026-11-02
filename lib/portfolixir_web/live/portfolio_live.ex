@@ -2739,13 +2739,17 @@ defmodule PortfolixirWeb.PortfolioLive do
     {positions, base} = valuation_positions(valuation, socket)
 
     Enum.map(rows, fn row ->
-      base_value =
+      {base_value, reason} =
         case Map.fetch(positions, {row.securities_account_id, row.security_id}) do
-          {:ok, position} -> position.market_value
-          :error -> own_base_value(row, base)
+          {:ok, position} -> {position.market_value, Map.get(position, :unvalued_reason)}
+          :error -> {own_base_value(row, base), nil}
         end
 
-      Map.merge(row, %{base_market_value: base_value, base_market_currency: base})
+      Map.merge(row, %{
+        base_market_value: base_value,
+        base_market_currency: base,
+        base_unvalued_reason: reason
+      })
     end)
   end
 
@@ -2900,6 +2904,13 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp holdings_cell_note(%{latest_price: nil}, "latest_price"),
     do: gettext("no price · not in the total")
+
+  # The closing act (S3): a priced row whose market value is "—" because no
+  # exchange rate reaches the base currency says so, as the no-price row
+  # does; the valuation's own reason, so a row still waiting for the read
+  # carries no note.
+  defp holdings_cell_note(%{base_unvalued_reason: :missing_fx}, "market_value"),
+    do: gettext("no exchange rate · not in the total")
 
   defp holdings_cell_note(_row, _key), do: nil
 
