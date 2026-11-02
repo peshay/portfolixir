@@ -151,6 +151,7 @@ portfolios with new rows, and wants to pick among them. A comment naming
 | 02 ④ | no decline in the period | kein Rückgang im Zeitraum |
 | 03 ①, Hinweis | Booked in %{booking}, as imported — the security trades in %{security}, and this buy has no figure in %{security} yet. Saving keeps it in %{booking}. “Backfill historical rates” under Cash flow → “Trades” derives the figure. | In %{booking} gebucht, wie importiert — das Wertpapier notiert in %{security}, und dieser Kauf hat noch keinen Gegenwert in %{security}. Speichern lässt ihn in %{booking}. Den Gegenwert leitet „Historische Wechselkurse nachladen“ unter Cashflow → „Trades“ ab. |
 | 03 ②, group (`ngettext`) | Already imported into portfolio “%{portfolio}”: %{count} entries — not taken over | Bereits im Portfolio „%{portfolio}“ importiert: %{count} Einträge — nicht übernommen |
+| 03 ②, group taken over (`ngettext`, the closing act) | Already imported into portfolio “%{portfolio}”: %{count} entries — taken over | Bereits im Portfolio „%{portfolio}“ importiert: %{count} Einträge — werden übernommen |
 | 03 ②, toggle | Take over anyway | Trotzdem übernehmen |
 | 03 ②, toggle's consequence | books the %{count} entries a second time, in “%{target}”; “%{portfolio}” keeps its own. | bucht die %{count} Einträge ein zweites Mal, in „%{target}“; „%{portfolio}“ behält seine. |
 | 03 ②, mapping count | %{count} bookings imported into “%{portfolio}” | %{count} Buchungen in „%{portfolio}“ importiert |
