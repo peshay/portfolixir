@@ -1511,7 +1511,8 @@ Example quote sync response:
     itself where the position is);
     `absorbed`, a collapsed booking's cash leg that a later balance anchor
     of its cash account now absorbs, with the anchor's `transaction_id`,
-    `date` and `change`, as in a cash merge's preview) and
+    `date` and `change`, in the cash account's `currency_code`, as in a
+    cash merge's preview) and
     `other_depots` (each third depot a collapsed transfer names, per
     security, with `securities_account_name`, `security_name`,
     `quantity_before` and `quantity_after`: removing a transfer from it
