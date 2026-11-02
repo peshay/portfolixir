@@ -3166,6 +3166,14 @@ confirm. These rows are left out the same way, each named with its row:
   two same-day rows that differ only in it count as one booking. Write it as
   `09:15` or `09:15:00` and drop the file again; a row without a time, or
   with a blank one, imports as before.
+- **A CSV row whose time in `Datum` the parser cannot read** (issue #1370):
+  *unreadable time “9:15 AM”: use HH:MM:SS — row not imported*, for the
+  same reason. Write `Datum` as Portfolio Performance does,
+  `2025-03-03 09:15:00`, and drop the file again; a `Datum` without a time,
+  or with a blank one, imports as before, and so does every time the import
+  read before. A time without seconds, `09:15`, is refused too: the import
+  used to read it as no time, so a row imported from it earlier was stored
+  without one, and reading it now would book that row a second time.
 - **A JSON row whose currency Portfolixir does not support**, named as the
   file wrote it, in capitals: *currency “EURO” is not supported — row not
   imported* for the booking's currency, and *security currency “XEU” is not
