@@ -3482,6 +3482,16 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   Tages, die sich nur darin unterscheiden, als eine Buchung. Sie als `09:15`
   oder `09:15:00` schreiben und die Datei erneut ablegen; eine Zeile ohne
   Uhrzeit oder mit leerer wird wie bisher importiert.
+- **Eine CSV-Zeile, deren Uhrzeit in `Datum` der Parser nicht lesen kann**
+  (Issue #1370): *Uhrzeit „9:15 AM“ nicht lesbar: HH:MM:SS angeben — Zeile
+  nicht übernommen*, aus demselben Grund. `Datum` so schreiben, wie
+  Portfolio Performance es schreibt, `2025-03-03 09:15:00`, und die Datei
+  erneut ablegen; ein `Datum` ohne Uhrzeit oder mit leerer wird wie bisher
+  importiert, ebenso jede Uhrzeit, die der Import bisher gelesen hat. Eine
+  Uhrzeit ohne Sekunden, `09:15`, wird ebenfalls abgelehnt: Der Import las
+  sie bisher als keine Uhrzeit, eine früher daraus importierte Zeile ist
+  also ohne gespeichert, und sie jetzt zu lesen, buchte diese Zeile ein
+  zweites Mal.
 - **Eine JSON-Zeile, deren Währung Portfolixir nicht unterstützt**, benannt so,
   wie die Datei sie schreibt, in Großbuchstaben: *Währung „EURO“ wird nicht
   unterstützt — Zeile nicht übernommen* für die Währung der Buchung und

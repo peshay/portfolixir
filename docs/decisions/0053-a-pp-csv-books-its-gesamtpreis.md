@@ -1066,6 +1066,42 @@ same edit sends 816.00 unless the operator changes the field.
 write path, the drawer shows the derived figure read-only, and point 4's
 check still lists the rows edited before.
 
+## Note (2026-11-02): the refusal list gains the CSV time row
+
+Sprint 23's R1 (#1370; the plan of 2026-11-02, D-3: a note, not an
+amendment). The note of 2026-11-01 made a JSON v1 `time` the parser cannot
+read a row error (#1306). The CSV parser had the same defect: the time it
+reads from `Datum` after the date ("2025-03-03 09:15:00") was read as no
+time whenever it could not be parsed, so two same-day rows differing only
+in such a time shared one content hash (ADR-0029), and the second counted
+as already imported and was silently not booked.
+
+- **The refusal.** Such a row is now refused at the preview, "unreadable
+  time “9:15 AM”: use HH:MM:SS — row not imported" ("Uhrzeit „9:15 AM“
+  nicht lesbar: HH:MM:SS angeben — Zeile nicht übernommen"), and the rest
+  of the file previews and books. `PortfolioPerformance.csv_time_message/1`
+  names the value as `time_message/1` does.
+- **Its place** is with the date's checks: after the date (an implausible
+  or unreadable date is named first), before anything else of the row is
+  read. A row of an unknown type is named for its type, as before.
+- **No hash moves.** A `Datum` without a time, or with a blank one, is
+  still no time, and so is midnight. Every value read before reads as it
+  did: HH:MM:SS, with a fraction, a `T` before it or a zone after it (the
+  zone dropped, as before). The time and the digest of every such shape,
+  and of every row of the CSV fixtures, were pinned on the code before the
+  change (`CsvHashPinTest`).
+- **HH:MM stays unread**, and the wording therefore names one form where
+  JSON v1's names two. The CSV never read "09:45": it was no time, so a
+  row imported from such a file is stored with a hash without one, and
+  reading it now would book that row a second time on a re-drop. It is
+  refused like any other unreadable time. *To flip by comment:* "read
+  HH:MM", which moves the hash of every row stored from such a file and so
+  needs an amendment of its own.
+
+No booking that was correct changes, nothing is written, and no API or MCP
+surface changes: the import is an operator action, its preview without an
+`/api/v1` route or a tool (ADR-0029; the amendment of 2026-10-09).
+
 
 ## References
 
