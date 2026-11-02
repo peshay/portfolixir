@@ -166,6 +166,14 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.00"))
     assert Decimal.equal?(stored(buy.id).price, Decimal.new("80.00"))
 
+    # A blank field states no cash: the ledger's first refusal, which
+    # names buy/sell among the changes that need it.
+    submit(view, w, s, %{"gross_amount" => ""})
+
+    assert text(view, "#tx-error-gross_amount") ==
+             "ist anzugeben, wenn sich Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf " <>
+               "einer Buchung ändern, die ihren Betrag speichert"
+
     submit(view, w, s, %{"gross_amount" => "816,01"})
     assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("816.01"))
   end

@@ -68,8 +68,8 @@ defmodule Portfolixir.Ledger.StatedCash do
   @trade_types ["buy", "sell"]
   @figure_fields [:quantity, :price, :fees, :taxes]
 
-  @required_message "is required when quantity, price, fees or taxes change on a booking " <>
-                      "that stores its cash"
+  @required_message "is required when quantity, price, fees, taxes or buy/sell change on a " <>
+                      "booking that stores its cash"
   @mismatch_message "does not match quantity × price, fees and taxes — expected %{expected}"
 
   @doc "The four fields whose change requires the cash to be stated."

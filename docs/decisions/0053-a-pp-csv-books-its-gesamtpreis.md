@@ -1095,7 +1095,9 @@ listed. Of the identity's readings, the cash projection and the lot read
 816.00 while the holding's cost reads 810.00, quantity × price with the fees
 and taxes left out as holdings always read it (`Ledger`, ADR-0033), so "all
 read 816.00" above holds for the cash and the lot, not for the holding's
-cost. No decision changes.
+cost. The refusal's wording names the kind since the closing act too: "is
+required when quantity, price, fees, taxes or buy/sell change on a booking
+that stores its cash". No decision changes.
 
 ## Note (2026-11-02): the refusal list gains the CSV time row
 

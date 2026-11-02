@@ -10,7 +10,7 @@ defmodule Portfolixir.Ledger.StatedCashTest do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
-  @required "is required when quantity, price, fees or taxes change on a booking that stores its cash"
+  @required "is required when quantity, price, fees, taxes or buy/sell change on a booking that stores its cash"
 
   # Synthetic figures only: an imported buy, 10 at 80.00 EUR, fees 5.00,
   # taxes 1.00, its cash 806.00 as the file stated it.

@@ -13,7 +13,7 @@ defmodule PortfolixirWeb.ApiV1StatedCashTest do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
-  @required "is required when quantity, price, fees or taxes change on a booking that stores its cash"
+  @required "is required when quantity, price, fees, taxes or buy/sell change on a booking that stores its cash"
 
   # Every field a booking stores that a refused PATCH could move.
   @figures [

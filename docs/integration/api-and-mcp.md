@@ -1736,8 +1736,8 @@ Example account payloads:
   keeps its cash with its figures (ADR-0053, amendment of 2026-11-02,
   #1371): an update that changes its `quantity`, `price`, `fees` or
   `taxes`, or its `type` between buy and sell, must state `gross_amount` too, or it answers 422 on `errors.gross_amount`
-  ("is required when quantity, price, fees or taxes change on a booking
-  that stores its cash"); the stated cash must agree with quantity × price
+  ("is required when quantity, price, fees, taxes or buy/sell change on a
+  booking that stores its cash"); the stated cash must agree with quantity × price
   plus fees and taxes on a buy, less them on a sale, or it answers 422
   "does not match quantity × price, fees and taxes — expected <amount>".
   Agree means: both sides rounded to two places, as ADR-0053 §2 compares an

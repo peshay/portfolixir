@@ -1881,8 +1881,8 @@ Beispiel-Payloads für Konten:
   `quantity`, `price`, `fees` oder `taxes` oder des `type` zwischen Kauf
   und Verkauf muss auch `gross_amount` angeben,
   sonst antwortet die API mit 422 auf `errors.gross_amount` ("is required
-  when quantity, price, fees or taxes change on a booking that stores its
-  cash"); der angegebene Betrag muss zu Menge × Kurs plus Gebühren und
+  when quantity, price, fees, taxes or buy/sell change on a booking that
+  stores its cash"); der angegebene Betrag muss zu Menge × Kurs plus Gebühren und
   Steuern bei einem Kauf, abzüglich bei einem Verkauf, passen, sonst
   antwortet sie mit 422 "does not match quantity × price, fees and taxes —
   expected <Betrag>". Passen heißt: beide Seiten auf zwei Stellen gerundet,

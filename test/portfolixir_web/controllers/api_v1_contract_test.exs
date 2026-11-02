@@ -105,8 +105,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "does not state gross_amount"
 
     assert stated_cash =~
-             "is required when quantity, price, fees or taxes change on a booking that " <>
-               "stores its cash"
+             "is required when quantity, price, fees, taxes or buy/sell change on a " <>
+               "booking that stores its cash"
 
     assert stated_cash =~ ~s(expected <amount>"], 816.00 in the example)
     assert stated_cash =~ "(#1371; ADR-0053, amendment of 2026-11-02)"
