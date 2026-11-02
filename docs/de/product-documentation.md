@@ -1106,8 +1106,8 @@ Typ-Liste hält nur, was ein Verrechnungskonto allein bucht — Zinsen,
 Einlage, Entnahme, Gebühren, Steuern und Steuererstattung; Käufe, Verkäufe
 und Dividenden brauchen ein Depot und ein Wertpapier und fehlen deshalb.
 Die Zeile über der Historie sagt es: „Käufe und Verkäufe brauchen ein
-Depot. Einlagen, Entnahmen, Zinsen, Gebühren und Steuern bucht ein
-Verrechnungskonto allein.“
+Depot. Einlagen, Entnahmen, Zinsen, Gebühren, Steuern und
+Steuererstattungen bucht ein Verrechnungskonto allein.“
 
 **Die Arten, die die Schublade nicht bucht** (Issue #912): Die Schublade
 erfasst und korrigiert Käufe, Verkäufe und die Kontobuchungen oben.

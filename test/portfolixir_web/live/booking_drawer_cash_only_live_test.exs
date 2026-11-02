@@ -72,7 +72,7 @@ defmodule PortfolixirWeb.BookingDrawerCashOnlyLiveTest do
     assert has_element?(
              view,
              "#transaction-setup-empty p",
-             "Buys and sells need a depot. Deposits, removals, interest, fees and taxes book on a cash account alone."
+             "Buys and sells need a depot. Deposits, removals, interest, fees, taxes and tax refunds book on a cash account alone."
            )
 
     assert has_element?(view, "#transaction-setup-empty a[href='/portfolios']")
@@ -82,7 +82,7 @@ defmodule PortfolixirWeb.BookingDrawerCashOnlyLiveTest do
     assert has_element?(
              de,
              "#transaction-setup-empty p",
-             "Käufe und Verkäufe brauchen ein Depot. Einlagen, Entnahmen, Zinsen, Gebühren und Steuern bucht ein Verrechnungskonto allein."
+             "Käufe und Verkäufe brauchen ein Depot. Einlagen, Entnahmen, Zinsen, Gebühren, Steuern und Steuererstattungen bucht ein Verrechnungskonto allein."
            )
 
     assert has_element?(de, "#open-booking", "Transaktion erfassen")
