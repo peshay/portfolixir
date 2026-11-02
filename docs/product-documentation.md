@@ -2565,7 +2565,9 @@ same way — an interest payment booked with withheld tax shows gross = net +
 tax, one booked without tax shows gross equal to net — and is tracked as its
 own series next to dividends. A coupon that
 names its bond, as an import of a Portfolio Performance file now stores it,
-is that bond's row in the per-position table and in "Top contributors";
+is that bond's row in the per-position table and in "Top contributors"
+(which ranks each security once, its currencies summed in the base
+currency);
 interest that names no security shares the row "Interest". The matrix, the
 bars and the totals split by kind and stay the same. Clicking a year
 opens the per-transaction detail for that year.
@@ -2598,8 +2600,10 @@ a date before the first stored rate — is in no figure: an attention note
 above the annual overview names how many, their currency and security, and
 offers the historical backfill; the drilled year's payments still list it in
 its own currency, with "—" and "not convertible" under the converted net. A
-year whose payments all lack a rate keeps its year, at 0.00, so it can be
-drilled (#1293); the note names an interest payment that names no security
+year whose payments all lack a rate keeps its year, labelled "—" with the
+count of its unconverted payments, so it can be drilled (#1293), and
+"Per position" then says the payments could not be converted instead of
+"nothing booked"; the note names an interest payment that names no security
 as "Interest". The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.

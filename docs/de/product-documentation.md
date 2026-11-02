@@ -2823,7 +2823,8 @@ Brutto = Netto + Steuer, eine ohne Steuer gebuchte Brutto gleich Netto — und
 werden als eigene Reihe neben Dividenden geführt. Ein Kupon,
 der seine Anleihe nennt, wie ihn ein Import einer Portfolio-Performance-Datei
 jetzt speichert, ist die Zeile dieser Anleihe in der Pro-Position-Tabelle und
-in „Top-Beiträge“; Zinsen ohne Wertpapier teilen sich die Zeile „Zinsen“.
+in „Top-Beiträge“ (das jedes Wertpapier einmal führt, seine Währungen in
+der Basiswährung summiert); Zinsen ohne Wertpapier teilen sich die Zeile „Zinsen“.
 Matrix, Balken und Summen trennen nach Art und bleiben gleich. Ein Klick auf
 ein Jahr öffnet das Detail je Transaktion für dieses Jahr.
 
@@ -2861,8 +2862,10 @@ der Jahresübersicht nennt, wie viele, ihre Währung und ihr Wertpapier, und
 bietet das Nachladen der historischen Wechselkurse an; die Zahlungen des aufgeklappten
 Jahres listen sie weiter in ihrer eigenen Währung, mit „—“ und „ohne
 Umrechnung“ unter dem umgerechneten Netto. Ein Jahr, dessen Zahlungen alle
-keinen Wechselkurs haben, behält sein Jahr, mit 0,00, und lässt sich
-aufklappen (#1293); der Hinweis nennt eine Zinszahlung ohne Wertpapier
+keinen Wechselkurs haben, behält sein Jahr, beschriftet mit „—“ und der
+Zahl seiner nicht umgerechneten Zahlungen, und lässt sich aufklappen
+(#1293), und „Je Position“ sagt dann, dass die Zahlungen nicht umgerechnet
+werden konnten, statt „noch nichts gebucht“; der Hinweis nennt eine Zinszahlung ohne Wertpapier
 „Zinsen“.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.

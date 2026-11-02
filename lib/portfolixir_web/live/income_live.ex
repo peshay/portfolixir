@@ -263,7 +263,7 @@ defmodule PortfolixirWeb.IncomeLive do
       assigns
       |> assign(:months, @months)
       |> assign(:income_bars, income_bars(assigns.income.annual))
-      |> assign(:top_contributors, Enum.take(assigns.income.positions, 5))
+      |> assign(:top_contributors, top_contributors(assigns.income.positions))
 
     ~H"""
     <AppShell.shell
@@ -1131,7 +1131,22 @@ defmodule PortfolixirWeb.IncomeLive do
                   aria-pressed={to_string(@selected_year == bar.year)}
                 >
                   <strong><%= bar.year %></strong>
-                  <span><%= if bar.empty?, do: "–", else: money(bar.total) %></span>
+                  <%!-- #1293: a year whose payments are all unconverted
+                        has no figure; a dash titled with its count, never
+                        a bare 0.00 that reads as "no income". --%>
+                  <span
+                    :if={bar.unconverted_only?}
+                    title={
+                      ngettext(
+                        "%{count} payment not convertible — in no total",
+                        "%{count} payments not convertible — in no total",
+                        bar.excluded_count
+                      )
+                    }
+                  >—</span>
+                  <span :if={not bar.unconverted_only?}>
+                    <%= if bar.empty?, do: "–", else: money(bar.total) %>
+                  </span>
                 </button>
               </div>
               </div>
@@ -1350,9 +1365,21 @@ defmodule PortfolixirWeb.IncomeLive do
 
         <section id="income-positions" class="workspace-section">
           <h2><%= gettext("Per position") %></h2>
-          <%= if @income.positions == [] do %>
+          <%= cond do %>
+            <% @income.positions == [] and @income.excluded.count > 0 -> %>
+            <%!-- #1293: every payment lacks a rate, so no row has a figure;
+                 the attention note above names the payments. --%>
+            <p class="empty-state">
+              <%= ngettext(
+                "%{count} payment could not be converted to %{currency}, so no position has a figure — the note above names it.",
+                "%{count} payments could not be converted to %{currency}, so no position has a figure — the note above names them.",
+                @income.excluded.count,
+                currency: @income.base_currency
+              ) %>
+            </p>
+            <% @income.positions == [] -> %>
             <p class="empty-state"><%= gettext("No dividends or interest booked yet.") %></p>
-          <% else %>
+            <% true -> %>
             <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
                  owns its scroller. Without one the months are clipped by
                  .workspace-page and the sticky total column renders on top of
@@ -1425,6 +1452,23 @@ defmodule PortfolixirWeb.IncomeLive do
     """
   end
 
+  # #1274's review: "Top contributors" ranks securities, not position rows.
+  # A security paid in two currencies has a row per currency; its entries
+  # are summed in the base currency (converted rows only) into one.
+  defp top_contributors(positions) do
+    positions
+    |> Enum.group_by(& &1.security_id)
+    |> Enum.map(fn {_security_id, [first | _] = rows} ->
+      %{
+        security_name: first.security_name,
+        gross: Enum.reduce(rows, Decimal.new(0), &Decimal.add(&2, &1.gross)),
+        net: Enum.reduce(rows, Decimal.new(0), &Decimal.add(&2, &1.net))
+      }
+    end)
+    |> Enum.sort_by(& &1.gross, {:desc, Decimal})
+    |> Enum.take(5)
+  end
+
   defp income_bars([]), do: []
 
   defp income_bars(annual) do
@@ -1438,6 +1482,8 @@ defmodule PortfolixirWeb.IncomeLive do
           %{
             year: year,
             empty?: true,
+            unconverted_only?: false,
+            excluded_count: 0,
             total: Decimal.new(0),
             dividends: Decimal.new(0),
             interest: Decimal.new(0),
@@ -1458,6 +1504,9 @@ defmodule PortfolixirWeb.IncomeLive do
           %{
             year: year,
             empty?: false,
+            unconverted_only?:
+              row.excluded_count > 0 and Format.displayed_sign(row.total, 2) == :zero,
+            excluded_count: row.excluded_count,
             total: row.total,
             dividends: row.dividends_total,
             interest: row.interest_total,
