@@ -95,6 +95,11 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
   # The fields the drawer sends on save, as the browser would: the form's
   # inputs and selected options, overlaid with what the operator typed.
   defp submit(view, w, usd, overrides) do
+    params = form_params(view, w, usd, overrides)
+    view |> element("#transaction-form") |> render_submit(%{"transaction" => params})
+  end
+
+  defp form_params(view, w, usd, overrides) do
     hidden =
       view
       |> form_inputs()
@@ -104,18 +109,15 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
       end)
       |> Map.new()
 
-    params =
-      hidden
-      |> Map.merge(%{
-        "type" => "buy",
-        "date" => "2026-04-15",
-        "securities_account_id" => to_string(w.depot.id),
-        "security_id" => to_string(usd.id),
-        "notes" => ""
-      })
-      |> Map.merge(overrides)
-
-    view |> element("#transaction-form") |> render_submit(%{"transaction" => params})
+    hidden
+    |> Map.merge(%{
+      "type" => "buy",
+      "date" => "2026-04-15",
+      "securities_account_id" => to_string(w.depot.id),
+      "security_id" => to_string(usd.id),
+      "notes" => ""
+    })
+    |> Map.merge(overrides)
   end
 
   defp api_row(api, id) do
@@ -138,8 +140,9 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
   # - Saving without a change, or with a note, changes no stored figure:
   #   currency, quantity, price, fees, taxes, cash and the three legs are
   #   exactly as stored; the API's read differs in the note only.
-  # - A price edit to 81 that states no cash changes nothing (ADR-0053,
-  #   amendment of 2026-11-02).
+  # - A price edit to 81 stores 81.00 EUR and the cash the drawer prefills,
+  #   816.00 EUR, every other figure unchanged (ADR-0053, amendment of
+  #   2026-11-02: an edit of the figures states the cash).
   # - After the rate backfill the same row opens with its legs.
   test "L1: a legless cross-currency buy is corrected in the currency it is stored in",
        %{conn: conn, world: w, usd: usd, legless: tx, api: api} do
@@ -177,12 +180,28 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
     drop = &Map.drop(&1, ["notes", "updated_at", "inserted_at"])
     assert drop.(api_row(api, tx.id)) == drop.(api_before)
 
-    # A price edit to 81 that states no cash is refused (ADR-0053,
-    # amendment of 2026-11-02): nothing moves until the cash is stated.
+    # A price edit to 81 (ADR-0053, amendment of 2026-11-02): the drawer
+    # shows the cash it stores, in EUR, prefills it with what the new
+    # figures give, and the save states it: 81.00 EUR and 816.00 EUR.
     view = open_edit(conn, tx.id)
+    assert has_element?(view, "#transaction-form label span", "Betrag (EUR)")
+    assert form_inputs(view)["transaction[gross_amount]"] == "806"
+
+    render_change(view, "form_changed", %{
+      "_target" => ["transaction", "price"],
+      "transaction" => form_params(view, w, usd, %{"price" => "81"})
+    })
+
+    assert form_inputs(view)["transaction[gross_amount]"] == "816,00"
     submit(view, w, usd, %{"price" => "81"})
 
-    assert figures(tx.id) == stored
+    corrected = Repo.get!(Transaction, tx.id)
+    assert corrected.currency_code == "EUR"
+    assert Decimal.equal?(corrected.price, Decimal.new("81.00"))
+    assert Decimal.equal?(corrected.gross_amount, Decimal.new("816.00"))
+
+    assert Map.drop(figures(tx.id), [:price, :gross_amount]) ==
+             Map.drop(stored, [:price, :gross_amount])
 
     # After the rate backfill the same row opens with its legs: the importer's
     # account-currency form, no Hinweis.
@@ -201,8 +220,11 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
 
     backfilled = Repo.get!(Transaction, tx.id)
     assert backfilled.currency_code == "EUR"
-    assert Decimal.equal?(backfilled.settlement_amount, Decimal.new("800.00"))
-    assert Decimal.equal?(backfilled.security_amount, Decimal.new("1000.00"))
+    # The legs are read off the stated cash: 816.00 − 6.00 = 810.00 EUR, at
+    # 1.25 USD per EUR 1012.50 USD (with the cash left at 806.00 they read
+    # 800.00 against a price of 81.00).
+    assert Decimal.equal?(backfilled.settlement_amount, Decimal.new("810.00"))
+    assert Decimal.equal?(backfilled.security_amount, Decimal.new("1012.50"))
 
     view = open_edit(conn, tx.id)
     refute has_element?(view, ~s([data-role="legless-booking"]))

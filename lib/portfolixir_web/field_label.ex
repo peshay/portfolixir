@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.FieldLabel do
   """
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.NamedRecordRefusal
 
   @spec label(atom() | String.t()) :: String.t()
@@ -107,11 +108,19 @@ defmodule PortfolixirWeb.FieldLabel do
   message that names another field (`%{field}`, e.g. "must differ from
   %{field}") names it by its label. A refusal that names another record
   reads the sentence the screen keeps for it (#965,
-  `PortfolixirWeb.NamedRecordRefusal`).
+  `PortfolixirWeb.NamedRecordRefusal`). A figure bound as a `Decimal` is
+  written in the page's notation (#1371: "erwartet 816,00"); the API reads
+  the same binding as "816.00".
   """
   @spec translate_error({String.t(), keyword()}) :: String.t()
   def translate_error(error) do
     {message, opts} = NamedRecordRefusal.screen(error)
+
+    opts =
+      Enum.map(opts, fn
+        {key, %Decimal{} = figure} -> {key, DecimalInput.value(figure)}
+        other -> other
+      end)
 
     opts =
       case opts[:field] do
