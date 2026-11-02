@@ -91,23 +91,33 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp load_facet(socket), do: socket
 
-  attr(:backfilling, :boolean, required: true)
-  attr(:result, :any, default: nil)
-
   # The remedy control inside the exclusion note (UX-DR25: no dead control;
   # UX-DR26: the limit that remains is stated). The daily sync cannot fill a
   # past date; the backfill fetches the whole published ECB series once and
   # derives from it the legs imported buys and sells lack (#1196). A
   # date the ECB never published (a weekend, an unlisted currency) stays
   # excluded and named — the rule is unchanged, only the dates are filled.
+  #
+  # I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ③): the reason
+  # the remedy can or cannot act stays in the note's text and clamps with
+  # it (`fx_backfill_reason/1`); the button and its status sit in the note's
+  # actions, visible under the clamp.
+  defp fx_backfill_reason(assigns) do
+    ~H"""
+    <span class="muted" data-role="fx-backfill-reason">
+      <%= gettext(
+        "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
+      ) %>
+    </span>
+    """
+  end
+
+  attr(:backfilling, :boolean, required: true)
+  attr(:result, :any, default: nil)
+
   defp fx_backfill_control(assigns) do
     ~H"""
     <div class="fx-backfill" data-role="fx-backfill">
-      <span class="muted">
-        <%= gettext(
-          "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
-        ) %>
-      </span>
       <button
         type="button"
         id="fx-backfill-button"
@@ -331,6 +341,11 @@ defmodule PortfolixirWeb.IncomeLive do
                     "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet. Each sale converted to %{currency} via the EUR hub at the rate stored on its own close date; a sale with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @realized.base_currency
                   ) %>
+                  <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1
+                       ①): the trades list's method clauses, under the
+                       facet's text after a blank line, one per line. --%>
+                  <br /><br /><%= gettext("Deliveries open no lot") %>
+                  <br /><%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %>
                 </p>
               </details>
             </div>
@@ -353,6 +368,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 severity={:attention}
                 id="realized-excluded"
                 data-role="realized-excluded"
+                clamp
               >
                 <%!-- #1198 (board 09, pick N8 A): a sale whose lot has no
                      leg in its currency is named in a reason sentence of its
@@ -452,10 +468,10 @@ defmodule PortfolixirWeb.IncomeLive do
                     securities: &1
                   )
                 ) %></span>
-                <.fx_backfill_control
-                  backfilling={@fx_backfilling}
-                  result={@fx_backfill_result}
-                />
+                <.fx_backfill_reason />
+                <:actions>
+                  <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
+                </:actions>
               </AppShell.data_note>
             <% end %>
 
@@ -470,6 +486,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 severity={:attention}
                 id="realized-unmatched"
                 data-role="realized-unmatched"
+                clamp
               >
                 <%!-- The unmatched quantity, not the sale: a sale larger
                      than the shares bought keeps its matched part as a
@@ -479,6 +496,7 @@ defmodule PortfolixirWeb.IncomeLive do
                   "%{count} sales have no matched buy for all or part of their quantity (shares from inbound deliveries, for example): that quantity is not included in the three figures, the rows or the matrix.",
                   @realized.unmatched_sells.count
                 ) %>
+                <:actions>
                 <details class="perf-table-disclosure" data-role="realized-unmatched-list">
                   <summary class="disclosure-summary">
                     <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
@@ -494,6 +512,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     </li>
                   </ul>
                 </details>
+                </:actions>
               </AppShell.data_note>
             <% end %>
 
@@ -719,8 +738,10 @@ defmodule PortfolixirWeb.IncomeLive do
               class="summary-basis"
               data-role="trades-basis"
             >
+              <%!-- I1 (#1351, board 01 ②): the gross/net clauses stay; the
+                   method clauses are in the facet's ⓘ (①). --%>
               <%= gettext(
-                "Deliveries open no lot · fees and taxes in cost and proceeds · income received while a trade was open not included · p. a. only from 365 days of holding and only where a rate solves the flows"
+                "fees and taxes in cost and proceeds · income received while a trade was open not included"
               ) %>
             </p>
           </section>
@@ -802,6 +823,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 severity={:attention}
                 id="flows-excluded"
                 data-role="flows-excluded"
+                clamp
               >
                 <%= ngettext(
                   "%{count} flow could not be converted — no stored rate at its booking date — and is excluded from every total. Affected account: %{accounts}.",
@@ -810,10 +832,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   count: @flows.excluded.count,
                   accounts: Enum.join(@flows.excluded.accounts, ", ")
                 ) %>
-                <.fx_backfill_control
-                  backfilling={@fx_backfilling}
-                  result={@fx_backfill_result}
-                />
+                <.fx_backfill_reason />
+                <:actions>
+                  <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
+                </:actions>
               </AppShell.data_note>
             <% end %>
             <%= if @flows.annual == [] do %>
@@ -891,6 +913,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 severity={:attention}
                 id="costs-excluded"
                 data-role="costs-excluded"
+                clamp
               >
                 <%= ngettext(
                   "%{count} cost could not be converted — no stored rate at its booking date — and is excluded from every total. Affected currency: %{currencies}.",
@@ -899,10 +922,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   count: @costs.excluded.count,
                   currencies: Enum.join(@costs.excluded.currencies, ", ")
                 ) %>
-                <.fx_backfill_control
-                  backfilling={@fx_backfilling}
-                  result={@fx_backfill_result}
-                />
+                <.fx_backfill_reason />
+                <:actions>
+                  <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
+                </:actions>
               </AppShell.data_note>
             <% end %>
             <%= if @costs.annual == [] do %>
@@ -991,7 +1014,12 @@ defmodule PortfolixirWeb.IncomeLive do
              facets name theirs. The drilled year's payments keep it, in its
              own currency. --%>
         <section :if={@income.excluded.count > 0} class="workspace-section">
-          <AppShell.data_note severity={:attention} id="income-excluded" data-role="income-excluded">
+          <AppShell.data_note
+            severity={:attention}
+            id="income-excluded"
+            data-role="income-excluded"
+            clamp
+          >
             <%= ngettext(
               "%{count} payment could not be converted — no stored exchange rate to %{currency} on or before its booking date — and is excluded from every total. Affected currency: %{currencies}.",
               "%{count} payments could not be converted — no stored exchange rate to %{currency} on or before their booking dates — and are excluded from every total. Affected currencies: %{currencies}.",
@@ -1000,7 +1028,10 @@ defmodule PortfolixirWeb.IncomeLive do
               currency: @income.base_currency,
               currencies: excluded_currencies(@income.excluded.currencies)
             ) %>
-            <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
+            <.fx_backfill_reason />
+            <:actions>
+              <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
+            </:actions>
           </AppShell.data_note>
         </section>
 
