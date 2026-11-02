@@ -1961,9 +1961,11 @@ defmodule Portfolixir.Imports.Applier do
   defp resolve_and_insert(entry, import_hash, refs, state) do
     case resolve_security(entry, state) do
       # A surfaced-but-undecided security (§2 fail closed): the entry is
-      # reported in `unresolved_entries` and creates nothing.
+      # reported in `unresolved_entries` and creates nothing. A row another
+      # portfolio already holds (#1313) is held back whatever its security's
+      # state: it books nothing either way, so it needs no decision.
       {:skip, state} ->
-        {:ok, state}
+        {:ok, hold_back_unresolved(state, entry)}
 
       {:ok, state, security_id} ->
         ids = Map.put(refs, :security_id, security_id)
@@ -1978,6 +1980,17 @@ defmodule Portfolixir.Imports.Applier do
         error
     end
   end
+
+  defp hold_back_unresolved(%{held_back_hit: other_id} = state, entry)
+       when is_integer(other_id) do
+    state
+    |> Map.update!(:result, fn %Result{unresolved_entries: [_this_row | rest]} = r ->
+      %Result{r | unresolved_entries: rest}
+    end)
+    |> record_held_back(entry, other_id)
+  end
+
+  defp hold_back_unresolved(state, _entry), do: state
 
   # ADR-0050 §4: an ambiguous name is never guessed. The row passed the hash
   # check, so it needs the name, and the apply refuses it unmapped.
