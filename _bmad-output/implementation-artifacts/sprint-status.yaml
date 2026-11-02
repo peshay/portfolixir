@@ -72,8 +72,9 @@ story_location: _bmad-output/implementation-artifacts
 # - #1367's head d715e76 with CI green; Lane F's three green runs on
 #   4046548, 13c7b13 and 14c70d7, none re-run;
 # - the stacked PR's branch at d4c6156 before these records.
-#   TODO(closing act): the stacked PR's head and its CI run once its
-#   closing act's last fixes land.
+#   The stacked PR's closing-act fixes and these records follow on the
+#   same branch; their head is pushed only after every Required Local
+#   Check passes on it, and its CI run is recorded in #1372's body.
 #
 # WHAT CLOSES, by the two PRs' keywords (39, one "Closes" line per issue,
 # as Sprint 21's retrospective carried forward):
@@ -120,22 +121,25 @@ story_location: _bmad-output/implementation-artifacts
 #      #1254, #1294, #1295, #1299, #1301, #1315, #1330, #1333, #1336,
 #      #1343). A4 (#957) was built at its smallest, not cut.
 #   3. The built screens match boards 01 to 03, by the design critic at
-#      390 and 1200 px, light and dark, in German: PENDING. The design
-#      critic for boards 02 and 03 ran in the stacked PR's closing act,
-#      beside board 01's Lane I pages.
-#      TODO(closing act): the design critic's result per board (01, 02,
-#      03), with the fixes it named.
+#      390 and 1200 px, light and dark, in German: PASS after fixes. The
+#      design critic ran in the stacked PR's closing act over both PRs'
+#      screens: board 02 matches; board 03 matches (the legless note
+#      follows DESIGN.md's amended wording); board 01 matches except one
+#      regression, a note naming several excluded groups that clamped
+#      every count after the first, fixed so the note opens with all its
+#      counts. Not seen for lack of seed data: #1331's Brutto with a
+#      withheld tax and #1219's "bereits gebucht" (both pinned by tests,
+#      and #1219 walked by the sprint PR's UAT persona).
 #   4. The regressions this sprint introduced are counted apart from the
 #      older findings, and none is an S1 at promotion: PASS on #1367 (8,
-#      none S1); the stacked PR's four so far are S3.
-#      TODO(closing act): the design critic's and the UAT persona's
-#      regressions on the stacked PR, and confirm none is an S1.
+#      none S1); on #1372, 6 (1 S2, 5 S3), none S1, all fixed.
 #   5. The flake is gone, no PR head needs a re-run: PASS on #1367. Lane
 #      F's head went green three times in a row, none re-run (4046548,
 #      13c7b13, 14c70d7). The one red run of the sprint, pre-commit on
 #      36d1fda, was a real defect (a German catalogue without its final
 #      newline), fixed by the next push, not by a re-run.
-#      TODO(closing act): the stacked PR's head green without a re-run.
+#      #1372's heads 98086fd, 0a4009a and d4c6156 went green with no
+#      re-run.
 #
 # THE TWO COUNTS (the sprint workflow §3; ADR-0026, amendment of
 # 2026-11-01):
@@ -153,8 +157,12 @@ story_location: _bmad-output/implementation-artifacts
 #     links and the cash-only sentence omitted tax refunds (the
 #     correctness hunter); the zero-drawdown rule read the rounded value
 #     and an absorbed flow's currency_code was null (the agent's lens).
-#     TODO(closing act): add the design critic's and the UAT persona's
-#     regressions to this count.
+#     The design critic and UAT persona added three: a note naming
+#     several excluded groups clamped the counts after the first (S2); an
+#     opened fold still read "Details anzeigen" (S3); and, older, on the
+#     sprint PR's R8 surface, a Marktwert dash for a missing exchange rate
+#     had no cell note (S3, counted with the older findings). Stacked PR
+#     regressions: 6 (1 S2, 5 S3).
 # - OLDER FINDINGS, by severity:
 #   - S1, filed: #1370 (a CSV time the parser cannot read folds rows);
 #     #1371 (needs-decision: the drawer's price edit keeps an imported
@@ -185,15 +193,17 @@ story_location: _bmad-output/implementation-artifacts
 #   4. Lane Z done and recorded: the twelve polish trackers #1355 to
 #      #1366, written by the planning session, with the 53 hand closes
 #      and the seven closes with their evidence (the plan's D-4).
-#      TODO(closing act): confirm through the API that the 53 S3 closes
-#      and the seven evidence closes are closed.
+#      Confirmed on 2026-11-02 through the API: 70 issues open, the 66
+#      the plan counted after Lane Z plus the four this sprint filed
+#      (#1368 to #1371), so Lane Z's 60 closes stand.
 #   5. A calendar release per merge: PENDING (the post-merge note).
 #      Contract entries 21 and 22 name what an agent sees change: PASS.
 #   6. The schema budget's ceilings no higher than Sprint 21's (102,909 /
 #      171,980 / 206,535 bytes, read, book and full): PASS, measured
 #      102,887 / 171,958 / 206,513; the stacked PR's closing act lowers
 #      the ceilings to the measured values in its last commit.
-#      TODO(closing act): the commit that lowers the ceilings.
+#      Done: "chore(mcp)" on #1372 records a 2026-11-02 ceiling row at
+#      the measured values, 102,887 / 171,958 / 206,513.
 #   7. The surface check: below.
 #   8. The two counts: above.
 #
@@ -258,8 +268,8 @@ story_location: _bmad-output/implementation-artifacts
 # OPEN ISSUES, REPORTED, NOT JUDGED (D-1: no criterion counts them): the
 # plan counted 66 after Lane Z and about 27 after this sprint's keywords
 # close its 39; the sprint filed four (#1368 to #1371).
-# TODO(closing act): the open-issue count read through the API at this
-# record.
+# Read through the API on 2026-11-02: 70 open (66 after Lane Z plus the
+# four filed). After both merges' keywords close their 39: 31.
 #
 # THE OWNER'S QUESTIONS: #1371 (needs-decision, recommended (b)); the
 # merges.
