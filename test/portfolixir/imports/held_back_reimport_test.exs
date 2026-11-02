@@ -306,4 +306,34 @@ defmodule Portfolixir.Imports.HeldBackReimportTest do
     assert Enum.count(result.held_back_entries, &(not &1.companion)) == 1
     assert booked(main) == []
   end
+
+  # User story (#1313, the closing act):
+  # As the operator whose file is already in "Anleihen" while its security
+  # still waits for my decision,
+  # I want those rows counted as held back, not as unresolved,
+  # so that the done page tells me they are imported elsewhere.
+  #
+  # Acceptance criteria:
+  # - With the stored security's ISIN changed since, the file's rows on it
+  #   need a decision (a stronger-identifier veto), and the confirm holds all
+  #   four rows back; none is unresolved.
+  test "a held-back row whose security still needs a decision counts as held back", %{
+    main: main,
+    bonds: bonds
+  } do
+    import_into!(@coupons, bonds)
+
+    security = Portfolixir.Repo.get_by!(Portfolixir.Catalog.Security, isin: "XSLARKSPUR33")
+
+    {:ok, _changed} =
+      Portfolixir.Catalog.update_security(Actor.owner_ui(), security, %{isin: "XSLARKSPUR90"})
+
+    preview = parse!(@coupons)
+
+    assert {:ok, %Result{} = result} = page_apply(preview)
+    assert result.created_transactions == 0
+    assert result.unresolved_entries == []
+    assert length(result.held_back_entries) == 4
+    assert booked(main) == []
+  end
 end
