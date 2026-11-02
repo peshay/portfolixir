@@ -635,8 +635,10 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
   #   places they are shown at (a gain of 0.004 EUR, 0.004 %) read "0.00"
   #   and "0.0%" — and "0.0%" p. a. — with no sign; the cells and the phone
   #   figures are `is-flat`, never a gain or loss colour.
-  # - An open lot with no stored price has no percent: its "%" cell reads
-  #   "—" in no colour.
+  # - An open lot with no price has no percent: its "%" cell reads "—" in
+  #   no colour. (#1369: a bought security is priced at its last trade
+  #   price, so the lot without one is a USD security bought in EUR with no
+  #   stored rate: its trade price has no value in USD.)
   test "a figure that rounds to zero is unsigned, a missing percent a dash", %{conn: conn} do
     world = base_world(name: "Hairline Tab", cash_name: "Girokonto", depot_name: "Depot 1")
     deposit!(world, "5000", ~D[2024-01-02])
@@ -684,7 +686,7 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert phone |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) ==
              ["is-flat", "is-flat"]
 
-    unpriced = create_security!(name: "Kestrel Robotik SE", ticker: "KRS")
+    unpriced = create_security!(name: "Kestrel Robotik SE", ticker: "KRS", currency: "USD")
     buy!(world, unpriced, quantity: "40", price: "52.10", date: ~D[2024-03-14])
 
     {:ok, unpriced_view, _html} = live(conn, "/securities/#{unpriced.id}?tab=trades")

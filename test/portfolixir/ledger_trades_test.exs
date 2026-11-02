@@ -82,11 +82,13 @@ defmodule Portfolixir.LedgerTradesTest do
     assert trade.close_date == ~D[2026-04-10]
   end
 
-  test "open lots without a latest quote get nil unrealised P&L (not a crash)" do
+  # #1369: a bought security always has a price now (its last own trade
+  # price, ADR-0010), so "no price" is the injected one.
+  test "open lots without a price get nil unrealised P&L (not a crash)" do
     world = setup_world()
     _ = create_tx!(world, "buy", ~D[2026-01-10], "10", "100.00")
 
-    %{open_lots: [lot]} = Ledger.list_trades_for_security(world.security.id)
+    %{open_lots: [lot]} = Ledger.list_trades_for_security(world.security.id, latest_price: nil)
 
     assert is_nil(lot.unrealized_pnl_abs)
     assert is_nil(lot.unrealized_pnl_pct)
