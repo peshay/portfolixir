@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04-wealth</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="portfolio-overview" class="workspace-page portfolio-overview">
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/portfolio" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Bestände">Bestände</span>
+  </a><a href="/portfolio?tab=allocation" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9Z"></path><path d="M21 12a9 9 0 0 0-9-9v9h9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+  </a><a href="/cashflow" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+  </a><a href="/snapshots" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </span>
+    <span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+  </a><a href="/tax" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h6"></path><circle cx="9" cy="11" r=".6"></circle><circle cx="12" cy="11" r=".6"></circle><circle cx="15" cy="11" r=".6"></circle><circle cx="9" cy="14" r=".6"></circle><circle cx="12" cy="14" r=".6"></circle><circle cx="15" cy="14" r=".6"></circle><path d="M9 17h6"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Steuern">Steuern</span>
+  </a><a href="/risk" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Risiko">Risiko</span>
+  </a>
+</nav>
+    <section id="portfolio-kpis" class="workspace-section kpi-band" aria-label="Vermögens-Kennzahlen">
+      <div class="kpi-band__lead">
+        <article id="kpi-total" class="stat stat--lead">
+          <span>Gesamt inkl. Cash</span>
+          <strong>
+            <span id="count-kpi-total" class="count-up" data-count-to="88307.01547368421052631578947368421" data-decimals="2"><span data-count-digits="">88.307,02</span></span><small class="value-suffix">EUR</small>
+          </strong>
+          <small class="stat__sub" data-role="total-composition">
+            Wertpapiere <b>69.128,26</b>
+            · Cash <b>19.178,75</b>
+          </small>
+        </article>
+        <article id="kpi-ttwror" class="stat stat--lead" role="group" aria-describedby="tip-ttwror">
+          <div class="stat__head">
+            <span>TTWROR (1J)</span>
+            <details class="metric-tooltip metric-tooltip--inline">
+              <summary aria-label="Info TTWROR">ⓘ</summary>
+              <p id="tip-ttwror" role="tooltip">
+                TTWROR — zeitgewichtete Rendite für den gewählten Zeitraum (nicht annualisiert). Ein- und Auszahlungen werden neutralisiert, sodass nur die Anlageperformance zählt.
+              </p>
+            </details>
+          </div>
+          <strong class="is-positive">
+            +9,0%
+          </strong>
+          <small class="stat__sub" data-role="period-gain">
+            <b class="is-positive">+7.348,65</b>
+            EUR im Zeitraum
+          </small>
+        </article>
+        <article id="kpi-irr" class="stat stat--lead" role="group" aria-describedby="tip-irr">
+          <div class="stat__head">
+            <span>IRR (1J)</span>
+            <details class="metric-tooltip metric-tooltip--inline">
+              <summary aria-label="Info IRR">ⓘ</summary>
+              <p id="tip-irr" role="tooltip">
+                IRR — geldgewichtete Rendite, annualisiert. Berücksichtigt Zeitpunkt und Höhe der Zahlungsströme im Zeitraum. Zeiträume unter einem Jahr zeigen die Perioden-MWR — dieselbe Kennzahl, nicht annualisiert.
+              </p>
+            </details>
+          </div>
+          <strong class="is-positive">
+            +9,4%
+          </strong>
+          <small class="stat__sub" data-role="money-weighted-basis">
+            annualisiert · Stand 02.11.2026
+          </small>
+        </article>
+      </div>
+    </section>
+    <section id="portfolio-positions" class="workspace-section">
+        <div id="holdings-positions-wrapper" class="data-table-wrapper" data-storage-key="wealth.holdings.columns" data-restore-event="set_holdings_columns" data-current-columns="[&quot;depot&quot;,&quot;security&quot;,&quot;quantity&quot;,&quot;currency&quot;,&quot;latest_price&quot;,&quot;market_value&quot;,&quot;unrealized_pnl_abs&quot;,&quot;unrealized_pnl_pct&quot;]">
+          <table id="holdings-positions-table" class="data-table">
+            <thead>
+              <tr>
+                <th>
+                  Depot
+                </th><th>
+                  Wertpapier
+                </th><th class="num">
+                  Stückzahl
+                </th><th>
+                  Währung
+                </th><th class="num">
+                  Letzter Kurs
+                </th><th class="num">
+                  Marktwert
+                </th><th class="num">
+                  G&amp;V
+                </th><th class="num">
+                  G&amp;V %
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+            <tr data-role="holdings-position" data-security-id="47">
+                <td data-column="depot">
+                  Coupon-Depot
+                </td><td data-column="security">
+                  Larkspur Rail AG 4,00 % Anleihe 2031
+                </td><td data-column="quantity" class="num">
+                  100
+                </td><td data-column="currency">
+                  EUR
+                </td><td data-column="latest_price" class="num">
+                  100,25 <small class="value-suffix">EUR</small>
+                </td><td data-column="market_value" class="num">
+                  10.025,00 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +75,00 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +0,8%
+                </td>
+              </tr><tr data-role="holdings-position" data-security-id="3">
+                <td data-column="depot">
+                  Demo Depot
+                </td><td data-column="security">
+                  Allianz SE vinkulierte Namens-Aktien o.N.
+                </td><td data-column="quantity" class="num">
+                  60
+                </td><td data-column="currency">
+                  EUR
+                </td><td data-column="latest_price" class="num">
+                  116,86 <small class="value-suffix">EUR</small>
+                </td><td data-column="market_value" class="num">
+                  7.011,60 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_abs" class="num is-positive">
+                  +1.011,60 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_pct" class="num is-positive">
+                  +16,9%
+                </td>
+              </tr><tr data-role="holdings-position" data-security-id="42">
+                <td data-column="depot">
+                  Demo Depot
+                </td><td data-column="security">
+                  Birkenhain Wasser Anleihe 2029 1,50%
+                </td><td data-column="quantity" class="num">
+                  10
+                </td><td data-column="currency">
+                  EUR
+                </td><td data-column="latest_price" class="num">
+                  0,985 <small class="value-suffix">EUR</small>
+                </td><td data-column="market_value" class="num">
+                  9,85 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -975,15 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -99,0%
+                </td>
+              </tr><tr data-role="holdings-position" data-security-id="6">
+                <td data-column="depot">
+                  Demo Depot
+                </td><td data-column="security">
+                  Bitcoin
+                </td><td data-column="quantity" class="num">
+                  0,05
+                </td><td data-column="currency">
+                  EUR
+                </td><td data-column="latest_price" class="num">
+                  51.393,52 <small class="value-suffix">EUR</small>
+                </td><td data-column="market_value" class="num">
+                  2.569,68 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_abs" class="num is-negative">
+                  -430,32 <small class="value-suffix">EUR</small>
+                </td><td data-column="unrealized_pnl_pct" class="num is-negative">
+                  -14,3%
+                </td>
+              </tr><tr class="mock-elided"><td colspan="12">… weitere Positionen, für das Board gekürzt</td></tr></tbody>
+          </table>
+        </div>
+    </section>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

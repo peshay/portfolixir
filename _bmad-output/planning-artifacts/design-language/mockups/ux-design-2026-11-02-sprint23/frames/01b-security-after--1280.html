@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01b-security-after</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+    <dialog id="security-merge-dialog" class="modal merge-dialog security-merge-dialog " data-close-event="close" aria-labelledby="security-merge-dialog-title" open="">
+  <header class="modal-head">
+    <h2 id="security-merge-dialog-title">
+      <bdi>Thornbury Water Fund</bdi> zusammenführen
+      <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span>
+    </h2>
+    <button type="button" class="icon-button" aria-label="Schließen" data-role="merge-dismiss">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+  </header>
+    <div class="modal-body">
+  <div class="merge-region" role="status"></div>
+  <div role="alert" class="merge-region"></div>
+  <div class="merge-pair" data-role="merge-pair">
+  <div class="merge-pair__side">
+    <span class="merge-pair__role merge-pair__role--gone">Quelle · wird gelöscht</span>
+    <b>Thornbury Water Fund</b>
+    <span class="mono">XS0000000165</span>
+    <small>2 Buchungen · angelegt 02.11.2026</small>
+  </div>
+  <span class="merge-pair__arrow" aria-hidden="true">→</span>
+  <span class="visually-hidden">in</span>
+  <div class="merge-pair__side">
+    <span class="merge-pair__role">Ziel · bleibt</span>
+    <b>Thornbury Water Fund</b>
+    <span class="mono">XS0000000173</span>
+    <small>2 Buchungen · angelegt 02.11.2026</small>
+  </div>
+</div>
+      <form id="security-merge-choice-form" data-role="merge-choice-form">
+  <fieldset class="merge-choice" data-role="merge-identity-choice">
+  <legend>ISIN danach</legend>
+  <label class="merge-option " data-role="identity-keep">
+    <input type="radio" name="merge[identity]" value="keep_target_isin">
+    <span>
+      <span class="merge-option__title">
+        XS0000000173 behalten
+        <span class="merge-option__tag">ISIN des Ziels</span>
+      </span>
+      <small>
+        XS0000000165 wird frühere ISIN dieses Wertpapiers.
+      </small>
+    </span>
+  </label>
+  <label class="merge-option " data-role="identity-adopt">
+    <input type="radio" name="merge[identity]" value="adopt_source_isin">
+    <span>
+      <span class="merge-option__title">
+        XS0000000165 übernehmen
+        <span class="merge-option__tag">ISIN der Quelle</span>
+      </span>
+      <small>
+        XS0000000173 wird frühere ISIN; das Ziel trägt danach XS0000000165.
+      </small>
+    </span>
+  </label>
+</fieldset>
+  <div class="merge-identity" data-role="merge-identity">
+    <div class="merge-identity__term">
+      <i>Quelle</i>
+      <b class="num">5<small>Stück</small></b>
+    </div>
+    <span class="merge-identity__op" aria-hidden="true">+</span>
+    <div class="merge-identity__term">
+      <i><span class="merge-identity__sign" aria-hidden="true">+ </span>Ziel</i>
+      <b class="num">5<small>Stück</small></b>
+    </div>
+    <span class="merge-identity__op" aria-hidden="true">=</span>
+    <div class="merge-identity__term merge-identity__result">
+      <i><span class="merge-identity__sign" aria-hidden="true">= </span>Bestand danach</i>
+      <b class="num">10<small>Stück</small></b>
+    </div>
+  </div>
+  <p class="merge-basis">
+    Bestand in allen Depots am 02.11.2026, aus den Buchungen berechnet. Die Summe gilt je Depot an jedem Tag und wird vor dem Speichern geprüft.
+  </p>
+  <div class="merge-fifo" data-role="merge-fifo">
+    <h3 class="merge-block-head">Realisierte Gewinne (FIFO)</h3>
+    <div class="data-table-wrapper merge-wide">
+      <table class="data-table merge-positions">
+        <thead>
+          <tr>
+            <th>Abschlussjahr</th>
+            <th class="num">Quelle · Ziel → danach</th>
+            <th class="num">Änderung</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-role="merge-fifo-year" data-year="2025">
+            <td>2025</td>
+            <td class="num">
+              <small>100,00 · -25,00 →</small>
+              <b>125,00</b>
+            </td>
+            <td class="num merge-fifo__change">
+              +50,00
+            </td>
+          </tr>
+          <tr class="merge-fifo__open" data-role="merge-fifo-open">
+            <td>Offene Positionen (Einstand)</td>
+            <td class="num">
+              <small>500,00 + 550,00 →</small>
+              <b>1.100,00</b>
+            </td>
+            <td class="num merge-fifo__change">
+              +50,00
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="merge-lines merge-narrow">
+      <li data-role="merge-fifo-year-line" data-year="2025">
+        <span class="merge-lines__head">
+          Realisiert 2025
+        </span>
+        <span class="merge-lines__figure num">
+          100,00 · -25,00 →
+          <b>125,00</b>
+          <small>Änderung +50,00</small>
+        </span>
+      </li>
+      <li data-role="merge-fifo-open-line">
+        <span class="merge-lines__head">
+          Offene Positionen (Einstand)
+        </span>
+        <span class="merge-lines__figure num">
+          500,00 + 550,00 →
+          <b>1.100,00</b>
+          <small>Änderung +50,00</small>
+        </span>
+      </li>
+    </ul>
+    <p class="merge-basis">
+      In EUR, der Währung des Wertpapiers. Vorher je Wertpapier über seine eigene FIFO-Reihe, danach über die zusammengeführte: Ein Verkauf schließt dann die ältesten Posten beider. Realisiert und offener Einstand ändern sich um denselben Betrag, außer ein Verkauf, den vorher kein Posten deckte, wird danach gedeckt; die Erlöse bleiben.
+    </p>
+</div><p class="merge-basis mock-new" data-role="merge-flows-none"><span class="mock-pin">1</span>Externe Zu- und Abflüsse: Keiner entfällt oder wandert; die Rendite liest dieselben Flüsse.</p>
+  <dl class="merge-counts" data-role="merge-counts">
+  <dt>2</dt>
+  <dd>Buchungen wechseln zum Ziel</dd>
+</dl>
+</form>
+<div class="data-note data-note--note" data-role="merge-note">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"></path></svg>
+  </span>
+  <span class="data-note__word">Hinweis</span>
+    <div class="data-note__body">
+    Nach der Zusammenführung führen XS0000000165, XS0000000173 zu diesem Wertpapier; ein Import, der eine davon nennt, bucht hierher.
+</div>
+</div>
+<div class="data-note data-note--attention" data-role="merge-warning">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+    <div class="data-note__body">
+  Die Quelle (angelegt 02.11.2026) wird danach gelöscht — der Eintrag, nicht ihre ISIN. Das lässt sich nicht rückgängig machen; das Journal hält jede geänderte Zeile fest.
+</div>
+</div>
+</div>
+<div class="modal-footer modal-footer--band">
+  <button type="button" class="button-ghost" data-role="merge-back">
+    Zurück
+  </button>
+  <span class="modal-footer__spacer"></span>
+    <p class="merge-footer__why" data-role="merge-why">
+      Wahl der ISIN fehlt
+    </p>
+    <button type="button" class="button-danger" data-role="merge-confirm" disabled="">
+      In Thornbury Water Fund zusammenführen
+    </button>
+</div>
+</dialog>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

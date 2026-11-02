@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02c-cat-today</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="classifications-workspace" class="workspace-page classifications-detail" data-classification="1">
+    <div class="summary-basis tree-basis" data-role="category-result-basis">
+      <span>Ansicht <bdi>Alles</bdi>&nbsp;· in EUR&nbsp;· Ergebnis: heutige Zusammensetzung, keine Periodenrendite</span>
+      <details class="metric-tooltip metric-tooltip--inline" data-role="category-result-info">
+        <summary aria-label="Zum Ergebnis">ⓘ</summary>
+        <p role="tooltip">
+          Einstand und Ergebnis umfassen die heute hier eingeordneten Positionen, in EUR — eine Aussage über die aktuelle Zusammensetzung, keine Periodenrendite. Der Einstand ist, was die Anteile ohne Gebühren und Steuern der Käufe gekostet haben, das Ergebnis also vor ihnen; der Einstand eines abgeschlossenen Trades enthält sie. Eine Position, deren Einstand nicht in EUR bezahlt wurde, bleibt aus beiden heraus und wird oben genannt; der „Wert“ zählt sie weiter, wenn sie einen Wert hat.
+        </p>
+      </details>
+    </div>
+    <div role="status" class="category-result-excluded-region" data-role="category-result-excluded-region"><div class="data-note data-note--attention" data-role="category-result-excluded">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+    <div class="data-note__body">
+      19 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten.
+      16 davon sind im „Wert“ enthalten.
+      <details class="perf-table-disclosure" data-role="category-result-excluded-list" open="">
+        <summary class="disclosure-summary">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+          Die 19 Positionen
+        </summary>
+        <ul class="excluded-list">
+          <li>
+            <bdi>Alder Creek Timber Fund</bdi>
+            <span>Fund</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Alder Creek Timber Fund Class B</bdi>
+            <span>Fund</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Birchwood Global Savings Fund</bdi>
+            <span>Fund</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Cobalt Ridge Logistics SE</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Harborline Freight Inc</bdi>
+            <span>Equity</span>
+            <span>Einstand <span class="num">1.500,00 USD</span>, nicht in EUR bezahlt</span>
+          </li><li>
+            <bdi>Helios Solar Systems SE</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Juniper Rail AG</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Juniper Rail AG</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Larkspur Robotics Inc</bdi>
+            <span>Equity</span>
+            <span class="">kein Wechselkurs gespeichert</span>
+          </li><li>
+            <bdi>Meridian Global Equity ETF</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Orchid Bay Pharmaceuticals plc</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Orchid Bay Pharmaceuticals plc</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Pinecrest Utilities SA</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Pinecrest Utilities SA</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Placeholder Anleihe 2031 3,25%</bdi>
+            <span>Bond</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Quarry Lane Materials AG</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Quarry Lane Materials AG</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Thornbury Water Fund</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li><li>
+            <bdi>Thornbury Water Fund</bdi>
+            <span>ETF</span>
+            <span class="">kein brauchbarer Kurs</span>
+          </li>
+        </ul>
+      </details>
+  </div>
+</div></div>
+    <div class="tree-head" data-role="tree-head">
+      <span class="tree-head__name">Kategorie</span>
+      <span class="tree-head__num">Positionen</span>
+      <span class="tree-head__num">Wert</span>
+      <span class="tree-head__num">Einstand</span>
+      <span class="tree-head__num">Ergebnis</span>
+      <span class="tree-head__actions" aria-hidden="true"></span>
+    </div>
+    <section class="tree">
+        <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="1" data-category="2" open="">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#0891b2" aria-hidden="true"></span>
+      <span class="cat-name__text" title="ETF">ETF</span>
+        <span class="cat-without-holdings" data-role="without-holdings" title="Zugeordnete, nicht mehr gehaltene Wertpapiere, vom Filter ausgeblendet">+1 ohne Bestand</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">15</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+      21.493,20
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        13.000,00
+      </span>
+      <span class="cat-result is-negative" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>-869,20</b>
+        <small>-6,7%</small>
+        <span class="cat-result-partial" data-role="category-result-partial" title="Einige Positionen hier bleiben auf beiden Seiten der Summe außen vor, statt als Null zu zählen, weil sich für sie kein Ergebnis in EUR ableiten lässt.">2/15</span>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="13" data-security-id="13" data-role="security-row">
+  <span class="row-name" title="Cobalt Ridge Logistics SE">Cobalt Ridge Logistics SE</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    30,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    1.275,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="23" data-security-id="23" data-role="security-row">
+  <span class="row-name" title="Helios Solar Systems SE">Helios Solar Systems SE</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    20,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    384,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="26" data-security-id="26" data-role="security-row">
+  <span class="row-name" title="Juniper Rail AG">Juniper Rail AG</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    18,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    297,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="27" data-security-id="27" data-role="security-row">
+  <span class="row-name" title="Juniper Rail AG">Juniper Rail AG</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    9,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    100,20
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="14" data-security-id="14" data-role="security-row">
+  <span class="row-name" title="Meridian Global Equity ETF">Meridian Global Equity ETF</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    65,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    4.615,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="17" data-security-id="17" data-role="security-row">
+  <span class="row-name" title="Orchid Bay Pharmaceuticals plc">Orchid Bay Pharmaceuticals plc</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    12,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    360,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="18" data-security-id="18" data-role="security-row">
+  <span class="row-name" title="Orchid Bay Pharmaceuticals plc">Orchid Bay Pharmaceuticals plc</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    12,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    360,00
+  </span>
+</li>
+        <li class="mock-elided">… 8 weitere Positionen, für das Board gekürzt</li>
+    </ul>
+  </div>
+</details>
+        <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="1" data-category="3" open="">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Fund">Fund</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">3</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+      451,11
+    </span>
+      <span class="cat-invested" data-role="category-invested"><span class="cat-na">—</span></span>
+      <span class="cat-result" data-role="category-result"><span class="cat-na">—</span></span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="24" data-security-id="24" data-role="security-row">
+  <span class="row-name" title="Alder Creek Timber Fund">Alder Creek Timber Fund</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    30,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    336,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="25" data-security-id="25" data-role="security-row">
+  <span class="row-name" title="Alder Creek Timber Fund Class B">Alder Creek Timber Fund Class B</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    114,00
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="28" data-security-id="28" data-role="security-row">
+  <span class="row-name" title="Birchwood Global Savings Fund">Birchwood Global Savings Fund</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    0,33<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    1,11
+  </span>
+</li>
+    </ul>
+  </div>
+</details>
+    </section>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

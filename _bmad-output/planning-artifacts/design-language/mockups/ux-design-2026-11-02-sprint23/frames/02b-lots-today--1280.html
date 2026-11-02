@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02b-lots-today</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <section class="workspace-panel" id="securities-panel">
+    <div id="securities-workspace" class="securities-workspace securities-workspace--split" style="--securities-list-height: 360px;">
+        <aside class="detail-pane " id="security-detail-pane" aria-label="Ausgewähltes Wertpapier">
+  <header class="detail-pane-head">
+    <div class="detail-pane-head__title">
+      <span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">
+        H
+      </span>
+      <div>
+      <h2>Helios Solar Systems SE</h2>
+      <p class="detail-pane-sub">
+        XS0000000124 · EUR
+      </p>
+      <p class="detail-pane-status" data-role="detail-valuation-status">
+  Kein aktueller Kurs — in den Summen zum letzten eigenen Handelspreis von 19,20 EUR (14.03.2025) bewertet.
+</p>
+      </div>
+    </div>
+    <div class="detail-pane-head__actions">
+      <button type="button" id="detail-edit" class="button-ghost" aria-label="Stammdaten bearbeiten">
+        Bearbeiten
+      </button>
+      <button type="button" id="detail-record-split" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">
+        Split erfassen
+      </button>
+      <button type="button" id="detail-pane-fullscreen-toggle" class="icon-button" aria-label="Maximieren" title="Maximieren">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+      </button>
+      <a href="/securities" id="detail-pane-close" title="Detail schließen" class="icon-button" aria-label="Detail schließen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </a>
+    </div>
+  </header>
+    <section id="detail-tab-panel-trades" role="tabpanel" class="detail-tab-panel detail-tab-panel--trades">
+    <h3 class="detail-section-title">Offene Positionen (FIFO)</h3>
+    <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="lot-decomposition-info">
+      <summary aria-label="Über Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary>
+      <p role="tooltip">
+        Kursbeitrag — die Veränderung des eigenen Kurses des Wertpapiers, zum heutigen Wechselkurs umgerechnet. Währungsbeitrag — die Wirkung des Wechselkurses auf den ursprünglich investierten Betrag. Zusammen ergeben sie den gesamten Gewinn oder Verlust der Position in EUR. Ein Strich markiert ein Lot, dessen Zerlegung sich nicht aus den erfassten Daten ableiten lässt.
+      </p>
+    </details>
+    <div class="data-table-wrap">
+      <table class="data-table detail-trades-table">
+        <thead>
+          <tr>
+            <th>Eröffnungsdatum</th>
+            <th class="num">Stückzahl</th>
+            <th class="num">Ø Kauf</th>
+            <th class="num">Letzter</th>
+            <th class="num">Unrealisierter G/V</th>
+            <th class="num">%</th>
+            <th class="num">Kursbeitrag</th>
+            <th class="num">Währungsbeitrag</th>
+            <th class="num">Gesamt (Basis)</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr>
+              <td>12.02.2025</td>
+              <td class="num">15,0000</td>
+              <td class="num" data-role="lot-buy-price-native">
+                  18,00
+              </td>
+              <td class="num">
+                  —
+              </td>
+              <td class="num ">
+                —
+              </td>
+              <td class="num ">
+                —
+              </td>
+              <td class="num " data-role="price-return">
+                —
+              </td>
+              <td class="num " data-role="currency-return">
+                —
+              </td>
+              <td class="num " data-role="total-return-base" title="Für dieses Wertpapier ist kein Preis verfügbar.">
+                —
+              </td>
+            </tr>
+            <tr>
+              <td>14.03.2025</td>
+              <td class="num">5,0000</td>
+              <td class="num" data-role="lot-buy-price-native">
+                  19,20
+              </td>
+              <td class="num">
+                  —
+              </td>
+              <td class="num ">
+                —
+              </td>
+              <td class="num ">
+                —
+              </td>
+              <td class="num " data-role="price-return">
+                —
+              </td>
+              <td class="num " data-role="currency-return">
+                —
+              </td>
+              <td class="num " data-role="total-return-base" title="Für dieses Wertpapier ist kein Preis verfügbar.">
+                —
+              </td>
+            </tr>
+        </tbody>
+      </table>
+    </div>
+</section>
+</aside>
+    </div>
+  </section>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

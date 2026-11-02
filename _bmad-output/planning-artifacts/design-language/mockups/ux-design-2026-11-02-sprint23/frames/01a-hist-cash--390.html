@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01a-hist-cash</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="transactions-workspace" class="workspace-page">
+    <div class="transactions-columns ">
+    <section id="transaction-list-panel" class="workspace-section">
+      <header class="section-head">
+        <h2 id="transaction-history-heading" class="result-focus-fallback" tabindex="-1">Transaktionshistorie</h2>
+        <div class="section-head-controls">
+          <button type="button" id="transaction-filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg>
+            Filter
+          </button>
+          <button type="button" id="open-booking" class="button-primary" aria-haspopup="dialog" aria-expanded="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            Transaktion erfassen
+          </button>
+        </div>
+      </header>
+        <div id="transaction-chips" class="filter-chips" role="group" aria-label="Historie filtern">
+  <span class="">
+  <span class="filter-chips__family">Konto</span>
+    <button type="button" id="tx-chip-account-8" class="filter-chip " aria-pressed="false">
+      Broker Nord Verrechnung
+    </button>
+    <button type="button" id="tx-chip-account-9" class="filter-chip " aria-pressed="false">
+      Broker Süd Verrechnung
+    </button>
+    <button type="button" id="tx-chip-account-6" class="filter-chip " aria-pressed="false">
+      Broker Verrechnung 1
+    </button>
+    <button type="button" id="tx-chip-account-7" class="filter-chip " aria-pressed="false">
+      Broker Verrechnung 2
+    </button>
+    <button type="button" id="tx-chip-account-22" class="filter-chip " aria-pressed="false">
+      Coupon-Cash
+    </button>
+    <button type="button" id="tx-chip-account-1" class="filter-chip " aria-pressed="false">
+      Demo Cash
+    </button>
+    <button type="button" id="tx-chip-account-17" class="filter-chip " aria-pressed="false">
+      Dollar Cash
+    </button>
+    <button type="button" id="tx-chip-account-18" class="filter-chip " aria-pressed="false">
+      Family Cash
+    </button>
+    <button type="button" id="tx-chip-account-15" class="filter-chip " aria-pressed="false">
+      Festgeld Plus
+    </button>
+    <button type="button" id="tx-chip-account-5" class="filter-chip " aria-pressed="false">
+      Haushaltskonto
+    </button>
+    <button type="button" id="tx-chip-account-23" class="filter-chip " aria-pressed="false">
+      Round Trip Cash
+    </button>
+    <button type="button" id="tx-chip-account-20" class="filter-chip " aria-pressed="false">
+      Rücklage
+    </button>
+    <button type="button" id="tx-chip-account-19" class="filter-chip " aria-pressed="false">
+      Rücklage Giro
+    </button>
+    <button type="button" id="tx-chip-account-11" class="filter-chip " aria-pressed="false">
+      Sparplan Konto
+    </button>
+    <button type="button" id="tx-chip-account-10" class="filter-chip " aria-pressed="false">
+      Sparplan Konto (alt)
+    </button>
+    <button type="button" id="tx-chip-account-4" class="filter-chip " aria-pressed="false">
+      Tagesgeld
+    </button>
+    <button type="button" id="tx-chip-account-16" class="filter-chip " aria-pressed="false">
+      Tagesgeld CHF
+    </button>
+    <button type="button" id="tx-chip-account-12" class="filter-chip " aria-pressed="false">
+      US Broker
+    </button>
+    <button type="button" id="tx-chip-account-2" class="filter-chip " aria-pressed="false">
+      USD Settlement
+    </button>
+</span>
+<span class="">
+  <span class="filter-chips__family">Typ</span>
+    <button type="button" id="tx-chip-type-balance_adjustment" class="filter-chip " aria-pressed="false">
+      Saldo gesetzt
+    </button>
+    <button type="button" id="tx-chip-type-buy" class="filter-chip " aria-pressed="false">
+      Kauf
+    </button>
+    <button type="button" id="tx-chip-type-cash_transfer" class="filter-chip " aria-pressed="false">
+      Umbuchung
+    </button>
+    <button type="button" id="tx-chip-type-deposit" class="filter-chip " aria-pressed="false">
+      Einlage
+    </button>
+    <button type="button" id="tx-chip-type-dividend" class="filter-chip " aria-pressed="false">
+      Dividende
+    </button>
+    <button type="button" id="tx-chip-type-inbound_delivery" class="filter-chip " aria-pressed="false">
+      Einlieferung
+    </button>
+    <button type="button" id="tx-chip-type-interest" class="filter-chip " aria-pressed="false">
+      Zinsen
+    </button>
+    <button type="button" id="tx-chip-type-sell" class="filter-chip " aria-pressed="false">
+      Verkauf
+    </button>
+    <button type="button" id="tx-chip-type-split" class="filter-chip " aria-pressed="false">
+      Split
+    </button>
+</span>
+<span id="changed-since-chips" class="filter-chips__group" role="group" aria-label="Geändert seit">
+  <span class="filter-chips__family">Geändert seit</span>
+    <button type="button" id="changed-since-chips-today" class="filter-chip " aria-pressed="false">
+      Heute
+    </button>
+    <button type="button" id="changed-since-chips-7d" class="filter-chip " aria-pressed="false">
+      7 Tage
+    </button>
+    <button type="button" id="changed-since-chips-30d" class="filter-chip " aria-pressed="false">
+      30 Tage
+    </button>
+</span>
+</div>
+        <div id="transaction-dq-note" class="data-note data-note--problem data-note--clamped mock-new mock-pinned" data-role="dq-filter-note"><span class="mock-pin mock-pin--abs">1</span><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"></path><path d="M12 8v4"></path><circle cx="12" cy="16" r=".6"></circle></svg></span><span class="data-note__word">Problem</span>
+<div class="data-note__body">
+<div id="transaction-dq-note-text" class="data-note__text">Gefiltert: 1 Kauf oder Verkauf, dessen Betrag nicht zu Menge × Preis, Gebühren und Steuern passt — Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im Buchungsformular angeben (Bearbeiten): den abgerechneten, oder den, den die Zahlen ergeben. Nichts wird automatisch geändert.</div>
+<div class="data-note__actions"><a href="/transactions">Alle Buchungen zeigen</a></div></div><button type="button" class="link-button data-note__more" aria-expanded="false" hidden="">mehr</button></div>
+<details id="transaction-more-filters" class="more-filters">
+  <summary>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg>
+    Weitere Filter
+  </summary>
+  <form id="transaction-filters" class="transaction-filters">
+    <label>
+      <span>Wertpapier</span>
+      <select name="filters[security_id]">
+        <option value="" selected="">Alle Wertpapiere</option>
+          <option value="24">Alder Creek Timber Fund</option>
+          <option value="25">Alder Creek Timber Fund Class B</option>
+          <option value="3">Allianz SE vinkulierte Namens-Aktien o.N.</option>
+          <option value="12">Alpine Test Werke AG</option>
+          <option value="1">Apple Inc. Registered Shares o.N.</option>
+          <option value="49">Arbolia Inc.</option>
+          <option value="28">Birchwood Global Savings Fund</option>
+          <option value="42">Birkenhain Wasser Anleihe 2029 1,50%</option>
+          <option value="6">Bitcoin</option>
+          <option value="35">Brightwater Utilities plc</option>
+          <option value="13">Cobalt Ridge Logistics SE</option>
+          <option value="36">Harborline Freight Inc</option>
+          <option value="23">Helios Solar Systems SE</option>
+          <option value="27">Juniper Rail AG</option>
+          <option value="26">Juniper Rail AG</option>
+          <option value="41">Kestrel Anleihe 2030 2,75%</option>
+          <option value="48">Kestrel Bay Resources Inc.</option>
+          <option value="11">Kestrel Industrial Group NV</option>
+          <option value="47">Larkspur Rail AG 4,00 % Anleihe 2031</option>
+          <option value="40">Larkspur Robotics Inc</option>
+          <option value="14">Meridian Global Equity ETF</option>
+          <option value="2">Microsoft Corporation Registered Shares DL-,00000625</option>
+          <option value="7">NVIDIA Corporation Registered Shares DL-,001</option>
+          <option value="8">Nordic Timber Holdings AB</option>
+          <option value="18">Orchid Bay Pharmaceuticals plc</option>
+          <option value="17">Orchid Bay Pharmaceuticals plc</option>
+          <option value="43">Ostsee Logistik 4,10% 2028/2033</option>
+          <option value="20">Pinecrest Utilities SA</option>
+          <option value="19">Pinecrest Utilities SA</option>
+          <option value="9">Placeholder Anleihe 2031 3,25%</option>
+          <option value="21">Quarry Lane Materials AG</option>
+          <option value="22">Quarry Lane Materials AG</option>
+          <option value="34">Saltmarsh Logistics SE</option>
+          <option value="33">Tamarisk Mining Ltd</option>
+          <option value="50">Tamarisk Systems Inc.</option>
+          <option value="45">Thornbury Water Fund</option>
+          <option value="44">Thornbury Water Fund</option>
+          <option value="5">Vanguard FTSE All-World UCITS ETF USD Acc</option>
+          <option value="46">Wexmoor Instruments AG</option>
+          <option value="32">Wrenfield Gardens AG</option>
+          <option value="4">iShares Core MSCI World UCITS ETF USD (Acc)</option>
+      </select>
+    </label>
+    <label>
+      <span>Von</span>
+      <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[from]" value="">
+    </label>
+    <label>
+      <span>Bis</span>
+      <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[to]" value="">
+    </label>
+    <label class="transaction-filters-search">
+      <span>Suche</span>
+      <input type="text" name="filters[query]" value="" placeholder="Wertpapier, Typ, Notizen…">
+    </label>
+  </form>
+</details>
+        <div id="transaction-summary" class="transaction-summary" role="status">
+          <span class="summary-total">
+            <strong data-role="summary-total">1</strong>
+            Transaktionen
+          </span>
+            <span class="summary-type" data-type="buy">
+              Kauf:
+              <strong data-role="summary-count">1</strong>
+              · -806,00 EUR</span>
+          <p class="summary-basis" data-role="summary-basis">
+            Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe.
+          </p>
+        </div>
+          <div class="column-picker-bar popover-container">
+            <button type="button" id="tx-column-toggle" class="button-ghost column-picker-toggle " aria-haspopup="dialog" aria-expanded="false">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="3" y="4" width="6" height="16" rx="1"></rect><rect x="11" y="4" width="6" height="16" rx="1"></rect><rect x="19" y="4" width="2" height="16" rx="1"></rect></svg>
+  Spalten
+</button>
+          </div>
+          <div id="transaction-table-wrapper" class="data-table-wrapper" data-storage-key="transactions.columns" data-restore-event="set_tx_columns" data-current-columns="[&quot;date&quot;,&quot;type&quot;,&quot;security&quot;,&quot;account&quot;,&quot;quantity&quot;,&quot;price&quot;,&quot;gross_amount&quot;]">
+            <table id="transaction-list">
+              <thead>
+                <tr>
+                  <th>Datum</th><th>Typ</th><th>Wertpapier</th><th>Konto</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Betrag</th>
+                  <th class="row-actions-head">
+                    <span class="visually-hidden">Aktionen</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                  <tr class="tx-group-head" data-month-group="2026-04">
+                    <th colspan="8" scope="colgroup">
+                      <span class="tx-group-month">April 2026</span>
+                      <span class="tx-group-subtotal">1 Transaktion</span>
+                    </th>
+                  </tr>
+                    <tr data-transaction="96" class="mock-synth">
+                            <td class="cell-date">16.04.2026</td>
+                            <td class="cell-kind">Kauf</td>
+                            <td class="cell-name" data-role="history-security">Arbolia Inc.</td>
+                            <td class="cell-name" data-role="account"><bdi>Round Trip Cash</bdi></td>
+                              <td class="num">10</td>
+                              <td class="num" data-role="price">81,00<small class="value-suffix">EUR</small></td>
+                                <td class="num" data-role="amount">
+                                  -806,00<small class="value-suffix">EUR</small>
+                                <small class="cell-note mock-new">aus den Zahlen: 816,00</small></td>
+                      <td class="row-actions">
+                        <button type="button" id="tx-kebab-96" class="row-actions__kebab" aria-label="Aktionen für Kauf, Arbolia Inc., 16.04.2026" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+                      </td>
+                    </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen">
+              <li class="phone-rows__group" data-month-group="2026-04">
+                <span class="tx-group-month">April 2026</span>
+                <span class="tx-group-subtotal">1 Transaktion</span>
+              </li>
+              <li class="phone-row mock-synth" data-role="phone-row" data-transaction="96">
+                <span class="phone-row__body">
+                  <span class="phone-row__name">
+                    16.04.2026 · Kauf
+                  </span>
+                  <span class="phone-row__ids">
+                    <span data-role="phone-subject"><bdi>Arbolia Inc.</bdi></span>
+                  </span>
+                </span>
+                <span class="phone-row__figures">
+                  <span class="phone-row__figure" data-role="phone-amount">-806,00 EUR</span><span class="phone-row__figure2 mock-new">aus den Zahlen: 816,00</span>
+                  <span class="phone-row__figure2" data-role="phone-size">
+                    10 × 81,00 EUR
+                  </span>
+                </span>
+                <button type="button" id="tx-phone-kebab-96" class="row-actions__kebab" aria-label="Aktionen für Kauf, Arbolia Inc., 16.04.2026" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+              </li>
+          </ul>
+    </section>
+    </div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

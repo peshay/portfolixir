@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01a-hist-rate</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="transactions-workspace" class="workspace-page">
+    <div class="transactions-columns ">
+    <section id="transaction-list-panel" class="workspace-section">
+        <div id="transaction-dq-note" class="data-note data-note--problem data-note--clamped mock-new mock-pinned" data-role="dq-filter-note"><span class="mock-pin mock-pin--abs">1</span><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"></path><path d="M12 8v4"></path><circle cx="12" cy="16" r=".6"></circle></svg></span><span class="data-note__word">Problem</span>
+<div class="data-note__body">
+<div id="transaction-dq-note-text" class="data-note__text">Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag — das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert.</div>
+<div class="data-note__actions"><a href="/transactions">Alle Buchungen zeigen</a></div></div><button type="button" class="link-button data-note__more" aria-expanded="false" hidden="">mehr</button></div>
+          <div id="transaction-table-wrapper" class="data-table-wrapper" data-storage-key="transactions.columns" data-restore-event="set_tx_columns" data-current-columns="[&quot;date&quot;,&quot;type&quot;,&quot;security&quot;,&quot;account&quot;,&quot;quantity&quot;,&quot;price&quot;,&quot;gross_amount&quot;]">
+            <table id="transaction-list">
+              <thead>
+                <tr>
+                  <th>Datum</th><th>Typ</th><th>Wertpapier</th><th>Konto</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Betrag</th>
+                  <th class="row-actions-head">
+                    <span class="visually-hidden">Aktionen</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                  <tr class="tx-group-head" data-month-group="2026-06">
+                    <th colspan="8" scope="colgroup">
+                      <span class="tx-group-month">Juni 2026</span>
+                      <span class="tx-group-subtotal">1 Transaktion</span>
+                    </th>
+                  </tr>
+                    <tr data-transaction="69" class="mock-synth">
+                            <td class="cell-date">05.06.2026</td>
+                            <td class="cell-kind">Kauf</td>
+                            <td class="cell-name" data-role="history-security">Larkspur Robotics Inc</td>
+                            <td class="cell-name" data-role="account"><bdi>Demo Cash</bdi></td>
+                              <td class="num">40</td>
+                              <td class="num" data-role="price">25,00<small class="value-suffix">USD</small></td>
+                                <td class="num" data-role="amount">
+                                  -930,00<small class="value-suffix">USD</small>
+                                <small class="cell-note mock-new">zum eigenen Kurs 0,9300: 940,00 EUR</small></td>
+                      <td class="row-actions">
+                        <button type="button" id="tx-kebab-69" class="row-actions__kebab" aria-label="Aktionen für Kauf, Larkspur Robotics Inc, 05.06.2026" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+                      </td>
+                    </tr>
+              </tbody>
+            </table>
+          </div>
+    </section>
+    </div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

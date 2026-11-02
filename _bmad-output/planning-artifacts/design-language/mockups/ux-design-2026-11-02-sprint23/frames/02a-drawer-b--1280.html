@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02a-drawer-b</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="transactions-workspace" class="workspace-page">
+    <div class="transactions-columns transactions-columns--drawer">
+    <dialog id="booking-drawer" class="detail-pane booking-drawer" data-close-event="close_booking" data-sheet-below="720" data-focus-return="#tx-kebab-96, #tx-phone-kebab-96" data-focus-fallback="#transaction-history-heading" data-focus-result="#transactions-result .data-note" aria-labelledby="booking-drawer-title" open="">
+  <header class="detail-pane-head">
+    <div class="detail-pane-head__title">
+      <div>
+        <h2 id="booking-drawer-title">
+          Transaktion bearbeiten
+        </h2>
+        <p class="detail-pane-sub">
+              Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, und das Journal hält die Änderung fest.
+        </p>
+      </div>
+    </div>
+    <div class="detail-pane-head__actions">
+      <button type="button" class="icon-button" aria-label="Schließen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+  </header>
+  <form id="transaction-form">
+    <div class="form-grid">
+      <div class="mock-elided" style="grid-column: 1 / -1;">Typ Kauf · Datum 2026-04-16 · Depot Round Trip Depot · Wertpapier Arbolia Inc. — unverändert, für das Board gekürzt</div>
+      <label>
+        <span>Stückzahl</span>
+        <input name="transaction[quantity]" value="10" inputmode="decimal" class="num" required="">
+      </label>
+      <label>
+        <span>
+          Preis (EUR)
+        </span>
+        <input name="transaction[price]" value="81" inputmode="decimal" class="num" required="">
+      </label>
+    <label class="mock-new"><span>Betrag (EUR)<span class="mock-pin">1</span></span><input name="transaction[gross_amount]" value="816,00" inputmode="decimal" class="num">
+<p class="form-help">Das Geld, das das Konto bewegt. Gespeichert: 806,00 (wie importiert).</p></label></div>
+<div id="mock-note-g83lvh" class="data-note data-note--attention mock-new" data-role="cash-restate"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg></span><span class="data-note__word">Achtung</span>
+<div class="data-note__body">Menge, Preis, Gebühren oder Steuern geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind 816,00 = 10 × 81,00 + 5,00 + 1,00. Speichern übernimmt, was im Feld steht — den abgerechneten Betrag eintragen, wenn er abweicht.</div></div>
+    <input type="hidden" name="transaction[settlement_mode]" value="stored">
+    <p class="form-help" data-role="derived-currency">
+          Währung: EUR
+    </p>
+    <div class="data-note data-note--note" data-role="legless-booking">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"></path></svg>
+  </span>
+  <span class="data-note__word">Hinweis</span>
+    <div class="data-note__body">
+      In EUR gebucht — das Wertpapier notiert in USD, und diese Buchung hat noch keinen Gegenwert in USD. Speichern lässt sie in EUR.
+      Den Gegenwert leitet „Historische Wechselkurse nachladen“ unter Cashflow → „Trades“ ab.
+    </div>
+</div>
+    <details id="transaction-costs" class="transaction-costs" open="">
+      <summary class="disclosure-summary">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+        Kosten und Notiz
+      </summary>
+      <div class="form-grid">
+        <label>
+          <span>Gebühren</span>
+          <input name="transaction[fees]" value="5" inputmode="decimal" class="num">
+        </label>
+        <label>
+          <span>Steuern</span>
+          <input name="transaction[taxes]" value="1" inputmode="decimal" class="num">
+        </label>
+      </div>
+    <label>
+      <span>Notizen</span>
+      <textarea name="transaction[notes]"></textarea>
+    </label>
+    </details>
+    <div class="booking-drawer__foot">
+      <button type="submit" class="button-primary">
+        Änderungen speichern
+      </button>
+      <button type="button" id="booking-cancel" class="button-ghost">
+        Abbrechen
+      </button>
+    </div>
+  </form>
+</dialog>
+    </div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

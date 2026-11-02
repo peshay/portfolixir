@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02d-overview-built</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="dashboard-workspace" class="workspace-page">
+      <div id="dashboard-overview">
+  <section id="dashboard-trades" class="workspace-section">
+      <div id="trades-card-excluded" class="data-note data-note--attention" data-role="trades-card-excluded">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+    <div class="data-note__body">
+      <div id="trades-card-excluded-text" class="data-note__text" style="display: block;">
+        <span data-role="trades-card-excluded-counts"><span class="mock-pin">1</span>Fehlt bei den Trades: 1 Verkauf ohne gespeicherten Wechselkurs; 1 Verkauf, dessen Kauf keinen Gegenwert in seiner Währung hat; 1 Verkauf in einer dritten Währung; 1 Verkauf, dessen Kauf in einer anderen Währung bezahlt wurde; 1 Verkauf, dessen Kauf einen Betrag von null hat. </span>
+        <span data-role="trades-card-excluded-no-rate">1 Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: Harborline Freight Inc. Das Nachladen der Wechselkurse steht unter „Alle Trades“.</span>
+        <span data-role="trades-card-excluded-missing-leg">1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: Arbolia Inc.</span>
+       <span data-role="trades-card-excluded-third-currency" class="mock-synth"><span class="mock-pin">2</span>1 Verkauf ohne Umrechnung — er oder ein Kauf, den er schließt, ist weder in der Währung des Wertpapiers noch in der seines Kontos bepreist — fehlt bei den Trades: Saltmarsh Mining plc.</span> <span data-role="trades-card-excluded-other-account" class="mock-synth"><span class="mock-pin">3</span>1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, wurde in einer anderen Währung als der des Verkaufs bezahlt, die kein gespeicherter Wert überbrückt — fehlt bei den Trades: Brightwater Tools AG.</span> <span data-role="trades-card-excluded-zero-amount" class="mock-synth"><span class="mock-pin">4</span>1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat einen Betrag von null, den das Nachladen der Kurse nicht ergänzt — fehlt bei den Trades: Fernhill Bonus AG.</span></div>
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="trades-card-excluded-text" data-more="mehr" data-less="weniger" hidden="">mehr</button>
+</div>
+</section>
+</div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>
