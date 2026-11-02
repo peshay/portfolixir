@@ -61,8 +61,13 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["tools"] == []
     assert hd(Contract.entries()).prompts == []
 
-    assert [top_level, in_data, targets, views, tie_break, offset_refusal] =
+    assert [top_level, in_data, targets, views, tie_break, offset_refusal, merge_flows] =
              newest["parameters"]
+
+    assert newest["summary"] =~ "A4"
+    assert String.starts_with?(merge_flows, "GET /api/v1/securities_accounts/:id/merge_preview")
+    assert merge_flows =~ "boundary_removed"
+    assert merge_flows =~ "(#957; ADR-0050"
 
     assert newest["summary"] =~ "A2: "
     assert String.starts_with?(tie_break, "GET /api/v1/securities ")
