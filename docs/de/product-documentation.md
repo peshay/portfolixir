@@ -1088,6 +1088,17 @@ oder eine Notiz ist keine solche Änderung). Auf dem Telefon ist das Formular h�
 speichern** und **Abbrechen** bleiben deshalb an seiner Unterkante, während
 die Felder darüber scrollen.
 
+**Ohne Depot** (Issue #1299, Sprint 22): **Transaktion erfassen** erscheint,
+sobald ein Verrechnungskonto existiert, nicht erst mit einem Depot. Auf
+einer Instanz mit Verrechnungskonten und ohne Depot öffnet die Schublade
+auf dem Formular für Kontobuchungen mit **Einlage** gewählt, und ihre
+Typ-Liste hält nur, was ein Verrechnungskonto allein bucht — Zinsen,
+Einlage, Entnahme, Gebühren, Steuern und Steuererstattung; Käufe, Verkäufe
+und Dividenden brauchen ein Depot und ein Wertpapier und fehlen deshalb.
+Die Zeile über der Historie sagt es: „Käufe und Verkäufe brauchen ein
+Depot. Einlagen, Entnahmen, Zinsen, Gebühren und Steuern bucht ein
+Verrechnungskonto allein.“
+
 **Die Arten, die die Schublade nicht bucht** (Issue #912): Die Schublade
 erfasst und korrigiert Käufe, Verkäufe und die Kontobuchungen oben.
 **Bearbeiten** an jeder anderen Buchung — einer Umbuchung, einer

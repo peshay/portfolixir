@@ -992,6 +992,15 @@ edit). On a phone the form is
 taller than the sheet, so the sheet's **Save changes** and **Cancel** stay
 at its bottom edge while the fields scroll above them.
 
+**Without a depot** (issue #1299, Sprint 22): **Record transaction** shows
+whenever a cash account exists, not only once a depot does. On an instance
+with cash accounts and no depot, the drawer opens on the cash form with
+**Deposit** chosen, and its type list holds only what a cash account books
+alone — interest, deposit, removal, fee, tax and tax refund; buys, sells
+and dividends need a depot and a security, so they are absent. The line
+above the history says so: "Buys and sells need a depot. Deposits,
+removals, interest, fees and taxes book on a cash account alone."
+
 **The kinds the drawer does not book** (issue #912): the drawer records and
 corrects buys, sells and the cash kinds above. **Edit** on any other
 booking — a transfer, a delivery, a set balance, a split — and on a cash
