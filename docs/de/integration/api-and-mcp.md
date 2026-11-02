@@ -4061,6 +4061,9 @@ freigegebenen Zeilen als Vorher-Abbild.
   selbstbeschreibend: ein `meta`-Objekt nennt den `as_of`-Zeitpunkt, die
   Sortierung `order` (`inserted_at:desc,id:desc`), die Anzahl `count` und die
   angewandten `filters`.
+  Die Seite Audit-Journal (`/journal`) nimmt dieselben Parameter und listet
+  dieselben Einträge, sodass ein Agent dem Operator einen Link auf die
+  gelesenen Zeilen geben kann: `/journal?actor_type=api_token_rw&operation=delete`.
   SOLL-Ziel-Schreibvorgänge (Kategorie- und Positionszeilen gleichermaßen)
   werden unter `resource_type=target` journalisiert, Schreibvorgänge an
   Planversionen unter `resource_type=target_plan`.

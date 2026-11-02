@@ -4506,8 +4506,34 @@ Klassifizierungen und SOLL-Pläne, Steuerdaten, Recherche-Notizen und Termine,
 eigene Regeln, Zusammenführungen, Buckets und Views sowie die
 Standard-Ansicht, mit der die Seiten öffnen. Ein Logo, das jemand setzt,
 entfernt oder erneut suchen lässt, nennt, wer es war; nur die Logo-Suche im
-Hintergrund wird als Systemjob journalisiert. Eine eigene Ansicht in der App
-ist als Folgeschritt geplant.
+Hintergrund wird als Systemjob journalisiert.
+
+**Die Seite Audit-Journal** (`/journal`, der letzte Eintrag der Gruppe
+Verwaltung in der Seitenleiste) zeigt dasselbe Journal auf dem Bildschirm.
+Sie listet jeden Eintrag, die neuesten zuerst: die Zeit in UTC auf die
+Sekunde, wer die Änderung machte (Operator, Agent mit dem Namen des Tokens
+darunter, Import oder System), den Vorgang (Angelegt, Geändert, Gelöscht,
+Angelegt oder ersetzt) und den Eintrag — seine Art, seine ID und seinen
+Namen — als Link auf die Seite, auf der er steht, wo es eine gibt (eine
+Buchung hat keine eigene Seite und verlinkt die Historie). Die Spalte
+Änderung nennt jedes geänderte Feld in einer Zeile, „name: ~~Festgeld~~ →
+Festgeld Plus“, darunter eingeklappt unter „Gespeicherte Werte“ die
+gespeicherten Werte vorher und danach, beschränkt auf die geänderten
+Felder; ein angelegter Eintrag klappt jeden gespeicherten Wert ein, und ein
+Löschen liest sich „gelöscht, mit allen Werten“ und klappt jeden Wert ein,
+den der Datensatz hatte. Chips filtern nach Akteur und nach Vorgang, eine
+Auswahl nach Art, und ein Kästchen bezieht gespeicherte
+Was-wäre-wenn-Schreibvorgänge ein; „Nur dieser Eintrag“ neben einer Zeile
+listet die Geschichte genau dieses Eintrags. Das sind genau die Filter der
+API, und jeder steht in der Adresse
+(`/journal?actor_type=api_token_rw&operation=delete`), sodass ein Link, den
+ein Agent übergibt, die Zeilen öffnet, die er gelesen hat, und Seite und
+API dieselben Einträge listen. Die Basiszeile nennt Reihenfolge, Anzahl,
+Filter und dass die Zeiten in UTC stehen. Die Seite zeigt die neuesten 100;
+„Ältere Einträge zeigen“ fügt jeweils eine Seite hinzu, bis zum Maximum der
+API von 1000, darüber hinaus erreicht ein Filter ältere Einträge. Auf dem
+Telefon ist jeder Eintrag eine zweizeilige Zeile. Die Seite liest nur;
+nichts auf ihr ändert das Journal.
 
 Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
 stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen

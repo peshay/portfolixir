@@ -4092,8 +4092,30 @@ accounts and depots, bookings (an import's included), classifications and SOLL
 plans, tax records, research notes and events, policy rules, merges, and
 buckets and views, and the default view the pages open on. A logo someone
 sets, removes or searches again names who did; only the background logo
-discovery is journaled as a system job. A dedicated in-app viewer is a
-planned follow-up.
+discovery is journaled as a system job.
+
+**The Audit journal page** (`/journal`, the last entry of the sidebar's
+Administration group) shows the same journal on screen. It lists every
+entry newest first: the time in UTC to the second, who made the change
+(Operator, Agent with the token's name beneath, Import or System), the
+operation (Created, Changed, Deleted, Created or replaced) and the entry —
+its kind, its id and its name — as a link to the page it is read on where
+it has one (a booking, which has no page of its own, links the history).
+The Change column says each changed field in one line, "name: ~~Festgeld~~ →
+Festgeld Plus", with the stored before and after values folded beneath
+under "Stored values", reduced to the fields that changed; a created entry
+folds every stored value, and a deletion reads "deleted, with every value"
+and folds every value the record held. Chips filter by actor and by
+operation, a select by kind, and a checkbox includes persisted what-if
+writes; "Only this entry" beside a row lists that one entry's history.
+These are exactly the API's filters, and each is written into the address
+(`/journal?actor_type=api_token_rw&operation=delete`), so a link an agent
+hands over opens the rows it read, and the page and the API list the same
+entries. The basis line restates the order, the count, the filters and that
+times are UTC. The page shows the newest 100; "Show older entries" adds a
+page at a time up to the API's maximum of 1000, beyond which a filter
+reaches older entries. On a phone each entry is a two-line row. The page
+only reads; nothing on it changes the journal.
 
 Deleting a cash account, a depot or a security never takes anything with it
 silently (ADR-0050 §11). A row that bookings still reference — or, for a

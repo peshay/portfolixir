@@ -3739,6 +3739,9 @@ they replaced or released as the before-image.
   persisted what-if writes; real writes only by default). The response is
   self-describing: a `meta` object echoes the `as_of` instant, the `order`
   (`inserted_at:desc,id:desc`), the `count` and the `filters` applied.
+  The Audit journal page (`/journal`) takes the same parameters and lists
+  the same entries, so an agent can hand the operator a link to the rows it
+  read: `/journal?actor_type=api_token_rw&operation=delete`.
   SOLL target writes (category and position rows alike) are journaled under
   `resource_type=target`; plan-version writes under `resource_type=target_plan`.
 - An update's or a delete's `before` is the row as stored when the write took
