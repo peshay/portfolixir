@@ -73,8 +73,9 @@ defmodule Portfolixir.Ledger.StatedCashTest do
   # - A change of quantity, price, fees or taxes without gross_amount is
   #   refused on gross_amount, and the row is unchanged.
   # - Stated gross_amount within a cent of quantity × price + fees + taxes
-  #   (a buy), plus the price's own rounding (quantity × half a unit of its
-  #   last digit, at two places at least), is stored with the new figures;
+  #   (a buy), plus the stored price's own rounding while the edit keeps
+  #   it (quantity × half a unit of its last digit, at two places at
+  #   least), is stored with the new figures;
   #   beyond that it is refused,
   #   the message naming the expected figure.
   # - An update that changes none of the four (a note, a date) keeps the
@@ -121,10 +122,14 @@ defmodule Portfolixir.Ledger.StatedCashTest do
                "does not match quantity × price, fees and taxes — expected 816.00"
              ]
 
-      # 10 at 81.00: a cent plus the price's own rounding, 10 × 0.005.
-      assert {:ok, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.06"})
+      # A price the edit sets is exact: the cent alone (the sprint PR's
+      # closing act). The stored price's own rounding, 10 × 0.005, stays
+      # allowed while the price is unchanged.
+      assert {:error, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.02"})
+      assert {:ok, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.01"})
+      assert {:ok, _} = edit(buy, %{"fees" => "5.00", "gross_amount" => "816.06"})
+      assert {:error, _} = edit(buy, %{"fees" => "5.00", "gross_amount" => "816.07"})
       assert {:ok, _} = edit(buy, %{"price" => "80.00", "gross_amount" => "806.00"})
-      assert {:error, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.07"})
       assert Decimal.equal?(Repo.get!(Transaction, buy.id).gross_amount, Decimal.new("806.00"))
     end
 
@@ -159,6 +164,39 @@ defmodule Portfolixir.Ledger.StatedCashTest do
       assert {:ok, same} = edit(buy, %{"price" => "80", "fees" => "5", "notes" => "same"})
       assert Decimal.equal?(same.gross_amount, Decimal.new("806.00"))
     end
+  end
+
+  # Acceptance criteria (the sprint PR's closing act, #1371):
+  # - A price the edit sets is exact, so its tolerance is the cent alone:
+  #   100,000 shares at 0.11 (cash 11,000.00) re-priced to 0.10 with a cash
+  #   of 10,499.00, 4.99 % off, is refused naming 10000.00, where half a
+  #   unit of the price's last digit read 500.01; 10,000.01 is stored.
+  test "a price the edit sets allows the cent alone, however low it is",
+       %{world: world, security: security} do
+    {:ok, penny} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        trade_attrs(world, security, %{
+          type: "buy",
+          date: ~D[2026-03-05],
+          quantity: "100000",
+          price: "0.11",
+          gross_amount: "11000.00"
+        }),
+        import_hash: String.duplicate("f", 64)
+      )
+
+    assert {:error, changeset} = edit(penny, %{"price" => "0.10", "gross_amount" => "10499.00"})
+
+    assert messages(changeset, :gross_amount) == [
+             "does not match quantity × price, fees and taxes — expected 10000.00"
+           ]
+
+    assert {:error, _} = edit(penny, %{"price" => "0.10", "gross_amount" => "10000.02"})
+    assert Decimal.equal?(Repo.get!(Transaction, penny.id).gross_amount, Decimal.new("11000.00"))
+
+    assert {:ok, repriced} = edit(penny, %{"price" => "0.10", "gross_amount" => "10000.01"})
+    assert Decimal.equal?(repriced.gross_amount, Decimal.new("10000.01"))
   end
 
   # Acceptance criteria (a sell, whose cash is net of fees and taxes):

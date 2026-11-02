@@ -1889,7 +1889,12 @@ Beispiel-Payloads für Konten:
   wie ADR-0053 §2 eine importierte Zeile vergleicht, höchstens 0,01 plus
   |Menge| × eine halbe Einheit der letzten Stelle des Kurses (gelesen auf
   zwei bis sechs Stellen) auseinander, die Rundung eines importierten
-  Kurses (10 zu 81,00: 0,06). Eine Änderung keiner davon
+  Kurses, erlaubt nur, solange die Änderung den Kurs so lässt, wie er
+  gespeichert ist: Ein Kurs, den die Änderung setzt, ist exakt und wird
+  daher auf den Cent geprüft (10 neu zu 81,00: 0,01; eine korrigierte
+  Gebühr bei 10 zu gespeicherten 80,00: 0,06). Ein allein angegebener
+  `gross_amount`, der vom gespeicherten abweicht, wird ebenso gegen die
+  gespeicherten Zahlen geprüft. Eine Änderung keiner davon
   (eine Notiz, ein Datum, ein Konto) braucht keinen Betrag. Der gespeicherte
   Betrag ist die Zahl des Brokers und wird nie neu abgeleitet; eine
   Fremdwährungszeile ohne ihre Beine wird in der Währung geprüft, in der sie

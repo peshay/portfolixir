@@ -1743,7 +1743,11 @@ Example account payloads:
   Agree means: both sides rounded to two places, as ADR-0053 §2 compares an
   imported row, apart by at most 0.01 plus |quantity| × half a unit of the
   price's last digit (read at two to six places), the rounding an imported
-  price carries (10 at 81.00: 0.06).
+  price carries, allowed only while the update leaves the price as stored:
+  a price the update sets is exact, so it is checked to the cent (10
+  re-priced to 81.00: 0.01; a fee corrected on 10 at a stored 80.00: 0.06).
+  A `gross_amount` stated alone, different from the stored one, is checked
+  against the stored figures the same way.
   An update of none of these (a note, a date, an account) needs no cash.
   The stored cash is the broker's figure, so it is never re-derived; a
   cross-currency row stored without its legs is checked in the currency it
