@@ -467,6 +467,100 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
       assert flows(walk(ctx)) == expected
     end
+
+    # User story:
+    # As the operator collapsing a delivery both depots recorded,
+    # I want the preview to list the external flow the collapse removes,
+    # with its value where the delivery carries a price,
+    # so that I see how my time-weighted return changes before I choose.
+    #
+    # Acceptance criteria:
+    # - Without collapse nothing is listed; the collapse outcome lists, per
+    #   collapsed delivery, kind removed with the depot, the security, its
+    #   date, the units the day's flow no longer carries and their value at
+    #   the booked price (valued_at booked_price), or no value where the walk
+    #   values the units at the day's price (valued_at market).
+    # - After the apply, the performance walk's flow on a priced delivery's
+    #   day differs from before by exactly the listed change.
+    test "a collapsed delivery's external flow is listed as removed", ctx do
+      %{source: s, target: t} = ctx
+      s_in = delivery!(ctx, s, ctx.meridian, {"10", "80.00"}, ~D[2025-03-03])
+      _t_in = delivery!(ctx, t, ctx.meridian, {"10", "80.00"}, ~D[2025-03-03])
+      s_bare = delivery!(ctx, s, ctx.kestrel, {"4", nil}, ~D[2025-04-01])
+      _t_bare = delivery!(ctx, t, ctx.kestrel, {"4", nil}, ~D[2025-04-01])
+
+      before = walk(ctx)
+      {:ok, preview} = Lifecycle.preview_depot_merge(s.id, t.id)
+
+      assert preview.outcomes[false].flow_changes == []
+
+      assert Enum.map(preview.outcomes[true].flow_changes, &flow_line/1) == [
+               {:removed, s.id, ctx.meridian.id, nil, ~D[2025-03-03], dec("-10"), dec("-800"),
+                "EUR", :booked_price, s_in.id},
+               {:removed, s.id, ctx.kestrel.id, nil, ~D[2025-04-01], dec("-4"), nil, nil, :market,
+                s_bare.id}
+             ]
+
+      merge!(ctx, true, preview)
+
+      assert flows(walk(ctx))[~D[2025-03-03]] ==
+               n(Decimal.sub(flows(before)[~D[2025-03-03]], dec("800")))
+    end
+
+    # User story:
+    # As the operator collapsing a transfer to a third depot both depots
+    # recorded, where a view holds the merged depots and not the third,
+    # I want the preview to list the flow across that view's boundary the
+    # collapse removes,
+    # so that a view's time-weighted return never moves without my seeing it.
+    #
+    # Acceptance criteria:
+    # - The collapse outcome lists kind boundary_removed for the view the
+    #   transfer straddles, with the in-view depot, the security, the date
+    #   and the units the view's flow no longer carries, valued at the day's
+    #   price (valued_at market, no change); a transfer inside the portfolio
+    #   is no flow of the portfolio's own walk, so nothing else is listed.
+    # - After the apply, the view's flow on that day differs from before by
+    #   exactly those units at the day's close.
+    test "a collapsed transfer straddling a view is a listed boundary flow", ctx do
+      %{source: s, target: t} = ctx
+      third = depot!(ctx.portfolio, ctx.cash_t, "Depot 3")
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Core")})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), s, [core.id])
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), t, [core.id])
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: bucket_name("Core view")})
+
+      :ok =
+        Buckets.set_view_buckets(Actor.owner_ui(), view, [core.id], [], include_all: false)
+
+      buy!(ctx, s, ctx.cash_s, ctx.meridian, "10", "80.00", ~D[2025-01-10])
+      buy!(ctx, t, ctx.cash_t, ctx.meridian, "10", "85.00", ~D[2025-01-12])
+      s_out = transfer!(ctx, s, third, ctx.meridian, "5", ~D[2025-05-12], nil)
+      _t_out = transfer!(ctx, t, third, ctx.meridian, "5", ~D[2025-05-12], nil)
+
+      {:ok, _} =
+        Catalog.upsert_quotes(Actor.owner_ui(), ctx.meridian.id, [
+          %{"date" => "2025-05-12", "close" => "90.00"}
+        ])
+
+      before = view_flow(view, ~D[2025-05-12])
+      {:ok, preview} = Lifecycle.preview_depot_merge(s.id, t.id)
+
+      lines =
+        for change <- preview.outcomes[true].flow_changes,
+            change.kind != :boundary_removed or change.view_id == view.id,
+            do: flow_line(change)
+
+      assert lines == [
+               {:boundary_removed, s.id, ctx.meridian.id, view.id, ~D[2025-05-12], dec("5"), nil,
+                nil, :market, s_out.id}
+             ]
+
+      merge!(ctx, true, preview)
+
+      assert before == dec("-900")
+      assert view_flow(view, ~D[2025-05-12]) == dec("-450")
+    end
   end
 
   describe "view membership (§7 depot guards, the membership rule)" do
@@ -1326,6 +1420,22 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     )
   end
 
+  defp delivery!(ctx, depot, security, {quantity, price}, date) do
+    create!(
+      %{
+        portfolio_id: ctx.portfolio.id,
+        securities_account_id: depot.id,
+        security_id: security.id,
+        type: "inbound_delivery",
+        date: date,
+        quantity: quantity,
+        price: price,
+        currency_code: "EUR"
+      },
+      nil
+    )
+  end
+
   defp dividend!(ctx, depot, cash, security, amount, date, hash) do
     create!(
       %{
@@ -1498,6 +1608,22 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
   end
 
   defp flows(walk), do: Map.new(walk, fn {date, {flow, _value}} -> {date, flow} end)
+
+  defp view_flow(view, date) do
+    view.id
+    |> Performance.view_analysis()
+    |> Map.fetch!(:daily)
+    |> Enum.find(&(&1.date == date))
+    |> Map.fetch!(:flow)
+    |> Decimal.normalize()
+  end
+
+  # One listed flow change, decimals normalized.
+  defp flow_line(change) do
+    {change.kind, change.securities_account_id, change.security_id, change.view_id, change.date,
+     change.quantity && n(change.quantity), change.change && n(change.change),
+     change.currency_code, change.valued_at, change.collapsed_transaction_id}
+  end
 
   defp position(outcome, security),
     do: Enum.find(outcome.positions, &(&1.security_id == security.id))

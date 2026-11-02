@@ -1019,7 +1019,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         }),
       rounding_differences: rounding_differences(base, folds),
       cash_accounts: MergeFigures.collapsed_cash_accounts(pairs),
-      flow_changes: MergeFigures.collapse_flow_changes(pairs)
+      flow_changes: MergeFigures.collapse_flow_effects(pairs)
     }
   end
 
