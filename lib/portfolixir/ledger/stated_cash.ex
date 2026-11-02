@@ -20,8 +20,8 @@ defmodule Portfolixir.Ledger.StatedCash do
       `SettlementGuard.tolerance/0`;
     * an update that changes none of the four (a note, a date, an account)
       needs no cash and keeps it, even on a row whose cash already misses
-      its figures: such a row is never revalidated behind the operator's
-      back.
+      its figures: such a row is listed by `report/0`, never revalidated
+      behind the operator's back.
 
   A row with a settlement amount is ADR-0015's: the settlement guard already
   relates its legs and its cash, so it is left to it, and so is an update
@@ -30,13 +30,16 @@ defmodule Portfolixir.Ledger.StatedCash do
   is stored in; no exchange rate enters the relation.
 
   **Risk tier (ADR-0036):** how a stored booking is corrected. Nothing here
-  rewrites a stored row.
+  rewrites a stored row; `report/0` is read-only.
   """
 
   import Ecto.Changeset, only: [get_field: 2, add_error: 4, changed?: 2]
+  import Ecto.Query, only: [from: 2]
 
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
 
   @trade_types ["buy", "sell"]
   @figure_fields [:quantity, :price, :fees, :taxes]
@@ -134,6 +137,93 @@ defmodule Portfolixir.Ledger.StatedCash do
         expected: Decimal.round(derived, 2),
         validation: :stated_cash
       )
+    end
+  end
+
+  @doc """
+  The stored buys and sells whose cash misses their figures by more than a
+  cent (#1371; ADR-0053, amendment of 2026-11-02, point 4), read-only:
+  every row the rule covers (a stored cash, no settlement amount) whose
+  `gross_amount` differs from `quantity × price` plus fees and taxes on a
+  buy, less them on a sale, by more than `SettlementGuard.tolerance/0`. A
+  row edited before the rule, or imported with a price its cash does not
+  give, keeps its figures here until the operator states the cash.
+
+  Returns `%{as_of, note, remedy, tolerance, rows}`. Each row carries the
+  stored figures, the security's name, the cash account, `stored_cash` (the
+  `gross_amount` the cash projection and the holding's cost read),
+  `derived_cash` (what the figures give, the lots' reading) and
+  `difference` (`stored_cash - derived_cash`), all exact Decimals; ordered
+  by date, then id. Nothing is rewritten.
+  """
+  @spec report() :: %{
+          as_of: Date.t(),
+          note: String.t(),
+          remedy: String.t(),
+          tolerance: Decimal.t(),
+          rows: [map()]
+        }
+  def report do
+    rows =
+      from(t in Transaction,
+        left_join: s in assoc(t, :security),
+        where:
+          t.type in ^@trade_types and not is_nil(t.gross_amount) and
+            is_nil(t.settlement_amount),
+        order_by: [t.date, t.id],
+        select: %{
+          id: t.id,
+          portfolio_id: t.portfolio_id,
+          security_id: t.security_id,
+          security_name: s.name,
+          cash_account_id: t.cash_account_id,
+          date: t.date,
+          type: t.type,
+          currency_code: t.currency_code,
+          quantity: t.quantity,
+          price: t.price,
+          fees: t.fees,
+          taxes: t.taxes,
+          gross_amount: t.gross_amount
+        }
+      )
+      |> Repo.all()
+      |> Enum.flat_map(&mismatch_row/1)
+
+    %{
+      as_of: Clock.today(),
+      note:
+        "Stored buys and sells whose cash amount (gross_amount) misses quantity × price " <>
+          "plus fees and taxes on a buy, less them on a sale, by more than 0.01: the cash " <>
+          "balance and the holding's cost read the stored cash, the FIFO lots and realized " <>
+          "gains read the figures, so they read different amounts. Trades with a settlement " <>
+          "amount are the settlement check's.",
+      remedy:
+        "State the cash in the booking form (Edit) or as gross_amount with PATCH " <>
+          "/api/v1/transactions/:id: the amount settled, or the one the figures give. " <>
+          "Nothing is changed automatically.",
+      tolerance: SettlementGuard.tolerance(),
+      rows: rows
+    }
+  end
+
+  # A stored buy or sell always carries its quantity and price (the
+  # transactions_buy_sell_required_fields_check constraint).
+  defp mismatch_row(row) do
+    derived = derived_cash(row.type, row.quantity, row.price, row.fees, row.taxes)
+
+    if is_nil(derived) or within_a_cent?(row.gross_amount, derived) do
+      []
+    else
+      {stored, row} = Map.pop!(row, :gross_amount)
+
+      [
+        Map.merge(row, %{
+          stored_cash: stored,
+          derived_cash: derived,
+          difference: Decimal.sub(stored, derived)
+        })
+      ]
     end
   end
 end

@@ -1731,8 +1731,19 @@ Example account payloads:
   `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
   because a split is booked through `POST /api/v1/splits`, whose checks a
   generic update would pass by. A wrong split is deleted whole
-  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again. An
-  update that collides with a concurrent write of the same rows, such as a
+  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again. A buy
+  or a sell that stores its cash (`gross_amount`) and no `settlement_amount`
+  keeps its cash with its figures (ADR-0053, amendment of 2026-11-02,
+  #1371): an update that changes its `quantity`, `price`, `fees` or `taxes`
+  must state `gross_amount` too, or it answers 422 on `errors.gross_amount`
+  ("is required when quantity, price, fees or taxes change on a booking
+  that stores its cash"); the stated cash must lie within 0.01 of quantity
+  × price plus fees and taxes on a buy, less them on a sale, or it answers
+  422 "does not match quantity × price, fees and taxes — expected <amount>".
+  An update of none of the four (a note, a date, an account) needs no cash.
+  The stored cash is the broker's figure, so it is never re-derived; a
+  cross-currency row stored without its legs is checked in the currency it
+  is stored in. An update that collides with a concurrent write of the same rows, such as a
   cash-account merge, and loses answers **409** with `errors.detail` only:
   nothing was saved; read the transaction again and retry the update.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
@@ -2090,6 +2101,21 @@ Example account payloads:
   `gross_amount` (`PATCH /api/v1/transactions/:id`), after which the row is
   no longer listed; the settlement backfill does not touch these rows.
   Read-only and uncapped.
+- `GET /api/v1/transactions/cash_mismatch` returns the **trades whose cash
+  misses their figures** (#1371; ADR-0053, amendment of 2026-11-02): every
+  stored buy or sell with a `gross_amount` and no `settlement_amount` whose
+  cash differs from quantity × price plus fees and taxes (a buy), less them
+  (a sale), by more than `tolerance` (`"0.01"`) — a row edited before the
+  rule, whose cash balance reads the stored cash while its FIFO lots and
+  realized gains read the figures. Each row carries its ids,
+  `security_name`, `cash_account_id`, `date`, `type`, `currency_code`, and
+  as Decimal strings `quantity`, `price`, `fees`, `taxes`, `stored_cash`,
+  `derived_cash` and `difference` (`stored_cash - derived_cash`); ordered by
+  date, then id. Self-describing with `as_of`, a `note` and a `remedy`:
+  state the cash in the booking form (Edit) or as `gross_amount` with
+  `PATCH /api/v1/transactions/:id`, the amount settled or the one the
+  figures give; a row stated within a cent leaves the list. Read-only and
+  uncapped; nothing is rewritten.
 - `POST /api/v1/holdings/reconcile` compares a **user-supplied external
   position list** (a broker statement or depot overview, parsed client-side
   into rows) against the ledger-derived holdings — **strictly read-only**:

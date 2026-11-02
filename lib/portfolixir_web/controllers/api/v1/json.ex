@@ -894,6 +894,42 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   end
 
   @doc """
+  Serializes `Portfolixir.Ledger.StatedCash.report/0` (#1371; ADR-0053,
+  amendment of 2026-11-02, point 4): the stored buys and sells whose cash
+  misses quantity × price ± fees and taxes by more than the tolerance, each
+  with its figures, `stored_cash`, `derived_cash` and `difference`, every
+  financial figure a Decimal string.
+  """
+  def cash_mismatch_trades(report) do
+    %{
+      as_of: date(report.as_of),
+      note: report.note,
+      remedy: report.remedy,
+      tolerance: decimal(report.tolerance),
+      rows:
+        Enum.map(report.rows, fn row ->
+          %{
+            id: row.id,
+            portfolio_id: row.portfolio_id,
+            security_id: row.security_id,
+            security_name: row.security_name,
+            cash_account_id: row.cash_account_id,
+            date: date(row.date),
+            type: row.type,
+            currency_code: row.currency_code,
+            quantity: decimal(row.quantity),
+            price: decimal(row.price),
+            fees: decimal(row.fees),
+            taxes: decimal(row.taxes),
+            stored_cash: decimal(row.stored_cash),
+            derived_cash: decimal(row.derived_cash),
+            difference: decimal(row.difference)
+          }
+        end)
+    }
+  end
+
+  @doc """
   Serializes a `Portfolixir.Portfolios.Reconcile` result (ADR-0029 §6): the
   self-describing basis, the verbatim resolution guidance, matched rows with
   their `matched_via` tier and Decimal-string quantities/delta, ambiguous rows
