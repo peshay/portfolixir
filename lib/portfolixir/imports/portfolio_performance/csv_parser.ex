@@ -622,16 +622,28 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         end
 
       [date_part, time_part] ->
-        with {:ok, date} <- parse_plausible_date(date_part) do
-          time =
-            case Time.from_iso8601(String.trim(time_part)) do
-              {:ok, %Time{hour: 0, minute: 0, second: 0}} -> nil
-              {:ok, t} -> t
-              {:error, _} -> nil
-            end
-
+        with {:ok, date} <- parse_plausible_date(date_part),
+             {:ok, time} <- parse_time(String.trim(time_part)) do
           {:ok, {date, time}}
         end
+    end
+  end
+
+  # #1370, as #1306 for JSON v1: a time is a hash input, so a value the
+  # parser cannot read is the row's error, never "no time": two same-day
+  # rows whose times were both dropped would share one content hash, and the
+  # second would count as already imported. Its check follows the date's,
+  # before anything else of the row is read. A blank time is no time, and
+  # every value read before reads as it did (HH:MM:SS, a fraction, a `T`
+  # before it or a zone after it; midnight as no time), so no stored hash
+  # moves. HH:MM was read as no time, and stays unread for that reason.
+  defp parse_time(""), do: {:ok, nil}
+
+  defp parse_time(text) do
+    case Time.from_iso8601(text) do
+      {:ok, %Time{hour: 0, minute: 0, second: 0}} -> {:ok, nil}
+      {:ok, time} -> {:ok, time}
+      {:error, _reason} -> {:error, PortfolioPerformance.csv_time_message(text)}
     end
   end
 
