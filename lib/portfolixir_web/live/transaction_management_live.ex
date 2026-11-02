@@ -1290,6 +1290,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       %{
         gross_amount: transaction.gross_amount,
         figures: Map.take(transaction, StatedCash.figure_fields()),
+        type: transaction.type,
         currency: transaction.currency_code,
         imported?: is_binary(transaction.import_hash)
       }
@@ -1303,10 +1304,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # A changed figure prefills the cash field with what the form's figures
   # derive (two places, the page's notation); the operator's own figure
   # stands until a figure changes again. Saving takes what the field states.
-  defp restate_cash(params, %{}, target, nil) when target in @cash_figure_targets do
+  # Figures and type changed back to the stored ones put the stored cash
+  # back: the broker's figure is never replaced by the one they derive.
+  defp restate_cash(params, %{} = stored, target, nil) when target in @cash_figure_targets do
     case cash_suggestion(params) do
-      %{derived: derived} -> Map.put(params, "gross_amount", money_form(derived))
-      nil -> params
+      nil ->
+        params
+
+      suggestion ->
+        cash =
+          if as_stored?(suggestion, stored), do: stored.gross_amount, else: suggestion.derived
+
+        Map.put(params, "gross_amount", money_form(cash))
     end
   end
 
@@ -1347,17 +1356,20 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # one: the cash does not follow the figures by itself.
   defp cash_restate(form, %{figures: stored}) do
     with %{} = suggestion <- cash_suggestion(form),
-         true <-
-           Enum.any?(StatedCash.figure_fields(), fn field ->
-             not Decimal.equal?(
-               Map.fetch!(suggestion, field),
-               stored_figure_or_zero(stored, field)
-             )
-           end) do
+         false <- same_figures?(suggestion, stored) do
       suggestion
     else
       _unchanged -> nil
     end
+  end
+
+  defp as_stored?(suggestion, stored),
+    do: suggestion.type == stored.type and same_figures?(suggestion, stored.figures)
+
+  defp same_figures?(suggestion, figures) do
+    Enum.all?(StatedCash.figure_fields(), fn field ->
+      Decimal.equal?(Map.fetch!(suggestion, field), stored_figure_or_zero(figures, field))
+    end)
   end
 
   defp stored_figure_or_zero(stored, field), do: Map.get(stored, field) || Decimal.new(0)

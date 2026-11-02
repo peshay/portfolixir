@@ -210,6 +210,48 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert Decimal.equal?(row.gross_amount, Decimal.new("794.00"))
   end
 
+  # Acceptance criteria (the sprint PR's closing act, #1371):
+  # - A figure typed and changed back to the stored one puts the stored cash
+  #   back in the field (an imported buy, 7 at 14,29 for a cash of 100,00,
+  #   whose figures derive 100,03): no note, and a date-only save keeps
+  #   100.00, the broker's figure, never the derived one.
+  test "a figure changed and changed back puts the stored cash back",
+       %{conn: conn, world: w, security: s} do
+    {:ok, row} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: w.portfolio.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          security_id: s.id,
+          type: "buy",
+          date: ~D[2026-04-20],
+          quantity: "7",
+          price: "14.29",
+          currency_code: "EUR",
+          gross_amount: "100.00"
+        },
+        import_hash: String.duplicate("e", 64)
+      )
+
+    view = open_edit(conn, row.id)
+    change(view, w, s, "price", "14,3")
+    assert form_inputs(view)["transaction[gross_amount]"] == "100,10"
+
+    change(view, w, s, "price", "14,29")
+
+    assert form_inputs(view)["transaction[gross_amount]"] == "100,00"
+    refute has_element?(view, ~s([data-role="cash-restate"]))
+
+    submit(view, w, s, %{"date" => "2026-04-21"})
+
+    stored = stored(row.id)
+    assert stored.date == ~D[2026-04-21]
+    assert Decimal.equal?(stored.price, Decimal.new("14.29"))
+    assert Decimal.equal?(stored.gross_amount, Decimal.new("100.00"))
+  end
+
   # Acceptance criteria (a sell's cash is net of fees and taxes):
   # - Its note names the sum with minus signs and the prefilled figure is
   #   4 × 91,00 − 3,00 − 2,50 = 358,50.
