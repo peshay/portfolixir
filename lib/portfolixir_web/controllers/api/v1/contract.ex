@@ -41,6 +41,36 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 23,
+      # Sprint 23, M1 (#1115): the companion moves from the MCP SDK v1 to v2.
+      # Its stdio answers are held against a capture from the v1 build
+      # (mcp-server/test/fixtures/stdio-surface.json); two protocol-level
+      # refusals read differently. Dated the day after entry 22, because
+      # since= compares strictly after a date.
+      date: ~D[2026-11-04],
+      summary:
+        "Sprint 23, M1: the MCP companion runs on the MCP TypeScript SDK v2 " <>
+          "(@modelcontextprotocol/server 2.4.0, its HTTP transport from " <>
+          "@modelcontextprotocol/node 2.1.2), where it ran on @modelcontextprotocol/sdk " <>
+          "1.32.2 (#1115). Every tool's name, title, description, input schema, hints and " <>
+          "answer, both prompts, the server instructions and the handshake (protocol version " <>
+          "2025-11-25, the same capabilities and server info) are byte for byte what they " <>
+          "were, and the companion still serves the 2025-era protocol only, over stdio and " <>
+          "HTTP. Two protocol-level refusals and the stdio transport's message cap read " <>
+          "differently. No route, tool or prompt is added.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "prompts/get naming a prompt the companion does not offer (MCP only, no route serves a prompt), no tool changed: the JSON-RPC error keeps code -32602 and its message reads \"Prompt no_such_prompt not found\", where it read \"MCP error -32602: Prompt no_such_prompt not found\": the SDK no longer writes the code into the message, so a client matches the code, not the text (#1115)",
+        "tools/call sent without its params object (MCP only), no tool changed: the JSON-RPC error is -32602 (invalid params) and its message is \"Invalid tools/call request: \" followed by the schema issues, where it was -32603 (internal error) with the issues alone. A tools/call that carries params is answered as before: an invalid argument, an unknown tool and a tool the profile leaves out are each a tool result with isError true and the same text (#1115)",
+        "The MCP companion's stdio transport (PORTFOLIXIR_MCP_TRANSPORT=stdio), no tool changed: more than 10 MB of unread input, a single message that large, closes the connection, the SDK's default read cap, where it was buffered without a bound; a line on stdin that is not JSON is skipped without an answer, as it went unanswered before. The HTTP listener keeps its 1 MB body limit (#1115)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 22,
       # Sprint 22's stacked PR, A1 (#1254): every capped list read outside
       # K17's five delta reads echoes its limit and truncated. Dated the day

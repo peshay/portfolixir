@@ -49,31 +49,60 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
-    # outside K17's five delta reads echoes its limit and truncated. Dated
-    # strictly after entry 21, so since=2026-11-02 still returns it. No
-    # route, tool or prompt; two items, one per place the fields sit.
-    assert newest["version"] == 22
-    assert newest["date"] == "2026-11-03"
-    assert String.starts_with?(newest["summary"], "Sprint 22's stacked PR, A1: ")
-    assert newest["summary"] =~ "(#1254)"
+    # Sprint 23, M1 (version 23; #1115): the MCP companion moves to the MCP
+    # SDK v2. Dated strictly after entry 22, so since=2026-11-03 still
+    # returns it. No route, tool or prompt: what an agent sees change is two
+    # protocol-level refusals and the stdio transport's read cap, one item
+    # each, against the stdio capture the companion's tests hold.
+    assert newest["version"] == 23
+    assert newest["date"] == "2026-11-04"
+    assert String.starts_with?(newest["summary"], "Sprint 23, M1: ")
+    assert newest["summary"] =~ "@modelcontextprotocol/server 2.4.0"
+    assert newest["summary"] =~ "2025-11-25"
+    assert newest["summary"] =~ "(#1115)"
     assert newest["endpoints"] == []
     assert newest["tools"] == []
     assert hd(Contract.entries()).prompts == []
 
-    assert [top_level, in_data, targets, views, tie_break, offset_refusal, merge_flows, drawdown] =
-             newest["parameters"]
+    assert [unknown_prompt, no_params, stdio_cap] = newest["parameters"]
+    assert String.starts_with?(unknown_prompt, "prompts/get ")
+    assert unknown_prompt =~ ~s("Prompt no_such_prompt not found")
+    assert unknown_prompt =~ ~s(where it read "MCP error -32602: Prompt no_such_prompt not found")
+    assert String.starts_with?(no_params, "tools/call sent without its params object")
+    assert no_params =~ "-32602 (invalid params)"
+    assert no_params =~ "where it was -32603 (internal error)"
+    assert stdio_cap =~ "10 MB"
+    assert stdio_cap =~ "1 MB body limit"
 
-    assert newest["summary"] =~ "U4"
+    for item <- newest["parameters"], do: assert(item =~ "(#1115)")
+
+    # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
+    # outside K17's five delta reads echoes its limit and truncated. Dated
+    # strictly after entry 21, so since=2026-11-02 still returns it. No
+    # route, tool or prompt; two items, one per place the fields sit. Found
+    # by version from Sprint 23 on.
+    a1 = Enum.find(data["entries"], &(&1["version"] == 22))
+    assert a1["version"] == 22
+    assert a1["date"] == "2026-11-03"
+    assert String.starts_with?(a1["summary"], "Sprint 22's stacked PR, A1: ")
+    assert a1["summary"] =~ "(#1254)"
+    assert a1["endpoints"] == []
+    assert a1["tools"] == []
+    assert Enum.find(Contract.entries(), &(&1.version == 22)).prompts == []
+
+    assert [top_level, in_data, targets, views, tie_break, offset_refusal, merge_flows, drawdown] =
+             a1["parameters"]
+
+    assert a1["summary"] =~ "U4"
     assert String.starts_with?(drawdown, "GET /api/v1/portfolios/:portfolio_id/risk")
     assert drawdown =~ "(#1343)"
 
-    assert newest["summary"] =~ "A4"
+    assert a1["summary"] =~ "A4"
     assert String.starts_with?(merge_flows, "GET /api/v1/securities_accounts/:id/merge_preview")
     assert merge_flows =~ "boundary_removed"
     assert merge_flows =~ "(#957; ADR-0050"
 
-    assert newest["summary"] =~ "A2: "
+    assert a1["summary"] =~ "A2: "
     assert String.starts_with?(tie_break, "GET /api/v1/securities ")
     assert tie_break =~ "ascending in either direction"
     assert tie_break =~ "(#1294)"
@@ -85,7 +114,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert offset_refusal =~ ~s(errors.offset ["is not used with a cursor; page by as_of"])
     assert offset_refusal =~ "(#1295)"
-    assert newest["summary"] =~ "A3"
+    assert a1["summary"] =~ "A3"
     assert String.starts_with?(targets, "GET /api/v1/portfolios/:portfolio_id/targets")
     assert targets =~ "(#1301)"
     assert String.starts_with?(views, "PUT /api/v1/views/:id/buckets")

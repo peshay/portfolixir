@@ -17,13 +17,18 @@ defmodule Portfolixir.Invariants.McpDependencyAllowlistTest do
   # The MCP server may only depend on the MCP SDK, its HTTP layer, and schema
   # validation. Anything that reaches data must go through the JSON API, so a
   # new dependency here is a deliberate decision that must extend this list.
+  # SDK v2 (#1115) splits the SDK: the server package, and its Node adapter
+  # for the HTTP transport; the client package is a test dependency only,
+  # the MCP host the companion's own tests connect with.
   @runtime_allowlist MapSet.new([
-                       "@modelcontextprotocol/sdk",
+                       "@modelcontextprotocol/server",
+                       "@modelcontextprotocol/node",
                        "express",
                        "zod"
                      ])
 
   @dev_allowlist MapSet.new([
+                   "@modelcontextprotocol/client",
                    "@types/express",
                    "@types/node",
                    "tsx",

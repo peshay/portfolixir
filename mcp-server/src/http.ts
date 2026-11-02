@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { STATUS_CODES } from "node:http";
 
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
 
 import { createPortfolixirMcpServer } from "./server.js";
 import type { ApiClient } from "./api-client.js";
@@ -574,7 +574,7 @@ export function createHttpApp(options: HttpAppOptions): Express {
 
   app.all("/mcp", async (req: Request, res: Response) => {
     const server = createPortfolixirMcpServer(options.client, { profile: options.profile });
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new NodeStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableDnsRebindingProtection: true,
       allowedHosts: options.allowedHosts

@@ -152,7 +152,9 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
         |> Map.values()
         |> Enum.flat_map(&Map.keys/1)
 
-      assert "@modelcontextprotocol/sdk" in npm, "the package-lock scan did not see the MCP SDK"
+      assert "@modelcontextprotocol/server" in npm,
+             "the package-lock scan did not see the MCP SDK's server package (SDK v2, #1115)"
+
       assert length(npm) > length(direct), "the package-lock scan saw no transitive packages"
 
       offenders = npm |> classify() |> reject_allowlisted()

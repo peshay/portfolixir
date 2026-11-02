@@ -272,27 +272,25 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   # `specifier => {:all | [names], reason}`: what the MCP companion may import.
   # Its own relative modules are scanned in their turn.
   @mcp_imports %{
-    "@modelcontextprotocol/sdk/server/mcp.js" =>
-      {:all, "the MCP server object; it answers on a transport and dials nothing"},
-    "@modelcontextprotocol/sdk/server/stdio.js" =>
-      {:all, "the stdio transport: the agent's own process pipes"},
-    "@modelcontextprotocol/sdk/server/streamableHttp.js" =>
-      {:all, "the HTTP transport behind the companion's own inbound listener"},
-    "@modelcontextprotocol/sdk/types.js" =>
+    "@modelcontextprotocol/server" =>
       {[
-         "CallToolRequestSchema",
-         "ListToolsRequestSchema",
+         "McpServer",
+         "ProtocolError",
+         "ProtocolErrorCode",
          "CallToolResult",
          "Tool",
-         "ListPromptsRequestSchema",
-         "GetPromptRequestSchema",
          "GetPromptResult",
-         "Prompt",
-         "ErrorCode",
-         "McpError"
+         "Prompt"
        ],
-       "the protocol's request schemas, result types and error type the server answers " <>
-         "with, the prompts' (Sprint 17 A4) among them; data only"},
+       "the MCP server object, which answers on a transport and dials nothing, and the " <>
+         "protocol's result types and error type it answers with, the prompts' (Sprint 17 " <>
+         "A4) among them; SDK v2 (#1115)"},
+    "@modelcontextprotocol/server/stdio" =>
+      {["StdioServerTransport"], "the stdio transport: the agent's own process pipes"},
+    "@modelcontextprotocol/node" =>
+      {["NodeStreamableHTTPServerTransport"],
+       "the HTTP transport behind the companion's own inbound listener; SDK v2's Node " <>
+         "adapter (#1115)"},
     "express" => {:all, "the companion's inbound HTTP listener (#761)"},
     "zod" => {:all, "the tools' input schemas"},
     "node:crypto" => {:all, "the constant-time bearer-token compare"},
@@ -799,7 +797,7 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       import http from "node:http";
       import { STATUS_CODES, get } from "node:http";
       import type { Request } from "express";
-      import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+      import { Client } from "@modelcontextprotocol/client";
       import { helper } from "./helper.js";
       export { thing } from "undici";
 
@@ -818,7 +816,7 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       assert Enum.any?(imports, &(&1 =~ "node:https"))
       assert Enum.any?(imports, &(&1 =~ ~s(node:http" default)))
       assert Enum.any?(imports, &(&1 =~ ~s(node:http" name get)))
-      assert Enum.any?(imports, &(&1 =~ "sdk/client"))
+      assert Enum.any?(imports, &(&1 =~ "modelcontextprotocol/client"))
       assert Enum.any?(imports, &(&1 =~ "undici"))
       refute Enum.any?(imports, &(&1 =~ ~r/express|helper/))
 

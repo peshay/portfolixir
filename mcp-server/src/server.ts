@@ -1,14 +1,10 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
-  CallToolRequestSchema,
-  ErrorCode,
-  GetPromptRequestSchema,
-  ListPromptsRequestSchema,
-  ListToolsRequestSchema,
-  McpError,
+  McpServer,
+  ProtocolError,
+  ProtocolErrorCode,
   type CallToolResult,
   type Tool
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/server";
 import { ZodError } from "zod";
 
 import type { ApiClient } from "./api-client.js";
@@ -74,21 +70,27 @@ export function createPortfolixirMcpServer(
     { capabilities: { tools: {}, prompts: {} }, instructions: serverInstructions(policy) }
   );
 
-  server.server.setRequestHandler(ListToolsRequestSchema, () => ({
+  server.server.setRequestHandler("tools/list", () => ({
     tools: publishedToolList(policy)
   }));
 
-  server.server.setRequestHandler(CallToolRequestSchema, (request) =>
-    answer(client, request.params.name, request.params.arguments ?? {}, policy)
+  // A low-level tools/call handler passes its result through the SDK's own
+  // projection, as v2 asks of one (#1115); the companion's results carry text
+  // content and object-shaped structured content, which it leaves as they are.
+  server.server.setRequestHandler("tools/call", async (request) =>
+    server.server.projectCallToolResult(
+      await answer(client, request.params.name, request.params.arguments ?? {}, policy),
+      undefined
+    )
   );
 
-  server.server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: listPrompts() }));
+  server.server.setRequestHandler("prompts/list", () => ({ prompts: listPrompts() }));
 
-  server.server.setRequestHandler(GetPromptRequestSchema, (request) => {
+  server.server.setRequestHandler("prompts/get", (request) => {
     const prompt = getPrompt(request.params.name, request.params.arguments, policy.profile ?? "full");
 
     if (prompt === undefined) {
-      throw new McpError(ErrorCode.InvalidParams, `Prompt ${request.params.name} not found`);
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Prompt ${request.params.name} not found`);
     }
 
     return prompt;
