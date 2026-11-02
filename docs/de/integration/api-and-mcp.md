@@ -180,6 +180,21 @@ nicht-negative Ganzzahl ist, liefert `422` mit dem Namen des Parameters.
 den Wertpapier-Terminen. Ein Jahr außerhalb von `1`–`9999` gilt als
 fehlerhaftes Jahr.
 
+**Ein begrenzter Listen-Read sagt, wenn er gekürzt wurde (#1254).** Jeder
+Listen-Read, der seine Zeilen mit `limit` begrenzt — die fünf Delta-Reads
+unten, das Journal, die Merge-Einträge, die Wechselkurse, die Kurse eines
+Wertpapiers und seine Strecken manueller Kurse, die Snapshots, die drei
+Cashflow-Auswertungen (deren `limit` die Jahre der Jahresmatrix zählt) und die
+Warteschlangen der Notizen und Ereignisse (unreviewed, uncorroborated,
+expiring, upcoming, unconfirmed, stale) — spiegelt das angewandte `limit`, den
+Standard, wenn keines gesendet wurde, und `truncated`: `true`, wenn mehr
+Zeilen passten, als die Antwort enthält, sodass eine volle Antwort nie für die
+ganze gehalten wird. Beide stehen neben `data`, wenn `data` die Liste ist, in
+`data`, wenn es ein Objekt ist; ein älteres Echo (`meta.limit`,
+`meta.filters.limit`) bleibt. Den Rest liest, wer `limit` bis zum Maximum des
+Reads erhöht oder die Filter enger fasst; nur die Delta-Reads blättern mit
+einem Cursor.
+
 **Datumsangaben.** Jedes Datum, das ein Schreibzugriff speichert — das
 `date` einer Buchung, `valid_from` einer Regelversion und `valid_until` einer
 Stilllegung, `as_of` eines Snapshots, die Daten eines Research-Log-Eintrags,

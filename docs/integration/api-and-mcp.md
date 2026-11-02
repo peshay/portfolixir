@@ -163,6 +163,19 @@ non-negative integer, answers `422` naming the parameter. `limit` keeps its
 capped-and-echoed contract, and so does the security events' `days`. A year
 outside `1`–`9999` reads as a malformed year.
 
+**A capped list read says when it was cut (#1254).** Every list read that
+bounds its rows with `limit` — the five delta reads below, the journal, the
+merge records, the exchange rates, a security's quotes and its manual-quote
+stretches, the snapshots, the three cash-flow roll-ups (whose `limit` counts
+the years of the annual matrix) and the note and event queues (unreviewed,
+uncorroborated, expiring, upcoming, unconfirmed, stale) — echoes the `limit`
+it applied, the default when none was sent, and `truncated`: `true` when more
+rows matched than the answer holds, so a full answer is never taken for the
+whole one. Both sit beside `data` when `data` is the list, inside `data` when
+it is an object; an older echo (`meta.limit`, `meta.filters.limit`) stays. To
+read the rest, raise `limit` up to the read's maximum or narrow the filters;
+only the delta reads page with a cursor.
+
 **Dates.** Every date a write stores — a booking's `date`, a rule version's
 `valid_from` and a retirement's `valid_until`, a snapshot's `as_of`, a
 research-log entry's, an event's, a tax profile's, an ISIN change's, a quote's
