@@ -1066,6 +1066,21 @@ same edit sends 816.00 unless the operator changes the field.
 write path, the drawer shows the derived figure read-only, and point 4's
 check still lists the rows edited before.
 
+**Note (2026-11-02, the building batch).** "To the cent, as §2 asks of an
+imported row" is read the way §2 reads: both sides rounded to two places,
+apart by at most 0.01 **plus the price's own rounding**, |quantity| × half a
+unit of the price's last digit, read off the stored price without trailing
+zeros at two places at least and six at most. §2 never relates quantity ×
+price to the cash: a CSV row stores its Kurs as Portfolio Performance writes
+it, a rounded display of Betrag ÷ Stück, and a JSON row its price rounded to
+the column's six places. Rows that pass §2 therefore miss quantity × price ±
+fees and taxes by more than a cent (synthetic: 7 at 14,29 for a Betrag of
+100,00 by 0.03; 1,234 at 12,3457 for 15.234,56 by 0.0338; 123,456.789 shares
+for 1,000,000.00 at 8.099960 by 0.047), and a cent alone would list them
+untouched and refuse their correction. With the allowance none is listed,
+and #1371's identity holds: 806.00 against 816.00 is refused, the tolerance
+of 10 at 81.00 being 0.06. No decision changes.
+
 ## Note (2026-11-02): the refusal list gains the CSV time row
 
 Sprint 23's R1 (#1370; the plan of 2026-11-02, D-3: a note, not an

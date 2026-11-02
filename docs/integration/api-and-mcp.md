@@ -1737,9 +1737,13 @@ Example account payloads:
   #1371): an update that changes its `quantity`, `price`, `fees` or `taxes`
   must state `gross_amount` too, or it answers 422 on `errors.gross_amount`
   ("is required when quantity, price, fees or taxes change on a booking
-  that stores its cash"); the stated cash must lie within 0.01 of quantity
-  × price plus fees and taxes on a buy, less them on a sale, or it answers
-  422 "does not match quantity × price, fees and taxes — expected <amount>".
+  that stores its cash"); the stated cash must agree with quantity × price
+  plus fees and taxes on a buy, less them on a sale, or it answers 422
+  "does not match quantity × price, fees and taxes — expected <amount>".
+  Agree means: both sides rounded to two places, as ADR-0053 §2 compares an
+  imported row, apart by at most 0.01 plus |quantity| × half a unit of the
+  price's last digit (read at two to six places), the rounding an imported
+  price carries (10 at 81.00: 0.06).
   An update of none of the four (a note, a date, an account) needs no cash.
   The stored cash is the broker's figure, so it is never re-derived; a
   cross-currency row stored without its legs is checked in the currency it
@@ -2104,17 +2108,18 @@ Example account payloads:
 - `GET /api/v1/transactions/cash_mismatch` returns the **trades whose cash
   misses their figures** (#1371; ADR-0053, amendment of 2026-11-02): every
   stored buy or sell with a `gross_amount` and no `settlement_amount` whose
-  cash differs from quantity × price plus fees and taxes (a buy), less them
-  (a sale), by more than `tolerance` (`"0.01"`) — a row edited before the
-  rule, whose cash balance reads the stored cash while its FIFO lots and
+  cash does not agree with quantity × price plus fees and taxes (a buy),
+  less them (a sale), as the PATCH above reads agreement (`tolerance_rule`
+  says how) — a row edited before the rule, whose cash balance reads the stored cash while its FIFO lots and
   realized gains read the figures. Each row carries its ids,
   `security_name`, `cash_account_id`, `date`, `type`, `currency_code`, and
   as Decimal strings `quantity`, `price`, `fees`, `taxes`, `stored_cash`,
-  `derived_cash` and `difference` (`stored_cash - derived_cash`); ordered by
-  date, then id. Self-describing with `as_of`, a `note` and a `remedy`:
+  `derived_cash`, `difference` (`stored_cash - derived_cash`) and its
+  `tolerance`; ordered by date, then id. A row that passed §2 at import is
+  not listed. Self-describing with `as_of`, a `note` and a `remedy`:
   state the cash in the booking form (Edit) or as `gross_amount` with
   `PATCH /api/v1/transactions/:id`, the amount settled or the one the
-  figures give; a row stated within a cent leaves the list. Read-only and
+  figures give; a row stated within its tolerance leaves the list. Read-only and
   uncapped; nothing is rewritten.
 - `POST /api/v1/holdings/reconcile` compares a **user-supplied external
   position list** (a broker statement or depot overview, parsed client-side

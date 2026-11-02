@@ -4,24 +4,38 @@ defmodule Portfolixir.Ledger.StatedCash do
   2026-11-02, #1371).
 
   A buy or a sell that stores a cash amount (`gross_amount`) and no
-  settlement legs is read two ways: the cash projection and the holding's
-  cost read the stored cash, the FIFO lots read `quantity × price` with the
-  fees and taxes. ADR-0053 §2 keeps the two together at import, to the cent.
-  This module keeps them together on every later write:
+  settlement legs is read two ways: the cash projection reads the stored
+  cash, the FIFO lots (and the holding's cost, quantity × price) read the
+  figures. ADR-0053 §2 keeps the two together at import, to the cent. This
+  module keeps them together on every later write:
 
     * an update that changes the **quantity, the price, the fees or the
-      taxes** of such a row must state `gross_amount` too, or it is refused
-      on `gross_amount`; the stored cash is the broker's figure, so it is
-      never re-derived behind the operator's back (answer (b));
-    * the stated cash must agree with the new figures **to the cent**:
-      `quantity × price + fees + taxes` on a buy, `− fees − taxes` on a sell
-      (`SettlementGuard.expected_cash/4`, the relation the settlement guard
-      and the projection's own fallback use), within
-      `SettlementGuard.tolerance/0`;
-    * an update that changes none of the four (a note, a date, an account)
+      taxes** of such a row, or turns a buy into a sell or back (the
+      relation's sign flips), must state `gross_amount` too, or it is
+      refused on `gross_amount`; the stored cash is the broker's figure, so
+      it is never re-derived behind the operator's back (answer (b));
+    * the stated cash must agree with the new figures **to the cent, as §2
+      asks of an imported row**: `quantity × price + fees + taxes` on a
+      buy, `− fees − taxes` on a sell (`SettlementGuard.expected_cash/4`),
+      both sides rounded to two places as §2 rounds them, within
+      `tolerance/2`: a cent, plus the price's own rounding (below);
+    * an update that changes none of these (a note, a date, an account)
       needs no cash and keeps it, even on a row whose cash already misses
       its figures: such a row is listed by `report/0`, never revalidated
       behind the operator's back.
+
+  **The price's own rounding.** An imported price is a rounded figure: a
+  Portfolio Performance CSV row stores its Kurs cell as written (two to four
+  places, the display of Betrag ÷ Stück), a JSON row its cash net of fees
+  and taxes ÷ shares rounded half up to the price column's six places. §2
+  never relates quantity × price to the cash, so a row that passed it misses
+  quantity × price ± fees and taxes by up to its quantity × half a unit of
+  the price's last digit: 7 at 14.29 for a Betrag of 100.00 by 0.03, 1,234
+  at 12.3457 for 15,234.56 by 0.0338, 123,456.789 at 8.099960 by 0.047.
+  The stored price keeps no trace of how many places were written, so the
+  last digit is read off the price as stored, its trailing zeros dropped,
+  at two places at least (Portfolio Performance writes a Kurs to at least
+  two) and six at most (the column's scale).
 
   A row with a settlement amount is ADR-0015's: the settlement guard already
   relates its legs and its cash, so it is left to it, and so is an update
@@ -76,30 +90,62 @@ defmodule Portfolixir.Ledger.StatedCash do
 
   def derived_cash(_type, _quantity, _price, _fees, _taxes), do: nil
 
-  @doc "Whether `cash` lies within one cent of `derived` (ADR-0016 §4)."
-  @spec within_a_cent?(Decimal.t(), Decimal.t()) :: boolean()
-  def within_a_cent?(%Decimal{} = cash, %Decimal{} = derived) do
-    cash
-    |> Decimal.sub(derived)
+  @doc """
+  The difference a stated cash may show against the cash `quantity` at
+  `price` derives: one cent (ADR-0016 §4) plus |quantity| × half a unit of
+  the price's last digit, read at two to six places (the moduledoc's "The
+  price's own rounding"). 10 at 81.00: 0.01 + 10 × 0.005 = 0.06.
+  """
+  @spec tolerance(Decimal.t(), Decimal.t()) :: Decimal.t()
+  def tolerance(%Decimal{} = quantity, %Decimal{} = price) do
+    quantity
     |> Decimal.abs()
-    |> Decimal.compare(SettlementGuard.tolerance()) != :gt
+    |> Decimal.mult(half_unit(price))
+    |> Decimal.add(SettlementGuard.tolerance())
+  end
+
+  defp half_unit(price) do
+    %Decimal{exp: exp} = Decimal.normalize(price)
+    places = exp |> min(-2) |> max(-6)
+    Decimal.new(1, 5, places - 1)
+  end
+
+  @doc """
+  Whether `cash` agrees with `derived`, the cash `quantity` at `price` gives:
+  both rounded to two places, as ADR-0053 §2 compares an imported row's
+  readings, and apart by no more than `tolerance/2`.
+  """
+  @spec agrees?(Decimal.t(), Decimal.t(), Decimal.t(), Decimal.t()) :: boolean()
+  def agrees?(%Decimal{} = cash, %Decimal{} = derived, quantity, price) do
+    cash
+    |> Decimal.round(2)
+    |> Decimal.sub(Decimal.round(derived, 2))
+    |> Decimal.abs()
+    |> Decimal.compare(tolerance(quantity, price)) != :gt
   end
 
   @doc """
   The update step: `changeset` is an update of a stored row built from
   `attrs`, the caller's attributes, which alone tell whether the cash was
   stated (a stated cash equal to the stored one is no change). Refuses on
-  `gross_amount` an update of the four figures of a row the rule covers
-  that states no cash, or states one the new figures miss by more than a
-  cent; leaves every other write alone.
+  `gross_amount` an update of the four figures, or of the type between buy
+  and sell, of a row the rule covers that states no cash, or states one the
+  new figures do not agree with (`agrees?/4`); leaves every other write
+  alone.
   """
   @spec validate(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def validate(%Ecto.Changeset{data: %Transaction{} = stored} = changeset, attrs)
       when is_map(attrs) do
     if applies?(stored) and is_nil(get_field(changeset, :settlement_amount)) and
-         Enum.any?(@figure_fields, &changed?(changeset, &1)),
+         triggered?(changeset),
        do: check(changeset, stated?(attrs)),
        else: changeset
+  end
+
+  # The four figures, and a buy turned into a sell or back: the relation's
+  # sign flips (the amendment's point 1, "on every write").
+  defp triggered?(changeset) do
+    Enum.any?(@figure_fields, &changed?(changeset, &1))
   end
 
   defp stated?(attrs),
@@ -130,7 +176,8 @@ defmodule Portfolixir.Ledger.StatedCash do
         get_field(changeset, :taxes)
       )
 
-    if is_nil(derived) or within_a_cent?(cash, derived) do
+    if is_nil(derived) or
+         agrees?(cash, derived, get_field(changeset, :quantity), get_field(changeset, :price)) do
       changeset
     else
       add_error(changeset, :gross_amount, @mismatch_message,
@@ -141,26 +188,26 @@ defmodule Portfolixir.Ledger.StatedCash do
   end
 
   @doc """
-  The stored buys and sells whose cash misses their figures by more than a
-  cent (#1371; ADR-0053, amendment of 2026-11-02, point 4), read-only:
-  every row the rule covers (a stored cash, no settlement amount) whose
-  `gross_amount` differs from `quantity × price` plus fees and taxes on a
-  buy, less them on a sale, by more than `SettlementGuard.tolerance/0`. A
-  row edited before the rule, or imported with a price its cash does not
-  give, keeps its figures here until the operator states the cash.
+  The stored buys and sells whose cash misses their figures (#1371;
+  ADR-0053, amendment of 2026-11-02, point 4), read-only: every row the
+  rule covers (a stored cash, no settlement amount) whose `gross_amount`
+  does not agree (`agrees?/4`) with `quantity × price` plus fees and taxes
+  on a buy, less them on a sale. A row edited before the rule keeps its
+  figures here until the operator states the cash; an imported row that
+  passed §2 is not listed, whatever its price's rounding.
 
-  Returns `%{as_of, note, remedy, tolerance, rows}`. Each row carries the
-  stored figures, the security's name, the cash account, `stored_cash` (the
-  `gross_amount` the cash projection and the holding's cost read),
-  `derived_cash` (what the figures give, the lots' reading) and
-  `difference` (`stored_cash - derived_cash`), all exact Decimals; ordered
-  by date, then id. Nothing is rewritten.
+  Returns `%{as_of, note, remedy, tolerance_rule, rows}`. Each row carries
+  the stored figures, the security's name, the cash account, `stored_cash`
+  (the `gross_amount` the cash projection reads), `derived_cash` (what the
+  figures give, the lots' reading), `difference` (`stored_cash -
+  derived_cash`) and the row's `tolerance` (`tolerance/2`), all exact
+  Decimals; ordered by date, then id. Nothing is rewritten.
   """
   @spec report() :: %{
           as_of: Date.t(),
           note: String.t(),
           remedy: String.t(),
-          tolerance: Decimal.t(),
+          tolerance_rule: String.t(),
           rows: [map()]
         }
   def report do
@@ -194,15 +241,19 @@ defmodule Portfolixir.Ledger.StatedCash do
       as_of: Clock.today(),
       note:
         "Stored buys and sells whose cash amount (gross_amount) misses quantity × price " <>
-          "plus fees and taxes on a buy, less them on a sale, by more than 0.01: the cash " <>
-          "balance and the holding's cost read the stored cash, the FIFO lots and realized " <>
-          "gains read the figures, so they read different amounts. Trades with a settlement " <>
-          "amount are the settlement check's.",
+          "plus fees and taxes on a buy, less them on a sale, by more than its tolerance: " <>
+          "the cash balance reads the stored cash, the FIFO lots, realized gains and the " <>
+          "holding's cost read the figures, so they read different amounts. Trades with a " <>
+          "settlement amount are the settlement check's.",
       remedy:
         "State the cash in the booking form (Edit) or as gross_amount with PATCH " <>
           "/api/v1/transactions/:id: the amount settled, or the one the figures give. " <>
           "Nothing is changed automatically.",
-      tolerance: SettlementGuard.tolerance(),
+      tolerance_rule:
+        "Both sides rounded to two places, as ADR-0053 §2 compares an imported row; a " <>
+          "row is listed when they differ by more than 0.01 plus |quantity| × half a unit " <>
+          "of the price's last digit (read at two to six places), the price's own rounding " <>
+          "at import.",
       rows: rows
     }
   end
@@ -212,7 +263,7 @@ defmodule Portfolixir.Ledger.StatedCash do
   defp mismatch_row(row) do
     derived = derived_cash(row.type, row.quantity, row.price, row.fees, row.taxes)
 
-    if is_nil(derived) or within_a_cent?(row.gross_amount, derived) do
+    if is_nil(derived) or agrees?(row.gross_amount, derived, row.quantity, row.price) do
       []
     else
       {stored, row} = Map.pop!(row, :gross_amount)
@@ -221,7 +272,8 @@ defmodule Portfolixir.Ledger.StatedCash do
         Map.merge(row, %{
           stored_cash: stored,
           derived_cash: derived,
-          difference: Decimal.sub(stored, derived)
+          difference: Decimal.sub(stored, derived),
+          tolerance: tolerance(row.quantity, row.price)
         })
       ]
     end

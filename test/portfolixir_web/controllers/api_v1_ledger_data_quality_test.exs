@@ -172,7 +172,8 @@ defmodule PortfolixirWeb.ApiV1LedgerDataQualityTest do
   # Acceptance criteria:
   # - GET /api/v1/transactions/cash_mismatch lists each such row with its
   #   figures, stored_cash, derived_cash and difference, every financial
-  #   figure a Decimal string, and the tolerance "0.01".
+  #   figure a Decimal string, and the row's tolerance (0.01 plus 10 ×
+  #   0.005, the price's own rounding).
   # - A row within a cent, a row without a stored cash and a row with a
   #   settlement amount are not listed.
   # - The response is self-describing (as_of, note, remedy) and the read
@@ -206,7 +207,7 @@ defmodule PortfolixirWeb.ApiV1LedgerDataQualityTest do
 
     assert data["as_of"] =~ ~r/^\d{4}-\d{2}-\d{2}$/
     assert data["note"] =~ "quantity × price"
-    assert data["tolerance"] == "0.01"
+    assert data["tolerance_rule"] =~ "half a unit of the price's last digit"
 
     assert data["remedy"] ==
              "State the cash in the booking form (Edit) or as gross_amount with PATCH " <>
@@ -229,7 +230,8 @@ defmodule PortfolixirWeb.ApiV1LedgerDataQualityTest do
                "taxes" => "1",
                "stored_cash" => "806",
                "derived_cash" => "816",
-               "difference" => "-10"
+               "difference" => "-10",
+               "tolerance" => "0.06"
              }
            ]
 
