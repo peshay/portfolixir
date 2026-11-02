@@ -30,6 +30,14 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   it opens with `settlement_mode = "account"`, which suppresses the fieldset,
   and a save sends none of the settlement fields, so its figures are never
   re-read as a booking in the security's currency.
+
+  **A row without its legs keeps its stored currency** (ADR-0015, amendment
+  of 2026-11-01, #1335). A buy or sell stored in another currency than its
+  security's with no settlement amount (an import made before #1196, with no
+  hub rate for its day) opens with `settlement_mode = "stored"`: no fieldset,
+  the price read in the row's `currency_code`, and a save that sends none of
+  the settlement fields. It becomes a cross-currency booking only through the
+  rate backfill's derivation, never through an edit in the drawer.
   """
 
   use Phoenix.Component
@@ -52,7 +60,9 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   The two currencies when the form describes a cross-currency trade, else nil.
   """
   @spec pair(map(), [map()], [map()]) :: %{security: String.t(), account: String.t()} | nil
-  def pair(%{"settlement_mode" => "account"}, _securities_accounts, _securities), do: nil
+  def pair(%{"settlement_mode" => mode}, _securities_accounts, _securities)
+      when mode in ["account", "stored"],
+      do: nil
 
   def pair(params, securities_accounts, securities) do
     with true <- params["type"] in @trade_types,
@@ -306,7 +316,31 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
     end
   end
 
-  def from_transaction(%Transaction{}, _securities), do: %{}
+  def from_transaction(%Transaction{} = transaction, securities) do
+    if legless(transaction, securities), do: %{"settlement_mode" => "stored"}, else: %{}
+  end
+
+  @doc """
+  The currencies of a buy or sell stored in another currency than its
+  security's without a settlement amount (ADR-0015, amendment of
+  2026-11-01, #1335): `%{booking: stored, security: security's}`, else nil.
+  """
+  @spec legless(%Transaction{}, [map()]) :: %{booking: String.t(), security: String.t()} | nil
+  def legless(
+        %Transaction{type: type, settlement_amount: nil, currency_code: booking} = transaction,
+        securities
+      )
+      when type in @trade_types and is_binary(booking) do
+    case find_by_id(securities, to_string(transaction.security_id)) do
+      %{currency_code: security} when is_binary(security) and security != booking ->
+        %{booking: booking, security: security}
+
+      _same_currency_or_unknown ->
+        nil
+    end
+  end
+
+  def legless(%Transaction{}, _securities), do: nil
 
   defp security_amount(params) do
     with %Decimal{} = quantity <- decimal(params["quantity"]),

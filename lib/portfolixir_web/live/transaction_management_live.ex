@@ -95,6 +95,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:editing_id, nil)
      |> assign(:editing_fixed, nil)
      |> assign(:editing_cash, nil)
+     |> assign(:editing_legless, nil)
      |> assign(:deleting, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
@@ -572,6 +573,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           focus_return={row_kebabs(@editing_id)}
           editing?={@editing_id != nil}
           editing_cash={@editing_cash}
+          editing_legless={@editing_legless}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
           securities_accounts={@securities_accounts}
@@ -620,6 +622,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:editing_id, nil)
      |> assign(:editing_fixed, nil)
      |> assign(:editing_cash, nil)
+     |> assign(:editing_legless, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
@@ -642,6 +645,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         source -> Map.put_new(params, "settlement_source", source)
       end
 
+    params = keep_stored_currency(params, socket.assigns.editing_legless)
     params = SettlementForm.derive(params, target, settlement_pair(params, socket.assigns))
 
     # α6: an edit's kind and cash account are disabled controls, which a
@@ -725,6 +729,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
        # its account's stays notes-only (board 03, found while drawing 3).
        |> assign(:editing_fixed, fixed_booking(transaction, socket.assigns.cash_accounts))
        |> assign(:editing_cash, cash_edit(transaction, socket.assigns.cash_accounts))
+       # ADR-0015, amendment of 2026-11-01 (#1335): a cross-currency trade
+       # stored without its legs is corrected in the currency it is stored
+       # in; the server holds that fact, not the form's hidden field.
+       |> assign(:editing_legless, legless_booking(transaction, socket.assigns))
        |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
@@ -858,11 +866,21 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp save_trade(socket, params) do
     # The currency is authoritative from the chosen depot's cash account, never a
     # free-text field the user could mistype (#473).
+    # ADR-0015, amendment of 2026-11-01 (#1335): a cross-currency trade
+    # stored without its legs keeps the currency it is stored in; no edit in
+    # the drawer turns it into a cross-currency booking.
     currency =
-      derived_currency(socket.assigns.securities_accounts, params["securities_account_id"])
+      case socket.assigns.editing_legless do
+        %{booking: booking} ->
+          booking
+
+        nil ->
+          derived_currency(socket.assigns.securities_accounts, params["securities_account_id"])
+      end
 
     params =
       params
+      |> keep_stored_currency(socket.assigns.editing_legless)
       |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
@@ -926,6 +944,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> assign(:editing_id, nil)
     |> assign(:editing_fixed, nil)
     |> assign(:editing_cash, nil)
+    |> assign(:editing_legless, nil)
   end
 
   defp gone_message, do: gettext("That transaction no longer exists.")
@@ -1121,6 +1140,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:editing_id, nil)
          |> assign(:editing_fixed, nil)
          |> assign(:editing_cash, nil)
+         |> assign(:editing_legless, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -1188,6 +1208,37 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp settlement_pair(params, assigns),
     do: SettlementForm.pair(params, assigns.securities_accounts, assigns.securities)
+
+  # ADR-0015, amendment of 2026-11-01 (#1335, board 03 ①): the two
+  # currencies of a buy or sell stored without its settlement amount in
+  # another currency than its security's, and whether the Trades tab's rate
+  # backfill can derive its legs — a row in its cash account's currency
+  # carrying none of the three (the amendment of 2026-10-09, point 6).
+  # `nil` for every other booking.
+  defp legless_booking(%Transaction{} = transaction, assigns) do
+    case SettlementForm.legless(transaction, assigns.securities) do
+      nil ->
+        nil
+
+      currencies ->
+        account = Enum.find(assigns.cash_accounts, &(&1.id == transaction.cash_account_id))
+
+        Map.put(
+          currencies,
+          :backfill?,
+          is_nil(transaction.security_amount) and is_nil(transaction.settlement_fx_rate) and
+            match?(%{currency_code: code} when code == currencies.booking, account)
+        )
+    end
+  end
+
+  # The legless row's form stays in its stored currency whatever the form
+  # sends: the mode that suppresses the settlement fieldset, and the
+  # currency the price is read in.
+  defp keep_stored_currency(params, nil), do: params
+
+  defp keep_stored_currency(params, %{booking: booking}),
+    do: Map.merge(params, %{"settlement_mode" => "stored", "currency_code" => booking})
 
   defp saved_message(nil), do: gettext("Transaction recorded")
   defp saved_message(_id), do: gettext("Transaction updated")
@@ -2094,6 +2145,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp derived_currency(_accounts, _depot_id), do: nil
 
+  defp stored_or_derived_currency(%{booking: booking}, _accounts, _depot_id), do: booking
+
+  defp stored_or_derived_currency(nil, accounts, depot_id),
+    do: derived_currency(accounts, depot_id)
+
   defp maybe_put_currency(params, nil), do: params
   defp maybe_put_currency(params, currency), do: Map.put(params, "currency_code", currency)
 
@@ -2462,6 +2518,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:sell_preview, :any, required: true)
   attr(:editing?, :boolean, default: false)
   attr(:editing_cash, :any, default: nil)
+  attr(:editing_legless, :any, default: nil)
   attr(:cash_accounts, :list, default: [])
   attr(:focus_return, :string, default: nil)
 
@@ -2642,9 +2699,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </label>
           <label>
             <span>
-              <%= if @settlement_pair,
-                do: gettext("Price (%{currency})", currency: @settlement_pair.security),
-                else: gettext("Price") %>
+              <%= cond do
+                @settlement_pair ->
+                  gettext("Price (%{currency})", currency: @settlement_pair.security)
+
+                @editing_legless ->
+                  gettext("Price (%{currency})", currency: @editing_legless.booking)
+
+                true ->
+                  gettext("Price")
+              end %>
             </span>
             <input
               name="transaction[price]"
@@ -2681,7 +2745,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         />
 
         <p class="form-help" data-role="derived-currency">
-          <%= case {@settlement_pair, derived_currency(@securities_accounts, @transaction_form["securities_account_id"])} do %>
+          <%= case {@settlement_pair, stored_or_derived_currency(@editing_legless, @securities_accounts, @transaction_form["securities_account_id"])} do %>
             <% {%{security: security, account: account}, _currency} -> %>
               <%= gettext("Price in %{security} · cash in %{account}",
                 security: security,
@@ -2693,6 +2757,27 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <%= gettext("Currency: %{currency}", currency: currency) %>
           <% end %>
         </p>
+
+        <%!-- ADR-0015, amendment of 2026-11-01 (#1335, board 03 ①): a
+             cross-currency trade stored without its legs opens in its
+             stored currency, says why, and names where its figure in the
+             security's currency comes from. --%>
+        <AppShell.data_note
+          :if={@editing_legless}
+          severity={:note}
+          data-role="legless-booking"
+        >
+          <%= gettext(
+            "Booked in %{booking} — the security trades in %{security}, and this booking has no figure in %{security} yet. Saving keeps it in %{booking}.",
+            booking: @editing_legless.booking,
+            security: @editing_legless.security
+          ) %>
+          <%= if @editing_legless.backfill?,
+            do:
+              gettext(
+                "“Backfill historical rates” under Cash flow → “Trades” derives the figure."
+              ) %>
+        </AppShell.data_note>
 
         <%!-- E25 S7, G20; pick G12.2 = B: notes stored before the refusal
              that carry characters the operator cannot see are marked above
