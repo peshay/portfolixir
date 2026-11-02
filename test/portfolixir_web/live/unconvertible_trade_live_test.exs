@@ -1068,4 +1068,79 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
 
     refute card_note =~ "backfill is under"
   end
+
+  # User story (#1351 closing act, pick Q1; DESIGN.md ③ "every count"):
+  # As the operator reading a clamped note that names sales left out for
+  # more than one reason, on a phone,
+  # I want every reason's count in the note's first line,
+  # so that no excluded sale hides behind "more".
+  #
+  # Acceptance criteria:
+  # - With a sale with no stored rate (Kestrel Inc.) and one whose buy has no
+  #   figure in its currency (Arbolia Inc.), the facet's note opens with
+  #   "Excluded from every total: 1 sale with no stored rate; 1 sale whose
+  #   buy has no figure in its currency.", the card's with "Left out of the
+  #   trades: …", each the first element of the note's text, before the
+  #   reason sentences; in German "Aus jeder Summe ausgeschlossen: 1 Verkauf
+  #   ohne gespeicherten Wechselkurs; 1 Verkauf, dessen Kauf keinen
+  #   Gegenwert in seiner Währung hat." and "Fehlt bei den Trades: …".
+  # - With one reason only, no count line: the reason sentence leads.
+  test "a note with two reasons leads with every reason's count", %{conn: conn} do
+    world = seed!()
+
+    kestrel =
+      WorldFixtures.create_security!(name: "Kestrel Inc.", ticker: "KSTL", currency: "USD")
+
+    for {type, date, price} <- [{"buy", ~D[2026-01-05], "50"}, {"sell", ~D[2026-03-02], "60"}] do
+      WorldFixtures.cross_trade!(world.world, kestrel,
+        type: type,
+        quantity: "10",
+        price: price,
+        settled: "#{price}0.00",
+        gross: "#{price}0.00",
+        date: date
+      )
+    end
+
+    counts = "1 sale with no stored rate; 1 sale whose buy has no figure in its currency."
+
+    de_counts =
+      "1 Verkauf ohne gespeicherten Wechselkurs; " <>
+        "1 Verkauf, dessen Kauf keinen Gegenwert in seiner Währung hat."
+
+    for {locale, lead, card_lead, all} <- [
+          {"en", "Excluded from every total: ", "Left out of the trades: ", counts},
+          {"de", "Aus jeder Summe ausgeschlossen: ", "Fehlt bei den Trades: ", de_counts}
+        ] do
+      {:ok, view, _html} = live(conn, "/cashflow?tab=realized&locale=#{locale}")
+      render_async(view)
+
+      first =
+        "#realized-excluded .data-note__text > :first-child[data-role=realized-excluded-counts]"
+
+      assert String.trim(view |> element(first) |> render() |> text()) == lead <> all
+
+      {:ok, card, _html} = live(conn, "/?locale=#{locale}")
+      render_async(card)
+
+      first =
+        "#trades-card-excluded .data-note__text > :first-child[data-role=trades-card-excluded-counts]"
+
+      assert String.trim(card |> element(first) |> render() |> text()) == card_lead <> all
+    end
+  end
+
+  test "a note with one reason has no count line", %{conn: conn} do
+    seed!()
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+    assert has_element?(view, "#realized-excluded [data-role=realized-excluded-missing-leg]")
+    refute has_element?(view, "[data-role=realized-excluded-counts]")
+
+    {:ok, card, _html} = live(conn, "/")
+    render_async(card)
+    assert has_element?(card, "#trades-card-excluded")
+    refute has_element?(card, "[data-role=trades-card-excluded-counts]")
+  end
 end

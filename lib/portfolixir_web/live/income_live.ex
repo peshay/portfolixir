@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.IncomeLive do
   alias Portfolixir.Portfolios.RealizedGains
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
+  alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecurityNames
@@ -370,6 +371,13 @@ defmodule PortfolixirWeb.IncomeLive do
                 data-role="realized-excluded"
                 clamp
               >
+                <%!-- #1351 closing act (pick Q1; DESIGN.md ③): with two or
+                     more reasons every reason's count leads, so none falls
+                     below the clamp. --%>
+                <span
+                  :if={counts = ExcludedSales.counts(@realized.excluded.by_reason)}
+                  data-role="realized-excluded-counts"
+                ><%= gettext("Excluded from every total: %{counts}.", counts: counts) %> </span>
                 <%!-- #1198 (board 09, pick N8 A): a sale whose lot has no
                      leg in its currency is named in a reason sentence of its
                      own, apart from a sale with no close-date rate: the two

@@ -589,8 +589,9 @@ defmodule PortfolixirWeb.AppShell do
   the text is cut, writes its label from `data-more` / `data-less` (the
   server renders it hidden and empty, so a note's text reads the same to a
   test and to a client without the hook) and expands the note on its
-  click, so a clamped note needs its `id`. A note that names rows left out of a total keeps its
-  count in its first line, so the count stays visible (UX-DR25).
+  click, so a clamped note needs its `id`. A note that names rows left out of a total keeps every
+  count in its first line, so every count stays visible (UX-DR25): with two or more groups the
+  caller leads with all their counts.
   """
   attr(:severity, :atom, values: [:note, :attention, :problem], required: true)
   attr(:id, :string, default: nil)
