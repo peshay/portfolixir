@@ -139,7 +139,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
              where a transaction books; every depot is offered together. --%>
         <%= if @securities_accounts == [] do %>
           <section id="transaction-setup-empty" class="empty-state" role="status">
-            <p><%= gettext("Bookings need a depot with a cash account.") %></p>
+            <%!-- #1299 (board 03 of 2026-11-01, section 4): the line says
+                 what needs a depot; the cash kinds book on an account alone. --%>
+            <p>
+              <%= gettext(
+                "Buys and sells need a depot. Deposits, removals, interest, fees and taxes book on a cash account alone."
+              ) %>
+            </p>
             <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
           </section>
         <% end %>
@@ -177,8 +183,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 </span>
               </button>
 
+              <%!-- #1299: a cash account alone is enough; the drawer then
+                   offers the kinds it books (`bookable_kinds/1`). --%>
               <button
-                :if={@securities_accounts != []}
+                :if={@securities_accounts != [] or @cash_accounts != []}
                 type="button"
                 id="open-booking"
                 class="button-primary"
@@ -611,8 +619,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # #803: the drawer's state is socket state; Cancel and the hook's close
   # event discard the draft, and a recorded booking closes it.
+  # #1299: without a depot the drawer opens on the cash form, its kind a
+  # deposit, the first booking a new account takes (board 03 of 2026-11-01).
   def handle_event("open_booking", _params, socket) do
-    {:noreply, assign(socket, :booking_open?, true)}
+    form = socket.assigns.transaction_form
+    kinds = bookable_kinds(socket.assigns.securities_accounts)
+
+    form =
+      if form["type"] in kinds, do: form, else: Map.put(form, "type", "deposit")
+
+    {:noreply, socket |> assign(:booking_open?, true) |> assign(:transaction_form, form)}
   end
 
   def handle_event("close_booking", _params, socket) do
@@ -1006,6 +1022,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     do: type
 
   defp cash_booking_kind(_assigns, _params), do: nil
+
+  # #1299 (board 03 of 2026-11-01, section 4): the kinds a new booking can
+  # take on this instance. A buy, a sell and a dividend need a depot and a
+  # security; without a depot they are absent rather than offered and
+  # refused, and the cash kinds keep the drawer's order.
+  defp bookable_kinds([]), do: @cash_kinds -- ["dividend"]
+  defp bookable_kinds(_securities_accounts), do: Transaction.manual_trade_types() ++ @cash_kinds
 
   defp put_frozen_cash(params, nil), do: params
 
@@ -2532,7 +2555,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         :kinds,
         if(assigns.editing?,
           do: Transaction.manual_trade_types(),
-          else: Transaction.manual_trade_types() ++ @cash_kinds
+          else: bookable_kinds(assigns.securities_accounts)
         )
       )
 
@@ -2590,7 +2613,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         cash_accounts={@cash_accounts}
         securities={@securities}
         editing_cash={@editing_cash}
-        kinds={Transaction.manual_trade_types() ++ Transaction.manual_cash_types()}
+        kinds={
+          if(@editing_cash,
+            do: Transaction.manual_trade_types() ++ Transaction.manual_cash_types(),
+            else: bookable_kinds(@securities_accounts)
+          )
+        }
       />
       <form
         :if={not @cash?}
