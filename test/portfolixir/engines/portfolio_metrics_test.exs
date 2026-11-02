@@ -140,6 +140,34 @@ defmodule Portfolixir.Engines.PortfolioMetricsTest do
     assert first_day_fall.max_drawdown["30d"].recovery_date == nil
   end
 
+  # User story (#1343, Sprint 22 U4, board 02 ④):
+  # As the operator's agent reading a view whose value never fell,
+  # I want a maximum drawdown of exactly 0 to carry no peak, trough or
+  # recovery date,
+  # so that I am not handed an episode that never happened.
+  #
+  # Acceptance criteria:
+  # - A chain of unit factors has a drawdown of exactly 0 at scale 6 with
+  #   peak_date, trough_date and recovery_date all nil, in every window.
+  # - A real drawdown, however small, keeps its dates.
+  test "a drawdown of exactly 0 names no peak, trough or recovery" do
+    metrics = PortfolioMetrics.compute(observations(List.duplicate("1", 400)), @as_of)
+
+    for window <- ~w(30d 90d 365d) do
+      drawdown = metrics.max_drawdown[window]
+      assert_scale_6(drawdown.value, "0.000000")
+      assert drawdown.peak_date == nil
+      assert drawdown.trough_date == nil
+      assert drawdown.recovery_date == nil
+    end
+
+    tiny = PortfolioMetrics.compute(observations(["1", "0.9996", "1"]), @as_of)
+    assert_scale_6(tiny.max_drawdown["30d"].value, "-0.000400")
+    assert tiny.max_drawdown["30d"].peak_date == Date.add(@as_of, -2)
+    assert tiny.max_drawdown["30d"].trough_date == Date.add(@as_of, -1)
+    assert tiny.max_drawdown["30d"].recovery_date == nil
+  end
+
   # Acceptance criteria (ADR-0047 §5, identity I5, and the #838 amendment):
   # - Below its minimum a metric is null with insufficient_data, its
   #   observation count, and `required`; the window is the span it asked for.
