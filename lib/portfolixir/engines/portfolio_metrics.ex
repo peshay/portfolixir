@@ -189,7 +189,7 @@ defmodule Portfolixir.Engines.PortfolioMetrics do
     else
       points
       |> Statistics.drawdown()
-      |> without_episode()
+      |> Statistics.without_zero_episode()
       |> Map.merge(%{
         window: %{start_date: List.first(points).date, end_date: List.last(points).date},
         observations: count,
@@ -218,17 +218,6 @@ defmodule Portfolixir.Engines.PortfolioMetrics do
       end
 
     Map.put(base, :risk_free_rate, rate)
-  end
-
-  # #1343: a drawdown of exactly 0 is no episode. `Statistics.drawdown/1`
-  # dates it at the series' first day and lets it "recover" there; served
-  # as such, it names a peak, a trough and a recovery that never happened.
-  # The rule is the value at scale 6, not the display rounding: a real
-  # decline that reads "-0.0" keeps its dates.
-  defp without_episode(drawdown) do
-    if Decimal.equal?(drawdown.value, @zero),
-      do: %{drawdown | peak_date: nil, trough_date: nil, recovery_date: nil},
-      else: drawdown
   end
 
   # (mean(r_d − rf_d) × 365) / (σ_daily × √365). The deviation is taken over
