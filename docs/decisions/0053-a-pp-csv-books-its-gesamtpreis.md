@@ -1125,7 +1125,9 @@ as already imported and was silently not booked.
   JSON v1's names two. The CSV never read "09:45": it was no time, so a
   row imported from such a file is stored with a hash without one, and
   reading it now would book that row a second time on a re-drop. It is
-  refused like any other unreadable time. *To flip by comment:* "read
+  refused like any other unreadable time, except midnight: "00:00" reads as
+  no time, as "00:00:00" does, since refusing it protects no stored hash
+  (the sprint PR's closing act, 2026-11-02). *To flip by comment:* "read
   HH:MM", which moves the hash of every row stored from such a file and so
   needs an amendment of its own.
 
