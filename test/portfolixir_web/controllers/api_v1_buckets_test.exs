@@ -322,6 +322,87 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     assert included_id == included.id
   end
 
+  # User story (#1315, Sprint 22):
+  # As the operator's agent narrowing a view the UI created with "all"
+  # included,
+  # I want PUT /views/:id/buckets to take include_all beside the sets, as the
+  # bucket picker saves them, and an unwrapped PATCH refused instead of
+  # ignored,
+  # so that the view narrows as the UI narrows it, and no write answers 200
+  # while leaving the view as it was.
+  #
+  # Acceptance criteria:
+  # - PUT /views/:id/buckets with include_all false and an include list
+  #   answers 200 with include_all false and include the list, and the view
+  #   reads the same afterwards; include_all true widens it back to "all".
+  # - Without include_all the PUT leaves the flag as it is.
+  # - A non-boolean include_all answers 422 errors.include_all
+  #   ["is invalid"] and changes nothing.
+  # - A PATCH /views/:id that carries name or include_all at the top level,
+  #   outside the view object, answers 422 naming the field and changes
+  #   nothing; the wrapped PATCH still applies.
+  test "set_buckets honours include_all, and an unwrapped view PATCH is refused",
+       %{conn: conn} do
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Family"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+    path = "/api/v1/views/#{view.id}"
+    bucket_id = bucket.id
+
+    assert %{"include_all" => true, "include" => "all"} =
+             get_json(conn, path) |> json_response(200) |> Map.fetch!("data")
+
+    assert %{"include_all" => false, "include" => [^bucket_id], "exclude" => []} =
+             put_json(conn, "#{path}/buckets", %{
+               "include_all" => false,
+               "include" => [bucket_id]
+             })
+             |> json_response(200)
+             |> Map.fetch!("data")
+
+    assert %{"include_all" => false, "include" => [^bucket_id]} =
+             get_json(conn, path) |> json_response(200) |> Map.fetch!("data")
+
+    # Without include_all the flag stays as it is.
+    assert %{"include_all" => false, "include" => [^bucket_id]} =
+             put_json(conn, "#{path}/buckets", %{"include" => [bucket_id]})
+             |> json_response(200)
+             |> Map.fetch!("data")
+
+    for bad <- ["false", 0, %{}] do
+      assert put_json(conn, "#{path}/buckets", %{"include_all" => bad, "include" => []})
+             |> json_response(422) == %{"errors" => %{"include_all" => ["is invalid"]}},
+             inspect(bad)
+    end
+
+    assert %{"include_all" => false, "include" => [^bucket_id]} =
+             get_json(conn, path) |> json_response(200) |> Map.fetch!("data")
+
+    # The unwrapped PATCH is refused, naming the field.
+    for {field, value} <- [{"include_all", true}, {"name", "Renamed"}] do
+      assert patch_json(conn, path, %{field => value}) |> json_response(422) ==
+               %{"errors" => %{field => ["must be sent inside the view object"]}},
+             field
+    end
+
+    assert patch_json(conn, path, %{"view" => %{"name" => "Kept"}, "include_all" => true})
+           |> json_response(422) ==
+             %{"errors" => %{"include_all" => ["must be sent inside the view object"]}}
+
+    assert %{"name" => "Everything", "include_all" => false, "include" => [^bucket_id]} =
+             get_json(conn, path) |> json_response(200) |> Map.fetch!("data")
+
+    # include_all true widens it back; the wrapped PATCH still applies.
+    assert %{"include_all" => true, "include" => "all"} =
+             put_json(conn, "#{path}/buckets", %{"include_all" => true})
+             |> json_response(200)
+             |> Map.fetch!("data")
+
+    assert %{"include_all" => false} =
+             patch_json(conn, path, %{"view" => %{"include_all" => false}})
+             |> json_response(200)
+             |> Map.fetch!("data")
+  end
+
   # User story:
   # As an API client,
   # I want to assign buckets to depots, cash accounts and individual positions,

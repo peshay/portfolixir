@@ -3301,14 +3301,22 @@ a view is not journaled: no rule can read it yet.
 - `POST /api/v1/views` creates a view from a `view` object (`name` required,
   optional `include_all` defaulting to `true`).
 - `GET /api/v1/views/:id` returns one view with its resolved filter.
-- `PATCH /api/v1/views/:id` patches a view's `name`/`include_all`.
+- `PATCH /api/v1/views/:id` patches a view's `name`/`include_all`, sent inside
+  a `view` object. Either field at the top level of the body, outside it,
+  answers `422` naming it (`{"include_all": ["must be sent inside the view
+  object"]}`) and changes nothing (issue #1315).
 - `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`); the
   plans scoped to it, with their targets, and its depot snapshots are
   journaled one delete each before the view's.
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
-  Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
-  arrays of bucket ids). A malformed id list returns `422`; a bucket named
-  twice in one list counts once.
+  Body: `{"include": [..], "exclude": [..], "include_all": false}` (the sets
+  optional, default `[]`, arrays of bucket ids). Optional `include_all` is
+  saved with both sets in the same journaled write, as the bucket picker
+  saves it: `false` narrows a view that includes `"all"` to the include
+  list, `true` widens it back; omitted or `null`, the flag is left as it is
+  (issue #1315). A malformed id list, or an `include_all` that is not a
+  boolean, returns `422` naming the field; a bucket named twice in one list
+  counts once.
 - `GET /api/v1/views/:view_id/valuation` returns the live valuation of a view
   **across all portfolios** (ADR-0024): the deduplicated union of every depot,
   position and cash account matching the view — an account tagged into several

@@ -3586,14 +3586,23 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
 - `POST /api/v1/views` legt eine View aus einem `view`-Objekt an (`name`
   erforderlich, optionales `include_all`, Standard `true`).
 - `GET /api/v1/views/:id` liefert eine View mit ihrem aufgelösten Filter.
-- `PATCH /api/v1/views/:id` ändert `name`/`include_all` einer View.
+- `PATCH /api/v1/views/:id` ändert `name`/`include_all` einer View, gesendet
+  in einem `view`-Objekt. Eines der Felder auf oberster Ebene des Bodys,
+  außerhalb davon, ergibt `422` mit dem Feldnamen (`{"include_all": ["must be
+  sent inside the view object"]}`) und ändert nichts (Issue #1315).
 - `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`); die
   auf sie bezogenen Pläne samt Zielen und ihre Depot-Schnappschüsse werden je
   als eigene Löschung journalisiert, bevor die View gelöscht wird.
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
-  View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
-  `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`; ein
-  Bucket, der in einer Liste zweimal steht, zählt einmal.
+  View. Body: `{"include": [..], "exclude": [..], "include_all": false}` (die
+  Sets optional, Standard `[]`, Listen von Bucket-ids). Optionales
+  `include_all` wird mit beiden Sets im selben journalisierten Schreibvorgang
+  gespeichert, wie die Bucket-Auswahl es speichert: `false` verengt eine View,
+  die `"all"` einschließt, auf die Include-Liste, `true` weitet sie wieder;
+  weggelassen oder `null` bleibt das Flag, wie es ist (Issue #1315). Eine
+  fehlerhafte id-Liste oder ein `include_all`, das kein Boolean ist, ergibt
+  `422` mit dem Feldnamen; ein Bucket, der in einer Liste zweimal steht, zählt
+  einmal.
 - `GET /api/v1/views/:view_id/valuation` liefert die Live-Bewertung einer View
   **über alle Portfolios** (ADR-0024) in der Form der Portfolio-Bewertung mit
   `view_id` statt `portfolio_id`; jedes zur View passende Konto zählt genau
