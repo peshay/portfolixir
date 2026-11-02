@@ -7757,3 +7757,52 @@ like any other, and the drilled table lists
 its payments with „ohne Umrechnung“. The attention note names a payment
 that names no security as „Zinsen“ beside the securities of its currency:
 „Betroffene Währungen: USD (Harborline Freight Inc, Zinsen).“ No new CSS.
+
+## Amendment 2026-11-01 — The booking drawer opens a row in the currency it is stored in, and the sell preview reads like the history *(Sprint 22 R10, board `mockups/ux-design-2026-11-01-sprint22/03-drawer-import` ①; issues 1335, 1337, and the D-9 finding that rides R10; ADR-0015's amendment of 2026-11-01)*
+
+Amends the cross-currency settlement amendment of 2026-09-24 ("Shown only
+when it is required") and Components → Booking drawer.
+
+**A buy or sell stored without its settlement amount, in another currency
+than its security's** (an import made before issue 1196, with no hub rate
+for its day), opens in its stored currency. The edit drawer, top to bottom:
+
+1. Depot and security, unchanged.
+2. Quantity and price on one row. The price label names the **stored**
+   currency, „Preis (EUR)“, and the input carries the stored digits („80“),
+   as on any row (issue 869).
+3. No `fieldset.settlement-fieldset`. The derived-currency line reads
+   „Währung: EUR“ (the stored currency), never „Preis in USD · Geld in
+   EUR“.
+4. One **note** data note (`data-role="legless-booking"`, `AppShell.data_note`
+   with `:note`): „In EUR gebucht — das Wertpapier notiert in USD, und diese
+   Buchung hat noch keinen Gegenwert in USD. Speichern lässt sie in EUR.“
+   When the rate backfill can derive the legs (the row is in its cash
+   account's currency and carries none of the three legs), a second
+   sentence names the remedy where it lives: „Den Gegenwert leitet
+   „Historische Wechselkurse nachladen“ unter Cashflow → „Trades“ ab.“ A row
+   that carries a rate but no amounts gets the first sentence only, because
+   the backfill never rewrites a row that carries a leg.
+5. „Kosten und Notiz“ and the foot, unchanged.
+
+**Behaviour.** A save corrects quantity, price, fees, taxes, date, the note,
+the security and the depot in the stored currency, and sends no settlement
+field. The server holds the fact, not the form: the stored currency and the
+mode come from the row being edited, so a form that drops the hidden mode
+or types a settlement amount still saves in the stored currency. Once the
+backfill has stored the legs, the row opens as the importer's
+account-currency form (the 2026-09-24 amendment's "importer's form is left
+alone"), without the note.
+
+**The sell preview's lot table** (`#sell-lot-preview-table`):
+
+- The quantity reads in its own scale under the page's separators („2,5“),
+  and the Kaufpreis by the history's stored-figure rule, its stored digits,
+  at least two („24,00 EUR“, „26,40 EUR“). The latest-price hint and the
+  shortfall alert take the same two rules.
+- **It fits the drawer** (D-9's finding): the table opts out of the
+  wrapper's `min-width: max-content` (`min-width: min-content`), its
+  headings wrap and hyphenate in the page's language, its cells take 6 px a
+  side, and a figure keeps its currency on its line (`nowrap`), so
+  Bruttogewinn stays in view at the drawer's 380 px. The seven columns of a
+  cross-currency preview still scroll inside the wrapper.
