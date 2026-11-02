@@ -3997,7 +3997,8 @@ naming the already-booked event) stays inline in the dialog.
   **leaves out** keeps every count in its first line — with two or more
   groups, a lead names all their counts first — and never folds. Two
   or more of the other notes in one block fold into one line with their
-  counts, for example "1 Attention · 1 Note — Show details".
+  counts, for example "1 Attention · 1 Note — Show details"; opened, the
+  line reads "Hide details".
 - The import's security picker announces how many securities a search
   found, or that none did, to a screen reader (#1342).
 

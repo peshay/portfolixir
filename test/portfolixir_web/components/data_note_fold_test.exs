@@ -95,4 +95,36 @@ defmodule PortfolixirWeb.Components.DataNoteFoldTest do
     assert rule(".data-note-group--attention") =~ ~r/background:\s*var\(--color-warning-soft\);/
     assert rule(".data-note-group > summary") =~ ~r/list-style:\s*none;/
   end
+
+  # User story (#1351 closing act, S3):
+  # As the operator who opened a fold of notes,
+  # I want its line to read "— Hide details" while it is open,
+  # so that the line says what a tap on it does now.
+  #
+  # Acceptance criteria:
+  # - The toggle carries the open label for the stylesheet,
+  #   `data-hide="Hide details"` (German „Details ausblenden“), beside its
+  #   "Show details" span; no script is needed.
+  # - The stylesheet hides "Show details" under `[open]` and writes the
+  #   open label in its place.
+  test "an open fold reads Hide details" do
+    html = fold(1, 1)
+
+    toggle = query(html, "summary .data-note-group__toggle[data-hide='Hide details']")
+    assert Enum.count(toggle) == 1
+    assert squish(LazyHTML.query(toggle, ".data-note-group__show")) == "Show details"
+
+    assert rule(".data-note-group[open] .data-note-group__show") =~ ~r/display:\s*none;/
+
+    assert rule(".data-note-group[open] .data-note-group__toggle::after") =~
+             ~r/content:\s*attr\(data-hide\);/
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+      de = fold(1, 1)
+
+      assert Enum.count(
+               query(de, "summary .data-note-group__toggle[data-hide='Details ausblenden']")
+             ) == 1
+    end)
+  end
 end

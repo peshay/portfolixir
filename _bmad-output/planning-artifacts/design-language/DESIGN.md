@@ -8036,8 +8036,9 @@ page lands.
   its glyph (aria-hidden) and its word in the severity word's type (11 px,
   650, uppercase, 0.04 em), then the toggle in muted underlined ink. The
   line takes the highest folded severity's tokens (`--attention`: the
-  warning border and soft fill; `--note`: the muted ones). Opened, the notes
-  stack in `.data-note-group__body` with the `--space-2` gap. One item does
+  warning border and soft fill; `--note`: the muted ones). Opened, the
+  toggle reads „— Details ausblenden“ (the stylesheet swaps it on `[open]`,
+  Sprint 22 closing act) and the notes stack in `.data-note-group__body` with the `--space-2` gap. One item does
   not fold. The page passes only the notes that may fold: a problem never
   folds, and a note that names rows left out of a total never folds.
 - **⑤ Problems lead** their block: a problem note never folds and comes
