@@ -2529,8 +2529,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp quantity_fact(quantity),
     do: %{fact(gettext("Quantity"), "quantity", :input, format_quantity(quantity)) | num?: true}
 
-  defp account_label(nil, _accounts, _kind, _tags), do: "—"
-
+  # Every kind whose facts name an account requires it (the ledger's
+  # per-kind matrix and CHECK constraints), so no id is nil here; an
+  # account the page has not loaded yet (one opened after mount) reads "—".
   defp account_label(id, accounts, kind, tags) do
     case Enum.find(accounts, &(&1.id == id)) do
       nil -> "—"

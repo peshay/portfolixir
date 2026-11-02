@@ -181,6 +181,33 @@ defmodule PortfolixirWeb.RiskLiveTest do
     assert has_element?(view, sub, "recovered")
   end
 
+  # User story (Sprint 22 closing act, coverage of #1343's sub-line):
+  # As the operator whose portfolio fell and climbed back,
+  # I want the drawdown's sub-line to name the day it recovered,
+  # so that "recovered" is told apart from "not recovered".
+  #
+  # Acceptance criteria:
+  # - A close that falls to 90 and is back above its peak the next day
+  #   reads "recovered" with that day's date, never "not recovered".
+  test "a drawdown that climbed back names its recovery day", %{conn: conn} do
+    world = base_world()
+    stock = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+    deposit!(world, "10000", day(-400))
+    buy!(world, stock, quantity: "100", price: "100", date: day(-400))
+
+    daily_closes(stock, -400, fn
+      offset when offset < -100 -> "100"
+      -100 -> "90"
+      _after -> "110"
+    end)
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    sub = ~s([data-role="risk-metric-max-drawdown"] .stat__sub)
+    assert has_element?(view, sub, "recovered #{PortfolixirWeb.Format.date(day(-99))}")
+    refute has_element?(view, sub, "not recovered")
+  end
+
   # User story (E25 S3, F73, board 11 part 3):
   # As the operator whose instance holds implausible stored exchange rates,
   # I want Wealth → Risk to open anyway,
