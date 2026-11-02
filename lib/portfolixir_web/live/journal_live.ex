@@ -241,6 +241,7 @@ defmodule PortfolixirWeb.JournalLive do
                     <th><%= gettext("Actor") %></th>
                     <th><%= gettext("Operation") %></th>
                     <th><%= gettext("Entry") %></th>
+                    <th><%= gettext("Change") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -252,11 +253,12 @@ defmodule PortfolixirWeb.JournalLive do
                     </td>
                     <td class="cell-kind"><%= row.operation %></td>
                     <td class="cell-name">
-                      <%= StoredText.bdi(row.entity) %>
+                      <.entity row={row} />
                       <small :if={row.resource_id} class="cell-note">
                         <.link patch={only_path(row)}><%= gettext("Only this entry") %></.link>
                       </small>
                     </td>
+                    <td class="journal-change"><.change change={row.change} /></td>
                   </tr>
                 </tbody>
               </table>
@@ -267,6 +269,79 @@ defmodule PortfolixirWeb.JournalLive do
     </AppShell.shell>
     """
   end
+
+  attr(:row, :map, required: true)
+
+  # The entry links its page where it has one; a deleted one reads as text.
+  defp entity(assigns) do
+    ~H"""
+    <a :if={@row.href} href={@row.href}><%= StoredText.bdi(@row.entity) %></a>
+    <span :if={!@row.href}><%= StoredText.bdi(@row.entity) %></span>
+    """
+  end
+
+  attr(:change, :map, required: true)
+
+  # One line per changed field, the old value struck and muted, then the
+  # stored values folded, reduced to the fields that changed (board 03 ③).
+  # A delete reads the operation: „gelöscht, mit allen Werten“.
+  defp change(assigns) do
+    ~H"""
+    <%= for line <- @change.lines do %>
+      <%= case line do %>
+        <% :deleted -> %>
+          <span class="journal-change__line"><%= gettext("deleted, with every value") %></span>
+        <% {field, from, to} -> %>
+          <span class="journal-change__line"><%= change_line(field, from, to) %></span>
+      <% end %>
+    <% end %>
+    <details :if={@change.values != []} class="journal-values">
+      <summary class="disclosure-summary">
+        <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+        <%= gettext("Stored values") %>
+      </summary>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col"><%= gettext("Field") %></th>
+            <th scope="col"><%= gettext("Before") %></th>
+            <th scope="col"><%= gettext("After") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={{field, before, after_value} <- @change.values}>
+            <td><%= field %></td>
+            <td><%= StoredText.bdi(before) %></td>
+            <td><%= StoredText.bdi(after_value) %></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+    """
+  end
+
+  # „name: Festgeld → Festgeld Plus“: the old value struck and muted, the
+  # arrow for the eye and „geändert in“ for a screen reader. Built as one
+  # piece of markup so its spaces sit inside its text, not between tags.
+  defp change_line(field, from, to) do
+    {:safe,
+     [
+       ~s(<span class="journal-change__field">),
+       escape(field),
+       ": </span>",
+       ~s(<span class="journal-change__from">),
+       safe(StoredText.bdi(from)),
+       "</span>",
+       ~s(<span class="journal-change__arrow" aria-hidden="true"> → </span>),
+       ~s(<span class="visually-hidden"> ),
+       escape(gettext("changed to")),
+       " </span>",
+       safe(StoredText.bdi(to))
+     ]}
+  end
+
+  defp escape(text), do: text |> Phoenix.HTML.html_escape() |> safe()
+  defp safe({:safe, iodata}), do: iodata
 
   # „Nur dieser Eintrag“: the entry's own history, every actor and operation.
   defp only_path(row), do: path(resource_type: row.resource_type, resource_id: row.resource_id)

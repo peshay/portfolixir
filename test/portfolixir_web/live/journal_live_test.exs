@@ -249,7 +249,148 @@ defmodule PortfolixirWeb.JournalLiveTest do
            )
   end
 
+  # User story:
+  # As the operator reading what an agent changed,
+  # I want each change said in one line per changed field, with its stored
+  # before and after values folded beneath, reduced to the fields that
+  # changed,
+  # so that I see what changed without reading the whole record twice
+  # (board 03 ③).
+  #
+  # Acceptance criteria:
+  # - The column „Änderung“ reads „name: Festgeld → Festgeld Plus“, the old
+  #   value struck and muted.
+  # - The fold „Gespeicherte Werte“ is closed and holds a table Feld ·
+  #   Vorher · Danach whose fields are exactly the keys whose stored before
+  #   and after differ in the API's entry; an unchanged field is not there.
+  # - A created entry folds every stored value, its „Vorher“ „—“.
+  # - The entry links its page where it has one: a security its own page, a
+  #   cash account Accounts & depots.
+  test "the fold shows only the changed fields", %{conn: conn} do
+    %{cash: cash, kept: kept} = write_some_history!()
+
+    [entry | _] =
+      api_entries(conn, %{"resource_type" => "cash_account", "operation" => "update"})
+
+    changed =
+      entry["after"]
+      |> Map.keys()
+      |> Enum.filter(&(entry["before"][&1] != entry["after"][&1]))
+      |> Enum.sort()
+
+    assert "name" in changed
+    refute "currency_code" in changed
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+
+    row = "#journal-entry-#{entry["id"]}"
+    assert has_element?(view, "table.journal-table th", "Änderung")
+    assert has_element?(view, "#{row} a[href='/portfolios']", "Verrechnungskonto #{cash.id}")
+
+    # One line per changed field; the timestamps stay in the fold.
+    lines = change_lines(view, row)
+    assert length(lines) == length(changed -- ["inserted_at", "updated_at"])
+    assert "name: Festgeld → Festgeld Plus" in lines
+
+    assert has_element?(view, "#{row} .journal-change__from", "Festgeld")
+
+    fold = view |> element("#{row} details.journal-values") |> render() |> Floki.parse_fragment!()
+    assert Floki.attribute(fold, "open") == []
+    assert fold |> Floki.find("summary") |> Floki.text() |> String.trim() == "Gespeicherte Werte"
+
+    assert fold |> Floki.find("th") |> Enum.map(&String.trim(Floki.text(&1))) ==
+             ["Feld", "Vorher", "Danach"]
+
+    assert fold
+           |> Floki.find("tbody tr td:first-child")
+           |> Enum.map(&String.trim(Floki.text(&1))) == changed
+
+    assert fold
+           |> Floki.find("tbody tr")
+           |> Enum.map(&row_cells/1)
+           |> Enum.find(&(hd(&1) == "name")) ==
+             ["name", "Festgeld", "Festgeld Plus"]
+
+    [create | _] =
+      api_entries(conn, %{
+        "resource_type" => "security",
+        "resource_id" => "#{kept.id}",
+        "operation" => "create"
+      })
+
+    create_row = "#journal-entry-#{create["id"]}"
+    assert has_element?(view, "#{create_row} a[href='/securities/#{kept.id}']")
+
+    create_fold =
+      view
+      |> element("#{create_row} details.journal-values")
+      |> render()
+      |> Floki.parse_fragment!()
+
+    cells = create_fold |> Floki.find("tbody tr") |> Enum.map(&row_cells/1)
+    assert Enum.map(cells, &hd/1) == create["after"] |> Map.keys() |> Enum.sort()
+    assert Enum.all?(cells, fn [_field, before, _after] -> before == "—" end)
+    assert ["name", "—", "Alder Creek Fund"] in cells
+  end
+
+  # User story:
+  # As the operator reading a deletion,
+  # I want it said as „gelöscht, mit allen Werten“, every value the record
+  # held folded beneath, and no link to a page that is gone,
+  # so that the page reads the operation and not a before/after comparison
+  # of a record that no longer exists (board 03; found while drawing 7).
+  #
+  # Acceptance criteria:
+  # - The operation reads „Gelöscht“, the change „gelöscht, mit allen
+  #   Werten“.
+  # - The fold lists every field of the stored before-image, each „Danach“
+  #   „—“, whatever the entry's after-image holds.
+  # - The entry is text, not a link.
+  test "a delete reads „gelöscht, mit allen Werten“", %{conn: conn} do
+    %{gone: gone} = write_some_history!()
+
+    [entry] =
+      api_entries(conn, %{
+        "resource_type" => "security",
+        "resource_id" => "#{gone.id}",
+        "operation" => "delete"
+      })
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+    row = "#journal-entry-#{entry["id"]}"
+
+    assert row_text(view, entry["id"]) =~ "Gelöscht"
+
+    assert change_lines(view, row) == ["gelöscht, mit allen Werten"]
+
+    assert has_element?(view, "#{row} .cell-name", "Wertpapier #{gone.id} · Brookfield Note")
+    refute has_element?(view, "#{row} .cell-name a[href^='/securities']")
+
+    cells =
+      view
+      |> element("#{row} details.journal-values")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("tbody tr")
+      |> Enum.map(&row_cells/1)
+
+    assert Enum.map(cells, &hd/1) == entry["before"] |> Map.keys() |> Enum.sort()
+    assert Enum.all?(cells, fn [_field, _before, after_value] -> after_value == "—" end)
+    assert ["name", "Brookfield Note", "—"] in cells
+  end
+
   # -- helpers ------------------------------------------------------------------
+
+  defp row_cells(tr), do: tr |> Floki.find("td") |> Enum.map(&String.trim(Floki.text(&1)))
+
+  defp api_entries(conn, params) do
+    conn
+    |> put_req_header("accept", "application/json")
+    |> put_req_header(elem(@auth, 0), elem(@auth, 1))
+    |> get("/api/v1/journal", params)
+    |> json_response(200)
+    |> Map.fetch!("data")
+  end
 
   # A short synthetic history: the operator creates two securities and a
   # cash account, the agent renames one security, deletes the other and
@@ -300,6 +441,23 @@ defmodule PortfolixirWeb.JournalLiveTest do
   end
 
   defp row_text(view, id), do: view |> element("#journal-entry-#{id}") |> render() |> text()
+
+  # The change lines as they read on screen; the arrow's spoken words
+  # („geändert in“) are for a screen reader only.
+  defp change_lines(view, row) do
+    view
+    |> element(row)
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.find(".journal-change__line")
+    |> Enum.map(fn line ->
+      line
+      |> Floki.filter_out(".visually-hidden")
+      |> Floki.text()
+      |> String.split()
+      |> Enum.join(" ")
+    end)
+  end
 
   defp text(html),
     do: html |> Floki.parse_fragment!() |> Floki.text() |> String.split() |> Enum.join(" ")

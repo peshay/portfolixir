@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Journal.Row do
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.Journal.Change
   alias PortfolixirWeb.TransactionKindLabel
 
   # Every `resource_type` code a journaled writer files under, in the order
@@ -42,7 +43,9 @@ defmodule PortfolixirWeb.Journal.Row do
       operation: operation_label(entry.operation),
       resource_type: entry.resource_type,
       resource_id: entry.resource_id,
-      entity: entity(entry)
+      entity: entity(entry),
+      href: href(entry),
+      change: Change.build(entry)
     }
   end
 
@@ -136,4 +139,47 @@ defmodule PortfolixirWeb.Journal.Row do
 
   defp name(_kind, %{"name" => name}) when is_binary(name) and name != "", do: name
   defp name(_kind, _image), do: nil
+
+  # The page an entry is read on, where it has one (board 03: a rule on
+  # Risk, an account on Accounts & depots, a statement on Tax). A booking has
+  # no page of its own (found while drawing 6), so it links the history. A
+  # deleted entry has no page and reads as text.
+  defp href(%Entry{operation: :delete}), do: nil
+
+  defp href(%Entry{resource_type: type, resource_id: id} = entry),
+    do: page(type, id, image(entry))
+
+  defp page("security", id, _image), do: "/securities/#{id}"
+  defp page("security_quotes", id, _image), do: "/securities/#{id}"
+
+  defp page(type, _id, %{"security_id" => security_id})
+       when type in ~w(security_event security_note security_identifier_alias
+                       security_category_assignment) and is_integer(security_id),
+       do: "/securities/#{security_id}"
+
+  defp page(type, _id, _image)
+       when type in ~w(cash_account securities_account cash_account_bucket_assignment
+                       depot_bucket_assignment position_bucket_override),
+       do: "/portfolios"
+
+  defp page("merge_record", id, _image), do: "/portfolios?merge=#{id}#merge-records"
+  defp page("transaction", _id, _image), do: "/transactions"
+  defp page(type, _id, _image) when type in ~w(bucket view), do: "/buckets"
+  defp page("classification", id, _image), do: "/classifications/#{id}"
+
+  defp page("category", _id, %{"classification_id" => classification_id})
+       when is_integer(classification_id),
+       do: "/classifications/#{classification_id}"
+
+  defp page(type, _id, _image) when type in ~w(target target_plan),
+    do: "/portfolio?tab=allocation"
+
+  defp page(type, _id, _image) when type in ~w(policy_rule policy_rule_version), do: "/risk"
+  defp page("snapshot", id, _image), do: "/snapshots?snapshot=#{id}"
+
+  defp page(type, _id, _image)
+       when type in ~w(tax_statement_snapshot tax_profile tax_parameters allowance_order),
+       do: "/tax"
+
+  defp page(_type, _id, _image), do: nil
 end
