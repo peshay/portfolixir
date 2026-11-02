@@ -96,7 +96,8 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                 "booked_value, quantity null): the cash leg negated where the cash account is " <>
                 "in the view, the cash leg itself where the position is. absorbed: a collapsed booking's cash leg on " <>
                 "cash_account_id that the account's next balance anchor (transaction_id, on " <>
-                "date) now absorbs: the anchor's residual, an external flow, changes by change. " <>
+                "date) now absorbs: the anchor's residual, an external flow, changes by change, " <>
+                "in the cash account's currency_code. " <>
                 "The day's flow of each listed date changes by these entries alone; the " <>
                 "return of that day and the days after also reads the collapsed units no " <>
                 "longer held, so the preview lists the flows, not a recomputed return. View " <>

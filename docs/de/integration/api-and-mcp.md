@@ -1630,7 +1630,8 @@ Beispiel-Antwort für Kurssynchronisierung:
     die Position darin liegt); `absorbed`, der Geld-Anteil einer
     entfernten Buchung, den ein späterer gesetzter Saldo ihres
     Verrechnungskontos nun aufnimmt, mit der `transaction_id` des Saldos,
-    `date` und `change`, wie in der Vorschau einer
+    `date` und `change` in der `currency_code` des Verrechnungskontos,
+    wie in der Vorschau einer
     Geldkonto-Zusammenführung) und `other_depots` (jedes dritte Depot, das
     eine entfernte Umbuchung nennt, je Wertpapier mit
     `securities_account_name`, `security_name`, `quantity_before` und
