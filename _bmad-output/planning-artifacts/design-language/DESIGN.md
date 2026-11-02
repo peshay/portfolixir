@@ -7971,3 +7971,15 @@ page lands.
   its own (`.view-switcher__help.metric-tooltip { margin-left: 0 }`); the
   switcher's gap spaces it. Its summary keeps the accessible name „Über
   Ansichten“ and the coarse-pointer 44 px ring (issue 1164).
+- **⑦ An ⓘ panel stays inside the viewport** (#1336): one capture
+  listener on the document places every `details.metric-tooltip` when it
+  opens, by pointer or keyboard. The panel opens upward, as before, unless
+  its top would be above the viewport; then it opens below
+  (`data-place="below"`: `top: calc(100% + 0.4rem); bottom: auto`). It is
+  then shifted so that both of its edges stay 1 rem inside the viewport's
+  width (`--tip-shift`, `0px` on `.metric-tooltip` until the client sets
+  it, read by every panel as `translate`), whichever edge
+  it is anchored to. A LiveView patch strips attributes the server did not
+  render, so an observer puts the measured placement back while the panel
+  is open. Measured at 390 px on the review seed: Cash flow's Trades and
+  Flows panels open below and end at x = 374, 16 px inside the screen.
