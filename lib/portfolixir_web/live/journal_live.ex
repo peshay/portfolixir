@@ -9,14 +9,25 @@ defmodule PortfolixirWeb.JournalLive do
   who made it, what was done and to which entry. The page reads its
   parameters from the URL with `PortfolixirWeb.Api.V1.JournalQuery`, the
   API's own reading, so a link the agent hands over opens the rows it read,
-  and both users read one list. Read-only: nothing here writes.
+  and both users read one list. Its filters are exactly the API's: the
+  actor and the operation as chips, the kind as a select, the what-if
+  scenarios as a checkbox, and „Nur dieser Eintrag“ for one entry
+  (`resource_type` + `resource_id`). Each writes its parameter into the URL
+  (`push_patch`), so a narrowed view is a link. Read-only: nothing here
+  writes.
   """
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.JournalQuery
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Journal.Row
   alias PortfolixirWeb.StoredText
+
+  # The actor chips, in the board's order. A read-only token cannot write,
+  # so it has no entry and no chip; the API's filter still takes it.
+  @actor_chips [:owner_ui, :api_token_rw, :import_session, :system_job]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -55,13 +66,84 @@ defmodule PortfolixirWeb.JournalLive do
     opts
   end
 
+  # A filter change starts the list from its newest page again.
+  @impl true
+  def handle_event("filter_actor", %{"actor_type" => value}, socket) when is_binary(value) do
+    case enum_value(value, Actor.types()) do
+      {:ok, actor_type} -> {:noreply, patch(socket, actor_type: actor_type, limit: nil)}
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_operation", %{"operation" => value}, socket) when is_binary(value) do
+    case enum_value(value, Entry.operations()) do
+      {:ok, operation} ->
+        operation = if socket.assigns.opts[:operation] == operation, do: nil, else: operation
+        {:noreply, patch(socket, operation: operation, limit: nil)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("filter_form", %{"resource_type" => kind} = params, socket)
+      when is_binary(kind) do
+    kind = if kind == "", do: nil, else: kind
+
+    # Another kind leaves the one entry „Nur dieser Eintrag“ chose.
+    resource_id =
+      if kind == socket.assigns.opts[:resource_type], do: socket.assigns.opts[:resource_id]
+
+    {:noreply,
+     patch(socket,
+       resource_type: kind,
+       resource_id: resource_id,
+       include_scenarios: params["include_scenarios"] == "true",
+       limit: nil
+     )}
+  end
+
   # An event this page does not know, or a payload it cannot read, changes
   # nothing (E25 S4, F17).
-  @impl true
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp enum_value("", _allowed), do: {:ok, nil}
+
+  defp enum_value(value, allowed) do
+    case Enum.find(allowed, &(Atom.to_string(&1) == value)) do
+      nil -> :error
+      atom -> {:ok, atom}
+    end
+  end
+
+  defp patch(socket, changes),
+    do: push_patch(socket, to: path(Keyword.merge(socket.assigns.opts, changes)))
+
+  # The page's URL for `opts`, its parameters in one fixed order so a view
+  # has one link: only what differs from the API's default is written.
+  @doc false
+  @spec path(keyword()) :: String.t()
+  def path(opts) do
+    default_limit = JournalQuery.default_limit()
+
+    query =
+      [
+        resource_type: opts[:resource_type],
+        resource_id: opts[:resource_id],
+        actor_type: opts[:actor_type],
+        operation: opts[:operation],
+        include_scenarios: opts[:include_scenarios] == true || nil,
+        limit: if(opts[:limit] in [nil, default_limit], do: nil, else: opts[:limit])
+      ]
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+    if query == [], do: "/journal", else: "/journal?" <> URI.encode_query(query)
+  end
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :actor_chips, @actor_chips)
+
     ~H"""
     <AppShell.shell
       current_path="/journal"
@@ -74,7 +156,76 @@ defmodule PortfolixirWeb.JournalLive do
             <h2 id="journal-title"><%= gettext("Entries") %></h2>
           </header>
 
+          <%!-- Chips are toggles, so they carry aria-pressed (UX-DR7). --%>
+          <div id="journal-chips" class="filter-chips" role="group" aria-label={gettext("Filter the journal")}>
+            <span>
+              <span class="filter-chips__family"><%= gettext("Actor") %></span>
+              <button
+                type="button"
+                id="journal-chip-actor-all"
+                class={["filter-chip", @opts[:actor_type] == nil && "is-active"]}
+                aria-pressed={to_string(@opts[:actor_type] == nil)}
+                phx-click="filter_actor"
+                phx-value-actor_type=""
+              >
+                <%= gettext("All") %>
+              </button>
+              <button
+                :for={type <- @actor_chips}
+                type="button"
+                id={"journal-chip-actor-#{type}"}
+                class={["filter-chip", @opts[:actor_type] == type && "is-active"]}
+                aria-pressed={to_string(@opts[:actor_type] == type)}
+                phx-click="filter_actor"
+                phx-value-actor_type={type}
+              >
+                <%= Row.actor_label(type) %>
+              </button>
+            </span>
+            <span>
+              <span class="filter-chips__family"><%= gettext("Operation") %></span>
+              <button
+                :for={operation <- Entry.operations()}
+                type="button"
+                id={"journal-chip-operation-#{operation}"}
+                class={["filter-chip", @opts[:operation] == operation && "is-active"]}
+                aria-pressed={to_string(@opts[:operation] == operation)}
+                phx-click="toggle_operation"
+                phx-value-operation={operation}
+              >
+                <%= Row.operation_label(operation) %>
+              </button>
+            </span>
+          </div>
+
+          <form id="journal-filters" class="journal-filters" phx-change="filter_form">
+            <label class="journal-filters__kind">
+              <span class="visually-hidden"><%= gettext("Kind") %></span>
+              <select id="journal-kind" name="resource_type">
+                <option value=""><%= gettext("All kinds") %></option>
+                <option :for={kind <- kind_options(@opts)} value={kind} selected={@opts[:resource_type] == kind}>
+                  <%= Row.kind_label(kind) %>
+                </option>
+              </select>
+            </label>
+            <label class="journal-filters__scenarios">
+              <input type="hidden" name="include_scenarios" value="false" />
+              <input
+                type="checkbox"
+                id="journal-scenarios"
+                name="include_scenarios"
+                value="true"
+                checked={@opts[:include_scenarios] == true}
+              />
+              <%= gettext("Include what-if scenarios") %>
+            </label>
+          </form>
+
           <p class="summary-basis" data-role="journal-basis"><%= basis(@opts, @rows, @truncated) %></p>
+
+          <p :if={@opts[:resource_id]} class="hint" data-role="journal-entity-filter">
+            <.link patch="/journal"><%= gettext("Show every entry") %></.link>
+          </p>
 
           <%= if @rows == [] do %>
             <p id="journal-empty" class="empty-state" role="status">
@@ -100,7 +251,12 @@ defmodule PortfolixirWeb.JournalLive do
                       <small :if={row.actor_name} class="cell-note"><%= StoredText.bdi(row.actor_name) %></small>
                     </td>
                     <td class="cell-kind"><%= row.operation %></td>
-                    <td class="cell-name"><%= StoredText.bdi(row.entity) %></td>
+                    <td class="cell-name">
+                      <%= StoredText.bdi(row.entity) %>
+                      <small :if={row.resource_id} class="cell-note">
+                        <.link patch={only_path(row)}><%= gettext("Only this entry") %></.link>
+                      </small>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -112,16 +268,53 @@ defmodule PortfolixirWeb.JournalLive do
     """
   end
 
+  # „Nur dieser Eintrag“: the entry's own history, every actor and operation.
+  defp only_path(row), do: path(resource_type: row.resource_type, resource_id: row.resource_id)
+
+  # The kinds the select offers; a kind the URL names that no label knows
+  # yet is offered too, so the select shows what the list is filtered by.
+  defp kind_options(opts) do
+    kinds = Row.kinds()
+
+    case opts[:resource_type] do
+      nil -> kinds
+      kind -> if kind in kinds, do: kinds, else: kinds ++ [kind]
+    end
+  end
+
   # The basis line restates what the list is (UX-DR11): its order, its
   # size, the filters it applies and the time zone of its times.
   defp basis(opts, rows, _truncated) do
-    count = ngettext("%{count} entry", "%{count} entries", length(rows))
-
-    scenarios =
-      if opts[:include_scenarios],
+    clauses = [
+      gettext("Newest first"),
+      ngettext("%{count} entry", "%{count} entries", length(rows)),
+      opts[:actor_type] && gettext("actor %{actor}", actor: Row.actor_label(opts[:actor_type])),
+      opts[:operation] &&
+        gettext("operation %{operation}", operation: Row.operation_label(opts[:operation])),
+      entity_clause(opts),
+      if(opts[:include_scenarios],
         do: gettext("with what-if scenarios"),
         else: gettext("without what-if scenarios")
+      ),
+      gettext("times in UTC")
+    ]
 
-    Enum.join([gettext("Newest first"), count, scenarios, gettext("times in UTC")], " · ")
+    clauses |> Enum.reject(&(&1 in [nil, false])) |> Enum.join(" · ")
+  end
+
+  defp entity_clause(opts) do
+    case {opts[:resource_type], opts[:resource_id]} do
+      {nil, nil} ->
+        nil
+
+      {nil, id} ->
+        gettext("only %{entry}", entry: id)
+
+      {kind, nil} ->
+        gettext("kind %{kind}", kind: Row.kind_label(kind))
+
+      {kind, id} ->
+        gettext("only %{entry}", entry: Row.kind_label(kind) <> " " <> id)
+    end
   end
 end

@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.JournalLiveTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Portfolios
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -88,7 +89,196 @@ defmodule PortfolixirWeb.JournalLiveTest do
     refute has_element?(view, "table.journal-table")
   end
 
+  # User story:
+  # As the operator and the agent reading one journal,
+  # I want every filter of the page to be the API's filter of the same name,
+  # so that a link the agent hands over opens the rows it read, and what I
+  # see is what it saw (two-way coverage, board 03 ②).
+  #
+  # Acceptance criteria:
+  # - For actor_type, operation, resource_type and include_scenarios, alone
+  #   and combined, the page lists exactly the ids GET /api/v1/journal
+  #   answers for the same parameters, in its order.
+  # - The basis line names each filter in words: „Akteur Agent“, „Vorgang
+  #   Gelöscht“, „Art Wertpapier“, „mit Was-wäre-wenn-Szenarien“.
+  test "each filter narrows to what the API answers for the same parameters", %{conn: conn} do
+    write_some_history!()
+
+    for params <- [
+          %{"actor_type" => "api_token_rw"},
+          %{"actor_type" => "owner_ui"},
+          %{"operation" => "delete"},
+          %{"operation" => "update"},
+          %{"resource_type" => "security"},
+          %{"resource_type" => "cash_account"},
+          %{"include_scenarios" => "true"},
+          %{
+            "actor_type" => "api_token_rw",
+            "operation" => "delete",
+            "resource_type" => "security"
+          }
+        ] do
+      expected = api_ids(conn, params)
+      assert expected != [], inspect(params)
+
+      {:ok, view, _html} =
+        live(conn, "/journal?" <> URI.encode_query(Map.put(params, "locale", "de")))
+
+      assert page_ids(view) == expected, inspect(params)
+    end
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/journal?locale=de&actor_type=api_token_rw&operation=delete&resource_type=security&include_scenarios=true"
+      )
+
+    count = length(page_ids(view))
+
+    assert view |> element("[data-role='journal-basis']") |> render() |> text() ==
+             "Neueste zuerst · #{count} #{if count == 1, do: "Eintrag", else: "Einträge"} · " <>
+               "Akteur Agent · Vorgang Gelöscht · Art Wertpapier · " <>
+               "mit Was-wäre-wenn-Szenarien · Zeiten in UTC"
+  end
+
+  # User story:
+  # As the operator narrowing the journal,
+  # I want the actor and the operation as chips, the kind as a select and
+  # the what-if scenarios as a checkbox, each writing its parameter into
+  # the URL,
+  # so that the view I narrowed to is a link that reproduces it (board 03
+  # ②; the history's `?since=` rule, #731).
+  #
+  # Acceptance criteria:
+  # - Akteur: Alle · Operator · Agent · Import · System; one is pressed.
+  # - Vorgang: Angelegt · Geändert · Gelöscht · Angelegt oder ersetzt; a
+  #   pressed chip pressed again clears its filter.
+  # - The kind select „Alle Arten“ and the checkbox „Was-wäre-wenn-Szenarien
+  #   einbeziehen“ patch the URL too.
+  test "the chips, the select and the checkbox write the API's parameters into the URL",
+       %{conn: conn} do
+    write_some_history!()
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+
+    assert has_element?(view, "#journal-chip-actor-all[aria-pressed='true']", "Alle")
+
+    for {type, word} <- [
+          {"owner_ui", "Operator"},
+          {"api_token_rw", "Agent"},
+          {"import_session", "Import"},
+          {"system_job", "System"}
+        ] do
+      assert has_element?(view, "#journal-chip-actor-#{type}[aria-pressed='false']", word)
+    end
+
+    for {operation, word} <- [
+          {"create", "Angelegt"},
+          {"update", "Geändert"},
+          {"delete", "Gelöscht"},
+          {"upsert", "Angelegt oder ersetzt"}
+        ] do
+      assert has_element?(view, "#journal-chip-operation-#{operation}", word)
+    end
+
+    view |> element("#journal-chip-actor-api_token_rw") |> render_click()
+    assert_patch(view, "/journal?actor_type=api_token_rw")
+    assert has_element?(view, "#journal-chip-actor-api_token_rw[aria-pressed='true']")
+    assert has_element?(view, "#journal-chip-actor-all[aria-pressed='false']")
+
+    view |> element("#journal-chip-operation-delete") |> render_click()
+    assert_patch(view, "/journal?actor_type=api_token_rw&operation=delete")
+
+    view |> element("#journal-chip-operation-delete") |> render_click()
+    assert_patch(view, "/journal?actor_type=api_token_rw")
+
+    assert has_element?(view, "#journal-kind option[value='']", "Alle Arten")
+    assert has_element?(view, "#journal-kind option[value='security']", "Wertpapier")
+    assert has_element?(view, "label", "Was-wäre-wenn-Szenarien einbeziehen")
+
+    view
+    |> form("#journal-filters", %{"resource_type" => "security", "include_scenarios" => "true"})
+    |> render_change()
+
+    assert_patch(
+      view,
+      "/journal?resource_type=security&actor_type=api_token_rw&include_scenarios=true"
+    )
+
+    assert has_element?(view, "#journal-kind option[value='security'][selected]")
+    assert has_element?(view, "#journal-scenarios[checked]")
+
+    view |> element("#journal-chip-actor-all") |> render_click()
+    assert_patch(view, "/journal?resource_type=security&include_scenarios=true")
+  end
+
+  # User story:
+  # As the operator reading one entry's change,
+  # I want „Nur dieser Eintrag“ beside it to list that entry's history alone,
+  # so that "what happened to this security?" is one click and a link, the
+  # per-entity view board 03's variant B would have drawn on every page.
+  #
+  # Acceptance criteria:
+  # - Each row links /journal?resource_type=…&resource_id=… .
+  # - Followed, the page lists exactly what the API answers for those two
+  #   parameters, and the basis line says „nur Wertpapier <id>“.
+  # - „Alle Einträge zeigen“ leads back to the whole journal.
+  test "„Nur dieser Eintrag“ filters to one entry", %{conn: conn} do
+    %{kept: kept} = write_some_history!()
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+
+    href = "/journal?resource_type=security&resource_id=#{kept.id}"
+    [update | _] = api_ids(conn, %{"resource_type" => "security", "resource_id" => "#{kept.id}"})
+
+    view
+    |> element("#journal-entry-#{update} a[href='#{href}']", "Nur dieser Eintrag")
+    |> render_click()
+
+    assert_patch(view, href)
+
+    expected = api_ids(conn, %{"resource_type" => "security", "resource_id" => "#{kept.id}"})
+    assert length(expected) == 2
+    assert page_ids(view) == expected
+
+    assert view |> element("[data-role='journal-basis']") |> render() |> text() =~
+             "· nur Wertpapier #{kept.id} ·"
+
+    assert has_element?(
+             view,
+             "[data-role='journal-entity-filter'] a[href='/journal']",
+             "Alle Einträge zeigen"
+           )
+  end
+
   # -- helpers ------------------------------------------------------------------
+
+  # A short synthetic history: the operator creates two securities and a
+  # cash account, the agent renames one security, deletes the other and
+  # renames the cash account.
+  defp write_some_history! do
+    owner = Actor.owner_ui()
+    agent = Actor.api_token_rw("review seed")
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(owner, %{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, kept} =
+      Catalog.create_security(owner, %{name: "Alder Creek Fund", currency_code: "EUR"})
+
+    {:ok, gone} = Catalog.create_security(owner, %{name: "Brookfield Note", currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(owner, %{
+        portfolio_id: portfolio.id,
+        name: "Festgeld",
+        currency_code: "EUR"
+      })
+
+    {:ok, kept} = Catalog.update_security(agent, kept, %{name: "Alder Creek Fund A"})
+    {:ok, _} = Catalog.delete_security(agent, gone)
+    {:ok, cash} = Portfolios.update_cash_account(agent, cash, %{name: "Festgeld Plus"})
+
+    %{kept: kept, gone: gone, cash: cash}
+  end
 
   defp api_ids(conn, params) do
     conn
