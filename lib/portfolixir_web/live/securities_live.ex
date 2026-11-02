@@ -2234,9 +2234,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       —
                     <% end %>
                   </td>
-                  <td class="num">
+                  <%!-- #1369 (board ux-design-2026-11-02-sprint23/02-money
+                       ①b): a lot of a security without a quote is priced
+                       at its last own trade price, the holdings' rule, and
+                       says so under the figure, as the Bestände row does. --%>
+                  <td class="num" data-role="lot-latest-price">
                     <%= if lot.latest_price do %>
                       <%= Format.decimal(lot.latest_price, 2) %>
+                      <small :if={lot.price_source == :trade and lot.price_date} class="cell-note">
+                        <%= gettext("Trade price · %{date}", date: Format.date(lot.price_date)) %>
+                      </small>
                     <% else %>
                       —
                     <% end %>

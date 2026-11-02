@@ -3106,6 +3106,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             price: stored_figure(@sell_preview.sell_price)
           ) %>
         </p>
+        <%!-- #1369 (board 02 ①b): without a quote, the price the holdings
+             value the position at, its source and date named. --%>
+        <p
+          :if={@sell_preview.price_source == :trade}
+          class="form-help"
+          data-role="preview-price-hint"
+        >
+          <%= gettext("Priced at the last own trade price: %{price} (%{date}).",
+            price: stored_figure(@sell_preview.sell_price),
+            date: PortfolixirWeb.Format.date(@sell_preview.price_date)
+          ) %>
+        </p>
         <div class="data-table-wrapper">
           <table id="sell-lot-preview-table">
             <thead>
