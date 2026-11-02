@@ -274,10 +274,16 @@ defmodule PortfolixirWeb.RiskLive do
                   <span class={drawdown_class(m.value)}><%= signed_percent(m.value) %></span><small class="value-suffix">%</small>
                 </:value>
                 <:sub :let={m}>
-                  <%= Format.date(m.peak_date) %> → <%= Format.date(m.trough_date) %> ·
-                  <%= if m.recovery_date,
-                    do: gettext("recovered %{date}", date: Format.date(m.recovery_date)),
-                    else: gettext("not recovered") %>
+                  <%!-- #1343 (board 02 ④): a drawdown of exactly 0 is no
+                       episode; the payload serves no dates for it. --%>
+                  <%= if m.peak_date do %>
+                    <%= Format.date(m.peak_date) %> → <%= Format.date(m.trough_date) %> ·
+                    <%= if m.recovery_date,
+                      do: gettext("recovered %{date}", date: Format.date(m.recovery_date)),
+                      else: gettext("not recovered") %>
+                  <% else %>
+                    <%= gettext("no decline in the period") %>
+                  <% end %>
                 </:sub>
               </.metric_card>
 

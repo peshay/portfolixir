@@ -2923,8 +2923,10 @@ Beispiel-Payloads für Konten:
   Risiko-Familie hat **genau einen Endpunkt**: es gibt kein
   `/views/:id/risk`, die Sicht kommt über den `view`-Parameter.
   - `volatility`, `max_drawdown` (mit `peak_date`, `trough_date`,
-    `recovery_date`) und `risk_adjusted_return`, je über `30d`, `90d` und
-    `365d`. Sie lesen die **flussbereinigten Tagesrenditefaktoren der
+    `recovery_date`; `recovery_date` ist `null`, solange der Index unter dem
+    Hoch liegt, und alle drei sind `null`, wenn der Drawdown genau `0` ist:
+    es gab keinen Rückgang, also wird keiner datiert) und
+    `risk_adjusted_return`, je über `30d`, `90d` und `365d`. Sie lesen die **flussbereinigten Tagesrenditefaktoren der
     TTWROR-Kette** — nie die Wertänderung von Tag zu Tag —, eine Einzahlung
     oder Entnahme ist also keine Rendite: ein Portfolio, dessen Kurse sich nie
     bewegen, hat Volatilität und Drawdown von genau `0`, egal wie viel Geld

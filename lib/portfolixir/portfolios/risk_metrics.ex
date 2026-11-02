@@ -333,7 +333,10 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
           "#{PortfolioMetrics.min_return_observations()} return observations for " <>
           "volatility and risk_adjusted_return, #{PortfolioMetrics.min_drawdown_points()} " <>
           "index points for max_drawdown, #{PortfolioMetrics.min_pair_observations()} " <>
-          "overlapping returns per correlation pair. A risk_adjusted_return over a " <>
+          "overlapping returns per correlation pair. A max_drawdown of exactly 0 carries " <>
+          "null peak_date, trough_date and recovery_date, without insufficient_data: the " <>
+          "index never fell below its running peak, so no decline is named; a null " <>
+          "recovery_date beside a negative value means not yet recovered. A risk_adjusted_return over a " <>
           "volatility of exactly 0, and a correlation where either side never moved, is " <>
           "null without insufficient_data: the figure is undefined, not short of data. " <>
           "So is a figure whose square root the one float step cannot carry, a magnitude " <>

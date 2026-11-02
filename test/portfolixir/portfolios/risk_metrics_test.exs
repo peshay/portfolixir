@@ -133,7 +133,8 @@ defmodule Portfolixir.Portfolios.RiskMetricsTest do
   # conversion): a flat multi-currency portfolio whose walk leaves Decimal
   # division residue in a factor (0.999…9 at 34 places) still reads as flat —
   # volatility and drawdown "0.000000", no risk-adjusted-return number made
-  # of rounding noise, and no "-0" drawdown left unrecovered.
+  # of rounding noise, and no "-0" drawdown left unrecovered: the drawdown is
+  # exactly 0, so it names no peak, trough or recovery at all (#1343).
   test "I1 survives currency conversion: division residue is not a return" do
     for {ccy, rate} <- [{"USD", "3"}, {"CHF", "7"}], do: rate!(ccy, day(-200), rate)
 
@@ -166,7 +167,10 @@ defmodule Portfolixir.Portfolios.RiskMetricsTest do
     for window <- ~w(30d 90d 365d) do
       assert_scale_6(metrics.volatility[window].value, "0.000000")
       assert_scale_6(metrics.max_drawdown[window].value, "0.000000")
-      assert metrics.max_drawdown[window].recovery_date
+
+      assert %{peak_date: nil, trough_date: nil, recovery_date: nil} =
+               metrics.max_drawdown[window]
+
       assert metrics.risk_adjusted_return[window].value == nil
     end
   end
