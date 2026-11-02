@@ -1086,7 +1086,12 @@ unchanged). *2026-11-02, the sprint PR's closing act:* a cash stated alone,
 different from the stored one, is checked against the stored figures the
 same way, since point 1 keeps the relation on every write; without it a
 cash-only edit of the row corrected to 81.00 and 816.00 back to 806.00
-recreated #1371's two costs. No decision changes.
+recreated #1371's two costs. The price's own rounding is allowed on an
+edit only while the edit leaves the price as stored: a price the edit sets
+is exact, so its tolerance is the cent alone (100,000 shares re-priced to
+0.10 would otherwise allow 500.01, 4.99 % of the cash); the read-only check
+keeps the allowance for every stored price, so an untouched import is never
+listed. No decision changes.
 
 ## Note (2026-11-02): the refusal list gains the CSV time row
 

@@ -139,6 +139,13 @@ defmodule Portfolixir.Imports.StatedCashImportBoundaryTest do
 
     assert {:ok, _} = edit(json, %{"fees" => "5.40", "gross_amount" => "1000000.50"})
 
+    # The 0.03 row's fee corrected, its cash moved by the same 0.50: its
+    # stored Kurs keeps its rounding, 7 × 0.005 + 0.01 = 0.045 (the sprint
+    # PR's closing act: only a price the edit sets is exact).
+    assert {:ok, seven} = edit(seven, %{"fees" => "1.50", "gross_amount" => "101.50"})
+    assert Decimal.equal?(seven.gross_amount, Decimal.new("101.50"))
+    refute MapSet.member?(listed_ids(), seven.id)
+
     # Beyond the price's rounding (1,234 × 0.00005 = 0.0617) and the cent.
     assert {:error, changeset} =
              edit(corrected, %{"fees" => "4.90", "gross_amount" => "15239.36"})

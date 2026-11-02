@@ -18,7 +18,9 @@ defmodule Portfolixir.Ledger.StatedCash do
       asks of an imported row**: `quantity × price + fees + taxes` on a
       buy, `− fees − taxes` on a sell (`SettlementGuard.expected_cash/4`),
       both sides rounded to two places as §2 rounds them, within
-      `tolerance/2`: a cent, plus the price's own rounding (below);
+      `tolerance/2`: a cent, plus the stored price's own rounding (below)
+      while the edit leaves the price as stored; a price the edit sets is
+      exact, so its tolerance is the cent alone;
     * an update that states a cash alone, different from the stored one,
       is checked against the stored figures the same way: the row keeps
       the relation on every write (the amendment's point 1);
@@ -39,6 +41,11 @@ defmodule Portfolixir.Ledger.StatedCash do
   last digit is read off the price as stored, its trailing zeros dropped,
   at two places at least (Portfolio Performance writes a Kurs to at least
   two) and six at most (the column's scale).
+
+  `report/0` keeps that allowance for every stored price, so an untouched
+  import is never listed; an edit allows it only for the price it leaves
+  as stored, since a price the operator types carries no rounding of its
+  own (100,000 shares re-priced to 0.10 would otherwise allow 500.01).
 
   A row with a settlement amount is ADR-0015's: the settlement guard already
   relates its legs and its cash, so it is left to it, and so is an update
@@ -119,12 +126,24 @@ defmodule Portfolixir.Ledger.StatedCash do
   readings, and apart by no more than `tolerance/2`.
   """
   @spec agrees?(Decimal.t(), Decimal.t(), Decimal.t(), Decimal.t()) :: boolean()
-  def agrees?(%Decimal{} = cash, %Decimal{} = derived, quantity, price) do
+  def agrees?(%Decimal{} = cash, %Decimal{} = derived, quantity, price),
+    do: within?(cash, derived, tolerance(quantity, price))
+
+  defp within?(cash, derived, tolerance) do
     cash
     |> Decimal.round(2)
     |> Decimal.sub(Decimal.round(derived, 2))
     |> Decimal.abs()
-    |> Decimal.compare(tolerance(quantity, price)) != :gt
+    |> Decimal.compare(tolerance) != :gt
+  end
+
+  # An edit's tolerance: the stored price keeps its own rounding, a price
+  # the edit sets is exact, so the cent alone (the sprint PR's closing act:
+  # 100,000 at 0.10 would otherwise allow 500.01).
+  defp edit_tolerance(changeset) do
+    if changed?(changeset, :price),
+      do: SettlementGuard.tolerance(),
+      else: tolerance(get_field(changeset, :quantity), get_field(changeset, :price))
   end
 
   @doc """
@@ -133,8 +152,9 @@ defmodule Portfolixir.Ledger.StatedCash do
   stated (a stated cash equal to the stored one is no change). Refuses on
   `gross_amount` an update of the four figures, or of the type between buy
   and sell, of a row the rule covers that states no cash, or states one the
-  new figures do not agree with (`agrees?/4`), and a cash stated alone the
-  stored figures do not agree with; leaves every other write alone.
+  new figures do not agree with (`agrees?/4`, the cent alone when the edit
+  sets the price), and a cash stated alone the stored figures do not agree
+  with; leaves every other write alone.
   """
   @spec validate(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def validate(%Ecto.Changeset{data: %Transaction{} = stored} = changeset, attrs)
@@ -183,7 +203,7 @@ defmodule Portfolixir.Ledger.StatedCash do
       )
 
     if is_nil(derived) or
-         agrees?(cash, derived, get_field(changeset, :quantity), get_field(changeset, :price)) do
+         within?(cash, derived, edit_tolerance(changeset)) do
       changeset
     else
       add_error(changeset, :gross_amount, @mismatch_message,
@@ -259,7 +279,8 @@ defmodule Portfolixir.Ledger.StatedCash do
         "Both sides rounded to two places, as ADR-0053 §2 compares an imported row; a " <>
           "row is listed when they differ by more than 0.01 plus |quantity| × half a unit " <>
           "of the price's last digit (read at two to six places), the price's own rounding " <>
-          "at import.",
+          "at import. An edit allows that rounding only for a price it leaves as stored; a " <>
+          "price it sets is checked to the cent.",
       rows: rows
     }
   end

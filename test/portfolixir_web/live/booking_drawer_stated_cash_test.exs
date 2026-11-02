@@ -151,8 +151,8 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
   # Acceptance criteria:
   # - The field the operator overwrites with the amount settled within a
   #   cent is stored as typed.
-  # - A figure off by more than its tolerance (a cent plus 10 × 0.005, the
-  #   price's own rounding) is refused with the field's own
+  # - A figure off by more than its tolerance (a cent: the price the edit
+  #   sets is exact) is refused with the field's own
   #   error, the expected figure in German notation, and nothing moves.
   test "the field states the cash: within its tolerance saved, beyond it refused",
        %{conn: conn, world: w, security: s, buy: buy} do

@@ -1205,7 +1205,7 @@ describe("Portfolixir MCP tools", () => {
   // so that a 422 on gross_amount does not surprise me.
   it("says on portfolixir.transactions.update that a figure edit states the cash", () => {
     const update = listTools().find((tool) => tool.name === "portfolixir.transactions.update");
-    assert.match(update?.description ?? "", /must state gross_amount, agreeing with quantity × price ± fees and taxes within 0\.01 \+ the price's rounding/);
+    assert.match(update?.description ?? "", /must state gross_amount, agreeing with quantity × price ± fees\/taxes within 0\.01 \+ an unchanged price's rounding/);
   });
 
   // User story:
