@@ -1284,7 +1284,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # ADR-0053, amendment of 2026-11-02 (#1371, board 02 ①a): what the drawer
   # needs of a buy or sell that stores its cash and no settlement amount —
   # the stored cash and figures, the currency the cash is stored in, and
-  # whether an import stored it. `nil` for every other booking.
+  # whether it is the cash an import stored, unchanged since (its journal).
+  # `nil` for every other booking.
   defp stored_cash(%Transaction{} = transaction) do
     if StatedCash.applies?(transaction) do
       %{
@@ -1292,7 +1293,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         figures: Map.take(transaction, StatedCash.figure_fields()),
         type: transaction.type,
         currency: transaction.currency_code,
-        imported?: is_binary(transaction.import_hash)
+        imported?: StatedCash.cash_as_imported?(transaction)
       }
     end
   end

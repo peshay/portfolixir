@@ -61,6 +61,7 @@ defmodule Portfolixir.Ledger.StatedCash do
   import Ecto.Query, only: [from: 2]
 
   alias Portfolixir.Clock
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
@@ -86,6 +87,33 @@ defmodule Portfolixir.Ledger.StatedCash do
       do: true
 
   def applies?(_row), do: false
+
+  @doc """
+  Whether a stored booking's cash is the one its import stored: it carries
+  an import hash, and its journal (ADR-0017) records no update that changed
+  its `gross_amount`. The drawer's help line says "(as imported)" only then
+  (the sprint PR's closing act).
+  """
+  @spec cash_as_imported?(Transaction.t()) :: boolean()
+  def cash_as_imported?(%Transaction{id: id, import_hash: hash}) when is_binary(hash) do
+    [resource_type: "transaction", resource_id: to_string(id), operation: :update]
+    |> Journal.list_entries()
+    |> Enum.all?(&(not cash_changed?(&1.before, &1.after)))
+  end
+
+  def cash_as_imported?(%Transaction{}), do: false
+
+  defp cash_changed?(%{"gross_amount" => before}, %{"gross_amount" => after_}),
+    do: not same_amount?(before, after_)
+
+  defp cash_changed?(_before, _after), do: false
+
+  defp same_amount?(same, same), do: true
+
+  defp same_amount?(a, b) when is_binary(a) and is_binary(b),
+    do: Decimal.equal?(Decimal.new(a), Decimal.new(b))
+
+  defp same_amount?(_a, _b), do: false
 
   @doc """
   The cash `quantity × price` with the fees and taxes gives: plus them on a
