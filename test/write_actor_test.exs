@@ -72,6 +72,20 @@ defmodule Portfolixir.WriteActorTest do
       "the application start's config-gated call of ensure_builtins/0"
   }
 
+  # Import-session writers (Sprint 22's closing act): the Portfolio
+  # Performance import journals every record it creates under the fixed
+  # `Actor.import_session/0`, the actor ADR-0017 gives bulk imports
+  # ("Bulk imports journal per-record entries … with actor
+  # import_session"), whichever page or token started it. The classifier
+  # reads `Imports.apply/2` as a writer since it follows `defdelegate` to
+  # `Imports.Applier`. Excluded by class, not grandfathered, and held to it
+  # below: each entry must still be a writer that reaches
+  # `Actor.import_session/0`.
+  @import_session_writers %{
+    {Portfolixir.Imports, :apply, 2} =>
+      "the Portfolio Performance import's apply, journaled per record as import_session"
+  }
+
   # Instance-state writers of the preference store (#1272): each writes one
   # fixed key of the `settings` table, an unarmed scope table whose instance
   # state the instance writes without an actor by design
@@ -90,10 +104,11 @@ defmodule Portfolixir.WriteActorTest do
 
   # The classifier must not pass vacuously (#1269): it once kept only the
   # last call it visited in a body and so read 7 writers instead of 62 (66
-  # with the preference store, #1272). A
+  # with the preference store, #1272; 71 once it follows `defdelegate` and
+  # local captures, Sprint 22's closing act). A
   # count below this floor means it stopped seeing writers; raise the floor
   # when writers are added, never lower it to make a red run pass.
-  @writer_floor 66
+  @writer_floor 71
 
   # Pre-existing public context writers not yet actor-first (later leaf-first
   # slices: Portfolios/Classifications → Ledger → Imports). SHRINK-ONLY: a stale
@@ -240,6 +255,23 @@ defmodule Portfolixir.WriteActorTest do
     assert bad == [],
            "system-job entries that no longer write without an actor, or no longer " <>
              "reach Actor.system_job/1 — remove or fix them:\n" <>
+             Enum.map_join(bad, "\n", &inspect/1)
+  end
+
+  test "every import-session writer is still a writer that journals under the import session" do
+    bad =
+      for {{module, name, arity} = entry, _reason} <- @import_session_writers,
+          not Enum.any?(writers(module), &match?({^name, ^arity, false}, &1)) or
+            not reaches_actor?(
+              File.read!(Map.fetch!(@context_files, module)),
+              name,
+              :import_session
+            ),
+          do: entry
+
+    assert bad == [],
+           "import-session entries that no longer write without an actor, or no longer " <>
+             "reach Actor.import_session/0 — remove or fix them:\n" <>
              Enum.map_join(bad, "\n", &inspect/1)
   end
 
@@ -391,6 +423,51 @@ defmodule Portfolixir.WriteActorTest do
     assert Enum.sort(names) == [:multi_then_commit, :via_helper, :write_then_call, :write_then_ok]
   end
 
+  # User story (the Sprint 22 closing act, security lens):
+  # As the maintainer of the audit journal,
+  # I want the classifier to follow a `defdelegate` to its target and to see
+  # a local capture (`&helper/1`) as a call,
+  # so that a writer reached only through either is still checked.
+  #
+  # Acceptance criteria:
+  # - A public delegate to a writer of another module is a writer, actor-first
+  #   by its own head; a delegate to a reader is not.
+  # - A function that passes a writing helper as `&helper/1` is a writer.
+  test "the classifier follows a defdelegate and sees a local capture" do
+    target = """
+    defmodule Synthetic.Store do
+      def put(actor, attrs), do: Repo.insert(attrs) && actor
+      def store(attrs), do: Repo.insert(attrs)
+      def fetch(id), do: Repo.get(Thing, id)
+    end
+    """
+
+    source = """
+    defmodule Synthetic do
+      alias Synthetic.Store
+
+      defdelegate put(actor, attrs), to: Store
+      defdelegate save(attrs), to: Store, as: :store
+      defdelegate fetch(id), to: Store
+
+      def each_row(rows), do: Enum.each(rows, &write_row/1)
+
+      defp write_row(row), do: Repo.insert!(row)
+    end
+    """
+
+    resolve = fn
+      Synthetic.Store -> target
+      _other -> nil
+    end
+
+    assert source |> writers_in(resolve) |> Enum.sort() == [
+             {:each_row, 1, false},
+             {:put, 2, true},
+             {:save, 1, false}
+           ]
+  end
+
   defp classification_gaps(tables, extra_sets \\ []) do
     sets =
       [
@@ -419,7 +496,8 @@ defmodule Portfolixir.WriteActorTest do
     key = {module, name, arity}
 
     MapSet.member?(@migration_helpers, key) or MapSet.member?(@allowlisted_writers, key) or
-      Map.has_key?(@system_job_writers, key) or Map.has_key?(@instance_state_writers, key)
+      Map.has_key?(@system_job_writers, key) or Map.has_key?(@instance_state_writers, key) or
+      Map.has_key?(@import_session_writers, key)
   end
 
   defp short(module), do: module |> Module.split() |> List.last() |> String.to_existing_atom()
@@ -444,6 +522,29 @@ defmodule Portfolixir.WriteActorTest do
     module
     |> reachable_clauses(name)
     |> Enum.any?(&({:Actor, :system_job} in remote_calls(&1.body)))
+  end
+
+  # Whether `name` in `source` reaches an `Actor.<fun>` call, in its own body,
+  # through same-file helpers, or through the target of its `defdelegate`.
+  defp reaches_actor?(source, name, fun) do
+    ast = Code.string_to_quoted!(source)
+
+    case Enum.find(collect_delegates(ast), &(&1.name == name)) do
+      %{target: target, as: as} ->
+        case module_source(target) do
+          nil -> false
+          target_source -> reaches_actor?(target_source, as, fun)
+        end
+
+      nil ->
+        clauses = collect_defs(ast)
+        defined = clauses |> Enum.map(& &1.name) |> MapSet.new()
+        reachable = reach(MapSet.new([name]), [name], Enum.group_by(clauses, & &1.name), defined)
+
+        clauses
+        |> Enum.filter(&MapSet.member?(reachable, &1.name))
+        |> Enum.any?(&({:Actor, fun} in remote_calls(&1.body)))
+    end
   end
 
   # The clauses of `name` in `module`'s file and of every same-file function
@@ -498,14 +599,30 @@ defmodule Portfolixir.WriteActorTest do
   # that transitively reaches a Repo/Multi write.
   defp writers(module), do: @context_files |> Map.fetch!(module) |> File.read!() |> writers_in()
 
-  defp writers_in(source) do
-    clauses = source |> Code.string_to_quoted!() |> collect_defs()
-    defined_names = clauses |> Enum.map(& &1.name) |> MapSet.new()
+  # A delegate (`defdelegate`) is judged by its target (Sprint 22's closing
+  # act): it writes when the function it names writes, and is actor-first by
+  # its own head. `resolve` answers a target module's source, or nil.
+  defp writers_in(source, resolve \\ &module_source/1) do
+    ast = Code.string_to_quoted!(source)
+    clauses = collect_defs(ast)
+    delegates = collect_delegates(ast)
+
+    delegate_writers =
+      for delegate <- delegates, delegate_writes?(delegate, resolve), into: MapSet.new() do
+        delegate.name
+      end
+
+    defined_names =
+      clauses
+      |> Enum.map(& &1.name)
+      |> Enum.concat(Enum.map(delegates, & &1.name))
+      |> MapSet.new()
 
     direct =
       clauses
       |> Enum.group_by(& &1.name)
       |> Map.new(fn {name, cls} -> {name, Enum.any?(cls, &has_write_call?(&1.body))} end)
+      |> Map.merge(Map.new(delegate_writers, &{&1, true}))
 
     local_calls =
       clauses
@@ -518,11 +635,74 @@ defmodule Portfolixir.WriteActorTest do
     writer_names = fixpoint(MapSet.new(), direct, local_calls)
 
     clauses
+    |> Enum.concat(delegates)
     |> Enum.filter(&(&1.kind == :def and MapSet.member?(writer_names, &1.name)))
     |> Enum.group_by(&{&1.name, &1.arity})
     |> Enum.map(fn {{name, arity}, cls} ->
       {name, arity, Enum.all?(cls, &actor_first?(&1.args))}
     end)
+  end
+
+  defp delegate_writes?(%{target: target, as: as, arity: arity}, resolve) do
+    case resolve.(target) do
+      nil -> false
+      source -> source |> writers_in(resolve) |> Enum.any?(&match?({^as, ^arity, _}, &1))
+    end
+  end
+
+  # A compiled module's own source file, for a delegate's target.
+  defp module_source(module) do
+    with {:module, ^module} <- Code.ensure_loaded(module),
+         source when is_list(source) <- module.module_info(:compile)[:source] do
+      File.read!(List.to_string(source))
+    else
+      _not_found -> nil
+    end
+  end
+
+  # Every `defdelegate` of `ast` as a public clause naming its target: the
+  # module its `to:` names (through the file's aliases) and the function
+  # (`as:`, else its own name).
+  defp collect_delegates(ast) do
+    aliases = collect_aliases(ast)
+
+    {_, delegates} =
+      Macro.prewalk(ast, [], fn
+        {:defdelegate, _meta, [head, opts]} = node, acc when is_list(opts) ->
+          {name, args} = head_name_args(head)
+          {:__aliases__, _, segs} = Keyword.fetch!(opts, :to)
+          target = Map.get(aliases, segs, Module.concat(segs))
+
+          delegate = %{
+            kind: :def,
+            name: name,
+            arity: length(args),
+            args: args,
+            target: target,
+            as: Keyword.get(opts, :as, name)
+          }
+
+          {node, [delegate | acc]}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    delegates
+  end
+
+  # `alias A.B.C` maps [:C] to A.B.C.
+  defp collect_aliases(ast) do
+    {_, aliases} =
+      Macro.prewalk(ast, %{}, fn
+        {:alias, _meta, [{:__aliases__, _, segs}]} = node, acc ->
+          {node, Map.put(acc, [List.last(segs)], Module.concat(segs))}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    aliases
   end
 
   defp fixpoint(acc, direct, local_calls) do
@@ -586,6 +766,11 @@ defmodule Portfolixir.WriteActorTest do
   defp collect_local_calls(body, defined) do
     {_, calls} =
       Macro.prewalk(body, [], fn
+        # A local capture, `&helper/1`, is a call of `helper`.
+        {:&, _, [{:/, _, [{name, _, context}, arity]}]} = node, acc
+        when is_atom(name) and is_atom(context) and is_integer(arity) ->
+          if MapSet.member?(defined, name), do: {node, [name | acc]}, else: {node, acc}
+
         {name, _meta, args} = node, acc when is_atom(name) and is_list(args) ->
           if MapSet.member?(defined, name), do: {node, [name | acc]}, else: {node, acc}
 
