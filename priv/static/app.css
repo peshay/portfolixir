@@ -11684,6 +11684,14 @@ dialog.merge-dialog {
   white-space: nowrap;
 }
 
+/* Rule ⑤, issue 1333 (Sprint 22 board 03): the same tag after an account
+   whose name an account of another portfolio also carries, naming its
+   portfolio (`PortfolixirWeb.AccountNames.portfolio_tag/1`). A portfolio's
+   name is a word, not an identifier, so it drops the mono voice. */
+.twin-id--portfolio {
+  font-family: inherit;
+}
+
 /* ===== The category result in EUR (issue 1048, Sprint 19 pick J10.2 A;
    board ux-design-2026-10-04/10-category-results) ===== */
 /* Rule ②: the members the roll-up cannot add in EUR are named where the
