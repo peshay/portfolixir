@@ -8024,3 +8024,17 @@ page lands.
   patch. A clamped note needs its `id`. A note that names rows left out of
   a total keeps its count in its first line, so under the clamp the count
   stays visible and the names are one tap away (UX-DR25).
+- **④ Folded notes** (`AppShell.data_note_fold/1`): two or more attention
+  or note items in one block fold into one `details.data-note-group`
+  (`data-role="folded-notes"`, the `DisclosureState` hook) whose summary
+  reads „⚠ 1 Achtung · ✳ 1 Hinweis — Details anzeigen“: each count with
+  its glyph (aria-hidden) and its word in the severity word's type (11 px,
+  650, uppercase, 0.04 em), then the toggle in muted underlined ink. The
+  line takes the highest folded severity's tokens (`--attention`: the
+  warning border and soft fill; `--note`: the muted ones). Opened, the notes
+  stack in `.data-note-group__body` with the `--space-2` gap. One item does
+  not fold. The page passes only the notes that may fold: a problem never
+  folds, and a note that names rows left out of a total never folds.
+- **⑤ Problems lead** their block: a problem note never folds and comes
+  first, then the notes that name excluded rows, then the fold. A problem
+  clamps like every note.
