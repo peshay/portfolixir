@@ -4133,6 +4133,8 @@ API may have committed it, and its answer cannot be read.
   read-only, with its remedy
 - `portfolixir.transactions.rate_only` — the stored rate-only trades
   (#1290), read-only, with its remedy
+- `portfolixir.transactions.cash_mismatch` — the stored trades whose cash
+  misses their figures (#1371), read-only, with its remedy
 - `portfolixir.holdings.reconcile` — read-only compare of a pasted external
   position list against the ledger; its description steers the agent toward
   booking the missing transaction of the correct kind instead of balance

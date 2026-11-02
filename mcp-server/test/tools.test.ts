@@ -61,6 +61,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.update",
       "portfolixir.transactions.delete",
       "portfolixir.transactions.rate_only",
+      "portfolixir.transactions.cash_mismatch",
       "portfolixir.splits.preview",
       "portfolixir.splits.create",
       "portfolixir.splits.delete",
@@ -1163,6 +1164,48 @@ describe("Portfolixir MCP tools", () => {
 
     const definition = listTools().find((tool) => tool.name === "portfolixir.transactions.rate_only");
     assert.equal(definition?.annotations?.readOnlyHint, true);
+  });
+
+  // User story (#1371; ADR-0053, amendment of 2026-11-02):
+  // As the operating LLM agent,
+  // I want the stored buys and sells whose cash misses quantity × price ±
+  // fees and taxes as a read-only tool,
+  // so that a booking whose cash balance and lot read two costs reaches me
+  // with the remedy the API states.
+  //
+  // Acceptance criteria:
+  // - portfolixir.transactions.cash_mismatch is a read-only GET of
+  //   /api/v1/transactions/cash_mismatch, takes no argument, and passes the
+  //   rows, Decimal strings included, through unchanged.
+  it("issues a GET to /transactions/cash_mismatch for portfolixir.transactions.cash_mismatch", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        as_of: "2026-11-02",
+        note: "buys and sells whose cash misses quantity × price",
+        remedy: "State the cash in the booking form (Edit) or as gross_amount",
+        tolerance: "0.01",
+        rows: [{ id: 42, stored_cash: "806", derived_cash: "816", difference: "-10" }]
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.transactions.cash_mismatch", {});
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/transactions/cash_mismatch");
+    assert.match(result.content[0].text, /"difference":\s*"-10"/);
+
+    const definition = listTools().find((tool) => tool.name === "portfolixir.transactions.cash_mismatch");
+    assert.equal(definition?.annotations?.readOnlyHint, true);
+  });
+
+  // User story (#1371; ADR-0053, amendment of 2026-11-02):
+  // As the operating LLM agent correcting an imported trade,
+  // I want the update tool to say that a change of its figures states its
+  // cash,
+  // so that a 422 on gross_amount does not surprise me.
+  it("says on portfolixir.transactions.update that a figure edit states the cash", () => {
+    const update = listTools().find((tool) => tool.name === "portfolixir.transactions.update");
+    assert.match(update?.description ?? "", /must state gross_amount too, within 0\.01/);
   });
 
   // User story:
