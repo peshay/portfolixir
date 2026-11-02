@@ -101,7 +101,7 @@ the drawn part.
 |---|---|
 | ① | **Section ⓘ.** The section's method sentences leave the page and sit in one `details.metric-tooltip` beside the heading (`.section-title` wrapper, label „Zu diesem Abschnitt“), one source line per line. A facet whose basis line already ends in an ⓘ takes them there. |
 | ② | **The basis line stays.** View, period, currency, as-of, gross/net, the set of rows and a threshold stay visible (UX-DR11). Only the method clauses of a line move. |
-| ③ | **Clamped data note.** The note's text is clamped to two lines, three under 560 px. „mehr“ appears only where the text is cut. A remedy control stays visible under the text. A note that names excluded rows keeps its count in its first line. |
+| ③ | **Clamped data note.** The note's text is clamped to two lines, three under 560 px. „mehr“ appears only where the text is cut. A remedy control stays visible under the text. A note that names excluded rows keeps every count in its first line. |
 | ④ | **Folded notes.** Two or more attention/note items in one block that do not name excluded rows fold into one line with their counts, at the highest folded severity. |
 | ⑤ | **Problems stay visible.** A problem never folds and leads its block. It clamps like every note. |
 | ⑥ | **#1350.** `details.view-switcher__help` also takes `metric-tooltip metric-tooltip--inline`, so its panel floats like every other ⓘ panel. |

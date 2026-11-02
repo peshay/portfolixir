@@ -110,6 +110,36 @@ defmodule PortfolixirWeb.ValuationNotes do
     |> Enum.reject(&is_nil/1)
   end
 
+  @doc """
+  Each group of `excluded_groups/1` as its count alone, in the same order
+  (#1351 closing act, pick Q1; DESIGN.md ③): a clamped note naming two or
+  more groups leads with these, so every count stays in its first line.
+  """
+  @spec excluded_counts(map()) :: [String.t()]
+  def excluded_counts(valuation) do
+    [
+      {length(unvalued_cash(valuation)), :cash},
+      {length(position_names(valuation, :no_price)), :no_price},
+      {length(position_names(valuation, :missing_fx)), :missing_fx}
+    ]
+    |> Enum.reject(fn {count, _group} -> count == 0 end)
+    |> Enum.map(fn {count, group} -> group_count(group, count) end)
+  end
+
+  defp group_count(:cash, count),
+    do: ngettext("%{count} cash account", "%{count} cash accounts", count)
+
+  defp group_count(:no_price, count),
+    do: ngettext("%{count} position with no price", "%{count} positions with no price", count)
+
+  defp group_count(:missing_fx, count),
+    do:
+      ngettext(
+        "%{count} position with no exchange rate",
+        "%{count} positions with no exchange rate",
+        count
+      )
+
   defp cash_group([], _base), do: nil
 
   defp cash_group(accounts, base) do
