@@ -66,8 +66,10 @@ story_location: _bmad-output/implementation-artifacts
 #   green. D-6 makes the stacked PR's retarget to main a step of its own.
 # - THE SHAPE: the sprint PR (Lane E, the worktree build; Lane M with M1,
 #   #1115; Lane R, #1370, #1371, #1368, #1369; about 39 commits) and the
-#   stacked PR (Lane V, the three overdue views; Lane I, I1's later pages;
-#   the close-out; about 48).
+#   stacked PR (Lane V, the three overdue views; Lane C, the owner's two
+#   reports of 2026-11-02: the info panels close on a click elsewhere and
+#   one at a time, and the number colours by board 04's pick; Lane I, I1's
+#   later pages; the close-out; about 53).
 # - EXIT CRITERIA (D-1): both S1s and both S2s close by keyword with their
 #   identities pinned; no agent-only capability overdue at the close-out;
 #   #1115 closes with the schema ceilings no higher; the screens match the
