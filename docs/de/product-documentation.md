@@ -2114,7 +2114,9 @@ Durchschnitt von 100 ÷ 3 als „33,3333“); die Stückzahl mit ihren eigenen
 Stellen. API und MCP liefern jede Stelle. Eine Position, die zum letzten
 Handelspreis bewertet ist, zeigt diesen Preis mit „Handelspreis · Datum“
 darunter, ihren Marktwert und ihre G&V; eine Position ganz ohne Preis liest
-„kein Preis · nicht in der Summe“. Der **Marktwert** steht in der
+„kein Preis · nicht in der Summe“, eine mit Preis, aber ohne Wechselkurs
+zur Basiswährung unter ihrem Marktwert „ohne Wechselkurs · nicht in der
+Summe“. Der **Marktwert** steht in der
 Basiswährung des Portfolios, die Zahl, die die Summe zählt — eine
 USD-Position zum zuletzt gespeicherten Kurs umgerechnet —, damit die Zeilen
 die Summe darüber ergeben; Preis, Ø Kosten und G&V bleiben in der Währung

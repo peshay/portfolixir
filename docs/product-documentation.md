@@ -1921,7 +1921,9 @@ stored price, every digit up to four places ("128.4838 EUR", an average of
 100 ÷ 3 as "33.3333"); the quantity with its own digits. The API and MCP
 serve every digit. A position valued at its last trade price shows that
 price with "Trade price · date" under it, its market value and its P&L,
-and a position with no price at all reads "no price · not in the total".
+and a position with no price at all reads "no price · not in the total";
+one with a price but no exchange rate to the base currency reads "no
+exchange rate · not in the total" under its market value.
 The **market value** is in the portfolio's base currency, the figure the
 total sums — a USD position converted at the latest stored rate — so the
 rows add up to the total above them; the price, the average cost and the
