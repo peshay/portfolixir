@@ -30,6 +30,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_invisible_unicode as scanner  # noqa: E402
 
 
+# The variables git sets for a hook. A test that runs git in a throwaway
+# repository drops them, or git acts on the repository whose hook runs the
+# test (#1364).
+HOOK_GIT_VARIABLES = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR")
+
+
 def scan(text: str, path: str = "sample.txt", allowlist=None):
     return scanner.scan_text(path, text, allowlist or [])
 
@@ -173,6 +179,12 @@ class BinaryDetectionTests(unittest.TestCase):
     TAG_A = chr(0xE0041)  # TAG LATIN CAPITAL LETTER A
     RLO = chr(0x202E)  # RIGHT-TO-LEFT OVERRIDE
 
+    def setUp(self):
+        # Inside a hook, git and the scanner's own `git check-attr` would
+        # otherwise act on the repository whose hook runs the test (#1364).
+        saved = {name: os.environ.pop(name) for name in HOOK_GIT_VARIABLES if name in os.environ}
+        self.addCleanup(os.environ.update, saved)
+
     def _repo(self) -> str:
         directory = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, directory)
@@ -242,6 +254,62 @@ class BinaryDetectionTests(unittest.TestCase):
         status, output = self._run(directory, [name])
         self.assertEqual(status, 1)
         self.assertIn("notes.txt:1:1: not valid UTF-8 text", output)
+
+
+class HookEnvironmentTests(unittest.TestCase):
+    """The tests leave the repository whose hook runs them alone (#1364).
+
+    A hook in a linked worktree runs with GIT_DIR pointing at
+    ``.git/worktrees/<name>`` and GIT_INDEX_FILE beside it. A ``git init``
+    that inherits them re-initialises that repository instead of the
+    throwaway one, and writes ``core.bare`` into the shared ``.git/config``
+    (Sprint 22 retrospective).
+    """
+
+    def _git(self, *args: str, cwd: str, env: dict | None = None) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=cwd, env=env, check=True, capture_output=True, text=True
+        ).stdout
+
+    def test_running_inside_a_linked_worktree_hook_leaves_core_bare_alone(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        base = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        for name in HOOK_GIT_VARIABLES:
+            base.pop(name, None)
+        main = os.path.join(root, "main")
+        self._git("init", "-q", main, cwd=root, env=base)
+        self._git(
+            "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+            "commit", "-q", "--allow-empty", "-m", "base", cwd=main, env=base,
+        )
+        linked = os.path.join(root, "linked")
+        self._git("worktree", "add", "-q", linked, cwd=main, env=base)
+        before = self._git("config", "--list", "--local", cwd=main, env=base)
+
+        git_dir = os.path.join(main, ".git", "worktrees", "linked")
+        hook_env = dict(
+            base,
+            GIT_DIR=git_dir,
+            GIT_INDEX_FILE=os.path.join(git_dir, "index"),
+            GIT_WORK_TREE=linked,
+            GIT_COMMON_DIR=os.path.join(main, ".git"),
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-B", "-m", "unittest",
+                "test_check_invisible_unicode.BinaryDetectionTests",
+            ],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            env=hook_env,
+            capture_output=True,
+            text=True,
+        )
+
+        after = self._git("config", "--list", "--local", cwd=main, env=base)
+        self.assertNotIn("core.bare=true", after)
+        self.assertEqual(after, before)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":
