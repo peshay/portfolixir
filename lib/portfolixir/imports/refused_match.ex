@@ -244,7 +244,14 @@ defmodule Portfolixir.Imports.RefusedMatch do
     end
   end
 
-  defp cash_cell(%Entry{kind: kind, gross_amount: gross} = entry) do
+  @doc """
+  A row's cash as the file states it (ADR-0053 A1): its own booking with any
+  refund split off it folded back in, a credit's plus the refund, a debit's
+  less it. The entry carries its refunds in `companion_entries`, as the
+  parser gives them, before `Entry.flatten/1`.
+  """
+  @spec cash_cell(Entry.t()) :: Decimal.t()
+  def cash_cell(%Entry{kind: kind, gross_amount: gross} = entry) do
     refund =
       entry.companion_entries
       |> Enum.map(& &1.gross_amount)

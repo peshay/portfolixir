@@ -46,6 +46,22 @@ defmodule PortfolixirWeb.ImportsHeldBackLiveTest do
   }
   """
 
+  # One purchase whose cash, 1000.00, carries a tax refund of 10.00 as a
+  # negative TAX unit, which the parser splits off as a companion.
+  @refunded_buy """
+  {
+    "version": 1,
+    "transactions": [
+      {"type": "PURCHASE", "account": "Refund-Cash", "portfolio": "Refund-Depot",
+       "date": "2026-04-14", "time": "11:00", "currency": "EUR", "amount": 1000.00,
+       "shares": 10.0,
+       "units": [{"type": "TAX", "amount": -10.00}],
+       "security": {"name": "Larkspur Rail AG 4,00 % Anleihe 2031",
+                    "isin": "XSLARKSPUR33", "currency": "EUR"}}
+    ]
+  }
+  """
+
   setup do
     main = portfolio!("Hauptportfolio")
     bonds = portfolio!("Anleihen")
@@ -189,16 +205,56 @@ defmodule PortfolixirWeb.ImportsHeldBackLiveTest do
     refute has_element?(again, "[data-role='held-back']")
   end
 
-  defp upload!(view) do
+  # User story (#1313, the closing act):
+  # As the operator whose purchase with a tax refund is already in another
+  # portfolio,
+  # I want the held-back group to list the file's one row with the cash the
+  # file states,
+  # so that it reads as the file I dropped, not as the split it books.
+  #
+  # Acceptance criteria:
+  # - The group says 1 entry and lists one row, -1,000.00 EUR (the file's
+  #   amount, not the 1,010.00 the row books beside its refund).
+  # - The done page counts 1 entry held back.
+  test "a held-back row with a split-off refund reads as the file's one row", %{conn: conn} do
+    refunds = portfolio!("Steuerdepot")
+    {:ok, preview} = PortfolioPerformance.parse(@refunded_buy, filename: "erstattung.json")
+    {:ok, %{created_transactions: 2}} = Imports.apply(preview, %{portfolio_id: refunds.id})
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload!(view, "erstattung.json", @refunded_buy)
+
+    group = view |> element("[data-role='held-back']") |> render()
+
+    assert text(group, "[data-role='held-back-group'] summary") ==
+             "Already imported into portfolio “Steuerdepot”: 1 entry — not taken over"
+
+    assert rows(group) == [
+             [
+               "2026-04-14",
+               "Buy",
+               "Refund-Cash · Larkspur Rail AG 4,00 % Anleihe 2031",
+               "-1,000.00 EUR"
+             ]
+           ]
+
+    view |> element("form#pp-import-apply") |> render_submit()
+    done = render_async(view, 1_000)
+
+    assert text(done, "[data-role='held-back-result']") ==
+             "Already imported into portfolio “Steuerdepot”: 1 entry — not taken over"
+  end
+
+  defp upload!(view, name \\ "kupons-2026.json", content \\ @coupons) do
     file_input(view, "#pp-import-form", :pp_file, [
       %{
-        name: "kupons-2026.json",
-        content: @coupons,
+        name: name,
+        content: content,
         type: "application/json",
         last_modified: 1_700_000_000_000
       }
     ])
-    |> render_upload("kupons-2026.json")
+    |> render_upload(name)
 
     render_async(view)
   end
