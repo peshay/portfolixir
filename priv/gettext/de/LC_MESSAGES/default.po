@@ -1097,7 +1097,7 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/components/app_shell.ex:793
+#: lib/portfolixir_web/components/app_shell.ex:837
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:606
 #, elixir-autogen, elixir-format
 msgid "Actions for %{row}"
@@ -4964,19 +4964,19 @@ msgid_plural "%{count} without an asset class"
 msgstr[0] "eins ohne Anlageklasse"
 msgstr[1] "%{count} ohne Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:841
+#: lib/portfolixir_web/components/app_shell.ex:885
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Attention"
 msgstr "Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:840
+#: lib/portfolixir_web/components/app_shell.ex:884
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Note"
 msgstr "Hinweis"
 
-#: lib/portfolixir_web/components/app_shell.ex:842
+#: lib/portfolixir_web/components/app_shell.ex:886
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Problem"
@@ -6138,7 +6138,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 msgid "no exchange rate"
 msgstr "kein Wechselkurs"
 
-#: lib/portfolixir_web/components/app_shell.ex:827
+#: lib/portfolixir_web/components/app_shell.ex:871
 #, elixir-autogen, elixir-format
 msgctxt "price freshness"
 msgid "stale"
@@ -9658,26 +9658,26 @@ msgstr "Version von:"
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr "%{field} enthält unsichtbare Zeichen (%{characters})"
 
-#: lib/portfolixir_web/components/app_shell.ex:685
+#: lib/portfolixir_web/components/app_shell.ex:729
 #, elixir-autogen, elixir-format
 msgid "The text contains %{count} invisible character."
 msgid_plural "The text contains %{count} invisible characters."
 msgstr[0] "Der Text enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Text enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:693
+#: lib/portfolixir_web/components/app_shell.ex:737
 #, elixir-autogen, elixir-format
 msgid "The name contains %{count} invisible character."
 msgid_plural "The name contains %{count} invisible characters."
 msgstr[0] "Der Name enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Name enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:715
+#: lib/portfolixir_web/components/app_shell.ex:759
 #, elixir-autogen, elixir-format
 msgid "Text with the characters made visible"
 msgstr "Text mit sichtbar gemachten Zeichen"
 
-#: lib/portfolixir_web/components/app_shell.ex:716
+#: lib/portfolixir_web/components/app_shell.ex:760
 #, elixir-autogen, elixir-format
 msgid "Name with the characters made visible"
 msgstr "Name mit sichtbar gemachten Zeichen"
@@ -10758,7 +10758,7 @@ msgstr "„%{name}“ wurde inzwischen gelöscht; die Liste ist neu geladen."
 msgid "“%{name}” was merged into %{target} meanwhile; the list is reloaded."
 msgstr "„%{name}“ wurde inzwischen in %{target} zusammengeführt; die Liste ist neu geladen."
 
-#: lib/portfolixir_web/components/app_shell.ex:701
+#: lib/portfolixir_web/components/app_shell.ex:745
 #, elixir-autogen, elixir-format
 msgid "A former name contains %{count} invisible character."
 msgid_plural "A former name contains %{count} invisible characters."
@@ -10779,14 +10779,14 @@ msgid_plural "An import that writes one of them exactly so keeps booking to this
 msgstr[0] "Ein Import, der ihn genau so schreibt, bucht weiter auf dieses Depot."
 msgstr[1] "Ein Import, der einen von ihnen genau so schreibt, bucht weiter auf dieses Depot."
 
-#: lib/portfolixir_web/components/app_shell.ex:709
+#: lib/portfolixir_web/components/app_shell.ex:753
 #, elixir-autogen, elixir-format
 msgid "Former names contain %{count} invisible character."
 msgid_plural "Former names contain %{count} invisible characters."
 msgstr[0] "Frühere Namen enthalten %{count} unsichtbares Zeichen."
 msgstr[1] "Frühere Namen enthalten %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:717
+#: lib/portfolixir_web/components/app_shell.ex:761
 #, elixir-autogen, elixir-format
 msgid "Names with the characters made visible"
 msgstr "Namen mit sichtbar gemachten Zeichen"
@@ -13889,3 +13889,24 @@ msgstr "weniger"
 msgctxt "data-note clamp"
 msgid "more"
 msgstr "mehr"
+
+#: lib/portfolixir_web/components/app_shell.ex:673
+#, elixir-autogen, elixir-format
+msgid "Show details"
+msgstr "Details anzeigen"
+
+#: lib/portfolixir_web/components/app_shell.ex:666
+#, elixir-autogen, elixir-format
+msgctxt "data-note fold"
+msgid "%{count} Attention"
+msgid_plural "%{count} Attention"
+msgstr[0] "%{count} Achtung"
+msgstr[1] "%{count} Achtung"
+
+#: lib/portfolixir_web/components/app_shell.ex:671
+#, elixir-autogen, elixir-format
+msgctxt "data-note fold"
+msgid "%{count} Note"
+msgid_plural "%{count} Notes"
+msgstr[0] "%{count} Hinweis"
+msgstr[1] "%{count} Hinweise"
