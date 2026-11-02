@@ -1,12 +1,47 @@
 #!/usr/bin/env python3
-"""Read and write gettext catalogues (.po/.pot) without changing a byte.
+"""Three-way merge of gettext catalogues (.po/.pot), usable as a git merge driver.
 
-Sprint 22 integrated several stories' German catalogues by hand: a
-fuzzy-matched msgid kept an old German text and the merge dropped the file's
-final newline (Sprint 22 retrospective, carry-forward 2). This module is the
-ground the merge tool stands on: it parses a catalogue into entries and renders
-them back exactly as `mix gettext.extract` / `mix gettext.merge` write them, so
-that a catalogue nobody changed comes out of the tool byte-identical.
+Usage::
+
+    python3 scripts/merge_gettext.py BASE OURS THEIRS [-o OUT]
+
+BASE is the common ancestor, OURS and THEIRS the two sides. The result goes to
+OUT, or into OURS when no OUT is given: git's merge-driver convention, so
+``merge.gettext.driver = python3 scripts/merge_gettext.py %O %A %B`` works.
+Exit status 0 is a clean merge, 1 a refusal (a conflict or a fuzzy entry, each
+named on stderr), 2 an unreadable catalogue or bad arguments. On 1 and 2
+nothing is written.
+
+Why it exists: Sprint 22 integrated several stories' German catalogues by
+hand; a fuzzy-matched msgid kept an old German text and the merge dropped the
+file's final newline, the sprint's one red CI run (Sprint 22 retrospective,
+carry-forward 2). The rules, each against that:
+
+  * The msgids of both sides are united. An entry's identity is msgctxt,
+    msgid and msgid_plural, as gettext's. The result keeps OURS' order, and
+    entries only THEIRS added follow at the end in THEIRS' order, which is
+    where the stories' blocks were appended by hand.
+  * Every changed msgstr is kept: a msgstr only one side changed against BASE
+    comes from that side; two different changes are a conflict.
+  * An entry one side deleted is deleted when the other side left its msgstr
+    alone (a moved ``#:`` reference does not keep it); when the other side
+    changed its msgstr, that is a conflict.
+  * ``#:`` references and other comments come from the side that changed
+    them; when both did, they are united (OURS' lines first). The flags of
+    ``#,`` merge three ways token by token, so a side that removed ``fuzzy``
+    removes it.
+  * The header entry (msgid "") is OURS', unless only THEIRS changed it.
+  * Any entry flagged ``fuzzy`` in the result is refused: a fuzzy match is an
+    old translation of a different text.
+  * Obsolete ``#~`` entries are dropped, as ``mix gettext.merge`` drops
+    obsolete entries by default.
+  * The output ends with exactly one newline.
+
+After a merge, run ``mix gettext.extract --check-up-to-date``: references the
+two sides moved are united here and only the extractor knows which still hold.
+
+The reader and writer below round-trip every committed catalogue
+byte-identically, so a catalogue nobody changed comes out unchanged.
 
 The model follows Expo, the library Elixir's gettext writes with:
 
@@ -24,7 +59,9 @@ Standard library only.
 
 from __future__ import annotations
 
+import argparse
 import re
+import sys
 from dataclasses import dataclass, field
 
 KEYWORD_LINE = re.compile(r'^(msgctxt|msgid_plural|msgid|msgstr(?:\[(\d+)\])?)[ \t]+"(.*)"$')
@@ -196,3 +233,166 @@ def render_entry(entry: Entry) -> str:
 def render(entries: list[Entry]) -> str:
     """Render entries one blank line apart, ending with exactly one newline."""
     return "\n\n".join(render_entry(entry) for entry in entries) + "\n"
+
+
+class MergeRefused(Exception):
+    """The merge would lose a change or land a fuzzy translation."""
+
+    def __init__(self, problems: list[str]):
+        super().__init__("\n".join(problems))
+        self.problems = problems
+
+
+REFERENCE = "#:"
+FLAGS = "#,"
+PREVIOUS = "#|"
+
+
+def _comment_parts(entry: Entry) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Split comments into leading notes, references, flag tokens and previous-msgid lines."""
+    notes = [line for line in entry.comments if not line.startswith((REFERENCE, FLAGS, PREVIOUS))]
+    previous = [line for line in entry.comments if line.startswith(PREVIOUS)]
+    return notes, entry.references(), entry.flags(), previous
+
+
+def _merge_lines(base: list[str] | None, ours: list[str], theirs: list[str]) -> list[str]:
+    """Take the side that changed; when both did, unite them, minus lines a side removed."""
+    if base is not None and ours == base:
+        return list(theirs)
+    if base is not None and theirs == base:
+        return list(ours)
+    removed = set() if base is None else {line for line in base if line not in ours or line not in theirs}
+    united = [line for line in ours if line not in removed]
+    united += [line for line in theirs if line not in united and line not in removed]
+    return united
+
+
+def _merge_flags(base: list[str] | None, ours: list[str], theirs: list[str]) -> list[str]:
+    base_set = set(base or [])
+    kept = [flag for flag in ours if flag in theirs or flag not in base_set]
+    kept += [flag for flag in theirs if flag not in kept and flag not in ours and flag not in base_set]
+    return kept
+
+
+def _merge_comments(base: Entry | None, ours: Entry, theirs: Entry) -> list[str]:
+    base_parts = None if base is None else _comment_parts(base)
+    ours_parts = _comment_parts(ours)
+    theirs_parts = _comment_parts(theirs)
+    notes = _merge_lines(base_parts and base_parts[0], ours_parts[0], theirs_parts[0])
+    references = _merge_lines(base_parts and base_parts[1], ours_parts[1], theirs_parts[1])
+    flags = _merge_flags(base_parts and base_parts[2], ours_parts[2], theirs_parts[2])
+    previous = _merge_lines(base_parts and base_parts[3], ours_parts[3], theirs_parts[3])
+    if (notes, references, flags, previous) == ours_parts:
+        return list(ours.comments)
+    if (notes, references, flags, previous) == theirs_parts:
+        return list(theirs.comments)
+    flag_lines = [FLAGS + " " + ", ".join(flags)] if flags else []
+    return notes + references + flag_lines + previous
+
+
+def _merge_entry(base: Entry | None, ours: Entry, theirs: Entry, problems: list[str]) -> Entry:
+    if ours.is_header:
+        changed_only_theirs = (
+            base is not None and render_entry(ours) == render_entry(base) and render_entry(theirs) != render_entry(base)
+        )
+        return theirs if changed_only_theirs else ours
+    base_msgstr = None if base is None else base.msgstr_text()
+    if ours.msgstr_text() == theirs.msgstr_text() or theirs.msgstr_text() == base_msgstr:
+        msgstr = ours.msgstr
+    elif ours.msgstr_text() == base_msgstr:
+        msgstr = theirs.msgstr
+    else:
+        problems.append(f"conflict: both sides changed the msgstr of {ours.describe()} differently")
+        msgstr = ours.msgstr
+    return Entry(
+        comments=_merge_comments(base, ours, theirs),
+        msgctxt=ours.msgctxt,
+        msgid=ours.msgid,
+        msgid_plural=ours.msgid_plural,
+        msgstr=msgstr,
+    )
+
+
+def _by_key(entries: list[Entry]) -> dict:
+    return {entry.key: entry for entry in entries if not entry.obsolete}
+
+
+def merge(base_text: str, ours_text: str, theirs_text: str) -> str:
+    """Merge three catalogue texts; raise MergeRefused naming every problem."""
+    base = _by_key(parse(base_text))
+    ours_entries = [entry for entry in parse(ours_text) if not entry.obsolete]
+    theirs_entries = [entry for entry in parse(theirs_text) if not entry.obsolete]
+    ours = _by_key(ours_entries)
+    theirs = _by_key(theirs_entries)
+    problems: list[str] = []
+    result: list[Entry] = []
+
+    def one_sided(kept: Entry, other_side: str) -> None:
+        original = base.get(kept.key)
+        if original is None:
+            result.append(kept)
+        elif kept.msgstr_text() != original.msgstr_text():
+            problems.append(
+                f"conflict: {other_side} deleted {kept.describe()}, the other side changed its msgstr"
+            )
+
+    for entry in ours_entries:
+        if entry.key in theirs:
+            result.append(_merge_entry(base.get(entry.key), entry, theirs[entry.key], problems))
+        else:
+            one_sided(entry, "theirs")
+    for entry in theirs_entries:
+        if entry.key not in ours:
+            one_sided(entry, "ours")
+
+    result.sort(key=lambda entry: not entry.is_header)
+    problems.extend(
+        f"fuzzy: {entry.describe()} is flagged fuzzy; confirm its msgstr and remove the flag first"
+        for entry in result
+        if entry.is_fuzzy
+    )
+    if problems:
+        raise MergeRefused(problems)
+    return render(result)
+
+
+def _read(path: str) -> str:
+    with open(path, encoding="utf-8", newline="") as handle:
+        return handle.read()
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Three-way merge of a gettext catalogue (git merge driver: %%O %%A %%B).",
+    )
+    parser.add_argument("base", help="the common ancestor (%%O)")
+    parser.add_argument("ours", help="our side (%%A); the result goes here unless -o is given")
+    parser.add_argument("theirs", help="their side (%%B)")
+    parser.add_argument("-o", "--output", help="write the result here instead of into OURS")
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exit_:
+        return 2 if exit_.code else 0
+
+    texts = []
+    for path in (args.base, args.ours, args.theirs):
+        try:
+            texts.append(_read(path))
+            parse(texts[-1])
+        except (OSError, UnicodeDecodeError, ParseError) as error:
+            print(f"merge_gettext: {path}: {error}", file=sys.stderr)
+            return 2
+    try:
+        merged = merge(*texts)
+    except MergeRefused as refused:
+        for problem in refused.problems:
+            print(f"merge_gettext: {args.ours}: {problem}", file=sys.stderr)
+        print("merge_gettext: refused; nothing was written", file=sys.stderr)
+        return 1
+    with open(args.output or args.ours, "w", encoding="utf-8", newline="") as handle:
+        handle.write(merged)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
