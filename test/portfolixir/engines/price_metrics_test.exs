@@ -146,6 +146,31 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
     assert tiny.max_drawdown["30d"].recovery_date == @as_of
   end
 
+  # User story (#1343, Sprint 22 closing act):
+  # As the operator's agent reading a security whose close fell by less than
+  # the served scale,
+  # I want the drawdown to keep its peak and trough and say it is not yet
+  # recovered,
+  # so that a decline rounded to "0" is not mistaken for no decline at all.
+  #
+  # Acceptance criteria:
+  # - Closes 1,000,000, 999,999.6, 999,999.7 decline by 4e-7: the value rounds
+  #   to 0 at scale 6, yet the peak and trough dates stay and the recovery is
+  #   nil (not yet recovered).
+  # - Only a decline that is exactly 0 before rounding drops the dates.
+  test "a decline below the served scale keeps its dates and stays unrecovered" do
+    metrics = PriceMetrics.compute(series(["1000000", "999999.6", "999999.7"]), @as_of)
+    drawdown = metrics.max_drawdown["30d"]
+
+    assert Decimal.equal?(drawdown.value, 0)
+    assert drawdown.peak_date == Date.add(@as_of, -2)
+    assert drawdown.trough_date == Date.add(@as_of, -1)
+    assert drawdown.recovery_date == nil
+
+    flat = PriceMetrics.compute(flat(3, "1000000"), @as_of).max_drawdown["30d"]
+    assert %{peak_date: nil, trough_date: nil, recovery_date: nil} = flat
+  end
+
   # User story (ADR-0047 §5; found by the edge-case hunter in the Sprint 13
   # closing act):
   # As the agent reading a security whose quote sync broke two years ago,
