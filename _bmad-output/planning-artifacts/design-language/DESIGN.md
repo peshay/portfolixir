@@ -8090,3 +8090,22 @@ page lands.
 Each split line's msgid is cut into one per clause; no translation changed.
 Measured on the review seed at 390 px: both section panels span x = 16 to
 374, and every note shows three lines with „mehr“.
+
+### Cashflow, as built
+
+- **Trades**: the facet's ⓘ keeps its text and, after a blank line, takes
+  „Einlieferungen eröffnen keinen Lot“ and „p. a. erst ab 365 Tagen
+  Haltedauer und nur, wo ein Zinssatz die Zahlungen löst“, one per line.
+  The list's basis line keeps „Gebühren und Steuern in Einstand und Erlös ·
+  Erträge während der Haltedauer nicht enthalten“. Both exclusion notes
+  (`#realized-excluded`, `#realized-unmatched`) clamp and never fold; the
+  backfill's reason („Die tägliche Synchronisation der Wechselkurse kann
+  einen vergangenen Tag nicht nachtragen. …“,
+  `[data-role=fx-backfill-reason]`) reads in the note's text and clamps
+  with it, „Historische Wechselkurse nachladen“ and its status sit in the
+  actions; „Die 2 Verkäufe“ sits in the unmatched note's actions.
+- **Erträge, Flüsse, Kosten**: each exclusion note (`#income-excluded`,
+  `#flows-excluded`, `#costs-excluded`) clamps the same way, the backfill
+  button in view. Their facet ⓘ and basis lines do not change.
+- The facet ⓘ panels open below and stay inside the screen (⑦): at 390 px
+  on the review seed they span x = 86 to 374.
