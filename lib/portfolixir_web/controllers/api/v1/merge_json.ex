@@ -76,6 +76,29 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
                          "nothing, because every row the merge removes has its content hash " <>
                          "retired."
 
+  @flow_basis "flow_changes: what collapsing the key-equal pairs does to the external flows " <>
+                "the time-weighted return neutralises (GET /api/v1/portfolios/:id/performance " <>
+                "and GET /api/v1/views/:id/performance), one entry per collapsed booking and " <>
+                "flow; empty for \"false\". removed: a collapsed inbound or outbound delivery, " <>
+                "an external flow of its portfolio on its date, in the depot " <>
+                "securities_account_id; quantity is the change in the units that day's flow " <>
+                "carries (the delivered units, negated for an inbound delivery), change their " <>
+                "value at the delivery's booked price in currency_code (valued_at " <>
+                "booked_price), or null where the delivery carries no price and the walk values " <>
+                "the units at the day's price (valued_at market). boundary_removed: a collapsed " <>
+                "security transfer with exactly one depot in the view view_id, a flow across " <>
+                "that view's boundary and none of the portfolio's own; one entry per view it " <>
+                "straddles, securities_account_id the in-view depot, quantity the change in " <>
+                "the units that view's flow carries, valued at the day's price (valued_at " <>
+                "market, change null). absorbed: a collapsed booking's cash leg on " <>
+                "cash_account_id that the account's next balance anchor (transaction_id, on " <>
+                "date) now absorbs: the anchor's residual, an external flow, changes by change. " <>
+                "The day's flow of each listed date changes by these entries alone; the " <>
+                "return of that day and the days after also reads the collapsed units no " <>
+                "longer held, so the preview lists the flows, not a recomputed return. View " <>
+                "membership is read as it stands; the merge keeps every position's membership " <>
+                "unchanged."
+
   @doc "A depot merge preview."
   def depot_preview(preview) do
     %{
@@ -98,6 +121,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
         "true" => depot_outcome(Map.fetch!(preview.outcomes, true))
       },
       positions_basis: @positions_basis,
+      flow_basis: @flow_basis,
       reimport_note: @depot_reimport_note
     }
   end
@@ -237,6 +261,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
         "true" => security_outcome(Map.fetch!(preview.outcomes, true))
       },
       positions_basis: @security_positions_basis,
+      flow_basis: @flow_basis,
       fifo_basis: @fifo_basis,
       reimport_note: @security_reimport_note
     }
@@ -411,7 +436,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             balance_after: JSON.decimal(account.balance_after)
           }
         end),
-      flow_changes: flow_changes(outcome.flow_changes)
+      flow_changes: flow_effects(outcome.flow_changes)
     }
   end
 
@@ -589,7 +614,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             balance_after: JSON.decimal(account.balance_after)
           }
         end),
-      flow_changes: flow_changes(outcome.flow_changes),
+      flow_changes: flow_effects(outcome.flow_changes),
       other_depots:
         Enum.map(outcome.other_depots, fn depot ->
           %{
@@ -614,6 +639,27 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
         transaction_id: change.transaction_id,
         date: JSON.date(change.date),
         change: JSON.decimal(change.change),
+        collapsed_transaction_id: change.collapsed_transaction_id
+      }
+    end)
+  end
+
+  # Issue 957: the flows a depot or security collapse removes or moves,
+  # every key present, null where it does not apply (MergeFigures).
+  defp flow_effects(changes) do
+    Enum.map(changes, fn change ->
+      %{
+        kind: Atom.to_string(change.kind),
+        cash_account_id: change.cash_account_id,
+        securities_account_id: change.securities_account_id,
+        security_id: change.security_id,
+        view_id: change.view_id,
+        transaction_id: change.transaction_id,
+        date: JSON.date(change.date),
+        quantity: JSON.decimal(change.quantity),
+        change: JSON.decimal(change.change),
+        currency_code: change.currency_code,
+        valued_at: change.valued_at && Atom.to_string(change.valued_at),
         collapsed_transaction_id: change.collapsed_transaction_id
       }
     end)
