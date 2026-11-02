@@ -1306,11 +1306,31 @@ defmodule PortfolixirWeb.LayoutView do
                 shift: tip.style.getPropertyValue("--tip-shift")
               });
             };
+            // Sprint 23 C1 (the owner's report of 2026-11-02): the ⓘ panels
+            // behave as one popover. Each was a `<details>` that only its
+            // own summary closed, so two stayed open side by side and a
+            // click elsewhere left a panel over the figures. Opening one
+            // closes every other (on toggle, so the keyboard's Enter does
+            // too); a pointer going down anywhere but inside an open ⓘ
+            // closes it. `pointerdown`, not `click`: iOS fires no click on
+            // a tap on plain text. Neither cancels the event nor moves the
+            // focus, so the click lands where it was aimed.
+            var closeInfoTipsBut = function (keep) {
+              document.querySelectorAll("details.metric-tooltip[open]").forEach(function (tip) {
+                if (tip !== keep && !tip.contains(keep)) tip.removeAttribute("open");
+              });
+            };
             document.addEventListener("toggle", function (event) {
               var tip = event.target;
               if (tip && tip.matches && tip.matches("details.metric-tooltip")) {
+                if (tip.open) closeInfoTipsBut(tip);
                 window.Portfolixir.placeInfoTip(tip);
               }
+            }, true);
+            document.addEventListener("pointerdown", function (event) {
+              var target = event.target;
+              var inside = target && target.closest ? target.closest("details.metric-tooltip") : null;
+              closeInfoTipsBut(inside);
             }, true);
             // Issue 1342 (board 01 ⑧): Escape closes the open ⓘ the focus
             // is in and returns the focus to its summary. The key is

@@ -250,6 +250,23 @@ former-name backfill (`20260925150100`), the tax identity normalisation
 not frozen, on purpose: the second run exists to apply newer inference rules,
 so an upgrade writes the classes the inference of its own release gives.
 
+## Browser tests
+
+LiveViewTest renders the server's markup and runs no client script, so what
+only the browser does (the ⓘ panels closing one another and on a click
+elsewhere, Sprint 23 C1) is checked in a real Chromium. A browser test lives
+in `test/browser/`, carries `@moduletag :browser`, boots the endpoint on a
+free loopback port with Bandit, seeds its world in the shared sandbox and runs
+a Playwright script beside it with `node`, which prints one JSON result. It
+needs Node, the `playwright` package on Node's module path (`NODE_PATH`) and
+its Chromium (`npx playwright install chromium`). The tag is excluded by
+default (`test/test_helper.exs`), so `mix test`, `mix coveralls` and CI's jobs
+skip it; run it with:
+
+```bash
+mix test test/browser --only browser
+```
+
 ## Scope guardrails
 
 - Use synthetic fixture data only.

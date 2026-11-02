@@ -4475,7 +4475,10 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   dort, wo es lesbar ist — unter seinem Zeichen, wenn darüber kein Platz
   ist, und nie über den Rand des Bildschirms hinaus, auch auf dem Handy —,
   und **Escape** schließt es und kehrt zu ihm zurück (#1336, #1342). Das ⓘ
-  der Ansichtsauswahl ist ebenfalls ein solches Feld (#1350).
+  der Ansichtsauswahl ist ebenfalls ein solches Feld (#1350). **Es ist
+  immer nur ein ⓘ offen:** Wer ein anderes öffnet, schließt es, und ein
+  Klick oder Tippen irgendwo außerhalb seines Felds schließt es ebenfalls,
+  ohne dass der Klick dabei seine Wirkung verliert (Sprint 23).
 - **Datenhinweise sind auf zwei Zeilen gekürzt** (auf dem Handy drei), mit
   **mehr**, wo der Text gekürzt ist, und **weniger**, um ihn wieder zu
   kürzen. Die Abhilfe eines Hinweises — eine Schaltfläche zum

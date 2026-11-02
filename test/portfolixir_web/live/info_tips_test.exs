@@ -152,4 +152,68 @@ defmodule PortfolixirWeb.InfoTipsTest do
     assert listener =~ ~s|tip.removeAttribute("open");|
     assert listener =~ ~r/summary\.focus\(\)/
   end
+
+  # The root layout's client script, as a page serves it.
+  defp served_client_script(html) do
+    case Regex.run(~r/<script id="live-view-client-script" nonce="[^"]+">(.*?)<\/script>/s, html) do
+      [_, script] -> script
+      nil -> flunk("no nonce'd client script in the page")
+    end
+  end
+
+  # User story (C1, the owner's report of 2026-11-02):
+  # As the operator reading a page full of ⓘ,
+  # I want the ⓘ panels to behave as one popover,
+  # so that a panel I have read does not stay open over the figures beside
+  # it once I move on.
+  #
+  # Acceptance criteria:
+  # - One capture `pointerdown` listener on the document closes every open
+  #   `details.metric-tooltip` except the one the pointer went down in: a
+  #   click or a tap elsewhere closes the panel, one inside it keeps it.
+  #   It neither cancels the event nor moves the focus, so the click lands
+  #   where it was aimed.
+  # - The placing `toggle` listener (#1336) closes every other open ⓘ when
+  #   one opens, so the keyboard's Enter on a second ⓘ closes the first too.
+  # - The script reaches every page through the root layout, under the
+  #   request's CSP nonce: the pages of the live session and the login page
+  #   alike, with no change at the ~30 call sites.
+  # - The behaviour itself is driven in Chromium by
+  #   test/browser/info_tips_click_away_test.exs (`mix test test/browser --only browser`).
+  test "the ⓘ panels close one another and on a click elsewhere", %{conn: conn} do
+    seed_world()
+    js = info_tip_source()
+
+    [_, closer] =
+      Regex.run(~r/var closeInfoTipsBut = function \(keep\) \{(.*?)\n            \};/s, js) ||
+        flunk("no closer for the open ⓘ")
+
+    assert closer =~ ~s|querySelectorAll("details.metric-tooltip[open]")|
+    assert closer =~ ~s|tip.removeAttribute("open");|
+
+    [_, outside] =
+      Regex.run(
+        ~r/document\.addEventListener\("pointerdown", function \(event\) \{(.*?)\}, true\);/s,
+        js
+      ) || flunk("no capture pointerdown listener for the ⓘ")
+
+    assert outside =~ ~s|closest("details.metric-tooltip")|
+    assert outside =~ "closeInfoTipsBut("
+    refute outside =~ "preventDefault"
+    refute outside =~ "focus("
+
+    [_, toggle] =
+      Regex.run(
+        ~r/document\.addEventListener\("toggle", function \(event\) \{(.*?)\}, true\);/s,
+        js
+      )
+
+    assert toggle =~ ~r/if \(tip\.open\) closeInfoTipsBut\(tip\);/
+
+    for path <- ["/", "/portfolio", "/securities", "/cashflow", "/tax", "/imports", "/login"] do
+      script = conn |> get(path) |> html_response(200) |> served_client_script()
+      assert script =~ ~s|document.addEventListener("pointerdown", function (event) {|, path
+      assert script =~ "var closeInfoTipsBut = function (keep) {", path
+    end
+  end
 end

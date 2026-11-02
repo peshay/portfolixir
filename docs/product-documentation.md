@@ -4064,7 +4064,9 @@ naming the already-booked event) stays inline in the dialog.
   it can be read — below its mark when there is no room above, and never
   past the screen's edge, also on a phone — and **Escape** closes it and
   returns to it (#1336, #1342). The view switcher's ⓘ is such a panel too
-  (#1350).
+  (#1350). **Only one ⓘ is open at a time:** opening another closes it,
+  and a click or a tap anywhere but inside its panel closes it too, while
+  the click still does what it was aimed at (Sprint 23).
 - **Data notes are cut to two lines** (three on a phone), with **more**
   where the text is cut and **less** to cut it again. A note's remedy — a
   sync or backfill button, a link, a list of rows — stays in view under the
