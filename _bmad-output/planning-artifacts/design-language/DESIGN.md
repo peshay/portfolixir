@@ -7961,3 +7961,13 @@ shrink order, item 3). The other pages — Wealth's Allokation tab, the
 security detail, Snapshots, Taxes, Views and the rest — follow in Sprint 23
 under the same board and this rule; their texts are classified when their
 page lands.
+
+### Anatomy, as built
+
+- **⑥ The view switcher's ⓘ** (#1350): `details.view-switcher__help` is
+  also `metric-tooltip metric-tooltip--inline`, so its panel floats over
+  the page like every other ⓘ panel instead of laying its text out as a
+  paragraph that pushed the KPI cards down. It takes no inline margin of
+  its own (`.view-switcher__help.metric-tooltip { margin-left: 0 }`); the
+  switcher's gap spaces it. Its summary keeps the accessible name „Über
+  Ansichten“ and the coarse-pointer 44 px ring (issue 1164).

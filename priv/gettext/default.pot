@@ -2526,12 +2526,12 @@ msgstr ""
 msgid "(exclude wins)"
 msgstr ""
 
-#: lib/portfolixir_web/components/view_switcher.ex:128
+#: lib/portfolixir_web/components/view_switcher.ex:130
 #, elixir-autogen, elixir-format
 msgid "A view narrows every figure on this page to the holdings it matches. Per-bucket figures are overlapping facets, not a partition — a holding can carry several buckets, so their values may overlap and must not be read as a sum."
 msgstr ""
 
-#: lib/portfolixir_web/components/view_switcher.ex:126
+#: lib/portfolixir_web/components/view_switcher.ex:128
 #: lib/portfolixir_web/live/buckets_live.ex:84
 #, elixir-autogen, elixir-format
 msgid "About views"
@@ -2851,7 +2851,7 @@ msgstr ""
 msgid "Create a plan for this view"
 msgstr ""
 
-#: lib/portfolixir_web/components/view_switcher.ex:158
+#: lib/portfolixir_web/components/view_switcher.ex:160
 #, elixir-autogen, elixir-format
 msgid "Has a target plan for the current classification"
 msgstr ""
