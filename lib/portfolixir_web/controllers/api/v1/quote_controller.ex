@@ -20,11 +20,17 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
       # derived from ONE fetch: computing the adjusted view from the same
       # loaded list keeps the zip aligned even when a concurrent upsert
       # lands between reads (E17 review, finding 6).
-      stored = Quotes.range(id, from, to, limit: limit)
+      # #1254: one row past the limit tells a cut answer from the whole; the
+      # limit keeps the newest rows, so the row left out is the oldest.
+      {stored, truncated} =
+        id
+        |> Quotes.range(from, to, limit: ListLimit.fetch(limit))
+        |> ListLimit.page_newest(limit)
+
       adjusted = Quotes.adjust_rows(stored, security)
       quotes = Enum.zip_with(stored, adjusted, &JSON.quote/2)
 
-      json(conn, %{data: quotes})
+      json(conn, %{data: quotes, limit: limit, truncated: truncated})
     else
       :error -> MergedAway.not_found(conn, :security, security_id)
       nil -> MergedAway.not_found(conn, :security, security_id)
@@ -111,7 +117,7 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   `first`, `last`, `stored_count`, the `stretches` (each a run of manual
   quotes with no quote of another source between them, `{from, to, count}`,
   ascending; the newest `limit`, default 100, capped at 1000, with
-  `stretch_count` counting them all) — and `sync_adapter`, whether the quote
+  `stretch_count` counting them all, and `limit` and `truncated` beside them) — and `sync_adapter`, whether the quote
   sync can fetch the security: an adapter for its provider that can ask for
   it (`Portfolixir.Catalog.QuoteSync.adapter?/2`; without one a released date
   keeps no quote). `from` and/or `to` (inclusive, an absent bound open)
@@ -138,6 +144,10 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
             stored_count: summary.stored_count,
             stretch_count: summary.stretch_count,
             stretches: Enum.map(summary.stretches, &stretch/1),
+            # #1254: the stretches are the capped list; stretch_count counts
+            # them all.
+            limit: limit,
+            truncated: summary.stretch_count > length(summary.stretches),
             sync_adapter: QuoteSync.adapter?(security)
           }
           |> put_range(id, from, to),

@@ -45,7 +45,8 @@ defmodule PortfolixirWeb.Api.V1.ManualQuotesControllerTest do
   # Acceptance criteria:
   # - 200 with security_id, count, first, last, stored_count, stretch_count,
   #   stretches (from, to, count; ascending) and sync_adapter; dates ISO.
-  # - meta.limit is the stretches' bound (default 100, capped at 1000).
+  # - meta.limit is the stretches' bound (default 100, capped at 1000), and
+  #   data echoes it as limit beside truncated (#1254).
   # - No range is given, so the answer carries no range.
   test "summarizes the manual quotes of the whole history", %{conn: conn, security: security} do
     body =
@@ -62,6 +63,8 @@ defmodule PortfolixirWeb.Api.V1.ManualQuotesControllerTest do
                %{"from" => "2026-06-30", "to" => "2026-07-01", "count" => 2},
                %{"from" => "2026-09-14", "to" => "2026-09-15", "count" => 2}
              ],
+             "limit" => 100,
+             "truncated" => false,
              "sync_adapter" => false
            }
 
