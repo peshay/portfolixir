@@ -8188,7 +8188,9 @@ booked with its cash — shows that cash in the edit drawer. Top to bottom:
    the stored digits („806“). Its help line (`#stored-cash-help`,
    `data-role="stored-cash-help"`, `p.form-help`) reads „Das Geld, das das
    Konto bewegt. Gespeichert: 806,00 (wie importiert).“; a row no import
-   stored drops the parenthesis. The input's `aria-describedby` names the
+   stored drops the parenthesis, and so does an imported row whose journal
+   records a change of its cash (amended 2026-11-02, the sprint PR's
+   closing act). The input's `aria-describedby` names the
    help line, and its error first when there is one.
 4. When quantity, price, fees, taxes or the type (Kauf/Verkauf) differ
    from the stored ones, one

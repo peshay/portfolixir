@@ -178,6 +178,30 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("816.01"))
   end
 
+  # Acceptance criteria (the sprint PR's closing act, #1371):
+  # - The help line says "(wie importiert)" only while the journal records
+  #   no change of the imported cash: a note edit keeps it, a saved price
+  #   correction stating 816,00 drops it.
+  test "the help line calls the cash as imported only until it is changed",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    submit(view, w, s, %{"notes" => "checked"})
+
+    view = open_edit(conn, buy.id)
+
+    assert text(view, ~s([data-role="stored-cash-help"])) ==
+             "Das Geld, das das Konto bewegt. Gespeichert: 806,00 (wie importiert)."
+
+    change(view, w, s, "price", "81")
+    submit(view, w, s, %{"notes" => "checked"})
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("816.00"))
+
+    view = open_edit(conn, buy.id)
+
+    assert text(view, ~s([data-role="stored-cash-help"])) ==
+             "Das Geld, das das Konto bewegt. Gespeichert: 816,00."
+  end
+
   # Acceptance criteria (the amendment's point 1, "on every write"; the
   # sprint PR's closing act):
   # - A cash typed alone is checked against the stored figures: 5000,00 is
