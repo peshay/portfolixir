@@ -8006,3 +8006,21 @@ page lands.
   is 26 rem wide (`max-width: calc(100vw - 2rem)`); a term's ⓘ keeps
   18 rem. A facet whose basis line already ends in an ⓘ takes its moved
   sentences there instead, under its text after a blank line.
+- **③ The clamped data note** (`AppShell.data_note` with `clamp`, the
+  `NoteClamp` hook): the note's text sits in `.data-note__text`, clamped to
+  two lines (three under 560 px; `-webkit-line-clamp`), and its remedy
+  controls (`:actions`) in `.data-note__actions` below it with the
+  `--space-2` gap, never under the clamp (pick Q1, correction 2). A
+  `button.link-button.data-note__more` follows the body at the note's end
+  (12 px, the note's ink, aligned to its last line); it is `hidden` until
+  the hook measures a cut, so „mehr“ appears only where the text is cut;
+  the hook writes its label from `data-more` / `data-less`, so the
+  server's button is empty and a note's text reads as its sentence alone.
+  Pressed, it reads „weniger“ (`aria-expanded="true"`, `aria-controls`
+  naming the text) and the note shows its text whole
+  (`[data-expanded]`). The hook measures again when a fold around the note
+  opens and when the note's box changes size (a `ResizeObserver`: a
+  window resize, the page's scrollbar appearing), and re-applies its state after each
+  patch. A clamped note needs its `id`. A note that names rows left out of
+  a total keeps its count in its first line, so under the clamp the count
+  stays visible and the names are one tap away (UX-DR25).
