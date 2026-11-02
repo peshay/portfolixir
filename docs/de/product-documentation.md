@@ -3303,6 +3303,21 @@ verrechnen die Gebührenposten, eine Zeile, deren Posten unter null fallen,
 scheitert also an der `Gesamtpreis`-Prüfung oben, und eine negative `Gebühren`
 eines Konverters gilt als ihre Gebühr.
 
+**Eine abgelehnte Zeile, die schon gebucht ist** (Issue #1219). Wurde die
+Abhilfe einer Warnung befolgt und die Lieferung, die Umbuchung oder die Zeile
+mit Gebührenerstattung von Hand gebucht, findet ein erneutes Ablegen
+desselben Exports diese Buchung an ihren Zahlen: Datum, Art, Wertpapier,
+Konten, Stückzahl und der Geldbetrag, den Portfolio Performance zeigt. Die
+Warnung behält ihren Grund und sagt anstelle der Abhilfe *— bereits gebucht:
+Kauf vom 03.03.2026, Arbolia Inc., 10 Stück, -1.003,00 EUR auf Test-Cash,
+von Hand erfasst. Die Buchung nicht noch einmal erfassen.* Eine Buchung aus
+einem früheren Export, der sich seither verschoben hat (eine Uhrzeit, eine
+hinzugekommene ISIN), wird ebenso gefunden und heißt *importiert*. Zwei
+Buchungen mit denselben Zahlen werden beide genannt, keine wird gewählt:
+prüfen, welche die der Zeile ist. Eine Gutschrift, die nichts oder weniger
+buchen würde, behält ihre Abhilfe, weil ihre Buchung von Hand einen
+Geldbetrag bewegt, den die Datei nicht nennt.
+
 Eine Historie, die importiert wurde, bevor Portfolixir die Erstattung aus
 ihrer Buchung nahm, hat eine solche Erstattung doppelt gezählt, neben einer
 Buchung, die sie schon enthielt, und einen JSON-Verkauf mit ihr bewertet.
