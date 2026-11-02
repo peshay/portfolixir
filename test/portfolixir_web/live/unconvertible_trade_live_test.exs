@@ -190,6 +190,9 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   #   not convertible: 2 buys it closes, of 2025-04-01, have no figure in
   #   USD"; in German "… 2 Käufe, die er schließt, vom 01.04.2025, haben
   #   keinen Gegenwert in USD".
+  # - One day is one rate (the closing act): "Remedy: a rate for that date
+  #   — … stores it and derives the figures from it — …", never "for each
+  #   of those dates"; in German "ein Wechselkurs für diesen Tag".
   test "two lots of one day name their day once", %{conn: conn} do
     arbolia = two_legless_lots!([~D[2025-04-01], ~D[2025-04-01]])
 
@@ -199,11 +202,18 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     assert note =~
              "1 trade not convertible: 2 buys it closes, of 2025-04-01, have no figure in USD, the sale's currency"
 
+    assert note =~
+             "Remedy: a rate for that date — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figures from it — or the figures in USD on the bookings."
+
+    refute note =~ "each of those dates"
+
     {:ok, de_view, _html} = live(conn, "/securities/#{arbolia.id}?tab=trades&locale=de")
     de_note = de_view |> element("[data-role=trades-unavailable]") |> render() |> text()
 
     assert de_note =~
              "1 Trade ohne Umrechnung: 2 Käufe, die er schließt, vom 01.04.2025, haben keinen Gegenwert in USD"
+
+    assert de_note =~ "Abhilfe: ein Wechselkurs für diesen Tag"
   end
 
   # User story (#1198, the α closing act's UAT):

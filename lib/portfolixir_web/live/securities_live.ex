@@ -2339,7 +2339,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 currency: trade.currency_code || @currency_code
               ) %>
             <% else %>
-              <%!-- One sentence per trade, the count its lots that lack the leg. --%>
+              <%!-- One sentence per trade, the count its lots that lack the
+                   leg; lots of one day ask for one rate (the closing act). --%>
+              <%= if one_lot_date?(lots) do %>
+              <%= ngettext(
+                "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for that date — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figures from it — or the figures in %{currency} on the bookings.",
+                "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for that date — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figures from it — or the figures in %{currency} on the bookings.",
+                length(lots),
+                lot_dates: lot_dates(lots),
+                currency: trade.currency_code || @currency_code
+              ) %>
+              <% else %>
               <%= ngettext(
                 "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — “Backfill historical rates” on Cash flow → “Trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
                 "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — “Backfill historical rates” on Cash flow → “Trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
@@ -2347,6 +2357,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 lot_dates: lot_dates(lots),
                 currency: trade.currency_code || @currency_code
               ) %>
+              <% end %>
             <% end %>
             <% end %>
           </span>
@@ -2658,6 +2669,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # order.
   defp lot_dates(lots),
     do: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", ")
+
+  # Whether the lots were all opened on one day: one rate fixes them.
+  defp one_lot_date?(lots), do: lots |> Enum.uniq_by(& &1.open_date) |> length() == 1
 
   # Why an unavailable trade has no figure, when it is a third currency
   # (#1310, read off the trade's own reason): the sale itself (`:sale`, the
