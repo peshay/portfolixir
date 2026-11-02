@@ -126,6 +126,60 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
   end
 
   # User story:
+  # As the agent asked to collapse a delivery both depots recorded,
+  # I want the preview to list the external flow the collapse removes, with
+  # the basis it is valued on,
+  # so that I can tell the operator how the time-weighted return changes.
+  #
+  # Acceptance criteria:
+  # - The "true" outcome's flow_changes lists the collapsed delivery: kind
+  #   removed, its depot, security and date, quantity and change as strings
+  #   (the units and value the day's flow no longer carries), currency_code
+  #   and valued_at booked_price; every key present, null where it does not
+  #   apply. The "false" outcome lists nothing.
+  # - flow_basis states the computation basis of every kind.
+  test "the preview lists a collapsed delivery's removed flow with its basis", ctx do
+    delivery =
+      for depot <- [ctx.source, ctx.target] do
+        insert!(%{
+          portfolio_id: ctx.portfolio.id,
+          securities_account_id: depot.id,
+          security_id: ctx.meridian.id,
+          type: "inbound_delivery",
+          date: ~D[2025-03-03],
+          quantity: "10",
+          price: "80.00",
+          currency_code: "EUR"
+        })
+      end
+
+    preview = preview!(ctx)
+    %{"false" => keep, "true" => collapse} = preview["outcome_by_collapse_key_equal"]
+
+    assert keep["flow_changes"] == []
+
+    assert collapse["flow_changes"] == [
+             %{
+               "kind" => "removed",
+               "cash_account_id" => nil,
+               "securities_account_id" => ctx.source.id,
+               "security_id" => ctx.meridian.id,
+               "view_id" => nil,
+               "transaction_id" => hd(delivery).id,
+               "date" => "2025-03-03",
+               "quantity" => "-10",
+               "change" => "-800",
+               "currency_code" => "EUR",
+               "valued_at" => "booked_price",
+               "collapsed_transaction_id" => hd(delivery).id
+             }
+           ]
+
+    assert preview["flow_basis"] =~ "boundary_removed"
+    assert preview["flow_basis"] =~ "booked price"
+  end
+
+  # User story:
   # As the operator whose agent merged the depots I approved,
   # I want the figures the API reads right after the merge to be the ones
   # the preview promised,

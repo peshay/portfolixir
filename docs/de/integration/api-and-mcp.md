@@ -743,9 +743,10 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     (je Depot, in dem die Quelle hält: `source`, `target` und `after`,
     jeweils `quantity`, `cost_basis`, `avg_cost` und `realized_result`),
     `fifo_realized`, `rounding_differences`, `cash_accounts` und
-    `flow_changes`, mit `positions_basis` wie bei einer
-    Depot-Zusammenführung; `reimport_note` sagt, was die Zusammenführung für
-    den nächsten Import bedeutet;
+    `flow_changes`, mit `positions_basis` und `flow_basis` wie bei einer
+    Depot-Zusammenführung (ein Eintrag `removed` oder `boundary_removed`
+    nennt das Quell-Wertpapier); `reimport_note` sagt, was die
+    Zusammenführung für den nächsten Import bedeutet;
   - `fifo_realized`, in jedem Ergebnis: die realisierten Gewinne nach FIFO,
     die die Zusammenführung neu feststellt (Sicherheitsprüfung 2026-10-12,
     K11). Die realisierten Gewinne der App (`GET /api/v1/realized_gains`,
@@ -1603,11 +1604,26 @@ Beispiel-Antwort für Kurssynchronisierung:
     `realized_result`; `target` ist `null`, wo das Ziel keine Buchung davon
     hält), `rounding_differences`, `cash_accounts` (jedes
     Verrechnungskonto, das eine entfernte gleiche Buchung ändert, mit
-    `balance_before` und `balance_after`) und `flow_changes` (jeder Fluss,
-    den eine entfernte Buchung in einen späteren gesetzten Saldo ihres
-    Verrechnungskontos verschiebt, `kind` `absorbed`, mit `cash_account_id`,
-    der `transaction_id` des Saldos, `date`, `change` und
-    `collapsed_transaction_id`, wie in der Vorschau einer
+    `balance_before` und `balance_after`) und `flow_changes` (jeder externe
+    Fluss, den das Entfernen gleicher Buchungen wegnimmt oder verschiebt,
+    damit die Änderung der zeitgewichteten Rendite sichtbar ist; jeder
+    Eintrag trägt `kind`, `cash_account_id`, `securities_account_id`,
+    `security_id`, `view_id`, `transaction_id`, `date`, `quantity`,
+    `change`, `currency_code`, `valued_at` und `collapsed_transaction_id`,
+    `null`, wo ein Schlüssel nicht zutrifft: `removed`, eine entfernte
+    Ein- oder Auslieferung, ihr Depot und Wertpapier, `quantity` die
+    Änderung der Stücke, die der Fluss dieses Tages trägt, und `change` ihr
+    Wert zum gebuchten Kurs der Lieferung in `currency_code` (`valued_at`
+    `booked_price`), oder `null`, wo die Lieferung keinen Kurs trägt und
+    die Performance-Rechnung die Stücke zum Kurs des Tages bewertet
+    (`valued_at` `market`); `boundary_removed`, eine entfernte Umbuchung,
+    von deren Depots genau eines in der Sicht `view_id` liegt, ein Fluss
+    über die Grenze dieser Sicht und keiner des Portfolios selbst, ein
+    Eintrag je Sicht, deren Grenze sie kreuzt, mit dem Depot in der Sicht,
+    bewertet zum Kurs des Tages; `absorbed`, der Geld-Anteil einer
+    entfernten Buchung, den ein späterer gesetzter Saldo ihres
+    Verrechnungskontos nun aufnimmt, mit der `transaction_id` des Saldos,
+    `date` und `change`, wie in der Vorschau einer
     Geldkonto-Zusammenführung) und `other_depots` (jedes dritte Depot, das
     eine entfernte Umbuchung nennt, je Wertpapier mit
     `securities_account_name`, `security_name`, `quantity_before` und
@@ -1639,6 +1655,14 @@ Beispiel-Antwort für Kurssynchronisierung:
     eine Ablehnung, und an keine Schranke je Split gebunden: Wo Splits
     aufeinander aufbauen, skaliert der nächste die Differenz, die einer
     hinterlässt (ADR-0050, Ergänzung vom 2026-10-08);
+  - `flow_basis`, die Rechengrundlage von `flow_changes`: Der Fluss eines
+    genannten Tages (`GET /api/v1/portfolios/:id/performance`, und
+    `GET /api/v1/views/:id/performance` für `boundary_removed`) ändert sich
+    allein um seine Einträge; die Rendite dieses Tages und der folgenden
+    liest auch die entfernten Stücke, die nicht mehr gehalten werden, darum
+    nennt die Vorschau die Flüsse, keine neu berechnete Rendite; die
+    Zugehörigkeit zu Sichten gilt, wie sie steht, und die Zusammenführung
+    lässt sie unverändert;
   - `reimport_note`, was die Zusammenführung für den nächsten
     Portfolio-Performance-Import bedeutet, wie bei einem Geldkonto.
 
