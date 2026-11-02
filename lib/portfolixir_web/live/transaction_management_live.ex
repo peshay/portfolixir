@@ -144,7 +144,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                  what needs a depot; the cash kinds book on an account alone. --%>
             <p>
               <%= gettext(
-                "Buys and sells need a depot. Deposits, removals, interest, fees and taxes book on a cash account alone."
+                "Buys and sells need a depot. Deposits, removals, interest, fees, taxes and tax refunds book on a cash account alone."
               ) %>
             </p>
             <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
