@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PreviewStore
+  alias Portfolixir.Imports.RefusedMatch
   alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -2576,7 +2577,10 @@ defmodule PortfolixirWeb.ImportsLive do
   defp held_back_result(%{held_back_entries: [_ | _] = entries}) do
     names = Map.new(Portfolios.list_portfolios(), &{&1.id, &1.name})
 
+    # The count is of the file's rows: a refund split off a held-back row is
+    # held back with it, not counted apart.
     entries
+    |> Enum.reject(& &1.companion)
     |> Enum.frequencies_by(& &1.portfolio_id)
     |> Enum.sort()
     |> Enum.map(fn {id, count} ->
@@ -2608,10 +2612,13 @@ defmodule PortfolixirWeb.ImportsLive do
     names |> Enum.reject(&(&1 == "")) |> Enum.join(" · ")
   end
 
-  # The row's cash as the file states it, signed by the side it moves.
+  # The row's cash as the file states it, a refund split off it folded back
+  # in (`RefusedMatch.cash_cell/1`), signed by the side it moves.
   defp held_back_amount(%{gross_amount: nil}), do: "—"
 
-  defp held_back_amount(%{kind: kind, gross_amount: amount, currency_code: currency}) do
+  defp held_back_amount(%{kind: kind, currency_code: currency} = entry) do
+    amount = RefusedMatch.cash_cell(entry)
+
     figure =
       case PortfolioPerformance.direction(kind, :sending) do
         :debit -> Format.signed_decimal(Decimal.negate(amount), 2)

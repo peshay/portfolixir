@@ -62,6 +62,23 @@ defmodule Portfolixir.Imports.HeldBackReimportTest do
   }
   """
 
+  # One purchase whose cash, 1000.00, carries a tax refund of 10.00 as a
+  # negative TAX unit: the parser books the row at 1010.00 and splits the
+  # refund off as a companion of its own (ADR-0053 A1).
+  @refunded_buy """
+  {
+    "version": 1,
+    "transactions": [
+      {"type": "PURCHASE", "account": "Coupon-Cash", "portfolio": "Coupon-Depot",
+       "date": "2026-03-13", "time": "10:00", "currency": "EUR", "amount": 1000.00,
+       "shares": 10.0,
+       "units": [{"type": "TAX", "amount": -10.00}],
+       "security": {"name": "Larkspur Rail AG 4,00 % Anleihe 2031",
+                    "isin": "XSLARKSPUR33", "currency": "EUR"}}
+    ]
+  }
+  """
+
   setup do
     # The default portfolio the Imports page books into is the first one.
     {:ok, main} =
@@ -251,6 +268,42 @@ defmodule Portfolixir.Imports.HeldBackReimportTest do
     assert {:ok, %Result{} = result} = page_apply(preview)
     assert result.created_transactions == 0
     assert length(result.held_back_entries) == 4
+    assert booked(main) == []
+  end
+
+  # User story (#1313, the closing act):
+  # As the operator whose purchase with a tax refund is already in "Anleihen",
+  # I want the held-back group to count the file's one row and list it once,
+  # with the cash the file states,
+  # so that the group reads as the file I dropped, not as the split it books.
+  #
+  # Acceptance criteria:
+  # - The group counts 1 entry and lists the purchase alone, its refund
+  #   folded into it: the cash cell reads 1000.00, the file's `amount`.
+  # - The apply still holds the refund back with its row, and the done page's
+  #   count of file rows reads 1.
+  test "a held-back row with a split-off refund counts and lists as the file's one row", %{
+    main: main,
+    bonds: bonds
+  } do
+    assert import_into!(@refunded_buy, bonds).created_transactions == 2
+
+    preview = parse!(@refunded_buy)
+    counts = Imports.reimport_counts(preview)
+
+    assert [group] = counts.held_back
+    assert group.count == 1
+    assert [entry] = group.entries
+    assert entry.kind == "buy"
+    assert Decimal.equal?(entry.gross_amount, Decimal.new("1010.00"))
+    assert [refund] = entry.companion_entries
+    assert Decimal.equal?(refund.gross_amount, Decimal.new("10.00"))
+    assert Decimal.equal?(Imports.RefusedMatch.cash_cell(entry), Decimal.new("1000.00"))
+
+    assert {:ok, %Result{} = result} = page_apply(preview)
+    assert result.created_transactions == 0
+    assert length(result.held_back_entries) == 2
+    assert Enum.count(result.held_back_entries, &(not &1.companion)) == 1
     assert booked(main) == []
   end
 end

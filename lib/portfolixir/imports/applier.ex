@@ -959,20 +959,32 @@ defmodule Portfolixir.Imports.Applier do
 
   # A group lists its portfolio's rows as judged: held back, or, once the
   # operator included the portfolio, new (the rows the confirm then books).
+  # It lists and counts the file's rows: a refund split off a listed row is
+  # folded back into it (`companion_entries`), so the row reads the cash the
+  # file states (`RefusedMatch.cash_cell/1`), and is not a row of its own.
   defp held_back_groups(judged, hits, include) do
     names = portfolio_names()
 
     judged
     |> Enum.zip(hits)
-    |> Enum.reduce(%{}, fn
-      {{entry, layer}, portfolio_id}, acc when is_integer(portfolio_id) ->
+    |> Enum.reduce({%{}, false}, fn
+      {{%Entry{companion_index: nil} = entry, layer}, portfolio_id}, {acc, _listed?}
+      when is_integer(portfolio_id) ->
         if layer == :held_back or (layer == :new and portfolio_id in include),
-          do: Map.update(acc, portfolio_id, [entry], &[entry | &1]),
-          else: acc
+          do: {Map.update(acc, portfolio_id, [entry], &[entry | &1]), true},
+          else: {acc, false}
 
-      _row, acc ->
-        acc
+      {{%Entry{companion_index: index} = companion, _layer}, portfolio_id}, {acc, true}
+      when is_integer(index) ->
+        {fold_companion(acc, portfolio_id, companion), true}
+
+      {{%Entry{companion_index: nil}, _layer}, _portfolio_id}, {acc, _listed?} ->
+        {acc, false}
+
+      _companion, state ->
+        state
     end)
+    |> elem(0)
     |> Enum.sort_by(fn {portfolio_id, _entries} -> portfolio_id end)
     |> Enum.map(fn {portfolio_id, entries} ->
       %{
@@ -982,6 +994,13 @@ defmodule Portfolixir.Imports.Applier do
         entries: Enum.reverse(entries),
         included: portfolio_id in include
       }
+    end)
+  end
+
+  # The group's head is the companion's parent: the row it was split from.
+  defp fold_companion(acc, portfolio_id, %Entry{} = companion) do
+    Map.update!(acc, portfolio_id, fn [parent | rest] ->
+      [%{parent | companion_entries: parent.companion_entries ++ [companion]} | rest]
     end)
   end
 
@@ -1894,7 +1913,12 @@ defmodule Portfolixir.Imports.Applier do
       %Result{
         r
         | held_back_entries: [
-            %{row: entry.source_row, portfolio_id: other_id} | r.held_back_entries
+            %{
+              row: entry.source_row,
+              portfolio_id: other_id,
+              companion: entry.companion_index != nil
+            }
+            | r.held_back_entries
           ]
       }
     end)
