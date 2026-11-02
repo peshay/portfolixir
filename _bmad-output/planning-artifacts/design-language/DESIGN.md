@@ -7903,6 +7903,7 @@ tap away („mehr“). It never folds.
 | „am Ende nicht mehr im Bestand“, „zu Beginn nicht im Bestand“ | Beitrag je Position, row text | inside a row | out of scope, stays |
 | „Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs … Marktwert in EUR, wie ihn die Summe zählt.“ | Positionen, `[data-role=positions-basis]` | basis (the set of rows, currency), mixed | stays whole |
 | „Salden auf Konten & Depots setzen“ | Barbestand, a link | a control | stays |
+| „Die Benchmark nannte ein Wertpapier, das … zusammengeführt wurde; …“, the page's load error | Performance and the page head: inline results with their dismiss | an action's or a load's answer (UX-DR17, the inline result) | out of scope, stays |
 
 ### Übersicht, text by text
 
