@@ -249,7 +249,7 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
   ],
   ["portfolixir.buckets.update", "Name and colour; an update sets them back."],
   ["portfolixir.views.update", "Name and include_all; an update sets them back."],
-  ["portfolixir.views.set_buckets", "Replaces the view's bucket sets; sending the previous sets restores them."],
+  ["portfolixir.views.set_buckets", "Replaces the view's bucket sets (and include_all, if sent); sending the previous ones restores them."],
   [
     "portfolixir.securities_accounts.set_buckets",
     "Replaces the depot's default buckets; sending the previous set restores it."
