@@ -2115,14 +2115,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       to_string(transaction.cash_account_id) not in account_ids
   end
 
-  # Normalized, so holdings show "200" instead of the stored scale
-  # ("200.000000000000"); nil stays blank.
-  defp format_decimal(nil), do: ""
-
-  defp format_decimal(decimal) do
-    decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
-  end
-
   # Only offer depots that have a usable linked cash account; a depot without one
   # can never form a valid transaction, so it must not be a selectable dead end.
   defp bookable_depots(accounts) do
@@ -2869,7 +2861,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           data-role="preview-price-hint"
         >
           <%= gettext("Priced at the latest stored price: %{price}.",
-            price: format_decimal(@sell_preview.sell_price)
+            price: stored_figure(@sell_preview.sell_price)
           ) %>
         </p>
         <div class="data-table-wrapper">
@@ -2891,10 +2883,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <%= for lot <- @sell_preview.lots do %>
                 <tr>
                   <td><%= PortfolixirWeb.Format.date(lot.open_date) %></td>
-                  <td><%= format_decimal(lot.quantity) %></td>
+                  <%!-- #1337 (board 03 ①): the history's formats — the
+                       quantity in its own scale, the price by the stored-
+                       figure rule — so one booking reads alike on both. --%>
+                  <td><%= format_quantity(lot.quantity) %></td>
                   <td data-role="preview-buy-price">
                     <%= if lot.buy_price_native do %>
-                      <%= format_decimal(lot.buy_price_native) %>
+                      <%= stored_figure(lot.buy_price_native) %>
                       <small><%= @sell_preview.security_currency %></small>
                     <% else %>
                       —
@@ -2940,7 +2935,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           data-role="sell-shortfall"
         >
           <%= gettext("%{quantity} of the entered quantity is not covered by open lots.",
-            quantity: format_decimal(@sell_preview.shortfall)
+            quantity: format_quantity(@sell_preview.shortfall)
           ) %>
         </p>
       </section>

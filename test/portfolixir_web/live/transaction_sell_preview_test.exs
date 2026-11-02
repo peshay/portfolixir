@@ -120,6 +120,84 @@ defmodule PortfolixirWeb.TransactionSellPreviewTest do
     assert dates == ["02.01.2026", "02.02.2026"]
   end
 
+  # User story (#1337; board 03 ①, Sprint 22 R10):
+  # As a German-speaking operator entering a sell,
+  # I want the preview's purchase prices and quantities in the history's
+  # format,
+  # so that one booking reads the same on both surfaces of the page.
+  #
+  # Acceptance criteria:
+  # - A lot bought at 24 reads "24,00 EUR" (the history's stored-figure rule:
+  #   its stored digits, at least two), one at 26.4 "26,40 EUR".
+  # - A fractional quantity reads "2,5", never "2.5"; so does an uncovered
+  #   shortfall.
+  # - The history's price cell of the same buy reads "24,00".
+  test "the German preview prints prices and quantities in the history's format",
+       %{conn: conn} do
+    w = world()
+    buy!(w, w.security, quantity: "5", price: "24", date: ~D[2026-01-02])
+    buy!(w, w.security, quantity: "5", price: "26.4", date: ~D[2026-02-02])
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    change_form(view, %{
+      "securities_account_id" => to_string(w.depot.id),
+      "security_id" => to_string(w.security.id),
+      "quantity" => "7,5",
+      "price" => "30"
+    })
+
+    rows =
+      view
+      |> element("#sell-lot-preview-table")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("tbody tr")
+      |> Enum.map(fn row ->
+        row
+        |> Floki.find("td")
+        |> Enum.take(3)
+        |> Enum.map(&(&1 |> Floki.text() |> String.split() |> Enum.join(" ")))
+      end)
+
+    assert rows == [
+             ["02.01.2026", "5", "24,00 EUR"],
+             ["02.02.2026", "2,5", "26,40 EUR"]
+           ]
+
+    history_prices =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find(~s(#transaction-list td[data-role="price"]))
+      |> Enum.map(&(&1 |> Floki.text() |> String.split() |> Enum.join()))
+
+    assert "24,00EUR" in history_prices
+
+    change_form(view, %{
+      "securities_account_id" => to_string(w.depot.id),
+      "security_id" => to_string(w.security.id),
+      "quantity" => "12,5",
+      "price" => "30"
+    })
+
+    assert view |> element(~s([data-role="sell-shortfall"])) |> render() =~ "2,5 der"
+  end
+
+  # Acceptance criteria (board 03, found while drawing 1; Sprint 22 R10):
+  # - The lot table fits the drawer: it no longer sizes to its max-content,
+  #   its headings wrap, and a figure keeps its currency on its line, so the
+  #   gross gain is not cut off at the drawer's width.
+  test "the lot table fits the drawer instead of cutting off the gross gain" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\.data-table-wrapper > #sell-lot-preview-table\s*\{[^}]*min-width:\s*min-content/
+
+    assert css =~ ~r/\n#sell-lot-preview-table th\s*\{[^}]*white-space:\s*normal/
+    assert css =~ ~r/\n#sell-lot-preview-table td\s*\{[^}]*white-space:\s*nowrap/
+  end
+
   # User story (no preview outside a sell):
   # As a maintainer entering a buy,
   # I want no lot-consumption panel,

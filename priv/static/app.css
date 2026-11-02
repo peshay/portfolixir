@@ -9506,6 +9506,31 @@ dialog.booking-drawer {
   background: transparent;
 }
 
+/* Sprint 22 R10 (board 03, found while drawing 1): the sell preview's lot
+   table sized to its max-content, the wrapper's rule for wide tables, so
+   at the drawer's 380 px its last column, the gross gain, scrolled out of
+   view. Its headings wrap instead, hyphenated in the page's language (the
+   root's `lang`), the cells take 6 px a side, and a figure keeps its
+   currency on its line; the seven columns of a cross-currency preview still
+   scroll inside the wrapper. */
+.data-table-wrapper > #sell-lot-preview-table {
+  min-width: min-content;
+}
+
+#sell-lot-preview-table th,
+#sell-lot-preview-table td {
+  padding-inline: 6px;
+}
+
+#sell-lot-preview-table th {
+  white-space: normal;
+  hyphens: auto;
+}
+
+#sell-lot-preview-table td {
+  white-space: nowrap;
+}
+
 .booking-drawer__foot {
   display: flex;
   gap: var(--space-2);
