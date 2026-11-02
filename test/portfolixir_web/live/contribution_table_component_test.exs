@@ -518,4 +518,68 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     assert line.(html, 2) == "100.00 → 105.00"
     assert line.(html, 3) == "100.00 → 105.00 · inflow into the position 0.01"
   end
+
+  # User story (#1351, board ux-design-2026-11-01-sprint22/01-i1 ① ② ③ on
+  # Wealth; idea I1, variant R):
+  # As the operator reading "Contribution by position",
+  # I want the formula and the method behind one ⓘ at the heading and only
+  # the basis under the table,
+  # so that the table is followed by what it is computed in, and the
+  # formula is one tap away.
+  #
+  # Acceptance criteria:
+  # - The heading sits in `.section-title` with the section's ⓘ ("About
+  #   this section") beside it; its panel holds, one per line, "Contribution
+  #   = end value − start value − flows + income − costs", "start value: the
+  #   close of the day before the period" and "positions and remainder lines
+  #   add up to exactly the result in the period; deposits and removals are
+  #   no result".
+  # - The basis line under the table keeps the basis clause alone: "per
+  #   position in EUR, currency move included".
+  # - The unvalued note names rows the sum counted at zero: it clamps
+  #   (`#contribution-unvalued-note`), and nothing folds it.
+  test "the contribution's method sits in the heading's ⓘ and its basis stays" do
+    html =
+      render_table(result([position(4, "-15", %{unvalued_days: 12, unvalued_reason: :no_rate})]))
+
+    head = "#performance-contribution .contribution__head .section-title"
+    assert text(html, head <> " > h3#contribution-title") == "Contribution by position"
+
+    tip =
+      html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query(
+        head <> " > details.metric-tooltip--section > summary[aria-label='About this section']"
+      )
+
+    assert Enum.count(tip) == 1
+
+    lines =
+      html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query(head <> " details.metric-tooltip--section p[role='tooltip']")
+      |> LazyHTML.to_html()
+      |> String.split(~r/<br\s*\/?>/)
+      |> Enum.map(
+        &(&1
+          |> LazyHTML.from_fragment()
+          |> LazyHTML.text()
+          |> String.split()
+          |> Enum.join(" "))
+      )
+
+    assert lines == [
+             "Contribution = end value − start value − flows + income − costs",
+             "start value: the close of the day before the period",
+             "positions and remainder lines add up to exactly the result in the period; deposits and removals are no result"
+           ]
+
+    assert text(html, "[data-role='contribution-basis']") ==
+             "per position in EUR, currency move included"
+
+    assert Floki.find(
+             Floki.parse_fragment!(html),
+             "#contribution-unvalued-note.data-note--clamped[data-role='contribution-unvalued']"
+           ) != []
+  end
 end
