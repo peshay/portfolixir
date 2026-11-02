@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01b-depot-after</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="portfolios-workspace" class="workspace-page">
+    <dialog id="merge-dialog" class="modal merge-dialog " data-close-event="close" aria-labelledby="merge-dialog-title" open="">
+  <header class="modal-head">
+    <h2 id="merge-dialog-title">
+      <bdi>Depot 1</bdi> zusammenführen
+      <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span>
+    </h2>
+    <button type="button" class="icon-button" aria-label="Schließen" data-role="merge-dismiss">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+  </header>
+    <div class="modal-body">
+  <div class="merge-region" role="status"></div>
+  <div role="alert" class="merge-region"></div>
+  <div class="merge-route" data-role="merge-route">
+    <b>Depot 1</b>
+    <span class="merge-route__arrow" aria-hidden="true">→</span>
+    <span class="visually-hidden">in</span>
+    <b>Depot Nord</b>
+    <span class="merge-route__meta">
+      keine Buckets
+    </span>
+  </div>
+      <dl class="merge-counts" data-role="merge-counts">
+  <dt>2</dt>
+  <dd>
+    Buchungen wechseln nach Depot Nord
+  </dd>
+  <dt>2</dt>
+  <dd>gleiche Buchungen</dd>
+</dl>
+  <h3 class="merge-block-head">Betroffene Positionen</h3>
+  <div class="data-table-wrapper merge-wide">
+    <table class="data-table merge-positions">
+      <thead>
+        <tr>
+          <th>Wertpapier</th>
+          <th class="num">Stückzahl</th>
+          <th class="num">Ø Kosten</th>
+          <th class="num">Realisiert (gleit. Ø)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-role="merge-position" data-id="13">
+          <td>Cobalt Ridge Logistics SE</td>
+          <td class="num">
+            <small>30 + 0 →</small>
+            <b>30</b>
+          </td>
+          <td class="num">
+            <small>40,83 · — →</small>
+            <b>40,83</b>
+          </td>
+          <td class="num">
+            <small>0,00 · — →</small>
+            <b>0,00</b>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="merge-lines merge-narrow">
+    <li data-role="merge-position-line" data-id="13">
+      <span class="merge-lines__head">Cobalt Ridge Logistics SE</span>
+      <span class="merge-lines__figure num">
+        30 + 0 →
+        <b>30</b>
+        <small>
+          Ø Kosten: 40,83 · — → 40,83
+        </small>
+        <small>
+          Realisiert (gleit. Ø): 0,00 · — → 0,00
+        </small>
+      </span>
+    </li>
+  </ul>
+  <p class="merge-basis">
+    Je Zelle oben vorher (Depot 1 + Depot Nord bzw. Depot 1 · Depot Nord), unten danach. Ø Kosten und „Realisiert (gleit. Ø)“: das Ergebnis des Depots nach gleitendem Durchschnitt über die Käufe beider Depots, in der Währung des Wertpapiers, ohne Gebühren und Steuern. Stückzahl je Wertpapier = Summe beider Depots, an jedem Tag geprüft; der Marktwert beider Depots zusammen bleibt gleich. Die realisierten Gewinne nach FIFO (Cashflow → Trades, der Trades-Tab eines Wertpapiers) ändern sich nicht, außer gleiche Buchungen werden als Duplikate entfernt, was sie aus der Reihe nimmt: Die FIFO-Reihe gehört dem Wertpapier, nicht dem Depot.
+  </p>
+<form id="merge-choice-form" data-role="merge-choice-form">
+<fieldset class="merge-choice" data-role="merge-pairs"><legend>2 gleiche Buchungen in beiden Konten</legend>
+<div class="data-table-wrapper merge-wide">
+<table class="data-table">
+<thead>
+<tr><th>Datum</th><th>Art</th><th>Wertpapier</th><th class="num">Betrag</th><th>Steht in</th></tr></thead>
+<tbody>
+<tr class="mock-synth"><td>12.03.2025</td><td>Kauf</td><td>Cobalt Ridge Logistics SE</td><td class="num">1.225,00</td><td>Depot 1 und Depot Nord</td></tr>
+<tr class="mock-synth"><td>14.03.2025</td><td>Einlieferung</td><td>Helios Solar Systems SE</td><td class="num">5 Stück</td><td>Depot 1 und Depot Nord</td></tr></tbody></table></div>
+<ul class="merge-lines merge-narrow">
+<li class="mock-synth"><span class="merge-lines__head">12.03.2025 · Kauf · Cobalt Ridge Logistics SE</span><span class="merge-lines__figure num">1.225,00<small>in Depot 1 und Depot Nord</small></span></li>
+<li class="mock-synth"><span class="merge-lines__head">14.03.2025 · Einlieferung · Helios Solar Systems SE</span><span class="merge-lines__figure num">5 Stück<small>in Depot 1 und Depot Nord</small></span></li></ul>
+<label class="merge-option" data-role="collapse-true"><input type="radio" name="merge[collapse]" value="true"><span>als Duplikate entfernen<small>Die 2 Buchungen aus Depot 1 werden gelöscht.</small><small class="merge-option__extra">Ändert auch: ein gesetzter Saldo von Broker Verrechnung 1 am 31.03.2025 nimmt -1.225,00 auf</small></span></label>
+<label class="merge-option" data-role="collapse-false"><input type="radio" name="merge[collapse]" value="false"><span>beide behalten<small>Alle Buchungen stehen danach in Depot Nord.</small></span></label>
+<p class="merge-basis">Gleich heißt: gleicher Tag, gleiche Art, gleiche Beträge.</p></fieldset></form>
+<section class="merge-flows mock-new" data-role="merge-flows">
+<div class="section-title"><h3 class="merge-block-head">Externe Zu- und Abflüsse <small>bei „als Duplikate entfernen“</small><span class="mock-pin">1</span></h3>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info"><summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Entfällt: eine zusammengeführte Ein- oder Auslieferung, ein externer Fluss ihres Portfolios an ihrem Tag. Stück: die Veränderung der Stücke dieses Flusses; der Betrag zum gebuchten Preis, ohne Preis zum Tageskurs.<br>Ansichtsgrenze: eine Umbuchung, ein Kauf oder Verkauf mit genau einem Bein in der Ansicht, ein Fluss über deren Grenze und keiner des Portfolios; ein Eintrag je Ansicht.<br>Gesetzter Saldo: der Geldbetrag einer entfernten Buchung, den der nächste gesetzte Saldo ihres Kontos als Rest aufnimmt.<br>Der Fluss jedes genannten Tages ändert sich nur um diese Einträge; die Rendite ab diesem Tag liest zudem die entfernten Stücke nicht mehr. Die Vorschau nennt daher die Flüsse, keine neu gerechnete Rendite.<br>Die Zugehörigkeit zu Ansichten gilt, wie sie steht; das Zusammenführen ändert sie nicht.</p></details></div>
+<div class="data-table-wrapper merge-wide">
+<table class="data-table merge-flows-table">
+<thead>
+<tr><th>Datum</th><th>Wirkung</th><th>Buchung · wo</th><th class="num">Stück</th><th class="num">Fluss</th></tr></thead>
+<tbody>
+<tr><td>12.03.2025</td><td>entfällt an der Ansichtsgrenze</td><td>Kauf · Cobalt Ridge Logistics SE<small class="cell-note">Ansicht „Nur Neuzugang“</small></td><td class="num">—</td><td class="num">-1.225,00 EUR<small class="cell-note">zum gebuchten Wert</small></td></tr>
+<tr><td>14.03.2025</td><td>entfällt</td><td>Einlieferung · Helios Solar Systems SE<small class="cell-note">Depot 1</small></td><td class="num">-5</td><td class="num">-96,00 EUR<small class="cell-note">zum gebuchten Preis</small></td></tr>
+<tr><td>31.03.2025</td><td>vom gesetzten Saldo aufgenommen</td><td>Kauf · Cobalt Ridge Logistics SE<small class="cell-note">Broker Verrechnung 1</small></td><td class="num">—</td><td class="num">-1.225,00 EUR<small class="cell-note">zum gebuchten Wert</small></td></tr></tbody></table></div>
+<ul class="merge-lines merge-narrow">
+<li><span class="merge-lines__head">12.03.2025 · entfällt an der Ansichtsgrenze</span><span class="merge-lines__figure num">-1.225,00 EUR<small>Kauf · Cobalt Ridge Logistics SE · Ansicht „Nur Neuzugang“ · zum gebuchten Wert</small></span></li>
+<li><span class="merge-lines__head">14.03.2025 · entfällt</span><span class="merge-lines__figure num">-96,00 EUR<small>Einlieferung · Helios Solar Systems SE · Depot 1 · -5 Stück · zum gebuchten Preis</small></span></li>
+<li><span class="merge-lines__head">31.03.2025 · vom gesetzten Saldo aufgenommen</span><span class="merge-lines__figure num">-1.225,00 EUR<small>Kauf · Cobalt Ridge Logistics SE · Broker Verrechnung 1 · zum gebuchten Wert</small></span></li></ul>
+<p class="merge-basis">Je Eintrag ein Fluss der zeitgewichteten Rendite, der beim Entfernen der Duplikate entfällt oder wandert · Beträge in der Währung des Kontos</p></section>
+<div class="data-note data-note--note">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"></path></svg>
+  </span>
+  <span class="data-note__word">Hinweis</span>
+    <div class="data-note__body">
+  „Depot 1“, „Depot 2“ werden frühere Namen von Depot Nord. Ein Import, der sie nennt, bucht danach auf Depot Nord.
+    Depot Nord behält sein Verrechnungskonto; das Verrechnungskonto von Depot 1 bleibt als eigenes Konto bestehen.
+</div>
+</div>
+<div class="data-note data-note--attention">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+    <div class="data-note__body">
+  Depot 1 wird danach gelöscht. Das lässt sich nicht rückgängig machen; das Journal hält jede geänderte Buchung fest.
+</div>
+</div>
+</div>
+<div class="modal-footer modal-footer--band">
+  <button type="button" class="button-ghost" data-role="merge-back">
+    Zurück
+  </button>
+  <span class="modal-footer__spacer"></span>
+    <button type="button" class="button-danger" data-role="merge-confirm">
+      In Depot Nord zusammenführen
+    </button>
+</div>
+</dialog>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

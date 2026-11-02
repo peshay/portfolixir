@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03-journal-b</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <section class="workspace-panel" id="securities-panel">
+    <div id="securities-workspace" class="securities-workspace securities-workspace--split" style="--securities-list-height: 360px;">
+        <aside class="detail-pane " id="security-detail-pane" aria-label="Ausgewähltes Wertpapier">
+  <header class="detail-pane-head">
+    <div class="detail-pane-head__title">
+      <span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">
+        M
+      </span>
+      <div>
+      <h2>Meridian Global Equity ETF</h2>
+      <p class="detail-pane-sub">
+        XS0000000025 · EUR
+      </p>
+      <p class="detail-pane-status" data-role="detail-valuation-status">
+  Kein aktueller Kurs — in den Summen zum letzten eigenen Handelspreis von 71,00 EUR (01.07.2025) bewertet.
+</p>
+      </div>
+    </div>
+    <div class="detail-pane-head__actions">
+      <button type="button" id="detail-edit" class="button-ghost" aria-label="Stammdaten bearbeiten">
+        Bearbeiten
+      </button>
+      <button type="button" id="detail-record-split" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">
+        Split erfassen
+      </button>
+      <button type="button" id="detail-pane-fullscreen-toggle" class="icon-button" aria-label="Maximieren" title="Maximieren">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+      </button>
+      <a href="/securities" id="detail-pane-close" title="Detail schließen" class="icon-button" aria-label="Detail schließen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </a>
+    </div>
+  </header>
+  <nav id="detail-pane-tabs" class="detail-pane-tabs" role="tablist" data-tab-level="2" data-scroll-start="" aria-label="Wertpapier-Detailansicht" data-scroll-end="" style="--detail-tabs-tail: 0px;">
+      <button type="button" id="detail-tab-overview" role="tab" tabindex="0" aria-selected="true" aria-controls="detail-tab-panel-overview" class="detail-pane-tab is-active">
+        Übersicht
+      </button>
+      <button type="button" id="detail-tab-chart" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Diagramm
+      </button>
+      <button type="button" id="detail-tab-transactions" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Transaktionen
+      </button>
+      <button type="button" id="detail-tab-trades" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Trades
+      </button>
+      <button type="button" id="detail-tab-quotes" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Kurse
+      </button>
+      <button type="button" id="detail-tab-holdings" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Bestände
+      </button>
+      <button type="button" id="detail-tab-classifications" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Klassifizierungen
+      </button>
+      <button type="button" id="detail-tab-research" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Research
+      </button>
+      <button type="button" id="detail-tab-events" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Termine
+      </button>
+  </nav>
+    <div class="mock-elided">Der Überblick des Wertpapiers — unverändert, für das Board gekürzt</div>
+<details class="perf-table-disclosure mock-new" open="" style="margin:12px"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>Verlauf · 2 Einträge<span class="mock-pin">B</span></summary>
+<ul class="phone-rows" style="display:block">
+<li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:22 · Geändert</span><span class="phone-row__ids">ISIN: XS0000000017 → XS0000000025</span></span><span class="phone-row__figures"><span class="phone-row__figure">Operator</span></span></li>
+<li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:22 · Angelegt</span><span class="phone-row__ids">Meridian Global Equity ETF · ETF · EUR</span></span><span class="phone-row__figures"><span class="phone-row__figure">Operator</span></span></li></ul>
+<p class="summary-basis">Neueste zuerst · Zeiten in UTC</p></details></aside>
+    </div>
+  </section>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

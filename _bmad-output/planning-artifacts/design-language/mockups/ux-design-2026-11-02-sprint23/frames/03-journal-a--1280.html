@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03-journal-a</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+        <div class="topbar-page" aria-live="polite">
+            <h1 id="app-topbar-title">Audit-Journal</h1>
+            <p id="app-topbar-subtitle">Jede gespeicherte Änderung, wer sie machte und was vorher stand</p>
+        </div>
+      </div>
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="system">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+              <button type="button" class="theme-choice is-active" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="true" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="false" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+          </div>
+        </details>
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+          </div>
+        </details>
+        <nav class="locale-switcher" aria-label="Sprache">
+            <a id="locale-en" class="locale-link " href="/transactions?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+            <a id="locale-de" class="locale-link is-active" href="/transactions?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+        </nav>
+      </div>
+    </header>
+    <main class="app-main app-main--workspace">
+  <div id="transactions-workspace" class="workspace-page">
+<section id="journal-panel" class="workspace-section mock-new"><header class="section-head"><h2>Einträge<span class="mock-pin">1</span></h2></header>
+<div class="filter-chips" role="group"><span class="mock-pin">2</span><span><span class="filter-chips__family">Akteur</span><button type="button" class="filter-chip" aria-pressed="false">Alle</button><button type="button" class="filter-chip" aria-pressed="false">Operator</button><button type="button" class="filter-chip is-active" aria-pressed="true">Agent</button><button type="button" class="filter-chip" aria-pressed="false">Import</button><button type="button" class="filter-chip" aria-pressed="false">System</button></span><span><span class="filter-chips__family">Vorgang</span><button type="button" class="filter-chip" aria-pressed="false">Angelegt</button><button type="button" class="filter-chip" aria-pressed="false">Geändert</button><button type="button" class="filter-chip" aria-pressed="false">Gelöscht</button><button type="button" class="filter-chip" aria-pressed="false">Angelegt oder ersetzt</button></span></div>
+<div class="journal-filters" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:8px 0">
+<label class="journal-kind"><span class="visually-hidden">Eintrag</span><select><option>Alle Arten</option><option>Transaktion</option><option>Wertpapier</option><option>Verrechnungskonto</option><option>Depot</option><option>Regel</option><option>Klassifizierung</option><option>Kategorie</option></select></label>
+<label style="display:inline-flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox"> Was-wäre-wenn-Szenarien einbeziehen</label></div>
+<p class="summary-basis" data-role="journal-basis">Neueste zuerst · 7 Einträge · Akteur Agent · ohne Was-wäre-wenn-Szenarien · Zeiten in UTC</p>
+<div class="data-table-wrapper journal-table-wrap">
+<table class="data-table journal-table">
+<thead>
+<tr><th>Zeit (UTC)</th><th>Akteur</th><th>Vorgang</th><th>Eintrag</th><th>Änderung</th></tr></thead>
+<tbody>
+<tr data-entry="354"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Angelegt</td><td class="cell-name"><a href="/tax">Erfasste Abrechnung 2 · Beispiel Direktbank</a><small class="cell-note"><a href="/journal?resource_type=tax_statement_snapshot&amp;resource_id=2">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">Steuerjahr 2025 · Stand 31.12.2025 · steuerpflichtige Erträge 380,00 · Kapitalertragsteuer 95,00</span></td></tr>
+<tr data-entry="353"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Geändert</td><td class="cell-name"><a href="/risk">Regel 9 · Barreserve höchstens 30 %</a><small class="cell-note"><a href="/journal?resource_type=policy_rule&amp;resource_id=9">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">Name: <span class="journal-change__from">Barobergrenze</span> → Barreserve höchstens 30 %</span>
+<details class="journal-values" open=""><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>Gespeicherte Werte<span class="mock-pin">3</span></summary>
+<table>
+<thead>
+<tr><th>Feld</th><th>Vorher</th><th>Danach</th></tr></thead>
+<tbody>
+<tr><td>name</td><td>Barobergrenze</td><td>Barreserve höchstens 30 %</td></tr>
+<tr><td>name_author</td><td>operator</td><td>agent</td></tr></tbody></table></details></td></tr>
+<tr data-entry="314"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Angelegt</td><td class="cell-name"><a href="/portfolios">Zusammenführung 5 · Verrechnungskonten</a><small class="cell-note"><a href="/journal?resource_type=merge_record&amp;resource_id=5">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">Festgeld → Festgeld Plus · 2 Buchungen verschoben · frühere Namen Festgeld, Festgeld (alt)</span></td></tr>
+<tr data-entry="313"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Geändert</td><td class="cell-name"><a href="/portfolios">Verrechnungskonto 15 · Festgeld Plus</a><small class="cell-note"><a href="/journal?resource_type=cash_account&amp;resource_id=15">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">Frühere Namen: <span class="journal-change__from">—</span> → Festgeld, Festgeld (alt)</span>
+<details class="journal-values"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>Gespeicherte Werte</summary>
+<table>
+<thead>
+<tr><th>Feld</th><th>Vorher</th><th>Danach</th></tr></thead>
+<tbody>
+<tr><td>former_names</td><td>[]</td><td>["Festgeld", "Festgeld (alt)"]</td></tr></tbody></table></details></td></tr>
+<tr data-entry="312"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Gelöscht</td><td class="cell-name">Verrechnungskonto 14 · Festgeld<small class="cell-note"><a href="/journal?resource_type=cash_account&amp;resource_id=14">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">gelöscht, mit allen Werten</span>
+<details class="journal-values"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>Gespeicherte Werte</summary>
+<table>
+<thead>
+<tr><th>Feld</th><th>Vorher</th><th>Danach</th></tr></thead>
+<tbody>
+<tr><td>name</td><td>Festgeld</td><td>—</td></tr>
+<tr><td>currency_code</td><td>EUR</td><td>—</td></tr>
+<tr><td>former_names</td><td>["Festgeld (alt)"]</td><td>—</td></tr>
+<tr><td>liquidity_role</td><td>free_cash</td><td>—</td></tr></tbody></table></details></td></tr>
+<tr data-entry="311"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Geändert</td><td class="cell-name"><a href="/transactions">Transaktion 67 · Einlage 05.05.2025 · 600,00 EUR</a><small class="cell-note"><a href="/journal?resource_type=transaction&amp;resource_id=67">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">Verrechnungskonto: <span class="journal-change__from">Festgeld</span> → Festgeld Plus</span>
+<details class="journal-values"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>Gespeicherte Werte</summary>
+<table>
+<thead>
+<tr><th>Feld</th><th>Vorher</th><th>Danach</th></tr></thead>
+<tbody>
+<tr><td>cash_account_id</td><td>14</td><td>15</td></tr></tbody></table></details></td></tr>
+<tr data-entry="310"><td class="cell-date">02.11.2026 18:00:23</td><td>Agent<small class="cell-note">review seed</small></td><td class="cell-kind">Geändert</td><td class="cell-name"><a href="/transactions">Transaktion 66 · Einlage 02.05.2025 · 400,00 EUR</a><small class="cell-note"><a href="/journal?resource_type=transaction&amp;resource_id=66">Nur dieser Eintrag</a></small></td><td class="journal-change"><span class="journal-change__line">Verrechnungskonto: <span class="journal-change__from">Festgeld</span> → Festgeld Plus</span>
+<details class="journal-values"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>Gespeicherte Werte</summary>
+<table>
+<thead>
+<tr><th>Feld</th><th>Vorher</th><th>Danach</th></tr></thead>
+<tbody>
+<tr><td>cash_account_id</td><td>14</td><td>15</td></tr></tbody></table></details></td></tr></tbody></table></div>
+<ul class="phone-rows" aria-label="Einträge">
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Angelegt · Agent (review seed)</span><span class="phone-row__ids"><span><a href="/tax">Erfasste Abrechnung 2 · Beispiel Direktbank</a></span></span><span class="phone-row__ids">Steuerjahr 2025 · Stand 31.12.2025 · steuerpflichtige Erträge 380,00 · Kapitalertragsteuer 95,00</span></span></li>
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Geändert · Agent (review seed)</span><span class="phone-row__ids"><span><a href="/risk">Regel 9 · Barreserve höchstens 30 %</a></span></span><span class="phone-row__ids">Name: <span class="journal-change__from">Barobergrenze</span> → Barreserve höchstens 30 %</span></span></li>
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Angelegt · Agent (review seed)</span><span class="phone-row__ids"><span><a href="/portfolios">Zusammenführung 5 · Verrechnungskonten</a></span></span><span class="phone-row__ids">Festgeld → Festgeld Plus · 2 Buchungen verschoben · frühere Namen Festgeld, Festgeld (alt)</span></span></li>
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Geändert · Agent (review seed)</span><span class="phone-row__ids"><span><a href="/portfolios">Verrechnungskonto 15 · Festgeld Plus</a></span></span><span class="phone-row__ids">Frühere Namen: <span class="journal-change__from">—</span> → Festgeld, Festgeld (alt)</span></span></li>
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Gelöscht · Agent (review seed)</span><span class="phone-row__ids"><span>Verrechnungskonto 14 · Festgeld</span></span><span class="phone-row__ids">gelöscht, mit allen Werten</span></span></li>
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Geändert · Agent (review seed)</span><span class="phone-row__ids"><span><a href="/transactions">Transaktion 67 · Einlage 05.05.2025 · 600,00 EUR</a></span></span><span class="phone-row__ids">Verrechnungskonto: <span class="journal-change__from">Festgeld</span> → Festgeld Plus</span></span></li>
+<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">02.11.2026 18:00:23 · Geändert · Agent (review seed)</span><span class="phone-row__ids"><span><a href="/transactions">Transaktion 66 · Einlage 02.05.2025 · 400,00 EUR</a></span></span><span class="phone-row__ids">Verrechnungskonto: <span class="journal-change__from">Festgeld</span> → Festgeld Plus</span></span></li></ul></section></div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

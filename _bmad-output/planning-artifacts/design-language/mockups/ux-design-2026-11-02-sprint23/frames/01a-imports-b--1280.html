@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01a-imports-b</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="imports-workspace" class="workspace-page">
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/transactions" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M4 4h16M4 12h16M4 20h16"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Historie">Historie</span>
+  </a><a href="/imports" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"></path><path d="M5 19h14"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Import">Import</span>
+  </a>
+</nav>
+<section id="imports-data-quality" class="workspace-section mock-new"><h2>Datenqualität<span class="mock-pin">B</span></h2><h3 class="merge-block-head">Betrag passt nicht zu den Zahlen (1)</h3>
+<p class="summary-basis">Den Betrag im Buchungsformular angeben. Nichts wird automatisch geändert.</p>
+<div class="data-table-wrapper">
+<table class="data-table">
+<thead>
+<tr><th>Datum</th><th>Art</th><th>Wertpapier</th><th class="num">Zahlen</th><th></th></tr></thead>
+<tbody>
+<tr><td>16.04.2026</td><td>Kauf</td><td>Arbolia Inc.</td><td class="num">10 × 81,00 · Betrag 806,00 · aus den Zahlen 816,00</td><td class="row-actions"><button type="button" class="button-mini">Bearbeiten</button></td></tr></tbody></table></div><h3 class="merge-block-head">Fremdwährung ohne Betrag (1)</h3>
+<p class="summary-basis">Den abgerechneten Betrag eintragen; das Nachladen der Wechselkurse ändert diese Buchungen nicht.</p>
+<div class="data-table-wrapper">
+<table class="data-table">
+<thead>
+<tr><th>Datum</th><th>Art</th><th>Wertpapier</th><th class="num">Zahlen</th><th></th></tr></thead>
+<tbody>
+<tr><td>05.06.2026</td><td>Kauf</td><td>Larkspur Robotics Inc</td><td class="num">40 × 25,00 USD · Kurs 0,9300 · kein Betrag</td><td class="row-actions"><button type="button" class="button-mini">Bearbeiten</button></td></tr></tbody></table></div><h3 class="merge-block-head">Split ohne alle Portfolios (1)</h3>
+<p class="summary-basis">Den Split erneut erfassen; er ergänzt nur die fehlenden Zeilen.</p>
+<div class="data-table-wrapper">
+<table class="data-table">
+<thead>
+<tr><th>Datum</th><th>Art</th><th>Wertpapier</th><th class="num">Zahlen</th><th></th></tr></thead>
+<tbody>
+<tr><td>16.04.2026</td><td>Split</td><td>Wexmoor Instruments AG</td><td class="num">2:1 · fehlt in „Family Depot“ (12 Stück)</td><td class="row-actions"><button type="button" class="button-mini">Bearbeiten</button></td></tr></tbody></table></div></section>
+        <div class="mock-elided">Die Ablage für den Portfolio-Performance-Export — unverändert, für das Board gekürzt</div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

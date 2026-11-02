@@ -1,0 +1,412 @@
+{
+  "01a-dq-today@1280": {
+    "file": "frames/01a-dq-today--1280.html",
+    "width": 1060,
+    "height": 182
+  },
+  "01a-dq-today@390": {
+    "file": "frames/01a-dq-today--390.html",
+    "width": 390,
+    "height": 275
+  },
+  "01a-dq-after@1280": {
+    "file": "frames/01a-dq-after--1280.html",
+    "width": 1060,
+    "height": 220
+  },
+  "01a-dq-after@390": {
+    "file": "frames/01a-dq-after--390.html",
+    "width": 390,
+    "height": 457
+  },
+  "01a-hist-cash@1280": {
+    "file": "frames/01a-hist-cash--1280.html",
+    "width": 1060,
+    "height": 731
+  },
+  "01a-hist-cash@390": {
+    "file": "frames/01a-hist-cash--390.html",
+    "width": 390,
+    "height": 526
+  },
+  "01a-hist-rate@1280": {
+    "file": "frames/01a-hist-rate--1280.html",
+    "width": 1060,
+    "height": 279
+  },
+  "01a-hist-split@1280": {
+    "file": "frames/01a-hist-split--1280.html",
+    "width": 1060,
+    "height": 279
+  },
+  "01a-imports-b@1280": {
+    "file": "frames/01a-imports-b--1280.html",
+    "width": 1060,
+    "height": 673
+  },
+  "01b-depot-today@1280": {
+    "file": "frames/01b-depot-today--1280.html",
+    "width": 760,
+    "height": 979
+  },
+  "01b-depot-today@390": {
+    "file": "frames/01b-depot-today--390.html",
+    "width": 390,
+    "height": 1219
+  },
+  "01b-depot-after@1280": {
+    "file": "frames/01b-depot-after--1280.html",
+    "width": 760,
+    "height": 1271
+  },
+  "01b-depot-info@390": {
+    "file": "frames/01b-depot-info--390.html",
+    "width": 390,
+    "height": 1583
+  },
+  "01b-security-today@1280": {
+    "file": "frames/01b-security-today--1280.html",
+    "width": 760,
+    "height": 945
+  },
+  "01b-security-after@1280": {
+    "file": "frames/01b-security-after--1280.html",
+    "width": 760,
+    "height": 977
+  },
+  "02a-drawer-today@1280": {
+    "file": "frames/02a-drawer-today--1280.html",
+    "width": 760,
+    "height": 782
+  },
+  "02a-drawer-today@390": {
+    "file": "frames/02a-drawer-today--390.html",
+    "width": 390,
+    "height": 900
+  },
+  "02a-drawer-b@1280": {
+    "file": "frames/02a-drawer-b--1280.html",
+    "width": 760,
+    "height": 987
+  },
+  "02a-drawer-b@390": {
+    "file": "frames/02a-drawer-b--390.html",
+    "width": 390,
+    "height": 1179
+  },
+  "02a-drawer-b-refused@1280": {
+    "file": "frames/02a-drawer-b-refused--1280.html",
+    "width": 760,
+    "height": 928
+  },
+  "02a-drawer-a@1280": {
+    "file": "frames/02a-drawer-a--1280.html",
+    "width": 760,
+    "height": 905
+  },
+  "02b-lots-today@1280": {
+    "file": "frames/02b-lots-today--1280.html",
+    "width": 1060,
+    "height": 386
+  },
+  "02b-lots-today@390": {
+    "file": "frames/02b-lots-today--390.html",
+    "width": 390,
+    "height": 336
+  },
+  "02b-lots-after@1280": {
+    "file": "frames/02b-lots-after--1280.html",
+    "width": 1060,
+    "height": 386
+  },
+  "02b-lots-after@390": {
+    "file": "frames/02b-lots-after--390.html",
+    "width": 390,
+    "height": 369
+  },
+  "02b-sell-today@1280": {
+    "file": "frames/02b-sell-today--1280.html",
+    "width": 760,
+    "height": 785
+  },
+  "02b-sell-after@1280": {
+    "file": "frames/02b-sell-after--1280.html",
+    "width": 760,
+    "height": 846
+  },
+  "02c-cat-today@1280": {
+    "file": "frames/02c-cat-today--1280.html",
+    "width": 1060,
+    "height": 1097
+  },
+  "02c-cat-today@390": {
+    "file": "frames/02c-cat-today--390.html",
+    "width": 390,
+    "height": 1830
+  },
+  "02c-cat-after@1280": {
+    "file": "frames/02c-cat-after--1280.html",
+    "width": 1060,
+    "height": 769
+  },
+  "02c-cat-after@390": {
+    "file": "frames/02c-cat-after--390.html",
+    "width": 390,
+    "height": 1306
+  },
+  "02d-realized-built@1280": {
+    "file": "frames/02d-realized-built--1280.html",
+    "width": 1060,
+    "height": 329
+  },
+  "02d-realized-built@390": {
+    "file": "frames/02d-realized-built--390.html",
+    "width": 390,
+    "height": 854
+  },
+  "02d-overview-built@1280": {
+    "file": "frames/02d-overview-built--1280.html",
+    "width": 1060,
+    "height": 233
+  },
+  "02d-overview-built@390": {
+    "file": "frames/02d-overview-built--390.html",
+    "width": 390,
+    "height": 614
+  },
+  "03-journal-a@1280": {
+    "file": "frames/03-journal-a--1280.html",
+    "width": 1060,
+    "height": 911
+  },
+  "03-journal-a@390": {
+    "file": "frames/03-journal-a--390.html",
+    "width": 390,
+    "height": 1242
+  },
+  "03-journal-nav@1280": {
+    "file": "frames/03-journal-nav--1280.html",
+    "width": 760,
+    "height": 346
+  },
+  "03-journal-b@1280": {
+    "file": "frames/03-journal-b--1280.html",
+    "width": 1060,
+    "height": 386
+  },
+  "03-journal-b@390": {
+    "file": "frames/03-journal-b--390.html",
+    "width": 390,
+    "height": 495
+  },
+  "04-strip-today-violet@1280": {
+    "file": "frames/04-strip-today-violet--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-today-teal@1280": {
+    "file": "frames/04-strip-today-teal--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-today-coral@1280": {
+    "file": "frames/04-strip-today-coral--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-a-violet@1280": {
+    "file": "frames/04-strip-a-violet--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-a-teal@1280": {
+    "file": "frames/04-strip-a-teal--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-a-coral@1280": {
+    "file": "frames/04-strip-a-coral--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-b-violet@1280": {
+    "file": "frames/04-strip-b-violet--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-b-teal@1280": {
+    "file": "frames/04-strip-b-teal--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-b-coral@1280": {
+    "file": "frames/04-strip-b-coral--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-c-violet@1280": {
+    "file": "frames/04-strip-c-violet--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-c-teal@1280": {
+    "file": "frames/04-strip-c-teal--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-c-coral@1280": {
+    "file": "frames/04-strip-c-coral--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-today-teal-dark@1280": {
+    "file": "frames/04-strip-today-teal-dark--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-c-teal-dark@1280": {
+    "file": "frames/04-strip-c-teal-dark--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-c-coral-dark@1280": {
+    "file": "frames/04-strip-c-coral-dark--1280.html",
+    "width": 1060,
+    "height": 192
+  },
+  "04-strip-today-teal@390": {
+    "file": "frames/04-strip-today-teal--390.html",
+    "width": 390,
+    "height": 304
+  },
+  "04-strip-c-violet@390": {
+    "file": "frames/04-strip-c-violet--390.html",
+    "width": 390,
+    "height": 304
+  },
+  "04-strip-c-teal@390": {
+    "file": "frames/04-strip-c-teal--390.html",
+    "width": 390,
+    "height": 304
+  },
+  "04-strip-c-coral@390": {
+    "file": "frames/04-strip-c-coral--390.html",
+    "width": 390,
+    "height": 304
+  },
+  "04-strip-today-teal-dark@390": {
+    "file": "frames/04-strip-today-teal-dark--390.html",
+    "width": 390,
+    "height": 304
+  },
+  "04-strip-c-teal-dark@390": {
+    "file": "frames/04-strip-c-teal-dark--390.html",
+    "width": 390,
+    "height": 304
+  },
+  "04-wealth-today-violet@1280": {
+    "file": "frames/04-wealth-today-violet--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-today-teal@1280": {
+    "file": "frames/04-wealth-today-teal--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-today-coral@1280": {
+    "file": "frames/04-wealth-today-coral--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-a-violet@1280": {
+    "file": "frames/04-wealth-a-violet--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-a-teal@1280": {
+    "file": "frames/04-wealth-a-teal--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-a-coral@1280": {
+    "file": "frames/04-wealth-a-coral--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-b-violet@1280": {
+    "file": "frames/04-wealth-b-violet--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-b-teal@1280": {
+    "file": "frames/04-wealth-b-teal--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-b-coral@1280": {
+    "file": "frames/04-wealth-b-coral--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-c-violet@1280": {
+    "file": "frames/04-wealth-c-violet--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-c-teal@1280": {
+    "file": "frames/04-wealth-c-teal--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-c-coral@1280": {
+    "file": "frames/04-wealth-c-coral--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-today-teal-dark@1280": {
+    "file": "frames/04-wealth-today-teal-dark--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-c-teal-dark@1280": {
+    "file": "frames/04-wealth-c-teal-dark--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-c-coral-dark@1280": {
+    "file": "frames/04-wealth-c-coral-dark--1280.html",
+    "width": 1060,
+    "height": 484
+  },
+  "04-wealth-today-teal@390": {
+    "file": "frames/04-wealth-today-teal--390.html",
+    "width": 390,
+    "height": 564
+  },
+  "04-wealth-c-violet@390": {
+    "file": "frames/04-wealth-c-violet--390.html",
+    "width": 390,
+    "height": 564
+  },
+  "04-wealth-c-teal@390": {
+    "file": "frames/04-wealth-c-teal--390.html",
+    "width": 390,
+    "height": 564
+  },
+  "04-wealth-c-coral@390": {
+    "file": "frames/04-wealth-c-coral--390.html",
+    "width": 390,
+    "height": 564
+  },
+  "04-wealth-today-teal-dark@390": {
+    "file": "frames/04-wealth-today-teal-dark--390.html",
+    "width": 390,
+    "height": 564
+  },
+  "04-wealth-c-teal-dark@390": {
+    "file": "frames/04-wealth-c-teal-dark--390.html",
+    "width": 390,
+    "height": 564
+  }
+}

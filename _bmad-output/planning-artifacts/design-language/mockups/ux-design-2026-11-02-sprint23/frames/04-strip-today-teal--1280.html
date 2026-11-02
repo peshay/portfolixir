@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="teal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04-strip</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="dashboard-workspace" class="workspace-page">
+      <div id="dashboard-overview">
+  <section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label="Kennzahlen">
+    <div class="kpi-strip__cells">
+      <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
+        <span class="kpi-strip__label">TTWROR 1J</span>
+          <strong class="is-positive">
+            +9,0%
+          </strong>
+          <small class="kpi-strip__sub">IRR +9,4%</small>
+      </a>
+      <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
+        <span class="kpi-strip__label">Cashquote</span>
+          <strong>21,7%</strong>
+          <small class="kpi-strip__sub">
+            19.178,75 EUR Cash
+          </small>
+      </a>
+      <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
+        <span class="kpi-strip__label">Letzte Buchung</span>
+          <strong>30.10.2026</strong>
+          <small class="kpi-strip__sub">
+            Kauf · Kestrel Industrial Group NV
+          </small>
+      </a>
+      <a href="/securities?dq=stale_quote" class="kpi-strip__cell" data-role="kpi-freshness">
+        <span class="kpi-strip__label">Kurse</span>
+          <strong>
+            02.11.2026
+          </strong>
+          <small class="kpi-strip__sub kpi-strip__sub--attention">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+            <span>29 veraltet im Katalog</span>
+          </small>
+      </a>
+    </div>
+    <div class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
+      Ansicht Alles · Rendite über 1J bis 02.11.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen
+      <details class="metric-tooltip metric-tooltip--inline" data-role="kpi-strip-info">
+        <summary aria-label="Zu diesen Kennzahlen">ⓘ</summary>
+        <p role="tooltip">
+          TTWROR — zeitgewichtete Rendite für den gewählten Zeitraum (nicht annualisiert). Ein- und Auszahlungen werden neutralisiert, sodass nur die Anlageperformance zählt.
+          IRR — geldgewichtete Rendite, annualisiert. Berücksichtigt Zeitpunkt und Höhe der Zahlungsströme im Zeitraum. Zeiträume unter einem Jahr zeigen die Perioden-MWR — dieselbe Kennzahl, nicht annualisiert.
+          Cashquote: einsetzbares Bargeld ÷ (Wertpapierwert + einsetzbares Bargeld). Reserve- und Kreditlinienkonten sind ausgeschlossen.
+        </p>
+      </details>
+    </div>
+  </section>
+</div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

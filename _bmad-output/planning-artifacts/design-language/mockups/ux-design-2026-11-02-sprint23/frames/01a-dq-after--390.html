@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01a-dq-after</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 ①a / 02 ①a: a cell's second line in the history table, the anatomy
+   Sprint 22 gave .data-table cells (#1316), lifted to #transaction-list. */
+#transaction-list td .cell-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+/* 01 ①b: the merge preview's flows table; its notes wrap. */
+.data-table-wrapper > table.merge-flows-table { min-width: 0; width: 100%; }
+.merge-flows-table td, .merge-flows-table td .cell-note { white-space: normal; }
+.merge-flows-table td.num { white-space: nowrap; }
+/* 02 ①c: the category member's value names its price source. */
+.row-value .cell-note { margin-right: 6px; font-size: 11px; font-weight: 500; color: var(--color-text-muted); white-space: nowrap; }
+/* 03 A: the journal's change cell and its fold of stored values. */
+.data-table-wrapper > table.journal-table { min-width: 0; width: 100%; }
+.journal-table td { white-space: normal; }
+.journal-table td.cell-date { white-space: nowrap; }
+.journal-table td.journal-change { min-width: 16rem; }
+@media (max-width: 560px) { .journal-table-wrap { display: none; } }
+.journal-change__line { display: block; }
+.journal-change__line + .journal-change__line { margin-top: 2px; }
+.journal-change__from { color: var(--color-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.journal-values { margin-top: var(--space-1); }
+.journal-values table { margin-top: var(--space-1); font-size: 12px; }
+.journal-values td, .journal-values th { padding: 2px 8px 2px 0; text-align: left; vertical-align: top; }
+.journal-values th { font-weight: 600; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="dashboard-workspace" class="workspace-page">
+      <div id="dashboard-overview">
+  <section id="dashboard-data-quality" class="workspace-section">
+    <h2>Datenqualität</h2>
+    <div role="status">
+      <div id="dashboard-dq-line" class="data-note data-note--problem data-note--clamped" data-role="data-quality-line">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"></path><path d="M12 8v4"></path><circle cx="12" cy="16" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Problem</span>
+    <div class="data-note__body">
+      <div id="dashboard-dq-line-text" class="data-note__text">
+        </div>
+      <div class="data-note__actions">
+            <a href="/securities?dq=stale_quote" data-role="dq-quotes">29 Wertpapiere im Katalog ohne Kurs seit 7 Tagen</a>
+              <span aria-hidden="true"> · </span>
+            <a href="/securities?filter[]=asset_class%3Ais_nil&amp;filter[]=is_retired%3Ais_false" data-role="dq-class">eins ohne Anlageklasse</a>
+              <span aria-hidden="true"> · </span>
+            <a href="/securities?dq=missing_logo" data-role="dq-logo">47 ohne Logo</a>
+              <span aria-hidden="true"> · </span>
+            <a href="/securities?dq=two_scales" data-role="dq-two-scales">3 Anleihen auf zwei Skalen bepreist</a>
+            <span data-effect-of="dq-two-scales">— gehalten zählt jede in der Summe oben hundertfach zu hoch oder zu niedrig</span>
+              <span aria-hidden="true"> · </span>
+            <a href="/securities?dq=implausible_quote" data-role="dq-implausible-quote">ein gehaltenes Wertpapier, dessen Kurse nicht zu seinen Buchungen passen</a>
+            <span data-effect-of="dq-implausible-quote">— sein Wert in der Summe oben oder sein Einstand ist daher falsch</span>
+        <span aria-hidden="true"> · </span><span class="mock-new"><span class="mock-pin">1</span><a href="/transactions?dq=cash_mismatch" data-role="dq-cash-mismatch">eine Buchung, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt</a> <span data-effect-of="dq-cash-mismatch">— Kontostand und Einstand lesen daher verschiedene Beträge</span></span><span aria-hidden="true"> · </span><span class="mock-new"><a href="/transactions?dq=rate_only" data-role="dq-rate-only">ein Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag</a> <span data-effect-of="dq-rate-only">— er bucht Menge × Preis ohne Umrechnung aufs Konto</span></span><span aria-hidden="true"> · </span><span class="mock-new"><a href="/transactions?dq=incomplete_split" data-role="dq-incomplete-split">ein Split, dem ein Portfolio fehlt, das das Wertpapier hielt</a> <span data-effect-of="dq-incomplete-split">— dort sind die Lots geteilt, der Bestand nicht</span></span></div>
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="dashboard-dq-line-text" data-more="mehr" data-less="weniger" hidden="">mehr</button>
+</div>
+    </div>
+  </section>
+</div>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>
