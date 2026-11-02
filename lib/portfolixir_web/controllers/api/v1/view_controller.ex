@@ -49,10 +49,18 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     end
   end
 
+  # The view's fields at the top level of a PATCH body, outside the `view`
+  # object, were dropped and the PATCH answered 200 with the view as it was
+  # (#1315): they are refused, naming the field, so the agent learns the
+  # shape instead of believing the view changed.
+  @view_fields ["name", "include_all"]
+  @unwrapped ["must be sent inside the view object"]
+
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "view", %{})
 
-    with {:ok, vid} <- IdParam.parse(id),
+    with :ok <- wrapped_fields(conn.body_params),
+         {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, updated} <- Buckets.update_view(conn.assigns.actor, view, attrs) do
       json(conn, %{data: JSON.view(updated, filter_for(updated))})
@@ -60,9 +68,19 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
       nil -> not_found(conn)
       :error -> not_found(conn)
       {:error, :not_found} -> not_found(conn)
+      {:error, {:unwrapped, fields}} -> unprocessable(conn, fields)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end
+
+  defp wrapped_fields(%{} = body) when not is_struct(body) do
+    case for(field <- @view_fields, Map.has_key?(body, field), into: %{}, do: {field, @unwrapped}) do
+      fields when map_size(fields) == 0 -> :ok
+      fields -> {:error, {:unwrapped, fields}}
+    end
+  end
+
+  defp wrapped_fields(_body), do: :ok
 
   def delete(conn, %{"id" => id}) do
     with {:ok, vid} <- IdParam.parse(id),
@@ -80,16 +98,21 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
 
   @doc """
   Replaces a view's include/exclude bucket sets. Body: `{"include": [..],
-  "exclude": [..]}` (both optional, default `[]`). Returns the view with its
-  resolved filter.
+  "exclude": [..], "include_all": bool}` (the sets optional, default `[]`;
+  `include_all` optional, left as it is when absent). The flag is saved with
+  both sets in one journaled write, as the bucket picker saves it (#1315):
+  without it a view created with "all" included could not be narrowed here.
+  Returns the view with its resolved filter.
   """
   def set_buckets(conn, %{"id" => id} = params) do
     with {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, include} <- id_list(params, "include", :include),
          {:ok, exclude} <- id_list(params, "exclude", :exclude),
-         :ok <- Buckets.set_view_buckets(conn.assigns.actor, view, include, exclude) do
-      json(conn, %{data: JSON.view(view, filter_for(view))})
+         {:ok, opts} <- include_all_opts(params),
+         :ok <- Buckets.set_view_buckets(conn.assigns.actor, view, include, exclude, opts) do
+      written = Buckets.get_view(vid) || view
+      json(conn, %{data: JSON.view(written, filter_for(written))})
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
@@ -106,6 +129,16 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     case Buckets.view_filter(id) do
       {:ok, filter} -> filter
       {:error, :view_not_found} -> %{include: [], exclude: []}
+    end
+  end
+
+  # Absent or null leaves the flag as it is, as an absent set is empty;
+  # anything but a boolean is a 422 on include_all.
+  defp include_all_opts(params) do
+    case Map.get(params, "include_all") do
+      nil -> {:ok, []}
+      flag when is_boolean(flag) -> {:ok, [include_all: flag]}
+      _other -> {:error, :include_all}
     end
   end
 
