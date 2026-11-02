@@ -581,8 +581,8 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     end
 
     test "storing or removing a logo clears the mark", %{tmp: tmp, security: sec} do
-      marked = fn security ->
-        security = with_logo!(security, "manual", true)
+      marked = fn security, source, locked? ->
+        security = with_logo!(security, source, locked?)
 
         {:ok, marked} =
           Catalog.put_logo_file_mark(security, security.attributes["logo_path"], fn -> false end)
@@ -592,14 +592,18 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       end
 
       {:ok, uploaded} =
-        LogoStore.store_manual_bytes(Actor.owner_ui(), marked.(sec), @png, "image/png",
+        LogoStore.store_manual_bytes(
+          Actor.owner_ui(),
+          marked.(sec, "manual", true),
+          @png,
+          "image/png",
           storage_dir: tmp
         )
 
       {:ok, chosen} =
         LogoStore.store_manual_override(
           Portfolixir.Actor.owner_ui(),
-          marked.(security!("Brindle AG")),
+          marked.(security!("Brindle AG"), "manual", true),
           "https://example.test/l.png",
           req: png_stub(@png),
           storage_dir: tmp
@@ -607,7 +611,8 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
       {:ok, discovered} =
         LogoStore.download_and_store(
-          marked.(security!("Corvala AG")),
+          # A discovery replaces only an unlocked logo (the closing act).
+          marked.(security!("Corvala AG"), "wikipedia", false),
           "https://example.test/l.png",
           :wikipedia,
           req: png_stub(@png),
@@ -615,7 +620,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
         )
 
       {:ok, removed} =
-        LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), marked.(security!("Dunmere AG")),
+        LogoStore.remove_logo(
+          Portfolixir.Actor.owner_ui(),
+          marked.(security!("Dunmere AG"), "manual", true),
           storage_dir: tmp
         )
 

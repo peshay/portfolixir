@@ -440,6 +440,12 @@ defmodule Portfolixir.Catalog.LogoLookup do
           {:ok, updated} ->
             {:ok, updated}
 
+          # The logo was locked (an override or a removal) while the lookup
+          # ran: the operator's decision stands, as for a security locked
+          # before it (`Catalog.put_logo_attributes/3`).
+          {:error, :locked} ->
+            :skip
+
           {:error, reason} ->
             Logger.warning(
               "logo download failed for security ##{security.id}: #{inspect(reason)}"
