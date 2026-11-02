@@ -549,7 +549,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
            rule: :a9,
            entry: entry,
            message: stored_fee_message(entry.kind, written),
-           listed_message: listed_fee_message(entry.kind, written)
+           listed_message: listed_fee_message(entry.kind, written),
+           head: fee_head(entry.kind, written),
+           again: fee_again(entry.kind)
          }}
     end
   end
@@ -689,6 +691,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         fee: written.fee,
         net: written.net
       )
+
+  # #1219: the message up to its reason, and the sentence that ends it when
+  # the booking the remedy asks for is already stored (board
+  # ux-design-2026-11-01-sprint22/03 ③).
+  defp fee_head("sell", written),
+    do:
+      gettext("sell with a negative fee (%{fee}): the import does not book a fee refund yet",
+        fee: written.fee
+      )
+
+  defp fee_head(_kind, written),
+    do:
+      gettext("booking with a negative fee (%{fee}): the import does not book a fee refund yet",
+        fee: written.fee
+      )
+
+  defp fee_again("sell"), do: gettext("Do not book the sale again.")
+  defp fee_again(_kind), do: gettext("Do not enter the booking again.")
 
   # A row imported before A9 refused it holds the cash the file states (its
   # `amount`) and the fees summed by magnitude, which stay as stored until

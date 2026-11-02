@@ -160,7 +160,7 @@ defmodule PortfolixirWeb.ImportsLive do
   defp reread_assigns(socket, preview) do
     socket
     |> assign_remap_lookups()
-    |> assign(:row_errors, Imports.row_errors(preview))
+    |> assign(:row_errors, shown_row_errors(preview))
     |> refine_unless_answered(preview)
   end
 
@@ -3141,7 +3141,7 @@ defmodule PortfolixirWeb.ImportsLive do
     assign(socket,
       corrections: Imports.cash_corrections(preview, keys: :error),
       corrections_pending: pending?,
-      row_errors: Imports.row_errors(preview)
+      row_errors: shown_row_errors(preview)
     )
   end
 
@@ -5051,6 +5051,89 @@ defmodule PortfolixirWeb.ImportsLive do
   defp changeset_error_text(%Ecto.Changeset{} = changeset),
     do: FieldLabel.changeset_message(changeset)
 
+  # The parser warnings as the portfolio reads them (`Imports.row_errors/2`),
+  # a refused row whose booking is already stored saying so in words (#1219,
+  # board ux-design-2026-11-01-sprint22/03 ③): the refusal's reason, then
+  # "already booked:" and the booking — date, kind, security, quantity,
+  # amount and account, and whether it was entered by hand — and "do not
+  # book it again" where the remedy stood. Plain text, because the warnings
+  # box is a copyable <pre>. Two or more bookings are all named and none is
+  # chosen, in the correction section's words.
+  defp shown_row_errors(preview) do
+    preview
+    |> Imports.row_errors()
+    |> Enum.map(fn
+      %{booked: booked} = error -> %{error | message: booked_message(booked)}
+      error -> error
+    end)
+  end
+
+  defp booked_message(%{head: head, again: again, bookings: [booking]}),
+    do:
+      gettext("%{head} — already booked: %{booking}. %{again}",
+        head: head,
+        booking: booking_words(booking),
+        again: again
+      )
+
+  defp booked_message(%{head: head, again: again, bookings: bookings}),
+    do:
+      gettext("%{head} — %{matches}: %{bookings}. %{again}",
+        head: head,
+        matches:
+          ngettext(
+            "One stored booking matches",
+            "%{count} stored bookings match",
+            length(bookings)
+          ),
+        bookings: Enum.map_join(bookings, "; ", &booking_words/1),
+        again: again
+      )
+
+  defp booking_words(%Ledger.Transaction{} = booking) do
+    [
+      gettext("%{kind} of %{date}",
+        kind: kind_label(booking.type),
+        date: Format.date(booking.date)
+      ),
+      booking.security && booking.security.name,
+      booking.quantity && gettext("%{quantity} shares", quantity: Format.exact(booking.quantity)),
+      booking_place(booking),
+      if(is_nil(booking.import_hash), do: gettext("entered by hand"), else: gettext("imported"))
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(", ")
+  end
+
+  defp booking_place(%Ledger.Transaction{type: "cash_transfer"} = booking),
+    do:
+      gettext("%{amount} %{currency} from %{from} to %{to}",
+        amount: Format.decimal(booking.gross_amount, 2),
+        currency: booking.currency_code,
+        from: booking.cash_account.name,
+        to: booking.counter_cash_account.name
+      )
+
+  defp booking_place(%Ledger.Transaction{type: "security_transfer"} = booking),
+    do:
+      gettext("from %{from} to %{to}",
+        from: booking.securities_account.name,
+        to: booking.counter_securities_account.name
+      )
+
+  defp booking_place(%Ledger.Transaction{cash_account: %{name: account}} = booking),
+    do:
+      gettext("%{amount} %{currency} on %{account}",
+        amount: Format.signed_decimal(Ledger.Projection.cash_amount(booking), 2),
+        currency: booking.currency_code,
+        account: account
+      )
+
+  defp booking_place(%Ledger.Transaction{securities_account: %{name: depot}}),
+    do: gettext("in %{depot}", depot: depot)
+
+  defp booking_place(_booking), do: nil
+
   defp parser_warning_text(errors, preview) do
     errors
     |> Enum.map(fn err -> row_message(preview, err.row || "?", err.message) end)
@@ -5096,8 +5179,13 @@ defmodule PortfolixirWeb.ImportsLive do
   # #1207 (2): the rows the preview refused that the stored history does
   # not hold — the row errors as the preview showed them, less those whose
   # message the stored history replaced (`Imports.row_errors/2`).
+  # A row whose booking is already stored (#1219) was not imported either,
+  # and is listed with the sentence the preview showed (board
+  # ux-design-2026-11-01-sprint22/03 ③).
   defp refused_rows(%Preview{errors: errors}, shown) when length(errors) == length(shown) do
-    for {error, row} <- Enum.zip(errors, shown), error.message == row.message, do: row
+    for {error, row} <- Enum.zip(errors, shown),
+        error.message == row.message or Map.has_key?(row, :booked),
+        do: row
   end
 
   defp refused_rows(_preview, _shown), do: []

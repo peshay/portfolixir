@@ -24,13 +24,21 @@ defmodule Portfolixir.Imports.Preview do
   `:a9`), so the correction gives that rule's remedy (#1193), and
   `listed_message` is the row's message instead of `message` when the
   correction lists the stored booking (A10): it points to that line.
+
+  A row A8 or A9 refuses also carries `head`, its message up to the reason
+  it is refused, and `again`, the sentence that ends it when its booking is
+  already stored (#1219): `Portfolixir.Imports.row_errors/2` then names that
+  booking between the two instead of the remedy (board
+  ux-design-2026-11-01-sprint22/03 ③).
   """
   @type refused_credit :: %{
-          row: pos_integer(),
-          rule: :a5 | :a8 | :a9,
-          entry: Entry.t(),
-          message: String.t(),
-          listed_message: String.t()
+          required(:row) => pos_integer(),
+          required(:rule) => :a5 | :a8 | :a9,
+          required(:entry) => Entry.t(),
+          required(:message) => String.t(),
+          required(:listed_message) => String.t(),
+          optional(:head) => String.t(),
+          optional(:again) => String.t()
         }
 
   @type t :: %__MODULE__{

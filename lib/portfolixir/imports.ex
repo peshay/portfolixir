@@ -25,7 +25,9 @@ defmodule Portfolixir.Imports do
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Imports.RefusedMatch
   alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -249,17 +251,52 @@ defmodule Portfolixir.Imports do
   the booking by hand, which would book it twice (#1118; how such a booking
   is corrected is #1193). See `Portfolixir.Imports.Correction.stored_refusals/2`.
 
+  A row ADR-0053 A8 or A9 refuses whose content hash the history does not
+  hold, but whose remedy's booking a stored booking of the portfolio
+  already is — entered by hand after an earlier drop, or imported from an
+  export that drifted since — carries `booked` (#1219): the bookings found
+  by their figures on the economic layer (`Portfolixir.Imports.RefusedMatch`),
+  with the refusal's `head` and the `again` that end the sentence the page
+  shows instead of the remedy ("… — already booked: …"; board
+  ux-design-2026-11-01-sprint22/03 ③). Two or more bookings are all named
+  and none is chosen. Its `message` stays the parsed one.
+
   Read-only. The portfolio as for `cash_corrections/2`; without one, the
   errors as parsed.
   """
-  @spec row_errors(Preview.t(), keyword()) :: [%{row: pos_integer() | nil, message: String.t()}]
+  @spec row_errors(Preview.t(), keyword()) :: [
+          %{
+            required(:row) => pos_integer() | nil,
+            required(:message) => String.t(),
+            optional(:booked) => %{
+              head: String.t(),
+              again: String.t(),
+              bookings: [Transaction.t()]
+            }
+          }
+        ]
   def row_errors(%Preview{errors: errors} = preview, opts \\ []) when is_list(opts) do
-    stored = Correction.stored_refusals(preview, import_portfolio_id(opts))
+    portfolio_id = import_portfolio_id(opts)
+    stored = Correction.stored_refusals(preview, portfolio_id)
+    booked = RefusedMatch.booked(preview, portfolio_id, MapSet.new(Map.keys(stored)))
+    framing = Map.new(preview.refused_credits, &{&1.row, &1})
 
     Enum.map(errors, fn error ->
-      case Map.fetch(stored, error.row) do
-        {:ok, message} -> %{error | message: message}
-        :error -> error
+      case {Map.fetch(stored, error.row), Map.fetch(booked, error.row)} do
+        {{:ok, message}, _booked} ->
+          %{error | message: message}
+
+        {:error, {:ok, bookings}} ->
+          case Map.get(framing, error.row) do
+            %{head: head, again: again} ->
+              Map.put(error, :booked, %{head: head, again: again, bookings: bookings})
+
+            _kept_before_the_framing ->
+              error
+          end
+
+        {:error, :error} ->
+          error
       end
     end)
   end
