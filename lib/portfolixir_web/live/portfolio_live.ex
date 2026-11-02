@@ -34,6 +34,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
+  alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.CappedAsync
@@ -758,6 +759,9 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket =
       socket
       |> assign(:valuation, valuation)
+      # #1333 (D-9's finding for U2): a twin cash account's portfolio beside
+      # its name in the cash table, decided over every account.
+      |> assign(:account_portfolio_tags, AccountNames.load_portfolio_tags())
       # #1332 (D-9): the positions' market values are the ones this total
       # sums, so they land with it.
       |> assign_base_values(valuation)
@@ -2617,6 +2621,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <tr class={if cash.deployable, do: nil, else: "is-muted"}>
                       <td>
                         <%= cash.name %>
+                        <AccountNames.portfolio_tag tags={@account_portfolio_tags} kind={:cash} id={cash.cash_account_id} />
                         <%= if not cash.deployable do %>
                           <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
                         <% end %>

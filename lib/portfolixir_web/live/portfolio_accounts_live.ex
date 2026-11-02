@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
@@ -146,6 +147,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <tr class="account-row--depot">
                       <td class="cell-name cell-name--depot">
                         <span class="account-name"><%= row.depot.name %></span>
+                        <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:depot} id={row.depot.id} />
                         <.account_lines
                           account={row.depot}
                           merged={Map.get(@merged_from.depot, row.depot.id, [])}
@@ -198,6 +200,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                         <tr class="account-row--cash">
                           <td class="cell-name cell-name--cash">
                             <span class="account-cash-name"><%= row.cash.name %></span>
+                            <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:cash} id={row.cash.id} />
                             <.account_lines
                               account={row.cash}
                               merged={Map.get(@merged_from.cash, row.cash.id, [])}
@@ -233,6 +236,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                         <tr class="account-row--cash account-row--shared">
                           <td class="cell-name cell-name--cash">
                             <span class="account-cash-name"><%= row.cash.name %></span>
+                            <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:cash} id={row.cash.id} />
                             <span class="account-sub"><%= gettext("shared — managed above") %></span>
                           </td>
                           <td class="cell-currency"><%= row.cash.currency_code %></td>
@@ -259,6 +263,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <tr class="account-row--cash account-row--lone-cash">
                       <td class="cell-name cell-name--lone">
                         <span class="account-name"><%= row.cash.name %></span>
+                        <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:cash} id={row.cash.id} />
                         <span class="account-microtag"><%= gettext("Cash account") %></span>
                         <.account_lines
                           account={row.cash}
@@ -1506,7 +1511,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     buckets = Buckets.list_buckets()
     buckets_by_id = Map.new(buckets, &{&1.id, &1})
     cash_accounts = Portfolios.list_cash_accounts()
-    rows = build_rows(cash_accounts, buckets_by_id)
+    depots = Portfolios.list_securities_accounts()
+    rows = build_rows(cash_accounts, depots, buckets_by_id)
     depot_ids = for %{depot: %SecuritiesAccount{id: id}} <- rows, do: id
 
     socket
@@ -1517,6 +1523,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       buckets: buckets,
       cash_accounts: cash_accounts,
       rows: rows,
+      # #1333 (board 03 ⑤): a twin account's portfolio, beside its name.
+      portfolio_tags:
+        AccountNames.portfolio_tags(cash_accounts, depots, Portfolios.list_portfolios()),
       # Balance read surface per row (#670): derived balances plus the date
       # of the newest cash-affecting booking, in the account's own currency.
       cash_balances_by_id: Ledger.cash_balances(),
@@ -1552,10 +1561,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # case-insensitive name (id as tiebreak), lone cash accounts likewise. A
   # cash account shared by several depots renders its controls (liquidity
   # role, chips) only on its first band, so no DOM id appears twice.
-  defp build_rows(cash_accounts, buckets_by_id) do
-    depots =
-      Portfolios.list_securities_accounts()
-      |> Enum.sort_by(&{String.downcase(&1.name), &1.id})
+  defp build_rows(cash_accounts, depots, buckets_by_id) do
+    depots = Enum.sort_by(depots, &{String.downcase(&1.name), &1.id})
 
     {depot_rows, claimed} =
       Enum.map_reduce(depots, MapSet.new(), fn depot, seen ->

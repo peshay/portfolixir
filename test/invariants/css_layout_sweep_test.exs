@@ -362,6 +362,19 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert twin =~ ~r/white-space:\s*nowrap;/
   end
 
+  # User story (#1333; Sprint 22 board 03, rule ⑤):
+  # As the operator reading two accounts of one name in two portfolios,
+  # I want the portfolio's name after each in the twin tag's place, set as a
+  # word,
+  # so that it reads as the name it is and not as an identifier.
+  #
+  # Acceptance criteria:
+  # - `.twin-id--portfolio` keeps the tag's colour, size and spacing and
+  #   drops its monospace for the text's own font.
+  test "the portfolio tag of a twin account drops the identifier's monospace" do
+    assert block(".twin-id--portfolio") =~ ~r/font-family:\s*inherit;/
+  end
+
   # User story (#1086; board ux-design-2026-10-04/06-phone-wealth, rule ④;
   # EXPERIENCE.md → Value slot: a value never wraps inside its slot):
   # As the operator reading the KPI band on a 390 px phone,
