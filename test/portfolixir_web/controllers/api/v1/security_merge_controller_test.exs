@@ -142,6 +142,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     assert position["after"]["quantity"] == "17"
     assert hd(collapse["positions"])["after"]["quantity"] == "15"
     assert preview["positions_basis"] =~ "moving-average"
+    assert preview["flow_basis"] =~ "boundary_removed"
     assert preview["reimport_note"] =~ "former ISIN"
     assert journal_mark() == mark
   end

@@ -663,7 +663,8 @@ confirms with the same `plan_digest`, so both see the same plan.
     source holds: `source`, `target` and `after`, each `quantity`,
     `cost_basis`, `avg_cost` and `realized_result`), `fifo_realized`,
     `rounding_differences`, `cash_accounts` and `flow_changes`, with
-    `positions_basis` as for a depot merge; `reimport_note` says what the
+    `positions_basis` and `flow_basis` as for a depot merge (a
+    `removed` or `boundary_removed` entry names the source security); `reimport_note` says what the
     merge does to the next import;
   - `fifo_realized`, in each outcome: the FIFO realized gains the merge
     restates (security review 2026-10-12, K11). The realized gains the app
@@ -1487,10 +1488,24 @@ Example quote sync response:
     `target` is `null` where the target holds no booking of it),
     `rounding_differences`, `cash_accounts` (each cash account a
     collapsed booking changes, with `balance_before` and `balance_after`)
-    and `flow_changes` (each flow a collapsed booking moves into a later
-    balance anchor of its cash account, `kind` `absorbed`, with
-    `cash_account_id`, the anchor's `transaction_id`, `date`, `change` and
-    `collapsed_transaction_id`, as in a cash merge's preview) and
+    and `flow_changes` (each external flow a collapse removes or moves,
+    so the change in the time-weighted return is visible; every entry
+    carries `kind`, `cash_account_id`, `securities_account_id`,
+    `security_id`, `view_id`, `transaction_id`, `date`, `quantity`,
+    `change`, `currency_code`, `valued_at` and `collapsed_transaction_id`,
+    `null` where a key does not apply: `removed`, a collapsed inbound or
+    outbound delivery, its depot and security, `quantity` the change in the
+    units that day's flow carries and `change` their value at the
+    delivery's booked price in `currency_code` (`valued_at`
+    `booked_price`), or `null` where the delivery carries no price and the
+    performance walk values the units at the day's price (`valued_at`
+    `market`); `boundary_removed`, a collapsed security transfer with
+    exactly one depot in the view `view_id`, a flow across that view's
+    boundary and none of the portfolio's own, one entry per view it
+    straddles, naming the in-view depot, valued at the day's price;
+    `absorbed`, a collapsed booking's cash leg that a later balance anchor
+    of its cash account now absorbs, with the anchor's `transaction_id`,
+    `date` and `change`, as in a cash merge's preview) and
     `other_depots` (each third depot a collapsed transfer names, per
     security, with `securities_account_name`, `security_name`,
     `quantity_before` and `quantity_after`: removing a transfer from it
@@ -1517,6 +1532,13 @@ Example quote sync response:
     refusal, and held to no bound per split: where splits compound, a
     difference one split leaves is scaled by the next (ADR-0050, amendment
     of 2026-10-08);
+  - `flow_basis`, the computation basis of `flow_changes`: a listed date's
+    flow (`GET /api/v1/portfolios/:id/performance`, and
+    `GET /api/v1/views/:id/performance` for `boundary_removed`) changes by
+    its entries alone; the return of that day and the days after also reads
+    the collapsed units no longer held, so the preview lists the flows, not
+    a recomputed return; view membership is read as it stands, which the
+    merge keeps unchanged;
   - `reimport_note`, what the merge does to the next Portfolio Performance
     import, as for a cash merge.
 
