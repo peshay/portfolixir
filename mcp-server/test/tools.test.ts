@@ -1183,8 +1183,8 @@ describe("Portfolixir MCP tools", () => {
         as_of: "2026-11-02",
         note: "buys and sells whose cash misses quantity × price",
         remedy: "State the cash in the booking form (Edit) or as gross_amount",
-        tolerance: "0.01",
-        rows: [{ id: 42, stored_cash: "806", derived_cash: "816", difference: "-10" }]
+        tolerance_rule: "Both sides rounded to two places",
+        rows: [{ id: 42, stored_cash: "806", derived_cash: "816", difference: "-10", tolerance: "0.06" }]
       }
     });
 
@@ -1205,7 +1205,7 @@ describe("Portfolixir MCP tools", () => {
   // so that a 422 on gross_amount does not surprise me.
   it("says on portfolixir.transactions.update that a figure edit states the cash", () => {
     const update = listTools().find((tool) => tool.name === "portfolixir.transactions.update");
-    assert.match(update?.description ?? "", /must state gross_amount too, within 0\.01/);
+    assert.match(update?.description ?? "", /must state gross_amount, agreeing with quantity × price ± fees and taxes within 0\.01 \+ the price's rounding/);
   });
 
   // User story:

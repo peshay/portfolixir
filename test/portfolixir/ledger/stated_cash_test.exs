@@ -73,7 +73,9 @@ defmodule Portfolixir.Ledger.StatedCashTest do
   # - A change of quantity, price, fees or taxes without gross_amount is
   #   refused on gross_amount, and the row is unchanged.
   # - Stated gross_amount within a cent of quantity × price + fees + taxes
-  #   (a buy) is stored with the new figures; beyond a cent it is refused,
+  #   (a buy), plus the price's own rounding (quantity × half a unit of its
+  #   last digit, at two places at least), is stored with the new figures;
+  #   beyond that it is refused,
   #   the message naming the expected figure.
   # - An update that changes none of the four (a note, a date) keeps the
   #   stored cash without stating it, even on a row whose cash already
@@ -111,14 +113,18 @@ defmodule Portfolixir.Ledger.StatedCashTest do
       assert Decimal.equal?(updated.gross_amount, Decimal.new("816.01"))
     end
 
-    test "a stated cash beyond a cent is refused naming the expected figure", %{buy: buy} do
+    test "a stated cash beyond its tolerance is refused naming the expected figure",
+         %{buy: buy} do
       assert {:error, changeset} = edit(buy, %{"price" => "81.00", "gross_amount" => "806.00"})
 
       assert messages(changeset, :gross_amount) == [
                "does not match quantity × price, fees and taxes — expected 816.00"
              ]
 
-      assert {:error, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.02"})
+      # 10 at 81.00: a cent plus the price's own rounding, 10 × 0.005.
+      assert {:ok, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.06"})
+      assert {:ok, _} = edit(buy, %{"price" => "80.00", "gross_amount" => "806.00"})
+      assert {:error, _} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.07"})
       assert Decimal.equal?(Repo.get!(Transaction, buy.id).gross_amount, Decimal.new("806.00"))
     end
 
