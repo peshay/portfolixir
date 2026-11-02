@@ -3098,7 +3098,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </p>
         </details>
         <p
-          :if={@sell_preview.price_source == :latest}
+          :if={@sell_preview.price_source == :quote}
           class="form-help"
           data-role="preview-price-hint"
         >

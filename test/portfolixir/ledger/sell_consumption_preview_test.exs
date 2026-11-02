@@ -114,7 +114,7 @@ defmodule Portfolixir.Ledger.SellConsumptionPreviewTest do
 
     preview = Ledger.sell_consumption_preview(w.security.id, Decimal.new("4"))
 
-    assert preview.price_source == :latest
+    assert preview.price_source == :quote
     assert Decimal.equal?(preview.sell_price, Decimal.new("130"))
     assert [lot] = preview.lots
     assert Decimal.equal?(lot.gross_gain, Decimal.new("120"))

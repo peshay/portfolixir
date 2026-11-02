@@ -183,7 +183,7 @@ defmodule Portfolixir.Ledger do
 
   @doc """
   Lists FIFO-matched trades for a security: closed round-trips, open
-  remaining lots (with unrealised P&L vs. the latest known quote close),
+  remaining lots (with unrealised P&L vs. the price the holdings read),
   and any orphan sells.
 
   Each closed round-trip carries its consumed `lots` and its
@@ -207,16 +207,21 @@ defmodule Portfolixir.Ledger do
   honestly unavailable (`decomposed: false`, `undecomposed_reason`), never
   compared blindly across currencies.
 
+  Open lots are priced by the rule the holdings and the valuation's total
+  use (`Valuation.price_points/2`, ADR-0010's amendment of 2026-06-10;
+  #1369): the latest quote close in the split-adjusted display basis
+  (ADR-0028 §2), else the last own trade price across all portfolios, in
+  the security's own currency, else none. Each lot names it in
+  `price_source` (`:quote | :trade | nil`) and `price_date`, so a lot and
+  the holding it is part of are priced by one function.
+
   Pass `:latest_price` (Decimal) to inject the comparison price for
-  tests; otherwise the function reads it from `Catalog.Quotes.adjusted_latest/1`
-  (the split-adjusted display basis, ADR-0028 §2). Pass `:fx_rates`
+  tests (read as a quote). Pass `:fx_rates`
   (`%{currency => Decimal}`, EUR per 1 unit) to inject the current hub rate
   for tests; otherwise it resolves from the stored rates.
   """
   def list_trades_for_security(security_id, opts \\ []) when is_integer(security_id) do
-    latest_price =
-      Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
-
+    point = security_price_point(security_id, opts)
     fx_rates = Keyword.get(opts, :fx_rates, %{})
     security = Repo.get(Security, security_id)
     security_currency = security && security.currency_code
@@ -233,7 +238,9 @@ defmodule Portfolixir.Ledger do
       | open_lots:
           Enum.map(
             result.open_lots,
-            &decorate_open_lot(&1, latest_price, security_currency, fx_rates)
+            &(&1
+              |> decorate_open_lot(point.price, security_currency, fx_rates)
+              |> put_price_source(point))
           ),
         # #984 (Sprint 17 T1): every closed round-trip carries its annualized
         # return, or nil with the reason, so both reads that serve closed
@@ -573,13 +580,13 @@ defmodule Portfolixir.Ledger do
 
   defp injected_price_point(_none), do: @no_price_point
 
-  # Latest close in the current display basis (ADR-0028 §2): a stale raw
-  # close from before a split's effective date is divided by the cumulative
-  # later ratio before it prices a post-split quantity.
-  defp adjusted_latest_close(security_id) do
-    case Quotes.adjusted_latest(security_id) do
-      %{close: %Decimal{} = close} -> close
-      _ -> nil
+  # The one price a security's holdings, open lots and sell preview read
+  # (#1369): `Valuation.price_points/2`'s point, or the `:latest_price`
+  # test injection, read as a quote.
+  defp security_price_point(security_id, opts) do
+    case Keyword.fetch(opts, :latest_price) do
+      {:ok, price} -> injected_price_point(price)
+      :error -> Map.fetch!(Valuation.price_points([security_id]), security_id)
     end
   end
 
@@ -604,12 +611,7 @@ defmodule Portfolixir.Ledger do
   `holdings_for_portfolio/2`).
   """
   def holdings_for_security(security_id, opts \\ []) when is_integer(security_id) do
-    point =
-      case Keyword.fetch(opts, :latest_price) do
-        {:ok, price} -> injected_price_point(price)
-        :error -> Map.fetch!(Valuation.price_points([security_id]), security_id)
-      end
-
+    point = security_price_point(security_id, opts)
     fx_rates = Keyword.get(opts, :fx_rates, %{})
     security = Repo.get(Security, security_id)
     security_currency = security && security.currency_code
@@ -1368,8 +1370,9 @@ defmodule Portfolixir.Ledger do
   defp positive_decimal?(%Decimal{} = value), do: Decimal.compare(value, @zero) == :gt
   defp positive_decimal?(_other), do: false
 
-  # Open-lot decoration (ADR-0033): the unrealised P&L compares the latest
-  # close against the lot's SECURITY-currency basis (`buy_price_native`), and
+  # Open-lot decoration (ADR-0033): the unrealised P&L compares the
+  # security's price (`security_price_point/2`, #1369) against the lot's
+  # SECURITY-currency basis (`buy_price_native`), and
   # each lot carries the same price/currency decomposition as the holdings —
   # against the EUR hub, since FIFO lots are matched per security across
   # portfolios. A lot without a derivable native leg, a hub-currency
@@ -1438,26 +1441,33 @@ defmodule Portfolixir.Ledger do
 
   Options: `:price` (Decimal, the intended sale price in the security's own
   currency — the same currency a bookable manual sell is priced in; falls
-  back to the latest stored close), `:latest_price` and `:fx_rates` (test
-  injection, as in `list_trades_for_security/2`).
+  back to the price the open lots read, `Valuation.price_points/2`: the
+  latest quote close, else the last own trade price, #1369),
+  `:latest_price` and `:fx_rates` (test injection, as in
+  `list_trades_for_security/2`).
 
   Returns `%{security_id, requested_quantity, sell_price, price_source
-  (:entered | :latest | nil), security_currency, lots, total_gross_gain,
-  shortfall}`; `total_gross_gain` is nil when any tranche's gain is
+  (:entered | :quote | :trade | nil), price_date (the quote's or the
+  trade's date; nil when entered), security_currency, lots,
+  total_gross_gain, shortfall}`; `total_gross_gain` is nil when any tranche's gain is
   unavailable, and `shortfall` names the quantity not covered by open lots.
   """
   def sell_consumption_preview(security_id, %Decimal{} = quantity, opts \\ [])
       when is_integer(security_id) do
     fx_rates = Keyword.get(opts, :fx_rates, %{})
 
-    latest_price =
-      Keyword.get_lazy(opts, :latest_price, fn -> adjusted_latest_close(security_id) end)
+    # #1369: without an entered price, the price the holdings and the open
+    # lots read, its source and date named.
+    %{price: sell_price, price_source: price_source, price_date: price_date} =
+      case Keyword.get(opts, :price) do
+        %Decimal{} = entered ->
+          %{price: entered, price_source: :entered, price_date: nil}
 
-    {sell_price, price_source} =
-      case {Keyword.get(opts, :price), latest_price} do
-        {%Decimal{} = entered, _latest} -> {entered, :entered}
-        {_none, %Decimal{} = latest} -> {latest, :latest}
-        {_none, _no_latest} -> {nil, nil}
+        _none ->
+          case security_price_point(security_id, opts) do
+            %{price: %Decimal{}} = point -> point
+            _no_price -> @no_price_point
+          end
       end
 
     security = Repo.get(Security, security_id)
@@ -1478,6 +1488,7 @@ defmodule Portfolixir.Ledger do
       requested_quantity: quantity,
       sell_price: sell_price,
       price_source: price_source,
+      price_date: price_date,
       security_currency: security_currency,
       lots: consumed,
       total_gross_gain: preview_total(consumed, sell_price),
