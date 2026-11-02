@@ -4595,6 +4595,14 @@ input[pattern]:invalid:not(:placeholder-shown) {
   margin: 0;
 }
 
+/* Issue 1342: the picker's status region stays in the accessibility tree
+   at rest and while it holds only the hit count read to assistive
+   technology, but leaves the grid's flow, so it adds no row and no gap;
+   the visible empty state is a grid row as before. */
+.mapping-remap__status:not(:has(.mapping-remap__empty)) {
+  position: absolute;
+}
+
 .mapping-remap .merge-targets legend {
   font-size: 12px;
 }
