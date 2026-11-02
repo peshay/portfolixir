@@ -328,7 +328,9 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
 
   # Every shape of a `Datum` cell the parser reads on 7b822f7, with the time
   # it reads and the hash of a removal of 25,00 on Test-Cash dated with it:
-  # the date alone, a blank time and midnight are no time; a time with
+  # the date alone, a blank time and midnight are no time (midnight as
+  # HH:MM too: read as no time since the sprint PR's closing act, the hash
+  # the date alone gives); a time with
   # seconds is read, its fraction kept, a `T` before it, a zone after it and
   # a second space before it read as without.
   @no_time "ea4cc1348bd07c133b10f52fd798219a507c14a7e215801f8b30508f33e7de53"
@@ -339,6 +341,7 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
     {"2025-03-03 ", nil, @no_time},
     {"2025-03-03    ", nil, @no_time},
     {"2025-03-03 00:00:00", nil, @no_time},
+    {"2025-03-03 00:00", nil, @no_time},
     {"2025-03-03 09:15:00", ~T[09:15:00], @at_0915},
     {"2025-03-03  09:15:00", ~T[09:15:00], @at_0915},
     {"2025-03-03 T09:15:00", ~T[09:15:00], @at_0915},

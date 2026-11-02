@@ -636,8 +636,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   # before anything else of the row is read. A blank time is no time, and
   # every value read before reads as it did (HH:MM:SS, a fraction, a `T`
   # before it or a zone after it; midnight as no time), so no stored hash
-  # moves. HH:MM was read as no time, and stays unread for that reason.
+  # moves. HH:MM was read as no time, and stays unread for that reason,
+  # except midnight: "00:00" reads as no time, as "00:00:00" does, so its
+  # hash is the date-only row's either way.
   defp parse_time(""), do: {:ok, nil}
+  defp parse_time("00:00"), do: {:ok, nil}
 
   defp parse_time(text) do
     case Time.from_iso8601(text) do
