@@ -60,7 +60,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] == []
     assert newest["tools"] == []
     assert hd(Contract.entries()).prompts == []
-    assert [top_level, in_data, targets, views] = newest["parameters"]
+
+    assert [top_level, in_data, targets, views, tie_break, offset_refusal] =
+             newest["parameters"]
+
+    assert newest["summary"] =~ "A2: "
+    assert String.starts_with?(tie_break, "GET /api/v1/securities ")
+    assert tie_break =~ "ascending in either direction"
+    assert tie_break =~ "(#1294)"
+
+    for endpoint <-
+          ~w(/api/v1/transactions /api/v1/securities /api/v1/securities/:security_id/notes /api/v1/securities/:security_id/events /api/v1/portfolios/:portfolio_id/policy_rules) do
+      assert offset_refusal =~ ~r/GET #{Regex.escape(endpoint)}[ ,]/, endpoint
+    end
+
+    assert offset_refusal =~ ~s(errors.offset ["is not used with a cursor; page by as_of"])
+    assert offset_refusal =~ "(#1295)"
     assert newest["summary"] =~ "A3"
     assert String.starts_with?(targets, "GET /api/v1/portfolios/:portfolio_id/targets")
     assert targets =~ "(#1301)"
