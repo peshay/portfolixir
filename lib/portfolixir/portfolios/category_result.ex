@@ -22,7 +22,8 @@ defmodule Portfolixir.Portfolios.CategoryResult do
      flat across 10 000 EUR, and it is the single most likely way to ship a
      plausible wrong number here.
   2. **Underivable rows are excluded and named** (§4). A member with no usable
-     price, or whose base-currency decomposition is unavailable
+     price -- neither a quote nor an own trade price -- or whose base-currency
+     decomposition is unavailable
      (`decomposed: false`, ADR-0033), is left out of **both** sides of the sum
      and listed with its reason. It is never folded in at a result of zero,
      which would quietly understate the category, and the row states how many
@@ -42,6 +43,14 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   cost in the currency it was paid in (`native_costs`, one amount per
   currency). `/api/v1` serves it in every form, the portfolio read, its view
   narrowing, the view read and the every-portfolio read (#1091).
+
+  **One price rule** (#1368; ADR-0010, plan D-4 of Sprint 23). A member is
+  priced by `Valuation.price_points/2`, the rule Wealth's total and the
+  holdings read use: its latest quote, without one its last own trade price.
+  Each member row names it in `price_source` (`:quote | :trade`) and
+  `price_date`, so a category's figures add up to what Wealth shows for the
+  same positions, and only a member no rule can value is excluded as
+  `no_usable_price`.
 
   Nothing here is computed for the first time. `Ledger.holdings_for_portfolio/2`
   already carries each position's base-currency cost (`base_cost`) and its
@@ -83,7 +92,9 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   positions matching that view, the way it narrows the valuation and the
   performance walk (ADR-0018); an unknown view is
   `{:error, :view_not_found}`. `:prices` and `:fx_rates` are passed through
-  to `Ledger.holdings_for_portfolio/2` for deterministic fixtures.
+  to `Ledger.holdings_for_portfolio/2` for deterministic fixtures; a
+  security `:prices` does not name keeps the holdings read's own rule (its
+  quote, else its last own trade price).
   """
   def for_portfolio(portfolio_id, classification_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) do
@@ -93,7 +104,7 @@ defmodule Portfolixir.Portfolios.CategoryResult do
          scope when not is_tuple(scope) <- Buckets.load_scope(portfolio_id, view_id) do
       holdings =
         portfolio_id
-        |> Ledger.holdings_for_portfolio(quote_priced(opts))
+        |> Ledger.holdings_for_portfolio(opts)
         |> in_scope(scope)
 
       currency = base_currency(portfolio_id)
@@ -165,20 +176,18 @@ defmodule Portfolixir.Portfolios.CategoryResult do
 
   # Every portfolio's holdings, narrowed by `narrow`, in the EUR hub: the one
   # currency rule the two cross-portfolio reads share (#901, #1048).
+  # The members are the holdings read's rows as they are, priced by the rule
+  # Wealth's total uses (`Valuation.price_points/2`, ADR-0010): the latest
+  # quote, without one the last own trade price (#1368). A category and
+  # Wealth cannot price one position two ways.
   defp hub_holdings(opts, narrow) do
     Enum.flat_map(Portfolios.list_portfolios(), fn portfolio ->
       portfolio.id
-      |> Ledger.holdings_for_portfolio(quote_priced(opts))
+      |> Ledger.holdings_for_portfolio(opts)
       |> narrow.()
       |> Enum.map(&in_hub_currency(&1, portfolio.base_currency_code))
     end)
   end
-
-  # The roll-up prices its members by quotes alone, as it did before the
-  # holdings read took the valuation's trade-price fallback (#1316, #1332;
-  # Sprint 22's R8): a trade-priced member stays excluded and named with
-  # `no_usable_price` until a decision moves this read to ADR-0010's rule.
-  defp quote_priced(opts), do: Keyword.put(opts, :trade_fallback, false)
 
   defp in_scope(holdings, scope) do
     Enum.filter(
@@ -346,6 +355,10 @@ defmodule Portfolixir.Portfolios.CategoryResult do
       security_id: holding.security_id,
       security_name: holding.security_name,
       quantity: holding.quantity,
+      # Where the member's price comes from (#1368): every slice of one
+      # security shares it, since the price point is the security's.
+      price_source: Map.get(holding, :price_source),
+      price_date: Map.get(holding, :price_date),
       # Set only where the hub rule excluded a cost it does know (#1048).
       native_cost: Map.get(holding, :native_cost)
     }
@@ -409,6 +422,8 @@ defmodule Portfolixir.Portfolios.CategoryResult do
             security_id: entry.security_id,
             security_name: entry.security_name,
             quantity: entry.quantity,
+            price_source: entry.price_source,
+            price_date: entry.price_date,
             invested: entry.invested,
             current_value: entry.current_value,
             result_abs: entry.result_abs,

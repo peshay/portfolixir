@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
       create_security!: 1,
       buy!: 3,
       cross_trade!: 3,
+      deliver_untraded!: 3,
       deposit!: 3,
       deposit!: 4,
       put_quote!: 3
@@ -56,10 +57,11 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
 
     deposit!(world, "10000", ~D[2026-01-01])
     buy!(world, alpha, quantity: "10", price: "100")
-    buy!(world, dark, quantity: "10", price: "50")
+    # Delivered in, never traded: no own trade price to fall back on (#1368).
+    deliver_untraded!(world, dark, "10")
 
-    # Alpha is priced at 150 (invested 1000, now 1500); Dark has no quote at
-    # all, so its result is not derivable.
+    # Alpha is priced at 150 (invested 1000, now 1500); Dark has no quote and
+    # no trade price at all, so its result is not derivable.
     Portfolixir.WorldFixtures.put_quote!(alpha, Date.utc_today(), "150")
 
     Map.merge(world, %{classification: classification, core: core, alpha: alpha, dark: dark})
@@ -484,7 +486,7 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
     deposit!(dollar, "10000", ~D[2026-01-01], currency: "USD")
     buy!(dollar, crossing, quantity: "10", price: "150", currency: "USD")
     put_quote!(crossing, Date.utc_today(), "180")
-    buy!(world, aurora, quantity: "2", price: "10")
+    deliver_untraded!(world, aurora, "2")
 
     data =
       get_json(conn, "/api/v1/category-results?classification_id=#{world.classification.id}")

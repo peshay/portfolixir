@@ -1700,7 +1700,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     Portfolixir.WorldFixtures.deposit!(world, "10000", ~D[2026-01-01])
     Portfolixir.WorldFixtures.buy!(world, losing, quantity: "10", price: "100")
-    Portfolixir.WorldFixtures.buy!(world, dark, quantity: "10", price: "50")
+    Portfolixir.WorldFixtures.deliver_untraded!(world, dark, "10")
 
     # Only the losing position has a quote: 1,000 invested, now worth 800.
     Portfolixir.WorldFixtures.put_quote!(losing, Date.utc_today(), "80")
@@ -1718,12 +1718,11 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert html =~ ~r/data-role="category-result-partial"[^>]*>\s*1\s*\/\s*2/
 
     # #1048: the member left out is named where the totals are read, with
-    # its reason in words -- not only as a bare "1/2" with a title. With no
-    # quote it has no usable price for the result, but "Value" reads it at
-    # its trade price, so the note says it is in there.
+    # its reason in words -- not only as a bare "1/2" with a title. With
+    # neither a quote nor a trade price no rule values it (#1368), so
+    # "Value" has no figure for it either, and the note says nothing of it.
     assert note_text(html) ==
-             "1 position is not included in “Cost” and “Result”: Dark AG (Core), no usable price. " <>
-               "It is included in “Value”."
+             "1 position is not included in “Cost” and “Result”: Dark AG (Core), no usable price."
   end
 
   # The note's sentence as a reader gets it: the body's text, whitespace
@@ -1916,20 +1915,22 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
     put_quote!(ashgrove, Date.utc_today(), "70")
 
-    # A EUR member with no quote: "Wert" reads it at its trade price.
+    # A EUR member delivered in, never traded or quoted: no rule values it,
+    # in "Wert" either (#1368).
     brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
     file!(brackwater, world.classification, world.platforms)
-    buy!(world.euro, brackwater, quantity: "2", price: "50")
+    deliver_untraded!(world.euro, brackwater, "2")
 
     {:ok, view, _html} =
       live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
 
     html = render(view)
 
-    # The count, then how many of them "Wert" holds: the one it values,
-    # not the two USD members it cannot.
+    # The count, and no word of "Wert": it values none of the three, the
+    # two USD members for want of a rate and Brackwater for want of any
+    # price (UX-DR26: never said of a member whose row prints "—").
     assert note_text(html) =~
-             ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. 1 davon ist im „Wert“ enthalten\. Die 3 Positionen /
+             ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. Die 3 Positionen /
 
     # The members, by name, as aligned lines: name · category · cost or
     # reason. The lead names no reason, since the reasons differ, so a cost
@@ -2010,13 +2011,13 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
     file!(brackwater, world.classification, world.platforms)
-    buy!(world.euro, brackwater, quantity: "2", price: "50")
+    deliver_untraded!(world.euro, brackwater, "2")
 
     {:ok, view, _html} = live_drained(conn, "/classifications/#{world.classification.id}")
     html = render(view)
 
     assert note_text(html) =~
-             ~r/^3 positions are not included in “Cost” and “Result”\. They are included in “Value”\. The 3 positions /
+             ~r/^3 positions are not included in “Cost” and “Result”\. 2 of them are included in “Value”\. The 3 positions /
 
     assert note_lines(html) == [
              ["Ashgrove Mining Ltd", "Kern global", "cost 250.00 USD, not paid in EUR"],
@@ -2071,7 +2072,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
     file!(brackwater, world.classification, world.platforms)
-    buy!(world.euro, brackwater, quantity: "2", price: "50")
+    deliver_untraded!(world.euro, brackwater, "2")
 
     {:ok, view, _html} =
       live_drained(conn, "/classifications/#{world.classification.id}?locale=de")

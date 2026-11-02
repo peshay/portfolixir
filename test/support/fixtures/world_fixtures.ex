@@ -218,6 +218,27 @@ defmodule Portfolixir.WorldFixtures do
   end
 
   @doc """
+  Records an inbound delivery of `quantity` units of `security` into
+  `world`'s depot: shares that arrive without a trade, so no own trade price
+  exists for them. Without a quote such a holding is one no rule can value
+  (ADR-0010; #1368). Options: `:date` (default `~D[2026-01-02]`).
+  """
+  def deliver_untraded!(%{portfolio: portfolio, depot: depot}, security, quantity, opts \\ []) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        security_id: security_id(security),
+        type: "inbound_delivery",
+        date: Keyword.get(opts, :date, ~D[2026-01-02]),
+        quantity: quantity,
+        currency_code: "EUR"
+      })
+
+    tx
+  end
+
+  @doc """
   Records a deposit of `amount` into `world`'s cash account on `date`.
   """
   def deposit!(%{portfolio: portfolio, cash: cash}, amount, date, opts \\ []) do

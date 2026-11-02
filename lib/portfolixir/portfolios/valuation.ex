@@ -186,14 +186,13 @@ defmodule Portfolixir.Portfolios.Valuation do
   the total it adds into are priced by one function (`price_for/4`).
 
   Options: `:prices` (for tests, `%{security_id => Decimal}` native quote
-  overrides, as `for_portfolio/2` takes them), `:pricing_context`, and
-  `trade_fallback: false`, which leaves a trade-priced security unpriced —
-  the per-category result's quote-only pricing, kept until its own
-  decision (`Portfolixir.Portfolios.CategoryResult`).
+  overrides, as `for_portfolio/2` takes them) and `:pricing_context`. There
+  is no switch to price by quotes alone: the per-category result
+  (`Portfolixir.Portfolios.CategoryResult`), the last read that did, reads
+  this rule too since #1368, so no surface prices a position two ways.
   """
   def price_points(security_ids, opts \\ []) when is_list(security_ids) do
     prices = Keyword.get(opts, :prices, %{})
-    trade_fallback? = Keyword.get(opts, :trade_fallback, true)
     security_ids = Enum.uniq(security_ids)
 
     context =
@@ -204,10 +203,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       security_currency = security && security.currency_code
 
       {price, price_currency, price_source} =
-        case price_for(security_id, prices, context, security_currency) do
-          {_price, _currency, :trade} when not trade_fallback? -> {nil, nil, nil}
-          resolved -> resolved
-        end
+        price_for(security_id, prices, context, security_currency)
 
       {security_id,
        %{
