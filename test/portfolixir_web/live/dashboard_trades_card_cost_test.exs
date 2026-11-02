@@ -119,7 +119,8 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
     card = view |> render() |> Floki.parse_document!() |> Floki.find("#dashboard-trades")
 
     %{
-      head: text(Floki.find(card, ".section-head")),
+      head: text(Floki.find(card, ".section-head h2, .section-head > a")),
+      tip: text(Floki.find(card, ".section-head [data-role='section-info'] p")),
       notes: card |> Floki.find(".data-note") |> Enum.map(&text/1),
       basis: text(Floki.find(card, "[data-role='trades-card-basis']")),
       rows:
@@ -157,10 +158,12 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
                "Attention 1 sale with no stored rate on its close date is left out of the " <>
                  "trades: Fernhill Energy plc. The rate backfill is under “All trades”."
              ],
+             # I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ①): the
+             # p. a. rule moved from the basis line into the heading's ⓘ.
+             tip: "p. a. only from 365 days of holding and only where a rate solves the flows",
              basis:
                "The 5 most recently closed · result in EUR · FIFO across every depot, " <>
-                 "whatever the view · p. a. only from 365 days of holding and only where " <>
-                 "a rate solves the flows",
+                 "whatever the view",
              rows: [
                {"Gorse Lane plc",
                 "Gorse Lane plc sold 2026-04-15 · 461 days +25.00 EUR +73.1% p. a.",
