@@ -1220,8 +1220,10 @@ Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
 **Bruttogewinn** je Tranche und in Summe — Verkaufserlös minus
 FIFO-Anschaffungskosten der verbrauchten Lots, vor Gebühren, zum
-eingegebenen Preis (oder zum zuletzt gespeicherten Preis, bis einer getippt
-ist). Die Zahl ist indikativ und keine Netto-Größe; das Buchen des Verkaufs
+eingegebenen Preis (oder, bis einer getippt ist, zu dem Preis, mit dem die
+Bestände rechnen: dem zuletzt gespeicherten Preis oder, ohne ihn, dem
+letzten eigenen Handelspreis, den die Vorschau nennt, „Bepreist zum letzten
+eigenen Handelspreis: 19,20 (14.03.2025).“, Issue #1369). Die Zahl ist indikativ und keine Netto-Größe; das Buchen des Verkaufs
 ändert nichts daran, wie der Einstand gespeichert wird (Bestände behalten
 ihren gleitenden Durchschnitt, der Trades-Tab das FIFO-Matching). Lots
 werden first-in, first-out über alle Depots gematcht, wie in der
@@ -2786,7 +2788,11 @@ Portfolios (Issue #1316): zum letzten Kurs oder, ohne Kurs, zum letzten
 eigenen Handelspreis, mit „zum Handelspreis“ unter der Zahl, damit die
 Zeilen ihr **Gesamt** ergeben. Eine Position ganz ohne Preis liest „—“ mit
 „kein Preis“, das Gesamt liest „—“ statt 0,00, und ein Hinweis unter der
-Tabelle nennt die Zeilen, die in der Summe fehlen. Ein offener Lot oder ein
+Tabelle nennt die Zeilen, die in der Summe fehlen. Die **Offenen Positionen
+(FIFO)** des Trades-Tabs nehmen denselben Preis (Issue #1369): ein Lot
+eines Wertpapiers ohne Kurs liest unter **Letzter** seinen letzten eigenen
+Handelspreis mit „Handelspreis · 14.03.2025“ darunter, und sein
+unrealisierter G/V und seine Beiträge werden gegen ihn gerechnet. Ein offener Lot oder ein
 abgeschlossener Trade ohne Kosten zeigt in seiner Spalte „%“ den Strich mit
 „Keine Rendite: keine Kostenbasis“, ebenso der Tab **Bestände** des
 Wertpapiers und die optionale Spalte **G&V %** im Vermögen für Stücke, die

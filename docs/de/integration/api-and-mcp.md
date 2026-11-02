@@ -3062,7 +3062,16 @@ Beispiel-Payloads für Konten:
   `total_return_base_*`, `decomposed`/`undecomposed_reason`, gegen den
   EUR-Hub, da FIFO-Lots je Wertpapier über Portfolios hinweg gematcht
   werden). Ein Lot ohne ableitbares Wertpapierwährungs-Leg meldet `null`-G/V
-  statt eines blinden währungsübergreifenden Vergleichs. Die Antwort ist
+  statt eines blinden währungsübergreifenden Vergleichs. Seit Issue #1369
+  wird ein offenes Lot nach der Regel des Bestandslesens bepreist
+  (ADR-0010): sein `latest_price` ist der letzte Schlusskurs, sonst der
+  letzte eigene Handelspreis über alle Portfolios, in der eigenen Währung
+  des Wertpapiers, und das Lot nennt ihn in `price_source` (`quote` |
+  `trade`) und `price_date`, `null` ohne Preis;
+  `computation_basis.latest_price` nennt die Regel. Ein Wertpapier ohne
+  Kurs, gekauft 15 zu 18,00 und 5 zu 19,20, liest `latest_price` 19,20 mit
+  `price_source` `trade` auf beiden Lots und `unrealized_pnl_abs` 18,00 und
+  0,00, die Zahl seines Bestands. Die Antwort ist
   selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
   annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Da ein Verkauf das
   älteste Lot verbraucht, gleich welches Portfolio es gekauft hat, skaliert ein

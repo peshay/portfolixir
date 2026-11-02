@@ -2979,7 +2979,15 @@ church tax withheld at a zero church-tax rate.
   `total_return_base_*`, `decomposed`/`undecomposed_reason`, against the EUR
   hub, since FIFO lots are matched per security across portfolios). A lot
   with no derivable native leg reports `null` P&L instead of a blind
-  cross-currency figure. The response is self-describing (FR-13):
+  cross-currency figure. Since issue #1369 an open lot is priced by the
+  holdings read's rule (ADR-0010): its `latest_price` is the latest quote
+  close, else the last own trade price across all portfolios, in the
+  security's own currency, and the lot names it in `price_source` (`quote`
+  | `trade`) and `price_date`, `null` with no price;
+  `computation_basis.latest_price` states the rule. A security without a
+  quote, bought 15 at 18.00 and 5 at 19.20, reads `latest_price` 19.20 with
+  `price_source` `trade` on both lots and `unrealized_pnl_abs` 18.00 and
+  0.00, the figure its holding reads. The response is self-describing (FR-13):
   it carries `method: "fifo"`, so a client never has to assume how lots were
   paired against sells. Since a sale consumes the oldest lot whatever
   portfolio bought it, a split scales every open lot of the security once on

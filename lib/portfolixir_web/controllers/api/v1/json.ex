@@ -531,6 +531,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # realized-gains read carries.
       computation_basis: %{
         annualized_return: TradeReturn.basis(),
+        # #1369 (Sprint 23 R4): an open lot is priced as the holdings read
+        # prices its holding, and names the source.
+        latest_price: Ledger.holding_price_basis(),
         # #1142 (plan D-6): a return on no cost is null, never 0.
         realized_pnl_pct: Ledger.realized_pnl_pct_basis(),
         unrealized_pnl_pct: Ledger.unrealized_pnl_pct_basis(),
@@ -567,6 +570,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       buy_fees: decimal(lot.buy_fees),
       buy_taxes: decimal(lot.buy_taxes),
       latest_price: decimal(lot.latest_price),
+      price_source: reason(lot.price_source),
+      price_date: date(lot.price_date),
       unrealized_pnl_abs: decimal(lot.unrealized_pnl_abs),
       unrealized_pnl_pct: decimal(lot.unrealized_pnl_pct),
       currency_code: lot.currency_code,

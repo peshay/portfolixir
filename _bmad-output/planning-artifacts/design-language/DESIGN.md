@@ -7676,6 +7676,32 @@ bottom:
 - Every cell carries `data-column` with its column key. The phone rows
   (quantity only) do not change.
 
+*Amended 2026-11-02 (Sprint 23 R4, issue 1369; plan D-4; board
+`mockups/ux-design-2026-11-02-sprint23/02-money` ①b):* the open lots and
+the sell preview take the same rule from the same function
+(`Ledger.list_trades_for_security/2` and `sell_consumption_preview/3` read
+`Valuation.price_points/2`), so a trade-priced security no longer reads
+„—“ there while its Bestände tab shows a value. No new CSS.
+
+- **The security's Trades tab, „Offene Positionen (FIFO)“**
+  (`#detail-tab-panel-trades`): „Letzter“ (`data-role="lot-latest-price"`)
+  is the price the holdings use, in the security's currency. A
+  trade-priced lot carries Wealth's cell note „Handelspreis · 14.03.2025“
+  (the same msgid) under its figure; a quoted lot carries none, as before.
+  Unrealisierter G/V, %, Kurs-, Währungsbeitrag and Gesamt (Basis) follow
+  that price like a quoted lot's: Helios, bought 15 at 18,00 and 5 at
+  19,20, reads +18,00 (+6,7 %) and 0,00 (0,0 %). A lot with no price at
+  all reads „—“ with no note, its „%“ the reason dash.
+- **The sell preview** (`#sell-lot-preview`): with no price typed, the
+  preview is priced at the same price. Its hint
+  (`data-role="preview-price-hint"`, `.form-help`, above the lot table)
+  names the source: a quote keeps „Bepreist zum zuletzt gespeicherten
+  Preis: 130,00.“, a trade price reads „Bepreist zum letzten eigenen
+  Handelspreis: 19,20 (14.03.2025).“ (English "Priced at the last own
+  trade price: 19.20 (2025-03-14)."), the price by the stored-figure rule,
+  the date by `Format.date/1`. A typed price carries no hint. Selling 5
+  Helios reads Bruttogewinn +6,00 EUR on the lot and in Gesamt.
+
 **The security's Transaktionen tab, Brutto** (board ②): a dividend's or an
 interest booking's Brutto is Income's gross, the cash credited plus the
 tax withheld (`Income.gross_of/1`): 7,50 cash with 1,98 tax reads 9,48.
