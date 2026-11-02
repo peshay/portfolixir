@@ -7835,3 +7835,129 @@ alone"), without the note.
   side, and a figure keeps its currency on its line (`nowrap`), so
   Bruttogewinn stays in view at the drawer's 380 px. The seven columns of a
   cross-currency preview still scroll inside the wrapper.
+
+## Amendment 2026-11-02 — Explanations behind a section ⓘ, data notes clamped and collected *(Sprint 22 Lane I; idea I1, variant R adopted by the owner on 2026-11-01; board `mockups/ux-design-2026-11-01-sprint22/01-i1`, pick Q1 adopted as recommended; issues 1351, 1350, 1336, 1342)*
+
+A section's **method sentences** (how a figure is computed, what a term
+means, what a control does) leave the page and sit in one ⓘ beside the
+section's heading. The **basis clauses** (view, period, currency, as-of,
+gross/net, the set of rows, a threshold) stay visible as the basis line
+(UX-DR11). **Data notes** clamp to two lines (three under 560 px) and,
+where two or more attention or note items share a block, fold into one
+line with their counts. **Problems** always stay visible and lead their
+block. UX-DR11, UX-DR17 and UX-DR25 stand; this amendment says how each
+reads under the clamp and the fold.
+
+### The classification rule — per text, not per CSS class
+
+`.hint`, `.muted` and `.summary-basis` carry all four classes today, so a
+text is never moved by its class. The tests run top to bottom and the
+first that holds decides. Anything inside a table, a row, a form's field
+help, a dialog or a disclosure's own body is out of scope and does not
+move.
+
+| Class | Test | What the build does |
+|---|---|---|
+| **Problem** | A data note at severity problem (UX-DR17). | Always visible: it never folds and it leads its block. It clamps like every note, with „mehr“ where the text is cut. |
+| **Basis clause** | Names a parameter the figure was computed with: view, period or window, currency, as-of or computed-at, gross/net, the set of rows or depots, a threshold. It would read differently if the operator chose another parameter, not if the data changed. | Stays as the basis line. A clause that mixes a parameter with a method word stays whole. |
+| **Data fact** | Changes when the stored records change: a count, a name, an amount, a record's date, a yes/no. | Inside a data note, it clamps. The note folds when two or more attention/note items share a block, **unless it names rows left out of a total** (UX-DR25): then it only clamps and keeps its count in its first line (Q1, correction 1). Outside a note, it stays where it is. |
+| **Method sentence** | True on any instance with any data: how a figure is computed, what a term means, what a control does. | Moves into the section's ⓘ: the heading's, or the facet's where the section has no heading of its own. **Exception:** a sentence inside a note that says why its remedy can or cannot act stays in the note (UX-DR25 clause 3) and clamps with it. |
+
+Two more corrections of Q1 hold for every note: **a note's remedy control
+stays visible under the clamp** (the text clamps, the button or the
+disclosure below it does not; UX-DR17 clause 3), and the classification is
+made text by text, never by the prototype's clause length (a 42-character
+cut would have hidden Fällig's set and window and the drift threshold).
+
+**UX-DR25 under the clamp:** a note that names excluded rows keeps the
+count in its first line, so the count is always visible; the names are one
+tap away („mehr“). It never folds.
+
+### Wealth → Bestände, text by text
+
+| Text (German UI) | Where | Class | Outcome |
+|---|---|---|---|
+| „Eine Ansicht grenzt jede Kennzahl … nicht als Summe gelesen werden.“ | view switcher ⓘ | method | already behind its ⓘ; the ⓘ becomes a popover (#1350) |
+| „Standard-Ansicht“ | view switcher, `[data-role=default-view-marker]` | data fact | stays |
+| „Eingegrenzt auf Ansicht: …“ | view switcher, `[data-role=active-view]` | basis (view) | stays |
+| „Die gewählte Ansicht existiert nicht mehr …“, „Die gewählte Klassifikation existiert nicht mehr …“ | page head, status | data fact | stays |
+| „Diese Ansicht trifft keine Konten …“ | page head, `[data-role=view-matches-nothing]` | data fact with its remedy | stays |
+| TTWROR, IRR, Cashquote, Eingesetztes Kapital, Vermögens-Multiplikator | KPI cards' ⓘ | method | already behind their term ⓘ; unchanged |
+| „11 gehaltene Positionen werden zum letzten Handelspreis bewertet …“ | Datenqualität, `dq-trade-priced` (note) | data fact | clamps, folds |
+| „2 gehaltene Positionen werden mit Kursen bewertet, die älter als 7 Tage sind …“ | Datenqualität, `dq-stale-priced` (attention) | data fact | clamps, folds |
+| „Buchungen mit Datum vor 1970 (…) werden am ersten plausiblen Tag angewendet …“ | Datenqualität, `dq-suspect-dates` (attention) | data fact | clamps, folds |
+| „Eine gehaltene Position hat gar keinen Preis und fehlt in den Summen: …“ | Datenqualität, `dq-no-price` | data fact, names excluded rows | clamps, never folds |
+| „2 gehaltene Positionen haben einen Preis, aber keinen gespeicherten Wechselkurs …“ | Datenqualität, `dq-missing-fx` | data fact, names excluded rows | clamps, never folds; „Wechselkurse synchronisieren“ stays visible |
+| „3 Verrechnungskonten zählen nicht in die Summen …“ | Datenqualität, `dq-unvalued-cash` | data fact, names excluded rows | clamps, never folds; its sync button stays visible |
+| negative holdings, two scales (both directions), quotes that do not match their bookings | Datenqualität, the four problem notes | problem | lead the block, clamp, never fold |
+| „Bis zu zwei Benchmarks — die ersten beiden angekreuzten gelten.“ | Performance, the benchmark picker | field help | out of scope, stays |
+| „Benchmarks werden nur in der Ansicht % (TTWROR) gezeichnet …“ | Performance, `[data-role=benchmark-value-hint]` | basis (the chart's mode; UX-DR26) | stays |
+| „02.11.2025 – 02.11.2026 · berechnet …“ | Performance, `[data-role=performance-basis]` | basis | stays |
+| „Zusammensetzung per heute — die aktuelle Bucket-Zuordnung der Ansicht …“ | Performance, `[data-role=composition-label]` | basis (view, as-of), mixed | stays whole |
+| „Start-/Endwert, Rendite und Flüsse je Zeitraum — der Chart, zusammengefasst.“ | Performance, inside „Daten als Tabelle“ | a disclosure's own body | out of scope, stays |
+| „Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten“ | Beitrag je Position, `[data-role=contribution-basis]` | method | **moves** into the ⓘ beside „Beitrag je Position“ |
+| „je Position in EUR, einschließlich der Währungsbewegung“ | the same line | basis (currency) | stays as the basis line |
+| „Anfangswert: der Schluss des Vortags“ | the same line | method | **moves** |
+| „Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis“ | the same line | method | **moves** |
+| „4 Positionen zählten an einigen Tagen des Zeitraums null: …“ | Beitrag je Position, `contribution-unvalued` | data fact, names excluded rows | clamps, never folds |
+| „am Ende nicht mehr im Bestand“, „zu Beginn nicht im Bestand“ | Beitrag je Position, row text | inside a row | out of scope, stays |
+| „Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs … Marktwert in EUR, wie ihn die Summe zählt.“ | Positionen, `[data-role=positions-basis]` | basis (the set of rows, currency), mixed | stays whole |
+| „Salden auf Konten & Depots setzen“ | Barbestand, a link | a control | stays |
+
+### Übersicht, text by text
+
+| Text (German UI) | Where | Class | Outcome |
+|---|---|---|---|
+| „Nicht in der Summe: 3 Verrechnungskonten ohne Wechselkurs zu EUR — …“ | value card, `wealth-card-excluded` | data fact, names excluded rows | clamps, never folds; „Details in Vermögen →“ stays visible |
+| „Ansicht Alles · Rendite über 1J bis … · in EUR · Kurse: …“ | KPI strip, `[data-role=kpi-strip-basis]` | basis | stays whole; it already ends in its own ⓘ |
+| „1 Verkauf ohne gespeicherten Wechselkurs … Das Nachladen der Wechselkurse steht unter „Alle Trades“.“ | Abgeschlossene Trades, `trades-card-excluded` | data fact, names excluded rows; the pointer to the remedy stays in it | clamps, never folds |
+| „Die 5 zuletzt abgeschlossenen“ · „Ergebnis in EUR“ · „FIFO über alle Depots, unabhängig von der Ansicht“ | Abgeschlossene Trades, `[data-role=trades-card-basis]` | basis (set, currency, depots) | stays as the basis line |
+| „p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst“ | the same line | method | **moves** into the ⓘ beside „Abgeschlossene Trades“ |
+| „Ansicht Alles · Plan „Plan“ auf … · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.“ | Ziel-Abweichungen, `[data-role=attention-explainer]` | basis (view, plan, threshold) | stays |
+| „Datierte Fakten zu jedem Wertpapier im Katalog — gehalten oder nicht —, die in den nächsten 30 Tagen anstehen.“ | Fällig, `[data-role=upcoming-basis]` | basis (set, window) | stays |
+| „Ein als Zeitraum oder Monat angegebener Termin gilt als fällig, sobald …“ | the same line | method | **moves** into the ⓘ beside „Fällig“ |
+| „29 Wertpapiere im Katalog ohne Kurs seit 7 Tagen · …“ | Datenqualität, `[data-role=data-quality-line]` | problem (or the line's highest severity) | clamps, stays visible |
+
+### Cashflow, text by text (all four facets)
+
+| Text (German UI) | Where | Class | Outcome |
+|---|---|---|---|
+| „Beträge in EUR · …“ (each facet) | `[data-role=facet-basis]` | basis | stays; it already ends in the facet's ⓘ |
+| the facet's composition („Im Ledger gebuchte Dividenden …“, „Realisierte Gewinne und Verluste …“, „Eingezahltes und entnommenes Geld …“, „Die Gebühren- und Steuer-Nebenbeträge …“) | the facet's ⓘ | method | already behind the facet's ⓘ; unchanged |
+| „1 Zahlung konnte nicht umgerechnet werden … Betroffene Währung: …“ | Erträge, `income-excluded` | data fact, names excluded rows | clamps, never folds; the backfill button stays visible |
+| „Die tägliche Synchronisation der Wechselkurse kann einen vergangenen Tag nicht nachtragen. …“ | inside each backfill note | method, says why the remedy can act | **stays in the note** (the exception) and clamps with it |
+| „Jahr × Monat, Dividenden und Zinsen getrennt — die Chartdaten ohne das Chart.“, „Dieselben abgeschlossenen Trades, nach Jahr und Monat aggregiert.“ | a disclosure's own body | out of scope | stays |
+| „netto 120,00“ | Erträge, Top-Beiträge | inside a row | out of scope, stays |
+| „1 Verkauf konnte nicht konvertiert werden …“ | Trades, `realized-excluded` | data fact, names excluded rows | clamps, never folds; the backfill button stays visible |
+| „2 Verkäufe haben für ihre ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf …“ | Trades, `realized-unmatched` | data fact, names excluded rows | clamps, never folds; „Die 2 Verkäufe“ stays visible |
+| „Einlieferungen eröffnen keinen Lot“ | Trades, `[data-role=trades-basis]` | method | **moves** into the facet's ⓘ, under its text |
+| „Gebühren und Steuern in Einstand und Erlös“ · „Erträge während der Haltedauer nicht enthalten“ | the same line | basis (gross/net) | stays as the basis line |
+| „p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst“ | the same line | method | **moves** into the facet's ⓘ |
+| „2 Zahlungsströme konnten nicht konvertiert werden …“ | Flüsse, `flows-excluded` | data fact, names excluded rows | clamps, never folds; the backfill button stays visible |
+| „… Kostenposten konnten nicht konvertiert werden …“ | Kosten, `costs-excluded` | data fact, names excluded rows | clamps, never folds; the backfill button stays visible |
+
+### Texts that carry data facts and must NOT move
+
+Scanned on every page of the review seed (board 01). Each stays where it
+is, whatever its CSS class:
+
+| Text | Where |
+|---|---|
+| „Wieder eingespielt? Ja“ | Snapshots, comparison: `small.hint[data-role=cost-recovery]` |
+| „Buy-and-hold der am 03.08.2026 eingefrorenen Bestände: 47.301,57 → 47.834,43 EUR“ | Snapshots, comparison: `small.hint` |
+| „netto, alle Kosten enthalten“, „Gebühren und Steuern auf Handelsgeschäfte ausgenommen“ | Snapshots, comparison: the basis of a stat |
+| „31.12.2025 · Steuerjahr 2025 · erfasst · Erfasst von: Agent“ | Steuern, recorded statements: `span.hint` |
+| „Steuerfreier Verkaufsspielraum bei diesem Institut: 0,00.“ | Steuern, recorded statements: a figure in `p.summary-basis` |
+| „Freistellungsauftrag 640,00 von 1.000,00 verbraucht · Stand 31.12.2025 · …“ | Steuern, budget: `[data-role=budget-basis]` |
+| „netto 120,00“ | Cashflow, Erträge, Top-Beiträge: `span.muted` |
+| „Standard-Ansicht“ | Vermögen, view switcher: `[data-role=default-view-marker]` |
+| „Σ Soll oberste Ebene: 105,0%“ | Allokation: a figure in `[data-role=allocation-basis]` |
+| „Broker Nord Verrechnung, Broker Süd Verrechnung, …“ | Ansichten, Buckets: the account names in `[data-role=assignment-basis]`; its first sentence is a method sentence |
+| „Anlageklasse Fonds“ | Wertpapier, Überblick: `[data-role=overview-basis]` |
+| „am Ende nicht mehr im Bestand“, „zu Beginn nicht im Bestand“ | Vermögen, Beitrag je Position: row text |
+
+**This sprint builds Wealth (Bestände), Overview and Cash flow** (the plan's
+shrink order, item 3). The other pages — Wealth's Allokation tab, the
+security detail, Snapshots, Taxes, Views and the rest — follow in Sprint 23
+under the same board and this rule; their texts are classified when their
+page lands.
