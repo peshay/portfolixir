@@ -1472,6 +1472,35 @@ describe("Portfolixir MCP tools", () => {
     assert.match(rules, /truncated/);
   });
 
+  // #1254 (Sprint 22, A1): every other capped list read echoes its limit and
+  // truncated too, and its tool says so where it describes the read's shape,
+  // so an agent never takes a capped answer for the whole one.
+  it("names limit and truncated on every capped list read outside the delta reads", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.journal.list",
+      "portfolixir.merges.list",
+      "portfolixir.exchange_rates.list",
+      "portfolixir.quotes.list",
+      "portfolixir.quotes.manual",
+      "portfolixir.snapshots.list",
+      "portfolixir.cashflow.realized_gains",
+      "portfolixir.cashflow.external_flows",
+      "portfolixir.cashflow.costs",
+      "portfolixir.notes.unreviewed",
+      "portfolixir.notes.uncorroborated",
+      "portfolixir.notes.expiring",
+      "portfolixir.events.upcoming",
+      "portfolixir.events.unconfirmed",
+      "portfolixir.events.stale"
+    ]) {
+      assert.match(description(name), /\blimit\b/, name);
+      assert.match(description(name), /\btruncated\b/, name);
+    }
+  });
+
   // E25 S6, F43: a delete removes its children through their journaled
   // writers first, one entry per row, and the tools say what goes with it.
   it("states the per-row journaled children of the classification, category, plan and view deletes", () => {
