@@ -37,7 +37,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, data_quality} <- data_quality_param(params),
          {:ok, serializer} <- listing_serializer(params),
          {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
-         {:ok, since} <- SinceParam.parse_page(params) do
+         {:ok, since} <- SinceParam.parse_page(params),
+         :ok <- SinceParam.refuse_offset(params, since) do
       serializer = fields_serializer(fields, serializer)
       limit = Keyword.fetch!(opts, :limit)
 
@@ -56,6 +57,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
       page = %{has_more: truncated, last: last_stamp(securities)}
       json(conn, SinceParam.put_page_envelope(envelope, since, page))
     else
+      {:refused, errors} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: errors})
+
       {:error, field} ->
         conn
         |> put_status(:unprocessable_entity)

@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
          {:ok, since} <- SinceParam.parse_page(params),
+         :ok <- SinceParam.refuse_offset(params, since),
          %Security{} = security <- Catalog.get_security(security_id) do
       # K17: one row past the limit tells a full page from the whole log, and
       # a delta read is a page after the cursor.
@@ -75,6 +76,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
       page = %{has_more: truncated, last: last_stamp(entries)}
       json(conn, SinceParam.put_page_envelope(payload, since, @delta_note, page))
     else
+      {:refused, errors} -> unprocessable(conn, errors)
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       nil -> MergedAway.not_found(conn, :security, security_id)
     end
