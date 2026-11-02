@@ -7,6 +7,11 @@ defmodule PortfolixirWeb.Api.V1.ListLimit do
   tens of thousands of transactions, NFR-8) never sees them; they bound what
   one call can ask the instance to materialise, not what an operator can
   read. The quote upsert has a row cap for the same reason.
+
+  Every capped read echoes the `limit` it applied and `truncated`, true when
+  more rows matched than the answer holds (K17 for the five delta reads,
+  #1254 for the rest): at the top level beside `data` when `data` is the
+  list, inside `data` when `data` is an object.
   """
 
   @quote_upsert_max_rows 10_000
@@ -44,6 +49,17 @@ defmodule PortfolixirWeb.Api.V1.ListLimit do
   def page(rows, limit) when is_list(rows) and is_integer(limit) and limit > 0 do
     {page, rest} = Enum.split(rows, limit)
     {page, rest != []}
+  end
+
+  @doc """
+  `page/2` for a read whose limit keeps the NEWEST rows and answers them
+  ascending (the quote history, #771): of the rows fetched with `fetch/1`,
+  the oldest is the one left out (#1254).
+  """
+  @spec page_newest([term()], pos_integer()) :: {[term()], boolean()}
+  def page_newest(rows, limit) when is_list(rows) and is_integer(limit) and limit > 0 do
+    {cut, page} = Enum.split(rows, -limit)
+    {page, cut != []}
   end
 
   defp parse_binary(value, max) do

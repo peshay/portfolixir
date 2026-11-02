@@ -64,6 +64,8 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
       base_currency: base,
       annual: annual,
       limit: limit,
+      # #1254: whether the limit left years of the matrix out.
+      truncated: length(annual) < length(full),
       excluded: %{
         count: length(excluded),
         accounts: excluded |> Enum.map(& &1.account_name) |> Enum.uniq() |> Enum.sort()
