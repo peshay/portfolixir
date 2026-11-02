@@ -371,4 +371,38 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     assert stored.type == "cash_transfer"
     assert stored.security_id == nil
   end
+
+  # User story (Sprint 22 closing act, coverage of #1333's account_label):
+  # As the operator whose agent opened an account and booked on it while my
+  # transaction screen stood open,
+  # I want "Edit" on that booking to open its facts anyway,
+  # so that an account the page has not loaded yet never breaks the drawer.
+  #
+  # Acceptance criteria:
+  # - A transfer to an account created after the page loaded opens the
+  #   notes-only drawer; the account the page knows reads by its name, the
+  #   one it has not loaded reads "—".
+  test "an account the page has not loaded reads as a dash in the facts",
+       %{conn: conn, world: world} do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    late = add_depot(world.portfolio, cash_name: "Festgeld", depot_name: "Depot 3")
+
+    transfer =
+      book!(%{
+        type: "cash_transfer",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        counter_cash_account_id: late.cash.id,
+        gross_amount: "200",
+        date: ~D[2026-09-04]
+      })
+
+    render_click(view, "edit_transaction", %{"id" => to_string(transfer.id)})
+
+    facts = view |> element("#booking-facts") |> render() |> text()
+    assert facts =~ "Girokonto"
+    assert facts =~ "—"
+    refute facts =~ "Festgeld"
+  end
 end

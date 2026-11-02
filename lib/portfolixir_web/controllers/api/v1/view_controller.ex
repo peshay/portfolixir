@@ -81,7 +81,10 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     end
   end
 
-  defp wrapped_fields(%{} = body) when not is_struct(body) do
+  # The endpoint's Plug.Parsers runs before every route, so `body_params` is
+  # always a plain map: `%{}` for an empty or unparsed body, a JSON array
+  # under "_json".
+  defp wrapped_fields(%{} = body) do
     case for(
            {field, message} <- @view_fields,
            Map.has_key?(body, field),
@@ -92,8 +95,6 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
       fields -> {:error, {:unwrapped, fields}}
     end
   end
-
-  defp wrapped_fields(_body), do: :ok
 
   def delete(conn, %{"id" => id}) do
     with {:ok, vid} <- IdParam.parse(id),
