@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.JournalLiveTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Journal.Entry
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
 
@@ -267,9 +268,10 @@ defmodule PortfolixirWeb.JournalLiveTest do
   #   and after differ in the API's entry; an unchanged field is not there.
   # - A created entry folds every stored value, its „Vorher“ „—“.
   # - The entry links its page where it has one: a security its own page, a
-  #   cash account Accounts & depots.
+  #   cash account Accounts & depots, a booking (no page of its own) the
+  #   history, named by its kind and date.
   test "the fold shows only the changed fields", %{conn: conn} do
-    %{cash: cash, kept: kept} = write_some_history!()
+    %{cash: cash, kept: kept, deposit: deposit} = write_some_history!()
 
     [entry | _] =
       api_entries(conn, %{"resource_type" => "cash_account", "operation" => "update"})
@@ -288,6 +290,17 @@ defmodule PortfolixirWeb.JournalLiveTest do
     row = "#journal-entry-#{entry["id"]}"
     assert has_element?(view, "table.journal-table th", "Änderung")
     assert has_element?(view, "#{row} a[href='/portfolios']", "Verrechnungskonto #{cash.id}")
+
+    # A booking has no page of its own: it reads its kind and date and
+    # links the history.
+    [booking] =
+      api_entries(conn, %{"resource_type" => "transaction", "resource_id" => "#{deposit.id}"})
+
+    assert has_element?(
+             view,
+             "#journal-entry-#{booking["id"]} a[href='/transactions']",
+             "Transaktion #{deposit.id} · Einlage 05.05.2025"
+           )
 
     # One line per changed field; the timestamps stay in the fold.
     lines = change_lines(view, row)
@@ -441,6 +454,102 @@ defmodule PortfolixirWeb.JournalLiveTest do
            )
   end
 
+  # User story:
+  # As the operator looking for the journal,
+  # I want its entry in the sidebar's „Verwaltung“ group, after
+  # „Klassifizierungen“, where the other record-keeping pages are,
+  # so that the journal is one click from every page and does not claim to
+  # be about bookings only (board 03, pick Q6).
+  #
+  # Acceptance criteria:
+  # - #nav-journal links /journal, reads „Audit-Journal“ and is the last
+  #   link of the group, right after #nav-classifications.
+  # - On /journal it is the current entry and no other is.
+  test "the sidebar's „Verwaltung“ group ends with the journal", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/?locale=de")
+
+    assert has_element?(view, "#nav-journal[href='/journal']", "Audit-Journal")
+
+    group =
+      view
+      |> element("#app-sidebar .nav-group:has(#nav-journal)")
+      |> render()
+      |> Floki.parse_fragment!()
+
+    assert group |> Floki.find(".nav-group-head") |> Floki.text() |> String.trim() == "Verwaltung"
+
+    assert group
+           |> Floki.find("a.nav-link")
+           |> Enum.flat_map(&Floki.attribute(&1, "id"))
+           |> Enum.take(-2) ==
+             ["nav-classifications", "nav-journal"]
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+    assert has_element?(view, "#nav-journal.is-active[aria-current='page']")
+
+    assert [_one] =
+             view
+             |> render()
+             |> Floki.parse_document!()
+             |> Floki.find("#app-sidebar .nav-link.is-active")
+  end
+
+  # User story:
+  # As the operator reading the journal on a phone,
+  # I want each entry as a two-line row — time, operation and actor over
+  # the entry and its change — instead of a table that scrolls sideways,
+  # so that the page works at 390 px as board 03's phone frame draws it
+  # (UX-DR27).
+  #
+  # Acceptance criteria:
+  # - Beside the table, ul.phone-rows.journal-rows holds one row per entry,
+  #   in the table's order.
+  # - A row's first line reads „<time> · <operation> · <actor> (<token>)“,
+  #   then the entry (its link) with „Nur dieser Eintrag“, then the change
+  #   lines and the fold of stored values.
+  # - Under 560 px the stylesheet hides the table and shows the rows.
+  test "under 560 px the entries are two-line rows", %{conn: conn} do
+    %{cash: cash} = write_some_history!()
+
+    [entry | _] =
+      api_entries(conn, %{"resource_type" => "cash_account", "operation" => "update"})
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+
+    doc = view |> render() |> Floki.parse_document!()
+
+    phone_ids =
+      doc
+      |> Floki.find("ul.phone-rows.journal-rows > li.phone-row[data-entry]")
+      |> Enum.flat_map(&Floki.attribute(&1, "data-entry"))
+      |> Enum.map(&String.to_integer/1)
+
+    assert phone_ids == page_ids(view)
+
+    [row] = Floki.find(doc, "ul.journal-rows > li[data-entry='#{entry["id"]}']")
+
+    name =
+      row |> Floki.find(".phone-row__name") |> Floki.text() |> String.split() |> Enum.join(" ")
+
+    assert name =~ ~r/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2} · Geändert · Agent \(review seed\)$/
+
+    assert Floki.find(row, "a[href='/portfolios']") |> Floki.text() =~
+             "Verrechnungskonto #{cash.id}"
+
+    assert Floki.find(row, "a[href='/journal?resource_type=cash_account&resource_id=#{cash.id}']") !=
+             []
+
+    assert Floki.find(row, ".journal-change__line") != []
+    assert Floki.find(row, "details.journal-values") != []
+
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/@media \(max-width: 560px\)\s*\{\s*\.journal-table-wrap\s*\{\s*display: none;/
+
+    assert css =~ ~r/\.journal-rows \.phone-row\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/
+  end
+
   # -- helpers ------------------------------------------------------------------
 
   defp row_cells(tr), do: tr |> Floki.find("td") |> Enum.map(&String.trim(Floki.text(&1)))
@@ -480,7 +589,17 @@ defmodule PortfolixirWeb.JournalLiveTest do
     {:ok, _} = Catalog.delete_security(agent, gone)
     {:ok, cash} = Portfolios.update_cash_account(agent, cash, %{name: "Festgeld Plus"})
 
-    %{kept: kept, gone: gone, cash: cash}
+    {:ok, deposit} =
+      Ledger.create_transaction(agent, %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        type: "deposit",
+        date: ~D[2025-05-05],
+        gross_amount: "600.00",
+        currency_code: "EUR"
+      })
+
+    %{kept: kept, gone: gone, cash: cash, deposit: deposit}
   end
 
   defp api_ids(conn, params) do

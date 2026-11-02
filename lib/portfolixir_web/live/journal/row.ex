@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.Journal.Row do
   """
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.Format
@@ -131,7 +132,7 @@ defmodule PortfolixirWeb.Journal.Row do
   defp name("transaction", %{"type" => type} = image) do
     kind = if type in Transaction.kinds(), do: TransactionKindLabel.label(type), else: type
 
-    case Date.from_iso8601(to_string(image["date"])) do
+    case BoundedDate.parse(image["date"]) do
       {:ok, date} -> kind <> " " <> Format.date(date)
       _no_date -> kind
     end
