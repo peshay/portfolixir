@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
@@ -428,6 +429,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
       extra={depot_collapse_effects(@collapsed)}
       myself={@myself}
     />
+    <.flow_changes
+      changes={@collapsed.flow_changes}
+      bookings={flow_bookings(@pairs, &Map.get(@security_names, &1.security_id))}
+    />
     <.merge_notes kind="depot" preview={@preview} names={@names} />
     """
   end
@@ -622,6 +627,209 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
       )
     end
   end
+
+  # -- the external flows a collapse removes or moves (#957) ------------------------
+
+  @doc """
+  The external flows removing the equal bookings as duplicates drops or
+  moves (ADR-0050 §16 invariant 9, issue 957; board
+  `ux-design-2026-11-02-sprint23/01` ①b), read from the "remove as
+  duplicates" outcome's `flow_changes` — the list the API serves, never
+  computed again. The depot preview and the security preview show it the
+  same way.
+
+  With entries, a section "External flows — with “remove as duplicates”":
+  one row per entry (Date · Effect · Booking · where · Shares · Flow, the
+  flow cell naming what its amount is valued at), the two-line rows under
+  720 px, the method sentences behind the section's ⓘ and the short basis
+  under the table. Without, the single basis line saying no flow moves.
+
+  `bookings` names each collapsed booking by its id ("Buy · Meridian …",
+  `flow_bookings/2`).
+  """
+  attr(:changes, :list, required: true)
+  attr(:bookings, :map, required: true)
+
+  def flow_changes(%{changes: []} = assigns) do
+    ~H"""
+    <p class="merge-basis" data-role="merge-flows-none"><%= gettext(
+        "External flows: none is removed or moved; the return reads the same flows."
+      ) %></p>
+    """
+  end
+
+  def flow_changes(assigns) do
+    assigns = assign(assigns, :rows, flow_rows(assigns.changes, assigns.bookings))
+
+    ~H"""
+    <section class="merge-flows" data-role="merge-flows">
+      <div class="section-title">
+        <h3 class="merge-block-head">
+          <%= gettext("External flows") %>
+          <small><%= gettext("with “remove as duplicates”") %></small>
+        </h3>
+        <AppShell.section_info>
+          <:line><%= gettext(
+              "Removed: a collapsed inbound or outbound delivery, an external flow of its portfolio on its date. Quantity: the change in the units of that flow; the amount at the booked price, without a price at the day's price."
+            ) %></:line>
+          <:line><%= gettext(
+              "View boundary: a transfer, buy or sell with exactly one leg in the view, a flow across its boundary and none of the portfolio's; one entry per view."
+            ) %></:line>
+          <:line><%= gettext(
+              "Set balance: the cash of a removed booking that its account's next set balance absorbs as its residual."
+            ) %></:line>
+          <:line><%= gettext(
+              "Each listed day's flow changes by these entries alone; the return from that day on also reads the removed units no longer held. The preview therefore lists the flows, not a recomputed return."
+            ) %></:line>
+          <:line><%= gettext("View membership is read as it stands; the merge does not change it.") %></:line>
+        </AppShell.section_info>
+      </div>
+      <div class="data-table-wrapper merge-wide">
+        <table class="data-table merge-flows-table">
+          <thead>
+            <tr>
+              <th><%= gettext("Date") %></th>
+              <th><%= gettext("Effect") %></th>
+              <th><%= gettext("Booking") %> · <%= gettext("where") %></th>
+              <th class="num"><%= gettext("Shares") %></th>
+              <th class="num"><%= gettext("Flow") %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              :for={row <- @rows}
+              data-role="merge-flow"
+              data-kind={row.kind}
+              data-date={Date.to_iso8601(row.day)}
+              data-transaction-id={row.transaction_id}
+            >
+              <td><%= row.date %></td>
+              <td><%= row.effect %></td>
+              <td><%= row.booking %><small class="cell-note"><%= row.where %></small></td>
+              <td class="num"><%= row.quantity %></td>
+              <td class="num"><%= row.amount %><small class="cell-note"><%= row.valued_at %></small></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <%!-- Under 720 px each flow is a two-line row, as the preview's other
+           tables are (DC-10): the date and the effect over the amount, and
+           the booking, where, the units and the valuation under it. --%>
+      <ul class="merge-lines merge-narrow">
+        <li
+          :for={row <- @rows}
+          data-role="merge-flow-line"
+          data-kind={row.kind}
+          data-date={Date.to_iso8601(row.day)}
+          data-transaction-id={row.transaction_id}
+        >
+          <span class="merge-lines__head"><%= row.date %> · <%= row.effect %></span>
+          <span class="merge-lines__figure num">
+            <%= row.amount %>
+            <small><%= Enum.join(row.line_parts, " · ") %></small>
+          </span>
+        </li>
+      </ul>
+      <p class="merge-basis">
+        <%= gettext(
+          "One entry per flow of the time-weighted return that removing the duplicates drops or moves · amounts in the account's currency"
+        ) %>
+      </p>
+    </section>
+    """
+  end
+
+  @doc """
+  Each collapsed booking of `pairs` by its id, as the flow section names
+  it: its kind and its security (`security_name` of the pair), "Buy ·
+  Meridian Global Equity ETF".
+  """
+  @spec flow_bookings([map()], (map() -> String.t() | nil)) :: %{term() => String.t()}
+  def flow_bookings(pairs, security_name) do
+    Map.new(pairs, fn pair ->
+      label =
+        [TransactionKindLabel.label(pair.type), security_name.(pair)]
+        |> Enum.reject(&(&1 in [nil, ""]))
+        |> Enum.join(" · ")
+
+      {pair.source_transaction_id, label}
+    end)
+  end
+
+  defp flow_rows(changes, bookings) do
+    names = flow_place_names(changes)
+
+    Enum.map(changes, fn change ->
+      quantity = Format.exact(change.quantity)
+      where = flow_where(change, names)
+      booking = Map.get(bookings, change.collapsed_transaction_id, "—")
+      valued_at = valued_at_label(change)
+
+      shares =
+        if change.quantity, do: [gettext("%{quantity} shares", quantity: quantity)], else: []
+
+      %{
+        kind: Atom.to_string(change.kind),
+        day: change.date,
+        transaction_id: change.collapsed_transaction_id,
+        date: Format.date(change.date),
+        effect: flow_effect(change.kind),
+        booking: booking,
+        where: where,
+        quantity: quantity,
+        amount: flow_amount(change),
+        valued_at: valued_at,
+        line_parts: [booking, where] ++ shares ++ [valued_at]
+      }
+    end)
+  end
+
+  # The names a flow's place reads, loaded once and only for a section with
+  # entries: the depots, the cash accounts and the views.
+  defp flow_place_names(changes) do
+    %{
+      depots:
+        if(Enum.any?(changes, &(&1.kind == :removed)),
+          do: Map.new(Portfolios.list_securities_accounts(), &{&1.id, &1.name}),
+          else: %{}
+        ),
+      cash:
+        if(Enum.any?(changes, &(&1.kind == :absorbed)),
+          do: Map.new(Portfolios.list_cash_accounts(), &{&1.id, &1.name}),
+          else: %{}
+        ),
+      views:
+        if(Enum.any?(changes, &(&1.kind == :boundary_removed)),
+          do: Map.new(Buckets.list_views(), &{&1.id, &1.name}),
+          else: %{}
+        )
+    }
+  end
+
+  defp flow_where(%{kind: :removed, securities_account_id: id}, names),
+    do: Map.get(names.depots, id, "##{id}")
+
+  defp flow_where(%{kind: :boundary_removed, view_id: id}, names),
+    do: gettext("View “%{name}”", name: Map.get(names.views, id, "##{id}"))
+
+  defp flow_where(%{kind: :absorbed, cash_account_id: id}, names),
+    do: Map.get(names.cash, id, "##{id}")
+
+  defp flow_effect(:removed), do: gettext("removed")
+  defp flow_effect(:boundary_removed), do: gettext("removed at the view boundary")
+  defp flow_effect(:absorbed), do: gettext("absorbed by the set balance")
+
+  defp flow_amount(%{change: %Decimal{} = change, currency_code: currency})
+       when is_binary(currency),
+       do: "#{Format.money(change)} #{currency}"
+
+  defp flow_amount(%{change: change}), do: Format.money(change)
+
+  # An absorbed flow is a booking's cash leg: its booked value (the API
+  # leaves valued_at null for it).
+  defp valued_at_label(%{valued_at: :booked_price}), do: gettext("at the booked price")
+  defp valued_at_label(%{valued_at: :market}), do: gettext("at the day's price")
+  defp valued_at_label(_change), do: gettext("at the booked value")
 
   # -- the notes ------------------------------------------------------------------
 
