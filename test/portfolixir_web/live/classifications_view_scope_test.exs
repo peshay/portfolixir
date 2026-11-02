@@ -305,8 +305,10 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
              hidden: "+2 not in the view"
            }
 
+    # #1368 (board 02 ①c): the line closes on the price rule.
     assert basis(html) ==
-             "View Langfrist · in EUR · Result: today's composition, not a period return"
+             "View Langfrist · in EUR · Result: today's composition, not a period return" <>
+               " · prices: the latest quote, without one the last own trade price"
 
     # A "·" never starts a line: a no-break space holds it to the word before
     # it (review round, a long view name at 390 px).
@@ -336,7 +338,8 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
     assert row(html, "Wachstum").cost == "15,300.00"
 
     assert basis(html) ==
-             "View Everything · in EUR · Result: today's composition, not a period return"
+             "View Everything · in EUR · Result: today's composition, not a period return" <>
+               " · prices: the latest quote, without one the last own trade price"
   end
 
   # Acceptance criteria (#1091; J10 A):
@@ -1149,7 +1152,8 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
              "für Ansicht Langfrist"
 
     assert basis(html) ==
-             "Ansicht Langfrist · in EUR · Ergebnis: heutige Zusammensetzung, keine Periodenrendite"
+             "Ansicht Langfrist · in EUR · Ergebnis: heutige Zusammensetzung, keine Periodenrendite" <>
+               " · Kurse: der neueste, ohne Kurs der letzte eigene Handelspreis"
 
     assert row(html, "Kern global").hidden == "+2 nicht in der Ansicht"
 

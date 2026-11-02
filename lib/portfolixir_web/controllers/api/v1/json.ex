@@ -1441,6 +1441,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   @excluded_members_note "excluded_members names each member left out, once across the tree."
 
+  # #1368 (ADR-0010; plan D-4): the price rule is part of the computation
+  # basis (AGENTS.md: every metric states it in its payload).
+  @category_price_rule "Each member is priced by the valuation's rule: its latest quote, " <>
+                         "without one its last own trade price, each position naming it in " <>
+                         "price_source (quote | trade) and price_date, so a category adds up " <>
+                         "to what GET /api/v1/portfolios/:portfolio_id/valuation and the " <>
+                         "holdings read give for the same positions; a member with neither is " <>
+                         "excluded as no_usable_price. "
+
   @doc """
   Per-category result (ADR-0041 slice one, #712).
 
@@ -1478,6 +1487,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
           "members' percentages. Invested is the members' base_cost, without the buys' " <>
           "fees and taxes, so the result is before them; a sold position's fees and taxes " <>
           "are in its closed trade's basis (GET /api/v1/securities/:security_id/trades). " <>
+          @category_price_rule <>
           category_result_scope(result),
       categories: Enum.map(result.categories, &category_result_row/1),
       excluded_members: Enum.map(result.excluded_members, &category_excluded_member/1)
@@ -1550,6 +1560,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
             security_id: position.security_id,
             security_name: position.security_name,
             quantity: decimal(position.quantity),
+            # #1368 (ADR-0010): where the member's price comes from -- the
+            # latest quote, or the last own trade price without one.
+            price_source: reason(position.price_source),
+            price_date: date(position.price_date),
             invested: decimal(position.invested),
             current_value: decimal(position.current_value),
             result_abs: decimal(position.result_abs),
