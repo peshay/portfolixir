@@ -2357,6 +2357,10 @@ describe("Portfolixir MCP tools", () => {
     // merge leaves the FIFO realized gains as they are.
     assert.match(preview, /moving-average/);
     assert.match(preview, /FIFO realized gains do not change unless equal bookings are removed/);
+    // Issue 957: a collapse's removed and moved external flows, and their basis.
+    assert.match(preview, /flow_changes/);
+    assert.match(preview, /boundary_removed/);
+    assert.match(preview, /flow_basis/);
     assert.equal(find("portfolixir.securities_accounts.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(
       describe("portfolixir.securities_accounts.delete"),
@@ -2469,6 +2473,10 @@ describe("Portfolixir MCP tools", () => {
     assert.match(preview, /open_lots/);
     assert.match(preview, /fifo_basis/);
     assert.match(preview, /no realized amount and no open cost moves; which lot a sale closes/);
+    // Issue 957: a collapse's removed and moved external flows, and their basis.
+    assert.match(preview, /flow_changes/);
+    assert.match(preview, /boundary_removed/);
+    assert.match(preview, /flow_basis/);
     assert.match(preview, /moving-average/);
     assert.equal(find("portfolixir.securities.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.merge_preview/);
