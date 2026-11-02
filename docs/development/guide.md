@@ -38,7 +38,7 @@ Start the project with either:
   [Home Deployment](../home-deployment.html) removes it.
 
 - Phoenix from source, on Elixir 1.18 or newer (CI and both images pin
-  1.18.5 on Erlang/OTP 27): `mix.exs` refuses an older Elixir, because the
+  1.18.6 on Erlang/OTP 27): `mix.exs` refuses an older Elixir, because the
   suite's async modules share ExUnit groups (`group:`), which exist from 1.18
   on, and the code and the audit tooling need 1.17 (#1132). The database is
   PostgreSQL 15 or newer, with its contrib modules (btree_gist): the

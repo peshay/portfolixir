@@ -184,7 +184,7 @@ regenerates them._
   your machine; the home deployment guide's
   [prerequisites](docs/home-deployment.md#prerequisites) say why.
 - From source: Elixir 1.18 or newer, which [mix.exs](mix.exs) requires (CI
-  runs 1.18.5 on Erlang/OTP 27), and PostgreSQL 15 or newer, with its contrib
+  runs 1.18.6 on Erlang/OTP 27), and PostgreSQL 15 or newer, with its contrib
   modules (btree_gist): the migrations use `NULLS NOT DISTINCT` and create the
   `btree_gist` extension.
 - For the MCP companion run on its own: Node 26.
