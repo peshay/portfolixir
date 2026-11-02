@@ -777,6 +777,16 @@ Seitenleiste —, stapeln sich jedes Depot und sein Verrechnungskonto zu einer
 Karte, sodass keine Spalte abgeschnitten wird (#1145); der Saldo und *Saldo
 setzen* bleiben je auf einer Zeile.
 
+Kontonamen sind innerhalb eines Portfolios eindeutig, nicht über Portfolios
+hinweg: Nachdem eine Datei in zwei Portfolios importiert wurde, können beide
+ein „Coupon-Cash“ und ein „Coupon-Depot“ führen. Wo ein anderes Portfolio ein
+Konto derselben Art und desselben Namens hat, zeigt das Konto nach seinem
+Namen den Namen seines Portfolios, kleiner und gedämpft — auf dieser Seite,
+in den Konto-Chips der Transaktionshistorie, in den Depot- und Kontolisten
+der Buchungsleiste („Coupon-Depot · Anleihen (Coupon-Cash)“) und in der
+Cash-Tabelle von Vermögen. Ein Konto, dessen Namen kein anderes Portfolio
+verwendet, bleibt ohne Zusatz (#1333).
+
 **Bucket-Chips (#559).** Jede Zeile zeigt ihre Bucket-Zugehörigkeiten als
 Chips — den exklusiven **Scope**-Bucket als gefüllten Chip, freie **Tags**
 als Umriss-Chips, eingefärbt mit der Bucket-Farbe, wenn eine gesetzt ist.
