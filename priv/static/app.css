@@ -6848,6 +6848,9 @@ button.income-bar-label.is-active {
   bottom: 0.5rem;
   right: 0.5rem;
   display: inline-block;
+  /* Issue 1336: the panel's shift, set on the element by the client while
+     the panel is open (see `.metric-tooltip p`). */
+  --tip-shift: 0px;
 }
 .metric-tooltip summary {
   display: inline-flex;
@@ -6940,6 +6943,15 @@ button.income-bar-label.is-active {
      ux-design-2026-10-04/07-floor). */
   white-space: normal;
   text-align: start;
+  /* Issue 1336 (board ux-design-2026-11-01-sprint22/01-i1 ⑦): the client
+     measures an open panel and shifts it so both edges stay 1 rem inside
+     the viewport, whichever edge the panel is anchored to. */
+  translate: var(--tip-shift) 0;
+}
+/* Issue 1336 ⑦: with no room above its ⓘ the panel opens below it. */
+.metric-tooltip[data-place="below"] p {
+  top: calc(100% + 0.4rem);
+  bottom: auto;
 }
 /* Show the tooltip panel when the <details> is open (pointer or keyboard). */
 .metric-tooltip:not([open]) p {
