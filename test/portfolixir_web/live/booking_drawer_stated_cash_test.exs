@@ -306,6 +306,19 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert Decimal.equal?(stored.gross_amount, Decimal.new("100.00"))
   end
 
+  # Acceptance criteria (Sprint 23's sprint PR closing act, coverage):
+  # - Blank fees read as zero: 10 × 80,00 + 0,00 + 1,00 = 801,00.
+  # - A price that does not read derives nothing: the field keeps 801,00.
+  test "blank fees read as zero, an unreadable price leaves the field",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    change(view, w, s, "fees", "")
+    assert form_inputs(view)["transaction[gross_amount]"] == "801,00"
+
+    change(view, w, s, "price", "abc")
+    assert form_inputs(view)["transaction[gross_amount]"] == "801,00"
+  end
+
   # Acceptance criteria (a sell's cash is net of fees and taxes):
   # - Its note names the sum with minus signs and the prefilled figure is
   #   4 × 91,00 − 3,00 − 2,50 = 358,50.

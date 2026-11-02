@@ -1977,6 +1977,31 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
            ]
   end
 
+  # Acceptance criteria (Sprint 23's sprint PR closing act, coverage of
+  # R3's sentence, #1368):
+  # - Two members out, one of them valued (Harborline, paid in USD) and one
+  #   no rule can value (Brackwater, delivered in, never traded): the lead
+  #   reads "1 of them is included in “Value”." in the singular, and
+  #   „1 davon ist im „Wert“ enthalten.“ in German.
+  test "one valued member among those left out reads in the singular (#1368, closing act)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
+    file!(brackwater, world.classification, world.platforms)
+    deliver_untraded!(world.euro, brackwater, "2")
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{world.classification.id}")
+
+    assert note_text(render(view)) =~
+             ~r/^2 positions are not included in “Cost” and “Result”\. 1 of them is included in “Value”\. /
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_text(render(view)) =~ "1 davon ist im „Wert“ enthalten."
+  end
+
   # User story (closing act of Sprint 19 PR α, UAT):
   # As a local portfolio maintainer reading the disclosure under a lead that
   # names no reason, because the members are out for different ones,

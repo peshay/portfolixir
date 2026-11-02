@@ -439,6 +439,37 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       end
     end
 
+    # Acceptance criteria (Sprint 23's sprint PR closing act, coverage of
+    # #1371's confirm): a sale whose stored cash is gone (cleared by the
+    # importer's own actor, a stand-in for a state no hand edit made) is
+    # listed with the file's cash, and the confirm writes the cash alone,
+    # stating no stored cash beside it.
+    test "a sale stored without its cash is corrected to the file's cash" do
+      sale_file = fixture("sale_with_negative_tax.json")
+      portfolio = portfolio!("Sale without its cash")
+      apply!(parse!(sale_file, "sale.json"), portfolio)
+
+      {:ok, cleared} =
+        Ledger.update_transaction(Actor.import_session(), booking(portfolio, "sell"), %{
+          gross_amount: nil
+        })
+
+      assert is_nil(cleared.gross_amount)
+
+      assert [%Item{changes: changes, state: :confirm}] =
+               Imports.cash_corrections(parse!(sale_file, "sale.json"),
+                 portfolio_id: portfolio.id
+               )
+
+      assert Map.keys(changes) == [:gross_amount]
+
+      before = snapshot()
+      correct!(parse!(sale_file, "sale.json"), portfolio)
+
+      assert Map.get(changed_fields(before, snapshot()), cleared.id) == [:gross_amount]
+      assert Decimal.equal?(booking(portfolio, "sell").gross_amount, Decimal.new("95.00"))
+    end
+
     # User story (ADR-0053 §6; the α closing act, coverage):
     # As the operator dropping a file whose every row the preview refuses,
     # or confirming a correction before any portfolio exists,
