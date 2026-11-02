@@ -129,4 +129,55 @@ defmodule PortfolixirWeb.AccountNamesTest do
       assert tags.depot[13] == "created 2026-10-05"
     end)
   end
+
+  # User story (#1333, Sprint 22 board 03 ⑤):
+  # As the operator whose portfolios "Anleihen" and "Hauptportfolio" each
+  # hold an account named "Coupon-Cash",
+  # I want each to carry its portfolio's name, and no other account to,
+  # so that the tag means "another portfolio has an account of this name".
+  #
+  # Acceptance criteria:
+  # - Two same-named cash accounts (and two same-named depots) in two
+  #   portfolios each carry their own portfolio's name.
+  # - Names compare as they print: "Giro  Konto" and "Giro Konto" in two
+  #   portfolios are twins.
+  # - Two same-printing names in ONE portfolio carry none (their portfolio
+  #   tells nothing apart), nor does a unique name, nor a cash account and a
+  #   depot that share a name (two kinds, two lists).
+  test "portfolio tags mark the accounts whose name another portfolio uses, and only those" do
+    portfolios = [%{id: 1, name: "Hauptportfolio"}, %{id: 2, name: "Anleihen"}]
+
+    cash = [
+      %{id: 1, name: "Coupon-Cash", portfolio_id: 1},
+      %{id: 2, name: "Coupon-Cash", portfolio_id: 2},
+      %{id: 3, name: "Giro Konto", portfolio_id: 1},
+      %{id: 4, name: "Giro  Konto", portfolio_id: 2},
+      %{id: 5, name: "Demo Cash", portfolio_id: 1},
+      %{id: 6, name: "Tagesgeld", portfolio_id: 1},
+      %{id: 7, name: "Tagesgeld ", portfolio_id: 1},
+      %{id: 8, name: "Coupon-Depot", portfolio_id: 1}
+    ]
+
+    depots = [
+      %{id: 10, name: "Coupon-Depot", portfolio_id: 1},
+      %{id: 11, name: "Coupon-Depot", portfolio_id: 2},
+      %{id: 12, name: "Demo Depot", portfolio_id: 1}
+    ]
+
+    tags = AccountNames.portfolio_tags(cash, depots, portfolios)
+
+    assert tags.cash == %{
+             1 => "Hauptportfolio",
+             2 => "Anleihen",
+             3 => "Hauptportfolio",
+             4 => "Anleihen"
+           }
+
+    assert tags.depot == %{10 => "Hauptportfolio", 11 => "Anleihen"}
+
+    assert AccountNames.with_portfolio(tags, :depot, Enum.at(depots, 1)) ==
+             "Coupon-Depot · Anleihen"
+
+    assert AccountNames.with_portfolio(tags, :cash, Enum.at(cash, 4)) == "Demo Cash"
+  end
 end

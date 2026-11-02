@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
+  alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
@@ -215,6 +216,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               layout={:row}
               filters={@filters}
               cash_accounts={@cash_accounts}
+              portfolio_tags={@portfolio_tags}
               transactions={@transactions}
               since={@since}
             />
@@ -269,6 +271,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   layout={:sheet}
                   filters={@filters}
                   cash_accounts={@cash_accounts}
+                  portfolio_tags={@portfolio_tags}
                   transactions={@transactions}
                   since={@since}
                 />
@@ -574,6 +577,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           securities={@securities}
           cash_accounts={@cash_accounts}
           securities_accounts={@securities_accounts}
+          portfolio_tags={@portfolio_tags}
           form_errors={@form_errors}
         />
         <.booking_drawer
@@ -586,6 +590,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           form_errors={@form_errors}
           securities_accounts={@securities_accounts}
           cash_accounts={@cash_accounts}
+          portfolio_tags={@portfolio_tags}
           securities={@securities}
           sell_preview={@sell_preview}
         />
@@ -1318,6 +1323,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         cash: Map.new(cash_accounts, &{&1.id, &1.name}),
         depots: Map.new(securities_accounts, &{&1.id, &1.name})
       },
+      # #1333 (board 03 ⑤): a twin account's portfolio in the account chips
+      # and the drawer's selects.
+      portfolio_tags:
+        AccountNames.portfolio_tags(
+          cash_accounts,
+          securities_accounts,
+          Portfolios.list_portfolios()
+        ),
       securities: securities,
       transactions: transactions,
       twin_tags: twin_tags(transactions),
@@ -1518,6 +1531,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:layout, :atom, required: true)
   attr(:filters, :map, required: true)
   attr(:cash_accounts, :list, required: true)
+  attr(:portfolio_tags, :map, required: true)
   attr(:transactions, :list, required: true)
   attr(:since, :any, default: nil)
 
@@ -1547,6 +1561,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:layout, :atom, required: true)
   attr(:filters, :map, required: true)
   attr(:cash_accounts, :list, required: true)
+  attr(:portfolio_tags, :map, required: true)
   attr(:transactions, :list, required: true)
   attr(:since, :any, default: nil)
 
@@ -1568,6 +1583,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           phx-value-option={account.id}
         >
           <%= account.name %>
+          <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:cash} id={account.id} />
         </button>
       <% end %>
     </span>
@@ -2146,8 +2162,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # "Depot name (Cash account)" — the linked cash account reads as a quiet
   # parenthetical caption rather than an arrow with a separate footnote.
-  defp depot_option_label(%{name: name, cash_account: %{name: cash_name}}) do
-    "#{name} (#{cash_name})"
+  # #1333: a twin depot's portfolio after its name, "Coupon-Depot · Anleihen
+  # (Coupon-Cash)" — the depot is what the option picks.
+  defp depot_option_label(%{cash_account: %{name: cash_name}} = depot, tags) do
+    "#{AccountNames.with_portfolio(tags, :depot, depot)} (#{cash_name})"
   end
 
   # The transaction currency follows the chosen depot's linked cash account.
@@ -2200,6 +2218,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:securities, :list, required: true)
   attr(:cash_accounts, :list, required: true)
   attr(:securities_accounts, :list, required: true)
+  attr(:portfolio_tags, :map, required: true)
   attr(:form_errors, :map, required: true)
   attr(:focus_return, :string, default: nil)
 
@@ -2352,8 +2371,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # booking form uses for it.
   defp booking_facts(%Transaction{} = tx, assigns) do
     tx = with_cash_account(tx, assigns.cash_accounts)
-    cash = &account_label(&1, assigns.cash_accounts)
-    depot = &account_label(&1, assigns.securities_accounts)
+    cash = &account_label(&1, assigns.cash_accounts, :cash, assigns.portfolio_tags)
+    depot = &account_label(&1, assigns.securities_accounts, :depot, assigns.portfolio_tags)
 
     [
       fact(gettext("Type"), "type", :select, tx_type_label(tx.type)),
@@ -2510,10 +2529,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp quantity_fact(quantity),
     do: %{fact(gettext("Quantity"), "quantity", :input, format_quantity(quantity)) | num?: true}
 
-  defp account_label(nil, _accounts), do: "—"
+  defp account_label(nil, _accounts, _kind, _tags), do: "—"
 
-  defp account_label(id, accounts),
-    do: Enum.find_value(accounts, "—", fn account -> account.id == id && account.name end)
+  defp account_label(id, accounts, kind, tags) do
+    case Enum.find(accounts, &(&1.id == id)) do
+      nil -> "—"
+      account -> AccountNames.with_portfolio(tags, kind, account)
+    end
+  end
 
   defp security_option_label(%{ticker_symbol: ticker} = security) when ticker in [nil, ""],
     do: security.name
@@ -2535,6 +2558,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:editing_cash, :any, default: nil)
   attr(:editing_legless, :any, default: nil)
   attr(:cash_accounts, :list, default: [])
+  attr(:portfolio_tags, :map, default: %{cash: %{}, depot: %{}})
   attr(:focus_return, :string, default: nil)
 
   defp booking_drawer(assigns) do
@@ -2611,6 +2635,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         transaction_form={@transaction_form}
         form_errors={@form_errors}
         cash_accounts={@cash_accounts}
+        portfolio_tags={@portfolio_tags}
         securities={@securities}
         editing_cash={@editing_cash}
         kinds={
@@ -2670,7 +2695,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   value={account.id}
                   selected={to_string(account.id) == @transaction_form["securities_account_id"]}
                 >
-                  <%= depot_option_label(account) %>
+                  <%= depot_option_label(account, @portfolio_tags) %>
                 </option>
               <% end %>
             </select>
@@ -2982,6 +3007,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:transaction_form, :map, required: true)
   attr(:form_errors, :map, required: true)
   attr(:cash_accounts, :list, required: true)
+  attr(:portfolio_tags, :map, required: true)
   attr(:securities, :list, required: true)
   attr(:editing_cash, :any, required: true)
   attr(:kinds, :list, required: true)
@@ -3053,7 +3079,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 value={account.id}
                 selected={to_string(account.id) == @transaction_form["cash_account_id"]}
               >
-                <%= account.name %> (<%= account.currency_code %>)
+                <%= AccountNames.with_portfolio(@portfolio_tags, :cash, account) %> (<%= account.currency_code %>)
               </option>
             <% end %>
           </select>
