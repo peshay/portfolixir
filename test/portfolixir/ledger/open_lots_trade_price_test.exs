@@ -109,24 +109,24 @@ defmodule Portfolixir.Ledger.OpenLotsTradePriceTest do
 
   # User story (#1369, the plan's carry-forward: the identity at a moving
   # rate):
-  # As a maintainer holding a USD security without a quote, bought from a
+  # As a maintainer holding an SGD security without a quote, bought from a
   # EUR account while the rate moved,
   # I want its open lots priced at the rate the holdings read and Wealth
   # convert its trade price at,
   # so that the Trades tab and Wealth state the same figure in EUR.
   #
-  # Acceptance criteria (EUR-hub rates EUR->USD 1.25 on 2025-02-12, 1.60 on
+  # Acceptance criteria (EUR-hub rates EUR->SGD 1.25 on 2025-02-12, 1.60 on
   # 2025-03-14, 1.25 on 2025-06-30, the latest):
-  # - The last trade's price, 12.00 EUR, is 15.00 USD at the latest rate:
+  # - The last trade's price, 12.00 EUR, is 15.00 SGD at the latest rate:
   #   the price the holdings read states, and the open lots' price.
   # - The lots' results: 15 x (15.00 - 18.00) = -45.00 and
-  #   5 x (15.00 - 19.20) = -21.00 USD.
+  #   5 x (15.00 - 19.20) = -21.00 SGD.
   # - In EUR, each lot's base_cost + total_return_base_abs is its value at
-  #   the latest rate; together 300.00 USD x 0.80 = 240.00 EUR, Wealth's
+  #   the latest rate; together 300.00 SGD x 0.80 = 240.00 EUR, Wealth's
   #   market value for the position, exactly.
-  test "a USD security without a quote reads its trade price at the rate the holdings read uses" do
+  test "an SGD security without a quote reads its trade price at the rate the holdings read uses" do
     w = base_world(name: "Arbolia World", cash_name: "AW Cash", depot_name: "AW Depot")
-    arbolia = create_security!(name: "Arbolia Example Inc", ticker: "ARX", currency: "USD")
+    arbolia = create_security!(name: "Arbolia Example Inc", ticker: "ARX", currency: "SGD")
 
     {:ok, _rates} =
       Fx.upsert_many(
@@ -135,12 +135,12 @@ defmodule Portfolixir.Ledger.OpenLotsTradePriceTest do
               {~D[2025-03-14], "1.60"},
               {~D[2025-06-30], "1.25"}
             ] do
-          %{base_currency: "EUR", quote_currency: "USD", date: date, rate: rate, source: "manual"}
+          %{base_currency: "EUR", quote_currency: "SGD", date: date, rate: rate, source: "manual"}
         end
       )
 
-    book_usd_buy!(w, arbolia, ~D[2025-02-12], "15", "14.40", "270.00", "216.00", "0.80")
-    book_usd_buy!(w, arbolia, ~D[2025-03-14], "5", "12.00", "96.00", "60.00", "0.625")
+    book_sgd_buy!(w, arbolia, ~D[2025-02-12], "15", "14.40", "270.00", "216.00", "0.80")
+    book_sgd_buy!(w, arbolia, ~D[2025-03-14], "5", "12.00", "96.00", "60.00", "0.625")
 
     [holding] = Ledger.holdings_for_security(arbolia.id)
     assert Decimal.equal?(holding.latest_price, Decimal.new("15.00"))
@@ -166,9 +166,9 @@ defmodule Portfolixir.Ledger.OpenLotsTradePriceTest do
     assert Decimal.equal?(wealth.market_value, lots_eur)
   end
 
-  # A USD security bought from the EUR account: the price recorded in EUR,
+  # An SGD security bought from the EUR account: the price recorded in EUR,
   # the security-currency and the settlement legs stated (ADR-0015).
-  defp book_usd_buy!(w, security, date, quantity, price_eur, usd, eur, rate) do
+  defp book_sgd_buy!(w, security, date, quantity, price_eur, sgd, eur, rate) do
     {:ok, _buy} =
       Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: w.portfolio.id,
@@ -180,7 +180,7 @@ defmodule Portfolixir.Ledger.OpenLotsTradePriceTest do
         quantity: quantity,
         price: price_eur,
         currency_code: "EUR",
-        security_amount: usd,
+        security_amount: sgd,
         settlement_amount: eur,
         settlement_fx_rate: rate
       })

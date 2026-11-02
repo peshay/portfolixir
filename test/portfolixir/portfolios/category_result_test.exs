@@ -1095,9 +1095,9 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
   #   1.500,00, result +500,00.
   # - Beta AG, no quote: 10 at 50,00, then 10 at 61,50, its last own trade
   #   price -- cost 1.115,00, worth 1.230,00, result +115,00.
-  # - Gamma Inc, a USD security with no quote, bought in EUR at a rate that
-  #   moved: 10 at 110 USD settled at 990,00 EUR (0,90), then 5 at 120 USD
-  #   settled at 480,00 EUR (0,80); the stored EUR-hub rate is now 1,60 USD
+  # - Gamma Inc, an HKD security with no quote, bought in EUR at a rate that
+  #   moved: 10 at 110 HKD settled at 990,00 EUR (0,90), then 5 at 120 HKD
+  #   settled at 480,00 EUR (0,80); the stored EUR-hub rate is now 1,60 HKD
   #   per EUR (0,625). Worth 15 × 120 × 0,625 = 1.125,00 EUR against a cost
   #   of 1.470,00 EUR, result −345,00.
   # - Dark AG, delivered in, never traded and never quoted: no rule values
@@ -1109,7 +1109,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       Fx.upsert_many([
         %{
           base_currency: "EUR",
-          quote_currency: "USD",
+          quote_currency: "HKD",
           date: ~D[2026-01-01],
           rate: "1.6",
           source: "manual"
@@ -1118,7 +1118,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
 
     alpha = create_security!(name: "Alpha AG", ticker: "ALP")
     beta = create_security!(name: "Beta AG", ticker: "BET")
-    gamma = create_security!(name: "Gamma Inc", ticker: "GAM", currency: "USD")
+    gamma = create_security!(name: "Gamma Inc", ticker: "GAM", currency: "HKD")
     dark = create_security!(name: "Dark AG", ticker: "DRK")
 
     for security <- [alpha, beta, gamma, dark],
@@ -1186,7 +1186,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
   #   price_source :trade; a quoted member's is :quote.
   # - The category's invested, current value and result equal, exactly, the
   #   sums Wealth's valuation and the holdings read give for those positions,
-  #   also for a USD member at a rate that moved since its buys.
+  #   also for an HKD member at a rate that moved since its buys.
   # - A member with neither a quote nor a trade price stays excluded and
   #   named with no_usable_price.
   # - Every scope (the portfolio read, the every-portfolio read) follows the
@@ -1226,7 +1226,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
 
         assert_decimal(positions[world.beta.id].current_value, "1230")
         assert_decimal(positions[world.beta.id].result_abs, "115")
-        # The USD member at the moving rate: 15 × 120 × 0,625.
+        # The HKD member at the moving rate: 15 × 120 × 0,625.
         assert_decimal(positions[world.gamma.id].current_value, "1125")
         assert_decimal(positions[world.gamma.id].invested, "1470")
         assert_decimal(positions[world.gamma.id].result_abs, "-345")
