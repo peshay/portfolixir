@@ -40,6 +40,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsControllerTest do
   # - The read answers 200 with every §3 metric, each carrying its window and
   #   observation count, and the payload-level computation basis.
   # - Every financial decimal is serialized as a string (AGENTS.md).
+  # - A drawdown of exactly 0 serves null peak, trough and recovery dates,
+  #   and the computation basis says so (#1343).
   test "answers one security's metrics with their basis, decimals as strings", %{conn: conn} do
     security = create_security!(name: "API Metric Co", ticker: "AMC", currency: "USD")
     seed_series!(security.id, List.duplicate("100", 400))
@@ -71,7 +73,15 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsControllerTest do
 
     assert metrics["volatility"]["30d"]["value"] == "0"
     assert metrics["max_drawdown"]["365d"]["value"] == "0"
-    assert metrics["max_drawdown"]["365d"]["peak_date"]
+
+    # #1343: a drawdown of exactly 0 is no decline, so it names no dates.
+    for window <- ~w(30d 90d 365d), key <- ~w(peak_date trough_date recovery_date) do
+      assert Map.fetch!(metrics["max_drawdown"][window], key) == nil
+    end
+
+    assert data["computation_basis"]["gaps"] =~
+             "A max_drawdown of exactly 0 carries null peak_date, trough_date and recovery_date"
+
     assert metrics["momentum"]["12m"]["observations"] == 2
     assert metrics["distance_to_extremes"]["high"]["close"] == "100"
   end

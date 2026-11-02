@@ -1004,7 +1004,8 @@ gespeichert, nichts abgerufen.
   `3m`, `6m` und `12m`; `distance_to_extremes`, das 52-Wochen-Hoch und -Tief
   mit ihren Daten und dem Abstand zu beiden. Der Drawdown trägt `peak_date`,
   `trough_date` und `recovery_date` (`null`, solange die Reihe unter dem Hoch
-  liegt). Optionales `as_of` (ISO-Datum, Standard heute) begrenzt die Reihe:
+  liegt; alle drei `null`, wenn der Drawdown genau `0` ist: es gab keinen
+  Rückgang, also wird keiner datiert). Optionales `as_of` (ISO-Datum, Standard heute) begrenzt die Reihe:
   Schlusskurse danach werden nicht gelesen. Ein unbekanntes Wertpapier ist
   `404`, ein ungültiges `as_of` ist `422`.
 

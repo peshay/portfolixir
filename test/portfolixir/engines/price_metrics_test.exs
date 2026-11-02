@@ -119,6 +119,33 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
     assert drawdown.recovery_date == Date.add(@as_of, -19)
   end
 
+  # User story (#1343, Sprint 22 U4):
+  # As the operator's agent researching a security whose close never fell,
+  # I want a maximum drawdown of exactly 0 to carry no peak, trough or
+  # recovery date,
+  # so that I am not handed a decline that never happened.
+  #
+  # Acceptance criteria:
+  # - A rising series and a flat one have a drawdown of exactly 0 with
+  #   peak_date, trough_date and recovery_date all nil, in every window.
+  # - A real drawdown, however small, keeps its dates.
+  test "a drawdown of exactly 0 names no peak, trough or recovery" do
+    rising = PriceMetrics.compute(series(Enum.map(1..400, &"#{100 + &1}")), @as_of)
+    flat = PriceMetrics.compute(flat(400), @as_of)
+
+    for metrics <- [rising, flat], window <- ~w(30d 90d 365d) do
+      drawdown = metrics.max_drawdown[window]
+      assert_scale_6(drawdown.value, "0.000000")
+      assert %{peak_date: nil, trough_date: nil, recovery_date: nil} = drawdown
+    end
+
+    tiny = PriceMetrics.compute(series(["100", "99.96", "100"]), @as_of)
+    assert_scale_6(tiny.max_drawdown["30d"].value, "-0.000400")
+    assert tiny.max_drawdown["30d"].peak_date == Date.add(@as_of, -2)
+    assert tiny.max_drawdown["30d"].trough_date == Date.add(@as_of, -1)
+    assert tiny.max_drawdown["30d"].recovery_date == @as_of
+  end
+
   # User story (ADR-0047 §5; found by the edge-case hunter in the Sprint 13
   # closing act):
   # As the agent reading a security whose quote sync broke two years ago,

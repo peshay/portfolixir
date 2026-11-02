@@ -137,7 +137,11 @@ defmodule Portfolixir.Catalog.SecurityMetrics do
           "with insufficient_data and its observation count, never a number; a " <>
           "volatility whose square root the one float step cannot carry, a magnitude " <>
           "outside the double range that only implausible stored closes reach, is null " <>
-          "without insufficient_data: undefined, not short of data (E25, F73). The minimums: " <>
+          "without insufficient_data: undefined, not short of data (E25, F73). A " <>
+          "max_drawdown of exactly 0 carries null peak_date, trough_date and recovery_date, " <>
+          "without insufficient_data: the close never fell below its running peak, so no " <>
+          "decline is named; a null recovery_date beside a negative value means not yet " <>
+          "recovered. The minimums: " <>
           "#{PriceMetrics.min_return_observations()} return observations for volatility, " <>
           "n closes for an n-day moving average, 2 closes for the drawdown, and a close " <>
           "on or before the window's start for the momentum and the 52-week extremes. " <>
