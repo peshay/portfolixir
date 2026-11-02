@@ -26,7 +26,8 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     with {:ok, opts} <- list_opts(params),
          {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
          {:ok, balance_account} <- running_balance_param(params),
-         {:ok, since} <- SinceParam.parse_page(params) do
+         {:ok, since} <- SinceParam.parse_page(params),
+         :ok <- SinceParam.refuse_offset(params, since) do
       balances = running_balances(balance_account)
       limit = Keyword.fetch!(opts, :limit)
 
@@ -56,6 +57,11 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
 
       json(conn, payload)
     else
+      {:refused, errors} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: errors})
+
       {:error, field} ->
         conn
         |> put_status(:unprocessable_entity)

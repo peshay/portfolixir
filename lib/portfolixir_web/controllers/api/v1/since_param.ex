@@ -34,7 +34,8 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   `<ISO8601 instant>~<id>`, which the next read of the same kind takes as its
   `since`. A cursor belongs to the read that answered it: it carries that
   read's row id, so another read would skip its own rows on the cursor's
-  second; and a delta read pages by `as_of` alone, never by `offset`.
+  second; and a delta read pages by `as_of` alone, never by `offset`, so
+  `refuse_offset/2` refuses `offset` beside a cursor (#1295).
   Rows sharing one stamp (an import writes thousands within a second) are
   told apart by the id, so a page boundary inside them skips none and
   repeats none. A cursor never lies past the read's own bound (see
@@ -106,6 +107,21 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
 
   defp with_after_id({:ok, since}, after_id), do: {:ok, Map.put(since, :after_id, after_id)}
   defp with_after_id(error, _after_id), do: error
+
+  @offset_refusal "is not used with a cursor; page by as_of"
+
+  @doc """
+  Refuses `offset` beside a cursor-form `since` (#1295): a delta read pages
+  by its cursor, and an offset applied after it skips rows. Answers
+  `{:refused, errors}` with the errors map the read renders as its 422,
+  `:ok` otherwise; a plain instant or date `since` keeps its offset.
+  """
+  @spec refuse_offset(map(), map() | nil) :: :ok | {:refused, %{offset: [String.t()]}}
+  def refuse_offset(%{"offset" => offset}, %{after_id: after_id})
+      when is_integer(after_id) and offset not in [nil, ""],
+      do: {:refused, %{offset: [@offset_refusal]}}
+
+  def refuse_offset(_params, _since), do: :ok
 
   @doc "The `Portfolixir.DeltaCursor` cursor of a parsed `parse_page/1` cut."
   def cursor(%{cut: cut} = since), do: %{cut: cut, after_id: Map.get(since, :after_id)}

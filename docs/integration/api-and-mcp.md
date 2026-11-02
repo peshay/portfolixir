@@ -300,7 +300,11 @@ A page with nothing behind it carries `has_more: false` and the bound, as
 before — also when it holds exactly `limit` rows. A cursor belongs to the
 read that answered it: it carries that read's row id, so passed to another
 read it would skip that read's rows on the cursor's second. With `since`,
-page by `as_of`, never by `offset`: a cursor beside `offset` skips rows too.
+page by `as_of`, never by `offset`: on each of the five reads, `offset`
+beside a cursor (a `since` ending in `~<id>`) is refused with `422`
+`errors.offset` `["is not used with a cursor; page by as_of"]`, because the
+offset would skip rows after the cursor (issue #1295); a plain instant
+`since` keeps the securities list's `offset`.
 A malformed cursor is the same `422` as any invalid `since`.
 
 **Deletions are not

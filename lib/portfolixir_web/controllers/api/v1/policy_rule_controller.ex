@@ -65,6 +65,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
          {:ok, as_of} <- date_param(params, "as_of"),
          {:ok, include_retired} <- boolean_param(params, "include_retired"),
          {:ok, since} <- SinceParam.parse_page(params),
+         :ok <- SinceParam.refuse_offset(params, since),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       as_of = as_of || Clock.today()
 
@@ -97,6 +98,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
       page = %{has_more: truncated, last: last_stamp(rules)}
       json(conn, SinceParam.put_page_envelope(payload, since, page))
     else
+      {:refused, errors} -> unprocessable(conn, errors)
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       :view_not_found -> not_found(conn)
       :error -> not_found(conn)
