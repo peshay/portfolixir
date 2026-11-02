@@ -4381,6 +4381,29 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Veränderungssignal der Übersicht) tragen ein explizites Vorzeichen und
   Gewinn-/Verlustfarbe auf jeder Ebene; vorzeichenlose Beträge behalten die
   Akzentfarbe.
+- **Erklärungen treten zurück** (#1351; auf dem Tab Bestände unter
+  Vermögen, in der Übersicht und im Cashflow, die übrigen Seiten folgen).
+  Unter einer Zahl behält die Seite ihre **Basis**: die Ansicht, den
+  Zeitraum, die Währung, den Stand, brutto oder netto, die Menge der Zeilen
+  und eine Schwelle. Wie eine Zahl berechnet wird, steht hinter dem **ⓘ neben
+  der Abschnittsüberschrift** (im Cashflow hinter dem ⓘ der Facette): die
+  Formel des Beitrags, die p.-a.-Regel der abgeschlossenen Trades, die
+  Regel, nach der ein Termin als Zeitraum fällig wird. Jedes ⓘ öffnet sich
+  dort, wo es lesbar ist — unter seinem Zeichen, wenn darüber kein Platz
+  ist, und nie über den Rand des Bildschirms hinaus, auch auf dem Handy —,
+  und **Escape** schließt es und kehrt zu ihm zurück (#1336, #1342). Das ⓘ
+  der Ansichtsauswahl ist ebenfalls ein solches Feld (#1350).
+- **Datenhinweise sind auf zwei Zeilen gekürzt** (auf dem Handy drei), mit
+  **mehr**, wo der Text gekürzt ist, und **weniger**, um ihn wieder zu
+  kürzen. Die Abhilfe eines Hinweises — eine Schaltfläche zum
+  Synchronisieren oder Nachladen, ein Link, eine Liste von Zeilen — bleibt
+  unter der Kürzung sichtbar. Ein **Problem** steht immer zuerst. Ein
+  Hinweis, der sagt, was eine Summe **auslässt**, behält diese Anzahl in
+  seiner ersten Zeile und wird nie eingeklappt. Zwei oder mehr der übrigen
+  Hinweise eines Blocks klappen zu einer Zeile mit ihren Anzahlen zusammen,
+  etwa „1 Achtung · 1 Hinweis — Details anzeigen“.
+- Die Wertpapierauswahl des Imports sagt einem Screenreader, wie viele
+  Wertpapiere eine Suche gefunden hat oder dass keines passt (#1342).
 
 ## Audit-Journal
 
