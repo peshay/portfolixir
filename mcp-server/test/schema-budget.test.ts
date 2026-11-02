@@ -297,18 +297,28 @@ describe("the schema budget", () => {
   // so that connecting does not grow more expensive unnoticed.
   //
   // Acceptance criteria:
-  // - The measured list is exactly what a host receives from tools/list.
+  // - The measured list is exactly what a host receives from tools/list,
+  //   and so is its size: the SDK's own serialisation of the list an MCP
+  //   client receives counts the same bytes (SDK v2, #1115).
   // - Each profile's list stays at or under its ceiling, and the profiles
   //   order read < book < full.
   it("holds each profile's tool list under its ceiling", async (t) => {
     for (const profile of MCP_PROFILES) {
+      const received = await publishedTools({ profile });
+
       assert.deepEqual(
-        await publishedTools({ profile }),
+        received,
         JSON.parse(JSON.stringify(publishedToolList({ profile }))),
         `${profile}: the measured list is the published one`
       );
 
       const bytes = schemaBytes(profile);
+
+      assert.equal(
+        Buffer.byteLength(JSON.stringify(received), "utf8"),
+        bytes,
+        `${profile}: the list the SDK hands a client measures what the budget measures`
+      );
       const tokens = tokenRange(bytes);
       t.diagnostic(
         `${profile}: ${publishedToolList({ profile }).length} tools, ${bytes} bytes, ` +
