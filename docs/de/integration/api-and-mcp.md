@@ -333,8 +333,11 @@ der nichts mehr wartet, trägt `has_more: false` und die Grenze, wie bisher —
 auch wenn sie genau `limit` Zeilen enthält. Ein Cursor gehört zu dem Read,
 der ihn geliefert hat: Er trägt dessen Zeilen-id, sodass ein anderer Read mit
 ihm seine eigenen Zeilen in der Sekunde des Cursors überspränge. Mit `since`
-nach `as_of` blättern, nie mit `offset`: Ein Cursor neben `offset`
-überspringt ebenfalls Zeilen. Ein fehlerhafter Cursor ist dasselbe `422` wie
+nach `as_of` blättern, nie mit `offset`: Auf jedem der fünf Reads wird
+`offset` neben einem Cursor (einem `since`, das auf `~<id>` endet) mit `422`
+`errors.offset` `["is not used with a cursor; page by as_of"]` abgelehnt,
+weil der Offset Zeilen nach dem Cursor überspränge (Issue #1295); ein
+`since` als reiner Zeitpunkt behält das `offset` der Wertpapierliste. Ein fehlerhafter Cursor ist dasselbe `422` wie
 jedes ungültige `since`.
 
 **Löschungen sind

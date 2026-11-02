@@ -338,6 +338,41 @@ defmodule PortfolixirWeb.ApiV1DeltaPagingTest do
     assert rules["data"]["truncated"] == false
   end
 
+  # User story (#1295, Sprint 22 A2):
+  # As the agent paging a delta read,
+  # I want `offset` beside a cursor to be refused, naming `offset`,
+  # so that a page walk that mixes the two cannot skip rows unnoticed.
+  #
+  # Acceptance criteria:
+  # - On each of the five delta reads, `offset` beside a cursor-form `since`
+  #   (`<instant>~<id>`) answers 422 errors.offset
+  #   ["is not used with a cursor; page by as_of"].
+  # - The same cursor without `offset` is read as before, and so is a plain
+  #   instant `since` beside `offset` on the securities list.
+  test "every delta read refuses offset beside a cursor" do
+    world = WorldFixtures.base_world(name: "Offset Refusal")
+    security = WorldFixtures.create_security!(name: "Offset Ruled")
+    cursor = previous_cursor() <> "~1"
+
+    reads = [
+      "/api/v1/transactions",
+      "/api/v1/securities",
+      "/api/v1/securities/#{security.id}/notes",
+      "/api/v1/securities/#{security.id}/events",
+      "/api/v1/portfolios/#{world.portfolio.id}/policy_rules"
+    ]
+
+    for path <- reads do
+      assert {422, %{"errors" => errors}} = poll(path, cursor, %{"offset" => "10"})
+      assert errors == %{"offset" => ["is not used with a cursor; page by as_of"]}, path
+
+      assert {200, _body} = poll(path, cursor, %{}), path
+    end
+
+    assert {200, %{"data" => [_ | _]}} =
+             poll("/api/v1/securities", previous_cursor(), %{"offset" => "0"})
+  end
+
   test "a malformed page cursor is refused as an invalid since" do
     for since <- ["~5", "2026-01-01T00:00:00Z~0", "2026-01-01T00:00:00Z~x", "soon~5", "a~b~c"] do
       conn = get(api_conn(), "/api/v1/transactions?" <> URI.encode_query(%{"since" => since}))
