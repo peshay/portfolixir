@@ -7988,3 +7988,11 @@ page lands.
   `details.metric-tooltip`. It closes that ⓘ and returns the focus to its
   summary, and it consumes the key, so an ⓘ inside a drawer or a dialog
   closes alone.
+- **⑧ The import picker's live region** (#1342, no picture): the H45
+  security picker carries one `role="status"` region
+  (`[data-role=remap-status]`), present before any search. A search with
+  hits puts „1 Wertpapier passt.“ / „4 Wertpapiere passen.“ into it for
+  assistive technology only (`.visually-hidden`; the cards show the hits);
+  a search with none puts the visible „Kein Wertpapier passt.“ into it. At
+  rest, and while it holds only the count, the region leaves the picker's
+  grid flow (`position: absolute`), so it adds no row and no gap.

@@ -2345,11 +2345,19 @@ defmodule PortfolixirWeb.ImportsLive do
       <%!-- Design critic D, DD-S2: a decision row's search lists only
            what its cards do not show, so no security stands twice in the
            row's one radio group. --%>
-      <p :if={@query != "" and @hits == []} class="mapping-remap__empty">
-        <%= if @shown,
-          do: gettext("No other security matches."),
-          else: gettext("No security matches.") %>
-      </p>
+      <%!-- #1342 (board 01 ⑧): one status region, present before any
+           search, announces the hit count (for assistive technology only;
+           the cards show the hits) or the visible empty state. --%>
+      <div role="status" class="mapping-remap__status" data-role="remap-status">
+        <p :if={@query != "" and @hits == []} class="mapping-remap__empty">
+          <%= if @shown,
+            do: gettext("No other security matches."),
+            else: gettext("No security matches.") %>
+        </p>
+        <span :if={@query != "" and @hits != []} class="visually-hidden">
+          <%= ngettext("%{count} security matches.", "%{count} securities match.", length(@hits)) %>
+        </span>
+      </div>
       <fieldset
         :if={@create or @hits != []}
         id={"remap-cards-#{@res.key}"}
