@@ -22,7 +22,8 @@
 #   is read from the common git directory, which every worktree shares (see
 #   gitrepository-layout), so the lines go there, appended only when absent.
 #   They are harmless in the main checkout, whose `deps` is a directory the
-#   .gitignore already ignores.
+#   .gitignore already ignores. The pre-commit hook `no-symlinks`
+#   (scripts/check_no_symlinks.py) refuses a tracked symlink in any case.
 # * Each worktree that runs `mix test` at the same time as another needs a
 #   test database of its own. The helper prints the commands; `--db <name>`
 #   runs them in the new worktree.

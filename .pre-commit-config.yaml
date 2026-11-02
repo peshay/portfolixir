@@ -47,6 +47,16 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # A tracked symlink names a path on one machine; in Sprint 22 a
+      # worktree commit tracked the shared `deps` link and cherry-picking it
+      # replaced the main checkout's `deps`. The check reads the index
+      # (git mode 120000), so it needs no file names.
+      - id: no-symlinks
+        name: Refuse a commit that tracks a symlink
+        entry: python3 -B scripts/check_no_symlinks.py
+        language: system
+        pass_filenames: false
+        always_run: true
       # The gates' own unit tests (H64): every scripts/test_*.py, the
       # invisible-Unicode scanner's among them, so CI's pre-commit job proves
       # the gate it runs. -B keeps __pycache__ out of the checkout.

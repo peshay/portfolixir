@@ -76,7 +76,9 @@ Start the project with either:
   file, and prints (or with `--db` runs) the test-database commands above.
   *Why:* in Sprint 22 a worktree commit tracked the `deps` symlink, which
   the `.gitignore` line `/deps/` does not match, and cherry-picking it
-  replaced the main checkout's `deps` (Sprint 22 retrospective).
+  replaced the main checkout's `deps` (Sprint 22 retrospective). The
+  pre-commit hook `no-symlinks` refuses any commit that tracks a symlink, and
+  CI runs it with every other hook.
 
 ## Required local checks
 
