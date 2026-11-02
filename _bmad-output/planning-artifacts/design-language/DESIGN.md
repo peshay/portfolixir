@@ -8223,3 +8223,74 @@ check. The rule is the server's (ADR-0053's amendment): the API's PATCH
 answers the same refusals. A row with settlement legs keeps the settlement
 fieldset and shows no cash field, and so does a form that now describes a
 cross-currency settlement: its fieldset derives the cash.
+
+## Amendment 2026-11-02 — The merge previews list the external flows a collapse removes *(Sprint 23 V2, board `mockups/ux-design-2026-11-02-sprint23/01-coverage` ①b, a conformance repair, before/after; pick Q3 = keep; issue 957, ADR-0050 §16 invariant 9)*
+
+Amends "Lifecycle merge — preview and confirm" (the depot variant) and
+"Security merge — target, identity, preview" above. The API serves each
+outcome's `flow_changes` with `flow_basis` (Sprint 22 A4); the screens
+showed only the absorbed flows, as a phrase in „Ändert auch“. Built in
+`PortfolixirWeb.PortfolioAccounts.MergePreview.flow_changes/1`, which the
+security preview calls unchanged. It reads the "remove as duplicates"
+outcome's `flow_changes` of the same preview the API serialises, in the
+API's order; nothing is computed twice.
+
+- **Placement.** The depot preview: after the equal bookings' choice,
+  before the notes. The security preview: with entries, after the choice
+  form; without, its one line right after the FIFO line
+  (`[data-role=merge-fifo]`), the anatomy that line already uses. The
+  section is shown whatever the choice: its heading says which answer it
+  describes.
+- **The section** (`section.merge-flows`, `data-role="merge-flows"`, a grid
+  with a 4 px gap): `div.section-title` holds `h3.merge-block-head`
+  „Externe Zu- und Abflüsse“ with its qualifier as `small` („bei „als
+  Duplikate entfernen““, muted, 500) and the section's ⓘ
+  (`AppShell.section_info`, I1 ①). Then the table, its two-line rows, and
+  the basis line.
+- **The table** (`.data-table-wrapper.merge-wide >
+  table.data-table.merge-flows-table`): Datum · Wirkung · Buchung · wo ·
+  Stück · Fluss, the last two `.num`. One row per entry
+  (`tr[data-role=merge-flow]`, with `data-kind`, the ISO `data-date` and
+  the collapsed booking's `data-transaction-id`):
+  - **Datum** through `Format.date`.
+  - **Wirkung** names the kind: `removed` „entfällt“, `boundary_removed`
+    „entfällt an der Ansichtsgrenze“, `absorbed` „vom gesetzten Saldo
+    aufgenommen“.
+  - **Buchung · wo**: the collapsed booking's kind and security („Kauf ·
+    Cobalt Ridge Logistics SE“), and as its `small.cell-note` where the
+    flow sits: the depot for `removed`, „Ansicht „Nur Neuzugang““ for
+    `boundary_removed`, the cash account for `absorbed`.
+  - **Stück**: the units the day's flow no longer carries, exact and signed
+    as served („-5“), „—“ where the entry has none.
+  - **Fluss**: the amount in its currency („-96,00 EUR“), „—“ where the
+    walk values the units at the day's price, and as its `small.cell-note`
+    what it is valued at: „zum gebuchten Preis“ (`booked_price`), „zum
+    gebuchten Wert“ (`booked_value`, and an absorbed cash leg, whose
+    `valued_at` the API leaves null), „zum Tageskurs“ (`market`).
+  The table fits the sheet instead of scrolling (`min-width: 0; width:
+  100%`): its text cells and both cell notes wrap, the two `.num` cells'
+  figures keep their line.
+- **Under 720 px** the table gives way to the preview's two-line rows
+  (`ul.merge-lines.merge-narrow`, `li[data-role=merge-flow-line]` with the
+  same data attributes): „14.03.2025 · entfällt“ as the muted head, the
+  amount right-aligned below it, and one small line „Einlieferung · Helios
+  Solar Systems SE · Depot 1 · -5 Stück · zum gebuchten Preis“ (the units
+  only where the entry has them). Exactly one of the two forms shows.
+- **The ⓘ** holds the five method sentences of `flow_basis`, one per line:
+  what „entfällt“, „Ansichtsgrenze“ and „Gesetzter Saldo“ mean, why the
+  preview lists flows and not a recomputed return, and that view
+  membership is read as it stands. **The basis line** (`p.merge-basis`)
+  stays visible under the table: „Je Eintrag ein Fluss der
+  zeitgewichteten Rendite, der beim Entfernen der Duplikate entfällt oder
+  wandert · Beträge in der Währung des Kontos“.
+- **Empty state:** with no entry — with or without equal bookings — one
+  `p.merge-basis[data-role=merge-flows-none]`: „Externe Zu- und Abflüsse:
+  Keiner entfällt oder wandert; die Rendite liest dieselben Flüsse.“ No
+  heading, no ⓘ.
+- **Q3 = keep:** „Ändert auch“ in the „als Duplikate entfernen“ option keeps
+  its absorbed phrase („ein gesetzter Saldo von … am … nimmt … auf“): it is
+  what the operator reads while choosing; the section lists the same entry
+  among the others.
+- **Parity.** The LiveView tests compare every row with the API's entry
+  for the same pair: count, kind, date, collapsed booking, quantity and
+  amount (`test/support/merge_flows_case.ex`).

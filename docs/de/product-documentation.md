@@ -408,6 +408,10 @@ Kennzeichen. Was die Zusammenführung tut:
   kein realisierter Betrag und kein offener Einstand ändert (welchen Posten
   ein Verkauf schließt, und mit ihm Haltedauern und annualisierte Renditen,
   kann sich dennoch ändern).
+- **Externe Zu- und Abflüsse**: Gleiche Buchungen als Duplikate zu
+  entfernen kann einen Fluss entfallen lassen, den die zeitgewichtete
+  Rendite liest; die Vorschau nennt ihn unter *Externe Zu- und Abflüsse —
+  bei „als Duplikate entfernen“*, genau wie bei Depots (unten).
 - **Kurse** füllen die Lücken des Wertpapiers, das bleibt; an einem Tag, an
   dem beide einen Kurs haben, gewinnt der des bleibenden. Ein von Hand
   erfasster Schlusskurs, der so entfiele, wird vorher aufgeführt. Die
@@ -930,7 +934,23 @@ einem Dialog:
    was es außerhalb der beiden ändert, etwa den Saldo eines anderen Kontos
    oder die Stückzahl einer Position. Keine ist vorausgewählt, und der Knopf
    **In … zusammenführen** bleibt deaktiviert, mit dem Grund daneben, bis
-   Sie wählen.
+   Sie wählen. Bei Depots (und bei Wertpapieren) folgt auf die Wahl der
+   Abschnitt **Externe Zu- und Abflüsse — bei „als Duplikate entfernen“**:
+   je Zeile ein externer Fluss der zeitgewichteten Rendite, der beim
+   Entfernen der Duplikate entfällt oder wandert, mit Datum, Wirkung,
+   Buchung, wo er steht, Stück und Betrag samt dem, wozu er bewertet ist.
+   Eine entfernte Ein- oder Auslieferung *entfällt* (zum gebuchten Preis,
+   ohne Preis zum Tageskurs); eine Umbuchung, ein Kauf oder Verkauf mit
+   genau einem Bein in einer Ansicht *entfällt an der Ansichtsgrenze* dieser
+   Ansicht (zum gebuchten Wert, eine Umbuchung zum Tageskurs); den
+   Geldbetrag, den ein späterer gesetzter Saldo aufnimmt, nennt die Zeile
+   *vom gesetzten Saldo aufgenommen*. Das ⓘ neben der Überschrift erklärt
+   jede Wirkung und warum die Vorschau die Flüsse nennt und keine neu
+   gerechnete Rendite; auf dem Telefon ist jeder Fluss eine zweizeilige
+   Zeile. Ändert sich nichts, sagt das eine Zeile: *Externe Zu- und
+   Abflüsse: Keiner entfällt oder wandert; die Rendite liest dieselben
+   Flüsse.* Die API liefert dieselbe Liste als `flow_changes` mit ihrem
+   `flow_basis`.
 
 Die Bestätigung wendet genau den Plan an, den die Vorschau zeigte: Die
 Buchungen, die verknüpften Depots und die angepassten gesetzten Salden ziehen

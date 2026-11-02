@@ -369,6 +369,9 @@ the merge does:
   block states them per close year, or says in one line that no realized
   amount and no open cost moves (which lot a sale closes, and with it
   holding periods and annualized returns, may still change).
+- **External flows**: removing equal bookings as duplicates can drop a flow
+  the time-weighted return reads, and the preview lists it under *External
+  flows — with “remove as duplicates”*, exactly as for depots (below).
 - **Quotes** fill the gaps of the security you keep; on a day both have a
   quote, the kept security's wins. A close you typed by hand that would be
   dropped this way is listed first. The dropped closes stay in the merge
@@ -847,7 +850,21 @@ everything. It takes two steps in one dialog:
    duplicates* also names what it changes outside the two, such as another
    account's balance or a position's quantity. Neither is preselected, and
    the **Merge into …** button stays disabled, with the reason beside it,
-   until you choose.
+   until you choose. For depots (and for securities) the section
+   **External flows — with “remove as duplicates”** follows the choice: one
+   row per external flow of the time-weighted return that removing the
+   duplicates drops or moves, with its date, its effect, the booking, where
+   it sits, the units and the amount with what it is valued at. A removed
+   inbound or outbound delivery *is removed* (at the booked price, or at the
+   day's price without one); a transfer, buy or sell with exactly one leg in
+   a view *is removed at the view boundary* of that view (at the booked
+   value, or at the day's price for a transfer); the cash a later set balance
+   takes in reads *absorbed by the set balance*. The ⓘ beside the heading
+   explains each and why the preview lists the flows rather than a
+   recomputed return; on a phone each flow is a two-line row. When nothing
+   moves, one line says so: *External flows: none is removed or moved; the
+   return reads the same flows.* The API serves the same list as
+   `flow_changes` with its `flow_basis`.
 
 Confirming applies exactly the plan the preview showed: the bookings, the
 linked depots and the adjusted set balances move to the target, the source's
