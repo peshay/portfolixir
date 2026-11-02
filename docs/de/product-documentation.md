@@ -1380,6 +1380,20 @@ folgt der neuen Stückzahl, dem Preis und den Gebühren. Vor Sprint 15 buchte da
 Handel in der Kontowährung und las den Preis des Wertpapiers, als wäre er in
 Euro.
 
+**Eine Buchung ohne Abrechnungsangaben korrigieren** (Issue #1335). Ein
+Import, der vor der Ableitung der Abrechnungsangaben durch das Nachladen der
+Wechselkurse lief, kann einen Kauf oder Verkauf eines USD-Wertpapiers von einem
+EUR-Konto in EUR und ohne Abrechnungsangaben gespeichert haben. Die
+Buchungsleiste öffnet eine solche Zeile in der Währung, in der sie gespeichert
+ist: „Preis (EUR)“, kein Abrechnungsblock, „Währung: EUR“ und ein Hinweis, dass
+die Buchung noch keinen Gegenwert in der Wertpapierwährung hat. Speichern
+korrigiert Stückzahl, Preis, Gebühren, Steuern, Datum und Notiz in EUR und bucht
+die Zeile nie als USD um. Kann das Nachladen den Gegenwert ableiten, nennt der
+Hinweis den Weg: **Historische Wechselkurse nachladen** unter Cashflow →
+*Trades*. Sind die Abrechnungsangaben gespeichert, öffnet die Zeile wie jeder
+andere importierte Handel über zwei Währungen (ADR-0015, Ergänzung vom
+01.11.2026).
+
 **Geldbetrag und Abrechnung stimmen überein** (Issue #395). Ein
 währungsübergreifender Kauf hält den bewegten Geldbetrag fest (`gross_amount`,
 einschließlich Gebühren und Steuern) und daneben den Handelswert in der

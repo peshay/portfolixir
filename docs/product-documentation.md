@@ -1254,6 +1254,18 @@ the new quantity, price and fees. Before Sprint 15 the form booked such a trade
 in the account's currency, reading the security's price as if it were in
 euros.
 
+**Correcting a trade stored without its legs** (issue #1335). An import made
+before the history backfill could derive settlement legs may have stored a
+buy or sell of a USD security, paid from a EUR account, in EUR with no
+settlement figures. The drawer opens such a row in the currency it is stored
+in: "Price (EUR)", no settlement block, "Currency: EUR", and a note that says
+the booking has no figure in the security's currency yet. Saving corrects the
+quantity, price, fees, taxes, date and note in EUR and never re-books the row
+as USD. Where the backfill can derive the figure, the note names it:
+**Backfill historical rates** under Cash flow → *Trades*. Once the legs are
+stored, the row opens like any other imported cross-currency trade
+(ADR-0015, amendment of 2026-11-01).
+
 **The cash and the settlement agree** (issue #395). A cross-currency buy
 records the cash it moved (`gross_amount`, fees and taxes included) beside
 the trade value in the account's currency (`settlement_amount`); a sell
