@@ -539,6 +539,34 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   @doc """
+  The section's ⓘ (I1, #1351; board `ux-design-2026-11-01-sprint22/01-i1`
+  ①): a section's method sentences — how a figure is computed, what a term
+  means, what a control does — leave the page and sit in one ⓘ beside the
+  section's heading, one sentence per `:line`. The basis clauses stay on
+  the page as the basis line (UX-DR11). The caller wraps the heading and
+  this ⓘ in `div.section-title`, which keeps the heading a pure heading (a
+  `<details>` is not phrasing content).
+
+  It is the house `details.metric-tooltip`, so it is placed inside the
+  viewport and closed by Escape like every ⓘ (#1336, #1342); its panel is
+  wider than a term's (`.metric-tooltip--section`).
+  """
+  attr(:label, :string, default: nil)
+  slot(:line, required: true)
+
+  def section_info(assigns) do
+    assigns =
+      assign_new(assigns, :aria_label, fn -> assigns.label || gettext("About this section") end)
+
+    ~H"""
+    <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+      <summary aria-label={@aria_label}>ⓘ</summary>
+      <p role="tooltip"><%= for {line, index} <- Enum.with_index(@line) do %><br :if={index > 0} /><%= render_slot(line) %><% end %></p>
+    </details>
+    """
+  end
+
+  @doc """
   A data note (UX-DR17): one component, three severities — `:note`,
   `:attention`, `:problem` — each carried by colour AND glyph AND word,
   never colour alone (UX-DR7).

@@ -6956,6 +6956,24 @@ button.income-bar-label.is-active {
      the viewport, whichever edge the panel is anchored to. */
   translate: var(--tip-shift) 0;
 }
+/* I1 (issue 1351, board ux-design-2026-11-01-sprint22/01-i1 ①): the
+   section's ⓘ sits beside its heading. The wrapper keeps the heading a
+   pure heading (a <details> is not phrasing content). */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.section-title > .metric-tooltip--inline {
+  margin-left: 0;
+}
+/* ① The section's panel holds several method lines: wider than a term's
+   18 rem, still 1 rem inside a phone screen. */
+.metric-tooltip--section p {
+  width: 26rem;
+  max-width: calc(100vw - 2rem);
+}
 /* Issue 1336 ⑦: with no room above its ⓘ the panel opens below it. */
 .metric-tooltip[data-place="below"] p {
   top: calc(100% + 0.4rem);
