@@ -69,6 +69,15 @@ Start the project with either:
   DATABASE_NAME=portfolixir_test_2 mix test
   ```
 
+- A linked git worktree is created with `scripts/worktree.sh add <path>
+  <base-ref> [branch] [--db <name>]`: it starts from the base you name, links
+  the main checkout's `deps` and `mcp-server/node_modules`, keeps `_build` its
+  own, writes `/deps`, `/_build` and `node_modules` into the shared exclude
+  file, and prints (or with `--db` runs) the test-database commands above.
+  *Why:* in Sprint 22 a worktree commit tracked the `deps` symlink, which
+  the `.gitignore` line `/deps/` does not match, and cherry-picking it
+  replaced the main checkout's `deps` (Sprint 22 retrospective).
+
 ## Required local checks
 
 Run the list in `AGENTS.md` at the repository root ("Required Local Checks")
