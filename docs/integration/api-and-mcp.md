@@ -1499,10 +1499,15 @@ Example quote sync response:
     delivery's booked price in `currency_code` (`valued_at`
     `booked_price`), or `null` where the delivery carries no price and the
     performance walk values the units at the day's price (`valued_at`
-    `market`); `boundary_removed`, a collapsed security transfer with
-    exactly one depot in the view `view_id`, a flow across that view's
-    boundary and none of the portfolio's own, one entry per view it
-    straddles, naming the in-view depot, valued at the day's price;
+    `market`); `boundary_removed`, a collapsed security transfer, buy or
+    sell with exactly one leg in the view `view_id`, a flow across that
+    view's boundary and none of the portfolio's own, one entry per view it
+    straddles: a transfer names the in-view depot and is valued at the
+    day's price; a buy or sell names its cash account and depot, and
+    `change` is the booked value that view's flow no longer carries, in
+    the cash account's `currency_code` (`valued_at` `booked_value`: the
+    cash leg negated where the cash account is in the view, the cash leg
+    itself where the position is);
     `absorbed`, a collapsed booking's cash leg that a later balance anchor
     of its cash account now absorbs, with the anchor's `transaction_id`,
     `date` and `change`, as in a cash merge's preview) and
