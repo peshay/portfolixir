@@ -401,8 +401,10 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     #
     # Acceptance criteria:
     # - sale_with_negative_tax.json applied as read today, the sale's cash
-    #   set from 95.00 to 96.00 (its price stays 10.00): the re-drop lists
-    #   the sale with the cash alone among its changes.
+    #   set from 95.00 to 95.05 (its price stays 10.00; a cash stated alone
+    #   must agree with the stored figures within 0.01 plus 10 × 0.005, the
+    #   price's rounding, ADR-0053's amendment of 2026-11-02): the re-drop
+    #   lists the sale with the cash alone among its changes.
     # - Set by hand (`owner_ui`), the line reads edited since its import,
     #   without a confirm (A11), and the confirm writes nothing.
     # - Set without a hand edit (the importer's own actor, a stand-in for a
@@ -415,18 +417,18 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
             {Actor.owner_ui(), :edited, []},
             {Actor.import_session(), :confirm, [:gross_amount]}
           ] do
-        portfolio = portfolio!("Sale set to 96.00 by #{actor.type}")
+        portfolio = portfolio!("Sale set to 95.05 by #{actor.type}")
         apply!(parse!(sale_file, "sale.json"), portfolio)
 
         {:ok, _edited} =
-          Ledger.update_transaction(actor, booking(portfolio, "sell"), %{gross_amount: "96.00"})
+          Ledger.update_transaction(actor, booking(portfolio, "sell"), %{gross_amount: "95.05"})
 
         assert [%Item{changes: changes} = sale] =
                  Imports.cash_corrections(parse!(sale_file, "sale.json"),
                    portfolio_id: portfolio.id
                  )
 
-        assert figures([sale]) == [{3, "96", "95", "-1"}]
+        assert figures([sale]) == [{3, "95.05", "95", "-0.05"}]
         assert Map.keys(changes) == [:gross_amount]
         assert sale.state == state
 
@@ -955,7 +957,9 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     #
     # Acceptance criteria:
     # - K19's sale stored under the old reading (20.10, the refund 25.00
-    #   beside it), then set to 0.10 by hand: Test-Cash 925.10.
+    #   beside it), then set to 0.10 by hand, its fees raised by 20.00 with
+    #   it (a stated cash agrees with the figures, ADR-0053's amendment of
+    #   2026-11-02): Test-Cash 925.10.
     # - The re-drop lists it as edited since its import (today), not
     #   refused: Test-Cash +25.10 as stored, +20.10 per the file; no
     #   confirm, and the confirm writes nothing.
@@ -971,9 +975,12 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
 
       apply!(stored_with_refused(preview), portfolio)
 
+      sold = booking(portfolio, "sell")
+
       {:ok, _} =
-        Ledger.update_transaction(Actor.owner_ui(), booking(portfolio, "sell"), %{
-          gross_amount: "0.10"
+        Ledger.update_transaction(Actor.owner_ui(), sold, %{
+          gross_amount: "0.10",
+          fees: Decimal.add(sold.fees || Decimal.new(0), Decimal.new("20.00"))
         })
 
       assert balances(portfolio) == %{"Test-Cash" => "925.1"}

@@ -134,6 +134,27 @@ defmodule Portfolixir.Ledger.StatedCashTest do
       assert noted.date == ~D[2026-03-03]
     end
 
+    # The amendment's point 1, "keeps the §2 relation on every write": a
+    # cash stated alone is checked against the stored figures (the sprint
+    # PR's closing act).
+    test "a cash-only edit is checked against the stored figures", %{buy: buy} do
+      for cash <- ["816.00", "5000.00"] do
+        assert {:error, changeset} = edit(buy, %{"gross_amount" => cash})
+
+        assert messages(changeset, :gross_amount) == [
+                 "does not match quantity × price, fees and taxes — expected 806.00"
+               ]
+      end
+
+      assert Decimal.equal?(Repo.get!(Transaction, buy.id).gross_amount, Decimal.new("806.00"))
+
+      assert {:ok, same} = edit(buy, %{"gross_amount" => "806", "notes" => "same cash"})
+      assert Decimal.equal?(same.gross_amount, Decimal.new("806.00"))
+
+      assert {:ok, settled} = edit(buy, %{"gross_amount" => "806.01"})
+      assert Decimal.equal?(settled.gross_amount, Decimal.new("806.01"))
+    end
+
     test "an unchanged figure sent again does not trigger the rule", %{buy: buy} do
       assert {:ok, same} = edit(buy, %{"price" => "80", "fees" => "5", "notes" => "same"})
       assert Decimal.equal?(same.gross_amount, Decimal.new("806.00"))

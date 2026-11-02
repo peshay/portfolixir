@@ -1082,7 +1082,11 @@ and #1371's identity holds: 806.00 against 816.00 is refused, the tolerance
 of 10 at 81.00 being 0.06. **The type** joins the four figures: a buy turned
 into a sell, or back, flips the relation's sign, so such an update states
 the cash too, point 1's "on every write" (the error's wording is
-unchanged). No decision changes.
+unchanged). *2026-11-02, the sprint PR's closing act:* a cash stated alone,
+different from the stored one, is checked against the stored figures the
+same way, since point 1 keeps the relation on every write; without it a
+cash-only edit of the row corrected to 81.00 and 816.00 back to 806.00
+recreated #1371's two costs. No decision changes.
 
 ## Note (2026-11-02): the refusal list gains the CSV time row
 

@@ -167,6 +167,35 @@ defmodule PortfolixirWeb.ApiV1StatedCashTest do
     assert closed["realized_pnl_abs"] == "84"
   end
 
+  # Acceptance criteria (the amendment's point 1, "on every write"; the
+  # sprint PR's closing act):
+  # - After the correction to 81.00 / 816.00, a PATCH of gross_amount alone
+  #   is checked against the stored figures: "806.00" and "5000.00" are
+  #   refused naming 816.00 and nothing moves; "816.01" is stored.
+  test "a cash-only PATCH is checked against the stored figures", %{conn: conn} do
+    world = base_world(name: "Cash Only", cash_name: "CO Cash", depot_name: "CO Depot")
+    security = create_security!(name: "Cash Only Co", ticker: "COC", currency: "EUR")
+    buy = imported_buy!(world, security, "EUR")
+
+    assert conn
+           |> patch_tx(buy.id, %{"price" => "81.00", "gross_amount" => "816.00"})
+           |> json_response(200)
+
+    corrected = figures(buy.id)
+
+    for cash <- ["806.00", "5000.00"] do
+      assert %{"errors" => %{"gross_amount" => [mismatch]}} =
+               conn |> patch_tx(buy.id, %{"gross_amount" => cash}) |> json_response(422)
+
+      assert mismatch == "does not match quantity × price, fees and taxes — expected 816.00"
+    end
+
+    assert figures(buy.id) == corrected
+
+    assert %{"data" => %{"gross_amount" => "816.01"}} =
+             conn |> patch_tx(buy.id, %{"gross_amount" => "816.01"}) |> json_response(200)
+  end
+
   # Acceptance criteria (a sell, whose cash is net of fees and taxes):
   # - price 91.00 alone is refused; with gross_amount "358.50" (4 × 91.00 −
   #   3.00 − 2.50) it is stored and the cash balance credits 358.50.

@@ -170,6 +170,25 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("816.01"))
   end
 
+  # Acceptance criteria (the amendment's point 1, "on every write"; the
+  # sprint PR's closing act):
+  # - A cash typed alone is checked against the stored figures: 5000,00 is
+  #   refused with the field's error naming 806,00 and nothing moves;
+  #   806,04, within the stored price's rounding, is stored.
+  test "a cash typed alone is checked against the stored figures",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    submit(view, w, s, %{"gross_amount" => "5000,00"})
+
+    assert text(view, "#tx-error-gross_amount") ==
+             "passt nicht zu Menge × Preis, Gebühren und Steuern — erwartet 806,00"
+
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.00"))
+
+    submit(view, w, s, %{"gross_amount" => "806,04"})
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.04"))
+  end
+
   # Acceptance criteria:
   # - A note edit keeps the stored cash: the field sends it unchanged.
   # - A booking without a stored cash shows no cash field; its price edit

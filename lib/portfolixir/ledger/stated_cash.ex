@@ -19,6 +19,9 @@ defmodule Portfolixir.Ledger.StatedCash do
       buy, `− fees − taxes` on a sell (`SettlementGuard.expected_cash/4`),
       both sides rounded to two places as §2 rounds them, within
       `tolerance/2`: a cent, plus the price's own rounding (below);
+    * an update that states a cash alone, different from the stored one,
+      is checked against the stored figures the same way: the row keeps
+      the relation on every write (the amendment's point 1);
     * an update that changes none of these (a note, a date, an account)
       needs no cash and keeps it, even on a row whose cash already misses
       its figures: such a row is listed by `report/0`, never revalidated
@@ -130,8 +133,8 @@ defmodule Portfolixir.Ledger.StatedCash do
   stated (a stated cash equal to the stored one is no change). Refuses on
   `gross_amount` an update of the four figures, or of the type between buy
   and sell, of a row the rule covers that states no cash, or states one the
-  new figures do not agree with (`agrees?/4`); leaves every other write
-  alone.
+  new figures do not agree with (`agrees?/4`), and a cash stated alone the
+  stored figures do not agree with; leaves every other write alone.
   """
   @spec validate(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def validate(%Ecto.Changeset{data: %Transaction{} = stored} = changeset, attrs)
@@ -142,11 +145,13 @@ defmodule Portfolixir.Ledger.StatedCash do
        else: changeset
   end
 
-  # The four figures, and a buy turned into a sell or back: the relation's
-  # sign flips (the amendment's point 1, "on every write").
+  # The four figures, a buy turned into a sell or back (the relation's sign
+  # flips), and a cash stated alone: the amendment's point 1, the row
+  # "keeps the §2 relation on every write".
   defp triggered?(changeset) do
     Enum.any?(@figure_fields, &changed?(changeset, &1)) or
-      (changed?(changeset, :type) and get_field(changeset, :type) in @trade_types)
+      (changed?(changeset, :type) and get_field(changeset, :type) in @trade_types) or
+      (changed?(changeset, :gross_amount) and not is_nil(get_field(changeset, :gross_amount)))
   end
 
   defp stated?(attrs),

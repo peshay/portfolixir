@@ -63,7 +63,7 @@ defmodule PortfolixirWeb.ImportsDonePageLiveTest do
                "„Bereits importiert, mit anderem Betrag“ korrigieren."
 
     sale = Enum.find(Ledger.list_transactions_for_portfolio(portfolio.id), &(&1.type == "sell"))
-    {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), sale, %{gross_amount: "119.00"})
+    {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), sale, %{gross_amount: "119.95"})
 
     {:ok, view, _html} = live(conn, "/imports")
     upload(view, "history.json", json(history()))
