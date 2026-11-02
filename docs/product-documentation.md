@@ -3994,7 +3994,8 @@ naming the already-booked event) stays inline in the dialog.
   where the text is cut and **less** to cut it again. A note's remedy — a
   sync or backfill button, a link, a list of rows — stays in view under the
   cut. A **problem** always leads its block. A note that says what a total
-  **leaves out** keeps that count in its first line and never folds. Two
+  **leaves out** keeps every count in its first line — with two or more
+  groups, a lead names all their counts first — and never folds. Two
   or more of the other notes in one block fold into one line with their
   counts, for example "1 Attention · 1 Note — Show details".
 - The import's security picker announces how many securities a search

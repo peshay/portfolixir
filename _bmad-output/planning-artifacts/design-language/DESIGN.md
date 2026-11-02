@@ -7869,9 +7869,12 @@ disclosure below it does not; UX-DR17 clause 3), and the classification is
 made text by text, never by the prototype's clause length (a 42-character
 cut would have hidden Fällig's set and window and the drift threshold).
 
-**UX-DR25 under the clamp:** a note that names excluded rows keeps the
-count in its first line, so the count is always visible; the names are one
-tap away („mehr“). It never folds.
+**UX-DR25 under the clamp:** a note that names excluded rows keeps every
+count in its first line, so every count is always visible; the names are
+one tap away („mehr“). A note naming two or more groups or reasons leads
+with all their counts („Nicht in der Summe: 3 Verrechnungskonten,
+1 Position ohne Preis, 2 Positionen ohne Wechselkurs.“), then each group
+with its names (Sprint 22 closing act). It never folds.
 
 ### Wealth → Bestände, text by text
 
@@ -8023,7 +8026,8 @@ page lands.
   opens and when the note's box changes size (a `ResizeObserver`: a
   window resize, the page's scrollbar appearing), and re-applies its state after each
   patch. A clamped note needs its `id`. A note that names rows left out of
-  a total keeps its count in its first line, so under the clamp the count
+  a total keeps every count in its first line — with two or more groups or
+  reasons, a lead naming all their counts — so under the clamp every count
   stays visible and the names are one tap away (UX-DR25).
 - **④ Folded notes** (`AppShell.data_note_fold/1`): two or more attention
   or note items in one block fold into one `details.data-note-group`

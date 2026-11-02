@@ -104,7 +104,8 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     render_async(view)
 
     assert note_text(view) ==
-             "Nicht in der Summe: 2 Verrechnungskonten ohne Wechselkurs zu EUR — " <>
+             "Nicht in der Summe: 2 Verrechnungskonten, 1 Position ohne Preis. " <>
+               "2 Verrechnungskonten ohne Wechselkurs zu EUR — " <>
                "USD Settlement (1.850,00 USD), US Broker (60,00 USD) · " <>
                "1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25%. " <>
                "Details in Vermögen →"
@@ -140,7 +141,8 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     render_async(view)
 
     assert note_text(view) ==
-             "Not in the total: 1 cash account with no exchange rate to EUR — " <>
+             "Not in the total: 1 cash account, 1 position with no price. " <>
+               "1 cash account with no exchange rate to EUR — " <>
                "USD Settlement (1,850.00 USD) · " <>
                "1 held position with no price — Placeholder Anleihe 2031 3,25%. " <>
                "Details in Wealth →"
@@ -246,12 +248,27 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     {:ok, view, _html} = de_live(conn, "/")
     render_async(view)
 
+    # #1351 closing act (pick Q1; DESIGN.md ③ "every count"): with two or
+    # more groups the note's first element is every group's count, so none
+    # hides behind the clamp's "more"; the groups follow.
     assert note_text(view) ==
-             "Nicht in der Summe: 1 Verrechnungskonto ohne Wechselkurs zu EUR — " <>
+             "Nicht in der Summe: 1 Verrechnungskonto, 1 Position ohne Preis, " <>
+               "1 Position ohne Wechselkurs. " <>
+               "1 Verrechnungskonto ohne Wechselkurs zu EUR — " <>
                "USD Settlement (1.850,00 USD) · " <>
                "1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25% · " <>
                "1 gehaltene Position ohne Wechselkurs zu EUR — Harborline Freight (Kurs 12,40 USD). " <>
                "Details in Vermögen →"
+
+    assert view
+           |> element(
+             "#wealth-card-excluded .data-note__text > :first-child[data-role=wealth-card-excluded-counts]"
+           )
+           |> render()
+           |> Floki.parse_fragment!()
+           |> text() ==
+             "Nicht in der Summe: 1 Verrechnungskonto, 1 Position ohne Preis, " <>
+               "1 Position ohne Wechselkurs."
 
     {:ok, english, _html} = live(conn, "/")
     render_async(english)
