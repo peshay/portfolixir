@@ -35,6 +35,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
 
@@ -209,6 +210,65 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
         assert stored_figures(depot_id, ctx.target.id) ==
                  {n(after_figures.quantity), n(after_figures.cost_basis)}
       end
+    end
+
+    # User story:
+    # As the operator collapsing a delivery booked on both securities,
+    # I want the preview to list the external flow the collapse removes,
+    # so that I see how my time-weighted return changes before I choose.
+    #
+    # Acceptance criteria:
+    # - The collapse outcome lists kind removed for the collapsed delivery,
+    #   with its depot, the source security, its date, the units the day's
+    #   flow no longer carries and their value at the booked price.
+    # - After the apply, the portfolio's flow on that day differs from before
+    #   by exactly the listed change.
+    test "a collapsed delivery's external flow is listed as removed", ctx do
+      delivery = fn security ->
+        create!(
+          %{
+            portfolio_id: ctx.main.id,
+            securities_account_id: ctx.d1.id,
+            security_id: security.id,
+            type: "inbound_delivery",
+            date: ~D[2025-03-03],
+            quantity: "3",
+            price: "100.00",
+            currency_code: "EUR"
+          },
+          nil
+        )
+      end
+
+      s_in = delivery.(ctx.source)
+      _t_in = delivery.(ctx.target)
+      before = main_flow(ctx, ~D[2025-03-03])
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      assert preview.outcomes[false].flow_changes == []
+
+      assert [
+               %{
+                 kind: :removed,
+                 securities_account_id: d1_id,
+                 security_id: source_id,
+                 view_id: nil,
+                 date: ~D[2025-03-03],
+                 quantity: quantity,
+                 change: change,
+                 currency_code: "EUR",
+                 valued_at: :booked_price,
+                 collapsed_transaction_id: collapsed_id
+               }
+             ] = preview.outcomes[true].flow_changes
+
+      assert {d1_id, source_id, collapsed_id} == {ctx.d1.id, ctx.source.id, s_in.id}
+      assert {n(quantity), n(change)} == {dec("-3"), dec("-300")}
+
+      merge!(ctx, true, preview)
+
+      assert before == dec("600")
+      assert main_flow(ctx, ~D[2025-03-03]) == dec("300")
     end
   end
 
@@ -1493,6 +1553,15 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
       {table, digest}
     end)
+  end
+
+  defp main_flow(ctx, date) do
+    ctx.main.id
+    |> Performance.analysis()
+    |> Map.fetch!(:daily)
+    |> Enum.find(&(&1.date == date))
+    |> Map.fetch!(:flow)
+    |> Decimal.normalize()
   end
 
   defp dec(value), do: value |> Decimal.new() |> Decimal.normalize()
