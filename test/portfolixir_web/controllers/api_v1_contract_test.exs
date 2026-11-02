@@ -49,47 +49,79 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
+    # outside K17's five delta reads echoes its limit and truncated. Dated
+    # strictly after entry 21, so since=2026-11-02 still returns it. No
+    # route, tool or prompt; two items, one per place the fields sit.
+    assert newest["version"] == 22
+    assert newest["date"] == "2026-11-03"
+    assert String.starts_with?(newest["summary"], "Sprint 22's stacked PR, A1: ")
+    assert newest["summary"] =~ "(#1254)"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+    assert hd(Contract.entries()).prompts == []
+    assert [top_level, in_data] = newest["parameters"]
+
+    for endpoint <-
+          ~w(/api/v1/journal /api/v1/merges /api/v1/exchange_rates /api/v1/securities/:security_id/quotes) do
+      assert top_level =~ "GET #{endpoint}", endpoint
+    end
+
+    assert top_level =~ "at the top level beside data"
+    assert top_level =~ "limit 1, truncated true"
+    assert top_level =~ "(#1254)"
+
+    for endpoint <-
+          ~w(/quotes/manual /snapshots /realized_gains /external_flows /costs /notes/unreviewed /notes/uncorroborated /notes/expiring /events/upcoming /events/unconfirmed /events/stale) do
+      assert in_data =~ endpoint, endpoint
+    end
+
+    assert in_data =~ "the years of the annual matrix"
+    assert in_data =~ "(#1254)"
+
     # Sprint 22's R1 (version 21; #1291, ADR-0003 amended 2026-11-01): every
     # write refuses a JSON number in a financial field with a named 422. Dated
     # strictly after entry 20, so since=2026-11-01 still returns it. R1 adds
     # no route, tool or prompt; R6 (#1292, #1290) adds two read-only
-    # data-quality reads and their tools, one item each.
-    assert newest["version"] == 21
-    assert newest["date"] == "2026-11-02"
-    assert newest["summary"] =~ "Sprint 22, R1"
-    assert newest["summary"] =~ "#1291"
-    assert newest["summary"] =~ "R6"
+    # data-quality reads and their tools, one item each. Found by version
+    # from the stacked PR on.
+    r1 = Enum.find(data["entries"], &(&1["version"] == 21))
+    assert r1["version"] == 21
+    assert r1["date"] == "2026-11-02"
+    assert r1["summary"] =~ "Sprint 22, R1"
+    assert r1["summary"] =~ "#1291"
+    assert r1["summary"] =~ "R6"
 
-    assert newest["endpoints"] == [
+    assert r1["endpoints"] == [
              "GET /api/v1/splits/incomplete",
              "GET /api/v1/transactions/rate_only"
            ]
 
-    assert newest["tools"] == [
+    assert r1["tools"] == [
              "portfolixir.splits.incomplete",
              "portfolixir.transactions.rate_only"
            ]
 
     # The read serves no prompts list; the manifest holds it.
-    assert hd(Contract.entries()).prompts == []
+    assert Enum.find(Contract.entries(), &(&1.version == 21)).prompts == []
 
     assert [refusal, incomplete_splits, rate_only, _income, trades, holdings, income_currency] =
-             newest["parameters"]
+             r1["parameters"]
 
     # Sprint 22's R9 (#1274, #1293): the income read's per-currency position
     # rows with native and converted figures, and the unconverted year.
-    assert newest["summary"] =~ "R9"
+    assert r1["summary"] =~ "R9"
     assert String.starts_with?(income_currency, "GET /api/v1/portfolios/:portfolio_id/income")
     assert income_currency =~ "native_gross 180.00, native_tax 36.00, native_net 144.00"
     assert income_currency =~ "excluded_count"
     assert income_currency =~ "interest_count"
     assert income_currency =~ "(#1274, #1293)"
 
-    assert newest["summary"] =~ "R8"
+    assert r1["summary"] =~ "R8"
     assert String.starts_with?(holdings, "GET /api/v1/portfolios/:portfolio_id/holdings")
     assert holdings =~ "price_source"
     assert holdings =~ "(#1316, #1332; ADR-0010)"
-    assert newest["summary"] =~ "R5"
+    assert r1["summary"] =~ "R5"
     assert String.starts_with?(trades, "GET /api/v1/securities/:security_id/trades")
     assert trades =~ "third_currency"
     assert trades =~ "other_account_currency"
@@ -117,11 +149,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # Sprint 22's R7 (#1309, the plan's D-5): Income reads the withheld tax
     # on an interest booking as on a dividend; the item quotes the basis the
     # read now serves, from Portfolixir.Portfolios.Income.
-    assert newest["summary"] =~ "#1309"
+    assert r1["summary"] =~ "#1309"
 
     income =
       Enum.find(
-        newest["parameters"],
+        r1["parameters"],
         &String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/income")
       )
 
