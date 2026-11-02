@@ -3484,6 +3484,26 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(requests[0].body, { include: [], exclude: [] });
   });
 
+  // #1315: set_buckets saves include_all with both sets, as the bucket picker
+  // does, so a view created with "all" included narrows in one call; omitted,
+  // the flag is not sent and stays as it is.
+  it("forwards include_all on views.set_buckets only when given", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 2 } });
+
+    await callTool(client, "portfolixir.views.set_buckets", {
+      id: 2,
+      include: [3],
+      include_all: false
+    });
+
+    assert.deepEqual(requests[0].body, { include: [3], exclude: [], include_all: false });
+
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.views.set_buckets")?.description ?? "";
+    assert.match(description, /include_all/);
+    assert.match(description, /left as it is/);
+  });
+
   it("routes bucket assignment tools to the depot/cash/position endpoints", async () => {
     const { client, requests } = createRecordingClient({ data: { bucket_ids: [3] } });
 
