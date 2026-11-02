@@ -110,7 +110,21 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     ~H"""
     <div id="performance-contribution" class="contribution" data-role="contribution">
       <div class="contribution__head">
-        <h3 id="contribution-title"><%= gettext("Contribution by position") %></h3>
+        <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ①):
+             the method sentences of the basis line sit in the heading's ⓘ;
+             the basis clause stays under the table (②). --%>
+        <div class="section-title">
+          <h3 id="contribution-title"><%= gettext("Contribution by position") %></h3>
+          <AppShell.section_info>
+            <:line><%= gettext("Contribution = end value − start value − flows + income − costs") %></:line>
+            <:line><%= gettext("start value: the close of the day before the period") %></:line>
+            <:line>
+              <%= gettext(
+                "positions and remainder lines add up to exactly the result in the period; deposits and removals are no result"
+              ) %>
+            </:line>
+          </AppShell.section_info>
+        </div>
         <span class="contribution__scope" data-role="contribution-scope"><%= @scope %></span>
       </div>
       <%= cond do %>
@@ -144,10 +158,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
           <.desktop_table f={@f} show_all?={@show_all?} />
           <.phone_rows f={@f} show_all?={@show_all?} />
           <p class="summary-basis" data-role="contribution-basis">
-            <%= gettext(
-              "Contribution = end value − start value − flows + income − costs · per position in %{currency}, currency move included · start value: the close of the day before the period · positions and remainder lines add up to exactly the result in the period; deposits and removals are no result",
-              currency: @f.currency
-            ) %>
+            <%= gettext("per position in %{currency}, currency move included", currency: @f.currency) %>
           </p>
           <.unvalued_note
             :if={@f.unvalued != [] or @f.unvalued_accounts != []}
@@ -379,7 +390,12 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     assigns = assigns |> assign(:earlier, earlier) |> assign(:through_end, through_end)
 
     ~H"""
-    <AppShell.data_note severity={:attention} data-role="contribution-unvalued">
+    <AppShell.data_note
+      severity={:attention}
+      id="contribution-unvalued-note"
+      data-role="contribution-unvalued"
+      clamp
+    >
       <%= if @unvalued != [] do %>
         <%= ngettext(
           "One position counted zero on some days of the period:",
