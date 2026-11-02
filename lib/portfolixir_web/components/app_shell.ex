@@ -637,6 +637,50 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   @doc """
+  Folded data notes (I1, #1351; board `ux-design-2026-11-01-sprint22/01-i1`
+  ④): two or more attention or note items in one block fold into one line
+  with their counts — „⚠ 1 Achtung · ✳ 1 Hinweis — Details anzeigen“ — at
+  the highest folded severity; one item renders on its own. The caller
+  passes only the notes that may fold, and their counts: a problem never
+  folds and leads its block (⑤), and a note that names rows left out of a
+  total never folds, it only clamps (pick Q1, correction 1; UX-DR25). The
+  `DisclosureState` hook keeps an opened fold open across patches.
+  """
+  attr(:id, :string, required: true)
+  attr(:attention, :integer, default: 0)
+  attr(:note, :integer, default: 0)
+  slot(:inner_block, required: true)
+
+  def data_note_fold(assigns) do
+    ~H"""
+    <%= if @attention + @note >= 2 do %>
+      <details
+        id={@id}
+        class={["data-note-group", "data-note-group--#{if @attention > 0, do: "attention", else: "note"}"]}
+        data-role="folded-notes"
+        phx-hook="DisclosureState"
+      >
+        <summary>
+          <span :if={@attention > 0} class="data-note-group__count data-note-group__count--attention">
+            <span aria-hidden="true"><.icon name={severity_glyph(:attention)} size={14} /></span>
+            <%= pngettext("data-note fold", "%{count} Attention", "%{count} Attention", @attention) %>
+          </span>
+          <span :if={@attention > 0 and @note > 0} aria-hidden="true">·</span>
+          <span :if={@note > 0} class="data-note-group__count data-note-group__count--note">
+            <span aria-hidden="true"><.icon name={severity_glyph(:note)} size={14} /></span>
+            <%= pngettext("data-note fold", "%{count} Note", "%{count} Notes", @note) %>
+          </span>
+          <span class="data-note-group__toggle">— <%= gettext("Show details") %></span>
+        </summary>
+        <div class="data-note-group__body"><%= render_slot(@inner_block) %></div>
+      </details>
+    <% else %>
+      <%= render_slot(@inner_block) %>
+    <% end %>
+    """
+  end
+
+  @doc """
   The note for stored text that carries characters the operator cannot see
   (E25 S7, G20; the owner's pick G12.2 = B on board 12-e25-new-marks).
 
