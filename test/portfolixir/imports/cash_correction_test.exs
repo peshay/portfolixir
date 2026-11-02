@@ -1256,10 +1256,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
 
       apply!(parse_rows(rows), portfolio)
 
-      {:ok, _} =
-        Ledger.update_transaction(Actor.import_session(), booking(portfolio, "sell"), %{
-          price: "12.50"
-        })
+      store_old_price!(booking(portfolio, "sell"), "12.50")
 
       assert realized(portfolio) == "20"
 
@@ -1667,5 +1664,19 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert balances(portfolio) == %{"Test-Cash" => "1074.3"}
       assert states(listed(drifted, portfolio)) == [{4, :refused}, {5, :edited}]
     end
+  end
+
+  # A sale stored with the file's cash and an older price, as an import
+  # stored it before ADR-0053 A2; written below the ledger, since an edit of
+  # the price alone on a stored-cash trade states its cash since #1371 (the
+  # ADR-0053 amendment of 2026-11-02). No actor's edit is journaled.
+  defp store_old_price!(%Transaction{} = row, price) do
+    {:ok, stored} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'import_session', true)")
+        row |> Ecto.Changeset.change(price: Decimal.new(price)) |> Repo.update!()
+      end)
+
+    stored
   end
 end

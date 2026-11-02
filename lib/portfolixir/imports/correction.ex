@@ -762,7 +762,7 @@ defmodule Portfolixir.Imports.Correction do
 
         offered
         |> Enum.reduce_while([], fn %Item{} = item, corrected ->
-          case Ledger.update_transaction(actor, item.transaction, item.changes) do
+          case Ledger.update_transaction(actor, item.transaction, stated(item)) do
             {:ok, _transaction} -> {:cont, [item | corrected]}
             {:error, reason} -> {:halt, {:error, %{row: item.row, reason: reason}}}
           end
@@ -775,6 +775,15 @@ defmodule Portfolixir.Imports.Correction do
       timeout: Applier.transaction_timeout()
     )
   end
+
+  # ADR-0053, amendment of 2026-11-02 (#1371): a write that changes a
+  # stored-cash trade's price states its cash. A JSON price corrected alone
+  # (A11) was derived from the cash the row keeps, so the confirm states
+  # that cash; the changes listed and journaled are the item's own.
+  defp stated(%Item{changes: changes, transaction: %Transaction{gross_amount: %Decimal{} = cash}}),
+    do: Map.put_new(changes, :gross_amount, cash)
+
+  defp stated(%Item{changes: changes}), do: changes
 
   defp offered?(%Item{}, :all), do: true
 

@@ -138,7 +138,8 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
   # - Saving without a change, or with a note, changes no stored figure:
   #   currency, quantity, price, fees, taxes, cash and the three legs are
   #   exactly as stored; the API's read differs in the note only.
-  # - A price edit to 81 stores 81.00 EUR, every other figure unchanged.
+  # - A price edit to 81 that states no cash changes nothing (ADR-0053,
+  #   amendment of 2026-11-02).
   # - After the rate backfill the same row opens with its legs.
   test "L1: a legless cross-currency buy is corrected in the currency it is stored in",
        %{conn: conn, world: w, usd: usd, legless: tx, api: api} do
@@ -176,15 +177,12 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
     drop = &Map.drop(&1, ["notes", "updated_at", "inserted_at"])
     assert drop.(api_row(api, tx.id)) == drop.(api_before)
 
-    # A price edit to 81 stores 81.00 EUR; nothing else moves.
+    # A price edit to 81 that states no cash is refused (ADR-0053,
+    # amendment of 2026-11-02): nothing moves until the cash is stated.
     view = open_edit(conn, tx.id)
     submit(view, w, usd, %{"price" => "81"})
 
-    corrected = Repo.get!(Transaction, tx.id)
-    assert corrected.currency_code == "EUR"
-    assert Decimal.equal?(corrected.price, Decimal.new("81.00"))
-
-    assert Map.drop(figures(tx.id), [:price]) == Map.drop(stored, [:price])
+    assert figures(tx.id) == stored
 
     # After the rate backfill the same row opens with its legs: the importer's
     # account-currency form, no Hinweis.
@@ -243,21 +241,35 @@ defmodule PortfolixirWeb.BookingDrawerLeglessRowTest do
   end
 
   # Acceptance criteria (the API PATCH, ADR-0015 amendment of 2026-11-01,
-  # "What does not change"): a PATCH that corrects the note or the price of
-  # a legless row keeps its stored currency and every other figure — the
-  # API derives no currency from the security/account pair.
+  # "What does not change"; ADR-0053 amendment of 2026-11-02, point 3): a
+  # PATCH that corrects the price of a legless row states its cash, in the
+  # currency the row is stored in, and keeps its stored currency and every
+  # other figure — the API derives no currency from the security/account
+  # pair. The price alone is refused on gross_amount and changes nothing.
   test "the API PATCH corrects a legless row in its stored currency",
        %{legless: tx, api: api} do
     stored = figures(tx.id)
+    api = put_req_header(api, "content-type", "application/json")
+
+    assert %{"errors" => %{"gross_amount" => [_required]}} =
+             api
+             |> patch("/api/v1/transactions/#{tx.id}", %{"transaction" => %{"price" => "81"}})
+             |> json_response(422)
+
+    assert figures(tx.id) == stored
 
     api
-    |> put_req_header("content-type", "application/json")
-    |> patch("/api/v1/transactions/#{tx.id}", %{"transaction" => %{"price" => "81"}})
+    |> patch("/api/v1/transactions/#{tx.id}", %{
+      "transaction" => %{"price" => "81", "gross_amount" => "816.00"}
+    })
     |> json_response(200)
 
     corrected = Repo.get!(Transaction, tx.id)
     assert corrected.currency_code == "EUR"
     assert Decimal.equal?(corrected.price, Decimal.new("81.00"))
-    assert Map.drop(figures(tx.id), [:price]) == Map.drop(stored, [:price])
+    assert Decimal.equal?(corrected.gross_amount, Decimal.new("816.00"))
+
+    assert Map.drop(figures(tx.id), [:price, :gross_amount]) ==
+             Map.drop(stored, [:price, :gross_amount])
   end
 end

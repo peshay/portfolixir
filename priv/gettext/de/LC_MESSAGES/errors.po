@@ -204,6 +204,14 @@ msgstr "muss %{security_currency} (die Währung des Wertpapiers) oder %{account_
 msgid "must be %{currency} (the currency of the security and of its cash account)"
 msgstr "muss %{currency} sein (die Währung des Wertpapiers und seines Verrechnungskontos)"
 
+## #1371 (ADR-0053, amendment of 2026-11-02): an edit of a stored-cash
+## trade's figures states its cash.
+msgid "is required when quantity, price, fees or taxes change on a booking that stores its cash"
+msgstr "ist anzugeben, wenn sich Menge, Preis, Gebühren oder Steuern einer Buchung ändern, die ihren Betrag speichert"
+
+msgid "does not match quantity × price, fees and taxes — expected %{expected}"
+msgstr "passt nicht zu Menge × Preis, Gebühren und Steuern — erwartet %{expected}"
+
 msgid "must differ from %{field}"
 msgstr "muss sich von %{field} unterscheiden"
 
