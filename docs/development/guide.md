@@ -69,6 +69,12 @@ Start the project with either:
   DATABASE_NAME=portfolixir_test_2 mix test
   ```
 
+- An async test writes exchange rates no other async test writes: its own
+  quote currency (or dates no other test writes for that pair). *Why:* in
+  the SQL sandbox a second insert on the same rate key (base, quote, date)
+  waits for the first test's transaction to end, and a test that waited
+  15 s was cancelled in CI (`57014 query_canceled`, Sprint 23's sprint PR).
+
 - A linked git worktree is created with `scripts/worktree.sh add <path>
   <base-ref> [branch] [--db <name>]`: it starts from the base you name, links
   the main checkout's `deps` and `mcp-server/node_modules`, keeps `_build` its

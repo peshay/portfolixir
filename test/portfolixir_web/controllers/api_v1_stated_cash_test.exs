@@ -238,9 +238,9 @@ defmodule PortfolixirWeb.ApiV1StatedCashTest do
 
   # Acceptance criteria (the plan's carry-forward, D-7: a money identity is
   # checked at a moving rate too; ADR-0015, amendment of 2026-11-01, point 2):
-  # - A legless cross-currency buy (a USD security, stored in EUR from a EUR
+  # - A legless cross-currency buy (an NZD security, stored in EUR from a EUR
   #   account, no legs) follows the rule in its stored currency: the derived
-  #   cash is 816.00 EUR whatever the EUR/USD rate on its day or today, and a
+  #   cash is 816.00 EUR whatever the EUR/NZD rate on its day or today, and a
   #   cash converted at either rate is refused.
   # - With the rate moving between the buy's day and today, the stored cash
   #   and the cash balance read 816.00 EUR, and the row stays legless and in
@@ -248,21 +248,21 @@ defmodule PortfolixirWeb.ApiV1StatedCashTest do
   test "a legless cross-currency row follows the rule in its stored currency at a moving rate",
        %{conn: conn} do
     world = base_world(name: "Moving Rate", cash_name: "MR EUR Cash", depot_name: "MR Depot")
-    usd = create_security!(name: "Moving Rate Inc.", ticker: "MRI", currency: "USD")
-    buy = imported_buy!(world, usd, "EUR")
+    nzd = create_security!(name: "Moving Rate Inc.", ticker: "MRI", currency: "NZD")
+    buy = imported_buy!(world, nzd, "EUR")
 
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
-          quote_currency: "USD",
+          quote_currency: "NZD",
           date: ~D[2026-04-15],
           rate: "1.25",
           source: "manual"
         },
         %{
           base_currency: "EUR",
-          quote_currency: "USD",
+          quote_currency: "NZD",
           date: ~D[2026-05-15],
           rate: "1.10",
           source: "manual"
