@@ -423,7 +423,11 @@ full list.
   (`latest_price`, `latest_price_date`, `day_change_abs`, `day_change_pct`,
   `performance_1m`, `performance_1y`) sorts the whole set, with or without a
   `data_quality` set, a security without the figure last in either direction
-  and ties in name order, and `limit`/`offset` page after it (issue #1186). The
+  and ties in name order, and `limit`/`offset` page after it (issue #1186).
+  Every sort breaks its last ties by `id`, ascending in either direction, so
+  a `limit`/`offset` walk over rows sharing a sort value (every security
+  without a value for an attribute, say) skips none and repeats none (issue
+  #1294). The
   **human view** of these narrowings is the one-tap filter-chip row on the
   securities page (issue #717): its chips ride the same URL state
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` and

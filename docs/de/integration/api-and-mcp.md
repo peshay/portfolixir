@@ -461,7 +461,11 @@ verengen, was der Betreiber sieht.
   `day_change_pct`, `performance_1m`, `performance_1y`) sortiert die ganze
   Menge, mit oder ohne `data_quality`-Menge, ein Wertpapier ohne die Kennzahl
   in beiden Richtungen zuletzt und Gleichstände nach Namen, und
-  `limit`/`offset` paginieren danach (Issue #1186). Die
+  `limit`/`offset` paginieren danach (Issue #1186). Jede Sortierung
+  entscheidet ihre letzten Gleichstände nach `id`, in beiden Richtungen
+  aufsteigend, sodass ein Gang mit `limit`/`offset` über Zeilen mit gleichem
+  Sortierwert (etwa alle Wertpapiere ohne Wert für ein Attribut) keine
+  überspringt und keine wiederholt (Issue #1294). Die
   **menschliche Sicht** dieser Verengungen ist die One-Tap-Chipzeile auf der
   Wertpapierseite (Issue #717): ihre Chips fahren auf demselben URL-Zustand
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` und
