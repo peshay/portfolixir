@@ -193,6 +193,23 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert is_nil(stored(plain.id).gross_amount)
   end
 
+  # Acceptance criteria (ADR-0053's amendment, point 1, "on every write"):
+  # - Turning the buy into a sell prefills the cash the sale's figures give,
+  #   10 × 80,00 − 5,00 − 1,00 = 794,00, and the save stores it.
+  test "a buy turned into a sell prefills and saves the sale's cash",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    change(view, w, s, "type", "sell")
+
+    assert form_inputs(view)["transaction[gross_amount]"] == "794,00"
+
+    submit(view, w, s, %{"type" => "sell"})
+
+    row = stored(buy.id)
+    assert row.type == "sell"
+    assert Decimal.equal?(row.gross_amount, Decimal.new("794.00"))
+  end
+
   # Acceptance criteria (a sell's cash is net of fees and taxes):
   # - Its note names the sum with minus signs and the prefilled figure is
   #   4 × 91,00 − 3,00 − 2,50 = 358,50.

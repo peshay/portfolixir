@@ -1734,8 +1734,8 @@ Example account payloads:
   (`DELETE /api/v1/splits/:transaction_id`, below) and booked again. A buy
   or a sell that stores its cash (`gross_amount`) and no `settlement_amount`
   keeps its cash with its figures (ADR-0053, amendment of 2026-11-02,
-  #1371): an update that changes its `quantity`, `price`, `fees` or `taxes`
-  must state `gross_amount` too, or it answers 422 on `errors.gross_amount`
+  #1371): an update that changes its `quantity`, `price`, `fees` or
+  `taxes`, or its `type` between buy and sell, must state `gross_amount` too, or it answers 422 on `errors.gross_amount`
   ("is required when quantity, price, fees or taxes change on a booking
   that stores its cash"); the stated cash must agree with quantity × price
   plus fees and taxes on a buy, less them on a sale, or it answers 422
@@ -1744,7 +1744,7 @@ Example account payloads:
   imported row, apart by at most 0.01 plus |quantity| × half a unit of the
   price's last digit (read at two to six places), the rounding an imported
   price carries (10 at 81.00: 0.06).
-  An update of none of the four (a note, a date, an account) needs no cash.
+  An update of none of these (a note, a date, an account) needs no cash.
   The stored cash is the broker's figure, so it is never re-derived; a
   cross-currency row stored without its legs is checked in the currency it
   is stored in. An update that collides with a concurrent write of the same rows, such as a

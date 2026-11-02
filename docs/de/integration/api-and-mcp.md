@@ -1878,7 +1878,8 @@ Beispiel-Payloads für Konten:
   neu gebucht. Ein Kauf oder Verkauf, der seinen Betrag (`gross_amount`) und
   keinen `settlement_amount` speichert, hält seinen Betrag mit seinen Zahlen
   zusammen (ADR-0053, Ergänzung vom 2026-11-02, #1371): Eine Änderung von
-  `quantity`, `price`, `fees` oder `taxes` muss auch `gross_amount` angeben,
+  `quantity`, `price`, `fees` oder `taxes` oder des `type` zwischen Kauf
+  und Verkauf muss auch `gross_amount` angeben,
   sonst antwortet die API mit 422 auf `errors.gross_amount` ("is required
   when quantity, price, fees or taxes change on a booking that stores its
   cash"); der angegebene Betrag muss zu Menge × Kurs plus Gebühren und
@@ -1888,7 +1889,7 @@ Beispiel-Payloads für Konten:
   wie ADR-0053 §2 eine importierte Zeile vergleicht, höchstens 0,01 plus
   |Menge| × eine halbe Einheit der letzten Stelle des Kurses (gelesen auf
   zwei bis sechs Stellen) auseinander, die Rundung eines importierten
-  Kurses (10 zu 81,00: 0,06). Eine Änderung keiner der vier
+  Kurses (10 zu 81,00: 0,06). Eine Änderung keiner davon
   (eine Notiz, ein Datum, ein Konto) braucht keinen Betrag. Der gespeicherte
   Betrag ist die Zahl des Brokers und wird nie neu abgeleitet; eine
   Fremdwährungszeile ohne ihre Beine wird in der Währung geprüft, in der sie

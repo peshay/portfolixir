@@ -1079,7 +1079,10 @@ fees and taxes by more than a cent (synthetic: 7 at 14,29 for a Betrag of
 for 1,000,000.00 at 8.099960 by 0.047), and a cent alone would list them
 untouched and refuse their correction. With the allowance none is listed,
 and #1371's identity holds: 806.00 against 816.00 is refused, the tolerance
-of 10 at 81.00 being 0.06. No decision changes.
+of 10 at 81.00 being 0.06. **The type** joins the four figures: a buy turned
+into a sell, or back, flips the relation's sign, so such an update states
+the cash too, point 1's "on every write" (the error's wording is
+unchanged). No decision changes.
 
 ## Note (2026-11-02): the refusal list gains the CSV time row
 
