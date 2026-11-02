@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { once } from "node:events";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createServer as createNetServer, type AddressInfo } from "node:net";
 import { join } from "node:path";
@@ -10,6 +11,7 @@ import { promisify } from "node:util";
 
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
+import { MCP_PROFILES, type McpProfile } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
 
 // The companion's real transports (#1021): the built dist/index.js, started as
@@ -327,6 +329,101 @@ function assertConversation(conversation: Conversation, api: FakeApi, transport:
   );
 }
 
+// THE STDIO SURFACE, AS A HOST RECEIVES IT (#1115). What the companion says
+// over stdio, per profile, captured from the wire into a golden file with the
+// SDK v1 build (1.32.2) before the move to v2, and held equal since: the
+// handshake, the tool list, the prompt list and the prompts, a read's answer
+// and the refusals an agent meets (an invalid argument, an unknown tool, a
+// tool its profile leaves out, an unknown prompt, a request without its
+// params, a method the companion does not offer). The request asks for the
+// protocol version today's hosts send, so a host that changes nothing sees
+// nothing change.
+//
+// The golden file is the agent's view: it changes only together with a
+// contract entry saying what an agent sees change. To rewrite it, run the
+// suite with PORTFOLIXIR_WRITE_STDIO_SURFACE=1 and read the diff.
+const surfaceFile = join(packageRoot, "test", "fixtures", "stdio-surface.json");
+const surfaceProtocolVersion = "2025-11-25";
+
+type Exchange = { result?: unknown; error?: unknown };
+type ProfileSurface = Record<string, Exchange | string[]>;
+
+// One JSON-RPC answer as the golden file holds it: its result or its error,
+// the envelope (jsonrpc, id) left out.
+function exchange(message: JsonRpcMessage): Exchange {
+  return "error" in message ? { error: message.error } : { result: message.result };
+}
+
+// The whole conversation one spawned companion holds under `profile`. The full
+// profile answers everything; the narrower two answer the handshake, the names
+// they list (each tool's definition is the full profile's, asserted
+// separately), their own first-setup prompt and their refusal of a tool they
+// leave out.
+async function stdioSurface(
+  profile: McpProfile,
+  api: FakeApi
+): Promise<{ surface: ProfileSurface; tools: Array<{ name: string }> }> {
+  const companion = spawnCompanion({
+    PORTFOLIXIR_API_BASE_URL: api.baseUrl,
+    PORTFOLIXIR_API_TOKEN: apiToken,
+    PORTFOLIXIR_MCP_TRANSPORT: "stdio",
+    PORTFOLIXIR_MCP_PROFILE: profile
+  });
+
+  try {
+    const wire = stdioWire(companion);
+    let id = 0;
+    const ask = async (method: string, params?: unknown): Promise<JsonRpcMessage> =>
+      wire.request(++id, method, params);
+    const surface: ProfileSurface = {};
+
+    surface.initialize = exchange(
+      await ask("initialize", { ...initializeParams, protocolVersion: surfaceProtocolVersion })
+    );
+    wire.notify("notifications/initialized");
+
+    const list = await ask("tools/list", {});
+    const tools = list.result.tools as Array<{ name: string }>;
+    surface["tools/list names"] = tools.map((tool) => tool.name);
+    surface["prompts/get first_setup"] = exchange(await ask("prompts/get", { name: "first_setup" }));
+
+    if (profile !== "full") {
+      surface["tools/call a write the profile leaves out"] = exchange(
+        await ask("tools/call", {
+          name: "portfolixir.securities.delete",
+          arguments: { id: "00000000-0000-4000-8000-000000000000" }
+        })
+      );
+
+      return { surface, tools };
+    }
+
+    surface["tools/list"] = exchange(list);
+    surface["prompts/list"] = exchange(await ask("prompts/list", {}));
+    surface["prompts/get import_converter"] = exchange(
+      await ask("prompts/get", { name: "import_converter", arguments: { export_file: "export.csv" } })
+    );
+    surface["tools/call a read"] = exchange(
+      await ask("tools/call", { name: toolName, arguments: toolArguments })
+    );
+    surface["tools/call an invalid argument"] = exchange(
+      await ask("tools/call", { name: toolName, arguments: { since: 20260101 } })
+    );
+    surface["tools/call an unknown tool"] = exchange(
+      await ask("tools/call", { name: "portfolixir.no_such_tool", arguments: {} })
+    );
+    surface["tools/call without params"] = exchange(await ask("tools/call"));
+    surface["prompts/get an unknown prompt"] = exchange(await ask("prompts/get", { name: "no_such_prompt" }));
+    surface["resources/list, not offered"] = exchange(await ask("resources/list", {}));
+    surface.ping = exchange(await ask("ping"));
+
+    assert.deepEqual(wire.stray, [], `${profile}: stdout carries JSON-RPC only`);
+    return { surface, tools };
+  } finally {
+    await companion.stop();
+  }
+}
+
 describe("the built companion over its real transports", () => {
   // `npm test` alone is enough: the suite compiles dist/ the way `npm run
   // build` does (CI runs the tests before its build step), so the process
@@ -383,6 +480,67 @@ describe("the built companion over its real transports", () => {
     } finally {
       await companion.stop();
       await api.close();
+    }
+  });
+
+  // User story (#1115):
+  // As the agent the operator runs, connected over stdio,
+  // I want the companion to answer exactly as it did before its MCP SDK moved
+  // from v1 to v2,
+  // so that a dependency move changes no tool name, schema, description,
+  // prompt, answer or refusal I rely on without a contract entry saying so.
+  //
+  // Acceptance criteria:
+  // - Under each profile, the built companion's stdio answers equal the
+  //   golden file captured from the v1 build, key order included: the
+  //   handshake, the tool names, the first-setup prompt, and the refusal of
+  //   a tool the profile leaves out; under full also the whole tool list, the
+  //   prompts, a read's answer and each refusal.
+  // - Each tool the read and book profiles list is the full profile's tool,
+  //   byte for byte.
+  it("answers over stdio exactly what the golden surface holds, under every profile", { timeout: 120_000 }, async () => {
+    const api = await startFakeApi();
+    const actual: Record<string, ProfileSurface> = {};
+    const listed: Record<string, Array<{ name: string }>> = {};
+
+    try {
+      for (const profile of MCP_PROFILES) {
+        ({ surface: actual[profile], tools: listed[profile] } = await stdioSurface(profile, api));
+      }
+    } finally {
+      await api.close();
+    }
+
+    const captured = { protocolVersion: surfaceProtocolVersion, profiles: actual };
+
+    if (process.env.PORTFOLIXIR_WRITE_STDIO_SURFACE === "1") {
+      writeFileSync(surfaceFile, `${JSON.stringify(captured, null, 2)}\n`);
+    }
+
+    const golden = JSON.parse(readFileSync(surfaceFile, "utf8")) as typeof captured;
+
+    assert.equal(golden.protocolVersion, surfaceProtocolVersion);
+    assert.deepEqual(Object.keys(golden.profiles), Object.keys(actual));
+
+    for (const profile of MCP_PROFILES) {
+      assert.deepEqual(Object.keys(actual[profile]), Object.keys(golden.profiles[profile]), profile);
+
+      for (const [what, answer] of Object.entries(actual[profile])) {
+        // Serialised, so a key that moved or a field that appeared fails too.
+        assert.equal(
+          JSON.stringify(answer, null, 2),
+          JSON.stringify(golden.profiles[profile][what], null, 2),
+          `${profile}: ${what} differs from the golden surface`
+        );
+      }
+    }
+
+    const fullTools = new Map(listed.full.map((tool) => [tool.name, JSON.stringify(tool)]));
+
+    for (const profile of ["read", "book"] as const) {
+      for (const tool of listed[profile]) {
+        assert.equal(JSON.stringify(tool), fullTools.get(tool.name), `${profile}: ${tool.name}`);
+      }
     }
   });
 
