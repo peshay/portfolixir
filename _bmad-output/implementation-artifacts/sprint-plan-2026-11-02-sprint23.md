@@ -26,8 +26,13 @@ amendment of 2026-11-01 applies unchanged.
    recommendation), or do you want a new screen? Silence leaves I7 in
    `discussing` with that question in its row; nothing of I7 is built in
    this sprint either way.
-3. **Nothing else.** The boards' picks (D-8) are the default unless a
-   comment flips them.
+3. **Look at board 04 and pick the number colours** (D-11). You raised it
+   on 2026-11-02 and were unsure; the recommendation is C: the accent
+   colours only controls; plain figures are in the text colour; a signed
+   figure is teal when positive and coral when negative, whatever accent is
+   set. Silence adopts C; comment "A" or "B" for the other two.
+4. **Nothing else.** The other boards' picks (D-8) are the default unless a
+   comment flips them. The ⓘ fix you reported (C1, D-11) needs no answer.
 
 **Not asked:** everything else. Each decision below carries its reason and
 flips by a comment. The announcement stays yours (Sprint 17's D-1).
@@ -102,8 +107,10 @@ flips by a comment. The announcement stays yours (Sprint 17's D-1).
   to prevent ("agent only, forever"). This sprint builds all three views.
 - **No new feature.** I7 is discussed, not built (D-9); the features Sprint
   22 kept open stay open with their reasons.
-- **Both PRs stay well under 90 commits** (about 39 and 48), so both merge
+- **Both PRs stay well under 90 commits** (about 39 and 53), so both merge
   with GitHub's "Rebase and merge" button.
+- **Your two reports of 2026-11-02 ride the stacked PR** (Lane C), ahead
+  of Lane I, because both change every page Lane I then reworks.
 
 ## Lanes
 
@@ -172,6 +179,14 @@ CSV with an unreadable time, R3's and R4's figures against Wealth). About
 | V2 | Sprint 22 A4 (#957) | the depot and the security merge previews show `flow_changes`: the dates and entries the collapse changes, an empty state, the basis behind the section's ⓘ (board 01 ①b) | 4 |
 | V3 | idea U2 | the audit journal gets its page: newest first, the actor, the entity with a link to it, the change with its before and after in a fold, filters by entity type and actor, paged like the API (board 03) | 7 |
 
+**Lane C, what you reported on 2026-11-02 (before Lane I, because both
+touch every page).**
+
+| Story | Source | What it does | Commits |
+|---|---|---|---|
+| C1 | owner, 2026-11-02 | the ⓘ panels behave as one popover: opening one closes any other, and a click or tap outside an open panel closes it (Escape already does, #1342); a click inside the panel leaves it open; the focus is not moved by a click-away. One capture listener in `layout_view.ex` beside #1336's and #1342's, so every `details.metric-tooltip` (about 25 sites, the view switcher's help included) gets it without an id. No rendered difference, so no board (the sprint workflow's exception) | 2 |
+| C2 | owner, 2026-11-02 | the number colours by board 04's pick (C recommended, D-11): the tokens in all four theme blocks, DESIGN.md's colour and KPI rules, the contrast and token-parity invariants re-measured | 3 |
+
 **Lane I, the explanations out of the way, the later pages (idea I1;
 #1351 closed with Sprint 22's three pages; Sprint 22's board 01 and its
 classification rule).**
@@ -196,7 +211,7 @@ Lanes V and I touch. About 10 commits.
 `epics.md`'s dated reconciliation, the idea list (I1 and U2 `built`), the
 retrospective, the version report. About 5 commits.
 
-**Estimate:** V 16, I 17, closing act about 10, close-out 5: **about 48**.
+**Estimate:** V 16, C 5, I 17, closing act about 10, close-out 5: **about 53**.
 
 ## Decisions
 
@@ -214,8 +229,9 @@ retrospective, the version report. About 5 commits.
 4. **#1115 closes** with the companion on v2's server package, every tool
    answering over stdio, and the schema ceilings no higher than 102,887 /
    171,958 / 206,513 bytes.
-5. **The built screens match boards 01 to 03 and Sprint 22's board 01**, by
-   the design critic.
+5. **The built screens match boards 01 to 04 and Sprint 22's board 01**, by
+   the design critic; at most one ⓘ panel is open on any page, and a click
+   outside closes it (C1, pinned by a browser test).
 6. **Every commit ran its hooks:** no `--no-verify` in the sprint, Lane E's
    proof recorded in the PR body.
 7. **The regressions this sprint introduced are counted** apart from the
@@ -276,8 +292,8 @@ D-1 criterion 3 at two of three.
 
 Two PRs, each under ADR-0026's budget of 90 commits, each merged by your
 "Rebase and merge" button: the sprint PR (Lanes E, M, R; about 39) and the
-stacked PR (Lanes V, I and the close-out; about 48), built on the sprint
-PR's head. **New: once the sprint PR is merged, the implementation session
+stacked PR (Lanes V, C, I and the close-out), built on the sprint
+PR's head (about 53 with Lane C). **New: once the sprint PR is merged, the implementation session
 rebases the stacked PR onto `main` and retargets it to `main` before it
 asks for your merge**, and the briefing says so. *Why:* Sprint 22's stacked
 PR #1372 was merged into its dead stacked base, so its commits and its 14
@@ -324,6 +340,8 @@ template instead of captured.
   retrospective: they shipped without a board).
 - **Board 03, the audit journal:** A, one page, recommended; B, a fold per
   entity.
+- **Board 04, number colours** (D-11): today, A, B and C (recommended)
+  under each accent, light and dark.
 
 The story that builds each surface writes its anatomy into `DESIGN.md`.
 
@@ -351,6 +369,40 @@ its trigger (a switcher's export with those two types). #328 and #354 wait
 for your check on real data. The polish lists stay open while they have
 lines; a story that touches a screen fixes its lines.
 
+### D-11: your two reports of 2026-11-02 (C1 recommended as stated; C2 yours on board 04)
+
+**C1, the ⓘ panels.** Today each ⓘ is a `<details>` that only its own
+summary closes (and Escape since #1342), so two panels stay open side by
+side and a click elsewhere leaves them open. A popover that explains a term
+should close when the reader moves on. Built as one listener, so the ~25
+call sites need no change; graded S2 (a panel covers figures until it is
+clicked again). It ships with a browser test that opens two and clicks
+away.
+
+**C2, the number colours. Neither of your two options fixes what you
+saw, because the clash does not come from the gain colour.** `DESIGN.md`
+paints an unsigned KPI figure in the *active accent* and a signed one in
+the gain or loss colour. With the teal accent, a plain figure is teal
+(#0f766e) and a gain is emerald (#047857): your two greens. Option A (teal
+gains, coral losses, unsigned figures still in the accent) leaves the teal
+and the violet figures beside each other; option B (every figure in the
+accent) removes the only colour that tells a gain from a loss at a glance,
+and makes every figure look like a control, since the accent is what marks
+a link, a selection and the focus.
+
+**Recommended: C.** The accent marks controls only; an unsigned figure is
+in the text colour; a signed figure is teal for a gain and coral for a
+loss, the brand's own two hues, whatever accent is set; the gain and the
+problem colours become aliases of those two, so the app has one green and
+one red (dark mode already uses coral for problems). The sign stays a
+glyph, so the colour is never the only carrier. **The cost, shown on board
+04:** with the teal accent, a teal button can sit beside a teal gain, and
+with the coral accent a coral control beside a loss. That collision is
+smaller than today's, because figures no longer take the accent at all.
+
+**To flip by comment:** "A" or "B" on board 04. C2 then builds that
+variant; C1 is unaffected.
+
 ## Sequencing
 
 1. Lane E, then Lane M (M1 before any story changes an MCP tool, so R2's
@@ -358,15 +410,16 @@ lines; a story that touches a screen fixes its lines.
 2. The sprint PR's closing act, its fixes, its briefing; promotion under the
    four conditions; your merge.
 3. The stacked PR, built on the sprint PR's head, rebased onto `main` and
-   retargeted to `main` after that merge (D-6): Lane V, Lane I, its closing
-   act, the close-out.
+   retargeted to `main` after that merge (D-6): Lane V, Lane C, Lane I,
+   its closing act, the close-out.
 
 ## Shrink order (cut from the top, name the cut in the briefing)
 
 1. Lane I's pages after the security page, Wealth's Allocation tab and
    Income: they follow in Sprint 24 under the same board.
 2. V3, the journal page: D-1 criterion 3 then records it, a fifth time.
-3. Never cut: Lane E, M1, any R story, V1, V2, D-1's criteria 1, 2, 4 and 6.
+3. Never cut: Lane E, M1, any R story, V1, V2, Lane C, D-1's criteria 1,
+   2, 4 and 6.
 
 ## What is deliberately not in this sprint
 
@@ -404,5 +457,6 @@ Stacked PR:
 
 - [ ] rebased onto `main` and retargeted to `main` after the sprint PR's merge
 - [ ] V1 · [ ] V2 · [ ] V3
+- [ ] C1 the ⓘ click-away · [ ] C2 the number colours (board 04's pick)
 - [ ] I: board commit · [ ] Allocation tab · [ ] security page · [ ] Income · [ ] Snapshots · [ ] Tax · [ ] Views · [ ] Classifications · [ ] Imports · [ ] Risk
 - [ ] closing act and its fixes · [ ] close-out · [ ] briefing · [ ] promotion
