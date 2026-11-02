@@ -96,3 +96,19 @@ is a signal to discuss the IA, not to add a nav entry.
   explicitly says otherwise.
 - Docs screenshots and the EN/DE user documentation need a refresh pass as
   areas land.
+
+## Amendment: the Audit journal joins Administration (2026-11-02, Sprint 23 V3; idea U2)
+
+The Administration group gains a fourth entry, **Audit journal** (de:
+„Audit-Journal“, `/journal`), after Classifications. It is the operator's
+view of `GET /api/v1/journal`, which ADR-0017 named a follow-up of its
+read surface.
+
+*Why here:* the group holds the record-keeping pages, and the journal is
+the record of every stored change. There is no Settings page to hang it
+from, and a Transactions tab would claim the journal is about bookings
+while it holds every kind of entry (board
+`ux-design-2026-11-02-sprint23/03-journal`, pick Q6, adopted with the
+Sprint 23 plan, D-5 and D-8). Decision 7 stands: the Overview keeps no
+activity feed; the journal is the place for forensic detail, now with a
+screen of its own.
