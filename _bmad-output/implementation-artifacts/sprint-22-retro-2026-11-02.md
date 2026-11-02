@@ -61,8 +61,13 @@ counts the regressions the sprint introduced apart from the older findings.
   and two of the agent's lens's three are regressions; the third (a view
   PATCH with a top-level include or exclude answering 200) is older. All
   fixed on the branch. The design critic, which also covers boards 02 and
-  03, and the UAT persona: TODO(closing act): their results and the fixes
-  they named.
+  03, and the UAT persona: boards 02 and 03 match; board 01 matched
+  except a note naming several excluded groups, which clamped every count
+  after the first (S2, a regression, fixed: the note opens with all its
+  counts); an opened fold still read "Details anzeigen" (S3, fixed); a
+  Marktwert dash for a missing exchange rate had no cell note (S3, older,
+  fixed). The UAT persona found every figure on the pages Lane I touched
+  unchanged, every ⓘ inside a 390 px viewport, Escape closing each.
 
 ## Process findings
 
@@ -163,5 +168,5 @@ unchanged between `d715e76` and `d4c6156`).
 - Ideas: I1 and I14 `built`; I15 dropped by the plan's D-7.
 - Merges and releases: PENDING on the owner; the next planning PR records
   them.
-- Open issues, reported and not judged: TODO(closing act): the count read
-  through the API at the close-out.
+- Open issues, reported and not judged: 70 on 2026-11-02 (66 after Lane Z
+  plus the four filed); 31 after both merges' keywords.

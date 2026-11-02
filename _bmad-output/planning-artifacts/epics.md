@@ -705,8 +705,11 @@ criterion counts open issues. The records, with the two counts by severity,
 are in `sprint-status.yaml`'s Sprint 22 entry and in
 `sprint-22-retro-2026-11-02.md`.
 
-TODO(closing act): criterion 3's result and the stacked PR's halves of
-criteria 4 and 5.
+Criterion 3 passed after the stacked PR's closing act fixed board 01's
+one deviation (a note naming several excluded groups now opens with all its
+counts); criterion 4: the stacked PR introduced 6 regressions (1 S2, 5 S3),
+none an S1, all fixed; criterion 5: every head of both PRs went green with no
+re-run.
 
 **Registry rows this batch moves:**
 
