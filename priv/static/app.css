@@ -11405,9 +11405,14 @@ dialog.merge-dialog {
 .journal-values th,
 .journal-values td {
   padding: 2px 8px 2px 0;
-  text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
+}
+
+/* A header sits at the start of its column, as the values do; a `.num`
+   header keeps the generic rule's right edge (#833). */
+.journal-values th:not(.num) {
+  text-align: start;
 }
 
 .journal-values th {
