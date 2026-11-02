@@ -328,7 +328,7 @@ msgstr "Wertpapiere"
 #: lib/portfolixir_web/live/income_live.ex:560
 #: lib/portfolixir_web/live/income_live.ex:1315
 #: lib/portfolixir_web/live/income_live.ex:1391
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:175
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:186
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:353
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:484
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:391
@@ -1690,7 +1690,7 @@ msgstr "Dividende"
 #: lib/portfolixir_web/live/income_live.ex:1353
 #: lib/portfolixir_web/live/income_live.ex:1404
 #: lib/portfolixir_web/live/income_live.ex:1688
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:596
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:612
 #: lib/portfolixir_web/transaction_kind_label.ex:20
 #, elixir-autogen, elixir-format
 msgid "Interest"
@@ -2323,7 +2323,7 @@ msgstr "von"
 
 #: lib/portfolixir_web/live/income_live.ex:252
 #: lib/portfolixir_web/live/income_live.ex:291
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:178
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:189
 #, elixir-autogen
 msgid "Income"
 msgstr "Erträge"
@@ -4863,7 +4863,7 @@ msgid "MWR info"
 msgstr "Info zur MWR"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:329
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:129
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:143
 #: lib/portfolixir_web/live/portfolio_live.ex:1148
 #: lib/portfolixir_web/live/portfolio_live.ex:1189
 #: lib/portfolixir_web/live/portfolio_live.ex:1276
@@ -4923,7 +4923,7 @@ msgstr "Keine Treffer für \"%{query}\"."
 msgid "No matches for the active filters."
 msgstr "Keine Treffer für die aktiven Filter."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:119
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:133
 #: lib/portfolixir_web/live/portfolio_live.ex:1733
 #, elixir-autogen, elixir-format
 msgid "Computation failed. Reload retries."
@@ -5474,7 +5474,7 @@ msgstr[0] "%{count} Kostenposten konnte nicht konvertiert werden — kein gespei
 msgstr[1] "%{count} Kostenposten konnten nicht konvertiert werden — kein gespeicherter Wechselkurs zu ihren Buchungsdaten — und sind aus allen Summen ausgeschlossen. Betroffene Währungen: %{currencies}."
 
 #: lib/portfolixir_web/live/income_live.ex:315
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:179
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:190
 #, elixir-autogen, elixir-format
 msgid "Costs"
 msgstr "Kosten"
@@ -6512,7 +6512,7 @@ msgid "Plan on %{classification}"
 msgstr "Plan auf %{classification}"
 
 #: lib/portfolixir_web/live/classifications_live.ex:469
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:485
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:501
 #: lib/portfolixir_web/live/portfolio_live.ex:1899
 #, elixir-autogen, elixir-format
 msgid "View %{name}"
@@ -6823,8 +6823,8 @@ msgstr "Transaktion aktualisiert"
 #: lib/portfolixir_web/live/income_live.ex:537
 #: lib/portfolixir_web/live/income_live.ex:587
 #: lib/portfolixir_web/live/income_live.ex:669
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:514
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:531
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:530
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:547
 #: lib/portfolixir_web/live/securities_live.ex:2525
 #, elixir-autogen, elixir-format
 msgid "%{count} day"
@@ -10440,170 +10440,165 @@ msgid_plural "%{count} sales have no matched buy for all or part of their quanti
 msgstr[0] "%{count} Verkauf hat für seine ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z. B. aus einer Einlieferung): Diese Stückzahl ist in keinem abgeschlossenen Trade enthalten."
 msgstr[1] "%{count} Verkäufe haben für ihre ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z. B. aus Einlieferungen): Diese Stückzahl ist in keinem abgeschlossenen Trade enthalten."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:510
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:526
 #, elixir-autogen, elixir-format
 msgid "%{count} day at zero"
 msgid_plural "%{count} days at zero"
 msgstr[0] "%{count} Tag mit 0 bewertet"
 msgstr[1] "%{count} Tage mit 0 bewertet"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:503
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:519
 #, elixir-autogen, elixir-format
 msgid "%{count} smaller position is not shown; the sum includes it."
 msgid_plural "%{count} smaller positions are not shown; the sum includes them."
 msgstr[0] "%{count} kleinere Position ist ausgeblendet; die Summe enthält sie."
 msgstr[1] "%{count} kleinere Positionen sind ausgeblendet; die Summe enthält sie."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:513
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:529
 #, elixir-autogen, elixir-format
 msgid "%{days}, %{reason}"
 msgstr "%{days}, %{reason}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:181
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:192
 #, elixir-autogen, elixir-format
 msgid "Contribution"
 msgstr "Beitrag"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:147
-#, elixir-autogen, elixir-format
-msgid "Contribution = end value − start value − flows + income − costs · per position in %{currency}, currency move included · start value: the close of the day before the period · positions and remainder lines add up to exactly the result in the period; deposits and removals are no result"
-msgstr "Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten · je Position in %{currency}, einschließlich der Währungsbewegung · Anfangswert: der Schluss des Vortags · Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis"
-
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:113
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:286
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:117
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:297
 #, elixir-autogen, elixir-format
 msgid "Contribution by position"
 msgstr "Beitrag je Position"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:619
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:635
 #, elixir-autogen, elixir-format
 msgid "Currency %{amount}"
 msgstr "Währung %{amount}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:598
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:614
 #, elixir-autogen, elixir-format
 msgid "Currency effect on cash"
 msgstr "Währungseffekt auf Bargeld"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:180
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:191
 #, elixir-autogen, elixir-format
 msgid "End value"
 msgstr "Endwert"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:616
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:632
 #, elixir-autogen, elixir-format
 msgid "Fees/taxes %{amount}"
 msgstr "Gebühren/Steuern %{amount}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:177
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:188
 #, elixir-autogen, elixir-format
 msgid "Flows in/out"
 msgstr "Zu-/Abflüsse"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:610
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:626
 #, elixir-autogen, elixir-format
 msgid "Foreign-currency balances and the settlement differences of buys and sells"
 msgstr "Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:613
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:629
 #, elixir-autogen, elixir-format
 msgid "Interest %{amount}"
 msgstr "Zinsen %{amount}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:390
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:406
 #, elixir-autogen, elixir-format
 msgid "It stays in the sum, as in the result above."
 msgid_plural "They stay in the sum, as in the result above."
 msgstr[0] "Sie bleibt in der Summe, so wie im Ergebnis darüber."
 msgstr[1] "Sie bleiben in der Summe, so wie im Ergebnis darüber."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:228
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:312
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:239
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:323
 #, elixir-autogen, elixir-format
 msgid "Not attributed to a position"
 msgstr "Keiner Position zugeordnet"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:607
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:623
 #, elixir-autogen, elixir-format
 msgid "Not part of a trade, even when one names a security"
 msgstr "Ohne Handelsbezug, auch mit Wertpapier"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:134
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:148
 #, elixir-autogen, elixir-format
 msgid "Nothing to break down in this period: no position was held, and no interest, fee or currency effect fell in it."
 msgstr "In diesem Zeitraum gibt es nichts aufzuschlüsseln: Keine Position war im Bestand, und weder Zinsen noch Gebühren noch Währungseffekte fielen an."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:384
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:400
 #, elixir-autogen, elixir-format
 msgid "One position counted zero on some days of the period:"
 msgid_plural "%{count} positions counted zero on some days of the period:"
 msgstr[0] "Eine Position zählte an einigen Tagen des Zeitraums null:"
 msgstr[1] "%{count} Positionen zählten an einigen Tagen des Zeitraums null:"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:360
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:371
 #, elixir-autogen, elixir-format
 msgid "Show all %{count}"
 msgid_plural "Show all %{count}"
 msgstr[0] "Alle %{count} anzeigen"
 msgstr[1] "Alle %{count} anzeigen"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:358
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:369
 #, elixir-autogen, elixir-format
 msgid "Show the ten largest"
 msgstr "Nur die zehn größten anzeigen"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:597
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:613
 #, elixir-autogen, elixir-format
 msgid "Standalone fees and taxes"
 msgstr "Einzelne Gebühren und Steuern"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:176
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:187
 #, elixir-autogen, elixir-format
 msgid "Start value"
 msgstr "Anfangswert"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:257
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:329
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:268
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:340
 #, elixir-autogen, elixir-format
 msgid "Sum = result in the period"
 msgstr "Summe = Ergebnis im Zeitraum"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:500
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:516
 #, elixir-autogen, elixir-format
 msgid "held at neither end"
 msgstr "weder zu Beginn noch am Ende im Bestand"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:665
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:681
 #, elixir-autogen, elixir-format
 msgid "income %{amount}"
 msgstr "Erträge %{amount}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:519
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:535
 #, elixir-autogen, elixir-format
 msgid "no exchange rate stored"
 msgstr "kein Wechselkurs gespeichert"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:498
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:514
 #, elixir-autogen, elixir-format
 msgid "no longer held at the end"
 msgstr "am Ende nicht mehr im Bestand"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:520
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:536
 #, elixir-autogen, elixir-format
 msgid "no price stored"
 msgstr "kein Kurs gespeichert"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:495
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:511
 #, elixir-autogen, elixir-format
 msgid "not held at the start"
 msgstr "zu Beginn nicht im Bestand"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:330
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:341
 #, elixir-autogen, elixir-format
 msgid "positions and remainder lines"
 msgstr "Positionen und Restposten"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:484
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:500
 #, elixir-autogen, elixir-format
 msgid "sorted by contribution"
 msgstr "sortiert nach Beitrag"
@@ -11268,41 +11263,41 @@ msgid_plural "and %{depot} holds %{quantity} fewer units of %{security}"
 msgstr[0] "und %{depot} hält %{quantity} Stück %{security} weniger"
 msgstr[1] "und %{depot} hält %{quantity} Stück %{security} weniger"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:590
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:606
 #, elixir-autogen, elixir-format
 msgid "%{account}: %{days}"
 msgstr "%{account}: %{days}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:529
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:545
 #, elixir-autogen, elixir-format
 msgid "%{balance}, %{days}, %{reason}"
 msgstr "%{balance}, %{days}, %{reason}"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:397
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:413
 #, elixir-autogen, elixir-format
 msgid "One cash account counted zero on some days of the period:"
 msgid_plural "%{count} cash accounts counted zero on some days of the period:"
 msgstr[0] "Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null:"
 msgstr[1] "%{count} Verrechnungskonten zählten an einigen Tagen des Zeitraums null:"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:406
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:422
 #, elixir-autogen, elixir-format
 msgid "One cash account counts zero until the end of the period:"
 msgid_plural "%{count} cash accounts count zero until the end of the period:"
 msgstr[0] "Ein Verrechnungskonto zählt bis zum Ende des Zeitraums null:"
 msgstr[1] "%{count} Verrechnungskonten zählen bis zum Ende des Zeitraums null:"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:579
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:595
 #, elixir-autogen, elixir-format
 msgid "that is neither a currency gain nor a currency loss"
 msgstr "das ist weder ein Währungsgewinn noch ein Währungsverlust"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:578
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:594
 #, elixir-autogen, elixir-format
 msgid "that is no currency gain"
 msgstr "das ist kein Währungsgewinn"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:577
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:593
 #, elixir-autogen, elixir-format
 msgid "that is no currency loss"
 msgstr "das ist kein Währungsverlust"
@@ -11507,14 +11502,14 @@ msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} und Steuern %{taxes
 msgid "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount}, Gebühren %{fees} und Steuern %{taxes} (erwartet %{expected}) — Zeile nicht übernommen"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:558
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:574
 #, elixir-autogen, elixir-format
 msgid "With its first exchange rate, the whole balance of %{names} entered the “Currency effect on cash”, and so the result — %{clause}."
 msgid_plural "With their first exchange rates, the whole balances of %{names} entered the “Currency effect on cash”, and so the result — %{clause}."
 msgstr[0] "Mit seinem ersten Wechselkurs kam der ganze Saldo von %{names} in den „Währungseffekt auf Bargeld“ und damit ins Ergebnis — %{clause}."
 msgstr[1] "Mit ihren ersten Wechselkursen kamen die ganzen Salden von %{names} in den „Währungseffekt auf Bargeld“ und damit ins Ergebnis — %{clause}."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:543
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:559
 #, elixir-autogen, elixir-format
 msgid "With the first exchange rate on %{date}, its whole balance entered the “Currency effect on cash”, and so the result — %{clause}."
 msgstr "Mit dem ersten Wechselkurs am %{date} kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ und damit ins Ergebnis — %{clause}."
@@ -11755,7 +11750,7 @@ msgstr "Das Audit-Journal hält die Löschung mit allen Werten fest; wiederherst
 msgid "The source (created %{date}) is deleted afterwards — the entry, not its ISIN. This cannot be undone; the journal records every changed row."
 msgstr "Die Quelle (angelegt %{date}) wird danach gelöscht — der Eintrag, nicht ihre ISIN. Das lässt sich nicht rückgängig machen; das Journal hält jede geänderte Zeile fest."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:650
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:666
 #, elixir-autogen, elixir-format
 msgid "inflow into the position %{amount}"
 msgstr "Zufluss in die Position %{amount}"
@@ -11765,7 +11760,7 @@ msgstr "Zufluss in die Position %{amount}"
 msgid "no quantity after: a different ratio is booked on this day"
 msgstr "keine Stückzahl danach: an diesem Tag ist ein anderes Verhältnis gebucht"
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:653
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:669
 #, elixir-autogen, elixir-format
 msgid "outflow from the position %{amount}"
 msgstr "Abfluss aus der Position %{amount}"
@@ -12534,7 +12529,7 @@ msgstr "Je Zelle oben vorher (%{source} + %{target} bzw. %{source} · %{target})
 msgid "Realized gains (FIFO): no realized amount and no open cost moves; which lot a sale closes, and with it holding periods and annualized returns, may."
 msgstr "Realisierte Gewinne (FIFO): Kein realisierter Betrag und kein offener Einstand ändert sich; welchen Posten ein Verkauf schließt, und mit ihm Haltedauern und annualisierte Renditen, kann sich ändern."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:602
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:618
 #, elixir-autogen, elixir-format
 msgid "Interest bookings that name no security: account interest, and coupons stored without their bond"
 msgstr "Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre Anleihe gebucht sind"
@@ -13111,7 +13106,7 @@ msgid_plural "%{count} sales with no stored rate on their close dates are left o
 msgstr[0] "%{count} Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: %{securities} Das Nachladen der Wechselkurse steht unter „Alle Trades“."
 msgstr[1] "%{count} Verkäufe ohne gespeicherten Wechselkurs an ihren Schlussdaten fehlen bei den Trades: %{securities} Das Nachladen der Wechselkurse steht unter „Alle Trades“."
 
-#: lib/portfolixir_web/live/portfolio/contribution_table.ex:671
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:687
 #, elixir-autogen, elixir-format
 msgid "costs %{amount}"
 msgstr "Kosten %{amount}"
@@ -13910,3 +13905,23 @@ msgid "%{count} Note"
 msgid_plural "%{count} Notes"
 msgstr[0] "%{count} Hinweis"
 msgstr[1] "%{count} Hinweise"
+
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:119
+#, elixir-autogen, elixir-format
+msgid "Contribution = end value − start value − flows + income − costs"
+msgstr "Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten"
+
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:161
+#, elixir-autogen, elixir-format
+msgid "per position in %{currency}, currency move included"
+msgstr "je Position in %{currency}, einschließlich der Währungsbewegung"
+
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:122
+#, elixir-autogen, elixir-format
+msgid "positions and remainder lines add up to exactly the result in the period; deposits and removals are no result"
+msgstr "Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis"
+
+#: lib/portfolixir_web/live/portfolio/contribution_table.ex:120
+#, elixir-autogen, elixir-format
+msgid "start value: the close of the day before the period"
+msgstr "Anfangswert: der Schluss des Vortags"

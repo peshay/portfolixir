@@ -8052,3 +8052,15 @@ page lands.
   buttons sit in their notes' actions, visible under the clamp. On the
   review seed at 1280 px the fold reads „1 Achtung · 1 Hinweis — Details
   anzeigen“; at 390 px every note shows three lines and „mehr“ where cut.
+- **Beitrag je Position** (`#performance-contribution`): „Beitrag je
+  Position“ and the section's ⓘ sit in `.section-title` inside
+  `.contribution__head`, the scope span after them as before. The ⓘ holds
+  three lines: „Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge −
+  Kosten“, „Anfangswert: der Schluss des Vortags“, „Positionen und
+  Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und
+  Entnahmen sind kein Ergebnis“. The basis line under the table keeps „je
+  Position in EUR, einschließlich der Währungsbewegung“. The one msgid of
+  the line is cut into one msgid per clause; no translation changed. The
+  unvalued note (`#contribution-unvalued-note`) names rows the sum counted
+  at zero: it clamps and never folds. Measured at 390 px: the panel spans
+  x = 16 to 374.
