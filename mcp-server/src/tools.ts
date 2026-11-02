@@ -3161,21 +3161,21 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.upcoming",
     "Dates due across the whole catalog within N days",
-    "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. Poll this, not a calendar built from the holdings, which misses a purchase candidate's dates. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon (conservative on purpose: a missed date is the failure). kind narrows to one kind. The answer echoes days, as_of, held_only and its scope. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows." + REIMPORT_GUARANTEE,
+    "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. Poll this, not a calendar of the holdings, which misses a candidate's dates. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon (conservative on purpose: a missed date is the failure). kind narrows to one kind. It echoes days, as_of, held_only, its scope, limit and truncated. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows." + REIMPORT_GUARANTEE,
     eventsUpcomingSchema,
     eventsUpcomingZ
   ),
   tool(
     "portfolixir.events.unconfirmed",
     "Dates that passed and nobody confirmed",
-    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue, which is what keeps the calendar from quietly rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit; there is no days here, because every unconfirmed past date belongs in the queue however old it is." + REIMPORT_GUARANTEE,
+    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue that keeps the calendar from rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit (echoed with truncated); no days here, because every unconfirmed past date belongs in the queue however old it is." + REIMPORT_GUARANTEE,
     eventsUnconfirmedSchema,
     eventsUnconfirmedZ
   ),
   tool(
     "portfolixir.events.stale",
     "Dates nobody has re-read in N days",
-    "Events whose checked_at is older than days (default 90) — or that were never checked at all, which are listed too with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit." + REIMPORT_GUARANTEE,
+    "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit, echoed with truncated." + REIMPORT_GUARANTEE,
     eventsStaleSchema,
     eventsStaleZ
   ),
@@ -3196,21 +3196,21 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.notes.unreviewed",
     "Held positions with no research-log entry for N days",
-    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; the response echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue positions (default 1000, at most 10000)." + REIMPORT_GUARANTEE,
+    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; it echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue (default 1000, max 10000), echoed with truncated." + REIMPORT_GUARANTEE,
     notesUnreviewedSchema,
     notesUnreviewedZ
   ),
   tool(
     "portfolixir.notes.uncorroborated",
     "Research-log entries that still need corroboration",
-    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour already confirmed or retracted by a later entry) are skipped unless include_superseded=true. Confirming one means appending a primary entry with supersedes_id on it, not editing it. Optional limit keeps the newest entries (default 1000, at most 10000)." + REIMPORT_GUARANTEE,
+    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour a later entry confirmed or retracted) are skipped unless include_superseded=true. Confirm one by appending a primary entry with supersedes_id on it, never an edit. Optional limit keeps the newest (default 1000, max 10000), echoed with truncated." + REIMPORT_GUARANTEE,
     notesUncorroboratedSchema,
     notesUncorroboratedZ
   ),
   tool(
     "portfolixir.notes.expiring",
     "Dated blocks expiring within N days",
-    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; the response echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest-expiring entries (default 1000, at most 10000)." + REIMPORT_GUARANTEE,
+    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; it echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest (default 1000, max 10000), echoed with truncated." + REIMPORT_GUARANTEE,
     notesExpiringSchema,
     notesExpiringZ
   ),
@@ -3220,7 +3220,7 @@ const declaredTools: DeclaredTool[] = [
     required: ["security_id"],
     properties: { security_id: { type: "integer", minimum: 1 } }
   }, z.object({ security_id: z.number().int().positive() })),
-  tool("portfolixir.quotes.list", "List quotes", "List quote history for one security. Each row is self-describing about stock splits (ADR-0028): close is the STORED value (never mutated), adjusted_close is the split-adjusted display value (Decimal string), basis states the row's storage basis (raw = as-traded manual rows, provider_mirror = back-adjusted sync rows) and adjusted whether a split factor applied. Chart or value with adjusted_close; audit with close.", {
+  tool("portfolixir.quotes.list", "List quotes", "One security's quote history. Rows state splits (ADR-0028): close is the STORED value, adjusted_close is the split-adjusted display value (Decimal string), basis states the row's storage basis (raw = as-traded manual rows, provider_mirror = back-adjusted sync rows) and adjusted whether a split factor applied. Chart or value with adjusted_close; audit with close. limit keeps the newest rows, echoed with truncated.", {
     type: "object",
     additionalProperties: false,
     required: ["security_id"],
@@ -3236,10 +3236,10 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.quotes.manual",
     "Manual quotes",
-    "Read one security's MANUAL quotes over its whole history (written through portfolixir.quotes.upsert or the " +
-      "API; they win over the provider's until portfolixir.quotes.release). Answers count, first, last, " +
+    "Read one security's MANUAL quotes over its whole history (written through portfolixir.quotes.upsert; " +
+      "they win over the provider's until portfolixir.quotes.release). Answers count, first, last, " +
       "stored_count, the newest limit stretches (runs of manual quotes, {from, to, count}, ascending; default " +
-      "100, max 1000) with stretch_count, and sync_adapter: whether the sync can refill a released date. " +
+      "100, max 1000) with stretch_count and truncated, and sync_adapter: whether the sync refills a released date. " +
       "from/to (inclusive) add range {from, to, count}: what releasing that range removes; to before from is a 422.",
     quoteManualSchema,
     quoteManualZ
@@ -3503,9 +3503,9 @@ const declaredTools: DeclaredTool[] = [
     securities_account_id: z.number().int().positive().optional(),
     fields: z.array(z.enum(holdingFieldNames)).optional()
   })),
-  tool("portfolixir.cashflow.realized_gains", "Realized gains roll-up", "FIFO realized P&L across ALL securities and portfolios (the Trades facet), by close date into a year -> month matrix. FX: a sale converts at the EUR hub rate of ITS OWN close date, or, closing a lot booked in another currency, reads the base cash its bookings moved (realized_base_source); one with no rate that day or an unavailable_reason is in no total, named in excluded (by_reason: no_rate, missing_settlement_leg, third_currency, other_account_currency, zero_amount). Decimal strings; computation_basis states every rule. Optional limit keeps the newest matrix years (default 100, max 1000). `trades`: round-trips, newest close first: security, open/close dates, holding_period_days, quantity, basis, proceeds, realized_pnl_abs/_pct in the trade currency, realized_base in the base, and annualized_return (XIRR p.a., trade currency), null with annualized_return_reason on a zero basis (realized_pnl_pct null too), under 365 days held or when no rate solves. `summary`: realized_total, hit_rate (results > 0) and average_holding_period_days over the matrix's trades; null, not 0, with none. `unmatched_sells`: count and each sell's security, date and quantity no buy was matched to (an inbound delivery opens no lot); in no figure.", yearsLimitSchema, yearsLimitZ),
-  tool("portfolixir.cashflow.external_flows", "Deposits & withdrawals roll-up", "The Cash-flow Deposits-&-withdrawals facet's roll-up (issue #725): the booked external CASH flows — deposit and removal transactions — across all portfolios, grouped by booking date into a year -> month matrix with deposits, withdrawals and a net per year. Deliberately narrower than the performance walk's invested_capital, which additionally counts securities delivered in/out at market value and balance-snapshot residuals; that difference is stated in computation_basis.excludes so the two figures can differ without either lying. FX basis: each flow converts via the EUR hub at the rate stored on ITS OWN booking date; a flow with no stored rate for that day is excluded from every total and named by its cash account in `excluded`. Financial values are Decimal strings. Optional limit keeps the newest years of the matrix (default 100, at most 1000); computation_basis.window names the cut when years were dropped.", yearsLimitSchema, yearsLimitZ),
-  tool("portfolixir.cashflow.costs", "Fees & taxes roll-up", "The Cash-flow Costs facet's roll-up: what the portfolio cost to run, at OVERVIEW level only — fees and taxes across all portfolios, grouped by booking date into a year/month matrix of fees, taxes and a total per month and per year (computation_basis.totals). The series sums the fee and tax LEGS riding any transaction plus the standalone fee/tax bookings, with tax_refund netted against taxes; gross amounts are never summed (a buy's gross includes its legs while a sell's is net of them — summing gross would describe something else). FX basis: each cost converts via the EUR hub at the rate stored on ITS OWN booking date; a cost with no stored rate for that day is excluded from every total and named by its currency in `excluded`. Decimal strings. Optional limit keeps the newest years of the matrix (default 100, max 1000); computation_basis.window names the cut when years were dropped.", yearsLimitSchema, yearsLimitZ),
+  tool("portfolixir.cashflow.realized_gains", "Realized gains roll-up", "FIFO realized P&L across ALL securities and portfolios (the Trades facet), by close date into a year -> month matrix. FX: a sale converts at the EUR hub rate of ITS OWN close date, or, closing a lot booked in another currency, reads the base cash its bookings moved (realized_base_source); one with no rate that day or an unavailable_reason is in no total, named in excluded (by_reason: no_rate, missing_settlement_leg, third_currency, other_account_currency, zero_amount). Decimal strings; computation_basis states every rule. Optional limit keeps the newest matrix years, echoed with truncated. `trades`: round-trips, newest close first: security, open/close dates, holding_period_days, quantity, basis, proceeds, realized_pnl_abs/_pct in the trade currency, realized_base in the base, and annualized_return (XIRR p.a., trade currency), null with annualized_return_reason on a zero basis (realized_pnl_pct null too), under 365 days held or when no rate solves. `summary`: realized_total, hit_rate (results > 0) and average_holding_period_days over the matrix's trades; null, not 0, with none. `unmatched_sells`: count and each sell's security, date and quantity no buy was matched to (an inbound delivery opens no lot); in no figure.", yearsLimitSchema, yearsLimitZ),
+  tool("portfolixir.cashflow.external_flows", "Deposits & withdrawals roll-up", "The Cash-flow Deposits-&-withdrawals facet's roll-up (issue #725): the booked external CASH flows — deposit and removal transactions — across all portfolios, grouped by booking date into a year -> month matrix with deposits, withdrawals and a net per year. Deliberately narrower than the performance walk's invested_capital, which additionally counts securities delivered in/out at market value and balance-snapshot residuals; that difference is stated in computation_basis.excludes so the two figures can differ without either lying. FX basis: each flow converts via the EUR hub at the rate stored on ITS OWN booking date; a flow with no stored rate for that day is excluded from every total and named by its cash account in `excluded`. Financial values are Decimal strings. Optional limit keeps the newest years of the matrix, echoed with truncated; computation_basis.window names the cut.", yearsLimitSchema, yearsLimitZ),
+  tool("portfolixir.cashflow.costs", "Fees & taxes roll-up", "The Cash-flow Costs facet's roll-up: what the portfolio cost to run, at OVERVIEW level only — fees and taxes across all portfolios, grouped by booking date into a year/month matrix of fees, taxes and a total per month and per year (computation_basis.totals). The series sums the fee and tax LEGS riding any transaction plus the standalone fee/tax bookings, with tax_refund netted against taxes; gross amounts are never summed (a buy's gross includes its legs while a sell's is net of them — summing gross would describe something else). FX basis: each cost converts via the EUR hub at the rate stored on ITS OWN booking date; a cost with no stored rate for that day is excluded from every total and named by its currency in `excluded`. Decimal strings. Optional limit keeps the newest years of the matrix, echoed with truncated; computation_basis.window names the cut.", yearsLimitSchema, yearsLimitZ),
   tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing) and an unvalued_reason (no_price: nothing resolves at all; missing_fx: latest_price/price_currency are known but no stored rate path reaches EUR; null when valued). Each row also carries latest_price, price_currency, price_source and price_date (when that price is from). Self-describing: currency EUR, an as_of read date and a note; financial values are Decimal strings. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.holdings.negative", "Negative holdings (data quality)", "Every (depot, security) position whose derived quantity is below zero (import debris from unmodeled corporate actions), with names and each security's total across ALL depots (transfer debris vs. a truly negative total); Decimal strings; as_of, note. Repair the history via portfolixir.transactions.*; nothing changes automatically.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.holdings.reconcile", "Reconcile external position list (read-only)", "Compare an external position list (broker statement, depot overview) with the ledger-derived holdings; read-only, nothing stored. Each row's identifier is matched through the stable-identity ladder (ISIN incl. recorded former ISINs, then WKN / ticker+currency / name+currency with an exactly-one rule across those tiers); the response reports per matched security the matched_via tier, the exact ledger quantity, external quantity and delta as Decimal strings, plus ambiguous rows with candidates, unmatched rows, and held ledger positions absent from the list. Rows of one security are aggregated: one delta per position. Resolve a difference by booking the missing transaction of the correct kind (buy, sell, delivery with price, transfer, dividend, tax_refund for a tax credited back after a loss sale, ...) via portfolixir.transactions.create — balance snapshots (set_balance) and unpriced deliveries are last resorts that distort cost basis; do NOT reach for them just to make numbers match. Weak (ticker/name) matches carry a caveat: confirm the security before booking anything. Quantities: canonical dot-decimal strings; parse locale formats client-side. Optional scope: portfolio_id or view (mutually exclusive); default is the whole instance, and the response states its basis (as_of, scope).", reconcileSchema, reconcileZ),
@@ -3523,7 +3523,7 @@ const declaredTools: DeclaredTool[] = [
     view: z.number().int().positive().optional(),
     include_positions: z.boolean().optional()
   })),
-  tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates, most recent first. Optional limit bounds the read (default 50000, at most 200000).", {
+  tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates, most recent first. limit (default 50000, max 200000) is echoed with truncated.", {
     type: "object",
     additionalProperties: false,
     properties: { limit: { type: "integer", minimum: 1 } }
@@ -3726,7 +3726,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.journal.list",
     "List audit journal",
-    "List append-only audit-journal entries, newest first: who (actor_type/label; for an API token the label is the name of the configured token entry it matched, null for the unnamed default token), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. An update's or a delete's before is the row as stored when the write took its lock and an update's after is the row as stored after it, so two writes made from one read chain (the second's before is the first's after). Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. The response echoes as_of, the filters applied and the ordering.",
+    "List append-only audit-journal entries, newest first: who (actor_type/label; for an API token the label is the name of the configured token entry it matched, null for the unnamed default token), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. An update's or a delete's before is the row as stored when the write took its lock and an update's after is the row as stored after it, so two writes made from one read chain (the second's before is the first's after). Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. Echoes as_of, the filters, the ordering, limit and truncated.",
     journalListSchema,
     journalListZ
   ),
@@ -3746,7 +3746,7 @@ const declaredTools: DeclaredTool[] = [
       "account or depot, and every route under a security (its quotes, trades, metrics, notes, events, logo) — " +
       "answers 404 with errors.merged_into. There is no unmerge: the record and the journal's before-images " +
       "(portfolixir.journal.list) make a merge reconstructable. limit keeps the newest records " +
-      "(default 100, capped at 1000, echoed in meta.limit). The operator reads them in the Merges section at the " +
+      "(default 100, max 1000), echoed with truncated. The operator reads them in the Merges section at the " +
       "end of Accounts & depots.",
     mergesListSchema,
     mergesListZ
@@ -3940,7 +3940,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.snapshots.list",
     "List depot snapshots",
-    "List depot snapshot markers (ADR-0027): each is a name, a view scope (view_id null = everything) and an as-of date. A snapshot copies no data - the holdings it represents derive from the transaction ledger on demand. Optional limit keeps the newest snapshots (default 1000, at most 10000).",
+    "List depot snapshot markers (ADR-0027): each is a name, a view scope (view_id null = everything) and an as-of date. A snapshot copies no data: its holdings derive from the ledger on demand. Optional limit keeps the newest (default 1000, max 10000), echoed with truncated.",
     snapshotsListSchema,
     snapshotsListZ
   ),
