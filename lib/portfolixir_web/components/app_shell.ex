@@ -671,7 +671,10 @@ defmodule PortfolixirWeb.AppShell do
             <span aria-hidden="true"><.icon name={severity_glyph(:note)} size={14} /></span>
             <%= pngettext("data-note fold", "%{count} Note", "%{count} Notes", @note) %>
           </span>
-          <span class="data-note-group__toggle">— <%= gettext("Show details") %></span>
+          <%!-- An open fold reads "— Hide details": the stylesheet swaps the
+               label on `[open]` from `data-hide`, so no script is needed
+               (closing act). --%>
+          <span class="data-note-group__toggle" data-hide={gettext("Hide details")}>— <span class="data-note-group__show"><%= gettext("Show details") %></span></span>
         </summary>
         <div class="data-note-group__body"><%= render_slot(@inner_block) %></div>
       </details>
