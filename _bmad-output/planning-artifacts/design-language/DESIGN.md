@@ -8038,3 +8038,17 @@ page lands.
 - **⑤ Problems lead** their block: a problem note never folds and comes
   first, then the notes that name excluded rows, then the fold. A problem
   clamps like every note.
+
+### Wealth → Bestände, as built
+
+- **Datenqualität** (`#portfolio-data-quality`, one status region
+  `[data-role=dq-notes]`, the `--space-2` gap): the problem notes first
+  (negative holdings, two scales forward and reverse, quotes that do not
+  match their bookings, in that order), then the notes that name rows left
+  out of the totals (no price, no exchange rate, cash accounts not
+  counted), then one fold (`#dq-folded-notes`) of the notes that only
+  qualify the totals (trade-priced: note; stale quote and pre-1970 dates:
+  attention). Every note clamps (`id="<data-role>-note"`). The two sync
+  buttons sit in their notes' actions, visible under the clamp. On the
+  review seed at 1280 px the fold reads „1 Achtung · 1 Hinweis — Details
+  anzeigen“; at 390 px every note shows three lines and „mehr“ where cut.
