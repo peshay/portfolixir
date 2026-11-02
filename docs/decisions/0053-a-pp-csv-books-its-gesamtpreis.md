@@ -1091,7 +1091,11 @@ edit only while the edit leaves the price as stored: a price the edit sets
 is exact, so its tolerance is the cent alone (100,000 shares re-priced to
 0.10 would otherwise allow 500.01, 4.99 % of the cash); the read-only check
 keeps the allowance for every stored price, so an untouched import is never
-listed. No decision changes.
+listed. Of the identity's readings, the cash projection and the lot read
+816.00 while the holding's cost reads 810.00, quantity × price with the fees
+and taxes left out as holdings always read it (`Ledger`, ADR-0033), so "all
+read 816.00" above holds for the cash and the lot, not for the holding's
+cost. No decision changes.
 
 ## Note (2026-11-02): the refusal list gains the CSV time row
 
