@@ -18,6 +18,9 @@ description: "Design gate for #1076, risk-tier (money and import idempotency), s
     unit, and what the correction lists (#1188, #1177 in part, #1193,
     #1194, #1205; see "Amendment (2026-10-09)" below). Adopted by the merge
     of the Sprint 21 planning PR.
+  - 2026-11-02: an edit of a trade's figures keeps its stored cash only when
+    the edit states it (#1371; see "Amendment (2026-11-02)" below). Adopted
+    by the merge of the Sprint 23 planning PR.
 - **Answers:** #1076, filed by Sprint 18's PR δ while it checked the
   synthetic CSV sample against Portfolio Performance's source (#1024).
 - **Risk tier** ([ADR-0036](0036-risk-tier-rides-the-batch.html)): money
@@ -986,6 +989,82 @@ instead of the remedy (board ux-design-2026-11-01-sprint22/03 ③;
 No hash, key or apply condition changes, and nothing is written: the match
 only changes what the preview says. *To flip by comment:* "word the remedy
 'if not booked yet'", #1219's fallback.
+
+
+## Amendment (2026-11-02): an edit of a trade's figures states its cash
+
+**Status:** adopted by the merge of the Sprint 23 planning PR. Risk tier
+(how a stored booking is corrected, ADR-0036), so it is the owner's and is
+signed before the batch that builds it. It answers #1371.
+
+**Why.** §1 books a Portfolio Performance row's Gesamtpreis as its cash, and
+§2 refuses a row whose cash misses quantity × price ± fees and taxes by more
+than a cent. Nothing signed says what happens to that cash when the
+operator later corrects the row. Today an edit of the quantity, the price,
+the fees or the taxes leaves the stored cash as it was: an imported buy, 10
+at 80.00 EUR, fees 5.00, taxes 1.00, cash 806.00, has its price corrected
+to 81.00 and keeps cash 806.00. The cash projection and the holding's cost
+read 806.00, the lot (realized gains, trade returns) reads 816.00, and the
+row is exactly one §2 would have refused at import (Sprint 22's money and
+idempotency lens, on `main` before Sprint 22).
+
+Two answers were open: (a) the edit re-derives the cash from the new
+figures, as a booking made by hand is derived; (b) the edit is refused
+unless it states the cash too. **(b) is adopted**, because the stored cash
+of an imported row is the broker's figure: a silent re-derivation would
+overwrite it on a typo fix of an unrelated field, and the result would be
+the app's guess where the operator or the broker had stated a figure.
+
+**What changes.**
+
+1. **The rule.** A buy or a sell that stores a cash amount (`gross_amount`)
+   and no settlement legs keeps the §2 relation on every write: an update
+   that changes its quantity, price, fees or taxes must state
+   `gross_amount` too, and the stated cash must agree with the new figures
+   to the cent, as §2 asks of an imported row. An update that changes none
+   of the four (a date, a note, an account) needs no cash and keeps it.
+2. **Every write path.** The JSON API's `PATCH /api/v1/transactions/:id`
+   refuses such an update with a 422 naming `gross_amount` ("is required
+   when quantity, price, fees or taxes change on a booking that stores its
+   cash"); the MCP tool says so in its description; the booking drawer
+   shows the cash field on such a row, prefilled with the cash the new
+   figures derive, and saves only once the operator has seen it (the field
+   is part of the submitted form, so a save always states it). Board
+   `ux-design-2026-11-02-sprint23/02` ②a.
+3. **A cross-currency row with legs** is unchanged: ADR-0015's settlement
+   guard already relates its legs and its cash. **A legless cross-currency
+   row** that ADR-0015's amendment of 2026-11-01 opens in its stored
+   currency follows this rule, so that amendment's point 2 ("corrected as
+   on any one-currency row") inherits it.
+4. **Nothing stored changes; what is wrong is listed.** Rows already edited
+   under the old behaviour are not rewritten. A read-only check lists every
+   stored buy or sell whose cash misses its quantity × price ± fees and
+   taxes by more than a cent (`GET /api/v1/transactions/cash_mismatch`, with
+   its MCP read, the shape of #1290's rate-only read: each row with its
+   stored cash, the cash its figures derive, the difference, and a remedy
+   sentence). The Overview's data-quality line names their count when it is
+   above zero, linking to the history filtered to them (board 01 ①a's
+   pattern). The operator states the cash; no figure is re-derived on the
+   operator's behalf.
+
+**The identity the building batch pins.** The example above: the PATCH of
+price 81.00 alone is refused with the named 422 and the row stays as it
+was; the PATCH of price 81.00 with `gross_amount` 816.00 stores both, and
+the cash projection, the holding's cost and the lot all read 816.00; with
+`gross_amount` 806.00 it is refused by §2's check. The drawer's save of the
+same edit sends 816.00 unless the operator changes the field.
+
+**Asks (ADR-0043).**
+
+| Ask | Answer |
+|---|---|
+| Re-derive or refuse? | Refuse unless stated, (b), above. |
+| Which fields trigger it? | Quantity, price, fees, taxes; not the date, the note or the accounts. |
+| What about rows already edited? | Not rewritten; listed by a read-only check (point 4). Deferred: a bulk restatement, reopened by a list longer than the operator wants to edit by hand. |
+
+*To flip by comment:* "(a)". The edit then re-derives the cash on every
+write path, the drawer shows the derived figure read-only, and point 4's
+check still lists the rows edited before.
 
 
 ## References
