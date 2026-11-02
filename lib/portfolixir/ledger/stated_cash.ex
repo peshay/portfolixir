@@ -145,7 +145,8 @@ defmodule Portfolixir.Ledger.StatedCash do
   # The four figures, and a buy turned into a sell or back: the relation's
   # sign flips (the amendment's point 1, "on every write").
   defp triggered?(changeset) do
-    Enum.any?(@figure_fields, &changed?(changeset, &1))
+    Enum.any?(@figure_fields, &changed?(changeset, &1)) or
+      (changed?(changeset, :type) and get_field(changeset, :type) in @trade_types)
   end
 
   defp stated?(attrs),

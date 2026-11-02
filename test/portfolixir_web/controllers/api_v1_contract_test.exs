@@ -100,6 +100,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert stated_cash =~ ~s(expected <amount>"], 816.00 in the example)
     assert stated_cash =~ "(#1371; ADR-0053, amendment of 2026-11-02)"
+    assert stated_cash =~ "turns a buy into a sell or back"
 
     # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
     # outside K17's five delta reads echoes its limit and truncated. Dated

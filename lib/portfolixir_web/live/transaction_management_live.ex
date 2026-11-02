@@ -1296,7 +1296,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  @cash_figure_targets ~w(quantity price fees taxes)
+  # The four figures and the type: a buy turned into a sell, or back, flips
+  # the relation's sign (ADR-0053's amendment, point 1).
+  @cash_figure_targets ~w(quantity price fees taxes type)
 
   # A changed figure prefills the cash field with what the form's figures
   # derive (two places, the page's notation); the operator's own figure

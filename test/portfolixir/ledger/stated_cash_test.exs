@@ -170,6 +170,28 @@ defmodule Portfolixir.Ledger.StatedCashTest do
     assert Decimal.equal?(updated.gross_amount, Decimal.new("358.50"))
   end
 
+  # Acceptance criteria (the amendment's point 1, "on every write"):
+  # - Turning the buy into a sell flips the relation's sign, so it states
+  #   the cash too: alone it is refused on gross_amount; with the buy's
+  #   806.00 it is refused naming 794.00 (10 × 80.00 − 5.00 − 1.00); with
+  #   794.00 it is stored.
+  test "a buy turned into a sell states its cash", %{buy: buy} do
+    assert {:error, changeset} = edit(buy, %{"type" => "sell"})
+    assert messages(changeset, :gross_amount) == [@required]
+
+    assert {:error, changeset} = edit(buy, %{"type" => "sell", "gross_amount" => "806.00"})
+
+    assert messages(changeset, :gross_amount) == [
+             "does not match quantity × price, fees and taxes — expected 794.00"
+           ]
+
+    assert Repo.get!(Transaction, buy.id).type == "buy"
+
+    assert {:ok, sell} = edit(buy, %{"type" => "sell", "gross_amount" => "794.00"})
+    assert sell.type == "sell"
+    assert Decimal.equal?(sell.gross_amount, Decimal.new("794.00"))
+  end
+
   # Acceptance criteria (what the rule leaves alone):
   # - A trade without a stored cash amount still follows its figures.
   test "a trade without a stored cash amount takes a price edit alone",

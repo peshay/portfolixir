@@ -8149,8 +8149,9 @@ booked with its cash — shows that cash in the edit drawer. Top to bottom:
 5. The derived-currency line, the legless note, „Kosten und Notiz“ and
    the foot, unchanged.
 
-**Behaviour.** A change of quantity, price, fees or taxes prefills the
-field with what the figures derive, rounded to the cent; a figure the
+**Behaviour.** A change of quantity, price, fees or taxes, or of the type
+between Kauf and Verkauf (the sum's sign flips), prefills the field with
+what the figures derive, rounded to the cent; a figure the
 operator types into the field stands until a figure changes again. Saving
 takes what the field states. A figure off by more than a cent is refused by
 the ledger with the field's own error (`#tx-error-gross_amount`): „passt
