@@ -2208,6 +2208,35 @@ short identifier after its name; a unique name stays bare.
   N14 A's note half: the contribution's unvalued note, Wealth's missing-rate
   note, the Overview's and Income's excluded sales) is not built yet; those
   notes print the name alone.
+- **Twin accounts carry their portfolio** *(amended 2026-11-02, issue 1333,
+  Sprint 22 board `mockups/ux-design-2026-11-01-sprint22/03-drawer-import`,
+  section ⑤; the plan's D-9 finding for U2)*. Account names are unique per
+  portfolio, not across portfolios, so two portfolios may each hold a
+  "Coupon-Cash" and a "Coupon-Depot". Where an account's name reads the
+  same (`SecurityNames.twin_key/1`) as the name of an account of its kind
+  in another portfolio, the account carries its portfolio's name; a cash
+  account and a depot are two lists, and two same-printing names in one
+  portfolio carry nothing, because their portfolio tells nothing apart (the
+  import's and the merge flow's own tags, G4b, do that). Decided over every
+  account of the instance (`AccountNames.portfolio_tags/3`), so an account
+  reads the same on every surface whatever the surface lists.
+  - **Anatomy** (`.twin-id.twin-id--portfolio`, rendered by
+    `PortfolixirWeb.AccountNames.portfolio_tag/1`): the twin tag above —
+    its spacing, the real word space before it, the muted 12 px weight 400
+    and `nowrap` — with a visually hidden "Portfolio" before the name, which
+    is set in the text's own font (`font-family: inherit`): a portfolio's
+    name is a word, not an identifier. Reads "Coupon-Cash Portfolio
+    Anleihen" to a screen reader.
+  - **Where:** the Accounts page's depot and cash account names (a pair's
+    rows, a shared cash row, a lone cash account); the history's Konto
+    chips, in the row and the phone sheet; Wealth's cash table. A select's
+    option cannot hold markup, so the booking drawer's depot and cash
+    account options, and the edit drawer's disabled account facts, write it
+    as text after a middle dot: "Coupon-Depot · Anleihen (Coupon-Cash)",
+    "Coupon-Cash · Anleihen (EUR)" (`AccountNames.with_portfolio/3`).
+  - **Not here yet:** the history's Konto column and the import preview's
+    lists print the account's name as before (the preview tells same-named
+    accounts of one portfolio apart by G4b's tags) until a story names them.
 
 ### Phone filter sheet *(C4-B, issue 800)*
 

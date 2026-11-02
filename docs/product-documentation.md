@@ -710,6 +710,15 @@ its column — on a phone, on a tablet, or in a narrow window with the sidebar
 open — each depot and its cash account stack into a card, so no column is
 cut off (#1145); the balance and *Set balance* stay on one line each.
 
+Account names are unique within a portfolio, not across portfolios: after a
+file is imported into two portfolios, both may hold a "Coupon-Cash" and a
+"Coupon-Depot". Where another portfolio has an account of the same kind and
+the same name, the account shows its portfolio's name after its own, in a
+smaller muted font — on this page, in the transaction history's account
+chips, in the booking drawer's depot and cash account lists ("Coupon-Depot ·
+Anleihen (Coupon-Cash)") and in Wealth's cash table. An account whose name
+no other portfolio uses stays bare (#1333).
+
 **Bucket chips (#559).** Each row shows its bucket memberships as chips —
 the exclusive **scope** bucket as a filled chip, free **tags** as outline
 chips, tinted with the bucket's color when one is set. When a depot and its
