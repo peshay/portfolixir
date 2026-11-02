@@ -60,7 +60,13 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] == []
     assert newest["tools"] == []
     assert hd(Contract.entries()).prompts == []
-    assert [top_level, in_data] = newest["parameters"]
+    assert [top_level, in_data, targets, views] = newest["parameters"]
+    assert newest["summary"] =~ "A3"
+    assert String.starts_with?(targets, "GET /api/v1/portfolios/:portfolio_id/targets")
+    assert targets =~ "(#1301)"
+    assert String.starts_with?(views, "PUT /api/v1/views/:id/buckets")
+    assert views =~ "include_all"
+    assert views =~ "(#1315)"
 
     for endpoint <-
           ~w(/api/v1/journal /api/v1/merges /api/v1/exchange_rates /api/v1/securities/:security_id/quotes) do
