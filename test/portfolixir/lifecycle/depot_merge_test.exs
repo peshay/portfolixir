@@ -429,7 +429,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     # Acceptance criteria:
     # - Without collapse nothing moves; the collapse outcome lists, per
     #   collapsed row before the cash account's next anchor, the account, the
-    #   anchor, its date and the row's cash leg.
+    #   anchor, its date and the row's cash leg, in the cash account's
+    #   currency (closing act, #957).
     # - After the apply, the performance walk's flows differ from before by
     #   exactly the listed changes.
     test "a collapsed booking before a later anchor of its cash account is a listed flow", ctx do
@@ -448,13 +449,13 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
                Enum.map(
                  changes,
                  &{&1.kind, &1.cash_account_id, &1.transaction_id, &1.date, n(&1.change),
-                  &1.collapsed_transaction_id}
+                  &1.currency_code, &1.collapsed_transaction_id}
                )
              ) ==
                Enum.sort([
-                 {:absorbed, ctx.cash_t.id, anchor.id, ~D[2025-08-01], dec("50.00"),
+                 {:absorbed, ctx.cash_t.id, anchor.id, ~D[2025-08-01], dec("50.00"), "EUR",
                   rows.s_div.id},
-                 {:absorbed, ctx.cash_t.id, anchor.id, ~D[2025-08-01], dec("-440"),
+                 {:absorbed, ctx.cash_t.id, anchor.id, ~D[2025-08-01], dec("-440"), "EUR",
                   rows.s_buy_pair.id}
                ])
 

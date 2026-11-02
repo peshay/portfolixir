@@ -259,8 +259,8 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
   The external flows a collapse of `pairs` (`{source_row, target_row}`, the
   source row collapsed) removes from the performance walk (ADR-0050 §16
   invariant 9, issue 957), in the order of the pairs, then the flows it moves
-  into a later balance anchor (`collapse_flow_changes/1`, kind `:absorbed`).
-  `[]` without pairs. Every change carries every key, `nil` where it does
+  into a later balance anchor (`collapse_flow_changes/1`, kind `:absorbed`,
+  `currency_code` its cash account's currency). `[]` without pairs. Every change carries every key, `nil` where it does
   not apply.
 
     * `:removed` — a collapsed delivery: its units entered or left the
@@ -289,11 +289,20 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
   def collapse_flow_effects(pairs) do
     rows = Enum.map(pairs, &elem(&1, 0))
 
+    absorbed = collapse_flow_changes(pairs)
     scopes = if Enum.any?(rows, &(&1.type in @straddling)), do: view_scopes(), else: []
-    context = %{scopes: scopes, currencies: cash_currencies(rows)}
+    context = %{scopes: scopes, currencies: cash_currencies(rows, absorbed)}
 
     removed = Enum.flat_map(rows, &removed_flows(&1, Projection.effects(&1), context))
-    removed ++ Enum.map(collapse_flow_changes(pairs), &flow_change/1)
+
+    # An absorbed change is a cash leg, so it is stated in its cash account's
+    # currency (closing act, #957).
+    removed ++
+      Enum.map(absorbed, fn change ->
+        change
+        |> Map.put(:currency_code, Map.get(context.currencies, change.cash_account_id))
+        |> flow_change()
+      end)
   end
 
   defp removed_flows(row, %{external: true, quantities: legs}, _context) do
@@ -373,13 +382,14 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
 
   defp removed_flows(_row, _effect, _context), do: []
 
-  defp cash_currencies(rows) do
-    case for(
-           %{type: type, cash_account_id: id} <- rows,
-           type in ["buy", "sell"],
-           id != nil,
-           do: id
-         ) do
+  defp cash_currencies(rows, absorbed) do
+    trade_ids =
+      for %{type: type, cash_account_id: id} <- rows,
+          type in ["buy", "sell"],
+          id != nil,
+          do: id
+
+    case Enum.uniq(trade_ids ++ Enum.map(absorbed, & &1.cash_account_id)) do
       [] ->
         %{}
 
