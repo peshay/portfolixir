@@ -7996,3 +7996,13 @@ page lands.
   a search with none puts the visible „Kein Wertpapier passt.“ into it. At
   rest, and while it holds only the count, the region leaves the picker's
   grid flow (`position: absolute`), so it adds no row and no gap.
+- **① The section's ⓘ** (`AppShell.section_info/1`): one
+  `details.metric-tooltip.metric-tooltip--inline.metric-tooltip--section`
+  (`data-role="section-info"`) beside the section's heading, its summary
+  „ⓘ“ named „Zu diesem Abschnitt“, its `p[role="tooltip"]` holding the
+  section's method sentences one per line (`<br>` between them). The
+  heading and the ⓘ sit in `div.section-title`, a flex row with the
+  `--space-1` gap, so the heading stays a pure heading. The section's panel
+  is 26 rem wide (`max-width: calc(100vw - 2rem)`); a term's ⓘ keeps
+  18 rem. A facet whose basis line already ends in an ⓘ takes its moved
+  sentences there instead, under its text after a blank line.
