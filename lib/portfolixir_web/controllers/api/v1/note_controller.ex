@@ -124,13 +124,18 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     with {:ok, days} <- days_param(params, @default_unreviewed_days),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Portfolixir.Clock.today()
-      rows = Knowledge.unreviewed_positions(days: days, today: today, limit: limit)
+      # #1254: one row past the limit tells a cut answer from the whole.
+      {rows, truncated} =
+        [days: days, today: today, limit: ListLimit.fetch(limit)]
+        |> Knowledge.unreviewed_positions()
+        |> ListLimit.page(limit)
 
       json(conn, %{
         data: %{
           days: days,
           as_of: JSON.date(today),
           limit: limit,
+          truncated: truncated,
           positions: Enum.map(rows, &unreviewed_row/1),
           basis: unreviewed_basis() <> " A limit keeps the most overdue positions."
         }
@@ -155,18 +160,21 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     with {:ok, security_id} <- optional_id_param(params, "security_id"),
          {:ok, include_superseded} <- bool_param(params, "include_superseded", false),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
-      entries =
-        Knowledge.uncorroborated_notes(
+      {entries, truncated} =
+        [
           security_id: security_id,
           include_superseded: include_superseded,
-          limit: limit
-        )
+          limit: ListLimit.fetch(limit)
+        ]
+        |> Knowledge.uncorroborated_notes()
+        |> ListLimit.page(limit)
 
       json(conn, %{
         data: %{
           security_id: security_id,
           include_superseded: include_superseded,
           limit: limit,
+          truncated: truncated,
           entries: Enum.map(entries, &JSON.security_note/1),
           basis:
             "Entries whose source_quality is not primary (" <>
@@ -186,13 +194,10 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Portfolixir.Clock.today()
 
-      entries =
-        Knowledge.expiring_notes(
-          days: days,
-          today: today,
-          security_id: security_id,
-          limit: limit
-        )
+      {entries, truncated} =
+        [days: days, today: today, security_id: security_id, limit: ListLimit.fetch(limit)]
+        |> Knowledge.expiring_notes()
+        |> ListLimit.page(limit)
 
       json(conn, %{
         data: %{
@@ -200,6 +205,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
           as_of: JSON.date(today),
           security_id: security_id,
           limit: limit,
+          truncated: truncated,
           entries:
             Enum.map(entries, fn note ->
               note

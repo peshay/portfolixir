@@ -136,6 +136,8 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       trades: trades,
       summary: summary(trades),
       limit: limit,
+      # #1254: whether the limit left years of the matrix out.
+      truncated: length(annual) < length(full),
       excluded: excluded_summary(excluded),
       # #984 (T1b, UX-DR25): the matcher's orphan sells, named rather than
       # dropped — a sell with no lot is no trade, so it is in no figure.

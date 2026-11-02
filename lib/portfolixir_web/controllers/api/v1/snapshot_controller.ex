@@ -24,8 +24,17 @@ defmodule PortfolixirWeb.Api.V1.SnapshotController do
   def index(conn, params) do
     case ListLimit.parse(params, @default_limit, @max_limit) do
       {:ok, limit} ->
-        snapshots = Snapshots.list_snapshots(limit: limit)
-        json(conn, %{data: %{snapshots: Enum.map(snapshots, &JSON.snapshot/1), limit: limit}})
+        # #1254: one row past the limit tells a cut answer from the whole.
+        {snapshots, truncated} =
+          [limit: ListLimit.fetch(limit)] |> Snapshots.list_snapshots() |> ListLimit.page(limit)
+
+        json(conn, %{
+          data: %{
+            snapshots: Enum.map(snapshots, &JSON.snapshot/1),
+            limit: limit,
+            truncated: truncated
+          }
+        })
 
       {:error, :limit} ->
         unprocessable(conn, %{limit: ["is invalid"]})

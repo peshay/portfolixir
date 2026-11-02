@@ -60,6 +60,8 @@ defmodule Portfolixir.Portfolios.Costs do
       base_currency: base,
       annual: annual,
       limit: limit,
+      # #1254: whether the limit left years of the matrix out.
+      truncated: length(annual) < length(full),
       excluded: %{
         count: length(excluded),
         currencies: excluded |> Enum.map(& &1.currency_code) |> Enum.uniq() |> Enum.sort()

@@ -11,7 +11,7 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   `limit=` goes through `PortfolixirWeb.Api.V1.ListLimit.parse/3`, the one
   parser of the bounded-list family (#771, #776, #811): absent or blank is the
   default, an oversized value is capped at the maximum and echoed in
-  `meta.filters.limit`, and zero, a negative or a non-number is a `422` naming
+  `meta.filters.limit` and beside `data` with `truncated` (#1254), and zero, a negative or a non-number is a `422` naming
   the field.
 
   This is mirrored by the `portfolixir.journal.list` MCP tool (API/MCP parity,
@@ -35,10 +35,19 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   def index(conn, params) do
     case list_opts(params) do
       {:ok, opts} ->
-        entries = Journal.list_entries(opts)
+        limit = Keyword.fetch!(opts, :limit)
+
+        # #1254: one row past the limit tells a cut answer from the whole.
+        {entries, truncated} =
+          opts
+          |> Keyword.put(:limit, ListLimit.fetch(limit))
+          |> Journal.list_entries()
+          |> ListLimit.page(limit)
 
         json(conn, %{
           data: Enum.map(entries, &JSON.journal_entry/1),
+          limit: limit,
+          truncated: truncated,
           meta: meta(opts, entries)
         })
 

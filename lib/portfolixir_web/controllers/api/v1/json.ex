@@ -1711,6 +1711,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     %{
       base_currency: report.base_currency,
       limit: report.limit,
+      truncated: report.truncated,
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
@@ -1778,6 +1779,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     %{
       base_currency: report.base_currency,
       limit: report.limit,
+      truncated: report.truncated,
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
@@ -1805,6 +1807,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     %{
       base_currency: report.base_currency,
       limit: report.limit,
+      truncated: report.truncated,
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
