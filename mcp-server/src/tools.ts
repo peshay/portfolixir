@@ -3055,8 +3055,8 @@ const declaredTools: DeclaredTool[] = [
     "Preview merging a security (id, the source — a duplicate) into another of the same currency (target_id, the " +
       "one to keep) — a read that writes nothing (ADR-0050 §9, §10). Answers the plan_digest " +
       "portfolixir.securities.merge takes; both securities (identifiers, split events, booking count); the guards; " +
-      "the key_equal_pairs (a source booking whose day, kind, depot, cash account and amounts equal a target " +
-      "booking's); the splits that collapse or move and the split events after; position_buckets per depot; quotes " +
+      "the key_equal_pairs (a source booking equal to a target booking in day, kind, depot, cash account and " +
+      "amounts); the splits that collapse or move and the split events after; position_buckets per depot; quotes " +
       "(source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the " +
       "target's wins; manual_collisions, those typed by hand, with both closes); " +
       "configuration (category_assignments and position_targets, each with its action: move, or drop with the " +
@@ -3070,7 +3070,8 @@ const declaredTools: DeclaredTool[] = [
       "(positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues " +
       "restates: per close year source, target, after and change, open_lots' cost alike, unavailable_trades, unchanged (no realized amount and no open cost moves; which lot a sale closes " +
       "may), fifo_basis; " +
-      "rounding_differences; the cash accounts a collapsed booking changes. Show both outcomes; the " +
+      "rounding_differences; the cash accounts a collapsed booking changes; flow_changes as in the depot " +
+      "preview (removed, boundary_removed, absorbed; flow_basis). Show both outcomes; the " +
       "choices are the operator's. Decimals: strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
@@ -3391,22 +3392,21 @@ const declaredTools: DeclaredTool[] = [
     "Preview a depot merge",
     "Preview merging a depot (id, the source) into another depot of the same portfolio (target_id, the one to " +
       "keep) — a read that writes nothing (ADR-0050 §7, §10). Answers the plan_digest " +
-      "portfolixir.securities_accounts.merge takes, both depots (cash_account_id, bucket_ids, former_names, " +
-      "transaction_count), the guards, the security transfers between the two (deleted), the " +
-      "key_equal_pairs (a source booking whose day, kind, security, cash account and amounts equal a target " +
-      "booking's), position_buckets (per security: both depots' effective buckets and what the merge does with " +
-      "the source's override — carry, drop_redundant, drop_unheld, clear_target or none), the names the target " +
-      "gains (former_names.after), and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
+      "portfolixir.securities_accounts.merge takes, both depots, the guards, the security transfers between " +
+      "the two (deleted), the key_equal_pairs (a source booking equal to a target booking in day, kind, " +
+      "security, cash account and amounts), position_buckets (per security: both depots' effective buckets " +
+      "and the source override's action), former_names.after, and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
       "booking count after, the bookings moved and deleted, positions (every security the source holds: " +
       "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
       "after — moving-average figures, restated as both depots' lots combine; the FIFO realized gains do not " +
       "change unless equal bookings are removed), rounding_differences (per " +
       "position and split date, the combined position rounded once less the two rounded apart — expected, " +
-      "never a refusal, no bound per split), the cash accounts a collapsed booking changes, the flows it " +
-      "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
+      "never a refusal, no bound per split), the cash accounts a collapsed booking changes, flow_changes " +
+      "(each external flow it removes or moves: removed, a delivery; boundary_removed, a transfer straddling " +
+      "view_id; absorbed, a cash leg a later anchor takes), and other_depots: a third depot a " +
       "collapsed transfer names, with quantity before and after. " +
-      "positions_basis states how. Show the operator both outcomes; the choice is " +
-      "theirs. Quantities and decimals are strings. A pair that may not merge answers 409 with errors.code " +
+      "positions_basis and flow_basis state how. Show both outcomes; the choice is " +
+      "theirs. Quantities and decimals: strings. A pair that may not merge answers 409 with errors.code " +
       "(same_account, not_live, portfolio_mismatch, buckets_mismatch or position_buckets_mismatch naming each " +
       "position whose buckets differ while both depots hold it, or whose override to carry holds more than one " +
       "scope bucket) and errors.guards; a source already merged " +
