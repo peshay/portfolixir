@@ -103,10 +103,9 @@ defmodule Portfolixir.Ledger.StatedCash do
 
   def cash_as_imported?(%Transaction{}), do: false
 
-  defp cash_changed?(%{"gross_amount" => before}, %{"gross_amount" => after_}),
-    do: not same_amount?(before, after_)
-
-  defp cash_changed?(_before, _after), do: false
+  # An update's entry carries the row before and after it (ADR-0017).
+  defp cash_changed?(%{} = before, %{} = after_),
+    do: not same_amount?(Map.get(before, "gross_amount"), Map.get(after_, "gross_amount"))
 
   defp same_amount?(same, same), do: true
 

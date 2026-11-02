@@ -7,6 +7,7 @@ defmodule Portfolixir.Ledger.StatedCashTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.StatedCash
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
@@ -197,6 +198,48 @@ defmodule Portfolixir.Ledger.StatedCashTest do
 
     assert {:ok, repriced} = edit(penny, %{"price" => "0.10", "gross_amount" => "10000.01"})
     assert Decimal.equal?(repriced.gross_amount, Decimal.new("10000.01"))
+  end
+
+  # Acceptance criteria (Sprint 23's sprint PR closing act, coverage):
+  # - A stated cash that does not read as a decimal keeps its own cast
+  #   error alone, no mismatch beside it.
+  # - derived_cash/5 derives nothing for a kind other than buy or sell.
+  # - An imported buy is "as imported" until an update changes its cash:
+  #   a note edit keeps it, a cash set on a row imported without one ends
+  #   it; a row no import stored never is.
+  test "the rule's edges: an unreadable cash, another kind, the cash as imported",
+       %{world: world, security: security, buy: buy} do
+    assert {:error, changeset} = edit(buy, %{"price" => "81.00", "gross_amount" => "abc"})
+    assert messages(changeset, :gross_amount) == ["is invalid"]
+
+    assert StatedCash.derived_cash("dividend", Decimal.new(1), Decimal.new(1), nil, nil) == nil
+
+    assert {:ok, noted} = edit(buy, %{"notes" => "checked"})
+    assert StatedCash.cash_as_imported?(noted)
+
+    {:ok, bare} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        trade_attrs(world, security, %{type: "buy", quantity: "2", price: "50.00"}),
+        import_hash: String.duplicate("a", 64)
+      )
+
+    assert StatedCash.cash_as_imported?(bare)
+    assert {:ok, stated} = edit(bare, %{"gross_amount" => "100.00"})
+    refute StatedCash.cash_as_imported?(stated)
+
+    {:ok, by_hand} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        trade_attrs(world, security, %{
+          type: "buy",
+          quantity: "1",
+          price: "50.00",
+          gross_amount: "50.00"
+        })
+      )
+
+    refute StatedCash.cash_as_imported?(by_hand)
   end
 
   # Acceptance criteria (a sell, whose cash is net of fees and taxes):
