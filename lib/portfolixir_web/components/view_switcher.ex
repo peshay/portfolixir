@@ -122,7 +122,9 @@ defmodule PortfolixirWeb.ViewSwitcher do
           <%= gettext("Scoped to view: %{name}", name: @active_view.name) %>
         </p>
       <% end %>
-      <details class="view-switcher__help">
+      <%!-- #1350 (board 01 ⑥): the ⓘ is a metric tooltip like every
+           other, so its panel floats instead of pushing the page down. --%>
+      <details class="view-switcher__help metric-tooltip metric-tooltip--inline">
         <summary aria-label={gettext("About views")}>ⓘ</summary>
         <p role="tooltip">
           <%= gettext(
