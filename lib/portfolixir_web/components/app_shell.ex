@@ -18,6 +18,8 @@ defmodule PortfolixirWeb.AppShell do
         id="app-sidebar-toggle"
         class="sidebar-toggle-control"
         type="checkbox"
+        phx-update="ignore"
+        phx-hook="SidebarRail"
         aria-label={gettext("Toggle navigation")}
       />
 

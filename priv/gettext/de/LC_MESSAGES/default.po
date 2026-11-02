@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Language: de\n"
 
-#: lib/portfolixir_web/components/app_shell.ex:24
+#: lib/portfolixir_web/components/app_shell.ex:26
 #, elixir-autogen
 msgid "Application navigation"
 msgstr "App-Navigation"
@@ -79,7 +79,7 @@ msgstr "Wertpapiere anlegen"
 msgid "Currency"
 msgstr "Währung"
 
-#: lib/portfolixir_web/components/app_shell.ex:385
+#: lib/portfolixir_web/components/app_shell.ex:387
 #, elixir-autogen
 msgid "Dark"
 msgstr "Dunkel"
@@ -126,13 +126,13 @@ msgstr "Depot"
 msgid "Depots"
 msgstr "Depots"
 
-#: lib/portfolixir_web/components/app_shell.ex:90
+#: lib/portfolixir_web/components/app_shell.ex:92
 #, elixir-autogen
 msgid "Display preferences"
 msgstr "Anzeigeeinstellungen"
 
-#: lib/portfolixir_web/components/app_shell.ex:530
-#: lib/portfolixir_web/components/app_shell.ex:531
+#: lib/portfolixir_web/components/app_shell.ex:532
+#: lib/portfolixir_web/components/app_shell.ex:533
 #: lib/portfolixir_web/live/portfolio_live.ex:1695
 #: lib/portfolixir_web/live/portfolio_live.ex:1696
 #: lib/portfolixir_web/live/securities_live.ex:1027
@@ -141,7 +141,7 @@ msgstr "Anzeigeeinstellungen"
 msgid "Dismiss"
 msgstr "Schließen"
 
-#: lib/portfolixir_web/components/app_shell.ex:417
+#: lib/portfolixir_web/components/app_shell.ex:419
 #, elixir-autogen
 msgid "English"
 msgstr "Englisch"
@@ -162,7 +162,7 @@ msgstr "Börse"
 msgid "Fees"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:416
+#: lib/portfolixir_web/components/app_shell.ex:418
 #, elixir-autogen
 msgid "German"
 msgstr "Deutsch"
@@ -177,13 +177,13 @@ msgstr "Deutsch"
 msgid "ISIN"
 msgstr "ISIN"
 
-#: lib/portfolixir_web/components/app_shell.ex:165
+#: lib/portfolixir_web/components/app_shell.ex:167
 #: lib/portfolixir_web/controllers/session_html.ex:81
 #, elixir-autogen
 msgid "Language"
 msgstr "Sprache"
 
-#: lib/portfolixir_web/components/app_shell.ex:384
+#: lib/portfolixir_web/components/app_shell.ex:386
 #, elixir-autogen
 msgid "Light"
 msgstr "Hell"
@@ -193,15 +193,15 @@ msgstr "Hell"
 msgid "Link one depot to one cash account"
 msgstr "Ein Depot mit einem Verrechnungskonto verknüpfen"
 
-#: lib/portfolixir_web/components/app_shell.ex:138
-#: lib/portfolixir_web/components/app_shell.ex:141
-#: lib/portfolixir_web/components/app_shell.ex:145
-#: lib/portfolixir_web/components/app_shell.ex:148
+#: lib/portfolixir_web/components/app_shell.ex:140
+#: lib/portfolixir_web/components/app_shell.ex:143
+#: lib/portfolixir_web/components/app_shell.ex:147
+#: lib/portfolixir_web/components/app_shell.ex:150
 #, elixir-autogen
 msgid "Accent color"
 msgstr "Akzentfarbe"
 
-#: lib/portfolixir_web/components/app_shell.ex:393
+#: lib/portfolixir_web/components/app_shell.ex:395
 #, elixir-autogen
 msgid "Coral"
 msgstr "Koralle"
@@ -216,12 +216,12 @@ msgstr "Lokales Portfolio-Tracking"
 msgid "Workflow path"
 msgstr "Workflow-Pfad"
 
-#: lib/portfolixir_web/components/app_shell.ex:392
+#: lib/portfolixir_web/components/app_shell.ex:394
 #, elixir-autogen
 msgid "Teal"
 msgstr "Petrol"
 
-#: lib/portfolixir_web/components/app_shell.ex:391
+#: lib/portfolixir_web/components/app_shell.ex:393
 #, elixir-autogen
 msgid "Violet"
 msgstr "Violett"
@@ -258,7 +258,7 @@ msgstr "Noch keine Transaktionen"
 msgid "Notes"
 msgstr "Notizen"
 
-#: lib/portfolixir_web/components/app_shell.ex:67
+#: lib/portfolixir_web/components/app_shell.ex:69
 #, elixir-autogen
 msgid "Open navigation"
 msgstr "Navigation öffnen"
@@ -272,7 +272,7 @@ msgstr "Navigation öffnen"
 msgid "Price"
 msgstr "Preis"
 
-#: lib/portfolixir_web/components/app_shell.ex:33
+#: lib/portfolixir_web/components/app_shell.ex:35
 #, elixir-autogen
 msgid "Primary navigation"
 msgstr "Hauptnavigation"
@@ -311,7 +311,7 @@ msgstr "Transaktion erfassen"
 msgid "Review current holdings"
 msgstr "Aktuelle Bestände prüfen"
 
-#: lib/portfolixir_web/components/app_shell.ex:308
+#: lib/portfolixir_web/components/app_shell.ex:310
 #: lib/portfolixir_web/live/dashboard_live.ex:1357
 #: lib/portfolixir_web/live/imports_live.ex:360
 #: lib/portfolixir_web/live/imports_live.ex:1257
@@ -356,7 +356,7 @@ msgstr "Depot auswählen"
 msgid "Select security"
 msgstr "Wertpapier auswählen"
 
-#: lib/portfolixir_web/components/app_shell.ex:383
+#: lib/portfolixir_web/components/app_shell.ex:385
 #, elixir-autogen
 msgid "System"
 msgstr "System"
@@ -371,15 +371,15 @@ msgstr "System"
 msgid "Taxes"
 msgstr "Steuern"
 
-#: lib/portfolixir_web/components/app_shell.ex:91
-#: lib/portfolixir_web/components/app_shell.ex:92
-#: lib/portfolixir_web/components/app_shell.ex:114
-#: lib/portfolixir_web/components/app_shell.ex:117
+#: lib/portfolixir_web/components/app_shell.ex:93
+#: lib/portfolixir_web/components/app_shell.ex:94
+#: lib/portfolixir_web/components/app_shell.ex:116
+#: lib/portfolixir_web/components/app_shell.ex:119
 #, elixir-autogen
 msgid "Theme"
 msgstr "Erscheinungsbild"
 
-#: lib/portfolixir_web/components/app_shell.ex:21
+#: lib/portfolixir_web/components/app_shell.ex:23
 #, elixir-autogen
 msgid "Toggle navigation"
 msgstr "Navigation umschalten"
@@ -394,7 +394,7 @@ msgstr "Transaktionshistorie"
 msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
-#: lib/portfolixir_web/components/app_shell.ex:315
+#: lib/portfolixir_web/components/app_shell.ex:317
 #: lib/portfolixir_web/live/dashboard_live.ex:1369
 #: lib/portfolixir_web/live/securities/bond_strip.ex:311
 #: lib/portfolixir_web/live/securities_live.ex:1632
@@ -428,7 +428,7 @@ msgstr "Typ"
 msgid "Asset class"
 msgstr "Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:344
+#: lib/portfolixir_web/components/app_shell.ex:346
 #: lib/portfolixir_web/live/classifications_live.ex:266
 #: lib/portfolixir_web/live/classifications_live.ex:596
 #: lib/portfolixir_web/live/classifications_live.ex:604
@@ -446,7 +446,7 @@ msgstr "Klassifizierungen"
 msgid "Dividends"
 msgstr "Dividenden"
 
-#: lib/portfolixir_web/components/app_shell.ex:238
+#: lib/portfolixir_web/components/app_shell.ex:240
 #: lib/portfolixir_web/live/securities_live.ex:4130
 #, elixir-autogen, elixir-format
 msgid "Holdings"
@@ -1097,7 +1097,7 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/components/app_shell.ex:724
+#: lib/portfolixir_web/components/app_shell.ex:726
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:601
 #, elixir-autogen, elixir-format
 msgid "Actions for %{row}"
@@ -1360,7 +1360,7 @@ msgstr "Eröffnungsdatum"
 msgid "Open positions (FIFO)"
 msgstr "Offene Positionen (FIFO)"
 
-#: lib/portfolixir_web/components/app_shell.ex:294
+#: lib/portfolixir_web/components/app_shell.ex:296
 #: lib/portfolixir_web/live/dashboard_live.ex:231
 #: lib/portfolixir_web/live/securities_live.ex:4125
 #, elixir-autogen, elixir-format
@@ -1711,7 +1711,7 @@ msgstr "Entnahme"
 msgid "Fee"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:261
+#: lib/portfolixir_web/components/app_shell.ex:263
 #: lib/portfolixir_web/live/income_live.ex:1317
 #: lib/portfolixir_web/live/tax_live.ex:624
 #: lib/portfolixir_web/transaction_kind_label.ex:24
@@ -3017,7 +3017,7 @@ msgstr "Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = ü
 msgid "Toggle the category's securities"
 msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 
-#: lib/portfolixir_web/components/app_shell.ex:327
+#: lib/portfolixir_web/components/app_shell.ex:329
 #: lib/portfolixir_web/live/buckets_live.ex:307
 #: lib/portfolixir_web/live/imports_live.ex:2868
 #: lib/portfolixir_web/live/imports_live.ex:2894
@@ -3026,33 +3026,33 @@ msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 msgid "Accounts & depots"
 msgstr "Konten & Depots"
 
-#: lib/portfolixir_web/components/app_shell.ex:322
+#: lib/portfolixir_web/components/app_shell.ex:324
 #, elixir-autogen, elixir-format
 msgid "Administration"
 msgstr "Verwaltung"
 
-#: lib/portfolixir_web/components/app_shell.ex:244
+#: lib/portfolixir_web/components/app_shell.ex:246
 #, elixir-autogen, elixir-format
 msgid "Allocation & targets"
 msgstr "Allokation & Ziele"
 
-#: lib/portfolixir_web/components/app_shell.ex:273
+#: lib/portfolixir_web/components/app_shell.ex:275
 #, elixir-autogen, elixir-format
 msgid "History"
 msgstr "Historie"
 
-#: lib/portfolixir_web/components/app_shell.ex:278
+#: lib/portfolixir_web/components/app_shell.ex:280
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:1650
 #, elixir-autogen, elixir-format
 msgid "Import"
 msgstr "Import"
 
-#: lib/portfolixir_web/components/app_shell.ex:213
+#: lib/portfolixir_web/components/app_shell.ex:215
 #, elixir-autogen, elixir-format
 msgid "Section tabs"
 msgstr "Bereichs-Tabs"
 
-#: lib/portfolixir_web/components/app_shell.ex:301
+#: lib/portfolixir_web/components/app_shell.ex:303
 #: lib/portfolixir_web/live/portfolio_live.ex:972
 #: lib/portfolixir_web/live/portfolio_live.ex:975
 #: lib/portfolixir_web/live/portfolio_live.ex:988
@@ -3482,7 +3482,7 @@ msgstr "Die neuen Datensätze starten mit diesen Buckets getaggt."
 msgid "The new tag could not be created."
 msgstr "Der neue Tag konnte nicht angelegt werden."
 
-#: lib/portfolixir_web/components/app_shell.ex:337
+#: lib/portfolixir_web/components/app_shell.ex:339
 #: lib/portfolixir_web/components/view_switcher.ex:94
 #: lib/portfolixir_web/live/buckets_live.ex:63
 #: lib/portfolixir_web/live/buckets_live.ex:80
@@ -3759,7 +3759,7 @@ msgstr "Echt (TTWROR)"
 msgid "Scope"
 msgstr "Geltungsbereich"
 
-#: lib/portfolixir_web/components/app_shell.ex:256
+#: lib/portfolixir_web/components/app_shell.ex:258
 #: lib/portfolixir_web/live/snapshots_live.ex:330
 #: lib/portfolixir_web/live/snapshots_live.ex:333
 #: lib/portfolixir_web/live/snapshots_live.ex:346
@@ -4963,19 +4963,19 @@ msgid_plural "%{count} without an asset class"
 msgstr[0] "eins ohne Anlageklasse"
 msgstr[1] "%{count} ohne Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:772
+#: lib/portfolixir_web/components/app_shell.ex:774
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Attention"
 msgstr "Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:771
+#: lib/portfolixir_web/components/app_shell.ex:773
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Note"
 msgstr "Hinweis"
 
-#: lib/portfolixir_web/components/app_shell.ex:773
+#: lib/portfolixir_web/components/app_shell.ex:775
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Problem"
@@ -5218,7 +5218,7 @@ msgstr "Kein Kurs seit %{days} Tagen"
 msgid "Accumulated dividends and interest through %{year}"
 msgstr "Kumulierte Dividenden und Zinsen im Jahr %{year}"
 
-#: lib/portfolixir_web/components/app_shell.ex:250
+#: lib/portfolixir_web/components/app_shell.ex:252
 #: lib/portfolixir_web/live/income_live.ex:249
 #: lib/portfolixir_web/live/income_live.ex:1711
 #, elixir-autogen, elixir-format
@@ -5665,7 +5665,7 @@ msgstr "Widerruf"
 msgid "Retracts #%{id}"
 msgstr "Widerruft #%{id}"
 
-#: lib/portfolixir_web/components/app_shell.ex:265
+#: lib/portfolixir_web/components/app_shell.ex:267
 #: lib/portfolixir_web/live/risk_live.ex:215
 #: lib/portfolixir_web/live/securities_live.ex:3441
 #, elixir-autogen, elixir-format
@@ -5821,7 +5821,7 @@ msgstr "Weiter"
 msgid "Delete this allowance order?"
 msgstr "Diesen Freistellungsauftrag löschen?"
 
-#: lib/portfolixir_web/components/app_shell.ex:59
+#: lib/portfolixir_web/components/app_shell.ex:61
 #: lib/portfolixir_web/controllers/session_html.ex:11
 #: lib/portfolixir_web/controllers/session_html.ex:14
 #, elixir-autogen, elixir-format
@@ -6137,7 +6137,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 msgid "no exchange rate"
 msgstr "kein Wechselkurs"
 
-#: lib/portfolixir_web/components/app_shell.ex:758
+#: lib/portfolixir_web/components/app_shell.ex:760
 #, elixir-autogen, elixir-format
 msgctxt "price freshness"
 msgid "stale"
@@ -9657,26 +9657,26 @@ msgstr "Version von:"
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr "%{field} enthält unsichtbare Zeichen (%{characters})"
 
-#: lib/portfolixir_web/components/app_shell.ex:616
+#: lib/portfolixir_web/components/app_shell.ex:618
 #, elixir-autogen, elixir-format
 msgid "The text contains %{count} invisible character."
 msgid_plural "The text contains %{count} invisible characters."
 msgstr[0] "Der Text enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Text enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:624
+#: lib/portfolixir_web/components/app_shell.ex:626
 #, elixir-autogen, elixir-format
 msgid "The name contains %{count} invisible character."
 msgid_plural "The name contains %{count} invisible characters."
 msgstr[0] "Der Name enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Name enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:646
+#: lib/portfolixir_web/components/app_shell.ex:648
 #, elixir-autogen, elixir-format
 msgid "Text with the characters made visible"
 msgstr "Text mit sichtbar gemachten Zeichen"
 
-#: lib/portfolixir_web/components/app_shell.ex:647
+#: lib/portfolixir_web/components/app_shell.ex:649
 #, elixir-autogen, elixir-format
 msgid "Name with the characters made visible"
 msgstr "Name mit sichtbar gemachten Zeichen"
@@ -10757,7 +10757,7 @@ msgstr "„%{name}“ wurde inzwischen gelöscht; die Liste ist neu geladen."
 msgid "“%{name}” was merged into %{target} meanwhile; the list is reloaded."
 msgstr "„%{name}“ wurde inzwischen in %{target} zusammengeführt; die Liste ist neu geladen."
 
-#: lib/portfolixir_web/components/app_shell.ex:632
+#: lib/portfolixir_web/components/app_shell.ex:634
 #, elixir-autogen, elixir-format
 msgid "A former name contains %{count} invisible character."
 msgid_plural "A former name contains %{count} invisible characters."
@@ -10778,14 +10778,14 @@ msgid_plural "An import that writes one of them exactly so keeps booking to this
 msgstr[0] "Ein Import, der ihn genau so schreibt, bucht weiter auf dieses Depot."
 msgstr[1] "Ein Import, der einen von ihnen genau so schreibt, bucht weiter auf dieses Depot."
 
-#: lib/portfolixir_web/components/app_shell.ex:640
+#: lib/portfolixir_web/components/app_shell.ex:642
 #, elixir-autogen, elixir-format
 msgid "Former names contain %{count} invisible character."
 msgid_plural "Former names contain %{count} invisible characters."
 msgstr[0] "Frühere Namen enthalten %{count} unsichtbares Zeichen."
 msgstr[1] "Frühere Namen enthalten %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:648
+#: lib/portfolixir_web/components/app_shell.ex:650
 #, elixir-autogen, elixir-format
 msgid "Names with the characters made visible"
 msgstr "Namen mit sichtbar gemachten Zeichen"
