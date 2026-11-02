@@ -176,6 +176,7 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
            ]
 
     assert preview["flow_basis"] =~ "boundary_removed"
+    assert preview["flow_basis"] =~ "booked_value"
     assert preview["flow_basis"] =~ "booked price"
   end
 

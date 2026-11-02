@@ -3402,8 +3402,8 @@ const declaredTools: DeclaredTool[] = [
       "change unless equal bookings are removed), rounding_differences (per " +
       "position and split date, the combined position rounded once less the two rounded apart — expected, " +
       "never a refusal, no bound per split), the cash accounts a collapsed booking changes, flow_changes " +
-      "(each external flow it removes or moves: removed, a delivery; boundary_removed, a transfer straddling " +
-      "view_id; absorbed, a cash leg a later anchor takes), and other_depots: a third depot a " +
+      "(each external flow it removes or moves: removed, a delivery; boundary_removed, a transfer or trade straddling " +
+      "view_id; absorbed, a cash leg a later anchor takes), other_depots: a third depot a " +
       "collapsed transfer names, with quantity before and after. " +
       "positions_basis and flow_basis state how. Show both outcomes; the choice is " +
       "theirs. Quantities and decimals: strings. A pair that may not merge answers 409 with errors.code " +
