@@ -6880,6 +6880,14 @@ button.income-bar-label.is-active {
   right: auto;
 }
 
+/* Issue 1350 (board ux-design-2026-11-01-sprint22/01-i1 ⑥): the view
+   switcher's ⓘ is a metric tooltip like every other ⓘ, so its panel floats
+   instead of laying its text out as a paragraph that pushes the KPI cards
+   down. The switcher's gap spaces it; it takes no inline margin of its own. */
+.view-switcher__help.metric-tooltip {
+  margin-left: 0;
+}
+
 /* A summary that carries a label beside the ⓘ grows with it (issue 790):
    the 1.25rem circle clipped "Kurs- & Währungsbeitrag" to its first glyph. */
 .metric-tooltip--labelled summary {
