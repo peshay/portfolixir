@@ -1315,6 +1315,29 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Issue 1330: the sidebar's rail checkbox. The server renders it
+            // without `checked`, and a patch syncs the property to that
+            // render, so a collapsed rail re-opened on any click that
+            // updated the page. The checkbox is phx-update="ignore", and
+            // this hook owns the collapsed state: it remembers each change
+            // and re-applies it after every patch.
+            Hooks.SidebarRail = {
+              mounted: function () {
+                var self = this;
+                this.checked = this.el.checked;
+                this.onChange = function () {
+                  self.checked = self.el.checked;
+                };
+                this.el.addEventListener("change", this.onChange);
+              },
+              updated: function () {
+                this.el.checked = this.checked;
+              },
+              destroyed: function () {
+                this.el.removeEventListener("change", this.onChange);
+              }
+            };
+
             // The ninth inline hook (owner decision 2026-08-05, DESIGN.md →
             // Motion): a cosmetic count-up to an already-known final value.
             // requestAnimationFrame drives the count, Intl.NumberFormat
