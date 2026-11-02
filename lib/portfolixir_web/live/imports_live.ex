@@ -2573,18 +2573,16 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   # The done page's held-back lines (#1313): per other portfolio, how many
-  # rows the apply held back, under the portfolio's name now.
+  # rows the apply held back, under the portfolio's name as the apply saw it.
   defp held_back_result(%{held_back_entries: [_ | _] = entries}) do
-    names = Map.new(Portfolios.list_portfolios(), &{&1.id, &1.name})
-
     # The count is of the file's rows: a refund split off a held-back row is
     # held back with it, not counted apart.
     entries
     |> Enum.reject(& &1.companion)
-    |> Enum.frequencies_by(& &1.portfolio_id)
+    |> Enum.group_by(&{&1.portfolio_id, &1.portfolio_name})
     |> Enum.sort()
-    |> Enum.map(fn {id, count} ->
-      %{portfolio_id: id, portfolio_name: Map.get(names, id, ""), count: count}
+    |> Enum.map(fn {{id, name}, rows} ->
+      %{portfolio_id: id, portfolio_name: name, count: length(rows)}
     end)
   end
 

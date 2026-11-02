@@ -1087,7 +1087,12 @@ defmodule Portfolixir.Imports.Applier do
       |> cross_portfolio_hits(state.portfolio_id)
       |> Enum.map(fn hit -> if hit in include, do: nil, else: hit end)
 
-    Map.put(state, :held_back_hits, hits)
+    state
+    |> Map.put(:held_back_hits, hits)
+    |> Map.put(
+      :held_back_names,
+      if(Enum.any?(hits, &is_integer/1), do: portfolio_names(), else: %{})
+    )
   end
 
   # A new row whose content hash an earlier row of the file already carries
@@ -1916,6 +1921,8 @@ defmodule Portfolixir.Imports.Applier do
             %{
               row: entry.source_row,
               portfolio_id: other_id,
+              # The name as the apply saw it, under its locks.
+              portfolio_name: state |> Map.get(:held_back_names, %{}) |> Map.get(other_id, ""),
               companion: entry.companion_index != nil
             }
             | r.held_back_entries

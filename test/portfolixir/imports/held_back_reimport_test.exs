@@ -336,4 +336,23 @@ defmodule Portfolixir.Imports.HeldBackReimportTest do
     assert length(result.held_back_entries) == 4
     assert booked(main) == []
   end
+
+  # User story (#1313, the closing act):
+  # As the operator who renames a portfolio after an import,
+  # I want the done page to name the held-back rows' portfolio as the apply
+  # saw it,
+  # so that the result reads as what was decided.
+  #
+  # Acceptance criteria:
+  # - Each held-back entry of the result carries its portfolio's name at the
+  #   apply; a rename after it does not change the result.
+  test "the result names a held-back row's portfolio as the apply saw it", %{bonds: bonds} do
+    import_into!(@coupons, bonds)
+
+    assert {:ok, %Result{} = result} = page_apply(parse!(@coupons))
+    {:ok, _renamed} = Portfolios.update_portfolio(Actor.owner_ui(), bonds, %{name: "Renten"})
+
+    assert Enum.map(result.held_back_entries, & &1.portfolio_name) ==
+             List.duplicate("Anleihen", 4)
+  end
 end
