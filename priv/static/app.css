@@ -10641,6 +10641,31 @@ dialog.merge-dialog {
   border-top: 1px solid var(--color-border-strong);
 }
 
+/* Issue 957 (board ux-design-2026-11-02-sprint23/01 ①b): the external flows a
+   collapse removes, in both merge previews. The heading with its ⓘ, the
+   table (two-line rows under 720 px) and the basis line stack tight; the
+   table fits the sheet instead of scrolling, so its notes wrap and only
+   the figures keep their line. */
+.merge-flows {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.data-table-wrapper > table.merge-flows-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.merge-flows-table td,
+.data-table.merge-flows-table td .cell-note {
+  white-space: normal;
+}
+
+.merge-flows-table td.num {
+  white-space: nowrap;
+}
+
 /* Step 1: every account, the ones that cannot take the history disabled
    with their reason as text (board 02). */
 .merge-targets {

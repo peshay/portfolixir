@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
+  alias PortfolixirWeb.MergeFlowsCase, as: MergeFlows
 
   setup do
     {:ok, portfolio} =
@@ -786,6 +787,114 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       refute has_element?(view, "#merge-dialog [data-role='merge-refused']")
       assert has_element?(view, "#merge-dialog [data-role='merge-confirm']")
     end
+
+    # User story (Sprint 23 V2, #957; board ux-design-2026-11-02-sprint23/01
+    # ①b):
+    # As the operator choosing whether equal bookings are duplicates,
+    # I want the preview to list every external flow removing them drops or
+    # moves — the date, what happens to it, the booking, where, the units and
+    # the amount with what it is valued at — with the method behind the
+    # section's ⓘ,
+    # so that I see how my time-weighted return changes before I choose,
+    # exactly as the agent reads it from the API.
+    #
+    # Acceptance criteria:
+    # - After the equal bookings' choice, a section "External flows — with
+    #   “remove as duplicates”" lists one row per flow_changes entry of the
+    #   API's "true" outcome for the same pair, in its order: same count,
+    #   kind, date, booking, quantity and amount.
+    # - A collapsed inbound delivery of 10 at 80.00 reads "removed", -10 and
+    #   -800.00 EUR "at the booked price" in the source depot; a buy of 5 at
+    #   88.00 whose depots are in a view and whose cash account is not reads
+    #   "removed at the view boundary", -440.00 EUR "at the booked value" in
+    #   that view.
+    # - Under 720 px the same rows are two-line rows; the ⓘ holds the five
+    #   method sentences, the basis line stays visible; German reads the
+    #   board's words.
+    test "step 2 lists the external flows a collapse removes, as the API does", ctx do
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.source, [core.id])
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.target, [core.id])
+      {:ok, core_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Core view"})
+
+      :ok =
+        Buckets.set_view_buckets(Actor.owner_ui(), core_view, [core.id], [], include_all: false)
+
+      s_in = delivery!(ctx, ctx.source, ctx.meridian, "10", "80.00", ~D[2025-03-03])
+      _t_in = delivery!(ctx, ctx.target, ctx.meridian, "10", "80.00", ~D[2025-03-03])
+      s_buy = buy!(ctx, ctx.source, ctx.cash_t, ctx.meridian, "5", "88.00", ~D[2025-07-01])
+      _t_buy = buy!(ctx, ctx.target, ctx.cash_t, ctx.meridian, "5", "88.00", ~D[2025-07-01])
+
+      api =
+        MergeFlows.api_flow_changes(
+          "/api/v1/securities_accounts/#{ctx.source.id}/merge_preview?target_id=#{ctx.target.id}"
+        )
+
+      assert Enum.map(api, &{&1["kind"], &1["collapsed_transaction_id"]}) == [
+               {"removed", s_in.id},
+               {"boundary_removed", s_buy.id}
+             ]
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      to_preview(view, ctx.source, ctx.target)
+
+      MergeFlows.assert_parity(view, "#merge-dialog", api)
+
+      assert MergeFlows.cells(view, "#merge-dialog") == [
+               [
+                 "2025-03-03",
+                 "removed",
+                 "Inbound delivery · Meridian Global Equity ETF Depot 2",
+                 "-10",
+                 "-800.00 EUR at the booked price"
+               ],
+               [
+                 "2025-07-01",
+                 "removed at the view boundary",
+                 "Buy · Meridian Global Equity ETF View “Core view”",
+                 "—",
+                 "-440.00 EUR at the booked value"
+               ]
+             ]
+
+      MergeFlows.assert_section(view, "#merge-dialog")
+
+      text = german_dialog_text(ctx, ctx.source, ctx.target)
+      assert text =~ "Externe Zu- und Abflüsse bei „als Duplikate entfernen“"
+      assert text =~ "entfällt an der Ansichtsgrenze"
+      assert text =~ "-800,00 EUR zum gebuchten Preis"
+      assert text =~ "-440,00 EUR zum gebuchten Wert"
+      assert text =~ "Ansicht „Core view“"
+
+      assert text =~
+               "Je Eintrag ein Fluss der zeitgewichteten Rendite, der beim Entfernen der Duplikate entfällt oder wandert · Beträge in der Währung des Kontos"
+    end
+
+    # User story (Sprint 23 V2, #957; board 01 ①b, the empty state):
+    # As the operator merging depots whose merge moves no external flow,
+    # I want one line saying so where the section would stand,
+    # so that the screen states what the API states: nothing changes.
+    #
+    # Acceptance criteria:
+    # - With flow_changes empty, the preview shows the single basis line
+    #   "External flows: none is removed or moved; the return reads the same
+    #   flows." and no flow section.
+    test "step 2 says in one line that no external flow moves", ctx do
+      buy!(ctx, ctx.target, ctx.cash_t, ctx.meridian, "60", "80.00", ~D[2025-01-10])
+      buy!(ctx, ctx.source, ctx.cash_s, ctx.meridian, "40", "90.00", ~D[2025-02-10])
+
+      assert MergeFlows.api_flow_changes(
+               "/api/v1/securities_accounts/#{ctx.source.id}/merge_preview?target_id=#{ctx.target.id}"
+             ) == []
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      to_preview(view, ctx.source, ctx.target)
+
+      MergeFlows.assert_empty(view, "#merge-dialog")
+
+      assert german_dialog_text(ctx, ctx.source, ctx.target) =~
+               "Externe Zu- und Abflüsse: Keiner entfällt oder wandert; die Rendite liest dieselben Flüsse."
+    end
   end
 
   describe "same-named accounts" do
@@ -1023,6 +1132,32 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
 
         module
     end
+  end
+
+  # Written the way the Portfolio Performance importer writes a delivery.
+  defp delivery!(ctx, depot, security, quantity, price, date) do
+    attrs = %{
+      portfolio_id: ctx.portfolio.id,
+      securities_account_id: depot.id,
+      security_id: security.id,
+      type: "inbound_delivery",
+      date: date,
+      quantity: quantity,
+      price: price,
+      currency_code: "EUR"
+    }
+
+    {:ok, %{transaction: tx}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:transaction, Transaction.import_changeset(%Transaction{}, attrs))
+      |> Journal.record(Actor.import_session(),
+        resource_type: "transaction",
+        operation: :create,
+        source: :transaction
+      )
+      |> Repo.transaction()
+
+    tx
   end
 
   defp anchor!(account, amount, date) do
