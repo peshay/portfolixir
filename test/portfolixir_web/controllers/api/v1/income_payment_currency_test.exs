@@ -319,6 +319,60 @@ defmodule PortfolixirWeb.Api.V1.IncomePaymentCurrencyTest do
     assert List.last(interest) =~ "not convertible"
   end
 
+  # User story (#1274's review):
+  # As the operator reading "Top contributors",
+  # I want each security once, its rows of every payment currency summed in
+  # the base currency,
+  # so that a security paid into two accounts is ranked by what it paid.
+  #
+  # Acceptance criteria:
+  # - Synthetic Dollar Payer is one entry: 180.00 gross (150 + 30) and net
+  #   150.00 (120 + 30).
+  test "the page: Top contributors ranks a security once across its payment currencies", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/cashflow")
+
+    assert [entry] = rows_text(view, "#income-top-contributors .contributor-row")
+    assert entry =~ "Synthetic Dollar Payer"
+    assert entry =~ "180.00"
+    assert entry =~ "net 150.00"
+  end
+
+  # User story (#1293's review):
+  # As the operator whose 2024 payments have no stored rate,
+  # I want 2024's bar label to say it holds no converted figure, and why,
+  # so that a "0.00" never reads as a year with no income.
+  #
+  # Acceptance criteria:
+  # - 2024's label reads "—", titled "2 payments not convertible — in no
+  #   total"; 2025's reads its total.
+  test "the page: a year of unconverted payments labels its bar with a dash and its count", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/cashflow")
+
+    label =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#income-chart .income-bar-label[data-year='2024'] span")
+
+    assert [{"span", attrs, _children}] = label
+    assert Floki.text(label) |> String.trim() == "—"
+    assert {"title", "2 payments not convertible — in no total"} in attrs
+
+    assert has_element?(view, "#income-chart .income-bar-label[data-year='2025']", "180.00")
+  end
+
+  defp rows_text(view, selector) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> Enum.map(&cell_text/1)
+  end
+
   defp row_cells(view, selector, text) do
     view
     |> element(selector, text)

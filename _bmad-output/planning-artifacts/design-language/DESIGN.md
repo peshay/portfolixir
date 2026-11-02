@@ -7743,11 +7743,17 @@ Letzte Zahlung. „Währung“ is the payment's currency, no longer the
 security's, so a position paid in two currencies has **one row per
 currency** (a USD security paid into a USD and a EUR account has a USD row
 and a EUR row). A payment no rate converts is in no row, as it is in no
-total; the attention note above the annual overview names it. „Top-Beiträge“
-keeps its base-currency figures and does not change.
+total; the attention note above the annual overview names it. When every
+payment lacks a rate, the table's empty state says so instead of „noch
+nichts gebucht“: „1 Zahlung konnte nicht nach EUR umgerechnet werden, daher
+hat keine Position einen Betrag — der Hinweis oben nennt sie.“
+„Top-Beiträge“ keeps its base-currency figures and ranks **securities**: a
+security's rows of every payment currency are summed into one entry.
 
 **A year of unconverted payments** (issue 1293) keeps its year: its bar
-label reads „0,00“ and drills like any other, and the drilled table lists
+label reads „—“, titled „2 Zahlungen ohne Umrechnung — in keiner Summe“
+(never a bare „0,00“, which reads as a year without income), and drills
+like any other, and the drilled table lists
 its payments with „ohne Umrechnung“. The attention note names a payment
 that names no security as „Zinsen“ beside the securities of its currency:
 „Betroffene Währungen: USD (Harborline Freight Inc, Zinsen).“ No new CSS.
