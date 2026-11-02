@@ -577,22 +577,61 @@ defmodule PortfolixirWeb.AppShell do
     the list in ONE `role="status"` region; `role="alert"` is reserved for
     a problem note answering an action the operator just took (the
     inline-result case).
-  - The remedy control belongs inside the note (a child of `inner_block`),
-    so it is adjacent in reading order, not only in pixels.
+  - The remedy control belongs inside the note (a child of `inner_block`,
+    or of `:actions` for a clamped note), so it is adjacent in reading
+    order, not only in pixels.
+
+  **The clamp** (I1, #1351; board `ux-design-2026-11-01-sprint22/01-i1` ③,
+  pick Q1): with `clamp` the note's text (`inner_block`) sits in
+  `.data-note__text`, clamped to two lines (three under 560 px), and its
+  remedy controls (`:actions`) in `.data-note__actions` below it, never
+  under the clamp. The `NoteClamp` hook shows the „mehr“ button only where
+  the text is cut, writes its label from `data-more` / `data-less` (the
+  server renders it hidden and empty, so a note's text reads the same to a
+  test and to a client without the hook) and expands the note on its
+  click, so a clamped note needs its `id`. A note that names rows left out of a total keeps its
+  count in its first line, so the count stays visible (UX-DR25).
   """
   attr(:severity, :atom, values: [:note, :attention, :problem], required: true)
   attr(:id, :string, default: nil)
+  attr(:clamp, :boolean, default: false)
   attr(:rest, :global)
   slot(:inner_block, required: true)
+  slot(:actions)
+
+  def data_note(%{clamp: true, id: nil}) do
+    raise ArgumentError, "a clamped data note needs an id for its NoteClamp hook"
+  end
 
   def data_note(assigns) do
     ~H"""
-    <div id={@id} class={["data-note", "data-note--#{@severity}"]} {@rest}>
+    <div
+      id={@id}
+      class={["data-note", "data-note--#{@severity}", @clamp && "data-note--clamped"]}
+      phx-hook={@clamp && "NoteClamp"}
+      {@rest}
+    >
       <span class="data-note__icon" aria-hidden="true">
         <.icon name={severity_glyph(@severity)} size={14} />
       </span>
       <span class="data-note__word"><%= severity_word(@severity) %></span>
-      <div class="data-note__body"><%= render_slot(@inner_block) %></div>
+      <%= if @clamp do %>
+        <div class="data-note__body">
+          <div id={"#{@id}-text"} class="data-note__text"><%= render_slot(@inner_block) %></div>
+          <div :if={@actions != []} class="data-note__actions"><%= render_slot(@actions) %></div>
+        </div>
+        <button
+          type="button"
+          class="link-button data-note__more"
+          aria-expanded="false"
+          aria-controls={"#{@id}-text"}
+          data-more={pgettext("data-note clamp", "more")}
+          data-less={pgettext("data-note clamp", "less")}
+          hidden
+        ></button>
+      <% else %>
+        <div class="data-note__body"><%= render_slot(@inner_block) %><%= render_slot(@actions) %></div>
+      <% end %>
     </div>
     """
   end
