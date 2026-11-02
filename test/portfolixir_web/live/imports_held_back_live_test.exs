@@ -163,10 +163,21 @@ defmodule PortfolixirWeb.ImportsHeldBackLiveTest do
   # so that the second copy is my deliberate choice.
   #
   # Acceptance criteria:
-  # - Switched on, the counts return to "4 bookings new" and the confirm
+  # - Switched on, the heading reads "… 4 entries — taken over" (German
+  #   "… — werden übernommen"), the counts return to "4 bookings new" and the confirm
   #   books the four rows into the main portfolio with the file's amounts.
   # - A third drop names no group: the main portfolio holds every row now.
   test "X2: the switch takes the group over, once", %{conn: conn, main: main, bonds: bonds} do
+    {:ok, de_view, _html} = live(conn, "/imports?locale=de")
+    upload!(de_view)
+
+    de_view
+    |> element("form#pp-import-apply")
+    |> render_change(%{"include_portfolio" => %{"#{bonds.id}" => "true"}})
+
+    assert de_view |> render_async(1_000) |> text("[data-role='held-back-group'] summary") ==
+             "Bereits im Portfolio „Anleihen“ importiert: 4 Einträge — werden übernommen"
+
     {:ok, view, _html} = live(conn, "/imports")
     upload!(view)
 
@@ -180,6 +191,11 @@ defmodule PortfolixirWeb.ImportsHeldBackLiveTest do
              view,
              "[data-role='held-back-include'] input[name='include_portfolio[#{bonds.id}]'][checked]"
            )
+
+    # The heading follows the switch (the closing act): the rows are taken
+    # over now, as the counts say.
+    assert text(html, "[data-role='held-back-group'] summary") ==
+             "Already imported into portfolio “Anleihen”: 4 entries — taken over"
 
     assert text(
              html,

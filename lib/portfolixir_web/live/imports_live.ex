@@ -2592,7 +2592,21 @@ defmodule PortfolixirWeb.ImportsLive do
   # them lists none.
   defp held_back_groups(states), do: Map.get(states.counts, "held_back", [])
 
-  # The one sentence of a group, on the preview and on the done page.
+  # The one sentence of a group, on the preview and on the done page. A
+  # group the operator took over says so (the closing act): its rows count
+  # as new.
+  defp held_back_sentence(%{included: true, count: count, portfolio_name: name}) do
+    StoredText.isolate(
+      ngettext(
+        "Already imported into portfolio “%{portfolio}”: %{count} entry — taken over",
+        "Already imported into portfolio “%{portfolio}”: %{count} entries — taken over",
+        count,
+        portfolio: StoredText.slot(:portfolio)
+      ),
+      portfolio: name
+    )
+  end
+
   defp held_back_sentence(%{count: count, portfolio_name: name}) do
     StoredText.isolate(
       ngettext(
