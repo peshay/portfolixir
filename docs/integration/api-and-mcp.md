@@ -2848,8 +2848,10 @@ church tax withheld at a zero church-tax rate.
   **exactly one endpoint**: there is no `/views/:id/risk`, and the view
   arrives as the `view` parameter the lens already honours.
   - `volatility`, `max_drawdown` (with `peak_date`, `trough_date`,
-    `recovery_date`) and `risk_adjusted_return`, each over `30d`, `90d` and
-    `365d`. They read the **flow-adjusted daily return factors of the TTWROR
+    `recovery_date`; `recovery_date` is `null` while the index is still
+    below the peak, and all three are `null` when the drawdown is exactly
+    `0`: there was no decline, so none is dated) and `risk_adjusted_return`,
+    each over `30d`, `90d` and `365d`. They read the **flow-adjusted daily return factors of the TTWROR
     chain** — never the day-over-day change of the portfolio's value — so a
     deposit or a withdrawal is not a return: a portfolio whose prices never
     move has volatility and drawdown exactly `0` however much money moves in

@@ -142,6 +142,45 @@ defmodule PortfolixirWeb.RiskLiveTest do
     assert has_element?(view, ~s([data-role="risk-metric-volatility"]), "6 of 20")
   end
 
+  # User story (#1343, Sprint 22 U4, board 02 ④):
+  # As the operator reading the Risk tab of a view that never fell,
+  # I want the maximum drawdown's sub-line to say there was no decline,
+  # so that the screen does not name a peak, a trough and a recovery that
+  # never happened.
+  #
+  # Acceptance criteria:
+  # - A drawdown of exactly 0 reads "no decline in the period" under its
+  #   figure, with no date, no arrow and no "recovered".
+  # - A real drawdown that rounds to "0.0" keeps its dates (the rule is the
+  #   value, not the rounding).
+  test "a zero drawdown's sub-line names no peak, trough or recovery", %{conn: conn} do
+    world = base_world()
+    deposit!(world, "1000", day(-400))
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    sub = ~s([data-role="risk-metric-max-drawdown"] .stat__sub)
+    assert has_element?(view, sub, "no decline in the period")
+    refute has_element?(view, sub, "→")
+    refute has_element?(view, sub, "recovered")
+    refute has_element?(view, sub, Integer.to_string(Date.utc_today().year - 1))
+  end
+
+  test "a real drawdown that reads 0.0 keeps its dates", %{conn: conn} do
+    world = base_world()
+    stock = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+    deposit!(world, "10000", day(-400))
+    buy!(world, stock, quantity: "100", price: "100", date: day(-400))
+    daily_closes(stock, -400, fn offset -> if offset == -100, do: "99.996", else: "100" end)
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    sub = ~s([data-role="risk-metric-max-drawdown"] .stat__sub)
+    refute has_element?(view, sub, "no decline in the period")
+    assert has_element?(view, sub, "→")
+    assert has_element?(view, sub, "recovered")
+  end
+
   # User story (E25 S3, F73, board 11 part 3):
   # As the operator whose instance holds implausible stored exchange rates,
   # I want Wealth → Risk to open anyway,
