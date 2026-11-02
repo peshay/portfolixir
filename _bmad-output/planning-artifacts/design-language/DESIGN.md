@@ -7674,3 +7674,39 @@ holds such rows back by default. Built in `PortfolixirWeb.ImportsLive`
 - **Not drawn, decided here.** The nothing-to-import note does not count
   held-back rows: they are not booked here at all, and the group says so in
   its own words. The cards and „Anzahl pro Art“ keep counting the file.
+
+## Amendment 2026-11-01 — Import preview: a refused row whose booking already exists *(board `mockups/ux-design-2026-11-01-sprint22/03-drawer-import` ③; issue 1219, R3; ADR-0053's note of 2026-11-01)*
+
+A row the import refuses with a remedy (ADR-0053 A8: a delivery or a
+transfer with a tax refund; A9: a JSON row with a negative fee unit) used
+to carry that remedy, „… von Hand buchen“, even when the booking it asks
+for already exists: entered by hand after an earlier drop, or imported
+from an export that drifted since. The preview now finds that booking by
+its figures (`Portfolixir.Imports.RefusedMatch`) and names it. Built in
+`PortfolixirWeb.ImportsLive` (`shown_row_errors/1`, `booked_message/1`).
+
+- **Where.** The parser-warnings note (`#parser-warnings-box`, the copyable
+  `<pre>`), the row's own line; nothing else of the preview moves. Plain
+  text, because the box is copied as it reads: the booking is named in
+  words, never linked.
+- **The sentence.** The refusal's reason as before, then, where the remedy
+  stood, „— bereits gebucht: <Buchung>. <nicht noch einmal>“ ("— already
+  booked: <booking>. <do not … again>"). `<Buchung>` joins with „, “ what
+  the booking is: „Kauf vom 03.03.2026“ (its kind label, `Format.date`),
+  the security's name, „10 Stück“ (`Format.exact`), the cash it moves on
+  its account, signed, „-1.003,00 EUR auf Test-Cash“ (a cash transfer
+  „1.003,00 EUR von A auf B“, a delivery „im Depot X“, a security transfer
+  „von X nach Y“), and its provenance, „von Hand erfasst“ or „importiert“.
+  The tail names the row's object: „Den Verkauf nicht noch einmal buchen.“,
+  „Die Buchung nicht noch einmal erfassen.“, „Die Einlieferung …“ and so on.
+  „bereits gebucht“ is the existing msgstr of "already booked".
+- **Two or more matches** (same day, equal figures) are all named, joined by
+  „; “, after the correction section's own words, „2 gespeicherte Buchungen
+  passen: …“; none is chosen, so the row never names the wrong one.
+- **No match keeps the remedy**, word for word (board 03 ③, entry 14).
+- **The done page's refused-rows list** reads the same sentence: the row
+  was not imported, and it says why not again.
+- **Not drawn, decided here.** A row A5 refuses (a credit that nets to
+  nothing) keeps its remedy: its by-hand booking moves a cash the file does
+  not state, so a match by the remaining figures could name another booking
+  of the same day.

@@ -3004,6 +3004,20 @@ Portfolio Performance's `Gebühren` nets the fee units, so a row whose units
 net below zero fails the `Gesamtpreis` check above, and a converter's negative
 `Gebühren` is read as its fee.
 
+**A refused row you already booked** (issue #1219). Once you have followed a
+warning's remedy and booked the delivery, the transfer or the row with a fee
+refund by hand, dropping the same export again finds that booking by its
+figures: its date, kind, security, accounts, quantity and the cash
+Portfolio Performance shows. The warning then keeps its reason and says, in
+place of the remedy, *— already booked: Buy of 2026-03-03, Arbolia Inc., 10
+shares, -1,003.00 EUR on Test-Cash, entered by hand. Do not enter the
+booking again.* A booking imported from an earlier export that has drifted
+since (a time of day, an added ISIN) is found the same way and reads
+*imported*. Two bookings with the same figures are both named and neither is
+chosen; check which one is the row's. A credit that would book nothing or
+less keeps its remedy, because its booking by hand moves a cash the file
+does not state.
+
 A history imported before Portfolixir took the refund out of its booking
 counted such a refund twice, beside a booking that already held it, and
 priced a JSON sale with it. Dropping the same export again books nothing
