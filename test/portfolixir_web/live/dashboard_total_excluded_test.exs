@@ -124,7 +124,9 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
              "Details in Vermögen →"
            )
 
-    refute has_element?(view, "[data-role='wealth-card-excluded'] button")
+    # No remedy control in the note; the clamp's own "more" (I1, #1351) sits
+    # outside the note's body.
+    refute has_element?(view, "[data-role='wealth-card-excluded'] .data-note__body button")
     refute has_element?(view, "section.grid #dashboard-wealth-card")
     refute note_text(view) =~ "Leer USD"
   end

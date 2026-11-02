@@ -89,7 +89,11 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     assert basis =~ "The 5 most recently closed"
     assert basis =~ "result in EUR"
     assert basis =~ "every depot, whatever the view"
-    assert basis =~ "p. a. only from 365 days of holding"
+
+    # I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ①): the p. a.
+    # rule is a method clause, in the ⓘ beside the heading.
+    assert text(Floki.find(doc, "#dashboard-trades .section-title [data-role='section-info'] p")) =~
+             "p. a. only from 365 days of holding"
 
     rows = Floki.find(doc, "#dashboard-trades [data-role='closed-trade']")
     assert length(rows) == 5
@@ -259,23 +263,29 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
   # so that a trade held 604 days that reads "-100,0% gesamt" is the card
   # keeping its rule, not breaking it.
   #
-  # Acceptance criteria:
+  # Acceptance criteria (amended by I1, #1351, board
+  # ux-design-2026-11-01-sprint22/01-i1 ①: the p. a. rule is a method
+  # clause and sits in the ⓘ beside the card's heading):
   # - The basis line reads, word for word, "Die 5 zuletzt abgeschlossenen ·
-  #   Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht ·
-  #   p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die
-  #   Zahlungen löst" — the facet's clause, word for word.
-  # - The English source ends "· p. a. only from 365 days of holding and only
-  #   where a rate solves the flows".
-  test "the basis line names both limits of p. a., as the facet's does", %{conn: conn} do
+  #   Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht".
+  # - The heading's ⓘ reads "p. a. erst ab 365 Tagen Haltedauer und nur, wo
+  #   ein Zinssatz die Zahlungen löst" — the facet's clause, word for word;
+  #   in English "p. a. only from 365 days of holding and only where a rate
+  #   solves the flows".
+  test "the card names both limits of p. a., as the facet does", %{conn: conn} do
     seed!()
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
+    tip = "#dashboard-trades .section-title [data-role='section-info'] p[role='tooltip']"
+
     assert text(Floki.find(document(view), "#dashboard-trades [data-role='trades-card-basis']")) ==
              "The 5 most recently closed · result in EUR · FIFO across every depot, " <>
-               "whatever the view · p. a. only from 365 days of holding and only where " <>
-               "a rate solves the flows"
+               "whatever the view"
+
+    assert text(Floki.find(document(view), tip)) ==
+             "p. a. only from 365 days of holding and only where a rate solves the flows"
 
     {:ok, de_view, _html} = live(conn, "/?locale=de")
     render_async(de_view)
@@ -284,7 +294,9 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
              Floki.find(document(de_view), "#dashboard-trades [data-role='trades-card-basis']")
            ) ==
              "Die 5 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, " <>
-               "unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer und nur, " <>
-               "wo ein Zinssatz die Zahlungen löst"
+               "unabhängig von der Ansicht"
+
+    assert text(Floki.find(document(de_view), tip)) ==
+             "p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst"
   end
 end

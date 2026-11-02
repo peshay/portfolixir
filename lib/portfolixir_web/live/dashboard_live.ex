@@ -559,10 +559,22 @@ defmodule PortfolixirWeb.DashboardLive do
         id="dashboard-upcoming"
         class="workspace-section"
       >
-        <h2><%= gettext("Due") %></h2>
+        <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ① ②):
+             the set and the window stay as the basis line; the rule for a
+             range or a month moves into the heading's ⓘ. --%>
+        <div class="section-title">
+          <h2><%= gettext("Due") %></h2>
+          <AppShell.section_info>
+            <:line>
+              <%= gettext(
+                "A date given as a range or a month counts as due when any day it could fall on is inside the horizon."
+              ) %>
+            </:line>
+          </AppShell.section_info>
+        </div>
         <p class="hint" data-role="upcoming-basis">
           <%= gettext(
-            "Dated facts about any security in the catalog — held or not — falling in the next %{days} days. A date given as a range or a month counts as due when any day it could fall on is inside the horizon.",
+            "Dated facts about any security in the catalog — held or not — falling in the next %{days} days.",
             days: upcoming_days()
           ) %>
         </p>
@@ -618,6 +630,7 @@ defmodule PortfolixirWeb.DashboardLive do
             severity={dq_severity(@data_quality)}
             id="dashboard-dq-line"
             data-role="data-quality-line"
+            clamp
           >
             <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
               <%= if index > 0 do %>
@@ -662,21 +675,38 @@ defmodule PortfolixirWeb.DashboardLive do
     ~H"""
     <section id="dashboard-trades" class="workspace-section">
       <div class="section-head">
-        <h2><%= gettext("Closed trades") %></h2>
+        <%!-- I1 (#1351, board 01 ① ②): the p. a. rule moves into the
+             heading's ⓘ; the set, the currency and the depots stay as the
+             basis line. --%>
+        <div class="section-title">
+          <h2><%= gettext("Closed trades") %></h2>
+          <AppShell.section_info>
+            <:line>
+              <%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %>
+            </:line>
+          </AppShell.section_info>
+        </div>
         <a class="kpi-summary__link" href="/cashflow?tab=realized"><%= gettext("All trades →") %></a>
       </div>
       <%= cond do %>
         <% is_nil(@card) -> %>
           <p class="section-skeleton" aria-busy="true" data-role="trades-card-skeleton"></p>
         <% @card == :error -> %>
-          <AppShell.data_note severity={:problem} data-role="trades-card-error">
+          <AppShell.data_note
+            severity={:problem}
+            id="trades-card-error"
+            data-role="trades-card-error"
+            clamp
+          >
             <%= gettext("Couldn't load the closed trades.") %>
           </AppShell.data_note>
         <% true -> %>
           <AppShell.data_note
             :if={@card.excluded.count > 0}
             severity={:attention}
+            id="trades-card-excluded"
             data-role="trades-card-excluded"
+            clamp
           >
             <%!-- #1198 (board 09, pick N8 A): the second reason in a
                  sentence of its own, the existing pointer to the backfill
@@ -783,8 +813,8 @@ defmodule PortfolixirWeb.DashboardLive do
                  #1171 (board 01 ⑤): both limits of p. a., the facet's clause
                  word for word (DESIGN.md → The list's basis line). --%>
             <%= ngettext(
-              "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding and only where a rate solves the flows",
-              "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding and only where a rate solves the flows",
+              "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
+              "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view",
               length(@card.trades),
               currency: @card.base_currency
             ) %>
@@ -869,12 +899,23 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign(:active_id, assigns.active_view && assigns.active_view.id)
 
     ~H"""
-    <AppShell.data_note :if={@groups != []} severity={:attention} data-role="wealth-card-excluded">
+    <%!-- I1 (#1351, board 01 ③): the note names what the total leaves
+         out, so it clamps and never folds; its count leads the text, and
+         the link stays visible under the clamp. --%>
+    <AppShell.data_note
+      :if={@groups != []}
+      severity={:attention}
+      id="wealth-card-excluded"
+      data-role="wealth-card-excluded"
+      clamp
+    >
       <%= excluded_sentence(Enum.join(@groups, " · ")) %>
       <%!-- The space before the link is the sentence's own: a parser that
            drops whitespace-only text between two elements keeps it. --%>
       <span :if={@active_id != @card.view_id} data-role="wealth-card-view"><%= view_sentence(@active_view, @card) %> </span>
-      <a href="/portfolio?period=ytd" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
+      <:actions>
+        <a href="/portfolio?period=ytd" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
+      </:actions>
     </AppShell.data_note>
     """
   end
