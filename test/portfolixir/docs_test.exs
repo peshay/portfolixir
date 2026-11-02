@@ -966,6 +966,50 @@ defmodule Portfolixir.DocsTest do
     assert de =~ "in einem Delta-Read die ältesten nach `since`"
   end
 
+  # User story (#1254, Sprint 22 A1):
+  # As the agent reading a capped list from the API reference,
+  # I want the reference to state once, for the whole family, that a capped
+  # read echoes its limit and says when it was cut,
+  # so that I never take a full answer for the whole one.
+  #
+  # Acceptance criteria:
+  # - Both languages state the rule once, name every capped read outside the
+  #   delta reads, and say where the fields sit.
+  test "the API reference states once that a capped list read says when it was cut (#1254)" do
+    flat = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+    en = flat.("docs/integration/api-and-mcp.md")
+    de = flat.("docs/de/integration/api-and-mcp.md")
+
+    assert en =~ "**A capped list read says when it was cut (#1254).**"
+
+    assert en =~
+             "echoes the `limit` it applied, the default when none was sent, and `truncated`: " <>
+               "`true` when more rows matched than the answer holds"
+
+    assert en =~
+             "Both sit beside `data` when `data` is the list, inside `data` when it is an object"
+
+    for read <- [
+          "the journal",
+          "the merge records",
+          "the exchange rates",
+          "manual-quote",
+          "the snapshots",
+          "cash-flow roll-ups",
+          "unreviewed, uncorroborated, expiring, upcoming, unconfirmed, stale"
+        ] do
+      assert en =~ read, read
+    end
+
+    assert de =~ "**Ein begrenzter Listen-Read sagt, wenn er gekürzt wurde (#1254).**"
+
+    assert de =~
+             "spiegelt das angewandte `limit`, den Standard, wenn keines gesendet wurde, und `truncated`"
+
+    assert de =~
+             "Beide stehen neben `data`, wenn `data` die Liste ist, in `data`, wenn es ein Objekt ist"
+  end
+
   # User story (#844):
   # As a reader of the published documentation site,
   # I want every page's front matter to parse,
