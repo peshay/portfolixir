@@ -7983,3 +7983,8 @@ page lands.
   render, so an observer puts the measured placement back while the panel
   is open. Measured at 390 px on the review seed: Cash flow's Trades and
   Flows panels open below and end at x = 374, 16 px inside the screen.
+- **⑧ Escape closes an ⓘ** (#1342, no picture): one capture listener on
+  the document answers Escape whose target is inside an open
+  `details.metric-tooltip`. It closes that ⓘ and returns the focus to its
+  summary, and it consumes the key, so an ⓘ inside a drawer or a dialog
+  closes alone.
