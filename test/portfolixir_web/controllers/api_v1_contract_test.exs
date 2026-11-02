@@ -66,17 +66,23 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # issue, so a later story's item does not move another's.
     params = newest["parameters"]
     by_issue = fn marker -> Enum.filter(params, &String.contains?(&1, marker)) end
-    assert [unknown_prompt, no_params, stdio_cap] = by_issue.("(#1115)")
+    assert [unknown_prompt, no_params] = by_issue.("(#1115)")
     assert String.starts_with?(unknown_prompt, "prompts/get ")
     assert unknown_prompt =~ ~s("Prompt no_such_prompt not found")
     assert unknown_prompt =~ ~s(where it read "MCP error -32602: Prompt no_such_prompt not found")
     assert String.starts_with?(no_params, "tools/call sent without its params object")
     assert no_params =~ "-32602 (invalid params)"
     assert no_params =~ "where it was -32603 (internal error)"
-    assert stdio_cap =~ "10 MB"
-    assert stdio_cap =~ "1 MB body limit"
 
-    for item <- [unknown_prompt, no_params, stdio_cap], do: assert(item =~ "(#1115)")
+    # The closing act (the dependency lens, verified against a v1 build):
+    # arguments that are not an object are refused the new way too, and a
+    # missing arguments key is answered as before; the stdio transport's
+    # 10 MB read cap was the v1 SDK's too, so no item claims it is new.
+    assert no_params =~ "or with arguments that are not an object (null or a list)"
+    assert no_params =~ "A tools/call whose params lack the arguments key"
+    refute newest["summary"] =~ "message cap"
+
+    for item <- [unknown_prompt, no_params], do: assert(item =~ "(#1115)")
 
     # Sprint 23, R2 (version 23; #1371; ADR-0053, amendment of 2026-11-02):
     # the read-only cash check, one item, and the summary says so.
@@ -128,9 +134,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert open_lots =~ "price_date"
     assert open_lots =~ "computation_basis.latest_price"
 
-    # Every item belongs to one of the entry's stories: M1 three, R2 two,
+    # Every item belongs to one of the entry's stories: M1 two, R2 two,
     # R3 one, R4 one.
-    assert length(params) == 3 + 2 + 1 + 1
+    assert length(params) == 2 + 2 + 1 + 1
 
     # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
     # outside K17's five delta reads echoes its limit and truncated. Dated
