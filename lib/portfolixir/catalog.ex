@@ -464,11 +464,26 @@ defmodule Portfolixir.Catalog do
   Writes the logo bookkeeping on a security on behalf of `actor` (#766, H61):
   the only path that sets `logo_path`, `logo_source`, `logo_source_host` and
   `logo_locked`. A nil value removes the key.
+
+  A locked logo (a manual override or an explicit removal) changes only by a
+  write that itself decides the lock (`logo_locked` among `logo_attrs`): a
+  discovery's write, which does not, answers `{:error, :locked}` and writes
+  nothing when the row is locked under the write's own lock. The lock is
+  re-read there, not taken from `security`, because a discovery reads its
+  security before the lookup's network round-trip, and an override or a
+  removal can land in between (Sprint 22's closing act).
   """
   def put_logo_attributes(%Actor{} = actor, %Security{} = security, logo_attrs)
       when is_map(logo_attrs) do
     multi =
       Multi.new()
+      |> Multi.run(:logo_lock, fn _repo, changes ->
+        locked? = (Journal.locked_row(changes).attributes || %{})["logo_locked"] == true
+
+        if locked? and not Map.has_key?(logo_attrs, "logo_locked"),
+          do: {:error, :locked},
+          else: {:ok, locked?}
+      end)
       |> Multi.update(:security, &Security.logo_changeset(Journal.locked_row(&1), logo_attrs))
       |> Journal.record(actor,
         resource_type: "security",
@@ -479,6 +494,7 @@ defmodule Portfolixir.Catalog do
 
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
+      {:error, :logo_lock, :locked, _changes} -> {:error, :locked}
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
       # The row was deleted before the write took its lock (E25 S6, F49).
       {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
