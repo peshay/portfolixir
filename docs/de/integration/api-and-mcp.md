@@ -4502,6 +4502,8 @@ lässt sich nicht lesen.
   (#1292), rein lesend, mit ihrer Abhilfe
 - `portfolixir.transactions.rate_only` — die gespeicherten Trades nur mit
   Kurs (#1290), rein lesend, mit ihrer Abhilfe
+- `portfolixir.transactions.cash_mismatch` — die gespeicherten Trades, deren
+  Betrag nicht zu ihren Zahlen passt (#1371), rein lesend, mit ihrer Abhilfe
 - `portfolixir.holdings.reconcile` — rein lesender Vergleich einer
   eingefügten externen Positionsliste mit dem Ledger; die Tool-Beschreibung
   lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu

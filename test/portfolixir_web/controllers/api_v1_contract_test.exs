@@ -60,7 +60,6 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "@modelcontextprotocol/server 2.4.0"
     assert newest["summary"] =~ "2025-11-25"
     assert newest["summary"] =~ "(#1115)"
-    assert newest["tools"] == []
     assert hd(Contract.entries()).prompts == []
 
     assert [unknown_prompt, no_params, stdio_cap | r2] = newest["parameters"]
@@ -79,8 +78,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # the read-only cash check, one item, and the summary says so.
     assert newest["summary"] =~ "R2 (#1371"
     assert newest["endpoints"] == ["GET /api/v1/transactions/cash_mismatch"]
+    assert newest["tools"] == ["portfolixir.transactions.cash_mismatch"]
+    assert newest["summary"] =~ "schema budget"
     assert [cash_mismatch, stated_cash] = r2
-    assert String.starts_with?(cash_mismatch, "GET /api/v1/transactions/cash_mismatch, new")
+
+    assert String.starts_with?(
+             cash_mismatch,
+             "GET /api/v1/transactions/cash_mismatch (portfolixir.transactions.cash_mismatch"
+           )
+
     assert cash_mismatch =~ "stored_cash 806, derived_cash 816, difference -10"
     assert cash_mismatch =~ "(#1371)"
 
