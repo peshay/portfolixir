@@ -41,6 +41,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 22,
+      # Sprint 22's stacked PR, A1 (#1254): every capped list read outside
+      # K17's five delta reads echoes its limit and truncated. Dated the day
+      # after entry 21, because since= compares strictly after a date.
+      date: ~D[2026-11-03],
+      summary:
+        "Sprint 22's stacked PR, A1: every capped list read under /api/v1 outside the five " <>
+          "delta reads, which K17 gave the fields, now echoes the limit it applied and " <>
+          "truncated, true when more rows matched than the answer holds, so a capped answer " <>
+          "is no longer taken for the whole one (#1254). The fields sit where the delta reads " <>
+          "carry them: beside data when data is the list, inside data when it is an object. " <>
+          "No route, tool or prompt is added; the fifteen reads' tool descriptions name the " <>
+          "fields.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/journal, GET /api/v1/merges, GET /api/v1/exchange_rates and GET /api/v1/securities/:security_id/quotes (portfolixir.journal.list, portfolixir.merges.list, portfolixir.exchange_rates.list, portfolixir.quotes.list, whose descriptions now name limit and truncated), no parameter added: each answer carries limit, the limit it applied (the default when none was sent), and truncated at the top level beside data, where only the journal echoed its limit, in meta.filters.limit, and the merge records theirs in meta.limit; both meta echoes stay. truncated is true when more rows matched than the answer holds: the journal with limit=1 over two entries answers limit 1, truncated true. The quote history keeps the newest rows of the window, ascending, so a cut leaves out the oldest (#1254)",
+        "GET /api/v1/securities/:security_id/quotes/manual, GET /api/v1/snapshots, GET /api/v1/realized_gains, GET /api/v1/external_flows, GET /api/v1/costs, GET /api/v1/notes/unreviewed, GET /api/v1/notes/uncorroborated, GET /api/v1/notes/expiring, GET /api/v1/events/upcoming, GET /api/v1/events/unconfirmed and GET /api/v1/events/stale (portfolixir.quotes.manual, portfolixir.snapshots.list, portfolixir.cashflow.realized_gains, portfolixir.cashflow.external_flows, portfolixir.cashflow.costs, portfolixir.notes.unreviewed, portfolixir.notes.uncorroborated, portfolixir.notes.expiring, portfolixir.events.upcoming, portfolixir.events.unconfirmed, portfolixir.events.stale, whose descriptions now name truncated), no parameter added: data carries truncated beside the limit it already echoed, and the manual-quotes read adds data.limit beside its meta.limit. On the manual-quotes read truncated is true when stretch_count exceeds the stretches listed; on the three cash-flow roll-ups, whose limit counts the years of the annual matrix, when years were left out; on the others when more rows matched than the answer holds (#1254)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 21,
       # Sprint 22's sprint PR, R1 (#1291; ADR-0003, amendment of 2026-11-01):
       # every write refuses a JSON number in a financial field. Dated the day
