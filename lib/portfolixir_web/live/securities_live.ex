@@ -2329,6 +2329,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   currency: trade.currency_code
                 ) %>
               <% nil -> %>
+            <% end %>
+            <%!-- #1310 (the closing act): a trade blocked by another lot
+                 that also closes a lot without its leg names that lot too,
+                 with the rate remedy. --%>
+            <%= if trade.third != nil and legless_beside(lots) != [] do %>
+              <%= ngettext(
+                "Beside it, the buy of %{lot_dates} has no figure in %{currency}, the sale's currency. Remedy: a rate for %{lot_dates} — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
+                "Beside it, %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency. Remedy: the rates for %{lot_dates} — “Backfill historical rates” on Cash flow → “Trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
+                length(legless_beside(lots)),
+                lot_dates: lot_dates(legless_beside(lots)),
+                currency: trade.currency_code || @currency_code
+              ) %>
+            <% end %>
+            <%= if trade.third == nil do %>
             <%= if lots == [lot] do %>
               <%= ngettext(
                 "%{count} trade not convertible: the buy of %{lot_date} is booked in %{lot_currency} and has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for %{lot_date} — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figure from it — or the figure in %{currency} on the booking.",
@@ -2669,6 +2683,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # order.
   defp lot_dates(lots),
     do: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", ")
+
+  # The lots of a trade that lack only their leg, which a rate fixes.
+  defp legless_beside(lots), do: Enum.filter(lots, &(&1.reason == :missing_settlement_leg))
 
   # Whether the lots were all opened on one day: one rate fixes them.
   defp one_lot_date?(lots), do: lots |> Enum.uniq_by(& &1.open_date) |> length() == 1

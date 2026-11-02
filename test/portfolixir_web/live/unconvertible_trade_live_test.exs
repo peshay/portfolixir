@@ -586,6 +586,76 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     end
   end
 
+  # User story (#1310, the closing act):
+  # As the operator whose sale closes a buy without its leg and a buy
+  # priced in a third currency,
+  # I want the note to name both buys, each with its own remedy,
+  # so that correcting the franc booking is not the end of it.
+  #
+  # Acceptance criteria:
+  # - A legless buy of 5 Dollar Fund at 80.00 EUR on 2025-03-03 and a stored
+  #   buy of 5 at 90 CHF on 2025-04-01, both through the EUR account, sold
+  #   by hand at 120 USD: the note names the franc buy as the booking to
+  #   correct, then "Beside it, the buy of 2025-03-03 has no figure in USD,
+  #   the sale's currency. Remedy: a rate for 2025-03-03 — “Backfill
+  #   historical rates” on Cash flow → “Trades” stores it and derives the
+  #   figure from it — or the figure in USD on the booking."; in German
+  #   "Daneben hat der Kauf vom 03.03.2025 keinen Gegenwert in USD".
+  test "a trade with a legless and a third-currency lot names both", %{conn: conn} do
+    {world, _swiss, fund} = third_currency_world!()
+
+    {:ok, _legless} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: fund.id,
+        type: "buy",
+        date: ~D[2025-03-03],
+        quantity: "5",
+        price: "80",
+        currency_code: "EUR",
+        gross_amount: "400"
+      })
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: Decimal.new("5"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("500"),
+      settlement_amount: Decimal.new("400"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("405")
+    })
+
+    WorldFixtures.cross_trade!(world, fund,
+      type: "sell",
+      quantity: "10",
+      price: "120",
+      settled: "960.00",
+      fees: "3.00",
+      gross: "957.00",
+      date: ~D[2025-05-02]
+    )
+
+    {:ok, view, _html} = live(conn, "/securities/#{fund.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: the buy of 2025-04-01 is priced in a currency that is neither the security's nor its account's (CHF)"
+
+    assert note =~
+             "Beside it, the buy of 2025-03-03 has no figure in USD, the sale's currency. Remedy: a rate for 2025-03-03 — “Backfill historical rates” on Cash flow → “Trades” stores it and derives the figure from it — or the figure in USD on the booking."
+
+    {:ok, de_view, _html} = live(conn, "/securities/#{fund.id}?tab=trades&locale=de")
+    de_note = de_view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert de_note =~ "Daneben hat der Kauf vom 03.03.2025 keinen Gegenwert in USD"
+  end
+
   # User story (#1310 and #1311, Sprint 22 R5):
   # As the operator whose closed trade is unavailable for a cause no rate
   # fixes, a buy paid through an account in another currency than the
