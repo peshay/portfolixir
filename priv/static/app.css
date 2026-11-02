@@ -11315,6 +11315,130 @@ dialog.merge-dialog {
   text-underline-offset: 2px;
 }
 
+/* ===== The audit journal (Sprint 23 V3, idea U2; board
+   ux-design-2026-11-02-sprint23/03-journal, pick Q5 = A) =====
+   The operator's view of GET /api/v1/journal, read-only. Everything else on
+   the page is an existing form: .filter-chips, .summary-basis, .data-table
+   with .cell-note second lines, .disclosure-summary, .phone-row (UX-DR27)
+   and .empty-state (DESIGN.md → The audit journal). */
+
+/* ① The kind select and the scenarios checkbox, one row under the chips. */
+.journal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0;
+}
+
+.journal-filters__scenarios {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* ② A reading table, not a matrix: it fits its wrapper and its cells wrap;
+   the time, the actor and the operation stay on one line. UX-DR15's
+   scroller stays the fallback. */
+.data-table-wrapper > .journal-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.journal-table td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+.journal-table td.cell-date,
+.journal-table td.cell-actor,
+.journal-table td.cell-kind {
+  white-space: nowrap;
+}
+
+.journal-table td.cell-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.journal-table td.cell-name {
+  overflow-wrap: anywhere;
+}
+
+.journal-table td.journal-change {
+  min-width: 16rem;
+}
+
+/* ③ One line per changed field; the old value muted and struck, the
+   arrow muted (it carries the direction, so it takes the content floor,
+   text-muted, as .merge-record__arrow does). */
+.journal-change__line {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.journal-change__line + .journal-change__line {
+  margin-top: 2px;
+}
+
+.journal-change__from {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.journal-change__arrow {
+  color: var(--color-text-muted);
+}
+
+/* ④ The fold of stored values: Field · Before · After, 12 px. */
+.journal-values {
+  margin-top: var(--space-1);
+}
+
+.journal-values table {
+  margin-top: var(--space-1);
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.journal-values th,
+.journal-values td {
+  padding: 2px 8px 2px 0;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.journal-values th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* ⑤ Under 560 px: two-line rows (UX-DR27). No figure slot: an entry
+   carries no amount, so the row is one column and the change and its
+   fold open full width beneath. */
+.journal-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.journal-rows .journal-change {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+@media (max-width: 560px) {
+  .journal-table-wrap {
+    display: none;
+  }
+}
+
+/* ⑥ The next page, under the list. */
+.journal-more {
+  margin: var(--space-2) 0 0;
+}
+
 /* ===== Releasing manual quotes (Sprint 17 V2, pick G3-A) =====
    T-9's control on the security's Quotes tab (board
    ux-design-2026-10-01/03-quote-release; DESIGN.md → Securities detail:

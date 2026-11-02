@@ -264,6 +264,26 @@ defmodule PortfolixirWeb.JournalLive do
               </table>
             </div>
 
+            <%!-- Under 560 px the table gives way to two-line rows
+                 (UX-DR27), as board 03's phone frame draws them: time,
+                 operation and actor over the entry and its change. No
+                 figure, so the row is one column and the fold opens full
+                 width beneath. --%>
+            <ul class="phone-rows journal-rows" aria-label={gettext("Entries")}>
+              <li :for={row <- @rows} class="phone-row" data-entry={row.id}>
+                <div class="phone-row__body">
+                  <span class="phone-row__name">
+                    <%= row.time %> · <%= row.operation %> · <%= row.actor %><span :if={row.actor_name}> (<%= StoredText.bdi(row.actor_name) %>)</span>
+                  </span>
+                  <span class="phone-row__ids">
+                    <.entity row={row} />
+                    <.link :if={row.resource_id} patch={only_path(row)}><%= gettext("Only this entry") %></.link>
+                  </span>
+                </div>
+                <div class="journal-change"><.change change={row.change} /></div>
+              </li>
+            </ul>
+
             <%!-- Paged like the API (#1254): the limit grows by one page
                  until the API's maximum, which a filter reaches past. --%>
             <p :if={@truncated and not at_max?(@opts)} class="journal-more">

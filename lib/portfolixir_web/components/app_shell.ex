@@ -282,7 +282,8 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   # The five task-oriented areas (ADR-0022): Overview, Wealth, Securities and
-  # Transactions at the top level, plus the low-traffic Administration group.
+  # Transactions at the top level, plus the low-traffic Administration group
+  # (Sprint 23 added the Audit journal to it, ADR-0022's amendment).
   # Income is a Wealth tab and Import a Transactions tab, so neither is a nav
   # destination; roadmap placeholders live in issues, not here.
   defp nav_groups do
@@ -346,6 +347,16 @@ defmodule PortfolixirWeb.AppShell do
             label: gettext("Classifications"),
             section: :classifications,
             icon: :tag
+          },
+          %{
+            # Sprint 23 V3 (U2; board 03, pick Q6): the record-keeping group
+            # holds the journal of every stored change. A Transactions tab
+            # would say the journal is about bookings; it holds every kind.
+            id: "nav-journal",
+            href: "/journal",
+            label: gettext("Audit journal"),
+            section: :journal,
+            icon: :clock
           }
         ]
       }
@@ -377,6 +388,8 @@ defmodule PortfolixirWeb.AppShell do
 
   defp nav_current?(path, %{section: :classifications}),
     do: String.starts_with?(path, "/classifications")
+
+  defp nav_current?(path, %{section: :journal}), do: String.starts_with?(path, "/journal")
 
   defp nav_current?(_path, _item), do: false
 
