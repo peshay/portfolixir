@@ -2360,6 +2360,7 @@ describe("Portfolixir MCP tools", () => {
     // Issue 957: a collapse's removed and moved external flows, and their basis.
     assert.match(preview, /flow_changes/);
     assert.match(preview, /boundary_removed/);
+    assert.match(preview, /transfer or trade straddling/);
     assert.match(preview, /flow_basis/);
     assert.equal(find("portfolixir.securities_accounts.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(
