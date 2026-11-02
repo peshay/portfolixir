@@ -57,13 +57,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "2025-11-25, the same capabilities and server info) are byte for byte what they " <>
           "were, and the companion still serves the 2025-era protocol only, over stdio and " <>
           "HTTP. Two protocol-level refusals and the stdio transport's message cap read " <>
-          "differently. No route, tool or prompt is added.",
-      endpoints: [],
+          "differently; M1 adds no route, tool or prompt. " <>
+          "R2 (#1371; ADR-0053, amendment of 2026-11-02) adds a read-only check beside " <>
+          "GET /api/v1/transactions/rate_only: the stored buys and sells whose cash misses " <>
+          "quantity × price with fees and taxes by more than 0.01, with as_of, a note and a " <>
+          "remedy, writing nothing.",
+      endpoints: ["GET /api/v1/transactions/cash_mismatch"],
       tools: [],
       parameters: [
         "prompts/get naming a prompt the companion does not offer (MCP only, no route serves a prompt), no tool changed: the JSON-RPC error keeps code -32602 and its message reads \"Prompt no_such_prompt not found\", where it read \"MCP error -32602: Prompt no_such_prompt not found\": the SDK no longer writes the code into the message, so a client matches the code, not the text (#1115)",
         "tools/call sent without its params object (MCP only), no tool changed: the JSON-RPC error is -32602 (invalid params) and its message is \"Invalid tools/call request: \" followed by the schema issues, where it was -32603 (internal error) with the issues alone. A tools/call that carries params is answered as before: an invalid argument, an unknown tool and a tool the profile leaves out are each a tool result with isError true and the same text (#1115)",
-        "The MCP companion's stdio transport (PORTFOLIXIR_MCP_TRANSPORT=stdio), no tool changed: more than 10 MB of unread input, a single message that large, closes the connection, the SDK's default read cap, where it was buffered without a bound; a line on stdin that is not JSON is skipped without an answer, as it went unanswered before. The HTTP listener keeps its 1 MB body limit (#1115)"
+        "The MCP companion's stdio transport (PORTFOLIXIR_MCP_TRANSPORT=stdio), no tool changed: more than 10 MB of unread input, a single message that large, closes the connection, the SDK's default read cap, where it was buffered without a bound; a line on stdin that is not JSON is skipped without an answer, as it went unanswered before. The HTTP listener keeps its 1 MB body limit (#1115)",
+        "GET /api/v1/transactions/cash_mismatch, new, no parameter: {as_of, note, remedy, tolerance, rows}, every stored buy or sell with a gross_amount and no settlement_amount whose cash differs from quantity × price plus fees and taxes on a buy, less them on a sell, by more than tolerance (\"0.01\"): a row edited before ADR-0053's amendment of 2026-11-02, whose cash balance reads the stored cash while its FIFO lots and realized gains read the figures. Each row: id, portfolio_id, security_id, security_name, cash_account_id, date, type, currency_code, and as Decimal strings quantity, price, fees, taxes, stored_cash, derived_cash (what the figures give) and difference (stored_cash - derived_cash); a buy of 10 at 81.00 with fees 5.00 and taxes 1.00 stored at 806.00 reads stored_cash 806, derived_cash 816, difference -10. Ordered by date, then id. remedy: state the cash in the booking form (Edit) or as gross_amount with PATCH /api/v1/transactions/:id, the amount settled or the one the figures give; a row stated within 0.01 leaves the list. Uncapped; nothing is rewritten (#1371)"
       ],
       removed_endpoints: [],
       removed_tools: [],

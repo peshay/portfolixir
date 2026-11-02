@@ -60,11 +60,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "@modelcontextprotocol/server 2.4.0"
     assert newest["summary"] =~ "2025-11-25"
     assert newest["summary"] =~ "(#1115)"
-    assert newest["endpoints"] == []
     assert newest["tools"] == []
     assert hd(Contract.entries()).prompts == []
 
-    assert [unknown_prompt, no_params, stdio_cap] = newest["parameters"]
+    assert [unknown_prompt, no_params, stdio_cap | r2] = newest["parameters"]
     assert String.starts_with?(unknown_prompt, "prompts/get ")
     assert unknown_prompt =~ ~s("Prompt no_such_prompt not found")
     assert unknown_prompt =~ ~s(where it read "MCP error -32602: Prompt no_such_prompt not found")
@@ -74,7 +73,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert stdio_cap =~ "10 MB"
     assert stdio_cap =~ "1 MB body limit"
 
-    for item <- newest["parameters"], do: assert(item =~ "(#1115)")
+    for item <- [unknown_prompt, no_params, stdio_cap], do: assert(item =~ "(#1115)")
+
+    # Sprint 23, R2 (version 23; #1371; ADR-0053, amendment of 2026-11-02):
+    # the read-only cash check, one item, and the summary says so.
+    assert newest["summary"] =~ "R2 (#1371"
+    assert newest["endpoints"] == ["GET /api/v1/transactions/cash_mismatch"]
+    assert [cash_mismatch] = r2
+    assert String.starts_with?(cash_mismatch, "GET /api/v1/transactions/cash_mismatch, new")
+    assert cash_mismatch =~ "stored_cash 806, derived_cash 816, difference -10"
+    assert cash_mismatch =~ "(#1371)"
 
     # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
     # outside K17's five delta reads echoes its limit and truncated. Dated

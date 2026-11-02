@@ -425,6 +425,8 @@ defmodule PortfolixirWeb.Router do
 
     get("/transactions", TransactionController, :index)
     get("/transactions/rate_only", LedgerDataQualityController, :rate_only_trades)
+    # #1371: the stored trades whose cash misses their figures (read only).
+    get("/transactions/cash_mismatch", LedgerDataQualityController, :cash_mismatch_trades)
     post("/transactions", TransactionController, :create)
     get("/transactions/:id", TransactionController, :show)
     patch("/transactions/:id", TransactionController, :update)

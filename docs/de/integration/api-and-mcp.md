@@ -1875,7 +1875,20 @@ Beispiel-Payloads für Konten:
   Feld, denn ein Split wird über `POST /api/v1/splits` gebucht, dessen
   Prüfungen eine allgemeine Änderung umgehen würde. Ein falscher Split wird
   als Ganzes gelöscht (`DELETE /api/v1/splits/:transaction_id`, unten) und
-  neu gebucht. Eine Änderung, die mit einem gleichzeitigen Schreibvorgang auf
+  neu gebucht. Ein Kauf oder Verkauf, der seinen Betrag (`gross_amount`) und
+  keinen `settlement_amount` speichert, hält seinen Betrag mit seinen Zahlen
+  zusammen (ADR-0053, Ergänzung vom 2026-11-02, #1371): Eine Änderung von
+  `quantity`, `price`, `fees` oder `taxes` muss auch `gross_amount` angeben,
+  sonst antwortet die API mit 422 auf `errors.gross_amount` ("is required
+  when quantity, price, fees or taxes change on a booking that stores its
+  cash"); der angegebene Betrag muss bis auf 0,01 Menge × Kurs plus
+  Gebühren und Steuern bei einem Kauf, abzüglich bei einem Verkauf,
+  entsprechen, sonst antwortet sie mit 422 "does not match quantity ×
+  price, fees and taxes — expected <Betrag>". Eine Änderung keiner der vier
+  (eine Notiz, ein Datum, ein Konto) braucht keinen Betrag. Der gespeicherte
+  Betrag ist die Zahl des Brokers und wird nie neu abgeleitet; eine
+  Fremdwährungszeile ohne ihre Beine wird in der Währung geprüft, in der sie
+  gespeichert ist. Eine Änderung, die mit einem gleichzeitigen Schreibvorgang auf
   denselben Zeilen kollidiert, etwa einer Kontozusammenführung, und dabei
   unterliegt, antwortet mit **409** und nur `errors.detail`: Es wurde nichts
   gespeichert; die Transaktion neu lesen und die Änderung wiederholen.
@@ -2269,6 +2282,22 @@ Beispiel-Payloads für Konten:
   (`PATCH /api/v1/transactions/:id`), danach erscheint die Zeile nicht mehr;
   der Settlement-Backfill fasst diese Zeilen nicht an. Rein lesend und ohne
   Obergrenze.
+- `GET /api/v1/transactions/cash_mismatch` liefert die **Trades, deren
+  Betrag nicht zu ihren Zahlen passt** (#1371; ADR-0053, Ergänzung vom
+  2026-11-02): jeden gespeicherten Kauf oder Verkauf mit `gross_amount` und
+  ohne `settlement_amount`, dessen Betrag von Menge × Kurs plus Gebühren und
+  Steuern (Kauf) bzw. abzüglich (Verkauf) um mehr als `tolerance` (`"0.01"`)
+  abweicht — eine Zeile, die vor der Regel bearbeitet wurde und deren
+  Kontostand den gespeicherten Betrag liest, während ihre FIFO-Lots und
+  realisierten Gewinne die Zahlen lesen. Jede Zeile trägt ihre IDs,
+  `security_name`, `cash_account_id`, `date`, `type`, `currency_code` und
+  als Decimal-Strings `quantity`, `price`, `fees`, `taxes`, `stored_cash`,
+  `derived_cash` und `difference` (`stored_cash - derived_cash`); sortiert
+  nach Datum, dann ID. Selbstbeschreibend mit `as_of`, `note` und `remedy`:
+  den Betrag im Buchungsformular (Bearbeiten) oder als `gross_amount` mit
+  `PATCH /api/v1/transactions/:id` angeben, den abgerechneten oder den, den
+  die Zahlen ergeben; eine bis auf einen Cent angegebene Zeile verlässt die
+  Liste. Rein lesend und ohne Obergrenze; nichts wird umgeschrieben.
 - `POST /api/v1/holdings/reconcile` vergleicht eine **vom Nutzer gelieferte
   externe Positionsliste** (Brokerauszug oder Depotübersicht, clientseitig in
   Zeilen geparst) mit den aus dem Ledger abgeleiteten Beständen — **strikt
