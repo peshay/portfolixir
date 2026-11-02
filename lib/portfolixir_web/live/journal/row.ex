@@ -40,6 +40,8 @@ defmodule PortfolixirWeb.Journal.Row do
       actor: actor_label(entry.actor_type),
       actor_name: entry.actor_label,
       operation: operation_label(entry.operation),
+      resource_type: entry.resource_type,
+      resource_id: entry.resource_id,
       entity: entity(entry)
     }
   end
