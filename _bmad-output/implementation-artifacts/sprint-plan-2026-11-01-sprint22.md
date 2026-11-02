@@ -484,9 +484,9 @@ Sprint PR (#1367):
 
 Filed by the closing act and the stories (ADR-0026's amendment of 2026-11-01): #1368 (S2), #1369 (S2), #1370 (S1), #1371 (S1, needs-decision); polish lines on #1355, #1364 and #1365.
 
-Stacked PR:
+Stacked PR (#1372):
 
-- [ ] A1 #1254 · [ ] A2 #1294 #1295 · [ ] A3 #1301 #1315 · [ ] A4 #957
-- [ ] U1 #1299 · [ ] U2 #1333 · [ ] U3 #1330 · [ ] U4 #1343
-- [ ] I #1351 #1350 #1336 #1342
-- [ ] closing act and its fixes · [ ] close-out · [ ] briefing · [ ] promotion
+- [x] A1 #1254 · [x] A2 #1294 #1295 · [x] A3 #1301 #1315 · [x] A4 #957
+- [x] U1 #1299 · [x] U2 #1333 · [x] U3 #1330 · [x] U4 #1343
+- [x] I #1351 #1350 #1336 #1342 (Wealth Holdings, Overview, Cash flow; the later pages cut by the shrink order's item 3, to Sprint 23)
+- [x] closing act and its fixes · [x] close-out · [x] briefing · [ ] promotion
