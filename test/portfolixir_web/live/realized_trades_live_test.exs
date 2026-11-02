@@ -120,7 +120,9 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     assert note =~ "Delivered Holdings"
     assert note =~ "2026-05-12"
     assert note =~ "15.0000 units"
-    refute has_element?(view, "#realized-unmatched button")
+    # No remedy control in the note's body; the clamp's own "more" (I1,
+    # #1351) sits outside it.
+    refute has_element?(view, "#realized-unmatched .data-note__body button")
 
     section = view |> element("#realized-trades") |> render()
     {excluded_at, _} = :binary.match(section, "realized-excluded")
@@ -207,9 +209,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
   # - A trade held 365 days or more shows its annualized return in its sign
   #   colour; a shorter one shows a muted dash whose reason rides the cell's
   #   title and a visually hidden sentence.
-  # - A basis line under the list states the rules: deliveries open no lot,
-  #   fees and taxes in cost and proceeds, income while open not included,
-  #   p. a. only from 365 days of holding.
+  # - A basis line under the list states the rules: fees and taxes in cost
+  #   and proceeds, income while open not included; the facet's ⓘ adds
+  #   deliveries open no lot and p. a. only from 365 days of holding (I1,
+  #   #1351).
   test "the facet reads Trades and carries the p. a. column left of Result", %{conn: conn} do
     seed_reach!()
     {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
@@ -251,10 +254,14 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     basis =
       view |> element("#realized-trades > p.summary-basis[data-role='trades-basis']") |> render()
 
-    assert basis =~ "Deliveries open no lot"
     assert basis =~ "fees and taxes in cost and proceeds"
     assert basis =~ "income received while a trade was open not included"
-    assert basis =~ "p. a. only from 365 days of holding"
+
+    # I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ①): the method
+    # clauses sit in the facet's ⓘ.
+    info = view |> element("[data-role='facet-composition']") |> render()
+    assert info =~ "Deliveries open no lot"
+    assert info =~ "p. a. only from 365 days of holding"
   end
 
   # Acceptance criteria (UX-DR27, board G1 rule 3):
@@ -323,8 +330,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
              "+20,0%"
 
     basis = view |> element("[data-role='trades-basis']") |> render()
-    assert basis =~ "Einlieferungen eröffnen keinen Lot"
-    assert basis =~ "p. a. erst ab 365 Tagen Haltedauer"
+    assert basis =~ "Gebühren und Steuern in Einstand und Erlös"
+    info = view |> element("[data-role='facet-composition']") |> render()
+    assert info =~ "Einlieferungen eröffnen keinen Lot"
+    assert info =~ "p. a. erst ab 365 Tagen Haltedauer"
   end
 
   defp text(nodes),
@@ -458,7 +467,12 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
              "p. a."
            ]
 
-    assert text(Floki.find(render(view) |> Floki.parse_document!(), "[data-role='trades-basis']")) =~
+    assert text(
+             Floki.find(
+               render(view) |> Floki.parse_document!(),
+               "[data-role='facet-composition']"
+             )
+           ) =~
              "p. a. only from 365 days of holding and only where a rate solves the flows"
 
     assert [total] =
@@ -476,7 +490,8 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
   # - A trade held 600 days that no rate solves (a total loss) reads
   #   "-100,0% gesamt" on the phone, with no p. a.
   # - A realized total below zero reads with its "-" in the loss colour; the
-  #   basis line names the second limit in German.
+  #   facet's ⓘ names the second limit in German (I1, #1351, moved it from
+  #   the basis line).
   test "a total loss reads gesamt on the German phone row", %{conn: conn} do
     world = base_world(name: "Loss Facet", cash_name: "LF Cash", depot_name: "LF Depot")
     tamarisk = create_security!(name: "Tamarisk Mining Ltd", ticker: "TML")
@@ -500,7 +515,7 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     assert text(total) == "-400,00 EUR"
     assert class_of(total) =~ "is-negative"
 
-    assert text(Floki.find(doc, "[data-role='trades-basis']")) =~
+    assert text(Floki.find(doc, "[data-role='facet-composition']")) =~
              "p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst"
   end
 

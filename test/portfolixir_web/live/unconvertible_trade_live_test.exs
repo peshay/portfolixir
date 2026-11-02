@@ -850,9 +850,10 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
 
     # Board 09's strings, last row (#1196, ADR-0015 point 6): the control
     # beside the note says it also derives the legs the trade lacks, as the
-    # Trades tab's remedy says it does.
+    # Trades tab's remedy says it does. Since I1 (#1351) that reason reads in
+    # the note's text and the button sits in its actions.
     assert view
-           |> element("#realized-excluded [data-role=fx-backfill] .muted")
+           |> element("#realized-excluded [data-role=fx-backfill-reason]")
            |> render()
            |> text() =~
              "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
@@ -861,7 +862,7 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     render_async(de_view)
 
     assert de_view
-           |> element("#realized-excluded [data-role=fx-backfill] .muted")
+           |> element("#realized-excluded [data-role=fx-backfill-reason]")
            |> render()
            |> text() =~
              "Das Nachladen holt die historische EZB-Reihe einmalig, speichert jeden veröffentlichten Tag und leitet daraus die Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen."
