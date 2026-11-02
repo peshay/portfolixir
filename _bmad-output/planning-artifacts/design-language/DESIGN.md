@@ -2399,8 +2399,9 @@ never converted through the hub, which would state a cost nobody paid.
   - "Im „Wert“ ist sie enthalten" (plural "sind sie enthalten") is said of a
     member exactly when the valuation the "Wert" column reads gives it a
     value, whatever its reason (UX-DR26). A USD member with no stored rate,
-    whose row prints "—", is never said to be in it; a member with no quote,
-    which "Wert" reads at its trade price, is.
+    whose row prints "—", is never said to be in it; ~~a member with no quote,
+    which "Wert" reads at its trade price, is~~ *(since #1368, below, such a
+    member is not left out at all)*.
   - No button, because there is nothing to fix here (clause 3). Nothing
     excluded, no note: UX-DR2 has no all-clear.
 - **Past one member the note becomes a count and a disclosure.** It states
@@ -2531,6 +2532,32 @@ the basis line read it.
   gelöscht; es wurde nichts gespeichert." ("… kein Plan angelegt.",
   "… nichts gelöscht.") — because the typed weights gave way to the plan of
   "Alles", and the muted notice alone did not say they were not saved.
+
+*Amended 2026-11-02 (#1368, Sprint 23 R3; board
+`mockups/ux-design-2026-11-02-sprint23/02-money`, frame ①c; ADR-0010).*
+"Einstand" and "Ergebnis" value a member by the rule "Wert" and Wealth use:
+its latest quote, without one its last own trade price. A category's figures
+therefore add up to Wealth's for the same positions; before, a member
+without a quote stood in "Wert" and was left out of the other two.
+
+- **The member's value names its price source.** A security row valued at
+  its trade price carries `<small class="cell-note">zum Handelspreis</small>`
+  ("at trade price") inside `.row-value`, before the figure:
+  `.row-value .cell-note` is 11 px, weight 500, {colors.text-muted}, 6 px
+  before the figure, unbroken. A quoted row carries none, and a row with no
+  value ("—") never names a source.
+- **The basis line closes on the price rule**: "Ansicht Langfrist · in EUR ·
+  Ergebnis: heutige Zusammensetzung, keine Periodenrendite · Kurse: der
+  neueste, ohne Kurs der letzte eigene Handelspreis" ("prices: the latest
+  quote, without one the last own trade price"), the clause in the same span,
+  held to the word before it by a no-break space like the others.
+- **The note on left-out members** keeps only the members no rule can value
+  or whose cost cannot be stated; a member with neither a quote nor a trade
+  price reads "kein brauchbarer Kurs" and has no value in "Wert" either, so
+  the note says nothing of "Wert" for it. On the demo seed the note drops
+  from 19 positions to 3.
+- The read's API payload names the same rule (`basis_note`) and each
+  position's `price_source` and `price_date`.
 
 ## Amendment 2026-09-23 — Wealth → Risk, the surface ADR-0047 §9 assumed *(Sprint 14 D-2, pick E1-A)*
 

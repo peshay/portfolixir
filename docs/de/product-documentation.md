@@ -1524,6 +1524,14 @@ ohne Gebühren und Steuern der Käufe gekostet haben, das Ergebnis also vor
 ihnen; der Einstand eines abgeschlossenen Trades im Reiter Trades eines
 Wertpapiers enthält sie (Issue #1212). Das ⓘ der Basiszeile sagt es.
 
+Eine Position wird so bewertet, wie **Vermögen** sie bewertet: zum neuesten
+Kurs, ohne Kurs zum letzten eigenen Handelspreis (Issue #1368). Eine
+Wertpapierzeile, die zum Handelspreis bewertet ist, sagt „zum Handelspreis“
+neben ihrem Wert, und die Basiszeile endet auf der Regel („Kurse: der neueste,
+ohne Kurs der letzte eigene Handelspreis“). So ergeben Einstand, Wert und
+Ergebnis einer Kategorie, was Vermögen für dieselben Positionen zeigt. Keinen
+brauchbaren Kurs hat nur eine Position ohne Kurs und ohne eigenen Handel.
+
 Die Zahlen folgen dem Baum, während Sie ihn bearbeiten (Issue #1110): eine
 Kategorie anlegen oder löschen, ein Wertpapier zuordnen, die Zuordnung aufheben
 oder es verschieben, oder eine Kategorie unter eine andere verschieben,

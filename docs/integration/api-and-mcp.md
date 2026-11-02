@@ -2699,6 +2699,15 @@ church tax withheld at a zero church-tax rate.
   having nothing to measure is a different claim from being flat. MCP:
   `portfolixir.portfolios.category_results`.
 
+  **A member is priced as the valuation prices it** (ADR-0010, #1368): its
+  latest quote, without one its last own trade price, so a category's
+  `current_value`, `invested` and `result_abs` add up to what
+  `GET /api/v1/portfolios/:portfolio_id/valuation` and the holdings read give
+  for the same positions. Each `positions` row names it in `price_source`
+  (`"quote"` or `"trade"`) and `price_date`, and `basis_note` states the rule.
+  Only a member with neither a quote nor an own trade price is excluded as
+  `no_usable_price`.
+
   **The view scope (#901)** comes in the performance family's two forms
   (ADR-0051 §6). `?view=<id>` narrows the portfolio read to the portfolio's
   positions matching that view and echoes it as `view: {id, name}`; a
