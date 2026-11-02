@@ -167,6 +167,46 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
     refute Enum.any?(Catalog.list_securities(), &(&1.name == "Larkspur Rail Holding AG"))
   end
 
+  # User story (#1342, the picker half; board ux-design-2026-11-01-sprint22/01-i1 ⑧):
+  # As a screen-reader user searching the import's security picker,
+  # I want to hear how many securities my search found, or that none did,
+  # so that I know what the cards hold without tabbing into them.
+  #
+  # Acceptance criteria:
+  # - The opened picker carries one `role="status"` region
+  #   (`[data-role='remap-status']`) before any search, empty, so the first
+  #   announcement is not lost.
+  # - A search with hits puts "1 security matches." / "2 securities
+  #   match." into it, for assistive technology only (the cards show the
+  #   hits); a search with none puts the visible "No security matches."
+  #   into it. At rest, and holding only the count, the region leaves the
+  #   picker's grid flow (it adds no row and no gap).
+  test "the picker announces its hit count and its empty state", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, [purchase(@holding, "2026-01-16")])
+
+    holding = row(view, "Larkspur Rail Holding AG")
+    view |> element(holding <> " button.link-button", "Map elsewhere…") |> render_click()
+
+    status = holding <> " .mapping-remap [role='status'][data-role='remap-status']"
+    assert has_element?(view, status)
+    assert text(view, status) == ""
+
+    search(view, "Larkspur Rail Holding AG", "Lark")
+    assert text(view, status <> " .visually-hidden") == "1 security matches."
+
+    search(view, "Larkspur Rail Holding AG", "Catalog Security 1")
+    assert text(view, status <> " .visually-hidden") =~ ~r/^\d+ securities match\.$/
+
+    search(view, "Larkspur Rail Holding AG", "Nothing like it")
+    assert text(view, status <> " .mapping-remap__empty") == "No security matches."
+    refute has_element?(view, status <> " .visually-hidden")
+
+    # At rest and with only the count, the region adds no grid row or gap.
+    assert File.read!("priv/static/app.css") =~
+             ~r/\.mapping-remap__status:not\(:has\(\.mapping-remap__empty\)\) \{\s*position: absolute;/
+  end
+
   # User story (H45, Sprint 21 γ7, Q1 B; board 02, found while drawing 2):
   # As the operator asked to decide between securities that share an
   # identifier, I want the candidates themselves as the choices, with
