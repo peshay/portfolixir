@@ -149,14 +149,17 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Clock.today()
 
-      events =
-        Events.upcoming(
+      # #1254: one row past the limit tells a cut answer from the whole.
+      {events, truncated} =
+        [
           days: days,
           today: today,
           kind: kind,
           held_only: held_only,
-          limit: limit
-        )
+          limit: ListLimit.fetch(limit)
+        ]
+        |> Events.upcoming()
+        |> ListLimit.page(limit)
 
       json(conn, %{
         data: %{
@@ -165,6 +168,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
           held_only: held_only,
           kind: kind,
           limit: limit,
+          truncated: truncated,
           events: Enum.map(events, &JSON.security_event/1),
           scope_note: @scope_note,
           due_note: @due_note,
@@ -183,14 +187,16 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Clock.today()
 
-      events =
-        Events.unconfirmed_past(
+      {events, truncated} =
+        [
           today: today,
           kind: kind,
           held_only: held_only,
           security_id: security_id,
-          limit: limit
-        )
+          limit: ListLimit.fetch(limit)
+        ]
+        |> Events.unconfirmed_past()
+        |> ListLimit.page(limit)
 
       json(conn, %{
         data: %{
@@ -199,6 +205,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
           kind: kind,
           security_id: security_id,
           limit: limit,
+          truncated: truncated,
           events: Enum.map(events, &JSON.security_event/1),
           scope_note: @scope_note,
           basis:
@@ -220,15 +227,17 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Clock.today()
 
-      events =
-        Events.stale(
+      {events, truncated} =
+        [
           days: days,
           today: today,
           kind: kind,
           held_only: held_only,
           security_id: security_id,
-          limit: limit
-        )
+          limit: ListLimit.fetch(limit)
+        ]
+        |> Events.stale()
+        |> ListLimit.page(limit)
 
       json(conn, %{
         data: %{
@@ -238,6 +247,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
           kind: kind,
           security_id: security_id,
           limit: limit,
+          truncated: truncated,
           events: Enum.map(events, &JSON.security_event/1),
           scope_note: @scope_note,
           basis: @stale_note

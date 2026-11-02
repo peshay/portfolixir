@@ -15,7 +15,15 @@ defmodule PortfolixirWeb.Api.V1.ExchangeRateController do
   def index(conn, params) do
     case ListLimit.parse(params, @default_limit, @max_limit) do
       {:ok, limit} ->
-        json(conn, %{data: Enum.map(Fx.list_rates(limit: limit), &JSON.exchange_rate/1)})
+        # #1254: one row past the limit tells a cut answer from the whole.
+        {rates, truncated} =
+          [limit: ListLimit.fetch(limit)] |> Fx.list_rates() |> ListLimit.page(limit)
+
+        json(conn, %{
+          data: Enum.map(rates, &JSON.exchange_rate/1),
+          limit: limit,
+          truncated: truncated
+        })
 
       {:error, :limit} ->
         unprocessable(conn, %{limit: ["is invalid"]})

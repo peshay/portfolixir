@@ -63,15 +63,19 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
   the Merges section of Accounts & depots
   (`PortfolixirWeb.PortfolioAccounts.MergeRecords`). `limit=` is the list
   family's (default #{@default_limit}, capped at #{@max_limit}, echoed in
-  `meta.limit`; zero, a negative or a non-number answers 422).
+  `meta.limit` and beside `data` with `truncated`, #1254; zero, a negative or a non-number answers 422).
   """
   def index(conn, params) do
     case ListLimit.parse(params, @default_limit, @max_limit) do
       {:ok, limit} ->
-        merges = Lifecycle.list_merges(limit)
+        # #1254: one row past the limit tells a cut answer from the whole.
+        {merges, truncated} =
+          limit |> ListLimit.fetch() |> Lifecycle.list_merges() |> ListLimit.page(limit)
 
         json(conn, %{
           data: Enum.map(merges, &MergeJSON.listed/1),
+          limit: limit,
+          truncated: truncated,
           meta: %{order: "inserted_at:desc,id:desc", count: length(merges), limit: limit}
         })
 
