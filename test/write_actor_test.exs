@@ -301,8 +301,10 @@ defmodule Portfolixir.WriteActorTest do
           do: {file, call}
 
     assert callers == [],
-           "a web-layer module calls a system-job writer, so a request would write " <>
-             "under the job's identity — give the write path an actor:\n" <>
+           "a web-layer module calls a system-job writer directly (matched by the " <>
+             "module's last alias segment and the function name; a call through " <>
+             "another module is not seen here) — route the request through an " <>
+             "actor-first writer:\n" <>
              Enum.map_join(callers, "\n", &inspect/1)
   end
 
