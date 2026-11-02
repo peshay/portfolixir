@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.StatedCash
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -54,7 +55,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   @numeric_columns ["quantity", "price", "gross_amount", "fees", "taxes"]
 
   # The drawer's decimal fields, read by the one decimal-input rule (#869).
-  @decimal_fields ~w(quantity price fees taxes settlement_amount settlement_fx_rate)
+  # `gross_amount` is sent only by the stored cash's field (#1371).
+  @decimal_fields ~w(quantity price fees taxes gross_amount settlement_amount settlement_fx_rate)
 
   # Sprint 21 α6 (#1052, #1206; board 03, pick N12 A): the one-amount cash
   # kinds the drawer books and corrects, their decimal fields, the kinds
@@ -97,6 +99,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:editing_fixed, nil)
      |> assign(:editing_cash, nil)
      |> assign(:editing_legless, nil)
+     |> assign(:editing_stored_cash, nil)
      |> assign(:deleting, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
@@ -586,6 +589,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           editing?={@editing_id != nil}
           editing_cash={@editing_cash}
           editing_legless={@editing_legless}
+          editing_stored_cash={@editing_stored_cash}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
           securities_accounts={@securities_accounts}
@@ -644,6 +648,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:editing_fixed, nil)
      |> assign(:editing_cash, nil)
      |> assign(:editing_legless, nil)
+     |> assign(:editing_stored_cash, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
@@ -672,6 +677,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     # α6: an edit's kind and cash account are disabled controls, which a
     # form never sends; the form keeps them from the booking being edited.
     params = put_frozen_cash(params, socket.assigns.editing_cash)
+
+    # #1371: changed figures prefill the stored cash with what they derive;
+    # the field keeps what the operator typed until a figure changes again.
+    params =
+      restate_cash(
+        params,
+        socket.assigns.editing_stored_cash,
+        target,
+        settlement_pair(params, socket.assigns)
+      )
 
     # Clear stale field errors as the user edits, so a corrected field stops
     # reading as invalid before the next submit.
@@ -754,6 +769,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
        # stored without its legs is corrected in the currency it is stored
        # in; the server holds that fact, not the form's hidden field.
        |> assign(:editing_legless, legless_booking(transaction, socket.assigns))
+       # ADR-0053, amendment of 2026-11-02 (#1371, board 02 ①a): a buy or
+       # sell that stores its cash and no settlement legs shows that cash,
+       # and an edit of its figures states it.
+       |> assign(:editing_stored_cash, stored_cash(transaction))
        |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
@@ -966,6 +985,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> assign(:editing_fixed, nil)
     |> assign(:editing_cash, nil)
     |> assign(:editing_legless, nil)
+    |> assign(:editing_stored_cash, nil)
   end
 
   defp gone_message, do: gettext("That transaction no longer exists.")
@@ -1169,6 +1189,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:editing_fixed, nil)
          |> assign(:editing_cash, nil)
          |> assign(:editing_legless, nil)
+         |> assign(:editing_stored_cash, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -1259,6 +1280,128 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         )
     end
   end
+
+  # ADR-0053, amendment of 2026-11-02 (#1371, board 02 ①a): what the drawer
+  # needs of a buy or sell that stores its cash and no settlement amount —
+  # the stored cash and figures, the currency the cash is stored in, and
+  # whether an import stored it. `nil` for every other booking.
+  defp stored_cash(%Transaction{} = transaction) do
+    if StatedCash.applies?(transaction) do
+      %{
+        gross_amount: transaction.gross_amount,
+        figures: Map.take(transaction, StatedCash.figure_fields()),
+        currency: transaction.currency_code,
+        imported?: is_binary(transaction.import_hash)
+      }
+    end
+  end
+
+  @cash_figure_targets ~w(quantity price fees taxes)
+
+  # A changed figure prefills the cash field with what the form's figures
+  # derive (two places, the page's notation); the operator's own figure
+  # stands until a figure changes again. Saving takes what the field states.
+  defp restate_cash(params, %{}, target, nil) when target in @cash_figure_targets do
+    case cash_suggestion(params) do
+      %{derived: derived} -> Map.put(params, "gross_amount", money_form(derived))
+      nil -> params
+    end
+  end
+
+  defp restate_cash(params, _stored_cash, _target, _pair), do: params
+
+  # The form's figures read by the one decimal-input rule (#869), blank fees
+  # and taxes as zero, and the cash they derive, rounded to the cent; `nil`
+  # while a figure does not read.
+  defp cash_suggestion(form) do
+    with {:ok, quantity} <- form_figure(form["quantity"], nil),
+         {:ok, price} <- form_figure(form["price"], nil),
+         {:ok, fees} <- form_figure(form["fees"], Decimal.new(0)),
+         {:ok, taxes} <- form_figure(form["taxes"], Decimal.new(0)),
+         %Decimal{} = derived <-
+           StatedCash.derived_cash(form["type"], quantity, price, fees, taxes) do
+      %{
+        type: form["type"],
+        derived: Decimal.round(derived, 2),
+        quantity: quantity,
+        price: price,
+        fees: fees,
+        taxes: taxes
+      }
+    else
+      _incomplete -> nil
+    end
+  end
+
+  defp form_figure(value, blank) do
+    case DecimalInput.parse(value) do
+      {:ok, decimal} -> {:ok, decimal}
+      :blank when not is_nil(blank) -> {:ok, blank}
+      _unreadable -> :error
+    end
+  end
+
+  # The attention note's sum, shown while a figure differs from the stored
+  # one: the cash does not follow the figures by itself.
+  defp cash_restate(form, %{figures: stored}) do
+    with %{} = suggestion <- cash_suggestion(form),
+         true <-
+           Enum.any?(StatedCash.figure_fields(), fn field ->
+             not Decimal.equal?(
+               Map.fetch!(suggestion, field),
+               stored_figure_or_zero(stored, field)
+             )
+           end) do
+      suggestion
+    else
+      _unchanged -> nil
+    end
+  end
+
+  defp stored_figure_or_zero(stored, field), do: Map.get(stored, field) || Decimal.new(0)
+
+  # A money figure in the page's notation, at least two places (the stored
+  # cash 806 reads "806,00"); only padded, never rounded.
+  defp money_form(%Decimal{} = decimal) do
+    normalized = Decimal.normalize(decimal)
+
+    normalized
+    |> Decimal.round(max(-normalized.exp, 2))
+    |> DecimalInput.value()
+  end
+
+  defp restate_note(%{type: "sell"} = sum) do
+    gettext(
+      "Quantity, price, fees or taxes changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs.",
+      restate_bindings(sum)
+    )
+  end
+
+  defp restate_note(sum) do
+    gettext(
+      "Quantity, price, fees or taxes changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} + %{fees} + %{taxes}. Saving takes what the field states — enter the amount settled if it differs.",
+      restate_bindings(sum)
+    )
+  end
+
+  defp restate_bindings(sum) do
+    [
+      derived: money_form(sum.derived),
+      quantity: sum.quantity |> Decimal.normalize() |> DecimalInput.value(),
+      price: money_form(sum.price),
+      fees: money_form(sum.fees),
+      taxes: money_form(sum.taxes)
+    ]
+  end
+
+  defp stored_cash_help(%{imported?: true, gross_amount: amount}),
+    do:
+      gettext("The cash the account moves. Stored: %{amount} (as imported).",
+        amount: money_form(amount)
+      )
+
+  defp stored_cash_help(%{gross_amount: amount}),
+    do: gettext("The cash the account moves. Stored: %{amount}.", amount: money_form(amount))
 
   # The legless row's form stays in its stored currency whatever the form
   # sends: the mode that suppresses the settlement fieldset, and the
@@ -2558,9 +2701,23 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:editing?, :boolean, default: false)
   attr(:editing_cash, :any, default: nil)
   attr(:editing_legless, :any, default: nil)
+  attr(:editing_stored_cash, :any, default: nil)
   attr(:cash_accounts, :list, default: [])
   attr(:portfolio_tags, :map, default: %{cash: %{}, depot: %{}})
   attr(:focus_return, :string, default: nil)
+
+  # #1371 (board 02 ①a): the stored cash's field, shown on a buy or sell that
+  # stores it and no settlement legs, unless the form now describes a
+  # cross-currency settlement (its fieldset derives the cash then); the
+  # attention note while a figure differs from the stored one.
+  defp assign_stored_cash_field(assigns) do
+    stored = assigns.editing_stored_cash
+    field? = not is_nil(stored) and is_nil(assigns.settlement_pair)
+
+    assigns
+    |> assign(:stored_cash_field?, field?)
+    |> assign(:cash_restate, field? && cash_restate(assigns.transaction_form, stored))
+  end
 
   defp booking_drawer(assigns) do
     assigns =
@@ -2574,6 +2731,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         )
       )
       |> assign(:cash?, assigns.transaction_form["type"] in @cash_kinds)
+      |> assign_stored_cash_field()
       # α6: a new booking offers every kind the drawer books; a trade's edit
       # keeps buy and sell (a different kind is a different booking).
       |> assign(
@@ -2767,7 +2925,35 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             />
             <.field_error errors={@form_errors} field="price" />
           </label>
+          <%!-- ADR-0053, amendment of 2026-11-02 (#1371, board 02 ①a): the
+               cash a buy or sell stores, part of the submitted form, so a
+               save always states it. --%>
+          <label :if={@stored_cash_field?}>
+            <span>
+              <%= gettext("Amount (%{currency})", currency: @editing_stored_cash.currency) %>
+            </span>
+            <input
+              name="transaction[gross_amount]"
+              value={@transaction_form["gross_amount"]}
+              inputmode="decimal"
+              class="num"
+              aria-invalid={@form_errors["gross_amount"] && "true"}
+              aria-describedby={
+                if @form_errors["gross_amount"],
+                  do: "tx-error-gross_amount stored-cash-help",
+                  else: "stored-cash-help"
+              }
+            />
+            <.field_error errors={@form_errors} field="gross_amount" />
+            <p id="stored-cash-help" class="form-help" data-role="stored-cash-help">
+              <%= stored_cash_help(@editing_stored_cash) %>
+            </p>
+          </label>
         </div>
+
+        <AppShell.data_note :if={@cash_restate} severity={:attention} data-role="cash-restate">
+          <%= restate_note(@cash_restate) %>
+        </AppShell.data_note>
 
         <input
           :if={@transaction_form["settlement_mode"]}

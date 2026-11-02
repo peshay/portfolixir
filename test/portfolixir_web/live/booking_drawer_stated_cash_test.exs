@@ -1,0 +1,232 @@
+defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
+  # ADR-0053, amendment of 2026-11-02 (#1371; board
+  # ux-design-2026-11-02-sprint23/02 ①a): the booking drawer shows the cash
+  # of a buy or sell that stores it and has no settlement legs, prefills it
+  # with what changed figures derive, and saves what the field states. Risk
+  # tier (ADR-0036): every stored figure is pinned with an exact Decimal.
+  use PortfolixirWeb.ConnCase, async: true
+
+  import Phoenix.LiveViewTest
+
+  import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1]
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
+
+  @note "Menge, Preis, Gebühren oder Steuern geändert: Der Betrag folgt nicht von selbst. " <>
+          "Vorgeschlagen sind 816,00 = 10 × 81,00 + 5,00 + 1,00. Speichern übernimmt, was im " <>
+          "Feld steht — den abgerechneten Betrag eintragen, wenn er abweicht."
+
+  # Synthetic figures only (#1371's example): an imported buy, 10 at 80.00
+  # EUR, fees 5.00, taxes 1.00, its cash 806.00 as the file stated it.
+  setup do
+    world = base_world(name: "Drawer Cash", cash_name: "DC Cash", depot_name: "DC Depot")
+    security = create_security!(name: "Drawer Cash Co", ticker: "DCC", currency: "EUR")
+
+    {:ok, buy} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          cash_account_id: world.cash.id,
+          security_id: security.id,
+          type: "buy",
+          date: ~D[2026-04-15],
+          quantity: "10",
+          price: "80.00",
+          fees: "5.00",
+          taxes: "1.00",
+          currency_code: "EUR",
+          gross_amount: "806.00"
+        },
+        import_hash: String.duplicate("d", 64)
+      )
+
+    %{world: world, security: security, buy: buy}
+  end
+
+  defp open_edit(conn, id) do
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+    render_click(view, "edit_transaction", %{"id" => to_string(id)})
+    view
+  end
+
+  defp form_inputs(view) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find("#transaction-form input")
+    |> Map.new(fn input ->
+      {input |> Floki.attribute("name") |> List.first(),
+       input |> Floki.attribute("value") |> List.first()}
+    end)
+  end
+
+  # The fields the browser sends: the form's inputs (the cash field among
+  # them), the selects as stored, overlaid with what the operator typed.
+  defp params(view, world, security, overrides) do
+    view
+    |> form_inputs()
+    |> Enum.flat_map(fn
+      {"transaction[" <> rest, value} -> [{String.trim_trailing(rest, "]"), value}]
+      _other -> []
+    end)
+    |> Map.new()
+    |> Map.merge(%{
+      "type" => "buy",
+      "date" => "2026-04-15",
+      "securities_account_id" => to_string(world.depot.id),
+      "security_id" => to_string(security.id),
+      "notes" => ""
+    })
+    |> Map.merge(overrides)
+  end
+
+  defp change(view, world, security, field, value) do
+    render_change(view, "form_changed", %{
+      "_target" => ["transaction", field],
+      "transaction" => params(view, world, security, %{field => value})
+    })
+  end
+
+  defp submit(view, world, security, overrides \\ %{}) do
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{"transaction" => params(view, world, security, overrides)})
+  end
+
+  defp stored(id), do: Repo.get!(Transaction, id)
+
+  defp text(view, selector) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> Floki.text()
+    |> String.split()
+    |> Enum.join(" ")
+  end
+
+  # User story (#1371):
+  # As the operator correcting the price of an imported buy in the drawer,
+  # I want to see the cash it stores, prefilled with what the new figures
+  # give and saved as the field states,
+  # so that a typo fix never leaves the cash and the lot reading two costs,
+  # and the amount the broker settled can still be entered.
+  #
+  # Acceptance criteria (board 02 ①a, ADR-0053 amendment of 2026-11-02):
+  # - The drawer shows "Betrag (EUR)" holding the stored 806, with the help
+  #   "Das Geld, das das Konto bewegt. Gespeichert: 806,00 (wie importiert)."
+  #   and no attention note.
+  # - A price edit to 81 prefills the field with 816,00 and shows the
+  #   attention note naming the sum.
+  # - Saving without touching the field stores price 81.00 and cash 816.00.
+  test "the same edit in the drawer saves 816.00 unless the operator changes the field",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+
+    assert has_element?(view, "#transaction-form label span", "Betrag (EUR)")
+    assert form_inputs(view)["transaction[gross_amount]"] == "806"
+
+    assert text(view, ~s([data-role="stored-cash-help"])) ==
+             "Das Geld, das das Konto bewegt. Gespeichert: 806,00 (wie importiert)."
+
+    refute has_element?(view, ~s([data-role="cash-restate"]))
+
+    change(view, w, s, "price", "81")
+
+    assert form_inputs(view)["transaction[gross_amount]"] == "816,00"
+    assert text(view, ~s([data-role="cash-restate"])) =~ @note
+
+    submit(view, w, s)
+
+    row = stored(buy.id)
+    assert Decimal.equal?(row.price, Decimal.new("81.00"))
+    assert Decimal.equal?(row.gross_amount, Decimal.new("816.00"))
+  end
+
+  # Acceptance criteria:
+  # - The field the operator overwrites with the amount settled within a
+  #   cent is stored as typed.
+  # - A figure off by more than a cent is refused with the field's own
+  #   error, the expected figure in German notation, and nothing moves.
+  test "the field states the cash: within a cent saved, beyond it refused",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    change(view, w, s, "price", "81")
+    submit(view, w, s, %{"gross_amount" => "806,00"})
+
+    assert text(view, "#tx-error-gross_amount") ==
+             "passt nicht zu Menge × Preis, Gebühren und Steuern — erwartet 816,00"
+
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.00"))
+    assert Decimal.equal?(stored(buy.id).price, Decimal.new("80.00"))
+
+    submit(view, w, s, %{"gross_amount" => "816,01"})
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("816.01"))
+  end
+
+  # Acceptance criteria:
+  # - A note edit keeps the stored cash: the field sends it unchanged.
+  # - A booking without a stored cash shows no cash field; its price edit
+  #   saves as before.
+  test "a note edit keeps the cash; a booking without one shows no field",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    submit(view, w, s, %{"notes" => "checked against the statement"})
+
+    assert stored(buy.id).notes == "checked against the statement"
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.00"))
+
+    plain = buy!(w, s, quantity: "2", price: "50", date: ~D[2026-04-16])
+    view = open_edit(conn, plain.id)
+
+    refute Map.has_key?(form_inputs(view), "transaction[gross_amount]")
+    refute has_element?(view, ~s([data-role="stored-cash-help"]))
+
+    submit(view, w, s, %{"price" => "51", "date" => "2026-04-16"})
+    assert Decimal.equal?(stored(plain.id).price, Decimal.new("51"))
+    assert is_nil(stored(plain.id).gross_amount)
+  end
+
+  # Acceptance criteria (a sell's cash is net of fees and taxes):
+  # - Its note names the sum with minus signs and the prefilled figure is
+  #   4 × 91,00 − 3,00 − 2,50 = 358,50.
+  test "a sell's suggestion subtracts its fees and taxes",
+       %{conn: conn, world: w, security: s} do
+    {:ok, sell} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: s.id,
+        type: "sell",
+        date: ~D[2026-05-04],
+        quantity: "4",
+        price: "90.00",
+        fees: "3.00",
+        taxes: "2.50",
+        currency_code: "EUR",
+        gross_amount: "354.50"
+      })
+
+    view = open_edit(conn, sell.id)
+
+    assert text(view, ~s([data-role="stored-cash-help"])) ==
+             "Das Geld, das das Konto bewegt. Gespeichert: 354,50."
+
+    render_change(view, "form_changed", %{
+      "_target" => ["transaction", "price"],
+      "transaction" =>
+        view
+        |> params(w, s, %{"price" => "91"})
+        |> Map.merge(%{"type" => "sell", "date" => "2026-05-04"})
+    })
+
+    assert form_inputs(view)["transaction[gross_amount]"] == "358,50"
+    assert text(view, ~s([data-role="cash-restate"])) =~ "358,50 = 4 × 91,00 − 3,00 − 2,50"
+  end
+end

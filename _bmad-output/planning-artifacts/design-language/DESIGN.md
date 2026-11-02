@@ -8115,3 +8115,49 @@ Measured on the review seed at 390 px: both section panels span x = 16 to
   button in view. Their facet ⓘ and basis lines do not change.
 - The facet ⓘ panels open below and stay inside the screen (⑦): at 390 px
   on the review seed they span x = 86 to 374.
+
+## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
+
+Amends Components → Booking drawer and the 2026-11-01 amendment above
+("The booking drawer opens a row in the currency it is stored in").
+
+**A buy or sell that stores its cash (`gross_amount`) and no settlement
+amount** — an imported row, a legless cross-currency row, a trade the API
+booked with its cash — shows that cash in the edit drawer. Top to bottom:
+
+1. Type, date, depot and security, unchanged.
+2. Quantity and price, unchanged (a legless row's price label names its
+   stored currency, as above).
+3. **The cash field**, the last field of that grid: „Betrag (EUR)“, the
+   drawer's existing `Amount (%{currency})` label in the currency the cash
+   is stored in, an `input.num` named `transaction[gross_amount]`, so it is
+   part of the submitted form and a save always states it. It opens with
+   the stored digits („806“). Its help line (`#stored-cash-help`,
+   `data-role="stored-cash-help"`, `p.form-help`) reads „Das Geld, das das
+   Konto bewegt. Gespeichert: 806,00 (wie importiert).“; a row no import
+   stored drops the parenthesis. The input's `aria-describedby` names the
+   help line, and its error first when there is one.
+4. When quantity, price, fees or taxes differ from the stored ones, one
+   **attention** data note below the grid (`data-role="cash-restate"`,
+   `AppShell.data_note` with `:attention`): „Menge, Preis, Gebühren oder
+   Steuern geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind
+   816,00 = 10 × 81,00 + 5,00 + 1,00. Speichern übernimmt, was im Feld steht
+   — den abgerechneten Betrag eintragen, wenn er abweicht.“ A sale's sum
+   reads with minus signs („358,50 = 4 × 91,00 − 3,00 − 2,50“): its cash is
+   net of fees and taxes. The quantity reads in its own scale, the money
+   figures with at least two places, all in the page's notation.
+5. The derived-currency line, the legless note, „Kosten und Notiz“ and
+   the foot, unchanged.
+
+**Behaviour.** A change of quantity, price, fees or taxes prefills the
+field with what the figures derive, rounded to the cent; a figure the
+operator types into the field stands until a figure changes again. Saving
+takes what the field states. A figure off by more than a cent is refused by
+the ledger with the field's own error (`#tx-error-gross_amount`): „passt
+nicht zu Menge × Preis, Gebühren und Steuern — erwartet 816,00“, the
+expected figure in the page's notation; a blank field is refused as
+missing. A note or date edit sends the stored cash unchanged and needs no
+check. The rule is the server's (ADR-0053's amendment): the API's PATCH
+answers the same refusals. A row with settlement legs keeps the settlement
+fieldset and shows no cash field, and so does a form that now describes a
+cross-currency settlement: its fieldset derives the cash.
