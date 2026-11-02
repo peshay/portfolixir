@@ -121,4 +121,22 @@ defmodule PortfolixirWeb.Components.DataNoteClampTest do
     assert js =~ ~s|this.resizeObserver.observe(this.el)|
     assert js =~ ~r/updated: function \(\) \{\s*this\.apply\(\);/
   end
+
+  # User story (Sprint 22 closing act, coverage of #1351's guard):
+  # As the maintainer placing a clamped note,
+  # I want a clamped note without an id refused at render,
+  # so that no note ships whose NoteClamp hook cannot mount (a hook needs an
+  # id) and whose "more" names no text.
+  #
+  # Acceptance criteria:
+  # - Rendering `clamp` without `id` raises ArgumentError naming the hook.
+  test "a clamped note without an id is refused" do
+    assigns = %{}
+
+    assert_raise ArgumentError, ~r/needs an id for its NoteClamp hook/, fn ->
+      rendered_to_string(~H"""
+      <AppShell.data_note severity={:note} clamp>An unnamed note.</AppShell.data_note>
+      """)
+    end
+  end
 end
