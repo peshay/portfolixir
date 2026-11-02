@@ -2951,7 +2951,9 @@ defmodule PortfolixirWeb.PortfolioLive do
              rows left out of the totals clamp and never fold, so their
              count stays visible (UX-DR25); the notes that only qualify the
              totals fold into one line when two or more are present. Every
-             note clamps to two lines (three on a phone). --%>
+             note clamps to two lines (three on a phone); a problem's remedy
+             links sit in its actions, never under the clamp (pick Q1,
+             correction 2). --%>
         <AppShell.data_note
           id="dq-negative-holdings-note"
           clamp
@@ -2964,16 +2966,18 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
             length(@negative_entries)
           ) %>
-          <span :for={entry <- @negative_entries} class="dq-negative-entry">
-            <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
-              <%= entry.name %>
-            </.link>
-            (<%= Enum.map_join(
-              entry.depots,
-              ", ",
-              &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
-            ) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
-          </span>
+          <:actions>
+            <span :for={entry <- @negative_entries} class="dq-negative-entry">
+              <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
+                <%= entry.name %>
+              </.link>
+              (<%= Enum.map_join(
+                entry.depots,
+                ", ",
+                &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
+              ) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
+            </span>
+          </:actions>
         </AppShell.data_note>
         <%!-- #330 (pick H3, W2): a bond priced on two scales counts a hundred
              times too high in the totals read here, and the return cannot
@@ -2993,7 +2997,9 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their bookings against the nominal on the statement:",
             length(@two_scales_forward)
           ) %>
-          <.two_scales_entries findings={@two_scales_forward} tab="transactions" />
+          <:actions>
+            <.two_scales_entries findings={@two_scales_forward} tab="transactions" />
+          </:actions>
         </AppShell.data_note>
         <%!-- #1068 (D-15, board 02, pin 4): the reverse case — quotes near 1
              beside bookings near 100 — counts a hundred times too low, and
@@ -3011,7 +3017,9 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} bonds are priced on two scales (quotes around 1, booked price per unit around 100) and count a hundred times too low in the totals. Check their stored quotes — a quote around 1 is not a percent of face:",
             length(@two_scales_reverse)
           ) %>
-          <.two_scales_entries findings={@two_scales_reverse} tab="quotes" />
+          <:actions>
+            <.two_scales_entries findings={@two_scales_reverse} tab="quotes" />
+          </:actions>
         </AppShell.data_note>
         <%!-- #1101 (D-7, board 02 L2 A): a held position valued at quotes
              that contradict its own bookings — two stored facts about one
@@ -3036,11 +3044,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               length(@implausible_quotes)
             ) %>
           </a>
-          <.implausible_quote_entry
-            :for={{finding, index} <- Enum.with_index(@implausible_quotes)}
-            finding={finding}
-            lead_space={index > 0}
-          />
+          <:actions>
+            <.implausible_quote_entry
+              :for={{finding, index} <- Enum.with_index(@implausible_quotes)}
+              finding={finding}
+              lead_space={index > 0}
+            />
+          </:actions>
         </AppShell.data_note>
 
         <AppShell.data_note

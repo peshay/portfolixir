@@ -133,6 +133,11 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
 
     assert has_element?(view, "#dashboard-data-quality #dashboard-dq-line.data-note--clamped")
 
+    # Pick Q1, correction 2 (closing act): each finding's link, the line's
+    # remedy, sits in the note's actions, never under the clamp.
+    assert has_element?(view, "#dashboard-dq-line .data-note__actions a[data-role]")
+    refute has_element?(view, "#dashboard-dq-line .data-note__text a")
+
     {:ok, de_view, _html} = live(conn, "/?locale=de")
     render_async(de_view)
 

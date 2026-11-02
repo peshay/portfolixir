@@ -296,10 +296,14 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert dq =~ "Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen"
     assert dq =~ "Musterland Anleihe 2031 (Kurs 97,25 · Preis je Stück 0,985)"
 
+    # Pick Q1, correction 2 (closing act): the entries, the note's remedy
+    # links, sit in its actions, never under the clamp.
     assert has_element?(
              wealth,
-             ~s([data-role="dq-two-scales"] a[href="/securities/#{face.id}?tab=transactions"])
+             ~s([data-role="dq-two-scales"] .data-note__actions a[href="/securities/#{face.id}?tab=transactions"])
            )
+
+    refute has_element?(wealth, ~s([data-role="dq-two-scales"] .data-note__text a))
 
     refute dq =~ "Musterland Anleihe 2029"
 
@@ -384,8 +388,10 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     assert has_element?(
              wealth,
-             ~s([data-role="dq-two-scales-reverse"].data-note--problem a[href="/securities/#{reverse.id}?tab=quotes"])
+             ~s([data-role="dq-two-scales-reverse"].data-note--problem .data-note__actions a[href="/securities/#{reverse.id}?tab=quotes"])
            )
+
+    refute has_element?(wealth, ~s([data-role="dq-two-scales-reverse"] .data-note__text a))
 
     forward_note = text(wealth, ~s([data-role="dq-two-scales"]))
 
