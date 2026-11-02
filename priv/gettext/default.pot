@@ -8285,7 +8285,7 @@ msgstr ""
 msgid "+ other account"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:308
+#: lib/portfolixir_web/live/journal_live.ex:322
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:246
 #, elixir-autogen, elixir-format
 msgid "After"
@@ -9007,7 +9007,7 @@ msgid_plural "Every dropped quote stands in the merge's record with its date, va
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/journal_live.ex:306
+#: lib/portfolixir_web/live/journal_live.ex:320
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1005
 #, elixir-autogen, elixir-format
 msgid "Field"
@@ -14274,7 +14274,7 @@ msgstr ""
 msgid "with “remove as duplicates”"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:365
+#: lib/portfolixir_web/live/journal_live.ex:399
 #, elixir-autogen, elixir-format
 msgid "%{count} entry"
 msgid_plural "%{count} entries"
@@ -14312,7 +14312,7 @@ msgstr ""
 msgid "Every stored change, who made it and what stood before"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:364
+#: lib/portfolixir_web/live/journal_live.ex:378
 #, elixir-autogen, elixir-format
 msgid "Newest first"
 msgstr ""
@@ -14339,17 +14339,17 @@ msgstr ""
 msgid "Time (UTC)"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:374
+#: lib/portfolixir_web/live/journal_live.ex:388
 #, elixir-autogen, elixir-format
 msgid "times in UTC"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:371
+#: lib/portfolixir_web/live/journal_live.ex:385
 #, elixir-autogen, elixir-format
 msgid "with what-if scenarios"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:372
+#: lib/portfolixir_web/live/journal_live.ex:386
 #, elixir-autogen, elixir-format
 msgid "without what-if scenarios"
 msgstr ""
@@ -14481,43 +14481,60 @@ msgstr ""
 msgid "Only this entry"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:366
+#: lib/portfolixir_web/live/journal_live.ex:380
 #, elixir-autogen, elixir-format
 msgid "actor %{actor}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:389
+#: lib/portfolixir_web/live/journal_live.ex:416
 #, elixir-autogen, elixir-format
 msgid "kind %{kind}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:386
-#: lib/portfolixir_web/live/journal_live.ex:392
+#: lib/portfolixir_web/live/journal_live.ex:413
+#: lib/portfolixir_web/live/journal_live.ex:419
 #, elixir-autogen, elixir-format
 msgid "only %{entry}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:368
+#: lib/portfolixir_web/live/journal_live.ex:382
 #, elixir-autogen, elixir-format
 msgid "operation %{operation}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:307
+#: lib/portfolixir_web/live/journal_live.ex:321
 #, elixir-autogen, elixir-format
 msgid "Before"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:301
+#: lib/portfolixir_web/live/journal_live.ex:315
 #, elixir-autogen, elixir-format
 msgid "Stored values"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:337
+#: lib/portfolixir_web/live/journal_live.ex:351
 #, elixir-autogen, elixir-format
 msgid "changed to"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:293
+#: lib/portfolixir_web/live/journal_live.ex:307
 #, elixir-autogen, elixir-format
 msgid "deleted, with every value"
+msgstr ""
+
+#: lib/portfolixir_web/live/journal_live.ex:271
+#, elixir-autogen, elixir-format
+msgid "Show older entries"
+msgstr ""
+
+#: lib/portfolixir_web/live/journal_live.ex:396
+#, elixir-autogen, elixir-format
+msgid "the newest %{count} entry"
+msgid_plural "the newest %{count} entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/journal_live.ex:275
+#, elixir-autogen, elixir-format
+msgid "The newest %{max} are shown, the most one page holds; a filter reaches older entries."
 msgstr ""
