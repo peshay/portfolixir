@@ -294,6 +294,108 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
     ]
   }
 
+  # Sprint 23 R1 (#1370; risk tier: import idempotency, ADR-0036). Taken on
+  # 7b822f7, before the CSV parser refuses a time it cannot read: each row's
+  # time of day and content hash, in the file's order, for the two CSV
+  # fixtures no digest above pins. Every time the fixtures write
+  # (00:00:00, 10:00:00, 10:01:00, 10:15:00, 12:25:00, 21:00:00) is read
+  # here or in hash_pin.csv and the K16 to K18 files above.
+  @sample_csv [
+    {2, ~T[10:01:00], "1573a01a79de5cbe3550de4e343f741cda65811b55209ab665208f46bee70c37"},
+    {3, ~T[12:25:00], "3b5fd6a34adaeac64dfbf96038ed545f4c0e3ede86862ce62a21be3fd78c5f5e"},
+    {4, nil, "73903a514229a9da75b9175aabd13ae063e4bf57140093298756f565cf78be50"},
+    {5, nil, "d4b2d714e0abbf940023f0d61b68daeacfe0db13c90f49b82c84b84dbf65df11"},
+    {6, nil, "bd9373fc19a1849f134be6b286397b662c805574526997be90ce13d04b4f08af"},
+    {7, nil, "0804a11508a2a3117f69b533286794623c220167bf30e930d1f306f610d3f806"},
+    {8, nil, "7230b3ee097213851585259c3e84b06227ef2ce4354e7b9d13de55ebfe11ac95"},
+    {9, nil, "e11d18952eae3319b5347b2db8824f920aa4480b005a559fda0c85b1020cc3f6"},
+    {10, nil, "5699d5851d6c07079cd197896cfe86087f5f299e2e40d9bf4f4c7a2d3a4934da"},
+    {11, ~T[10:00:00], "515dd4d46f11ae42cc17b8c708bb742879df00ff14543afdd3f935bacddae94c"},
+    {12, nil, "d6d06b53de7072c0a2fd8de8e14d9756b38492940f0c04ae79874b645b6095cf"},
+    {13, nil, "8b677882f243e3076dc66727f08e1d2c0d72e065f146d21e7e16d30a5795fa48"},
+    {14, ~T[21:00:00], "fb5093423df532e5d104d70b80dc8f167aa9b982f90a2285d1889099f74578cc"}
+  ]
+
+  # Row 6 is the receiving side of row 5's transfer, booked once from row 5.
+  @transfers_csv [
+    {2, nil, "9cc122a685eda8696518cfec1cf4cbb4da0ad33d624ab69348cda74f846f0c0d"},
+    {3, ~T[10:00:00], "7c79fb48c08f7015511f0031f5cc05a3c70efb6afcb6652e4615a1c632437294"},
+    {4, ~T[10:00:00], "033ab1ad155494ad13e7295f388a6ed2b138a4f8267fd27e78198f9d0f0b854d"},
+    {5, ~T[10:00:00], "48ef21fcd25187c892af421cae76e077ce3983afdceabb44a9b3e0dda437c41d"},
+    {7, nil, "b8c6d3ca5f183a827bc761acbabfed9c8c1e2500c474403001a8f68d14ad34fd"},
+    {8, ~T[21:00:00], "1f3c4d9e9a68668198e25349db5561a601db146723ff1db1faeedaadfb5995c9"}
+  ]
+
+  # Every shape of a `Datum` cell the parser reads on 7b822f7, with the time
+  # it reads and the hash of a removal of 25,00 on Test-Cash dated with it:
+  # the date alone, a blank time and midnight are no time; a time with
+  # seconds is read, its fraction kept, a `T` before it, a zone after it and
+  # a second space before it read as without.
+  @no_time "ea4cc1348bd07c133b10f52fd798219a507c14a7e215801f8b30508f33e7de53"
+  @at_0915 "36f19fba0bdf75cc816dfea5334eb1eafb16a8ad0fb9eb7abe3db077c46ae42f"
+
+  @datum_shapes [
+    {"2025-03-03", nil, @no_time},
+    {"2025-03-03 ", nil, @no_time},
+    {"2025-03-03    ", nil, @no_time},
+    {"2025-03-03 00:00:00", nil, @no_time},
+    {"2025-03-03 09:15:00", ~T[09:15:00], @at_0915},
+    {"2025-03-03  09:15:00", ~T[09:15:00], @at_0915},
+    {"2025-03-03 T09:15:00", ~T[09:15:00], @at_0915},
+    {"2025-03-03 09:15:00Z", ~T[09:15:00], @at_0915},
+    {"2025-03-03 09:15:00+01:00", ~T[09:15:00], @at_0915},
+    {"2025-03-03 09:15:00.250", ~T[09:15:00.250],
+     "af7fe2b340ba56f705372faf7b4529c97b161c31c92dce168af9c66e65caa762"}
+  ]
+
+  @csv_header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+  # Each entry's row, time of day and content hash, in the file's order.
+  defp timed_digests(body, name) do
+    {:ok, preview} = PortfolioPerformance.parse(body, filename: name)
+
+    digests =
+      Enum.map(preview.entries, fn entry ->
+        {entry.source_row, entry.time, ImportHash.compute(entry, @portfolio_id)}
+      end)
+
+    {digests, preview.errors}
+  end
+
+  # User story (#1370, Sprint 23 R1):
+  # As the operator of an instance that already imported a Portfolio
+  # Performance CSV export,
+  # I want every time of day the parser reads today read the same, and every
+  # content hash of the file's rows byte-identical, when the parser starts to
+  # refuse a time it cannot read,
+  # so that dropping the same export again books nothing twice.
+  #
+  # Acceptance criteria:
+  # - sample.csv and transfers.csv read every row's time and hash it to the
+  #   digest taken on 7b822f7; transfers.csv keeps its one warning, the
+  #   receiving side of row 5's transfer, and sample.csv has none.
+  # - Every shape of `Datum` read on 7b822f7 reads the same time, or none,
+  #   and the same hash, without a row error.
+  test "every CSV time read before the time check reads the same and keeps its digest" do
+    assert timed_digests(fixture("sample.csv"), "sample.csv") == {@sample_csv, []}
+
+    assert timed_digests(fixture("transfers.csv"), "transfers.csv") ==
+             {@transfers_csv,
+              [
+                %{
+                  row: 6,
+                  message: "receiving side of the transfer in row 5 — booked once, from that row"
+                }
+              ]}
+
+    for {datum, time, hash} <- @datum_shapes do
+      body = @csv_header <> datum <> ";Entnahme;;;;25,00;;;25,00;Test-Cash;;;\n"
+      assert timed_digests(body, "shapes.csv") == {[{2, time, hash}], []}, inspect(datum)
+    end
+  end
+
+  defp fixture(name), do: File.read!(Path.join(@fixtures, name))
+
   # Each row's content hash as `digests_of/2` takes it, the would-be entries
   # of the rows the preview refuses included, in the file's row order. Every
   # row of the file is in the list, entry or would-be entry, so none drops
