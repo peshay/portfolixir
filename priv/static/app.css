@@ -1427,6 +1427,42 @@ li + li {
   overflow-wrap: anywhere;
 }
 
+/* I1 (issue 1351, board ux-design-2026-11-01-sprint22/01-i1 ③): a clamped
+   note's text is cut to two lines, three under 560 px; its remedy controls
+   stay visible below the text, outside the clamp (pick Q1, correction 2).
+   „mehr“ is shown by the NoteClamp hook only where the text is cut; an
+   expanded note shows its text whole. */
+.data-note__text {
+  min-width: 0;
+}
+.data-note--clamped .data-note__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.data-note--clamped[data-expanded] .data-note__text {
+  display: block;
+  -webkit-line-clamp: none;
+  overflow: visible;
+}
+.data-note__actions {
+  margin-top: var(--space-2);
+}
+/* Two classes: `.link-button` comes later at one and draws the accent. */
+.data-note > .data-note__more {
+  flex: none;
+  align-self: flex-end;
+  margin-left: auto;
+  color: inherit;
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .data-note--clamped .data-note__text {
+    -webkit-line-clamp: 3;
+  }
+}
+
 .data-note--attention {
   border-color: var(--color-warning);
   background: var(--color-warning-soft);
