@@ -414,17 +414,13 @@ defmodule Portfolixir.Ledger.SettlementGuard do
     }
   end
 
-  # A row without quantity or price books no cash the guard can name; it is
-  # listed with the booked and expected cash left nil.
+  # A stored buy or sell always carries its quantity and price (the
+  # transactions_buy_sell_required_fields_check constraint), so the cash it
+  # books is always named.
   defp rate_only_row(row) do
-    booked = booked_cash(row.type, row)
-
-    expected =
-      if is_nil(booked),
-        do: nil,
-        else: expected_cash(row.type, stored_settlement(row), row.fees, row.taxes)
-
-    difference = if is_nil(booked), do: nil, else: Decimal.sub(booked, expected)
+    %Decimal{} = booked = booked_cash(row.type, row)
+    expected = expected_cash(row.type, stored_settlement(row), row.fees, row.taxes)
+    difference = Decimal.sub(booked, expected)
 
     row
     |> Map.delete(:settlement_amount)
