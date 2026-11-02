@@ -208,7 +208,8 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
   #
   # Acceptance criteria:
   # - dq-implausible-quote is a problem note after the other problem notes
-  #   (after dq-two-scales, whose bond it leaves out), reading as the board
+  #   (after dq-two-scales, whose bond it leaves out; the problems lead the
+  #   block since I1, #1351), reading as the board
   #   draws it: the sentence, linking to /securities?dq=implausible_quote,
   #   then "Arbolia Inc. (Verkauf 03.04.2026 zu 61,4 USD · Kurs 02.04.2026:
   #   618,9 USD, das 10,08-Fache)" and "Wrenfield Gardens AG (Kauf
@@ -260,8 +261,17 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
              )
     end
 
+    # The last of the problem notes, which lead the block since I1 (#1351,
+    # board 01 ⑤): the notes that name excluded rows and the fold follow.
     assert [_ | _] = order = roles(wealth, ~s([data-role="dq-notes"]))
-    assert List.last(order) == "dq-implausible-quote"
+
+    problems =
+      Enum.filter(
+        order,
+        &(&1 in ~w(dq-negative-holdings dq-two-scales dq-two-scales-reverse dq-implausible-quote))
+      )
+
+    assert List.last(problems) == "dq-implausible-quote"
     assert "dq-two-scales" in order
   end
 

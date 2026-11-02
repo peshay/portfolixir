@@ -2946,87 +2946,15 @@ defmodule PortfolixirWeb.PortfolioLive do
            glyph and word included, the remedy inside the note; one status
            region for the list, never a role per note. --%>
       <div role="status" data-role="dq-notes">
-        <AppShell.data_note :if={@trade_priced.count > 0} severity={:note} data-role="dq-trade-priced">
-          <%!-- The finding links to where it is fixed (#561): the securities
-               list pre-filtered to stale quotes.
-
-               Overview and Wealth both surface this condition, and that is a
-               role split rather than a duplication (#703): the Overview is the
-               "does anything need me?" surface and keeps the bare count as the
-               ALARM, while this page is where the number is distorted and so
-               states the CONSEQUENCE for the total and names the positions.
-               Naming them also makes this row consistent with every one of its
-               siblings, all of which join their entries. --%>
-          <a href="/securities?dq=stale_quote">
-            <%= ngettext(
-              "One held position is valued at its last trade price, so the total is not current:",
-              "%{count} held positions are valued at their last trade price, so the total is not current:",
-              @trade_priced.count
-            ) %>
-          </a>
-          <%= Enum.join(@trade_priced.names, ", ") %>
-        </AppShell.data_note>
+        <%!-- I1 (#1351, board ux-design-2026-11-01-sprint22/01-i1 ③ ④ ⑤;
+             pick Q1): the problems lead and never fold; the notes that name
+             rows left out of the totals clamp and never fold, so their
+             count stays visible (UX-DR25); the notes that only qualify the
+             totals fold into one line when two or more are present. Every
+             note clamps to two lines (three on a phone). --%>
         <AppShell.data_note
-          :if={@stale_priced.count > 0}
-          severity={:attention}
-          data-role="dq-stale-priced"
-        >
-          <%!-- #779 / #610 (Sprint 11 Lane X): a quoted position whose feed
-               has stopped reads as live without this row. It names the
-               positions with the date each price is from and the remedy —
-               the retired flag is what the performance walk keys on. --%>
-          <a href="/securities?dq=stale_quote&holding=held">
-            <%= ngettext(
-              "One held position is valued at a quote older than %{days} days, so the totals may be stale — mark it retired if its listing ended, or sync its quotes:",
-              "%{count} held positions are valued at quotes older than %{days} days, so the totals may be stale — mark them retired if their listings ended, or sync their quotes:",
-              @stale_priced.count,
-              days: @stale_priced.days
-            ) %>
-          </a>
-          <%= Enum.join(@stale_priced.names, ", ") %>
-        </AppShell.data_note>
-        <AppShell.data_note :if={@no_price.count > 0} severity={:attention} data-role="dq-no-price">
-          <a href="/securities?dq=missing_quote">
-            <%= ngettext(
-              "One held position has no price at all and is missing from the totals:",
-              "%{count} held positions have no price at all and are missing from the totals:",
-              @no_price.count
-            ) %>
-          </a>
-          <%= Enum.join(@no_price.names, ", ") %>
-        </AppShell.data_note>
-        <AppShell.data_note :if={@missing_fx.count > 0} severity={:attention} data-role="dq-missing-fx">
-          <%= ngettext(
-            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}.",
-            "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}.",
-            @missing_fx.count,
-            base: @valuation.base_currency,
-            entries: Enum.join(@missing_fx.names, ", ")
-          ) %>
-          <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
-        </AppShell.data_note>
-        <AppShell.data_note :if={@suspect_dates != []} severity={:attention} data-role="dq-suspect-dates">
-          <%= gettext(
-            "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
-            dates: Enum.map_join(@suspect_dates, ", ", &Format.date/1)
-          ) %>
-        </AppShell.data_note>
-        <AppShell.data_note :if={@unvalued_cash != []} severity={:attention} data-role="dq-unvalued-cash">
-          <%= ngettext(
-            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}.",
-            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
-            length(@unvalued_cash),
-            base: @valuation.base_currency,
-            names: Enum.map_join(@unvalued_cash, ", ", &ValuationNotes.unvalued_cash_label/1)
-          ) %>
-          <.fx_sync_control
-            :if={@missing_fx.count == 0}
-            syncing={@fx_syncing}
-            flash={@fx_sync_flash}
-            result={@fx_sync_result}
-          />
-        </AppShell.data_note>
-        <AppShell.data_note
+          id="dq-negative-holdings-note"
+          clamp
           :if={@negative_entries != []}
           severity={:problem}
           data-role="dq-negative-holdings"
@@ -3054,6 +2982,8 @@ defmodule PortfolixirWeb.PortfolioLive do
              converted. #1068 (board 02, pin 3): a bond named by its master
              data alone, with no stored class, carries a neutral badge. --%>
         <AppShell.data_note
+          id="dq-two-scales-note"
+          clamp
           :if={@two_scales_forward != []}
           severity={:problem}
           data-role="dq-two-scales"
@@ -3070,6 +3000,8 @@ defmodule PortfolixirWeb.PortfolioLive do
              its remedy is the stored quotes, so each name links to its
              Quotes tab. It names; nothing is converted (ADR-0052 §4). --%>
         <AppShell.data_note
+          id="dq-two-scales-reverse-note"
+          clamp
           :if={@two_scales_reverse != []}
           severity={:problem}
           data-role="dq-two-scales-reverse"
@@ -3091,6 +3023,8 @@ defmodule PortfolixirWeb.PortfolioLive do
              each name links to its Quotes tab. It names; nothing is
              converted. --%>
         <AppShell.data_note
+          id="dq-implausible-quote-note"
+          clamp
           :if={@implausible_quotes != []}
           severity={:problem}
           data-role="dq-implausible-quote"
@@ -3108,6 +3042,104 @@ defmodule PortfolixirWeb.PortfolioLive do
             lead_space={index > 0}
           />
         </AppShell.data_note>
+
+        <AppShell.data_note
+          id="dq-no-price-note"
+          clamp :if={@no_price.count > 0} severity={:attention} data-role="dq-no-price">
+          <a href="/securities?dq=missing_quote">
+            <%= ngettext(
+              "One held position has no price at all and is missing from the totals:",
+              "%{count} held positions have no price at all and are missing from the totals:",
+              @no_price.count
+            ) %>
+          </a>
+          <%= Enum.join(@no_price.names, ", ") %>
+        </AppShell.data_note>
+        <AppShell.data_note
+          id="dq-missing-fx-note"
+          clamp :if={@missing_fx.count > 0} severity={:attention} data-role="dq-missing-fx">
+          <%= ngettext(
+            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}.",
+            "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}.",
+            @missing_fx.count,
+            base: @valuation.base_currency,
+            entries: Enum.join(@missing_fx.names, ", ")
+          ) %>
+          <:actions>
+            <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
+          </:actions>
+        </AppShell.data_note>
+        <AppShell.data_note
+          id="dq-unvalued-cash-note"
+          clamp :if={@unvalued_cash != []} severity={:attention} data-role="dq-unvalued-cash">
+          <%= ngettext(
+            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}.",
+            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
+            length(@unvalued_cash),
+            base: @valuation.base_currency,
+            names: Enum.map_join(@unvalued_cash, ", ", &ValuationNotes.unvalued_cash_label/1)
+          ) %>
+          <:actions :if={@missing_fx.count == 0}>
+            <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
+          </:actions>
+        </AppShell.data_note>
+        <AppShell.data_note_fold
+          id="dq-folded-notes"
+          attention={Enum.count([@stale_priced.count > 0, @suspect_dates != []], & &1)}
+          note={if @trade_priced.count > 0, do: 1, else: 0}
+        >
+          <AppShell.data_note
+            id="dq-trade-priced-note"
+            clamp :if={@trade_priced.count > 0} severity={:note} data-role="dq-trade-priced">
+            <%!-- The finding links to where it is fixed (#561): the securities
+                 list pre-filtered to stale quotes.
+
+                 Overview and Wealth both surface this condition, and that is a
+                 role split rather than a duplication (#703): the Overview is the
+                 "does anything need me?" surface and keeps the bare count as the
+                 ALARM, while this page is where the number is distorted and so
+                 states the CONSEQUENCE for the total and names the positions.
+                 Naming them also makes this row consistent with every one of its
+                 siblings, all of which join their entries. --%>
+            <a href="/securities?dq=stale_quote">
+              <%= ngettext(
+                "One held position is valued at its last trade price, so the total is not current:",
+                "%{count} held positions are valued at their last trade price, so the total is not current:",
+                @trade_priced.count
+              ) %>
+            </a>
+            <%= Enum.join(@trade_priced.names, ", ") %>
+          </AppShell.data_note>
+          <AppShell.data_note
+            id="dq-stale-priced-note"
+            clamp
+            :if={@stale_priced.count > 0}
+            severity={:attention}
+            data-role="dq-stale-priced"
+          >
+            <%!-- #779 / #610 (Sprint 11 Lane X): a quoted position whose feed
+                 has stopped reads as live without this row. It names the
+                 positions with the date each price is from and the remedy —
+                 the retired flag is what the performance walk keys on. --%>
+            <a href="/securities?dq=stale_quote&holding=held">
+              <%= ngettext(
+                "One held position is valued at a quote older than %{days} days, so the totals may be stale — mark it retired if its listing ended, or sync its quotes:",
+                "%{count} held positions are valued at quotes older than %{days} days, so the totals may be stale — mark them retired if their listings ended, or sync their quotes:",
+                @stale_priced.count,
+                days: @stale_priced.days
+              ) %>
+            </a>
+            <%= Enum.join(@stale_priced.names, ", ") %>
+          </AppShell.data_note>
+          <AppShell.data_note
+            id="dq-suspect-dates-note"
+            clamp :if={@suspect_dates != []} severity={:attention} data-role="dq-suspect-dates">
+            <%= gettext(
+              "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
+              dates: Enum.map_join(@suspect_dates, ", ", &Format.date/1)
+            ) %>
+          </AppShell.data_note>
+        </AppShell.data_note_fold>
       </div>
     </section>
     """
