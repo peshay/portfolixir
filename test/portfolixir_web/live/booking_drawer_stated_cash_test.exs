@@ -15,7 +15,7 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
-  @note "Menge, Preis, Gebühren oder Steuern geändert: Der Betrag folgt nicht von selbst. " <>
+  @note "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag folgt nicht von selbst. " <>
           "Vorgeschlagen sind 816,00 = 10 × 81,00 + 5,00 + 1,00. Speichern übernimmt, was im " <>
           "Feld steht — den abgerechneten Betrag eintragen, wenn er abweicht."
 
@@ -214,13 +214,16 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
 
   # Acceptance criteria (ADR-0053's amendment, point 1, "on every write"):
   # - Turning the buy into a sell prefills the cash the sale's figures give,
-  #   10 × 80,00 − 5,00 − 1,00 = 794,00, and the save stores it.
+  #   10 × 80,00 − 5,00 − 1,00 = 794,00, shows the attention note with the
+  #   sale's sum (the closing act: a type change is noted as a figure change
+  #   is), and the save stores it.
   test "a buy turned into a sell prefills and saves the sale's cash",
        %{conn: conn, world: w, security: s, buy: buy} do
     view = open_edit(conn, buy.id)
     change(view, w, s, "type", "sell")
 
     assert form_inputs(view)["transaction[gross_amount]"] == "794,00"
+    assert text(view, ~s([data-role="cash-restate"])) =~ "794,00 = 10 × 80,00 − 5,00 − 1,00"
 
     submit(view, w, s, %{"type" => "sell"})
 

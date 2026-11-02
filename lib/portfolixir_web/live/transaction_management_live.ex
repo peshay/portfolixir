@@ -1352,11 +1352,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  # The attention note's sum, shown while a figure differs from the stored
-  # one: the cash does not follow the figures by itself.
-  defp cash_restate(form, %{figures: stored}) do
+  # The attention note's sum, shown while a figure or the type differs from
+  # the stored one: the cash does not follow the figures by itself.
+  defp cash_restate(form, stored) do
     with %{} = suggestion <- cash_suggestion(form),
-         false <- same_figures?(suggestion, stored) do
+         false <- as_stored?(suggestion, stored) do
       suggestion
     else
       _unchanged -> nil
@@ -1386,14 +1386,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp restate_note(%{type: "sell"} = sum) do
     gettext(
-      "Quantity, price, fees or taxes changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs.",
+      "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs.",
       restate_bindings(sum)
     )
   end
 
   defp restate_note(sum) do
     gettext(
-      "Quantity, price, fees or taxes changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} + %{fees} + %{taxes}. Saving takes what the field states — enter the amount settled if it differs.",
+      "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} + %{fees} + %{taxes}. Saving takes what the field states — enter the amount settled if it differs.",
       restate_bindings(sum)
     )
   end
