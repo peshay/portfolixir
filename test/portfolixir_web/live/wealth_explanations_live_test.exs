@@ -144,6 +144,18 @@ defmodule PortfolixirWeb.WealthExplanationsLiveTest do
              "Sync exchange rates"
            )
 
+    # Pick Q1, correction 2 (closing act): the problem's remedy links sit in
+    # the note's actions, never under the clamp.
+    negative = region <> " > [data-role='dq-negative-holdings']"
+
+    assert has_element?(
+             view,
+             negative <> " .data-note__actions a[href^='/securities/']",
+             "Doomed Co."
+           )
+
+    refute has_element?(view, negative <> " .data-note__text a")
+
     fold = region <> " > details.data-note-group--attention[data-role='folded-notes']"
     assert has_element?(view, fold <> " > summary", "1 Attention")
     assert has_element?(view, fold <> " > summary", "1 Note")

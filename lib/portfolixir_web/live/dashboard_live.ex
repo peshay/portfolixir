@@ -623,8 +623,9 @@ defmodule PortfolixirWeb.DashboardLive do
       >
         <h2><%= gettext("Data quality") %></h2>
         <%!-- One data-note at the highest severity present (UX-DR17); the
-             remedy links live inside the note. role="status" sits on the
-             region so the async arrival announces once. --%>
+             remedy links live inside the note, in its actions, so the clamp
+             never cuts them (#1351, pick Q1, correction 2). role="status"
+             sits on the region so the async arrival announces once. --%>
         <div role="status">
           <AppShell.data_note
             severity={dq_severity(@data_quality)}
@@ -632,19 +633,21 @@ defmodule PortfolixirWeb.DashboardLive do
             data-role="data-quality-line"
             clamp
           >
-            <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
-              <%= if index > 0 do %>
-                <span aria-hidden="true"> · </span>
+            <:actions>
+              <%= for {finding, index} <- Enum.with_index(dq_findings(@data_quality)) do %>
+                <%= if index > 0 do %>
+                  <span aria-hidden="true"> · </span>
+                <% end %>
+                <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
+                <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
+                     says what it does to the total above, after its link and
+                     outside it, so the link still names the list it opens.
+                     The card stays silent (#703's split, D-7). Keyed by
+                     `data-effect-of`, so the line's `data-role`s stay one per
+                     finding. --%>
+                <span :if={finding[:effect]} data-effect-of={finding.role}><%= finding.effect %></span>
               <% end %>
-              <a href={finding.href} data-role={finding.role}><%= finding.text %></a>
-              <%!-- #1121 (board 01 ③, pick N3 A): a finding in the total
-                   says what it does to the total above, after its link and
-                   outside it, so the link still names the list it opens.
-                   The card stays silent (#703's split, D-7). Keyed by
-                   `data-effect-of`, so the line's `data-role`s stay one per
-                   finding. --%>
-              <span :if={finding[:effect]} data-effect-of={finding.role}><%= finding.effect %></span>
-            <% end %>
+            </:actions>
           </AppShell.data_note>
         </div>
       </section>
