@@ -132,7 +132,9 @@ defmodule PortfolixirWeb.ApiV1JournalTest do
   end
 
   test "the journal read uses the shared limit parser, not its own" do
-    source = File.read!("lib/portfolixir_web/controllers/api/v1/journal_controller.ex")
+    # Sprint 23 V3: the parameters are read in JournalQuery, which the
+    # controller and the Audit journal page share.
+    source = File.read!("lib/portfolixir_web/controllers/api/v1/journal_query.ex")
 
     assert source =~ "ListLimit.parse(",
            "#811: the journal read must go through the family's parser"
