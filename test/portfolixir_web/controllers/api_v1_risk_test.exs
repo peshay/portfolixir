@@ -377,6 +377,40 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
     end
   end
 
+  # User story (#1343, Sprint 22 U4, board 02 ④):
+  # As the operator's agent reading the risk of a cash-only portfolio,
+  # I want a maximum drawdown of exactly 0 to serve no peak, trough or
+  # recovery date,
+  # so that I do not report a decline that never happened.
+  #
+  # Acceptance criteria:
+  # - Every window's max_drawdown reads "0" with peak_date,
+  #   trough_date and recovery_date null, and is not insufficient_data.
+  # - The computation basis says a drawdown of exactly 0 carries null dates.
+  test "a zero drawdown serves null peak, trough and recovery dates", %{conn: conn} do
+    world = base_world()
+    deposit!(world, "1000", Date.add(Date.utc_today(), -400))
+
+    metrics =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk")
+      |> json_response(200)
+      |> get_in(["data", "metrics"])
+
+    for window <- ~w(30d 90d 365d) do
+      drawdown = metrics["max_drawdown"][window]
+      assert drawdown["value"] == "0"
+      refute drawdown["insufficient_data"]
+      assert drawdown["peak_date"] == nil
+      assert drawdown["trough_date"] == nil
+      assert drawdown["recovery_date"] == nil
+    end
+
+    assert metrics["computation_basis"]["gaps"] =~
+             "A max_drawdown of exactly 0 carries null peak_date, trough_date and recovery_date"
+  end
+
   test "takes risk_free_rate as a Decimal string and refuses a malformed one", %{conn: conn} do
     world = risk_world()
     path = "/api/v1/portfolios/#{world.portfolio.id}/risk"
