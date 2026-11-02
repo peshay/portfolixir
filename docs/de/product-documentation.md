@@ -4398,8 +4398,9 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   kürzen. Die Abhilfe eines Hinweises — eine Schaltfläche zum
   Synchronisieren oder Nachladen, ein Link, eine Liste von Zeilen — bleibt
   unter der Kürzung sichtbar. Ein **Problem** steht immer zuerst. Ein
-  Hinweis, der sagt, was eine Summe **auslässt**, behält diese Anzahl in
-  seiner ersten Zeile und wird nie eingeklappt. Zwei oder mehr der übrigen
+  Hinweis, der sagt, was eine Summe **auslässt**, behält jede Anzahl in
+  seiner ersten Zeile — bei zwei oder mehr Gruppen nennt ein Vorspann
+  zuerst alle Anzahlen — und wird nie eingeklappt. Zwei oder mehr der übrigen
   Hinweise eines Blocks klappen zu einer Zeile mit ihren Anzahlen zusammen,
   etwa „1 Achtung · 1 Hinweis — Details anzeigen“.
 - Die Wertpapierauswahl des Imports sagt einem Screenreader, wie viele

@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
@@ -711,6 +712,13 @@ defmodule PortfolixirWeb.DashboardLive do
             data-role="trades-card-excluded"
             clamp
           >
+            <%!-- #1351 closing act (pick Q1; DESIGN.md ③): with two or more
+                 reasons every reason's count leads, so none falls below the
+                 clamp. --%>
+            <span
+              :if={counts = ExcludedSales.counts(@card.excluded.by_reason)}
+              data-role="trades-card-excluded-counts"
+            ><%= gettext("Left out of the trades: %{counts}.", counts: counts) %> </span>
             <%!-- #1198 (board 09, pick N8 A): the second reason in a
                  sentence of its own, the existing pointer to the backfill
                  after it. --%>
@@ -899,6 +907,7 @@ defmodule PortfolixirWeb.DashboardLive do
     assigns =
       assigns
       |> assign(:groups, ValuationNotes.excluded_groups(assigns.valuation))
+      |> assign(:counts, ValuationNotes.excluded_counts(assigns.valuation))
       |> assign(:active_id, assigns.active_view && assigns.active_view.id)
 
     ~H"""
@@ -912,7 +921,14 @@ defmodule PortfolixirWeb.DashboardLive do
       data-role="wealth-card-excluded"
       clamp
     >
-      <%= excluded_sentence(Enum.join(@groups, " · ")) %>
+      <%!-- #1351 closing act (pick Q1; DESIGN.md ③): with two or more
+           groups every group's count leads, so none falls below the clamp;
+           the groups with their names follow. --%>
+      <%= if length(@groups) > 1 do %>
+        <span data-role="wealth-card-excluded-counts"><%= gettext("Not in the total: %{counts}.", counts: Enum.join(@counts, ", ")) %> </span><%= excluded_groups_sentence(Enum.join(@groups, " · ")) %>
+      <% else %>
+        <%= excluded_sentence(Enum.join(@groups, " · ")) %>
+      <% end %>
       <%!-- The space before the link is the sentence's own: a parser that
            drops whitespace-only text between two elements keeps it. --%>
       <span :if={@active_id != @card.view_id} data-role="wealth-card-view"><%= view_sentence(@active_view, @card) %> </span>
@@ -938,6 +954,10 @@ defmodule PortfolixirWeb.DashboardLive do
   # A last name that ends in a full stop ("Harborline Freight Inc.") closes
   # the sentence itself; a second one would read "Inc.." (M6, on the shared
   # helper since #1208).
+  # The groups after their counts: the sentence ends once, as
+  # `excluded_sentence/1`'s does, on a name that ends in a full stop.
+  defp excluded_groups_sentence(groups), do: StoredText.ending_on(groups, &(&1 <> "."), & &1)
+
   defp excluded_sentence(groups) do
     StoredText.ending_on(
       groups,
