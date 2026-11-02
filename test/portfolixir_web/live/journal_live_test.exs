@@ -10,7 +10,9 @@ defmodule PortfolixirWeb.JournalLiveTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Journal.Entry
   alias Portfolixir.Portfolios
+  alias Portfolixir.Repo
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -377,6 +379,66 @@ defmodule PortfolixirWeb.JournalLiveTest do
     assert Enum.map(cells, &hd/1) == entry["before"] |> Map.keys() |> Enum.sort()
     assert Enum.all?(cells, fn [_field, _before, after_value] -> after_value == "—" end)
     assert ["name", "Brookfield Note", "—"] in cells
+  end
+
+  # User story:
+  # As the operator reading further back than one page,
+  # I want the page to page as the API does — a limit, and whether more
+  # matched — and to say when the list is cut,
+  # so that "the newest 100" never reads as "all 100" (UX-DR26), and a link
+  # with a limit reproduces what the agent read.
+  #
+  # Acceptance criteria:
+  # - ?limit=N lists the API's rows for limit=N; when the API answers
+  #   truncated, the basis line says „die neuesten N Einträge“ and
+  #   „Ältere Einträge zeigen“ links the next page, limit + 100.
+  # - A whole answer offers no further page.
+  # - At the API's maximum (1000) no further page exists: the page says so
+  #   and that a filter reaches older entries.
+  test "the page pages like the API", %{conn: conn} do
+    write_some_history!()
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de&limit=2")
+
+    assert page_ids(view) == api_ids(conn, %{"limit" => "2"})
+
+    assert view |> element("[data-role='journal-basis']") |> render() |> text() ==
+             "Neueste zuerst · die neuesten 2 Einträge · ohne Was-wäre-wenn-Szenarien · Zeiten in UTC"
+
+    view |> element("a[data-role='journal-more']", "Ältere Einträge zeigen") |> render_click()
+    assert_patch(view, "/journal?limit=102")
+
+    assert page_ids(view) == api_ids(conn, %{"limit" => "102"})
+    refute has_element?(view, "[data-role='journal-more']")
+
+    # The API's maximum: 1001 synthetic entries, written as rows (inserts are
+    # what the append-only journal allows).
+    now = DateTime.utc_now()
+
+    rows =
+      for n <- 1..1001 do
+        %{
+          actor_type: :system_job,
+          actor_label: "synthetic",
+          operation: :create,
+          resource_type: "setting",
+          resource_id: "page-#{n}",
+          after: %{"key" => "page-#{n}"},
+          inserted_at: now
+        }
+      end
+
+    Repo.insert_all(Entry, rows)
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de&limit=1000")
+    assert length(page_ids(view)) == 1000
+    refute has_element?(view, "[data-role='journal-more']")
+
+    assert has_element?(
+             view,
+             "[data-role='journal-at-max']",
+             "Hier stehen die neuesten 1000, mehr fasst eine Seite nicht; ein Filter erreicht ältere Einträge."
+           )
   end
 
   # -- helpers ------------------------------------------------------------------

@@ -263,6 +263,20 @@ defmodule PortfolixirWeb.JournalLive do
                 </tbody>
               </table>
             </div>
+
+            <%!-- Paged like the API (#1254): the limit grows by one page
+                 until the API's maximum, which a filter reaches past. --%>
+            <p :if={@truncated and not at_max?(@opts)} class="journal-more">
+              <.link patch={path(Keyword.put(@opts, :limit, next_limit(@opts)))} data-role="journal-more">
+                <%= gettext("Show older entries") %>
+              </.link>
+            </p>
+            <p :if={@truncated and at_max?(@opts)} class="hint" data-role="journal-at-max">
+              <%= gettext(
+                "The newest %{max} are shown, the most one page holds; a filter reaches older entries.",
+                max: JournalQuery.max_limit()
+              ) %>
+            </p>
           <% end %>
         </section>
       </div>
@@ -359,10 +373,10 @@ defmodule PortfolixirWeb.JournalLive do
 
   # The basis line restates what the list is (UX-DR11): its order, its
   # size, the filters it applies and the time zone of its times.
-  defp basis(opts, rows, _truncated) do
+  defp basis(opts, rows, truncated) do
     clauses = [
       gettext("Newest first"),
-      ngettext("%{count} entry", "%{count} entries", length(rows)),
+      count_clause(length(rows), truncated),
       opts[:actor_type] && gettext("actor %{actor}", actor: Row.actor_label(opts[:actor_type])),
       opts[:operation] &&
         gettext("operation %{operation}", operation: Row.operation_label(opts[:operation])),
@@ -376,6 +390,19 @@ defmodule PortfolixirWeb.JournalLive do
 
     clauses |> Enum.reject(&(&1 in [nil, false])) |> Enum.join(" · ")
   end
+
+  # A cut answer says so (UX-DR26): "the newest 100", never "100".
+  defp count_clause(count, true = _truncated),
+    do: ngettext("the newest %{count} entry", "the newest %{count} entries", count)
+
+  defp count_clause(count, false = _truncated),
+    do: ngettext("%{count} entry", "%{count} entries", count)
+
+  # The API's paging: a larger limit, until its maximum.
+  defp next_limit(opts),
+    do: min(opts[:limit] + JournalQuery.default_limit(), JournalQuery.max_limit())
+
+  defp at_max?(opts), do: opts[:limit] >= JournalQuery.max_limit()
 
   defp entity_clause(opts) do
     case {opts[:resource_type], opts[:resource_id]} do
