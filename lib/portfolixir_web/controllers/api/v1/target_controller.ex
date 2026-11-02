@@ -53,6 +53,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
       {:error, :since} -> unprocessable(conn, %{since: ["is invalid"]})
+      {:error, :classification_id} -> unprocessable(conn, %{classification_id: ["is invalid"]})
       {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
@@ -133,6 +134,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       {:error, :view} -> invalid_view(conn)
       {:error, :min_drift} -> unprocessable(conn, %{min_drift: ["is invalid"]})
       {:error, :since} -> unprocessable(conn, %{since: ["is invalid"]})
+      {:error, :classification_id} -> unprocessable(conn, %{classification_id: ["is invalid"]})
       {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
@@ -310,18 +312,18 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # #1185: the reads take the writes' plan_id with the writes' refusals; a
   # classification_id beside it must be the plan's, as the PUT's must.
   defp read_scope(params, pid, view) do
-    opts = list_opts(params, view)
+    with {:ok, opts} <- list_opts(params, view) do
+      plan_scope(Map.get(params, "plan_id"), opts, pid, view)
+    end
+  end
 
-    case Map.get(params, "plan_id") do
-      absent when absent in [nil, ""] ->
-        {:ok, opts, nil}
+  defp plan_scope(absent, opts, _pid, _view) when absent in [nil, ""], do: {:ok, opts, nil}
 
-      raw ->
-        with {:ok, plan} <- writable_plan(raw, pid),
-             :ok <- same_view(plan, view),
-             :ok <- same_classification(plan, Keyword.get(opts, :classification_id)) do
-          {:ok, [plan: plan.id] ++ opts, plan}
-        end
+  defp plan_scope(raw, opts, pid, view) do
+    with {:ok, plan} <- writable_plan(raw, pid),
+         :ok <- same_view(plan, view),
+         :ok <- same_classification(plan, Keyword.get(opts, :classification_id)) do
+      {:ok, [plan: plan.id] ++ opts, plan}
     end
   end
 
@@ -354,12 +356,22 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp since_opts(opts, nil), do: opts
   defp since_opts(opts, %{cut: cut}), do: Keyword.put(opts, :changed_since, cut)
 
+  # #1301: a classification_id that is not an id is refused, as the PUT
+  # refuses it, instead of dropped: dropped, the read answered for every
+  # classification (or, beside plan_id, the plan's) as if it was not sent.
+  # Empty stays absent, as an empty plan_id does.
   defp list_opts(params, view) do
     base = ViewParam.opts(view)
 
-    case IdParam.parse(Map.get(params, "classification_id")) do
-      {:ok, cid} -> [{:classification_id, cid} | base]
-      :error -> base
+    case Map.get(params, "classification_id") do
+      absent when absent in [nil, ""] ->
+        {:ok, base}
+
+      raw ->
+        case IdParam.parse(raw) do
+          {:ok, cid} -> {:ok, [{:classification_id, cid} | base]}
+          :error -> {:error, :classification_id}
+        end
     end
   end
 

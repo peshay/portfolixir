@@ -1424,4 +1424,51 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
 
     assert active["drift_basis"] =~ clause
   end
+
+  # User story (#1301, Sprint 22):
+  # As the operator's agent reading a plan version's targets by plan_id,
+  # I want a malformed classification_id refused instead of dropped,
+  # so that I never read the default classification's (or the plan's) rows
+  # believing my filter held.
+  #
+  # Acceptance criteria:
+  # - GET /targets and GET /position_targets answer 422
+  #   errors.classification_id ["is invalid"] for a classification_id that is
+  #   not a positive integer id, beside plan_id and alone, as the PUT does.
+  # - An empty classification_id stays absent: the read answers 200 for the
+  #   default scope.
+  test "the target reads refuse a malformed classification_id with 422", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core} = setup_world()
+
+    pid = portfolio.id
+    targets = "/api/v1/portfolios/#{pid}/targets"
+    positions = "/api/v1/portfolios/#{pid}/position_targets"
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "0.8"}]
+    })
+    |> json_response(200)
+
+    [%{id: plan_id}] = Targets.list_plans(pid, classification_id: classification.id)
+
+    for path <- [targets, positions],
+        query <- [
+          "plan_id=#{plan_id}&classification_id=abc",
+          "plan_id=#{plan_id}&classification_id=0",
+          "classification_id=abc",
+          "classification_id=-3"
+        ] do
+      assert get_json(conn, "#{path}?#{query}") |> json_response(422) ==
+               %{"errors" => %{"classification_id" => ["is invalid"]}},
+             "#{path}?#{query}"
+    end
+
+    assert [%{"category_id" => category_id, "target_weight" => "0.8"}] =
+             get_json(conn, "#{targets}?classification_id=&plan_id=#{plan_id}")
+             |> json_response(200)
+             |> get_in(["data", "targets"])
+
+    assert category_id == core.id
+  end
 end
