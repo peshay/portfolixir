@@ -93,6 +93,8 @@ defmodule PortfolixirWeb.Router do
       live("/classifications", ClassificationsLive, :index)
       live("/classifications/new", ClassificationsLive, :new)
       live("/classifications/:id", ClassificationsLive, :show)
+      # Sprint 23 V3 (U2): the audit journal's page, beside GET /api/v1/journal.
+      live("/journal", JournalLive)
     end
   end
 

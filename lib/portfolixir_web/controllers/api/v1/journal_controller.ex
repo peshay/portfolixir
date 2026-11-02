@@ -8,8 +8,10 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   (non-scenario) writes are returned; `include_scenarios=true` adds persisted
   what-if entries.
 
-  `limit=` goes through `PortfolixirWeb.Api.V1.ListLimit.parse/3`, the one
-  parser of the bounded-list family (#771, #776, #811): absent or blank is the
+  The parameters are read by `PortfolixirWeb.Api.V1.JournalQuery`, which the
+  Audit journal page reads them with too (Sprint 23 V3), so both answer the
+  same rows. `limit=` goes through `PortfolixirWeb.Api.V1.ListLimit.parse/3`,
+  the one parser of the bounded-list family (#771, #776, #811): absent or blank is the
   default, an oversized value is capped at the maximum and echoed in
   `meta.filters.limit` and beside `data` with `truncated` (#1254), and zero, a negative or a non-number is a `422` naming
   the field.
@@ -19,34 +21,18 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   """
   use PortfolixirWeb, :controller
 
-  alias Portfolixir.Actor
-  alias Portfolixir.Journal
-  alias Portfolixir.Journal.Entry
+  alias PortfolixirWeb.Api.V1.JournalQuery
   alias PortfolixirWeb.Api.V1.JSON
-  alias PortfolixirWeb.Api.V1.ListLimit
-  alias PortfolixirWeb.Api.V1.TextParam
-
-  # #811: the bound is the family's, spelled the family's way. This read
-  # carried its own copy of the parser until Sprint 13 — identical in
-  # behaviour and therefore exactly the kind of duplicate that drifts.
-  @default_limit 100
-  @max_limit 1000
 
   def index(conn, params) do
-    case list_opts(params) do
+    case JournalQuery.parse(params) do
       {:ok, opts} ->
-        limit = Keyword.fetch!(opts, :limit)
-
         # #1254: one row past the limit tells a cut answer from the whole.
-        {entries, truncated} =
-          opts
-          |> Keyword.put(:limit, ListLimit.fetch(limit))
-          |> Journal.list_entries()
-          |> ListLimit.page(limit)
+        {entries, truncated} = JournalQuery.list(opts)
 
         json(conn, %{
           data: Enum.map(entries, &JSON.journal_entry/1),
-          limit: limit,
+          limit: Keyword.fetch!(opts, :limit),
           truncated: truncated,
           meta: meta(opts, entries)
         })
@@ -77,47 +63,4 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
       limit: opts[:limit]
     }
   end
-
-  defp list_opts(params) do
-    with {:ok, resource_type} <- text_param(params, "resource_type"),
-         {:ok, resource_id} <- text_param(params, "resource_id"),
-         {:ok, actor_type} <- enum_param(params, "actor_type", Actor.types()),
-         {:ok, operation} <- enum_param(params, "operation", Entry.operations()),
-         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
-      opts =
-        [limit: limit, include_scenarios: params["include_scenarios"] == "true"]
-        |> put_if_present(:resource_type, resource_type)
-        |> put_if_present(:resource_id, resource_id)
-        |> put_if_present(:actor_type, actor_type)
-        |> put_if_present(:operation, operation)
-
-      {:ok, opts}
-    end
-  end
-
-  # The text rule every writer meets (TextParam, G24 review round).
-  defp text_param(params, key) do
-    case TextParam.parse(params, key) do
-      {:ok, text} -> {:ok, text}
-      :error -> {:error, String.to_existing_atom(key)}
-    end
-  end
-
-  # Accepts a closed-enum string and maps it to its atom without
-  # `String.to_atom` (no atom-table growth from untrusted input).
-  defp enum_param(params, key, allowed) do
-    case Map.get(params, key) do
-      value when value in [nil, ""] ->
-        {:ok, nil}
-
-      value ->
-        case Enum.find(allowed, fn atom -> Atom.to_string(atom) == value end) do
-          nil -> {:error, String.to_existing_atom(key)}
-          atom -> {:ok, atom}
-        end
-    end
-  end
-
-  defp put_if_present(opts, _key, value) when value in [nil, ""], do: opts
-  defp put_if_present(opts, key, value), do: Keyword.put(opts, key, value)
 end
