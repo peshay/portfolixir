@@ -1008,7 +1008,8 @@ with cash accounts and no depot, the drawer opens on the cash form with
 alone — interest, deposit, removal, fee, tax and tax refund; buys, sells
 and dividends need a depot and a security, so they are absent. The line
 above the history says so: "Buys and sells need a depot. Deposits,
-removals, interest, fees and taxes book on a cash account alone."
+removals, interest, fees, taxes and tax refunds book on a cash account
+alone."
 
 **The kinds the drawer does not book** (issue #912): the drawer records and
 corrects buys, sells and the cash kinds above. **Edit** on any other
