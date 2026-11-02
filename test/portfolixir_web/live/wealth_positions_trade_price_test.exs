@@ -175,4 +175,65 @@ defmodule PortfolixirWeb.WealthPositionsTradePriceTest do
     basis = view |> element(~s([data-role="positions-basis"])) |> render()
     assert basis =~ "oder, ohne Kurs, zum letzten eigenen Handelspreis"
   end
+
+  # User story (Sprint 22 closing act, S3 on the R8 surface):
+  # As a local portfolio maintainer reading Wealth's positions,
+  # I want a row whose market value is "—" because no exchange rate reaches
+  # the base currency to say so in its cell,
+  # so that it reads apart from a row with no price, and I know it is in no
+  # total.
+  #
+  # Acceptance criteria:
+  # - A CHF position quoted at 50.00 CHF with no CHF rate stored reads its
+  #   price and, in the market value cell, "— no exchange rate · not in the
+  #   total"; in German "— ohne Wechselkurs · nicht in der Summe".
+  # - A priced row in the base currency carries no such note.
+  test "a row with no exchange rate to the base says so in its market value",
+       %{
+         conn: conn,
+         world: world
+       } = ctx do
+    %{cash: francs, depot: swiss_depot} =
+      WorldFixtures.add_depot(world.portfolio,
+        cash_name: "Franc Cash",
+        depot_name: "Swiss Depot",
+        currency: "CHF"
+      )
+
+    swiss = %{world | cash: francs, depot: swiss_depot}
+
+    alpine =
+      WorldFixtures.create_security!(name: "Alpine Example AG", ticker: "ALP", currency: "CHF")
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: swiss.depot.id,
+        security_id: alpine.id,
+        type: "inbound_delivery",
+        date: ~D[2025-02-01],
+        quantity: "3",
+        currency_code: "CHF"
+      })
+
+    WorldFixtures.put_quote!(alpine, ~D[2025-06-30], "50.00")
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+    render_change(view, "set_holdings_columns", %{"columns" => @columns})
+
+    assert row_cells(view, alpine)["latest_price"] == "50.00 CHF"
+    assert row_cells(view, alpine)["market_value"] == "— no exchange rate · not in the total"
+    assert row_cells(view, ctx.quoted)["market_value"] == "1,200.00 EUR"
+
+    {:ok, de_view, _html} =
+      conn
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie("portfolixir_locale", "de")
+      |> live("/portfolio")
+
+    render_async(de_view)
+    render_change(de_view, "set_holdings_columns", %{"columns" => @columns})
+
+    assert row_cells(de_view, alpine)["market_value"] == "— ohne Wechselkurs · nicht in der Summe"
+  end
 end
