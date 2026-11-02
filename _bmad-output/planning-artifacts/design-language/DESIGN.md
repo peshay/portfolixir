@@ -8190,10 +8190,11 @@ booked with its cash — shows that cash in the edit drawer. Top to bottom:
    Konto bewegt. Gespeichert: 806,00 (wie importiert).“; a row no import
    stored drops the parenthesis. The input's `aria-describedby` names the
    help line, and its error first when there is one.
-4. When quantity, price, fees or taxes differ from the stored ones, one
+4. When quantity, price, fees, taxes or the type (Kauf/Verkauf) differ
+   from the stored ones, one
    **attention** data note below the grid (`data-role="cash-restate"`,
-   `AppShell.data_note` with `:attention`): „Menge, Preis, Gebühren oder
-   Steuern geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind
+   `AppShell.data_note` with `:attention`): „Menge, Preis, Gebühren, Steuern
+   oder Kauf/Verkauf geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind
    816,00 = 10 × 81,00 + 5,00 + 1,00. Speichern übernimmt, was im Feld steht
    — den abgerechneten Betrag eintragen, wenn er abweicht.“ A sale's sum
    reads with minus signs („358,50 = 4 × 91,00 − 3,00 − 2,50“): its cash is
@@ -8205,7 +8206,10 @@ booked with its cash — shows that cash in the edit drawer. Top to bottom:
 **Behaviour.** A change of quantity, price, fees or taxes, or of the type
 between Kauf and Verkauf (the sum's sign flips), prefills the field with
 what the figures derive, rounded to the cent; a figure the
-operator types into the field stands until a figure changes again. Saving
+operator types into the field stands until a figure changes again. Figures
+and type changed back to the stored ones put the stored cash back in the
+field, and the note goes (amended 2026-11-02, the sprint PR's closing act,
+with the note on a type change). Saving
 takes what the field states. A figure off by more than a cent is refused by
 the ledger with the field's own error (`#tx-error-gross_amount`): „passt
 nicht zu Menge × Preis, Gebühren und Steuern — erwartet 816,00“, the

@@ -4238,13 +4238,13 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:654
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:657
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:384
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:672
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:675
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:396
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -14021,16 +14021,6 @@ msgstr ""
 msgid "unreadable time “%{time}”: use HH:MM:SS — row not imported"
 msgstr ""
 
-#: lib/portfolixir_web/live/transaction_management_live.ex:1395
-#, elixir-autogen, elixir-format
-msgid "Quantity, price, fees or taxes changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} + %{fees} + %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
-msgstr ""
-
-#: lib/portfolixir_web/live/transaction_management_live.ex:1388
-#, elixir-autogen, elixir-format
-msgid "Quantity, price, fees or taxes changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
-msgstr ""
-
 #: lib/portfolixir_web/live/transaction_management_live.ex:1413
 #, elixir-autogen, elixir-format
 msgid "The cash the account moves. Stored: %{amount} (as imported)."
@@ -14049,4 +14039,14 @@ msgstr ""
 #: lib/portfolixir_web/live/transaction_management_live.ex:3128
 #, elixir-autogen, elixir-format
 msgid "Priced at the last own trade price: %{price} (%{date})."
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:1395
+#, elixir-autogen, elixir-format
+msgid "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} + %{fees} + %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:1388
+#, elixir-autogen, elixir-format
+msgid "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
 msgstr ""
