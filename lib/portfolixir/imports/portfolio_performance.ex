@@ -622,6 +622,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
         time: shown_value(value)
       )
 
+  @doc """
+  The row message for the time of a CSV `Datum` the parser cannot read
+  (#1370), as `time_message/1` names a JSON v1 one (#1306), with the one
+  form the CSV reads. HH:MM is not among them: the CSV read it as no time
+  before, so a row stored from it hashes without one, and reading it now
+  would book that row a second time (ADR-0053's note of 2026-11-02).
+  """
+  @spec csv_time_message(String.t()) :: String.t()
+  def csv_time_message(value),
+    do:
+      gettext("unreadable time “%{time}”: use HH:MM:SS — row not imported",
+        time: shown_value(value)
+      )
+
   @shown_max 40
   @controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u
 
