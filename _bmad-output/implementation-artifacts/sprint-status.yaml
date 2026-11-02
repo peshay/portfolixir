@@ -264,6 +264,12 @@ story_location: _bmad-output/implementation-artifacts
 # THE OWNER'S QUESTIONS: #1371 (needs-decision, recommended (b)); the
 # merges.
 #
+# RETROSPECTIVE (Sprint 22): sprint-22-retro-2026-11-02.md, with its
+# carry-forwards for Sprint 23: the gate-script GIT_DIR fix on #1364
+# before agents commit in worktrees again; a gettext merge tool; #1371's
+# decision; R6's and A4's human views; Lane I's later pages; #1115, the
+# MCP SDK v2 move, before 2027-01-27.
+#
 # EPIC STATES AFTER THESE MERGES: E26 STAYS IN PROGRESS, FOR THE OWNER'S
 # ANNOUNCEMENT DECISION ALONE. Sprint 22 was not E26's scope.
 #
