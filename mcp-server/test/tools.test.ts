@@ -4389,6 +4389,28 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool?.description ?? "", /neither: every portfolio, in EUR/);
   });
 
+  // User story (#1368; plan R3 and D-4, ADR-0010):
+  // As the agent reading a category's result,
+  // I want the tool to say that a member without a quote is valued at its
+  // last own trade price, as the valuation is, and where each member names
+  // it,
+  // so that I neither take a trade-priced member for a gap nor expect the
+  // roll-up to disagree with the valuation's total.
+  //
+  // Acceptance criteria: the description names the price rule, price_source
+  // on each position, and that only a member with neither price is
+  // no_usable_price.
+  it("category_results names the price rule its members are valued by (#1368)", () => {
+    const tool = listTools().find(
+      (candidate) => candidate.name === "portfolixir.portfolios.category_results"
+    );
+    const text = tool?.description ?? "";
+
+    assert.match(text, /latest quote, without one its last own trade price/);
+    assert.match(text, /price_source \(quote \| trade\)/);
+    assert.match(text, /neither quote nor trade price/);
+  });
+
   // User story (issue #737): the one-shot historical backfill rides the
   // existing sync tool as scope=history; the default stays the daily feed.
   it("passes scope=history to exchange_rates.sync and keeps the empty body by default", async () => {

@@ -229,4 +229,84 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
     assert text(Floki.find(doc, ~s([data-role="category-result-basis"]))) =~
              ~r/^Ansicht Alles ?\x{00A0}· in EUR\x{00A0}· Ergebnis: heutige Zusammensetzung/u
   end
+
+  # User story (#1368; plan R3, board 02 ①c):
+  # As a local portfolio maintainer reading a category's cost and result,
+  # I want a member without a quote counted at its last own trade price, as
+  # Wealth counts it, and named as such on its row,
+  # so that the category's figures agree with Wealth and I can see which
+  # values stand at a trade price rather than a quote.
+  #
+  # Acceptance criteria:
+  # - A trade-priced member's value names „zum Handelspreis“ / "at trade
+  #   price"; a quoted member's does not.
+  # - The category's cost and result count it; the excluded note keeps only
+  #   the member no rule can value.
+  # - The basis line names the price rule: "prices: the latest quote,
+  #   without one the last own trade price".
+  test "a trade-priced member names its price source and counts in cost and result",
+       %{conn: conn} do
+    world = base_world()
+    quoted = create_security!(name: "Quoted ETF", ticker: "QTD", currency: "EUR")
+    traded = create_security!(name: "Traded AG", ticker: "TRD", currency: "EUR")
+    dark = create_security!(name: "Dark AG", ticker: "DRK", currency: "EUR")
+
+    deposit!(world, "10000", ~D[2026-01-01])
+    buy!(world, quoted, quantity: "10", price: "100", date: ~D[2026-01-02])
+    buy!(world, traded, quantity: "10", price: "40", date: ~D[2026-01-02])
+    buy!(world, traded, quantity: "10", price: "50", date: ~D[2026-02-02])
+    deliver_untraded!(world, dark, "3")
+    put_quote!(quoted, ~D[2026-03-02], "110")
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    for security <- [quoted, traded, dark] do
+      {:ok, _} =
+        Classifications.assign_security(Actor.owner_ui(), security.id, classification.id, core.id)
+    end
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    render_async(view)
+    doc = view |> render() |> Floki.parse_document!()
+
+    value_of = fn doc, name ->
+      doc
+      |> Floki.find(~s(li[data-role="security-row"]))
+      |> Enum.find(&(text(Floki.find(&1, ".row-name")) == name))
+      |> Floki.find(~s([data-role="security-value"]))
+    end
+
+    # Traded AG: 20 at its last own trade price 50,00 = 1,000.00, cost 900.00.
+    assert text(value_of.(doc, "Traded AG")) == "at trade price 1,000.00"
+    assert [_] = Floki.find(value_of.(doc, "Traded AG"), "small.cell-note")
+    assert text(value_of.(doc, "Quoted ETF")) == "1,100.00"
+
+    # Cost 1,000.00 + 900.00, result +100.00 + +100.00: Wealth's figures.
+    core_row = row_for(doc, "Core")
+    assert text(Floki.find(core_row, ~s([data-role="category-invested"]))) == "1,900.00"
+    assert text(Floki.find(core_row, ~s([data-role="category-result"]))) =~ "+200.00"
+
+    excluded = text(Floki.find(doc, ~s([data-role="category-result-excluded"])))
+    assert excluded =~ "Dark AG"
+    refute excluded =~ "Traded AG"
+
+    assert text(Floki.find(doc, ~s([data-role="category-result-basis"]))) =~
+             " · prices: the latest quote, without one the last own trade price"
+
+    {:ok, de, _html} = live(conn, "/classifications/#{classification.id}?locale=de")
+    render_async(de)
+    de_doc = de |> render() |> Floki.parse_document!()
+
+    assert text(value_of.(de_doc, "Traded AG")) == "zum Handelspreis 1.000,00"
+
+    assert text(Floki.find(de_doc, ~s([data-role="category-result-basis"]))) =~
+             "Kurse: der neueste, ohne Kurs der letzte eigene Handelspreis"
+  end
 end

@@ -585,4 +585,129 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
            )
            |> json_response(404)
   end
+
+  defp sum_field(rows, ids, key) do
+    rows
+    |> Enum.filter(&(&1["security_id"] in ids))
+    |> Enum.reduce(Decimal.new("0"), &Decimal.add(&2, Decimal.new(Map.fetch!(&1, key))))
+  end
+
+  # User story (#1368; plan R3 and D-4, ADR-0010):
+  # As the LLM agent maintaining this portfolio,
+  # I want the category result to value a member without a quote at its last
+  # own trade price, as GET /api/v1/portfolios/:id/valuation and the holdings
+  # read do, with each member's price_source and the price rule in the
+  # computation basis,
+  # so that a category's figures add up to what the valuation serves for the
+  # same positions, and I can say which members stand at a trade price.
+  #
+  # Acceptance criteria:
+  # - A trade-priced member is covered; its position row carries
+  #   price_source "trade" and its price_date; a quoted one's is "quote".
+  # - The category's current_value, invested and result_abs equal, exactly,
+  #   the valuation's market values and the holdings read's base_cost and
+  #   total_return_base_abs summed over those positions, also for a USD
+  #   member at a rate that moved since its buys.
+  # - A member with neither a quote nor a trade price stays in
+  #   excluded_members as no_usable_price.
+  # - basis_note names the price rule.
+  test "a member without a quote reads its trade price, the same figure as the valuation",
+       %{conn: conn} do
+    world = seed()
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-01],
+          rate: "1.6",
+          source: "manual"
+        }
+      ])
+
+    beta = create_security!(name: "Beta AG", ticker: "BET")
+    gamma = create_security!(name: "Gamma Inc", ticker: "GAM", currency: "USD")
+
+    for security <- [beta, gamma] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          security.id,
+          world.classification.id,
+          world.core.id
+        )
+    end
+
+    # Beta: 10 at 50,00 and 10 at 61,50, no quote -- cost 1.115,00, worth
+    # 1.230,00. Gamma: 10 at 110 USD settled at 990,00 EUR and 5 at 120 USD
+    # settled at 480,00 EUR, no quote, now at 0,625 -- cost 1.470,00, worth
+    # 1.125,00.
+    buy!(world, beta, quantity: "10", price: "50", date: ~D[2026-01-02])
+    buy!(world, beta, quantity: "10", price: "61.5", date: ~D[2026-02-02])
+
+    cross_trade!(world, gamma,
+      quantity: "10",
+      price: "110",
+      settled: "990",
+      gross: "990",
+      date: ~D[2026-01-02]
+    )
+
+    cross_trade!(world, gamma,
+      quantity: "5",
+      price: "120",
+      settled: "480",
+      gross: "480",
+      date: ~D[2026-02-02]
+    )
+
+    portfolio = "/api/v1/portfolios/#{world.portfolio.id}"
+    ids = [world.alpha.id, beta.id, gamma.id]
+
+    valuation = get_json(conn, portfolio <> "/valuation") |> json_response(200)
+    holdings = get_json(conn, portfolio <> "/holdings") |> json_response(200)
+
+    value = sum_field(valuation["data"]["positions"], ids, "market_value")
+    invested = sum_field(holdings["data"], ids, "base_cost")
+    result = sum_field(holdings["data"], ids, "total_return_base_abs")
+
+    assert Decimal.equal?(value, Decimal.new("3855"))
+    assert Decimal.equal?(invested, Decimal.new("3585"))
+    assert Decimal.equal?(result, Decimal.new("270"))
+
+    for path <- [
+          portfolio <> "/category-results?classification_id=#{world.classification.id}",
+          "/api/v1/category-results?classification_id=#{world.classification.id}"
+        ] do
+      data = get_json(conn, path) |> json_response(200) |> Map.fetch!("data")
+
+      assert [core] = data["categories"]
+      assert Decimal.equal?(Decimal.new(core["current_value"]), value)
+      assert Decimal.equal?(Decimal.new(core["invested"]), invested)
+      assert Decimal.equal?(Decimal.new(core["result_abs"]), result)
+      assert core["covered_count"] == 3
+      assert core["member_count"] == 4
+
+      positions = Map.new(core["positions"], &{&1["security_id"], &1})
+
+      assert positions[world.alpha.id]["price_source"] == "quote"
+      assert positions[beta.id]["price_source"] == "trade"
+      assert positions[beta.id]["price_date"] == "2026-02-02"
+      assert positions[beta.id]["current_value"] == "1230"
+      assert positions[gamma.id]["price_source"] == "trade"
+
+      assert Decimal.equal?(
+               Decimal.new(positions[gamma.id]["current_value"]),
+               Decimal.new("1125")
+             )
+
+      assert [%{"security_name" => "Dark AG", "reason" => "no_usable_price"}] =
+               data["excluded_members"]
+
+      assert data["basis_note"] =~
+               "Each member is priced by the valuation's rule: its latest quote, " <>
+                 "without one its last own trade price"
+    end
+  end
 end

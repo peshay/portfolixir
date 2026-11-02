@@ -11687,6 +11687,17 @@ dialog.merge-dialog {
   white-space: nowrap;
 }
 
+/* Issue 1368 (board ux-design-2026-11-02-sprint23/02 ①c): a category
+   member's value names its price source ("zum Handelspreis") inline, before
+   the figure, in the cell-note's muted voice. */
+.row-value .cell-note {
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* The bar rides under its own figure, right-aligned with it: decorative
    (aria-hidden), the figure carries the sign and the colour (UX-DR7). */
 .contribution-table td.contribution-table__figure .drift-bar {

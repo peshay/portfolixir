@@ -62,7 +62,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "(#1115)"
     assert hd(Contract.entries()).prompts == []
 
-    assert [unknown_prompt, no_params, stdio_cap | r2] = newest["parameters"]
+    # Each story of the sprint appends its own items; each is found by its
+    # issue, so a later story's item does not move another's.
+    params = newest["parameters"]
+    by_issue = fn marker -> Enum.filter(params, &String.contains?(&1, marker)) end
+    assert [unknown_prompt, no_params, stdio_cap] = by_issue.("(#1115)")
     assert String.starts_with?(unknown_prompt, "prompts/get ")
     assert unknown_prompt =~ ~s("Prompt no_such_prompt not found")
     assert unknown_prompt =~ ~s(where it read "MCP error -32602: Prompt no_such_prompt not found")
@@ -80,7 +84,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] == ["GET /api/v1/transactions/cash_mismatch"]
     assert newest["tools"] == ["portfolixir.transactions.cash_mismatch"]
     assert newest["summary"] =~ "schema budget"
-    assert [cash_mismatch, stated_cash] = r2
+    assert [cash_mismatch, stated_cash] = by_issue.("(#1371")
 
     assert String.starts_with?(
              cash_mismatch,
@@ -101,6 +105,21 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert stated_cash =~ ~s(expected <amount>"], 816.00 in the example)
     assert stated_cash =~ "(#1371; ADR-0053, amendment of 2026-11-02)"
     assert stated_cash =~ "turns a buy into a sell or back"
+
+    # Sprint 23, R3 (#1368): the category result prices a member without a
+    # quote at its last own trade price, as the valuation does, and names it.
+    assert newest["summary"] =~ "Sprint 23, R3: "
+    assert newest["summary"] =~ "(#1368)"
+    assert [category_prices] = by_issue.("(#1368")
+    assert String.starts_with?(category_prices, "GET /api/v1/category-results, ")
+    assert category_prices =~ "GET /api/v1/views/:view_id/category-results"
+    assert category_prices =~ "price_source"
+    assert category_prices =~ "price_date"
+    assert category_prices =~ "no_usable_price"
+    assert category_prices =~ "(#1368; ADR-0010)"
+
+    # Every item belongs to one of the entry's stories.
+    assert length(params) == 3 + 2 + 1
 
     # Sprint 22's stacked PR, A1 (version 22; #1254): every capped list read
     # outside K17's five delta reads echoes its limit and truncated. Dated

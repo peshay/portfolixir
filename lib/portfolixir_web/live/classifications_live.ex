@@ -464,11 +464,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
               assumed. The sentence is one span, so the line's flex row
               wraps it as text, not between the view's name and the rest,
               and a no-break space holds each "·" to the word before it, so
-              no line starts with one. --%>
+              no line starts with one. It closes on the price rule every
+              member is valued by (#1368, board 02 ①c): the one Wealth
+              uses. --%>
         <div :if={@results} class="summary-basis tree-basis" data-role="category-result-basis">
           <span><%= StoredText.isolate(gettext("View %{name}", name: StoredText.slot(:name)),
               name: view_name(@active_view)
-            ) %>&nbsp;· <%= gettext("in %{currency}", currency: @results.base_currency) %>&nbsp;· <%= gettext("Result: today's composition, not a period return") %></span>
+            ) %>&nbsp;· <%= gettext("in %{currency}", currency: @results.base_currency) %>&nbsp;· <%= gettext("Result: today's composition, not a period return") %>&nbsp;· <%= gettext("prices: the latest quote, without one the last own trade price") %></span>
           <details class="metric-tooltip metric-tooltip--inline" data-role="category-result-info">
             <summary aria-label={gettext("About the result")}>ⓘ</summary>
             <p role="tooltip">
@@ -781,7 +783,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
           class="row-quantity__unit"
         > <%= gettext("units") %></span>
       </span>
-      <span class="row-value" data-role="security-value">
+      <%!-- #1368 (board ux-design-2026-11-02-sprint23/02 ①c): a value at
+           the last own trade price names its source, the rule the
+           category's cost and result count it by (ADR-0010). --%>
+      <span class="row-value" data-role="security-value"><small
+          :if={@security.price_source == :trade and match?(%Decimal{}, @security.market_value)}
+          class="cell-note"
+        ><%= gettext("at trade price") %></small>
         <%= Format.money(@security.market_value) %>
       </span>
     </li>
@@ -2735,8 +2743,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp decorate_security(security, holdings) do
     case Map.get(holdings, security.id) do
-      %{quantity: quantity, market_value: market_value} ->
-        row(security, quantity: quantity, market_value: market_value, held?: true)
+      %{quantity: quantity, market_value: market_value} = holding ->
+        row(security,
+          quantity: quantity,
+          market_value: market_value,
+          price_source: Map.get(holding, :price_source),
+          held?: true
+        )
 
       nil ->
         row(security, quantity: @zero, market_value: nil, held?: false)
@@ -2751,6 +2764,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
       currency_code: security.currency_code,
       quantity: Keyword.fetch!(fields, :quantity),
       market_value: Keyword.fetch!(fields, :market_value),
+      # Where the value's price comes from (`:quote | :trade | nil`, #1368).
+      price_source: Keyword.get(fields, :price_source),
       held?: Keyword.fetch!(fields, :held?)
     }
   end
