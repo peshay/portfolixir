@@ -1831,14 +1831,16 @@ const viewBucketsSchema = {
   properties: {
     id: { type: "integer", minimum: 1 },
     include: bucketIdArraySchema,
-    exclude: bucketIdArraySchema
+    exclude: bucketIdArraySchema,
+    include_all: { type: "boolean" }
   }
 };
 
 const viewBucketsZ = z.object({
   id: z.number().int().positive(),
   include: bucketIdArrayZ.optional(),
-  exclude: bucketIdArrayZ.optional()
+  exclude: bucketIdArrayZ.optional(),
+  include_all: z.boolean().optional()
 });
 
 const depotBucketsSchema = {
@@ -3824,7 +3826,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.set_buckets",
     "Set view buckets",
-    "Replace a view's include and exclude bucket sets in one call. include and exclude are arrays of bucket ids (default empty); an id named twice in one list counts once. A holding matches when it is included (always under include_all, otherwise carries an included bucket) and carries no excluded bucket; exclude always wins. Journaled (resource_type view) with the view's sets before and after, because a policy rule may read the view; resending the same sets journals nothing.",
+    "Replace a view's include and exclude bucket sets: arrays of bucket ids (default empty; a repeat counts once). Optional include_all is saved in the same write (false narrows to the include list, true widens to all); omitted, it is left as it is. A holding matches when included (always under include_all) and carrying no excluded bucket; exclude wins. Journaled (resource_type view) with the sets before and after; resending the same sets journals nothing.",
     viewBucketsSchema,
     viewBucketsZ
   ),
@@ -4818,7 +4820,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],
-        exclude: args.exclude ?? []
+        exclude: args.exclude ?? [],
+        ...(args.include_all === undefined ? {} : { include_all: args.include_all })
       });
     case "portfolixir.securities_accounts.set_buckets":
       return client.request("PUT", `/api/v1/securities_accounts/${args.id}/buckets`, {
