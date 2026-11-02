@@ -198,7 +198,11 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         pairs: preview.key_equal_pairs,
         holdings: holdings(preview, assigns.totals),
         names: account_names(preview),
-        settings: settings
+        settings: settings,
+        flow_bookings:
+          AccountMergePreview.flow_bookings(preview.key_equal_pairs, fn _pair ->
+            preview.source.name
+          end)
       )
 
     ~H"""
@@ -254,6 +258,16 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         ) %>
       </p>
       <.fifo_restatement fifo={@outcome.fifo_realized} currency={@preview.target.currency_code} />
+      <%!-- #957 (board ux-design-2026-11-02-sprint23/01 ①b): the depot
+           preview's flow section unchanged. Where no flow moves, its one
+           basis line follows the FIFO line, the anatomy that line uses; the
+           section with entries follows the form, after the choice it
+           depends on, as in the depot preview. --%>
+      <AccountMergePreview.flow_changes
+        :if={@collapsed.flow_changes == []}
+        changes={[]}
+        bookings={%{}}
+      />
       <.counts preview={@preview} outcome={@outcome} settings={@settings} />
       <.pair_choice
         :if={@pairs != []}
@@ -266,6 +280,11 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         currency={@preview.target.currency_code}
       />
     </form>
+    <AccountMergePreview.flow_changes
+      :if={@collapsed.flow_changes != []}
+      changes={@collapsed.flow_changes}
+      bookings={@flow_bookings}
+    />
     <.quote_collisions preview={@preview} />
     <.settings_table :if={@settings != []} settings={@settings} bucket_names={@bucket_names} />
     <.events_table :if={@preview.events.possible_duplicates != []} preview={@preview} />

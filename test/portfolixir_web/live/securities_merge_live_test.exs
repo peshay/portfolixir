@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Clock
   alias Portfolixir.Journal
@@ -20,6 +21,7 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Repo
+  alias PortfolixirWeb.MergeFlowsCase, as: MergeFlows
 
   setup do
     {:ok, portfolio} =
@@ -226,6 +228,105 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
              view,
              "#security-merge-dialog [data-role='merge-confirm']",
              "Merge into Meridian Global Equity ETF"
+           )
+  end
+
+  # User story (Sprint 23 V2, #957; board ux-design-2026-11-02-sprint23/01
+  # ①b: the security preview takes the depot's section unchanged):
+  # As the operator choosing whether two securities' equal bookings are
+  # duplicates,
+  # I want the preview to list every external flow removing them drops or
+  # moves, with the method behind the section's ⓘ,
+  # so that I see how my time-weighted return changes before I choose,
+  # exactly as the agent reads it from the API.
+  #
+  # Acceptance criteria:
+  # - After the equal bookings' choice, the depot preview's section lists
+  #   one row per flow_changes entry of the API's "true" outcome for the
+  #   same pair, in its order: same count, kind, date, booking, quantity and
+  #   amount.
+  # - A collapsed inbound delivery of 10 at 80.00 reads "removed", -10 and
+  #   -800.00 EUR "at the booked price" in its depot; a buy of 5 at 88.00
+  #   whose depot is in a view and whose cash account is not reads "removed
+  #   at the view boundary", -440.00 EUR "at the booked value" in that view.
+  # - Under 720 px the same rows are two-line rows; the ⓘ holds the five
+  #   method sentences, the basis line stays visible.
+  test "step 2 lists the external flows a collapse removes, as the API does", ctx do
+    {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.depot, [core.id])
+    {:ok, core_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Core view"})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), core_view, [core.id], [], include_all: false)
+
+    s_in = delivery!(ctx, ctx.source, "10", "80.00", ~D[2025-03-03])
+    _t_in = delivery!(ctx, ctx.target, "10", "80.00", ~D[2025-03-03])
+    s_buy = buy!(ctx, ctx.source, "5", "88.00", ~D[2025-07-01])
+    _t_buy = buy!(ctx, ctx.target, "5", "88.00", ~D[2025-07-01])
+
+    api =
+      MergeFlows.api_flow_changes(
+        "/api/v1/securities/#{ctx.source.id}/merge_preview?target_id=#{ctx.target.id}"
+      )
+
+    assert Enum.map(api, &{&1["kind"], &1["collapsed_transaction_id"]}) == [
+             {"removed", s_in.id},
+             {"boundary_removed", s_buy.id}
+           ]
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    MergeFlows.assert_parity(view, "#security-merge-dialog", api)
+
+    assert MergeFlows.cells(view, "#security-merge-dialog") == [
+             [
+               "2025-03-03",
+               "removed",
+               "Inbound delivery · Meridian Global Equity ETF Depot 1",
+               "-10",
+               "-800.00 EUR at the booked price"
+             ],
+             [
+               "2025-07-01",
+               "removed at the view boundary",
+               "Buy · Meridian Global Equity ETF View “Core view”",
+               "—",
+               "-440.00 EUR at the booked value"
+             ]
+           ]
+
+    MergeFlows.assert_section(view, "#security-merge-dialog")
+  end
+
+  # User story (Sprint 23 V2, #957; board 01 ①b, the empty state):
+  # As the operator merging a duplicate security whose merge moves no
+  # external flow,
+  # I want one basis line saying so under the FIFO line,
+  # so that the screen states what the API states: nothing changes.
+  #
+  # Acceptance criteria:
+  # - With flow_changes empty — here with an equal booking that no view
+  #   straddles — the preview shows the single basis line and no section,
+  #   in German „Externe Zu- und Abflüsse: Keiner entfällt oder wandert; die
+  #   Rendite liest dieselben Flüsse.“
+  test "step 2 says in one line that no external flow moves", ctx do
+    buy!(ctx, ctx.target, "2", "120.00", ~D[2025-07-01])
+    buy!(ctx, ctx.source, "2", "120.00", ~D[2025-07-01])
+
+    assert MergeFlows.api_flow_changes(
+             "/api/v1/securities/#{ctx.source.id}/merge_preview?target_id=#{ctx.target.id}"
+           ) == []
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+    MergeFlows.assert_empty(view, "#security-merge-dialog")
+
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+    to_preview(view, ctx.source, ctx.target)
+
+    assert has_element?(
+             view,
+             "#security-merge-dialog [data-role='merge-fifo'] + p[data-role='merge-flows-none']",
+             "Externe Zu- und Abflüsse: Keiner entfällt oder wandert; die Rendite liest dieselben Flüsse."
            )
   end
 
@@ -990,6 +1091,32 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
       cash_account_id: ctx.cash.id,
       security_id: security.id,
       type: "buy",
+      date: date,
+      quantity: quantity,
+      price: price,
+      currency_code: "EUR"
+    }
+
+    {:ok, %{transaction: tx}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:transaction, Transaction.import_changeset(%Transaction{}, attrs))
+      |> Journal.record(Actor.import_session(),
+        resource_type: "transaction",
+        operation: :create,
+        source: :transaction
+      )
+      |> Repo.transaction()
+
+    tx
+  end
+
+  # Written the way the Portfolio Performance importer writes a delivery.
+  defp delivery!(ctx, security, quantity, price, date) do
+    attrs = %{
+      portfolio_id: ctx.portfolio.id,
+      securities_account_id: ctx.depot.id,
+      security_id: security.id,
+      type: "inbound_delivery",
       date: date,
       quantity: quantity,
       price: price,
