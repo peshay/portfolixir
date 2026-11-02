@@ -281,6 +281,17 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 102909,
     book: 171980,
     full: 206535
+  },
+  {
+    since: "2026-11-02",
+    why:
+      "Sprint 22, the stacked PR's closing act: the plan's criterion holds the ceilings no " +
+      "higher than Sprint 21's, and the sprint's descriptions paid their bytes in the same " +
+      "tools, so the ceilings are lowered once, at the end, to the figures measured with the " +
+      "whole sprint, with no slack (D-10's rule)",
+    read: 102887,
+    book: 171958,
+    full: 206513
   }
 ];
 
