@@ -2352,8 +2352,10 @@ Example account payloads:
   structured contract the analytics endpoints use.
 - `GET /api/v1/portfolios/:portfolio_id/targets` lists a portfolio's stored
   target weights (the target side of the allocation). Optional `classification_id`
-  scopes the list to one tree; optional `view` selects the plan (omitted =
-  Gesamt); optional `plan_id` reads that plan version, a draft or the active
+  scopes the list to one tree; one that is not an id answers `422`
+  (`{"classification_id": ["is invalid"]}`, issue #1301), on this read and on
+  `/position_targets`, beside `plan_id` or alone; optional `view` selects the
+  plan (omitted = Gesamt); optional `plan_id` reads that plan version, a draft or the active
   plan, with the `422`s of the `PUT` below (issue #1185). Unknown portfolios
   return `404 Not Found`.
 - `PUT /api/v1/portfolios/:portfolio_id/targets` upserts target weights for one
