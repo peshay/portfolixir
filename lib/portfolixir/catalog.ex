@@ -1105,7 +1105,13 @@ defmodule Portfolixir.Catalog do
 
   defp apply_sort(query, _), do: from(s in query, order_by: [asc: s.name])
 
-  defp apply_sort_or_delta(query, sort, nil), do: apply_sort(query, sort)
+  # #1294: the id breaks every sort's ties, last and ascending whatever the
+  # sort's direction, so rows sharing a sort value (every security with no
+  # value for an attribute) come in one order on every read and a
+  # limit/offset walk neither skips nor repeats one. The metric sorts sort
+  # stably in Elixir over this order, so their ties keep it too.
+  defp apply_sort_or_delta(query, sort, nil),
+    do: query |> apply_sort(sort) |> order_by([s], asc: s.id)
 
   defp apply_sort_or_delta(query, _sort, cursor),
     do: DeltaCursor.page(query, dynamic([s], s.updated_at), cursor)
