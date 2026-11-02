@@ -1525,6 +1525,14 @@ li + li {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* An open fold reads "Hide details" (issue 1351, closing act): the label
+   swaps on [open] from the toggle's data-hide, no script. */
+.data-note-group[open] .data-note-group__show {
+  display: none;
+}
+.data-note-group[open] .data-note-group__toggle::after {
+  content: attr(data-hide);
+}
 .data-note-group__body {
   display: flex;
   flex-direction: column;
