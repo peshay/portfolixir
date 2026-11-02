@@ -2764,6 +2764,15 @@ Beispiel-Payloads für Konten:
   `reason` unter `excluded`; es zählt nie als null. MCP:
   `portfolixir.portfolios.category_results`.
 
+  **Ein Mitglied wird bewertet, wie die Bewertung es bewertet** (ADR-0010,
+  #1368): zu seinem neuesten Kurs, ohne Kurs zu seinem letzten eigenen
+  Handelspreis. So ergeben `current_value`, `invested` und `result_abs` einer
+  Kategorie, was `GET /api/v1/portfolios/:portfolio_id/valuation` und die
+  Bestandsabfrage für dieselben Positionen liefern. Jede `positions`-Zeile
+  nennt die Quelle in `price_source` (`"quote"` oder `"trade"`) und
+  `price_date`, und `basis_note` nennt die Regel. Nur ein Mitglied ohne Kurs
+  und ohne eigenen Handelspreis fehlt als `no_usable_price`.
+
   **Der View-Bereich (#901)** kommt in den zwei Formen der Performance-Familie
   (ADR-0051 §6). `?view=<id>` grenzt die Portfolio-Abfrage auf die zur View
   passenden Positionen des Portfolios ein und spiegelt sie als
