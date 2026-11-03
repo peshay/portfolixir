@@ -670,7 +670,7 @@ commits and each merged by the owner's button, in order:
 - the stacked PR #1379 (Lanes V, C and I, their closing act and this
   close-out): rebased onto `main` after #1377's merge and retargeted to
   `main` before the owner's merge was asked for (D-6's new step);
-  <<FILL: #1379's final commit count and head>>.
+  49 commits, its keywords closing #1375 (C1) and #1376 (C2).
 
 The next planning PR records #1379's merge, its CI run and its calendar
 release.
@@ -708,7 +708,7 @@ human views the agent got first, the MCP SDK move and I1's later pages.
 closed by #1377's keywords, each identity pinned and seen failing first); 3
 passes, every agent-only read has its screen; 4 passes (the schema budget
 measured 102,874 / 171,927 / 206,482 bytes after Lane R, under the
-unchanged ceilings; <<FILL: the re-measure on #1379's final head>>); 5
+unchanged ceilings; 102,874 / 171,929 / 206,484 on #1379's final head); 5
 passes with the note that C1's browser test runs outside CI, which
 installs no browser; 6 passes, no `--no-verify`; 7 passes, no S1 at
 promotion and no re-run. No criterion counts open issues. The records, with

@@ -65,7 +65,9 @@ story_location: _bmad-output/implementation-artifacts
 #   commits, the tree byte-identical before and after) with
 #   --force-with-lease, and RETARGETED TO MAIN before the owner's merge
 #   was asked for (D-6's new step, done).
-#   <<FILL: #1379's final commit count and head>>
+#   49 commits on main's 6687a5a: the 38 rebased, six closing-act fixes
+#   (code head 4ef611e), four close-out commits and the one that fills
+#   these figures, which sits on top and changes records only.
 # HOW THEY MERGE: #1377 is merged. #1379 merges into main by the owner's
 # "Rebase and merge": its base is main, not the stacked base that
 # swallowed Sprint 22's #1372. Its CI run on main and its calendar release
@@ -78,7 +80,10 @@ story_location: _bmad-output/implementation-artifacts
 #   2026.11.6; #1377's five keywords verified closed;
 # - the stacked PR's branch at 38ce015 before its closing-act fixes and
 #   these records. The fixes and these records follow on the same branch;
-#   <<FILL: #1379's head after the fixes and its CI run, no re-run>>
+#   every Required Local Check exited 0 on 4ef611e (5621 tests,
+#   coverage 94.6 %, the browser test three times); every head of #1379
+#   pushed before these records ran CI green with no re-run, and the
+#   final head's run is recorded in #1379's briefing.
 #
 # BUILD ORDER (D-6: the plan's order, history forward only): E1, E2 (3),
 # E3 (2), M1 (3), R1 (3), Lane M (2: Elixir 1.18.6 and the version
@@ -92,7 +97,8 @@ story_location: _bmad-output/implementation-artifacts
 # WHAT CLOSES, by the two PRs' keywords, one "Closes" line per issue:
 # - #1377 (5, verified closed after its merge): #1370 (R1), #1371 (R2),
 #   #1368 (R3), #1369 (R4), #1115 (M1);
-# - #1379: <<FILL: its Closes lines, or "none">>. V1 and V2 build the
+# - #1379 (2): #1375 (C1) and #1376 (C2), filed at the plan's adoption
+#   and missed by the first draft of these records. V1 and V2 build the
 #   human views of reads whose issues Sprint 22 closed (#1292, #1290,
 #   #957), V3 builds idea U2, and Lane I's pages have no issue of their
 #   own (#1351 closed with Sprint 22's three pages); the polish lines Lane
@@ -151,7 +157,9 @@ story_location: _bmad-output/implementation-artifacts
 #      the v2 client); the schema budget measured 102,874 / 171,927 /
 #      206,482 bytes (read, book, full) after Lane R, under the unchanged
 #      ceilings 102,887 / 171,958 / 206,513.
-#      <<FILL: the schema budget re-measured on #1379's final head>>
+#      Re-measured on #1379's final head: 102,874 / 171,929 / 206,484
+#      bytes (#1379 does not touch the companion; the two bytes in book
+#      and full came from #1377's closing act), under the same ceilings.
 #   5. The screens match boards 01 to 04, Sprint 22's board 01 and the
 #      Lane I board: PASS, with one honest note. The design critic found
 #      01 ①a and 04 matching, and 01 ①b, 03 and the Lane I board matching
@@ -169,7 +177,7 @@ story_location: _bmad-output/implementation-artifacts
 #      PASS. Both S1s the sprint introduced were fixed before their PR's
 #      promotion (below). #1377's one red head, 7f116cf (a flaky async FX
 #      test), was fixed by a commit, not re-run.
-#      <<FILL: #1379's heads green with no re-run>>
+#      #1379's heads ran CI green with no re-run.
 #
 # THE TWO COUNTS (the sprint workflow §3; ADR-0026, amendment of
 # 2026-11-01):
@@ -195,7 +203,10 @@ story_location: _bmad-output/implementation-artifacts
 #     cut off, the journal's entry names for three kinds, an integration
 #     test that matched inside a session token, a CSS comment the colour
 #     invariant read as a hex colour.
-#     <<FILL: which of #1379's S3s were fixed, and its final counts>>
+#     #1379, 8, all fixed on the branch before promotion: 1 S1, 1 S2,
+#     6 S3. The older S3 the closing act exposed (heading ⓘs opening over
+#     the top bar) was fixed with the merge dialog's, in one commit, and
+#     is counted below with the older findings.
 # - OLDER FINDINGS, by severity:
 #   - S2, filed: #1378 (a journal delete entry's `after` repeats the
 #     deleted record; it needs an ADR-0017 amendment, so V3 filed it
@@ -256,7 +267,8 @@ story_location: _bmad-output/implementation-artifacts
 #
 # OPEN ISSUES, REPORTED, NOT JUDGED (D-1: no criterion counts them): the
 # plan counted 31 open and 26 after this sprint's keywords; the sprint
-# filed one (#1378). <<FILL: the open count read through the API>>
+# filed one (#1378). Read through the API before #1379's merge: 28 open
+# (#1375 and #1376 among them), 26 once #1379's two keywords close.
 #
 # THE OWNER'S QUESTIONS: #1379's merge; I7's question (below); the
 # judgment calls in #1377's briefing stand unless a comment flips them.

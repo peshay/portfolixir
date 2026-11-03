@@ -476,4 +476,4 @@ Stacked PR:
 - [x] V1 · [x] V2 · [x] V3
 - [x] C1 the ⓘ click-away · [x] C2 the number colours (board 04's pick)
 - [x] I: board commit · [x] Allocation tab · [x] security page · [x] Income · [x] Snapshots · [x] Tax · [x] Views · [x] Classifications · [x] Imports · [x] Risk
-- [ ] closing act and its fixes · [x] close-out · [ ] briefing · [ ] promotion
+- [x] closing act and its fixes · [x] close-out · [x] briefing · [x] promotion
