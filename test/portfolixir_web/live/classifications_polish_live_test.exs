@@ -1,8 +1,9 @@
 defmodule PortfolixirWeb.ClassificationsPolishLiveTest do
-  # Two lines of the Classifications polish list (#1362) that Sprint 23's
-  # Lane I page story fixes: #1226 (by its recommendation, a duplicated plan
-  # version is named in the reader's language) and #1324 (a dismissed
-  # result was focused twice). Every name is synthetic.
+  # Lines of the Classifications polish list (#1362) that Sprint 23's Lane I
+  # page story fixes: #1226 (by its recommendation, a duplicated plan
+  # version is named in the reader's language), #1324 (a dismissed result
+  # was focused twice) and #1328 (a move's confirmation out of view). Every
+  # name is synthetic.
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
@@ -114,5 +115,54 @@ defmodule PortfolixirWeb.ClassificationsPolishLiveTest do
 
     view |> element("#classifications-result [data-role='result-dismiss']") |> render_click()
     refute_push_event(view, "focus-into-view", %{})
+  end
+
+  # User story (#1328; board ux-design-2026-11-03-sprint23-i1, "lines the
+  # page stories fix": the page brings the confirmation into view and moves
+  # the focus, so no frame is needed):
+  # As the operator who moved a category from its edit form,
+  # I want the confirmation that says where it now sits brought into view
+  # and focused,
+  # so that I read it, rather than it landing far above the tree.
+  #
+  # Acceptance criteria:
+  # - A move under another category and a move to the top level each push
+  #   `focus-into-view` for the page's result slot, as a refusal does.
+  # - An edit that keeps the parent (a rename) moves nothing.
+  test "a move's confirmation is brought into view and focused (#1328)", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Regions"})
+
+    category = fn name ->
+      {:ok, category} =
+        Classifications.create_category(Actor.owner_ui(), %{
+          classification_id: classification.id,
+          name: name
+        })
+
+      category
+    end
+
+    america = category.("Amerika")
+    usa = category.("USA")
+
+    {:ok, view, _html} = live(conn, "/classifications/#{classification.id}")
+    render_async(view)
+
+    edit = fn id, params ->
+      view |> element("button[phx-click='edit_category'][phx-value-id='#{id}']") |> render_click()
+      view |> form("form.cat-edit-form", %{"category" => params}) |> render_submit()
+    end
+
+    edit.(usa.id, %{"name" => "USA"})
+    refute_push_event(view, "focus-into-view", %{})
+
+    edit.(usa.id, %{"parent_id" => "#{america.id}"})
+    assert view |> element("#classifications-result-status") |> render() =~ "now sits under"
+    assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+
+    edit.(usa.id, %{"parent_id" => ""})
+    assert view |> element("#classifications-result-status") |> render() =~ "on the top level"
+    assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
   end
 end
