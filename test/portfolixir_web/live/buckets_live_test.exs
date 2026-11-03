@@ -551,7 +551,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       })
     end
 
-    test "list-first: no paragraph, basis lines and ⓘ per heading, forms behind +", %{
+    test "list-first: no paragraph, an ⓘ per heading, forms behind +", %{
       conn: conn
     } do
       seeded()
@@ -565,8 +565,11 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
       assert text(Floki.find(doc, ~s([data-role="views-info"] p))) =~ "Create buckets"
       assert [_] = Floki.find(doc, ~s([data-role="buckets-info"] [data-role="overlap-hint"]))
-      assert text(Floki.find(doc, ~s([data-role="views-basis"]))) =~ "view switcher"
-      assert text(Floki.find(doc, ~s([data-role="buckets-basis"]))) =~ "not a sum"
+      # I1 (Sprint 23, board ux-design-2026-11-03-sprint23-i1 ⑥): the two
+      # basis lines restated the headings' ⓘ and left without a copy
+      # (views_explanations_live_test.exs).
+      assert Floki.find(doc, ~s([data-role="views-basis"])) == []
+      assert Floki.find(doc, ~s([data-role="buckets-basis"])) == []
 
       # Views before buckets: the list the switcher shows comes first.
       assert :binary.match(html, ~s(id="views-section")) |> elem(0) <

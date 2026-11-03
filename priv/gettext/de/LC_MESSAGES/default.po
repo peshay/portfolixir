@@ -27,7 +27,7 @@ msgid "Cash accounts"
 msgstr "Verrechnungskonten"
 
 #: lib/portfolixir_web/components/column_picker.ex:61
-#: lib/portfolixir_web/live/buckets_live.ex:435
+#: lib/portfolixir_web/live/buckets_live.ex:434
 #: lib/portfolixir_web/live/imports_live.ex:3876
 #: lib/portfolixir_web/live/income_live.ex:1293
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:66
@@ -588,7 +588,7 @@ msgstr "Noch keine Wertpapiere — auf + klicken, um eines anzulegen."
 #: lib/portfolixir_web/live/securities_live.ex:1882
 #: lib/portfolixir_web/live/securities_live.ex:1885
 #: lib/portfolixir_web/live/tax_live.ex:533
-#: lib/portfolixir_web/live/tax_live.ex:867
+#: lib/portfolixir_web/live/tax_live.ex:874
 #, elixir-autogen, elixir-format
 msgid "Note"
 msgstr "Notiz"
@@ -635,7 +635,7 @@ msgid "Remove filter"
 msgstr "Filter entfernen"
 
 #: lib/portfolixir_web/live/buckets_live.ex:151
-#: lib/portfolixir_web/live/buckets_live.ex:265
+#: lib/portfolixir_web/live/buckets_live.ex:264
 #: lib/portfolixir_web/live/classifications_live.ex:1179
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:524
 #: lib/portfolixir_web/live/securities_live.ex:1902
@@ -1013,8 +1013,8 @@ msgid "Prices"
 msgstr "Kurse"
 
 #: lib/portfolixir_web/live/buckets_live.ex:153
-#: lib/portfolixir_web/live/buckets_live.ex:267
-#: lib/portfolixir_web/live/buckets_live.ex:488
+#: lib/portfolixir_web/live/buckets_live.ex:266
+#: lib/portfolixir_web/live/buckets_live.ex:487
 #: lib/portfolixir_web/live/classifications_live.ex:1180
 #: lib/portfolixir_web/live/imports_live.ex:3924
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:216
@@ -1030,7 +1030,7 @@ msgstr "Kurse"
 #: lib/portfolixir_web/live/securities_live.ex:1264
 #: lib/portfolixir_web/live/securities_live.ex:1900
 #: lib/portfolixir_web/live/securities_live.ex:3207
-#: lib/portfolixir_web/live/tax_live.ex:880
+#: lib/portfolixir_web/live/tax_live.ex:887
 #: lib/portfolixir_web/live/transaction_management_live.ex:2519
 #: lib/portfolixir_web/live/transaction_management_live.ex:3139
 #: lib/portfolixir_web/live/transaction_management_live.ex:3444
@@ -1067,14 +1067,14 @@ msgstr "Ticker kopieren"
 msgid "Could not change status."
 msgstr "Status konnte nicht geändert werden."
 
-#: lib/portfolixir_web/live/buckets_live.ex:539
-#: lib/portfolixir_web/live/buckets_live.ex:577
+#: lib/portfolixir_web/live/buckets_live.ex:538
+#: lib/portfolixir_web/live/buckets_live.ex:576
 #: lib/portfolixir_web/live/classifications_live.ex:740
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:658
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:189
 #: lib/portfolixir_web/live/snapshots_live.ex:710
-#: lib/portfolixir_web/live/tax_live.ex:1069
-#: lib/portfolixir_web/live/tax_live.ex:1093
+#: lib/portfolixir_web/live/tax_live.ex:1082
+#: lib/portfolixir_web/live/tax_live.ex:1106
 #, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr "Löschen"
@@ -2067,8 +2067,8 @@ msgid "Clear"
 msgstr "Aufheben"
 
 #: lib/portfolixir_web/field_label.ex:83
-#: lib/portfolixir_web/live/buckets_live.ex:235
-#: lib/portfolixir_web/live/buckets_live.ex:263
+#: lib/portfolixir_web/live/buckets_live.ex:234
+#: lib/portfolixir_web/live/buckets_live.ex:262
 #: lib/portfolixir_web/live/classifications_live.ex:418
 #: lib/portfolixir_web/live/classifications_live.ex:1177
 #: lib/portfolixir_web/live/classifications_live.ex:1191
@@ -2260,7 +2260,7 @@ msgid_plural "Unassigned %{count} securities"
 msgstr[0] "Zuordnung von %{count} Wertpapier entfernt"
 msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
 
-#: lib/portfolixir_web/live/buckets_live.ex:932
+#: lib/portfolixir_web/live/buckets_live.ex:931
 #: lib/portfolixir_web/live/classifications_live.ex:370
 #: lib/portfolixir_web/live/classifications_live.ex:531
 #: lib/portfolixir_web/live/portfolio_live.ex:4552
@@ -2288,7 +2288,7 @@ msgstr "Kreditlinie"
 msgid "reserve"
 msgstr "Reserve"
 
-#: lib/portfolixir_web/live/buckets_live.ex:235
+#: lib/portfolixir_web/live/buckets_live.ex:234
 #: lib/portfolixir_web/live/classifications_live.ex:422
 #, elixir-autogen, elixir-format
 msgid "optional"
@@ -2532,7 +2532,7 @@ msgstr "Wird synchronisiert…"
 msgid "Couldn't reach the exchange-rate provider. Please check the connection and try again."
 msgstr "Wechselkurs-Anbieter nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen."
 
-#: lib/portfolixir_web/live/buckets_live.ex:472
+#: lib/portfolixir_web/live/buckets_live.ex:471
 #, elixir-autogen, elixir-format
 msgid "(exclude wins)"
 msgstr "(Ausschluss gewinnt)"
@@ -2554,7 +2554,7 @@ msgstr "Über Ansichten"
 msgid "Active view"
 msgstr "Aktive Ansicht"
 
-#: lib/portfolixir_web/live/buckets_live.ex:238
+#: lib/portfolixir_web/live/buckets_live.ex:237
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:860
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:861
 #, elixir-autogen, elixir-format
@@ -2571,22 +2571,22 @@ msgstr "Neu anlegen"
 msgid "Bucket assignment mode"
 msgstr "Bucket-Zuordnungsmodus"
 
-#: lib/portfolixir_web/live/buckets_live.ex:627
+#: lib/portfolixir_web/live/buckets_live.ex:626
 #, elixir-autogen, elixir-format
 msgid "Bucket created"
 msgstr "Bucket angelegt"
 
-#: lib/portfolixir_web/live/buckets_live.ex:671
+#: lib/portfolixir_web/live/buckets_live.ex:670
 #, elixir-autogen, elixir-format
 msgid "Bucket deleted"
 msgstr "Bucket gelöscht"
 
-#: lib/portfolixir_web/live/buckets_live.ex:255
+#: lib/portfolixir_web/live/buckets_live.ex:254
 #, elixir-autogen, elixir-format
 msgid "Bucket name"
 msgstr "Bucket-Name"
 
-#: lib/portfolixir_web/live/buckets_live.ex:654
+#: lib/portfolixir_web/live/buckets_live.ex:653
 #, elixir-autogen, elixir-format
 msgid "Bucket updated"
 msgstr "Saldo aktualisiert"
@@ -2605,7 +2605,7 @@ msgstr "Buckets"
 msgid "Buckets are overlapping tags, not a partition: a holding can carry several buckets at once. Per-bucket figures may overlap and must never be read as a sum."
 msgstr "Buckets sind überlappende Tags, keine Aufteilung: Eine Position kann mehreren Buckets gleichzeitig angehören. Werte je Bucket können sich überschneiden und dürfen niemals als Summe gelesen werden."
 
-#: lib/portfolixir_web/live/buckets_live.ex:428
+#: lib/portfolixir_web/live/buckets_live.ex:427
 #, elixir-autogen, elixir-format
 msgid "Buckets for %{name}"
 msgstr "Buckets für %{name}"
@@ -2620,27 +2620,27 @@ msgstr "Bestimmte Buckets wählen"
 msgid "Could not save position buckets"
 msgstr "Notizen konnten nicht gespeichert werden."
 
-#: lib/portfolixir_web/live/buckets_live.ex:571
+#: lib/portfolixir_web/live/buckets_live.ex:570
 #, elixir-autogen, elixir-format
 msgid "Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot."
 msgstr "Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt. Eine Position, deren bestimmte Buckets nur aus diesem bestehen, steht danach auf „keine Buckets (ausgeschlossen)“ und erbt nicht vom Depot."
 
-#: lib/portfolixir_web/live/buckets_live.ex:536
+#: lib/portfolixir_web/live/buckets_live.ex:535
 #, elixir-autogen, elixir-format
 msgid "Delete this view?"
 msgstr "Diese Ansicht löschen?"
 
-#: lib/portfolixir_web/live/buckets_live.ex:472
+#: lib/portfolixir_web/live/buckets_live.ex:471
 #, elixir-autogen, elixir-format
 msgid "Exclude buckets"
 msgstr "Buckets ausschließen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:450
+#: lib/portfolixir_web/live/buckets_live.ex:449
 #, elixir-autogen, elixir-format
 msgid "Include all buckets"
 msgstr "Alle Buckets einbeziehen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:455
+#: lib/portfolixir_web/live/buckets_live.ex:454
 #, elixir-autogen, elixir-format
 msgid "Include buckets"
 msgstr "Buckets einbeziehen"
@@ -2655,7 +2655,7 @@ msgstr "Vom Depot erben"
 msgid "Manage logo…"
 msgstr "Logo verwalten…"
 
-#: lib/portfolixir_web/live/buckets_live.ex:231
+#: lib/portfolixir_web/live/buckets_live.ex:230
 #, elixir-autogen, elixir-format
 msgid "New bucket"
 msgstr "Neuer Bucket"
@@ -2670,7 +2670,7 @@ msgstr "Neue Ansicht"
 msgid "No buckets (excluded)"
 msgstr "Keine Buckets (ausgeschlossen)"
 
-#: lib/portfolixir_web/live/buckets_live.ex:301
+#: lib/portfolixir_web/live/buckets_live.ex:300
 #: lib/portfolixir_web/live/securities_live.ex:3141
 #, elixir-autogen, elixir-format
 msgid "No buckets yet."
@@ -2691,7 +2691,7 @@ msgstr "Positions-Buckets gespeichert"
 msgid "Save buckets"
 msgstr "Buckets speichern"
 
-#: lib/portfolixir_web/live/buckets_live.ex:489
+#: lib/portfolixir_web/live/buckets_live.ex:488
 #, elixir-autogen, elixir-format
 msgid "Save view"
 msgstr "Speichern"
@@ -2701,15 +2701,15 @@ msgstr "Speichern"
 msgid "Scoped to view: %{name}"
 msgstr "Eingegrenzt auf Ansicht: %{name}"
 
-#: lib/portfolixir_web/live/buckets_live.ex:677
-#: lib/portfolixir_web/live/buckets_live.ex:815
+#: lib/portfolixir_web/live/buckets_live.ex:676
+#: lib/portfolixir_web/live/buckets_live.ex:814
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:1472
 #: lib/portfolixir_web/live/securities_live.ex:5634
 #, elixir-autogen, elixir-format
 msgid "That bucket no longer exists. Refresh and try again."
 msgstr "Dieser Bucket existiert nicht mehr. Die Seite neu laden und erneut versuchen."
 
-#: lib/portfolixir_web/live/buckets_live.ex:682
+#: lib/portfolixir_web/live/buckets_live.ex:681
 #, elixir-autogen, elixir-format
 msgid "The bucket could not be deleted. Nothing was changed."
 msgstr "Der Bucket konnte nicht gelöscht werden. Es wurde nichts geändert."
@@ -2719,17 +2719,17 @@ msgstr "Der Bucket konnte nicht gelöscht werden. Es wurde nichts geändert."
 msgid "That account no longer exists. Refresh and try again."
 msgstr "Dieses Konto existiert nicht mehr. Die Seite neu laden und erneut versuchen."
 
-#: lib/portfolixir_web/live/buckets_live.ex:810
+#: lib/portfolixir_web/live/buckets_live.ex:809
 #, elixir-autogen, elixir-format
 msgid "View buckets saved"
 msgstr "Ansichts-Buckets gespeichert"
 
-#: lib/portfolixir_web/live/buckets_live.ex:697
+#: lib/portfolixir_web/live/buckets_live.ex:696
 #, elixir-autogen, elixir-format
 msgid "View created"
 msgstr "Ansicht angelegt"
 
-#: lib/portfolixir_web/live/buckets_live.ex:740
+#: lib/portfolixir_web/live/buckets_live.ex:739
 #, elixir-autogen, elixir-format
 msgid "View deleted"
 msgstr "Ansicht gelöscht"
@@ -2739,7 +2739,7 @@ msgstr "Ansicht gelöscht"
 msgid "View name"
 msgstr "Ansichtsname"
 
-#: lib/portfolixir_web/live/buckets_live.ex:723
+#: lib/portfolixir_web/live/buckets_live.ex:722
 #, elixir-autogen, elixir-format
 msgid "View updated"
 msgstr "Ansicht aktualisiert"
@@ -3028,7 +3028,7 @@ msgid "Toggle the category's securities"
 msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 
 #: lib/portfolixir_web/components/app_shell.ex:330
-#: lib/portfolixir_web/live/buckets_live.ex:307
+#: lib/portfolixir_web/live/buckets_live.ex:306
 #: lib/portfolixir_web/live/imports_live.ex:2876
 #: lib/portfolixir_web/live/imports_live.ex:2902
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:85
@@ -3216,7 +3216,7 @@ msgstr "Standard-Ansicht"
 #: lib/portfolixir_web/components/view_switcher.ex:52
 #: lib/portfolixir_web/components/view_switcher.ex:56
 #: lib/portfolixir_web/live/buckets_live.ex:124
-#: lib/portfolixir_web/live/buckets_live.ex:367
+#: lib/portfolixir_web/live/buckets_live.ex:366
 #: lib/portfolixir_web/live/classifications_live.ex:2373
 #: lib/portfolixir_web/live/classifications_live.ex:2567
 #: lib/portfolixir_web/live/dashboard_live.ex:338
@@ -3809,8 +3809,8 @@ msgstr "Neuer Planname"
 msgid "Real return"
 msgstr "Echte Rendite"
 
-#: lib/portfolixir_web/live/buckets_live.ex:528
-#: lib/portfolixir_web/live/buckets_live.ex:562
+#: lib/portfolixir_web/live/buckets_live.ex:527
+#: lib/portfolixir_web/live/buckets_live.ex:561
 #: lib/portfolixir_web/live/classifications_live.ex:1293
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:161
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:620
@@ -4361,7 +4361,7 @@ msgstr "Die gespeicherten Schlusskurse rund um den Stichtag widersprechen ihrer 
 msgid "%{field} %{recorded} is below the %{expected} an earlier statement of this year already reported. Year-to-date figures do not fall — check whether this is the right statement."
 msgstr "%{field} %{recorded} liegt unter den %{expected}, die eine frühere Abrechnung dieses Jahres bereits ausweist. Jahreswerte sinken nicht — prüfen, ob es die richtige Abrechnung ist."
 
-#: lib/portfolixir_web/live/tax_live.ex:719
+#: lib/portfolixir_web/live/tax_live.ex:726
 #, elixir-autogen, elixir-format
 msgid "About this figure"
 msgstr "Zu dieser Zahl"
@@ -4382,7 +4382,7 @@ msgid "Allowance used"
 msgstr "Freistellungsauftrag verbraucht"
 
 #: lib/portfolixir_web/live/tax_live.ex:528
-#: lib/portfolixir_web/live/tax_live.ex:897
+#: lib/portfolixir_web/live/tax_live.ex:904
 #, elixir-autogen, elixir-format
 msgid "Amount granted"
 msgstr "Betrag"
@@ -4407,17 +4407,17 @@ msgstr "Abgeführte Kirchensteuer"
 msgid "Configured allowance orders total %{recorded} against the %{expected} ceiling for this year — %{gap} above. Redistribute the orders with the banks."
 msgstr "Hinterlegte Freistellungsaufträge summieren sich auf %{recorded} gegen den Höchstbetrag %{expected} dieses Jahres — %{gap} darüber. Aufträge mit den Banken neu verteilen."
 
-#: lib/portfolixir_web/live/tax_live.ex:1058
+#: lib/portfolixir_web/live/tax_live.ex:1071
 #, elixir-autogen, elixir-format
 msgid "Correct"
 msgstr "Korrigieren"
 
-#: lib/portfolixir_web/live/tax_live.ex:763
+#: lib/portfolixir_web/live/tax_live.ex:770
 #, elixir-autogen, elixir-format
 msgid "Correct statement"
 msgstr "Abrechnung korrigieren"
 
-#: lib/portfolixir_web/live/tax_live.ex:1066
+#: lib/portfolixir_web/live/tax_live.ex:1079
 #, elixir-autogen, elixir-format
 msgid "Delete this recorded statement?"
 msgstr "Diese erfasste Abrechnung löschen?"
@@ -4432,14 +4432,14 @@ msgstr "Angerechnete ausländische Quellensteuer"
 msgid "Foreign withholding pot"
 msgstr "Quellensteuertopf"
 
-#: lib/portfolixir_web/live/tax_live.ex:707
+#: lib/portfolixir_web/live/tax_live.ex:714
 #, elixir-autogen, elixir-format
 msgid "Incomplete: no statement recorded for %{institutions}. The total covers the listed institutions only."
 msgstr "Unvollständig: für %{institutions} ist keine Abrechnung erfasst. Die Summe umfasst nur die genannten Institute."
 
 #: lib/portfolixir_web/live/tax_live.ex:530
-#: lib/portfolixir_web/live/tax_live.ex:812
-#: lib/portfolixir_web/live/tax_live.ex:893
+#: lib/portfolixir_web/live/tax_live.ex:819
+#: lib/portfolixir_web/live/tax_live.ex:900
 #, elixir-autogen, elixir-format
 msgid "Institution"
 msgstr "Institut"
@@ -4450,7 +4450,7 @@ msgid "Loss carry-forward"
 msgstr "Verlustvortrag"
 
 #: lib/portfolixir_web/live/tax_live.ex:433
-#: lib/portfolixir_web/live/tax_live.ex:729
+#: lib/portfolixir_web/live/tax_live.ex:736
 #, elixir-autogen, elixir-format
 msgid "Loss pot, equities"
 msgstr "Verlustverrechnungstopf Aktien"
@@ -4460,7 +4460,7 @@ msgstr "Verlustverrechnungstopf Aktien"
 msgid "Loss pot, other"
 msgstr "Verlustverrechnungstopf Sonstige"
 
-#: lib/portfolixir_web/live/tax_live.ex:905
+#: lib/portfolixir_web/live/tax_live.ex:912
 #, elixir-autogen, elixir-format
 msgid "No statement recorded for this taxpayer and year."
 msgstr "Für diese Person und dieses Jahr ist keine Abrechnung erfasst."
@@ -4475,17 +4475,17 @@ msgstr "Für dieses Jahr ist keine Abrechnung erfasst."
 msgid "Owner"
 msgstr "Inhaber"
 
-#: lib/portfolixir_web/live/tax_live.ex:763
+#: lib/portfolixir_web/live/tax_live.ex:770
 #, elixir-autogen, elixir-format
 msgid "Record a statement"
 msgstr "Abrechnung erfassen"
 
-#: lib/portfolixir_web/live/tax_live.ex:900
+#: lib/portfolixir_web/live/tax_live.ex:907
 #, elixir-autogen, elixir-format
 msgid "Record order"
 msgstr "Auftrag hinterlegen"
 
-#: lib/portfolixir_web/live/tax_live.ex:877
+#: lib/portfolixir_web/live/tax_live.ex:884
 #, elixir-autogen, elixir-format
 msgid "Record statement"
 msgstr "Abrechnung erfassen"
@@ -4510,12 +4510,12 @@ msgstr "Dieses Wertpapier gibt es nicht mehr: Es wurde nach dem Öffnen gelösch
 msgid "Recorded broker tax statements"
 msgstr "Erfasste Steuerabrechnungen der Bank"
 
-#: lib/portfolixir_web/live/tax_live.ex:751
+#: lib/portfolixir_web/live/tax_live.ex:758
 #, elixir-autogen, elixir-format
 msgid "Recorded statements"
 msgstr "Erfasste Abrechnungen"
 
-#: lib/portfolixir_web/live/tax_live.ex:877
+#: lib/portfolixir_web/live/tax_live.ex:884
 #, elixir-autogen, elixir-format
 msgid "Save correction"
 msgstr "Korrektur speichern"
@@ -4531,14 +4531,14 @@ msgid "Solidarity surcharge withheld"
 msgstr "Abgeführter Solidaritätszuschlag"
 
 #: lib/portfolixir_web/live/tax_live.ex:532
-#: lib/portfolixir_web/live/tax_live.ex:823
+#: lib/portfolixir_web/live/tax_live.ex:830
 #, elixir-autogen, elixir-format
 msgid "Statement date"
 msgstr "Stichtag der Abrechnung"
 
 #: lib/portfolixir_web/live/tax_live.ex:531
 #: lib/portfolixir_web/live/tax_live.ex:646
-#: lib/portfolixir_web/live/tax_live.ex:801
+#: lib/portfolixir_web/live/tax_live.ex:808
 #, elixir-autogen, elixir-format
 msgid "Tax year"
 msgstr "Steuerjahr"
@@ -4549,7 +4549,7 @@ msgstr "Steuerjahr"
 msgid "Tax-free trim budget"
 msgstr "Steuerfreier Verkaufsspielraum"
 
-#: lib/portfolixir_web/live/tax_live.ex:965
+#: lib/portfolixir_web/live/tax_live.ex:972
 #, elixir-autogen, elixir-format
 msgid "Tax-free trim budget at this institution: %{value}."
 msgstr "Steuerfreier Verkaufsspielraum bei diesem Institut: %{value}."
@@ -4561,12 +4561,12 @@ msgstr "Steuerpflichtige Kapitalerträge"
 
 #: lib/portfolixir_web/live/tax_live.ex:529
 #: lib/portfolixir_web/live/tax_live.ex:636
-#: lib/portfolixir_web/live/tax_live.ex:786
+#: lib/portfolixir_web/live/tax_live.ex:793
 #, elixir-autogen, elixir-format
 msgid "Taxpayer"
 msgstr "Steuerpflichtige Person"
 
-#: lib/portfolixir_web/live/tax_live.ex:1011
+#: lib/portfolixir_web/live/tax_live.ex:1024
 #, elixir-autogen, elixir-format
 msgid "What was instructed per institution, for comparison against what the bank applied."
 msgstr "Was je Institut beauftragt wurde — zum Vergleich mit dem, was die Bank angewendet hat."
@@ -4593,7 +4593,7 @@ msgstr "Prüfung auf verwaiste Konfiguration übersprungen: diese Datei enthält
 msgid "file name: %{name}; stored name kept"
 msgstr "Name in der Datei: %{name}; gespeicherter Name bleibt"
 
-#: lib/portfolixir_web/live/tax_live.ex:721
+#: lib/portfolixir_web/live/tax_live.ex:728
 #, elixir-autogen, elixir-format
 msgid "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
 msgstr "Diese Töpfe werden aus der Abrechnung der Bank übernommen, nie aus dem Buchungsbestand berechnet. Nicht mangels FIFO — die Lots werden längst nach FIFO zugeordnet, siehe Trade-Liste — sondern weil daraus ein Rohgewinn entsteht, und ein Rohgewinn ist kein Steuertopf. Teilfreistellung, Vorabpauschale, die chronologische Verrechnung des Freistellungsauftrags und der Verlustvortrag fehlen in den Transaktionsdaten, und die Töpfe führt die Bank je Institut. Maßgeblich bleibt die Abrechnung. Dies ist keine Steuerberatung."
@@ -5795,7 +5795,7 @@ msgstr "ungültige Position %{unit}"
 msgid "Continue"
 msgstr "Weiter"
 
-#: lib/portfolixir_web/live/tax_live.ex:1090
+#: lib/portfolixir_web/live/tax_live.ex:1103
 #, elixir-autogen, elixir-format
 msgid "Delete this allowance order?"
 msgstr "Diesen Freistellungsauftrag löschen?"
@@ -6122,17 +6122,17 @@ msgctxt "price freshness"
 msgid "stale"
 msgstr "veraltet"
 
-#: lib/portfolixir_web/live/tax_live.ex:845
+#: lib/portfolixir_web/live/tax_live.ex:852
 #, elixir-autogen, elixir-format
 msgid "A loss pot is the volume of loss available for offsetting."
 msgstr "Ein Verlusttopf ist das verrechenbare Verlustvolumen."
 
-#: lib/portfolixir_web/live/tax_live.ex:843
+#: lib/portfolixir_web/live/tax_live.ex:850
 #, elixir-autogen, elixir-format
 msgid "About loss pots"
 msgstr "Zu den Verlusttöpfen"
 
-#: lib/portfolixir_web/live/tax_live.ex:981
+#: lib/portfolixir_web/live/tax_live.ex:993
 #, elixir-autogen, elixir-format
 msgid "Adjust the allowance orders"
 msgstr "Freistellungsaufträge anpassen"
@@ -6142,87 +6142,87 @@ msgstr "Freistellungsaufträge anpassen"
 msgid "Allowance %{used} of %{granted} used"
 msgstr "Freistellungsauftrag %{used} von %{granted} verbraucht"
 
-#: lib/portfolixir_web/live/tax_live.ex:933
+#: lib/portfolixir_web/live/tax_live.ex:940
 #, elixir-autogen, elixir-format
 msgid "Allowance granted / used"
 msgstr "Freistellungsauftrag erteilt / verbraucht"
 
-#: lib/portfolixir_web/live/tax_live.ex:1082
+#: lib/portfolixir_web/live/tax_live.ex:1095
 #, elixir-autogen, elixir-format
 msgid "Allowance order actions"
 msgstr "Aktionen zum Freistellungsauftrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:850
+#: lib/portfolixir_web/live/tax_live.ex:857
 #, elixir-autogen, elixir-format
 msgid "Amounts without their sign; an empty field counts as zero."
 msgstr "Beträge ohne Vorzeichen; ein leeres Feld zählt als null."
 
-#: lib/portfolixir_web/live/tax_live.ex:990
+#: lib/portfolixir_web/live/tax_live.ex:1002
 #, elixir-autogen, elixir-format
 msgid "Check against the statement"
 msgstr "Gegen die Abrechnung prüfen"
 
-#: lib/portfolixir_web/live/tax_live.ex:717
+#: lib/portfolixir_web/live/tax_live.ex:724
 #, elixir-autogen, elixir-format
 msgid "Composition"
 msgstr "Zusammensetzung"
 
-#: lib/portfolixir_web/live/tax_live.ex:1008
+#: lib/portfolixir_web/live/tax_live.ex:1021
 #, elixir-autogen, elixir-format
 msgid "Configured allowance orders"
 msgstr "Hinterlegte Freistellungsaufträge"
 
-#: lib/portfolixir_web/live/tax_live.ex:841
+#: lib/portfolixir_web/live/tax_live.ex:848
 #, elixir-autogen, elixir-format
 msgid "Figures on the statement"
 msgstr "Zahlen der Abrechnung"
 
-#: lib/portfolixir_web/live/tax_live.ex:947
+#: lib/portfolixir_web/live/tax_live.ex:954
 #, elixir-autogen, elixir-format
 msgid "Foreign withholding: pot / credited"
 msgstr "Ausländische Quellensteuer: Topf / angerechnet"
 
-#: lib/portfolixir_web/live/tax_live.ex:937
+#: lib/portfolixir_web/live/tax_live.ex:944
 #, elixir-autogen, elixir-format
 msgid "Loss pots: equities / other / carry-forward"
 msgstr "Verlusttöpfe: Aktien / Sonstige / Verlustvortrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:699
+#: lib/portfolixir_web/live/tax_live.ex:703
 #, elixir-autogen, elixir-format
 msgid "Record a new statement"
 msgstr "Neue Abrechnung erfassen"
 
-#: lib/portfolixir_web/live/tax_live.ex:774
+#: lib/portfolixir_web/live/tax_live.ex:781
 #, elixir-autogen, elixir-format
 msgid "Record an allowance order"
 msgstr "Freistellungsauftrag hinterlegen"
 
-#: lib/portfolixir_web/live/tax_live.ex:733
+#: lib/portfolixir_web/live/tax_live.ex:740
 #, elixir-autogen, elixir-format
 msgid "Remaining allowance"
 msgstr "Verbleibender Freistellungsauftrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:1048
+#: lib/portfolixir_web/live/tax_live.ex:1061
 #, elixir-autogen, elixir-format
 msgid "Statement actions"
 msgstr "Aktionen zur Abrechnung"
 
-#: lib/portfolixir_web/live/tax_live.ex:741
+#: lib/portfolixir_web/live/tax_live.ex:748
 #, elixir-autogen, elixir-format
 msgid "Statutory ceiling %{year}"
 msgstr "Gesetzlicher Höchstbetrag %{year}"
 
-#: lib/portfolixir_web/live/tax_live.ex:914
+#: lib/portfolixir_web/live/tax_live.ex:921
 #, elixir-autogen, elixir-format
 msgid "Tax year %{year}"
 msgstr "Steuerjahr %{year}"
 
-#: lib/portfolixir_web/live/tax_live.ex:737
+#: lib/portfolixir_web/live/tax_live.ex:744
 #, elixir-autogen, elixir-format
 msgid "Trim budget"
 msgstr "Verkaufsspielraum"
 
-#: lib/portfolixir_web/live/tax_live.ex:953
+#: lib/portfolixir_web/live/tax_live.ex:960
 #, elixir-autogen, elixir-format
 msgid "Withheld: capital-gains tax / solidarity surcharge / church tax"
 msgstr "Abgeführt: Kapitalertragsteuer / Solidaritätszuschlag / Kirchensteuer"
@@ -6335,35 +6335,35 @@ msgstr "Gebühren und Steuern auf Handelsgeschäfte ausgenommen"
 msgid "net, all costs included"
 msgstr "netto, alle Kosten enthalten"
 
-#: lib/portfolixir_web/live/buckets_live.ex:353
+#: lib/portfolixir_web/live/buckets_live.ex:352
 #, elixir-autogen, elixir-format
 msgid "%{count} account"
 msgid_plural "%{count} accounts"
 msgstr[0] "%{count} Konto"
 msgstr[1] "%{count} Konten"
 
-#: lib/portfolixir_web/live/buckets_live.ex:352
+#: lib/portfolixir_web/live/buckets_live.ex:351
 #, elixir-autogen, elixir-format
 msgid "%{count} position"
 msgid_plural "%{count} positions"
 msgstr[0] "%{count} Position"
 msgstr[1] "%{count} Positionen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:399
+#: lib/portfolixir_web/live/buckets_live.ex:398
 #, elixir-autogen, elixir-format
 msgid "%{count} position directly:"
 msgid_plural "%{count} positions directly:"
 msgstr[0] "%{count} Position direkt:"
 msgstr[1] "%{count} Positionen direkt:"
 
-#: lib/portfolixir_web/live/buckets_live.ex:394
+#: lib/portfolixir_web/live/buckets_live.ex:393
 #, elixir-autogen, elixir-format
 msgid "%{count} position inherits"
 msgid_plural "%{count} positions inherit"
 msgstr[0] "%{count} Position erbt"
 msgstr[1] "%{count} Positionen erben"
 
-#: lib/portfolixir_web/live/buckets_live.ex:309
+#: lib/portfolixir_web/live/buckets_live.ex:308
 #, elixir-autogen, elixir-format
 msgid "%{names} has no default bucket."
 msgid_plural "%{names} have no default bucket."
@@ -6377,18 +6377,18 @@ msgid "About buckets"
 msgstr "Zu den Buckets"
 
 #: lib/portfolixir_web/live/buckets_live.ex:130
-#: lib/portfolixir_web/live/buckets_live.ex:365
+#: lib/portfolixir_web/live/buckets_live.ex:364
 #, elixir-autogen, elixir-format
 msgid "All depots, cash accounts and positions · no filters"
 msgstr "Alle Depots, Verrechnungskonten und Positionen · keine Filter"
 
-#: lib/portfolixir_web/live/buckets_live.ex:223
+#: lib/portfolixir_web/live/buckets_live.ex:222
 #: lib/portfolixir_web/live/journal/row.ex:95
 #, elixir-autogen, elixir-format
 msgid "Bucket"
 msgstr "Bucket"
 
-#: lib/portfolixir_web/live/buckets_live.ex:552
+#: lib/portfolixir_web/live/buckets_live.ex:551
 #, elixir-autogen, elixir-format
 msgid "Bucket actions"
 msgstr "Aktionen zum Bucket"
@@ -6399,35 +6399,25 @@ msgstr "Aktionen zum Bucket"
 msgid "Default"
 msgstr "Standard"
 
-#: lib/portfolixir_web/live/buckets_live.ex:306
+#: lib/portfolixir_web/live/buckets_live.ex:305
 #, elixir-autogen, elixir-format
 msgid "Default buckets are set on the account row →"
 msgstr "Standard-Buckets werden an der Kontozeile gesetzt →"
 
-#: lib/portfolixir_web/live/buckets_live.ex:391
+#: lib/portfolixir_web/live/buckets_live.ex:390
 #, elixir-autogen, elixir-format
 msgid "Default on"
 msgstr "Standard auf"
 
-#: lib/portfolixir_web/live/buckets_live.ex:518
+#: lib/portfolixir_web/live/buckets_live.ex:517
 #, elixir-autogen, elixir-format
 msgid "Edit buckets"
 msgstr "Buckets bearbeiten"
 
-#: lib/portfolixir_web/live/buckets_live.ex:370
+#: lib/portfolixir_web/live/buckets_live.ex:369
 #, elixir-autogen, elixir-format
 msgid "Only"
 msgstr "Nur"
-
-#: lib/portfolixir_web/live/buckets_live.ex:213
-#, elixir-autogen, elixir-format
-msgid "Overlapping tags on depots, cash accounts and positions · per-bucket figures are not a sum"
-msgstr "Überlappende Tags an Depots, Verrechnungskonten und Positionen · Werte je Bucket sind keine Summe"
-
-#: lib/portfolixir_web/live/buckets_live.ex:94
-#, elixir-autogen, elixir-format
-msgid "Saved include/exclude filters over buckets · applied in the view switcher on Wealth"
-msgstr "Gespeicherte Ein-/Ausschlussfilter über Buckets · gelten im Ansichtsumschalter auf Vermögen"
 
 #: lib/portfolixir_web/live/buckets_live.ex:86
 #, elixir-autogen, elixir-format
@@ -6441,27 +6431,27 @@ msgstr "Zwei Schritte: 1. Buckets anlegen — Tags an Depots, Verrechnungskonten
 msgid "View"
 msgstr "Ansicht"
 
-#: lib/portfolixir_web/live/buckets_live.ex:508
+#: lib/portfolixir_web/live/buckets_live.ex:507
 #, elixir-autogen, elixir-format
 msgid "View actions"
 msgstr "Aktionen zur Ansicht"
 
-#: lib/portfolixir_web/live/buckets_live.ex:375
+#: lib/portfolixir_web/live/buckets_live.ex:374
 #, elixir-autogen, elixir-format
 msgid "except"
 msgstr "außer"
 
-#: lib/portfolixir_web/live/buckets_live.ex:403
+#: lib/portfolixir_web/live/buckets_live.ex:402
 #, elixir-autogen, elixir-format
 msgid "no default"
 msgstr "kein Standard"
 
-#: lib/portfolixir_web/live/buckets_live.ex:372
+#: lib/portfolixir_web/live/buckets_live.ex:371
 #, elixir-autogen, elixir-format
 msgid "nothing included"
 msgstr "nichts eingeschlossen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:388
+#: lib/portfolixir_web/live/buckets_live.ex:387
 #, elixir-autogen, elixir-format
 msgid "unused"
 msgstr "unbenutzt"
@@ -9666,7 +9656,7 @@ msgid "It is corrected over the API or MCP."
 msgstr "Er wird über die API oder MCP korrigiert."
 
 #: lib/portfolixir_web/live/buckets_live.ex:158
-#: lib/portfolixir_web/live/buckets_live.ex:271
+#: lib/portfolixir_web/live/buckets_live.ex:270
 #: lib/portfolixir_web/live/classifications_live.ex:1184
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:115
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:215
@@ -12351,7 +12341,7 @@ msgid "Named by:"
 msgstr "Name von:"
 
 #: lib/portfolixir_web/live/tax_live.ex:562
-#: lib/portfolixir_web/live/tax_live.ex:1017
+#: lib/portfolixir_web/live/tax_live.ex:1030
 #, elixir-autogen, elixir-format
 msgid "Allowance order by:"
 msgstr "Freistellungsauftrag von:"

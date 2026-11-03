@@ -8248,6 +8248,11 @@ phrasing content.
 (`budget-stale`, `budget-incomplete`) and each statement's findings clamp,
 their buttons in the actions.
 
+**Ansichten** is conformant under the board's reading 2 (⑥): the views' and
+the buckets' basis lines restated their headings' ⓘ and left without a
+copy; the assignment line (the pointer to Konten & Depots and the accounts
+without a default bucket) stays whole.
+
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
 Amends Components → Booking drawer and the 2026-11-01 amendment above
