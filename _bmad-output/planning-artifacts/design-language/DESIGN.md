@@ -8262,6 +8262,11 @@ a page listed here conforms to the anatomy above without a deviation.
   and „Anlageklassen-Obergrenzen“ each gain a section ⓘ with the method
   sentences of their basis line or empty state; the as-of and view, the
   series, currency and √365, and „Keine Obergrenze konfiguriert …“ stay.
+- **Klassifizierungen**: conformant. The assignment nudge
+  (`#assignment-nudge`) and the category result's exclusion note
+  (`#category-result-excluded-note`) name rows left out, so they clamp and
+  never fold; „Nicht zugeordnet“ and the disclosure „Die N Positionen“ sit
+  in their actions. The basis line keeps its own ⓘ.
 
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
