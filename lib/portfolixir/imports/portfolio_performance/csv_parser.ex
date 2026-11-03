@@ -464,7 +464,6 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     else
       {:error, reason} when is_binary(reason) -> {:error, reason}
       {:error, {:invalid_decimal, value}} -> {:error, PortfolioPerformance.decimal_message(value)}
-      {:error, reason} -> {:error, inspect(reason)}
     end
   end
 

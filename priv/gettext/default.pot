@@ -4238,13 +4238,13 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:661
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:660
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:384
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:680
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:679
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:396
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -11401,22 +11401,22 @@ msgstr ""
 msgid "%{name} (price %{price} %{currency})"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:544
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:543
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} (expected %{expected}) — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:552
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:551
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} (expected %{expected}) — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:561
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:560
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:570
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:569
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr ""
@@ -11514,7 +11514,7 @@ msgstr ""
 msgid "Settlement amount"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:496
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:495
 #, elixir-autogen, elixir-format
 msgid "buy without a counter account — row not imported"
 msgstr ""
@@ -11529,19 +11529,19 @@ msgstr ""
 msgid "security currency “%{currency}” is not supported — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:499
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:498
 #, elixir-autogen, elixir-format
 msgid "sell without a counter account — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:490
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:489
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:836
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:839
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:493
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:492
 #, elixir-autogen, elixir-format
 msgid "transfer without an account — row not imported"
 msgstr ""
