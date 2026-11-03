@@ -4007,7 +4007,10 @@ naming the already-booked event) stays inline in the dialog.
   space follows the last tab.
 - Theme: system, light, and dark modes are supported (the menu is
   *Erscheinungsbild* in German).
-- Accent: violet, teal, and coral logo accent choices are supported.
+- Accent: violet, teal, and coral logo accent choices are supported. The
+  accent marks controls — links, tabs, buttons, the selection and the focus
+  ring — never a figure: a gain is always teal and a loss always coral,
+  whichever accent is set.
 - Language: first load follows the browser language when it is English or
   German. Explicit EN/DE links override the browser language and persist that
   choice.
@@ -4052,8 +4055,9 @@ naming the already-booked event) stays inline in the dialog.
   whole export — costs one refresh, not one per row. Until the refresh lands,
   the previous value is shown, labelled with the time it was computed.
 - Signed key figures (TTWROR, IRR/MWR, net flows, the Overview change
-  signal) carry an explicit sign and gain/loss colour at every level;
-  unsigned magnitudes keep the accent colour.
+  signal) carry an explicit sign and gain/loss colour at every level — teal
+  for a gain, coral for a loss, whatever the accent; unsigned magnitudes are
+  in the text colour.
 - **Explanations stay out of the way** (#1351; on Wealth's Holdings tab,
   the Overview and Cash flow, the other pages follow). Under a figure the
   page keeps its **basis**: the view, the period, the currency, the as-of
