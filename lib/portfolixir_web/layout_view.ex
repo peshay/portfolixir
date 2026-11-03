@@ -1310,11 +1310,15 @@ defmodule PortfolixirWeb.LayoutView do
             // behave as one popover. Each was a `<details>` that only its
             // own summary closed, so two stayed open side by side and a
             // click elsewhere left a panel over the figures. Opening one
-            // closes every other (on toggle, so the keyboard's Enter does
-            // too); a pointer going down anywhere but inside an open ⓘ
-            // closes it. `pointerdown`, not `click`: iOS fires no click on
-            // a tap on plain text. Neither cancels the event nor moves the
-            // focus, so the click lands where it was aimed.
+            // closes every other, synchronously on its summary's click,
+            // which mouse, Enter and Space all dispatch before the native
+            // toggle. Not on `toggle`: that event runs as its own task, so
+            // an earlier ⓘ's late toggle closed a newer one opened in
+            // between (and the newer one's toggle was then dropped). A
+            // pointer going down anywhere but inside an open ⓘ closes it.
+            // `pointerdown`, not `click`: iOS fires no click on a tap on
+            // plain text. Neither cancels the event nor moves the focus, so
+            // the click lands where it was aimed.
             var closeInfoTipsBut = function (keep) {
               document.querySelectorAll("details.metric-tooltip[open]").forEach(function (tip) {
                 if (tip !== keep && !tip.contains(keep)) tip.removeAttribute("open");
@@ -1323,9 +1327,15 @@ defmodule PortfolixirWeb.LayoutView do
             document.addEventListener("toggle", function (event) {
               var tip = event.target;
               if (tip && tip.matches && tip.matches("details.metric-tooltip")) {
-                if (tip.open) closeInfoTipsBut(tip);
                 window.Portfolixir.placeInfoTip(tip);
               }
+            }, true);
+            document.addEventListener("click", function (event) {
+              var summary = event.target && event.target.closest ? event.target.closest("summary") : null;
+              var tip = summary && summary.parentElement;
+              if (!tip || !tip.matches("details.metric-tooltip") || tip.open) return;
+              if (tip.querySelector("summary") !== summary) return;
+              closeInfoTipsBut(tip);
             }, true);
             document.addEventListener("pointerdown", function (event) {
               var target = event.target;

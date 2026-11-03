@@ -173,8 +173,12 @@ defmodule PortfolixirWeb.InfoTipsTest do
   #   click or a tap elsewhere closes the panel, one inside it keeps it.
   #   It neither cancels the event nor moves the focus, so the click lands
   #   where it was aimed.
-  # - The placing `toggle` listener (#1336) closes every other open ⓘ when
-  #   one opens, so the keyboard's Enter on a second ⓘ closes the first too.
+  # - Opening an ⓘ closes every other one synchronously, on its summary's
+  #   `click` (a capture listener on the document), which mouse, Enter and
+  #   Space all dispatch before the native toggle. The placing `toggle`
+  #   listener (#1336) closes nothing: a toggle event runs as its own task,
+  #   so an earlier ⓘ's late toggle closed a newer one opened in between,
+  #   and the browser test failed on it.
   # - The script reaches every page through the root layout, under the
   #   request's CSP nonce: the pages of the live session and the login page
   #   alike, with no change at the ~30 call sites.
@@ -208,7 +212,19 @@ defmodule PortfolixirWeb.InfoTipsTest do
         js
       )
 
-    assert toggle =~ ~r/if \(tip\.open\) closeInfoTipsBut\(tip\);/
+    refute toggle =~ "closeInfoTipsBut("
+
+    [_, opening] =
+      Regex.run(
+        ~r/document\.addEventListener\("click", function \(event\) \{(.*?)\}, true\);\n\s*document\.addEventListener\("pointerdown"/s,
+        js
+      ) || flunk("no capture click listener that settles an ⓘ's opening")
+
+    assert opening =~ ~s|closest("summary")|
+    assert opening =~ ~s|matches("details.metric-tooltip")|
+    assert opening =~ "|| tip.open) return;"
+    assert opening =~ "closeInfoTipsBut(tip);"
+    refute opening =~ "preventDefault"
 
     for path <- ["/", "/portfolio", "/securities", "/cashflow", "/tax", "/imports", "/login"] do
       script = conn |> get(path) |> html_response(200) |> served_client_script()
