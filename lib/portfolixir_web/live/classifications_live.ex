@@ -1089,7 +1089,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
           title={gettext("Visible positions in this category and its sub-categories")}
         ><%= total_count(@node) %></span>
         <span class="cat-value" data-role="category-value" title={gettext("EUR value of the visible positions")}>
-          <.figure value={visible_value(@node)} />
+          <%= case visible_value(@node) do %>
+            <% {sum, 0} -> %>
+              <.figure value={sum} />
+            <% {sum, left_out} -> %>
+              <.figure value={sum} /><small class="cell-note" data-role="category-value-left-out"><%= ngettext("without %{count} position", "without %{count} positions", left_out) %></small>
+            <% nil -> %>
+              <.not_computable />
+          <% end %>
         </span>
         <%!-- Per-category result (ADR-0041 slice one, #712). A dash until the
               async load lands and for a category with nothing invested: a
@@ -2847,18 +2854,25 @@ defmodule PortfolixirWeb.ClassificationsLive do
     node.hidden + Enum.sum(Enum.map(node.children, &hidden_count/1))
   end
 
-  # EUR value of the VISIBLE securities directly in this node and below; an
-  # unvalued holding contributes nothing rather than distorting the total.
-  # A total is only a total when every row carries the figure: while the
-  # holdings are still loading every market value is nil, and afterwards a
-  # position the app cannot price is still nil. Either way the sum is a dash,
-  # never a silently smaller number presented as the category's value (the
-  # same rule the securities detail's sum_known/2 states).
+  # EUR value of the VISIBLE securities directly in this node and below, as
+  # `{sum, left_out}`, or nil when no held row carries a value (#1362's S2
+  # line; board ux-design-2026-11-03-sprint23-i1 ⑨). A held position the app
+  # cannot price is left out of the sum and counted, never folded in at zero
+  # and never silently dropped: the row prints the sum of the priced members
+  # and „ohne N Positionen“ beneath, the rule the category result's API read
+  # follows (ADR-0041 §4: `current_value` over the covered members, the
+  # rest named). A row no longer held (shown with "current positions only"
+  # off) is worth nothing and is not left out. While the holdings are still
+  # loading every value is nil, so the cell is a dash until they land.
   defp visible_value(node) do
-    rows = node_securities(node)
+    {priced, unpriced} =
+      node
+      |> node_securities()
+      |> Enum.filter(& &1.held?)
+      |> Enum.split_with(&match?(%Decimal{}, &1.market_value))
 
-    if rows != [] and Enum.all?(rows, &match?(%Decimal{}, &1.market_value)) do
-      Enum.reduce(rows, @zero, &Decimal.add(&2, &1.market_value))
+    if priced != [] do
+      {Enum.reduce(priced, @zero, &Decimal.add(&2, &1.market_value)), length(unpriced)}
     end
   end
 

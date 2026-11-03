@@ -8266,7 +8266,11 @@ a page listed here conforms to the anatomy above without a deviation.
   (`#assignment-nudge`) and the category result's exclusion note
   (`#category-result-excluded-note`) name rows left out, so they clamp and
   never fold; „Nicht zugeordnet“ and the disclosure „Die N Positionen“ sit
-  in their actions. The basis line keeps its own ⓘ.
+  in their actions. The basis line keeps its own ⓘ. A category whose held
+  members are not all priced reads the sum of the priced ones, with
+  „ohne N Position(en)“ beneath it (`.cat-value .cell-note`, the member
+  rows' cell-note voice, block below the figure); only a category with no
+  priced member keeps „—“ (⑨, #1362's S2 line).
 
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
