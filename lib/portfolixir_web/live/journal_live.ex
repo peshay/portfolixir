@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.JournalLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.JournalQuery
   alias PortfolixirWeb.AppShell
@@ -40,13 +41,23 @@ defmodule PortfolixirWeb.JournalLive do
   def handle_params(params, _uri, socket) do
     opts = read_opts(params)
     {entries, truncated} = JournalQuery.list(opts)
+    security_names = security_names(entries)
 
     {:noreply,
      assign(socket,
        opts: opts,
-       rows: Enum.map(entries, &Row.build/1),
+       rows: Enum.map(entries, &Row.build(&1, security_names)),
        truncated: truncated
      )}
+  end
+
+  # The names of the securities the page's entries name only by id, read in
+  # one query for the page (`Row.security_ids/1`), never one per row.
+  defp security_names(entries) do
+    entries
+    |> Row.security_ids()
+    |> Catalog.get_securities_by_ids()
+    |> Map.new(fn {id, security} -> {id, security.name} end)
   end
 
   # A parameter the API would refuse with a 422 reads as absent here: the
