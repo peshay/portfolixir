@@ -2125,6 +2125,15 @@ Example account payloads:
   `PATCH /api/v1/transactions/:id`, the amount settled or the one the
   figures give; a row stated within its tolerance leaves the list. Read-only and
   uncapped; nothing is rewritten.
+
+  These three checks have one human view (Sprint 23): the Overview's
+  data-quality line names each above zero, its count the read's row count,
+  and links to the transaction history filtered to exactly the read's rows —
+  `/transactions?dq=cash_mismatch`, `?dq=rate_only`, `?dq=incomplete_split`
+  (a split event's `transaction_ids`) — so an agent can hand the operator
+  that link. `dq=` is the page's parameter, not the API's:
+  `GET /api/v1/transactions` takes no such filter, because these three reads
+  are its twins and carry the figures the page shows.
 - `POST /api/v1/holdings/reconcile` compares a **user-supplied external
   position list** (a broker statement or depot overview, parsed client-side
   into rows) against the ledger-derived holdings — **strictly read-only**:

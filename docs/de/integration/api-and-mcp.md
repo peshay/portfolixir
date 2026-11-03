@@ -2309,6 +2309,16 @@ Beispiel-Payloads für Konten:
   `PATCH /api/v1/transactions/:id` angeben, den abgerechneten oder den, den
   die Zahlen ergeben; eine innerhalb ihrer Toleranz angegebene Zeile
   verlässt die Liste. Rein lesend und ohne Obergrenze; nichts wird umgeschrieben.
+
+  Diese drei Prüfungen haben eine Ansicht für Menschen (Sprint 23): Die
+  Datenqualitätszeile der Übersicht nennt jede oberhalb von null, ihr Zähler
+  ist die Zeilenzahl des Reads, und verlinkt auf die Transaktionshistorie,
+  gefiltert auf genau die Zeilen des Reads — `/transactions?dq=cash_mismatch`,
+  `?dq=rate_only`, `?dq=incomplete_split` (die `transaction_ids` eines
+  Split-Ereignisses) —, sodass ein Agent dem Betreiber diesen Link geben kann.
+  `dq=` ist der Parameter der Seite, nicht der API: `GET /api/v1/transactions`
+  kennt keinen solchen Filter, denn diese drei Reads sind seine Zwillinge und
+  tragen die Zahlen, die die Seite zeigt.
 - `POST /api/v1/holdings/reconcile` vergleicht eine **vom Nutzer gelieferte
   externe Positionsliste** (Brokerauszug oder Depotübersicht, clientseitig in
   Zeilen geparst) mit den aus dem Ledger abgeleiteten Beständen — **strikt

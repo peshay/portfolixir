@@ -1302,6 +1302,31 @@ unlesbarer Wert degradiert zur vollständigen Historie. Die Spalte **Saldo**
 bleibt von diesem Filter wie von jedem anderen unberührt: sie wird immer über
 die gesamte Historie des Kontos gebildet.
 
+Der zweite URL-Filter der Historie ist **`?dq=`**, auf den die
+Datenqualitätszeile der Übersicht verlinkt (Sprint 23): `?dq=cash_mismatch`,
+`?dq=rate_only` und `?dq=incomplete_split` zeigen genau die Zeilen der drei
+Hauptbuch-Prüfungen der API — `GET /api/v1/transactions/cash_mismatch`,
+`GET /api/v1/transactions/rate_only` und `GET /api/v1/splits/incomplete`
+(bei einem Split die gebuchten Zeilen des Ereignisses) —, gelesen von
+denselben Funktionen, sodass der Zähler der Übersicht, die Zeilen hier und
+der Read des Agenten eine Menge sind; jeder andere Wert wird ignoriert. Über
+den Zeilen sagt ein **Problem**-Hinweis, was die Prüfung findet, was es mit
+den Zahlen macht und was hilft, in wenigen Zeilen mit *mehr* („Gefiltert: 1
+Kauf oder Verkauf, dessen Betrag nicht zu Menge × Preis, Gebühren und Steuern
+passt — Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag
+im Buchungsformular angeben (Bearbeiten): …. Nichts wird automatisch
+geändert."); in seinen Aktionen stehen **Alle Buchungen zeigen** und, bei
+Splits eines Wertpapiers, **Split erfassen** bei diesem Wertpapier. Der
+Split-Hinweis nennt jedes fehlende Portfolio und die Stücke, die es vor dem
+Datum hielt. Der Betrag jeder Zeile bekommt eine zweite Zeile mit der Zahl,
+die die Prüfung vergleicht: *aus den Zahlen: 816,00* (Menge × Preis mit
+Gebühren und Steuern, neben gespeicherten 806,00) oder *zum eigenen Kurs
+0,93: 1.864,90 EUR* (der Betrag, den der eigene Kurs der Buchung in der
+Währung des Kontos ergibt, neben dem unumgerechneten Betrag, den das
+Hauptbuch bucht). Eine korrigierte Buchung verlässt die Liste; eine Prüfung
+ohne verbleibende Zeilen sagt das in einem schlichten Hinweis. Ein
+**Geändert-seit**-Chip behält den `dq`-Filter, **Zurücksetzen** hebt ihn auf.
+
 Die Standardspalten sind **Datum, Typ, Wertpapier, Konto, Stückzahl, Preis
 und Betrag**. **Konto** (Issue #1084) nennt das Verrechnungskonto, über das
 der Betrag lief — das Konto, aus dessen Sicht der Betrag steht, mit dem
@@ -2053,12 +2078,24 @@ beiden Befunde sagen nach ihrem Link auch, was sie mit der Summe darüber
 machen (Issue #1121): „— gehalten zählt sie in der Summe oben hundertfach
 zu hoch oder zu niedrig" und „— ihr Wert in der Summe oben oder ihr
 Einstand ist daher falsch"; die Wertkarte selbst schweigt, denn eine solche
-Zeile steht in der Summe, nicht außerhalb. Der Befund,
+Zeile steht in der Summe, nicht außerhalb. Drei Befunde aus dem Hauptbuch
+schließen die Zeile (Sprint 23), jeder nur, wenn sein Zähler größer als null
+ist, und jeder verlinkt auf die Transaktionshistorie, gefiltert auf genau
+seine Zeilen (`?dq=`, beschrieben bei der Historie): „eine Buchung, deren
+Betrag nicht zu Menge × Preis, Gebühren und Steuern passt — Kontostand und
+Einstand lesen daher verschiedene Beträge", „ein Kauf oder Verkauf in
+Fremdwährung mit Wechselkurs, aber ohne Betrag — er bucht Menge × Preis
+ohne Umrechnung aufs Konto" und „ein Split, dem ein Portfolio fehlt, das
+das Wertpapier hielt — dort sind die Lots geteilt, der Bestand nicht". Jeder
+Zähler ist die Zahl der Zeilen, die der passende API-Read liefert
+(`GET /api/v1/transactions/cash_mismatch`, `…/rate_only`,
+`GET /api/v1/splits/incomplete`). Der Befund,
 der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
 Anlageklasse"). Der Hinweis nimmt die höchste vorhandene Stufe an: Problem,
-solange eine Anleihe auf zwei Skalen bepreist ist oder die Kurse eines
-gehaltenen Wertpapiers nicht zu seinen Buchungen passen, Achtung, solange
-ein Kurs veraltet ist, sonst Hinweis.
+solange eine Anleihe auf zwei Skalen bepreist ist, die Kurse eines
+gehaltenen Wertpapiers nicht zu seinen Buchungen passen oder einer der drei
+Hauptbuch-Befunde steht, Achtung, solange ein Kurs veraltet ist, sonst
+Hinweis.
 Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist; ein
 sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Die Daten
 der Karte **Fällig** folgen der Oberflächensprache (15.10.2026 auf

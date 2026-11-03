@@ -1182,6 +1182,29 @@ garbled value degrades to the full history. The Balance column is unaffected
 by this filter, like by every other: it is always computed over the account's
 whole history.
 
+The history's second URL filter is **`?dq=`**, which the Overview's
+data-quality line links to (Sprint 23): `?dq=cash_mismatch`, `?dq=rate_only`
+and `?dq=incomplete_split` show exactly the rows of the API's three ledger
+checks — `GET /api/v1/transactions/cash_mismatch`,
+`GET /api/v1/transactions/rate_only` and `GET /api/v1/splits/incomplete`
+(for a split, the event's booked rows) — read by the same functions, so the
+count on the Overview, the rows here and the agent's read are one set; any
+other value is ignored. Above the rows a **problem** note says what the check
+finds, what it does to the figures and the remedy, in a few lines that open
+with *more* ("Filtered: 1 buy or sell whose cash misses its quantity × price,
+fees and taxes — so the cash balance and the cost read different amounts.
+State the cash in the booking form (Edit): …. Nothing is changed
+automatically."); its actions hold **Show all bookings** and, for splits of
+one security, **Record split** on that security. The split note names each
+portfolio the split misses and the shares it held before the date. Each row's
+amount gets a second line with the figure the check compares: *from its
+figures: 816.00* (quantity × price with fees and taxes, beside a stored cash
+of 806.00) or *at its own rate 0.93: 1,864.90 EUR* (the cash the booking's own
+rate gives in the account's currency, beside the unconverted amount the
+ledger books). Once a booking is corrected it leaves the list; a check with
+no rows left says so in a plain note. A **Changed since** chip keeps the
+`dq` filter, and **Reset** clears it.
+
 The default columns are **Date, Type, Security, Account, Quantity, Price and
 Amount**. **Account** (issue #1084) names the cash account the amount moved
 through — the account whose view the amount is, by the same name its chip
@@ -1864,11 +1887,22 @@ findings also say, after their link, what they do to the total above it
 (issue #1121): "— if held, it counts a hundredfold too high or too low in
 the total above" and "— so their value in the total above, or their cost,
 is wrong"; the value card itself stays silent, since such a row is in the
-total, not left out of it. Whichever finding
+total, not left out of it. Three findings from the ledger close the line
+(Sprint 23), each only when its count is above zero and each linking to the
+transaction history filtered to exactly its rows (`?dq=`, described under
+the history): "one booking whose cash misses its quantity × price, fees and
+taxes — so the cash balance and the cost read different amounts", "one
+cross-currency buy or sell with a rate and no cash amount — it books
+quantity × price to the account unconverted" and "one split missing a
+portfolio that held the security — there the lots are split and the holding
+is not". Each count is the number of rows the matching API read returns
+(`GET /api/v1/transactions/cash_mismatch`, `…/rate_only`,
+`GET /api/v1/splits/incomplete`). Whichever finding
 opens the line carries the noun ("4 securities without an asset class").
 The note takes the highest severity present: a problem while a bond is
-priced on two scales or a held security's quotes do not match its
-bookings, attention while a quote is stale, otherwise a note. The line renders only when at least one count is
+priced on two scales, a held security's quotes do not match its
+bookings or any of the three ledger findings stands, attention while a
+quote is stale, otherwise a note. The line renders only when at least one count is
 non-zero; a clean catalog shows nothing (no all-clear badge). The **Due**
 card's dates follow the interface language (15.10.2026 in German). There is
 deliberately no activity feed: the audit journal owns the forensic detail,
