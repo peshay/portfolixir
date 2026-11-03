@@ -1897,9 +1897,12 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # the tree head; no control (UX-DR25 clause 3), and one member needs no
     # disclosure.
     assert [note] = Floki.find(doc, ~s([role="status"] > [data-role="category-result-excluded"]))
-    assert Floki.attribute(note, "class") == ["data-note data-note--attention"]
+    # Sprint 23, Lane I (board ux-design-2026-11-03-sprint23-i1 ③): it
+    # names a row left out, so it clamps; "no control" means none in its
+    # body (the clamp's own "more" sits outside it).
+    assert Floki.attribute(note, "class") == ["data-note data-note--attention data-note--clamped"]
     assert Floki.find(note, "bdi") |> Floki.text() == "Harborline Freight Inc"
-    assert Floki.find(note, "button, a, details") == []
+    assert Floki.find(note, ".data-note__body button, .data-note__body a, details") == []
 
     assert html =~
              ~r/data-role="category-result-basis".*data-role="category-result-excluded".*data-role="tree-head"/s
@@ -1953,7 +1956,8 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
                ~s([data-role="category-result-excluded"] details.perf-table-disclosure)
              )
 
-    assert Floki.find(doc, ~s([data-role="category-result-excluded"] button)) == []
+    assert Floki.find(doc, ~s([data-role="category-result-excluded"] .data-note__body button)) ==
+             []
   end
 
   test "the note's English source says the same, and every member paid elsewhere is in Value (#1048)",

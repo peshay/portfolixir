@@ -359,15 +359,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
         <%= if @tree.assignable and @tree.flat != [] and @tree.unsorted != [] do %>
           <%!-- A finding is a data note, not an accent banner (UX-DR17); the
-               remedy — the Unsorted list below — is the link inside it. --%>
+               remedy — the Unsorted list below — is the link inside it. It
+               names rows left out of the allocation, so it clamps and never
+               folds, its link in the actions (Sprint 23, Lane I; board
+               ux-design-2026-11-03-sprint23-i1 ③). --%>
           <div role="status">
-            <AppShell.data_note severity={:attention} id="assignment-nudge" data-role="assignment-nudge">
+            <AppShell.data_note
+              severity={:attention}
+              id="assignment-nudge"
+              data-role="assignment-nudge"
+              clamp
+            >
               <%= ngettext(
                 "%{count} security is in no category yet and does not count toward the target/actual allocation.",
                 "%{count} securities are in no category yet and do not count toward the target/actual allocation.",
                 length(@tree.unsorted)
               ) %>
-              <a href="#unsorted"><%= gettext("Unsorted") %></a>
+              <:actions><a href="#unsorted"><%= gettext("Unsorted") %></a></:actions>
             </AppShell.data_note>
           </div>
         <% end %>
@@ -827,10 +835,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
       |> assign(:single, single_member(assigns.excluded))
 
     ~H"""
+    <%!-- The note names rows left out of "Cost" and "Result", so it clamps
+         and never folds, its count first; the list's disclosure is its
+         remedy and sits in the actions (Sprint 23, Lane I; board
+         ux-design-2026-11-03-sprint23-i1 ③). --%>
     <div role="status" class="category-result-excluded-region" data-role="category-result-excluded-region"><AppShell.data_note
         :if={@excluded != []}
         severity={:attention}
+        id="category-result-excluded-note"
         data-role="category-result-excluded"
+        clamp
       >
         <%= if @single do %>
           <%= single_excluded_lead(@single, @currency) %>
@@ -839,6 +853,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <% else %>
           <%= excluded_lead(@count, @paid_elsewhere, @currency) %>
           <%= excluded_value_sentence(@count, @valued) %>
+        <% end %>
+        <:actions :if={!@single}>
           <details class="perf-table-disclosure" data-role="category-result-excluded-list">
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
@@ -856,7 +872,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
               </li>
             </ul>
           </details>
-        <% end %>
+        </:actions>
       </AppShell.data_note></div>
     """
   end
