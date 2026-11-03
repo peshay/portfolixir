@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CategoryResult
   alias Portfolixir.Portfolios.Target
@@ -290,11 +291,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
              Focusable (#945, the closing act of PR γ): a plan write's
              refusal is brought into view and focused, because "Save plan"
              sits far below it (`answer_plan_write/1`); a success is not. --%>
+        <%!-- #1324: the shared hook alone gives the focus back on a
+             dismiss (#1166, pick N13 A); a refusal that named an input
+             names it as the trigger to return to. --%>
         <AppShell.inline_result
           id="classifications-result"
           class="inline-result--page"
           result={page_result(@error, @success)}
           focusable
+          focus_return={@soll_refused && "#" <> @soll_refused}
           focus_fallback="#classification-heading"
         />
 
@@ -1583,20 +1588,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   @impl true
   # The result's dismiss (#1064): the slot empties until the next action.
-  # The focus may have sat on the slot (a refusal takes it), so it goes back
-  # where the operator was editing: the input the refusal named, else the
-  # plan editor's heading, else the tree's own (cascade layer 2 of the PR γ
-  # closing act; the component-wide case, a dismiss on any page, is issue
-  # 1166).
+  # Where the focus goes is the shared `InlineResult` hook's (#1166, pick
+  # N13 A): the input a refusal named (the slot's `focus_return`), else the
+  # control that produced the result, else the tree's heading. The page
+  # pushed a focus of its own here too, so the focus moved twice (#1324).
   def handle_event("dismiss_result", _params, socket) do
-    target = dismiss_focus(socket.assigns)
-
-    socket =
-      socket
-      |> assign(error: nil, success: nil, soll_refused: nil)
-      |> focus_into_view(target)
-
-    {:noreply, socket}
+    {:noreply, assign(socket, error: nil, success: nil, soll_refused: nil)}
   end
 
   def handle_event("create_classification", %{"classification" => params}, socket) do
@@ -1739,9 +1736,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  # #1226 (by its recommendation): the screen names the copy in the reader's
+  # language, clamped to the name's 120 code points as the store's default
+  # is; the API and MCP keep their optional `name` and English default.
   def handle_event("duplicate_soll_plan", _params, socket) do
-    with %{plan: %{id: plan_id}} <- socket.assigns.soll,
-         {:ok, copy} <- Targets.duplicate_plan(Actor.owner_ui(), plan_id) do
+    with %{plan: %{id: plan_id, name: name}} <- socket.assigns.soll,
+         copy_name = Text.truncate(gettext("%{name} (copy)", name: name), 120),
+         {:ok, copy} <- Targets.duplicate_plan(Actor.owner_ui(), plan_id, %{name: copy_name}) do
       {:noreply,
        socket
        |> assign(:soll_plan_id, copy.id)
@@ -3470,13 +3471,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp refused_input(_reason), do: nil
 
-  # Where a dismiss puts the focus back (`dismiss_result`).
-  defp dismiss_focus(%{soll_refused: input}) when is_binary(input), do: input
-  defp dismiss_focus(%{soll: %{}}), do: "soll-editor-heading"
-  defp dismiss_focus(%{tree: %{}}), do: "classification-heading"
-  defp dismiss_focus(_assigns), do: nil
-
-  defp focus_into_view(socket, nil), do: socket
   defp focus_into_view(socket, id), do: push_event(socket, "focus-into-view", %{id: id})
 
   # The refused input is marked invalid and described by the page's problem
