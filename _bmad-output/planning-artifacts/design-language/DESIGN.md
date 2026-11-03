@@ -41,12 +41,18 @@ colors:
   accent-coral-dark: '#fb7185'
   accent-coral-soft-dark: 'rgb(225 29 72 / 0.16)'
   # Semantic
-  positive: '#047857'
-  positive-dark: '#34d399'
-  # Darkened from #dc2626 on 2026-08-05 (designer, owner-delegated) to close the
-  # danger-tint gate — the measurements, the consumer census and the cost are in
-  # Colors → the danger-tint gate. Light mode only; danger-dark is untouched.
-  danger: '#b91c1c'
+  # One green and one red (2026-11-03, Sprint 23 C2, plan D-11, board
+  # ux-design-2026-11-02-sprint23/04-number-colours pick Q7 C): positive and
+  # danger are ALIASES of the brand teal and coral — app.css declares
+  # var(--color-accent-teal) / var(--color-accent-coral) in all four theme
+  # blocks — and never re-key with [data-accent]. Were #047857 / #34d399
+  # (positive) and #b91c1c (danger, light) until then.
+  positive: '#0f766e'
+  positive-dark: '#2dd4bf'
+  # Darkened from #dc2626 to #b91c1c on 2026-08-05 (designer, owner-delegated)
+  # to close the danger-tint gate — Colors → the danger-tint gate; the brand
+  # coral since 2026-11-03 (above), 4.53:1 on the danger tint.
+  danger: '#ce1b42'
   danger-dark: '#fb7185'
   warning: '#b45309'
   warning-dark: '#fbbf24'
@@ -66,8 +72,8 @@ colors:
   # token lands there.
   danger-soft: '#ffe4e6'
   danger-soft-dark: 'rgb(225 29 72 / 0.16)'
-  # buy marker reuses positive-green in light mode (5.12:1 on the chart frame, {colors.bg}); the dark pair and tx-sell are not painted: the build uses --color-positive (#34d399 dark) and --color-danger
-  tx-buy: '#047857'
+  # buy marker reuses positive in light mode (the brand teal since 2026-11-03, 5.11:1 on the chart frame, {colors.bg}); the dark pair and tx-sell are not painted: the build uses --color-positive (#2dd4bf dark) and --color-danger
+  tx-buy: '#0f766e'
   tx-buy-dark: '#10b981'
   tx-sell: '#ef4444'
   tx-sell-dark: '#ef4444'
@@ -609,9 +615,11 @@ Until the token lands in `app.css`, `.alert-error`'s 4.02:1 stands as a live con
 
 Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI components/graphics 3:1. "Large-only" = passes 3:1 but not 4.5:1.
 
+**Recomputed 2026-11-03 (Sprint 23 C2, plan D-11; board `mockups/ux-design-2026-11-02-sprint23/04-number-colours`, pick Q7 C): the gain and loss rows, after {colors.positive} and {colors.danger} became aliases of the brand teal and coral** — light `#0f766e` / `#ce1b42`, dark `#2dd4bf` / `#fb7185` (danger-dark unchanged). Each row gives its old figure beside the new one. New rows measure both on {colors.danger-soft}, light and dark (the tint composited over the panel), as the board's table does. Every pair clears 4.5:1; the thinnest margins are the brand coral's own: danger on danger-soft at 4.53:1 and positive on it at 4.56:1, the same figures as the accent-coral and accent-teal rows, because they are the same colours. `CssAccentContrastTest` computes these rows from `app.css`.
+
 **Recomputed 2026-10-08 (issue 1170): the chart rows, against {colors.bg}.** `.chart-frame` paints `--color-bg` in both themes — the token both halos took in Sprint 19's closing act — not {colors.chart-surface}, the card colour the four marker rows were measured against. Each marker row keeps its colour and gives its chart-surface figure beside the new one. New rows give the markers as the build paints them (`--color-positive` for buy, `--color-danger` for sell) and the axis text (`--color-text-muted`, the 9 px values and dates), each on the frame. One pair is under its floor, as it was on chart-surface: `#10b981` on the light frame, 2.37:1 against 3:1 for graphics — a colour the light build does not paint; the light buy marker it paints, `#047857`, measures 5.12:1. Every other chart pair clears its floor. The commitments above (meaningful graphics ≥ 3:1 against {colors.chart-surface}) and `{components.chart-frame}`'s background still name chart-surface; which surface the chart should be is not this recomputation's to settle.
 
-**Settled 2026-10-31 (issue 1200, variant A): the chart is the frame's {colors.bg}, as built.** The build is the reference, and no picture changes: the graphics commitment, the category-swatch rule and `{components.chart-frame}`'s background now name {colors.bg}, the colour `.chart-frame` paints in both themes, and every chart row below is already measured against it. {colors.chart-surface} stays a token for what still paints it, not the chart. The light {colors.tx-buy} is `#047857` (frontmatter), measured in the "buy marker as built" row at 5.12:1; the `tx-buy-dark #10b981` light row measures {colors.tx-buy-dark} on the light frame, a pairing the build never paints and no light surface may use, kept to show why the light token is the darker green.
+**Settled 2026-10-31 (issue 1200, variant A): the chart is the frame's {colors.bg}, as built.** The build is the reference, and no picture changes: the graphics commitment, the category-swatch rule and `{components.chart-frame}`'s background now name {colors.bg}, the colour `.chart-frame` paints in both themes, and every chart row below is already measured against it. {colors.chart-surface} stays a token for what still paints it, not the chart. The light {colors.tx-buy} was `#047857` (frontmatter), measured in the "buy marker as built" row at 5.12:1 — the brand teal `#0f766e` at 5.11:1 since 2026-11-03 (Sprint 23 C2); the `tx-buy-dark #10b981` light row measures {colors.tx-buy-dark} on the light frame, a pairing the build never paints and no light surface may use, kept to show why the light token is the darker green.
 
 **Recomputed 2026-10-03 (Sprint 18 pick H5, issue 908): the coral rows, after {colors.accent-coral} was darkened from `#e11d48` to `#ce1b42` in light mode.** Every other figure in the table was re-checked to two decimals and is correct. One verdict was inverted and is corrected ("accent-coral / bg-elevated 4.70 — fail normal text": 4.70 passed). New rows give every accent on the surfaces where a remedy link actually sits — {colors.bg-muted} (note-severity data note), {colors.warning-soft} (attention) and {colors.danger-soft} (problem). The "selected" rows are re-keyed to the accent tints: since issue 644 `--color-selected` is `var(--color-accent-soft)`, so `#ede9fe` was only the violet case, and `selected-dark #1f2c42` cited a colour `app.css` no longer has. **The thinnest margins are stated, not absorbed:** coral on coral-soft and on danger-soft (the same `#ffe4e6`) clears the bar by 0.03, teal on danger-soft by 0.06; lightening either tint later reopens those rows.
 
@@ -646,18 +654,19 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | accent-violet / danger-soft #ffe4e6 | 4.75 | pass | a remedy link in a problem data note |
 | accent-teal / danger-soft | 4.56 | pass, 0.06 of headroom | same |
 | accent-coral / danger-soft | 4.53 | pass, 0.03 of headroom (was 3.91, fail) | same |
-| positive #047857 / bg | 5.12 | pass | gains on canvas |
-| positive / bg-elevated | 5.48 | pass | gains in tables/cards |
-| danger #b91c1c / bg | 6.04 | pass | losses, destructive |
-| danger #b91c1c / bg-elevated | 6.47 | pass | losses in tables |
-| danger #b91c1c / bg-muted #eef1f6 | 5.71 | pass | losses in table heads and wells |
-| danger #b91c1c / danger-soft #ffe4e6 | 5.39 | pass | problem-severity data note |
+| positive #0f766e (the brand teal) / bg | 5.11 | pass (5.12 at `#047857`) | gains on canvas |
+| positive / bg-elevated | 5.47 | pass (5.48 at `#047857`) | gains in tables/cards |
+| positive / danger-soft #ffe4e6 | 4.56 | pass, 0.06 of headroom | a gain inside a problem data note |
+| danger #ce1b42 (the brand coral) / bg | 5.08 | pass (6.04 at `#b91c1c`) | losses, destructive |
+| danger #ce1b42 / bg-elevated | 5.44 | pass (6.47 at `#b91c1c`) | losses in tables |
+| danger #ce1b42 / bg-muted #eef1f6 | 4.81 | pass (5.71 at `#b91c1c`) | losses in table heads and wells |
+| danger #ce1b42 / danger-soft #ffe4e6 | 4.53 | pass, 0.03 of headroom (5.39 at `#b91c1c`) | problem-severity data note |
 | warning #b45309 / bg | 4.69 | pass | stale timestamps |
 | warning / bg-elevated | 5.02 | pass | warning alerts |
-| tx-buy-dark #10b981 / bg #f6f7fa (the chart frame) | **2.37** | **fail 3:1 graphics** (2.54 on chart-surface) | not painted: `#10b981` is {colors.tx-buy-dark}; the light {colors.tx-buy} is `#047857`, the row after next (issue 1200) |
+| tx-buy-dark #10b981 / bg #f6f7fa (the chart frame) | **2.37** | **fail 3:1 graphics** (2.54 on chart-surface) | not painted: `#10b981` is {colors.tx-buy-dark}; the light {colors.tx-buy} is `#0f766e`, the row after next (issue 1200; Sprint 23 C2) |
 | tx-sell #ef4444 / bg (the chart frame) | 3.51 | pass 3:1 graphics (fail as text; 3.76 on chart-surface) | not painted: the build uses `--color-danger`, the sell marker as built below (issue 1200) |
-| buy marker as built, positive #047857 / bg (the chart frame) | 5.12 | pass 3:1 graphics | light buy markers (`--color-positive`) |
-| sell marker as built, danger #b91c1c / bg (the chart frame) | 6.04 | pass 3:1 graphics | light sell markers (`--color-danger`) |
+| buy marker as built, positive #0f766e / bg (the chart frame) | 5.11 | pass 3:1 graphics | light buy markers (`--color-positive`) |
+| sell marker as built, danger #ce1b42 / bg (the chart frame) | 5.08 | pass 3:1 graphics | light sell markers (`--color-danger`) |
 | chart axis, text-muted #5a6577 / bg (the chart frame) | 5.50 | pass | axis values and dates, 9 px |
 | text / accent-soft (selected): violet #ede9fe · teal #ccfbf1 · coral #ffe4e6 | 15.59 · 16.43 · 15.42 | pass | selected-row content |
 | text-muted / accent-soft (selected): violet · teal · coral | 4.96 · 5.23 · 4.91 | pass | selected-row meta |
@@ -674,14 +683,16 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | accent-teal-dark #2dd4bf / bg-dark | 10.32 | pass | teal accent |
 | accent-coral-dark #fb7185 / bg-dark | 7.14 | pass | coral accent |
 | accent-violet-dark / violet-soft-dark composite (#242339 over bg-dark) | 5.61 | pass | active nav text in wash |
-| positive-dark #34d399 / bg-dark | 10.00 | pass | gains |
-| positive-dark / bg-elevated-dark | 9.11 | pass | gains in panels |
-| danger-dark #fb7185 / bg-dark | 7.14 | pass | losses |
+| positive-dark #2dd4bf (the brand teal) / bg-dark | 10.32 | pass (10.00 at `#34d399`) | gains |
+| positive-dark / bg-elevated-dark | 9.40 | pass (9.11 at `#34d399`) | gains in panels |
+| positive-dark / danger-soft-dark composite over bg-elevated-dark | 8.51 | pass | a gain inside a problem data note |
+| danger-dark #fb7185 (the brand coral) / bg-dark | 7.14 | pass | losses |
 | danger-dark / bg-elevated-dark | 6.50 | pass | losses in panels |
+| danger-dark / danger-soft-dark composite over bg-elevated-dark | 5.89 | pass | problem-severity data note |
 | warning-dark #fbbf24 / bg-dark | 11.51 | pass | stale timestamps |
-| tx-buy-dark #10b981 / bg-dark #0b0f14 (the chart frame) | 7.58 | pass (6.90 on chart-surface-dark) | not painted: the build uses `--color-positive` (`#34d399` dark), the buy marker as built below (issue 1200) |
+| tx-buy-dark #10b981 / bg-dark #0b0f14 (the chart frame) | 7.58 | pass (6.90 on chart-surface-dark) | not painted: the build uses `--color-positive` (`#2dd4bf` dark since Sprint 23 C2), the buy marker as built below (issue 1200) |
 | tx-sell #ef4444 / bg-dark (the chart frame) | 5.11 | pass (4.65 on chart-surface-dark) | not painted: the build uses `--color-danger` (`#fb7185` dark), the sell marker as built below (issue 1200) |
-| buy marker as built, positive-dark #34d399 / bg-dark (the chart frame) | 10.00 | pass | dark buy markers (`--color-positive`) |
+| buy marker as built, positive-dark #2dd4bf / bg-dark (the chart frame) | 10.32 | pass | dark buy markers (`--color-positive`) |
 | sell marker as built, danger-dark #fb7185 / bg-dark (the chart frame) | 7.14 | pass | dark sell markers (`--color-danger`) |
 | chart axis, text-muted-dark #8b97a8 / bg-dark (the chart frame) | 6.49 | pass | axis values and dates (dark) |
 | accent-teal-dark / teal-soft-dark composite (#17383c over bg-elevated-dark) | 6.77 | pass | active nav text in wash, teal |
