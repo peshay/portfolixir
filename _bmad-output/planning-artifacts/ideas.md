@@ -72,7 +72,7 @@ decision pass.
 
 | # | Idea | Status | Where described | Open question | Stands against |
 |---|---|---|---|---|---|
-| F1 | Predictions and a calibration report, including per-source calibration (how right a source's interpretations turned out) | `gated` (B4.2) | `epics.md` FR-46/47; ADR-0044 asks; backlog triage 2026-09-23; owner asked for source calibration (2026-11-01, via I13) | the agent has never confirmed it will record predictions; I13 would record them. **2026-11-03, an outside analysis the owner forwarded:** the condition is the owner's own to meet, because the owner runs the agent and decides that it records; with the append-only log and `as_of` in place, a recorded prediction resolved against stored quotes is a forward test of the agent, scored per author. The gate's question for the owner: will the agent record a direction, a probability, a resolution date and a benchmark with each decision? | ladder (c); basis in the payload |
+| F1 | Predictions and a calibration report, including per-source calibration (how right a source's interpretations turned out) | `discussing` (gate B4.2) | `epics.md` FR-46/47; ADR-0044 asks; backlog triage 2026-09-23; owner asked for source calibration (2026-11-01, via I13); an outside analysis the owner forwarded and the owner's conversation (2026-11-03) | B4.2's condition read "the agent has never confirmed it will record predictions". **The owner, 2026-11-03:** whether it is used is the user's choice; the question is whether it brings value. **The use case worked through that day: measure the agent.** Not a tool to trade better: LLMs are weak forecasters of prices and tend to state more confidence than their hit rate earns, so the report's value is to show, in figures rather than memory, how much weight the agent's calls deserve, and the owner's own beside them (per author). **Small shape:** a prediction entry (direction, probability, resolution date, benchmark, author, the decision it belongs to), resolved automatically against stored quotes, and a calibration report per probability band and per author. **Against a private investor's small sample:** hold decisions and news assessments count as predictions too, not only trades; every prediction is relative to its benchmark, so a rising market does not make every call a hit; the report states its sample size and its uncertainty in the payload. **Division of labour:** Portfolixir stores, resolves and scores (deterministic, append-only); the agent judges (assesses news, forms theses, states probabilities); the recurring workflow that asks for a prediction can come from Portfolixir as an MCP prompt (F32). Open for the owner: is "measure the agent" at this small shape accepted, which opens B4.2? | ladder (c); basis in the payload; no LLM in the app; no advice: the report scores calls, it makes none |
 | F2 | Rule evaluation and signal quality | `triaged` | `epics.md` FR-48; ADR-0049 §10–11 | needs months of findings; "mattered" is undefined | a replay over past data is ladder (d) |
 | F3 | Further policy-rule measures and subjects | `captured` | ADR-0049 §11 | each needs its own argument | close to "no advice"; event alerts lead to B3.7 |
 | F4 | Rebalancing digest in one call | `gated` (B3.5) | feedback triages 2026-08-12, 2026-09-19; addendum "Parked" | E24 in real use first; v1 scope | display-only (ADR-0023) |
@@ -103,7 +103,7 @@ decision pass.
 | F29 | Merge previews: flow effects and bond fields | `triaged` | **#957**, **#1070** | one ADR-0050 reading and a board | merge semantics (ADR-0050) |
 | F30 | Performance and benchmark reads over every portfolio | `captured` | Sprint 18 D-5 | nobody has asked; schema budget | — |
 | F31 | Merge the duplicate `views.*` / `portfolios.*` tools | `triaged` | feedback triage 2026-10-01 OQ-4 | only if steering by descriptions fails | changes a surface agents know |
-| F32 | More MCP prompts for recurring work | `captured` | competitive research 2026-09-30, rec. 5 | which ones, at what schema cost | each carries the no-advice framing |
+| F32 | More MCP prompts for recurring work | `captured` | competitive research 2026-09-30, rec. 5; F1's conversation (2026-11-03) | which ones, at what schema cost. **2026-11-03:** a candidate is the position review that ends in a recorded prediction (figures, open theses, invalidation, then direction, probability, date and benchmark), so the workflow comes from Portfolixir while the judgment stays with the agent | each carries the no-advice framing |
 | F33 | Trade statistics at PP's report parity | `captured` | competitive research, rec. 1 | which statistics | basis in the payload; a board each |
 
 **Data**
@@ -164,11 +164,11 @@ unless a gate holds them.
 
 ### Recommended order for going deep
 
-1. **F1**, predictions and calibration, once the owner answers its gate's
-   question (in its row): will the agent record a direction, a
-   probability, a resolution date and a benchmark with each decision? It
-   is ladder (c), the cheapest honest test of the agent's calls, and I13's
-   per-source scoring is F1 too.
+1. **F1**, predictions and calibration, in `discussing` since 2026-11-03:
+   its use case is worked through (measure the agent, at a small shape,
+   in its row), and the owner's open question is whether that shape is
+   accepted, which opens B4.2. It is ladder (c), the cheapest honest test
+   of the agent's calls, and I13's per-source scoring is F1 too.
 2. **I2**, simulation accounts: after Lane S's K09 lands.
 3. **I3**, the method: after one sprint has run with this list.
 
