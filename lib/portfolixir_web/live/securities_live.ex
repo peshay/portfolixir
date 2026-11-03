@@ -1488,11 +1488,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
           aria-labelledby="detail-tab-events"
           class="detail-tab-panel"
         >
-          <p class="detail-tab-hint" data-role="events-basis">
-            <%= gettext(
-              "Dated calendar facts about this security. An event books nothing: when a dividend is actually paid it is booked through the ledger as always and the event is marked confirmed."
-            ) %>
-          </p>
+          <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ① ②, reading 1):
+               the tab has no heading, so its line keeps the set and ends in
+               the ⓘ that holds the rule; a `div`, since a <details> is not
+               phrasing content. --%>
+          <div class="detail-tab-hint" data-role="events-basis">
+            <%= gettext("Dated calendar facts about this security.") %>
+            <AppShell.section_info>
+              <:line>
+                <%= gettext(
+                  "An event books nothing: when a dividend is actually paid it is booked through the ledger as always and the event is marked confirmed."
+                ) %>
+              </:line>
+            </AppShell.section_info>
+          </div>
           <%= if @detail_events == [] do %>
             <p class="empty-state"><%= gettext("No dates recorded for this security.") %></p>
           <% else %>
@@ -1619,7 +1628,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp overview_finding_note(%{implausible: %{} = _finding} = assigns) do
     ~H"""
-    <AppShell.data_note severity={:problem} data-role="implausible-quote-note">
+    <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ⑤): the problem leads
+         and clamps; its two links sit in its actions, never under the cut
+         (pick Q1, correction 2). --%>
+    <AppShell.data_note
+      severity={:problem}
+      id="implausible-quote-note"
+      clamp
+      data-role="implausible-quote-note"
+    >
       <strong><%= gettext("Quote does not match the bookings:") %></strong>
       <%= ngettext("%{entry}", "%{count} bookings, the last: %{entry}", @implausible.bookings_outside,
         entry: implausible_entry(@implausible)
@@ -1627,9 +1644,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <%= gettext(
         "(on a booking's day, below half or above twice the price per unit). The value or the cost of this position is therefore wrong. Check the quote source (ticker, exchange), then the booking:"
       ) %>
-      <.link patch={"/securities/#{@security.id}?tab=quotes"}><%= gettext("Quotes") %></.link>
-      ·
-      <.link patch={"/securities/#{@security.id}?tab=transactions"}><%= gettext("Transactions") %></.link>
+      <:actions>
+        <.link patch={"/securities/#{@security.id}?tab=quotes"}><%= gettext("Quotes") %></.link>
+        ·
+        <.link patch={"/securities/#{@security.id}?tab=transactions"}><%= gettext("Transactions") %></.link>
+      </:actions>
     </AppShell.data_note>
     """
   end
@@ -2282,18 +2301,31 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <% end %>
 
       <%= if @trades.closed_trades != [] or @trades.orphan_sells != [] do %>
-        <h3 class="detail-section-title"><%= gettext("Closed trades (FIFO)") %></h3>
+        <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ①): the list's
+             rules sit in the ⓘ beside its heading, as on Cash flow's
+             facet; its depots and gross/net clauses stay as the basis line
+             under the list (②). --%>
+        <div class="section-title">
+          <h3 class="detail-section-title"><%= gettext("Closed trades (FIFO)") %></h3>
+          <AppShell.section_info>
+            <:line><%= gettext("Deliveries open no lot") %></:line>
+            <:line><%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %></:line>
+          </AppShell.section_info>
+        </div>
 
         <%!-- #1198 (board 09, pick N8 A; the ADR-0015 amendment of
              2026-10-09, point 3): a closed trade a lot of which has no
              leg in the sale's currency stays a row, its cost and result the
              reason dash; this attention note leads the section, as the
              unmatched-sells note does, one sentence per lot that lacks its
-             leg, each with its remedy. --%>
+             leg, each with its remedy. It clamps (I1, board
+             ux-design-2026-11-03-sprint23-i1 ③); its "Remedy: …" says where
+             the remedy acts and stays in its text (Sprint 22's exception). --%>
         <AppShell.data_note
           :if={unavailable_lots(@trades.closed_trades) != []}
           severity={:attention}
           id="detail-closed-trades-unavailable"
+          clamp
           data-role="trades-unavailable"
         >
           <span :for={{trade, [lot | _] = lots} <- unavailable_lots(@trades.closed_trades)}>
@@ -2336,6 +2368,28 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   currency: trade.currency_code
                 ) %>
               <% nil -> %>
+            <% end %>
+            <%!-- #1365's line (Sprint 23, Lane I): a trade blocked by two
+                 causes no rate fixes names the lots of the second too, each
+                 with its own remedy — a buy paid in another currency, then
+                 a buy of zero amount, in the matcher's order. --%>
+            <%= if beside_lots(trade, lots, :other_account_currency) != [] do %>
+              <%= ngettext(
+                "Beside it, the buy of %{lot_dates} was paid in another currency than the sale's (%{currency}), and none of its stored figures can be in %{currency}. Remedy: correct the stored booking's currency or amounts.",
+                "Beside it, %{count} buys it closes, of %{lot_dates}, were paid in another currency than the sale's (%{currency}), and none of their stored figures can be in %{currency}. Remedy: correct the stored bookings' currency or amounts.",
+                length(beside_lots(trade, lots, :other_account_currency)),
+                lot_dates: lot_dates(beside_lots(trade, lots, :other_account_currency)),
+                currency: trade.currency_code || @currency_code
+              ) %>
+            <% end %>
+            <%= if beside_lots(trade, lots, :zero_amount) != [] do %>
+              <%= ngettext(
+                "Beside it, the buy of %{lot_dates} has an amount of zero and no figure in %{currency}, the sale's currency, which the rate backfill does not complete. Remedy: enter the buy's figures in %{currency} on the booking by hand.",
+                "Beside it, %{count} buys it closes, of %{lot_dates}, have an amount of zero and no figure in %{currency}, the sale's currency, which the rate backfill does not complete. Remedy: enter the buys' figures in %{currency} on the bookings by hand.",
+                length(beside_lots(trade, lots, :zero_amount)),
+                lot_dates: lot_dates(beside_lots(trade, lots, :zero_amount)),
+                currency: trade.currency_code || @currency_code
+              ) %>
             <% end %>
             <%!-- #1310 (the closing act): a trade blocked by another lot
                  that also closes a lot without its leg names that lot too,
@@ -2390,11 +2444,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
              page's own, so each sell is date · unmatched quantity, newest
              first. No remedy control (UX-DR25 clause 3): nothing on the
              page can supply the missing buy; the basis line states the
-             limit (UX-DR26). --%>
+             limit (UX-DR26). It names rows left out of the trades, so it
+             clamps and keeps its count first; the sells' list sits in its
+             actions, below the cut (I1, as on Cash flow's facet). --%>
         <AppShell.data_note
           :if={@trades.orphan_sells != []}
           severity={:attention}
           id="detail-closed-trades-note"
+          clamp
           data-role="trades-unmatched"
         >
           <%= ngettext(
@@ -2402,6 +2459,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             "%{count} sales have no matched buy for all or part of their quantity (shares from inbound deliveries, for example): that quantity is not included in any closed trade.",
             length(@trades.orphan_sells)
           ) %>
+          <:actions>
           <details class="perf-table-disclosure" data-role="trades-unmatched-list">
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
@@ -2415,6 +2473,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </li>
             </ul>
           </details>
+          </:actions>
         </AppShell.data_note>
 
         <%!-- #1029 (board H1 rule ④): the wrapper carries an id so the phone
@@ -2492,7 +2551,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                          width, as the phone row names it; two trades of one
                          security can be in two currencies. --%>
                     <td class={["num", shown_class(trade.realized_pnl_abs, 2)]}>
-                      <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small :if={trade.realized_pnl_abs} class="value-suffix"><%= trade.currency_code || @currency_code %></small>
+                      <%!-- #1321: a text space before the suffix, as #1125
+                           gave Wealth's cells, so the cell reads "98.00 EUR". --%>
+                      <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><%= if trade.realized_pnl_abs, do: " " %><small :if={trade.realized_pnl_abs} class="value-suffix"><%= trade.currency_code || @currency_code %></small>
                     </td>
                     <%!-- #1142 (board 02): a trade on no cost has no
                          return — the reason dash, not "0.0%". --%>
@@ -2547,7 +2608,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </span>
             <span :if={is_nil(trade.unavailable_reason)} class="phone-row__figures">
               <span class={["phone-row__figure", shown_class(trade.realized_pnl_abs, 2)]}>
-                <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small class="value-suffix"><%= trade.currency_code || @currency_code %></small>
+                <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %> <small class="value-suffix"><%= trade.currency_code || @currency_code %></small>
               </span>
               <%!-- #1142 (board 02): at 390 px a trade on no cost says so on
                    the row, in words, where "0.0%" stood: "— no cost basis",
@@ -2583,11 +2644,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
              renders, because it is the limit the note points to. It names
              both limits of p. a., as the facet's line does (#1089, the
              Sprint 19 U2 review): the phone row of a long trade with no
-             rate shows its period return alone, and this line says why. --%>
+             rate shows its period return alone, and this line says why. I1
+             (board ux-design-2026-11-03-sprint23-i1 ②): the line keeps its
+             depots and its gross/net clauses, one msgid each; the two rules
+             sit in the heading's ⓘ. --%>
         <p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">
-          <%= gettext(
-            "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, not in avg buy and avg sell · income received while a trade was open not included · p.\u00A0a. only from 365 days of holding and only where a rate solves the flows"
-          ) %>
+          <%= gettext("Across every depot") %> · <%= gettext(
+            "fees and taxes in the realised P&L, not in avg buy and avg sell"
+          ) %> · <%= gettext("income received while a trade was open not included") %>
         </p>
       <% end %>
     </section>
@@ -2690,6 +2754,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # order.
   defp lot_dates(lots),
     do: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", ")
+
+  # #1365's line: the lots of a trade blocked by `reason` beside the trade's
+  # own reason (the matcher's first), which its sentence already names.
+  defp beside_lots(%{unavailable_reason: reason}, _lots, reason), do: []
+  defp beside_lots(_trade, lots, reason), do: Enum.filter(lots, &(&1.reason == reason))
 
   # The lots of a trade that lack only their leg, which a rate fixes.
   defp legless_beside(lots), do: Enum.filter(lots, &(&1.reason == :missing_settlement_leg))
@@ -2978,7 +3047,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <%!-- UX-DR25 (board 02 ① 1b): the rows the total leaves out are
              named beside it, with the reason. --%>
         <div :if={@unvalued != []} class="detail-holdings-unvalued">
-          <AppShell.data_note severity={:attention} data-role="holdings-unvalued">
+          <AppShell.data_note
+            severity={:attention}
+            id="detail-holdings-unvalued"
+            clamp
+            data-role="holdings-unvalued"
+          >
             <%= ngettext(
               "%{count} position is missing from the total — no price is known for this security (no quote and no own trade): %{rows}.",
               "%{count} positions are missing from the total — no price is known for this security (no quote and no own trade): %{rows}.",
@@ -3180,11 +3254,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
       aria-labelledby="detail-tab-research"
       class="detail-tab-panel detail-tab-panel--research"
     >
-      <p class="detail-tab-hint">
-        <%= gettext(
-          "Dated, sourced entries about this security. Entries are never edited or removed; a wrong finding is withdrawn by a retraction that supersedes it, and both stay visible."
-        ) %>
-      </p>
+      <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ① ②, reading 1): the
+           set stays, the rule sits in the ⓘ that ends the line. --%>
+      <div class="detail-tab-hint" data-role="research-basis">
+        <%= gettext("Dated, sourced entries about this security.") %>
+        <AppShell.section_info>
+          <:line>
+            <%= gettext(
+              "Entries are never edited or removed; a wrong finding is withdrawn by a retraction that supersedes it, and both stay visible."
+            ) %>
+          </:line>
+        </AppShell.section_info>
+      </div>
 
       <section class="research-thesis" data-role="thesis-state" aria-label={gettext("Thesis state")}>
         <div class="research-thesis__head">
@@ -3240,7 +3321,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </div>
           </dl>
           <%= if @retraction do %>
-            <AppShell.data_note severity={:attention} id="thesis-retracted">
+            <AppShell.data_note severity={:attention} id="thesis-retracted" clamp>
               <%!-- The stored reason isolated in <bdi> (E25 S7, G20; pick
                    G12.2 = B): a direction control it still carries reorders
                    at most the reason, never the sentence. --%>
@@ -3538,27 +3619,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <p class="summary-basis" data-role="quotes-range-basis">
           <%= gettext("Range %{range} · as on the Chart tab", range: range_label(@range)) %>
         </p>
-        <p
+        <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ① ②; found while
+             drawing 1): the line says the price basis once and ends in the
+             ⓘ that says what the Stored column, or on a phone the line
+             under the close, shows — one sentence per layout (G6), both in
+             the panel. A `div`: a <details> is not phrasing content. --%>
+        <div
           :if={series_basis_label(@series_basis, @split_events)}
           class="detail-tab-hint"
           data-role="quotes-basis"
         >
-          <%!-- One sentence per layout (the closing act's H7 finding, board
-               ux-review-2026-10-03/03-gamma-surface-repairs, G6): the phone
-               rows have no "Stored" column, so the phone lists' 560 px
-               block shows the rows' sentence instead of the table's. --%>
-          <span class="quotes-basis__table">
-            <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
-              basis: series_basis_label(@series_basis, @split_events)
-            ) %>
-          </span>
-          <span class="quotes-basis__rows">
-            <%= gettext(
-              "Price basis: %{basis}. Where a split adjusted a close, “stored” under it shows the unmodified value.",
-              basis: series_basis_label(@series_basis, @split_events)
-            ) %>
-          </span>
-        </p>
+          <%= gettext("Price basis: %{basis}.", basis: series_basis_label(@series_basis, @split_events)) %>
+          <AppShell.section_info>
+            <:line><%= gettext("The stored column keeps the unmodified values.") %></:line>
+            <:line>
+              <%= gettext("Where a split adjusted a close, “stored” under it shows the unmodified value.") %>
+            </:line>
+          </AppShell.section_info>
+        </div>
         <div class="data-table-wrap" id="quotes-table-wrapper">
           <table class="data-table detail-quotes-table">
             <thead>
@@ -3992,12 +4070,31 @@ defmodule PortfolixirWeb.SecuritiesLive do
       />
       <.extremes_cell metric={@block.metrics.distance_to_extremes} />
     </dl>
-    <p class="detail-tab-hint" data-role="metrics-basis">
-      <%= gettext(
-        "Over this security's own split-adjusted closes in %{currency}, never converted. A day without a stored close produces no return observation, so nothing is carried forward and differenced. Volatility is the population standard deviation of the window's daily returns, annualized by the square root of 252. Reported, not evaluated: no signal, rating or recommendation is derived here.",
+    <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ① ②, reading 1): the
+         line keeps the input series and its currency; the gap rule, the
+         volatility's formula and "reported, not evaluated" are true for
+         every security and sit in the ⓘ that ends it (the tab has no
+         heading). Each cell keeps its window and observation count. --%>
+    <div class="detail-tab-hint" data-role="metrics-basis">
+      <%= gettext("Over this security's own split-adjusted closes in %{currency}, never converted.",
         currency: @block.currency_code
       ) %>
-    </p>
+      <AppShell.section_info>
+        <:line>
+          <%= gettext(
+            "A day without a stored close produces no return observation, so nothing is carried forward and differenced."
+          ) %>
+        </:line>
+        <:line>
+          <%= gettext(
+            "Volatility is the population standard deviation of the window's daily returns, annualized by the square root of 252."
+          ) %>
+        </:line>
+        <:line>
+          <%= gettext("Reported, not evaluated: no signal, rating or recommendation is derived here.") %>
+        </:line>
+      </AppShell.section_info>
+    </div>
     """
   end
 
@@ -4362,6 +4459,38 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp security_logo_fallback(%Security{name: name}), do: {:initial, initial_letter(name)}
 
+  # #1334: a flag only for a prefix that is an ISO 3166-1 country. An ISIN's
+  # first two letters can be no country at all — "XS" (international, held
+  # through Euroclear or Clearstream), "EU" (the European Union) — and those
+  # take the initial, never a flag that stands for no country.
+  @iso_3166_alpha2 ~w(
+    AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ
+    BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ
+    CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ
+    DE DJ DK DM DO DZ
+    EC EE EG EH ER ES ET
+    FI FJ FK FM FO FR
+    GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY
+    HK HM HN HR HT HU
+    ID IE IL IM IN IO IQ IR IS IT
+    JE JM JO JP
+    KE KG KH KI KM KN KP KR KW KY KZ
+    LA LB LC LI LK LR LS LT LU LV LY
+    MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ
+    NA NC NE NF NG NI NL NO NP NR NU NZ
+    OM
+    PA PE PF PG PH PK PL PM PN PR PS PT PW PY
+    QA
+    RE RO RS RU RW
+    SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ
+    TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ
+    UA UG UM US UY UZ
+    VA VC VE VG VI VN VU
+    WF WS
+    YE YT
+    ZA ZM ZW
+  )
+
   defp isin_country_code(isin) do
     code =
       isin
@@ -4369,7 +4498,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> String.slice(0, 2)
       |> String.upcase()
 
-    if code =~ ~r/^[A-Z]{2}$/, do: code
+    if code in @iso_3166_alpha2, do: code
   end
 
   defp country_flag(a, b) do

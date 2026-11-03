@@ -8220,6 +8220,30 @@ Measured on the review seed at 390 px: both section panels span x = 16 to
   zum Stichtag — …“), clamps and never folds. The transaction costs read
   „4,90 EUR“ (#1321).
 
+### Wertpapier, as built *(Sprint 23 Lane I; board `mockups/ux-design-2026-11-03-sprint23-i1`)*
+
+Conformant, with the board's reading 1: a tab with no heading (Chart,
+Kurse, Research, Termine) ends its kept basis line in the section ⓘ, and
+the line is a `div` with its class and role, since a `<details>` is not
+phrasing content.
+
+- **Trades**: „Abgeschlossene Trades (FIFO)“ sits in `div.section-title`
+  with the section ⓘ, which holds Cash flow's two rules („Einlieferungen
+  eröffnen keinen Lot“, the p. a. rule); `[data-role=trades-basis]` keeps
+  „Über alle Depots · Gebühren und Steuern im G/V, nicht in Ø Kauf und
+  Ø Verkauf · Erträge während der Haltedauer nicht enthalten“, one msgid per
+  clause. Both notes clamp; the unmatched sells' list sits in the actions.
+- **Kurse**: the line says „Kursbasis: wie erfasst.“ once. Its ⓘ holds both
+  layouts' sentences (the table's Gespeichert column, the phone row's line
+  under the close), so the per-layout swap of G6 (`.quotes-basis__table`,
+  `.quotes-basis__rows`) is retired. The manual-quote note clamps,
+  „Freigeben…“ in its actions.
+- **Chart, Research, Termine**: each line keeps its first sentence (series
+  and currency; the set) and its ⓘ holds the rest, one sentence per line.
+- **Überblick**: the problem notes (implausible quote, both two-scales
+  notes) lead and clamp, their links in the actions. Every other note on
+  the page (Bestände's unvalued rows, the retracted thesis) clamps.
+
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
 Amends Components → Booking drawer and the 2026-11-01 amendment above

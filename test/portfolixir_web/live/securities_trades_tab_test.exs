@@ -154,11 +154,13 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
                "p#detail-closed-trades-basis.detail-tab-hint[data-role='trades-basis']"
              )
 
+    # I1 (Sprint 23, board ux-design-2026-11-03-sprint23-i1 ① ②): the line
+    # keeps its depots and gross/net clauses; the two rules sit in the ⓘ
+    # beside the heading (security_page_explanations_live_test.exs).
     assert text(basis) ==
-             "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, " <>
+             "Across every depot · fees and taxes in the realised P&L, " <>
                "not in avg buy and avg sell · income received while a trade was open not " <>
-               "included · p.\u00A0a. only from 365 days of holding and only where a rate " <>
-               "solves the flows"
+               "included"
   end
 
   # Acceptance criteria (board N2, a trade held long enough that no rate
@@ -265,7 +267,9 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
       |> Enum.map(fn li -> li |> Floki.find("span.num") |> Enum.map(&text/1) end)
 
     assert items == [["2026-05-28", "12.0000 units"], ["2026-04-20", "8.0000 units"]]
-    assert Floki.find(note, "button") == []
+    # No remedy control in the note's body; the clamp's own „more“ button
+    # sits beside it (I1).
+    assert Floki.find(note, ".data-note__body button") == []
 
     refute has_element?(view, ".detail-tab-warning")
     refute render(view) =~ "they may indicate missing data"
@@ -399,10 +403,9 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert text(Floki.find(doc, "#detail-closed-trades-note .excluded-list")) =~ "12,0000 Stück"
 
     assert text(Floki.find(doc, "#detail-closed-trades-basis")) ==
-             "Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im " <>
+             "Über alle Depots · Gebühren und Steuern im " <>
                "G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht " <>
-               "enthalten · p.\u00A0a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz " <>
-               "die Zahlungen löst"
+               "enthalten"
 
     long = phone_row(doc, "02.01.2024")
     assert text(Floki.find(long, ".phone-row__ids")) == "10,0000 Stück · 730 Tage"
@@ -597,10 +600,11 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
   # its phone row shows only the period return.
   #
   # Acceptance criteria:
-  # - The basis line ends "p. a. only from 365 days of holding and only where
-  #   a rate solves the flows"; German "p. a. erst ab 365 Tagen Haltedauer
-  #   und nur, wo ein Zinssatz die Zahlungen löst", "p. a." with its no-break
-  #   space.
+  # - The section's ⓘ beside „Closed trades (FIFO)“ ends "p. a. only from
+  #   365 days of holding and only where a rate solves the flows"; German
+  #   "p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die
+  #   Zahlungen löst" (I1, Sprint 23: the rule left the basis line for the
+  #   ⓘ, in Cash flow's words).
   test "the tab's basis line names both limits of p. a.", %{conn: conn} do
     world = base_world(name: "Limit World", cash_name: "Girokonto", depot_name: "Depot 1")
     deposit!(world, "10000", ~D[2021-01-04])
@@ -613,13 +617,15 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
 
     assert text(Floki.find(phone_row(doc, "2021-03-01"), ".phone-row__figure2")) == "-100.0%"
 
-    assert text(Floki.find(doc, "#detail-closed-trades-basis")) =~
-             ~r/· p\.\x{00A0}a\. only from 365 days of holding and only where a rate solves the flows$/u
+    tip = "#detail-tab-panel-trades .section-title [data-role='section-info'] p[role='tooltip']"
+
+    assert text(Floki.find(doc, tip)) =~
+             ~r/p\. a\. only from 365 days of holding and only where a rate solves the flows$/u
 
     {:ok, de_view, _html} = live(de_conn(conn), "/securities/#{halvorsen.id}?tab=trades")
 
-    assert text(Floki.find(document(de_view), "#detail-closed-trades-basis")) =~
-             ~r/· p\.\x{00A0}a\. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst$/u
+    assert text(Floki.find(document(de_view), tip)) =~
+             ~r/p\. a\. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst$/u
   end
 
   # User story (the Sprint 19 U2 review; #1060 and #1089):

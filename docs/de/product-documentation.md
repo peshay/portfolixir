@@ -2823,10 +2823,11 @@ Stücke nennt dieselbe Achtung-Notiz am Kopf des Abschnitts, jeden als
 Datum · Stückzahl ohne Gegenstück — das Wertpapier ist das der Seite —
 statt der früheren Warnung „möglicherweise fehlen Daten“; gibt es nur
 solche Verkäufe, steht die Notiz allein, ohne Tabelle. Eine Zeile unter der
-Liste nennt die Regeln: über alle Depots, Einlieferungen eröffnen keinen
-Lot, Gebühren und Steuern stehen im realisierten G/V, nicht in Ø Kauf und
-Ø Verkauf, Erträge während der Haltedauer sind nicht enthalten, und p. a.
-erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
+Liste nennt ihre Basis: über alle Depots, Gebühren und Steuern stehen im
+realisierten G/V, nicht in Ø Kauf und Ø Verkauf, und Erträge während der
+Haltedauer sind nicht enthalten. Das ⓘ neben *Abgeschlossene Trades (FIFO)*
+hält die Regeln: Einlieferungen eröffnen keinen Lot, und p. a. erst ab 365
+Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
 Der realisierte G/V und seine Gebühren und Steuern stehen in der Währung des
 Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs
 umgerechnet, wie in der Facette (Issue #1108), und **Realisierter G/V**
@@ -4254,8 +4255,10 @@ eine Aktualisierung, die ein Wertpapier übersprungen hat, sagt in Worten,
 warum. Auf dem Telefon zeigt der Kurse-Tab jeden Kurs als zweizeilige Zeile —
 das Datum über seiner Quelle, rechts der Schlusskurs und darunter der
 gespeicherte Wert, wo ein Split den Kurs angepasst hat —, sodass die Quelle
-jedes Kurses ohne Wischen durch die Tabelle lesbar ist, und die Kursbasis-Zeile
-über den Zeilen nennt diese Zeile statt der Spalte Gespeichert der Tabelle.
+jedes Kurses ohne Wischen durch die Tabelle lesbar ist. Die Kursbasis-Zeile
+über der Tabelle oder den Zeilen nennt die Basis einmal; das ⓘ an ihrem Ende
+sagt, was die Spalte Gespeichert der Tabelle und die Zeile unter dem
+Schlusskurs einer Telefonzeile zeigen.
 Ihr Agent liest dieselbe Zusammenfassung mit
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) und gibt mit `portfolixir.quotes.release` frei.
