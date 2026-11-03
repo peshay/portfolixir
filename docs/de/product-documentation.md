@@ -1577,7 +1577,12 @@ Wertpapierzeile, die zum Handelspreis bewertet ist, sagt „zum Handelspreis“
 neben ihrem Wert, und die Basiszeile endet auf der Regel („Kurse: der neueste,
 ohne Kurs der letzte eigene Handelspreis“). So ergeben Einstand, Wert und
 Ergebnis einer Kategorie, was Vermögen für dieselben Positionen zeigt. Keinen
-brauchbaren Kurs hat nur eine Position ohne Kurs und ohne eigenen Handel.
+brauchbaren Kurs hat nur eine Position ohne Kurs und ohne eigenen Handel. Eine
+solche Position bleibt aus dem **Wert** der Kategorie heraus und zählt nicht
+als null: Der Wert ist die Summe der bewerteten Positionen, darunter steht, wie
+viele er auslässt („ohne 1 Position“), so wie das Lesen des
+Kategorie-Ergebnisses sie aus seinem `current_value` herauslässt (#1362). Nur
+eine Kategorie ohne bewertete Position zeigt „—“.
 
 Die Zahlen folgen dem Baum, während Sie ihn bearbeiten (Issue #1110): eine
 Kategorie anlegen oder löschen, ein Wertpapier zuordnen, die Zuordnung aufheben

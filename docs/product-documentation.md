@@ -1431,7 +1431,11 @@ at its trade price says "at trade price" beside its value, and the basis line
 ends on the rule ("prices: the latest quote, without one the last own trade
 price"), so a category's cost, value and result add up to what Wealth shows
 for the same positions. Only a position with neither a quote nor a trade of
-its own has no usable price.
+its own has no usable price. Such a position is left out of the category's
+**Value**, not counted as zero: the value is the sum of the priced positions,
+with how many it leaves out beneath ("without 1 position"), as the category
+result's read leaves it out of its `current_value` (#1362). Only a category
+with no priced position shows "—".
 
 The figures follow the tree as you edit it (issue #1110): creating or deleting
 a category, assigning, unassigning or moving a security, or moving a category

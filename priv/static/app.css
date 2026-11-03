@@ -11857,6 +11857,17 @@ dialog.merge-dialog {
   white-space: nowrap;
 }
 
+/* Issue 1362's S2 line (board ux-design-2026-11-03-sprint23-i1 ⑨): a category's
+   partial value names what it leaves out beneath the figure, in the cell
+   note's voice (the member rows' "zum Handelspreis"). */
+.cat-value .cell-note {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* The bar rides under its own figure, right-aligned with it: decorative
    (aria-hidden), the figure carries the sign and the colour (UX-DR7). */
 .contribution-table td.contribution-table__figure .drift-bar {

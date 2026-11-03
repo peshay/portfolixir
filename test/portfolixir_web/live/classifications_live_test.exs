@@ -2301,15 +2301,18 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     html = render(view)
 
-    # No EUR/USD rate: "Plattformen" prints no value, so the note does not
-    # say the member is in it.
+    # No EUR/USD rate: "Plattformen" values only its EUR member and names
+    # the one it leaves out (#1362's S2 line, board
+    # ux-design-2026-11-03-sprint23-i1 ⑨), so the note does not say the
+    # member is in it.
     assert html
            |> Floki.parse_document!()
            |> Floki.find("summary.cat-summary")
            |> Enum.find(&(Floki.text(Floki.find(&1, ".cat-name__text")) == "Plattformen"))
            |> Floki.find(~s([data-role="category-value"]))
-           |> Floki.text()
-           |> String.trim() == "—"
+           |> Floki.text(sep: " ")
+           |> String.replace(~r/\s+/u, " ")
+           |> String.trim() == "7.500,00 ohne 1 Position"
 
     assert note_text(html) ==
              "1 Position ist in „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr " <>
