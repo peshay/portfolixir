@@ -465,15 +465,15 @@ variant; C1 is unaffected.
 
 Sprint PR:
 
-- [ ] E1 #1364's line · [ ] E2 gettext merge tool · [ ] E3 worktree links and the symlink refusal · [ ] a story built in a worktree with its hooks running
-- [ ] M1 #1115 · [ ] #1346 taken or declined and closed · [ ] #1347 closed · [ ] version report
-- [ ] R1 #1370 · [ ] R2 #1371 · [ ] R3 #1368 · [ ] R4 #1369
-- [ ] closing act and its fixes · [ ] briefing · [ ] promotion
+- [x] E1 #1364's line · [x] E2 gettext merge tool · [x] E3 worktree links and the symlink refusal · [x] a story built in a worktree with its hooks running
+- [x] M1 #1115 · [x] #1346 taken or declined and closed · [x] #1347 closed · [x] version report
+- [x] R1 #1370 · [x] R2 #1371 · [x] R3 #1368 · [x] R4 #1369
+- [x] closing act and its fixes · [x] briefing · [x] promotion
 
 Stacked PR:
 
-- [ ] rebased onto `main` and retargeted to `main` after the sprint PR's merge
-- [ ] V1 · [ ] V2 · [ ] V3
-- [ ] C1 the ⓘ click-away · [ ] C2 the number colours (board 04's pick)
-- [ ] I: board commit · [ ] Allocation tab · [ ] security page · [ ] Income · [ ] Snapshots · [ ] Tax · [ ] Views · [ ] Classifications · [ ] Imports · [ ] Risk
-- [ ] closing act and its fixes · [ ] close-out · [ ] briefing · [ ] promotion
+- [x] rebased onto `main` and retargeted to `main` after the sprint PR's merge
+- [x] V1 · [x] V2 · [x] V3
+- [x] C1 the ⓘ click-away · [x] C2 the number colours (board 04's pick)
+- [x] I: board commit · [x] Allocation tab · [x] security page · [x] Income · [x] Snapshots · [x] Tax · [x] Views · [x] Classifications · [x] Imports · [x] Risk
+- [ ] closing act and its fixes · [x] close-out · [ ] briefing · [ ] promotion
