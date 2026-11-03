@@ -1118,8 +1118,11 @@ textarea {
   text-decoration: none;
 }
 
+/* An unsigned figure is in the text colour; the accent marks controls only
+   (Sprint 23 C2, board ux-design-2026-11-02-sprint23/04-number-colours,
+   pick Q7 C). A signed figure takes the gain or loss colour below. */
 .stat strong {
-  color: var(--color-accent);
+  color: var(--color-text);
   font-size: 30px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -3687,9 +3690,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
 
 /* Signed values take gain/loss colour, never the accent (issue 637) —
    everywhere inside a stat card, including the change signal in <small>,
-   where the label and accent rules would otherwise win on specificity.
-   Unsigned magnitudes carry no sign class and keep the accent; an exact
-   zero is directionless and takes body ink, still never the accent. */
+   where the label rules would otherwise win on specificity. Unsigned
+   magnitudes carry no sign class and take body ink (Sprint 23 C2, board 04
+   pick Q7 C); an exact zero is directionless and takes body ink too. */
 .stat .is-positive {
   color: var(--color-positive);
 }

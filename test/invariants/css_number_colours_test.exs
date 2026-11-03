@@ -59,6 +59,44 @@ defmodule Portfolixir.Invariants.CssNumberColoursTest do
     end
   end
 
+  # User story (Sprint 23 C2; the owner's report of 2026-11-02; board 04
+  # pick Q7 C):
+  # As the operator reading Wealth's KPI cards under any accent,
+  # I want an unsigned figure in the text colour and the accent kept for
+  # controls,
+  # so that a total never reads as a gain under the teal accent or as a loss
+  # under coral, and a figure never looks like a link.
+  #
+  # Acceptance criteria:
+  # - The stat card's value (`.stat strong`) takes `--color-text`, as the
+  #   Overview's KPI strip and the summary line already do; signed figures
+  #   keep `.stat .is-positive` / `.is-negative` (gain and loss colour).
+  # - No rule that paints a figure — a selector naming `strong`, `dd`, a
+  #   value or a numeric cell — sets `color: var(--color-accent)`; the
+  #   accent's controls (links, tabs, chips, focus rings) keep it.
+  test "an unsigned figure takes the text colour and the accent marks controls only" do
+    [stat_value] =
+      Regex.run(~r/\n\.stat strong \{([^}]*)\}/, @css, capture: :all_but_first)
+
+    assert stat_value =~ ~r/\n  color: var\(--color-text\);/,
+           ".stat strong does not take --color-text: #{stat_value}"
+
+    assert @css =~ ~r/\n\.stat \.is-positive \{\s*color: var\(--color-positive\);/
+    assert @css =~ ~r/\n\.stat \.is-negative \{\s*color: var\(--color-danger\);/
+
+    figure = ~r/\bstrong\b|\bdd\b|value|\.num\b|figure|amount/
+
+    offenders =
+      ~r/(?:^|\n)([^{}\n@][^{}]*?)\s*\{([^{}]*)\}/
+      |> Regex.scan(@css, capture: :all_but_first)
+      |> Enum.filter(fn [selector, body] ->
+        selector =~ figure and body =~ ~r/(?:^|[\n;{])\s*color: var\(--color-accent\)/
+      end)
+      |> Enum.map(fn [selector, _] -> String.trim(selector) end)
+
+    assert offenders == [], "figures painted in the accent: #{inspect(offenders)}"
+  end
+
   defp tokens(regex) do
     [body] = Regex.run(regex, @css, capture: :all_but_first)
 
