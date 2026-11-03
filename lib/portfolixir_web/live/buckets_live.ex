@@ -89,10 +89,10 @@ defmodule PortfolixirWeb.BucketsLive do
                 </p>
               </details>
             </h2>
+            <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ⑥): the former
+                 basis line restated the heading's ⓘ, so it left without a
+                 copy. --%>
             <div class="section-head-controls">
-              <p class="summary-basis" data-role="views-basis">
-                <%= gettext("Saved include/exclude filters over buckets · applied in the view switcher on Wealth") %>
-              </p>
               <button
                 type="button"
                 class="button-primary"
@@ -208,10 +208,9 @@ defmodule PortfolixirWeb.BucketsLive do
                 </p>
               </details>
             </h2>
+            <%!-- I1 (board ⑥): the heading's ⓘ says what the former basis
+                 line said; it left without a copy. --%>
             <div class="section-head-controls">
-              <p class="summary-basis" data-role="buckets-basis">
-                <%= gettext("Overlapping tags on depots, cash accounts and positions · per-bucket figures are not a sum") %>
-              </p>
               <button
                 type="button"
                 class="button-ghost"
