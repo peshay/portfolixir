@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.BookingDeleteDialog
+  alias PortfolixirWeb.Transactions.LedgerChecks
   alias PortfolixirWeb.Transactions.SettlementForm
 
   # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
@@ -103,18 +104,23 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:deleting, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
+     |> assign(:dq_filter, nil)
      |> load_state()}
   end
 
-  # `since` is the one URL-driven filter on this page (#731): it mirrors the
-  # API's `?since=` parameter so a link an agent hands over opens the exact
-  # slice it read. The other filters stay socket state deliberately — they
-  # have no agent-side counterpart to mirror.
+  # `since` and `dq` are the URL-driven filters on this page. `since` (#731)
+  # mirrors the API's `?since=` parameter so a link an agent hands over opens
+  # the exact slice it read; `dq` (Sprint 23 V1, board 01 ①a) opens the rows
+  # one of the ledger's checks lists — the Overview's data-quality line
+  # links here — and each value is the name of the API read it mirrors
+  # (`LedgerChecks`). The other filters stay socket state deliberately —
+  # they have no agent-side counterpart to mirror.
   @impl true
   def handle_params(params, _uri, socket) do
     {:noreply,
      socket
      |> assign(:since, ChangedSince.parse(params))
+     |> assign(:dq_filter, params["dq"] |> LedgerChecks.parse() |> LedgerChecks.filter())
      |> apply_current_filters()}
   end
 
@@ -236,6 +242,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 cut: ChangedSince.cut_label(@since)
               ) %>
             </p>
+
+            <%!-- Sprint 23 V1 (board 01 ①a): the rows of one ledger check,
+                 opened from the Overview's data-quality line; the note says
+                 what the check finds, what it does to the figures and the
+                 remedy, with the way back to every booking. --%>
+            <LedgerChecks.filter_note :if={@dq_filter} filter={@dq_filter} />
 
             <.more_filters
               id="transaction-more-filters"
@@ -431,10 +443,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                       rule, 2026-09-12). --%>
                                 <%= case tx_money(transaction) do %>
                                   <% nil -> %>
-                                    <td class="num" data-role="amount">—</td>
+                                    <td class="num" data-role="amount">—<.dq_figure filter={@dq_filter} transaction={transaction} /></td>
                                   <% amount -> %>
                                     <td class="num" data-role="amount">
-                                      <%= signed_money(transaction, amount, @filters["account_ids"]) %><small class="value-suffix"><%= money_currency(transaction) %></small>
+                                      <%= signed_money(transaction, amount, @filters["account_ids"]) %><small class="value-suffix"><%= money_currency(transaction) %></small><.dq_figure filter={@dq_filter} transaction={transaction} />
                                     </td>
                                 <% end %>
                               <% "account" -> %>
@@ -502,6 +514,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                     </span>
                     <span class="phone-row__figures">
                       <span class="phone-row__figure" data-role="phone-amount"><%= phone_amount(transaction, @filters["account_ids"]) %></span>
+                      <span
+                        :if={dq_figure(@dq_filter, transaction)}
+                        class="phone-row__figure2"
+                        data-role="dq-figure"
+                      ><%= LedgerChecks.figure_text(dq_figure(@dq_filter, transaction)) %></span>
                       <span :if={phone_size(transaction)} class="phone-row__figure2" data-role="phone-size">
                         <%= phone_size(transaction) %>
                       </span>
@@ -800,7 +817,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def handle_event("reset_filters", _params, socket) do
     socket = assign(socket, :filters, default_filters())
 
-    if socket.assigns.since do
+    if socket.assigns.since || socket.assigns.dq_filter do
       {:noreply, push_patch(socket, to: "/transactions")}
     else
       {:noreply, apply_current_filters(socket)}
@@ -808,10 +825,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("set_changed_since", %{"preset" => preset}, socket) do
-    case ChangedSince.toggle_value(socket.assigns.since, preset) do
-      nil -> {:noreply, push_patch(socket, to: "/transactions")}
-      iso -> {:noreply, push_patch(socket, to: "/transactions?since=#{iso}")}
-    end
+    since = ChangedSince.toggle_value(socket.assigns.since, preset)
+    {:noreply, push_patch(socket, to: history_path(since, socket.assigns.dq_filter))}
   end
 
   # #732: raw key strings from the picker form or the ColumnPrefs hook's
@@ -1494,7 +1509,25 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       twin_tags: twin_tags(transactions),
       twin_ids: twin_ids(transactions)
     )
+    |> refresh_dq_filter()
     |> apply_current_filters()
+  end
+
+  # After a write the check is read again, so a booking whose cash the
+  # operator just stated leaves the filtered rows and the note's count.
+  defp refresh_dq_filter(%{assigns: %{dq_filter: %{check: check}}} = socket),
+    do: assign(socket, :dq_filter, LedgerChecks.filter(check))
+
+  defp refresh_dq_filter(socket), do: socket
+
+  # The history's URL filters: a changed-since cut keeps the dq filter, as
+  # the chips and the disclosure compose with each other.
+  defp history_path(since, dq_filter) do
+    query =
+      [since: since, dq: dq_filter && dq_filter.check]
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+    if query == [], do: "/transactions", else: "/transactions?" <> URI.encode_query(query)
   end
 
   # The overview filters (#414) run in memory over the already-loaded history:
@@ -1517,6 +1550,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       socket.assigns.transactions
       |> filter_transactions(filters)
       |> filter_changed_since(socket.assigns[:since])
+      |> Enum.filter(&LedgerChecks.member?(socket.assigns[:dq_filter], &1))
 
     assign(socket,
       filters: filters,
@@ -1837,6 +1871,22 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       length(Map.get(filters, "types", [])) +
       if(assigns[:since], do: 1, else: 0)
   end
+
+  # Sprint 23 V1 (board 01 ①a): under a ledger check's filter, a row's
+  # second line gives the figure the check compares with the amount above.
+  attr(:filter, :map, default: nil)
+  attr(:transaction, :map, required: true)
+
+  defp dq_figure(assigns) do
+    assigns = assign(assigns, :figure, dq_figure(assigns.filter, assigns.transaction))
+
+    ~H"""
+    <small :if={@figure} class="cell-note" data-role="dq-figure"><%= LedgerChecks.figure_text(@figure) %></small>
+    """
+  end
+
+  defp dq_figure(nil, _transaction), do: nil
+  defp dq_figure(%{figures: figures}, %{id: id}), do: Map.get(figures, id)
 
   # One figure per currency, so a total always names the money it is in.
   attr(:totals, :list, required: true)

@@ -6183,6 +6183,20 @@ thead .col-subject {
   font-weight: 500;
 }
 
+/* Sprint 23 V1 (board ux-design-2026-11-02-sprint23/01 ①a): under a ledger
+   check's filter (?dq=), a row's amount gets a second line with the figure
+   the check compares ("aus den Zahlen: 816,00"). The anatomy .data-table
+   cells got for their second line (issue 1316), lifted to the history; the
+   selector outranks the value suffix's `td.num small` above. */
+#transaction-list td.num .cell-note {
+  display: block;
+  margin-left: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* The history is a reading table, not a matrix (Sprint 19 U1's review,
    issue 1084): beside the default Konto column the scroller's `min-width:
    max-content` kept every name on one line, and the table ran past its
