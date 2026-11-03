@@ -196,6 +196,26 @@ defmodule PortfolixirWeb.ApiV1StatedCashTest do
              conn |> patch_tx(buy.id, %{"gross_amount" => "816.01"}) |> json_response(200)
   end
 
+  # Acceptance criteria (the amendment keeps the broker's cash, "never
+  # re-derived on the operator's behalf"; the sprint PR's closing act):
+  # - A PATCH of gross_amount null, or "", with no figure changed is refused
+  #   with 422 "can't be blank" on gross_amount; the row and the cash
+  #   balance (-806) are unchanged.
+  test "a PATCH cannot clear a stored-cash trade's cash", %{conn: conn} do
+    world = base_world(name: "Cleared", cash_name: "CL Cash", depot_name: "CL Depot")
+    security = create_security!(name: "Cleared Co", ticker: "CLC", currency: "EUR")
+    buy = imported_buy!(world, security, "EUR")
+    stored = figures(buy.id)
+
+    for cleared <- [nil, ""] do
+      assert %{"errors" => %{"gross_amount" => ["can't be blank"]}} =
+               conn |> patch_tx(buy.id, %{"gross_amount" => cleared}) |> json_response(422)
+    end
+
+    assert figures(buy.id) == stored
+    assert cash_balance(conn, world.cash.id) == "-806"
+  end
+
   # Acceptance criteria (a sell, whose cash is net of fees and taxes):
   # - price 91.00 alone is refused; with gross_amount "358.50" (4 × 91.00 −
   #   3.00 − 2.50) it is stored and the cash balance credits 358.50.

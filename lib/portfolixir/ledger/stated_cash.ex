@@ -24,6 +24,9 @@ defmodule Portfolixir.Ledger.StatedCash do
     * an update that states a cash alone, different from the stored one,
       is checked against the stored figures the same way: the row keeps
       the relation on every write (the amendment's point 1);
+    * an update that states the cash null or blank, changing none of the
+      figures, is refused on `gross_amount` ("can't be blank"): clearing
+      the broker's cash would have the cash projection re-derive it;
     * an update that changes none of these (a note, a date, an account)
       needs no cash and keeps it, even on a row whose cash already misses
       its figures: such a row is listed by `report/0`, never revalidated
@@ -180,16 +183,35 @@ defmodule Portfolixir.Ledger.StatedCash do
   `gross_amount` an update of the four figures, or of the type between buy
   and sell, of a row the rule covers that states no cash, or states one the
   new figures do not agree with (`agrees?/4`, the cent alone when the edit
-  sets the price), and a cash stated alone the stored figures do not agree
-  with; leaves every other write alone.
+  sets the price), a cash stated alone the stored figures do not agree
+  with, and a cash stated null or blank alone ("can't be blank"); leaves
+  every other write alone.
   """
   @spec validate(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def validate(%Ecto.Changeset{data: %Transaction{} = stored} = changeset, attrs)
       when is_map(attrs) do
-    if applies?(stored) and is_nil(get_field(changeset, :settlement_amount)) and
-         triggered?(changeset),
-       do: check(changeset, stated?(attrs)),
-       else: changeset
+    cond do
+      not (applies?(stored) and is_nil(get_field(changeset, :settlement_amount))) ->
+        changeset
+
+      triggered?(changeset) ->
+        check(changeset, stated?(attrs))
+
+      cleared?(changeset) ->
+        add_error(changeset, :gross_amount, "can't be blank", validation: :required)
+
+      true ->
+        changeset
+    end
+  end
+
+  # A cash stated null or blank, no figure changed, on a row that stays a
+  # buy or a sell: the stored cash is the broker's, so clearing it would let
+  # the cash projection re-derive it behind the operator's back (the sprint
+  # PR's closing act). A blank cast is nil, so "" is refused the same way.
+  defp cleared?(changeset) do
+    changed?(changeset, :gross_amount) and is_nil(get_field(changeset, :gross_amount)) and
+      get_field(changeset, :type) in @trade_types
   end
 
   # The four figures, a buy turned into a sell or back (the relation's sign

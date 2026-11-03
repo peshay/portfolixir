@@ -104,6 +104,18 @@ defmodule Portfolixir.Ledger.StatedCashTest do
       assert messages(changeset, :gross_amount) == [@required]
     end
 
+    # The amendment keeps the broker's cash ("never re-derived on the
+    # operator's behalf"): clearing it, with no figure changed, would let
+    # the cash projection re-derive it (the sprint PR's closing act).
+    test "a stated null or blank cash alone is refused and keeps the cash", %{buy: buy} do
+      for cleared <- [nil, ""] do
+        assert {:error, changeset} = edit(buy, %{"gross_amount" => cleared})
+        assert messages(changeset, :gross_amount) == ["can't be blank"]
+      end
+
+      assert Decimal.equal?(Repo.get!(Transaction, buy.id).gross_amount, Decimal.new("806.00"))
+    end
+
     test "a price edit stating the cash the new figures give is stored", %{buy: buy} do
       assert {:ok, updated} = edit(buy, %{"price" => "81.00", "gross_amount" => "816.00"})
       assert Decimal.equal?(updated.price, Decimal.new("81.00"))

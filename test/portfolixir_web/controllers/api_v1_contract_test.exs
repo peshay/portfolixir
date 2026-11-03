@@ -112,6 +112,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert stated_cash =~ "(#1371; ADR-0053, amendment of 2026-11-02)"
     assert stated_cash =~ "turns a buy into a sell or back"
 
+    assert stated_cash =~
+             ~s(alone, no figure changed, answers 422 errors.gross_amount ["can't be blank"])
+
     # Sprint 23, R3 (#1368): the category result prices a member without a
     # quote at its last own trade price, as the valuation does, and names it.
     assert newest["summary"] =~ "Sprint 23, R3: "
