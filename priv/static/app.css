@@ -11410,7 +11410,7 @@ dialog.merge-dialog {
 }
 
 /* A header sits at the start of its column, as the values do; a `.num`
-   header keeps the generic rule's right edge (#833). */
+   header keeps the generic rule's right edge (issue 833). */
 .journal-values th:not(.num) {
   text-align: start;
 }
