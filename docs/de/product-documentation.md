@@ -3047,10 +3047,11 @@ Der Vergleich erscheint zuerst und groß, die Snapshot-Liste darunter mit
 geschlossenen Aufklappen **Neuer Snapshot** und die Erklärung hinter dem ⓘ
 an der Überschrift. Der Vergleich ist in v1 **brutto und nur
 Kursentwicklung** — Ausschüttungen, die die eingefrorenen Positionen gezahlt
-hätten, sind noch nicht enthalten; die Seite sagt das als Hinweis neben den
-Zahlen. Wertpapiere ohne verwendbaren Kurs oder Wechselkurs zum Stichtag
-werden in einem Achtung-Hinweis **ausgeschlossen und aufgeführt**, statt
-still mit null bewertet zu werden. Derselbe Vergleich steht über die
+hätten, sind noch nicht enthalten; die Seite sagt das, und welche Kosten als
+Transaktionskosten zählen, hinter dem ⓘ neben der Überschrift des Vergleichs.
+Wertpapiere ohne verwendbaren Kurs oder Wechselkurs zum Stichtag werden in
+einem Achtung-Hinweis, der mit ihrer Anzahl beginnt, **ausgeschlossen und
+aufgeführt**, statt still mit null bewertet zu werden. Derselbe Vergleich steht über die
 [API und MCP](../integration/api-and-mcp.html) bereit.
 
 ## Steuern (erfasste Bankabrechnungen)

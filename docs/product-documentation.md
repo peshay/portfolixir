@@ -2769,9 +2769,10 @@ The comparison renders first and large, the snapshot list beneath it with
 snapshot** disclosure and the explanation behind the ⓘ on the heading. The
 comparison is **gross and price-return only** in
 v1 — dividends the frozen positions would have paid are not yet included; the
-page states this as a note beside the figures. Securities without a usable
-quote or exchange rate at the as-of date are **excluded and listed** in an
-attention note rather than silently valued at zero. The same comparison is
+page states this, and which costs count as transaction costs, behind the ⓘ
+beside the comparison's heading. Securities without a usable quote or
+exchange rate at the as-of date are **excluded and listed** in an attention
+note that leads with their count, rather than silently valued at zero. The same comparison is
 available over the [API and MCP](integration/api-and-mcp.html).
 
 ## Tax (recorded broker statements)

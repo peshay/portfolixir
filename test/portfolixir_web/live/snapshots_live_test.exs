@@ -335,7 +335,10 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       assert comparison_at < list_at
     end
 
-    test "the basis is a line and the v1 limitation a note-severity data note",
+    # Since Sprint 23's Lane I (board ux-design-2026-11-03-sprint23-i1,
+    # reading 3) the limitation states no data fact: it is method and sits in
+    # the heading's ⓘ, not in a note.
+    test "the basis is a line and the v1 limitation sits in the heading's ⓘ",
          %{conn: conn} do
       seeded_world()
 
@@ -349,10 +352,14 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       assert basis =~ "2026-02-15"
       assert basis =~ "EUR"
 
-      note = view |> element(~s([data-role="comparison-limitation"])) |> render()
-      assert note =~ "data-note--note"
-      assert note =~ "Note"
-      assert note =~ "gross"
+      refute has_element?(view, ~s([data-role="comparison-limitation"]))
+
+      info =
+        view
+        |> element(~s([data-role="snapshot-comparison"] [data-role="section-info"]))
+        |> render()
+
+      assert info =~ "dividends are not yet included"
     end
 
     test "excluded securities render as an attention data note", %{conn: conn} do
@@ -613,14 +620,19 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       assert recovery =~ "Behind even before costs"
     end
 
-    test "the basis line names which costs left the return and which stayed", %{conn: conn} do
+    # Since Sprint 23's Lane I (board ux-design-2026-11-03-sprint23-i1,
+    # Snapshots ①) the definition is method and sits in the heading's ⓘ.
+    test "the heading's ⓘ names which costs left the return and which stayed", %{conn: conn} do
       costly_world("40")
 
-      basis = open_comparison(conn) |> element("[data-role='comparison-basis']") |> render()
+      info =
+        open_comparison(conn)
+        |> element("[data-role='snapshot-comparison'] [data-role='section-info']")
+        |> render()
 
-      assert basis =~ "Transaction costs"
-      assert basis =~ "standalone"
-      assert basis =~ "dividend withholding"
+      assert info =~ "Transaction costs"
+      assert info =~ "standalone"
+      assert info =~ "dividend withholding"
     end
   end
 
@@ -637,7 +649,8 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
   #   the comparison and the URL carries `?snapshot=`.
   # - The comparison uses the shared chart component (no hand-rolled
   #   polylines), with "Data as table" and the basis line "since <as-of> ·
-  #   gross, price development only · costs = …".
+  #   in <currency> · gross, price development only"; "costs = …" sits in
+  #   the heading's ⓘ (Sprint 23 Lane I).
   # - The frozen figure carries the frozen values then and today; "Delete"
   #   is in the row menu with the confirmation; the create form is a closed
   #   disclosure; the paragraph is an ⓘ on the heading, no paragraph remains.
@@ -714,7 +727,12 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       basis = text(Floki.find(doc, ~s([data-role="comparison-basis"])))
       assert basis =~ "since 2026-02-15"
       assert basis =~ "gross, price development only"
-      assert basis =~ "Transaction costs ="
+
+      # The cost definition sits in the heading's ⓘ (Sprint 23 Lane I).
+      assert text(
+               Floki.find(doc, ~s([data-role="snapshot-comparison"] [data-role="section-info"]))
+             ) =~
+               "Transaction costs ="
 
       disclosure = Floki.find(doc, ~s(details[data-role="comparison-disclosure"]))
       assert text(Floki.find(disclosure, "summary")) =~ "Data as table"

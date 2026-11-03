@@ -8209,6 +8209,16 @@ Measured on the review seed at 390 px: both section panels span x = 16 to
   R5's reasons alone offer no remedy (UX-DR25 clause 3). The Overview
   card's note keeps its sentences. The facet's money reads with a text
   space before the currency („501,00 EUR“, #1321).
+- **Snapshots** is conformant, with the board's reading 3: „Vergleich gegen
+  „…““ and a new section ⓘ sit in `.section-title`; the ⓘ holds the cost
+  definition („Transaktionskosten = …“, cut from the basis line) and „Der
+  Vergleich ist brutto und nur Kursentwicklung — Dividenden sind noch
+  nicht enthalten.“, whose note is gone: it stated no data fact. The basis
+  line keeps „seit … · in EUR · brutto, nur Kursentwicklung“, one msgid per
+  clause. The gaps note (`#comparison-gaps-note`) leads with its count
+  („Nicht enthalten: 20 Positionen ohne verwendbaren Kurs oder Wechselkurs
+  zum Stichtag — …“), clamps and never folds. The transaction costs read
+  „4,90 EUR“ (#1321).
 
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
