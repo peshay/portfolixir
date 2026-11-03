@@ -1282,7 +1282,8 @@ defmodule PortfolixirWeb.DashboardLive do
       dq.two_scales > 0 && {:two_scales, dq.two_scales},
       dq.implausible_quote > 0 && {:implausible_quote, dq.implausible_quote},
       dq.cash_mismatch > 0 && {:cash_mismatch, dq.cash_mismatch},
-      dq.rate_only > 0 && {:rate_only, dq.rate_only}
+      dq.rate_only > 0 && {:rate_only, dq.rate_only},
+      dq.incomplete_split > 0 && {:incomplete_split, dq.incomplete_split}
     ]
     |> Enum.filter(& &1)
     |> Enum.with_index()
@@ -1413,6 +1414,20 @@ defmodule PortfolixirWeb.DashboardLive do
     }
   end
 
+  defp dq_finding(:incomplete_split, count, _first?) do
+    %{
+      role: "dq-incomplete-split",
+      href: "/transactions?dq=incomplete_split",
+      text:
+        ngettext(
+          "one split missing a portfolio that held the security",
+          "%{count} splits each missing a portfolio that held the security",
+          count
+        ),
+      effect: gettext("— there the lots are split and the holding is not")
+    }
+  end
+
   # Highest severity present (UX-DR17): a bond priced on two scales counts a
   # hundredfold too high or too low in the total, so it is a problem (#1068,
   # D-15), and so is a held security whose quotes contradict its own
@@ -1425,6 +1440,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # a cash balance and a cost that read two amounts.
   defp dq_severity(%{cash_mismatch: n}) when n > 0, do: :problem
   defp dq_severity(%{rate_only: n}) when n > 0, do: :problem
+  defp dq_severity(%{incomplete_split: n}) when n > 0, do: :problem
   defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
   defp dq_severity(%{implausible_quote: n}) when n > 0, do: :problem
   defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
@@ -1454,7 +1470,8 @@ defmodule PortfolixirWeb.DashboardLive do
       two_scales: DataQuality.count("two_scales"),
       implausible_quote: DataQuality.count("implausible_quote"),
       cash_mismatch: LedgerChecks.count("cash_mismatch"),
-      rate_only: LedgerChecks.count("rate_only")
+      rate_only: LedgerChecks.count("rate_only"),
+      incomplete_split: LedgerChecks.count("incomplete_split")
     }
   end
 

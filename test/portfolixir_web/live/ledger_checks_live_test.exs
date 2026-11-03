@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
   import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
@@ -118,6 +119,36 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
       end)
 
     row
+  end
+
+  # Two portfolios hold "Wexmoor Instruments AG"; the split books only the
+  # first, so "Family Depot" (12 shares) is missing (the board's example).
+  defp incomplete_split! do
+    security = create_security!(name: "Wexmoor Instruments AG", ticker: "WXM", currency: "EUR")
+    a = base_world(name: "Main Depot", cash_name: "Main Cash", depot_name: "Main Securities")
+
+    b =
+      base_world(name: "Family Depot", cash_name: "Family Cash", depot_name: "Family Securities")
+
+    buy!(a, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+    buy!(b, security, quantity: "12", price: "100", date: ~D[2026-01-02])
+
+    {:ok, split} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: a.portfolio.id,
+          security_id: security.id,
+          type: "split",
+          date: ~D[2026-04-16],
+          currency_code: "EUR",
+          split_ratio_numerator: 2,
+          split_ratio_denominator: 1
+        },
+        split_flow: true
+      )
+
+    {security, split}
   end
 
   # User story (Sprint 23 V1; #1371, ADR-0053 amendment of 2026-11-02):
@@ -278,6 +309,75 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
 
     assert text(history, ~s(tr[data-transaction="#{second.id}"] [data-role="dq-figure"])) ==
              "at its own rate 0.93: 1,864.90 EUR"
+  end
+
+  # User story (Sprint 23 V1; #1292):
+  # As the operator reading the Overview,
+  # I want the split events missing a portfolio that held the security named
+  # on the data-quality line, with a link to exactly the event's rows,
+  # so that lots split while the holding is not are seen, with the way to
+  # repair them.
+  #
+  # Acceptance criteria:
+  # - Above zero the line names "ein Split, dem ein Portfolio fehlt, das das
+  #   Wertpapier hielt" with "— dort sind die Lots geteilt, der Bestand
+  #   nicht", linking to /transactions?dq=incomplete_split, at problem
+  #   severity; the count equals the read's rows (events).
+  # - The filtered history shows exactly the read's transaction_ids, and
+  #   the note names the security, ratio, date, the missing portfolio and
+  #   its shares before, with „Split erfassen“ on the security beside „Alle
+  #   Buchungen zeigen“.
+  test "an incomplete split is a problem finding that opens the history on its rows",
+       %{conn: conn} do
+    {security, split} = incomplete_split!()
+
+    rows = read_rows(conn, "/api/v1/splits/incomplete")
+    assert length(rows) == 1
+    ids = rows |> Enum.flat_map(& &1["transaction_ids"]) |> Enum.sort()
+    assert ids == [split.id]
+
+    view = overview(german(conn))
+
+    assert has_element?(
+             view,
+             ~s(#dashboard-dq-line a[data-role="dq-incomplete-split"][href="/transactions?dq=incomplete_split"]),
+             "ein Split, dem ein Portfolio fehlt, das das Wertpapier hielt"
+           )
+
+    assert text(view, ~s(#dashboard-dq-line [data-effect-of="dq-incomplete-split"])) ==
+             "— dort sind die Lots geteilt, der Bestand nicht"
+
+    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+
+    {:ok, history, _html} = live(german(conn), "/transactions?dq=incomplete_split")
+
+    assert history_ids(history) == ids
+
+    assert text(history, "#transaction-dq-note-text") ==
+             "Gefiltert: 1 Split, dem ein Portfolio fehlt — Wexmoor Instruments AG · 2:1 · " <>
+               "16.04.2026: es fehlt „Family Depot“, das vorher 12 Stück hielt. Dort sind die " <>
+               "FIFO-Lots geteilt, der Bestand nicht. Den Split mit demselben Datum und " <>
+               "Verhältnis erneut erfassen („Split erfassen“ beim Wertpapier): Er ergänzt nur " <>
+               "die fehlenden Zeilen. Ist der Split falsch, den ganzen Split löschen. Nichts " <>
+               "wird automatisch geändert."
+
+    assert has_element?(
+             history,
+             ~s(#transaction-dq-note .data-note__actions a[href="/securities/#{security.id}"]),
+             "Split erfassen"
+           )
+
+    assert has_element?(
+             history,
+             ~s(#transaction-dq-note .data-note__actions a[href="/transactions"]),
+             "Alle Buchungen zeigen"
+           )
+
+    {:ok, history, _html} = live(conn, "/transactions?dq=incomplete_split")
+
+    assert text(history, "#transaction-dq-note-text") =~
+             "Filtered: 1 split missing a portfolio — Wexmoor Instruments AG · 2:1 · " <>
+               "2026-04-16: “Family Depot”, which held 12 shares before, is missing."
   end
 
   # Acceptance criteria (Sprint 23 V1, at zero):

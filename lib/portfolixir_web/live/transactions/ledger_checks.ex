@@ -12,7 +12,12 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
       (`Portfolixir.Ledger.StatedCash.report/0`, #1371);
     * `rate_only` — `GET /api/v1/transactions/rate_only`, the cross-currency
       buys and sells with a settlement rate and neither amount
-      (`Portfolixir.Ledger.SettlementGuard.rate_only_report/0`, #1290).
+      (`Portfolixir.Ledger.SettlementGuard.rate_only_report/0`, #1290);
+    * `incomplete_split` — `GET /api/v1/splits/incomplete`, the split
+      events missing a portfolio that held the security
+      (`Portfolixir.Ledger.Splits.incomplete_events_report/0`, #1292). Its
+      rows are events; the history shows each event's booked rows
+      (`transaction_ids`), and the note names what each one misses.
 
   The count, the rows and the figures come from the read's own domain
   function, never from a second query, so the Overview's count, the
@@ -23,11 +28,12 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Ledger.SettlementGuard
+  alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.StatedCash
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
-  @checks ["cash_mismatch", "rate_only"]
+  @checks ["cash_mismatch", "rate_only", "incomplete_split"]
 
   @doc "The checks a `dq` value may name, in the Overview line's order."
   @spec checks() :: [String.t()]
@@ -45,6 +51,7 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   @spec report(String.t()) :: map()
   def report("cash_mismatch"), do: StatedCash.report()
   def report("rate_only"), do: SettlementGuard.rate_only_report()
+  def report("incomplete_split"), do: Splits.incomplete_events_report()
 
   @doc """
   The count the Overview names: the length of the read's `rows`, the number
@@ -73,6 +80,7 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
     }
   end
 
+  defp row_ids("incomplete_split", %{transaction_ids: ids}), do: ids
   defp row_ids(_check, %{id: id}), do: [id]
 
   # The figure the check compares, as the row's second line.
@@ -85,6 +93,9 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
     do: [
       {id, {:own_rate, row.settlement_fx_rate, row.expected_cash, row.cash_account_currency_code}}
     ]
+
+  # A split row carries no amount; the note names what its event misses.
+  defp figure("incomplete_split", _event), do: []
 
   @doc "The text of a row's second line."
   @spec figure_text(tuple()) :: String.t()
@@ -136,6 +147,10 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
     >
       <%= note_text(@filter) %>
       <:actions>
+        <%= if href = record_split_href(@filter) do %>
+          <.link navigate={href}><%= gettext("Record split") %></.link>
+          <span aria-hidden="true"> · </span>
+        <% end %>
         <.link patch="/transactions"><%= gettext("Show all bookings") %></.link>
       </:actions>
     </AppShell.data_note>
@@ -154,6 +169,34 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
       )
   end
 
+  defp note_text(%{check: "incomplete_split", count: count, rows: events}) do
+    details =
+      for event <- events, missing <- event.missing_portfolios do
+        gettext(
+          "%{security} · %{ratio} · %{date}: “%{portfolio}”, which held %{quantity} shares before, is missing.",
+          security: event.security_name,
+          ratio: "#{event.ratio_numerator}:#{event.ratio_denominator}",
+          date: Format.date(event.date),
+          portfolio: missing.portfolio_name || "##{missing.portfolio_id}",
+          quantity: Format.exact(missing.quantity_before)
+        )
+      end
+
+    lead =
+      ngettext(
+        "Filtered: %{count} split missing a portfolio",
+        "Filtered: %{count} splits each missing a portfolio",
+        count
+      )
+
+    remedy =
+      gettext(
+        "There the FIFO lots are split and the holding is not. Record the split again with the same date and ratio (“Record split” on the security): it adds only the missing rows. If the split is wrong, delete the whole split. Nothing is changed automatically."
+      )
+
+    Enum.join([lead <> " —" | details] ++ [remedy], " ")
+  end
+
   defp note_text(%{check: "rate_only", count: count}) do
     ngettext(
       "Filtered: %{count} cross-currency buy or sell with a rate and no cash amount",
@@ -165,4 +208,15 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
         "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the amount settled in the booking form (Edit); backfilling rates does not change these bookings. Nothing is changed automatically."
       )
   end
+
+  # "Record split" lives on the security; it is offered when the events
+  # name one security, so the link says where it goes.
+  defp record_split_href(%{check: "incomplete_split", rows: events}) do
+    case events |> Enum.map(& &1.security_id) |> Enum.uniq() do
+      [security_id] -> "/securities/#{security_id}"
+      _none_or_several -> nil
+    end
+  end
+
+  defp record_split_href(_filter), do: nil
 end
