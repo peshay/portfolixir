@@ -8193,6 +8193,22 @@ Measured on the review seed at 390 px: both section panels span x = 16 to
   Kategoriegewicht auf der Klassifizierungsseite angleichen“, „Auf der
   Klassifizierungsseite neu hinterlegen“). „Daten als Tabelle“
   (`#allocation-disclosure`) carries the `DisclosureState` hook (#1339).
+- **Cashflow → Trades** (Sprint 22 R5 re-read against board
+  `ux-design-2026-11-02-sprint23` 02 ①d): with two or more reasons in
+  `#realized-excluded` the lead keeps every count, once, and each reason
+  then names its sales without a count, „‹Grund›: ‹Namen›.“ („Ohne
+  gespeicherten Wechselkurs“, „Kauf ohne Gegenwert in der Währung des
+  Verkaufs“, „Dritte Währung“, „Kauf in anderer Währung bezahlt“, „Kauf mit
+  Betrag null“; `ExcludedSales.named/2`). One reason alone keeps its
+  sentence, which leads with its count. What the four reasons other than
+  a missing rate mean sits in the facet's ⓘ after a blank line, one per
+  line (`ExcludedSales.definitions/0`); the missing rate is defined by the
+  facet's text already (⑥). The backfill's sentence and „Historische
+  Wechselkurse nachladen“ render only while a reason the backfill fixes is
+  present (no stored rate, a buy without a figure in the sale's currency);
+  R5's reasons alone offer no remedy (UX-DR25 clause 3). The Overview
+  card's note keeps its sentences. The facet's money reads with a text
+  space before the currency („501,00 EUR“, #1321).
 
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 

@@ -112,7 +112,8 @@ defmodule PortfolixirWeb.CashflowExplanationsLiveTest do
   # Acceptance criteria:
   # - The facet's ⓘ keeps its composition and, after a blank line, "Deliveries
   #   open no lot" and "p. a. only from 365 days of holding and only where a
-  #   rate solves the flows", one per line.
+  #   rate solves the flows", one per line; after another blank line the
+  #   four exclusion reasons' definitions (Sprint 23 Lane I, Income ①).
   # - The list's basis line keeps "fees and taxes in cost and proceeds ·
   #   income received while a trade was open not included".
   # - Both exclusion notes clamp and never fold: the excluded sales' count
@@ -130,7 +131,12 @@ defmodule PortfolixirWeb.CashflowExplanationsLiveTest do
              "Realized gains and losses from FIFO-matched sales" <> _,
              "",
              "Deliveries open no lot",
-             pa
+             pa,
+             "",
+             "Buy without a figure in the sale's currency: " <> _,
+             "Third currency: " <> _,
+             "Buy paid in another currency: " <> _,
+             "Buy of amount zero: " <> _
            ] =
              lines(view, "[data-role='facet-info'] p[role='tooltip']")
 
