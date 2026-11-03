@@ -510,17 +510,15 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto;/
   end
 
-  # User story (the closing act's H7 finding; board
-  # ux-review-2026-10-03/03-gamma-surface-repairs, G6): the Quotes tab's
-  # basis line names the "Gespeichert" column, which the phone rows do not
-  # have. The phone lists' block swaps the table's sentence for the rows'
-  # as it swaps the table for the rows; above 560 px the rows' sentence is
-  # out of the layout.
-  test "under 560 px the quotes' basis line names the rows, not the column" do
-    assert block(".quotes-basis__rows") =~ ~r/display:\s*none;/
-
-    assert phone_block() =~
-             ~r/\.quotes-basis__table \{\s*display: none;\s*\}\s*\.quotes-basis__rows \{\s*display: inline;\s*\}/
+  # The closing act's H7 finding (board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G6) swapped the Quotes
+  # tab's basis sentence per layout. Since I1 (Sprint 23, board
+  # ux-design-2026-11-03-sprint23-i1 ①) the line says the price basis once
+  # and both sentences — the table's Stored column, the rows' line under the
+  # close — sit in its ⓘ, so no swap is left to pin
+  # (securities_quote_phone_rows_test.exs).
+  test "the quotes' basis line no longer swaps per layout" do
+    refute @css =~ ".quotes-basis__"
   end
 
   test "under 560 px the chip row yields to the Filter control" do

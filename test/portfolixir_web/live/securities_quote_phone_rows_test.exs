@@ -143,19 +143,28 @@ defmodule PortfolixirWeb.SecuritiesQuotePhoneRowsTest do
     assert text(before_split, ".phone-row__figures .phone-row__figure2") == "gespeichert 110,00"
 
     # The closing act's H7 finding (board
-    # ux-review-2026-10-03/03-gamma-surface-repairs, G6): the basis line
-    # carries a sentence for the table and one for the rows, and the phone
-    # lists' 560 px block shows the one that matches the screen.
+    # ux-review-2026-10-03/03-gamma-surface-repairs, G6): the rows have no
+    # "Gespeichert" column, so the rows' sentence names the line under the
+    # close. Since I1 (Sprint 23, board ux-design-2026-11-03-sprint23-i1 ①)
+    # the line says the price basis once and its ⓘ holds both sentences,
+    # the table's and the rows'.
     basis =
       view
       |> element("#detail-tab-panel-quotes [data-role='quotes-basis']")
       |> render()
       |> Floki.parse_fragment!()
 
-    assert text(basis, ".quotes-basis__table") ==
-             "Kursbasis: split-bereinigt. Die Spalte Gespeichert zeigt die unveränderten Werte."
+    assert basis
+           |> Floki.filter_out("details")
+           |> Floki.text()
+           |> String.split()
+           |> Enum.join(" ") ==
+             "Kursbasis: split-bereinigt."
 
-    assert text(basis, ".quotes-basis__rows") ==
-             "Kursbasis: split-bereinigt. Wo ein Split einen Kurs angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert."
+    tip = text(basis, "details[data-role='section-info'] p[role='tooltip']")
+    assert tip =~ "Die Spalte Gespeichert zeigt die unveränderten Werte."
+
+    assert tip =~
+             "Wo ein Split einen Kurs angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert."
   end
 end

@@ -33,19 +33,30 @@ defmodule PortfolixirWeb.Securities.ManualQuotes do
   @doc "The data note above the quote table, or nothing without a manual quote."
   def note(assigns) do
     ~H"""
-    <AppShell.data_note :if={@manual.count > 0} severity={:note} data-role="manual-quotes-note">
+    <%!-- I1 (board ux-design-2026-11-03-sprint23-i1 ③): the note clamps;
+         the precedence sentence says why the remedy is needed and stays in
+         its text, „Release…“ sits in its actions, below the cut. --%>
+    <AppShell.data_note
+      :if={@manual.count > 0}
+      severity={:note}
+      id="manual-quotes-note"
+      clamp
+      data-role="manual-quotes-note"
+    >
       <.dated segments={count_sentence(@manual)} />
       <%= gettext(
         "A manual quote has precedence: the quote sync leaves it standing until it is released."
       ) %>
-      <button
-        type="button"
-        class="link-button"
-        phx-click="open_quote_release"
-        data-role="release-manual-quotes"
-      >
-        <%= gettext("Release…") %>
-      </button>
+      <:actions>
+        <button
+          type="button"
+          class="link-button"
+          phx-click="open_quote_release"
+          data-role="release-manual-quotes"
+        >
+          <%= gettext("Release…") %>
+        </button>
+      </:actions>
     </AppShell.data_note>
     """
   end

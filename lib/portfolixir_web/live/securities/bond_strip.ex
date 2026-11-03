@@ -286,12 +286,16 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   100) has its own sentence and links to the Quotes tab, where the stored
   quotes are checked, because both its consequence and its remedy point
   the other way (`data-role="two-scales-reverse-note"`).
+
+  Each is a problem that leads the Overview and clamps (I1, board
+  `ux-design-2026-11-03-sprint23-i1` ⑤); its link sits in the note's
+  actions, below the cut.
   """
   def two_scales_note(%{bond: %{two_scales: %{direction: :forward} = finding}} = assigns) do
     assigns = assign(assigns, :finding, finding)
 
     ~H"""
-    <AppShell.data_note severity={:problem} data-role="two-scales-note">
+    <AppShell.data_note severity={:problem} id="two-scales-note" clamp data-role="two-scales-note">
       <strong><%= gettext("Priced on two scales:") %></strong>
       <%= gettext("quotes around 100 (latest %{close} on %{date}),",
         close: Format.exact(@finding.latest_quote.close),
@@ -307,9 +311,11 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       <%= gettext(
         "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"
       ) %>
-      <.link patch={"/securities/#{@security.id}?tab=transactions"}>
-        <%= gettext("Transactions") %>
-      </.link>
+      <:actions>
+        <.link patch={"/securities/#{@security.id}?tab=transactions"}>
+          <%= gettext("Transactions") %>
+        </.link>
+      </:actions>
     </AppShell.data_note>
     """
   end
@@ -318,7 +324,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
     assigns = assign(assigns, :finding, finding)
 
     ~H"""
-    <AppShell.data_note severity={:problem} data-role="two-scales-reverse-note">
+    <AppShell.data_note severity={:problem} id="two-scales-reverse-note" clamp data-role="two-scales-reverse-note">
       <strong><%= gettext("Priced on two scales:") %></strong>
       <%= gettext("quotes around 1 (latest %{close} on %{date}),",
         close: Format.exact(@finding.latest_quote.close),
@@ -334,9 +340,11 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       <%= gettext(
         "That means value, gain and weight count a hundred times too low. Check the stored quotes — a quote around 1 is not a percent of face:"
       ) %>
-      <.link patch={"/securities/#{@security.id}?tab=quotes"}>
-        <%= gettext("Quotes") %>
-      </.link>
+      <:actions>
+        <.link patch={"/securities/#{@security.id}?tab=quotes"}>
+          <%= gettext("Quotes") %>
+        </.link>
+      </:actions>
     </AppShell.data_note>
     """
   end

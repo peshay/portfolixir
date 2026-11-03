@@ -2564,10 +2564,11 @@ shares are named at the head of the section in the same attention note,
 with each sell as date · unmatched quantity — the security is the page's
 own — instead of the former "may indicate missing data" warning; when such
 sells are all there is, the note stands alone, without a table. A line
-under the list states the rules: across every depot, deliveries open no lot,
-fees and taxes are in the realised P&L but not in the average buy and sell
-prices, income received while a trade was open is not included, and p. a.
-only from 365 days of holding and only where a rate solves the flows. The
+under the list states its basis: across every depot, fees and taxes are in
+the realised P&L but not in the average buy and sell prices, and income
+received while a trade was open is not included. The ⓘ beside *Closed
+trades (FIFO)* holds the rules: deliveries open no lot, and p. a. only from
+365 days of holding and only where a rate solves the flows. The
 realised P&L and its fees and taxes are in the trade's currency, a trade
 across currencies converting them at its own rate, as on the facet (issue
 #1108), and **Realised P&L** names that currency at every width ("+188.75
@@ -3863,8 +3864,9 @@ standing where the provider returned a close.*); a sync that skipped a
 security says why in words. On a phone the Quotes tab shows each quote as a
 two-line row — the date over its source, the close on the right, and the
 stored value under it where a split adjusted the close — so the source of
-every quote is readable without swiping the table, and the price-basis line
-above the rows names that line instead of the table's Stored column.
+every quote is readable without swiping the table. The price-basis line
+above the table or the rows says the basis once; the ⓘ that ends it says
+what the table's Stored column and the line under a phone row's close show.
 Your agent reads the same summary with
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) and releases with
