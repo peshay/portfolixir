@@ -364,12 +364,30 @@ defmodule PortfolixirWeb.SnapshotsLive do
         <%= if @comparison do %>
           <section class="workspace-section" data-role="snapshot-comparison">
             <header class="section-head">
-              <h2>
-                <%= StoredText.isolate(
-                  gettext("Comparison against “%{name}”", name: StoredText.slot(:name)),
-                  name: @comparison.snapshot.name
-                ) %>
-              </h2>
+              <%!-- I1 (board ux-design-2026-11-03-sprint23-i1, Snapshots ①;
+                   reading 3): the cost definition and the limitation are
+                   method, true of any comparison, so they sit in the
+                   section's ⓘ; the basis clauses stay under the chart. --%>
+              <div class="section-title">
+                <h2>
+                  <%= StoredText.isolate(
+                    gettext("Comparison against “%{name}”", name: StoredText.slot(:name)),
+                    name: @comparison.snapshot.name
+                  ) %>
+                </h2>
+                <AppShell.section_info>
+                  <:line>
+                    <%= gettext(
+                      "Transaction costs = fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides"
+                    ) %>
+                  </:line>
+                  <:line>
+                    <%= gettext(
+                      "The comparison is gross and price development only — dividends are not yet included."
+                    ) %>
+                  </:line>
+                </AppShell.section_info>
+              </div>
               <span class="badge" data-role="comparison-scope">
                 <%= view_name(@views, @comparison.snapshot.view_id) %>
                 · <%= Format.date(@comparison.as_of) %>
@@ -433,7 +451,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
                 <article class="stat">
                   <span><%= gettext("Transaction costs") %></span>
                   <strong data-role="transaction-costs">
-                    <%= Format.money(@comparison.transaction_costs) %><small class="value-suffix"><%= @comparison.base_currency %></small>
+                    <%!-- #1321: a text space before the currency. --%>
+                    <%= Format.money(@comparison.transaction_costs) %> <small class="value-suffix"><%= @comparison.base_currency %></small>
                   </strong>
                   <small class="hint" data-role="cost-recovery">
                     <%= gettext("Earned back?") %> <%= recovery_label(@comparison.cost_recovery) %>
@@ -445,15 +464,22 @@ defmodule PortfolixirWeb.SnapshotsLive do
             <%!-- Findings about this comparison as data notes (UX-DR17), one
                  role="status" region around the list — never one per note. --%>
             <div class="comparison-notes" role="status">
-              <AppShell.data_note severity={:note} data-role="comparison-limitation">
-                <%= gettext(
-                  "The comparison is gross and price development only — dividends are not yet included."
-                ) %>
-              </AppShell.data_note>
+              <%!-- I1 (board ux-design-2026-11-03-sprint23-i1, Snapshots ③
+                   ⑧): the note names positions left out of the comparison,
+                   so it clamps, never folds, and its count leads. --%>
               <%= if @comparison.gaps.unvalued_securities != [] do %>
-                <AppShell.data_note severity={:attention} data-role="comparison-gaps">
-                  <%= gettext("Not included (no usable quote or exchange rate at the as-of date):") %>
-                  <%= Enum.map_join(@comparison.gaps.unvalued_securities, ", ", & &1.security_name) %>
+                <AppShell.data_note
+                  severity={:attention}
+                  id="comparison-gaps-note"
+                  data-role="comparison-gaps"
+                  clamp
+                >
+                  <%= ngettext(
+                    "Not included: %{count} position with no usable quote or exchange rate at the as-of date — %{names}",
+                    "Not included: %{count} positions with no usable quote or exchange rate at the as-of date — %{names}",
+                    length(@comparison.gaps.unvalued_securities),
+                    names: Enum.map_join(@comparison.gaps.unvalued_securities, ", ", & &1.security_name)
+                  ) %>
                 </AppShell.data_note>
               <% end %>
             </div>
@@ -489,14 +515,13 @@ defmodule PortfolixirWeb.SnapshotsLive do
                 />
               </figure>
               <%!-- The chart's basis line (Part 4 rule 3 shape): what is
-                   compared, in which currency, on what basis, and which
-                   costs left the return and which stayed (ADR-0027 §4). --%>
+                   compared, in which currency, on what basis. Which costs
+                   left the return and which stayed (ADR-0027 §4) is the
+                   heading's ⓘ (I1). --%>
               <p class="summary-basis" data-role="comparison-basis">
-                <%= gettext(
-                  "since %{date} · in %{currency} · gross, price development only · Transaction costs = fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides",
-                  date: Format.date(@comparison.as_of),
-                  currency: @comparison.base_currency
-                ) %>
+                <%= gettext("since %{date}", date: Format.date(@comparison.as_of)) %>
+                · <%= gettext("in %{currency}", currency: @comparison.base_currency) %>
+                · <%= gettext("gross, price development only") %>
               </p>
 
               <%!-- The one uniform chart-as-table disclosure (UX-DR10):

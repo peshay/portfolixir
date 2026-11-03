@@ -99,7 +99,7 @@ msgstr "Dunkel"
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:276
 #: lib/portfolixir_web/live/securities_live.ex:2094
 #: lib/portfolixir_web/live/securities_live.ex:3566
-#: lib/portfolixir_web/live/snapshots_live.ex:516
+#: lib/portfolixir_web/live/snapshots_live.ex:541
 #: lib/portfolixir_web/live/transaction_management_live.ex:2045
 #: lib/portfolixir_web/live/transaction_management_live.ex:2597
 #: lib/portfolixir_web/live/transaction_management_live.ex:2890
@@ -239,8 +239,8 @@ msgstr "Violett"
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:225
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1045
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:407
-#: lib/portfolixir_web/live/snapshots_live.ex:573
-#: lib/portfolixir_web/live/snapshots_live.ex:620
+#: lib/portfolixir_web/live/snapshots_live.ex:598
+#: lib/portfolixir_web/live/snapshots_live.ex:645
 #, elixir-autogen
 msgid "Name"
 msgstr "Name"
@@ -1072,7 +1072,7 @@ msgstr "Status konnte nicht geändert werden."
 #: lib/portfolixir_web/live/classifications_live.ex:740
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:658
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:189
-#: lib/portfolixir_web/live/snapshots_live.ex:685
+#: lib/portfolixir_web/live/snapshots_live.ex:710
 #: lib/portfolixir_web/live/tax_live.ex:1069
 #: lib/portfolixir_web/live/tax_live.ex:1093
 #, elixir-autogen, elixir-format
@@ -3228,7 +3228,7 @@ msgstr "Standard-Ansicht"
 #: lib/portfolixir_web/live/risk_live.ex:746
 #: lib/portfolixir_web/live/snapshots_live.ex:213
 #: lib/portfolixir_web/live/snapshots_live.ex:217
-#: lib/portfolixir_web/live/snapshots_live.ex:600
+#: lib/portfolixir_web/live/snapshots_live.ex:625
 #, elixir-autogen, elixir-format
 msgid "Everything"
 msgstr "Alles"
@@ -3660,13 +3660,13 @@ msgstr "Diesen Plan aktivieren"
 #: lib/portfolixir_web/live/securities_live.ex:3225
 #: lib/portfolixir_web/live/securities_live.ex:3281
 #: lib/portfolixir_web/live/securities_live.ex:6538
-#: lib/portfolixir_web/live/snapshots_live.ex:584
-#: lib/portfolixir_web/live/snapshots_live.ex:622
+#: lib/portfolixir_web/live/snapshots_live.ex:609
+#: lib/portfolixir_web/live/snapshots_live.ex:647
 #, elixir-autogen, elixir-format
 msgid "As of"
 msgstr "Stichtag"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:383
+#: lib/portfolixir_web/live/snapshots_live.ex:401
 #, elixir-autogen, elixir-format
 msgid "Comparison key figures"
 msgstr "Vergleichs-Kennzahlen"
@@ -3695,12 +3695,12 @@ msgstr "Plan konnte nicht umbenannt werden"
 #: lib/portfolixir_web/live/income_live.ex:1373
 #: lib/portfolixir_web/live/portfolio_live.ex:2032
 #: lib/portfolixir_web/live/portfolio_live.ex:3356
-#: lib/portfolixir_web/live/snapshots_live.ex:507
+#: lib/portfolixir_web/live/snapshots_live.ex:532
 #, elixir-autogen, elixir-format
 msgid "Data as table"
 msgstr "Daten als Tabelle"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:682
+#: lib/portfolixir_web/live/snapshots_live.ex:707
 #, elixir-autogen, elixir-format
 msgid "Delete this snapshot marker? No transactions are affected."
 msgstr "Diesen Snapshot-Marker löschen? Es sind keine Transaktionen betroffen."
@@ -3715,30 +3715,25 @@ msgstr "Plan duplizieren"
 msgid "Freeze a depot state and compare against it"
 msgstr "Einen Depotstand einfrieren und dagegen vergleichen"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:606
+#: lib/portfolixir_web/live/snapshots_live.ex:631
 #, elixir-autogen, elixir-format
 msgid "Freeze state"
 msgstr "Stand einfrieren"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:569
+#: lib/portfolixir_web/live/snapshots_live.ex:594
 #, elixir-autogen, elixir-format
 msgid "New snapshot"
 msgstr "Neuer Snapshot"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:614
+#: lib/portfolixir_web/live/snapshots_live.ex:639
 #, elixir-autogen, elixir-format
 msgid "No snapshots yet."
 msgstr "Noch keine Snapshots."
 
-#: lib/portfolixir_web/live/snapshots_live.ex:541
+#: lib/portfolixir_web/live/snapshots_live.ex:566
 #, elixir-autogen, elixir-format
 msgid "No valuable holdings at the as-of date — nothing to compare yet."
 msgstr "Keine bewertbaren Bestände zum Stichtag — noch nichts zu vergleichen."
-
-#: lib/portfolixir_web/live/snapshots_live.ex:455
-#, elixir-autogen, elixir-format
-msgid "Not included (no usable quote or exchange rate at the as-of date):"
-msgstr "Nicht enthalten (kein verwendbarer Kurs oder Wechselkurs zum Stichtag):"
 
 #: lib/portfolixir_web/live/classifications_live.ex:1738
 #, elixir-autogen, elixir-format
@@ -3761,13 +3756,13 @@ msgid "Plan version:"
 msgstr "Plan-Version:"
 
 #: lib/portfolixir_web/live/snapshots_live.ex:286
-#: lib/portfolixir_web/live/snapshots_live.ex:473
+#: lib/portfolixir_web/live/snapshots_live.ex:499
 #, elixir-autogen, elixir-format
 msgid "Real (TTWROR)"
 msgstr "Echt (TTWROR)"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:598
-#: lib/portfolixir_web/live/snapshots_live.ex:621
+#: lib/portfolixir_web/live/snapshots_live.ex:623
+#: lib/portfolixir_web/live/snapshots_live.ex:646
 #, elixir-autogen, elixir-format
 msgid "Scope"
 msgstr "Geltungsbereich"
@@ -3776,7 +3771,7 @@ msgstr "Geltungsbereich"
 #: lib/portfolixir_web/live/snapshots_live.ex:330
 #: lib/portfolixir_web/live/snapshots_live.ex:333
 #: lib/portfolixir_web/live/snapshots_live.ex:346
-#: lib/portfolixir_web/live/snapshots_live.ex:550
+#: lib/portfolixir_web/live/snapshots_live.ex:575
 #, elixir-autogen, elixir-format
 msgid "Snapshots"
 msgstr "Snapshots"
@@ -3809,7 +3804,7 @@ msgstr "Folgt dem aktiven Plan, bis diese Version aktiviert wird"
 msgid "New plan name"
 msgstr "Neuer Planname"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:519
+#: lib/portfolixir_web/live/snapshots_live.ex:544
 #, elixir-autogen, elixir-format
 msgid "Real return"
 msgstr "Echte Rendite"
@@ -4758,7 +4753,7 @@ msgstr "Das erfasste Abrechnungs-Bein ist nicht in der Basiswährung."
 msgid "Total (base)"
 msgstr "Gesamt (Basis)"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:556
+#: lib/portfolixir_web/live/snapshots_live.ex:581
 #, elixir-autogen, elixir-format
 msgid "A snapshot freezes the holdings held on a date — as a marker on the ledger, copying nothing. A later comparison shows whether keeping them would have beaten the real performance."
 msgstr "Ein Snapshot friert die Bestände eines Stichtags ein — als Marker im Ledger, ohne etwas zu kopieren. Ein späterer Vergleich zeigt, ob Halten die reale Performance geschlagen hätte."
@@ -5033,12 +5028,12 @@ msgstr "Ansicht %{view} · mehrere aktive Pläne auf %{tree}"
 msgid "View %{view} — no active plan on %{tree}"
 msgstr "Ansicht %{view} — kein aktiver Plan auf %{tree}"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:510
+#: lib/portfolixir_web/live/snapshots_live.ex:535
 #, elixir-autogen, elixir-format
 msgid "Both series as weekly rows — the chart data without the chart."
 msgstr "Beide Reihen als Wochenzeilen — die Chartdaten ohne den Chart."
 
-#: lib/portfolixir_web/live/snapshots_live.ex:449
+#: lib/portfolixir_web/live/snapshots_live.ex:385
 #, elixir-autogen, elixir-format
 msgid "The comparison is gross and price development only — dividends are not yet included."
 msgstr "Der Vergleich ist brutto und nur Kursentwicklung — Dividenden sind noch nicht enthalten."
@@ -5251,7 +5246,7 @@ msgstr "Dividenden und Zinsen pro Jahr"
 msgid "Behind even before costs"
 msgstr "Auch vor Kosten zurück"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:439
+#: lib/portfolixir_web/live/snapshots_live.ex:458
 #, elixir-autogen, elixir-format
 msgid "Earned back?"
 msgstr "Wieder eingespielt?"
@@ -5261,12 +5256,12 @@ msgstr "Wieder eingespielt?"
 msgid "Not yet — %{gap} percentage points to go"
 msgstr "Noch nicht — %{gap} Prozentpunkte fehlen"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:434
+#: lib/portfolixir_web/live/snapshots_live.ex:452
 #, elixir-autogen, elixir-format
 msgid "Transaction costs"
 msgstr "Transaktionskosten"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:421
+#: lib/portfolixir_web/live/snapshots_live.ex:439
 #, elixir-autogen, elixir-format
 msgid "Transaction costs since the snapshot"
 msgstr "Transaktionskosten seit dem Snapshot"
@@ -6263,29 +6258,29 @@ msgstr "manuell erfasst"
 msgid "from a PDF import"
 msgstr "aus einem PDF-Import"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:554
+#: lib/portfolixir_web/live/snapshots_live.ex:579
 #, elixir-autogen, elixir-format
 msgid "About snapshots"
 msgstr "Zu den Snapshots"
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:136
-#: lib/portfolixir_web/live/snapshots_live.ex:624
+#: lib/portfolixir_web/live/snapshots_live.ex:649
 #: lib/portfolixir_web/live/transaction_management_live.ex:391
 #, elixir-autogen, elixir-format
 msgid "Actions"
 msgstr "Aktionen"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:407
+#: lib/portfolixir_web/live/snapshots_live.ex:425
 #, elixir-autogen, elixir-format
 msgid "Buy-and-hold of the holdings frozen on %{date}: %{then} → %{today} %{currency}"
 msgstr "Buy-and-hold der am %{date} eingefrorenen Bestände: %{then} → %{today} %{currency}"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:485
+#: lib/portfolixir_web/live/snapshots_live.ex:511
 #, elixir-autogen, elixir-format
 msgid "Change since the as-of date in percent: frozen buy-and-hold versus real performance"
 msgstr "Veränderung seit dem Stichtag in Prozent: eingefrorenes Buy-and-hold gegen echte Performance"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:369
+#: lib/portfolixir_web/live/snapshots_live.ex:374
 #, elixir-autogen, elixir-format
 msgid "Comparison against “%{name}”"
 msgstr "Vergleich gegen „%{name}“"
@@ -6295,27 +6290,27 @@ msgstr "Vergleich gegen „%{name}“"
 msgid "Frozen"
 msgstr "Eingefroren"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:469
+#: lib/portfolixir_web/live/snapshots_live.ex:495
 #, elixir-autogen, elixir-format
 msgid "Frozen (buy-and-hold)"
 msgstr "Eingefroren (Buy-and-hold)"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:398
+#: lib/portfolixir_web/live/snapshots_live.ex:416
 #, elixir-autogen, elixir-format
 msgid "Frozen (hold)"
 msgstr "Eingefroren (Halten)"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:518
+#: lib/portfolixir_web/live/snapshots_live.ex:543
 #, elixir-autogen, elixir-format
 msgid "Frozen return"
 msgstr "Eingefrorene Rendite"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:517
+#: lib/portfolixir_web/live/snapshots_live.ex:542
 #, elixir-autogen, elixir-format
 msgid "Frozen value"
 msgstr "Eingefrorener Wert"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:647
+#: lib/portfolixir_web/live/snapshots_live.ex:672
 #, elixir-autogen, elixir-format
 msgid "In comparison"
 msgstr "Im Vergleich"
@@ -6325,35 +6320,30 @@ msgstr "Im Vergleich"
 msgid "Real"
 msgstr "Real"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:385
+#: lib/portfolixir_web/live/snapshots_live.ex:403
 #, elixir-autogen, elixir-format
 msgid "Real (TTWROR since the as-of date)"
 msgstr "Real (TTWROR seit Stichtag)"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:424
+#: lib/portfolixir_web/live/snapshots_live.ex:442
 #, elixir-autogen, elixir-format
 msgid "Real before transaction costs"
 msgstr "Real vor Transaktionskosten"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:674
+#: lib/portfolixir_web/live/snapshots_live.ex:699
 #, elixir-autogen, elixir-format
 msgid "Snapshot actions"
 msgstr "Aktionen zum Snapshot"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:431
+#: lib/portfolixir_web/live/snapshots_live.ex:449
 #, elixir-autogen, elixir-format
 msgid "fees and taxes on trades excluded"
 msgstr "Gebühren und Steuern auf Handelsgeschäfte ausgenommen"
 
-#: lib/portfolixir_web/live/snapshots_live.ex:395
+#: lib/portfolixir_web/live/snapshots_live.ex:413
 #, elixir-autogen, elixir-format
 msgid "net, all costs included"
 msgstr "netto, alle Kosten enthalten"
-
-#: lib/portfolixir_web/live/snapshots_live.ex:495
-#, elixir-autogen, elixir-format
-msgid "since %{date} · in %{currency} · gross, price development only · Transaction costs = fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides"
-msgstr "seit %{date} · in %{currency} · brutto, nur Kursentwicklung · Transaktionskosten = seitdem auf Handelsgeschäften gebuchte Gebühren und Steuern; eigenständige Gebühren, Steuern und Quellensteuer auf Dividenden bleiben auf beiden Seiten in der Rendite"
 
 #: lib/portfolixir_web/live/buckets_live.ex:353
 #, elixir-autogen, elixir-format
@@ -11345,6 +11335,7 @@ msgid "cost %{amount}"
 msgstr "Einstand %{amount}"
 
 #: lib/portfolixir_web/live/classifications_live.ex:473
+#: lib/portfolixir_web/live/snapshots_live.ex:523
 #, elixir-autogen, elixir-format
 msgid "in %{currency}"
 msgstr "in %{currency}"
@@ -14606,3 +14597,25 @@ msgstr "Dritte Währung"
 #, elixir-autogen, elixir-format
 msgid "Third currency: the sale or a buy it closes is priced in a currency that is neither the security's nor its account's; no rate fixes it."
 msgstr "Dritte Währung: Der Verkauf oder ein Kauf, den er schließt, ist weder in der Währung des Wertpapiers noch in der seines Kontos bepreist; kein Wechselkurs behebt das."
+
+#: lib/portfolixir_web/live/snapshots_live.ex:477
+#, elixir-autogen, elixir-format
+msgid "Not included: %{count} position with no usable quote or exchange rate at the as-of date — %{names}"
+msgid_plural "Not included: %{count} positions with no usable quote or exchange rate at the as-of date — %{names}"
+msgstr[0] "Nicht enthalten: %{count} Position ohne verwendbaren Kurs oder Wechselkurs zum Stichtag — %{names}"
+msgstr[1] "Nicht enthalten: %{count} Positionen ohne verwendbaren Kurs oder Wechselkurs zum Stichtag — %{names}"
+
+#: lib/portfolixir_web/live/snapshots_live.ex:380
+#, elixir-autogen, elixir-format
+msgid "Transaction costs = fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides"
+msgstr "Transaktionskosten = seitdem auf Handelsgeschäften gebuchte Gebühren und Steuern; eigenständige Gebühren, Steuern und Quellensteuer auf Dividenden bleiben auf beiden Seiten in der Rendite"
+
+#: lib/portfolixir_web/live/snapshots_live.ex:524
+#, elixir-autogen, elixir-format
+msgid "gross, price development only"
+msgstr "brutto, nur Kursentwicklung"
+
+#: lib/portfolixir_web/live/snapshots_live.ex:522
+#, elixir-autogen, elixir-format
+msgid "since %{date}"
+msgstr "seit %{date}"
