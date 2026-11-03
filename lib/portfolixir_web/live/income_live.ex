@@ -161,6 +161,9 @@ defmodule PortfolixirWeb.IncomeLive do
     """
   end
 
+  # Two or more exclusion reasons: the lead counts them (`ExcludedSales.counts/1`).
+  defp several_reasons?(by_reason), do: ExcludedSales.counts(by_reason) != nil
+
   defp facet(tab) when tab in @facets, do: tab
   defp facet(_tab), do: @default_facet
 
@@ -347,6 +350,10 @@ defmodule PortfolixirWeb.IncomeLive do
                        facet's text after a blank line, one per line. --%>
                   <br /><br /><%= gettext("Deliveries open no lot") %>
                   <br /><%= gettext("p. a. only from 365 days of holding and only where a rate solves the flows") %>
+                  <%!-- Board ux-design-2026-11-03-sprint23-i1, Income ① ⑥:
+                       what each exclusion reason means, one per line after
+                       a blank line; a missing rate is defined above. --%>
+                  <%= for {definition, index} <- Enum.with_index(ExcludedSales.definitions()) do %><br :if={index == 0} /><br /><%= definition %><% end %>
                 </p>
               </details>
             </div>
@@ -373,7 +380,11 @@ defmodule PortfolixirWeb.IncomeLive do
               >
                 <%!-- #1351 closing act (pick Q1; DESIGN.md ③): with two or
                      more reasons every reason's count leads, so none falls
-                     below the clamp. --%>
+                     below the clamp. Then each reason names its sales
+                     without a second count, „Dritte Währung: …“ (board
+                     ux-design-2026-11-03-sprint23-i1, Income ⑧; #1359); one
+                     reason alone keeps its sentence, which leads with its
+                     count. --%>
                 <span
                   :if={counts = ExcludedSales.counts(@realized.excluded.by_reason)}
                   data-role="realized-excluded-counts"
@@ -385,7 +396,10 @@ defmodule PortfolixirWeb.IncomeLive do
                 <span
                   :if={@realized.excluded.by_reason.no_rate.count > 0}
                   data-role="realized-excluded-no-rate"
-                ><%= StoredText.ending_on(
+                ><%= if several_reasons?(@realized.excluded.by_reason) do %><%= ExcludedSales.named(
+                  :no_rate,
+                  @realized.excluded.by_reason.no_rate.securities
+                ) %><% else %><%= StoredText.ending_on(
                   Enum.join(@realized.excluded.by_reason.no_rate.securities, ", "),
                   &ngettext(
                     "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
@@ -399,11 +413,14 @@ defmodule PortfolixirWeb.IncomeLive do
                     @realized.excluded.by_reason.no_rate.count,
                     securities: &1
                   )
-                ) %></span>
+                ) %><% end %></span>
                 <span
                   :if={@realized.excluded.by_reason.missing_settlement_leg.count > 0}
                   data-role="realized-excluded-missing-leg"
-                ><%= StoredText.ending_on(
+                ><%= if several_reasons?(@realized.excluded.by_reason) do %><%= ExcludedSales.named(
+                  :missing_settlement_leg,
+                  @realized.excluded.by_reason.missing_settlement_leg.securities
+                ) %><% else %><%= StoredText.ending_on(
                   Enum.join(@realized.excluded.by_reason.missing_settlement_leg.securities, ", "),
                   &ngettext(
                     "%{count} sale is not convertible — a buy it closes has no figure in the sale's currency — and is excluded from every total: %{securities}.",
@@ -417,13 +434,16 @@ defmodule PortfolixirWeb.IncomeLive do
                     @realized.excluded.by_reason.missing_settlement_leg.count,
                     securities: &1
                   )
-                ) %></span>
+                ) %><% end %></span>
                 <%!-- #1310: a sale or a buy priced in a third currency, which
                      no rate fixes, in a sentence of its own. --%>
                 <span
                   :if={@realized.excluded.by_reason.third_currency.count > 0}
                   data-role="realized-excluded-third-currency"
-                ><%= StoredText.ending_on(
+                ><%= if several_reasons?(@realized.excluded.by_reason) do %><%= ExcludedSales.named(
+                  :third_currency,
+                  @realized.excluded.by_reason.third_currency.securities
+                ) %><% else %><%= StoredText.ending_on(
                   Enum.join(@realized.excluded.by_reason.third_currency.securities, ", "),
                   &ngettext(
                     "%{count} sale is not convertible — it or a buy it closes is priced in a currency that is neither the security's nor its account's — and is excluded from every total: %{securities}.",
@@ -437,12 +457,15 @@ defmodule PortfolixirWeb.IncomeLive do
                     @realized.excluded.by_reason.third_currency.count,
                     securities: &1
                   )
-                ) %></span>
+                ) %><% end %></span>
                 <%!-- #1310: a buy paid in a currency no leg bridges, which no rate fixes. --%>
                 <span
                   :if={@realized.excluded.by_reason.other_account_currency.count > 0}
                   data-role="realized-excluded-other-account"
-                ><%= StoredText.ending_on(
+                ><%= if several_reasons?(@realized.excluded.by_reason) do %><%= ExcludedSales.named(
+                  :other_account_currency,
+                  @realized.excluded.by_reason.other_account_currency.securities
+                ) %><% else %><%= StoredText.ending_on(
                   Enum.join(@realized.excluded.by_reason.other_account_currency.securities, ", "),
                   &ngettext(
                     "%{count} sale is not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — and is excluded from every total: %{securities}.",
@@ -456,12 +479,15 @@ defmodule PortfolixirWeb.IncomeLive do
                     @realized.excluded.by_reason.other_account_currency.count,
                     securities: &1
                   )
-                ) %></span>
+                ) %><% end %></span>
                 <%!-- #1311: a buy of zero amount, which the rate backfill does not complete. --%>
                 <span
                   :if={@realized.excluded.by_reason.zero_amount.count > 0}
                   data-role="realized-excluded-zero-amount"
-                ><%= StoredText.ending_on(
+                ><%= if several_reasons?(@realized.excluded.by_reason) do %><%= ExcludedSales.named(
+                  :zero_amount,
+                  @realized.excluded.by_reason.zero_amount.securities
+                ) %><% else %><%= StoredText.ending_on(
                   Enum.join(@realized.excluded.by_reason.zero_amount.securities, ", "),
                   &ngettext(
                     "%{count} sale is not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — and is excluded from every total: %{securities}.",
@@ -475,9 +501,13 @@ defmodule PortfolixirWeb.IncomeLive do
                     @realized.excluded.by_reason.zero_amount.count,
                     securities: &1
                   )
-                ) %></span>
-                <.fx_backfill_reason />
-                <:actions>
+                ) %><% end %></span>
+                <%!-- #1359 (board ux-design-2026-11-03-sprint23-i1, Income):
+                     the backfill's sentence and its button follow only a
+                     reason the backfill can fix; R5's three reasons alone
+                     offer no remedy (UX-DR25 clause 3). --%>
+                <.fx_backfill_reason :if={ExcludedSales.backfill_fixes?(@realized.excluded.by_reason)} />
+                <:actions :if={ExcludedSales.backfill_fixes?(@realized.excluded.by_reason)}>
                   <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
                 </:actions>
               </AppShell.data_note>
@@ -538,7 +568,7 @@ defmodule PortfolixirWeb.IncomeLive do
                   data-role="realized-total"
                   class={money_sign_class(@realized.summary.realized_total)}
                 >
-                  <%= Format.signed_decimal(@realized.summary.realized_total, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                  <%= Format.signed_decimal(@realized.summary.realized_total, 2) %> <small class="value-suffix"><%= @realized.base_currency %></small>
                 </strong>
               </article>
               <article class="stat stat--lead">
@@ -616,11 +646,14 @@ defmodule PortfolixirWeb.IncomeLive do
                         ) %>
                       </td>
                       <td class="num"><%= PortfolixirWeb.Format.decimal(trade.quantity, 4) %></td>
+                      <%!-- #1321: a text space before every currency suffix
+                           on this facet, as Wealth's cells have it (#1125),
+                           so a cell reads "300,00 EUR". --%>
                       <td class="num">
-                        <%= money(trade.basis) %><small class="value-suffix"><%= trade.currency_code %></small>
+                        <%= money(trade.basis) %> <small class="value-suffix"><%= trade.currency_code %></small>
                       </td>
                       <td class="num">
-                        <%= money(trade.proceeds) %><small class="value-suffix"><%= trade.currency_code %></small>
+                        <%= money(trade.proceeds) %> <small class="value-suffix"><%= trade.currency_code %></small>
                       </td>
                       <%!-- The annualized return of the trade-currency
                            percent beside it (Ledger.TradeReturn), signed
@@ -654,7 +687,7 @@ defmodule PortfolixirWeb.IncomeLive do
                         class={["num", "col-subject", money_sign_class(trade.realized_base)]}
                         data-role="trade-result"
                       >
-                        <%= Format.signed_decimal(trade.realized_base, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                        <%= Format.signed_decimal(trade.realized_base, 2) %> <small class="value-suffix"><%= @realized.base_currency %></small>
                         <span :if={trade.realized_pnl_pct} class="stat__sub">
                           <%= Format.signed_percent(trade.realized_pnl_pct) %>%
                         </span>
@@ -700,7 +733,7 @@ defmodule PortfolixirWeb.IncomeLive do
                   </span>
                   <span class="phone-row__figures">
                     <span class={["phone-row__figure", money_sign_class(trade.realized_base)]}>
-                      <%= Format.signed_decimal(trade.realized_base, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                      <%= Format.signed_decimal(trade.realized_base, 2) %> <small class="value-suffix"><%= @realized.base_currency %></small>
                     </span>
                     <%!-- #1142 (board 02): at 390 px a trade on no cost
                          says so on the row, in words, where "0.0% total"

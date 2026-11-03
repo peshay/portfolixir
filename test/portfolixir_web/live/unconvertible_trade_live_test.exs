@@ -225,8 +225,9 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   #
   # Acceptance criteria:
   # - Arbolia Inc.'s unavailable trade and Kestrel Inc.'s sale with no rate
-  #   on its close date: the facet reads "… excluded from every total:
-  #   Arbolia Inc." and "… excluded from every total: Kestrel Inc."; the
+  #   on its close date: the facet, two reasons, names each reason's sales
+  #   (Sprint 23 Lane I, Income ⑧): "Buy without a figure in the sale's
+  #   currency: Arbolia Inc." and "No stored rate: Kestrel Inc."; the
   #   card "… left out of the trades: Kestrel Inc. The rate backfill is
   #   under “All trades”." and "… left out of the trades: Arbolia Inc.";
   #   no note holds "Inc..".
@@ -251,10 +252,10 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     render_async(view)
 
     assert view |> element("[data-role=realized-excluded-missing-leg]") |> render() |> text() =~
-             ~r/excluded from every total: Arbolia Inc\.$/
+             ~r/^\s*Buy without a figure in the sale's currency: Arbolia Inc\.\s*$/
 
     assert view |> element("[data-role=realized-excluded-no-rate]") |> render() |> text() =~
-             ~r/excluded from every total: Kestrel Inc\.$/
+             ~r/^\s*No stored rate: Kestrel Inc\.\s*$/
 
     {:ok, card, _html} = live(conn, "/")
     render_async(card)
@@ -282,8 +283,9 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   #   Schlussdatum fehlt bei den Trades: Kestrel Inc. Das Nachladen der
   #   Wechselkurse steht unter „Alle Trades“." and "1 Verkauf ohne Umrechnung
   #   — … — fehlt bei den Trades: Arbolia Inc."
-  # - The facet: "… und ist aus jeder Summe ausgeschlossen: Kestrel Inc." and
-  #   "… und aus jeder Summe ausgeschlossen: Arbolia Inc."
+  # - The facet, two reasons (Sprint 23 Lane I, Income ⑧): "Ohne
+  #   gespeicherten Wechselkurs: Kestrel Inc." and "Kauf ohne Gegenwert in
+  #   der Währung des Verkaufs: Arbolia Inc."
   # - Each sentence takes the msgid without the stop (one shared helper,
   #   `StoredText.ending_on/3`), so no note holds "Inc..".
   test "in German too, a name ending in a full stop ends each note's sentence once",
@@ -308,10 +310,10 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     render_async(view)
 
     assert view |> element("[data-role=realized-excluded-no-rate]") |> render() |> text() =~
-             ~r/und ist aus jeder Summe ausgeschlossen: Kestrel Inc\.$/
+             ~r/^\s*Ohne gespeicherten Wechselkurs: Kestrel Inc\.\s*$/
 
     assert view |> element("[data-role=realized-excluded-missing-leg]") |> render() |> text() =~
-             ~r/und aus jeder Summe ausgeschlossen: Arbolia Inc\.$/
+             ~r/^\s*Kauf ohne Gegenwert in der Währung des Verkaufs: Arbolia Inc\.\s*$/
 
     {:ok, card, _html} = live(conn, "/?locale=de")
     render_async(card)
@@ -978,14 +980,11 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
   #
   # Acceptance criteria:
   # - A dollar-account buy sold through the euro account (Dollar Fund) and a
-  #   free allotment sold by hand (Allotted Fund): the facet's note says "1
-  #   sale is not convertible — a buy it closes was paid in another currency
-  #   than the sale's, which no stored figure bridges — and is excluded from
-  #   every total: Dollar Fund." and "1 sale is not convertible — a buy it
-  #   closes has an amount of zero, which the rate backfill does not
-  #   complete — and is excluded from every total: Allotted Fund.", and no
-  #   missing-leg sentence; the card says both with "is left out of the
-  #   trades", and no backfill pointer.
+  #   free allotment sold by hand (Allotted Fund): the facet's note, two
+  #   reasons, names each reason's sales (Sprint 23 Lane I, Income ⑧): "Buy
+  #   paid in another currency: Dollar Fund." and "Buy of amount zero:
+  #   Allotted Fund.", and no missing-leg sentence; the card says both with
+  #   "is left out of the trades", and no backfill pointer.
   test "the facet and the card name a bridgeless and a zero-amount sale apart", %{conn: conn} do
     {world, _swiss, fund} = third_currency_world!()
     dollar = Map.merge(world, WorldFixtures.add_depot(world.portfolio, cash_currency: "USD"))
@@ -1043,11 +1042,8 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     render_async(view)
     note = view |> element("#realized-excluded") |> render() |> text()
 
-    assert note =~
-             "1 sale is not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — and is excluded from every total: Dollar Fund."
-
-    assert note =~
-             "1 sale is not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — and is excluded from every total: Allotted Fund."
+    assert note =~ "Buy paid in another currency: Dollar Fund."
+    assert note =~ "Buy of amount zero: Allotted Fund."
 
     refute has_element?(view, "[data-role=realized-excluded-missing-leg]")
 
