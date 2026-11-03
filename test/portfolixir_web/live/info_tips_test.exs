@@ -77,10 +77,13 @@ defmodule PortfolixirWeb.InfoTipsTest do
   # - Every ⓘ on Cash flow is a `details.metric-tooltip`, the element the
   #   client places; the server renders no placement of its own.
   # - On toggle (one capture listener for every ⓘ, opened by pointer or
-  #   keyboard) the client measures the open panel: it opens upward unless
-  #   its top would be above the viewport, then below
-  #   (`data-place="below"`); it is shifted (`--tip-shift`) so that both
-  #   edges stay 1 rem (16 px) inside the viewport's width. Closing clears
+  #   keyboard) the client measures the open panel against its box: the
+  #   viewport, narrowed to the nearest ancestor that clips it (a dialog's
+  #   scrolling body) and, outside a dialog, to below the sticky top bar
+  #   (the stacked PR's closing act, V2 and Lane I). It opens upward unless
+  #   its top would be above the box, then below (`data-place="below"`);
+  #   it is shifted (`--tip-shift`) so that both edges stay 1 rem (16 px)
+  #   inside the box's width. Closing clears
   #   both. A LiveView patch strips attributes the server did not render, so
   #   an observer puts the measured placement back while the panel is open.
   # - The stylesheet reads both: `[data-place="below"]` puts the panel
@@ -102,7 +105,11 @@ defmodule PortfolixirWeb.InfoTipsTest do
     js = info_tip_source()
     assert js =~ ~r/document\.addEventListener\("toggle", function \(event\) \{.*?\}, true\);/s
     assert js =~ ~s|matches("details.metric-tooltip")|
-    assert js =~ ~r/rect\.top < 0/
+    assert js =~ ~r/rect\.top < box\.top/
+    assert js =~ ~r/getComputedStyle\(el\).*overflowX !== "visible".*overflowY !== "visible"/s
+    assert js =~ ~s|tip.closest("dialog") ? null : document.querySelector(".topbar")|
+    assert js =~ ~r/rect\.right > box\.right - edge/
+    assert js =~ ~r/rect\.left \+ shift < box\.left \+ edge/
     assert js =~ ~s|setAttribute("data-place", "below")|
     assert js =~ ~r/var edge = 16;/
     assert js =~ ~s|style.setProperty("--tip-shift"|
