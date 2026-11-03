@@ -43,8 +43,7 @@ Two PRs under the plan's D-6, each merged by the owner's button, in order.
   - **Lane I**, I1's later pages under one board commit: Wealth's
     Allocation tab, Income, Snapshots, the security page, Tax, Views, Risk,
     Classifications and Imports. Nothing was cut.
-  - Commits: <<FILL: #1379's final commit count>> against an estimate of
-    about 53.
+  - Commits: 49 against an estimate of about 53.
 
 ## What went well
 
@@ -71,7 +70,7 @@ Two PRs under the plan's D-6, each merged by the owner's button, in order.
   same, two protocol refusals excepted, which contract entry 23 states.
   The schema budget measured below the unchanged ceilings.
 * **THE PLAN'S ESTIMATE HELD.** #1377 took 42 commits against about 39;
-  #1379 <<FILL: its final commit count>> against about 53. The build order
+  #1379 49 against about 53. The build order
   D-6 named mostly held: Lane M's two commits sit after R1 because R1
   finished first, and history stayed forward only.
 * **THE JUDGMENT CALLS WENT TO THE OWNER, NOT INTO THE CODE SILENTLY.** The
@@ -150,11 +149,12 @@ planning.
 ## Close-out ledger
 
 - Closes by keyword: 5 on #1377 (#1370, #1371, #1368, #1369, #1115), all
-  verified closed; on #1379, <<FILL: its Closes lines, or "none">>.
+  verified closed; on #1379, 2 (#1375, C1; #1376, C2), closed by its
+  merge.
 - Closed by hand: #1346 (declined with its findings), #1347 (superseded).
 - Filed: #1378.
 - Ideas: I1 and U2 `built`; I7 `discussing`; I16 `triaged`.
 - Merges and releases: #1377 merged, release 2026.11.6; #1379 PENDING on
   the owner, recorded by the next planning PR.
 - Open issues, reported and not judged:
-  <<FILL: the open count read through the API>>.
+  28 open before #1379's merge, 26 after its two keywords.
