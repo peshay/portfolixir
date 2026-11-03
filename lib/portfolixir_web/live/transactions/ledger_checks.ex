@@ -1,0 +1,137 @@
+defmodule PortfolixirWeb.Transactions.LedgerChecks do
+  @moduledoc """
+  The human view of the ledger's read-only checks (Sprint 23 V1; board
+  `ux-design-2026-11-02-sprint23/01` ①a, picks Q1 = A and Q2 = problem).
+
+  Each check is one agent read over the JSON API and one finding on the
+  Overview's data-quality line, whose link opens the transaction history
+  filtered to exactly the read's rows (`/transactions?dq=<check>`):
+
+    * `cash_mismatch` — `GET /api/v1/transactions/cash_mismatch`, the buys
+      and sells whose stored cash misses their figures
+      (`Portfolixir.Ledger.StatedCash.report/0`, #1371).
+
+  The count, the rows and the figures come from the read's own domain
+  function, never from a second query, so the Overview's count, the
+  history's rows and the agent's read are one set. A `dq` value that names
+  no check is ignored (a whitelist, never an atom made from input).
+  """
+  use Phoenix.Component
+  use Gettext, backend: PortfolixirWeb.Gettext
+
+  alias Portfolixir.Ledger.StatedCash
+  alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
+
+  @checks ["cash_mismatch"]
+
+  @doc "The checks a `dq` value may name, in the Overview line's order."
+  @spec checks() :: [String.t()]
+  def checks, do: @checks
+
+  @doc """
+  The `dq` URL value, when it names a check; anything else (absent, unknown,
+  not a string) is `nil` and filters nothing.
+  """
+  @spec parse(term()) :: String.t() | nil
+  def parse(value) when value in @checks, do: value
+  def parse(_value), do: nil
+
+  @doc "The check's report, read from its domain function (the API's own)."
+  @spec report(String.t()) :: map()
+  def report("cash_mismatch"), do: StatedCash.report()
+
+  @doc """
+  The count the Overview names: the length of the read's `rows`, the number
+  an agent reads from the API.
+  """
+  @spec count(String.t()) :: non_neg_integer()
+  def count(check), do: check |> report() |> Map.fetch!(:rows) |> length()
+
+  @doc """
+  The history filter of a check: the report's count, the ids of the
+  transactions it lists and, per id, the figure the check compares (the
+  row's second line).
+  """
+  @spec filter(String.t() | nil) :: map() | nil
+  def filter(nil), do: nil
+
+  def filter(check) do
+    %{rows: rows} = report(check)
+
+    %{
+      check: check,
+      count: length(rows),
+      rows: rows,
+      ids: rows |> Enum.flat_map(&row_ids(check, &1)) |> MapSet.new(),
+      figures: rows |> Enum.flat_map(&figure(check, &1)) |> Map.new()
+    }
+  end
+
+  defp row_ids(_check, %{id: id}), do: [id]
+
+  # The figure the check compares, as the row's second line.
+  defp figure("cash_mismatch", %{id: id, derived_cash: derived}),
+    do: [{id, {:derived, derived}}]
+
+  @doc "The text of a row's second line."
+  @spec figure_text(tuple()) :: String.t()
+  def figure_text({:derived, amount}),
+    do: gettext("from its figures: %{amount}", amount: Format.money(amount))
+
+  @doc """
+  Whether `transaction` stands in the filter (every transaction without
+  one).
+  """
+  @spec member?(map() | nil, map()) :: boolean()
+  def member?(nil, _transaction), do: true
+  def member?(%{ids: ids}, %{id: id}), do: MapSet.member?(ids, id)
+
+  attr(:filter, :map, required: true)
+
+  @doc """
+  The clamped note above the filtered rows: the read's note and remedy in
+  the operator's words, its count first (UX-DR25), and „Alle Buchungen
+  zeigen“ in its actions. At problem severity while the check lists a row;
+  a check that lists none (repaired since the link was followed) says so
+  in a note.
+  """
+  def filter_note(%{filter: %{count: 0}} = assigns) do
+    ~H"""
+    <AppShell.data_note severity={:note} id="transaction-dq-note" data-role="dq-filter-note" clamp>
+      <%= gettext("Filtered by a data-quality check that lists no booking now.") %>
+      <:actions>
+        <.link patch="/transactions"><%= gettext("Show all bookings") %></.link>
+      </:actions>
+    </AppShell.data_note>
+    """
+  end
+
+  def filter_note(assigns) do
+    ~H"""
+    <AppShell.data_note
+      severity={:problem}
+      id="transaction-dq-note"
+      data-role="dq-filter-note"
+      clamp
+    >
+      <%= note_text(@filter) %>
+      <:actions>
+        <.link patch="/transactions"><%= gettext("Show all bookings") %></.link>
+      </:actions>
+    </AppShell.data_note>
+    """
+  end
+
+  defp note_text(%{check: "cash_mismatch", count: count}) do
+    ngettext(
+      "Filtered: %{count} buy or sell whose cash misses its quantity × price, fees and taxes",
+      "Filtered: %{count} buys or sells whose cash misses their quantity × price, fees and taxes",
+      count
+    ) <>
+      " — " <>
+      gettext(
+        "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
+      )
+  end
+end

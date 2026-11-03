@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
+  alias PortfolixirWeb.Transactions.LedgerChecks
   alias PortfolixirWeb.ValuationNotes
 
   require CappedAsync
@@ -1279,7 +1280,8 @@ defmodule PortfolixirWeb.DashboardLive do
       dq.without_class > 0 && {:class, dq.without_class},
       dq.without_logo > 0 && {:logo, dq.without_logo},
       dq.two_scales > 0 && {:two_scales, dq.two_scales},
-      dq.implausible_quote > 0 && {:implausible_quote, dq.implausible_quote}
+      dq.implausible_quote > 0 && {:implausible_quote, dq.implausible_quote},
+      dq.cash_mismatch > 0 && {:cash_mismatch, dq.cash_mismatch}
     ]
     |> Enum.filter(& &1)
     |> Enum.with_index()
@@ -1373,6 +1375,24 @@ defmodule PortfolixirWeb.DashboardLive do
     }
   end
 
+  # Sprint 23 V1 (board ux-design-2026-11-02-sprint23/01 ①a, pick Q1 A):
+  # the ledger's read-only checks, each the agent's read over the API and
+  # one finding here. Its link opens the history filtered to exactly the
+  # read's rows; its count is the read's row count (`LedgerChecks.count/1`).
+  defp dq_finding(:cash_mismatch, count, _first?) do
+    %{
+      role: "dq-cash-mismatch",
+      href: "/transactions?dq=cash_mismatch",
+      text:
+        ngettext(
+          "one booking whose cash misses its quantity × price, fees and taxes",
+          "%{count} bookings whose cash misses their quantity × price, fees and taxes",
+          count
+        ),
+      effect: gettext("— so the cash balance and the cost read different amounts")
+    }
+  end
+
   # Highest severity present (UX-DR17): a bond priced on two scales counts a
   # hundredfold too high or too low in the total, so it is a problem (#1068,
   # D-15), and so is a held security whose quotes contradict its own
@@ -1380,6 +1400,10 @@ defmodule PortfolixirWeb.DashboardLive do
   # figure in the totals with it (#1101, D-7, pick L2 A); a stale quote
   # skews valuations, so it is attention-level; a missing class or logo is
   # a note-level catalog gap.
+  #
+  # A ledger check (Sprint 23 V1, pick Q2 problem) can make a figure wrong:
+  # a cash balance and a cost that read two amounts.
+  defp dq_severity(%{cash_mismatch: n}) when n > 0, do: :problem
   defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
   defp dq_severity(%{implausible_quote: n}) when n > 0, do: :problem
   defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
@@ -1407,7 +1431,8 @@ defmodule PortfolixirWeb.DashboardLive do
         ),
       without_logo: DataQuality.count("missing_logo"),
       two_scales: DataQuality.count("two_scales"),
-      implausible_quote: DataQuality.count("implausible_quote")
+      implausible_quote: DataQuality.count("implausible_quote"),
+      cash_mismatch: LedgerChecks.count("cash_mismatch")
     }
   end
 
