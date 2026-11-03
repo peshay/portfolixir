@@ -1124,7 +1124,12 @@ defmodule PortfolixirWeb.ImportsLive do
 
       <%= if @result.security_overrides != [] do %>
         <p class="muted" data-role="security-overrides">
-          <%= gettext("%{n} securities were mapped manually.", n: length(@result.security_overrides)) %>
+          <%!-- #1327: a real plural, as the former-ISIN and collapse lines. --%>
+          <%= ngettext(
+            "%{count} security was mapped manually.",
+            "%{count} securities were mapped manually.",
+            length(@result.security_overrides)
+          ) %>
         </p>
       <% end %>
 
@@ -4946,8 +4951,10 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # Security review 2026-10-12, H56: the version is named only when it is
   # one; any other value the file holds there is a file no export writes.
+  # #1267: a string is named as a row message names a value, cut at 40
+  # characters and the cut marked.
   defp parse_error_message({:unsupported_version, v}) when is_binary(v) or is_integer(v),
-    do: gettext("Unsupported PP JSON version: %{v}", v: to_string(v))
+    do: gettext("Unsupported PP JSON version: %{v}", v: PortfolioPerformance.shown(v))
 
   defp parse_error_message({:unsupported_version, _not_a_version}),
     do: parse_error_message(:malformed_payload)

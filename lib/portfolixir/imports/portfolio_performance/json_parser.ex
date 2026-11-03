@@ -375,7 +375,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
-  defp parse_date(nil), do: {:error, :missing_date}
+  defp parse_date(nil), do: {:error, PortfolioPerformance.missing_date_message()}
 
   defp parse_date(value) when is_binary(value) do
     case Date.from_iso8601(value) do
@@ -400,8 +400,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
            )}
         end
 
-      {:error, _} = err ->
-        err
+      # #1355's parse_date line: the row's error in words, never the atom.
+      {:error, _reason} ->
+        {:error, PortfolioPerformance.date_message(value)}
     end
   end
 

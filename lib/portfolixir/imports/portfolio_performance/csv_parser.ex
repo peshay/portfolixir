@@ -612,10 +612,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   # PP CSV writes "2026-04-29 13:00:00". For purely cash-only rows the
   # time is "00:00:00"; we keep it nil there.
-  defp parse_datetime(nil), do: {:error, :missing_date}
+  defp parse_datetime(nil), do: {:error, PortfolioPerformance.missing_date_message()}
 
   defp parse_datetime(value) when is_binary(value) do
     case String.split(value, " ", parts: 2) do
+      # #1355's parse_date line: a blank Datum is a row without a date.
+      [""] ->
+        {:error, PortfolioPerformance.missing_date_message()}
+
       [date_part] ->
         with {:ok, date} <- parse_plausible_date(date_part) do
           {:ok, {date, nil}}
@@ -666,8 +670,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
           do: {:ok, date},
           else: {:error, too_late(String.trim(value))}
 
-      other ->
-        other
+      # #1355's parse_date line: the row's error in words, never the atom.
+      {:error, _reason} ->
+        {:error, PortfolioPerformance.date_message(String.trim(value))}
     end
   end
 
