@@ -33,9 +33,14 @@ defmodule PortfolixirWeb.Journal.Row do
   @spec kinds() :: [String.t()]
   def kinds, do: @kinds
 
-  @doc "The row the page renders for `entry`."
-  @spec build(Entry.t()) :: map()
-  def build(%Entry{} = entry) do
+  @doc """
+  The row the page renders for `entry`. `security_names` maps a security id
+  to its name, for the kinds whose image names their security only by id (a
+  research note): the page reads them for all its entries at once
+  (`security_ids/1`), never one read per row.
+  """
+  @spec build(Entry.t(), %{optional(integer()) => String.t()}) :: map()
+  def build(%Entry{} = entry, security_names \\ %{}) do
     %{
       id: entry.id,
       time: time(entry.inserted_at),
@@ -44,7 +49,7 @@ defmodule PortfolixirWeb.Journal.Row do
       operation: operation_label(entry.operation),
       resource_type: entry.resource_type,
       resource_id: entry.resource_id,
-      entity: entity(entry),
+      entity: entity(entry, security_names),
       href: href(entry),
       change: Change.build(entry)
     }
@@ -110,14 +115,29 @@ defmodule PortfolixirWeb.Journal.Row do
   def kind_label("retired_import_hash"), do: pgettext("journal kind", "Retired import row")
   def kind_label(code) when is_binary(code), do: code
 
+  @doc """
+  The ids of the securities `entries` name only by id (a research note's
+  `security_id`), for `build/2`'s `security_names`.
+  """
+  @spec security_ids([Entry.t()]) :: [integer()]
+  def security_ids(entries) do
+    entries
+    |> Enum.flat_map(fn
+      %Entry{resource_type: "security_note"} = entry -> [image(entry)["security_id"]]
+      _entry -> []
+    end)
+    |> Enum.filter(&is_integer/1)
+    |> Enum.uniq()
+  end
+
   # The entry as its kind, its id and its stored name: "Regel 9 · Barreserve
   # höchstens 30 %". The name is read from the image that holds the record:
   # the after-image, or the before-image of a delete.
-  defp entity(%Entry{} = entry) do
+  defp entity(%Entry{} = entry, security_names) do
     head =
       Enum.join(Enum.reject([kind_label(entry.resource_type), entry.resource_id], &is_nil/1), " ")
 
-    case name(entry.resource_type, image(entry)) do
+    case name(entry.resource_type, image(entry), security_names) do
       nil -> head
       name -> head <> " · " <> name
     end
@@ -129,7 +149,7 @@ defmodule PortfolixirWeb.Journal.Row do
   defp image(_entry), do: %{}
 
   # A booking has no name: its kind and its date say which it is.
-  defp name("transaction", %{"type" => type} = image) do
+  defp name("transaction", %{"type" => type} = image, _security_names) do
     kind = if type in Transaction.kinds(), do: TransactionKindLabel.label(type), else: type
 
     case BoundedDate.parse(image["date"]) do
@@ -138,8 +158,28 @@ defmodule PortfolixirWeb.Journal.Row do
     end
   end
 
-  defp name(_kind, %{"name" => name}) when is_binary(name) and name != "", do: name
-  defp name(_kind, _image), do: nil
+  # The kinds whose image holds no `name` (the stacked PR's closing act,
+  # board 03): a recorded statement by its institution, a merge by what it
+  # merged, a research note by its security — its name where the page read
+  # it, else the security and its id (the entry links the security's page).
+  defp name("tax_statement_snapshot", %{"institution" => institution}, _security_names)
+       when is_binary(institution) and institution != "",
+       do: institution
+
+  defp name("merge_record", %{"kind" => kind}, _security_names), do: merged(to_string(kind))
+
+  defp name("security_note", %{"security_id" => id}, security_names) when is_integer(id),
+    do: Map.get(security_names, id) || kind_label("security") <> " " <> Integer.to_string(id)
+
+  defp name(_kind, %{"name" => name}, _security_names) when is_binary(name) and name != "",
+    do: name
+
+  defp name(_kind, _image, _security_names), do: nil
+
+  defp merged("cash_account"), do: gettext("Cash accounts")
+  defp merged("securities_account"), do: gettext("Depots")
+  defp merged("security"), do: gettext("Securities")
+  defp merged(_kind), do: nil
 
   # The page an entry is read on, where it has one (board 03: a rule on
   # Risk, an account on Accounts & depots, a statement on Tax). A booking has
