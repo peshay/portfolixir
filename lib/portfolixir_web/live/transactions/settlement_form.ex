@@ -317,7 +317,22 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   end
 
   def from_transaction(%Transaction{} = transaction, securities) do
-    if legless(transaction, securities), do: %{"settlement_mode" => "stored"}, else: %{}
+    cond do
+      legless(transaction, securities) ->
+        %{"settlement_mode" => "stored"}
+
+      # A rate stored without either amount (#1290's rate-only row) opens in
+      # the rate field as stored, as if typed: the settlement amount typed
+      # beside it then derives the rate the ledger keeps (closing act, S1).
+      match?(%Decimal{}, transaction.settlement_fx_rate) ->
+        %{
+          "settlement_fx_rate" => plain(transaction.settlement_fx_rate),
+          "settlement_source" => "rate"
+        }
+
+      true ->
+        %{}
+    end
   end
 
   @doc """

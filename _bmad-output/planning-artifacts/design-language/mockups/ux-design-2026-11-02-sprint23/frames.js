@@ -19,8 +19,8 @@ module.exports = function ({ de, trigger }) {
     histAll: 'Alle Buchungen zeigen',
     histCash: 'Gefiltert: 1 Kauf oder Verkauf, dessen Betrag nicht zu Menge × Preis, Gebühren und Steuern passt — Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im Buchungsformular angeben (Bearbeiten): den abgerechneten, oder den, den die Zahlen ergeben. Nichts wird automatisch geändert.',
     histCashCell: 'aus den Zahlen: 816,00',
-    histRate: 'Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag — das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert.',
-    histRateCell: 'zum eigenen Kurs 0,9300: 940,00 EUR',
+    histRate: 'Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag — das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den Abrechnungsbetrag im Buchungsformular eintragen (Bearbeiten): den Betrag vor Gebühren und Steuern, aus dem das Formular das Bargeld bucht; das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert.',
+    histRateCell: 'Abrechnungsbetrag zum eigenen Kurs 0,9300: 930,00 EUR',
     histSplit: 'Gefiltert: 1 Split, dem ein Portfolio fehlt — Wexmoor Instruments AG · 2:1 · 16.04.2026: es fehlt „Family Depot“, das vorher 12 Stück hielt. Dort sind die FIFO-Lots geteilt, der Bestand nicht. Den Split mit demselben Datum und Verhältnis erneut erfassen („Split erfassen“ beim Wertpapier): Er ergänzt nur die fehlenden Zeilen. Ist der Split falsch, den ganzen Split löschen. Nichts wird automatisch geändert.',
     // 01 ①b, the merge previews
     flowsHead: 'Externe Zu- und Abflüsse',
@@ -126,7 +126,7 @@ module.exports = function ({ de, trigger }) {
     const block = (title, remedy, list) => '<h3 class="merge-block-head">' + title + '</h3><p class="summary-basis">' + remedy + '</p><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Datum</th><th>Art</th><th>Wertpapier</th><th class="num">Zahlen</th><th></th></tr></thead><tbody>' + rows(list) + '</tbody></table></div>';
     const sec = M.el('<section id="imports-data-quality" class="workspace-section mock-new"><h2>Datenqualität</h2>' +
       block('Betrag passt nicht zu den Zahlen (1)', 'Den Betrag im Buchungsformular angeben. Nichts wird automatisch geändert.', [['16.04.2026', 'Kauf', 'Arbolia Inc.', '10 × 81,00 · Betrag 806,00 · aus den Zahlen 816,00']]) +
-      block('Fremdwährung ohne Betrag (1)', 'Den abgerechneten Betrag eintragen; das Nachladen der Wechselkurse ändert diese Buchungen nicht.', [['05.06.2026', 'Kauf', 'Larkspur Robotics Inc', '40 × 25,00 USD · Kurs 0,9300 · kein Betrag']]) +
+      block('Fremdwährung ohne Betrag (1)', 'Den Abrechnungsbetrag eintragen; das Nachladen der Wechselkurse ändert diese Buchungen nicht.', [['05.06.2026', 'Kauf', 'Larkspur Robotics Inc', '40 × 25,00 USD · Kurs 0,9300 · kein Betrag']]) +
       block('Split ohne alle Portfolios (1)', 'Den Split erneut erfassen; er ergänzt nur die fehlenden Zeilen.', [['16.04.2026', 'Split', 'Wexmoor Instruments AG', '2:1 · fehlt in „Family Depot“ (12 Stück)']]) +
       '</section>');
     tabs.after(sec);

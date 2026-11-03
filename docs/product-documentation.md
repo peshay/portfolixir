@@ -1216,9 +1216,12 @@ one security, **Record split** on that security. The split note names each
 portfolio the split misses and the shares it held before the date. Each row's
 amount gets a second line with the figure the check compares: *from its
 figures: 816.00* (quantity × price with fees and taxes, beside a stored cash
-of 806.00) or *at its own rate 0.93: 1,864.90 EUR* (the cash the booking's own
-rate gives in the account's currency, beside the unconverted amount the
-ledger books). Once a booking is corrected it leaves the list; a check with
+of 806.00) or *settlement amount at its own rate 0.93: 1,860.00 EUR* (the
+settlement amount the booking's own rate gives in the account's currency,
+before fees and taxes, beside the unconverted amount the ledger books). That
+figure goes into the booking form's **Settlement amount** field, which opens
+with the stored rate; the form adds the fees and taxes on a buy (deducts them
+on a sale) and books the cash. Once a booking is corrected it leaves the list; a check with
 no rows left says so in a plain note. A **Changed since** chip keeps the
 `dq` filter, and **Reset** clears it.
 

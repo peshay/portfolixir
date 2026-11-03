@@ -1340,10 +1340,13 @@ Splits eines Wertpapiers, **Split erfassen** bei diesem Wertpapier. Der
 Split-Hinweis nennt jedes fehlende Portfolio und die Stücke, die es vor dem
 Datum hielt. Der Betrag jeder Zeile bekommt eine zweite Zeile mit der Zahl,
 die die Prüfung vergleicht: *aus den Zahlen: 816,00* (Menge × Preis mit
-Gebühren und Steuern, neben gespeicherten 806,00) oder *zum eigenen Kurs
-0,93: 1.864,90 EUR* (der Betrag, den der eigene Kurs der Buchung in der
-Währung des Kontos ergibt, neben dem unumgerechneten Betrag, den das
-Hauptbuch bucht). Eine korrigierte Buchung verlässt die Liste; eine Prüfung
+Gebühren und Steuern, neben gespeicherten 806,00) oder *Abrechnungsbetrag
+zum eigenen Kurs 0,93: 1.860,00 EUR* (der Abrechnungsbetrag, den der eigene
+Kurs der Buchung in der Währung des Kontos ergibt, vor Gebühren und Steuern,
+neben dem unumgerechneten Betrag, den das Hauptbuch bucht). Diese Zahl gehört
+in das Feld **Abrechnungsbetrag** des Buchungsformulars, das mit dem
+gespeicherten Kurs öffnet; das Formular rechnet bei einem Kauf Gebühren und
+Steuern hinzu (zieht sie bei einem Verkauf ab) und bucht das Bargeld. Eine korrigierte Buchung verlässt die Liste; eine Prüfung
 ohne verbleibende Zeilen sagt das in einem schlichten Hinweis. Ein
 **Geändert-seit**-Chip behält den `dq`-Filter, **Zurücksetzen** hebt ihn auf.
 

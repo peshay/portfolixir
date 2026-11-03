@@ -87,12 +87,16 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   defp figure("cash_mismatch", %{id: id, derived_cash: derived}),
     do: [{id, {:derived, derived}}]
 
-  # The cash the row's own rate gives, in the account's currency, beside
-  # the unconverted amount the ledger books.
-  defp figure("rate_only", %{id: id} = row),
-    do: [
-      {id, {:own_rate, row.settlement_fx_rate, row.expected_cash, row.cash_account_currency_code}}
-    ]
+  # The settlement amount the row's own rate gives, in the account's
+  # currency: the figure the booking drawer's „Abrechnungsbetrag“ takes
+  # (before fees and taxes, `SettlementForm`), so typing it there books the
+  # read's expected_cash — the guard's relation inverted (closing act, S1).
+  defp figure("rate_only", %{id: id} = row) do
+    settlement =
+      SettlementGuard.trade_amount(row.type, row.expected_cash, row.fees, row.taxes)
+
+    [{id, {:own_rate, row.settlement_fx_rate, settlement, row.cash_account_currency_code}}]
+  end
 
   # A split row carries no amount; the note names what its event misses.
   defp figure("incomplete_split", _event), do: []
@@ -104,7 +108,7 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
 
   def figure_text({:own_rate, rate, amount, currency}),
     do:
-      gettext("at its own rate %{rate}: %{amount}",
+      gettext("settlement amount at its own rate %{rate}: %{amount}",
         rate: Format.exact(rate),
         amount: Format.money(amount) <> " " <> currency
       )
@@ -205,7 +209,7 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
     ) <>
       " — " <>
       gettext(
-        "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the amount settled in the booking form (Edit); backfilling rates does not change these bookings. Nothing is changed automatically."
+        "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the settlement amount in the booking form (Edit): the amount before fees and taxes, from which the form books the cash; backfilling rates does not change these bookings. Nothing is changed automatically."
       )
   end
 

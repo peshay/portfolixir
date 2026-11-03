@@ -246,8 +246,10 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
   #   Umrechnung aufs Konto", linking to /transactions?dq=rate_only, at
   #   problem severity; two read in the plural; the count equals the read's.
   # - The filtered history shows exactly the read's ids, the note in the
-  #   operator's words, and the row's second line „zum eigenen Kurs 0,93:
-  #   1.864,90 EUR“ (its expected_cash in the account's currency).
+  #   operator's words, and the row's second line „Abrechnungsbetrag zum
+  #   eigenen Kurs 0,93: 1.860,00 EUR“ (quantity × price at its own rate, in
+  #   the account's currency: the figure the drawer's settlement field takes,
+  #   which with the 4,90 fees books the read's expected_cash, 1.864,90).
   test "a rate-only trade is a problem finding that opens the history on exactly its rows",
        %{conn: conn} do
     world = base_world(name: "Rate World", cash_name: "Demo Cash", depot_name: "Rate Depot")
@@ -281,12 +283,13 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     assert text(history, "#transaction-dq-note-text") ==
              "Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag " <>
                "— das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des " <>
-               "Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten " <>
-               "Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der " <>
+               "Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den " <>
+               "Abrechnungsbetrag im Buchungsformular eintragen (Bearbeiten): den Betrag vor " <>
+               "Gebühren und Steuern, aus dem das Formular das Bargeld bucht; das Nachladen der " <>
                "Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert."
 
     assert text(history, ~s(tr[data-transaction="#{first.id}"] [data-role="dq-figure"])) ==
-             "zum eigenen Kurs 0,93: 1.864,90 EUR"
+             "Abrechnungsbetrag zum eigenen Kurs 0,93: 1.860,00 EUR"
 
     # A second one: the count and the plural follow the read.
     second = insert_rate_only!(world, larkspur, ~D[2026-06-07])
@@ -308,7 +311,81 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
              "Filtered: 2 cross-currency buys or sells"
 
     assert text(history, ~s(tr[data-transaction="#{second.id}"] [data-role="dq-figure"])) ==
-             "at its own rate 0.93: 1,864.90 EUR"
+             "settlement amount at its own rate 0.93: 1,860.00 EUR"
+  end
+
+  # User story (Sprint 23 V1, #1290; stacked PR closing act, S1):
+  # As the operator repairing a rate-only trade from the filtered history,
+  # I want the row's second line to give the figure for the field the
+  # booking drawer offers, under that field's name,
+  # so that following the screen books what the agent's documented PATCH
+  # books, and the check then reads clean.
+  #
+  # Acceptance criteria:
+  # - The second line reads „Abrechnungsbetrag zum eigenen Kurs 0,93:
+  #   1.860,00 EUR“ — quantity × price at the row's own rate, before the
+  #   4,90 fees — and the note's remedy names „Abrechnungsbetrag“.
+  # - The drawer opens with the stored rate in its Kurs field (0,93) and
+  #   offers „Abrechnungsbetrag (EUR)“; the shown figure typed there and
+  #   saved stores a cash of exactly 1864.90 at the rate 0.93 — what
+  #   `PATCH gross_amount "1864.9"` (the read's expected_cash) stores on a
+  #   twin row — and the rate_only read is then empty.
+  test "following the rate-only hint in the drawer books what the agent's PATCH books",
+       %{conn: conn} do
+    world = base_world(name: "Rate World", cash_name: "Demo Cash", depot_name: "Rate Depot")
+    larkspur = create_security!(name: "Larkspur Robotics Inc", ticker: "LRK", currency: "USD")
+    operators = insert_rate_only!(world, larkspur, ~D[2026-06-05])
+    agents = insert_rate_only!(world, larkspur, ~D[2026-06-06])
+
+    # The agent's route: the documented amount, the read's expected_cash.
+    [_, agent_row] = read_rows(conn, "/api/v1/transactions/rate_only")
+    assert agent_row["id"] == agents.id
+
+    conn
+    |> put_req_header("accept", "application/json")
+    |> put_req_header("content-type", "application/json")
+    |> put_req_header("authorization", "Bearer test-api-token")
+    |> patch(
+      "/api/v1/transactions/#{agents.id}",
+      Jason.encode!(%{"transaction" => %{"gross_amount" => agent_row["expected_cash"]}})
+    )
+    |> json_response(200)
+
+    # The operator's route: the screen, read literally.
+    {:ok, history, _html} = live(german(conn), "/transactions?dq=rate_only")
+    line = text(history, ~s(tr[data-transaction="#{operators.id}"] [data-role="dq-figure"]))
+    assert line == "Abrechnungsbetrag zum eigenen Kurs 0,93: 1.860,00 EUR"
+    assert text(history, "#transaction-dq-note-text") =~ "Den Abrechnungsbetrag"
+
+    [_, field, shown] = Regex.run(~r/^(\S+) zum eigenen Kurs [\d,]+: ([\d.,]+) EUR$/u, line)
+
+    render_click(history, "edit_transaction", %{"id" => to_string(operators.id)})
+    assert has_element?(history, "#settlement-fieldset label span", field <> " (EUR)")
+
+    assert history
+           |> element(~s(#settlement-fieldset input[name="transaction[settlement_fx_rate]"]))
+           |> render()
+           |> Floki.parse_fragment!()
+           |> Floki.attribute("value") == ["0,93"]
+
+    # The drawer's decimal fields take no thousands separator (#869), so
+    # the figure goes in as the field reads it: 1860,00.
+    typed = String.replace(shown, ".", "")
+
+    history
+    |> form("#transaction-form", transaction: %{settlement_amount: typed})
+    |> render_change(%{"_target" => ["transaction", "settlement_amount"]})
+
+    history |> form("#transaction-form") |> render_submit()
+
+    operator_booking = Repo.get!(Transaction, operators.id)
+    agent_booking = Repo.get!(Transaction, agents.id)
+
+    assert Decimal.equal?(agent_booking.gross_amount, Decimal.new("1864.90"))
+    assert Decimal.equal?(operator_booking.gross_amount, agent_booking.gross_amount)
+    assert Decimal.equal?(operator_booking.settlement_fx_rate, Decimal.new("0.93"))
+    assert Decimal.equal?(agent_booking.settlement_fx_rate, Decimal.new("0.93"))
+    assert read_rows(conn, "/api/v1/transactions/rate_only") == []
   end
 
   # User story (Sprint 23 V1; #1292):
