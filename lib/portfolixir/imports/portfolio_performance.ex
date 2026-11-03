@@ -636,6 +636,35 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
         time: shown_value(value)
       )
 
+  @doc """
+  The row message for a date the parser cannot read as YYYY-MM-DD (a JSON v1
+  `date`, the date part of a CSV `Datum`), naming the value as the file
+  wrote it, shown as `currency_message/2` shows a value (#1355's
+  `parse_date` line: the row error was the bare atom `:invalid_format`).
+  """
+  @spec date_message(String.t()) :: String.t()
+  def date_message(value),
+    do:
+      gettext("unreadable date “%{date}”: use YYYY-MM-DD — row not imported",
+        date: shown_value(value)
+      )
+
+  @doc """
+  The row message for a row without a date (#1355's `parse_date` line: the
+  row error was the bare atom `:missing_date`).
+  """
+  @spec missing_date_message() :: String.t()
+  def missing_date_message, do: gettext("no date — row not imported")
+
+  @doc """
+  A value from the file as a message names it: cut at 40 characters, the cut
+  marked "…", every character the operator could not see spelled
+  `[U+XXXX]` — the form `currency_message/2` uses. The Imports page names an
+  unsupported JSON version with it (#1267).
+  """
+  @spec shown(term()) :: String.t()
+  def shown(value), do: shown_value(value)
+
   @shown_max 40
   @controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u
 
