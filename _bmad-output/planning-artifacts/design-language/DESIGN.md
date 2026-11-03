@@ -8253,6 +8253,16 @@ the buckets' basis lines restated their headings' ⓘ and left without a
 copy; the assignment line (the pointer to Konten & Depots and the accounts
 without a default bucket) stays whole.
 
+### Sprint 23's later pages, as built
+
+Board `mockups/ux-design-2026-11-03-sprint23-i1` classifies each text;
+a page listed here conforms to the anatomy above without a deviation.
+
+- **Risiko**: conformant. „Eigene Regeln“, „Kennzahlen des Portfolios“
+  and „Anlageklassen-Obergrenzen“ each gain a section ⓘ with the method
+  sentences of their basis line or empty state; the as-of and view, the
+  series, currency and √365, and „Keine Obergrenze konfiguriert …“ stay.
+
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
 Amends Components → Booking drawer and the 2026-11-01 amendment above
