@@ -246,7 +246,32 @@ defmodule PortfolixirWeb.RiskLive do
 
           <section class="workspace-section kpi-band" id="risk-metrics" aria-labelledby="risk-metrics-title">
             <header class="section-head">
-              <h2 id="risk-metrics-title"><%= gettext("Portfolio metrics") %></h2>
+              <%!-- Sprint 23, Lane I (board ux-design-2026-11-03-sprint23-i1
+                   ①): the gap rule and the correlations' rule are method
+                   sentences, in the heading's ⓘ; the series, the currency
+                   and the annualisation stay as the basis line (②). --%>
+              <div class="section-title">
+                <h2 id="risk-metrics-title"><%= gettext("Portfolio metrics") %></h2>
+                <AppShell.section_info>
+                  <:line>
+                    <%= gettext("A day without a return base yields no observation, never a zero.") %>
+                  </:line>
+                  <:line>
+                    <%= if @risk.metrics.correlations.leading_names >= 2 do %>
+                      <%= ngettext(
+                        "Correlations convert to %{currency} first and run over the %{count} largest position.",
+                        "Correlations convert to %{currency} first and run over the %{count} largest positions.",
+                        @risk.metrics.correlations.leading_names,
+                        currency: @risk.base_currency
+                      ) %>
+                    <% else %>
+                      <%= gettext("Correlations convert to %{currency} first.",
+                        currency: @risk.base_currency
+                      ) %>
+                    <% end %>
+                  </:line>
+                </AppShell.section_info>
+              </div>
             </header>
             <div class="kpi-band__support">
               <.metric_card
@@ -303,23 +328,14 @@ defmodule PortfolixirWeb.RiskLive do
 
               <.correlation_card correlations={@risk.metrics.correlations} />
             </div>
-            <%!-- E25 S4, F72 (board 11, part 3): the number comes from the
-                 answer, how many leading names the matrix actually ran over,
-                 so the sentence stays true below the list's length. --%>
+            <%!-- E25 S4, F72 (board 11, part 3): the number of leading
+                 names comes from the answer; it reads in the heading's ⓘ
+                 since Sprint 23's Lane I. --%>
             <p class="summary-basis" data-role="risk-basis">
-              <%= if @risk.metrics.correlations.leading_names >= 2 do %>
-                <%= ngettext(
-                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest position.",
-                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions.",
-                  @risk.metrics.correlations.leading_names,
-                  currency: @risk.base_currency
-                ) %>
-              <% else %>
-                <%= gettext(
-                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first.",
-                  currency: @risk.base_currency
-                ) %>
-              <% end %>
+              <%= gettext(
+                "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return.",
+                currency: @risk.base_currency
+              ) %>
             </p>
           </section>
 
@@ -391,14 +407,19 @@ defmodule PortfolixirWeb.RiskLive do
 
           <section class="workspace-section" data-role="risk-caps" aria-labelledby="risk-caps-title">
             <header class="section-head">
-              <h2 id="risk-caps-title"><%= gettext("Asset-class caps") %></h2>
+              <div class="section-title">
+                <h2 id="risk-caps-title"><%= gettext("Asset-class caps") %></h2>
+                <AppShell.section_info>
+                  <:line><%= gettext("Caps are set per request over the API.") %></:line>
+                </AppShell.section_info>
+              </div>
             </header>
             <%!-- The page reads the lens with its shipped defaults, and caps
                  are opt-in per request (FR9): no cap is ever configured here,
                  so the section says so rather than rendering a list that can
                  only be empty. --%>
             <p class="empty-state">
-              <%= gettext("No cap configured — there is nothing to exceed. Caps are set per request over the API.") %>
+              <%= gettext("No cap configured — there is nothing to exceed.") %>
             </p>
 
             <details class="perf-table-disclosure" id="risk-correlations">
@@ -479,14 +500,27 @@ defmodule PortfolixirWeb.RiskLive do
     ~H"""
     <section class="workspace-section policy-rules" id="policy-rules" aria-labelledby="policy-rules-title">
       <header class="section-head">
-        <h2 id="policy-rules-title" class="result-focus-fallback" tabindex="-1">
-          <%= gettext("Own rules") %>
-          <span class="section-head__meta" data-role="policy-rules-summary">
-            · <%= ngettext("%{count} breached", "%{count} breached", @findings.summary.breached) %>
-            · <%= ngettext("%{count} undetermined", "%{count} undetermined", @findings.summary.undetermined) %>
-            · <%= ngettext("%{count} met", "%{count} met", @findings.summary.ok) %>
-          </span>
-        </h2>
+        <%!-- Sprint 23, Lane I (board ux-design-2026-11-03-sprint23-i1 ①):
+             the two rule sentences are method, in the heading's ⓘ; the
+             as-of and the view stay as the basis line (②). --%>
+        <div class="section-title">
+          <h2 id="policy-rules-title" class="result-focus-fallback" tabindex="-1">
+            <%= gettext("Own rules") %>
+            <span class="section-head__meta" data-role="policy-rules-summary">
+              · <%= ngettext("%{count} breached", "%{count} breached", @findings.summary.breached) %>
+              · <%= ngettext("%{count} undetermined", "%{count} undetermined", @findings.summary.undetermined) %>
+              · <%= ngettext("%{count} met", "%{count} met", @findings.summary.ok) %>
+            </span>
+          </h2>
+          <AppShell.section_info>
+            <:line>
+              <%= gettext(
+                "Each rule names the figure it reads; a figure that cannot be read is undetermined, never met."
+              ) %>
+            </:line>
+            <:line><%= gettext("A finding does not say what to do.") %></:line>
+          </AppShell.section_info>
+        </div>
         <button type="button" class="button-secondary" phx-click="new_rule">
           <%= gettext("New rule") %>
         </button>
@@ -566,7 +600,7 @@ defmodule PortfolixirWeb.RiskLive do
 
       <p class="summary-basis" data-role="policy-rules-basis">
         <%= gettext(
-          "Evaluated on read, as of %{date}, on the steerable basis of the view “%{view}”. Each rule names the figure it reads; a figure that cannot be read is undetermined, never met. A finding does not say what to do.",
+          "Evaluated on read, as of %{date}, on the steerable basis of the view “%{view}”.",
           date: Format.date(@findings.as_of),
           view: @view_name
         ) %>

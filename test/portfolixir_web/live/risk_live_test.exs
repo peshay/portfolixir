@@ -274,21 +274,24 @@ defmodule PortfolixirWeb.RiskLiveTest do
   # correlations run,
   # so that I know what the matrix covers now that it is bounded.
   #
-  # Acceptance criteria:
-  # - The basis line names the number of leading names the answer says the
+  # Acceptance criteria (amended by Sprint 23, Lane I, board
+  # ux-design-2026-11-03-sprint23-i1 ①: the correlations' rule is a method
+  # sentence and sits in the ⓘ beside "Portfolio metrics"):
+  # - The section's ⓘ names the number of leading names the answer says the
   #   correlations ran over, in the page's language.
-  test "the basis line names how many of the largest names the correlations run over", %{
+  test "the metrics' ⓘ names how many of the largest names the correlations run over", %{
     conn: conn
   } do
     risk_world()
+    tip = "#risk-metrics .section-title [data-role='section-info'] p"
 
     {:ok, view, _html} = live(conn, "/risk")
 
-    assert has_element?(view, ~s([data-role="risk-basis"]), "run over the 3 largest positions")
+    assert has_element?(view, tip, "run over the 3 largest positions")
 
     {:ok, view, _html} = live(conn, "/risk?locale=de")
 
-    assert has_element?(view, ~s([data-role="risk-basis"]), "laufen über die 3 größten")
+    assert has_element?(view, tip, "laufen über die 3 größten")
   end
 
   # User story (the closing act, E25; board 11 part 3, F72):
