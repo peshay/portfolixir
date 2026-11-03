@@ -388,6 +388,25 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     assert read_rows(conn, "/api/v1/transactions/rate_only") == []
   end
 
+  # User story (Sprint 23 V1; stacked PR closing act, S3):
+  # As the operator on the history filtered by a ledger check,
+  # I want the Filter control's count to include the check's filter,
+  # so that a demoted control never hides a filter that narrows the rows.
+  #
+  # Acceptance criteria:
+  # - `?dq=rate_only` alone counts 1; with `since` beside it, 2.
+  test "the Filter control counts the dq filter beside since", %{conn: conn} do
+    world = base_world(name: "Rate World", cash_name: "Demo Cash", depot_name: "Rate Depot")
+    larkspur = create_security!(name: "Larkspur Robotics Inc", ticker: "LRK", currency: "USD")
+    insert_rate_only!(world, larkspur, ~D[2026-06-05])
+
+    {:ok, history, _html} = live(conn, "/transactions?dq=rate_only")
+    assert text(history, ~s([data-role="filter-sheet-count"])) == "1"
+
+    {:ok, history, _html} = live(conn, "/transactions?dq=rate_only&since=2026-01-01T00:00:00Z")
+    assert text(history, ~s([data-role="filter-sheet-count"])) == "2"
+  end
+
   # User story (Sprint 23 V1; #1292):
   # As the operator reading the Overview,
   # I want the split events missing a portfolio that held the security named

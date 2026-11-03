@@ -1862,14 +1862,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   # The count the Filter control carries: the active chips of the three
-  # families, so a demoted control never hides state (#800's reason, #816's
-  # surface).
+  # families and the URL-driven `since` and `dq` filters, so a demoted
+  # control never hides state (#800's reason, #816's surface; `dq` since the
+  # stacked PR's closing act).
   defp active_chip_count(assigns) do
     filters = assigns.filters
 
     length(Map.get(filters, "account_ids", [])) +
       length(Map.get(filters, "types", [])) +
-      if(assigns[:since], do: 1, else: 0)
+      if(assigns[:since], do: 1, else: 0) +
+      if(assigns[:dq_filter], do: 1, else: 0)
   end
 
   # Sprint 23 V1 (board 01 ①a): under a ledger check's filter, a row's
