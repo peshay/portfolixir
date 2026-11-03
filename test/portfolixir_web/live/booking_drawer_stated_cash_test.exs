@@ -221,6 +221,18 @@ defmodule PortfolixirWeb.BookingDrawerStatedCashTest do
     assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.04"))
   end
 
+  # Acceptance criteria (the sprint PR's closing act): the field cleared,
+  # no figure changed, sends "" and is refused with the field's own error,
+  # "darf nicht leer sein"; the stored 806.00 is kept, never re-derived.
+  test "a cleared cash field alone is refused and keeps the cash",
+       %{conn: conn, world: w, security: s, buy: buy} do
+    view = open_edit(conn, buy.id)
+    submit(view, w, s, %{"gross_amount" => ""})
+
+    assert text(view, "#tx-error-gross_amount") == "darf nicht leer sein"
+    assert Decimal.equal?(stored(buy.id).gross_amount, Decimal.new("806.00"))
+  end
+
   # Acceptance criteria:
   # - A note edit keeps the stored cash: the field sends it unchanged.
   # - A booking without a stored cash shows no cash field; its price edit

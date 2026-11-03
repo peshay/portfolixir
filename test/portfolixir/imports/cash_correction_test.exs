@@ -440,19 +440,25 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     end
 
     # Acceptance criteria (Sprint 23's sprint PR closing act, coverage of
-    # #1371's confirm): a sale whose stored cash is gone (cleared by the
-    # importer's own actor, a stand-in for a state no hand edit made) is
-    # listed with the file's cash, and the confirm writes the cash alone,
-    # stating no stored cash beside it.
+    # #1371's confirm): a sale whose stored cash is gone (cleared in the
+    # database directly: no edit can clear a stored-cash trade's cash, so
+    # the row stands for one stored before that rule) is listed with the
+    # file's cash, and the confirm writes the cash alone, stating no stored
+    # cash beside it.
     test "a sale stored without its cash is corrected to the file's cash" do
       sale_file = fixture("sale_with_negative_tax.json")
       portfolio = portfolio!("Sale without its cash")
       apply!(parse!(sale_file, "sale.json"), portfolio)
 
-      {:ok, cleared} =
-        Ledger.update_transaction(Actor.import_session(), booking(portfolio, "sell"), %{
-          gross_amount: nil
-        })
+      sale = booking(portfolio, "sell")
+
+      {:ok, {1, _}} =
+        Repo.transaction(fn ->
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+          Transaction |> where(id: ^sale.id) |> Repo.update_all(set: [gross_amount: nil])
+        end)
+
+      cleared = Repo.get!(Transaction, sale.id)
 
       assert is_nil(cleared.gross_amount)
 
