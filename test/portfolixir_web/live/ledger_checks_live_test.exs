@@ -90,6 +90,25 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     })
   end
 
+  # A USD buy on a EUR account with its rate and neither amount, the shape
+  # H35 refuses on a new write: 10 × 200.00 × 0.93 + 4.90 = 1,864.90 EUR.
+  defp insert_rate_only!(world, security, date) do
+    insert_below_ledger!(%Transaction{
+      portfolio_id: world.portfolio.id,
+      securities_account_id: world.depot.id,
+      cash_account_id: world.cash.id,
+      security_id: security.id,
+      type: "buy",
+      date: date,
+      quantity: Decimal.new("10"),
+      price: Decimal.new("200.00"),
+      fees: Decimal.new("4.90"),
+      taxes: Decimal.new("0"),
+      currency_code: "USD",
+      settlement_fx_rate: Decimal.new("0.93")
+    })
+  end
+
   defp insert_below_ledger!(row) do
     {:ok, row} =
       Repo.transaction(fn ->
@@ -181,6 +200,84 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
 
     assert text(history, ~s(tr[data-transaction="#{edited.id}"] [data-role="dq-figure"])) ==
              "from its figures: 816.00"
+  end
+
+  # User story (Sprint 23 V1; #1290, H35, T-19):
+  # As the operator reading the Overview,
+  # I want the cross-currency buys and sells with a rate and no cash named
+  # on the data-quality line, with a link to exactly those bookings,
+  # so that a trade whose quantity × price lands unconverted on the account
+  # is seen and corrected with the amount settled.
+  #
+  # Acceptance criteria:
+  # - Above zero the line names "ein Kauf oder Verkauf in Fremdwährung mit
+  #   Wechselkurs, aber ohne Betrag" with "— er bucht Menge × Preis ohne
+  #   Umrechnung aufs Konto", linking to /transactions?dq=rate_only, at
+  #   problem severity; two read in the plural; the count equals the read's.
+  # - The filtered history shows exactly the read's ids, the note in the
+  #   operator's words, and the row's second line „zum eigenen Kurs 0,93:
+  #   1.864,90 EUR“ (its expected_cash in the account's currency).
+  test "a rate-only trade is a problem finding that opens the history on exactly its rows",
+       %{conn: conn} do
+    world = base_world(name: "Rate World", cash_name: "Demo Cash", depot_name: "Rate Depot")
+    larkspur = create_security!(name: "Larkspur Robotics Inc", ticker: "LRK", currency: "USD")
+    first = insert_rate_only!(world, larkspur, ~D[2026-06-05])
+    eur = create_security!(name: "Plain Euro Co", ticker: "PEC", currency: "EUR")
+    other = buy!(world, eur, quantity: "1", price: "50", date: ~D[2026-06-06])
+
+    rows = read_rows(conn, "/api/v1/transactions/rate_only")
+    assert Enum.map(rows, & &1["id"]) == [first.id]
+    assert hd(rows)["expected_cash"] == "1864.9"
+
+    view = overview(german(conn))
+
+    assert has_element?(
+             view,
+             ~s(#dashboard-dq-line a[data-role="dq-rate-only"][href="/transactions?dq=rate_only"]),
+             "ein Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
+           )
+
+    assert text(view, ~s(#dashboard-dq-line [data-effect-of="dq-rate-only"])) ==
+             "— er bucht Menge × Preis ohne Umrechnung aufs Konto"
+
+    assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+
+    {:ok, history, _html} = live(german(conn), "/transactions?dq=rate_only")
+
+    assert history_ids(history) == [first.id]
+    refute has_element?(history, ~s(tr[data-transaction="#{other.id}"]))
+
+    assert text(history, "#transaction-dq-note-text") ==
+             "Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag " <>
+               "— das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des " <>
+               "Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten " <>
+               "Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der " <>
+               "Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert."
+
+    assert text(history, ~s(tr[data-transaction="#{first.id}"] [data-role="dq-figure"])) ==
+             "zum eigenen Kurs 0,93: 1.864,90 EUR"
+
+    # A second one: the count and the plural follow the read.
+    second = insert_rate_only!(world, larkspur, ~D[2026-06-07])
+    rows = read_rows(conn, "/api/v1/transactions/rate_only")
+    assert length(rows) == 2
+
+    view = overview(german(conn))
+
+    assert text(view, ~s(#dashboard-dq-line a[data-role="dq-rate-only"])) ==
+             "2 Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
+
+    assert text(view, ~s(#dashboard-dq-line [data-effect-of="dq-rate-only"])) ==
+             "— sie buchen Menge × Preis ohne Umrechnung aufs Konto"
+
+    {:ok, history, _html} = live(conn, "/transactions?dq=rate_only")
+    assert history_ids(history) == Enum.sort([first.id, second.id])
+
+    assert text(history, "#transaction-dq-note-text") =~
+             "Filtered: 2 cross-currency buys or sells"
+
+    assert text(history, ~s(tr[data-transaction="#{second.id}"] [data-role="dq-figure"])) ==
+             "at its own rate 0.93: 1,864.90 EUR"
   end
 
   # Acceptance criteria (Sprint 23 V1, at zero):

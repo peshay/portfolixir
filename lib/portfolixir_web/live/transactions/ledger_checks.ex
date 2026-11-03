@@ -9,7 +9,10 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
 
     * `cash_mismatch` — `GET /api/v1/transactions/cash_mismatch`, the buys
       and sells whose stored cash misses their figures
-      (`Portfolixir.Ledger.StatedCash.report/0`, #1371).
+      (`Portfolixir.Ledger.StatedCash.report/0`, #1371);
+    * `rate_only` — `GET /api/v1/transactions/rate_only`, the cross-currency
+      buys and sells with a settlement rate and neither amount
+      (`Portfolixir.Ledger.SettlementGuard.rate_only_report/0`, #1290).
 
   The count, the rows and the figures come from the read's own domain
   function, never from a second query, so the Overview's count, the
@@ -19,11 +22,12 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.StatedCash
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
-  @checks ["cash_mismatch"]
+  @checks ["cash_mismatch", "rate_only"]
 
   @doc "The checks a `dq` value may name, in the Overview line's order."
   @spec checks() :: [String.t()]
@@ -40,6 +44,7 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   @doc "The check's report, read from its domain function (the API's own)."
   @spec report(String.t()) :: map()
   def report("cash_mismatch"), do: StatedCash.report()
+  def report("rate_only"), do: SettlementGuard.rate_only_report()
 
   @doc """
   The count the Overview names: the length of the read's `rows`, the number
@@ -74,10 +79,24 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   defp figure("cash_mismatch", %{id: id, derived_cash: derived}),
     do: [{id, {:derived, derived}}]
 
+  # The cash the row's own rate gives, in the account's currency, beside
+  # the unconverted amount the ledger books.
+  defp figure("rate_only", %{id: id} = row),
+    do: [
+      {id, {:own_rate, row.settlement_fx_rate, row.expected_cash, row.cash_account_currency_code}}
+    ]
+
   @doc "The text of a row's second line."
   @spec figure_text(tuple()) :: String.t()
   def figure_text({:derived, amount}),
     do: gettext("from its figures: %{amount}", amount: Format.money(amount))
+
+  def figure_text({:own_rate, rate, amount, currency}),
+    do:
+      gettext("at its own rate %{rate}: %{amount}",
+        rate: Format.exact(rate),
+        amount: Format.money(amount) <> " " <> currency
+      )
 
   @doc """
   Whether `transaction` stands in the filter (every transaction without
@@ -132,6 +151,18 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
       " — " <>
       gettext(
         "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
+      )
+  end
+
+  defp note_text(%{check: "rate_only", count: count}) do
+    ngettext(
+      "Filtered: %{count} cross-currency buy or sell with a rate and no cash amount",
+      "Filtered: %{count} cross-currency buys or sells with a rate and no cash amount",
+      count
+    ) <>
+      " — " <>
+      gettext(
+        "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the amount settled in the booking form (Edit); backfilling rates does not change these bookings. Nothing is changed automatically."
       )
   end
 end

@@ -19,7 +19,7 @@ msgstr "Basiswährung"
 msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1450
+#: lib/portfolixir_web/live/dashboard_live.ex:1472
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:343
 #: lib/portfolixir_web/live/portfolio_live.ex:2609
 #, elixir-autogen
@@ -118,7 +118,7 @@ msgstr "Datum"
 msgid "Depot"
 msgstr "Depot"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1454
+#: lib/portfolixir_web/live/dashboard_live.ex:1476
 #: lib/portfolixir_web/live/imports_live.ex:370
 #: lib/portfolixir_web/live/imports_live.ex:1265
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:342
@@ -312,7 +312,7 @@ msgid "Review current holdings"
 msgstr "Aktuelle Bestände prüfen"
 
 #: lib/portfolixir_web/components/app_shell.ex:310
-#: lib/portfolixir_web/live/dashboard_live.ex:1446
+#: lib/portfolixir_web/live/dashboard_live.ex:1468
 #: lib/portfolixir_web/live/imports_live.ex:360
 #: lib/portfolixir_web/live/imports_live.ex:1257
 #: lib/portfolixir_web/live/portfolio_live.ex:1109
@@ -395,7 +395,7 @@ msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
 #: lib/portfolixir_web/components/app_shell.ex:317
-#: lib/portfolixir_web/live/dashboard_live.ex:1458
+#: lib/portfolixir_web/live/dashboard_live.ex:1480
 #: lib/portfolixir_web/live/securities/bond_strip.ex:311
 #: lib/portfolixir_web/live/securities_live.ex:1632
 #: lib/portfolixir_web/live/securities_live.ex:4134
@@ -3305,7 +3305,7 @@ msgstr "Portfoliodatensätze (Kompatibilität)"
 msgid "Seeded"
 msgstr "Seed"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1444
+#: lib/portfolixir_web/live/dashboard_live.ex:1466
 #, elixir-autogen, elixir-format
 msgid "Setup counts"
 msgstr "Einrichtungszähler"
@@ -4950,14 +4950,14 @@ msgstr "Logo-Suche für alle Wertpapiere ohne Logo eingereiht."
 msgid "Retry logo lookup for all"
 msgstr "Logo-Suche für alle wiederholen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1333
+#: lib/portfolixir_web/live/dashboard_live.ex:1334
 #, elixir-autogen, elixir-format
 msgid "one without a logo"
 msgid_plural "%{count} without a logo"
 msgstr[0] "eins ohne Logo"
 msgstr[1] "%{count} ohne Logo"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1320
+#: lib/portfolixir_web/live/dashboard_live.ex:1321
 #, elixir-autogen, elixir-format
 msgid "one without an asset class"
 msgid_plural "%{count} without an asset class"
@@ -11422,21 +11422,21 @@ msgstr "Details in Vermögen →"
 msgid "Not in the total: %{groups}."
 msgstr "Nicht in der Summe: %{groups}."
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1298
+#: lib/portfolixir_web/live/dashboard_live.ex:1299
 #, elixir-autogen, elixir-format
 msgid "one security in the catalog without a quote in 7 days"
 msgid_plural "%{count} securities in the catalog without a quote in 7 days"
 msgstr[0] "ein Wertpapier im Katalog ohne Kurs seit 7 Tagen"
 msgstr[1] "%{count} Wertpapiere im Katalog ohne Kurs seit 7 Tagen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1332
+#: lib/portfolixir_web/live/dashboard_live.ex:1333
 #, elixir-autogen, elixir-format
 msgid "one security without a logo"
 msgid_plural "%{count} securities without a logo"
 msgstr[0] "ein Wertpapier ohne Logo"
 msgstr[1] "%{count} Wertpapiere ohne Logo"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1315
+#: lib/portfolixir_web/live/dashboard_live.ex:1316
 #, elixir-autogen, elixir-format
 msgid "one security without an asset class"
 msgid_plural "%{count} securities without an asset class"
@@ -11448,7 +11448,7 @@ msgstr[1] "%{count} Wertpapiere ohne Anlageklasse"
 msgid "Not in the total: %{groups}"
 msgstr "Nicht in der Summe: %{groups}"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1343
+#: lib/portfolixir_web/live/dashboard_live.ex:1344
 #, elixir-autogen, elixir-format
 msgid "one bond priced on two scales"
 msgid_plural "%{count} bonds priced on two scales"
@@ -12198,7 +12198,7 @@ msgid_plural "%{count} held positions are valued at quotes that do not match the
 msgstr[0] "Eine gehaltene Position wird mit Kursen bewertet, die nicht zu ihren eigenen Buchungen passen (am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück); ihr Wert oder ihr Einstand ist daher falsch. Ihre Kursquelle prüfen (Ticker, Börse), dann die Buchung:"
 msgstr[1] "%{count} gehaltene Positionen werden mit Kursen bewertet, die nicht zu ihren eigenen Buchungen passen (am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück); ihr Wert oder ihr Einstand ist daher falsch. Ihre Kursquellen prüfen (Ticker, Börse), dann die Buchungen:"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1364
+#: lib/portfolixir_web/live/dashboard_live.ex:1365
 #, elixir-autogen, elixir-format
 msgid "one held security whose quotes do not match its bookings"
 msgid_plural "%{count} held securities whose quotes do not match their bookings"
@@ -13043,14 +13043,14 @@ msgstr[1] "1 Trade ohne Umrechnung: %{count} Käufe, die er schließt, vom %{lot
 msgid "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
 msgstr "Die tägliche Synchronisation der Wechselkurse kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig, speichert jeden veröffentlichten Tag und leitet daraus die Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen."
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1351
+#: lib/portfolixir_web/live/dashboard_live.ex:1352
 #, elixir-autogen, elixir-format
 msgid "— if held, it counts a hundredfold too high or too low in the total above"
 msgid_plural "— each one held counts a hundredfold too high or too low in the total above"
 msgstr[0] "— gehalten zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig"
 msgstr[1] "— gehalten zählt jede in der Summe oben hundertfach zu hoch oder zu niedrig"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1370
+#: lib/portfolixir_web/live/dashboard_live.ex:1371
 #, elixir-autogen, elixir-format
 msgid "— so its value in the total above, or its cost, is wrong"
 msgid_plural "— so their value in the total above, or their cost, is wrong"
@@ -14061,42 +14061,73 @@ msgstr "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag
 msgid "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
 msgstr "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Speichern übernimmt, was im Feld steht — den abgerechneten Betrag eintragen, wenn er abweicht."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:102
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:121
 #, elixir-autogen, elixir-format
 msgid "Filtered by a data-quality check that lists no booking now."
 msgstr "Gefiltert nach einer Datenqualitätsprüfung, die jetzt keine Buchung nennt."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:127
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:146
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} buy or sell whose cash misses its quantity × price, fees and taxes"
 msgid_plural "Filtered: %{count} buys or sells whose cash misses their quantity × price, fees and taxes"
 msgstr[0] "Gefiltert: %{count} Kauf oder Verkauf, dessen Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 msgstr[1] "Gefiltert: %{count} Käufe oder Verkäufe, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:104
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:120
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:123
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:139
 #, elixir-autogen, elixir-format
 msgid "Show all bookings"
 msgstr "Alle Buchungen zeigen"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:80
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:92
 #, elixir-autogen, elixir-format
 msgid "from its figures: %{amount}"
 msgstr "aus den Zahlen: %{amount}"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1387
+#: lib/portfolixir_web/live/dashboard_live.ex:1388
 #, elixir-autogen, elixir-format
 msgid "one booking whose cash misses its quantity × price, fees and taxes"
 msgid_plural "%{count} bookings whose cash misses their quantity × price, fees and taxes"
 msgstr[0] "eine Buchung, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 msgstr[1] "%{count} Buchungen, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:133
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:152
 #, elixir-autogen, elixir-format
 msgid "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
 msgstr "Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im Buchungsformular angeben (Bearbeiten): den abgerechneten, oder den, den die Zahlen ergeben. Nichts wird automatisch geändert."
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1392
+#: lib/portfolixir_web/live/dashboard_live.ex:1393
 #, elixir-autogen, elixir-format
 msgid "— so the cash balance and the cost read different amounts"
 msgstr "— Kontostand und Einstand lesen daher verschiedene Beträge"
+
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:158
+#, elixir-autogen, elixir-format
+msgid "Filtered: %{count} cross-currency buy or sell with a rate and no cash amount"
+msgid_plural "Filtered: %{count} cross-currency buys or sells with a rate and no cash amount"
+msgstr[0] "Gefiltert: %{count} Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
+msgstr[1] "Gefiltert: %{count} Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
+
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:96
+#, elixir-autogen, elixir-format
+msgid "at its own rate %{rate}: %{amount}"
+msgstr "zum eigenen Kurs %{rate}: %{amount}"
+
+#: lib/portfolixir_web/live/dashboard_live.ex:1402
+#, elixir-autogen, elixir-format
+msgid "one cross-currency buy or sell with a rate and no cash amount"
+msgid_plural "%{count} cross-currency buys or sells with a rate and no cash amount"
+msgstr[0] "ein Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
+msgstr[1] "%{count} Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
+
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:164
+#, elixir-autogen, elixir-format
+msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the amount settled in the booking form (Edit); backfilling rates does not change these bookings. Nothing is changed automatically."
+msgstr "das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert."
+
+#: lib/portfolixir_web/live/dashboard_live.ex:1408
+#, elixir-autogen, elixir-format
+msgid "— it books quantity × price to the account unconverted"
+msgid_plural "— they book quantity × price to the account unconverted"
+msgstr[0] "— er bucht Menge × Preis ohne Umrechnung aufs Konto"
+msgstr[1] "— sie buchen Menge × Preis ohne Umrechnung aufs Konto"
