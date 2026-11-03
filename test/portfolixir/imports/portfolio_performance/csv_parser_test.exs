@@ -1293,4 +1293,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     assert Enum.all?(entries, &(is_nil(&1.security) or is_nil(&1.security.currency)))
     assert Enum.all?(entries, &is_nil(PortfolioPerformance.row_error(&1)))
   end
+
+  # User story (#1355's parse_date line; stacked PR closing act, S3):
+  # As an operator importing a Portfolio Performance CSV,
+  # I want a `Datum` of only spaces named as a row without a date,
+  # so that the message does not call an empty value unreadable.
+  #
+  # Acceptance criteria:
+  # - A `Datum` of spaces reads "no date — row not imported", as an empty
+  #   one does, never "unreadable date “”".
+  test "a Datum of only spaces is a row without a date" do
+    header =
+      "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    for datum <- ["", "   "] do
+      assert {:ok, %Preview{entries: [], errors: [%{row: 2, message: message}]}} =
+               CsvParser.parse(header <> "#{datum};Einlage;;;;25,00;;;25,00;Test-Cash;;;\n")
+
+      assert {datum, message} == {datum, PortfolioPerformance.missing_date_message()}
+    end
+  end
 end

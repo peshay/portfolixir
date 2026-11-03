@@ -613,12 +613,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   # time is "00:00:00"; we keep it nil there.
   defp parse_datetime(nil), do: {:error, PortfolioPerformance.missing_date_message()}
 
+  # #1355's parse_date line: a blank Datum, empty or only spaces, is a row
+  # without a date (closing act: spaces used to read as an unreadable "").
   defp parse_datetime(value) when is_binary(value) do
-    case String.split(value, " ", parts: 2) do
-      # #1355's parse_date line: a blank Datum is a row without a date.
-      [""] ->
-        {:error, PortfolioPerformance.missing_date_message()}
+    if String.trim(value) == "",
+      do: {:error, PortfolioPerformance.missing_date_message()},
+      else: parse_present_datetime(value)
+  end
 
+  defp parse_present_datetime(value) do
+    case String.split(value, " ", parts: 2) do
       [date_part] ->
         with {:ok, date} <- parse_plausible_date(date_part) do
           {:ok, {date, nil}}
