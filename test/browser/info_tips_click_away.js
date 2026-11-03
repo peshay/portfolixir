@@ -29,6 +29,23 @@ async function openTips(page) {
   }, [A, B]);
 }
 
+// Waits until exactly `expected` (e.g. ["B"], or [] for none) is open, and
+// fails naming what is open after `timeout` ms. The `toggle` event that
+// closes the other ⓘ fires as its own task after the native toggle, so an
+// Enter or a click can return before it has run; the state is polled for,
+// never slept for.
+async function expectOpen(page, expected, message, timeout = 5000) {
+  try {
+    await page.waitForFunction(([a, b, want]) => {
+      const open = Array.from(document.querySelectorAll("details.metric-tooltip[open]"));
+      const names = open.map((tip) => (tip.matches(a) ? "A" : tip.matches(b) ? "B" : "other"));
+      return JSON.stringify(names) === JSON.stringify(want);
+    }, [A, B, expected], { timeout, polling: "raf" });
+  } catch (_) {
+    throw new Error(message + ": " + JSON.stringify(await openTips(page)) + " open");
+  }
+}
+
 async function activeIs(page, selector) {
   return page.evaluate((s) => document.activeElement === document.querySelector(s), selector);
 }
@@ -46,13 +63,13 @@ async function pointer(browser) {
 
   // Opening one closes any other.
   await page.click(A + " > summary");
-  check(JSON.stringify(await openTips(page)) === '["A"]', "A did not open alone: " + (await openTips(page)));
+  await expectOpen(page, ["A"], "A did not open alone");
   await page.click(B + " > summary");
-  check(JSON.stringify(await openTips(page)) === '["B"]', "opening B left " + (await openTips(page)) + " open");
+  await expectOpen(page, ["B"], "opening B left");
 
   // A click inside the open panel leaves it open.
   await page.click(B + " > p[role='tooltip']");
-  check(JSON.stringify(await openTips(page)) === '["B"]', "a click inside B's panel left " + (await openTips(page)));
+  await expectOpen(page, ["B"], "a click inside B's panel left");
 
   // A click elsewhere closes it, and the click still lands where it was
   // aimed: the focus goes where the click put it, never back to the ⓘ.
@@ -63,21 +80,35 @@ async function pointer(browser) {
     document.querySelector("main, body").prepend(input);
   });
   await page.click("#click-away-target");
-  check(JSON.stringify(await openTips(page)) === "[]", "a click elsewhere left " + (await openTips(page)) + " open");
+  await expectOpen(page, [], "a click elsewhere left");
   check(await activeIs(page, "#click-away-target"), "the click-away moved the focus off the clicked field");
 
   // The keyboard opens one and closes the other too.
   await page.click(A + " > summary");
   await page.focus(B + " > summary");
   await page.keyboard.press("Enter");
-  check(JSON.stringify(await openTips(page)) === '["B"]', "Enter on B left " + (await openTips(page)) + " open");
+  await expectOpen(page, ["B"], "Enter on B left");
   check(await activeIs(page, B + " > summary"), "Enter on B moved the focus off its summary");
 
-  // Escape still closes it and returns the focus to its summary (#1342).
+  // Two opens inside one task, before either toggle event has run: the
+  // later one stays open. When the deferred toggle closed the others, A's
+  // late toggle closed B and B's own was dropped (B went closed, open,
+  // closed), so a fast second open lost; the open is now settled
+  // synchronously on the summary's click.
   await page.click(B + " > summary");
+  await expectOpen(page, [], "closing B left");
+  await page.evaluate(([a, b]) => {
+    document.querySelector(a + " > summary").click();
+    document.querySelector(b + " > summary").click();
+  }, [A, B]);
+  await expectOpen(page, ["B"], "two opens in one task left");
+  await page.click(B + " > summary");
+  await expectOpen(page, [], "closing B again left");
+
+  // Escape still closes it and returns the focus to its summary (#1342).
   await page.click(A + " > summary");
   await page.keyboard.press("Escape");
-  check(JSON.stringify(await openTips(page)) === "[]", "Escape left " + (await openTips(page)) + " open");
+  await expectOpen(page, [], "Escape left");
   check(await activeIs(page, A + " > summary"), "Escape did not return the focus to A's summary");
 
   await page.close();
@@ -94,11 +125,11 @@ async function touch(browser) {
   await ready(page);
 
   await page.tap(B + " > summary");
-  check(JSON.stringify(await openTips(page)) === '["B"]', "the tap did not open B: " + (await openTips(page)));
+  await expectOpen(page, ["B"], "the tap did not open B");
   await page.tap(B + " > p[role='tooltip']");
-  check(JSON.stringify(await openTips(page)) === '["B"]', "a tap inside B's panel left " + (await openTips(page)));
+  await expectOpen(page, ["B"], "a tap inside B's panel left");
   await page.tap("h1");
-  check(JSON.stringify(await openTips(page)) === "[]", "a tap elsewhere left " + (await openTips(page)) + " open");
+  await expectOpen(page, [], "a tap elsewhere left");
 
   await context.close();
 }
