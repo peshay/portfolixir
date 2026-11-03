@@ -331,6 +331,69 @@ defmodule PortfolixirWeb.SecurityPageExplanationsLiveTest do
              "Daneben hat der Kauf vom 03.03.2025 einen Betrag von null und keinen Gegenwert in USD, der Währung des Verkaufs, den das Nachladen der Kurse nicht ergänzt. Abhilfe: die Beträge des Kaufs in USD von Hand auf der Buchung erfassen."
   end
 
+  # Acceptance criteria (#1365's line, the other cause beside):
+  # - A stored buy of 5 Dollar Fund at 90 CHF through the EUR account and a
+  #   buy of 5 at 100 USD through a dollar account, sold by hand in EUR:
+  #   the note names the franc buy first, then "Beside it, the buy of
+  #   2025-03-03 was paid in another currency than the sale's (EUR), and
+  #   none of its stored figures can be in EUR. Remedy: correct the stored
+  #   booking's currency or amounts."
+  test "Trades: a buy paid in another currency beside a third currency is named too",
+       %{conn: conn} do
+    world =
+      WorldFixtures.base_world(name: "Muster", cash_name: "Test-Cash", depot_name: "Depot Muster")
+
+    fund =
+      WorldFixtures.create_security!(name: "Dollar Fund", ticker: "DFD", currency: "USD")
+
+    dollar = Map.merge(world, WorldFixtures.add_depot(world.portfolio, cash_currency: "USD"))
+
+    WorldFixtures.buy!(dollar, fund,
+      quantity: "5",
+      price: "100",
+      currency: "USD",
+      date: ~D[2025-03-03]
+    )
+
+    stored_trade!(world, fund, %{
+      type: "buy",
+      date: ~D[2025-04-01],
+      quantity: Decimal.new("5"),
+      price: Decimal.new("90"),
+      fees: Decimal.new("5"),
+      currency_code: "CHF",
+      security_amount: Decimal.new("450"),
+      settlement_amount: Decimal.new("400"),
+      settlement_fx_rate: Decimal.new("0.888889"),
+      gross_amount: Decimal.new("405")
+    })
+
+    {:ok, _sale} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: fund.id,
+        type: "sell",
+        date: ~D[2025-05-02],
+        quantity: "10",
+        price: "96",
+        currency_code: "EUR",
+        security_amount: "1200",
+        settlement_amount: "960",
+        settlement_fx_rate: "0.8",
+        gross_amount: "960"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{fund.id}?tab=trades")
+    note = text(view, "[data-role=trades-unavailable]")
+
+    assert note =~ "the buy of 2025-04-01 is priced in a currency that is neither"
+
+    assert note =~
+             "Beside it, the buy of 2025-03-03 was paid in another currency than the sale's (EUR), and none of its stored figures can be in EUR. Remedy: correct the stored booking's currency or amounts."
+  end
+
   # User story (#1321 on the security page, assigned by the board):
   # As the operator copying or hearing a closed trade's result,
   # I want a space between the figure and its currency,

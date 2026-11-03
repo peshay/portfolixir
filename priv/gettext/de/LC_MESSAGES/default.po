@@ -1666,8 +1666,8 @@ msgid "e.g. PP Import"
 msgstr "z. B. PP Import"
 
 #: lib/portfolixir_web/live/imports_live.ex:361
-#: lib/portfolixir_web/live/journal_live.ex:167
-#: lib/portfolixir_web/live/journal_live.ex:283
+#: lib/portfolixir_web/live/journal_live.ex:161
+#: lib/portfolixir_web/live/journal_live.ex:277
 #, elixir-autogen, elixir-format
 msgid "Entries"
 msgstr "Einträge"
@@ -4007,7 +4007,7 @@ msgstr "Aktiensplit für dieses Wertpapier erfassen"
 
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:60
 #: lib/portfolixir_web/live/securities_live.ex:1076
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:155
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:151
 #, elixir-autogen, elixir-format
 msgid "Record split"
 msgstr "Split erfassen"
@@ -5518,7 +5518,7 @@ msgid "Derived from"
 msgstr "Abgeleitet aus"
 
 #: lib/portfolixir_web/live/imports_live.ex:5274
-#: lib/portfolixir_web/live/journal_live.ex:254
+#: lib/portfolixir_web/live/journal_live.ex:248
 #: lib/portfolixir_web/live/securities_live.ex:3377
 #: lib/portfolixir_web/live/securities_live.ex:6663
 #, elixir-autogen, elixir-format
@@ -5564,7 +5564,7 @@ msgid "Invalidation condition"
 msgstr "Invalidierungsbedingung"
 
 #: lib/portfolixir_web/live/imports_live.ex:2562
-#: lib/portfolixir_web/live/journal_live.ex:214
+#: lib/portfolixir_web/live/journal_live.ex:208
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:488
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:267
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:293
@@ -8200,7 +8200,7 @@ msgstr "Gesetzt"
 msgid "+ other account"
 msgstr "+ anderes Konto"
 
-#: lib/portfolixir_web/live/journal_live.ex:353
+#: lib/portfolixir_web/live/journal_live.ex:347
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:246
 #, elixir-autogen, elixir-format
 msgid "After"
@@ -8924,7 +8924,7 @@ msgid_plural "Every dropped quote stands in the merge's record with its date, va
 msgstr[0] "Jeder entfallende Kurs steht mit Datum, Wert und Quelle im Protokoll der Zusammenführung. Der übernommene Kurs behält seine Quelle und damit seine Kursbasis."
 msgstr[1] "Jeder entfallende Kurs steht mit Datum, Wert und Quelle im Protokoll der Zusammenführung. Die %{count} übernommenen Kurse behalten ihre Quelle und damit ihre Kursbasis."
 
-#: lib/portfolixir_web/live/journal_live.ex:351
+#: lib/portfolixir_web/live/journal_live.ex:345
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1005
 #, elixir-autogen, elixir-format
 msgid "Field"
@@ -12185,7 +12185,7 @@ msgstr "„%{name}“ gelöscht."
 msgid "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards."
 msgstr "%{name}: Der Ticker aus der Datei ist kein gültiges Ticker-Symbol und wird nicht übernommen; das Wertpapier wird ohne Ticker angelegt. Den Ticker danach am Wertpapier erfassen."
 
-#: lib/portfolixir_web/live/journal_live.ex:255
+#: lib/portfolixir_web/live/journal_live.ex:249
 #: lib/portfolixir_web/live/securities/merge_preview.ex:321
 #, elixir-autogen, elixir-format
 msgid "Change"
@@ -13994,25 +13994,25 @@ msgstr "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag
 msgid "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
 msgstr "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Speichern übernimmt, was im Feld steht — den abgerechneten Betrag eintragen, wenn er abweicht."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:136
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:132
 #, elixir-autogen, elixir-format
 msgid "Filtered by a data-quality check that lists no booking now."
 msgstr "Gefiltert nach einer Datenqualitätsprüfung, die jetzt keine Buchung nennt."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:165
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:161
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} buy or sell whose cash misses its quantity × price, fees and taxes"
 msgid_plural "Filtered: %{count} buys or sells whose cash misses their quantity × price, fees and taxes"
 msgstr[0] "Gefiltert: %{count} Kauf oder Verkauf, dessen Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 msgstr[1] "Gefiltert: %{count} Käufe oder Verkäufe, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:138
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:158
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:134
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:154
 #, elixir-autogen, elixir-format
 msgid "Show all bookings"
 msgstr "Alle Buchungen zeigen"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:107
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:103
 #, elixir-autogen, elixir-format
 msgid "from its figures: %{amount}"
 msgstr "aus den Zahlen: %{amount}"
@@ -14024,7 +14024,7 @@ msgid_plural "%{count} bookings whose cash misses their quantity × price, fees 
 msgstr[0] "eine Buchung, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 msgstr[1] "%{count} Buchungen, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:171
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:167
 #, elixir-autogen, elixir-format
 msgid "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
 msgstr "Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im Buchungsformular angeben (Bearbeiten): den abgerechneten, oder den, den die Zahlen ergeben. Nichts wird automatisch geändert."
@@ -14034,14 +14034,14 @@ msgstr "Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im
 msgid "— so the cash balance and the cost read different amounts"
 msgstr "— Kontostand und Einstand lesen daher verschiedene Beträge"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:205
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:201
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} cross-currency buy or sell with a rate and no cash amount"
 msgid_plural "Filtered: %{count} cross-currency buys or sells with a rate and no cash amount"
 msgstr[0] "Gefiltert: %{count} Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 msgstr[1] "Gefiltert: %{count} Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:111
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:107
 #, elixir-autogen, elixir-format
 msgid "settlement amount at its own rate %{rate}: %{amount}"
 msgstr "Abrechnungsbetrag zum eigenen Kurs %{rate}: %{amount}"
@@ -14053,7 +14053,7 @@ msgid_plural "%{count} cross-currency buys or sells with a rate and no cash amou
 msgstr[0] "ein Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 msgstr[1] "%{count} Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:211
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:207
 #, elixir-autogen, elixir-format
 msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the settlement amount in the booking form (Edit): the amount before fees and taxes, from which the form books the cash; backfilling rates does not change these bookings. Nothing is changed automatically."
 msgstr "das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den Abrechnungsbetrag im Buchungsformular eintragen (Bearbeiten): den Betrag vor Gebühren und Steuern, aus dem das Formular das Bargeld bucht; das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert."
@@ -14065,19 +14065,19 @@ msgid_plural "— they book quantity × price to the account unconverted"
 msgstr[0] "— er bucht Menge × Preis ohne Umrechnung aufs Konto"
 msgstr[1] "— sie buchen Menge × Preis ohne Umrechnung aufs Konto"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:179
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:175
 #, elixir-autogen, elixir-format
 msgid "%{security} · %{ratio} · %{date}: “%{portfolio}”, which held %{quantity} shares before, is missing."
 msgstr "%{security} · %{ratio} · %{date}: es fehlt „%{portfolio}“, das vorher %{quantity} Stück hielt."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:190
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:186
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} split missing a portfolio"
 msgid_plural "Filtered: %{count} splits each missing a portfolio"
 msgstr[0] "Gefiltert: %{count} Split, dem ein Portfolio fehlt"
 msgstr[1] "Gefiltert: %{count} Splits, denen je ein Portfolio fehlt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:197
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:193
 #, elixir-autogen, elixir-format
 msgid "There the FIFO lots are split and the holding is not. Record the split again with the same date and ratio (“Record split” on the security): it adds only the missing rows. If the split is wrong, delete the whole split. Nothing is changed automatically."
 msgstr "Dort sind die FIFO-Lots geteilt, der Bestand nicht. Den Split mit demselben Datum und Verhältnis erneut erfassen („Split erfassen“ beim Wertpapier): Er ergänzt nur die fehlenden Zeilen. Ist der Split falsch, den ganzen Split löschen. Nichts wird automatisch geändert."
@@ -14189,21 +14189,21 @@ msgstr "wo"
 msgid "with “remove as duplicates”"
 msgstr "bei „als Duplikate entfernen“"
 
-#: lib/portfolixir_web/live/journal_live.ex:430
+#: lib/portfolixir_web/live/journal_live.ex:424
 #, elixir-autogen, elixir-format
 msgid "%{count} entry"
 msgid_plural "%{count} entries"
 msgstr[0] "%{count} Eintrag"
 msgstr[1] "%{count} Einträge"
 
-#: lib/portfolixir_web/live/journal_live.ex:173
-#: lib/portfolixir_web/live/journal_live.ex:252
+#: lib/portfolixir_web/live/journal_live.ex:167
+#: lib/portfolixir_web/live/journal_live.ex:246
 #, elixir-autogen, elixir-format
 msgid "Actor"
 msgstr "Akteur"
 
 #: lib/portfolixir_web/components/app_shell.ex:357
-#: lib/portfolixir_web/live/journal_live.ex:161
+#: lib/portfolixir_web/live/journal_live.ex:155
 #, elixir-autogen, elixir-format
 msgid "Audit journal"
 msgstr "Audit-Journal"
@@ -14223,49 +14223,49 @@ msgstr "Angelegt oder ersetzt"
 msgid "Deleted"
 msgstr "Gelöscht"
 
-#: lib/portfolixir_web/live/journal_live.ex:162
+#: lib/portfolixir_web/live/journal_live.ex:156
 #, elixir-autogen, elixir-format
 msgid "Every stored change, who made it and what stood before"
 msgstr "Jede gespeicherte Änderung, wer sie machte und was vorher stand"
 
-#: lib/portfolixir_web/live/journal_live.ex:409
+#: lib/portfolixir_web/live/journal_live.ex:403
 #, elixir-autogen, elixir-format
 msgid "Newest first"
 msgstr "Neueste zuerst"
 
-#: lib/portfolixir_web/live/journal_live.ex:243
+#: lib/portfolixir_web/live/journal_live.ex:237
 #, elixir-autogen, elixir-format
 msgid "No entry matches these filters."
 msgstr "Kein Eintrag passt zu diesen Filtern."
 
-#: lib/portfolixir_web/live/journal_live.ex:197
-#: lib/portfolixir_web/live/journal_live.ex:253
+#: lib/portfolixir_web/live/journal_live.ex:191
+#: lib/portfolixir_web/live/journal_live.ex:247
 #, elixir-autogen, elixir-format
 msgid "Operation"
 msgstr "Vorgang"
 
+#: lib/portfolixir_web/live/journal_live.ex:232
 #: lib/portfolixir_web/live/journal_live.ex:238
-#: lib/portfolixir_web/live/journal_live.ex:244
 #, elixir-autogen, elixir-format
 msgid "Show every entry"
 msgstr "Alle Einträge zeigen"
 
-#: lib/portfolixir_web/live/journal_live.ex:251
+#: lib/portfolixir_web/live/journal_live.ex:245
 #, elixir-autogen, elixir-format
 msgid "Time (UTC)"
 msgstr "Zeit (UTC)"
 
-#: lib/portfolixir_web/live/journal_live.ex:419
+#: lib/portfolixir_web/live/journal_live.ex:413
 #, elixir-autogen, elixir-format
 msgid "times in UTC"
 msgstr "Zeiten in UTC"
 
-#: lib/portfolixir_web/live/journal_live.ex:416
+#: lib/portfolixir_web/live/journal_live.ex:410
 #, elixir-autogen, elixir-format
 msgid "with what-if scenarios"
 msgstr "mit Was-wäre-wenn-Szenarien"
 
-#: lib/portfolixir_web/live/journal_live.ex:417
+#: lib/portfolixir_web/live/journal_live.ex:411
 #, elixir-autogen, elixir-format
 msgid "without what-if scenarios"
 msgstr "ohne Was-wäre-wenn-Szenarien"
@@ -14372,86 +14372,86 @@ msgctxt "journal kind"
 msgid "Tax profile"
 msgstr "Steuerprofil"
 
-#: lib/portfolixir_web/live/journal_live.ex:182
+#: lib/portfolixir_web/live/journal_live.ex:176
 #, elixir-autogen, elixir-format
 msgid "All"
 msgstr "Alle"
 
-#: lib/portfolixir_web/live/journal_live.ex:216
+#: lib/portfolixir_web/live/journal_live.ex:210
 #, elixir-autogen, elixir-format
 msgid "All kinds"
 msgstr "Alle Arten"
 
-#: lib/portfolixir_web/live/journal_live.ex:171
+#: lib/portfolixir_web/live/journal_live.ex:165
 #, elixir-autogen, elixir-format
 msgid "Filter the journal"
 msgstr "Journal filtern"
 
-#: lib/portfolixir_web/live/journal_live.ex:231
+#: lib/portfolixir_web/live/journal_live.ex:225
 #, elixir-autogen, elixir-format
 msgid "Include what-if scenarios"
 msgstr "Was-wäre-wenn-Szenarien einbeziehen"
 
-#: lib/portfolixir_web/live/journal_live.ex:269
-#: lib/portfolixir_web/live/journal_live.ex:291
+#: lib/portfolixir_web/live/journal_live.ex:263
+#: lib/portfolixir_web/live/journal_live.ex:285
 #, elixir-autogen, elixir-format
 msgid "Only this entry"
 msgstr "Nur dieser Eintrag"
 
-#: lib/portfolixir_web/live/journal_live.ex:411
+#: lib/portfolixir_web/live/journal_live.ex:405
 #, elixir-autogen, elixir-format
 msgid "actor %{actor}"
 msgstr "Akteur %{actor}"
 
-#: lib/portfolixir_web/live/journal_live.ex:447
+#: lib/portfolixir_web/live/journal_live.ex:441
 #, elixir-autogen, elixir-format
 msgid "kind %{kind}"
 msgstr "Art %{kind}"
 
+#: lib/portfolixir_web/live/journal_live.ex:438
 #: lib/portfolixir_web/live/journal_live.ex:444
-#: lib/portfolixir_web/live/journal_live.ex:450
 #, elixir-autogen, elixir-format
 msgid "only %{entry}"
 msgstr "nur %{entry}"
 
-#: lib/portfolixir_web/live/journal_live.ex:413
+#: lib/portfolixir_web/live/journal_live.ex:407
 #, elixir-autogen, elixir-format
 msgid "operation %{operation}"
 msgstr "Vorgang %{operation}"
 
-#: lib/portfolixir_web/live/journal_live.ex:352
+#: lib/portfolixir_web/live/journal_live.ex:346
 #, elixir-autogen, elixir-format
 msgid "Before"
 msgstr "Vorher"
 
-#: lib/portfolixir_web/live/journal_live.ex:346
+#: lib/portfolixir_web/live/journal_live.ex:340
 #, elixir-autogen, elixir-format
 msgid "Stored values"
 msgstr "Gespeicherte Werte"
 
-#: lib/portfolixir_web/live/journal_live.ex:382
+#: lib/portfolixir_web/live/journal_live.ex:376
 #, elixir-autogen, elixir-format
 msgid "changed to"
 msgstr "geändert in"
 
-#: lib/portfolixir_web/live/journal_live.ex:338
+#: lib/portfolixir_web/live/journal_live.ex:332
 #, elixir-autogen, elixir-format
 msgid "deleted, with every value"
 msgstr "gelöscht, mit allen Werten"
 
-#: lib/portfolixir_web/live/journal_live.ex:302
+#: lib/portfolixir_web/live/journal_live.ex:296
 #, elixir-autogen, elixir-format
 msgid "Show older entries"
 msgstr "Ältere Einträge zeigen"
 
-#: lib/portfolixir_web/live/journal_live.ex:427
+#: lib/portfolixir_web/live/journal_live.ex:421
 #, elixir-autogen, elixir-format
 msgid "the newest %{count} entry"
 msgid_plural "the newest %{count} entries"
 msgstr[0] "der neueste Eintrag"
 msgstr[1] "die neuesten %{count} Einträge"
 
-#: lib/portfolixir_web/live/journal_live.ex:306
+#: lib/portfolixir_web/live/journal_live.ex:300
 #, elixir-autogen, elixir-format
 msgid "The newest %{max} are shown, the most one page holds; a filter reaches older entries."
 msgstr "Hier stehen die neuesten %{max}, mehr fasst eine Seite nicht; ein Filter erreicht ältere Einträge."

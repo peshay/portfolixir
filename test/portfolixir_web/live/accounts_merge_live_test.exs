@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
   alias PortfolixirWeb.MergeFlowsCase, as: MergeFlows
+  alias PortfolixirWeb.PortfolioAccounts.MergePreview
 
   setup do
     {:ok, portfolio} =
@@ -944,6 +945,78 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
 
       assert target_name(view, a) =~ "Sparplan · with Giro"
       assert target_name(view, b) =~ "Sparplan · with Tagesgeld"
+    end
+  end
+
+  describe "the external flows section" do
+    # Acceptance criteria (Sprint 23 V2, #957; board 01 ①b):
+    # - A set balance's absorbed flow reads "absorbed by the set balance"
+    #   in the cash account that absorbs it; an amount the API serves
+    #   without a currency reads as the figure alone, at the booked value.
+    # - A removed flow valued at the day's price reads "at the day's price".
+    test "names an absorbed flow's account and a flow valued at the day's price", ctx do
+      cash = cash!(ctx.portfolio, "Nebenkonto")
+      depot = depot!(ctx.portfolio, cash, "Depot 2")
+
+      absorbed = %{
+        kind: :absorbed,
+        date: ~D[2025-04-01],
+        quantity: nil,
+        collapsed_transaction_id: 41,
+        change: Decimal.new("-50.00"),
+        currency_code: nil,
+        valued_at: nil,
+        cash_account_id: cash.id
+      }
+
+      html =
+        render_component(&MergePreview.flow_changes/1,
+          changes: [absorbed],
+          bookings: %{41 => "Fee"}
+        )
+
+      assert cells(html) == [
+               [
+                 "2025-04-01",
+                 "absorbed by the set balance",
+                 "FeeNebenkonto",
+                 "—",
+                 "-50.00at the booked value"
+               ]
+             ]
+
+      removed = %{
+        kind: :removed,
+        date: ~D[2025-03-03],
+        quantity: Decimal.new("-10"),
+        collapsed_transaction_id: 42,
+        change: Decimal.new("-812.50"),
+        currency_code: "EUR",
+        valued_at: :market,
+        securities_account_id: depot.id
+      }
+
+      html =
+        render_component(&MergePreview.flow_changes/1,
+          changes: [removed],
+          bookings: %{}
+        )
+
+      assert cells(html) == [
+               ["2025-03-03", "removed", "—Depot 2", "-10", "-812.50 EURat the day's price"]
+             ]
+    end
+
+    # Each cell's text; a cell-note follows its figure without a space.
+    defp cells(html) do
+      html
+      |> Floki.parse_fragment!()
+      |> Floki.find("tr[data-role='merge-flow']")
+      |> Enum.map(fn tr ->
+        tr
+        |> Floki.find("td")
+        |> Enum.map(&(&1 |> Floki.text() |> String.replace(~r/\s+/u, " ") |> String.trim()))
+      end)
     end
   end
 

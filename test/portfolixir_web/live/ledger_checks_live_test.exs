@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
+  alias PortfolixirWeb.Transactions.LedgerChecks
 
   defp german(conn),
     do:
@@ -474,6 +475,31 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     assert text(history, "#transaction-dq-note-text") =~
              "Filtered: 1 split missing a portfolio — Wexmoor Instruments AG · 2:1 · " <>
                "2026-04-16: “Family Depot”, which held 12 shares before, is missing."
+  end
+
+  # Acceptance criteria (Sprint 23 V1, splits of several securities):
+  # - „Split erfassen“ lives on one security's page, so a note whose events
+  #   name two securities offers only „Alle Buchungen zeigen“.
+  test "a split note over two securities offers no single Record split" do
+    events =
+      for security_id <- [11, 12] do
+        %{
+          security_id: security_id,
+          security_name: "Synthetic #{security_id}",
+          ratio_numerator: 2,
+          ratio_denominator: 1,
+          date: ~D[2026-04-16],
+          missing_portfolios: []
+        }
+      end
+
+    html =
+      render_component(&LedgerChecks.filter_note/1,
+        filter: %{check: "incomplete_split", count: 2, rows: events}
+      )
+
+    actions = html |> Floki.parse_fragment!() |> Floki.find(".data-note__actions a")
+    assert Enum.map(actions, &Floki.text/1) == ["Show all bookings"]
   end
 
   # Acceptance criteria (Sprint 23 V1, at zero):

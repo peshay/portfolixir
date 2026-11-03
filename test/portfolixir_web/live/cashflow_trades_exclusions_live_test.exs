@@ -15,6 +15,8 @@ defmodule PortfolixirWeb.CashflowTradesExclusionsLiveTest do
   alias Portfolixir.Actor
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
   alias Portfolixir.WorldFixtures
 
   defp squish(text), do: text |> String.replace(~r/\s+/u, " ") |> String.trim()
@@ -111,11 +113,17 @@ defmodule PortfolixirWeb.CashflowTradesExclusionsLiveTest do
 
   # Two of R5's reasons, which no rate fixes: Dollar Fund was bought through
   # a dollar account and sold through the euro account; Allotted Fund's buy
-  # has an amount of zero.
-  defp r5_world! do
+  # has an amount of zero. `only` keeps one of them.
+  defp r5_world!(only \\ [:dollar, :allotted]) do
     world =
       WorldFixtures.base_world(name: "Muster", cash_name: "Test-Cash", depot_name: "Depot Muster")
 
+    if :dollar in only, do: dollar_fund!(world)
+    if :allotted in only, do: allotted_fund!(world)
+    world
+  end
+
+  defp dollar_fund!(world) do
     fund = WorldFixtures.create_security!(name: "Dollar Fund", ticker: "DFD", currency: "USD")
     dollar = Map.merge(world, WorldFixtures.add_depot(world.portfolio, cash_currency: "USD"))
 
@@ -142,7 +150,9 @@ defmodule PortfolixirWeb.CashflowTradesExclusionsLiveTest do
         settlement_fx_rate: "0.8",
         gross_amount: "960"
       })
+  end
 
+  defp allotted_fund!(world) do
     allotted =
       WorldFixtures.create_security!(name: "Allotted Fund", ticker: "ALF", currency: "USD")
 
@@ -167,8 +177,45 @@ defmodule PortfolixirWeb.CashflowTradesExclusionsLiveTest do
       gross: "480.00",
       date: ~D[2025-05-02]
     )
+  end
 
-    world
+  # A sale of Franc Fund whose buy is stored priced in francs through the
+  # euro account: a third currency, which no rate fixes.
+  defp franc_fund!(world) do
+    fund = WorldFixtures.create_security!(name: "Franc Fund", ticker: "FRF", currency: "USD")
+
+    {:ok, _buy} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Repo.insert!(%Transaction{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          cash_account_id: world.cash.id,
+          security_id: fund.id,
+          type: "buy",
+          date: ~D[2025-04-01],
+          quantity: Decimal.new("5"),
+          price: Decimal.new("90"),
+          fees: Decimal.new("5"),
+          taxes: Decimal.new("0"),
+          currency_code: "CHF",
+          security_amount: Decimal.new("450"),
+          settlement_amount: Decimal.new("400"),
+          settlement_fx_rate: Decimal.new("0.888889"),
+          gross_amount: Decimal.new("405")
+        })
+      end)
+
+    WorldFixtures.cross_trade!(world, fund,
+      type: "sell",
+      quantity: "5",
+      price: "120",
+      settled: "480.00",
+      gross: "480.00",
+      date: ~D[2025-05-02]
+    )
   end
 
   # User story (board `ux-design-2026-11-03-sprint23-i1`, Income ⑧;
@@ -311,5 +358,58 @@ defmodule PortfolixirWeb.CashflowTradesExclusionsLiveTest do
              "Kauf in anderer Währung bezahlt: Ein Kauf, den der Verkauf schließt, wurde in einer anderen Währung als der des Verkaufs bezahlt, die kein gespeicherter Wert überbrückt; kein Wechselkurs behebt das.",
              "Kauf mit Betrag null: Ein Kauf, den der Verkauf schließt, hat einen Betrag von null, den das Nachladen der Kurse nicht ergänzt."
            ]
+  end
+
+  # User story (board `ux-design-2026-11-03-sprint23-i1`, Income: a reason
+  # alone; #1310, #1311):
+  # As the operator whose sales are left out for one reason no rate fixes,
+  # I want that reason said in a full sentence naming its sales,
+  # so that a single reason needs no lead and no list.
+  #
+  # Acceptance criteria:
+  # - Dollar Fund alone (a buy paid in another currency) reads "1 sale is
+  #   not convertible — a buy it closes was paid in another currency than
+  #   the sale's, which no stored figure bridges — and is excluded from
+  #   every total: Dollar Fund."
+  test "a buy paid in another currency alone reads its own sentence", %{conn: conn} do
+    r5_world!([:dollar])
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+
+    assert text(view, "[data-role='realized-excluded-other-account']") ==
+             "1 sale is not convertible — a buy it closes was paid in another currency than the sale's, which no stored figure bridges — and is excluded from every total: Dollar Fund."
+  end
+
+  # Acceptance criteria (as above):
+  # - Allotted Fund alone (a buy of amount zero) reads "1 sale is not
+  #   convertible — a buy it closes has an amount of zero, which the rate
+  #   backfill does not complete — and is excluded from every total:
+  #   Allotted Fund."
+  test "a buy of amount zero alone reads its own sentence", %{conn: conn} do
+    r5_world!([:allotted])
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+
+    assert text(view, "[data-role='realized-excluded-zero-amount']") ==
+             "1 sale is not convertible — a buy it closes has an amount of zero, which the rate backfill does not complete — and is excluded from every total: Allotted Fund."
+  end
+
+  # Acceptance criteria (board `ux-design-2026-11-03-sprint23-i1`, Income ⑧):
+  # - Beside another reason, a third currency reads its name and its sales:
+  #   "Third currency: Franc Fund."
+  test "a third currency beside another reason names its sales", %{conn: conn} do
+    world = r5_world!([:allotted])
+    franc_fund!(world)
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    render_async(view)
+
+    assert text(view, "[data-role='realized-excluded-third-currency']") ==
+             "Third currency: Franc Fund."
+
+    assert text(view, "[data-role='realized-excluded-zero-amount']") ==
+             "Buy of amount zero: Allotted Fund."
   end
 end
