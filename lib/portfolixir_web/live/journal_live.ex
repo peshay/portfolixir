@@ -62,19 +62,13 @@ defmodule PortfolixirWeb.JournalLive do
 
   # A parameter the API would refuse with a 422 reads as absent here: the
   # page falls back to its default for it, as every page does with a URL it
-  # cannot read (LiveParam, #868).
-  defp read_opts(params, tries \\ 6)
-
-  defp read_opts(params, tries) when tries > 0 do
+  # cannot read (LiveParam, #868). The parser names only a parameter the
+  # URL carries, so each round drops one and the reading ends.
+  defp read_opts(params) do
     case JournalQuery.parse(params) do
       {:ok, opts} -> opts
-      {:error, field} -> read_opts(Map.delete(params, Atom.to_string(field)), tries - 1)
+      {:error, field} -> read_opts(Map.delete(params, Atom.to_string(field)))
     end
-  end
-
-  defp read_opts(_params, _tries) do
-    {:ok, opts} = JournalQuery.parse(%{})
-    opts
   end
 
   # A filter change starts the list from its newest page again.

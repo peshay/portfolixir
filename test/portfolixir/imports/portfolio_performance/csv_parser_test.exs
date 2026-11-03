@@ -1312,5 +1312,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
 
       assert {datum, message} == {datum, PortfolioPerformance.missing_date_message()}
     end
+
+    # A row too short to reach a last `Datum` column has no date either.
+    last =
+      "Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle;Datum\n"
+
+    assert {:ok, %Preview{entries: [], errors: [%{row: 2, message: message}]}} =
+             CsvParser.parse(last <> "Einlage;;;;25,00;;;25,00;Test-Cash\n")
+
+    assert message == PortfolioPerformance.missing_date_message()
   end
 end

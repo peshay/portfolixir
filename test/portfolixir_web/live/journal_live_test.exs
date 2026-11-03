@@ -225,6 +225,8 @@ defmodule PortfolixirWeb.JournalLiveTest do
   # - Followed, the page lists exactly what the API answers for those two
   #   parameters, and the basis line says „nur Wertpapier <id>“.
   # - „Alle Einträge zeigen“ leads back to the whole journal.
+  # - An id without a kind (an agent's link) filters as the API does, and
+  #   the basis line names the id alone: „nur <id>“.
   test "„Nur dieser Eintrag“ filters to one entry", %{conn: conn} do
     %{kept: kept} = write_some_history!()
     {:ok, view, _html} = live(conn, "/journal?locale=de")
@@ -250,6 +252,12 @@ defmodule PortfolixirWeb.JournalLiveTest do
              "[data-role='journal-entity-filter'] a[href='/journal']",
              "Alle Einträge zeigen"
            )
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de&resource_id=#{kept.id}")
+    assert page_ids(view) == api_ids(conn, %{"resource_id" => "#{kept.id}"})
+
+    assert view |> element("[data-role='journal-basis']") |> render() |> text() =~
+             "· nur #{kept.id} ·"
   end
 
   # User story:

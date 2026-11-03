@@ -35,10 +35,6 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
 
   @checks ["cash_mismatch", "rate_only", "incomplete_split"]
 
-  @doc "The checks a `dq` value may name, in the Overview line's order."
-  @spec checks() :: [String.t()]
-  def checks, do: @checks
-
   @doc """
   The `dq` URL value, when it names a check; anything else (absent, unknown,
   not a string) is `nil` and filters nothing.
