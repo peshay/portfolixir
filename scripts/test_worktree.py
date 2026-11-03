@@ -17,6 +17,7 @@ database.
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -153,6 +154,14 @@ class WorktreeHelperTests(unittest.TestCase):
         self.assertIn("MIX_ENV=test mix ecto.create", completed.stdout)
         self.assertIn("MIX_ENV=test mix ecto.migrate", completed.stdout)
         self.assertFalse(os.path.exists(self.mix_log))
+
+    def test_the_printed_cd_line_is_a_valid_command_for_a_path_with_a_space(self):
+        path = os.path.join(self.directory, "a story")
+        completed = self._helper("add", path, self.base)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        cd_lines = [line.strip() for line in completed.stdout.splitlines() if line.strip().startswith("cd ")]
+        self.assertEqual(len(cd_lines), 1, completed.stdout)
+        self.assertEqual(shlex.split(cd_lines[0]), ["cd", path])
 
     def test_db_creates_and_migrates_that_test_database_in_the_worktree(self):
         path = self._add("story", self.base, "--db", "portfolixir_test_7")

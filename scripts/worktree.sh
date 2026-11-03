@@ -111,9 +111,10 @@ if [[ -n "$database" ]]; then
   )
   echo "test database $database created and migrated"
 else
+  # %q quotes the path, so a path with a space copies into a valid command.
   cat <<EOF
 A test database of the worktree's own, once, before its first mix test:
-  cd $path
+  cd $(printf '%q' "$path")
   DATABASE_NAME=$name MIX_ENV=test mix ecto.create
   DATABASE_NAME=$name MIX_ENV=test mix ecto.migrate
 EOF
