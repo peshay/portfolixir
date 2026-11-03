@@ -8244,6 +8244,10 @@ phrasing content.
   notes) lead and clamp, their links in the actions. Every other note on
   the page (Bestände's unvalued rows, the retracted thesis) clamps.
 
+**Steuern** is conformant: nothing moves; the budget's notes
+(`budget-stale`, `budget-incomplete`) and each statement's findings clamp,
+their buttons in the actions.
+
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
 Amends Components → Booking drawer and the 2026-11-01 amendment above
