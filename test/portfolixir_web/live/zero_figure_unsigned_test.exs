@@ -221,9 +221,9 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
     # Acceptance criteria:
     # - The "Frozen (hold)" and "Real" figures read "0.0%", no "+", and
     #   carry no gain colour.
-    # - Both carry `is-flat` (body ink), as Wealth's cards do: without a
-    #   class the card's `.stat strong` gives them the accent (the γ closing
-    #   act, DB1).
+    # - Both carry `is-flat` (body ink), as Wealth's cards do (the γ closing
+    #   act, DB1; since Sprint 23 C2 an unsigned `.stat strong` is body ink
+    #   too, so the class states the figure is directionless).
     test "the snapshot comparison's returns", %{conn: conn} do
       world = WorldFixtures.base_world(name: "Snap", currency: "EUR")
       stock = WorldFixtures.create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
