@@ -330,11 +330,16 @@ defmodule PortfolixirWeb.ImportsLive do
            confirm after a mapping it does not need. The confirm stays: it
            writes nothing and reports every duplicate with its layer. --%>
       <%!-- #1207 (1) (board 07 ⑦): with the correction section below, the
-           note says that work remains there, and links it. --%>
+           note says that work remains there, and links it. It clamps (Sprint
+           23, Lane I; board ux-design-2026-11-03-sprint23-i1 ③); the pointer
+           is part of its sentence and says where the work is, so it stays in
+           the text. --%>
       <AppShell.data_note
         :if={@nothing_to_import}
         severity={:note}
+        id="nothing-to-import-note"
         data-role="nothing-to-import"
+        clamp
       ><%= nothing_to_import(@account_states.counts.total) %><%= if @corrections != [] do %> <%= correction_pointer(length(@corrections), @correction_fixable != []) %><% end %></AppShell.data_note>
 
       <%!-- ADR-0050 as amended on 2026-11-01 (#1313; board 03 ②, Q2 = A):
@@ -393,6 +398,9 @@ defmodule PortfolixirWeb.ImportsLive do
            ux-design-2026-10-04/09-import-correction retired the accent
            banner): the severity word and glyph come from the note, the
            copy button and the scrollable row list sit inside it. --%>
+      <%!-- Sprint 23, Lane I (board ux-design-2026-11-03-sprint23-i1 ③): the
+           note clamps, its heading and rows in the text; the copy button is
+           its control and sits in the actions, in view under the clamp. --%>
       <AppShell.data_note
         :if={@preview.errors != []}
         severity={:attention}
@@ -400,9 +408,12 @@ defmodule PortfolixirWeb.ImportsLive do
         data-role="parser-warnings"
         role="region"
         aria-labelledby="parser-warnings-title"
+        clamp
       >
-        <div class="parser-warnings__head">
-          <h3 id="parser-warnings-title"><%= gettext("Parser warnings") %></h3>
+        <h3 id="parser-warnings-title" class="parser-warnings__title"><%= gettext("Parser warnings") %></h3>
+        <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
+        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@row_errors, @preview) %></pre>
+        <:actions>
           <button
             type="button"
             id="copy-parser-warnings"
@@ -413,9 +424,7 @@ defmodule PortfolixirWeb.ImportsLive do
           >
             <AppShell.icon name={:copy} />
           </button>
-        </div>
-        <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
-        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@row_errors, @preview) %></pre>
+        </:actions>
       </AppShell.data_note>
 
       <%!-- ADR-0053 §6 and A6 (board 09, pick J9 = A; board 01 ⑧): the
@@ -759,7 +768,11 @@ defmodule PortfolixirWeb.ImportsLive do
           <% end %>
 
           <%= if @matched_resolutions != [] do %>
-            <details data-role="matched-securities">
+            <%!-- #1339 (board ux-design-2026-11-03-sprint23-i1 ⑦): the
+                 server renders no `open`, so a patch (a mapping change)
+                 folded the list shut; the shell's `DisclosureState` hook
+                 restores it after each patch, as on `plain-creates`. --%>
+            <details id="import-matched-securities" data-role="matched-securities" phx-hook="DisclosureState">
               <summary>
                 <%= ngettext(
                   "%{count} security matches existing records",
@@ -932,11 +945,16 @@ defmodule PortfolixirWeb.ImportsLive do
         <%!-- #1130 (board ux-design-2026-10-09/07-imports ⑤): a finding is a
              data note (UX-DR17), the parser warnings' move; each security
              links to its page, where the remedy is recorded. --%>
+        <%!-- Sprint 23, Lane I (board ux-design-2026-11-03-sprint23-i1 ③):
+             the note clamps; its title and its remedy sentence stay in the
+             text, the security links, where the remedy is made, sit in the
+             actions. --%>
         <AppShell.data_note
           :if={@unmatched_config != []}
           severity={:attention}
           id="import-unmatched-config"
           data-role="unmatched-config"
+          clamp
         >
           <h3><%= gettext("Configured securities this import does not touch") %></h3>
           <p>
@@ -944,11 +962,13 @@ defmodule PortfolixirWeb.ImportsLive do
               "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
             ) %>
           </p>
-          <ul>
-            <li :for={row <- @unmatched_config}>
-              <.link href={"/securities/#{row.security.id}"}><bdi><%= row.security.name %></bdi></.link><%= if row.security.isin do %> · <%= row.security.isin %><% end %>
-            </li>
-          </ul>
+          <:actions>
+            <ul>
+              <li :for={row <- @unmatched_config}>
+                <.link href={"/securities/#{row.security.id}"}><bdi><%= row.security.name %></bdi></.link><%= if row.security.isin do %> · <%= row.security.isin %><% end %>
+              </li>
+            </ul>
+          </:actions>
         </AppShell.data_note>
 
         <% missing = missing_mappings(assigns) %>
