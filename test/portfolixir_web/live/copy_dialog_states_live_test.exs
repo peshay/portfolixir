@@ -1253,15 +1253,17 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
     # so that it does not fall to the page's start when the note it sat on
     # goes away.
     #
-    # Acceptance criteria:
-    # - Dismissing a refusal that named an input moves the focus to that
-    #   input (`focus-into-view` with its id, the page's deferred listener).
-    # - Dismissing any other result moves it to the plan editor's heading,
-    #   a focus target outside the tab order (`tabindex="-1"`); a tree with
-    #   no editor (a built-in one) gives it to the tree's own heading.
+    # Acceptance criteria (amended by #1324, Sprint 23 Lane I: the shared
+    # `InlineResult` hook of #1166, pick N13 A, alone gives the focus back;
+    # the page no longer pushes a second focus of its own):
+    # - A refusal that named an input names it as the result's
+    #   `data-focus-return`, so dismissing it moves the focus to that input.
+    # - Dismissing any other result follows N13 A: the control that
+    #   produced it, else the tree's own heading (`data-focus-fallback`), a
+    #   focus target outside the tab order (`tabindex="-1"`). The dismiss
+    #   pushes no `focus-into-view`.
     # - Both stop below the sticky top bar, and the heading draws the house
     #   ring.
-    # - The component-wide case, a dismiss on any page, stays issue 1166.
     test "dismissing the result gives the focus back to the editor", %{conn: conn} = ctx do
       {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}")
       render_async(view)
@@ -1270,22 +1272,28 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
       assert has_element?(view, "#soll-editor-heading[tabindex='-1']")
 
       submit_plan(view, %{"weights" => %{w => "150"}, "cash_target" => ""})
+      assert has_element?(view, "#classifications-result[data-focus-return='#soll-weight-#{w}']")
       view |> element("#classifications-result .inline-result__dismiss") |> render_click()
-      refused = "soll-weight-#{w}"
-      assert_push_event(view, "focus-into-view", %{id: ^refused})
       refute has_element?(view, "#soll-plan-form [aria-invalid='true']")
+      refute has_element?(view, "#classifications-result[data-focus-return]")
 
       submit_plan(view, %{"weights" => %{w => "45"}, "cash_target" => ""})
       view |> element("#classifications-result .inline-result__dismiss") |> render_click()
-      assert_push_event(view, "focus-into-view", %{id: "soll-editor-heading"})
+      refute_push_event(view, "focus-into-view", %{id: "soll-editor-heading"})
 
       :ok = Classifications.ensure_builtins()
       currency = Enum.find(Classifications.list_classifications(), &(&1.key == "currency"))
       {:ok, built_in, _html} = live(conn, "/classifications/#{currency.id}")
       render_async(built_in)
       assert has_element?(built_in, "#classification-heading[tabindex='-1']")
+
+      assert has_element?(
+               built_in,
+               "#classifications-result[data-focus-fallback='#classification-heading']"
+             )
+
       render_hook(built_in, "dismiss_result", %{})
-      assert_push_event(built_in, "focus-into-view", %{id: "classification-heading"})
+      refute_push_event(built_in, "focus-into-view", %{id: "classification-heading"})
 
       css = File.read!("priv/static/app.css")
 
