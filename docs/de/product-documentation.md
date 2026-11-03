@@ -4410,7 +4410,9 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt (das Menü heißt
   *Erscheinungsbild*).
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
-  unterstützt.
+  unterstützt. Der Akzent markiert Bedienelemente — Links, Tabs, Schaltflächen,
+  die Auswahl und den Fokusring —, nie eine Zahl: ein Gewinn ist immer
+  türkis und ein Verlust immer korallenrot, welcher Akzent auch gesetzt ist.
 - Sprache: der erste Aufruf folgt der Browsersprache, wenn sie Englisch oder
   Deutsch ist. Explizite EN/DE-Links überschreiben die Browsersprache und sichern
   diese Wahl.
@@ -4462,8 +4464,9 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   dem Zeitpunkt seiner Berechnung.
 - Vorzeichenbehaftete Kennzahlen (TTWROR, IRR/MWR, Nettoflüsse, das
   Veränderungssignal der Übersicht) tragen ein explizites Vorzeichen und
-  Gewinn-/Verlustfarbe auf jeder Ebene; vorzeichenlose Beträge behalten die
-  Akzentfarbe.
+  Gewinn-/Verlustfarbe auf jeder Ebene — türkis für einen Gewinn,
+  korallenrot für einen Verlust, unabhängig vom Akzent; vorzeichenlose
+  Beträge stehen in der Textfarbe.
 - **Erklärungen treten zurück** (#1351; auf dem Tab Bestände unter
   Vermögen, in der Übersicht und im Cashflow, die übrigen Seiten folgen).
   Unter einer Zahl behält die Seite ihre **Basis**: die Ansicht, den
