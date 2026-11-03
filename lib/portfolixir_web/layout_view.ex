@@ -1274,15 +1274,41 @@ defmodule PortfolixirWeb.LayoutView do
             // ⑦): every `details.metric-tooltip` is placed by one capture
             // listener on the document, not one hook per ⓘ, so the ~30 call
             // sites need no id. A panel opens upward (the stylesheet's
-            // default) unless its top would be above the viewport, then
+            // default) unless its top would be above its box (below), then
             // below (`data-place="below"`); `--tip-shift` moves it so both
-            // edges stay 1 rem inside the viewport's width — Cash flow's
+            // edges stay 1 rem inside the box's width — Cash flow's
             // facet panels started above the page top and ran to x = 586 on
             // a 390 px phone. `toggle` does not bubble, so the listener
             // captures it. A LiveView patch removes every attribute the
             // server did not render, so a page that patches while a panel
             // is open (an async figure landing) stripped the placement: the
             // observer puts the measured one back.
+            //
+            // The box a panel must stay inside (the stacked PR's closing
+            // act): the viewport, narrowed to every ancestor that clips
+            // it — the merge dialog's scrolling `.modal-body` hid ~116 px
+            // of the external flows' panel at 1280 px — and, outside a
+            // dialog, to below the sticky top bar: the main content area
+            // starts there and scrolls under it, so a heading's ⓘ near the
+            // top opened over the 52-px bar (Snapshots at 1280, Risk at
+            // 390). A dialog sits above the bar, so the bar is no limit in
+            // one.
+            var infoTipBox = function (tip) {
+              var root = document.documentElement;
+              var box = { top: 0, left: 0, right: root.clientWidth };
+              for (var el = tip.parentElement; el && el !== document.body && el !== root; el = el.parentElement) {
+                var style = window.getComputedStyle(el);
+                if (style.overflowX !== "visible" || style.overflowY !== "visible") {
+                  var clip = el.getBoundingClientRect();
+                  box.top = Math.max(box.top, clip.top);
+                  box.left = Math.max(box.left, clip.left);
+                  box.right = Math.min(box.right, clip.right);
+                }
+              }
+              var bar = tip.closest("dialog") ? null : document.querySelector(".topbar");
+              if (bar) box.top = Math.max(box.top, bar.getBoundingClientRect().bottom);
+              return box;
+            };
             var infoTipPlaces = new WeakMap();
             window.Portfolixir.placeInfoTip = function (tip) {
               var panel = tip.querySelector("p[role='tooltip']") || tip.querySelector("p");
@@ -1291,15 +1317,15 @@ defmodule PortfolixirWeb.LayoutView do
               infoTipPlaces.delete(tip);
               if (!panel || !tip.open) return;
               var edge = 16;
+              var box = infoTipBox(tip);
               var rect = panel.getBoundingClientRect();
-              if (rect.top < 0) {
+              if (rect.top < box.top) {
                 tip.setAttribute("data-place", "below");
                 rect = panel.getBoundingClientRect();
               }
-              var width = document.documentElement.clientWidth;
               var shift = 0;
-              if (rect.right > width - edge) shift = width - edge - rect.right;
-              if (rect.left + shift < edge) shift = edge - rect.left;
+              if (rect.right > box.right - edge) shift = box.right - edge - rect.right;
+              if (rect.left + shift < box.left + edge) shift = box.left + edge - rect.left;
               if (shift) tip.style.setProperty("--tip-shift", Math.round(shift) + "px");
               infoTipPlaces.set(tip, {
                 place: tip.getAttribute("data-place"),
