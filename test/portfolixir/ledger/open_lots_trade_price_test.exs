@@ -166,6 +166,37 @@ defmodule Portfolixir.Ledger.OpenLotsTradePriceTest do
     assert Decimal.equal?(wealth.market_value, lots_eur)
   end
 
+  # Acceptance criteria (the sprint PR's closing act, coverage of #1369):
+  # - An NZD security without a quote, bought in EUR (10 at 80.00, its cash
+  #   800.00, no legs) with no EUR/NZD rate stored: its trade price cannot
+  #   be stated in NZD, so the open lot and the sell preview read no price
+  #   and name no source or date, and the preview's gross gain is nil.
+  test "a trade price that cannot be stated in the security's currency prices nothing" do
+    w = base_world(name: "Kauri World", cash_name: "KW Cash", depot_name: "KW Depot")
+    kauri = create_security!(name: "Kauri Example Ltd", ticker: "KRX", currency: "NZD")
+
+    {:ok, _buy} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: kauri.id,
+        type: "buy",
+        date: ~D[2025-02-12],
+        quantity: "10",
+        price: "80.00",
+        currency_code: "EUR",
+        gross_amount: "800.00"
+      })
+
+    assert [lot] = Ledger.list_trades_for_security(kauri.id).open_lots
+    assert {lot.latest_price, lot.price_source, lot.price_date} == {nil, nil, nil}
+
+    preview = Ledger.sell_consumption_preview(kauri.id, Decimal.new("4"))
+    assert {preview.sell_price, preview.price_source, preview.price_date} == {nil, nil, nil}
+    assert preview.total_gross_gain == nil
+  end
+
   # An SGD security bought from the EUR account: the price recorded in EUR,
   # the security-currency and the settlement legs stated (ADR-0015).
   defp book_sgd_buy!(w, security, date, quantity, price_eur, sgd, eur, rate) do
