@@ -2119,18 +2119,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp reload_after_update(socket, _before, _after), do: reload_composition(socket)
 
   # #1211: a move answers where the category now sits, and opens the new
-  # parent chain so the moved row stays in view (categories render closed).
+  # parent chain (categories render closed). The answer lands in the page's
+  # result slot far above the tree, so it is brought into view and focused,
+  # as a refusal is (#1328, the board's default: the slot over the row).
   defp answer_update(socket, %{parent_id: parent_id}, %{parent_id: parent_id}),
     do: success(socket, gettext("Category updated"))
 
   defp answer_update(socket, _before, %{parent_id: nil} = updated) do
-    success(
-      socket,
+    socket
+    |> success(
       StoredText.isolate(
         gettext("“%{name}” now sits on the top level.", name: StoredText.slot(:name)),
         name: updated.name
       )
     )
+    |> focus_into_view("classifications-result")
   end
 
   defp answer_update(socket, _before, %{parent_id: parent_id} = updated) do
@@ -2148,6 +2151,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
         parent: category_name(socket.assigns, parent_id)
       )
     )
+    |> focus_into_view("classifications-result")
   end
 
   # The edited category's chain; with no tree loaded, the category alone.
