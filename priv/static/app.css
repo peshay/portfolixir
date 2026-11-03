@@ -4499,15 +4499,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
 }
 
 /* The heading keeps the first line of the note, beside the severity word;
-   the copy button hangs from the top of the line, not its middle. */
-.parser-warnings__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.parser-warnings__head h3 {
+   since the clamp (Sprint 23, Lane I) the copy button sits in the note's
+   actions, below the text. */
+.parser-warnings__title {
   margin: 0;
   font-size: 13px;
   font-weight: 650;
@@ -4523,6 +4517,14 @@ input[pattern]:invalid:not(:placeholder-shown) {
   overflow-wrap: anywhere;
   /* The note's 12 px, as `.data-note__body .mono` keeps it (issue 1044). */
   font: 12px/1.45 var(--font-mono);
+}
+
+/* Under the clamp (Sprint 23, Lane I) the rows are not a scroller of their
+   own, so the clamp counts their lines: the heading and the first row read,
+   „mehr“ shows the rest, and the expanded note scrolls its rows again. */
+.data-note--clamped:not([data-expanded]) .parser-warnings__rows {
+  max-height: none;
+  overflow: visible;
 }
 
 /* The list is a scroller a keyboard reaches (`tabindex="0"`), with the

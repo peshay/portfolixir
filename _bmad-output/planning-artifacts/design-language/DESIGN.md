@@ -8271,6 +8271,16 @@ a page listed here conforms to the anatomy above without a deviation.
   „ohne N Position(en)“ beneath it (`.cat-value .cell-note`, the member
   rows' cell-note voice, block below the figure); only a category with no
   priced member keeps „—“ (⑨, #1362's S2 line).
+- **Import (Vorschau)**: conformant. „Alle N Einträge sind bereits
+  importiert …“ (`#nothing-to-import-note`) clamps; its pointer to the
+  correction section is part of its sentence and stays in the text. The
+  configured-securities note clamps with its title and remedy sentence in
+  the text and the security links in its actions. The parser warnings
+  clamp with their heading and rows in the text (under the clamp the rows
+  are no scroller of their own, so the clamp counts their lines; expanded,
+  they scroll again) and the copy button in the actions. „N Wertpapiere
+  passen zu bestehenden Einträgen“ (`#import-matched-securities`) keeps
+  its open state across patches (`DisclosureState`, #1339).
 
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
