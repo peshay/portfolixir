@@ -119,15 +119,15 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
     expected = [
       {"tx-buy-dark #10b981 / bg #f6f7fa (the chart frame)", buy, frame},
       {"tx-sell #ef4444 / bg (the chart frame)", sell, frame},
-      {"buy marker as built, positive #047857 / bg (the chart frame)",
+      {"buy marker as built, positive #0f766e / bg (the chart frame)",
        color(light, "color-positive"), frame},
-      {"sell marker as built, danger #b91c1c / bg (the chart frame)",
+      {"sell marker as built, danger #ce1b42 / bg (the chart frame)",
        color(light, "color-danger"), frame},
       {"chart axis, text-muted #5a6577 / bg (the chart frame)", color(light, "color-text-muted"),
        frame},
       {"tx-buy-dark #10b981 / bg-dark #0b0f14 (the chart frame)", buy, night_frame},
       {"tx-sell #ef4444 / bg-dark (the chart frame)", sell, night_frame},
-      {"buy marker as built, positive-dark #34d399 / bg-dark (the chart frame)",
+      {"buy marker as built, positive-dark #2dd4bf / bg-dark (the chart frame)",
        color(night, "color-positive"), night_frame},
       {"sell marker as built, danger-dark #fb7185 / bg-dark (the chart frame)",
        color(night, "color-danger"), night_frame},
@@ -247,6 +247,64 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
     end
   end
 
+  # User story (Sprint 23 C2; plan D-11; board
+  # ux-design-2026-11-02-sprint23/04-number-colours, pick Q7 C, its
+  # contrast table):
+  # As the operator reading a gain or a loss in any theme,
+  # I want the brand teal and the brand coral the gain and loss colours now
+  # alias to clear the text floor wherever a signed figure or a problem note
+  # sits,
+  # so that one green and one red cost no readability.
+  #
+  # Acceptance criteria:
+  # - `--color-positive` and `--color-danger` measure, light and dark, on the
+  #   canvas, the panels and the problem tint (composited over the panel), the
+  #   board's figures to two decimals: teal 5.11 / 5.47 / 4.56 and coral
+  #   5.08 / 5.44 / 4.53 light; teal 10.32 / 9.40 / 8.51 and coral
+  #   7.14 / 6.50 / 5.89 dark — every one ≥ 4.5:1, in all four token blocks.
+  test "the gain and loss colours clear the text floor on the canvas, the panels and the problem tint" do
+    expected = %{
+      light: %{
+        "color-positive" => ["5.11", "5.47", "4.56"],
+        "color-danger" => ["5.08", "5.44", "4.53"]
+      },
+      dark: %{
+        "color-positive" => ["10.32", "9.40", "8.51"],
+        "color-danger" => ["7.14", "6.50", "5.89"]
+      }
+    }
+
+    for {block_name, tokens, mode} <- [
+          {":root", root(), :light},
+          {~s([data-theme="light"]), light(), :light},
+          {"prefers-color-scheme: dark", dark_media(), :dark},
+          {~s([data-theme="dark"]), dark(), :dark}
+        ],
+        {token, figures} <- expected[mode] do
+      panel = color(tokens, "color-bg-elevated")
+
+      grounds = [
+        color(tokens, "color-bg"),
+        panel,
+        flatten(color(tokens, "color-danger-soft"), panel)
+      ]
+
+      measured =
+        Enum.map(grounds, fn ground ->
+          ratio = contrast(color(tokens, token), ground)
+
+          assert ratio >= @bar,
+                 "#{block_name}: #{token} measures #{Float.round(ratio, 2)}:1, below #{@bar}:1"
+
+          :erlang.float_to_binary(ratio, decimals: 2)
+        end)
+
+      assert measured == figures,
+             "#{block_name}: #{token} on bg / bg-elevated / danger-soft measures " <>
+               "#{inspect(measured)}, the board says #{inspect(figures)}"
+    end
+  end
+
   # --- tokens ----------------------------------------------------------------
 
   defp root, do: tokens(~r/\A:root \{(.*?)\n\}/s)
@@ -264,9 +322,13 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
 
   # A theme block re-keys only what changes; anything it leaves out falls
   # back to `:root`.
+  # An alias (`var(--x)`) resolves in the block that declares it, as the
+  # browser computes it on the root element.
   defp color(tokens, name) do
-    value = Map.get(tokens, name) || Map.fetch!(root(), name)
-    parse(value)
+    case Map.get(tokens, name) || Map.fetch!(root(), name) do
+      "var(--" <> rest -> color(tokens, String.trim_trailing(rest, ")"))
+      value -> parse(value)
+    end
   end
 
   defp parse("#" <> hex) when byte_size(hex) == 6 do

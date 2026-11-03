@@ -17,8 +17,8 @@ defmodule Portfolixir.Invariants.CssThemeTokenParityTest do
   #   set, so a forced theme always overrides the system default.
   # - Every `var(--x)` reference in app.css resolves to a token defined in
   #   app.css or set inline by a template under `lib/portfolixir_web/`.
-  # - The designer-decided values of 2026-08-05 are pinned: danger `#b91c1c`
-  #   (light), `--color-warning-soft` and `--shadow-sm` dark values,
+  # - The designer-decided values of 2026-08-05 are pinned: danger (light;
+  #   `#b91c1c` until Sprint 23 C2 made it the brand coral alias), `--color-warning-soft` and `--shadow-sm` dark values,
   #   theme-dependent `--color-on-accent`, and `--color-selected` as an alias
   #   of the active accent's soft variant.
   # - Accent-variant tokens are referenced only at their sanctioned call
@@ -111,9 +111,12 @@ defmodule Portfolixir.Invariants.CssThemeTokenParityTest do
     dark = data_dark()
     media = dark_media()
 
-    # Issue 648: danger darkened to clear 4.5:1 on the danger tint (5.39:1).
-    assert root["color-danger"] == "#b91c1c"
-    assert light["color-danger"] == "#b91c1c"
+    # Issue 648 darkened danger to #b91c1c to clear 4.5:1 on the danger tint;
+    # Sprint 23 C2 (D-11, board 04 pick Q7 C) made it the brand coral, the
+    # light accent-coral, which clears the tint at 4.53:1
+    # (CssAccentContrastTest). CssNumberColoursTest holds the aliases.
+    assert root["color-danger"] == "var(--color-accent-coral)"
+    assert light["color-danger"] == "var(--color-accent-coral)"
 
     # Issue 643: warning tint exists in dark, in the -soft-dark idiom.
     assert media["color-warning-soft"] == "rgb(251 191 36 / 0.16)"

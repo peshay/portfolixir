@@ -27,8 +27,14 @@
      distinguished in the rules that use them, never hue-only. */
   --color-chart-benchmark-1: var(--color-accent-teal);
   --color-chart-benchmark-2: var(--color-accent-coral);
-  --color-positive: #047857;
-  --color-danger: #b91c1c;
+  /* One green and one red (Sprint 23 C2, board
+     ux-design-2026-11-02-sprint23/04-number-colours, pick Q7 C): a gain is
+     the brand teal and a loss or a problem the brand coral, whatever accent
+     is set, so the teal accent no longer puts a teal figure beside an
+     emerald gain. Aliases, re-declared in every theme block so each
+     resolves against that block's own teal and coral. */
+  --color-positive: var(--color-accent-teal);
+  --color-danger: var(--color-accent-coral);
   --color-warning: #b45309;
   --color-bg: #f6f7fa;
   --color-bg-elevated: #ffffff;
@@ -97,8 +103,8 @@
     --color-accent-teal-soft: rgb(45 212 191 / 0.16);
     --color-accent-coral: #fb7185;
     --color-accent-coral-soft: rgb(225 29 72 / 0.16);
-    --color-positive: #34d399;
-    --color-danger: #fb7185;
+    --color-positive: var(--color-accent-teal);
+    --color-danger: var(--color-accent-coral);
     --color-warning: #fbbf24;
     --color-bg: #0b0f14;
     --color-bg-elevated: #131a23;
@@ -131,8 +137,8 @@
   --color-accent-teal-soft: #ccfbf1;
   --color-accent-coral: #ce1b42;
   --color-accent-coral-soft: #ffe4e6;
-  --color-positive: #047857;
-  --color-danger: #b91c1c;
+  --color-positive: var(--color-accent-teal);
+  --color-danger: var(--color-accent-coral);
   --color-warning: #b45309;
   --color-bg: #f6f7fa;
   --color-bg-elevated: #ffffff;
@@ -164,8 +170,8 @@
   --color-accent-teal-soft: rgb(45 212 191 / 0.16);
   --color-accent-coral: #fb7185;
   --color-accent-coral-soft: rgb(225 29 72 / 0.16);
-  --color-positive: #34d399;
-  --color-danger: #fb7185;
+  --color-positive: var(--color-accent-teal);
+  --color-danger: var(--color-accent-coral);
   --color-warning: #fbbf24;
   --color-bg: #0b0f14;
   --color-bg-elevated: #131a23;
