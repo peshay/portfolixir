@@ -4003,7 +4003,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:60
 #: lib/portfolixir_web/live/securities_live.ex:1076
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:151
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:155
 #, elixir-autogen, elixir-format
 msgid "Record split"
 msgstr ""
@@ -7637,7 +7637,7 @@ msgstr ""
 msgid "Valuation"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:473
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:488
 #, elixir-autogen, elixir-format
 msgid "No stored exchange rate on or before %{date} — enter the settlement amount from the broker statement."
 msgstr ""
@@ -7653,27 +7653,27 @@ msgstr ""
 msgid "Price in %{security} · cash in %{account}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:439
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:454
 #, elixir-autogen, elixir-format
 msgid "Rate %{account} per %{security}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:469
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:484
 #, elixir-autogen, elixir-format
 msgid "Rate suggested from the stored exchange rates on or before %{date}."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:415
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:430
 #, elixir-autogen, elixir-format
 msgid "Settlement amount (%{account})"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:404
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:419
 #, elixir-autogen, elixir-format
 msgid "Settlement in %{account}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:479
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:494
 #, elixir-autogen, elixir-format
 msgid "The cash amount is the settlement amount plus fees and taxes on a buy, less them on a sale; fees and taxes are in %{account}."
 msgstr ""
@@ -7688,7 +7688,7 @@ msgstr ""
 msgid "is required when the security and the cash account differ in currency"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:406
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:421
 #, elixir-autogen, elixir-format
 msgid "security in %{security}, account in %{account}"
 msgstr ""
@@ -13981,25 +13981,25 @@ msgstr ""
 msgid "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:132
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:136
 #, elixir-autogen, elixir-format
 msgid "Filtered by a data-quality check that lists no booking now."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:161
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:165
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} buy or sell whose cash misses its quantity × price, fees and taxes"
 msgid_plural "Filtered: %{count} buys or sells whose cash misses their quantity × price, fees and taxes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:134
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:154
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:138
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:158
 #, elixir-autogen, elixir-format
 msgid "Show all bookings"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:103
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:107
 #, elixir-autogen, elixir-format
 msgid "from its figures: %{amount}"
 msgstr ""
@@ -14011,7 +14011,7 @@ msgid_plural "%{count} bookings whose cash misses their quantity × price, fees 
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:167
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:171
 #, elixir-autogen, elixir-format
 msgid "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
 msgstr ""
@@ -14021,16 +14021,16 @@ msgstr ""
 msgid "— so the cash balance and the cost read different amounts"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:201
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:205
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} cross-currency buy or sell with a rate and no cash amount"
 msgid_plural "Filtered: %{count} cross-currency buys or sells with a rate and no cash amount"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:107
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:111
 #, elixir-autogen, elixir-format
-msgid "at its own rate %{rate}: %{amount}"
+msgid "settlement amount at its own rate %{rate}: %{amount}"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1403
@@ -14040,9 +14040,9 @@ msgid_plural "%{count} cross-currency buys or sells with a rate and no cash amou
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:207
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:211
 #, elixir-autogen, elixir-format
-msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the amount settled in the booking form (Edit); backfilling rates does not change these bookings. Nothing is changed automatically."
+msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the settlement amount in the booking form (Edit): the amount before fees and taxes, from which the form books the cash; backfilling rates does not change these bookings. Nothing is changed automatically."
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1409
@@ -14052,19 +14052,19 @@ msgid_plural "— they book quantity × price to the account unconverted"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:175
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:179
 #, elixir-autogen, elixir-format
 msgid "%{security} · %{ratio} · %{date}: “%{portfolio}”, which held %{quantity} shares before, is missing."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:186
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:190
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} split missing a portfolio"
 msgid_plural "Filtered: %{count} splits each missing a portfolio"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:193
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:197
 #, elixir-autogen, elixir-format
 msgid "There the FIFO lots are split and the holding is not. Record the split again with the same date and ratio (“Record split” on the security): it adds only the missing rows. If the split is wrong, delete the whole split. Nothing is changed automatically."
 msgstr ""

@@ -65,7 +65,7 @@ tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-tex
     <section id="transaction-list-panel" class="workspace-section">
         <div id="transaction-dq-note" class="data-note data-note--problem data-note--clamped mock-new mock-pinned" data-role="dq-filter-note"><span class="mock-pin mock-pin--abs">1</span><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"></path><path d="M12 8v4"></path><circle cx="12" cy="16" r=".6"></circle></svg></span><span class="data-note__word">Problem</span>
 <div class="data-note__body">
-<div id="transaction-dq-note-text" class="data-note__text">Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag — das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert.</div>
+<div id="transaction-dq-note-text" class="data-note__text">Gefiltert: 1 Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag — das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den Abrechnungsbetrag im Buchungsformular eintragen (Bearbeiten): den Betrag vor Gebühren und Steuern, aus dem das Formular das Bargeld bucht; das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert.</div>
 <div class="data-note__actions"><a href="/transactions">Alle Buchungen zeigen</a></div></div><button type="button" class="link-button data-note__more" aria-expanded="false" hidden="">mehr</button></div>
           <div id="transaction-table-wrapper" class="data-table-wrapper" data-storage-key="transactions.columns" data-restore-event="set_tx_columns" data-current-columns="[&quot;date&quot;,&quot;type&quot;,&quot;security&quot;,&quot;account&quot;,&quot;quantity&quot;,&quot;price&quot;,&quot;gross_amount&quot;]">
             <table id="transaction-list">
@@ -93,7 +93,7 @@ tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-tex
                               <td class="num" data-role="price">25,00<small class="value-suffix">USD</small></td>
                                 <td class="num" data-role="amount">
                                   -930,00<small class="value-suffix">USD</small>
-                                <small class="cell-note mock-new">zum eigenen Kurs 0,9300: 940,00 EUR</small></td>
+                                <small class="cell-note mock-new">Abrechnungsbetrag zum eigenen Kurs 0,9300: 930,00 EUR</small></td>
                       <td class="row-actions">
                         <button type="button" id="tx-kebab-69" class="row-actions__kebab" aria-label="Aktionen für Kauf, Larkspur Robotics Inc, 05.06.2026" aria-haspopup="menu" aria-expanded="false">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>

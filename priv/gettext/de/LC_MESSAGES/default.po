@@ -4004,7 +4004,7 @@ msgstr "Aktiensplit für dieses Wertpapier erfassen"
 
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:60
 #: lib/portfolixir_web/live/securities_live.ex:1076
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:151
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:155
 #, elixir-autogen, elixir-format
 msgid "Record split"
 msgstr "Split erfassen"
@@ -7638,7 +7638,7 @@ msgstr "Position"
 msgid "Valuation"
 msgstr "Bewertung"
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:473
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:488
 #, elixir-autogen, elixir-format
 msgid "No stored exchange rate on or before %{date} — enter the settlement amount from the broker statement."
 msgstr "Kein gespeicherter Wechselkurs am oder vor dem %{date} — Abrechnungsbetrag aus der Abrechnung des Brokers eintragen."
@@ -7654,27 +7654,27 @@ msgstr "Preis (%{currency})"
 msgid "Price in %{security} · cash in %{account}"
 msgstr "Preis in %{security} · Geld in %{account}"
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:439
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:454
 #, elixir-autogen, elixir-format
 msgid "Rate %{account} per %{security}"
 msgstr "Kurs %{account} je %{security}"
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:469
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:484
 #, elixir-autogen, elixir-format
 msgid "Rate suggested from the stored exchange rates on or before %{date}."
 msgstr "Kurs aus den gespeicherten Wechselkursen am oder vor dem %{date} vorgeschlagen."
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:415
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:430
 #, elixir-autogen, elixir-format
 msgid "Settlement amount (%{account})"
 msgstr "Abrechnungsbetrag (%{account})"
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:404
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:419
 #, elixir-autogen, elixir-format
 msgid "Settlement in %{account}"
 msgstr "Abrechnung in %{account}"
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:479
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:494
 #, elixir-autogen, elixir-format
 msgid "The cash amount is the settlement amount plus fees and taxes on a buy, less them on a sale; fees and taxes are in %{account}."
 msgstr "Der Geldbetrag ist beim Kauf der Abrechnungsbetrag plus Gebühren und Steuern, beim Verkauf abzüglich dieser; Gebühren und Steuern sind in %{account}."
@@ -7689,7 +7689,7 @@ msgstr "Der Abrechnungsbetrag fehlt."
 msgid "is required when the security and the cash account differ in currency"
 msgstr "ist erforderlich, wenn Wertpapier und Geldkonto verschiedene Währungen haben"
 
-#: lib/portfolixir_web/live/transactions/settlement_form.ex:406
+#: lib/portfolixir_web/live/transactions/settlement_form.ex:421
 #, elixir-autogen, elixir-format
 msgid "security in %{security}, account in %{account}"
 msgstr "Wertpapier in %{security}, Konto in %{account}"
@@ -13991,25 +13991,25 @@ msgstr "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag
 msgid "Quantity, price, fees, taxes or buy/sell changed: the amount does not follow by itself. Suggested: %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Saving takes what the field states — enter the amount settled if it differs."
 msgstr "Menge, Preis, Gebühren, Steuern oder Kauf/Verkauf geändert: Der Betrag folgt nicht von selbst. Vorgeschlagen sind %{derived} = %{quantity} × %{price} − %{fees} − %{taxes}. Speichern übernimmt, was im Feld steht — den abgerechneten Betrag eintragen, wenn er abweicht."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:132
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:136
 #, elixir-autogen, elixir-format
 msgid "Filtered by a data-quality check that lists no booking now."
 msgstr "Gefiltert nach einer Datenqualitätsprüfung, die jetzt keine Buchung nennt."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:161
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:165
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} buy or sell whose cash misses its quantity × price, fees and taxes"
 msgid_plural "Filtered: %{count} buys or sells whose cash misses their quantity × price, fees and taxes"
 msgstr[0] "Gefiltert: %{count} Kauf oder Verkauf, dessen Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 msgstr[1] "Gefiltert: %{count} Käufe oder Verkäufe, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:134
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:154
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:138
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:158
 #, elixir-autogen, elixir-format
 msgid "Show all bookings"
 msgstr "Alle Buchungen zeigen"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:103
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:107
 #, elixir-autogen, elixir-format
 msgid "from its figures: %{amount}"
 msgstr "aus den Zahlen: %{amount}"
@@ -14021,7 +14021,7 @@ msgid_plural "%{count} bookings whose cash misses their quantity × price, fees 
 msgstr[0] "eine Buchung, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 msgstr[1] "%{count} Buchungen, deren Betrag nicht zu Menge × Preis, Gebühren und Steuern passt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:167
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:171
 #, elixir-autogen, elixir-format
 msgid "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
 msgstr "Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im Buchungsformular angeben (Bearbeiten): den abgerechneten, oder den, den die Zahlen ergeben. Nichts wird automatisch geändert."
@@ -14031,17 +14031,17 @@ msgstr "Kontostand und Einstand lesen daher verschiedene Beträge. Den Betrag im
 msgid "— so the cash balance and the cost read different amounts"
 msgstr "— Kontostand und Einstand lesen daher verschiedene Beträge"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:201
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:205
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} cross-currency buy or sell with a rate and no cash amount"
 msgid_plural "Filtered: %{count} cross-currency buys or sells with a rate and no cash amount"
 msgstr[0] "Gefiltert: %{count} Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 msgstr[1] "Gefiltert: %{count} Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:107
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:111
 #, elixir-autogen, elixir-format
-msgid "at its own rate %{rate}: %{amount}"
-msgstr "zum eigenen Kurs %{rate}: %{amount}"
+msgid "settlement amount at its own rate %{rate}: %{amount}"
+msgstr "Abrechnungsbetrag zum eigenen Kurs %{rate}: %{amount}"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1403
 #, elixir-autogen, elixir-format
@@ -14050,10 +14050,10 @@ msgid_plural "%{count} cross-currency buys or sells with a rate and no cash amou
 msgstr[0] "ein Kauf oder Verkauf in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 msgstr[1] "%{count} Käufe oder Verkäufe in Fremdwährung mit Wechselkurs, aber ohne Betrag"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:207
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:211
 #, elixir-autogen, elixir-format
-msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the amount settled in the booking form (Edit); backfilling rates does not change these bookings. Nothing is changed automatically."
-msgstr "das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den abgerechneten Betrag im Buchungsformular eintragen (Bearbeiten); das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert."
+msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the settlement amount in the booking form (Edit): the amount before fees and taxes, from which the form books the cash; backfilling rates does not change these bookings. Nothing is changed automatically."
+msgstr "das Hauptbuch bucht Menge × Preis mit Gebühren und Steuern in der Währung des Wertpapiers als Bargeld des Kontos und wendet den Kurs nie an. Den Abrechnungsbetrag im Buchungsformular eintragen (Bearbeiten): den Betrag vor Gebühren und Steuern, aus dem das Formular das Bargeld bucht; das Nachladen der Wechselkurse ändert diese Buchungen nicht. Nichts wird automatisch geändert."
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1409
 #, elixir-autogen, elixir-format
@@ -14062,19 +14062,19 @@ msgid_plural "— they book quantity × price to the account unconverted"
 msgstr[0] "— er bucht Menge × Preis ohne Umrechnung aufs Konto"
 msgstr[1] "— sie buchen Menge × Preis ohne Umrechnung aufs Konto"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:175
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:179
 #, elixir-autogen, elixir-format
 msgid "%{security} · %{ratio} · %{date}: “%{portfolio}”, which held %{quantity} shares before, is missing."
 msgstr "%{security} · %{ratio} · %{date}: es fehlt „%{portfolio}“, das vorher %{quantity} Stück hielt."
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:186
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:190
 #, elixir-autogen, elixir-format
 msgid "Filtered: %{count} split missing a portfolio"
 msgid_plural "Filtered: %{count} splits each missing a portfolio"
 msgstr[0] "Gefiltert: %{count} Split, dem ein Portfolio fehlt"
 msgstr[1] "Gefiltert: %{count} Splits, denen je ein Portfolio fehlt"
 
-#: lib/portfolixir_web/live/transactions/ledger_checks.ex:193
+#: lib/portfolixir_web/live/transactions/ledger_checks.ex:197
 #, elixir-autogen, elixir-format
 msgid "There the FIFO lots are split and the holding is not. Record the split again with the same date and ratio (“Record split” on the security): it adds only the missing rows. If the split is wrong, delete the whole split. Nothing is changed automatically."
 msgstr "Dort sind die FIFO-Lots geteilt, der Bestand nicht. Den Split mit demselben Datum und Verhältnis erneut erfassen („Split erfassen“ beim Wertpapier): Er ergänzt nur die fehlenden Zeilen. Ist der Split falsch, den ganzen Split löschen. Nichts wird automatisch geändert."
