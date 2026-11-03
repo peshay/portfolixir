@@ -139,7 +139,9 @@ defmodule PortfolixirWeb.ImportsPolishLiveTest do
     assert text(view, ".alert-error[role=alert]") =~
              "Nicht unterstützte PP-JSON-Version: " <> String.duplicate("v", 40) <> "…"
 
-    refute render(view) =~ "vx"
+    # The 41st "v" and the run of "x" after it: long enough that the page's
+    # random session tokens cannot contain it by chance, as "vx" could.
+    refute render(view) =~ "v" <> String.duplicate("x", 9)
   end
 
   # User story (#1355's parse_date line, found on #1367):
