@@ -3398,7 +3398,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:noreply, updated} =
       PortfolixirWeb.PortfolioLive.handle_async(
         :overview,
-        {:ok, {valuation, 1, stale_allocation, nil, [], []}},
+        {:ok, {valuation, 1, stale_allocation, nil, [], [], %{cash: %{}, depot: %{}}}},
         socket
       )
 
@@ -3423,7 +3423,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:noreply, updated} =
       PortfolixirWeb.PortfolioLive.handle_async(
         :overview,
-        {:ok, {valuation, 1, %{categories: []}, nil, [], []}},
+        {:ok, {valuation, 1, %{categories: []}, nil, [], [], %{cash: %{}, depot: %{}}}},
         socket
       )
 

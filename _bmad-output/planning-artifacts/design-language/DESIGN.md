@@ -8183,6 +8183,17 @@ Measured on the review seed at 390 px: both section panels span x = 16 to
 - The facet ⓘ panels open below and stay inside the screen (⑦): at 390 px
   on the review seed they span x = 86 to 374.
 
+### Sprint 23's pages, as built *(board `mockups/ux-design-2026-11-03-sprint23-i1`)*
+
+- **Vermögen → Allokation** is conformant: nothing moves into an ⓘ. The
+  findings (`.allocation-findings`) lead with the target conflict
+  (problem), then the overshoot and the stale target; each clamps, and its
+  remedy link leaves the sentence for the note's actions as a command of
+  its own („Plan auf der Klassifizierungsseite kürzen“, „Positionsziele und
+  Kategoriegewicht auf der Klassifizierungsseite angleichen“, „Auf der
+  Klassifizierungsseite neu hinterlegen“). „Daten als Tabelle“
+  (`#allocation-disclosure`) carries the `DisclosureState` hook (#1339).
+
 ## Amendment 2026-11-02 — The booking drawer states a trade's cash *(Sprint 23 R2, board `mockups/ux-design-2026-11-02-sprint23/02-money` ①a, pick Q4 = (b); issue 1371; ADR-0053's amendment of 2026-11-02)*
 
 Amends Components → Booking drawer and the 2026-11-01 amendment above

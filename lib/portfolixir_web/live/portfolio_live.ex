@@ -514,9 +514,12 @@ defmodule PortfolixirWeb.PortfolioLive do
         # other data-quality inputs. A bond priced on two scales (#330,
         # ADR-0052) is named where it inflates this total: among the
         # positions the valuation holds; so is a position whose quotes
-        # contradict its own bookings (#1101, D-7).
+        # contradict its own bookings (#1101, D-7). The twin cash accounts'
+        # portfolio tags (#1333) load here too, not in the page process each
+        # time this lands (#1366).
         {valuation, classification_id, allocation, Ledger.negative_holdings_report(),
-         two_scales_in(valuation), implausible_quotes_in(valuation)}
+         two_scales_in(valuation), implausible_quotes_in(valuation),
+         AccountNames.load_portfolio_tags()}
       else
         {:error, :view_not_found} -> :view_not_found
         {:error, :not_found} -> :classification_not_found
@@ -753,7 +756,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         :overview,
         {:ok,
          {valuation, classification_id, allocation, negative_report, two_scales,
-          implausible_quotes}},
+          implausible_quotes, account_portfolio_tags}},
         socket
       ) do
     socket =
@@ -761,7 +764,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:valuation, valuation)
       # #1333 (D-9's finding for U2): a twin cash account's portfolio beside
       # its name in the cash table, decided over every account.
-      |> assign(:account_portfolio_tags, AccountNames.load_portfolio_tags())
+      |> assign(:account_portfolio_tags, account_portfolio_tags)
       # #1332 (D-9): the positions' market values are the ones this total
       # sums, so they land with it.
       |> assign_base_values(valuation)
@@ -1953,43 +1956,57 @@ defmodule PortfolixirWeb.PortfolioLive do
               role="status"
               class="allocation-findings"
             >
-              <AppShell.data_note
-                :if={plan_overshoot(@allocation)}
-                severity={:attention}
-                id="plan-overshoot-note"
-                data-role="plan-overshoot-note"
-              >
-                <%= gettext(
-                  "The plan's top-level targets sum to %{sum} % — more than 100 %. Drift keeps steering against the stored weights;",
-                  sum: Format.percent(plan_overshoot(@allocation))
-                ) %>
-                <a href="/classifications"><%= gettext("trim the plan on the Classifications page.") %></a>
-              </AppShell.data_note>
+              <%!-- I1 (board ux-design-2026-11-03-sprint23-i1, Allokation ③
+                   ⑤; found while drawing 6): the problem leads, every
+                   finding clamps, and each remedy link leaves its sentence
+                   for the note's actions as a command of its own, visible
+                   under the clamp. --%>
               <AppShell.data_note
                 :if={conflicted_categories(@allocation) != []}
                 severity={:problem}
                 id="target-conflict-note"
                 data-role="target-conflict-note"
+                clamp
               >
                 <%= gettext(
                   "The position targets steer in %{categories}: their sum overrides the stored category weight.",
                   categories: Enum.join(conflicted_categories(@allocation), ", ")
                 ) %>
-                <a href="/classifications">
-                  <%= gettext("Align the position targets and the category weight on the Classifications page.") %>
-                </a>
+                <:actions>
+                  <a href="/classifications">
+                    <%= gettext("Align the position targets and the category weight on the Classifications page") %>
+                  </a>
+                </:actions>
+              </AppShell.data_note>
+              <AppShell.data_note
+                :if={plan_overshoot(@allocation)}
+                severity={:attention}
+                id="plan-overshoot-note"
+                data-role="plan-overshoot-note"
+                clamp
+              >
+                <%= gettext(
+                  "The plan's top-level targets sum to %{sum} % — more than 100 %. Drift keeps steering against the stored weights.",
+                  sum: Format.percent(plan_overshoot(@allocation))
+                ) %>
+                <:actions>
+                  <a href="/classifications"><%= gettext("Trim the plan on the Classifications page") %></a>
+                </:actions>
               </AppShell.data_note>
               <AppShell.data_note
                 :if={stale_categories(@allocation) != []}
                 severity={:attention}
                 id="stale-target-note"
                 data-role="stale-target-note"
+                clamp
               >
                 <%= gettext(
-                  "A position target filed in %{categories} is stale: its security was moved or unassigned. It keeps counting there",
+                  "A position target filed in %{categories} is stale: its security was moved or unassigned. It keeps counting there until it is re-filed.",
                   categories: Enum.join(stale_categories(@allocation), ", ")
                 ) %>
-                <a href="/classifications"><%= gettext("until re-filed on the Classifications page.") %></a>
+                <:actions>
+                  <a href="/classifications"><%= gettext("Re-file it on the Classifications page") %></a>
+                </:actions>
               </AppShell.data_note>
             </div>
 
@@ -2000,7 +2017,16 @@ defmodule PortfolixirWeb.PortfolioLive do
             <%!-- The one uniform chart-as-table disclosure (UX-DR10, issue
                  793): the drift table beneath IS the sunburst's table and
                  gains the disclosure head. --%>
-            <details class="perf-table-disclosure" data-role="allocation-disclosure">
+            <%!-- #1339 (board ux-design-2026-11-03-sprint23-i1 ⑦): a patch
+                 strips the `open` the browser set, so a category toggled
+                 inside folded the table shut; the shell's
+                 `DisclosureState` hook puts it back. --%>
+            <details
+              id="allocation-disclosure"
+              class="perf-table-disclosure"
+              data-role="allocation-disclosure"
+              phx-hook="DisclosureState"
+            >
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
               <%= gettext("Data as table") %>
