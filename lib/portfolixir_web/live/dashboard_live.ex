@@ -1281,7 +1281,8 @@ defmodule PortfolixirWeb.DashboardLive do
       dq.without_logo > 0 && {:logo, dq.without_logo},
       dq.two_scales > 0 && {:two_scales, dq.two_scales},
       dq.implausible_quote > 0 && {:implausible_quote, dq.implausible_quote},
-      dq.cash_mismatch > 0 && {:cash_mismatch, dq.cash_mismatch}
+      dq.cash_mismatch > 0 && {:cash_mismatch, dq.cash_mismatch},
+      dq.rate_only > 0 && {:rate_only, dq.rate_only}
     ]
     |> Enum.filter(& &1)
     |> Enum.with_index()
@@ -1393,6 +1394,25 @@ defmodule PortfolixirWeb.DashboardLive do
     }
   end
 
+  defp dq_finding(:rate_only, count, _first?) do
+    %{
+      role: "dq-rate-only",
+      href: "/transactions?dq=rate_only",
+      text:
+        ngettext(
+          "one cross-currency buy or sell with a rate and no cash amount",
+          "%{count} cross-currency buys or sells with a rate and no cash amount",
+          count
+        ),
+      effect:
+        ngettext(
+          "— it books quantity × price to the account unconverted",
+          "— they book quantity × price to the account unconverted",
+          count
+        )
+    }
+  end
+
   # Highest severity present (UX-DR17): a bond priced on two scales counts a
   # hundredfold too high or too low in the total, so it is a problem (#1068,
   # D-15), and so is a held security whose quotes contradict its own
@@ -1404,6 +1424,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # A ledger check (Sprint 23 V1, pick Q2 problem) can make a figure wrong:
   # a cash balance and a cost that read two amounts.
   defp dq_severity(%{cash_mismatch: n}) when n > 0, do: :problem
+  defp dq_severity(%{rate_only: n}) when n > 0, do: :problem
   defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
   defp dq_severity(%{implausible_quote: n}) when n > 0, do: :problem
   defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
@@ -1432,7 +1453,8 @@ defmodule PortfolixirWeb.DashboardLive do
       without_logo: DataQuality.count("missing_logo"),
       two_scales: DataQuality.count("two_scales"),
       implausible_quote: DataQuality.count("implausible_quote"),
-      cash_mismatch: LedgerChecks.count("cash_mismatch")
+      cash_mismatch: LedgerChecks.count("cash_mismatch"),
+      rate_only: LedgerChecks.count("rate_only")
     }
   end
 
