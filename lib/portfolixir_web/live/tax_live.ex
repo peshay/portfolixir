@@ -687,21 +687,28 @@ defmodule PortfolixirWeb.TaxLive do
               </p>
               <%!-- What is wrong with the budget is a data note beside the
                    meter with its remedy inside (UX-DR17); one status region
-                   for both. --%>
+                   for both. Each clamps, its button in its actions below the
+                   cut (I1, board ux-design-2026-11-03-sprint23-i1 ③). --%>
               <div class="tax-budget__notes" role="status">
                 <AppShell.data_note
                   :if={@staleness && @staleness.warning}
                   severity={:attention}
+                  id="tax-budget-stale"
+                  clamp
                   data-role="budget-stale"
                 >
                   <%= staleness_message(@staleness) %>
-                  <button type="button" class="link-button" phx-click="open_statement_form">
-                    <%= gettext("Record a new statement") %>
-                  </button>
+                  <:actions>
+                    <button type="button" class="link-button" phx-click="open_statement_form">
+                      <%= gettext("Record a new statement") %>
+                    </button>
+                  </:actions>
                 </AppShell.data_note>
                 <AppShell.data_note
                   :if={not @summary.complete?}
                   severity={:attention}
+                  id="tax-budget-incomplete"
+                  clamp
                   data-role="budget-incomplete"
                 >
                   <%= gettext(
@@ -968,28 +975,34 @@ defmodule PortfolixirWeb.TaxLive do
               </p>
 
               <%!-- Each consistency finding is a data note with the check
-                   control inside (UX-DR17); one status region per row. --%>
+                   control inside (UX-DR17); one status region per row. It
+                   clamps, the control in its actions below the cut (I1,
+                   board ux-design-2026-11-03-sprint23-i1 ③). --%>
               <div :if={entry.findings != []} class="tax-statement__notes" role="status">
                 <AppShell.data_note
-                  :for={finding <- entry.findings}
+                  :for={{finding, index} <- Enum.with_index(entry.findings)}
                   severity={:attention}
+                  id={"tax-statement-#{entry.row.id}-finding-#{index}"}
+                  clamp
                   data-role="statement-finding"
                 >
                   <%= finding_text(finding) %>
-                  <%= if order_finding?(finding) do %>
-                    <button type="button" class="link-button" phx-click="toggle_form" phx-value-form="order">
-                      <%= gettext("Adjust the allowance orders") %>
-                    </button>
-                  <% else %>
-                    <button
-                      type="button"
-                      class="link-button"
-                      phx-click="edit_statement"
-                      phx-value-id={entry.row.id}
-                    >
-                      <%= gettext("Check against the statement") %>
-                    </button>
-                  <% end %>
+                  <:actions>
+                    <%= if order_finding?(finding) do %>
+                      <button type="button" class="link-button" phx-click="toggle_form" phx-value-form="order">
+                        <%= gettext("Adjust the allowance orders") %>
+                      </button>
+                    <% else %>
+                      <button
+                        type="button"
+                        class="link-button"
+                        phx-click="edit_statement"
+                        phx-value-id={entry.row.id}
+                      >
+                        <%= gettext("Check against the statement") %>
+                      </button>
+                    <% end %>
+                  </:actions>
                 </AppShell.data_note>
               </div>
 
