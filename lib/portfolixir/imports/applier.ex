@@ -1262,7 +1262,8 @@ defmodule Portfolixir.Imports.Applier do
     # plan); with background fetches off it does nothing.
     RateSync.backfill_when_needed_async()
 
-    result =
+    %Result{} =
+      result =
       Enum.reduce(@recorded_lists, result, fn field, acc ->
         Map.update!(acc, field, &Enum.reverse/1)
       end)
@@ -1311,7 +1312,7 @@ defmodule Portfolixir.Imports.Applier do
     {:ok, id, result}
   end
 
-  defp resolve_portfolio({:create, %{name: name, base_currency_code: ccy}}, result) do
+  defp resolve_portfolio({:create, %{name: name, base_currency_code: ccy}}, %Result{} = result) do
     case Portfolios.create_portfolio(Actor.import_session(), %{
            name: name,
            base_currency_code: ccy
