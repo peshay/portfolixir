@@ -26,6 +26,7 @@ defmodule Portfolixir.Portfolios.Costs do
   currency — the same excluded-and-named rule as the sibling facets.
   """
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
@@ -85,6 +86,116 @@ defmodule Portfolixir.Portfolios.Costs do
         reference: "EUR hub rates on each booking date itself",
         gaps: "a cost with no stored booking-date rate is excluded from the totals and named"
       }
+    }
+  end
+
+  @typedoc """
+  Whose costs `paid/4` sums (ADR-0046, amended 2026-11-04, point 3): one
+  portfolio under an optional view (`Buckets.load_scope/2`'s scope), or the
+  instance-wide scope of a view, `:unscoped` for the total
+  (`Buckets.load_global_scope/1`'s).
+  """
+  @type paid_scope ::
+          {:portfolio, integer(), :unscoped | map()} | {:global, :unscoped | map()}
+
+  @doc """
+  The fees and the taxes booked from `from` to `to` (both inclusive, by
+  booking date) in `scope`, converted to `base`: the benchmark comparison's
+  `costs_paid` (ADR-0046, amended 2026-11-04). It reads `series/2`, the
+  facet's own rule, over the window's bookings, so it computes no cost the
+  facet would compute otherwise; it is a per-scope sum, never a per-scope
+  cost table (#726).
+
+  **The scope follows the money** (point 3): a cost counts where the cash
+  account that paid it counts — in a portfolio when the account belongs to
+  it, in a view when the account is in the view's buckets. A booking with no
+  cash account (a delivery's fee) counts in its own portfolio unscoped and
+  in the total, never in a view, which cannot see the money it moved.
+
+  `from` nil is a window with no walked day: both sums are 0 and nothing is
+  read. Returns `%{fees, taxes, window, excluded, computation_basis}`, the
+  excluded costs named as the facet names them, by count and currency.
+  """
+  @spec paid(paid_scope(), Date.t() | nil, Date.t() | nil, String.t()) :: map()
+  def paid(scope, from, to, base) do
+    {costs, excluded} =
+      case {from, to} do
+        {%Date{}, %Date{}} ->
+          [from: from, to: to]
+          |> Ledger.list_transactions()
+          |> series(base)
+
+        _no_window ->
+          {[], []}
+      end
+
+    costs = Enum.filter(costs, &paid_in?(&1, scope))
+    excluded = Enum.filter(excluded, &paid_in?(&1, scope))
+    window = %{start_date: from, end_date: to}
+
+    %{
+      fees: sum_series(costs, :fees),
+      taxes: sum_series(costs, :taxes),
+      window: window,
+      excluded: excluded_named(excluded),
+      computation_basis: paid_basis(base, window)
+    }
+  end
+
+  defp paid_in?(%{cash_account_id: nil} = cost, {:portfolio, portfolio_id, bucket_scope}),
+    do: cost.portfolio_id == portfolio_id and bucket_scope == :unscoped
+
+  defp paid_in?(cost, {:portfolio, portfolio_id, bucket_scope}),
+    do:
+      cost.cash_portfolio_id == portfolio_id and
+        Buckets.cash_in_scope?(bucket_scope, cost.cash_account_id)
+
+  defp paid_in?(%{cash_account_id: nil}, {:global, bucket_scope}), do: bucket_scope == :unscoped
+
+  defp paid_in?(cost, {:global, bucket_scope}),
+    do: Buckets.cash_in_scope?(bucket_scope, cost.cash_account_id)
+
+  defp excluded_named(excluded) do
+    %{
+      count: length(excluded),
+      currencies: excluded |> Enum.map(& &1.currency_code) |> Enum.uniq() |> Enum.sort()
+    }
+  end
+
+  # AGENTS.md analytics rule: the basis in the payload, and the amendment's
+  # point 4 in one sentence: what the booked figure is not.
+  defp paid_basis(base, window) do
+    %{
+      input_series:
+        "the cost facet's series (GET /api/v1/costs): the fee and tax legs riding any " <>
+          "booking plus the standalone fee and tax bookings, with tax_refund netted " <>
+          "against taxes; taxes are the recorded ones only (ADR-0031), none is derived, " <>
+          "and gross amounts are never summed",
+      currency:
+        "each cost is read in its cash account's currency (a booking without one in its " <>
+          "own) and converted to #{base} at the EUR-hub rate stored on its booking date",
+      scope:
+        "a cost counts where the cash account that paid it counts: in a portfolio when " <>
+          "the account belongs to it, in a view when the account is in the view's " <>
+          "buckets, in the total always; a fee on a buy whose depot is in the view and " <>
+          "whose cash account is not is outside the view, as the cash it moved is; a " <>
+          "booking without a cash account counts in its portfolio without a view and in " <>
+          "the total, in no view",
+      window: window,
+      window_rule:
+        "every booking dated from window.start_date to window.end_date, both included: " <>
+          "the requested window of the comparison, the same for every benchmark of one " <>
+          "request, also where a benchmark's covered window is shorter",
+      reference: "EUR-hub rates stored on each booking date itself",
+      gaps:
+        "a cost with no stored rate on its booking date is excluded from both sums and " <>
+          "named in excluded by count and the currency it was read in; a window with no " <>
+          "walked day reads 0 for both",
+      not_included:
+        "the sums are not subtracted from end_value_delta and no residual is named: a " <>
+          "cost paid early would have compounded until the window's end, which the booked " <>
+          "figure leaves out, and flows the comparison excludes and taxes settled at the " <>
+          "year's end move the gap too; the benchmark itself pays none"
     }
   end
 

@@ -79,4 +79,70 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkMemoTest do
 
     assert Decimal.equal?(second.savings_plan.benchmark_end_value, d("1200"))
   end
+
+  # User story (Sprint 24 B1; ADR-0046, amended 2026-11-04; ADR-0039 C4):
+  # As the owner who books a fee or moves a cash account out of a view after
+  # reading a comparison,
+  # I want the next comparison's costs_paid to count it,
+  # so that a remembered comparison never shows the costs of a ledger or a
+  # view that has since changed.
+  #
+  # Acceptance criteria (exact Decimal expectations):
+  # - A memoised view comparison reads fees 0; a 4.00 fee booked from the
+  #   view's cash account makes the next read 4.00.
+  # - Taking that cash account out of the view's bucket makes the next read
+  #   0 again: the scope is read under the same memo identity as the walk.
+  test "costs_paid follows a new fee and a changed view under the memo" do
+    world = base_world(name: "M3", cash_name: "M3 Cash", depot_name: "M3 Depot")
+    deposit!(world, "1000", ~D[2026-01-01])
+
+    {:ok, bucket} =
+      Portfolixir.Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "M3 Bucket #{System.unique_integer([:positive])}"
+      })
+
+    :ok = Portfolixir.Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [bucket.id])
+
+    # A second account keeps the view walking once the first one leaves it.
+    other =
+      Portfolixir.WorldFixtures.add_depot(world.portfolio,
+        cash_name: "M3 Other",
+        depot_name: "M3 Other Depot"
+      )
+
+    deposit!(%{world | cash: other.cash}, "200", ~D[2026-01-01])
+    :ok = Portfolixir.Buckets.set_cash_account_buckets(Actor.owner_ui(), other.cash, [bucket.id])
+
+    {:ok, view} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{
+        name: "M3 View #{System.unique_integer([:positive])}",
+        include_all: false
+      })
+
+    :ok = Portfolixir.Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    read = fn ->
+      {:ok, cmp} = Benchmark.for_view(view.id, {:rate, d("0")}, today: ~D[2026-01-21])
+      cmp.costs_paid.fees
+    end
+
+    assert Decimal.equal?(read.(), d("0"))
+
+    {:ok, _fee} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "fee",
+        date: ~D[2026-01-10],
+        gross_amount: "4.00",
+        currency_code: "EUR"
+      })
+
+    assert Decimal.equal?(read.(), d("4.00"))
+
+    :ok = Portfolixir.Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [])
+    {:ok, still} = Benchmark.for_view(view.id, {:rate, d("0")}, today: ~D[2026-01-21])
+    assert still.requested_window.start_date == ~D[2026-01-01]
+    assert Decimal.equal?(still.costs_paid.fees, d("0"))
+  end
 end
