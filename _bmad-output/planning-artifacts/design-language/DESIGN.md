@@ -2137,6 +2137,37 @@ composition per surface that the column picker does not touch.
 - **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
   UX-DR15's scroller; the desktop tables are unchanged.
 
+### Wealth's Positions table — the name column's floor and break *(2026-11-05, issue 1322; Sprint 24 P1, #1366 line 3; board `mockups/ux-design-2026-11-05-sprint24-p1`, before/after)*
+
+The accounts table's anatomy (issue 1145, `bucket-cell.card`), applied to
+`#holdings-positions-table` on the desktop, so long names never push the
+result columns out of the scroller.
+
+- **The table fits its wrapper** (`min-width: 0; width: 100%` against the
+  scroller's `max-content`), as the history and the contribution table do.
+- **The Security column keeps a 12 rem floor and breaks inside its cell.**
+  Its head and its cells carry `cell-name` wherever the picker puts the
+  column; the head takes `min-width: 12rem`, the cells `overflow-wrap:
+  anywhere`, so no stored name moves the table's width. The floor is what
+  the seven other columns of #1322's eight (Depot, Wertpapier, Stückzahl,
+  Ø Kosten, Letzter Kurs, Marktwert, G&V, G&V %) leave of the 922 px
+  scroller at 1200 px with the sidebar open on the review seed; the
+  accounts table's 13.5 rem made the table 942 px.
+- **The figures never wrap** (`white-space: nowrap` on `.num`), so the
+  quantity keeps every stored digit („0,333333333333“) and an amount stays
+  on one line with its currency. #1322's other remedy, a bound on the
+  quantity's displayed digits, is not taken.
+- **A cell's note wraps between words** („Handelspreis · 03.02.2025“,
+  „ohne Wechselkurs · nicht in der Summe“). On one line they made Letzter
+  Kurs 196 px and Marktwert 246 px wide; elsewhere `.cell-note` stays on
+  one line.
+- **Measured at 1200 px with the sidebar open:** #1322's eight columns
+  went from 1,317 px of table in the 922 px scroller, G&V out of view, to
+  922/922 with every column in view. The three default columns fit before
+  and after. With all eleven columns picked the table is still wider than
+  the scroller (1,182 px), which stays the fallback (UX-DR15). Under 560 px
+  the phone rows are unchanged.
+
 ### Twin names — an identifier where two rows read the same *(2026-10-07, issue 1057; Sprint 19 PR γ U4, board `mockups/ux-design-2026-10-04/06-phone-wealth`, pick J6.2 A, rule ②)*
 
 Two securities stored under one name — a duplicate awaiting a merge, or two

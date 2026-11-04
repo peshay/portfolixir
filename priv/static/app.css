@@ -12057,6 +12057,41 @@ dialog.merge-dialog {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+/* Wealth's holdings table fits its wrapper (issue 1322, issue 1366 line 3;
+   board ux-design-2026-11-05-sprint24-p1): the scroller's `min-width:
+   max-content` kept every name and note on one line, and with the eight
+   columns of the Position and Valuation groups the table was 1317 px in a
+   922 px scroller at 1200 px with the sidebar open on the review seed, G&V
+   out of view. The accounts table's anatomy (issue 1145): the Security
+   column keeps a floor and a longer name breaks inside its cell, so no
+   stored name moves the table's width. The floor is what the seven other
+   columns leave of the 922 px on the seed (13.5 rem made it 942 px). The
+   figures never wrap, so the quantity keeps every stored digit; a cell's
+   note („Handelspreis · …“, „ohne Wechselkurs · …“) wraps between words,
+   where on one line it set the widest columns. With all eleven columns the
+   table is still wider than the scroller, which stays the fallback. */
+.data-table-wrapper > #holdings-positions-table {
+  min-width: 0;
+  width: 100%;
+}
+
+#holdings-positions-table th.cell-name {
+  min-width: 12rem;
+}
+
+#holdings-positions-table td.cell-name {
+  overflow-wrap: anywhere;
+}
+
+#holdings-positions-table th.num,
+#holdings-positions-table td.num {
+  white-space: nowrap;
+}
+
+#holdings-positions-table td .cell-note {
+  white-space: normal;
+}
+
 /* ===== Wealth at 390 px and the twin names (Sprint 19 U4; board
    ux-design-2026-10-04/06-phone-wealth, picks J6 A and J6.2 A) ===== */
 /* Rule ①, issue 1065: under 560 px the Positions table gives way to

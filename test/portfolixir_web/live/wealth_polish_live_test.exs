@@ -189,4 +189,68 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
       refute phone_lists =~ "#contribution-table-wrap"
     end
   end
+
+  describe "line 3: #1322, the holdings table's name column" do
+    # User story (#1366, line 3; #1322):
+    # As the operator reading Wealth's positions with the valuation columns
+    # picked,
+    # I want long names to wrap above a floor instead of widening the table,
+    # so that G&V stays in view at 1200 px while the quantity keeps every
+    # digit it has.
+    #
+    # Acceptance criteria:
+    # - The Security column's head and cells carry `cell-name`, wherever the
+    #   picker puts the column.
+    # - The table fits its wrapper; the name column keeps a 12 rem floor and
+    #   breaks inside its cell (#1145's anatomy); figures never wrap; a
+    #   cell's note wraps between words.
+    # - The quantity prints every stored digit ("0.333333333333").
+    test "the name column carries the floor-and-wrap anatomy, the quantity every digit",
+         %{conn: conn} do
+      wealth_world()
+      {:ok, view, _html} = live(conn, "/portfolio")
+      render_async(view)
+
+      render_change(view, "set_holdings_columns", %{
+        "columns" =>
+          ~w(depot security quantity avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct)
+      })
+
+      html = view |> element("#holdings-positions-table") |> render() |> Floki.parse_fragment!()
+      heads = Floki.find(html, "thead th")
+      [name_head] = Enum.filter(heads, &(Floki.text(&1) =~ "Security"))
+
+      assert "cell-name" in (name_head
+                             |> Floki.attribute("class")
+                             |> Enum.flat_map(&String.split/1))
+
+      assert Enum.count(heads, &("cell-name" in class_list(&1))) == 1
+
+      cells = Floki.find(html, ~s(td[data-column="security"]))
+      assert length(cells) == 2
+      assert Enum.all?(cells, &("cell-name" in class_list(&1)))
+
+      quantities = html |> Floki.find(~s(td[data-column="quantity"])) |> Enum.map(&Floki.text/1)
+      assert Enum.any?(quantities, &(String.trim(&1) == "0.333333333333"))
+
+      # The name column moves with the picker.
+      render_change(view, "set_holdings_columns", %{"columns" => ~w(security quantity)})
+      html = view |> element("#holdings-positions-table") |> render() |> Floki.parse_fragment!()
+      [first_head | _] = Floki.find(html, "thead th")
+      assert "cell-name" in class_list(first_head)
+
+      fits = rule(".data-table-wrapper > #holdings-positions-table")
+      assert fits =~ "min-width: 0;"
+      assert fits =~ "width: 100%;"
+      assert rule("#holdings-positions-table th.cell-name") =~ "min-width: 12rem;"
+      assert rule("#holdings-positions-table td.cell-name") =~ "overflow-wrap: anywhere;"
+
+      assert rule("#holdings-positions-table th.num,\n#holdings-positions-table td.num") =~
+               "white-space: nowrap;"
+
+      assert rule("#holdings-positions-table td .cell-note") =~ "white-space: normal;"
+    end
+  end
+
+  defp class_list(node), do: node |> Floki.attribute("class") |> Enum.flat_map(&String.split/1)
 end

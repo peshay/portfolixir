@@ -2818,6 +2818,11 @@ defmodule PortfolixirWeb.PortfolioLive do
        when key in ~w(quantity avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct),
        do: %{class: "num"}
 
+  # #1322 (#1366 line 3; board ux-design-2026-11-05-sprint24-p1): the
+  # Security column's head and cells carry `cell-name`, the class its
+  # floor and its break key on, wherever the picker puts the column.
+  defp holdings_num_attrs("security"), do: %{class: "cell-name"}
+
   defp holdings_num_attrs(_key), do: %{}
 
   # Board ux-design-2026-10-07/02-money-findings, found while drawing 4: the
