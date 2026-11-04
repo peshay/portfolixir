@@ -37,6 +37,14 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   frictionless — no fees, no taxes — and the computation basis says so; the
   bias runs against the real portfolio, the conservative direction.
 
+  Beside the gap, never inside it, every comparison carries `costs_paid`
+  (ADR-0046, amended 2026-11-04): the fees and taxes the real portfolio
+  booked in the requested window and the walk's scope, a cost counting
+  where the cash account that paid it counts, summed by the cost facet's own
+  series rule (`Portfolixir.Portfolios.Costs.paid/4`). It is the same for
+  every benchmark of one request, is not subtracted from `end_value_delta`,
+  and names no residual.
+
   Nothing is persisted (ADR-0046 §5): the comparison is memoised under
   ADR-0039's one mechanism as the `:benchmark_comparison` analytic — under
   the **global** basis, because a benchmark the portfolio never held lies
@@ -51,11 +59,13 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   construction.
   """
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Derived
   alias Portfolixir.Fx
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Portfolios.Costs
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.IRR
 
@@ -133,10 +143,11 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   @spec compare(map(), term(), benchmark(), keyword()) :: {:ok, map()} | {:error, atom()}
   def compare(analysis, period, benchmark, opts \\ []) do
     with {:ok, benchmark} <- validate_benchmark(benchmark),
-         :ok <- Performance.validate_period(period) do
+         :ok <- Performance.validate_period(period),
+         {:ok, cost_scope} <- cost_scope(analysis, opts) do
       comparison =
         if Map.get(analysis, :stale, false) or not memoisable?(analysis, period, benchmark) do
-          build(analysis, period, benchmark)
+          build(analysis, period, benchmark, cost_scope)
         else
           walk = analysis.basis.computed_at
 
@@ -145,7 +156,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
               :benchmark_comparison,
               Derived.global_basis(),
               entry_key(analysis, period, benchmark, opts),
-              fn -> %{walk: walk, comparison: build(analysis, period, benchmark)} end,
+              fn -> %{walk: walk, comparison: build(analysis, period, benchmark, cost_scope)} end,
               current?: &(&1.walk == walk)
             )
 
@@ -245,27 +256,57 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
 
   defp benchmark_key({:security, %Security{id: id}}), do: "security:#{id}"
 
+  # -- the costs the real portfolio paid (ADR-0046, amended 2026-11-04) ----------
+
+  # Whose costs the comparison sums, read off the same scope its walk read:
+  # a view walk's instance-wide scope (nil: the total), or a portfolio walk
+  # under the view it was computed with. A view that vanished since the walk
+  # is the walk's own 404.
+  defp cost_scope(%{view_id: view_id}, _opts) do
+    case Buckets.load_global_scope(view_id) do
+      {:error, :view_not_found} = error -> error
+      scope -> {:ok, {:global, scope}}
+    end
+  end
+
+  defp cost_scope(%{portfolio_id: portfolio_id}, opts) do
+    case Buckets.load_scope(portfolio_id, Keyword.get(opts, :view)) do
+      {:error, :view_not_found} = error -> error
+      scope -> {:ok, {:portfolio, portfolio_id, scope}}
+    end
+  end
+
+  # Over the REQUESTED window, its bounds read as the comparison reads them
+  # (`Performance.summarise/2`), so every benchmark of one request carries
+  # the same figure (point 1) even where its covered window is shorter.
+  defp costs_paid(cost_scope, requested, base),
+    do: Costs.paid(cost_scope, requested.start_date, requested.end_date, base)
+
   # -- the comparison -----------------------------------------------------------
 
-  defp build(analysis, period, benchmark) do
+  defp build(analysis, period, benchmark, cost_scope) do
     {:ok, requested} = Performance.summarise(analysis, period)
+    costs = costs_paid(cost_scope, requested, analysis.base_currency)
 
-    if is_nil(requested.start_date) do
-      # Nothing to walk yet: the same honest emptiness as the performance
-      # read, never an inverted window.
-      empty(analysis, period, requested, benchmark, [])
-    else
-      prices =
-        price_series(benchmark, requested, analysis.base_currency, rebase_wanted(requested))
+    comparison =
+      if is_nil(requested.start_date) do
+        # Nothing to walk yet: the same honest emptiness as the performance
+        # read, never an inverted window.
+        empty(analysis, period, requested, benchmark, [])
+      else
+        prices =
+          price_series(benchmark, requested, analysis.base_currency, rebase_wanted(requested))
 
-      case coverage(requested, prices) do
-        :none ->
-          empty(analysis, period, requested, benchmark, flows_of(requested.series))
+        case coverage(requested, prices) do
+          :none ->
+            empty(analysis, period, requested, benchmark, flows_of(requested.series))
 
-        {:ok, rebase_day, covered_start} ->
-          covered(analysis, period, requested, benchmark, prices, rebase_day, covered_start)
+          {:ok, rebase_day, covered_start} ->
+            covered(analysis, period, requested, benchmark, prices, rebase_day, covered_start)
+        end
       end
-    end
+
+    Map.put(comparison, :costs_paid, costs)
   end
 
   # The day the benchmark is rebased to: the close before the window, which
