@@ -70,6 +70,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert delete_after =~ "release 2026.11.8 and earlier are not rewritten"
     assert delete_after =~ "(#1378; ADR-0017, amendment of 2026-11-04)"
 
+    # J2 (I16, rides #416; decision D-4): the journal's since=, the
+    # family's paged delta. No route or tool; one item, on the journal read.
+    assert newest["summary"] =~ "Sprint 24, J2: "
+    assert [journal_since] = by_issue.("(I16, #416")
+    assert String.starts_with?(journal_since, "GET /api/v1/journal (portfolixir.journal.list")
+    assert journal_since =~ "since added"
+    assert journal_since =~ "oldest first"
+    assert journal_since =~ "2026-10-28T09:15:02.250000Z~48"
+    assert journal_since =~ "Without since the read is unchanged"
+
     # Sprint 23, M1 (version 23; #1115): the MCP companion moves to the MCP
     # SDK v2. Dated strictly after entry 22, so since=2026-11-03 still
     # returns it. No route, tool or prompt: what an agent sees change is two
