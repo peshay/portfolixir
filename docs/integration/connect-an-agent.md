@@ -151,3 +151,8 @@ the Imports page (Transactions → Import, `/imports`), where you preview it and
 apply it. The file is a Portfolio Performance CSV v1, which carries no ISIN and
 books every row in EUR, or the JSON v1 variant, which the prompt keeps for
 other currencies and for ISINs.
+
+Once the record holds data, ask the agent about one position: the
+`portfolixir.securities.dossier` tool gives it the security's record,
+holdings, metrics, newest research-log entries, events, categories and
+position targets in one read, each part equal to what its own read answers.

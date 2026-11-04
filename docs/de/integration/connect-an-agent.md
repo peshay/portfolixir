@@ -161,3 +161,9 @@ Import-Seite (Transaktionen → Import, `/imports`), wo Sie sie in der Vorschau
 prüfen und übernehmen. Die Datei ist eine Portfolio-Performance-CSV v1 (sie
 trägt keine ISIN und bucht jede Zeile in EUR) oder die JSON-v1-Variante, die
 der Prompt für andere Währungen und für ISINs vorsieht.
+
+Sobald der Bestand Daten enthält, fragen Sie den Agenten nach einer Position:
+Das Werkzeug `portfolixir.securities.dossier` gibt ihm Datensatz, Bestände,
+Kennzahlen, neueste Research-Log-Einträge, Termine, Kategorien und
+Positionsziele des Wertpapiers in einem Lesezugriff, jeder Teil gleich dem,
+was sein eigener Lesezugriff antwortet.
