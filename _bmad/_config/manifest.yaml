@@ -1,36 +1,36 @@
 installation:
   version: 6.12.4
   installDate: 2026-06-11T18:59:51.668Z
-  lastUpdated: 2026-11-01T21:05:00.131Z
+  lastUpdated: 2026-11-04T21:36:16.047Z
   installShims: true
 modules:
   - name: core
     version: 6.12.4
     installDate: 2026-06-11T18:59:51.446Z
-    lastUpdated: 2026-11-01T21:05:00.118Z
+    lastUpdated: 2026-11-04T21:36:15.993Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: bmm
     version: 6.12.4
     installDate: 2026-06-11T18:59:51.435Z
-    lastUpdated: 2026-11-01T21:05:00.119Z
+    lastUpdated: 2026-11-04T21:36:16.003Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: tea
-    version: v1.27.2
+    version: v1.27.3
     installDate: 2026-06-11T18:59:51.571Z
-    lastUpdated: 2026-11-01T21:05:00.123Z
+    lastUpdated: 2026-11-04T21:36:16.011Z
     source: external
     npmPackage: bmad-method-test-architecture-enterprise
     repoUrl: https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise
     channel: pinned
-    sha: d99ad29c62697c152e3393351406686d5bcd323c
+    sha: c3d4f345f21388052dff7f86bd975d6eb9bddb98
   - name: cis
     version: v0.3.2
     installDate: 2026-06-11T18:59:51.580Z
-    lastUpdated: 2026-11-01T21:05:00.126Z
+    lastUpdated: 2026-11-04T21:36:16.021Z
     source: external
     npmPackage: bmad-creative-intelligence-suite
     repoUrl: https://github.com/bmad-code-org/bmad-module-creative-intelligence-suite
@@ -39,7 +39,7 @@ modules:
   - name: automator
     version: main
     installDate: 2026-06-11T18:59:51.601Z
-    lastUpdated: 2026-11-01T21:05:00.129Z
+    lastUpdated: 2026-11-04T21:36:16.031Z
     source: external
     npmPackage: bmad-story-automator
     repoUrl: https://github.com/bmad-code-org/bmad-automator
@@ -48,7 +48,7 @@ modules:
   - name: bmb
     version: v1.8.1
     installDate: 2026-06-11T18:59:51.624Z
-    lastUpdated: 2026-11-01T21:05:00.131Z
+    lastUpdated: 2026-11-04T21:36:16.047Z
     source: external
     npmPackage: bmad-builder
     repoUrl: https://github.com/bmad-code-org/bmad-builder
