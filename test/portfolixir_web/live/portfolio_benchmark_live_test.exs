@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
   alias Portfolixir.Classifications
   alias Portfolixir.WorldFixtures
   alias PortfolixirWeb.BenchmarkScope
+  alias PortfolixirWeb.Format
 
   # The instance on loopback, where the browser labels every request it
   # sends, so a choice made by following the page's own links is remembered
@@ -270,6 +271,144 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
 
     assert coverage =~ "ab #{day} —"
     refute coverage =~ Date.to_iso8601(Date.add(first_quote, 1))
+  end
+
+  # The seed world plus costs in the window: a buy's fee and tax legs, a
+  # standalone fee, a tax and a tax refund, so the two sums are exact and
+  # the fee crosses a thousands separator: fees 4.20 + 1250.00 = 1254.20,
+  # taxes 1.30 + 10.00 - 2.00 = 9.30.
+  defp seed_costs_world do
+    world = seed_world()
+    WorldFixtures.deposit!(world, "2000", Date.add(world.today, -12))
+
+    WorldFixtures.buy!(world, world.held,
+      quantity: "1",
+      price: "100",
+      fees: "4.20",
+      taxes: "1.30",
+      date: Date.add(world.today, -8)
+    )
+
+    for {type, amount, days_ago} <- [
+          {"fee", "1250.00", 5},
+          {"tax", "10.00", 4},
+          {"tax_refund", "2.00", 3}
+        ] do
+      {:ok, _cost} =
+        Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          type: type,
+          date: Date.add(world.today, -days_ago),
+          gross_amount: amount,
+          currency_code: "EUR"
+        })
+    end
+
+    world
+  end
+
+  # The comparison's own payload over the public API: the same read an agent
+  # makes for the page's scope (the total) and benchmark.
+  defp total_costs_paid(conn, benchmark) do
+    conn
+    |> recycle()
+    |> put_req_header("accept", "application/json")
+    |> put_req_header("authorization", "Bearer test-api-token")
+    |> get("/api/v1/performance/benchmark", %{"benchmark" => benchmark})
+    |> json_response(200)
+    |> get_in(["data", "costs_paid"])
+  end
+
+  defp costs_line(view) do
+    view
+    |> element("#kpi-benchmark > [data-role='benchmark-costs']")
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.text()
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
+
+  # User story (Sprint 24 B2; ADR-0046, amended 2026-11-04; idea I17;
+  # board ux-design-2026-11-04-sprint24/02, variant A):
+  # As a local portfolio maintainer reading "was it worth it" on Wealth's
+  # Performance tab,
+  # I want one line under the benchmark rows saying the fees and taxes my
+  # portfolio paid in the same period, and that the benchmark paid none,
+  # with the ⓘ saying what was summed and what is not in it,
+  # so that I see how large the frictionless benchmark's advantage was
+  # without adding up bookings, and never read the rest of the gap as
+  # "selection and timing".
+  #
+  # Acceptance criteria:
+  # - Once under the benchmark rows (not once per row), with two
+  #   benchmarks: "Paid in the period: fees 1,254.20 EUR · taxes 9.30 EUR;
+  #   the benchmark pays none." / „Im Zeitraum gezahlt: Gebühren 1.254,20 EUR
+  #   · Steuern 9,30 EUR — die Benchmark zahlt keine.“
+  # - The two figures are the comparison payload's costs_paid fees and taxes
+  #   (GET /api/v1/performance/benchmark for the same scope and benchmark),
+  #   formatted by Format.money (D-1, criterion 4).
+  # - The ⓘ carries the sentence: what was summed, at which rate, and that
+  #   the forgone return of the money paid is not in it.
+  # - Hidden while the comparison computes.
+  # - Nothing on the page reads "selection and timing" / „Auswahl und
+  #   Timing“ (the amendment's point 4).
+  test "the costs line states the payload's fees and taxes once under the rows", %{conn: conn} do
+    world = seed_costs_world()
+
+    # The payload of the page's scope, for each of its benchmarks: the same
+    # exact Decimal strings, so the screen states it once.
+    for benchmark <- ["rate:0.02", "security:#{world.bench.id}"] do
+      assert %{"fees" => "1254.2", "taxes" => "9.3"} = total_costs_paid(conn, benchmark)
+    end
+
+    costs = total_costs_paid(conn, "rate:0.02")
+
+    for locale <- ["en", "de"] do
+      path =
+        "/portfolio?locale=#{locale}&benchmark[]=security:#{world.bench.id}&benchmark_rate=2"
+
+      page_conn = get(recycle(conn), path)
+
+      # While the comparison computes (the dead render starts no walk), the
+      # block waits on its skeleton and says nothing about costs.
+      pending = html_response(page_conn, 200)
+      assert pending =~ ~s(data-waits="performance")
+      refute pending =~ ~s(data-role="benchmark-costs")
+
+      {:ok, view, _html} = live(page_conn, path)
+      html = render_async(view)
+
+      fees = Format.money(Decimal.new(costs["fees"]), locale)
+      taxes = Format.money(Decimal.new(costs["taxes"]), locale)
+
+      {expected, info} =
+        case locale do
+          "en" ->
+            {"Paid in the period: fees #{fees} EUR · taxes #{taxes} EUR; the benchmark pays none.",
+             "Paid in the period: the fees and taxes this portfolio (this view) booked in the same period, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."}
+
+          "de" ->
+            {"Im Zeitraum gezahlt: Gebühren #{fees} EUR · Steuern #{taxes} EUR — die Benchmark zahlt keine.",
+             "Gezahlt im Zeitraum: die Gebühren und Steuern, die dieses Portfolio (diese Ansicht) im selben Zeitraum gebucht hat, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
+        end
+
+      # Once, under the two rows, inside neither.
+      assert length(Regex.scan(~r/data-role="benchmark-row"/, html)) == 2
+      assert length(Regex.scan(~r/data-role="benchmark-costs"/, html)) == 1
+      refute has_element?(view, "[data-role='benchmark-row'] [data-role='benchmark-costs']")
+      assert costs_line(view) == expected
+      assert has_element?(view, "#tip-benchmark", info)
+
+      # Never a residual labelled as attribution (the amendment's point 4).
+      refute html =~ ~r/selection and timing/i
+      refute html =~ ~r/Auswahl und Timing/i
+    end
+
+    # The formatter's own spelling of the payload's fees, pinned.
+    assert Format.money(Decimal.new("1254.2"), "en") == "1,254.20"
+    assert Format.money(Decimal.new("1254.2"), "de") == "1.254,20"
   end
 
   describe "BenchmarkScope plug" do

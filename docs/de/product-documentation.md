@@ -2578,6 +2578,14 @@ Einmal-gekauft-Paar und die beiden IRRs auf identischen Flüssen. Ein Fluss
 vor dem ersten Kurs der Benchmark bleibt außen vor, und der Block nennt das
 abgedeckte Fenster. Das synthetische Portfolio ist reibungsfrei, was den
 Vergleich gegen das reale Portfolio verzerrt — die konservative Richtung.
+Eine Zeile unter den Zeilen nennt, wie groß diese Verzerrung war: „Im
+Zeitraum gezahlt: Gebühren … · Steuern … — die Benchmark zahlt keine.“ —
+die Gebühren und Steuern, die das Portfolio (oder die View) im selben
+Zeitraum gebucht hat, nach der Regel des Kostenberichts und in der
+Basiswährung, dieselben Zahlen wie `costs_paid` im Payload. Sie werden
+nicht von der Kennzahl abgezogen, und kein Rest wird benannt: eine früh
+gezahlte Gebühr hätte bis zum Ende des Zeitraums weiter Ertrag gebracht,
+den der gebuchte Betrag nicht enthält (die Ergänzung vom 2026-11-04).
 Nichts wird gespeichert: beide Vergleiche werden beim Lesen abgeleitet, je
 Zeitraum und je View, und stehen über die API (`…/performance/benchmark`)
 und die MCP-Tools `portfolixir.portfolios.benchmark` und

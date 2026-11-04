@@ -45,6 +45,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Portfolio.ContributionTable
   alias PortfolixirWeb.SecurityNames
+  alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionManagementLive
   alias PortfolixirWeb.ValuationNotes
 
@@ -1371,6 +1372,14 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </span>
               </li>
             </ul>
+            <%!-- ADR-0046, amended 2026-11-04 (I17; board 02, A): the fees and
+                 taxes the real portfolio booked in the comparison's window
+                 and scope, once under the rows (the payload's costs_paid is
+                 the same for every benchmark of one request). Beside the
+                 gap, never subtracted from it, and no residual named. --%>
+            <p :if={@comparisons != []} class="benchmark-costs" data-role="benchmark-costs">
+              <%= costs_paid_line(hd(@comparisons)) %>
+            </p>
             <strong
               :if={@comparisons == [] and is_nil(@performance) and not @performance_failed}
               class="value-slot-pending"
@@ -1387,6 +1396,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= gettext(
                   "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes; the figure is the actual end value minus that. Bought once: the period's TTWROR against the benchmark held throughout. Pairs read portfolio vs benchmark; flows before the benchmark's first priced day enter through the opening value."
                 ) %>
+                <span class="benchmark-costs__info"><%= gettext(
+                  "Paid in the period: the fees and taxes this portfolio (this view) booked in the same period, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."
+                ) %></span>
               </p>
             </details>
           </article>
@@ -3597,6 +3609,30 @@ defmodule PortfolixirWeb.PortfolioLive do
   # period: where the comparison starts and how many earlier flows enter
   # through its opening value instead of on their own day — or, when the
   # benchmark has no priced day at all, that nothing is covered.
+  # The costs line (ADR-0046, amended 2026-11-04; board 02, A): the payload's
+  # two sums as the money formatter writes them, each figure in its own span.
+  defp costs_paid_line(%{costs_paid: costs, base_currency: currency}) do
+    StoredText.isolate(
+      gettext("Paid in the period: fees %{fees} · taxes %{taxes}; the benchmark pays none.",
+        fees: StoredText.slot(:fees),
+        taxes: StoredText.slot(:taxes)
+      ),
+      fees: costs_figure(costs.fees, currency),
+      taxes: costs_figure(costs.taxes, currency)
+    )
+  end
+
+  defp costs_figure(amount, currency) do
+    {:safe,
+     [
+       ~s(<span class="benchmark-costs__fig">),
+       Phoenix.HTML.safe_to_string(
+         Phoenix.HTML.html_escape("#{Format.money(amount)} #{currency}")
+       ),
+       "</span>"
+     ]}
+  end
+
   defp coverage_note(%{window: %{start_date: nil}, excluded_flows: excluded}) do
     ngettext(
       "no covered window — %{count} flow before the benchmark's first priced day",
