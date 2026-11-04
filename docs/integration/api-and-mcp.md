@@ -986,7 +986,8 @@ a position otherwise assembles from seven reads. Nothing is computed here:
 each part is built by the function its own read uses and carries that read's
 computation basis or note, so a part always equals what its read answers.
 
-- `GET /api/v1/securities/:id/dossier` — read-only, no parameter. It answers
+- `GET /api/v1/securities/:id/dossier` (`portfolixir.securities.dossier`, in
+  every profile) — read-only, no parameter. It answers
   `security_id`, `as_of` (today), `parts` (for each part, the read it
   mirrors) and seven parts:
   - `security` — the record `GET /api/v1/securities/:id` answers, former
@@ -4163,6 +4164,10 @@ API may have committed it, and its answer cannot be read.
   volatility, maximum drawdown, momentum and the distance to the 52-week
   extremes, each with its window and observation count. Reports only; the
   description says so.
+- `portfolixir.securities.dossier` — one security's position dossier (FR-49):
+  its record, holdings, metrics, newest research-log entries, upcoming and
+  recent events, categories and position targets in one read, each part as
+  its own read answers it and naming that read.
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
   (ADR-0044).

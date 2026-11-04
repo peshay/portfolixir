@@ -23,6 +23,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities.merge",
       "portfolixir.securities.search_online",
       "portfolixir.securities.metrics",
+      "portfolixir.securities.dossier",
       "portfolixir.events.list",
       "portfolixir.events.create",
       "portfolixir.events.update",
@@ -3942,6 +3943,71 @@ describe("Portfolixir MCP tools", () => {
     assert.match(metrics?.description ?? "", /insufficient_data/);
     assert.match(metrics?.description ?? "", /NOT a reason to retry/);
     assert.match(metrics?.description ?? "", /no signal, recommendation, rating, score or action/);
+  });
+
+  // User story (Sprint 24, D1; FR-49; plan D-2):
+  // As the agent preparing a decision about one position,
+  // I want the position dossier as one read-only tool wrapping
+  // GET /api/v1/securities/:id/dossier 1:1,
+  // so that one call gives me every part, and its description tells me which
+  // read each part mirrors and what is left out.
+  //
+  // Acceptance criteria:
+  // - The tool sends one GET to /api/v1/securities/:id/dossier with the API
+  //   token and nothing else; it takes only the id.
+  // - It changes nothing (readOnlyHint), so every profile lists it.
+  // - Its description names the seven parts, the reads they mirror, the
+  //   parts left out with the reads that answer them, and the merged-away
+  //   404 with errors.merged_into.
+  it("wraps the position dossier as one read in every profile", async () => {
+    const { client, requests } = createRecordingClient({ data: { security_id: 7 } });
+
+    await callTool(client, "portfolixir.securities.dossier", { id: 7 });
+
+    assert.deepEqual(requests, [
+      {
+        method: "GET",
+        path: "/api/v1/securities/7/dossier",
+        body: undefined,
+        token: "Bearer api-token"
+      }
+    ]);
+
+    const schema = listTools().find((tool) => tool.name === "portfolixir.securities.dossier")?.inputSchema;
+    assert.deepEqual(Object.keys(schema?.properties ?? {}), ["id"]);
+    assert.deepEqual(schema?.required, ["id"]);
+    assert.equal(schema?.additionalProperties, false);
+
+    for (const profile of ["read", "book", "full"] as const) {
+      const listed = listTools({ profile }).find((tool) => tool.name === "portfolixir.securities.dossier");
+      assert.equal(listed?.annotations.readOnlyHint, true, profile);
+      assert.equal(listed?.annotations.destructiveHint, false, profile);
+    }
+
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.securities.dossier")?.description ?? "";
+
+    for (const part of ["security", "holdings", "metrics", "research", "events", "categories", "targets"]) {
+      assert.match(description, new RegExp(`\\b${part}\\b`), part);
+    }
+
+    for (const read of [
+      "securities.get",
+      "holdings.list",
+      "holdings.by_security",
+      "securities.metrics",
+      "notes.list",
+      "events.list",
+      "classifications.list",
+      "targets.list_positions"
+    ]) {
+      assert.ok(description.includes(`portfolixir.${read}`) || description.includes(read), read);
+    }
+
+    assert.match(description, /quotes, trades, lots and transactions/);
+    assert.match(description, /drift/);
+    assert.match(description, /errors\.merged_into/);
+    assert.match(description, /computation_basis/);
   });
 
   // #838 (ADR-0047 §6 as amended 2026-09-19): the description tells the
