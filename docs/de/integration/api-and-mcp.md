@@ -2574,7 +2574,27 @@ Beispiel-Payloads für Konten:
   null zählte — der Sprung, den dieser Kurs bringt, steckt in
   `portfolio_ttwror` und `end_value_delta` —, wird in
   `unvalued_cash_accounts` genannt, den Einträgen des Performance-Endpunkts
-  für das abgedeckte Fenster (`[]` ohne eines; #1055). Nichts wird
+  für das abgedeckte Fenster (`[]` ohne eines; #1055). `costs_paid`
+  (ADR-0046, ergänzt am 2026-11-04) nennt, was die reibungsfreie Benchmark
+  nie zahlt: die `fees` (Gebühren) und `taxes` (Steuern), die das reale
+  Portfolio im `requested_window` gebucht hat, beide Tage eingeschlossen,
+  als Decimal-Strings in der Basiswährung, nach der Regel der
+  Kostenauswertung (`GET /api/v1/costs`: die Gebühren- und Steuerbeine jeder
+  Buchung plus die eigenständigen `fee`- und `tax`-Buchungen, `tax_refund`
+  gegen die Steuern verrechnet, jede zum EUR-Hub-Kurs ihres eigenen
+  Buchungstags umgerechnet). Eine Kostenposition zählt dort, wo das
+  Verrechnungskonto zählt, das sie bezahlt hat: im Portfolio, dem das Konto
+  gehört, in einer Ansicht, deren Buckets das Konto enthalten, in der
+  Gesamtsicht immer; eine Gebühr auf einen Kauf, dessen Depot in der Ansicht
+  liegt und dessen Verrechnungskonto nicht, liegt außerhalb der Ansicht. Der
+  Wert ist für jede Benchmark einer Anfrage derselbe. Eine Kostenposition
+  ohne gespeicherten Kurs an ihrem Tag fehlt in beiden Summen und wird in
+  `excluded` (`count`, `currencies`) genannt; `costs_paid.window` und die
+  eigene `computation_basis` nennen die Regel. Er wird nicht von
+  `end_value_delta` abgezogen, und es wird kein Rest genannt: eine früh
+  gezahlte Gebühr hätte sich bis zum Fensterende verzinst, was die gebuchte
+  Zahl nicht enthält. Eine Gebühr von 5,00 EUR auf einen Kauf im Fenster
+  liest `fees` `"5"`, `taxes` `"0"`. Nichts wird
   gespeichert: der Vergleich wird beim Lesen abgeleitet und wie der Walk
   memoisiert, von dem er abhängt.
 - `GET /api/v1/portfolios/:portfolio_id/performance/contribution` liefert die

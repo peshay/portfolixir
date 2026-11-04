@@ -293,6 +293,9 @@ describe("Portfolixir MCP tools", () => {
       assert.match(description, /as_of/);
       assert.match(description, /stale/);
       assert.match(description, /computation_basis/);
+      // Sprint 24 B1 (ADR-0046, amended 2026-11-04): the fees and taxes the
+      // real portfolio booked in the window ride beside the gap, never in it.
+      assert.match(description, /costs_paid/);
     }
 
     // ADR-0020: the target read/write tools and the per-plan cash-target tools

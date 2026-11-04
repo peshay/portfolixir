@@ -2376,7 +2376,25 @@ Example account payloads:
   zero before its currency's first rate — the jump that rate brings sits in
   `portfolio_ttwror` and `end_value_delta` — is named in
   `unvalued_cash_accounts`, the performance read's entries for the covered
-  window (`[]` without one; #1055). Nothing is persisted: the comparison
+  window (`[]` without one; #1055). `costs_paid` (ADR-0046, amended
+  2026-11-04) reports what the frictionless benchmark never pays: the
+  `fees` and the `taxes` the real portfolio booked in the
+  `requested_window`, both days included, as Decimal strings in the base
+  currency, by the cost facet's rule (`GET /api/v1/costs`: the fee and tax
+  legs of any booking plus the standalone `fee` and `tax` bookings,
+  `tax_refund` netted against the taxes, each converted at the EUR-hub rate
+  stored on its own booking date). A cost counts where the cash account
+  that paid it counts: in the portfolio the account belongs to, in a view
+  whose buckets hold the account, always in the total; a fee on a buy whose
+  depot is in the view and whose cash account is not is outside the view.
+  It is the same for every benchmark of one request. A cost with no stored
+  rate on its day is left out of both sums and named in `excluded`
+  (`count`, `currencies`); `costs_paid.window` and its own
+  `computation_basis` state the rule. It is not subtracted from
+  `end_value_delta`, and no residual is named: a cost paid early would
+  have compounded until the window's end, which the booked figure leaves
+  out. A 5.00 EUR fee on a buy in the window reads `fees` `"5"`, `taxes`
+  `"0"`. Nothing is persisted: the comparison
   is derived on read and memoised like the walk it depends on.
 - `GET /api/v1/portfolios/:portfolio_id/performance/contribution` returns the
   **contribution analysis** (FR-41, ADR-0051): which position made how much of

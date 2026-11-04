@@ -2052,7 +2052,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   financial value a string, the requested and the covered window, the flows
   excluded from the replay, and the computation basis with the frictionless
   assumption stated in the payload. The bought-once series rides along only
-  on request, like the performance series.
+  on request, like the performance series. `costs_paid` (ADR-0046, amended
+  2026-11-04) carries the fees and taxes the real portfolio booked in the
+  requested window and scope, with its own basis.
   """
   def benchmark_comparison(result, include_series? \\ false) do
     bought_once = %{
@@ -2088,7 +2090,21 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       as_of: datetime(result.as_of),
       stale: result.stale,
       unvalued_cash_accounts: Enum.map(result.unvalued_cash_accounts, &unvalued_cash_account/1),
+      costs_paid: costs_paid(result.costs_paid),
       computation_basis: benchmark_basis(result.computation_basis)
+    }
+  end
+
+  # ADR-0046, amended 2026-11-04: the fees and taxes booked in the
+  # comparison's requested window and scope, the same for every benchmark of
+  # one request; the two sums as Decimal strings, the window as ISO dates.
+  defp costs_paid(costs) do
+    %{
+      fees: decimal(costs.fees),
+      taxes: decimal(costs.taxes),
+      window: benchmark_window(costs.window),
+      excluded: costs.excluded,
+      computation_basis: Map.update!(costs.computation_basis, :window, &benchmark_window/1)
     }
   end
 
