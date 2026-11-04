@@ -39,6 +39,8 @@ defmodule Portfolixir.Invariants.DisplayedDatesTest do
       "the datetime attribute of the note's <time>, built as safe markup",
     {"lib/portfolixir_web/live/securities_live.ex", :research_today_value} =>
       "the research entry's as-of input default",
+    {"lib/portfolixir_web/live/journal_live.ex", :since_value} =>
+      "the journal's „Seit“ input value, the API's since= date",
     {"lib/portfolixir_web/live/transaction_management_live.ex", :date_field_value} =>
       "the booking drawer's date input and the notes drawer's disabled one"
   }

@@ -188,7 +188,16 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
     assert Floki.attribute(label, "class") == ["journal-filters__since"]
     assert label |> Floki.text() |> String.trim() == "Seit"
     assert has_element?(view, "#journal-filters .journal-filters__kind + label #journal-since")
-    assert has_element?(view, "#journal-since[type='date'][name='since'][value='']")
+    # UX-DR19: the app's ISO text input, not a native date input (which
+    # renders the browser locale's format), sent on blur so a half-typed date
+    # never patches the cut away.
+    assert has_element?(
+             view,
+             "#journal-since[type='text'][name='since'][value=''][placeholder='YYYY-MM-DD']" <>
+               "[pattern='[0-9]{4}-[0-9]{2}-[0-9]{2}'][maxlength='10'][phx-debounce='blur']"
+           )
+
+    refute has_element?(view, "#journal-since[inputmode]")
 
     view |> form("#journal-filters", %{"since" => since}) |> render_change()
     assert_patch(view, "/journal?since=#{since}")

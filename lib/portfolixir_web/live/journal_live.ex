@@ -249,10 +249,22 @@ defmodule PortfolixirWeb.JournalLive do
                 </option>
               </select>
             </label>
-            <%!-- The cut (board 01 ①): a native date input, empty for none. --%>
+            <%!-- The cut (board 01 ①): the app's ISO date input (UX-DR19),
+                 empty for none, sent on blur so a half-typed date never
+                 patches the cut away. --%>
             <label class="journal-filters__since">
               <%= gettext("Since") %>
-              <input type="date" id="journal-since" name="since" value={since_value(@opts[:since])} />
+              <input
+                type="text"
+                id="journal-since"
+                name="since"
+                value={since_value(@opts[:since])}
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                maxlength="10"
+                autocomplete="off"
+                phx-debounce="blur"
+              />
             </label>
             <label class="journal-filters__scenarios">
               <input type="hidden" name="include_scenarios" value="false" />
