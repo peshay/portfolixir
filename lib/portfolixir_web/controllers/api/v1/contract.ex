@@ -41,6 +41,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 24,
+      # Sprint 24's sprint PR. J1 (#1378; ADR-0017, amendment of 2026-11-04):
+      # a delete's journal after is null. Dated the day after entry 23,
+      # because since= compares strictly after a date.
+      date: ~D[2026-11-05],
+      summary:
+        "Sprint 24, J1: every delete entry of the audit journal stores after null, " <>
+          "whatever its writer, from the release that ships Sprint 24 on: after a delete " <>
+          "nothing stands, and the deleted record is the entry's before, read under the " <>
+          "write's lock, as it was. Entries written by release 2026.11.8 and earlier are " <>
+          "append-only and keep their two older shapes, a row's delete repeating the deleted " <>
+          "record and a set's delete holding the emptied set; the API reference states both " <>
+          "and portfolixir.journal.list's description says so, shortened elsewhere to keep " <>
+          "its bytes, each rule it states unchanged (#1378).",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/journal (portfolixir.journal.list, whose description now says so), no parameter added: an entry whose operation is delete carries after null, where it carried the deleted record again (a booking's delete: after equal to before, every field of the row) or the emptied set (a release of manual quotes, security_quotes: {\"security_id\": 42, \"quotes\": []}; a cleared position override, position_bucket_override: {\"id\": null, \"securities_account_id\": 7, \"security_id\": 42}, without its bucket_ids). before is unchanged, the record as stored under the write's lock, so a deleted record is read from before. Entries written by release 2026.11.8 and earlier are not rewritten (the table is append-only) and keep those shapes; create, update and upsert entries are unchanged (#1378; ADR-0017, amendment of 2026-11-04)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 23,
       # Sprint 23, M1 (#1115): the companion moves from the MCP SDK v1 to v2.
       # Its stdio answers are held against a capture from the v1 build

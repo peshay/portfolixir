@@ -49,22 +49,45 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 24's sprint PR (version 24). Dated strictly after entry 23, so
+    # since=2026-11-04 still returns it. Each story appends its own items;
+    # each is found by its issue, so a later story's item does not move
+    # another's.
+    assert newest["version"] == 24
+    assert newest["date"] == "2026-11-05"
+    params = newest["parameters"]
+    by_issue = fn marker -> Enum.filter(params, &String.contains?(&1, marker)) end
+
+    # J1 (#1378; ADR-0017, amendment of 2026-11-04): a delete's after is
+    # null. No route, tool or prompt; one item, on the journal read.
+    assert newest["summary"] =~ "Sprint 24, J1: "
+    assert newest["summary"] =~ "2026.11.8"
+    assert newest["summary"] =~ "(#1378)"
+    assert [delete_after] = by_issue.("(#1378")
+    assert String.starts_with?(delete_after, "GET /api/v1/journal (portfolixir.journal.list")
+    assert delete_after =~ "carries after null"
+    assert delete_after =~ ~s({"security_id": 42, "quotes": []})
+    assert delete_after =~ "release 2026.11.8 and earlier are not rewritten"
+    assert delete_after =~ "(#1378; ADR-0017, amendment of 2026-11-04)"
+
     # Sprint 23, M1 (version 23; #1115): the MCP companion moves to the MCP
     # SDK v2. Dated strictly after entry 22, so since=2026-11-03 still
     # returns it. No route, tool or prompt: what an agent sees change is two
     # protocol-level refusals and the stdio transport's read cap, one item
-    # each, against the stdio capture the companion's tests hold.
-    assert newest["version"] == 23
-    assert newest["date"] == "2026-11-04"
-    assert String.starts_with?(newest["summary"], "Sprint 23, M1: ")
-    assert newest["summary"] =~ "@modelcontextprotocol/server 2.4.0"
-    assert newest["summary"] =~ "2025-11-25"
-    assert newest["summary"] =~ "(#1115)"
-    assert hd(Contract.entries()).prompts == []
+    # each, against the stdio capture the companion's tests hold. Found by
+    # version from Sprint 24 on.
+    s23 = Enum.find(data["entries"], &(&1["version"] == 23))
+    assert s23["version"] == 23
+    assert s23["date"] == "2026-11-04"
+    assert String.starts_with?(s23["summary"], "Sprint 23, M1: ")
+    assert s23["summary"] =~ "@modelcontextprotocol/server 2.4.0"
+    assert s23["summary"] =~ "2025-11-25"
+    assert s23["summary"] =~ "(#1115)"
+    assert Enum.find(Contract.entries(), &(&1.version == 23)).prompts == []
 
     # Each story of the sprint appends its own items; each is found by its
     # issue, so a later story's item does not move another's.
-    params = newest["parameters"]
+    params = s23["parameters"]
     by_issue = fn marker -> Enum.filter(params, &String.contains?(&1, marker)) end
     assert [unknown_prompt, no_params] = by_issue.("(#1115)")
     assert String.starts_with?(unknown_prompt, "prompts/get ")
@@ -80,16 +103,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # 10 MB read cap was the v1 SDK's too, so no item claims it is new.
     assert no_params =~ "or with arguments that are not an object (null or a list)"
     assert no_params =~ "A tools/call whose params lack the arguments key"
-    refute newest["summary"] =~ "message cap"
+    refute s23["summary"] =~ "message cap"
 
     for item <- [unknown_prompt, no_params], do: assert(item =~ "(#1115)")
 
     # Sprint 23, R2 (version 23; #1371; ADR-0053, amendment of 2026-11-02):
     # the read-only cash check, one item, and the summary says so.
-    assert newest["summary"] =~ "R2 (#1371"
-    assert newest["endpoints"] == ["GET /api/v1/transactions/cash_mismatch"]
-    assert newest["tools"] == ["portfolixir.transactions.cash_mismatch"]
-    assert newest["summary"] =~ "schema budget"
+    assert s23["summary"] =~ "R2 (#1371"
+    assert s23["endpoints"] == ["GET /api/v1/transactions/cash_mismatch"]
+    assert s23["tools"] == ["portfolixir.transactions.cash_mismatch"]
+    assert s23["summary"] =~ "schema budget"
     assert [cash_mismatch, stated_cash] = by_issue.("(#1371")
 
     assert String.starts_with?(
@@ -102,7 +125,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # The PATCH's new 422, the rule the read lists the old rows of.
     assert String.starts_with?(stated_cash, "PATCH /api/v1/transactions/:id ")
-    assert newest["summary"] =~ "does not state gross_amount"
+    assert s23["summary"] =~ "does not state gross_amount"
 
     assert stated_cash =~
              "is required when quantity, price, fees, taxes or buy/sell change on a " <>
@@ -117,8 +140,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # Sprint 23, R3 (#1368): the category result prices a member without a
     # quote at its last own trade price, as the valuation does, and names it.
-    assert newest["summary"] =~ "Sprint 23, R3: "
-    assert newest["summary"] =~ "(#1368)"
+    assert s23["summary"] =~ "Sprint 23, R3: "
+    assert s23["summary"] =~ "(#1368)"
     assert [category_prices] = by_issue.("(#1368")
     assert String.starts_with?(category_prices, "GET /api/v1/category-results, ")
     assert category_prices =~ "GET /api/v1/views/:view_id/category-results"
@@ -129,8 +152,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # Sprint 23, R4 (#1369): the open lots of the trades read name the
     # price they are valued at, the holdings read's rule. Its own item.
-    assert newest["summary"] =~ "Sprint 23, R4: "
-    assert newest["summary"] =~ "(#1369)"
+    assert s23["summary"] =~ "Sprint 23, R4: "
+    assert s23["summary"] =~ "(#1369)"
     assert [open_lots] = by_issue.("(#1369)")
     assert String.starts_with?(open_lots, "GET /api/v1/securities/:security_id/trades")
     assert open_lots =~ "price_source"

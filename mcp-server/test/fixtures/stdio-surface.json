@@ -4662,7 +4662,7 @@
             {
               "name": "portfolixir.journal.list",
               "title": "List audit journal",
-              "description": "List append-only audit-journal entries, newest first: who (actor_type/label; for an API token the label is the name of the configured token entry it matched, null for the unnamed default token), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. An update's or a delete's before is the row as stored when the write took its lock and an update's after is the row as stored after it, so two writes made from one read chain (the second's before is the first's after). Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. Echoes as_of, the filters, the ordering, limit and truncated.",
+              "description": "List append-only audit-journal entries, newest first: who (actor_type, actor_label: a token's configured name, null for the default), what (operation on resource_type/resource_id) and before/after of every financial write, deletions included. An update's or a delete's before is the row stored under the write's lock, an update's after the row stored after it, so two writes from one read chain (the second's before is the first's after). A delete's after is null; one by release 2026.11.8 or earlier repeats the deleted record or holds the emptied set. Filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. Echoes as_of, filters, ordering, limit and truncated.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
