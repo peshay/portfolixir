@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>c-after</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* (2) "Beitrag je Position" takes its phone rows where its columns stop
+   fitting: a container query on the block, measured on the seed (the
+   German table needs 814 px of columns plus the wrapper's 2 px border).
+   #contribution-table-wrap leaves the 560 px block. */
+#performance-contribution { container: contribution / inline-size; }
+@container contribution (width < 820px) {
+  #contribution-table-wrap { display: none; }
+  #contribution-phone-rows { display: block; }
+}
+/* (3) #1322: the holdings table fits its wrapper; the name column keeps a
+   12 rem floor and breaks inside its cell (#1145's anatomy), the figures
+   never wrap, a cell's note wraps between words. */
+.data-table-wrapper > #holdings-positions-table { min-width: 0; width: 100%; }
+#holdings-positions-table th.cell-name { min-width: 12rem; }
+#holdings-positions-table td.cell-name { overflow-wrap: anywhere; }
+#holdings-positions-table th.num,
+#holdings-positions-table td.num { white-space: nowrap; }
+#holdings-positions-table td .cell-note { white-space: normal; }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="portfolio-overview" class="workspace-page portfolio-overview">
+    <section id="portfolio-performance" class="workspace-section">
+        <div id="performance-contribution" class="contribution" data-role="contribution">
+  <div class="contribution__head">
+    <div class="section-title">
+      <h3 id="contribution-title">Beitrag je Position</h3>
+      <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten<br>Anfangswert: der Schluss des Vortags<br>
+          Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis
+        </p>
+</details>
+    </div>
+    <span class="contribution__scope" data-role="contribution-scope">1J · Ansicht Alles · sortiert nach Beitrag</span>
+  </div>
+      <div id="contribution-table-wrap" class="data-table-wrapper">
+  <table id="contribution-table" class="data-table contribution-table" aria-labelledby="contribution-title">
+    <thead>
+      <tr>
+        <th scope="col">Wertpapier</th>
+        <th scope="col" class="num">Anfangswert</th>
+        <th scope="col" class="num">Zu-/Abflüsse</th>
+        <th scope="col" class="num">Erträge</th>
+        <th scope="col" class="num">Kosten</th>
+        <th scope="col" class="num">Endwert</th>
+        <th scope="col" class="num">Beitrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr data-role="contribution-row" data-security-id="1">
+        <td class="contribution-table__name">
+          Apple Inc. Registered Shares o.N.
+        </td>
+        <td class="num">7.539,50</td>
+        <td class="num">0,00</td>
+        <td class="num">+12,50</td>
+        <td class="num">0,00</td>
+        <td class="num">9.443,50</td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive">+1.916,50</span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 45.0%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="3">
+        <td class="contribution-table__name">
+          Allianz SE vinkulierte Namens-Aktien o.N.
+        </td>
+        <td class="num">5.335,80</td>
+        <td class="num">0,00</td>
+        <td class="num">0,00</td>
+        <td class="num">0,00</td>
+        <td class="num">7.011,60</td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive">+1.675,80</span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 39.3%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="47">
+        <td class="contribution-table__name">
+          Larkspur Rail AG 4,00 % Anleihe 2031
+        </td>
+        <td class="num">9.950,00</td>
+        <td class="num">0,00</td>
+        <td class="num">+400,00</td>
+        <td class="num">0,00</td>
+        <td class="num">10.025,00</td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive">+475,00</span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 11.2%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="32">
+        <td class="contribution-table__name">
+          Wrenfield Gardens AG
+          <small class="contribution-table__note">
+            am Ende nicht mehr im Bestand
+          </small>
+        </td>
+        <td class="num">1.000,00</td>
+        <td class="num">-1.420,00</td>
+        <td class="num">0,00</td>
+        <td class="num">0,00</td>
+        <td class="num">0,00</td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive">+420,00</span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 9.9%">
+            </span>
+          </span>
+        </td>
+      </tr><tr data-role="contribution-row" data-security-id="7">
+        <td class="contribution-table__name">
+          NVIDIA Corporation Registered Shares DL-,001
+        </td>
+        <td class="num">2.002,90</td>
+        <td class="num">0,00</td>
+        <td class="num">0,00</td>
+        <td class="num">0,00</td>
+        <td class="num">2.401,10</td>
+        <td class="num contribution-table__figure">
+          <span class="is-positive">+398,20</span>
+          <span class="drift-bar" aria-hidden="true">
+            <span class="drift-bar__fill is-over" style="width: 9.3%">
+            </span>
+          </span>
+        </td>
+      </tr><tr class="mock-elided"><td colspan="12">… 5 weitere Positionen, für das Board gekürzt</td></tr>
+      <tr class="contribution-table__more">
+        <td colspan="7" data-role="contribution-more">
+          <span>31 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span>
+          <button type="button" class="link-button contribution-show-all" data-role="contribution-show-all" aria-expanded="false">
+    Alle 41 anzeigen
+</button>
+        </td>
+      </tr>
+      <tr class="contribution-table__rest-head">
+        <td colspan="7" data-role="contribution-rest-head">
+          Keiner Position zugeordnet
+        </td>
+      </tr>
+      <tr class="contribution-table__rest" data-role="contribution-remainder" data-line="interest">
+        <td class="contribution-table__name">
+          Zinsen
+          <small class="contribution-table__note">Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre Anleihe gebucht sind</small>
+        </td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num">
+          <span class="is-positive">+2,30</span>
+        </td>
+      </tr><tr class="contribution-table__rest" data-role="contribution-remainder" data-line="standalone_fees_and_taxes">
+        <td class="contribution-table__name">
+          Einzelne Gebühren und Steuern
+          <small class="contribution-table__note">Ohne Handelsbezug, auch mit Wertpapier</small>
+        </td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num">
+          <span class="">0,00</span>
+        </td>
+      </tr><tr class="contribution-table__rest" data-role="contribution-remainder" data-line="cash_currency_effect">
+        <td class="contribution-table__name">
+          Währungseffekt auf Bargeld
+          <span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="17">Dollar Cash: 201 Tage mit 0 bewertet</span><span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="16">Tagesgeld CHF: 28 Tage mit 0 bewertet</span><span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="12">US Broker: 367 Tage mit 0 bewertet</span><span class="contribution-unvalued-mark" data-role="contribution-unvalued-mark" data-cash-account-id="2">USD Settlement: 4 Tage mit 0 bewertet</span>
+          <small class="contribution-table__note">Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen</small>
+        </td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num contribution-table__none">—</td>
+        <td class="num">
+          <span class="is-positive">+2.105,26</span>
+        </td>
+      </tr>
+      <tr class="contribution-table__sum" data-role="contribution-sum">
+        <td>Summe = Ergebnis im Zeitraum</td>
+        <td class="num">63.341,58</td>
+        <td class="num">+925,20</td>
+        <td class="num">+412,50</td>
+        <td class="num">32,90</td>
+        <td class="num">69.128,26</td>
+        <td class="num" data-role="contribution-sum-figure">
+          <span class="is-positive">+7.348,65</span>
+          <small class="value-suffix">EUR</small>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+      <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows mock-new" aria-label="Beitrag je Position">
+  <li class="phone-row" data-role="contribution-row" data-security-id="1">
+    <span class="phone-row__body">
+      <span class="phone-row__name"><span class="mock-pin">2</span>Apple Inc. Registered Shares o.N.</span>
+      <span class="phone-row__ids">7.539,50 → 9.443,50 · Erträge 12,50</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +1.916,50
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="3">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Allianz SE vinkulierte Namens-Aktien o.N.</span>
+      <span class="phone-row__ids">5.335,80 → 7.011,60</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +1.675,80
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="47">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Larkspur Rail AG 4,00 % Anleihe 2031</span>
+      <span class="phone-row__ids">9.950,00 → 10.025,00 · Erträge 400,00</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +475,00
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="32">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Wrenfield Gardens AG</span>
+      <span class="phone-row__ids">am Ende nicht mehr im Bestand · Abfluss aus der Position 1.420,00</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +420,00
+      </span>
+    </span>
+  </li><li class="phone-row" data-role="contribution-row" data-security-id="7">
+    <span class="phone-row__body">
+      <span class="phone-row__name">NVIDIA Corporation Registered Shares DL-,001</span>
+      <span class="phone-row__ids">2.002,90 → 2.401,10</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +398,20
+      </span>
+    </span>
+  </li><li class="mock-elided">… 5 weitere Positionen, für das Board gekürzt</li>
+  <li class="phone-row contribution-phone-rows__more">
+    <span class="phone-row__body">
+      <span class="phone-row__ids">31 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span>
+      <span><button type="button" class="link-button contribution-show-all" data-role="contribution-show-all" aria-expanded="false">
+    Alle 41 anzeigen
+</button></span>
+    </span>
+  </li>
+  <li class="phone-row contribution-phone-rows__rest" data-role="contribution-phone-rest">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Keiner Position zugeordnet</span>
+      <span class="phone-row__ids">
+        Zinsen +2,30 · Gebühren/Steuern 0,00 · Währung +2.105,26 · Dollar Cash: 201 Tage mit 0 bewertet · Tagesgeld CHF: 28 Tage mit 0 bewertet · US Broker: 367 Tage mit 0 bewertet · USD Settlement: 4 Tage mit 0 bewertet
+      </span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +2.107,56
+      </span>
+    </span>
+  </li>
+  <li class="phone-row contribution-phone-rows__sum" data-role="contribution-phone-sum">
+    <span class="phone-row__body">
+      <span class="phone-row__name">Summe = Ergebnis im Zeitraum</span>
+      <span class="phone-row__ids">Positionen und Restposten</span>
+    </span>
+    <span class="phone-row__figures">
+      <span class="phone-row__figure is-positive">
+        +7.348,65 <small class="value-suffix">EUR</small>
+      </span>
+    </span>
+  </li>
+</ul>
+      <p class="summary-basis" data-role="contribution-basis">
+        je Position in EUR, einschließlich der Währungsbewegung
+      </p>
+      <div id="contribution-unvalued-note" class="data-note data-note--attention data-note--clamped" data-role="contribution-unvalued">
+  <span class="data-note__icon" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  </span>
+  <span class="data-note__word">Achtung</span>
+    <div class="data-note__body">
+      <div id="contribution-unvalued-note-text" class="data-note__text">
+    4 Positionen zählten an einigen Tagen des Zeitraums null:
+    <span><b>Saltmarsh Logistics SE</b> (240 Tage, kein Kurs gespeichert)</span><span>, <b>Harborline Freight Inc</b> (366 Tage, kein Wechselkurs gespeichert)</span><span>, <b>Placeholder Anleihe 2031 3,25%</b> (41 Tage, kein Kurs gespeichert)</span><span>, <b>Larkspur Robotics Inc</b> (171 Tage, kein Wechselkurs gespeichert)</span>.
+    Sie bleiben in der Summe, so wie im Ergebnis darüber.
+    Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null:
+    <span><b>Tagesgeld CHF</b> (2.000,00 CHF, 28 Tage, kein Wechselkurs gespeichert)</span>.
+    Mit dem ersten Wechselkurs am 15.07.2026 kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ und damit ins Ergebnis — das ist kein Währungsgewinn.
+    3 Verrechnungskonten zählen bis zum Ende des Zeitraums null:
+    <span><b>Dollar Cash</b> (1.000,00 USD, 201 Tage, kein Wechselkurs gespeichert)</span><span>, <b>US Broker</b> (64,00 USD, 367 Tage, kein Wechselkurs gespeichert)</span><span>, <b>USD Settlement</b> (1.850,00 USD, 4 Tage, kein Wechselkurs gespeichert)</span>.
+</div>
+    </div>
+    <button type="button" class="link-button data-note__more" aria-expanded="false" aria-controls="contribution-unvalued-note-text" data-more="mehr" data-less="weniger">mehr</button>
+</div>
+</div>
+    </section>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>
