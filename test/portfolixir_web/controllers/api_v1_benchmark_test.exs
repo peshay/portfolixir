@@ -671,4 +671,103 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
     refute Map.has_key?(scoped, "view")
     assert Map.drop(scoped, ["as_of"]) == Map.drop(plain, ["as_of"])
   end
+
+  # User story (Sprint 24 B1; ADR-0046, amended 2026-11-04; idea I17):
+  # As an API client (and the agent connected over MCP) reading "was it
+  # worth it",
+  # I want every benchmark comparison to carry the fees and taxes the real
+  # portfolio booked in the same window and scope,
+  # so that I can say how large the frictionless benchmark's advantage was
+  # without adding up bookings myself.
+  #
+  # Acceptance criteria (exact Decimal strings):
+  # - The portfolio, the view and the total comparison each carry
+  #   costs_paid: fees and taxes as Decimal strings in the base currency,
+  #   the window it read, excluded {count, currencies} and its
+  #   computation_basis (window as ISO dates).
+  # - A 5.00 fee and a 1.50 tax on a buy from the view's cash account, and a
+  #   2.00 fee from an account outside the view: the portfolio and the total
+  #   read fees "7", taxes "1.5"; the view reads fees "5", taxes "1.5".
+  test "every comparison carries costs_paid, by the paying cash account's scope", %{conn: conn} do
+    today = Date.utc_today()
+    world = base_world(name: "Paid", cash_name: "Paid Cash", depot_name: "Paid Depot")
+    security = create_security!(name: "Paid ETF", ticker: "PAID")
+    put_quotes!(security, [{Date.add(today, -20), "100"}, {Date.add(today, -1), "120"}])
+    deposit!(world, "1000", Date.add(today, -20))
+
+    buy!(world, security,
+      quantity: "5",
+      price: "100",
+      fees: "5.00",
+      taxes: "1.50",
+      date: Date.add(today, -15)
+    )
+
+    {:ok, outside} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Paid Outside",
+        currency_code: "EUR"
+      })
+
+    deposit!(%{world | cash: outside}, "100", Date.add(today, -20))
+
+    {:ok, _fee} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: outside.id,
+        type: "fee",
+        date: Date.add(today, -5),
+        gross_amount: "2.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Paid #{System.unique_integer([:positive])}"
+      })
+
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [bucket.id])
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Paid View #{System.unique_integer([:positive])}",
+        include_all: false
+      })
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+    query = %{"benchmark" => "rate:0.02"}
+
+    read = fn path ->
+      api_conn(conn) |> get(path, query) |> json_response(200) |> Map.fetch!("data")
+    end
+
+    portfolio = read.("/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark")
+    in_view = read.("/api/v1/views/#{view.id}/performance/benchmark")
+    total = read.("/api/v1/performance/benchmark")
+
+    window = %{
+      "start_date" => Date.to_iso8601(Date.add(today, -20)),
+      "end_date" => Date.to_iso8601(today)
+    }
+
+    assert %{"fees" => "7", "taxes" => "1.5"} = portfolio["costs_paid"]
+    assert %{"fees" => "5", "taxes" => "1.5"} = in_view["costs_paid"]
+    assert %{"fees" => "7", "taxes" => "1.5"} = total["costs_paid"]
+
+    for data <- [portfolio, in_view, total] do
+      costs = data["costs_paid"]
+      assert costs["window"] == window
+      assert costs["window"] == data["requested_window"]
+      assert costs["excluded"] == %{"count" => 0, "currencies" => []}
+      assert costs["computation_basis"]["window"] == window
+      assert costs["computation_basis"]["scope"] =~ "cash account that paid it"
+      assert costs["computation_basis"]["not_included"] =~ "not subtracted from end_value_delta"
+
+      for {_key, text} <- costs["computation_basis"], is_binary(text) do
+        refute text =~ ~r/selection and timing/i
+      end
+    end
+  end
 end
