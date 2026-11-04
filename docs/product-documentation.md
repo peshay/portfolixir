@@ -4122,15 +4122,21 @@ Festgeld Plus", with the stored before and after values folded beneath
 under "Stored values", reduced to the fields that changed; a created entry
 folds every stored value, and a deletion reads "deleted, with every value"
 and folds every value the record held. Chips filter by actor and by
-operation, a select by kind, and a checkbox includes persisted what-if
-writes; "Only this entry" beside a row lists that one entry's history.
+operation, a select by kind, a date field "Since" beside it keeps the
+entries written after that day began (UTC), and a checkbox includes
+persisted what-if writes; "Only this entry" beside a row lists that one
+entry's history.
 These are exactly the API's filters, and each is written into the address
 (`/journal?actor_type=api_token_rw&operation=delete`), so a link an agent
 hands over opens the rows it read, and the page and the API list the same
-entries. The basis line restates the order, the count, the filters and that
-times are UTC. The page shows the newest 100; "Show older entries" adds a
-page at a time up to the API's maximum of 1000, beyond which a filter
-reaches older entries. On a phone each entry is a two-line row. The page
+entries. A cut the agent hands over opens as itself, a date
+(`/journal?since=2026-10-28`) or an instant, its cursor included; the page
+lists that slice newest first, where the API answers it oldest first. The
+basis line restates the order, the cut ("since 2026-10-28 (UTC)"), the
+count, the filters and that times are UTC. The page shows the newest 100;
+"Show older entries" adds a page at a time, within the cut, up to the API's
+maximum of 1000, beyond which a filter or a later "Since" reaches older
+entries. On a phone each entry is a two-line row. The page
 only reads; nothing on it changes the journal.
 
 Deleting a cash account, a depot or a security never takes anything with it
