@@ -1826,7 +1826,17 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
   the second figure (change, quantity) as a 12 px line under the first.
 - **Sunburst centre:** three lines — the category in {typography.stat-label},
   the value at 20 px weight 700, the actual/target pair at 11 px muted; the
-  centre never paints a colour of its own.
+  centre never paints a colour of its own. *Amended 2026-11-05 (Sprint 24
+  P1, #1366 line 1, the owner's report of 2026-11-04; no picture, so no
+  board):* a tapped slice holds the centre until the reader lets it go: a
+  tap on the centre (its text lets the tap through to the chart), a tap
+  outside the chart, a second tap on the selected slice or Escape brings
+  „Allokiert“ and the total back; a tap on another slice moves the
+  selection. Only while a slice is selected does the figure listen
+  (`phx-click`, `phx-click-away` and an Escape-only `phx-window-keydown`,
+  all `clear_segment`), so otherwise a tap elsewhere on the page sends
+  nothing. Pinned in Chromium by
+  `test/browser/sunburst_centre_return_test.exs`.
 - **Facet control and view switcher:** placed inside `.workspace-section`, so
   they take its padding; no negative margins.
 - **Picked variants (owner, 2026-09-14):** C1 **A** (two tiers), C2 **B**

@@ -1935,7 +1935,19 @@ defmodule PortfolixirWeb.PortfolioLive do
             <%= if @allocation_mode == :tree do %>
             <div class="donut-wrap">
               <div class="sunburst-pane">
-                <div class="sunburst-figure">
+                <%!-- #1366 line 1: with a slice selected, a tap on the
+                     figure (the centre lets it through to the chart), a tap
+                     outside it and Escape bring the total back; a slice's
+                     own phx-click is nearer, so a tap on a slice selects
+                     it. Nothing listens while nothing is selected. --%>
+                <div
+                  class="sunburst-figure"
+                  data-role="sunburst-figure"
+                  phx-click={@selected_segment && "clear_segment"}
+                  phx-click-away={@selected_segment && "clear_segment"}
+                  phx-window-keydown={@selected_segment && "clear_segment"}
+                  phx-key={@selected_segment && "Escape"}
+                >
                   <.allocation_sunburst segments={sunburst_segments(@allocation)} />
                   <.sunburst_centre centre={sunburst_centre(@selected_segment, @allocation)} />
                 </div>
@@ -4008,6 +4020,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The mobile substitute for hover: tapping a slice echoes it below the chart.
   # Values are display strings straight from our own render; HEEx escapes them.
+  # #1366 line 1: a tap on the selected slice again brings the total back.
   def handle_event("select_segment", params, socket) do
     segment = %{
       name: LiveParam.string(params["name"]) || "",
@@ -4017,8 +4030,18 @@ defmodule PortfolixirWeb.PortfolioLive do
       color: safe_color(params["color"])
     }
 
-    {:noreply, assign(socket, :selected_segment, segment)}
+    selected = if segment == socket.assigns.selected_segment, do: nil, else: segment
+    {:noreply, assign(socket, :selected_segment, selected)}
   end
+
+  # #1366 line 1: a tap on the centre or outside the chart, or Escape, brings
+  # the total back. The keydown binding names Escape (`phx-key`); another key
+  # pushed by hand changes nothing.
+  def handle_event("clear_segment", %{"key" => key}, socket) when key != "Escape",
+    do: {:noreply, socket}
+
+  def handle_event("clear_segment", _params, socket),
+    do: {:noreply, assign(socket, :selected_segment, nil)}
 
   # The sync runs in the background (UAT fix round): the handler only flips
   # the in-flight flag, so the button disables and the inline status shows
