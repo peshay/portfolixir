@@ -18,6 +18,8 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
   alias Portfolixir.Classifications
   alias Portfolixir.WorldFixtures
 
+  @css File.read!("priv/static/app.css")
+
   # Two categories, each holding one security, so the chart has two slices
   # per ring; the long name and the twelve-decimal quantity are #1322's.
   defp wealth_world do
@@ -76,6 +78,23 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
 
   defp figure(view), do: element(view, ~s([data-role="sunburst-figure"]))
 
+  # One CSS rule's body, found by its exact selector line.
+  defp rule(selector) do
+    case Regex.run(~r/(?:^|\n)#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
+      [_, body] -> body
+      nil -> flunk("app.css has no rule `#{selector} {`")
+    end
+  end
+
+  # The body of an at-rule block whose head is given exactly, up to the
+  # first line that closes it at the left margin.
+  defp at_block(head) do
+    case Regex.run(~r/\n#{Regex.escape(head)} \{\n(.*?)\n\}/s, @css) do
+      [_, body] -> body
+      nil -> flunk("app.css has no block `#{head} {`")
+    end
+  end
+
   describe "line 1: the sunburst's centre comes back to its total" do
     # User story (#1366, line 1; the owner's report of 2026-11-04):
     # As the operator tapping the allocation sunburst,
@@ -131,6 +150,43 @@ defmodule PortfolixirWeb.WealthPolishLiveTest do
       assert centre_label(view) == "Core"
       view |> figure() |> render_keydown(%{"key" => "Escape"})
       assert centre_label(view) == "Allocated"
+    end
+  end
+
+  describe "line 2: „Beitrag je Position“ takes its rows where its columns stop fitting" do
+    # User story (#1366, line 2; the owner's report of 2026-11-04):
+    # As the operator reading the contribution table on a phone held
+    # upright or a narrow window,
+    # I want the two-line rows wherever the table's columns do not fit,
+    # so that „Beitrag“ is never scrolled out of view with no cue.
+    #
+    # Acceptance criteria:
+    # - The contribution block is a size container named `contribution`.
+    # - Below 820 px of block (the seed's German table needs 814 px of
+    #   columns and the wrapper's 2 px border; board
+    #   ux-design-2026-11-05-sprint24-p1) the table's wrapper is hidden and
+    #   the rows show, whatever the viewport and the sidebar.
+    # - The phone lists' 560 px block no longer decides it.
+    test "the block is a container, and under 820 px of it the rows replace the table",
+         %{conn: conn} do
+      wealth_world()
+      {:ok, view, _html} = live(conn, "/portfolio")
+      Enum.each(1..4, fn _round -> render_async(view) end)
+
+      block = view |> element("#performance-contribution") |> render()
+      assert block =~ ~s(id="contribution-table-wrap")
+      assert block =~ ~s(id="contribution-phone-rows")
+
+      assert rule("#performance-contribution") =~ "container: contribution / inline-size;"
+
+      rows = at_block("@container contribution (width < 820px)")
+      assert rows =~ ~r/#contribution-table-wrap \{\s*display: none;\s*\}/
+      assert rows =~ ~r/#contribution-phone-rows \{\s*display: block;\s*\}/
+
+      [_, phone_lists] =
+        Regex.run(~r/phone lists \(issue 799, issue 800\)(.*?)\.filter-sheet-toggle/s, @css)
+
+      refute phone_lists =~ "#contribution-table-wrap"
     end
   end
 end

@@ -962,10 +962,16 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
     assert css =~ ~r/#contribution-phone-rows \.phone-row\s*\{[^}]*minmax\(0, 1fr\) auto/
 
+    # #1366 line 2 (Sprint 24 P1, board ux-design-2026-11-05-sprint24-p1):
+    # the rows take over where the columns stop fitting, by the block's own
+    # width, not under a 560 px viewport.
     [phone_block] =
       Regex.run(~r/@media \(max-width: 560px\) \{\s*\/\* phone lists.*?\n\}/s, css)
 
-    assert phone_block =~ "#contribution-table-wrap"
+    refute phone_block =~ "#contribution-table-wrap"
+
+    assert css =~
+             ~r/@container contribution \(width < 820px\) \{\s*#contribution-table-wrap \{\s*display: none;\s*\}\s*#contribution-phone-rows \{\s*display: block;/
   end
 
   # User story (Sprint 18 PR β design critic, R4; board

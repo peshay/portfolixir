@@ -4636,6 +4636,22 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
 `ul#contribution-phone-rows.phone-rows` shows: the transactions shape, two
 children (body and figures), no logo, no kebab, no bar.
 
+*Amended 2026-11-05 (Sprint 24 P1, #1366 line 2, the owner's report of
+2026-11-04; board `mockups/ux-design-2026-11-05-sprint24-p1`, before/after):*
+the rows take over where the table's columns stop fitting, not under a
+560 px viewport. `#performance-contribution` is a size container
+(`container: contribution / inline-size`), and `@container contribution
+(width < 820px)` hides the table's wrapper and shows the rows; the
+wrapper left the phone lists' 560 px block. Measured on the review seed:
+the German table needs 814 px of columns (the English one 753 px) and the
+wrapper's 2 px border, the same in every period and with every row shown;
+before, it scrolled sideways with „Beitrag“ out of view from a 1090 px
+window with the sidebar open down to 900 px, and from 856 px to 561 px
+without it. Like the accounts card (issue 1145), the query reads the
+block's own width, so the sidebar's 220, 72 or 0 px never decides it; a
+figure longer than the seed's still has UX-DR15's scroller above the
+bound. The heading below keeps its name; the rows are the same.
+
 - **A position:** the name (600, wrapping) over "Anfang → Ende" — or, not
   held at both ends, the held words — then "Zufluss in die Position x" /
   "Abfluss aus der Position x" (#1090), "Erträge x" and "Kosten x" where not
