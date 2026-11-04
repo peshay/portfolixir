@@ -3997,6 +3997,24 @@ input[pattern]:invalid:not(:placeholder-shown) {
 .benchmark-row__coverage {
   flex-basis: 100%;
 }
+/* The costs line under the rows (ADR-0046, amended 2026-11-04; board
+   ux-design-2026-11-04-sprint24/02, A): the rows' detail ink, its two
+   figures in body ink; the ⓘ's sentence about it starts its own line. */
+.benchmark-costs {
+  display: block;
+  margin: var(--space-1) 0 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.benchmark-costs .benchmark-costs__fig {
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.metric-tooltip p .benchmark-costs__info {
+  display: block;
+  margin-top: 6px;
+}
 .benchmark-form__option {
   display: inline-flex;
   align-items: center;
