@@ -15,8 +15,10 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   **The family (#830, Sprint 14 D-5).** `since` is a *row-delta* parameter and
   fits only reads whose answer is a collection of rows with a change stamp:
   securities, transactions, a security's research log (by `inserted_at` — the
-  log is append-only), a security's events, and the category and position
-  target reads (a row counts as changed when it or its plan did). Two shapes
+  log is append-only), a security's events, the category and position
+  target reads (a row counts as changed when it or its plan did), and the
+  audit journal (by `inserted_at` to the microsecond, append-only too;
+  Sprint 24 J2). Two shapes
   deliberately do not carry it: derived projections (valuation, allocation,
   performance, risk — no rows, so "changed since" is a basis-version question
   this module cannot answer), and the time-derived queues (`/notes/unreviewed`,
@@ -27,7 +29,7 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
 
   **A capped read is a page (K17).** The delta reads bounded by `limit`
   (transactions, securities, a security's research log and events, a
-  portfolio's policy rules) parse `since` with `parse_page/1` and answer
+  portfolio's policy rules, the audit journal) parse `since` with `parse_page/1` and answer
   with `put_page_envelope/4`: rows oldest change first, `has_more` true when
   more rows matched than the page holds (the read fetches one row past the
   limit), and then an `as_of` that is a cursor at the page's last row,

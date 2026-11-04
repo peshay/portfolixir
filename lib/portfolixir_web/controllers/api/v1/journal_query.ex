@@ -3,18 +3,26 @@ defmodule PortfolixirWeb.Api.V1.JournalQuery do
   The one reading of the audit journal's filters and page (FR-28, ADR-0017),
   shared by `GET /api/v1/journal` and the Audit journal page (Sprint 23 V3,
   idea U2): both take the same parameters — `resource_type`, `resource_id`,
-  `actor_type`, `operation`, `include_scenarios` and `limit` — and answer the
-  same rows, so a link the agent hands over opens the slice it read.
+  `actor_type`, `operation`, `include_scenarios`, `since` and `limit` — and
+  answer the same rows, so a link the agent hands over opens the slice it
+  read.
 
-  The rows come from `Portfolixir.Journal.list_entries/1`, newest first; the
-  page is `ListLimit`'s (#771, #1254): one row past the limit tells a cut
-  answer from the whole.
+  `since` (Sprint 24 J2 and J3, decision D-4) is read by
+  `SinceParam.parse_page/1`, as every paged delta read takes it (K17): a
+  date, an instant, or the cursor a full page answered as `as_of`. It keeps
+  the entries strictly after the cut. The API answers them oldest first, as
+  a paged delta; the page shows the same rows newest first.
+
+  The rows come from `Portfolixir.Journal.list_entries/1`; the page is
+  `ListLimit`'s (#771, #1254): one row past the limit tells a cut answer
+  from the whole.
   """
 
   alias Portfolixir.Actor
   alias Portfolixir.Journal
   alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.Api.V1.TextParam
 
   # #811: the bound is the family's, spelled the family's way.
@@ -39,6 +47,7 @@ defmodule PortfolixirWeb.Api.V1.JournalQuery do
          {:ok, resource_id} <- text_param(params, "resource_id"),
          {:ok, actor_type} <- enum_param(params, "actor_type", Actor.types()),
          {:ok, operation} <- enum_param(params, "operation", Entry.operations()),
+         {:ok, since} <- SinceParam.parse_page(params),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       opts =
         [limit: limit, include_scenarios: params["include_scenarios"] == "true"]
@@ -46,21 +55,27 @@ defmodule PortfolixirWeb.Api.V1.JournalQuery do
         |> put_if_present(:resource_id, resource_id)
         |> put_if_present(:actor_type, actor_type)
         |> put_if_present(:operation, operation)
+        |> put_if_present(:since, since)
 
       {:ok, opts}
     end
   end
 
   @doc """
-  The entries `opts` select, newest first, at most `opts[:limit]` of them,
-  and whether more matched than the page holds.
+  The entries `opts` select, at most `opts[:limit]` of them, and whether
+  more matched than the page holds: newest first (`:desc`, the default and
+  the page's order), or oldest first (`:asc`, the API's paged delta under
+  `since`), so a page of either order holds the rows its order reaches
+  first.
   """
-  @spec list(keyword()) :: {[Entry.t()], boolean()}
-  def list(opts) when is_list(opts) do
+  @spec list(keyword(), :desc | :asc) :: {[Entry.t()], boolean()}
+  def list(opts, order \\ :desc) when is_list(opts) and order in [:desc, :asc] do
     limit = Keyword.fetch!(opts, :limit)
 
     opts
     |> Keyword.put(:limit, ListLimit.fetch(limit))
+    |> Keyword.put(:order, order)
+    |> Keyword.update(:since, nil, &(&1 && SinceParam.cursor(&1)))
     |> Journal.list_entries()
     |> ListLimit.page(limit)
   end
