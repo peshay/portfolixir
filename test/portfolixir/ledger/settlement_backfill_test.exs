@@ -363,7 +363,8 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
     # Written as it was stored before #1199's check refused a third
     # currency: CHF-priced, through the EUR account, its rate and no
     # security_amount.
-    third_currency =
+    %Transaction{} =
+      third_currency =
       stored_before_the_check!(%Transaction{
         portfolio_id: w.portfolio.id,
         securities_account_id: w.depot.id,
