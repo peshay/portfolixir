@@ -9586,7 +9586,6 @@ dialog.filter-sheet::backdrop {
   #transaction-table-wrapper,
   #realized-trades-table-wrapper,
   #detail-closed-trades-table-wrap,
-  #contribution-table-wrap,
   #quotes-table-wrapper,
   #holdings-positions-wrapper {
     display: none;
@@ -11997,6 +11996,29 @@ dialog.merge-dialog {
 .contribution-table tr.contribution-table__sum td {
   font-weight: 700;
   border-top: 2px solid var(--color-border-strong);
+}
+
+/* The rows take over where the table's columns stop fitting, not under a
+   560 px viewport (issue 1366 line 2, the owner's report of 2026-11-04; board
+   ux-design-2026-11-05-sprint24-p1): a container query on the block, as
+   the accounts table became its card in issue 1145, so the sidebar's 220, 72 or
+   0 px never decides it. Measured on the review seed: the German table
+   needs 814 px of columns and the wrapper's 2 px border, the same in every
+   period; it scrolled sideways from a 1090 px window with the sidebar open
+   down to 900 px, and from 856 px to 561 px without it. A figure longer
+   than the seed's still has UX-DR15's scroller above the bound. */
+#performance-contribution {
+  container: contribution / inline-size;
+}
+
+@container contribution (width < 820px) {
+  #contribution-table-wrap {
+    display: none;
+  }
+
+  #contribution-phone-rows {
+    display: block;
+  }
 }
 
 /* UX-DR27: the phone row is the transactions shape — two children, body

@@ -2392,7 +2392,8 @@ position. A position that counted zero on some days of the period, because
 no price or no exchange rate was stored, keeps its place in the table and in
 the sum, carries the number of those days on its row, and is named in a note
 under the table. A period with nothing in it shows a sentence instead of a
-table of zeros, and on a phone the table becomes two-line rows. There a
+table of zeros, and on a phone, or wherever the window leaves the table too
+little room for its columns, the table becomes two-line rows. There a
 row's flow names its side — "inflow into the position 2,000.00", "outflow
 from the position 1,420.00" — because the flow is the position's own: money
 paid into it by buying, or taken out of it by selling, not money leaving the

@@ -2634,8 +2634,9 @@ Positionen. Eine Position, die an einigen Tagen des Zeitraums null gezählt
 wurde, weil kein Kurs oder kein Wechselkurs gespeichert war, behält ihren Platz
 in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
 wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
-einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
-Tabelle zu zweizeiligen Einträgen. Dort nennt ein Eintrag die Richtung seines
+einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon, oder wo das
+Fenster der Tabelle zu wenig Platz für ihre Spalten lässt, wird die Tabelle zu
+zweizeiligen Einträgen. Dort nennt ein Eintrag die Richtung seines
 Flusses — „Zufluss in die Position 2.000,00“, „Abfluss aus der Position
 1.420,00“ —, denn der Fluss gehört der Position: Geld, das ein Kauf in sie
 hineinträgt oder ein Verkauf aus ihr herausholt, nicht Geld, das das

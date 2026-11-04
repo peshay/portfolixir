@@ -282,9 +282,12 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     # chart is the fifth; #1012 (pick H7.1 = A, board
     # ux-design-2026-10-02/07-phone-390 rule ①): a security's quotes the sixth.
     # #1065 (pick J6 A, board ux-design-2026-10-04/06-phone-wealth rule ①):
-    # Wealth's Positions table the seventh.
+    # Wealth's Positions table the seventh. #1366 line 2 (Sprint 24 P1,
+    # board ux-design-2026-11-05-sprint24-p1): the contribution table left
+    # the block for a container query on its own width, where its columns
+    # stop fitting (performance_contribution_live_test.exs pins it).
     assert phone_block() =~
-             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper,\s*#holdings-positions-wrapper \{\s*display: none;/
+             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#quotes-table-wrapper,\s*#holdings-positions-wrapper \{\s*display: none;/
   end
 
   # User story (#1065; board ux-design-2026-10-04/06-phone-wealth, pick J6
