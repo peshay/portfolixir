@@ -11,6 +11,13 @@ import { publishedToolList, serverInstructions } from "../../src/server.js";
 // pays for it by trimming another, so connecting never silently costs more.
 // docs/llms.txt states figures no higher than these (test/llms-entry.test.ts).
 //
+// One exception, signed by the Sprint 24 plan's D-2 (D1, the position
+// dossier): a row may raise a profile's ceiling by no more than the own
+// published bytes of the new tools it names in `raisedBy`, which records
+// those bytes per profile. While that row is in force, what it records is
+// what the named tools measure (`toolBytes`), so the raise is paid once and
+// openly; a later row lowers as before. `ceilingViolations` is the rule.
+//
 // Lowering a ceiling appends a row below, with its date and why; a row is
 // history and is never edited or deleted. The test refuses a row that sets
 // any profile above the row before it (#1027), and the ceilings in force are
@@ -20,6 +27,20 @@ import { publishedToolList, serverInstructions } from "../../src/server.js";
 export interface CeilingRow {
   since: string;
   why: string;
+  read: number;
+  book: number;
+  full: number;
+  raisedBy?: NewToolAllowance;
+}
+
+/**
+ * The new tools a row pays for (Sprint 24 plan D-2) and their own published
+ * bytes per profile, as measured the day the row lands: each tool's entry in
+ * the profile's `tools/list` answer as compact JSON, 0 where the profile does
+ * not list it.
+ */
+export interface NewToolAllowance {
+  tools: readonly string[];
   read: number;
   book: number;
   full: number;
@@ -313,6 +334,66 @@ export const SCHEMA_CEILINGS: Record<McpProfile, number> = {
  */
 export function schemaBytes(profile: McpProfile): number {
   return Buffer.byteLength(JSON.stringify(publishedToolList({ profile })), "utf8");
+}
+
+/**
+ * One tool's own published bytes under a profile (Sprint 24 plan D-2): its
+ * entry in the `tools/list` answer, as compact JSON in UTF-8 bytes, without
+ * the comma that separates it from its neighbour; 0 when the profile does not
+ * list it.
+ */
+export function toolBytes(name: string, profile: McpProfile): number {
+  const entry = publishedToolList({ profile }).find((tool) => tool.name === name);
+  return entry === undefined ? 0 : Buffer.byteLength(JSON.stringify(entry), "utf8");
+}
+
+/**
+ * What the ceiling history breaks of its rule, one sentence per breach: a row
+ * dated before the row it follows; a profile raised above the row before it
+ * by more than the bytes the row's `raisedBy` records (by anything, without
+ * one); and, for the row in force, a recorded figure that is not what its
+ * tools measure. Empty when the history keeps the rule.
+ */
+export function ceilingViolations(
+  history: readonly CeilingRow[],
+  measure: (name: string, profile: McpProfile) => number
+): string[] {
+  const violations: string[] = [];
+  const profiles: readonly McpProfile[] = ["read", "book", "full"];
+
+  history.forEach((row, i) => {
+    const before = history[i - 1];
+
+    if (before !== undefined && row.since < before.since) {
+      violations.push(`row ${i}: dated before the row it follows`);
+    }
+
+    for (const profile of profiles) {
+      const allowance = row.raisedBy?.[profile] ?? 0;
+
+      if (before !== undefined && row[profile] > before[profile] + allowance) {
+        violations.push(
+          `row ${i} (${row.since}) raises ${profile} from ${before[profile]} to ${row[profile]}, ` +
+            `beyond the ${allowance} bytes of the new tools it names: a ceiling only ever moves ` +
+            "down, or by a new tool's own bytes (D-2); trim a description instead"
+        );
+      }
+
+      if (row.raisedBy !== undefined && i === history.length - 1) {
+        const measured = row.raisedBy.tools.reduce((sum, name) => sum + measure(name, profile), 0);
+
+        if (measured !== row.raisedBy[profile]) {
+          violations.push(
+            `row ${i} (${row.since}) records ${row.raisedBy[profile]} ${profile} bytes for ` +
+              `${row.raisedBy.tools.join(", ")}, which measure ${measured}: append a row with the ` +
+              "measured figure"
+          );
+        }
+      }
+    }
+  });
+
+  return violations;
 }
 
 /**

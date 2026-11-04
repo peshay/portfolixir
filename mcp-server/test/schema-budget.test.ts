@@ -6,14 +6,17 @@ import { publishedToolList } from "../src/server.js";
 import { publishedTools } from "./support/companion.js";
 import {
   CEILING_HISTORY,
+  ceilingViolations,
   type CeilingRow,
   SCHEMA_CEILINGS as CEILINGS,
   schemaBytes,
-  tokenRange
+  tokenRange,
+  toolBytes
 } from "./support/schema-budget.js";
 
-// The ceilings and the rule that they only ever move down live with the
-// measurement, in ./support/schema-budget.ts.
+// The ceilings and the rule that they only ever move down (or up by a new
+// tool's own bytes, Sprint 24 plan D-2) live with the measurement, in
+// ./support/schema-budget.ts.
 //
 // The ceiling history as it must read, row for row (#1027 review round): a
 // literal copy, so no row there can be deleted or edited, the last one
@@ -351,6 +354,10 @@ describe("the schema budget", () => {
   //   (#1027 review round). Deleting a row or editing one, upward or not,
   //   fails here; lowering a ceiling means appending its row in both places,
   //   and the copy is held to the same rule as the history.
+  // - The one exception (Sprint 24 plan D-2, D1): a row that names the new
+  //   tools it pays for (raisedBy) may raise each profile by at most their
+  //   own published bytes in that profile, which the row records; while it
+  //   is the row in force, what it records is what those tools measure.
   it("only ever lowers a ceiling", () => {
     assert.ok(CEILING_HISTORY.length > 0);
 
@@ -361,23 +368,74 @@ describe("the schema budget", () => {
         "or edited, and lowering a ceiling appends the same row in both places"
     );
 
-    for (let i = 1; i < CEILING_HISTORY.length; i++) {
-      const before = CEILING_HISTORY[i - 1];
-      const row = CEILING_HISTORY[i];
-      assert.ok(row.since >= before.since, `row ${i}: dated before the row it follows`);
-
-      for (const profile of MCP_PROFILES) {
-        assert.ok(
-          row[profile] <= before[profile],
-          `row ${i} (${row.since}) raises ${profile} from ${before[profile]} to ${row[profile]}: ` +
-            "a ceiling only ever moves down; trim a description instead"
-        );
-      }
-    }
+    assert.deepEqual(ceilingViolations(CEILING_HISTORY, toolBytes), []);
 
     const last = CEILING_HISTORY[CEILING_HISTORY.length - 1];
     for (const profile of MCP_PROFILES) {
       assert.equal(CEILINGS[profile], last[profile], `${profile}: the ceiling in force is the last row's`);
     }
+  });
+  // User story (Sprint 24 plan D-2, D1):
+  // As the operator whose agent pays for the tool list at connect time,
+  // I want a new tool's schema to be the only thing a ceiling may grow by,
+  // and by no more than that tool's own published bytes,
+  // so that a new read is paid for once and openly, never by a quiet raise.
+  //
+  // Acceptance criteria:
+  // - A row that raises a profile without naming the tools it pays for is
+  //   refused; so is one dated before the row it follows.
+  // - A row naming its tools may raise each profile by at most the bytes it
+  //   records for them, and while it is in force those bytes are what the
+  //   named tools measure in that profile (0 where the profile omits one).
+  // - Lowering stays allowed, with or without raisedBy.
+  it("lets a ceiling grow only by the new tools' own bytes", () => {
+    const base: CeilingRow = { since: "2026-11-01", why: "base", read: 100, book: 200, full: 300 };
+    const measured = (name: string) => (name === "portfolixir.example.read" ? 7 : 0);
+
+    assert.deepEqual(
+      ceilingViolations([base, { ...base, since: "2026-11-02", read: 99 }], measured),
+      [],
+      "lowering is allowed"
+    );
+    assert.equal(
+      ceilingViolations([base, { ...base, since: "2026-11-02", book: 201 }], measured).length,
+      1,
+      "an unpaid raise is refused"
+    );
+    assert.equal(
+      ceilingViolations([base, { ...base, since: "2026-10-31", read: 99 }], measured).length,
+      1,
+      "a row dated before the one it follows is refused"
+    );
+
+    const paid = {
+      ...base,
+      since: "2026-11-02",
+      read: 107,
+      book: 207,
+      full: 307,
+      raisedBy: { tools: ["portfolixir.example.read"], read: 7, book: 7, full: 7 }
+    };
+    assert.deepEqual(ceilingViolations([base, paid], measured), [], "a raise by the tool's bytes");
+    assert.equal(
+      ceilingViolations([base, { ...paid, full: 308 }], measured).length,
+      1,
+      "a raise past the recorded bytes is refused"
+    );
+    assert.equal(
+      ceilingViolations(
+        [base, { ...paid, read: 108, raisedBy: { ...paid.raisedBy, read: 8 } }],
+        measured
+      ).length,
+      1,
+      "the row in force records what its tools measure"
+    );
+    const superseded = { ...paid, raisedBy: { ...paid.raisedBy, read: 8 } };
+    const later = { ...paid, since: "2026-11-03", why: "later" };
+    assert.deepEqual(
+      ceilingViolations([base, superseded, later], measured),
+      [],
+      "a row no longer in force keeps the bytes it recorded"
+    );
   });
 });
