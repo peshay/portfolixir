@@ -4083,6 +4083,18 @@ freigegebenen Zeilen als Vorher-Abbild.
   `[]`, wo sie keine Buckets hatte. Wer die gespeicherte Menge erneut sendet,
   hinterlässt keinen Eintrag, und ebenso, wer die Ausnahme einer Position
   aufhebt, die schon erbt (#953).
+- Das `after` einer Löschung ist `null`, gleich was gelöscht wurde: Nach ihr
+  steht nichts mehr, und der gelöschte Datensatz ist ihr `before`, gelesen
+  unter der Sperre des Schreibvorgangs. Das gilt für jeden Schreibpfad ab dem
+  Release, das Sprint 24 ausliefert (ADR-0017, Ergänzung vom 2026-11-04;
+  #1378). Einträge von davor, geschrieben von Release 2026.11.8 und früheren,
+  sind append-only und behalten eine von zwei älteren Formen: Die Löschung
+  einer Zeile wiederholt den gelöschten Datensatz in `after`, und die Löschung
+  einer Menge speichert die geleerte Menge — eine Freigabe manueller Kurse
+  (`security_quotes`) `{"security_id": …, "quotes": []}`, eine aufgehobene
+  Positionsausnahme (`position_bucket_override`) die Position ohne ihre
+  `bucket_ids`, `{"id": null, "securities_account_id": …, "security_id": …}`.
+  Einen gelöschten Datensatz liest man in jedem Fall aus `before`.
 
 Jeder Schreibkontext mit Finanzdaten journalisiert: Die Einführung, die
 ADR-0017 in Schritten geplant hat, ist abgeschlossen. Jede Tabelle mit

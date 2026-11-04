@@ -3756,6 +3756,17 @@ they replaced or released as the before-image.
   `before` is `null` where the position inherited its depot's set, and `[]`
   where it had no buckets. Resending the stored set leaves no entry, and so
   does clearing the override of a position that already inherits (#953).
+- A delete's `after` is `null`, whatever was deleted: nothing stands after it,
+  and the deleted record is its `before`, read under the write's lock. This
+  holds for every writer from the release that ships Sprint 24 on (ADR-0017,
+  amendment of 2026-11-04; #1378). Entries written before it, by release
+  2026.11.8 and earlier, are append-only and keep one of two older shapes: a
+  row's delete repeats the deleted record in `after`, and a set's delete
+  stores the emptied set — a release of manual quotes (`security_quotes`)
+  `{"security_id": …, "quotes": []}`, a cleared position override
+  (`position_bucket_override`) the position without its `bucket_ids`,
+  `{"id": null, "securities_account_id": …, "security_id": …}`. Read a
+  deleted record from `before` in every case.
 
 Every financial write context journals: the rollout ADR-0017 sequenced is
 complete. Each table that holds financial records carries a guard trigger that
