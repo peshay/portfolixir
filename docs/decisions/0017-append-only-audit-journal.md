@@ -8,6 +8,9 @@ description: Decision to record every financial write across UI, API and MCP in 
 
 - **Status:** Accepted
 - **Date:** 2026-06-14
+- **Amended:** 2026-11-04, a delete's `after` is null from its cut-over
+  (#1378; see "Amendment (2026-11-04)" below). Adopted by the merge of the
+  Sprint 24 planning PR.
 
 ## Context
 
@@ -341,6 +344,53 @@ narrows it:
 
 The write-actor gate names these writers one by one, because its classifier
 does not follow a write made through another module.
+
+### Amendment (2026-11-04): a delete's `after` is null
+
+**Status:** adopted by the merge of the Sprint 24 planning PR. It answers
+#1378. It changes the shape of a stored audit record, so it is decided
+before the batch that builds it (ADR-0026 step 1); it changes no money
+figure, so it is not one of the owner's own questions (ADR-0038).
+
+**Why.** The decision above builds `after` from the business step's result.
+For an update that is the row as it stands after the write, which is what a
+reader means by "after". For a delete it is not: a row delete's step returns
+the deleted struct, so `after` repeats the record `before` already holds,
+while a bucket-assignment delete returns the empty set, so `after` is `[]`.
+A reader comparing `before` and `after` of a `delete` sees no change for a
+row and an emptied set for a set, and the API reference defines `after` for
+updates only. The journal page reads the operation, not the diff, so the
+screen was never wrong; the agent's read was.
+
+**What changes.**
+
+1. **The rule.** From the cut-over on, every `delete` entry stores
+   `after: null`, whatever its writer: `after` means "what stands after the
+   write", and after a delete nothing does. `before` is unchanged and stays
+   the full record, read under the write's lock (the Sprint 16 amendment),
+   so a deleted record is still reconstructable from its entry.
+2. **The cut-over** is the first release that carries the building commit.
+   Entries written before it are append-only and keep their shape (the
+   record repeated, or `[]`): the API reference states both older shapes
+   with the release that ended them, so a reader meets no undocumented
+   shape.
+3. **One place.** `Journal.record/3` sets it for the `delete` operation, so
+   no writer can forget it; a test per writer kind (a row delete, a
+   set delete, a cascading delete through `Lifecycle.Delete`) pins `after`
+   null and `before` unchanged.
+4. **Agent-visible:** a contract entry dated the release, and the MCP
+   `portfolixir.journal.list` description gains the sentence.
+
+**Asks (ADR-0043).**
+
+| Ask | Answer |
+|---|---|
+| (a) `after: null` from a cut-over, or (b) keep both shapes and document them? | **(a)**, above: one meaning of `after` for every operation from now on. |
+| Rewrite the older entries? | **No.** The table is append-only by trigger; the older shapes are documented, never changed. |
+| Does any reader recover a deleted record from `after`? | None known: the journal page reads the operation, the restore path reads `before`. **Reopened by** a reader that does; it then reads `before`, which holds the same record. |
+
+*To flip by comment:* "#1378 (b)". The building story then documents both
+shapes in the API reference and the contract entry and changes no writer.
 
 ## Consequences
 
