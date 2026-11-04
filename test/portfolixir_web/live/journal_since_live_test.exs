@@ -158,4 +158,54 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
     assert Enum.sort(page_ids(view)) == Enum.sort(recent)
     refute Enum.any?(old, &(&1 in page_ids(view)))
   end
+
+  # User story (Sprint 24 J3, I16; board 01, pick Q1 = A):
+  # As the operator asking "what changed this week",
+  # I want one date field „Seit“ beside the kind,
+  # so that I set the cut myself, and a cut the agent handed over shows as
+  # itself in the same field.
+  #
+  # Acceptance criteria:
+  # - The filter form holds, right after the kind, the label „Seit“ with a
+  #   native date input named since, empty without a cut.
+  # - Picking a date patches /journal?since=<date>, the list starting from
+  #   its newest page; clearing it patches the cut away.
+  # - A link's date fills the field; a link's instant fills it with its UTC
+  #   date, and another filter change keeps the instant as handed over.
+  test "the date field „Seit“ sets and shows the cut", %{conn: conn} do
+    %{old: old, recent: recent} = fixture!()
+    since = Date.to_iso8601(Date.add(Date.utc_today(), -1))
+
+    {:ok, view, html} = live(conn, "/journal?locale=de")
+
+    [label] =
+      html
+      |> Floki.parse_document!()
+      |> Floki.find("#journal-filters > label")
+      |> Enum.drop(1)
+      |> Enum.take(1)
+
+    assert Floki.attribute(label, "class") == ["journal-filters__since"]
+    assert label |> Floki.text() |> String.trim() == "Seit"
+    assert has_element?(view, "#journal-filters .journal-filters__kind + label #journal-since")
+    assert has_element?(view, "#journal-since[type='date'][name='since'][value='']")
+
+    view |> form("#journal-filters", %{"since" => since}) |> render_change()
+    assert_patch(view, "/journal?since=#{since}")
+    assert has_element?(view, "#journal-since[value='#{since}']")
+    assert Enum.all?(recent, &(&1 in page_ids(view)))
+    refute Enum.any?(old, &(&1 in page_ids(view)))
+
+    view |> form("#journal-filters", %{"since" => ""}) |> render_change()
+    assert_patch(view, "/journal")
+    assert Enum.all?(old, &(&1 in page_ids(view)))
+
+    cut = ago(2000)
+    instant = DateTime.to_iso8601(cut)
+    {:ok, view, _html} = live(conn, "/journal?since=#{URI.encode_www_form(instant)}&locale=de")
+    assert has_element?(view, "#journal-since[value='#{Date.to_iso8601(DateTime.to_date(cut))}']")
+
+    view |> form("#journal-filters", %{"resource_type" => "security"}) |> render_change()
+    assert_patch(view, "/journal?" <> URI.encode_query(resource_type: "security", since: instant))
+  end
 end
