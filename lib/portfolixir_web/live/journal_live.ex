@@ -15,6 +15,14 @@ defmodule PortfolixirWeb.JournalLive do
   (`resource_type` + `resource_id`). Each writes its parameter into the URL
   (`push_patch`), so a narrowed view is a link. Read-only: nothing here
   writes.
+
+  `since` (Sprint 24 J3, I16; decision D-4, board
+  `ux-design-2026-11-04-sprint24/01-journal-since`, pick Q1 = A) is the
+  API's cut too, read by the same parser: a date, an instant or the cursor
+  the API answered. The page lists the entries after it newest first, where
+  the API answers them oldest first: the same rows, so a link
+  `/journal?since=…` opens the slice the agent read, and „Ältere Einträge
+  zeigen“ pages within the cut.
   """
   use PortfolixirWeb, :live_view
 
@@ -23,6 +31,7 @@ defmodule PortfolixirWeb.JournalLive do
   alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.JournalQuery
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
   alias PortfolixirWeb.Journal.Row
   alias PortfolixirWeb.StoredText
 
@@ -137,6 +146,7 @@ defmodule PortfolixirWeb.JournalLive do
         resource_id: opts[:resource_id],
         actor_type: opts[:actor_type],
         operation: opts[:operation],
+        since: opts[:since] && opts[:since].raw,
         include_scenarios: opts[:include_scenarios] == true || nil,
         limit: if(opts[:limit] in [nil, default_limit], do: nil, else: opts[:limit])
       ]
@@ -401,6 +411,7 @@ defmodule PortfolixirWeb.JournalLive do
   defp basis(opts, rows, truncated) do
     clauses = [
       gettext("Newest first"),
+      opts[:since] && gettext("since %{date} (UTC)", date: cut_label(opts[:since])),
       count_clause(length(rows), truncated),
       opts[:actor_type] && gettext("actor %{actor}", actor: Row.actor_label(opts[:actor_type])),
       opts[:operation] &&
@@ -414,6 +425,17 @@ defmodule PortfolixirWeb.JournalLive do
     ]
 
     clauses |> Enum.reject(&(&1 in [nil, false])) |> Enum.join(" · ")
+  end
+
+  # The cut as it was handed over (board 01 ②): a date as the date, an
+  # instant (or the API's cursor) as its UTC time to the second. A date is
+  # the `since` that reads as its own cut's day; the parser has read it.
+  defp cut_label(%{raw: raw, cut: cut}) do
+    day = NaiveDateTime.to_date(cut)
+
+    if raw == Date.to_iso8601(day),
+      do: Format.date(day),
+      else: cut |> DateTime.from_naive!("Etc/UTC") |> Row.time()
   end
 
   # A cut answer says so (UX-DR26): "the newest 100", never "100".
