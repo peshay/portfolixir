@@ -435,6 +435,23 @@ describe("the companion's published tool surface", () => {
     }
   });
 
+  // User story (Sprint 24 J1, #1378; ADR-0017, amendment of 2026-11-04):
+  // As the agent reading the audit journal,
+  // I want the journal tool to say what a delete's after holds,
+  // so that I read a deleted record from before and know the older shapes.
+  //
+  // Acceptance criteria:
+  // - portfolixir.journal.list's description says a delete's after is null.
+  // - It names the last release whose deletes kept the older shapes.
+  it("states that a delete's after is null in the journal tool", async () => {
+    const journal = (await publishedTools()).find(
+      (tool) => tool.name === "portfolixir.journal.list"
+    );
+
+    assert.match(journal?.description ?? "", /A delete's after is null/);
+    assert.match(journal?.description ?? "", /2026\.11\.8 or earlier/);
+  });
+
   // User story (E25 S7 review round, R6):
   // As the operator deciding which tools may reach beyond the instance,
   // I want the security create hinted open-world,
