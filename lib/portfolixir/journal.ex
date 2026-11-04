@@ -27,6 +27,7 @@ defmodule Portfolixir.Journal do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Journal.Serializer
@@ -164,6 +165,12 @@ defmodule Portfolixir.Journal do
   `:resource_type`, `:resource_id`, `:actor_type`, `:operation`, `:limit`.
   By default only real writes are returned; `include_scenarios: true` adds
   persisted what-if entries.
+
+  Option `:since` (a `Portfolixir.DeltaCursor` cursor, Sprint 24 J2) keeps
+  the entries after the cut, compared to the microsecond the entries are
+  stamped with. Option `:order` is `:desc` (the default: newest first, the
+  page) or `:asc` (oldest first, by `inserted_at` and then the id: the API's
+  paged delta, K17).
   """
   @spec list_entries(keyword()) :: [Entry.t()]
   def list_entries(opts \\ []) when is_list(opts) do
@@ -173,7 +180,8 @@ defmodule Portfolixir.Journal do
     |> filter_eq(:resource_id, opts[:resource_id])
     |> filter_eq(:actor_type, opts[:actor_type])
     |> filter_eq(:operation, opts[:operation])
-    |> order_by([e], desc: e.inserted_at, desc: e.id)
+    |> filter_since(opts[:since])
+    |> order_entries(Keyword.get(opts, :order, :desc))
     |> maybe_limit(opts[:limit])
     |> Repo.all()
   end
@@ -310,6 +318,17 @@ defmodule Portfolixir.Journal do
 
   defp filter_eq(query, _field, nil), do: query
   defp filter_eq(query, field, value), do: where(query, [e], field(e, ^field) == ^value)
+
+  defp filter_since(query, nil), do: query
+
+  defp filter_since(query, cursor),
+    do:
+      DeltaCursor.after_cursor(query, dynamic([e], e.inserted_at), cursor,
+        precision: :microsecond
+      )
+
+  defp order_entries(query, :desc), do: order_by(query, [e], desc: e.inserted_at, desc: e.id)
+  defp order_entries(query, :asc), do: order_by(query, [e], asc: e.inserted_at, asc: e.id)
 
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)

@@ -65,22 +65,50 @@ defmodule Portfolixir.DeltaCursor do
   stamp, then the id, ascending. `stamp` is the dynamic expression of the
   row's change stamp over the query's first binding (a column, or a computed
   stamp such as a rule's latest version write).
+
+  Option `:precision` is the stamp's: `:second` (the default, the
+  `updated_at` columns) or `:microsecond` (the audit journal's
+  `inserted_at`, Sprint 24 J2), whose cursor carries the fraction, so the
+  cut compares at that precision rather than truncated to the second.
   """
-  @spec page(Ecto.Queryable.t(), Ecto.Query.dynamic_expr(), cursor()) :: Ecto.Query.t()
-  def page(query, stamp, %{cut: %NaiveDateTime{}} = cursor) do
+  @spec page(Ecto.Queryable.t(), Ecto.Query.dynamic_expr(), cursor(), keyword()) ::
+          Ecto.Query.t()
+  def page(query, stamp, %{cut: %NaiveDateTime{}} = cursor, opts \\ []) do
     query
-    |> where(^after_cursor(stamp, cursor))
+    |> after_cursor(stamp, cursor, opts)
     |> order_by(^[asc: stamp, asc: dynamic([r], r.id)])
   end
 
-  defp after_cursor(stamp, %{cut: cut, after_id: nil}),
+  @doc """
+  The filter of `page/4` without its order: the rows after `cursor`, for a
+  read that shows the same rows in another order (the journal page, newest
+  first within the cut; Sprint 24 J3).
+  """
+  @spec after_cursor(Ecto.Queryable.t(), Ecto.Query.dynamic_expr(), cursor(), keyword()) ::
+          Ecto.Query.t()
+  def after_cursor(query, stamp, %{cut: %NaiveDateTime{}} = cursor, opts \\ []) do
+    where(query, ^after_dynamic(stamp, cursor, Keyword.get(opts, :precision, :second)))
+  end
+
+  defp after_dynamic(stamp, %{cut: cut, after_id: nil}, :second),
     do: dynamic([r], ^stamp > type(^cut, :naive_datetime))
 
-  defp after_cursor(stamp, %{cut: cut, after_id: id}) when is_integer(id) do
+  defp after_dynamic(stamp, %{cut: cut, after_id: nil}, :microsecond),
+    do: dynamic([r], ^stamp > type(^cut, :naive_datetime_usec))
+
+  defp after_dynamic(stamp, %{cut: cut, after_id: id}, :second) when is_integer(id) do
     dynamic(
       [r],
       ^stamp > type(^cut, :naive_datetime) or
         (^stamp == type(^cut, :naive_datetime) and r.id > ^id)
+    )
+  end
+
+  defp after_dynamic(stamp, %{cut: cut, after_id: id}, :microsecond) when is_integer(id) do
+    dynamic(
+      [r],
+      ^stamp > type(^cut, :naive_datetime_usec) or
+        (^stamp == type(^cut, :naive_datetime_usec) and r.id > ^id)
     )
   end
 end
