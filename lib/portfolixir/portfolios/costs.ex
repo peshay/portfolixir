@@ -28,6 +28,7 @@ defmodule Portfolixir.Portfolios.Costs do
 
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
 
@@ -44,14 +45,7 @@ defmodule Portfolixir.Portfolios.Costs do
     base = Keyword.get_lazy(opts, :base_currency, &default_base/0)
     limit = Keyword.get(opts, :limit)
 
-    {converted, excluded} =
-      Ledger.list_transactions()
-      |> Enum.flat_map(&cost_legs/1)
-      |> Enum.map(&convert_cost(&1, base))
-      |> Enum.split_with(&match?({:ok, _}, &1))
-
-    converted = Enum.map(converted, fn {:ok, cost} -> cost end)
-    excluded = Enum.map(excluded, fn {:excluded, cost} -> cost end)
+    {converted, excluded} = series(Ledger.list_transactions(), base)
 
     full = annual_matrix(converted)
     annual = newest_years(full, limit)
@@ -112,6 +106,36 @@ defmodule Portfolixir.Portfolios.Costs do
     end
   end
 
+  @doc """
+  The facet's **series rule**, the one function that turns bookings into
+  costs: this report reads it over the whole ledger, and the benchmark
+  comparison's `costs_paid` (ADR-0046, amended 2026-11-04, point 2) over its
+  own window and scope, so the two never compute a cost twice.
+
+  Returns `{costs, excluded}`. Each cost is one non-zero fee or tax leg
+  (`series: :fees | :taxes`; a `tax_refund` is a negative tax) read in its
+  cash account's currency and converted to `base` at the EUR-hub rate stored
+  on its booking date (`amount_base`); a leg with no stored rate for that day
+  is in `excluded` instead, carrying no `amount_base`. Every entry carries
+  `date`, `series`, `currency_code`, `amount`, the booking's `portfolio_id`,
+  and the paying `cash_account_id` with that account's `cash_portfolio_id`
+  (both `nil` for a booking without a cash account), the fields a scope rule
+  reads. The bookings come with their `:cash_account` preloaded, as
+  `Ledger.list_transactions/1` reads them: without it a cost would be read
+  in the booking's currency.
+  """
+  @spec series([Transaction.t()], String.t()) :: {[map()], [map()]}
+  def series(transactions, base) when is_list(transactions) and is_binary(base) do
+    {converted, excluded} =
+      transactions
+      |> Enum.flat_map(&cost_legs/1)
+      |> Enum.map(&convert_cost(&1, base))
+      |> Enum.split_with(&match?({:ok, _}, &1))
+
+    {for({:ok, %{} = cost} <- converted, do: cost),
+     Enum.map(excluded, fn {:excluded, cost} -> cost end)}
+  end
+
   # One cost entry per non-zero leg. Standalone kinds carry their amount in
   # gross_amount; every other kind contributes its fee/tax legs.
   defp cost_legs(%{type: "fee"} = tx), do: [cost(tx, :fees, tx.gross_amount)]
@@ -125,8 +149,21 @@ defmodule Portfolixir.Portfolios.Costs do
   end
 
   defp cost(tx, series, amount) do
-    %{date: tx.date, series: series, currency_code: cost_currency(tx), amount: amount}
+    %{
+      date: tx.date,
+      series: series,
+      currency_code: cost_currency(tx),
+      amount: amount,
+      portfolio_id: tx.portfolio_id,
+      cash_account_id: tx.cash_account_id,
+      cash_portfolio_id: cash_portfolio_id(tx)
+    }
   end
+
+  defp cash_portfolio_id(%{cash_account: %CashAccount{portfolio_id: portfolio_id}}),
+    do: portfolio_id
+
+  defp cash_portfolio_id(_tx), do: nil
 
   # The ADR-0015 amendment of 2026-10-07 (#1107): a booking's fees and taxes,
   # and a standalone cost's cash, are in its CASH ACCOUNT's currency, the
@@ -156,7 +193,6 @@ defmodule Portfolixir.Portfolios.Costs do
 
   defp annual_matrix(costs) do
     costs
-    |> Enum.reject(&is_nil/1)
     |> Enum.group_by(& &1.date.year)
     |> Enum.sort_by(fn {year, _} -> year end, :desc)
     |> Enum.map(fn {year, year_costs} ->

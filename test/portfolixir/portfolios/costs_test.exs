@@ -295,4 +295,171 @@ defmodule Portfolixir.Portfolios.CostsTest do
     assert report.excluded.count == 1
     assert report.excluded.currencies == ["GBP"]
   end
+
+  # -- the series rule, shared (ADR-0046, amended 2026-11-04) -------------------
+
+  defp booking!(world, attrs) do
+    {:ok, tx} =
+      Ledger.create_transaction(
+        Portfolixir.Actor.owner_ui(),
+        Map.merge(%{portfolio_id: world.portfolio.id, currency_code: "EUR"}, attrs)
+      )
+
+    tx
+  end
+
+  # Decimals as their normalised strings, so the pin reads the figures.
+  defp printable(%Decimal{} = value),
+    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+
+  defp printable(%{} = map) when not is_struct(map),
+    do: Map.new(map, fn {k, v} -> {k, printable(v)} end)
+
+  defp printable(list) when is_list(list), do: Enum.map(list, &printable/1)
+  defp printable(other), do: other
+
+  # User story (Sprint 24 B1; ADR-0046, amended 2026-11-04, point 2):
+  # As the owner who reads the Costs facet,
+  # I want its report unchanged when the benchmark comparison starts
+  # reusing its series rule,
+  # so that the facet and the comparison's costs_paid are one rule, and
+  # sharing it moves no figure I already read.
+  #
+  # Acceptance criteria (exact Decimal expectations):
+  # - Every cost-bearing kind: a buy's and a sell's fee and tax legs, a
+  #   dividend's tax leg, a delivery's fee leg (no cash account: read in its
+  #   own currency), the standalone fee and tax, a tax_refund netted, a fee
+  #   in a USD account at its own day's rate, and a GBP fee with no rate
+  #   excluded and named; every other kind adds nothing.
+  # - The whole report (matrix, totals, excluded, notes and basis) is the
+  #   pinned literal, before and after the rule is shared.
+  test "the facet's whole report is pinned across every cost-bearing kind" do
+    world = WorldFixtures.base_world(name: "Pinned Costs", cash_name: "Pin Cash")
+    security = WorldFixtures.create_security!(name: "Pinned ETF", ticker: "PIN")
+
+    dollar =
+      WorldFixtures.add_depot(world.portfolio,
+        cash_currency: "USD",
+        cash_name: "Pin Dollar Cash",
+        depot_name: "Pin Dollar Depot"
+      )
+
+    pound =
+      WorldFixtures.add_depot(world.portfolio,
+        cash_currency: "GBP",
+        cash_name: "Pin Pound Cash",
+        depot_name: "Pin Pound Depot"
+      )
+
+    rate!("USD", ~D[2025-12-01], "1.25")
+    rate!("USD", ~D[2026-03-03], "1.60")
+
+    WorldFixtures.deposit!(world, "5000", ~D[2025-12-01])
+    # 2025-12: a buy with fees 4.00 and taxes 1.00.
+    WorldFixtures.buy!(world, security,
+      quantity: "10",
+      price: "100",
+      fees: "4.00",
+      taxes: "1.00",
+      date: ~D[2025-12-01]
+    )
+
+    # 2026-01: a sell with fees 3.00 and taxes 7.00, a dividend taxed 2.50.
+    WorldFixtures.sell!(world, security,
+      quantity: "2",
+      price: "110",
+      fees: "3.00",
+      taxes: "7.00",
+      date: ~D[2026-01-10]
+    )
+
+    booking!(world, %{
+      type: "dividend",
+      cash_account_id: world.cash.id,
+      security_id: security.id,
+      gross_amount: "10.00",
+      taxes: "2.50",
+      date: ~D[2026-01-20]
+    })
+
+    # 2026-02: a delivery carrying a 1.50 fee, a standalone fee 6.00, a tax
+    # 9.00 and a refund 4.00; a deposit and an interest booking add nothing.
+    booking!(world, %{
+      type: "inbound_delivery",
+      securities_account_id: world.depot.id,
+      security_id: security.id,
+      quantity: "1",
+      price: "100",
+      fees: "1.50",
+      date: ~D[2026-02-02]
+    })
+
+    standalone!(world, "fee", "6.00", ~D[2026-02-03])
+    standalone!(world, "tax", "9.00", ~D[2026-02-04])
+    standalone!(world, "tax_refund", "4.00", ~D[2026-02-05])
+    standalone!(world, "interest", "1.00", ~D[2026-02-06])
+
+    # 2026-03: 8.00 USD at 1.60 = 5.00 EUR; 2.00 GBP has no rate.
+    standalone!(world, "fee", "8.00", ~D[2026-03-03], dollar.cash)
+    standalone!(world, "fee", "2.00", ~D[2026-03-04], pound.cash)
+
+    report = Costs.report(base_currency: "EUR")
+
+    zero_month = %{fees: "0", taxes: "0", total: "0"}
+
+    assert printable(report.annual) == [
+             %{
+               year: 2026,
+               months:
+                 Map.merge(Map.new(1..12, &{&1, zero_month}), %{
+                   1 => %{fees: "3", taxes: "9.5", total: "12.5"},
+                   2 => %{fees: "7.5", taxes: "5", total: "12.5"},
+                   3 => %{fees: "5", taxes: "0", total: "5"}
+                 }),
+               fees_total: "15.5",
+               taxes_total: "14.5",
+               total: "30"
+             },
+             %{
+               year: 2025,
+               months:
+                 Map.merge(Map.new(1..12, &{&1, zero_month}), %{
+                   12 => %{fees: "4", taxes: "1", total: "5"}
+                 }),
+               fees_total: "4",
+               taxes_total: "1",
+               total: "5"
+             }
+           ]
+
+    assert report.excluded == %{count: 1, currencies: ["GBP"]}
+    assert report.base_currency == "EUR"
+    assert report.limit == nil
+    assert report.truncated == false
+
+    assert report.conversion_note ==
+             "Each cost converted to EUR via the EUR hub at the rate stored on its own booking " <>
+               "date; a cost with no stored rate for that date is excluded from the totals and " <>
+               "named by its currency."
+
+    assert report.computation_basis == %{
+             series:
+               "fee and tax legs riding any transaction plus standalone fee/tax bookings, " <>
+                 "with tax_refund netted against taxes; gross amounts are never summed " <>
+                 "(a buy's gross includes its legs, a sell's is net of them)",
+             currency:
+               "each cost is read in its cash account's currency, the currency of the cash leg " <>
+                 "it is part of, and converted from that currency at the EUR hub rate stored on " <>
+                 "its booking date: a cross-currency trade's fees and taxes (ADR-0015) are never " <>
+                 "read in the security's currency; a booking without a cash account is read in " <>
+                 "its own currency; an excluded cost is named by the currency it was read in",
+             totals:
+               "each month's total is that month's fees plus its taxes, both after the " <>
+                 "conversion above; a year's fees_total, taxes_total and total sum its " <>
+                 "twelve months; an excluded cost is in no total",
+             window: "full ledger history, grouped by booking date",
+             reference: "EUR hub rates on each booking date itself",
+             gaps: "a cost with no stored booking-date rate is excluded from the totals and named"
+           }
+  end
 end
