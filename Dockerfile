@@ -2,7 +2,7 @@
 # 2026-09-24 runtime hotfix), pinned by tag and digest (ADR-0045 §2). The
 # maintenance lane moves it with CI (Dependabot ignores it, see
 # .github/dependabot.yml), and ci_test pins the parity.
-FROM hexpm/elixir:1.18.6-erlang-27.3.4.19-debian-bookworm-20261027@sha256:c279407118b5d57011d3949bc7f6831884935bc2f606d0d2280b31bcb3548065
+FROM hexpm/elixir:1.19.7-erlang-27.3.4.19-debian-bookworm-20261027@sha256:8b40cb254af222e4b59586bdc8f45f8b151fc3e4d0e4423560faa983a517a591
 
 ENV DEBIAN_FRONTEND=noninteractive \
     MIX_HOME=/opt/mix \
