@@ -272,8 +272,8 @@ re-checks because a local hook can be skipped.
 ## Required Local Checks
 
 Run these before opening a PR and before every push. The list is CI's
-`pre-commit`, `test`, `quality` and `advisories` jobs, so a branch that passes
-here passes there. *Why:* a shorter list omitted eight of CI's checks, and a
+`pre-commit`, `test`, `quality`, `advisories` and `browser` jobs, so a branch
+that passes here passes there. *Why:* a shorter list omitted eight of CI's checks, and a
 batch that skipped two of them cost a round (Sprint 13 retrospective).
 
 ```bash
@@ -292,9 +292,14 @@ pre-commit run --all-files
 npm test --prefix mcp-server
 npm run build --prefix mcp-server
 npm audit --audit-level=high --prefix mcp-server
+npm audit --audit-level=high --prefix test/browser
+mix test test/browser --only browser
 ```
 
 `mix dialyzer` builds its PLT once, slowly. `mix hex.audit` and `mix
 deps.audit` read a live advisory database, so a gate can turn red with nobody
-pushing: that is a new advisory, not a regression. Install the hooks with
+pushing: that is a new advisory, not a regression. The browser tests need
+`npm ci --prefix test/browser` and that Playwright's Chromium (`npx --prefix
+test/browser playwright install chromium`); a machine with a Chromium of its
+own names it in `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. Install the hooks with
 `pre-commit install --install-hooks`.

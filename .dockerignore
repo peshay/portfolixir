@@ -28,6 +28,7 @@
 
 # MCP companion
 /mcp-server/node_modules/
+/test/browser/node_modules/
 /mcp-server/dist/
 
 # Environment / secrets

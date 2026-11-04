@@ -2458,6 +2458,75 @@ defmodule Portfolixir.CITest do
              System.cmd("git", ["check-ignore", "_bmad/config.user.toml"])
   end
 
+  # User story (Sprint 24 M1, plan D-5; Sprint 23 retrospective,
+  # carry-forward 5):
+  # As the owner whose merge rests on green gates,
+  # I want the browser tests to run in CI on a Playwright version the
+  # repository pins,
+  # so that a browser behaviour pinned by a test is checked on every push,
+  # not only when someone remembers to run it.
+  #
+  # Acceptance criteria:
+  # - test/browser has its own package.json and lockfile, `playwright` pinned
+  #   to one exact version in both.
+  # - A CI job `browser` installs that lockfile with `npm ci`, installs the
+  #   pinned version's Chromium, prepares the database and runs
+  #   `mix test test/browser --only browser`, on the pinned Node and Elixir.
+  # - The advisories job audits test/browser at the companion's level, and
+  #   AGENTS.md's Required Local Checks name the same audit.
+  # - Dependabot watches the lockfile.
+  # - Every browser script launches Chromium through one helper that takes an
+  #   optional PLAYWRIGHT_CHROMIUM_EXECUTABLE.
+  test "the browser tests run in CI on the Playwright version their lockfile pins" do
+    package = "test/browser/package.json" |> File.read!() |> Jason.decode!()
+    lock = "test/browser/package-lock.json" |> File.read!() |> Jason.decode!()
+
+    pinned = get_in(package, ["devDependencies", "playwright"])
+    assert pinned =~ ~r/^\d+\.\d+\.\d+$/, "playwright is pinned exactly, not by a range"
+    assert get_in(lock, ["packages", "node_modules/playwright", "version"]) == pinned
+
+    ci = File.read!(".github/workflows/ci.yml")
+    assert [_before, browser] = String.split(ci, ~r/^  browser:$/m, parts: 2)
+    browser = browser |> String.split(~r/^  [a-z-]+:$/m) |> hd()
+
+    assert browser =~ "needs: pre-commit"
+    assert browser =~ "image: mirror.gcr.io/library/postgres:"
+    assert browser =~ ~s(node-version: "26")
+    assert browser =~ "elixir-version: '"
+
+    steps =
+      for command <- [
+            "npm ci --ignore-scripts --prefix test/browser",
+            "npx --prefix test/browser playwright install --with-deps chromium",
+            "MIX_ENV=test mix ecto.migrate",
+            "mix test test/browser --only browser"
+          ] do
+        assert {at, _} = :binary.match(browser, command), "the browser job lacks `#{command}`"
+        at
+      end
+
+    assert steps == Enum.sort(steps), "the browser job's steps run out of order"
+    refute browser =~ "continue-on-error"
+
+    [_before, advisories] = String.split(ci, ~r/^  advisories:$/m, parts: 2)
+    advisories = advisories |> String.split(~r/^  [a-z-]+:$/m) |> hd()
+    assert advisories =~ "run: npm audit --audit-level=high --prefix test/browser"
+    assert File.read!("AGENTS.md") =~ "npm audit --audit-level=high --prefix test/browser"
+
+    assert File.read!(".github/dependabot.yml") =~ ~s(directory: "/test/browser")
+
+    scripts = Path.wildcard("test/browser/*.js") -- ["test/browser/launch.js"]
+    assert scripts != []
+
+    for script <- scripts do
+      source = File.read!(script)
+      assert source =~ ~s{require("./launch")}, "#{script} launches Chromium on its own"
+      refute source =~ "chromium.launch(", "#{script} launches Chromium on its own"
+    end
+
+    assert File.read!("test/browser/launch.js") =~ "PLAYWRIGHT_CHROMIUM_EXECUTABLE"
+  end
+
   defp git!(dir, args) do
     {output, 0} = System.cmd("git", args, cd: dir, env: @git_env, stderr_to_stdout: true)
     output

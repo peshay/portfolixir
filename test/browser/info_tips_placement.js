@@ -14,7 +14,7 @@
 // ["..."]}; the exit status is 0 either way unless the browser itself fails.
 "use strict";
 
-const { chromium } = require("playwright");
+const { launchChromium } = require("./launch");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -107,7 +107,7 @@ async function headingNearTop(browser, path, tip, viewport, label) {
 
 // Every case runs, so a failure names each box an ⓘ leaves.
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await launchChromium();
   const cases = [
     () => mergeDialog(browser),
     () =>

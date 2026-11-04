@@ -28,6 +28,13 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
+  # The browser tests' Playwright, pinned exactly (Sprint 24 M1): a bump
+  # moves the version CI's browser job installs, and its Chromium with it.
+  - package-ecosystem: "npm"
+    directory: "/test/browser"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
