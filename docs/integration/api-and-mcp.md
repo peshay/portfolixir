@@ -284,7 +284,7 @@ read may therefore re-deliver a row, but never skips one.
 
 **A capped delta read is a page (K17).** The delta reads bounded by `limit`
 — transactions, securities, a security's notes and events, a portfolio's
-policy rules — return their rows oldest change first, and every read of
+policy rules, the audit journal — return their rows oldest change first, and every read of
 them, delta or full, echoes `limit` and `truncated` (true when more rows
 matched than the answer holds). A delta read, when more rows matched than
 the page holds, also carries `has_more: true`, and its `as_of` is then a
@@ -328,11 +328,13 @@ change stamp, and only those. The family splits three ways:
   (a target row counts as changed when **it or its plan** changed after the
   cut — activating another plan version swaps the steering rows without
   editing any of them; the position read's `effective_targets` roll-up always
-  covers the whole plan, and `min_drift` applies after the cut). Their MCP
+  covers the whole plan, and `min_drift` applies after the cut), and
+  `GET /api/v1/journal` (by `inserted_at`, to the microsecond: the journal is
+  append-only; see [Audit Journal](#audit-journal)). Their MCP
   twins take the same `since` string: `portfolixir.transactions.list`,
   `portfolixir.securities.list`, `portfolixir.notes.list`,
-  `portfolixir.events.list`, `portfolixir.targets.list` and
-  `portfolixir.targets.list_positions`. The configuration collections
+  `portfolixir.events.list`, `portfolixir.targets.list`,
+  `portfolixir.targets.list_positions` and `portfolixir.journal.list`. The configuration collections
   (portfolios, cash and securities accounts, buckets, views, classifications,
   plans, tax parameters, profiles and allowance orders, snapshots) do not carry
   it: they are small and operator-edited, and several carry per-row figures
@@ -3742,6 +3744,18 @@ they replaced or released as the before-image.
   The Audit journal page (`/journal`) takes the same parameters and lists
   the same entries, so an agent can hand the operator a link to the rows it
   read: `/journal?actor_type=api_token_rw&operation=delete`.
+- `since` (a date, an instant, or the cursor a full page answered as `as_of`)
+  makes the read a paged delta, as every capped delta read is (K17, above):
+  the entries written strictly after the cut, **oldest first**
+  (`meta.order` `inserted_at:asc,id:asc`), with `since`, `has_more`, a
+  `delta_note` and a top-level `as_of` that is the next `since` — on a full
+  page a cursor at its last entry, `2026-10-28T09:15:02.250000Z~48`, its
+  instant to the microsecond, as the journal stamps it. `meta.as_of` stays
+  the read's instant, not the cursor. It combines with the five filters,
+  `meta.filters.since` echoes it, and `limit` keeps its default and maximum.
+  A walk from `since=1970-01-01`, feeding each `as_of` back, reaches every
+  entry once, including those past the newest 1000 that a read without
+  `since` cannot show. Without `since` the read is unchanged, newest first.
   SOLL target writes (category and position rows alike) are journaled under
   `resource_type=target`; plan-version writes under `resource_type=target_plan`.
 - An update's or a delete's `before` is the row as stored when the write took

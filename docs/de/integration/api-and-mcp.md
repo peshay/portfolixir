@@ -315,7 +315,7 @@ eine Zeile daher erneut liefern, überspringt aber keine.
 
 **Ein begrenzter Delta-Read ist eine Seite (K17).** Die Delta-Reads mit
 `limit` — Buchungen, Wertpapiere, die Notizen und Ereignisse eines
-Wertpapiers, die Policy-Regeln eines Portfolios — liefern ihre Zeilen nach
+Wertpapiers, die Policy-Regeln eines Portfolios, das Audit-Journal — liefern ihre Zeilen nach
 ältester Änderung zuerst, und jeder ihrer Reads, Delta oder voll, spiegelt
 `limit` und `truncated` (wahr, wenn mehr Zeilen passten, als die Antwort
 enthält). Passten mehr Zeilen, als die Seite enthält, trägt ein Delta-Read
@@ -363,11 +363,13 @@ Zeilen mit Änderungsstempel liefern. Die Familie zerfällt in drei Teile:
   Schnitt geändert wurde — das Aktivieren einer anderen Planversion tauscht die
   steuernden Zeilen, ohne eine davon zu bearbeiten; der Roll-up
   `effective_targets` des Positions-Reads deckt immer den ganzen Plan ab, und
-  `min_drift` greift nach dem Schnitt). Ihre MCP-Zwillinge nehmen denselben
+  `min_drift` greift nach dem Schnitt) und `GET /api/v1/journal` (nach
+  `inserted_at`, auf die Mikrosekunde: das Journal ist append-only; siehe
+  [Audit-Journal](#audit-journal)). Ihre MCP-Zwillinge nehmen denselben
   `since`-String: `portfolixir.transactions.list`,
   `portfolixir.securities.list`, `portfolixir.notes.list`,
-  `portfolixir.events.list`, `portfolixir.targets.list` und
-  `portfolixir.targets.list_positions`. Die Konfigurationssammlungen
+  `portfolixir.events.list`, `portfolixir.targets.list`,
+  `portfolixir.targets.list_positions` und `portfolixir.journal.list`. Die Konfigurationssammlungen
   (Portfolios, Konten und Depots, Buckets, Sichten, Klassifikationen, Pläne,
   Steuerparameter, -profile und Freistellungsaufträge, Snapshots) tragen ihn
   nicht: Sie sind klein und vom Betreiber gepflegt, und mehrere tragen pro
@@ -4064,6 +4066,21 @@ freigegebenen Zeilen als Vorher-Abbild.
   Die Seite Audit-Journal (`/journal`) nimmt dieselben Parameter und listet
   dieselben Einträge, sodass ein Agent dem Operator einen Link auf die
   gelesenen Zeilen geben kann: `/journal?actor_type=api_token_rw&operation=delete`.
+- `since` (ein Datum, ein Zeitpunkt oder der Cursor, den eine volle Seite als
+  `as_of` beantwortet hat) macht den Read zum seitenweisen Delta, wie jeden
+  begrenzten Delta-Read (K17, oben): die Einträge, die streng nach dem
+  Schnitt geschrieben wurden, **älteste zuerst** (`meta.order`
+  `inserted_at:asc,id:asc`), mit `since`, `has_more`, einer `delta_note` und
+  einem `as_of` auf oberster Ebene, das das nächste `since` ist — auf einer
+  vollen Seite ein Cursor an ihrem letzten Eintrag,
+  `2026-10-28T09:15:02.250000Z~48`, sein Zeitpunkt auf die Mikrosekunde, wie
+  das Journal stempelt. `meta.as_of` bleibt der Zeitpunkt des Reads, nicht
+  der Cursor. Es kombiniert sich mit den fünf Filtern, `meta.filters.since`
+  spiegelt es, und `limit` behält Standard und Höchstwert. Ein Lauf ab
+  `since=1970-01-01`, der jedes `as_of` zurückgibt, erreicht jeden Eintrag
+  genau einmal, auch die jenseits der neuesten 1000, die ein Read ohne
+  `since` nicht zeigen kann. Ohne `since` bleibt der Read unverändert,
+  neueste zuerst.
   SOLL-Ziel-Schreibvorgänge (Kategorie- und Positionszeilen gleichermaßen)
   werden unter `resource_type=target` journalisiert, Schreibvorgänge an
   Planversionen unter `resource_type=target_plan`.
