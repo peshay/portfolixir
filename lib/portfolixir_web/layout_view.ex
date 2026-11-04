@@ -7,13 +7,23 @@ defmodule PortfolixirWeb.LayoutView do
     # The request's CSP nonce (#382) reaches the layout the same two ways the
     # locale does; PortfolixirWeb.ContentSecurityPolicy assigns it.
     csp_nonce = assigns[:csp_nonce] || (conn && conn.assigns[:csp_nonce])
+    # Sprint 24 P2: the rail the operator left collapsed, remembered by
+    # PortfolixirWeb.RailScope, is in the first render, so a full page load
+    # never shows the expanded sidebar first. A boolean, never the cookie's
+    # content; the root layout outlives a live redirect, and the SidebarRail
+    # hook keeps the rail there.
+    rail = if conn && PortfolixirWeb.RailScope.collapsed?(conn), do: "collapsed"
     # A plain Map.put: the root layout is rendered both by LiveView (tracked
     # assigns) and by the session controller (a plain map, #764).
-    assigns = assigns |> Map.put(:locale, locale) |> Map.put(:csp_nonce, csp_nonce)
+    assigns =
+      assigns
+      |> Map.put(:locale, locale)
+      |> Map.put(:csp_nonce, csp_nonce)
+      |> Map.put(:rail, rail)
 
     ~H"""
     <!DOCTYPE html>
-    <html lang={@locale}>
+    <html lang={@locale} data-rail={@rail}>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

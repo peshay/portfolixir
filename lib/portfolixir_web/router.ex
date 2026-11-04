@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.Router do
     plug(PortfolixirWeb.Locale)
     plug(PortfolixirWeb.ViewScope)
     plug(PortfolixirWeb.BenchmarkScope)
+    plug(PortfolixirWeb.RailScope)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers, @secure_headers)
@@ -107,6 +108,10 @@ defmodule PortfolixirWeb.Router do
 
     # Stored logos, behind the UI login like the pages that show them (#764).
     get("/security_logos/:file", LogoFileController, :show)
+
+    # Sprint 24 P2: the sidebar rail's toggle remembers its state here
+    # (PortfolixirWeb.RailScope writes the cookie; the answer is a 204).
+    get("/preferences/rail", PreferenceController, :rail)
   end
 
   scope "/", PortfolixirWeb do

@@ -607,8 +607,8 @@ either, or both.
 Give the instance a host name of its own. Browsers do not separate cookies by
 port, and a sibling name under the same parent domain can set cookies for the
 parent, so another web app on the same name or beside it shares the
-instance's cookies in the browser. The instance reads only the view, benchmark
-and language choices it wrote itself: they are signed, a name the browser
+instance's cookies in the browser. The instance reads only the view, benchmark,
+language and collapsed-sidebar choices it wrote itself: they are signed, a name the browser
 sends twice is not read, and over HTTPS they carry the `__Host-` prefix, so a
 sibling name cannot plant one. The signature proves that the instance wrote a
 value, not that you chose it: an app on another port of the same name shares
