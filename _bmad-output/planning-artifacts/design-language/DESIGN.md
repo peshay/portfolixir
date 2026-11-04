@@ -8611,3 +8611,70 @@ One block after `.journal-filters__scenarios`: `.journal-filters__since`
   agent read.
 - **The phone frame** places the field where the desktop does, after the
   kind; the form's flex row wraps it, as it wraps the checkbox.
+
+## Amendment 2026-11-04 — Wealth → Performance: the costs line under the benchmark rows *(Sprint 24 B2, idea I17; board `mockups/ux-design-2026-11-04-sprint24/02-benchmark-costs`, pick Q2 = A; ADR-0046's amendment of 2026-11-04)*
+
+The Performance block's benchmark comparison (`#kpi-benchmark`, ADR-0046
+§4) says what the real portfolio paid beside the frictionless benchmark.
+Built in `PortfolixirWeb.PortfolioLive`; the figures are the comparison's
+own `costs_paid`, the payload `GET /api/v1/performance/benchmark` (and
+`/views/:id/…` under a view) serves, so the screen and the agent state the
+same two figures (Sprint 24 D-1, criterion 4).
+
+### Anatomy
+
+1. **One line, once, under the rows:** `p.benchmark-costs`
+   (`data-role="benchmark-costs"`), a direct child of the card after
+   `ul.benchmark-rows`, never inside a row: the costs are the scope's, the
+   same for every benchmark of one request. It reads „Im Zeitraum gezahlt:
+   Gebühren 84,20 EUR · Steuern 312,55 EUR — die Benchmark zahlt keine.“
+   (English "Paid in the period: fees 84.20 EUR · taxes 312.55 EUR; the
+   benchmark pays none."), each figure `Format.money` and the base
+   currency in its own `span.benchmark-costs__fig`. A window with no cost
+   reads „Gebühren 0,00 EUR · Steuern 0,00 EUR“; the line is not dropped,
+   because zero is a booked answer.
+2. **The ⓘ's sentence**, after the comparison's own definition in
+   `#tip-benchmark`, on its own line (`span.benchmark-costs__info`):
+   „Gezahlt im Zeitraum: die Gebühren und Steuern, die dieses Portfolio
+   (diese Ansicht) im selben Zeitraum gebucht hat, umgerechnet zum Kurs
+   ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten
+   ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte.“
+   (English "Paid in the period: the fees and taxes this portfolio (this
+   view) booked in the same period, converted at their booking day's rate;
+   refunds reduce the taxes. Not included is the return the money paid
+   would otherwise have earned.")
+
+### Its states
+
+- **Computing:** the line is absent while the card waits on its skeleton
+  (`data-waits="performance"`); it appears with the rows, from the same
+  comparison.
+- **Superseded** (ADR-0032 §6, the previous walk served while the fresh
+  one computes): the line stands with the rows.
+- **Failed:** the card shows „—“ and no line. A benchmark that covers no
+  day still has its row („Sparplan: —“), so the line stays.
+
+### What it never says
+
+No figure is subtracted from „Sparplan: …“ and no rest is named; nothing
+on the card is labelled „Auswahl und Timing“ / "selection and timing"
+(the amendment's point 4: a fee paid early would have compounded until the
+window's end, which the booked figure leaves out). A LiveView test pins
+the absence in both languages.
+
+### The `app.css` rules of the pick
+
+After `.benchmark-row__coverage`: `.benchmark-costs` (block, `--space-1`
+above, 12.5 px, `--color-text-muted`, the rows' detail ink);
+`.benchmark-costs__fig` (600, `--color-text`, tabular figures);
+`.metric-tooltip p .benchmark-costs__info` (block, 6 px above). Every
+colour is a token, so light and dark and the three accents follow.
+
+### Stated, not settled here
+
+- **The ⓘ keeps the board's parenthesis** „dieses Portfolio (diese
+  Ansicht)“ on every scope, the total included, rather than one sentence
+  per scope.
+- **Excluded costs are not named on the line.** The board drew no
+  mention; a cost with no stored rate on its booking day is left out of
+  both sums and named only in the payload's `costs_paid.excluded`.
