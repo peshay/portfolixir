@@ -102,6 +102,28 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert dossier =~ "errors.merged_into"
     assert dossier =~ "(FR-49)"
 
+    # B1 (I17, ADR-0046 amended 2026-11-04): every benchmark comparison
+    # carries costs_paid, one item for the three reads.
+    assert newest["summary"] =~ "Sprint 24, B1: "
+    assert newest["summary"] =~ "costs_paid"
+    assert newest["summary"] =~ "schema budget"
+
+    assert [costs_paid] =
+             Enum.filter(newest["parameters"], &String.contains?(&1, "(I17; ADR-0046"))
+
+    assert String.starts_with?(
+             costs_paid,
+             "GET /api/v1/portfolios/:portfolio_id/performance/benchmark, " <>
+               "GET /api/v1/views/:view_id/performance/benchmark and " <>
+               "GET /api/v1/performance/benchmark"
+           )
+
+    assert costs_paid =~ "costs_paid {fees, taxes, window, excluded, computation_basis}"
+    assert costs_paid =~ "the cash account that paid it"
+    assert costs_paid =~ ~s(read fees "5", taxes "8")
+    assert costs_paid =~ "not subtracted from end_value_delta"
+    refute costs_paid =~ ~r/selection and timing/i
+
     # Sprint 23, M1 (version 23; #1115): the MCP companion moves to the MCP
     # SDK v2. Dated strictly after entry 22, so since=2026-11-03 still
     # returns it. No route, tool or prompt: what an agent sees change is two

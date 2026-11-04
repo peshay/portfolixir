@@ -45,7 +45,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       # Sprint 24's sprint PR. J1 (#1378; ADR-0017, amendment of 2026-11-04):
       # a delete's journal after is null. Dated the day after entry 23,
       # because since= compares strictly after a date. D1 (FR-49; plan D-2): the
-      # position dossier.
+      # position dossier. B1 (I17; ADR-0046, amended 2026-11-04): the costs
+      # the real portfolio paid, beside the benchmark gap.
       date: ~D[2026-11-05],
       summary:
         "Sprint 24, J1: every delete entry of the audit journal stores after null, " <>
@@ -69,7 +70,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "read uses and carrying that read's computation basis or note, with as_of and a " <>
           "parts note naming the read each part mirrors. Its MCP tool, " <>
           "portfolixir.securities.dossier, is new; the schema ceilings grow by its own " <>
-          "1,423 bytes per profile and no more (D-2).",
+          "1,423 bytes per profile and no more (D-2). " <>
+          "Sprint 24, B1: every benchmark comparison, of a portfolio, a view and the total, " <>
+          "carries costs_paid, the fees and the taxes the real portfolio booked in the " <>
+          "comparison's requested window and scope, summed by the cost facet's own rule, a " <>
+          "cost counting where the cash account that paid it counts, with its own " <>
+          "computation_basis; it stands beside end_value_delta, is never subtracted from it " <>
+          "and names no residual (I17; ADR-0046, amended 2026-11-04). " <>
+          "portfolixir.portfolios.benchmark and portfolixir.views.benchmark name it; to keep " <>
+          "the tool lists within their schema budget, each of the two descriptions is " <>
+          "shortened, every rule it states unchanged.",
       endpoints: ["GET /api/v1/securities/:id/dossier"],
       tools: ["portfolixir.securities.dossier"],
       parameters: [
@@ -102,7 +112,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "no drift. A security with nothing recorded answers each part empty at 200. A " <>
           "merged-away id answers 404 with errors.merged_into {kind, id}, as " <>
           "GET /api/v1/securities/:id does; an unknown id the plain 404. Nothing is written " <>
-          "(FR-49)"
+          "(FR-49)",
+        "GET /api/v1/portfolios/:portfolio_id/performance/benchmark, GET /api/v1/views/:view_id/performance/benchmark and GET /api/v1/performance/benchmark (portfolixir.portfolios.benchmark and portfolixir.views.benchmark, whose descriptions now name it), no parameter added: the response gains costs_paid {fees, taxes, window, excluded, computation_basis}, the same for every benchmark of one request. fees and taxes are Decimal strings in the base currency, summed by the rule of GET /api/v1/costs (the fee and tax legs riding any booking plus the standalone fee and tax bookings, tax_refund netted against the taxes, each read in its cash account's currency and converted at the EUR-hub rate stored on its own booking date) over every booking dated inside requested_window, both days included, also where a benchmark's covered window is shorter. A cost counts where the cash account that paid it counts: in the portfolio the account belongs to (under view= only when the account is in that view), in a view whose buckets hold the account, always in the total; a fee on a buy whose depot is in the view and whose cash account is not is outside the view, and a booking without a cash account counts in its portfolio without a view and in the total only. A cost with no stored rate on its booking date is left out of both sums and named in excluded {count, currencies}. A 5.00 EUR fee on a buy in the window, a 10.00 tax and a 2.00 tax_refund read fees \"5\", taxes \"8\"; the same buy dated a day before the window adds nothing; a window with no walked day reads \"0\" for both. computation_basis states input_series, currency, scope, window, window_rule, reference, gaps and not_included: the sums are not subtracted from end_value_delta and no residual is named, because a cost paid early would have compounded until the window's end, which the booked figure leaves out. Every other field is unchanged; nothing is stored (I17; ADR-0046, amended 2026-11-04)"
       ],
       removed_endpoints: [],
       removed_tools: [],
