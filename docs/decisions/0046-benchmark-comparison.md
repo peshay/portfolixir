@@ -10,6 +10,9 @@ description: 'Design decision for issue #572 (FR-9), written for the Sprint 11 d
   11 planning PR ([ADR-0026](0026-epic-batch-workflow.html) step 1 as
   amended on that PR: the merge is the signature).
 - **Date:** 2026-09-07
+- **Amended:** 2026-11-04, the comparison reports the fees and taxes the
+  real portfolio paid in its window (idea I17; see "Amendment (2026-11-04)"
+  below). Adopted by the merge of the Sprint 24 planning PR.
 - **Answers:** FR-9 (PRD 2026-06-12, released from the advanced-reports gate
   on 2026-08-12 as scope-ladder level (b)), OQ-3 (the quote source), and the
   three design questions on
@@ -126,6 +129,69 @@ and no attempt to model what a real savings plan would have cost.
 | Inflation / CPI as a dated series | #572 Q1 | **Deferred** — v1 expresses inflation as a fixed rate; a yearly rate table is a small follow-up once a constant proves too coarse |
 | After-cost / after-tax dimension | FR-9, OQ-9 | **Deferred** — the tax pot is recorded, never derived (ADR-0031); an after-tax benchmark needs Vorabpauschale and Teilfreistellung modelling, which is its own gate |
 | Stored per-view default benchmark | this record | **Deferred** — §4 |
+
+## Amendment (2026-11-04): the costs the real portfolio paid, beside the gap
+
+**Status:** adopted by the merge of the Sprint 24 planning PR. Scope ladder
+level (b), a decomposition that reports what was booked. It answers idea
+I17. Risk tier as the decision itself (money math on the performance
+surface, ADR-0036).
+
+**Why.** §2 makes the savings-plan benchmark frictionless and says the bias
+runs against the real portfolio. The reader is told the bias exists, never
+how large it was: the fees and taxes the portfolio paid in the same window
+are booked, and nothing puts them next to the gap. The deferral in §6
+(after-cost and after-tax *benchmark*) stays: nothing here models a cost
+for the benchmark.
+
+**What changes.**
+
+1. **The figure.** Each comparison payload carries `costs_paid`: the fees
+   and the taxes booked in **the comparison's own window and scope** (the
+   portfolio, the view, or the total), each as a Decimal string in the base
+   currency, with their own `computation_basis`. It is the same for every
+   benchmark of one request, so the screen shows it once.
+2. **The series rule is the cost facet's** (`Portfolios.Costs`, #726): the
+   fee and tax legs riding any transaction plus the standalone `fee` and
+   `tax` bookings, `tax_refund` netted against taxes, each read in its cash
+   account's currency and converted through the EUR hub at its booking
+   date's stored rate; a cost with no stored rate is excluded from the
+   totals and named. Taxes are the recorded ones only (ADR-0031): nothing
+   is derived. The facet itself stays overview-level, as #726 requires:
+   this is a per-scope sum computed beside the comparison, not a per-scope
+   cost table.
+3. **The scope rule follows the money.** The facet reads every cost in its
+   cash account's currency, because that account pays it; so a cost counts
+   where that cash account counts: in a portfolio when the account belongs
+   to it, in a view when the account is in the view's buckets. A fee on a
+   buy whose depot is in a view and whose cash account is not is therefore
+   outside the view, as the cash it moved is; the basis says so. The window
+   is the comparison's, its bounds read as the comparison reads them.
+4. **What it is not.** It is not subtracted from the gap, and the payload
+   names no residual: a fee paid early would have compounded until the
+   window's end, which the booked figure leaves out; flows the comparison
+   excludes and taxes settled at the year's end move the gap too. The
+   `computation_basis` says so in one sentence, and so does the screen's ⓘ.
+   Board `ux-design-2026-11-04-sprint24/02`, variant A.
+
+**The identities the building batch pins.** A window with no fee and no
+tax reads `0.00` for both; a portfolio whose only cost in the window is a
+5.00 EUR fee on a buy reads fees `5.00` and taxes `0.00`, and the same buy
+dated one day before the window reads `0.00`; a `tax_refund` of 2.00 in the
+window against a 10.00 tax reads taxes `8.00`; a USD fee with no stored
+rate on its day is excluded and named, and the totals leave it out.
+
+**Asks (ADR-0043).**
+
+| Ask | Answer |
+|---|---|
+| Subtract the costs and name the rest ("selection and timing")? | **No**, point 4: the arithmetic does not make that decomposition. |
+| After-cost benchmark (§6's deferral)? | **Still deferred.** This reports the portfolio's costs; the benchmark stays frictionless. |
+| Per-instrument costs in the comparison? | **No.** #726's overview-only rule for cost tables stands. |
+
+*To flip by comment:* "I17 B": the payload and the screen then also carry
+the residual, labelled as what is left after the booked costs, never as
+selection and timing.
 
 ## Consequences
 
