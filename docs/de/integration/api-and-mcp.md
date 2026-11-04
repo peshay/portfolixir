@@ -1052,6 +1052,57 @@ Nachkommastellen.
 Empfehlung, kein Rating, keinen Score und keine Handlung in der Antwort. Eine
 Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
 
+### Das Positionsdossier (FR-49)
+
+Ein Lesezugriff je Wertpapier, der trägt, was ein Agent für eine Entscheidung
+über eine Position sonst aus sieben Lesezugriffen zusammensetzt. Hier wird
+nichts berechnet: Jeder Teil entsteht aus der Funktion, die sein eigener
+Lesezugriff nutzt, und trägt dessen Berechnungsgrundlage oder Hinweis, sodass
+ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
+
+- `GET /api/v1/securities/:id/dossier` — nur lesend, ohne Parameter. Die
+  Antwort trägt `security_id`, `as_of` (heute), `parts` (je Teil der
+  Lesezugriff, den er spiegelt) und sieben Teile:
+  - `security` — der Datensatz, den `GET /api/v1/securities/:id` antwortet,
+    samt früheren ISINs, `thesis_state` und `bond` mit seiner Grundlage;
+  - `holdings` — `rows`, eine Zeile je Portfolio, das das Wertpapier hält, so
+    wie `GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id` sie
+    antwortet, mit `currency_basis`, `currency_basis_note` und
+    `computation_basis` dieses Lesezugriffs; `total`, die Zeile des
+    Wertpapiers aus `GET /api/v1/holdings/by_security` (EUR, `valued`,
+    `unvalued_reason`), `null`, wenn nichts gehalten wird, mit `total_basis`
+    (`currency`, `note`);
+  - `metrics` — `GET /api/v1/securities/:security_id/metrics` mit seinem
+    voreingestellten `as_of`, samt `computation_basis`;
+  - `research` — die 5 neuesten Einträge des Research-Logs, so wie
+    `GET /api/v1/securities/:security_id/notes?limit=5` sie antwortet, mit
+    `has_more`, der `log_note` und `rest`, dem Lesezugriff, der den Rest
+    blättert;
+  - `events` — `upcoming`, jeder Termin, dessen letzter möglicher Tag heute
+    oder später liegt, der früheste zuerst, und `past`, die 5 neuesten
+    übrigen, der neueste zuerst, beide aus
+    `GET /api/v1/securities/:security_id/events`, mit `has_more`, der
+    `events_note` und `rest`;
+  - `categories` — eine Zeile je Klassifizierung aus
+    `GET /api/v1/classifications` (`classification_id`, `classification_name`,
+    `classification_key`, `built_in`) mit `category` (`id`, `name`, `key`
+    und `path`, die Kategorien von der Wurzel bis zu ihr), `null`, wo das
+    Wertpapier nicht eingeordnet ist;
+  - `targets` — `rows`, die Positionsziel-Zeilen aus
+    `GET /api/v1/portfolios/:portfolio_id/position_targets`, die das
+    Wertpapier nennen, je Portfolio, im aktiven Plan der View-losen Sicht,
+    und `drift`, das den Lesezugriff nennt, der die Abweichung jeder Zeile
+    angibt: Das Dossier berechnet keine.
+
+Bewusst ausgelassen: Kurse, Trades, Lots und Transaktionen, jeweils eine lange
+Reihe mit eigenem geblättertem Lesezugriff, und die Abweichung, die je
+Portfolio eine Klassifizierung und eine Bewertung braucht. Ein Wertpapier, zu
+dem nichts erfasst ist, antwortet jeden Teil leer mit `200`. Ein in ein
+anderes zusammengeführtes Wertpapier antwortet `404` mit `errors.merged_into`
+(`kind`, `id`), wie `GET /api/v1/securities/:id`; eine unbekannte ID antwortet
+das schlichte `404`. Die menschliche Ansicht ist die Wertpapierseite für jeden
+Teil außer `targets`, dessen Ansicht die Klassifizierungsseite ist.
+
 ### Anleihen: Stammdaten und Anleihe-Lesung (ADR-0052)
 
 Die Stammdaten einer Anleihe sind sechs nullbare Felder des Wertpapiers,

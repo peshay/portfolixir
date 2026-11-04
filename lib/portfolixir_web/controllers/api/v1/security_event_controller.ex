@@ -56,6 +56,10 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
                 "confirmed future date nobody has re-read is a different risk from a past " <>
                 "date nobody resolved."
 
+  @doc "The events note the events read carries, which the dossier repeats (FR-49)."
+  @spec events_note() :: String.t()
+  def events_note, do: @events_note
+
   @default_limit 1_000
   @max_limit 10_000
 

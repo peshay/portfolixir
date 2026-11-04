@@ -80,6 +80,26 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert journal_since =~ "2026-10-28T09:15:02.250000Z~48"
     assert journal_since =~ "Without since the read is unchanged"
 
+    # D1 (FR-49; plan D-2): the position dossier, one route, its item naming
+    # every part and the read it mirrors.
+    assert newest["summary"] =~ "Sprint 24, D1 (FR-49): "
+    assert "GET /api/v1/securities/:id/dossier" in newest["endpoints"]
+    assert hd(Contract.entries()).prompts == []
+
+    assert [dossier] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET /api/v1/securities/:id/dossier")
+             )
+
+    for part <- ~w(security holdings metrics research events categories targets) do
+      assert dossier =~ part
+    end
+
+    assert dossier =~ "total.quantity reads \"15\""
+    assert dossier =~ "errors.merged_into"
+    assert dossier =~ "(FR-49)"
+
     # Sprint 23, M1 (version 23; #1115): the MCP companion moves to the MCP
     # SDK v2. Dated strictly after entry 22, so since=2026-11-03 still
     # returns it. No route, tool or prompt: what an agent sees change is two

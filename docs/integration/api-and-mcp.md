@@ -979,6 +979,52 @@ above an SMA-200 is two numbers and a distance. A rule over a metric is FR-43
 and is gated; backtesting one is out of scope. A meta-test walks the rendered
 key set so the boundary holds mechanically.
 
+### The position dossier (FR-49)
+
+One read per security that carries what an agent preparing a decision about
+a position otherwise assembles from seven reads. Nothing is computed here:
+each part is built by the function its own read uses and carries that read's
+computation basis or note, so a part always equals what its read answers.
+
+- `GET /api/v1/securities/:id/dossier` — read-only, no parameter. It answers
+  `security_id`, `as_of` (today), `parts` (for each part, the read it
+  mirrors) and seven parts:
+  - `security` — the record `GET /api/v1/securities/:id` answers, former
+    ISINs, `thesis_state` and `bond` with its basis included;
+  - `holdings` — `rows`, one per portfolio holding the security, as
+    `GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id` answers
+    them, with that read's `currency_basis`, `currency_basis_note` and
+    `computation_basis`; `total`, the security's row of
+    `GET /api/v1/holdings/by_security` (EUR, `valued`, `unvalued_reason`),
+    `null` when nothing is held, with `total_basis` (`currency`, `note`);
+  - `metrics` — `GET /api/v1/securities/:security_id/metrics` at its default
+    `as_of`, `computation_basis` included;
+  - `research` — the newest 5 entries of the research log, as
+    `GET /api/v1/securities/:security_id/notes?limit=5` answers them, with
+    `has_more`, the `log_note` and `rest`, the read that pages the rest;
+  - `events` — `upcoming`, every event whose last possible day is today or
+    later, soonest first, and `past`, the newest 5 others, newest first, both
+    from `GET /api/v1/securities/:security_id/events`, with `has_more`, the
+    `events_note` and `rest`;
+  - `categories` — one row per classification of `GET /api/v1/classifications`
+    (`classification_id`, `classification_name`, `classification_key`,
+    `built_in`) with `category` (`id`, `name`, `key` and `path`, the
+    categories from the root down to it), `null` where the security is not
+    filed;
+  - `targets` — `rows`, the position target rows of
+    `GET /api/v1/portfolios/:portfolio_id/position_targets` naming the
+    security, per portfolio, in the active plan of the unscoped view, and
+    `drift`, naming the read that states each row's drift: the dossier
+    computes none.
+
+Left out on purpose: quotes, trades, lots and transactions, each a long series
+with its own paged read, and drift, which needs a classification and a
+valuation per portfolio. A security with nothing recorded answers every part
+empty at `200`. A security merged into another answers `404` with
+`errors.merged_into` (`kind`, `id`), as `GET /api/v1/securities/:id` does; an
+unknown id answers the plain `404`. The human view is the security page for
+every part but `targets`, whose view is the Classifications page.
+
 ### Bonds: master data and the bond reading (ADR-0052)
 
 A bond's master data is six nullable fields of the security, settable with
