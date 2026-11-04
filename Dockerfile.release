@@ -11,7 +11,7 @@
 # OTP named here is the OTP every instance runs; the official `elixir` library
 # tag this used to name was frozen and shipped an OTP with published TLS-client
 # advisories (the 2026-09-24 runtime hotfix). ci_test pins the parity with CI.
-FROM hexpm/elixir:1.18.6-erlang-27.3.4.19-debian-bookworm-20261027-slim@sha256:01cf0d73936e993b4a924efb9e918bc1bfc4eb47a7d15392414ec79670858375 AS build
+FROM hexpm/elixir:1.19.7-erlang-27.3.4.19-debian-bookworm-20261027-slim@sha256:893f2b7dcf6ad83e1cb8d7c0ecfa6f611ec575d942e1fe88b1352ed6759b8a63 AS build
 
 ENV MIX_ENV=prod \
     MIX_HOME=/opt/mix \
