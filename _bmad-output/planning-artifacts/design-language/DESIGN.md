@@ -8569,14 +8569,18 @@ changed this week“, a poller walks forward. Built in
 1. **The field** (① on the board): in `form#journal-filters`, right after
    the kind's `label.journal-filters__kind` and before the scenarios,
    `label.journal-filters__since` — the text „Seit“ (English „Since“), then
-   `input#journal-since`, a native `type="date"` named `since` (a tap and
-   a pick on a phone). Empty means no cut. The label has the scenarios
-   checkbox's anatomy: inline-flex, centred, a 6 px gap, 13 px; the input
-   inherits the page's font. It wraps with the form's other controls, so
+   `input#journal-since`, named `since`, the app's ISO date input
+   (UX-DR19, the 2026-08-10 resolution above: `type="text"`, placeholder
+   `YYYY-MM-DD`, the pattern, maxlength 10, no `inputmode`), sent on blur
+   (`phx-debounce="blur"`) so a half-typed date never patches the cut away.
+   The board drew a native date input; the build follows UX-DR19, which
+   gives the native picker up app-wide. Empty means no cut. The label has
+   the scenarios checkbox's anatomy: inline-flex, centred, a 6 px gap,
+   13 px; the input inherits the page's font, 11ch wide. It wraps with the form's other controls, so
    at 390 px it stacks under the kind like the checkbox; nothing scrolls
    sideways.
 2. **What it sends:** the form's one `phx-change` carries it with the kind
-   and the checkbox. A picked date patches `/journal?since=<YYYY-MM-DD>`,
+   and the checkbox. A typed date, on blur, patches `/journal?since=<YYYY-MM-DD>`,
    the start of that day in UTC, and the list starts again from its newest
    page; an emptied field patches the cut away.
 3. **A cut handed over** shows as itself: a date fills the field with it.
@@ -8599,8 +8603,8 @@ changed this week“, a poller walks forward. Built in
 ### The `app.css` rule
 
 One block after `.journal-filters__scenarios`: `.journal-filters__since`
-(inline-flex, `align-items: center`, 6 px gap, 13 px) and its
-`input[type="date"]` (`font: inherit`). No colour of its own.
+(inline-flex, `align-items: center`, 6 px gap, 13 px) and its input
+(`font: inherit`, `width: 11ch`). No colour of its own.
 
 ### Stated, not settled here
 
