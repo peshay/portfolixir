@@ -11331,6 +11331,20 @@ dialog.merge-dialog {
   font-size: 13px;
 }
 
+/* The date field „Seit“ beside the kind (Sprint 24 J3; board
+   ux-design-2026-11-04-sprint24/01-journal-since, pick Q1 = A ①): the
+   checkbox's label anatomy, its native date input in the page's font. */
+.journal-filters__since {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.journal-filters__since input[type="date"] {
+  font: inherit;
+}
+
 /* ② A reading table, not a matrix: it fits its wrapper and its cells wrap;
    the time, the actor and the operation stay on one line. UX-DR15's
    scroller stays the fallback. */

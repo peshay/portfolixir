@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.JournalLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.JournalQuery
+  alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.Journal.Row
@@ -112,6 +113,7 @@ defmodule PortfolixirWeb.JournalLive do
      patch(socket,
        resource_type: kind,
        resource_id: resource_id,
+       since: form_since(params["since"], socket.assigns.opts[:since]),
        include_scenarios: params["include_scenarios"] == "true",
        limit: nil
      )}
@@ -120,6 +122,30 @@ defmodule PortfolixirWeb.JournalLive do
   # An event this page does not know, or a payload it cannot read, changes
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The field „Seit“ (board 01 ①) holds a date. A cut handed over as an
+  # instant or a cursor shows as its UTC date and is kept as handed over
+  # while the field still shows that date, so another filter change does
+  # not widen it to the day; an empty or unreadable field is no cut.
+  defp form_since(value, current) do
+    cond do
+      current && value == since_value(current) ->
+        current
+
+      is_binary(value) ->
+        case SinceParam.parse_page(%{"since" => value}) do
+          {:ok, since} -> since
+          {:error, :since} -> nil
+        end
+
+      true ->
+        nil
+    end
+  end
+
+  # The date the field shows for a cut: its UTC date, or empty.
+  defp since_value(nil), do: ""
+  defp since_value(%{cut: cut}), do: cut |> NaiveDateTime.to_date() |> Date.to_iso8601()
 
   defp enum_value("", _allowed), do: {:ok, nil}
 
@@ -222,6 +248,11 @@ defmodule PortfolixirWeb.JournalLive do
                   <%= Row.kind_label(kind) %>
                 </option>
               </select>
+            </label>
+            <%!-- The cut (board 01 ①): a native date input, empty for none. --%>
+            <label class="journal-filters__since">
+              <%= gettext("Since") %>
+              <input type="date" id="journal-since" name="since" value={since_value(@opts[:since])} />
             </label>
             <label class="journal-filters__scenarios">
               <input type="hidden" name="include_scenarios" value="false" />
@@ -430,11 +461,9 @@ defmodule PortfolixirWeb.JournalLive do
   # The cut as it was handed over (board 01 ②): a date as the date, an
   # instant (or the API's cursor) as its UTC time to the second. A date is
   # the `since` that reads as its own cut's day; the parser has read it.
-  defp cut_label(%{raw: raw, cut: cut}) do
-    day = NaiveDateTime.to_date(cut)
-
-    if raw == Date.to_iso8601(day),
-      do: Format.date(day),
+  defp cut_label(%{raw: raw, cut: cut} = since) do
+    if raw == since_value(since),
+      do: cut |> NaiveDateTime.to_date() |> Format.date(),
       else: cut |> DateTime.from_naive!("Etc/UTC") |> Row.time()
   end
 
