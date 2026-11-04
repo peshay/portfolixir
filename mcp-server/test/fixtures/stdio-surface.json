@@ -4662,7 +4662,7 @@
             {
               "name": "portfolixir.journal.list",
               "title": "List audit journal",
-              "description": "List append-only audit-journal entries, newest first: who (actor_type, actor_label: a token's configured name, null for the default), what (operation on resource_type/resource_id) and before/after of every financial write, deletions included. An update's or a delete's before is the row stored under the write's lock, an update's after the row stored after it, so two writes from one read chain (the second's before is the first's after). A delete's after is null; one by release 2026.11.8 or earlier repeats the deleted record or holds the emptied set. Filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. Echoes as_of, filters, ordering, limit and truncated.",
+              "description": "Append-only audit-journal entries, newest first: who (actor_type; actor_label, a token's name, else null), what (operation on resource_type/resource_id) and before/after of every financial write, deletions included. A change's before is the row under the write's lock, an update's after the row it stored, so two writes from one read chain (the second's before is the first's after). A delete's after is null; one by release 2026.11.8 or earlier repeats the deleted record or holds the emptied set. Real writes unless include_scenarios=true. Echoes as_of, filters, order, limit and truncated. since reaches past the newest 1000: entries after it, oldest first, has_more; page by as_of, the next since (the top-level as_of is the cursor, not meta.as_of).",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -4673,7 +4673,7 @@
                   },
                   "resource_id": {
                     "type": "string",
-                    "description": "One-line text of at most 255 characters without control characters; anything else answers 422 naming the parameter."
+                    "description": "as resource_type"
                   },
                   "actor_type": {
                     "type": "string",
@@ -4700,6 +4700,10 @@
                   "limit": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "since": {
+                    "type": "string",
+                    "description": "date, instant or cursor"
                   }
                 }
               },
