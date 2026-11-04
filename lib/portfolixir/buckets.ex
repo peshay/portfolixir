@@ -1116,7 +1116,8 @@ defmodule Portfolixir.Buckets do
   The migration `20260712130000_seed_portfolio_scope_buckets`'s `down`, and
   nothing else calls it: deletes every bucket and view that carries a
   `source_portfolio_id` marker, journaling each bucket delete under `actor`
-  with its row on both sides, and forgets a dismissed migration notice.
+  with its row as before and after null (#1378), and forgets a dismissed
+  migration notice.
   Written by `Portfolixir.Buckets.ScopeSeed` in plain SQL over that
   migration's columns (#1042).
 

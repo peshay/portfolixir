@@ -88,6 +88,14 @@ defmodule Portfolixir.Tax.SeedTest do
     assert Enum.map(remaining, & &1.id) == [operator_row.id]
     refute Enum.any?(remaining, & &1.built_in)
     assert seed_entry_count(:delete) - deletes_before == built_in
+
+    # Each delete keeps the row as before and stores after null, as every
+    # delete is journaled (ADR-0017, amendment of 2026-11-04; #1378).
+    deletes =
+      Journal.list_entries(resource_type: "tax_parameters", operation: :delete)
+      |> Enum.take(built_in)
+
+    assert Enum.all?(deletes, &(&1.after == nil and &1.before["built_in"] == true))
   end
 
   test "seeding into an empty table writes the full German history, journaled" do

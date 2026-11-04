@@ -87,8 +87,10 @@ defmodule Portfolixir.Tax.BuiltinSeed do
         Enum.each(rows, fn values ->
           row = columns |> Enum.zip(values) |> Map.new()
           repo.query!("DELETE FROM tax_parameters WHERE id = $1", [row["id"]])
-          # The journal files a deletion with the deleted row on both sides.
-          journal!(repo, actor, "delete", row["id"], snapshot(row), snapshot(row))
+          # The journal files a deletion with the deleted row as before and
+          # no after: nothing stands after a delete (ADR-0017, amendment of
+          # 2026-11-04, #1378), as `Journal.record/3` writes every other.
+          journal!(repo, actor, "delete", row["id"], snapshot(row), nil)
         end)
       end)
 

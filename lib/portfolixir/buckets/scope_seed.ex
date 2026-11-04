@@ -45,7 +45,8 @@ defmodule Portfolixir.Buckets.ScopeSeed do
     * **in the rollback, the journaled rewrites of a bucket's memberships
       before its delete,** and the protection of a view a policy rule reads.
       The rollback is the migration's `down`: it journals only the bucket
-      deletes, each with its row on both sides, and lets the foreign keys of
+      deletes, each with its row as before and after null (as every delete
+      is journaled from Sprint 24 on, #1378), and lets the foreign keys of
       that version remove the links, unjournaled, as they did then. One known
       limit follows: a position override whose only bucket is a seeded one
       loses its last row and reads as inherit afterwards, where
@@ -140,13 +141,15 @@ defmodule Portfolixir.Buckets.ScopeSeed do
         Enum.each(rows, fn values ->
           bucket = columns |> Enum.zip(values) |> Map.new()
           repo.query!("DELETE FROM buckets WHERE id = $1", [bucket["id"]])
-          # The journal files a deletion with the deleted row on both sides.
+          # The journal files a deletion with the deleted row as before and
+          # no after: nothing stands after a delete (ADR-0017, amendment of
+          # 2026-11-04, #1378), as `Journal.record/3` writes every other.
           journal!(
             repo,
             actor,
             {"delete", "bucket", bucket["id"]},
             snapshot(bucket),
-            snapshot(bucket)
+            nil
           )
         end)
 

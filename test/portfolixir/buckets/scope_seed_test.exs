@@ -136,15 +136,17 @@ defmodule Portfolixir.Buckets.ScopeSeedTest do
     assert Enum.all?(entries, &is_nil(&1.actor_label))
   end
 
-  # User story (#1042, Sprint 19 B1):
+  # User story (#1042, Sprint 19 B1; #1378, Sprint 24 J1):
   # As a local portfolio maintainer who reverts the upgrade,
   # I want each seeded bucket's delete journaled with what was deleted,
   # so that the audit journal still says which buckets the rollback removed.
   #
   # Acceptance criteria:
   # - Each seeded bucket's delete is journaled under the rollback's actor
-  #   with the bucket's row on both sides; the operator's bucket is kept.
-  test "the rollback journals each seeded bucket's delete with its row on both sides" do
+  #   with the bucket's row as before and after null, as every delete is
+  #   journaled (ADR-0017, amendment of 2026-11-04); the operator's bucket is
+  #   kept.
+  test "the rollback journals each seeded bucket's delete with its row as before" do
     base_world(name: unique("Alpha"), cash_name: "A Cash", depot_name: "A Depot")
     {:ok, own} = Buckets.create_bucket(Actor.owner_ui(), %{name: unique("Own")})
 
@@ -158,7 +160,7 @@ defmodule Portfolixir.Buckets.ScopeSeedTest do
              Enum.filter(seed_entries("bucket"), &(&1.operation == :delete))
 
     assert {delete.resource_id, delete.before, delete.after} ==
-             {Integer.to_string(seeded.id), image, image}
+             {Integer.to_string(seeded.id), image, nil}
 
     assert Repo.get(Bucket, seeded.id) == nil
     assert Repo.get(Bucket, own.id)

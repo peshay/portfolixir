@@ -316,10 +316,10 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
       override_removals =
         entries(
           "position_bucket_override",
-          &(&1.operation == :delete and &1.after["securities_account_id"] == depot.id)
+          &(&1.operation == :delete and &1.before["securities_account_id"] == depot.id)
         )
 
-      assert override_removals |> Enum.map(& &1.after["security_id"]) |> Enum.sort() ==
+      assert override_removals |> Enum.map(& &1.before["security_id"]) |> Enum.sort() ==
                Enum.sort([alpha.id, beta.id])
 
       assert Enum.all?(override_removals, &(&1.actor_type == :api_token_rw))
@@ -369,10 +369,10 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
       assert [override_removal] =
                entries(
                  "position_bucket_override",
-                 &(&1.operation == :delete and &1.after["security_id"] == security.id)
+                 &(&1.operation == :delete and &1.before["security_id"] == security.id)
                )
 
-      assert override_removal.after["securities_account_id"] == world.depot.id
+      assert override_removal.before["securities_account_id"] == world.depot.id
       assert [row_delete] = deleted_entries("security", security.id)
 
       for entry <- [override_removal | assignment_removals] do
