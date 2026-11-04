@@ -1,9 +1,10 @@
 defmodule PortfolixirWeb.PreferenceCookie do
   @moduledoc """
-  The cookies that remember the view, benchmark and language choices
-  (`PortfolixirWeb.ViewScope`, `PortfolixirWeb.BenchmarkScope`,
-  `PortfolixirWeb.Locale`), read and written in one place (security review
-  2026-10-12, K02).
+  The cookies that remember the view, benchmark and language choices and
+  the collapsed sidebar rail (`PortfolixirWeb.ViewScope`,
+  `PortfolixirWeb.BenchmarkScope`, `PortfolixirWeb.Locale`,
+  `PortfolixirWeb.RailScope`), read and written in one place (security
+  review 2026-10-12, K02).
 
   A preference is taken only when this server wrote it:
 

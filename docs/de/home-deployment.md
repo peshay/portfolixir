@@ -642,7 +642,8 @@ Gib der Instanz einen eigenen Hostnamen. Browser trennen Cookies nicht nach
 Port, und ein Nachbarname unter derselben übergeordneten Domain kann Cookies
 für diese Domain setzen; eine andere Web-Anwendung unter demselben Namen oder
 daneben teilt sich daher im Browser die Cookies der Instanz. Die Instanz liest
-nur die Ansichts-, Benchmark- und Sprachwahl, die sie selbst geschrieben hat:
+nur die Ansichts-, Benchmark-, Sprach- und Seitenleistenwahl (eingeklappt
+oder nicht), die sie selbst geschrieben hat:
 Sie ist signiert, ein Name, den der Browser doppelt schickt, wird nicht
 gelesen, und über HTTPS tragen die Cookies das Präfix `__Host-`, sodass ein
 Nachbarname keines setzen kann. Die Signatur belegt, dass die Instanz einen
