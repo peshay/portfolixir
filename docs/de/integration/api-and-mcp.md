@@ -1060,7 +1060,8 @@ nichts berechnet: Jeder Teil entsteht aus der Funktion, die sein eigener
 Lesezugriff nutzt, und trägt dessen Berechnungsgrundlage oder Hinweis, sodass
 ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
 
-- `GET /api/v1/securities/:id/dossier` — nur lesend, ohne Parameter. Die
+- `GET /api/v1/securities/:id/dossier` (`portfolixir.securities.dossier`, in
+  jedem Profil) — nur lesend, ohne Parameter. Die
   Antwort trägt `security_id`, `as_of` (heute), `parts` (je Teil der
   Lesezugriff, den er spiegelt) und sieben Teile:
   - `security` — der Datensatz, den `GET /api/v1/securities/:id` antwortet,
@@ -4537,6 +4538,11 @@ lässt sich nicht lesen.
   Wertpapiers (ADR-0047) über seine eigene splitbereinigte Kursreihe:
   gleitende Durchschnitte, Volatilität, maximaler Drawdown, Momentum und der
   Abstand zu den 52-Wochen-Extremen, jede mit Fenster und Beobachtungszahl.
+- `portfolixir.securities.dossier` — das Positionsdossier eines Wertpapiers
+  (FR-49): Datensatz, Bestände, Kennzahlen, neueste Research-Log-Einträge,
+  anstehende und jüngste Termine, Kategorien und Positionsziele in einem
+  Lesezugriff, jeder Teil so, wie sein eigener Lesezugriff ihn antwortet, und
+  mit dessen Namen.
 - `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).

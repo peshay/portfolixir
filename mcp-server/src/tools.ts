@@ -3136,6 +3136,13 @@ const declaredTools: DeclaredTool[] = [
     securityMetricsZ
   ),
   tool(
+    "portfolixir.securities.dossier",
+    "Dossier of one security",
+    "One security's dossier in one read (FR-49): each part as its own read answers it, with that read's computation_basis or note, and parts names the read each mirrors. security: portfolixir.securities.get. holdings: rows, one per portfolio holding it (portfolixir.holdings.list), and total, its portfolixir.holdings.by_security row (null when not held). metrics: portfolixir.securities.metrics at the default as_of. research: the newest 5 portfolixir.notes.list entries and has_more. events: every upcoming event, soonest first, and the newest 5 past ones, newest first, with has_more; portfolixir.events.list pages the rest. categories: per classification (portfolixir.classifications.list) the security's category with its path from the root, null where not filed. targets: its position SOLL rows per portfolio (portfolixir.targets.list_positions); no drift is computed here, targets.drift names the read that states it. Left out: quotes, trades, lots and transactions, each paged by its own read. A security merged into another answers 404 with errors.merged_into {kind, id}. Decimals are strings.",
+    idSchema,
+    idZ
+  ),
+  tool(
     "portfolixir.events.list",
     "Calendar of one security",
     "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (FR-38, ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
@@ -4306,6 +4313,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/securities/${args.security_id}/metrics`, args, ["as_of"])
       );
+    case "portfolixir.securities.dossier":
+      return client.request("GET", `/api/v1/securities/${args.id}/dossier`);
     case "portfolixir.events.list":
       return client.request(
         "GET",

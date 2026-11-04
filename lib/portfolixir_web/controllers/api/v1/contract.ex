@@ -67,13 +67,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "research-log entries, its upcoming and recent events, its categories and its " <>
           "position targets in one read-only call, each part built by the function its own " <>
           "read uses and carrying that read's computation basis or note, with as_of and a " <>
-          "parts note naming the read each part mirrors.",
+          "parts note naming the read each part mirrors. Its MCP tool, " <>
+          "portfolixir.securities.dossier, is new; the schema ceilings grow by its own " <>
+          "1,423 bytes per profile and no more (D-2).",
       endpoints: ["GET /api/v1/securities/:id/dossier"],
-      tools: [],
+      tools: ["portfolixir.securities.dossier"],
       parameters: [
         "GET /api/v1/journal (portfolixir.journal.list, whose description now says so), no parameter added: an entry whose operation is delete carries after null, where it carried the deleted record again (a booking's delete: after equal to before, every field of the row) or the emptied set (a release of manual quotes, security_quotes: {\"security_id\": 42, \"quotes\": []}; a cleared position override, position_bucket_override: {\"id\": null, \"securities_account_id\": 7, \"security_id\": 42}, without its bucket_ids). before is unchanged, the record as stored under the write's lock, so a deleted record is read from before. Entries written by release 2026.11.8 and earlier are not rewritten (the table is append-only) and keep those shapes; create, update and upsert entries are unchanged (#1378; ADR-0017, amendment of 2026-11-04)",
         "GET /api/v1/journal (portfolixir.journal.list, whose input schema gains since), since added, read by the paged delta reads' parser: a date (2026-10-28, the start of that day, UTC), an instant, or the cursor a full page answered as as_of. With since the read answers the entries written strictly after the cut, oldest first by inserted_at and then id (meta.order \"inserted_at:asc,id:asc\"), with since, has_more, a delta_note and a top-level as_of that is the next since: on a full page a cursor at its last entry, 2026-10-28T09:15:02.250000Z~48, its instant to the microsecond the journal stamps, else the read's in-flight bound; meta.as_of stays the read's instant. It combines with resource_type, resource_id, actor_type, operation and include_scenarios, meta.filters echoes it, and limit keeps its default 100 and maximum 1000, so a walk from since=1970-01-01 at the default limit reads 2,500 entries in 25 pages, each once, where a read without since showed the newest 1000 at most. An unreadable since or a malformed cursor answers 422 errors.since. Without since the read is unchanged: newest first, no has_more, meta.filters.since null (I16, #416; decision D-4)",
-        "GET /api/v1/securities/:id/dossier, new, no parameter: {security_id, as_of, parts, " <>
+        "GET /api/v1/securities/:id/dossier (portfolixir.securities.dossier, read-only, in " <>
+          "every profile), new, no parameter: {security_id, as_of, parts, " <>
           "security, holdings, metrics, research, events, categories, targets}. security is " <>
           "GET /api/v1/securities/:id's data; holdings.rows are the rows of " <>
           "GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id for every portfolio " <>

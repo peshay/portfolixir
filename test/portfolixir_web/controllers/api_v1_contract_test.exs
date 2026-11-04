@@ -84,6 +84,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # every part and the read it mirrors.
     assert newest["summary"] =~ "Sprint 24, D1 (FR-49): "
     assert "GET /api/v1/securities/:id/dossier" in newest["endpoints"]
+    assert "portfolixir.securities.dossier" in newest["tools"]
+    assert newest["summary"] =~ "1,423 bytes per profile"
     assert hd(Contract.entries()).prompts == []
 
     assert [dossier] =

@@ -27,6 +27,7 @@
         "portfolixir.securities.merge_preview",
         "portfolixir.securities.search_online",
         "portfolixir.securities.metrics",
+        "portfolixir.securities.dossier",
         "portfolixir.events.list",
         "portfolixir.events.upcoming",
         "portfolixir.events.unconfirmed",
@@ -146,6 +147,7 @@
         "portfolixir.securities.merge_preview",
         "portfolixir.securities.search_online",
         "portfolixir.securities.metrics",
+        "portfolixir.securities.dossier",
         "portfolixir.events.list",
         "portfolixir.events.create",
         "portfolixir.events.update",
@@ -313,6 +315,7 @@
         "portfolixir.securities.merge",
         "portfolixir.securities.search_online",
         "portfolixir.securities.metrics",
+        "portfolixir.securities.dossier",
         "portfolixir.events.list",
         "portfolixir.events.create",
         "portfolixir.events.update",
@@ -1079,6 +1082,30 @@
                   "as_of": {
                     "type": "string",
                     "description": "Closes after it are not read (default: today). An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.securities.dossier",
+              "title": "Dossier of one security",
+              "description": "One security's dossier in one read (FR-49): each part as its own read answers it, with that read's computation_basis or note, and parts names the read each mirrors. security: portfolixir.securities.get. holdings: rows, one per portfolio holding it (portfolixir.holdings.list), and total, its portfolixir.holdings.by_security row (null when not held). metrics: portfolixir.securities.metrics at the default as_of. research: the newest 5 portfolixir.notes.list entries and has_more. events: every upcoming event, soonest first, and the newest 5 past ones, newest first, with has_more; portfolixir.events.list pages the rest. categories: per classification (portfolixir.classifications.list) the security's category with its path from the root, null where not filed. targets: its position SOLL rows per portfolio (portfolixir.targets.list_positions); no drift is computed here, targets.drift names the read that states it. Left out: quotes, trades, lots and transactions, each paged by its own read. A security merged into another answers 404 with errors.merged_into {kind, id}. Decimals are strings.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
                   }
                 }
               },

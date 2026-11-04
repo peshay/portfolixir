@@ -313,6 +313,19 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 102887,
     book: 171958,
     full: 206513
+  },
+  {
+    since: "2026-11-05",
+    why:
+      "Sprint 24, D1 (FR-49): the position dossier, portfolixir.securities.dossier, a read in " +
+      "every profile, whose own schema the plan's D-2 lets the ceilings grow by and no more: " +
+      "its tools/list entry measures 1,423 bytes in each profile, so read 102,887 + 1,423 = " +
+      "104,310, book 171,958 + 1,423 = 173,381 and full 206,513 + 1,423 = 207,936; no other " +
+      "tool's bytes are added",
+    read: 104_310,
+    book: 173_381,
+    full: 207_936,
+    raisedBy: { tools: ["portfolixir.securities.dossier"], read: 1_423, book: 1_423, full: 1_423 }
   }
 ];
 
