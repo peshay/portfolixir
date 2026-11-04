@@ -4080,7 +4080,9 @@ freigegebenen Zeilen als Vorher-Abbild.
   `since=1970-01-01`, der jedes `as_of` zurückgibt, erreicht jeden Eintrag
   genau einmal, auch die jenseits der neuesten 1000, die ein Read ohne
   `since` nicht zeigen kann. Ohne `since` bleibt der Read unverändert,
-  neueste zuerst.
+  neueste zuerst. Die Seite nimmt dasselbe `since`
+  (`/journal?since=2026-10-28`, oder den Zeitpunkt oder Cursor, den der Read
+  beantwortet hat) und listet dieselben Einträge, neueste zuerst.
   SOLL-Ziel-Schreibvorgänge (Kategorie- und Positionszeilen gleichermaßen)
   werden unter `resource_type=target` journalisiert, Schreibvorgänge an
   Planversionen unter `resource_type=target_plan`.

@@ -8509,6 +8509,7 @@ gespeicherte Änderung, wer sie machte und was vorher stand“.
 
 Every control writes its parameter into the URL with `push_patch`, in one
 fixed order — `resource_type`, `resource_id`, `actor_type`, `operation`,
+`since` (added 2026-11-05, Sprint 24 J3; see the amendment below),
 `include_scenarios`, `limit` (only when not 100) — the API's names and
 values, so a link reproduces the view and an agent's link opens the rows
 it read (the history's `?since=` rule, #731). A filter change starts again
@@ -8549,5 +8550,64 @@ follow without a rule of their own.
 - **An entity deleted after an entry** still links from its older
   entries, to the page that once showed it: the page checks no row's
   existence, which would cost a read per entry.
-- **No time filter**: „this week?“ is read by paging (found while drawing
-  5, idea I16).
+- ~~**No time filter**: „this week?“ is read by paging (found while drawing
+  5, idea I16).~~ (2026-11-05, Sprint 24 J3: the journal could not be paged
+  past 1000, so I16 became the date field „Seit“; see the amendment below.)
+
+## Amendment 2026-11-05 — The audit journal since a date *(Sprint 24 J3, idea I16; board `mockups/ux-design-2026-11-04-sprint24/01-journal-since`, pick Q1 = A; plan D-4)*
+
+`GET /api/v1/journal` and `portfolixir.journal.list` take `since` (J2): a
+date, an instant, or the cursor a full page answered as `as_of`, read by
+the paged delta reads' parser, the entries after the cut oldest first. The
+page takes the same parameter, read through `JournalQuery` as every other
+one, and shows the same rows **newest first**: a screen answers „what
+changed this week“, a poller walks forward. Built in
+`PortfolixirWeb.JournalLive`.
+
+### Anatomy
+
+1. **The field** (① on the board): in `form#journal-filters`, right after
+   the kind's `label.journal-filters__kind` and before the scenarios,
+   `label.journal-filters__since` — the text „Seit“ (English „Since“), then
+   `input#journal-since`, a native `type="date"` named `since` (a tap and
+   a pick on a phone). Empty means no cut. The label has the scenarios
+   checkbox's anatomy: inline-flex, centred, a 6 px gap, 13 px; the input
+   inherits the page's font. It wraps with the form's other controls, so
+   at 390 px it stacks under the kind like the checkbox; nothing scrolls
+   sideways.
+2. **What it sends:** the form's one `phx-change` carries it with the kind
+   and the checkbox. A picked date patches `/journal?since=<YYYY-MM-DD>`,
+   the start of that day in UTC, and the list starts again from its newest
+   page; an emptied field patches the cut away.
+3. **A cut handed over** shows as itself: a date fills the field with it.
+   An instant or a cursor (`2026-10-28T09:15:02Z`,
+   `…T09:15:02.250000Z~48`) fills it with its UTC date, and is kept as
+   handed over while the field still shows that date, so a change of
+   another filter does not widen it to the start of the day; a date the
+   operator picks replaces it. An unreadable `since` reads as absent, as
+   every parameter the API would refuse (LiveParam, #868).
+4. **The basis line** (② on the board) names the cut in its existing clause
+   order, right after „Neueste zuerst“: „Neueste zuerst · seit 28.10.2026
+   (UTC) · die neuesten 100 Einträge · ohne Was-wäre-wenn-Szenarien · Zeiten
+   in UTC“ (msgid „since %{date} (UTC)“). A date reads in the page's date
+   notation; an instant or a cursor as its UTC time to the second, the
+   rows' notation („seit 28.10.2026 09:15:02 (UTC)“). No cut, no clause.
+5. **The next page:** „Ältere Einträge zeigen“ keeps `since` in its link and
+   grows the limit within the cut; at the maximum the hint stands as
+   before, and a later „Seit“ or a filter reaches older entries.
+
+### The `app.css` rule
+
+One block after `.journal-filters__scenarios`: `.journal-filters__since`
+(inline-flex, `align-items: center`, 6 px gap, 13 px) and its
+`input[type="date"]` (`font: inherit`). No colour of its own.
+
+### Stated, not settled here
+
+- **The board drew a date only.** An instant or a cursor in the URL (an
+  agent's next `since`) is the build's addition: the field cannot hold a
+  time, so it shows the date and keeps the instant (item 3), and the basis line
+  names the time to the second (item 4), so the cut on screen is the cut the
+  agent read.
+- **The phone frame** places the field where the desktop does, after the
+  kind; the form's flex row wraps it, as it wraps the checkbox.

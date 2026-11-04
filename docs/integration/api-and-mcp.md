@@ -3756,6 +3756,9 @@ they replaced or released as the before-image.
   A walk from `since=1970-01-01`, feeding each `as_of` back, reaches every
   entry once, including those past the newest 1000 that a read without
   `since` cannot show. Without `since` the read is unchanged, newest first.
+  The page takes the same `since` (`/journal?since=2026-10-28`, or the
+  instant or cursor the read answered) and lists the same entries newest
+  first.
   SOLL target writes (category and position rows alike) are journaled under
   `resource_type=target`; plan-version writes under `resource_type=target_plan`.
 - An update's or a delete's `before` is the row as stored when the write took

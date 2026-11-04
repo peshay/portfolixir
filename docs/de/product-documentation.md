@@ -4540,16 +4540,22 @@ gespeicherten Werte vorher und danach, beschränkt auf die geänderten
 Felder; ein angelegter Eintrag klappt jeden gespeicherten Wert ein, und ein
 Löschen liest sich „gelöscht, mit allen Werten“ und klappt jeden Wert ein,
 den der Datensatz hatte. Chips filtern nach Akteur und nach Vorgang, eine
-Auswahl nach Art, und ein Kästchen bezieht gespeicherte
-Was-wäre-wenn-Schreibvorgänge ein; „Nur dieser Eintrag“ neben einer Zeile
+Auswahl nach Art, ein Datumsfeld „Seit“ daneben behält die Einträge, die
+nach Beginn dieses Tages (UTC) geschrieben wurden, und ein Kästchen bezieht
+gespeicherte Was-wäre-wenn-Schreibvorgänge ein; „Nur dieser Eintrag“ neben einer Zeile
 listet die Geschichte genau dieses Eintrags. Das sind genau die Filter der
 API, und jeder steht in der Adresse
 (`/journal?actor_type=api_token_rw&operation=delete`), sodass ein Link, den
 ein Agent übergibt, die Zeilen öffnet, die er gelesen hat, und Seite und
-API dieselben Einträge listen. Die Basiszeile nennt Reihenfolge, Anzahl,
-Filter und dass die Zeiten in UTC stehen. Die Seite zeigt die neuesten 100;
-„Ältere Einträge zeigen“ fügt jeweils eine Seite hinzu, bis zum Maximum der
-API von 1000, darüber hinaus erreicht ein Filter ältere Einträge. Auf dem
+API dieselben Einträge listen. Einen Schnitt, den der Agent übergibt, öffnet
+die Seite als sich selbst, ein Datum (`/journal?since=2026-10-28`) oder
+einen Zeitpunkt, seinen Cursor eingeschlossen; sie listet diesen Ausschnitt
+neueste zuerst, wo die API ihn älteste zuerst beantwortet. Die Basiszeile
+nennt Reihenfolge, Schnitt („seit 28.10.2026 (UTC)“), Anzahl, Filter und
+dass die Zeiten in UTC stehen. Die Seite zeigt die neuesten 100; „Ältere
+Einträge zeigen“ fügt jeweils eine Seite hinzu, innerhalb des Schnitts, bis
+zum Maximum der API von 1000, darüber hinaus erreicht ein Filter oder ein
+späteres „Seit“ ältere Einträge. Auf dem
 Telefon ist jeder Eintrag eine zweizeilige Zeile. Die Seite liest nur;
 nichts auf ihr ändert das Journal.
 
