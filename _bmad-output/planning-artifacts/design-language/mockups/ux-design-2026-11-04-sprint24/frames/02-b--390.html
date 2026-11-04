@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02-b</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* 01 A: the journal's date field sits in the filter form beside the kind. */
+.journal-filters__since { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.journal-filters__since input[type="date"] { font: inherit; }
+/* 02: the costs line under the benchmark rows, the rows' detail anatomy. */
+.benchmark-costs { display: block; margin-top: var(--space-1); font-size: 12.5px; color: var(--color-text-muted); }
+.benchmark-costs .benchmark-costs__fig { font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.benchmark-row__split { display: block; font-size: 12.5px; color: var(--color-text-muted); }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div id="portfolio-overview" class="workspace-page portfolio-overview">
+    <section id="portfolio-kpis" class="workspace-section kpi-band" aria-label="Vermögens-Kennzahlen">
+      <article id="kpi-benchmark" class="stat stat--wide" role="group" aria-describedby="tip-benchmark">
+        <span>Benchmark-Vergleich (1J)</span>
+        <ul class="benchmark-rows" data-role="benchmark-rows">
+          <li class="benchmark-row" data-role="benchmark-row">
+            <span class="benchmark-row__name">
+              <span class="chart-legend__swatch chart-benchmark-1" aria-hidden="true">
+              </span>
+              5,00 % p. a.
+            </span>
+            <strong class="is-positive" data-role="benchmark-delta">
+              <span class="benchmark-row__figure-label">Sparplan:</span>
+              +3.433,40 EUR
+            </strong><span class="benchmark-row__split mock-new mock-synth"><span class="mock-pin">B</span>davon Gebühren und Steuern −396,75 · Rest +3.830,15 (Auswahl und Timing)</span>
+            <span class="benchmark-row__detail">
+              <span data-role="benchmark-bought-once">
+                Einmalanlage: +9,0% vs. +5,0%
+              </span>
+              <span class="perf-badge-sep">·</span>
+              <span data-role="benchmark-irr">IRR: +9,4% vs. +5,0%</span>
+            </span>
+          </li>
+        </ul>
+        <details class="metric-tooltip">
+          <summary aria-label="Info Benchmark-Vergleich">ⓘ</summary>
+          <p id="tip-benchmark" role="tooltip">
+            Sparplan: Anfangswert des Zeitraums und jede Einzahlung oder Entnahme werden am selben Tag zum jeweiligen Tageskurs in die Benchmark investiert, ohne Gebühren und Steuern; die Kennzahl ist der tatsächliche Endwert abzüglich dieses Werts. Einmalanlage: die TTWROR des Zeitraums gegen die durchgehend gehaltene Benchmark. Paare lesen sich Portfolio vs. Benchmark; Flüsse vor dem ersten bepreisten Tag der Benchmark gehen über den Anfangswert ein.
+          </p>
+        </details>
+      </article>
+    </section>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>
