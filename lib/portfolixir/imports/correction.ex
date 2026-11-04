@@ -780,8 +780,11 @@ defmodule Portfolixir.Imports.Correction do
   # stored-cash trade's price states its cash. A JSON price corrected alone
   # (A11) was derived from the cash the row keeps, so the confirm states
   # that cash; the changes listed and journaled are the item's own.
-  defp stated(%Item{changes: changes, transaction: %Transaction{gross_amount: %Decimal{} = cash}}),
-    do: Map.put_new(changes, :gross_amount, cash)
+  defp stated(%Item{
+         changes: changes,
+         transaction: %Transaction{gross_amount: %Decimal{} = cash}
+       }),
+       do: Map.put_new(changes, :gross_amount, cash)
 
   defp stated(%Item{changes: changes}), do: changes
 
