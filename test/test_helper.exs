@@ -14,8 +14,10 @@
 # raised -- negative assertions must stay fast.
 #
 # The browser tests (`@moduletag :browser`, test/browser/) drive a real
-# Chromium through Playwright, which the CI test job does not install; they
-# run on request with `mix test test/browser --only browser`.
+# Chromium through Playwright, pinned in test/browser/package-lock.json. The
+# test job leaves them out; CI's `browser` job installs that Playwright and
+# its Chromium and runs them with `mix test test/browser --only browser`
+# (Sprint 24 M1), as AGENTS.md's Required Local Checks do.
 ExUnit.start(assert_receive_timeout: 2_000, exclude: [:browser])
 
 # A warning or an error that reaches the console log without a test capturing

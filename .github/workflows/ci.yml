@@ -297,6 +297,77 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm audit --audit-level=high --prefix mcp-server
 
+      # The browser tests' Playwright pin (Sprint 24 M1), audited at the
+      # companion's level: the browser job installs it on every run.
+      - name: Audit browser test dependencies (npm)
+        if: ${{ !cancelled() }}
+        run: npm audit --audit-level=high --prefix test/browser
+
+  # The browser tests (test/browser, `@moduletag :browser`) drive a real
+  # Chromium through Playwright: what LiveViewTest cannot see, because it runs
+  # no client script (Sprint 24 plan D-5; Sprint 23 retrospective,
+  # carry-forward 5). The test job excludes them (test/test_helper.exs); this
+  # job runs only them. Playwright is pinned exactly in test/browser's own
+  # lockfile, not in mcp-server's, because the companion installs and runs on
+  # its own (AGENTS.md); `npm ci --ignore-scripts` installs it and no
+  # lifecycle script runs, and `playwright install` then fetches the Chromium
+  # build that exact version names, with the system libraries it needs.
+  browser:
+    runs-on: ubuntu-latest
+    needs: pre-commit
+    timeout-minutes: 20
+
+    services:
+      db:
+        # The test job's pin, tag and digest alike (E25 S8, F60).
+        image: mirror.gcr.io/library/postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portfolixir_test
+          PGDATA: /var/lib/postgresql/18/docker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: '1.18.6'
+          otp-version: '27.3.4.19'
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Install the pinned Playwright
+        run: npm ci --ignore-scripts --prefix test/browser
+
+      - name: Install its Chromium
+        run: npx --prefix test/browser playwright install --with-deps chromium
+
+      - name: Prepare database
+        run: |
+          MIX_ENV=test mix ecto.create
+          MIX_ENV=test mix ecto.migrate
+
+      - name: Run the browser tests
+        run: mix test test/browser --only browser
+
   migration-immutability:
     runs-on: ubuntu-latest
     # Only meaningful on pull requests: it compares the branch against the

@@ -5,9 +5,9 @@ defmodule PortfolixirWeb.Browser.InfoTipsClickAwayTest do
   # boots the endpoint on a free loopback port and drives Chromium through
   # `info_tips_click_away.js` with Playwright.
   #
-  # Excluded by default (test/test_helper.exs): it needs Node, the
-  # `playwright` package on Node's module path and its Chromium, which the
-  # CI test job does not install. Run it with
+  # Excluded from the test job (test/test_helper.exs): it needs Node, the
+  # Playwright test/browser/package-lock.json pins and its Chromium, which
+  # CI's `browser` job installs. Run it with
   #
   #     mix test test/browser --only browser
   #

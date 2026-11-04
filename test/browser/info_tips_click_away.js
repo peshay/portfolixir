@@ -8,7 +8,7 @@
 // "..."}; the exit status is 0 either way unless the browser itself fails.
 "use strict";
 
-const { chromium } = require("playwright");
+const { launchChromium } = require("./launch");
 
 const url = process.argv[2];
 // Two ⓘ on Wealth whose open panels cover neither the other's summary nor
@@ -135,7 +135,7 @@ async function touch(browser) {
 }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await launchChromium();
   try {
     await pointer(browser);
     await touch(browser);
