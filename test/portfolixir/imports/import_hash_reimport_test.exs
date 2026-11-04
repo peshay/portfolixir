@@ -265,7 +265,9 @@ defmodule Portfolixir.Imports.ImportHashReimportTest do
     assert Repo.aggregate(Portfolixir.Catalog.Security, :count) == securities
 
     assert Repo.aggregate(
-             from(c in Portfolixir.Portfolios.CashAccount, where: c.portfolio_id == ^portfolio.id),
+             from(c in Portfolixir.Portfolios.CashAccount,
+               where: c.portfolio_id == ^portfolio.id
+             ),
              :count
            ) == 0
   end

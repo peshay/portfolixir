@@ -761,8 +761,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       sale = after_[item.transaction.id]
 
       assert {norm(sale.gross_amount), norm(sale.price), norm(sale.settlement_amount),
-              norm(sale.security_amount),
-              norm(sale.settlement_fx_rate)} ==
+              norm(sale.security_amount), norm(sale.settlement_fx_rate)} ==
                {"95", "10", "100", "125", "0.8"}
 
       assert SettlementGuard.violations() == []
