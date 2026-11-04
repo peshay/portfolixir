@@ -972,6 +972,37 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // User story (Sprint 24 J2, I16; decision D-4):
+  // As the agent reading the audit journal,
+  // I want journal.list to take since= as the family's paged delta,
+  // so that a walk from any date reaches every entry once, past the newest
+  // 1000 a plain read stops at.
+  //
+  // Acceptance criteria:
+  // - journal.list exposes since as a string (a date, an instant or the
+  //   answered cursor) and forwards it with the other filters.
+  // - Its description says the delta is oldest first, pages by as_of with
+  //   has_more, and that the top-level as_of is the cursor, not meta.as_of.
+  it("forwards since= on journal.list and describes its paged delta", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+    const cursor = "2026-10-28T09:15:02.250000Z~48";
+
+    await callTool(client, "portfolixir.journal.list", { since: cursor, operation: "delete" });
+
+    assert.equal(
+      requests[0].path,
+      "/api/v1/journal?operation=delete&since=2026-10-28T09%3A15%3A02.250000Z%7E48"
+    );
+
+    const journal = listTools().find((tool) => tool.name === "portfolixir.journal.list") as any;
+    assert.equal(journal.inputSchema.properties.since?.type, "string");
+    assert.match(String(journal.inputSchema.properties.since?.description), /cursor/);
+    assert.match(journal.description, /oldest first/);
+    assert.match(journal.description, /has_more/);
+    assert.match(journal.description, /page by as_of/);
+    assert.match(journal.description, /top-level as_of is the cursor, not meta\.as_of/);
+  });
+
   // User story (Sprint 7 closing act, #414 parity gap):
   // As the operating LLM agent,
   // I want the per-booking running balance of a cash account that the

@@ -1918,11 +1918,12 @@ const journalListSchema = {
   additionalProperties: false,
   properties: {
     resource_type: { type: "string", description: TEXT_FILTER },
-    resource_id: { type: "string", description: TEXT_FILTER },
+    resource_id: { type: "string", description: "as resource_type" },
     actor_type: { type: "string", enum: [...journalActorTypes] },
     operation: { type: "string", enum: [...journalOperations] },
     include_scenarios: { type: "boolean" },
-    limit: { type: "integer", minimum: 1 }
+    limit: { type: "integer", minimum: 1 },
+    since: { type: "string", description: "date, instant or cursor" }
   }
 };
 
@@ -1932,7 +1933,8 @@ const journalListZ = z.object({
   actor_type: z.enum(journalActorTypes).optional(),
   operation: z.enum(journalOperations).optional(),
   include_scenarios: z.boolean().optional(),
-  limit: z.number().int().min(1).optional()
+  limit: z.number().int().min(1).optional(),
+  since: optionalString()
 });
 
 // ADR-0050 §12 (L5a, #328): the merge records, the audit read of a
@@ -3729,7 +3731,8 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.journal.list",
     "List audit journal",
-    "List append-only audit-journal entries, newest first: who (actor_type, actor_label: a token's configured name, null for the default), what (operation on resource_type/resource_id) and before/after of every financial write, deletions included. An update's or a delete's before is the row stored under the write's lock, an update's after the row stored after it, so two writes from one read chain (the second's before is the first's after). A delete's after is null; one by release 2026.11.8 or earlier repeats the deleted record or holds the emptied set. Filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. Echoes as_of, filters, ordering, limit and truncated.",
+    "Append-only audit-journal entries, newest first: who (actor_type; actor_label, a token's name, else null), what (operation on resource_type/resource_id) and before/after of every financial write, deletions included. A change's before is the row under the write's lock, an update's after the row it stored, so two writes from one read chain (the second's before is the first's after). A delete's after is null; one by release 2026.11.8 or earlier repeats the deleted record or holds the emptied set. Real writes unless include_scenarios=true. Echoes as_of, filters, order, limit and truncated. since reaches past the newest 1000: entries after it, oldest first, has_more; page by as_of, the next since (the top-level as_of is the cursor, not meta.as_of).",
+
     journalListSchema,
     journalListZ
   ),
@@ -4750,6 +4753,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "actor_type",
           "operation",
           "include_scenarios",
+          "since",
           "limit"
         ])
       );
