@@ -44,7 +44,9 @@ defmodule Portfolixir.Journal do
     * `:operation` (required) — one of `Entry.operations/0`.
     * `:source` (required) — the name of the `Ecto.Multi` step whose result is
       the written record; its serialized form becomes `after` and supplies
-      `resource_id`.
+      `resource_id`. A `delete` stores `after: nil` whatever its step
+      returns (ADR-0017, amendment of 2026-11-04): after a delete nothing
+      stands, and the deleted record is the entry's `before`.
     * `:before` — the prior record/changeset-data struct (for `update`/`delete`);
       serialized into `before`. Defaults to `nil` (creates).
     * `:before_step` — instead of `:before`, the name of an earlier Multi step
@@ -193,7 +195,7 @@ defmodule Portfolixir.Journal do
       resource_type: resource_type,
       resource_id: id,
       before: Serializer.snapshot(before),
-      after: Serializer.snapshot(record),
+      after: after_image(operation, record),
       scenario_id: scenario_id
     }
 
@@ -201,6 +203,14 @@ defmodule Portfolixir.Journal do
     |> Entry.changeset(attrs)
     |> repo.insert()
   end
+
+  # `after` is what stands after the write (ADR-0017, amendment of
+  # 2026-11-04, #1378). After a delete nothing does, whatever the business
+  # step returned: a row delete's step returns the deleted row, which
+  # repeated `before`, and a set's delete returns the emptied set. Set here,
+  # for every writer at once, so none can store either shape again.
+  defp after_image(:delete, _record), do: nil
+  defp after_image(_operation, record), do: Serializer.snapshot(record)
 
   defp set_actor_multi(%Actor{} = actor) do
     Multi.run(Multi.new(), :journal_set_actor, fn repo, _changes ->

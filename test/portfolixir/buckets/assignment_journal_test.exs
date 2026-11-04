@@ -33,8 +33,12 @@ defmodule Portfolixir.Buckets.AssignmentJournalTest do
   defp entries(resource_type, owner_key, owner_id) do
     resource_type
     |> then(&Journal.list_entries(resource_type: &1))
-    |> Enum.filter(&((&1.after || %{})[owner_key] == owner_id))
+    |> Enum.filter(&(image(&1)[owner_key] == owner_id))
   end
+
+  # The set an entry names: its after-image, or a delete's before-image, as a
+  # delete's after is null (ADR-0017, amendment of 2026-11-04; #1378).
+  defp image(entry), do: entry.after || entry.before || %{}
 
   # User story:
   # As the operator auditing who changed an account's buckets,
@@ -114,7 +118,7 @@ defmodule Portfolixir.Buckets.AssignmentJournalTest do
     override_entries = fn ->
       "position_bucket_override"
       |> entries("security_id", security.id)
-      |> Enum.filter(&(&1.after["securities_account_id"] == world.depot.id))
+      |> Enum.filter(&(image(&1)["securities_account_id"] == world.depot.id))
     end
 
     assert :ok = Buckets.set_position_override(owner(), world.depot, security, [core.id])
@@ -179,7 +183,7 @@ defmodule Portfolixir.Buckets.AssignmentJournalTest do
     override_entries = fn ->
       "position_bucket_override"
       |> entries("security_id", security.id)
-      |> Enum.filter(&(&1.after["securities_account_id"] == world.depot.id))
+      |> Enum.filter(&(image(&1)["securities_account_id"] == world.depot.id))
     end
 
     assert Buckets.position_override(world.depot.id, security.id) == :inherit

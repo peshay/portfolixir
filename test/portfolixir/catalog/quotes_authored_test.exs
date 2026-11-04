@@ -113,7 +113,8 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
   #
   # Acceptance criteria:
   # - A release removes only the manual rows inside the range, journals one
-  #   `delete` entry holding them as its before-image, and names the dates.
+  #   `delete` entry holding them as its before-image and no after-image
+  #   (ADR-0017, amendment of 2026-11-04; #1378), and names the dates.
   # - A provider row inside the range and a manual row outside it stay.
   # - After the release, a stubbed sync restores the provider close.
   test "after a release a stubbed sync restores the provider close",
@@ -158,7 +159,7 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
              %{"date" => "2026-03-02", "close" => "42.5", "source" => "manual"}
            ]
 
-    assert rows_of(release.after) == []
+    assert release.after == nil
 
     assert %{status: :ok, skipped_manual: 0} =
              sync(security, [%{date: ~D[2026-03-02], close: Decimal.new("41.20")}])

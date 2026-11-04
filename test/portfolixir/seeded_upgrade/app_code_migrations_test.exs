@@ -197,8 +197,9 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
   # - No bucket or view carries a seed marker; the operator's bucket and its
   #   link to the depot survive.
   # - The journal holds one bucket delete per seeded bucket under the seed's
-  #   system job, with the bucket's row, as its create recorded it, on both
-  #   sides; the latest applied migration is 20260712120000.
+  #   system job, with the bucket's row, as its create recorded it, as its
+  #   before and nothing after it (ADR-0017, amendment of 2026-11-04); the
+  #   latest applied migration is 20260712120000.
   @tag seeded_upgrade: 20_260_712_130_000
   test "the portfolio scope seed's down removes what its up seeded, at its own version",
        %{seeded_upgrade: migration} do
@@ -233,7 +234,7 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
              for(["bucket", "create" | _] = entry <- journal, do: entry)
 
     assert for([_type, "delete" | _] = entry <- journal, do: entry) == [
-             ["bucket", "delete", seeded, image, image]
+             ["bucket", "delete", seeded, image, nil]
            ]
 
     assert %{rows: [[@before_scope_seed]]} =
