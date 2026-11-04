@@ -43,7 +43,7 @@
 ## Tests and Gates
 
 The list is AGENTS.md -> "Required Local Checks", which is CI's `pre-commit`,
-`test`, `quality` and `advisories` jobs. Report each one; "n/a" with a reason is an answer,
+`test`, `quality`, `advisories` and `browser` jobs. Report each one; "n/a" with a reason is an answer,
 silence is not.
 
 - `mix format`:
@@ -61,6 +61,8 @@ silence is not.
 - `npm test --prefix mcp-server` (if applicable):
 - `npm run build --prefix mcp-server` (if applicable):
 - `npm audit --audit-level=high --prefix mcp-server` (if applicable):
+- `npm audit --audit-level=high --prefix test/browser`:
+- `mix test test/browser --only browser`:
 
 ```bash
 mix format
@@ -78,6 +80,8 @@ pre-commit run --all-files
 npm test --prefix mcp-server
 npm run build --prefix mcp-server
 npm audit --audit-level=high --prefix mcp-server
+npm audit --audit-level=high --prefix test/browser
+mix test test/browser --only browser
 ```
 
 ## Documentation
