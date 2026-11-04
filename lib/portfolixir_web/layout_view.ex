@@ -1460,12 +1460,58 @@ defmodule PortfolixirWeb.LayoutView do
             // updated the page. The checkbox is phx-update="ignore", and
             // this hook owns the collapsed state: it remembers each change
             // and re-applies it after every patch.
+            //
+            // Sprint 24 P2 (#1357): the rail also survives a full page load
+            // and a live redirect. Above the phone breakpoint a change asks
+            // the server to remember it (GET /preferences/rail, a signed
+            // cookie, PortfolixirWeb.RailScope), which renders the next page
+            // as <html data-rail="collapsed">; the CSS shows the rail
+            // collapsed while that attribute and the checkbox disagree. Once
+            // mounted on a wide screen the hook folds the attribute into the
+            // checkbox, so `checked` means collapsed again. A live redirect
+            // renders a fresh, unchecked checkbox under the same <html>, so
+            // the rail's state is kept here, for the document's lifetime,
+            // and handed to it. Below the breakpoint the checkbox opens the
+            // off-canvas sidebar instead: that is never remembered, and the
+            // remembered rail stays on <html> for a wider screen.
+            var railCollapsed = null;
+            var railWide = function () {
+              return !window.matchMedia("(max-width: 900px)").matches;
+            };
+            var railRemembered = function () {
+              return document.documentElement.getAttribute("data-rail") === "collapsed";
+            };
+            var settleRail = function (el) {
+              if (railWide()) {
+                document.documentElement.removeAttribute("data-rail");
+                el.checked = railCollapsed;
+              } else if (railCollapsed) {
+                document.documentElement.setAttribute("data-rail", "collapsed");
+              } else {
+                document.documentElement.removeAttribute("data-rail");
+              }
+            };
+            var rememberRail = function (collapsed) {
+              var url = "/preferences/rail?rail=" + (collapsed ? "collapsed" : "expanded");
+              window.fetch(url, { credentials: "same-origin", cache: "no-store", keepalive: true })
+                .catch(function () {});
+            };
             Hooks.SidebarRail = {
               mounted: function () {
                 var self = this;
+                if (railCollapsed === null) {
+                  railCollapsed = railWide() ? railRemembered() !== this.el.checked : railRemembered();
+                }
+                settleRail(this.el);
                 this.checked = this.el.checked;
                 this.onChange = function () {
                   self.checked = self.el.checked;
+                  if (railWide()) {
+                    railCollapsed = railRemembered() !== self.el.checked;
+                    settleRail(self.el);
+                    self.checked = self.el.checked;
+                    rememberRail(railCollapsed);
+                  }
                 };
                 this.el.addEventListener("change", this.onChange);
               },

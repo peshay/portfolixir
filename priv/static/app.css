@@ -914,29 +914,45 @@ textarea {
   margin: 0;
 }
 
-#app-sidebar-toggle:checked ~ .app-sidebar {
-  width: var(--sidebar-rail);
-}
+/* The icon rail, above the phone breakpoint (below it the same checkbox
+   opens the off-canvas sidebar). Sprint 24 P2, issue 1357: a rail the operator
+   left collapsed is rendered as `<html data-rail="collapsed">`
+   (PortfolixirWeb.RailScope), so the first paint of a full page load shows
+   it collapsed; the checkbox then flips that state, so the toggle works
+   before the page's script runs, and the SidebarRail hook folds the
+   attribute back into the checkbox once it does. */
+@media (width > 900px) {
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar {
+    width: var(--sidebar-rail);
+  }
 
-#app-sidebar-toggle:checked ~ .app-sidebar .brand-wordmark,
-#app-sidebar-toggle:checked ~ .app-sidebar .nav-label,
-#app-sidebar-toggle:checked ~ .app-sidebar .nav-pill,
-#app-sidebar-toggle:checked ~ .app-sidebar .nav-group-head {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar .brand-wordmark,
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar .nav-label,
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar .nav-pill,
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar .nav-group-head,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar .brand-wordmark,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar .nav-label,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar .nav-pill,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar .nav-group-head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 
-#app-sidebar-toggle:checked ~ .app-sidebar .nav-link {
-  grid-template-columns: 6px 16px;
-  justify-content: center;
-}
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar .nav-link,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar .nav-link {
+    grid-template-columns: 6px 16px;
+    justify-content: center;
+  }
 
-#app-sidebar-toggle:checked ~ .app-frame {
-  padding-left: var(--sidebar-rail);
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-frame,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-frame {
+    padding-left: var(--sidebar-rail);
+  }
 }
 
 .page-header {
