@@ -39,6 +39,10 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
                 "complete on a full read. thesis_state always derives from the whole log. " <>
                 SinceParam.page_rule()
 
+  @doc "The log note the research-log read carries, which the dossier repeats (FR-49)."
+  @spec log_note() :: String.t()
+  def log_note, do: @log_note
+
   @default_unreviewed_days 90
   @default_expiring_days 30
 

@@ -179,6 +179,10 @@ defmodule PortfolixirWeb.Router do
     # distance to the 52-week extremes over the security's own close series.
     get("/securities/:security_id/metrics", SecurityMetricsController, :show)
 
+    # The position dossier (FR-49, Sprint 24 plan D-2): one read-only call per
+    # security, each part built by the function its own read uses.
+    get("/securities/:id/dossier", SecurityDossierController, :show)
+
     # The security research log (ADR-0044): append, and the four reads of §7.
     # Deliberately no PATCH and no DELETE — entries never vanish (§3); a
     # retraction is appended.

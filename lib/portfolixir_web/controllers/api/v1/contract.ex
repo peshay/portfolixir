@@ -44,7 +44,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       version: 24,
       # Sprint 24's sprint PR. J1 (#1378; ADR-0017, amendment of 2026-11-04):
       # a delete's journal after is null. Dated the day after entry 23,
-      # because since= compares strictly after a date.
+      # because since= compares strictly after a date. D1 (FR-49; plan D-2): the
+      # position dossier.
       date: ~D[2026-11-05],
       summary:
         "Sprint 24, J1: every delete entry of the audit journal stores after null, " <>
@@ -60,12 +61,45 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "cursor as_of, so a walk from any date reaches every entry once, including those " <>
           "past the newest 1000 no read could reach before; without since the read is as it " <>
           "was. The tool's description is shortened to keep its bytes, each rule it states " <>
-          "unchanged (I16, #416).",
-      endpoints: [],
+          "unchanged (I16, #416). " <>
+          "Sprint 24, D1 (FR-49): GET /api/v1/securities/:id/dossier answers one security's " <>
+          "record, its holdings per portfolio and in total, its derived metrics, its newest " <>
+          "research-log entries, its upcoming and recent events, its categories and its " <>
+          "position targets in one read-only call, each part built by the function its own " <>
+          "read uses and carrying that read's computation basis or note, with as_of and a " <>
+          "parts note naming the read each part mirrors.",
+      endpoints: ["GET /api/v1/securities/:id/dossier"],
       tools: [],
       parameters: [
         "GET /api/v1/journal (portfolixir.journal.list, whose description now says so), no parameter added: an entry whose operation is delete carries after null, where it carried the deleted record again (a booking's delete: after equal to before, every field of the row) or the emptied set (a release of manual quotes, security_quotes: {\"security_id\": 42, \"quotes\": []}; a cleared position override, position_bucket_override: {\"id\": null, \"securities_account_id\": 7, \"security_id\": 42}, without its bucket_ids). before is unchanged, the record as stored under the write's lock, so a deleted record is read from before. Entries written by release 2026.11.8 and earlier are not rewritten (the table is append-only) and keep those shapes; create, update and upsert entries are unchanged (#1378; ADR-0017, amendment of 2026-11-04)",
-        "GET /api/v1/journal (portfolixir.journal.list, whose input schema gains since), since added, read by the paged delta reads' parser: a date (2026-10-28, the start of that day, UTC), an instant, or the cursor a full page answered as as_of. With since the read answers the entries written strictly after the cut, oldest first by inserted_at and then id (meta.order \"inserted_at:asc,id:asc\"), with since, has_more, a delta_note and a top-level as_of that is the next since: on a full page a cursor at its last entry, 2026-10-28T09:15:02.250000Z~48, its instant to the microsecond the journal stamps, else the read's in-flight bound; meta.as_of stays the read's instant. It combines with resource_type, resource_id, actor_type, operation and include_scenarios, meta.filters echoes it, and limit keeps its default 100 and maximum 1000, so a walk from since=1970-01-01 at the default limit reads 2,500 entries in 25 pages, each once, where a read without since showed the newest 1000 at most. An unreadable since or a malformed cursor answers 422 errors.since. Without since the read is unchanged: newest first, no has_more, meta.filters.since null (I16, #416; decision D-4)"
+        "GET /api/v1/journal (portfolixir.journal.list, whose input schema gains since), since added, read by the paged delta reads' parser: a date (2026-10-28, the start of that day, UTC), an instant, or the cursor a full page answered as as_of. With since the read answers the entries written strictly after the cut, oldest first by inserted_at and then id (meta.order \"inserted_at:asc,id:asc\"), with since, has_more, a delta_note and a top-level as_of that is the next since: on a full page a cursor at its last entry, 2026-10-28T09:15:02.250000Z~48, its instant to the microsecond the journal stamps, else the read's in-flight bound; meta.as_of stays the read's instant. It combines with resource_type, resource_id, actor_type, operation and include_scenarios, meta.filters echoes it, and limit keeps its default 100 and maximum 1000, so a walk from since=1970-01-01 at the default limit reads 2,500 entries in 25 pages, each once, where a read without since showed the newest 1000 at most. An unreadable since or a malformed cursor answers 422 errors.since. Without since the read is unchanged: newest first, no has_more, meta.filters.since null (I16, #416; decision D-4)",
+        "GET /api/v1/securities/:id/dossier, new, no parameter: {security_id, as_of, parts, " <>
+          "security, holdings, metrics, research, events, categories, targets}. security is " <>
+          "GET /api/v1/securities/:id's data; holdings.rows are the rows of " <>
+          "GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id for every portfolio " <>
+          "holding it, with that read's currency_basis, currency_basis_note and " <>
+          "computation_basis, and holdings.total is the security's row of " <>
+          "GET /api/v1/holdings/by_security (EUR, valued, unvalued_reason), null when nothing " <>
+          "is held, with total_basis {currency, note}: bought 12 in one portfolio and 3 in " <>
+          "another, rows holds two rows and total.quantity reads \"15\". metrics is " <>
+          "GET /api/v1/securities/:id/metrics's data at its default as_of, computation_basis " <>
+          "included; research is the newest 5 entries GET /api/v1/securities/:id/notes?limit=5 " <>
+          "answers, with has_more (that read's truncated), log_note and rest, the read that " <>
+          "pages the rest; events splits GET /api/v1/securities/:id/events at as_of by the " <>
+          "span the unconfirmed queue reads: upcoming, every event whose last possible day is " <>
+          "as_of or later, soonest first, and past, the newest 5 others, newest first, with " <>
+          "has_more, events_note and rest; categories is one row per classification of " <>
+          "GET /api/v1/classifications, {classification_id, classification_name, " <>
+          "classification_key, built_in, category}, category {id, name, key, path} with path " <>
+          "the categories from the root to it, or null where the security is not filed; " <>
+          "targets.rows are the rows of GET /api/v1/portfolios/:portfolio_id/position_targets " <>
+          "naming the security, per portfolio, in the active plan of the unscoped view " <>
+          "(portfolio_id, classification_id, category_id, target_weight, stale), and " <>
+          "targets.drift names the read that states each row's drift; the dossier computes " <>
+          "no drift. A security with nothing recorded answers each part empty at 200. A " <>
+          "merged-away id answers 404 with errors.merged_into {kind, id}, as " <>
+          "GET /api/v1/securities/:id does; an unknown id the plain 404. Nothing is written " <>
+          "(FR-49)"
       ],
       removed_endpoints: [],
       removed_tools: [],
