@@ -4023,6 +4023,23 @@ describe("Portfolixir MCP tools", () => {
   // - The description names each portfolio's active plan of the unscoped view
   //   as the targets part's scope, and portfolixir.targets.list_positions
   //   with view= as the read of a view's plan.
+  // User story (Sprint 24 closing act, D1; the agent's lens):
+  // As the agent counting the dossier's holdings rows,
+  // I want the description to say a row is one depot holding the security,
+  // so that I do not read two rows as two portfolios.
+  //
+  // Acceptance criteria:
+  // - The description says holdings.rows is one per depot (securities
+  //   account) holding it, across portfolios, and no longer one per
+  //   portfolio.
+  it("says the dossier's holdings rows are one per depot", () => {
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.securities.dossier")?.description ?? "";
+
+    assert.match(description, /holdings: rows, one per depot \(securities account\) holding it, across portfolios/);
+    assert.doesNotMatch(description, /one per portfolio/);
+  });
+
   it("names the plan the dossier's targets part reads", () => {
     const description =
       listTools().find((tool) => tool.name === "portfolixir.securities.dossier")?.description ?? "";

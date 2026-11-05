@@ -64,7 +64,7 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "was. The tool's description is shortened to keep its bytes, each rule it states " <>
           "unchanged (I16, #416). " <>
           "Sprint 24, D1 (FR-49): GET /api/v1/securities/:id/dossier answers one security's " <>
-          "record, its holdings per portfolio and in total, its derived metrics, its newest " <>
+          "record, its holdings per depot and in total, its derived metrics, its newest " <>
           "research-log entries, its upcoming and recent events, its categories and its " <>
           "position targets in one read-only call, each part built by the function its own " <>
           "read uses and carrying that read's computation basis or note, with as_of and a " <>
@@ -89,12 +89,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "every profile), new, no parameter: {security_id, as_of, parts, " <>
           "security, holdings, metrics, research, events, categories, targets}. security is " <>
           "GET /api/v1/securities/:id's data; holdings.rows are the rows of " <>
-          "GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id for every portfolio " <>
-          "holding it, with that read's currency_basis, currency_basis_note and " <>
+          "GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id, one per depot " <>
+          "(securities account) holding it, across portfolios, with that read's " <>
+          "currency_basis, currency_basis_note and " <>
           "computation_basis, and holdings.total is the security's row of " <>
           "GET /api/v1/holdings/by_security (EUR, valued, unvalued_reason), null when nothing " <>
-          "is held, with total_basis {currency, note}: bought 12 in one portfolio and 3 in " <>
-          "another, rows holds two rows and total.quantity reads \"15\". metrics is " <>
+          "is held, with total_basis {currency, note}: bought 12 into one depot and 3 into " <>
+          "another, in one portfolio or in two, rows holds two rows and total.quantity " <>
+          "reads \"15\". metrics is " <>
           "GET /api/v1/securities/:id/metrics's data at its default as_of, computation_basis " <>
           "included; research is the newest 5 entries GET /api/v1/securities/:id/notes?limit=5 " <>
           "answers, with has_more (that read's truncated), log_note and rest, the read that " <>

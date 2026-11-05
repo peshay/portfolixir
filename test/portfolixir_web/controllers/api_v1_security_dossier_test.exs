@@ -7,7 +7,14 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
   use PortfolixirWeb.ConnCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, create_security!: 1, buy!: 3, deposit!: 3, put_quotes!: 2]
+    only: [
+      add_depot: 2,
+      base_world: 1,
+      create_security!: 1,
+      buy!: 3,
+      deposit!: 3,
+      put_quotes!: 2
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -121,7 +128,7 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
   # User story:
   # As the agent preparing a decision about one position,
   # I want one read that carries the security's record, its holdings per
-  # portfolio and in total, its derived metrics, the newest research-log
+  # depot and in total, its derived metrics, the newest research-log
   # entries, its upcoming and recent events, its categories and its position
   # targets,
   # so that I start from one call, and every figure in it is the one its own
@@ -132,8 +139,9 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
   #   as_of, a parts note naming the read each part mirrors, and the seven
   #   parts of D-2.
   # - security equals GET /api/v1/securities/:id.
-  # - holdings carries one row per portfolio holding the security, equal to
-  #   that portfolio's GET /api/v1/portfolios/:id/holdings?security_id= rows,
+  # - holdings carries one row per depot holding the security (here one
+  #   depot in each of two portfolios), equal to each portfolio's
+  #   GET /api/v1/portfolios/:id/holdings?security_id= rows,
   #   with the read's currency_basis, currency_basis_note and
   #   computation_basis; total equals the security's row of
   #   GET /api/v1/holdings/by_security, with that read's currency and note.
@@ -169,7 +177,7 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
     # security
     assert dossier["security"] == get!(conn, "/api/v1/securities/#{id}")["data"]
 
-    # holdings, per portfolio and in total
+    # holdings, per depot and in total
     holdings_reads =
       Enum.map(world.portfolios, fn portfolio ->
         get!(conn, "/api/v1/portfolios/#{portfolio.id}/holdings?security_id=#{id}")
@@ -277,6 +285,49 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
 
     assert dossier["metrics"] == get!(conn, "/api/v1/securities/#{security.id}/metrics")["data"]
     assert dossier["metrics"]["metrics"]["sma_50"]["insufficient_data"] == true
+  end
+
+  # User story (Sprint 24 closing act, D1; the agent's lens):
+  # As the agent counting the dossier's holdings rows,
+  # I want each row to be one depot (securities account) holding the
+  # security, and the parts note to say so,
+  # so that I do not read two rows as two portfolios.
+  #
+  # Acceptance criteria:
+  # - A portfolio with two depots each holding the security answers two
+  #   holdings rows, one per depot, equal to that portfolio's holdings read.
+  # - parts.holdings says one row per depot (securities account), across
+  #   portfolios.
+  test "holdings rows are one per depot, across portfolios", %{conn: conn} do
+    world = base_world(name: "Synthetic Epsilon", depot_name: "Epsilon Depot")
+
+    second =
+      add_depot(world.portfolio, depot_name: "Epsilon Depot B", cash_name: "Epsilon Cash B")
+
+    second_world = Map.merge(world, second)
+    security = create_security!(name: "Synthetic Depot Equity", ticker: "SDPE")
+    day = Date.add(Clock.today(), -30)
+
+    deposit!(world, "1000", day)
+    deposit!(second_world, "1000", day)
+    buy!(world, security, quantity: "4", price: "50", date: day)
+    buy!(second_world, security, quantity: "6", price: "50", date: day)
+
+    dossier = get!(conn, "/api/v1/securities/#{security.id}/dossier")["data"]
+
+    read =
+      get!(conn, "/api/v1/portfolios/#{world.portfolio.id}/holdings?security_id=#{security.id}")
+
+    rows = dossier["holdings"]["rows"]
+    assert rows == read["data"]
+
+    assert rows |> Enum.map(& &1["securities_account_id"]) |> Enum.sort() ==
+             Enum.sort([world.depot.id, second.depot.id])
+
+    assert dossier["parts"]["holdings"] =~
+             "one per depot (securities account) holding it, across portfolios"
+
+    assert dossier["holdings"]["total"]["quantity"] == "10"
   end
 
   # User story (Sprint 24 closing act, D1; the agent's lens):

@@ -9,8 +9,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
 
     * `security` — the securities read (`GET /api/v1/securities/:id`);
     * `holdings` — the portfolio holdings read filtered by the security, one
-      row per portfolio holding it, and `total`, the security's row of the
-      by-security holdings read;
+      row per depot (securities account) holding it, across portfolios, and
+      `total`, the security's row of the by-security holdings read;
     * `metrics` — the derived-metrics read at its default window;
     * `research` — the research-log read at `limit=5`: the newest five
       entries and `has_more`;
@@ -60,7 +60,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
     security: "GET /api/v1/securities/:id (portfolixir.securities.get)",
     holdings:
       "rows: GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id " <>
-        "(portfolixir.holdings.list), per portfolio holding it; total: its row of " <>
+        "(portfolixir.holdings.list), one per depot (securities account) holding it, " <>
+        "across portfolios; total: its row of " <>
         "GET /api/v1/holdings/by_security (portfolixir.holdings.by_security)",
     metrics: "GET /api/v1/securities/:id/metrics (portfolixir.securities.metrics), default as_of",
     research:

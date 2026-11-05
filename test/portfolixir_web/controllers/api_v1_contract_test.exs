@@ -99,6 +99,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     end
 
     assert dossier =~ "total.quantity reads \"15\""
+    # Closing act (D1, the agent's lens): holdings.rows is one row per depot,
+    # not per portfolio, so a portfolio with two depots holding it has two.
+    assert dossier =~ "one per depot (securities account) holding it, across portfolios"
+    refute dossier =~ "for every portfolio holding it"
     assert dossier =~ "errors.merged_into"
     assert dossier =~ "(FR-49)"
 
