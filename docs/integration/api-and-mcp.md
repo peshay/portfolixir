@@ -835,6 +835,84 @@ The human view is the **Research** tab of the security detail pane on
 kind and source quality visible, superseded entries marked as such,
 retractions legible, and a form that appends an entry as the operator.
 
+### Predictions (ADR-0055)
+
+A **prediction** is a permanent record of one call on one security: it
+`outperform`s or `underperform`s a benchmark by `resolves_on`, with a stated
+probability. **It cannot be edited, withdrawn or deleted**, by anyone: there
+is deliberately no `PATCH` and no `DELETE`. A mistaken prediction stays and
+counts; a correction is a new prediction, and both count. Its status, outcome
+and figures are derived at every read from stored closes and never stored, so
+a quote corrected later changes the outcome visibly. Ladder (c): it scores
+what was recorded before its outcome was known. No field holds an order, a
+size or a limit, and nothing proposes one.
+
+- `POST /api/v1/predictions` — records one call from a `prediction` object
+  (`201`): `security_id`; `direction` (`outperform`, `underperform`);
+  `probability`, a **decimal string** from `"0.50"` to `"0.99"` in steps of
+  `0.01` (a JSON number answers `422`; `"0.49"` answers `422` naming the
+  other direction, since a call below 50 % is the opposite call above it, and
+  `"1.00"` is refused because a call stated as certain cannot be scored);
+  `benchmark`, as `benchmark=` spells it — `security:<id>` of a security
+  flagged `is_benchmark` (not the security itself) or `rate:<decimal>`, a
+  fixed annual rate, `rate:0` making the call absolute; `resolves_on`, 7 to
+  1,830 days after the UTC day it is made; `model`, the model an agent runs
+  on (at most 100 characters), **required for an API token**, refused for
+  the operator's pages; optional `note_id`, a research-log entry of the same
+  security (its thesis, its decision, its news item); optional `rationale`
+  (at most 4,000 characters). `made_at` is the server's clock and `author`
+  (`agent` for every API token) and `actor` (the token's name) come from the
+  credential: a body carrying any of the three answers `422` naming it,
+  because a prediction dated in the past is one made with its outcome in
+  view. Every refusal is a `422` with all field errors at once; nothing is
+  stored. The write is journaled as `prediction` / `create` under the token.
+- `GET /api/v1/predictions/:id` — one prediction with its `resolution`, a
+  `permanence_note` and the resolution rule's `computation_basis`; `404` for
+  an unknown id.
+
+A prediction read carries `id`, `security_id`, `direction`, `probability`,
+`benchmark`, `resolves_on`, `made_at`, `made_on` (its UTC day), `author`,
+`actor`, `model`, `note_id`, `rationale` and `resolution`:
+
+- `status` — `open` while the instance's calendar day is on or before
+  `resolves_on`; then `resolved`, with `outcome` `hit` or `miss`, or
+  `unresolved`, with `reason` `no_start_close`, `no_end_close`,
+  `no_benchmark_close` or `no_fx_rate`, never estimated;
+- `start_on` — the day before the UTC day made: the start close is the last
+  close **strictly before** that day, so a call is never measured from a
+  close it could have seen coming; `end_on` — `resolves_on`, the end close
+  the last on or before it; a close more than 7 days older than the date it
+  stands for is no close;
+- `security` — `security_id`, `currency_code`, `start` and `end` (each
+  `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate` and
+  `eur_value`, the close converted to EUR at the stored EUR-hub rate of its
+  own date) and `return`, the EUR value at the end over the start minus 1;
+  `null` while open or when that side has no answer;
+- `benchmark` — a security benchmark's sides by the same rule, or
+  `{kind: "rate", rate, from, to, days, return}`, the rate compounded daily
+  over the days between the two dates the security's closes stand for;
+- `excess` — the security's return minus the benchmark's: an `outperform`
+  call hits when it is above 0, an `underperform` call when it is below 0,
+  and 0 is a miss for both. Price returns only: no distribution is counted on
+  either side.
+
+Example create payload:
+
+```json
+{
+  "prediction": {
+    "security_id": 12,
+    "direction": "outperform",
+    "probability": "0.65",
+    "benchmark": "security:7",
+    "resolves_on": "2027-05-03",
+    "model": "example-model-1",
+    "note_id": 41,
+    "rationale": "The thesis entry's plant ramp-up shows in the next two quarters."
+  }
+}
+```
+
 ### Security events (ADR-0048)
 
 A **security event** is a dated statement that something will happen, or has

@@ -96,6 +96,32 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert hindsight =~ "a dividend payer's miss is understated"
     assert hindsight =~ "(FR-50; plan D-3)"
 
+    # F4 (ADR-0055 §5): the predictions over the API, the write and its
+    # reads, each item found by its marker; every one says what is the
+    # server's and that nothing edits, withdraws or deletes a prediction.
+    assert newest["summary"] =~ "Sprint 25, F4 (ADR-0055 §5): "
+    assert newest["summary"] =~ "Nothing edits, withdraws or deletes a prediction."
+
+    for endpoint <- ["POST /api/v1/predictions", "GET /api/v1/predictions/:id"] do
+      assert endpoint in newest["endpoints"], endpoint
+    end
+
+    assert [write] = by_decision.("(ADR-0055 §5, write)")
+    assert String.starts_with?(write, "POST /api/v1/predictions, new: ")
+    assert write =~ ~s(from "0.50" to "0.99")
+    assert write =~ "a JSON number is refused"
+    assert write =~ "made_at, author and actor are the server's"
+    assert write =~ "journaled as prediction / create under the token"
+
+    assert [read] = by_decision.("(ADR-0055 §5, read)")
+    assert String.starts_with?(read, "GET /api/v1/predictions/:id, new: ")
+
+    for part <-
+          ~w(resolution permanence_note computation_basis outcome no_start_close no_end_close
+                   no_benchmark_close no_fx_rate stands_for fx_rate eur_value excess) do
+      assert read =~ part, part
+    end
+
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.
     newest = Enum.find(data["entries"], &(&1["version"] == 24))
