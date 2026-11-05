@@ -458,4 +458,104 @@ defmodule Portfolixir.Predictions.ResolutionTest do
     assert Predictions.resolve(due.(today)).status == :open
     assert Predictions.resolve(due.(Date.add(today, -1))).status == :unresolved
   end
+
+  # User story (F2, ADR-0055 §5 "filtered by ... status ... and due_before"):
+  # As the agent coming back to its calls,
+  # I want to list them by their derived status and to ask which open calls
+  # come due by a date,
+  # so that I find the calls to look at without resolving each myself.
+  #
+  # Acceptance criteria:
+  # - list_with_resolution/2 answers each prediction with its resolution,
+  #   newest first, under the storage filters of list_predictions/2.
+  # - `status` filters by the derived status; an unknown status matches
+  #   nothing and mints no atom; `limit` counts what the status kept.
+  # - `due_before` is the due query: OPEN predictions whose resolves_on is
+  #   on or before the date, so a call already past its date is not due.
+  # - `resolves_from` and `resolves_to` bound resolves_on, both inclusive.
+  describe "the status filter and the due query" do
+    setup do
+      priced = security!("Priced Co.")
+      put_quotes!(priced, [{~D[2026-03-03], "100"}, {~D[2026-06-01], "110"}])
+      unpriced = security!("Unpriced Co.")
+
+      resolved = predict!(priced, "outperform", "rate:0")
+      unresolved = predict!(unpriced, "outperform", "rate:0")
+      # Today (2026-11-05) is its date: still open.
+      due_today = predict!(priced, "outperform", "rate:0", %{"resolves_on" => "2026-11-05"})
+      due_soon = predict!(priced, "underperform", "rate:0", %{"resolves_on" => "2026-12-01"})
+      later = predict!(priced, "outperform", "rate:0", %{"resolves_on" => "2027-03-01"})
+
+      %{
+        resolved: resolved,
+        unresolved: unresolved,
+        due_today: due_today,
+        due_soon: due_soon,
+        later: later
+      }
+    end
+
+    test "by status, newest first, each with its resolution", ctx do
+      list = fn filters -> Predictions.list_with_resolution(filters, today: @today) end
+      ids = fn filters -> filters |> list.() |> Enum.map(& &1.prediction.id) end
+
+      assert [%{prediction: %{}, resolution: %Resolution{}} | _] = list.([])
+
+      assert ids.([]) == [
+               ctx.later.id,
+               ctx.due_soon.id,
+               ctx.due_today.id,
+               ctx.unresolved.id,
+               ctx.resolved.id
+             ]
+
+      assert ids.(status: :open) == [ctx.later.id, ctx.due_soon.id, ctx.due_today.id]
+      assert ids.(status: "resolved") == [ctx.resolved.id]
+      assert ids.(status: :unresolved) == [ctx.unresolved.id]
+      assert ids.(status: "nobody_status_zz") == []
+      assert_raise ArgumentError, fn -> String.to_existing_atom("nobody_status_zz") end
+
+      # The limit counts after the status: the one resolved call is found
+      # behind three newer open ones.
+      assert ids.(status: :resolved, limit: 1) == [ctx.resolved.id]
+      assert ids.(status: :open, limit: 2) == [ctx.later.id, ctx.due_soon.id]
+
+      assert [%{resolution: %Resolution{status: :resolved, outcome: :hit}}] =
+               list.(status: :resolved)
+
+      assert [%{resolution: %Resolution{status: :unresolved, reason: :no_start_close}}] =
+               list.(status: :unresolved)
+    end
+
+    test "due_before is the open calls due on or before the date", ctx do
+      ids = fn filters ->
+        filters |> Predictions.list_predictions(today: @today) |> Enum.map(& &1.id)
+      end
+
+      # The resolved and the unresolved call resolve on 2026-06-01, before
+      # the date, but are past it: not due.
+      assert ids.(due_before: ~D[2026-12-01]) == [ctx.due_soon.id, ctx.due_today.id]
+      assert ids.(due_before: ~D[2026-11-05]) == [ctx.due_today.id]
+      assert ids.(due_before: ~D[2026-11-04]) == []
+
+      # The same through list_with_resolution/2, with the status beside it.
+      assert [%{resolution: %{status: :open}}, %{resolution: %{status: :open}}] =
+               Predictions.list_with_resolution([due_before: ~D[2026-12-01]], today: @today)
+
+      # A day later the call due today has passed.
+      assert Predictions.list_predictions([due_before: ~D[2026-12-01]], today: ~D[2026-11-06])
+             |> Enum.map(& &1.id) == [ctx.due_soon.id]
+    end
+
+    test "resolves_from and resolves_to bound resolves_on, inclusive", ctx do
+      ids = fn filters -> filters |> Predictions.list_predictions() |> Enum.map(& &1.id) end
+
+      assert ids.(resolves_from: ~D[2026-11-05], resolves_to: ~D[2026-12-01]) ==
+               [ctx.due_soon.id, ctx.due_today.id]
+
+      assert ids.(resolves_to: ~D[2026-06-01]) == [ctx.unresolved.id, ctx.resolved.id]
+      assert ids.(resolves_from: ~D[2027-03-01]) == [ctx.later.id]
+      assert ids.(resolves_from: ~D[2027-03-02]) == []
+    end
+  end
 end
