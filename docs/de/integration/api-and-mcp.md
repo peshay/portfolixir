@@ -1066,8 +1066,9 @@ ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
   Lesezugriff, den er spiegelt) und sieben Teile:
   - `security` — der Datensatz, den `GET /api/v1/securities/:id` antwortet,
     samt früheren ISINs, `thesis_state` und `bond` mit seiner Grundlage;
-  - `holdings` — `rows`, eine Zeile je Portfolio, das das Wertpapier hält, so
-    wie `GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id` sie
+  - `holdings` — `rows`, eine Zeile je Depot, das das Wertpapier hält, über
+    alle Portfolios hinweg, so wie
+    `GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id` sie
     antwortet, mit `currency_basis`, `currency_basis_note` und
     `computation_basis` dieses Lesezugriffs; `total`, die Zeile des
     Wertpapiers aus `GET /api/v1/holdings/by_security` (EUR, `valued`,

@@ -992,7 +992,8 @@ computation basis or note, so a part always equals what its read answers.
   mirrors) and seven parts:
   - `security` — the record `GET /api/v1/securities/:id` answers, former
     ISINs, `thesis_state` and `bond` with its basis included;
-  - `holdings` — `rows`, one per portfolio holding the security, as
+  - `holdings` — `rows`, one per depot (securities account) holding the
+    security, across portfolios, as
     `GET /api/v1/portfolios/:portfolio_id/holdings?security_id=:id` answers
     them, with that read's `currency_basis`, `currency_basis_note` and
     `computation_basis`; `total`, the security's row of
