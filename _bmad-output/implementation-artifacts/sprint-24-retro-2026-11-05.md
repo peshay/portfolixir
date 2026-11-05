@@ -76,6 +76,13 @@ One PR under the plan's D-6: the sprint PR #1388
 * **A GATE THIS SPRINT ADDED CHECKED LESS THAN IT SAID.** D1's `raisedBy`
   rule measured only the last row and never asked whether a named tool was
   new. The correctness lens found it, and it was fixed before promotion.
+* **AN OLDER TEST FLAKED UNDER THE FINAL COVERALLS RUN.**
+  `securities_sync_rearm_test` saw four provider fetches for two
+  securities once, under load, and passed five in five alone; it is outside
+  the diff, so it is a line on #1365 with the question whether the test or
+  the single flight races. The heap-cap test also failed once under
+  four worktrees' load; both say the full suite is less deterministic under
+  parallel load than CI's single runner shows.
 * **NO HISTORY CLEANUP WAS POSSIBLE.** This session could not force-push,
   so the closing act's fixes stay as their own commits and the branch could
   not be rebased onto `main` had it moved. `main` did not move.
@@ -126,7 +133,7 @@ OTP 28; noted on #1390); the Elixir one is #1390.
 - Polish lines ticked: #1366 (#1322, the sunburst, „Beitrag je
   Position“), #1357 (the rail). Added: #1366 (the holdings notes at
   1200 px; the sunburst tooltip on touch), #1356 (the cost facet test's
-  comment).
+  comment), #1365 (the sync re-arm test that flaked once under load).
 - Ideas: I7, I16 and I17 `built`; F1 stays `discussing` (D-10).
 - Merges and releases: #1388 PENDING on the owner, recorded by the next
   planning PR.
