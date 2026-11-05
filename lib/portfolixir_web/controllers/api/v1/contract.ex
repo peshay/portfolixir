@@ -72,10 +72,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "with a probability from 0.50 to 0.99), its author, actor and made_at stated by " <>
           "the server, journaled under the token; GET /api/v1/predictions/:id answers it " <>
           "with its resolution derived at read, the closes used and the rule's " <>
-          "computation_basis. Nothing edits, withdraws or deletes a prediction.",
+          "computation_basis. Nothing edits, withdraws or deletes a prediction. " <>
+          "GET /api/v1/predictions lists them with their status at read, the due query " <>
+          "among its filters, and GET /api/v1/predictions/calibration scores the resolved " <>
+          "ones: the Brier score with its standard error, sharpness, the hit rate, five " <>
+          "bands shown from 20 resolved calls (too_few below) and the groups by author " <>
+          "and model, with its computation_basis (ADR-0055 §4).",
       endpoints: [
         "GET /api/v1/sales/hindsight",
         "POST /api/v1/predictions",
+        "GET /api/v1/predictions",
+        "GET /api/v1/predictions/calibration",
         "GET /api/v1/predictions/:id"
       ],
       tools: ["portfolixir.sales.hindsight"],
@@ -129,7 +136,24 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "{security_id, currency_code, start, end, return}, benchmark (a security's sides " <>
           "as the security's, or {kind rate, rate, from, to, days, return}), excess}, each " <>
           "end {stands_for, date, close, stored_close, source, fx_rate, eur_value}; derived " <>
-          "at every read, never stored; 404 for an unknown id (ADR-0055 §5, read)"
+          "at every read, never stored; 404 for an unknown id (ADR-0055 §5, read)",
+        "GET /api/v1/predictions, new: optional security_id, status (open | resolved | " <>
+          "unresolved, derived at read), author (operator | agent), model and due_before " <>
+          "(the due query: open predictions whose resolves_on is on or before the date), " <>
+          "limit (default 100, at most 500, newest first, with truncated); it answers " <>
+          "{as_of, filters, limit, truncated, predictions, permanence_note, " <>
+          "computation_basis}, each prediction read as GET /api/v1/predictions/:id reads " <>
+          "it. A malformed filter answers 422 naming it (ADR-0055 §5, list)",
+        "GET /api/v1/predictions/calibration, new: optional author, model, from and to " <>
+          "(resolves_on, both inclusive; to before from 422 on to); it answers {as_of, " <>
+          "filters, counts {total, open, resolved, unresolved by reason}, brier {score, " <>
+          "standard_error, standard_error_reason, reference \"0.25\"}, sharpness, hit_rate " <>
+          "{rate, hits, mean_probability, standard_error, standard_error_reason}, bands " <>
+          "(0.50-0.59 to 0.90-0.99, each {from, to, count, mean_probability, hit_rate}, " <>
+          "hit_rate the string too_few under 20 resolved calls), groups {author, model} " <>
+          "(the same block per author and per model), permanence_note, computation_basis}; " <>
+          "every figure a string, null with no resolved call, a standard error null with " <>
+          "standard_error_reason no_resolved or one_resolved (ADR-0055 §4, calibration)"
       ],
       removed_endpoints: [],
       removed_tools: [],
