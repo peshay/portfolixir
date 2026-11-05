@@ -14,7 +14,11 @@ defmodule PortfolixirWeb.SecuritiesSyncRearmTest do
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
 
-  @registered :securities_sync_rearm_test
+  # The running test's pid, read by GatedAdapter. Kept in the application
+  # environment, not a registered name: a registered name is held until the
+  # previous test's process has gone, and under load the next test's setup
+  # could reach it first and fail to register (seen once in 300 repeats).
+  @test_pid_key :securities_sync_rearm_test_pid
 
   # A quote provider that tells the test about every fetch and then waits for
   # the test to let it answer, so the interleaving of two sweeps is the
@@ -29,7 +33,7 @@ defmodule PortfolixirWeb.SecuritiesSyncRearmTest do
 
     @impl true
     def fetch(%Security{id: id}, _opts) do
-      case Process.whereis(:securities_sync_rearm_test) do
+      case Application.get_env(:portfolixir, :securities_sync_rearm_test_pid) do
         nil ->
           {:ok, []}
 
@@ -46,7 +50,8 @@ defmodule PortfolixirWeb.SecuritiesSyncRearmTest do
   end
 
   setup do
-    Process.register(self(), @registered)
+    Application.put_env(:portfolixir, @test_pid_key, self())
+    on_exit(fn -> Application.delete_env(:portfolixir, @test_pid_key) end)
     :ok
   end
 
@@ -74,6 +79,22 @@ defmodule PortfolixirWeb.SecuritiesSyncRearmTest do
     )
 
     on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+  end
+
+  @refused_twice "A price sync of every security is already running; it was not started a second time."
+
+  # Waits until the page renders `text`, re-rendering every 20 ms; gives up
+  # after 5 seconds and lets the caller's assertion name what is missing.
+  defp await_render(view, text, tries \\ 250)
+  defp await_render(_view, _text, 0), do: :gave_up
+
+  defp await_render(view, text, tries) do
+    if render(view) =~ text do
+      :ok
+    else
+      Process.sleep(20)
+      await_render(view, text, tries - 1)
+    end
   end
 
   defp next_fetch(timeout) do
@@ -204,6 +225,15 @@ defmodule PortfolixirWeb.SecuritiesSyncRearmTest do
           # at all; its button is enabled.
           render_click(view2, "sync_now", %{})
 
+          # The second page's sync runs in a task of its own, so the click
+          # returns before that task has asked for the catalog-wide flight.
+          # The first sweep is released only once the second page shows its
+          # refusal: released earlier, a loaded machine let the first sweep
+          # finish and free the flight before the second task asked, and
+          # that task then ran a legitimate second sweep (four fetches for
+          # two securities, #1365's line from Sprint 24's close-out).
+          await_render(view2, @refused_twice)
+
           send(second_pid, :go)
           [first_id, second_id | release_and_record([])]
         after
@@ -217,8 +247,7 @@ defmodule PortfolixirWeb.SecuritiesSyncRearmTest do
                "#{length(fetched)} provider fetches for #{length(ids)} securities: " <>
                "#{inspect(fetched)} — QuoteSync.sync_all has no catalog-wide single flight"
 
-      assert render(view2) =~
-               "A price sync of every security is already running; it was not started a second time."
+      assert render(view2) =~ @refused_twice
     end
   end
 
