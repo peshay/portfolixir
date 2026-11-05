@@ -3,11 +3,13 @@ import { describe, it } from "node:test";
 
 import { MCP_PROFILES } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
+import { listTools } from "../src/tools.js";
 import { publishedTools } from "./support/companion.js";
 import {
   CEILING_HISTORY,
   ceilingViolations,
   type CeilingRow,
+  contractToolDebuts,
   SCHEMA_CEILINGS as CEILINGS,
   schemaBytes,
   tokenRange,
@@ -381,7 +383,8 @@ describe("the schema budget", () => {
         "or edited, and lowering a ceiling appends the same row in both places"
     );
 
-    assert.deepEqual(ceilingViolations(CEILING_HISTORY, toolBytes), []);
+    const debuts = contractToolDebuts();
+    assert.deepEqual(ceilingViolations(CEILING_HISTORY, toolBytes, (name) => debuts.get(name)), []);
 
     const last = CEILING_HISTORY[CEILING_HISTORY.length - 1];
     for (const profile of MCP_PROFILES) {
@@ -401,22 +404,42 @@ describe("the schema budget", () => {
   //   records for them, and while it is in force those bytes are what the
   //   named tools measure in that profile (0 where the profile omits one).
   // - Lowering stays allowed, with or without raisedBy.
+  // - Closing act (D1, the correctness hunter; a gate that partly checked
+  //   nothing): every raisedBy row is measured, not only the row in force,
+  //   so the ceilings in force are refused above the history with each
+  //   raise credited no more than its tools measure now, and a raise then
+  //   lowered by a byte no longer hides a bogus figure; a tool shrunk later
+  //   asks for the ceilings to come down with it.
+  // - Closing act: a tool a row names must be new on the row's date, the
+  //   date of the contract entry that adds it, and paid for by one row only,
+  //   so naming an existing tool raises nothing.
   it("lets a ceiling grow only by the new tools' own bytes", () => {
     const base: CeilingRow = { since: "2026-11-01", why: "base", read: 100, book: 200, full: 300 };
-    const measured = (name: string) => (name === "portfolixir.example.read" ? 7 : 0);
+    const sizes: Record<string, number> = { "portfolixir.example.read": 7, "portfolixir.example.old": 7 };
+    const measured = (name: string) => sizes[name] ?? 0;
+    const debuts: Record<string, string> = {
+      "portfolixir.example.read": "2026-11-02",
+      "portfolixir.example.old": "2026-10-01"
+    };
+    const debut = (name: string) => debuts[name];
+    const check = (history: readonly CeilingRow[], measure = measured) =>
+      ceilingViolations(history, measure, debut);
+    // Each breach the rule sees is one sentence, so a refusal is named by the
+    // sentence it must contain.
+    const refuses = (history: readonly CeilingRow[], phrase: string, measure = measured) =>
+      check(history, measure).some((violation) => violation.includes(phrase));
 
     assert.deepEqual(
-      ceilingViolations([base, { ...base, since: "2026-11-02", read: 99 }], measured),
+      check([base, { ...base, since: "2026-11-02", read: 99 }], measured),
       [],
       "lowering is allowed"
     );
-    assert.equal(
-      ceilingViolations([base, { ...base, since: "2026-11-02", book: 201 }], measured).length,
-      1,
+    assert.ok(
+      refuses([base, { ...base, since: "2026-11-02", book: 201 }], "raises book from 200 to 201"),
       "an unpaid raise is refused"
     );
     assert.equal(
-      ceilingViolations([base, { ...base, since: "2026-10-31", read: 99 }], measured).length,
+      check([base, { ...base, since: "2026-10-31", read: 99 }], measured).length,
       1,
       "a row dated before the one it follows is refused"
     );
@@ -429,26 +452,85 @@ describe("the schema budget", () => {
       full: 307,
       raisedBy: { tools: ["portfolixir.example.read"], read: 7, book: 7, full: 7 }
     };
-    assert.deepEqual(ceilingViolations([base, paid], measured), [], "a raise by the tool's bytes");
-    assert.equal(
-      ceilingViolations([base, { ...paid, full: 308 }], measured).length,
-      1,
+    assert.deepEqual(check([base, paid], measured), [], "a raise by the tool's bytes");
+    assert.ok(
+      refuses([base, { ...paid, full: 308 }], "raises full from 300 to 308"),
       "a raise past the recorded bytes is refused"
     );
-    assert.equal(
-      ceilingViolations(
+    assert.ok(
+      refuses(
         [base, { ...paid, read: 108, raisedBy: { ...paid.raisedBy, read: 8 } }],
-        measured
-      ).length,
-      1,
+        "records 8 read bytes"
+      ),
       "the row in force records what its tools measure"
     );
     const superseded = { ...paid, raisedBy: { ...paid.raisedBy, read: 8 } };
-    const later = { ...paid, since: "2026-11-03", why: "later" };
+    const later: CeilingRow = { ...base, since: "2026-11-03", why: "later", read: 107, book: 207, full: 307 };
     assert.deepEqual(
-      ceilingViolations([base, superseded, later], measured),
+      check([base, superseded, later], measured),
       [],
       "a row no longer in force keeps the bytes it recorded"
     );
+
+    // Attack (a): a +9,000 raise with a bogus raisedBy, then a row lowering
+    // by one byte so the bogus row is no longer the one in force.
+    const bogus: CeilingRow = {
+      ...paid,
+      read: 9_100,
+      raisedBy: { ...paid.raisedBy, read: 9_000 }
+    };
+    const lowered: CeilingRow = { ...base, since: "2026-11-03", why: "lowered", read: 9_099, book: 207, full: 307 };
+    assert.deepEqual(
+      check([base, bogus, lowered]),
+      [
+        "the read ceiling in force, 9099, is above 107, what the history allows with each raise " +
+          "credited what its tools measure now: lower it to that figure"
+      ],
+      "a bogus raise is refused after a later row lowers it by a byte"
+    );
+
+    // Attack (b): naming a tool that already existed raises nothing.
+    const old = { ...paid, raisedBy: { ...paid.raisedBy, tools: ["portfolixir.example.old"] } };
+    assert.ok(refuses([base, old], "which the contract added on 2026-10-01"), "a tool older than the row is refused");
+    assert.ok(refuses([base, old], "read ceiling in force, 107, is above 100"), "and it raises nothing");
+    const unknown = { ...paid, raisedBy: { ...paid.raisedBy, tools: ["portfolixir.example.unlisted"] } };
+    assert.ok(
+      refuses([base, unknown], "which no contract entry adds"),
+      "a tool no contract entry adds is refused"
+    );
+    const twice = { ...paid, since: "2026-11-02", why: "again", read: 114, book: 214, full: 314 };
+    assert.ok(
+      refuses([base, paid, twice], "which an earlier row already paid for"),
+      "a tool is paid for by one row only"
+    );
+
+    // A tool trimmed after its row: the ceilings come down with it.
+    const trimmed = (name: string) => (name === "portfolixir.example.read" ? 5 : 0);
+    assert.ok(
+      refuses([base, paid, later], "read ceiling in force, 107, is above 105", trimmed),
+      "a ceiling left above a trimmed tool's bytes is refused"
+    );
+    assert.deepEqual(
+      check([base, paid, { ...later, read: 105, book: 205, full: 305 }], trimmed),
+      [],
+      "lowered with the trim, the history keeps the rule"
+    );
+  });
+
+  // Closing act (D1): the debut dates come from the contract manifest, read
+  // from its source the way the Elixir meta-test reads tools.ts. The parse is
+  // held to the companion's inventory, so it can never silently read nothing.
+  it("reads each tool's debut from the contract manifest", () => {
+    const debuts = contractToolDebuts();
+
+    assert.deepEqual(
+      [...debuts.keys()].sort(),
+      listTools()
+        .map((tool) => tool.name)
+        .sort(),
+      "the manifest's tools, removals applied, are the companion's"
+    );
+    assert.equal(debuts.get("portfolixir.securities.dossier"), "2026-11-05");
+    assert.equal(debuts.get("portfolixir.transactions.cash_mismatch"), "2026-11-04");
   });
 });

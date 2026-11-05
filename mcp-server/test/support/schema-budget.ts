@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import type { McpProfile } from "../../src/profiles.js";
 import { publishedToolList, serverInstructions } from "../../src/server.js";
 
@@ -16,7 +18,11 @@ import { publishedToolList, serverInstructions } from "../../src/server.js";
 // published bytes of the new tools it names in `raisedBy`, which records
 // those bytes per profile. While that row is in force, what it records is
 // what the named tools measure (`toolBytes`), so the raise is paid once and
-// openly; a later row lowers as before. `ceilingViolations` is the rule.
+// openly; a later row lowers as before. A named tool is new on the row's
+// date (the contract entry that adds it, `contractToolDebuts`) and paid for
+// by one row only, and the ceilings in force never exceed the history with
+// each raise credited what its tools measure now (Sprint 24 closing act).
+// `ceilingViolations` is the rule.
 //
 // Lowering a ceiling appends a row below, with its date and why; a row is
 // history and is never edited or deleted. The test refuses a row that sets
@@ -364,21 +370,56 @@ export function toolBytes(name: string, profile: McpProfile): number {
  * What the ceiling history breaks of its rule, one sentence per breach: a row
  * dated before the row it follows; a profile raised above the row before it
  * by more than the bytes the row's `raisedBy` records (by anything, without
- * one); and, for the row in force, a recorded figure that is not what its
- * tools measure. Empty when the history keeps the rule.
+ * one); for the row in force, a recorded figure that is not what its tools
+ * measure; a tool in `raisedBy` that is not new on the row's date (`debut`,
+ * the date of the contract entry that adds it) or that an earlier row
+ * already paid for; and a ceiling in force above what the history allows
+ * when each raise is credited no more than its tools measure now.
+ *
+ * The last rule measures every `raisedBy` row, not only the one in force
+ * (Sprint 24 closing act, D1): walking the rows, each ceiling is held to the
+ * lower of the row's figure and the one before plus what the row's tools
+ * measure today. A bogus figure then cannot hide behind a later row that
+ * lowers by a byte. It asks for no equality of an old row, which is history
+ * and never edited: a tool trimmed later only asks for the ceilings to come
+ * down by its trim, as any shrinking surface does.
  */
 export function ceilingViolations(
   history: readonly CeilingRow[],
-  measure: (name: string, profile: McpProfile) => number
+  measure: (name: string, profile: McpProfile) => number,
+  debut: (name: string) => string | undefined
 ): string[] {
   const violations: string[] = [];
   const profiles: readonly McpProfile[] = ["read", "book", "full"];
+  const paidFor = new Set<string>();
+  const allowed: Partial<Record<McpProfile, number>> = {};
 
   history.forEach((row, i) => {
     const before = history[i - 1];
 
     if (before !== undefined && row.since < before.since) {
       violations.push(`row ${i}: dated before the row it follows`);
+    }
+
+    const credited: string[] = [];
+
+    for (const name of row.raisedBy?.tools ?? []) {
+      const added = debut(name);
+
+      if (paidFor.has(name)) {
+        violations.push(`row ${i} (${row.since}) names ${name}, which an earlier row already paid for`);
+      } else if (added === undefined) {
+        violations.push(`row ${i} (${row.since}) names ${name}, which no contract entry adds`);
+      } else if (added !== row.since) {
+        violations.push(
+          `row ${i} (${row.since}) names ${name}, which the contract added on ${added}: a raise ` +
+            "pays only for a tool new on the row's date (D-2)"
+        );
+      } else {
+        credited.push(name);
+      }
+
+      paidFor.add(name);
     }
 
     for (const profile of profiles) {
@@ -391,6 +432,10 @@ export function ceilingViolations(
             "down, or by a new tool's own bytes (D-2); trim a description instead"
         );
       }
+
+      const measuredNow = credited.reduce((sum, name) => sum + measure(name, profile), 0);
+      const previous = allowed[profile];
+      allowed[profile] = previous === undefined ? row[profile] : Math.min(row[profile], previous + measuredNow);
 
       if (row.raisedBy !== undefined && i === history.length - 1) {
         const measured = row.raisedBy.tools.reduce((sum, name) => sum + measure(name, profile), 0);
@@ -406,7 +451,69 @@ export function ceilingViolations(
     }
   });
 
+  const inForce = history[history.length - 1];
+
+  for (const profile of profiles) {
+    const bound = allowed[profile];
+
+    if (inForce !== undefined && bound !== undefined && inForce[profile] > bound) {
+      violations.push(
+        `the ${profile} ceiling in force, ${inForce[profile]}, is above ${bound}, what the history ` +
+          "allows with each raise credited what its tools measure now: lower it to that figure"
+      );
+    }
+  }
+
   return violations;
+}
+
+/**
+ * The contract manifest (`lib/portfolixir_web/controllers/api/v1/contract.ex`,
+ * ADR-0044 §8), whose dated entries name the tools each change added and
+ * removed. Read from its source, as the Elixir meta-test reads `src/tools.ts`.
+ */
+const CONTRACT_SOURCE = new URL("../../../lib/portfolixir_web/controllers/api/v1/contract.ex", import.meta.url);
+
+/**
+ * Each tool the manifest offers today and the date of the entry that added
+ * it (Sprint 24 closing act, D1): the entries walked oldest first, an add
+ * dating a tool only when it is not already offered and a removal
+ * forgetting it, as `Contract.tools/0` takes the union. A `raisedBy` row may
+ * name a tool only on that date.
+ */
+export function contractToolDebuts(source = readFileSync(CONTRACT_SOURCE, "utf8")): Map<string, string> {
+  const names = (list: string | undefined) => [...(list ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+  const entries = source
+    .split(/^ {4}%\{\s*\n(?= {6}version: \d+,)/m)
+    .slice(1)
+    .map((chunk) => ({
+      version: Number(/^ {6}version: (\d+),/m.exec(chunk)?.[1]),
+      date: /^ {6}date: ~D\[(\d{4}-\d{2}-\d{2})\]/m.exec(chunk)?.[1],
+      added: names(/^ {6}tools: \[([^\]]*)\]/m.exec(chunk)?.[1]),
+      removed: names(/^ {6}removed_tools: \[([^\]]*)\]/m.exec(chunk)?.[1])
+    }))
+    .sort((a, b) => a.version - b.version);
+
+  const debuts = new Map<string, string>();
+
+  for (const entry of entries) {
+    if (entry.date === undefined) {
+      throw new Error(`contract entry ${entry.version} has no date the budget can read`);
+    }
+
+    for (const name of entry.added) {
+      if (!debuts.has(name)) {
+        debuts.set(name, entry.date);
+      }
+    }
+
+    for (const name of entry.removed) {
+      debuts.delete(name);
+    }
+  }
+
+  return debuts;
 }
 
 /**
