@@ -2582,7 +2582,10 @@ Eine Zeile unter den Zeilen nennt, wie groß diese Verzerrung war: „Im
 Zeitraum gezahlt: Gebühren … · Steuern … — die Benchmark zahlt keine.“ —
 die Gebühren und Steuern, die das Portfolio (oder die View) im selben
 Zeitraum gebucht hat, nach der Regel des Kostenberichts und in der
-Basiswährung, dieselben Zahlen wie `costs_paid` im Payload. Sie werden
+Basiswährung, dieselben Zahlen wie `costs_paid` im Payload. Ein
+Kostenposten ohne gespeicherten Kurs an seinem Buchungstag steht in keiner
+der beiden Summen, und die Zeile nennt ihn („1 Kostenposten in USD ohne
+gespeicherten Kurs am Buchungstag ist nicht enthalten.“). Die Summen werden
 nicht von der Kennzahl abgezogen, und kein Rest wird benannt: eine früh
 gezahlte Gebühr hätte bis zum Ende des Zeitraums weiter Ertrag gebracht,
 den der gebuchte Betrag nicht enthält (die Ergänzung vom 2026-11-04).

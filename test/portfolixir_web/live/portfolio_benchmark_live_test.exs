@@ -387,11 +387,11 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
         case locale do
           "en" ->
             {"Paid in the period: fees #{fees} EUR · taxes #{taxes} EUR; the benchmark pays none.",
-             "Paid in the period: the fees and taxes this portfolio (this view) booked in the same period, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."}
+             "Paid in the period: the fees and taxes booked in the same period across all portfolios, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."}
 
           "de" ->
             {"Im Zeitraum gezahlt: Gebühren #{fees} EUR · Steuern #{taxes} EUR — die Benchmark zahlt keine.",
-             "Gezahlt im Zeitraum: die Gebühren und Steuern, die dieses Portfolio (diese Ansicht) im selben Zeitraum gebucht hat, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
+             "Gezahlt im Zeitraum: die Gebühren und Steuern, die im selben Zeitraum über alle Portfolios gebucht wurden, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
         end
 
       # Once, under the two rows, inside neither.
@@ -409,6 +409,110 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     # The formatter's own spelling of the payload's fees, pinned.
     assert Format.money(Decimal.new("1254.2"), "en") == "1,254.20"
     assert Format.money(Decimal.new("1254.2"), "de") == "1.254,20"
+  end
+
+  # The seed world plus a USD cash account whose 7.00 USD fee is booked on
+  # a day with no stored USD rate (one before it and one after it): the
+  # costs read it in USD and leave it out of both sums, named.
+  defp seed_unconverted_cost_world do
+    world = seed_world()
+
+    dollar =
+      WorldFixtures.add_depot(world.portfolio,
+        cash_currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    {:ok, 2} =
+      Portfolixir.Fx.upsert_many(
+        for date <- [world.start, Date.add(world.today, -1)] do
+          %{
+            base_currency: "EUR",
+            quote_currency: "USD",
+            date: date,
+            rate: "1.25",
+            source: "manual"
+          }
+        end
+      )
+
+    for {type, amount, date} <- [
+          {"deposit", "500", world.start},
+          {"fee", "7.00", Date.add(world.today, -5)}
+        ] do
+      {:ok, _tx} =
+        Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: dollar.cash.id,
+          type: type,
+          date: date,
+          gross_amount: amount,
+          currency_code: "USD"
+        })
+    end
+
+    world
+  end
+
+  # User story (Sprint 24 closing act, B2; ADR-0046, amended 2026-11-04,
+  # point 2):
+  # As a local portfolio maintainer reading the costs line,
+  # I want a cost the page could not convert named on the line, and the ⓘ
+  # to say which costs it summed for the scope I am looking at,
+  # so that a missing rate never reads as a smaller cost, and the total
+  # never claims to be one portfolio.
+  #
+  # Acceptance criteria:
+  # - A 7.00 USD fee with no stored rate on its booking day is in neither
+  #   sum, and the line says so: "1 cost in USD has no stored rate on its
+  #   booking day and is not included." / „1 Kostenposten in USD ohne
+  #   gespeicherten Kurs am Buchungstag ist nicht enthalten.“ — the count
+  #   and currencies the payload's costs_paid.excluded names.
+  # - Under the total the ⓘ speaks of every portfolio; under a view, of the
+  #   cash accounts in the view (the scope follows the money, point 3).
+  test "the costs line names a cost it could not convert, the ⓘ its scope", %{conn: conn} do
+    seed_unconverted_cost_world()
+
+    assert %{"fees" => "0", "excluded" => %{"count" => 1, "currencies" => ["USD"]}} =
+             total_costs_paid(conn, "rate:0.02")
+
+    path = fn locale -> "/portfolio?locale=#{locale}&benchmark_rate=2" end
+
+    for {locale, line, total_info} <- [
+          {"en",
+           "Paid in the period: fees 0.00 EUR · taxes 0.00 EUR; the benchmark pays none. " <>
+             "1 cost in USD has no stored rate on its booking day and is not included.",
+           "Paid in the period: the fees and taxes booked in the same period across all portfolios, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."},
+          {"de",
+           "Im Zeitraum gezahlt: Gebühren 0,00 EUR · Steuern 0,00 EUR — die Benchmark zahlt keine. " <>
+             "1 Kostenposten in USD ohne gespeicherten Kurs am Buchungstag ist nicht enthalten.",
+           "Gezahlt im Zeitraum: die Gebühren und Steuern, die im selben Zeitraum über alle Portfolios gebucht wurden, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
+        ] do
+      {:ok, view, _html} = live(get(recycle(conn), path.(locale)), path.(locale))
+      html = render_async(view)
+
+      assert costs_line(view) == line
+      assert has_element?(view, "#tip-benchmark", total_info)
+      refute html =~ "this portfolio (this view)"
+      refute html =~ "dieses Portfolio (diese Ansicht)"
+    end
+
+    {:ok, family} = Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Family"})
+
+    for {locale, view_info} <- [
+          {"en",
+           "Paid in the period: the fees and taxes paid in the same period from the cash accounts in this view, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."},
+          {"de",
+           "Gezahlt im Zeitraum: die Gebühren und Steuern, die im selben Zeitraum von den Verrechnungskonten dieser Ansicht gezahlt wurden, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
+        ] do
+      scoped = path.(locale) <> "&view=#{family.id}"
+      {:ok, view, _html} = live(get(recycle(conn), scoped), scoped)
+      render_async(view)
+
+      assert has_element?(view, "[data-role='benchmark-costs']")
+      assert has_element?(view, "#tip-benchmark", view_info)
+    end
   end
 
   describe "BenchmarkScope plug" do

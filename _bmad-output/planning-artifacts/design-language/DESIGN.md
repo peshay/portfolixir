@@ -8695,15 +8695,21 @@ same two figures (Sprint 24 D-1, criterion 4).
    reads „Gebühren 0,00 EUR · Steuern 0,00 EUR“; the line is not dropped,
    because zero is a booked answer.
 2. **The ⓘ's sentence**, after the comparison's own definition in
-   `#tip-benchmark`, on its own line (`span.benchmark-costs__info`):
-   „Gezahlt im Zeitraum: die Gebühren und Steuern, die dieses Portfolio
-   (diese Ansicht) im selben Zeitraum gebucht hat, umgerechnet zum Kurs
-   ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten
-   ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte.“
-   (English "Paid in the period: the fees and taxes this portfolio (this
-   view) booked in the same period, converted at their booking day's rate;
-   refunds reduce the taxes. Not included is the return the money paid
-   would otherwise have earned.")
+   `#tip-benchmark`, on its own line (`span.benchmark-costs__info`), in the
+   page's scope (closing act, B2): under the total „Gezahlt im Zeitraum:
+   die Gebühren und Steuern, die im selben Zeitraum über alle Portfolios
+   gebucht wurden, umgerechnet zum Kurs ihres Buchungstags; Erstattungen
+   mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte
+   Geld sonst erwirtschaftet hätte.“ (English "Paid in the period: the
+   fees and taxes booked in the same period across all portfolios,
+   converted at their booking day's rate; refunds reduce the taxes. Not
+   included is the return the money paid would otherwise have earned.");
+   under a view „… die im selben Zeitraum von den Verrechnungskonten
+   dieser Ansicht gezahlt wurden, …“ ("… paid in the same period from the
+   cash accounts in this view, …"), because a view counts a cost where the
+   cash account that paid it counts (the amendment's point 3). The board's
+   „dieses Portfolio (diese Ansicht)“ said "this portfolio" on the total,
+   which spans every portfolio.
 
 ### Its states
 
@@ -8714,6 +8720,16 @@ same two figures (Sprint 24 D-1, criterion 4).
   one computes): the line stands with the rows.
 - **Failed:** the card shows „—“ and no line. A benchmark that covers no
   day still has its row („Sparplan: —“), so the line stays.
+- **A cost not converted** (closing act, B2; the amendment's point 2: such
+  a cost is "excluded from the totals and named"): a cost with no stored
+  rate on its booking day is in neither sum, and the line names it after
+  its sentence, in `span.benchmark-costs__excluded`
+  (`data-role="benchmark-costs-excluded"`), by the count and currencies of
+  the payload's `costs_paid.excluded`: „1 Kostenposten in USD ohne
+  gespeicherten Kurs am Buchungstag ist nicht enthalten.“ (English "1 cost
+  in USD has no stored rate on its booking day and is not included.";
+  plural „2 Kostenposten in CHF, USD … sind nicht enthalten.“). With none
+  excluded the clause is absent.
 
 ### What it never says
 
@@ -8733,9 +8749,11 @@ colour is a token, so light and dark and the three accents follow.
 
 ### Stated, not settled here
 
-- **The ⓘ keeps the board's parenthesis** „dieses Portfolio (diese
-  Ansicht)“ on every scope, the total included, rather than one sentence
-  per scope.
-- **Excluded costs are not named on the line.** The board drew no
-  mention; a cost with no stored rate on its booking day is left out of
-  both sums and named only in the payload's `costs_paid.excluded`.
+- **The ⓘ speaks in the page's scope** (closing act, B2): the board's
+  parenthesis „dieses Portfolio (diese Ansicht)“ stood on the total too,
+  where it named one portfolio for a sum over all of them; the sentence
+  now has a total and a view variant (anatomy point 2).
+- **Excluded costs are named on the line** (closing act, B2): the board
+  drew no mention, and the first build named them only in the payload's
+  `costs_paid.excluded`, so a missing rate read as a smaller cost on the
+  screen; the line now carries the clause its states describe.
