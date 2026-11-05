@@ -1474,9 +1474,16 @@ defmodule PortfolixirWeb.LayoutView do
             // and handed to it. Below the breakpoint the checkbox opens the
             // off-canvas sidebar instead: that is never remembered, and the
             // remembered rail stays on <html> for a wider screen.
+            //
+            // Closing act, P2: the breakpoint can be crossed on a mounted
+            // page (a phone turned upright, a window dragged narrow). Going
+            // narrow, a checked box would read as an open drawer, so the
+            // hook unchecks it and keeps the collapsed rail in data-rail;
+            // going wide, it settles the rail back into the checkbox.
             var railCollapsed = null;
+            var railQuery = window.matchMedia("(max-width: 900px)");
             var railWide = function () {
-              return !window.matchMedia("(max-width: 900px)").matches;
+              return !railQuery.matches;
             };
             var railRemembered = function () {
               return document.documentElement.getAttribute("data-rail") === "collapsed";
@@ -1514,12 +1521,19 @@ defmodule PortfolixirWeb.LayoutView do
                   }
                 };
                 this.el.addEventListener("change", this.onChange);
+                this.onBreakpoint = function () {
+                  if (!railWide()) self.el.checked = false;
+                  settleRail(self.el);
+                  self.checked = self.el.checked;
+                };
+                railQuery.addEventListener("change", this.onBreakpoint);
               },
               updated: function () {
                 this.el.checked = this.checked;
               },
               destroyed: function () {
                 this.el.removeEventListener("change", this.onChange);
+                railQuery.removeEventListener("change", this.onBreakpoint);
               }
             };
 
