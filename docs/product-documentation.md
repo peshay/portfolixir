@@ -2347,7 +2347,9 @@ direction. One line under the rows says how large that bias was: "Paid in
 the period: fees … · taxes …; the benchmark pays none." — the fees and taxes
 the portfolio (or the view) booked in the same period, by the cost report's
 rule and in the base currency, the same figures as the payload's
-`costs_paid`. They are not subtracted from the figure and no rest is named:
+`costs_paid`. A cost with no stored rate on its booking day is in neither
+sum, and the line names it ("1 cost in USD has no stored rate on its booking
+day and is not included."). The sums are not subtracted from the figure and no rest is named:
 a fee paid early would have compounded until the period's end, which the
 booked amount leaves out (the amendment of 2026-11-04). Nothing is stored: both comparisons are derived on read, per
 period and per view, and available over the API

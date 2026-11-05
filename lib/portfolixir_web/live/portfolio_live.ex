@@ -1378,7 +1378,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                  the same for every benchmark of one request). Beside the
                  gap, never subtracted from it, and no residual named. --%>
             <p :if={@comparisons != []} class="benchmark-costs" data-role="benchmark-costs">
-              <%= costs_paid_line(hd(@comparisons)) %>
+              <%= costs_paid_line(hd(@comparisons)) %><%= costs_excluded_clause(
+                hd(@comparisons).costs_paid.excluded
+              ) %>
             </p>
             <strong
               :if={@comparisons == [] and is_nil(@performance) and not @performance_failed}
@@ -1396,9 +1398,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= gettext(
                   "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes; the figure is the actual end value minus that. Bought once: the period's TTWROR against the benchmark held throughout. Pairs read portfolio vs benchmark; flows before the benchmark's first priced day enter through the opening value."
                 ) %>
-                <span class="benchmark-costs__info"><%= gettext(
-                  "Paid in the period: the fees and taxes this portfolio (this view) booked in the same period, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."
-                ) %></span>
+                <span class="benchmark-costs__info"><%= costs_paid_info(@active_view_id) %></span>
               </p>
             </details>
           </article>
@@ -3636,6 +3636,45 @@ defmodule PortfolixirWeb.PortfolioLive do
       ),
       fees: costs_figure(costs.fees, currency),
       taxes: costs_figure(costs.taxes, currency)
+    )
+  end
+
+  # A cost with no stored rate on its booking day is in neither sum and
+  # named on the line by count and currency (the amendment's point 2), as
+  # the payload's costs_paid.excluded names it.
+  defp costs_excluded_clause(%{count: 0}), do: ""
+
+  defp costs_excluded_clause(%{count: count, currencies: currencies}) do
+    {:safe,
+     [
+       " ",
+       ~s(<span class="benchmark-costs__excluded" data-role="benchmark-costs-excluded">),
+       Phoenix.HTML.safe_to_string(
+         Phoenix.HTML.html_escape(
+           ngettext(
+             "%{count} cost in %{currencies} has no stored rate on its booking day and is not included.",
+             "%{count} costs in %{currencies} have no stored rate on their booking days and are not included.",
+             count,
+             currencies: Enum.join(currencies, ", ")
+           )
+         )
+       ),
+       "</span>"
+     ]}
+  end
+
+  # The ⓘ's sentence names what was summed for the page's scope: the total
+  # spans every portfolio; a view counts a cost where its cash account
+  # counts (the amendment's point 3), so only a view speaks of "this view".
+  defp costs_paid_info(nil) do
+    gettext(
+      "Paid in the period: the fees and taxes booked in the same period across all portfolios, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."
+    )
+  end
+
+  defp costs_paid_info(_view_id) do
+    gettext(
+      "Paid in the period: the fees and taxes paid in the same period from the cash accounts in this view, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."
     )
   end
 
