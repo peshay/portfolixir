@@ -88,6 +88,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.classifications.assign_bulk",
       "portfolixir.classifications.unassign",
       "portfolixir.trades.list",
+      "portfolixir.sales.hindsight",
       "portfolixir.targets.list",
       "portfolixir.targets.set",
       "portfolixir.targets.delete",
@@ -1574,6 +1575,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.cashflow.realized_gains",
       "portfolixir.cashflow.external_flows",
       "portfolixir.cashflow.costs",
+      "portfolixir.sales.hindsight",
       "portfolixir.notes.unreviewed",
       "portfolixir.notes.uncorroborated",
       "portfolixir.notes.expiring",
@@ -4055,6 +4057,90 @@ describe("Portfolixir MCP tools", () => {
     assert.match(description, /a view's plan: portfolixir\.targets\.list_positions view=/);
   });
 
+  // User story (Sprint 25, S2; FR-50, I18 modes 1 and 2; plan D-3):
+  // As the agent asked what the operator's sales missed,
+  // I want one read-only tool wrapping GET /api/v1/sales/hindsight with its
+  // filters and the optional benchmark,
+  // so that I hand over the server's figures, and its description tells me
+  // what each span measures and that it judges no sale.
+  //
+  // Acceptance criteria:
+  // - The tool sends one GET to /api/v1/sales/hindsight with the filters it
+  //   was given as query parameters, and none it was not given.
+  // - It changes nothing (readOnlyHint), so every profile lists it.
+  // - Its description names the spans, the statuses and their reasons, the
+  //   optional benchmark, the price-only basis and that it scores nothing and
+  //   gives no verdict; from and to state the bounded date.
+  it("wraps what a sale missed as one read in every profile", async () => {
+    const { client, requests } = createRecordingClient({ data: { rows: [] } });
+
+    await callTool(client, "portfolixir.sales.hindsight", {});
+    await callTool(client, "portfolixir.sales.hindsight", {
+      portfolio_id: 3,
+      security_id: 9,
+      from: "2025-01-01",
+      to: "2025-12-31",
+      benchmark: "security:12",
+      limit: 50
+    });
+    await callTool(client, "portfolixir.sales.hindsight", { benchmark: "rate:0.02" });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path, request.body, request.token]),
+      [
+        ["GET", "/api/v1/sales/hindsight", undefined, "Bearer api-token"],
+        [
+          "GET",
+          "/api/v1/sales/hindsight?portfolio_id=3&security_id=9&from=2025-01-01&to=2025-12-31&benchmark=security%3A12&limit=50",
+          undefined,
+          "Bearer api-token"
+        ],
+        ["GET", "/api/v1/sales/hindsight?benchmark=rate%3A0.02", undefined, "Bearer api-token"]
+      ]
+    );
+
+    const schema = listTools().find((tool) => tool.name === "portfolixir.sales.hindsight")?.inputSchema as
+      | { properties?: Record<string, { description?: string }>; required?: string[]; additionalProperties?: boolean }
+      | undefined;
+    assert.deepEqual(Object.keys(schema?.properties ?? {}), [
+      "portfolio_id",
+      "security_id",
+      "from",
+      "to",
+      "benchmark",
+      "limit"
+    ]);
+    assert.equal(schema?.required, undefined);
+    assert.equal(schema?.additionalProperties, false);
+    assert.match(schema?.properties?.from?.description ?? "", /1900-01-01/);
+    assert.match(schema?.properties?.to?.description ?? "", /1900-01-01/);
+    assert.match(schema?.properties?.benchmark?.description ?? "", /is_benchmark/);
+
+    for (const profile of ["read", "book", "full"] as const) {
+      const listed = listTools({ profile }).find((tool) => tool.name === "portfolixir.sales.hindsight");
+      assert.equal(listed?.annotations.readOnlyHint, true, profile);
+      assert.equal(listed?.annotations.destructiveHint, false, profile);
+    }
+
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.sales.hindsight")?.description ?? "";
+
+    assert.match(description, /one row per sale booking/);
+    for (const part of ["1m", "3m", "12m", "latest", "pending", "incomplete", "difference"]) {
+      assert.match(description, new RegExp(`\\b${part}\\b`), part);
+    }
+    for (const reason of ["no_start_close", "no_end_close", "no_fx_rate", "no_benchmark_close"]) {
+      assert.ok(description.includes(reason), reason);
+    }
+    assert.match(description, /rate:<decimal>/);
+    assert.match(description, /is_benchmark/);
+    assert.match(description, /dividend payer's miss is understated/);
+    assert.match(description, /IT SCORES NOTHING AND GIVES NO VERDICT/);
+    assert.match(description, /\blimit\b/);
+    assert.match(description, /\btruncated\b/);
+    assert.match(description, /computation_basis/);
+  });
+
   // #838 (ADR-0047 §6 as amended 2026-09-19): the description tells the
   // agent where the threshold is — `required`, on every metric, in both
   // states — so it does not have to read the basis prose to find it.
@@ -4972,6 +5058,8 @@ describe("Portfolixir MCP tools", () => {
       ["portfolixir.quotes.list", "from"],
       ["portfolixir.quotes.list", "to"],
       ["portfolixir.trades.list", "from"],
+      ["portfolixir.sales.hindsight", "from"],
+      ["portfolixir.sales.hindsight", "to"],
       ["portfolixir.securities.metrics", "as_of"],
       ["portfolixir.policy_rules.list", "as_of"]
     ]) {

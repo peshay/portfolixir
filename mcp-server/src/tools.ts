@@ -3571,6 +3571,38 @@ const declaredTools: DeclaredTool[] = [
       to: optionalString()
     })
   ),
+  // Sprint 25, S2 (FR-50; I18 modes 1 and 2, plan D-3): what each sale
+  // missed, over four spans after the sale, with ADR-0046's optional
+  // benchmark. Ladder (c); it scores no sale.
+  tool(
+    "portfolixir.sales.hindsight",
+    "What each sale missed",
+    "What each sale missed (FR-50): one row per sale booking (type sell, orphan sells included; an outbound delivery is no sale), newest first, with the sold security's price return in EUR over four spans: 1m, 3m and 12m (the sale day shifted by calendar months) and latest (to its latest stored close). Each span runs from the close standing for the sale day (the last close on or before it, at most 7 days older; the booked price is shown beside it and enters no figure) to the close standing for end_on. Optional benchmark (rate:<decimal> or security:<id> flagged is_benchmark) adds its return over the same span and difference = security return - benchmark return; without it, the security's own return only. status: complete, pending (end after today, no figure) or incomplete with reason no_start_close, no_end_close, no_fx_rate or no_benchmark_close (the security's figure kept). Price only: distributions after a sale are not counted, so a dividend payer's miss is understated. IT SCORES NOTHING AND GIVES NO VERDICT: no field says a sale was early or right. portfolio_id, security_id and from/to (the sale date) narrow the rows; limit is echoed with truncated. Decimals are strings; computation_basis states the rules.",
+    {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        portfolio_id: { type: "integer", minimum: 1 },
+        security_id: { type: "integer", minimum: 1 },
+        from: { type: "string", format: "date", description: boundedDate("Earliest sale date.") },
+        to: { type: "string", format: "date", description: boundedDate("Latest sale date.") },
+        benchmark: {
+          ...benchmarkSelector,
+          description:
+            "Optional. As on portfolixir.portfolios.benchmark: `rate:<decimal>`, a fixed effective annual rate, or `security:<id>`, a security flagged is_benchmark."
+        },
+        limit: { type: "integer", minimum: 1, description: "rows, newest sale first (default 100, at most 500)" }
+      }
+    },
+    z.object({
+      portfolio_id: z.number().int().positive().optional(),
+      security_id: z.number().int().positive().optional(),
+      from: optionalString(),
+      to: optionalString(),
+      benchmark: benchmarkSelectorZ.optional(),
+      limit: z.number().int().min(1).optional()
+    })
+  ),
   tool(
     "portfolixir.targets.list",
     "List target weights",
@@ -4582,6 +4614,18 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery(`/api/v1/securities/${args.security_id}/trades`, args, ["from", "to"])
+      );
+    case "portfolixir.sales.hindsight":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/sales/hindsight", args, [
+          "portfolio_id",
+          "security_id",
+          "from",
+          "to",
+          "benchmark",
+          "limit"
+        ])
       );
     case "portfolixir.targets.list":
       return client.request(

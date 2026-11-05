@@ -2287,7 +2287,8 @@ Beispiel-Payloads für Konten:
   `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
   max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
   wegfielen, und die Antwort nennt das angewandte `limit`.
-- `GET /api/v1/sales/hindsight` (FR-50, Idee I18; Sprint-25-Plan D-3)
+- `GET /api/v1/sales/hindsight` (`portfolixir.sales.hindsight`, in jedem
+  Profil; FR-50, Idee I18; Sprint-25-Plan D-3)
   beantwortet, **was jedem Verkauf entging**: eine Zeile je Verkaufsbuchung
   (Typ `sell`, ein Verkauf ohne vorherigen Kauf eingeschlossen; eine
   Auslieferung ist kein Verkauf, sie bewegt Stücke ohne Preis), neueste
@@ -4699,6 +4700,10 @@ lässt sich nicht lesen.
   Unterschied zum investierten Kapital
 - `portfolixir.cashflow.costs` — das #726-Rollup mit erklärter
   Nebenbeträge-statt-Brutto-Regel
+- `portfolixir.sales.hindsight` — was jedem Verkauf entging (FR-50):
+  `GET /api/v1/sales/hindsight` mit seinen Filtern und dem optionalen
+  `benchmark`, nur lesend in jedem Profil; die Beschreibung sagt, dass es
+  nichts bewertet und kein Urteil fällt
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.splits.incomplete` — die Prüfung unvollständiger Splits
