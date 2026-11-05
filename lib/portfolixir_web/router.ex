@@ -213,6 +213,9 @@ defmodule PortfolixirWeb.Router do
     get("/realized_gains", RealizedGainsController, :index)
     get("/external_flows", ExternalFlowsController, :index)
     get("/costs", CostsController, :index)
+    # I18 modes 1 and 2 (Sprint 25 plan D-3): what each sale missed, per
+    # sale booking over four spans, with ADR-0046's optional benchmark=.
+    get("/sales/hindsight", SaleHindsightController, :index)
     get("/holdings/negative", NegativeHoldingsController, :index)
 
     # Read-only reconcile of a user-supplied external position list against
