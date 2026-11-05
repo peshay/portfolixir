@@ -17,8 +17,9 @@ defmodule PortfolixirWeb.Api.V1.ReferencedConflict do
 
   `referenced_by` keys are the referencing tables. The remedy is `merge` — the
   route is the merge preview, completed with the id of the row to keep — or,
-  for a security that research notes or policy-rule versions reference (a
-  merge refuses such a source, ADR-0050 §9), `retire`, whose route is the
+  for a security that research notes, policy-rule versions or predictions
+  reference (a merge refuses such a source, ADR-0050 §9, ADR-0055 §2),
+  `retire`, whose route is the
   security's PATCH with `is_retired`. The detail says the same in words,
   because a consumer reads the error, not the record.
   """
@@ -36,7 +37,8 @@ defmodule PortfolixirWeb.Api.V1.ReferencedConflict do
     "security_quotes" => {"quote", "quotes"},
     "security_notes" => {"research note", "research notes"},
     "security_events" => {"security event", "security events"},
-    "policy_rule_versions" => {"policy-rule version", "policy-rule versions"}
+    "policy_rule_versions" => {"policy-rule version", "policy-rule versions"},
+    "predictions" => {"prediction", "predictions"}
   }
 
   @doc "Renders the 409 for `record`, referenced as `referenced_by` counts."
@@ -89,7 +91,8 @@ defmodule PortfolixirWeb.Api.V1.ReferencedConflict do
   end
 
   defp remedy_sentence(:retire, noun, route) do
-    "research notes and policy-rule versions can neither move nor vanish, so the #{noun} " <>
+    "research notes, policy-rule versions and predictions can neither move nor vanish, so " <>
+      "the #{noun} " <>
       "cannot be merged away: retire it instead with #{route} and " <>
       ~s({"security": {"is_retired": true}})
   end

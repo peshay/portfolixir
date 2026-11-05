@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   alias Portfolixir.Knowledge
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Predictions
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PolicyRuleReferences
@@ -1291,6 +1292,26 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           "the target has %{count} research entries, the last of %{date}, and research entries are never moved or deleted.",
           length(notes),
           date: date
+        )
+    end
+  end
+
+  defp reason(%{code: :predictions}, subject, _other, direction) do
+    count = Map.get(Predictions.count_naming([subject.id]), subject.id, 0)
+
+    case direction do
+      :direct ->
+        ngettext(
+          "the source is named by %{count} prediction. A prediction is never moved or deleted; a security a prediction names can only be the target.",
+          "the source is named by %{count} predictions. A prediction is never moved or deleted; a security a prediction names can only be the target.",
+          count
+        )
+
+      :reverse ->
+        ngettext(
+          "the target is named by %{count} prediction, and a prediction is never moved or deleted.",
+          "the target is named by %{count} predictions, and a prediction is never moved or deleted.",
+          count
         )
     end
   end

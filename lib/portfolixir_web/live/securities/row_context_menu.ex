@@ -308,10 +308,18 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
 
   # The reason for the way out (`Delete.remedy/2`): research entries never
   # go and no merge carries them, so retire; a rule version neither; what a
-  # merge carries — bookings, quotes, events — offers the merge first.
+  # merge carries — bookings, quotes, events — offers the merge first. A
+  # prediction is permanent too (ADR-0055 §2), whether the call is about the
+  # security or scored against it.
   defp blocked_remedy(%{"security_notes" => n}, _merge?) when n > 0 do
     gettext(
       "Research entries are never removed, and no merge carries them. Retiring hides the security from the active list; everything is kept."
+    )
+  end
+
+  defp blocked_remedy(%{"predictions" => n}, _merge?) when n > 0 do
+    gettext(
+      "A prediction is a permanent record, and no merge carries it. Retiring hides the security from the active list; everything is kept."
     )
   end
 

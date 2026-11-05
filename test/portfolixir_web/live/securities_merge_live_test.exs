@@ -490,6 +490,40 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert pair =~ ~r/Source · deleted.*XS0000000017.*Target · stays.*XS0000000025/s
   end
 
+  # User story (ADR-0055 §2; Sprint 25 plan, F1):
+  # As the operator merging a security the agent's predictions name,
+  # I want the preview to refuse and say why in words, and offer the merge
+  # the other way when that one passes,
+  # so that a scored call never moves or vanishes.
+  #
+  # Acceptance criteria:
+  # - The source is named by 1 prediction, which is never moved or deleted;
+  #   no confirm; the remedy is the merge the other way.
+  test "a prediction on the source refuses the merge, naming it", ctx do
+    buy!(ctx, ctx.source, "3", "105.00", ~D[2025-02-12])
+
+    {:ok, _prediction} =
+      Portfolixir.Predictions.create_prediction(Actor.api_token_rw("agent"), %{
+        "security_id" => ctx.source.id,
+        "direction" => "outperform",
+        "probability" => "0.60",
+        "benchmark" => "rate:0",
+        "resolves_on" => Date.to_iso8601(Date.add(Date.utc_today(), 30)),
+        "model" => "example-model-1"
+      })
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+
+    assert refusal =~
+             "Merging is not possible: the source is named by 1 prediction. A prediction is never moved or deleted; a security a prediction names can only be the target."
+
+    assert refusal =~ "Remedy: merge the other way — the target into this security."
+    refute has_element?(view, "#security-merge-dialog [data-role='merge-confirm']")
+  end
+
   # User story:
   # As the operator whose duplicate is read by a policy rule while the other
   # security carries research entries,

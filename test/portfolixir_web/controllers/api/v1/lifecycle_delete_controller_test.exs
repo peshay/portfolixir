@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.Api.V1.LifecycleDeleteControllerTest do
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge
   alias Portfolixir.Portfolios
+  alias Portfolixir.Predictions
   alias Portfolixir.WorldFixtures
 
   setup %{conn: conn} do
@@ -140,6 +141,57 @@ defmodule PortfolixirWeb.Api.V1.LifecycleDeleteControllerTest do
     assert errors["detail"] =~ "retire it instead"
     assert Catalog.get_security(booked.id)
     assert Catalog.get_security(noted.id)
+  end
+
+  # User story (ADR-0055 §2; Sprint 25 plan, F1):
+  # As the agent deleting a security over the API,
+  # I want a security my predictions name refused with a 409 that names
+  # them, counted, whether a call is about it or scored against it,
+  # so that I learn the scored record can neither move nor vanish, and
+  # retire the security instead.
+  #
+  # Acceptance criteria:
+  # - A security a prediction is about, and a benchmark security a
+  #   prediction is scored against, each answer 409 with referenced_by
+  #   {"predictions": n}, remedy "retire" and PATCH /api/v1/securities/:id.
+  # - The detail names the predictions in words and says why a merge
+  #   cannot carry them; both securities survive.
+  test "a security a prediction names answers 409 naming the predictions", %{conn: conn} do
+    called = WorldFixtures.create_security!(name: "Called ETF", ticker: "CLD")
+
+    {:ok, index} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Index ETF",
+        currency_code: "EUR",
+        is_benchmark: true
+      })
+
+    for direction <- ["outperform", "underperform"] do
+      {:ok, _prediction} =
+        Predictions.create_prediction(Actor.api_token_rw("agent"), %{
+          "security_id" => called.id,
+          "direction" => direction,
+          "probability" => "0.60",
+          "benchmark" => "security:#{index.id}",
+          "resolves_on" => Date.to_iso8601(Date.add(Date.utc_today(), 90)),
+          "model" => "example-model-1"
+        })
+    end
+
+    for security <- [called, index] do
+      assert %{"errors" => errors} =
+               conn |> delete("/api/v1/securities/#{security.id}") |> json_response(409)
+
+      assert errors["referenced_by"] == %{"predictions" => 2}
+      assert errors["remedy"] == "retire"
+      assert errors["remedy_route"] == "PATCH /api/v1/securities/#{security.id}"
+
+      assert errors["detail"] =~
+               "security is referenced by existing records (2 predictions); research notes, " <>
+                 "policy-rule versions and predictions can neither move nor vanish"
+
+      assert Catalog.get_security(security.id)
+    end
   end
 
   # User story:
