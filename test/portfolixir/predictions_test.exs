@@ -425,10 +425,10 @@ defmodule Portfolixir.PredictionsTest do
   #
   # Acceptance criteria:
   # - get_prediction/1 answers the struct or nil.
-  # - list_predictions/1 filters by security_id, author, model and
-  #   due_before (resolves_on on or before the date), newest first; an
+  # - list_predictions/2 filters by security_id, author, model and
+  #   due_before (open, resolves_on on or before the date), newest first; an
   #   author outside the set matches nothing and mints no atom.
-  describe "get_prediction/1 and list_predictions/1" do
+  describe "get_prediction/1 and list_predictions/2" do
     test "filter by security, author, model and due_before" do
       a = security!("Alpha Co.")
       b = security!("Beta Co.")
@@ -444,7 +444,10 @@ defmodule Portfolixir.PredictionsTest do
       assert Predictions.get_prediction(p1.id).id == p1.id
       assert Predictions.get_prediction(999_999_999) == nil
 
-      ids = fn filters -> filters |> Predictions.list_predictions() |> Enum.map(& &1.id) end
+      # The made day (2026-11-05) is today: every call here is still open.
+      ids = fn filters ->
+        filters |> Predictions.list_predictions(today: ~D[2026-11-05]) |> Enum.map(& &1.id)
+      end
 
       assert ids.([]) == [p3.id, p2.id, p1.id]
       assert ids.(security_id: a.id) == [p3.id, p1.id]
