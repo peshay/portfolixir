@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sprint 25 board 01: the home-screen icon on an iPhone</title>
+  <link rel="stylesheet" href="../../../../../priv/static/app.css">
+  <style>
+    body { margin: 0; padding: 32px; background: #f4f3f8; color: #201631; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .lede { margin: 0 0 24px; max-width: 70ch; }
+    .row { display: grid; grid-template-columns: 220px minmax(0,1fr) minmax(0,1fr); gap: 24px; align-items: start; margin-bottom: 28px; }
+    .row h2 { font-size: 16px; margin: 0 0 6px; }
+    .row p { margin: 0; font-size: 13px; line-height: 1.45; }
+    .rec { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #7C3AED !important; color: #fff !important; margin-bottom: 6px; }
+    .screen { border-radius: 28px; padding: 24px 18px 18px; min-width: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px 10px; }
+    .screen.wall-light { background: linear-gradient(160deg, #8fa6cf, #7b93c0 55%, #6a82b2); }
+    .screen.wall-dark { background: linear-gradient(160deg, #1d2333, #141826 55%, #0c0f18); }
+    .caption { grid-column: 1 / -1; font-size: 11px; opacity: .75; margin: -8px 0 0; }
+    .wall-light .caption { color: #fff; }
+    .wall-dark .caption { color: #f5f3ff; }
+    .app { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .tile { width: 84px; height: 84px; border-radius: 19px; overflow: hidden; display: grid; place-items: center; }
+    .tile img { width: 100%; height: 100%; display: block; }
+    .tile.placeholder { background: rgba(255,255,255,.55); }
+    .wall-dark .tile.placeholder { background: rgba(255,255,255,.14); }
+    .tile.monogram { background: linear-gradient(180deg, #9aa0ab, #7d838f); color: #fff; font: 600 46px/1 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+    .label { font: 500 13px/1.2 -apple-system, "Helvetica Neue", Arial, sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    .wall-light .label { color: #fff; }
+    .wall-dark .label { color: #fff; }
+    .label.dim { opacity: .55; }
+    .notes { margin-top: 8px; font-size: 13px; line-height: 1.5; max-width: 90ch; }
+    .notes code { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Board 01 — das Icon auf dem iPhone-Homebildschirm (W1)</h1>
+  <p class="lede">Zum Homebildschirm hinzugefügt, zeigt Portfolixir heute ein „P“: Die Seite liefert kein <code>apple-touch-icon</code>, und iOS nimmt weder SVG noch das 64-px-Favicon. Die grauen Kacheln sind Platzhalter für andere Apps. Gezeichnet in anderthalbfacher Größe (84 px je Kachel), auf hellem und dunklem Hintergrundbild.</p>
+
+  <div class="row">
+    <div>
+      <h2>Heute</h2>
+      <p>Der Buchstaben-Platzhalter, den iOS baut, wenn kein Icon kommt.</p>
+    </div>
+    <div class="screen wall-light">
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile monogram">P</div><span class="label">Portfolixir</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <p class="caption">helles Hintergrundbild</p>
+    </div>
+    <div class="screen wall-dark">
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile monogram">P</div><span class="label">Portfolixir</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <p class="caption">dunkles Hintergrundbild</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <span class="rec">empfohlen</span>
+      <h2>A — heller Grund</h2>
+      <p>Das App-Icon mit der hellen Palette (<code>#FCFBFF</code>): wie das Favicon im hellen Modus und wie das Logo auf der Startseite der Doku.</p>
+    </div>
+    <div class="screen wall-light">
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile"><img src="frames/icon-light.svg" alt=""></div><span class="label">Portfolixir</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <p class="caption">helles Hintergrundbild</p>
+    </div>
+    <div class="screen wall-dark">
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile"><img src="frames/icon-light.svg" alt=""></div><span class="label">Portfolixir</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <p class="caption">dunkles Hintergrundbild</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <h2>B — dunkler Grund</h2>
+      <p>Dieselbe Zeichnung mit der dunklen Palette (<code>#12101A</code>). Auf dunklem Hintergrundbild verschwindet der Rand der Kachel.</p>
+    </div>
+    <div class="screen wall-light">
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile"><img src="frames/icon-dark.svg" alt=""></div><span class="label">Portfolixir</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <p class="caption">helles Hintergrundbild</p>
+    </div>
+    <div class="screen wall-dark">
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile"><img src="frames/icon-dark.svg" alt=""></div><span class="label">Portfolixir</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <div class="app"><div class="tile placeholder"></div><span class="label dim">App</span></div>
+      <p class="caption">dunkles Hintergrundbild</p>
+    </div>
+  </div>
+
+  <div class="notes">
+    <p><strong>Was W1 liefert:</strong> <code>priv/static/apple-touch-icon.png</code> (180 × 180, deckend, ohne Transparenz: iOS füllt transparente Pixel schwarz und rundet die Ecken selbst), ein <code>&lt;link rel="apple-touch-icon"&gt;</code> im Seitenkopf und die Datei in der <code>only</code>-Liste von <code>Plug.Static</code>, damit iOS sie auch bei aktivem Login abrufen kann. Unter dem Icon steht „Portfolixir“, weil der Seitentitel schon so heißt. Kein Web-Manifest, kein Vollbildmodus: das wäre U1.</p>
+    <p><strong>Nach dem Fix:</strong> Die Verknüpfung auf dem Homebildschirm löschen und neu anlegen. iOS speichert das Icon beim Anlegen.</p>
+  </div>
+</body>
+</html>
