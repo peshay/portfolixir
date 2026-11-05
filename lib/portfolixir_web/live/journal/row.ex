@@ -21,7 +21,7 @@ defmodule PortfolixirWeb.Journal.Row do
 
   # Every `resource_type` code a journaled writer files under, in the order
   # the kind select offers them.
-  @kinds ~w(transaction security security_quotes security_event security_note
+  @kinds ~w(transaction security security_quotes security_event security_note prediction
             security_identifier_alias security_category_assignment cash_account
             securities_account cash_account_bucket_assignment depot_bucket_assignment
             position_bucket_override portfolio bucket view classification category

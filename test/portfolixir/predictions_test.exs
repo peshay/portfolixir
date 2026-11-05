@@ -491,5 +491,28 @@ defmodule Portfolixir.PredictionsTest do
       assert BlastRadius.for_write("prediction", %Prediction{}) == []
       assert BlastRadius.for_write("prediction", %{security_id: 1}) == :all
     end
+
+    # User story (the Sprint 25 closing act's correctness lens, reproduced:
+    # six securities, one prediction, six security: version events):
+    # As the operator whose security pages are served from derived values,
+    # I want a prediction write to bump no security's derived basis,
+    # so that recording a call does not recompute every security's metrics.
+    #
+    # Acceptance criteria:
+    # - After a prediction write every security's basis version is
+    #   unchanged, the called security's and the benchmark's included.
+    # - BlastRadius.securities_for_write("prediction", _) is [].
+    test "a prediction moves no security's derived basis" do
+      securities = for name <- ~w(Alpha Beta Gamma), do: security!(name <> " Radius Co.")
+      index = benchmark!("Radius Index")
+      bases = Enum.map([index | securities], &DataVersion.security_basis(&1.id))
+      before = Enum.map(bases, &DataVersion.current/1)
+
+      {:ok, _prediction} =
+        create(agent(), attrs(hd(securities), %{"benchmark" => "security:#{index.id}"}))
+
+      assert Enum.map(bases, &DataVersion.current/1) == before
+      assert BlastRadius.securities_for_write("prediction", %Prediction{}) == []
+    end
   end
 end

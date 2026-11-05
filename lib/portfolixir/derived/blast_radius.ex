@@ -137,7 +137,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
     classification depot_bucket_assignment merge_record policy_rule policy_rule_version
-    portfolio position_bucket_override retired_import_hash securities_account
+    portfolio position_bucket_override prediction retired_import_hash securities_account
     security_category_assignment security_event security_identifier_alias security_note
     setting snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view
   )
