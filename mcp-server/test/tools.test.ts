@@ -36,6 +36,10 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.notes.unreviewed",
       "portfolixir.notes.uncorroborated",
       "portfolixir.notes.expiring",
+      "portfolixir.predictions.create",
+      "portfolixir.predictions.list",
+      "portfolixir.predictions.get",
+      "portfolixir.predictions.calibration",
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
       "portfolixir.quotes.upsert",
@@ -1576,6 +1580,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.cashflow.external_flows",
       "portfolixir.cashflow.costs",
       "portfolixir.sales.hindsight",
+      "portfolixir.predictions.list",
       "portfolixir.notes.unreviewed",
       "portfolixir.notes.uncorroborated",
       "portfolixir.notes.expiring",
@@ -4141,6 +4146,168 @@ describe("Portfolixir MCP tools", () => {
     assert.match(description, /computation_basis/);
   });
 
+  // User story (Sprint 25, F4; ADR-0055 §5):
+  // As the operator's agent with a view on a position,
+  // I want one write that records a call and three reads that resolve and
+  // score the calls,
+  // so that how much weight my calls deserve is a figure, not a memory,
+  // and I learn before the first write that a call cannot be taken back.
+  //
+  // Acceptance criteria:
+  // - predictions.create sends one POST to /api/v1/predictions with the
+  //   prediction object; list, get and calibration send GETs with the
+  //   filters they were given and none they were not.
+  // - create is a write, not destructive and not idempotent, so book and
+  //   full list it and read does not; the three reads are read-only and
+  //   every profile lists them.
+  // - create's schema requires model, takes probability as a string from
+  //   "0.50" to "0.99" (a number, "0.49" and "1.00" are refused before any
+  //   request) and states the bounded date on resolves_on; it takes no
+  //   made_at, author or actor.
+  // - Every description says a prediction is permanent: create's says it
+  //   cannot be edited, withdrawn or deleted, that a mistaken one stays and
+  //   counts and that a correction is a new prediction, and tells the agent
+  //   to name its model; the reads say it briefly.
+  it("records a permanent prediction and reads, resolves and scores them", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+    const call = {
+      security_id: 12,
+      direction: "outperform",
+      probability: "0.65",
+      benchmark: "security:7",
+      resolves_on: "2027-05-03",
+      model: "example-model-1",
+      note_id: 41,
+      rationale: "The thesis entry's ramp-up."
+    };
+
+    await callTool(client, "portfolixir.predictions.create", call);
+    await callTool(client, "portfolixir.predictions.list", {});
+    await callTool(client, "portfolixir.predictions.list", {
+      security_id: 12,
+      status: "open",
+      author: "agent",
+      model: "example-model-1",
+      due_before: "2027-01-01",
+      limit: 20
+    });
+    await callTool(client, "portfolixir.predictions.get", { id: 5 });
+    await callTool(client, "portfolixir.predictions.calibration", {});
+    await callTool(client, "portfolixir.predictions.calibration", {
+      author: "agent",
+      model: "example-model-1",
+      from: "2026-01-01",
+      to: "2026-12-31"
+    });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path, request.body]),
+      [
+        ["POST", "/api/v1/predictions", { prediction: call }],
+        ["GET", "/api/v1/predictions", undefined],
+        [
+          "GET",
+          "/api/v1/predictions?security_id=12&status=open&author=agent&model=example-model-1&due_before=2027-01-01&limit=20",
+          undefined
+        ],
+        ["GET", "/api/v1/predictions/5", undefined],
+        ["GET", "/api/v1/predictions/calibration", undefined],
+        [
+          "GET",
+          "/api/v1/predictions/calibration?author=agent&model=example-model-1&from=2026-01-01&to=2026-12-31",
+          undefined
+        ]
+      ]
+    );
+
+    const reads = ["portfolixir.predictions.list", "portfolixir.predictions.get", "portfolixir.predictions.calibration"];
+
+    for (const profile of ["read", "book", "full"] as const) {
+      const listed = listTools({ profile }).map((tool) => tool.name);
+      for (const name of reads) {
+        assert.ok(listed.includes(name), `${profile} lists ${name}`);
+      }
+      assert.equal(listed.includes("portfolixir.predictions.create"), profile !== "read", profile);
+    }
+
+    const create = listTools().find((tool) => tool.name === "portfolixir.predictions.create");
+    assert.deepEqual(create?.annotations, {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false
+    });
+    for (const name of reads) {
+      const read = listTools().find((tool) => tool.name === name);
+      assert.equal(read?.annotations.readOnlyHint, true, name);
+      assert.equal(read?.annotations.destructiveHint, false, name);
+    }
+
+    const schema = create?.inputSchema as {
+      required?: string[];
+      additionalProperties?: boolean;
+      properties: Record<string, { type?: string; pattern?: string; description?: string; enum?: string[] }>;
+    };
+    assert.deepEqual(schema.required, ["security_id", "direction", "probability", "benchmark", "resolves_on", "model"]);
+    assert.equal(schema.additionalProperties, false);
+    assert.deepEqual(schema.properties.direction.enum, ["outperform", "underperform"]);
+    assert.equal(schema.properties.probability.type, "string");
+    assert.equal(schema.properties.probability.pattern, "^0\\.[5-9][0-9]$");
+    assert.match(schema.properties.resolves_on.description ?? "", /1900-01-01/);
+    assert.match(schema.properties.model.description ?? "", /the model you run on/);
+    for (const key of ["made_at", "author", "actor"]) {
+      assert.ok(!(key in schema.properties), key);
+    }
+
+    for (const refused of [
+      { ...call, probability: 0.65 },
+      { ...call, probability: "0.49" },
+      { ...call, probability: "1.00" },
+      { ...call, probability: "0.7" },
+      { ...call, model: undefined },
+      { ...call, made_at: "2020-01-01T00:00:00Z" }
+    ]) {
+      const before = requests.length;
+      await assert.rejects(callTool(client, "portfolixir.predictions.create", refused), JSON.stringify(refused));
+      assert.equal(requests.length, before, JSON.stringify(refused));
+    }
+
+    const description = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
+    const write = description("portfolixir.predictions.create");
+
+    // Permanence is stated before the first write, ahead of the fields.
+    assert.match(write, /PERMANENT: it cannot be edited, withdrawn or deleted/);
+    assert.match(write, /a mistaken one stays and counts/);
+    assert.match(write, /a correction is a new prediction/);
+    assert.ok(write.indexOf("PERMANENT") < write.indexOf("probability is"));
+    assert.match(write, /name the model you run on/);
+    assert.match(write, /never a trade/);
+    assert.match(write, /made_at/);
+    assert.match(write, /portfolixir\.notes\.append/);
+
+    for (const name of reads) {
+      assert.match(description(name), /permanent/i, name);
+      assert.match(description(name), /computation_basis/, name);
+    }
+
+    const list = description("portfolixir.predictions.list");
+    assert.match(list, /due_before/);
+    for (const reason of ["no_start_close", "no_end_close", "no_benchmark_close", "no_fx_rate"]) {
+      assert.ok(list.includes(reason), reason);
+    }
+    assert.match(list, /\blimit\b/);
+    assert.match(list, /\btruncated\b/);
+
+    const get = description("portfolixir.predictions.get");
+    assert.match(get, /strictly before/);
+    assert.match(get, /excess/);
+
+    const calibration = description("portfolixir.predictions.calibration");
+    for (const part of ["Brier", "standard_error", "0.25", "sharpness", "too_few", "20", "author", "model"]) {
+      assert.ok(calibration.includes(part), part);
+    }
+  });
+
   // #838 (ADR-0047 §6 as amended 2026-09-19): the description tells the
   // agent where the threshold is — `required`, on every metric, in both
   // states — so it does not have to read the basis prose to find it.
@@ -4923,7 +5090,8 @@ describe("Portfolixir MCP tools", () => {
       "time_stop",
       "changed_on",
       "maturity_date",
-      "issue_date"
+      "issue_date",
+      "resolves_on"
     ]);
     const writeTools = [
       "portfolixir.securities.create",
@@ -4932,6 +5100,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.events.create",
       "portfolixir.events.update",
       "portfolixir.notes.append",
+      "portfolixir.predictions.create",
       "portfolixir.quotes.upsert",
       "portfolixir.transactions.create",
       "portfolixir.transactions.update",
@@ -4978,6 +5147,7 @@ describe("Portfolixir MCP tools", () => {
     assert.ok(found.includes("portfolixir.snapshots.create as_of"));
     assert.ok(found.includes("portfolixir.securities.update security.maturity_date"));
     assert.ok(found.includes("portfolixir.securities.create security.issue_date"));
+    assert.ok(found.includes("portfolixir.predictions.create resolves_on"));
   });
 
   // E25 S4, G11 (#889): a target batch is bounded, and the schema says so
@@ -5060,6 +5230,9 @@ describe("Portfolixir MCP tools", () => {
       ["portfolixir.trades.list", "from"],
       ["portfolixir.sales.hindsight", "from"],
       ["portfolixir.sales.hindsight", "to"],
+      ["portfolixir.predictions.list", "due_before"],
+      ["portfolixir.predictions.calibration", "from"],
+      ["portfolixir.predictions.calibration", "to"],
       ["portfolixir.securities.metrics", "as_of"],
       ["portfolixir.policy_rules.list", "as_of"]
     ]) {
@@ -5071,7 +5244,9 @@ describe("Portfolixir MCP tools", () => {
       ["portfolixir.journal.list", "resource_type"],
       ["portfolixir.tax_profiles.list", "holder"],
       ["portfolixir.allowance_orders.list", "institution"],
-      ["portfolixir.tax_snapshots.list", "holder"]
+      ["portfolixir.tax_snapshots.list", "holder"],
+      ["portfolixir.predictions.list", "model"],
+      ["portfolixir.predictions.calibration", "model"]
     ]) {
       assert.match(property(name, key), /at most 255 characters/, `${name} ${key}`);
     }

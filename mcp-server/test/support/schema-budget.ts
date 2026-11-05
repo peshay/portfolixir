@@ -345,6 +345,32 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     book: 175_683,
     full: 210_238,
     raisedBy: { tools: ["portfolixir.sales.hindsight"], read: 2_302, book: 2_302, full: 2_302 }
+  },
+  {
+    since: "2026-11-06",
+    why:
+      "Sprint 25, F4 (ADR-0055 §5): the predictions, portfolixir.predictions.create, a write " +
+      "in the book and full profiles, and portfolixir.predictions.list, .get and .calibration, " +
+      "reads in every profile, whose own schemas the rule of Sprint 24's D-2 lets the ceilings " +
+      "grow by and no more: their tools/list entries measure 2,598 + 1,567 + 1,009 + 1,685 = " +
+      "6,859 bytes in book and full and 4,261 in read, which lists no create, so read 106,612 " +
+      "+ 4,261 = 110,873, book 175,683 + 6,859 = 182,542 and full 210,238 + 6,859 = 217,097; " +
+      "the merge preview and the delete of a security name predictions, paid for by " +
+      "tightening their own wording, and no other tool's bytes are added",
+    read: 110_873,
+    book: 182_542,
+    full: 217_097,
+    raisedBy: {
+      tools: [
+        "portfolixir.predictions.create",
+        "portfolixir.predictions.list",
+        "portfolixir.predictions.get",
+        "portfolixir.predictions.calibration"
+      ],
+      read: 4_261,
+      book: 6_859,
+      full: 6_859
+    }
   }
 ];
 
