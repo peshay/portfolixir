@@ -11,7 +11,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   ties the router's `/api/v1` inventory and the MCP companion's tool and
   prompt inventories to the union of these entries in **both directions**, so
   a route, tool or prompt added, renamed or removed without a manifest entry
-  fails the build — the surface cannot change without saying so.
+  fails the build — the surface cannot change without saying so. The MCP
+  schema budget (`mcp-server/test/support/schema-budget.ts`,
+  `contractToolDebuts`) reads each entry's `version:`, `date:`, `tools:` and
+  `removed_tools:` lines from this source, so a ceiling may grow only by a
+  tool on the date of the entry that adds it; keep those keys one per line.
 
   Not a changelog document and not a description rewrite: an entry is one
   dated statement of *which parts of the surface moved*, for a consumer that
