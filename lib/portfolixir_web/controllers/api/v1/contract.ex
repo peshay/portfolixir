@@ -87,7 +87,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "tightening their own wording. " <>
           "Sprint 25, F5 (ADR-0055 §5; idea F32): the MCP prompt position_review walks the " <>
           "agent through one position and ends by asking for predictions, or none, each " <>
-          "recorded with portfolixir.predictions.create: a recorded call, never a trade.",
+          "recorded with portfolixir.predictions.create: a recorded call, never a trade. " <>
+          "Sprint 25, N1 (idea I13; plan D-5): portfolixir.notes.append says how an outside " <>
+          "aggregator records a news item, as an evidence entry dated the day it became " <>
+          "public, a summary and the link, never the article; no parameter is added.",
       endpoints: [
         "GET /api/v1/sales/hindsight",
         "POST /api/v1/predictions",
@@ -184,7 +187,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "recorded with portfolixir.predictions.create naming its model and optionally the " <>
           "thesis's note_id; its text says a prediction is permanent and a recorded call, " <>
           "never a trade, no order and no size, and under the read profile it records " <>
-          "nothing; no tool changed (ADR-0055 §5; idea F32)"
+          "nothing; no tool changed (ADR-0055 §5; idea F32)",
+        "POST /api/v1/securities/:security_id/notes (portfolixir.notes.append), no " <>
+          "parameter added: the tool's description states how an outside aggregator records " <>
+          "a news item, kind evidence, as_of the day it became public, source_url the " <>
+          "article, source_quality as judged, a summary and the link, never the article (no " <>
+          "news archive), and a direction read from it recorded as a prediction with " <>
+          "portfolixir.predictions.create and note_id on the entry; its other wording is " <>
+          "tightened to pay for the bytes, every rule it stated kept, the closed sets in the " <>
+          "schema (idea I13; plan D-5)"
       ],
       removed_endpoints: [],
       removed_tools: [],

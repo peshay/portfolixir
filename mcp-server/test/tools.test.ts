@@ -4681,6 +4681,54 @@ describe("Portfolixir MCP tools", () => {
     ]);
   });
 
+  // User story (Sprint 25, N1; idea I13, plan D-5):
+  // As an outside aggregator that reads news on the operator's positions,
+  // I want notes.append to tell me how a news item is recorded,
+  // so that every item lands dated by when it became public, as a summary
+  // with its link and never as the article, and a direction I read from it
+  // is scored as a prediction.
+  //
+  // Acceptance criteria:
+  // - The description names kind evidence, as_of the day the item became
+  //   public, source_url the article, source_quality as judged, a summary
+  //   and never the article, and portfolixir.predictions.create with
+  //   note_id for a direction read from it.
+  // - The rules it stated before still hold, each where the agent reads the
+  //   tool: the permanence, the retraction, source quality set and not
+  //   guessed, as_of the cut-off date, the dated block, the thesis fields on
+  //   thesis entries only (their schema properties), and the credential's
+  //   author.
+  it("states how an outside aggregator records a news item on notes.append", () => {
+    const append = listTools().find((tool) => tool.name === "portfolixir.notes.append");
+    const description = append?.description ?? "";
+
+    assert.match(description, /A news item from an outside aggregator: kind evidence/);
+    assert.match(description, /as_of the day it became public/);
+    assert.match(description, /source_url the article/);
+    assert.match(description, /source_quality as judged/);
+    assert.match(description, /a summary and the link, never the article/);
+    assert.match(description, /portfolixir\.predictions\.create with note_id on this entry/);
+
+    for (const rule of [
+      /PERMANENT/,
+      /never updated or deleted, by anyone/,
+      /kind=retraction with supersedes_id/,
+      /SET, not guessed/,
+      /as_of is the statement's cut-off date/,
+      /valid_until carries a dated block/,
+      /derived from the credential/,
+      /machine_generated is reserved for a local-model path/,
+      /journaled under the API token/
+    ]) {
+      assert.match(description, rule);
+    }
+
+    const note = append?.inputSchema.properties.note.properties ?? {};
+    for (const field of ["conviction", "invalidation_condition", "time_stop"]) {
+      assert.match(note[field]?.description ?? "", /thesis entries only/i, field);
+    }
+  });
+
   it("rejects a research-log entry outside the closed sets before any API request", async () => {
     const { client, requests } = createRecordingClient({ data: {} });
 

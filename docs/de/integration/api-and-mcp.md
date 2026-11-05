@@ -925,6 +925,19 @@ Beispiel-Payload zum Anhängen:
 }
 ```
 
+**Eine Nachricht von einem externen Aggregator** (Idee I13; Sprint-25-Plan
+D-5) wird als gewöhnlicher Eintrag festgehalten, und dafür kommt kein Feld
+hinzu: `kind` `evidence`; `as_of` das Datum, an dem die Nachricht öffentlich
+wurde, also das Stichdatum der Aussage, sodass sie neben dem Schlusskurs
+dieses Tages steht; `source_url` der Artikel; `source_quality`, wie der
+Aggregator sie beurteilt hat; `body` eine Zusammenfassung und der Link, **nie der Artikel** —
+Portfolixir führt kein Nachrichtenarchiv. Eine Richtung, die der Aggregator
+aus der Nachricht liest (positiv, negativ), kommt nicht in den Eintrag: Sie
+wird als Prognose festgehalten (`POST /api/v1/predictions`,
+`portfolixir.predictions.create`) mit `note_id` auf den Eintrag, sodass die
+Einschätzung wie jede andere aufgelöst und bewertet wird. Die Aggregation
+läuft außerhalb der App; Portfolixir ruft selbst keine Nachrichten ab.
+
 Die menschliche Sicht ist der Tab **Research** im Wertpapier-Detailbereich
 auf `/securities/:id`: der Thesenstand oben, die Einträge neueste zuerst mit
 sichtbarer Art und Quellenqualität, ersetzte Einträge als ersetzt markiert,
@@ -4753,7 +4766,11 @@ lässt sich nicht lesen.
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).
 - `portfolixir.notes.append` — der einzige Schreibzugriff auf das Log; ein
-  Widerruf mit `supersedes_id` zieht einen Befund zurück.
+  Widerruf mit `supersedes_id` zieht einen Befund zurück. Seine Beschreibung
+  sagt, wie ein externer Aggregator eine Nachricht festhält: `kind`
+  `evidence`, `as_of` der Tag, an dem sie öffentlich wurde, eine
+  Zusammenfassung und der Link, nie der Artikel, und eine daraus gelesene
+  Richtung als Prognose mit `note_id` auf den Eintrag.
 - `portfolixir.notes.unreviewed` — gehaltene Positionen ohne Eintrag seit N
   Tagen.
 - `portfolixir.notes.uncorroborated` — Einträge, deren Quellenqualität nicht
