@@ -137,6 +137,68 @@ defmodule PortfolixirWeb.Api.V1.PredictionJSON do
     }
   end
 
+  @doc """
+  The calibration report (`Portfolixir.Predictions.calibration_report/2`,
+  ADR-0055 §4): `counts`, `brier`, `sharpness`, `hit_rate`, `bands` and
+  `groups`, each figure a string or null, a band's `hit_rate` the string
+  `"too_few"` below the minimum count, a standard error's reason a string,
+  and the whole `computation_basis`.
+  """
+  @spec calibration(map()) :: map()
+  def calibration(report) do
+    report
+    |> block()
+    |> Map.merge(%{
+      groups: %{
+        author: Enum.map(report.groups.author, &group(&1, :author)),
+        model: Enum.map(report.groups.model, &group(&1, :model))
+      },
+      computation_basis: basis(report.computation_basis)
+    })
+  end
+
+  defp group(group, :author), do: group |> block() |> Map.put(:author, atom(group.author))
+  defp group(group, :model), do: group |> block() |> Map.put(:model, group.model)
+
+  defp block(block) do
+    %{
+      counts: %{
+        total: block.counts.total,
+        open: block.counts.open,
+        resolved: block.counts.resolved,
+        unresolved: Map.new(block.counts.unresolved, fn {reason, n} -> {atom(reason), n} end)
+      },
+      brier: %{
+        score: JSON.decimal(block.brier.score),
+        standard_error: JSON.decimal(block.brier.standard_error),
+        standard_error_reason: atom(block.brier.standard_error_reason),
+        reference: stated(block.brier.reference)
+      },
+      sharpness: JSON.decimal(block.sharpness),
+      hit_rate: %{
+        rate: JSON.decimal(block.hit_rate.rate),
+        hits: block.hit_rate.hits,
+        mean_probability: JSON.decimal(block.hit_rate.mean_probability),
+        standard_error: JSON.decimal(block.hit_rate.standard_error),
+        standard_error_reason: atom(block.hit_rate.standard_error_reason)
+      },
+      bands: Enum.map(block.bands, &band/1)
+    }
+  end
+
+  defp band(band) do
+    %{
+      from: stated(band.from),
+      to: stated(band.to),
+      count: band.count,
+      mean_probability: JSON.decimal(band.mean_probability),
+      hit_rate: band_hit_rate(band.hit_rate)
+    }
+  end
+
+  defp band_hit_rate(:too_few), do: "too_few"
+  defp band_hit_rate(%Decimal{} = rate), do: JSON.decimal(rate)
+
   # A basis map: its text and integers as they are, a Decimal as a string.
   defp basis(map), do: Map.new(map, fn {key, value} -> {key, basis_value(value)} end)
 

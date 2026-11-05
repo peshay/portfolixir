@@ -970,6 +970,37 @@ trägt eine Order, eine Größe oder ein Limit, und nichts schlägt eines vor.
 - `GET /api/v1/predictions/:id` — eine Prognose mit ihrer `resolution`,
   einer `permanence_note` und der `computation_basis` der Auflösungsregel;
   `404` für eine unbekannte ID.
+- `GET /api/v1/predictions` — die Prognosen, neueste zuerst, jede gelesen
+  wie oben, mit `as_of`, den wiedergegebenen `filters`, `limit` (Standard
+  100, max. 500) und `truncated`, der `permanence_note` und der
+  `computation_basis`. Optionale Filter: `security_id`, `status` (`open`,
+  `resolved`, `unresolved`, beim Lesen abgeleitet; `limit` zählt dann die
+  Prognosen, die der Status behält), `author` (`operator`, `agent`), `model`
+  (genau wie genannt) und `due_before`, **die Fälligkeitsabfrage**: die
+  offenen Prognosen, deren `resolves_on` auf oder vor dem Datum liegt. Ein
+  fehlerhafter Filter liefert `422` mit seinem Namen.
+- `GET /api/v1/predictions/calibration` — der Kalibrierungsbericht über die
+  Prognosen, die die Filter nennen, jede zum heutigen Tag aufgelöst:
+  `counts` (`total`, `open`, `resolved` und `unresolved` nach Grund);
+  `brier` — der Brier-Score über alle aufgelösten Prognosen (der Mittelwert
+  von `(probability − outcome)²`, outcome 1 für einen Treffer und 0 für einen
+  Fehlschlag; niedriger ist besser), sein `standard_error` und die
+  `reference` `"0.25"`, der Score, wenn man zu allem 50 % sagt;
+  `sharpness`, der Mittelwert von `probability − 0.50`, daneben, denn wer zu
+  allem 50 % sagt, ist perfekt kalibriert und sagt nichts; `hit_rate`
+  (`rate`, `hits`, `mean_probability` und ihr `standard_error`); fünf
+  `bands` (`0.50`–`0.59` bis `0.90`–`0.99`), jedes mit `count` und
+  `mean_probability` und einer `hit_rate` erst ab 20 aufgelösten Prognosen:
+  darunter ist sie der String `"too_few"`; `groups`, derselbe Block je
+  `author` und je `model`; und die ganze `computation_basis`. Ohne
+  aufgelöste Prognose ist jede Zahl `null`, und ein Standardfehler ist
+  `null` mit `standard_error_reason` `no_resolved` oder, bei einer,
+  `one_resolved`. Offene und unaufgelöste Prognosen gehen in keinen Score
+  ein und werden gezählt. Optionale Filter: `author`, `model` sowie `from` /
+  `to`, ein Bereich über `resolves_on`, beide einschließlich; `to` vor
+  `from` liefert `422` auf `to`. **Rechnen Sie lange mit `too_few`**: Der
+  Gesamtscore mit seinem Standardfehler trägt ab den ersten Auflösungen
+  Bedeutung.
 
 Eine gelesene Prognose trägt `id`, `security_id`, `direction`,
 `probability`, `benchmark`, `resolves_on`, `made_at`, `made_on` (ihr

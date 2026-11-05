@@ -202,6 +202,8 @@ defmodule PortfolixirWeb.Router do
     # edited, withdrawn or deleted (§2). The calibration read comes before
     # the id route it would otherwise match.
     post("/predictions", PredictionController, :create)
+    get("/predictions", PredictionController, :index)
+    get("/predictions/calibration", PredictionController, :calibration)
     get("/predictions/:id", PredictionController, :show)
 
     # Security events (FR-44, ADR-0048 §5): a dated calendar fact that books

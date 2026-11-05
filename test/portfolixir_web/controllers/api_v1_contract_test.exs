@@ -102,7 +102,12 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "Sprint 25, F4 (ADR-0055 §5): "
     assert newest["summary"] =~ "Nothing edits, withdraws or deletes a prediction."
 
-    for endpoint <- ["POST /api/v1/predictions", "GET /api/v1/predictions/:id"] do
+    for endpoint <- [
+          "POST /api/v1/predictions",
+          "GET /api/v1/predictions",
+          "GET /api/v1/predictions/calibration",
+          "GET /api/v1/predictions/:id"
+        ] do
       assert endpoint in newest["endpoints"], endpoint
     end
 
@@ -121,6 +126,26 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                    no_benchmark_close no_fx_rate stands_for fx_rate eur_value excess) do
       assert read =~ part, part
     end
+
+    assert [listed] = by_decision.("(ADR-0055 §5, list)")
+    assert String.starts_with?(listed, "GET /api/v1/predictions, new: ")
+
+    for part <- ~w(security_id status author model due_before limit truncated computation_basis) do
+      assert listed =~ part, part
+    end
+
+    assert listed =~ "open predictions whose resolves_on is on or before the date"
+
+    assert [calibration] = by_decision.("(ADR-0055 §4, calibration)")
+    assert String.starts_with?(calibration, "GET /api/v1/predictions/calibration, new: ")
+
+    for part <- ~w(author model from to counts brier standard_error sharpness hit_rate bands
+                   groups too_few computation_basis no_resolved one_resolved) do
+      assert calibration =~ part, part
+    end
+
+    assert calibration =~ ~s(reference "0.25")
+    assert newest["summary"] =~ "bands shown from 20 resolved calls (too_few below)"
 
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.
