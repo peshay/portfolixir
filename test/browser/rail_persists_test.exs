@@ -55,6 +55,9 @@ defmodule PortfolixirWeb.Browser.RailPersistsTest do
   # - Expanded again, the next full load opens expanded.
   # - Turned upright (390 px), the remembered rail does not open the
   #   off-canvas sidebar.
+  # - A mounted page with the rail collapsed at 915 px or 1200 px, narrowed
+  #   to 390 px, keeps the off-canvas sidebar closed; widened again, the
+  #   rail is still collapsed, 72 px (closing act, P2).
   test "a collapsed rail stays collapsed through a live redirect and a sidebar link", %{
     base_url: base_url
   } do

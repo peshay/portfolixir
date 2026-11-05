@@ -16,6 +16,7 @@ const base = process.argv[2];
 // is the desktop one with its rail, as on the owner's phone.
 const PHONE_LANDSCAPE = { width: 915, height: 412 };
 const PHONE_PORTRAIT = { width: 390, height: 844 };
+const DESKTOP = { width: 1200, height: 800 };
 // --sidebar-rail in app.css.
 const RAIL = 72;
 
@@ -97,6 +98,29 @@ async function toggle(page, collapsed) {
   await page.tap("label.sidebar-toggle");
   await remembered;
   await expectRail(page, collapsed, collapsed ? "the toggle did not collapse the rail" : "the toggle did not expand the rail");
+}
+
+// Waits until the off-canvas sidebar is closed (its right edge at or left
+// of the viewport's) after its transition, its checkbox unchecked and the
+// remembered rail kept on <html>; polled, never slept for.
+async function expectDrawerClosed(page, message, timeout = 5000) {
+  try {
+    await page.waitForFunction(
+      () =>
+        document.getElementById("app-sidebar").getBoundingClientRect().right <= 0 &&
+        document.getElementById("app-sidebar-toggle").checked === false &&
+        document.documentElement.getAttribute("data-rail") === "collapsed",
+      null,
+      { timeout, polling: "raf" }
+    );
+  } catch (_) {
+    const state = await page.evaluate(() => ({
+      right: document.getElementById("app-sidebar").getBoundingClientRect().right,
+      checked: document.getElementById("app-sidebar-toggle").checked,
+      attr: document.documentElement.getAttribute("data-rail")
+    }));
+    throw new Error(message + ": " + JSON.stringify(state));
+  }
 }
 
 async function checked(page) {
@@ -181,6 +205,31 @@ async function rail(page) {
     check(drawer.right <= 0, "upright, the remembered rail opened the off-canvas sidebar: " + JSON.stringify(drawer));
     check(drawer.checked === false, "upright, the checkbox is checked with the sidebar closed");
     check(drawer.attr === "collapsed", "upright, the remembered rail was dropped");
+
+    // A mounted page narrowed across the breakpoint (closing act, P2): the
+    // phone turned upright, or a desktop window dragged narrow, with the
+    // rail collapsed. Below 900 px a checked box opens the off-canvas
+    // sidebar, so the drawer must stay closed; widened again, the rail is
+    // still collapsed.
+    for (const wide of [PHONE_LANDSCAPE, DESKTOP]) {
+      const at = wide.width + " px";
+      await page.setViewportSize(wide);
+      await page.goto(base + "/securities");
+      await connected(page, "/securities");
+      await expectRail(page, true, "at " + at + " the remembered rail was not collapsed");
+      check(await checked(page), "at " + at + " the collapsed rail's checkbox is not checked");
+
+      await page.setViewportSize(PHONE_PORTRAIT);
+      await expectDrawerClosed(page, "narrowed from " + at + ", the off-canvas sidebar opened");
+
+      await page.setViewportSize(wide);
+      await expectRail(page, true, "widened back to " + at + ", the rail was not collapsed");
+      check(await checked(page), "widened back to " + at + ", the checkbox is not checked");
+      check(
+        (await page.evaluate(() => document.documentElement.getAttribute("data-rail"))) === null,
+        "widened back to " + at + ", the remembered rail stayed on <html>"
+      );
+    }
 
     await context.close();
     process.stdout.write(JSON.stringify({ ok: true }) + "\n");
