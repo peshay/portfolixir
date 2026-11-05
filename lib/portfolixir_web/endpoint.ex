@@ -59,7 +59,9 @@ defmodule PortfolixirWeb.Endpoint do
     # operator holds; they are served by a route behind the UI login (#764).
     # theme-boot.js is the root layout's theme script for the pages the
     # static policy serves, the error page (the closing act, E25).
-    only: ~w(app.css favicon.ico favicon.svg images theme-boot.js)
+    # apple-touch-icon.png is the iPhone home-screen icon, which iOS fetches
+    # before any login (Sprint 25 W1).
+    only: ~w(apple-touch-icon.png app.css favicon.ico favicon.svg images theme-boot.js)
   )
 
   plug(Plug.Static,
