@@ -8639,7 +8639,11 @@ changed this week“, a poller walks forward. Built in
 2. **What it sends:** the form's one `phx-change` carries it with the kind
    and the checkbox. A typed date, on blur, patches `/journal?since=<YYYY-MM-DD>`,
    the start of that day in UTC, and the list starts again from its newest
-   page; an emptied field patches the cut away.
+   page; an emptied field patches the cut away. A value it cannot read
+   („2026-10-2“, „2026-10“) keeps the cut as it is and patches nothing
+   (closing act, J3), so a mistyped digit never widens the list to the
+   whole journal, and the field keeps the typed text with the browser's
+   `:invalid` mark from its pattern.
 3. **A cut handed over** shows as itself: a date fills the field with it.
    An instant or a cursor (`2026-10-28T09:15:02Z`,
    `…T09:15:02.250000Z~48`) fills it with its UTC date, and is kept as
