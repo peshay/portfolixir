@@ -812,20 +812,36 @@ const categoryUpdateZ = z.object({
   })
 });
 
+// Sprint 25 X1 (#894; plan D-4): the three cascading deletes take dry_run,
+// which runs the real delete and rolls it back.
+const DRY_RUN_DELETE =
+  "dry_run true deletes nothing: it answers would_remove (count and ids per kind) or the refusal.";
+
 const categoryDeleteSchema = {
   type: "object",
   additionalProperties: false,
   required: ["classification_id", "id"],
   properties: {
     classification_id: { type: "integer", minimum: 1 },
-    id: { type: "integer", minimum: 1 }
+    id: { type: "integer", minimum: 1 },
+    dry_run: { type: "boolean" }
   }
 };
 
 const categoryDeleteZ = z.object({
   classification_id: z.number().int().positive(),
-  id: z.number().int().positive()
+  id: z.number().int().positive(),
+  dry_run: z.boolean().optional()
 });
+
+const dryRunDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: { id: { type: "integer", minimum: 1 }, dry_run: { type: "boolean" } }
+};
+
+const dryRunDeleteZ = z.object({ id: z.number().int().positive(), dry_run: z.boolean().optional() });
 
 const assignBulkSchema = {
   type: "object",
@@ -3660,9 +3676,9 @@ const declaredTools: DeclaredTool[] = [
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
   tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom tree. A parent_id must name a category of the same classification, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
   tool("portfolixir.classifications.update", "Update classification", "Update a custom tree's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
-  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification (a built-in tree is refused). ONE CALL REMOVES, with it: every category of the tree, at every depth; every security's assignment in it; every target weight on its categories, category and position targets alike; and every target plan of the tree, in every portfolio and view and every version, with its cash target. The securities themselves stay. Each of those rows — the plans with their targets, the stored assignments and the categories — is journaled as its own delete before the classification's, so the journal keeps the whole tree. A tree a policy rule reads is refused with 409 naming the rules.", idSchema, idZ),
+  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification (not a built-in). ONE CALL REMOVES, with it: every category of the tree, at every depth; every security's assignment in it; every target weight on its categories; and every target plan of the tree, in every portfolio, view and version, with its cash target. Securities stay. Each row, the assignments too, is journaled as its own delete before the classification's. A tree a policy rule reads is refused with 409 naming the rules. " + DRY_RUN_DELETE, dryRunDeleteSchema, dryRunDeleteZ),
   tool("portfolixir.classifications.categories.update", "Update category", "Patch a category. A new parent_id must name a category of the same classification that is neither the category itself nor one of its descendants, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categoryUpdateSchema, categoryUpdateZ),
-  tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification. ONE CALL REMOVES, with it: its sub-categories at every depth; the securities' assignments to any of them, so those securities are unassigned in the tree; and the target weights on any of them, category and position targets alike, in every plan. Each row is journaled as its own delete, the lowest categories first and the category itself last. A category a policy rule reads, itself or below it, is refused with 409 naming the rules.", categoryDeleteSchema, categoryDeleteZ),
+  tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a custom classification's category. ONE CALL REMOVES, with it: its sub-categories at every depth; the assignments to any of them; and the target weights on any of them, category and position alike, in every plan. Each row is journaled as its own delete, the lowest categories first and itself last. A category a policy rule reads, itself or below it, is refused with 409 naming the rules. " + DRY_RUN_DELETE, categoryDeleteSchema, categoryDeleteZ),
   tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom tree.", assignSchema, assignZ),
   tool("portfolixir.classifications.assign_bulk", "Assign securities (bulk)", "Assign many securities to one category in a single call.", assignBulkSchema, assignBulkZ),
   tool("portfolixir.classifications.unassign", "Unassign security", "Remove a security's assignment from a classification.", unassignSchema, unassignZ),
@@ -3977,9 +3993,10 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.delete",
     "Delete view",
-    "Delete a view. ONE CALL REMOVES, with it: its include and exclude bucket sets; every target plan scoped to the view, in every portfolio and every version, with its targets and its cash target; and every depot snapshot taken in its scope. The buckets and the accounts stay, and a default view that named it reads as Everything afterwards. The view is journaled with its whole definition (include_all and both sets) as the before-image, and the plans scoped to it, with their targets, and its depot snapshots are journaled one delete each before the view's. A view a policy rule reads, as its context or its subject, is refused with 409 naming the rules.",
-    idSchema,
-    idZ
+    "Delete a view. ONE CALL REMOVES, with it: its include and exclude bucket sets; every target plan scoped to the view, in every portfolio and version, with its targets and cash target; and every depot snapshot taken in its scope. Buckets and accounts stay; a default view naming it reads as Everything. The view is journaled with its whole definition as the before-image; the plans, targets and snapshots are journaled one delete each before the view's. A view a policy rule reads, as context or subject, is refused with 409 naming the rules. " +
+      DRY_RUN_DELETE,
+    dryRunDeleteSchema,
+    dryRunDeleteZ
   ),
   tool(
     "portfolixir.views.set_buckets",
@@ -4717,7 +4734,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         classification: args.classification
       });
     case "portfolixir.classifications.delete":
-      return client.request("DELETE", `/api/v1/classifications/${args.id}`);
+      return client.request("DELETE", withQuery(`/api/v1/classifications/${args.id}`, args, ["dry_run"]));
     case "portfolixir.classifications.categories.update":
       return client.request(
         "PATCH",
@@ -4727,7 +4744,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.classifications.categories.delete":
       return client.request(
         "DELETE",
-        `/api/v1/classifications/${args.classification_id}/categories/${args.id}`
+        withQuery(`/api/v1/classifications/${args.classification_id}/categories/${args.id}`, args, ["dry_run"])
       );
     case "portfolixir.classifications.assign":
       return client.request(
@@ -4967,7 +4984,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.update":
       return client.request("PATCH", `/api/v1/views/${args.id}`, { view: args.view });
     case "portfolixir.views.delete":
-      return client.request("DELETE", `/api/v1/views/${args.id}`);
+      return client.request("DELETE", withQuery(`/api/v1/views/${args.id}`, args, ["dry_run"]));
     // #1007: no id reads the view-less total, GET /api/v1/valuation; #1056:
     // the performance family's view tools read their view-less routes the
     // same way.

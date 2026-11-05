@@ -3875,6 +3875,30 @@ neu zugeordnet werden.
   den dort abgelegten Zielen; jede Zeile wird als eigene Löschung
   journalisiert, die untersten Kategorien zuerst und die Kategorie selbst
   zuletzt.
+- `?dry_run=true` an den drei kaskadierenden Löschungen (den beiden
+  `DELETE`-Routen oben und `DELETE /api/v1/views/:id`) löscht nichts: Die
+  echte Löschung läuft in einer Transaktion, die immer zurückgerollt wird,
+  sodass die Antwort genau das ist, was die Löschung täte, nie eine daneben
+  berechnete Zählung (Issue #894). Sie antwortet `200` mit, je Art von
+  Zeile, die die Löschung erreicht, der Anzahl und den ids (aufsteigend),
+  die sie entfernen würde; jede Art wird genannt, `0`, wo keine ginge. Der
+  Probelauf einer Kategorie etwa:
+
+  ```json
+  {"data": {"dry_run": true, "would_remove": {"categories": {"count": 2, "ids": [12, 13]}, "assignments": {"count": 1, "ids": [40]}, "targets": {"count": 2, "ids": [21, 22]}}}}
+  ```
+
+  Eine Klassifizierung antwortet `classifications`, `categories`,
+  `assignments`, `target_plans` und `targets`; eine Kategorie `categories`
+  (sie selbst und die darunter), `assignments` und `targets`; eine View
+  `views`, `view_include_buckets`, `view_exclude_buckets`, `target_plans`,
+  `targets` und `depot_snapshots`. Eine Löschung, die der Server ablehnt,
+  lehnt ihr Probelauf mit demselben Status und Body ab: `422` für eine
+  eingebaute Klassifizierung, `409` mit den Regeln, die sie lesen, `404` für
+  eine unbekannte id. Nichts wird geschrieben, auch nicht ins Audit-Journal.
+  Fehlt der Wert, ist er leer oder `false`, ist es die Löschung selbst; jeder
+  andere Wert liefert `422` `{"errors": {"dry_run": ["is invalid"]}}` und
+  löscht nichts.
 - `PUT /api/v1/classifications/:classification_id/assignments` ordnet ein
   Wertpapier einer Kategorie zu (`security_id`, `category_id`) und ersetzt jede
   bestehende Zuordnung dieses Wertpapiers in der Klassifizierung. Die Antwort trägt
@@ -3959,7 +3983,10 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   /api/v1/views/:id/buckets"]}`).
 - `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`); die
   auf sie bezogenen Pläne samt Zielen und ihre Depot-Schnappschüsse werden je
-  als eigene Löschung journalisiert, bevor die View gelöscht wird.
+  als eigene Löschung journalisiert, bevor die View gelöscht wird. Mit
+  `?dry_run=true` löscht sie nichts und antwortet `200` mit dem, was sie
+  entfernen würde, wie bei den Löschungen der Klassifizierungen oben
+  beschrieben.
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
   View. Body: `{"include": [..], "exclude": [..], "include_all": false}` (die
   Sets optional, Standard `[]`, Listen von Bucket-ids). Optionales
@@ -4895,12 +4922,15 @@ lässt sich nicht lesen.
   jeder Kategorie, jeder Zuordnung eines Wertpapiers darin, jedem Zielgewicht
   auf seinen Kategorien und jedem Zielplan dazu; die Beschreibung nennt jedes
   davon und dass das Audit-Journal jede dieser Zeilen als eigene Löschung
-  vor der Klassifizierung festhält (E25).
+  vor der Klassifizierung festhält (E25). `dry_run: true` löscht nichts und
+  antwortet `would_remove`, je Art die Anzahl und die ids, oder die Ablehnung
+  der Löschung (Issue #894).
 - `portfolixir.classifications.categories.update`
 - `portfolixir.classifications.categories.delete` — ein Aufruf entfernt die
   Kategorie mit ihren Unterkategorien in jeder Tiefe, den Zuordnungen zu
   einer davon und den Zielgewichten auf einer davon; das Journal hält jede
-  als eigene Löschung fest, die Kategorie selbst zuletzt.
+  als eigene Löschung fest, die Kategorie selbst zuletzt. `dry_run: true`
+  antwortet, was ginge, wie bei der Löschung der Klassifizierung.
 - `portfolixir.classifications.assign`
 - `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
@@ -4966,7 +4996,8 @@ lässt sich nicht lesen.
 - `portfolixir.views.delete` — ein Aufruf entfernt die View mit ihren
   Bucket-Mengen, jedem auf sie bezogenen Zielplan und jedem in ihrem Bereich
   angelegten Depot-Snapshot; das Journal hält jede als eigene Löschung vor
-  der View fest.
+  der View fest. `dry_run: true` antwortet, was ginge, wie bei der Löschung
+  der Klassifizierung.
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`;
   ohne `id` die Summe aller Konten (#1007).

@@ -203,6 +203,29 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
       assert news =~ part, part
     end
 
+    # X1 (#894, idea F21; plan D-4): the three cascading deletes take
+    # dry_run. No route, tool or prompt; one item for the three routes.
+    assert newest["summary"] =~ "Sprint 25, X1: "
+    assert newest["summary"] =~ "(#894)"
+
+    assert [dry_run] =
+             Enum.filter(newest["parameters"], &String.contains?(&1, "(#894; plan D-4)"))
+
+    assert String.starts_with?(
+             dry_run,
+             "DELETE /api/v1/classifications/:id, " <>
+               "DELETE /api/v1/classifications/:classification_id/categories/:id and " <>
+               "DELETE /api/v1/views/:id (portfolixir.classifications.delete, " <>
+               "portfolixir.classifications.categories.delete and portfolixir.views.delete"
+           )
+
+    assert dry_run =~ "dry_run added"
+    assert dry_run =~ "always rolls back"
+    assert dry_run =~ ~s("would_remove")
+    assert dry_run =~ "the same status and body"
+    assert dry_run =~ ~s(errors.dry_run ["is invalid"])
+    assert dry_run =~ "the audit journal included"
+
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.
     newest = Enum.find(data["entries"], &(&1["version"] == 24))
