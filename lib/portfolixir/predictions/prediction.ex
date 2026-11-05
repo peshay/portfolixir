@@ -169,7 +169,7 @@ defmodule Portfolixir.Predictions.Prediction do
     prediction
     |> cast(attrs, @castable)
     |> refuse_system_keys(attrs)
-    |> put_change(:made_at, DateTime.truncate(made_at, :microsecond))
+    |> put_change(:made_at, to_usec(made_at))
     |> put_change(:author, Map.fetch!(system, :author))
     |> put_change(:actor, Map.get(system, :actor))
     |> cast_direction(attrs)
@@ -441,6 +441,12 @@ defmodule Portfolixir.Predictions.Prediction do
         changeset
     end
   end
+
+  # The column is :utc_datetime_usec, which refuses a value of lower
+  # precision rather than padding it: a clock reading on a whole second
+  # (~U[... 15:00:00Z]) is the same instant at microsecond precision.
+  defp to_usec(%DateTime{microsecond: {microsecond, _precision}} = made_at),
+    do: %{made_at | microsecond: {microsecond, 6}}
 
   defp fetch_attr(attrs, field) do
     cond do
