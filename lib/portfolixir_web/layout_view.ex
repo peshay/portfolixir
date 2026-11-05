@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.LayoutView do
         <meta name="csrf-token" content={Phoenix.Controller.get_csrf_token()} />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script id="theme-boot" nonce={@csp_nonce}>
           (function () {
             var mode = window.localStorage && window.localStorage.getItem("portfolixir-theme");
