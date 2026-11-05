@@ -101,8 +101,8 @@ Cross-cutting rule for FR-39 through FR-42, FR-47 and FR-48, from the identity g
 - FR-43: **Policy rules as first-class objects** (gate B3.6): type (cap / floor / warning band / protected / budget), scope (category, bucket, security), threshold, severity, validity period, and history so a changed rule is visible after the fact. Caps and floors live today as prose inside scheduled prompts, which is exactly where the observed drift came from. Evaluated server-side into structured findings; a violated rule is the retrievable alarm list, which is the pull half of B3.7. **Needs its own ADR** — it introduces a rules engine whose output drives warnings, and rule history is a data-retention decision.
 - FR-44: **Security events as first-class objects** (gate B3.4): security, type, date, timing qualifier, confirmed flag, source, source quality, checked-at, note. **Two boundaries are structural, not technical:** events are tracked for **every security in the catalog, not only held positions** — a purchase candidate with zero holdings is precisely the security whose upcoming dates matter most — and they are **distinct from corporate actions** (ADR-0028, shipped), which are ledger events that change a position; these are calendar facts that book nothing. Sharing a table would be a shortcut that costs later. Manual and agent entry only; *automatic* population is gate B3.3.
 - FR-45: **Thesis and conviction as first-class objects**: thesis text, status, conviction tier, invalidation condition, time stop, last reviewed and by whom, with history so a flip is visible afterwards. The free-text `note` field is a better home than a local file but cannot be queried, which is the gap. **Three queries are the acceptance criteria in disguise:** theses unreviewed for 90+ days, positions whose thesis is damaged, and time stops falling due in the next 30 days.
-- FR-46: **Predictions as first-class objects**: thesis, stated probability, check date, invalidation, action if right, action if wrong, outcome, resolved-at, resolution note, plus a query for due check dates. **Narrowed by ADR-0055 (gate B4.2, signed by the merge of the Sprint 25 planning PR):** a prediction as a permanent record of one call on one security against a benchmark, with a stated probability from 0.50, a resolution date, its author and the model an agent names, optionally linked to a research-log entry; resolved at read from stored closes in EUR; with a query for due predictions. Thesis and invalidation are reached through the link; action plans and resolution notes stay in the research log (ADR-0055 §9).
-- FR-47: **Prediction calibration report** (ladder level (c)): hit rate per stated-probability band against the stated probability. Depends on FR-46. Acceptance: available without manual work after ten resolved predictions. This is the honest failure mode the system should have more of — a number that can embarrass its author. **Narrowed by ADR-0055 §4:** a Brier score with its standard error over all resolved predictions from the first resolution on, sharpness beside it, and a hit rate per band shown only above 20 resolved predictions per band, split by author and model; per-source calibration deferred.
+- FR-46: **Predictions as first-class objects**: thesis, stated probability, check date, invalidation, action if right, action if wrong, outcome, resolved-at, resolution note, plus a query for due check dates. **Narrowed by ADR-0055 (gate B4.2, signed by the merge of the Sprint 25 planning PR):** a prediction as a permanent record of one call on one security against a benchmark, with a stated probability from 0.50, a resolution date, its author and the model an agent names, optionally linked to a research-log entry; resolved at read from stored closes in EUR; with a query for due predictions. Thesis and invalidation are reached through the link; action plans and resolution notes stay in the research log (ADR-0055 §9). **Amended by ADR-0055's amendment of 2026-11-05** (the Sprint 25 closing act): a prediction is measured from the security's last close on or before the day it is made, and a fixed-rate benchmark is a fraction up to 1 (`rate:0.02` is 2 % a year).
+- FR-47: **Prediction calibration report** (ladder level (c)): hit rate per stated-probability band against the stated probability. Depends on FR-46. Acceptance: available without manual work after ten resolved predictions. This is the honest failure mode the system should have more of — a number that can embarrass its author. **Narrowed by ADR-0055 §4:** a Brier score with its standard error over all resolved predictions from the first resolution on, sharpness beside it, and a hit rate per band shown only above 20 resolved predictions per band, split by author and model; per-source calibration deferred. **Amended by ADR-0055's amendment of 2026-11-05:** a resolved prediction is final, because it stays open until each priced side has a close dated on or after its resolution date, at most 7 days, so a late close cannot move the score.
 - FR-48: **Rule evaluation and signal quality** (ladder level (c)): whether the policy rules of FR-43 are producing findings that turn out to matter. Depends on FR-43.
 - FR-49: **The position dossier** (idea I7, the owner's answer A of 2026-11-03): one agent read per security, `GET /api/v1/securities/:id/dossier` and its MCP tool, carrying the security's record, its holdings per portfolio and in total, its derived metrics, the newest research-log entries, its upcoming and recent events, its categories and its position targets, each part built by the function its own read uses and carrying that read's computation basis. Its human view is the security page for every part but the targets, whose view is the Classifications page; no new screen. The field list is the Sprint 24 plan's D-2.
 - FR-50: **What a sale missed** (idea I18, ladder level (c)): for every sale booking, the sold security's price return in EUR over 1, 3 and 12 months after the sale and to the latest close, beside an optional comparison chosen per request (ADR-0046's fixed rate or flagged benchmark security) and the difference, a span not yet reached or without closes named, never estimated; no verdict. The shape is the Sprint 25 plan's D-3. A third comparison, the trade the sale's money went into with its booked costs, needs its own decision.
@@ -236,10 +236,10 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-43 | ADR-0049; E24 #861 (#862 rules and versions, #863 findings, #864 identity and survival, #865 the operator's view; flow rules deferred as #866) | policy rules as objects. **Gate B3.6 CLOSED 2026-09-23** by [ADR-0049](../../docs/decisions/0049-policy-rules-as-first-class-objects.md), signed by the merge of the Sprint 15 planning PR: a rule is a stored predicate (cap / floor / band, severity warn / hard) over one named measure an existing read already produces (weight, drift, HHI, portfolio volatility, max drawdown), in a context (portfolio, view) on a subject (basis, security, category, view, cash); versioned and effective-dated so the standard in force on a date is a read, a version in force immutable, versions never overlapping; evaluated at read into findings with three states where `undetermined` never passes; findings carry a computation basis and no action (key-set meta-test). The bucket scope is answered through the `view` subject. **Deferred with reasons (ADR-0043):** `protected` and `budget` (predicates over flows, filed as #866), rules over events, rules over `risk_adjusted_return` / correlations / per-security metrics, historical findings (FR-48's input), the lens defaulting its caps from rules. B3.5, B3.7 and level (d) stay shut. Scheduled as Sprint 15 Lane A. **Shipped 2026-09-24 (Sprint 15, PR #867, rebase-merged, `main` at `096b80e5`) — E24 DONE; FR-43 is discharged in both directions for caps, floors and bands.** #862: `PolicyRule` and `PolicyRuleVersion`, journaled, a version in force immutable and versions never overlapping (a context guard plus a DB trigger and an exclusion constraint), six `/api/v1` routes and six `portfolixir.policy_rules.*` tools. #863: the findings read (`GET /portfolios/:portfolio_id/policy_findings`, `portfolixir.portfolios.policy_findings`), `undetermined` never a pass and always with its reason (`unvalued` added by the closing act for a subject held but not valued), a drift finding's `drift_basis` in its computation basis, and the key-set meta-test for no action. #864: a delete of anything a rule reads answers 409 by name, and rules survive a Portfolio Performance re-import. #865: the operator's view on Wealth → **Risk** (pick F1-A) — findings, scheduled rules, retired rules, one dialog for create and edit. Contract version 7. The mutation passes found M4 and M6 unpinned at first and both are now pinned; M7 is layered behind the DB constraint by design. Tracker #861 closed by hand; the flow rules stay #866 |
 | FR-44 | ADR-0048; #822 (tracker), #826, #827, #828, #829 | security events as objects. **Gate B3.4 CLOSED 2026-09-19** by [ADR-0048](../../docs/decisions/0048-security-events-as-first-class-objects.md), signed by the merge of the Sprint 13 planning PR, on the 2026-09-19 agent round's P0-4 — the agent's calendar is built out of the holdings, so a security not yet owned has nowhere to keep a date, and a purchase candidate's reporting date came close to being missed. The decision: a dated calendar fact in its own table that books nothing (never a ledger effect, distinct from ADR-0028), keyed on `security_id` alone so the **catalog is the default scope and `held_only` is the opt-in**, a four-value timing qualifier so a guess is never stored as a filing, **mutable and journaled rather than append-only** (a fact's history is an audit trail, and ADR-0017 is the audit trail — the argued difference from ADR-0044), `source_quality` reusing ADR-0044's vocabulary, four reads as the acceptance criteria, and the re-import guarantee extended in the same batch. **Automatic population stays at B3.3**, alerting and push at B3.7, rules over events at B3.6 — §8 names each. Scheduled as Sprint 13 Lane E; **the issues were filed at branch opening**: #826 (the journaled table, its enum boundary and its timing qualifier), #827 (the four reads plus the three writes on API and MCP), #828 (the "Termine" tab — design pick D2-B — and the "Fällig" Overview card — D3-A) and #829 (the re-import preservation guarantee). Both human surfaces landed **in the same batch**, so the Consequences' deferred-view clause did not have to fire. **Shipped whole 2026-09-19 (Sprint 13, PR #832, `main` at `6e7de6ef`)** — #826, #827, #828 and #829 closed: the journaled table with its closed sets cast by hand so an unknown value is `"is invalid"` and never a new atom, the four reads and three writes on API and MCP with the catalog as the default scope, the Dates tab and the Fällig card. The closing act's confirmed findings on this family were fixed before the merge: deleting a security that carries an event answers **409** rather than raising (the new `:restrict` FK had no `foreign_key_constraint`), `held_only` counts every kind the canonical projection moves quantity with rather than buys and sells alone — which is §2's own failure one layer down, a delivered depot reported as unheld — `days=` is capped at ten years and echoed capped, an over-long `source_url` is a 422, and a write to a vanished row is a 404. **FR-44 is discharged in both directions; E22 and E23 are the batch, and only E22 stays open** |
 | FR-45, FR-46 | **#747** (E20 tracker; #748–#752), gate **ADR-0044** Accepted | thesis/conviction (**B4.1**) and prediction (**B4.2**) objects. Decided in principle by the identity gate. **FR-45's gate is signed**: ADR-0044 (2026-08-27, owner sign-off 2026-09-03) decides the thesis state and the append-only research log behind it as one object family — the log is the truth, the state is its projection, a retraction is an entry rather than a deletion. **Shipped 2026-09-03 (Sprint 9, PR #754, E20 done)**: #748 the `security_notes` table and context, journal-armed at creation; #749 the thesis state as a projection in the security read; #750 API and MCP append plus the four reads; #751 the research timeline on the security detail pane (the signed same-batch clause); #752 the contract-version read. FR-46 stays at B4.2, adjacent and deliberately separate |
-| FR-46, FR-47 | ADR-0055 (gate B4.2) | **Gate B4.2 CLOSED 2026-11-05** by [ADR-0055](../../docs/decisions/0055-predictions-scored-for-calibration.md), signed by the merge of the Sprint 25 planning PR, after the owner's yes to "measure the agent" (2026-11-05): permanent predictions resolved at read against stored closes in EUR, a Brier score with its standard error, sharpness, bands above 20, split by author and model. **Scheduled as Sprint 25 Lane F** (API, MCP and the `position_review` prompt); the human view is Sprint 26's (plan D-7). Per-source calibration deferred (§9) |
+| FR-46, FR-47 | ADR-0055 (gate B4.2) | **Gate B4.2 CLOSED 2026-11-05** by [ADR-0055](../../docs/decisions/0055-predictions-scored-for-calibration.md), signed by the merge of the Sprint 25 planning PR, after the owner's yes to "measure the agent" (2026-11-05): permanent predictions resolved at read against stored closes in EUR, a Brier score with its standard error, sharpness, bands above 20, split by author and model. **Shipped by Sprint 25, agent first** (2026-11-05 close-out; the sprint PR #1398, F1 to F5, closes **#1395** by keyword, under #419): the `predictions` table, append-only by a statement trigger (UPDATE, DELETE and TRUNCATE refused, pinned) and journal-armed, its security and benchmark locked against merge and delete; resolution at read through Lane S's one window-return function; the calibration report with its `computation_basis`; `POST`/`GET /api/v1/predictions`, `/:id` and `/calibration`, four MCP tools and the `position_review` prompt. **Amended by the closing act** ([ADR-0055, amendment of 2026-11-05](../../docs/decisions/0055-predictions-scored-for-calibration.md#amendment-of-2026-11-05-the-sprint-25-closing-act)): the start close on or before the day made, a resolution that waits for its end close, the rate a fraction up to 1. Per-source calibration deferred (§9) as **#1396**. Two-way coverage: agent-only with the reason stated; the human view (a security's predictions, the calibration block) is due by the end of Sprint 26 (plan D-7) |
 | FR-48 | — | rule evaluation (needs FR-43; FR-47 moved to the FR-46, FR-47 row above). Ladder (c) — scores what was recorded before the outcome was known, never a replayed counterfactual, which is level (d) |
 | FR-49 | #1386 (under #419) | **Shipped by Sprint 24** (2026-11-05 close-out; the sprint PR #1388, D1, closes #1386 by keyword): `GET /api/v1/securities/:id/dossier` and `portfolixir.securities.dossier`, read-only in every profile, the field list of `sprint-plan-2026-11-04-sprint24.md` D-2, each part built by the function its own read uses and equal to that read on the seed (a test per part); the targets part reads each portfolio's active plan of the unscoped view and names the read for a view's plan and for the drift; the schema ceilings grew by the tool's own 1,423 bytes per profile, a rule `schema-budget.ts` now enforces for every raise. Moved from the idea list (I7). Two-way coverage: the security page and the Classifications page are its human view |
-| FR-50 | — (issue filed after the Sprint 25 planning merge, under #418) | what a sale missed (idea I18), modes 1 and 2. **Scheduled as Sprint 25 Lane S** (`GET /api/v1/sales/hindsight`, `portfolixir.sales.hindsight`; plan D-3); the human view and mode 3's ADR are Sprint 26's (plan D-7) |
+| FR-50 | **#1397** (under #418) | what a sale missed (idea I18), modes 1 and 2. **Shipped by Sprint 25, agent first** (2026-11-05 close-out; the sprint PR #1398, S1 and S2, closes #1397 by keyword): `GET /api/v1/sales/hindsight` and `portfolixir.sales.hindsight`, read-only in every profile, one row per sale booking (`sale_id`; orphan sells included, outbound deliveries not), the spans 1m, 3m, 12m and latest, each with the security's return in EUR, the optional benchmark's and the difference, or `pending` / `incomplete` with its reason, and its `computation_basis`; each span's figures equal a hand computation in the test for no benchmark, a rate and a security. The window return is one function shared with FR-46's resolution (S1). Two-way coverage: agent-only with the reason stated; the human view (the sale rows with their spans) and mode 3's ADR are due with Sprint 26 (plan D-7) |
 | NFR-9 | #885 | mechanical scope backstop — guarded set revised 2026-08-12. **Unbuilt requirement, not inventory:** only `mcp_dependency_allowlist_test` exists of the three named backstops. **Scheduled: Sprint 16 Lane N** (seven invariant files B1–B7, tests only), filed at branch opening (2026-09-24) as **#885** under #420. **Built 2026-09-29 (Sprint 16, PR #914, `main` at `daeab17`)**: `scope_b1`…`scope_b7` under `test/invariants/` (stored credentials, the outbound chokepoint, dependency classes, non-goal names, system writers and schedulers, intake formats, and the gate registry tying every hard-gate sentence in AGENTS.md to its backstops in both directions), each with a matcher self-test; the review round closed vacuity gaps in the tokenizer and in B1 and B3–B7 before the merge. The PRD's NFR-9 records it as built. #885 closed by keyword |
 | NFR-10 | — | machine-extracted data is a proposal until confirmed; first binding use is ADR-0021 PDF intake |
 
@@ -659,6 +659,74 @@ and the design-engagement issues #717–#721/#723 attach to #356.
 Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
+
+## Implementation Status — reconciled with code (2026-11-05, Sprint 25 close-out)
+
+Verification basis: the plan `sprint-plan-2026-11-05-sprint25.md`, adopted
+by the merge of its planning PR #1394, which signed
+[ADR-0055](../../docs/decisions/0055-predictions-scored-for-calibration.md)
+(gate B4.2, idea F1); `main` at `79d37c4` when the branch was cut (it has
+since moved by the docs-only `f36f29f`, ADR-0056 proposed); and the sprint
+PR #1398 (`agent/claude/sprint-25`), one PR under the plan's D-9, not
+merged at this record. The next planning PR records its merge, its CI run
+and its calendar release.
+
+**Shipped by Sprint 25.**
+
+- **Maintenance** (Lane M): Elixir 1.18.6 → 1.19.7 on OTP 27.3.4.19 (M1,
+  #1390, which the planning PR's keyword had already closed); the sync
+  re-arm flake's cause named, the test's own race, fixed in the test (M2,
+  #1365's line); `version-report-2026-11-05-sprint25.md` and Debian
+  bookworm 20261104 in both images (M3).
+- **The home-screen icon** (Lane W): an opaque 180 × 180
+  `apple-touch-icon.png` from the shipped icon in the light palette
+  (board 01, A), linked in the root layout and served without a session
+  (W1, the owner's report of 2026-11-05; #1357's comment line).
+- **What a sale missed** (Lane S): one window-return function in EUR (S1)
+  and FR-50 over API and MCP (S2, #1397).
+- **Predictions and calibration** (Lane F): FR-46 and FR-47 as ADR-0055
+  narrows them, over API and MCP, with the `position_review` prompt (F1 to
+  F5, #1395).
+- **The news convention** (Lane N): idea I13's date is a note's `as_of`,
+  written into `notes.append` and `docs/integration` (N1; no field).
+- **Dry-run deletes** (Lane X): `dry_run` on the three cascading deletes,
+  the real delete rolled back (X1, #894, idea F21).
+
+**ADR-0055 was amended on 2026-11-05 by the closing act**, adopted by the
+sprint PR's merge: the start close is the last close on or before the day
+made, a resolution waits for its end close, and a prediction's fixed rate
+is a fraction up to 1. FR-46 and FR-47 above each carry one clause
+pointing at it. Nothing is stored, so every prediction re-resolves under
+the amended rules at its next read.
+
+**The exit criteria (plan D-1)** are recorded with their evidence in
+`sprint-status.yaml`'s Sprint 25 entry and in
+`sprint-25-retro-2026-11-05.md`. No criterion counts open issues.
+
+**Registry rows this batch moves:**
+
+- **FR-46, FR-47:** shipped agent first (#1395), their row above; gate
+  B4.2's only follow-ups are per-source calibration (#1396) and the human
+  view (Sprint 26).
+- **FR-50:** shipped agent first (#1397), its row above; mode 3 needs its
+  own decision.
+- **The Tracker Index:** E20's line records that FR-46 left gate B4.2,
+  and E25's that #894, one of its triage's follow-ups, closes. No epic's
+  scope moved.
+
+No other row's issue column names an issue this sprint closed, and no
+other row's status moved.
+
+**Two-way coverage.** Agent-only by the plan's D-7, with its reason (data
+that accumulates comes first, screens second), and due by the end of
+Sprint 26: FR-46 and FR-47 (a security's predictions on its page; the
+calibration block), FR-50 (the sale rows with their spans) and F21 (delete
+confirmations that name what a delete removes). Nothing from an earlier
+sprint is overdue.
+
+**The idea list:** F1, F21, I18's modes 1 and 2 and I13's convention are
+built; I18's mode 3 stays `worked-out`, its ADR owed by Sprint 26's
+planning PR; F32's first prompt, `position_review`, is built.
 
 ## Implementation Status — reconciled with code (2026-11-05, Sprint 24 close-out)
 
@@ -2149,6 +2217,10 @@ issue state and the merge commits on `main`.
   days), the human timeline lands in the same batch, the table is journaled
   from its first migration, and the surface gains a contract-version read so
   an agent can notice the contract changed. FR-45 (FR-46 stays at B4.2).
+  **Sprint 25:** gate B4.2 closed by ADR-0055, and FR-46 and FR-47 shipped
+  agent first as their own table beside the log (#1395, under #419): a
+  prediction links to its thesis entry by `note_id`, and neither the log
+  nor its projection changed.
 - **E23 — Security events** — *phase 3 (agent-first), now.* Tracker **#822**,
   filed at branch opening (Sprint 13 Lane Z), with stories #826 (the journaled
   table), #827 (the four reads on API and MCP), #828 (the "Termine" tab and the
@@ -2249,6 +2321,8 @@ issue state and the merge commits on `main`.
   half filed as #950), none deferred; the per-item record is the triage's
   Part 7. The eight group issues closed by keyword, the tracker #883 by hand.
   The triage's follow-ups #894–#899 stay open under their own reasons.
+  **Sprint 25:** #894 (dry-run deletes, G28) is built by the sprint PR
+  #1398 (X1, idea F21) and closes by its keyword.
 
 - **E26 — Launch readiness: the agent's first contact and the operator's
   first look** — *cross-cutting, now.* Opened by the owner's launch path of
