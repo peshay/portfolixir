@@ -4163,7 +4163,7 @@ portfolios never add up. Wealth computes its Everything figures in the first
 portfolio's base currency, so they differ from these when that is not EUR, as
 each payload's `computation_basis` says.
 
-**Prompts.** The companion offers two MCP prompts (`prompts/list`,
+**Prompts.** The companion offers three MCP prompts (`prompts/list`,
 `prompts/get`), the same under every profile, each carrying the no-advice
 framing in its own text: the system prepares decisions and the operator
 executes them, and nothing places, proposes or sizes a trade.
@@ -4189,6 +4189,17 @@ executes them, and nothing places, proposes or sizes a trade.
   only, and booking the converted rows one by one through
   `portfolixir.transactions.create` is not a substitute, because it skips the
   preview and the content-hash idempotency.
+- `position_review` (optional argument `security_id`; ADR-0055 §5) walks the
+  agent through one position: the dossier (`portfolixir.securities.dossier`),
+  the open theses and their invalidation conditions (`portfolixir.notes.list`),
+  the upcoming events (`portfolixir.events.list`) and the calls already
+  recorded (`portfolixir.predictions.list`); then it asks for predictions
+  (direction, a probability from `"0.50"` to `"0.99"`, `resolves_on` and a
+  benchmark), or none where the agent has no view, each recorded with
+  `portfolixir.predictions.create` naming the agent's model and, where one
+  exists, the thesis's `note_id`. Its text says a prediction is permanent and
+  is a recorded call, never a trade: no order and no size. Under the `read`
+  profile it records nothing and hands the operator the list.
 
 The prompts exist over MCP only: a prompt is an instruction to the user's
 agent, and the API has nothing to serve it to.

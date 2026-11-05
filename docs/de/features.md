@@ -80,7 +80,7 @@ und die Entscheidung in
 
 ## Prompts, die die Haltung ohne Beratung mittragen
 
-Der MCP-Begleitdienst bietet zwei Prompts, fertige Anweisungen, die Sie Ihrem
+Der MCP-Begleitdienst bietet drei Prompts, fertige Anweisungen, die Sie Ihrem
 Agenten für Ihre eigene Instanz mitgeben:
 
 - `first_setup` prüft die Instanz und das aktive Profil, liest, was vorhanden
@@ -90,8 +90,13 @@ Agenten für Ihre eigene Instanz mitgeben:
   Ihrem Rechner läuft und einen Bank- oder Broker-Export in eine Datei
   umwandelt, die die Seite Importe in der Vorschau zeigt, bevor etwas gebucht
   wird.
+- `position_review` führt Ihren Agenten durch eine Position, ihr Dossier,
+  offene Thesen, Invalidierungsbedingungen und anstehende Termine, und fragt
+  am Ende nach Prognosen oder nach keiner, wo er keine Sicht hat: dauerhafte
+  Einschätzungen, die Portfolixir gegen gespeicherte Schlusskurse auflöst und
+  auf Kalibrierung bewertet, nie Trades.
 
-Beide tragen dieselbe Haltung in ihrem eigenen Text, im englischen Original:
+Alle drei tragen dieselbe Haltung in ihrem eigenen Text, im englischen Original:
 
 > The system prepares decisions and the operator executes them: nothing here places, proposes or sizes a trade, and neither do you.
 > Do not recommend buying, selling or weighting anything; describe what is recorded.

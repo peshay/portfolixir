@@ -147,7 +147,7 @@ The Connect an agent page has the client configurations to copy.
 
 ## Prompts
 
-The companion offers two MCP prompts:
+The companion offers three MCP prompts:
 
 - `first_setup`: checks the instance and the profile, reads what exists,
   proposes cash accounts, depots, buckets and views, explains how data gets in,
@@ -160,6 +160,12 @@ The companion offers two MCP prompts:
   another currency is not converted by hand: the prompt has you write the JSON
   v1 variant. It states both formats exactly. There is no import tool, on
   purpose: the preview is the operator's step.
+- `position_review`: walks you through one position (its dossier, its open
+  theses and their invalidation conditions, its upcoming events and the calls
+  already recorded), then asks for predictions (direction, probability,
+  resolves_on and benchmark), or none where you have no view, each recorded
+  with `portfolixir.predictions.create` naming your model. A prediction is
+  permanent and scored for calibration; it is a recorded call, never a trade.
 
 ## What connecting costs
 

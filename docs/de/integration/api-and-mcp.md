@@ -4538,7 +4538,7 @@ Vermögensseite rechnet ihre Alles-Zahlen in der Basiswährung des ersten
 Portfolios, sodass sie von diesen abweichen, wenn diese nicht EUR ist, wie
 die `computation_basis` jeder Antwort sagt.
 
-**Prompts.** Der Begleitdienst bietet zwei MCP-Prompts (`prompts/list`,
+**Prompts.** Der Begleitdienst bietet drei MCP-Prompts (`prompts/list`,
 `prompts/get`), unter jedem Profil dieselben, und jeder trägt den Rahmen ohne
 Beratung in seinem eigenen Text: Das System bereitet Entscheidungen vor, der
 Betreiber führt sie aus, und nichts platziert, schlägt vor oder bemisst einen
@@ -4567,6 +4567,19 @@ Trade.
   synthetische Beispiele, und die umgewandelten Zeilen einzeln über
   `portfolixir.transactions.create` zu buchen, ist kein Ersatz, weil das die
   Vorschau und die Idempotenz über den Inhalts-Hash übergeht.
+- `position_review` (optionales Argument `security_id`; ADR-0055 §5) führt
+  den Agenten durch eine Position: das Dossier
+  (`portfolixir.securities.dossier`), die offenen Thesen und ihre
+  Invalidierungsbedingungen (`portfolixir.notes.list`), die anstehenden
+  Termine (`portfolixir.events.list`) und die bereits festgehaltenen
+  Prognosen (`portfolixir.predictions.list`); dann fragt er nach Prognosen
+  (Richtung, eine Wahrscheinlichkeit von `"0.50"` bis `"0.99"`,
+  `resolves_on` und eine Benchmark) oder nach keiner, wo der Agent keine
+  Sicht hat, jede festgehalten mit `portfolixir.predictions.create` unter dem
+  Modell des Agenten und, wo es einen gibt, der `note_id` der These. Sein Text
+  sagt, dass eine Prognose dauerhaft ist und eine festgehaltene Einschätzung,
+  nie ein Trade: keine Order und keine Größe. Unter dem Profil `read` hält er
+  nichts fest und gibt dem Betreiber die Liste.
 
 Die Prompts gibt es nur über MCP: Ein Prompt ist eine Anweisung an den
 Agenten des Nutzers, und die API hat nichts, dem sie ihn liefern könnte.

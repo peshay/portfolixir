@@ -147,8 +147,8 @@ for what that means in practice.
   contract-version read that says what the surface offers and when it last
   changed.
 - Connect an MCP agent under a tool profile (`read`, `book` or `full`, so an
-  agent can book without being able to delete or merge), with two prompts:
-  `first_setup` and `import_converter`.
+  agent can book without being able to delete or merge), with three prompts:
+  `first_setup`, `import_converter` and `position_review`.
 
 ## See it in action
 

@@ -10,7 +10,7 @@ lang_de: /de/integration/connect-an-agent.html
 # Einen Agenten verbinden
 
 Der MCP-Begleitdienst in `mcp-server/` gibt einem Agenten die Tools von
-Portfolixir und zwei Prompts. Er ruft die JSON-API der Instanz mit
+Portfolixir und drei Prompts. Er ruft die JSON-API der Instanz mit
 `PORTFOLIXIR_API_TOKEN` auf und sonst nichts. Verbinden Sie ihn auf einem von
 zwei Wegen: Der Client des Agenten startet ihn als lokalen Prozess (stdio),
 oder der Client erreicht den Begleitdienst, den der Compose-Stack ohnehin
@@ -166,4 +166,8 @@ Sobald der Bestand Daten enthält, fragen Sie den Agenten nach einer Position:
 Das Werkzeug `portfolixir.securities.dossier` gibt ihm Datensatz, Bestände,
 Kennzahlen, neueste Research-Log-Einträge, Termine, Kategorien und
 Positionsziele des Wertpapiers in einem Lesezugriff, jeder Teil gleich dem,
-was sein eigener Lesezugriff antwortet.
+was sein eigener Lesezugriff antwortet. Der Prompt `position_review` führt ihn
+durch diesen Lesezugriff, die offenen Thesen und die anstehenden Termine und
+fragt ihn am Ende nach Prognosen oder nach keiner, wo er keine Sicht hat; sie
+werden dauerhaft festgehalten und auf Kalibrierung bewertet, als festgehaltene
+Einschätzung, nie als Trade.
