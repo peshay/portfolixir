@@ -102,8 +102,15 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
           Repo.query!("DELETE FROM security_notes WHERE id = $1", [note.id])
         end
 
-        assert_raise Postgrex.Error, ~r/security_notes is append-only/, fn ->
+        # A plain TRUNCATE is refused before any trigger since predictions
+        # reference the log (ADR-0055 §1); CASCADE reaches the log's own
+        # trigger, which PostgreSQL fires for the named table first.
+        assert_raise Postgrex.Error, ~r/cannot truncate a table referenced/, fn ->
           Repo.query!("TRUNCATE security_notes")
+        end
+
+        assert_raise Postgrex.Error, ~r/security_notes is append-only/, fn ->
+          Repo.query!("TRUNCATE security_notes CASCADE")
         end
 
         # The row is still there, byte for byte.
@@ -132,6 +139,89 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
           Repo.query!(
             "INSERT INTO security_notes (security_id, author, kind, body, source_quality, as_of, inserted_at) " <>
               "VALUES (1, 'agent', 'evidence', 'probe', 'primary', '2026-08-01', now())"
+          )
+        end
+      end)
+    end
+  end
+
+  # User story (ADR-0055 §2; Sprint 25 plan, F1 and D-8.1):
+  # As the operator measuring how much weight the agent's calls deserve,
+  # I want a recorded prediction to be impossible to change or remove, even
+  # with raw SQL,
+  # so that the calibration report scores every call that was made, not only
+  # the ones its author chose to keep.
+  #
+  # Acceptance criteria:
+  # - A raw UPDATE, DELETE and TRUNCATE of a prediction raise, and the row
+  #   stays as written.
+  # - A raw insert without a journal actor is refused (armed at creation).
+  # - A security a prediction names, as its security or as its benchmark,
+  #   cannot be deleted: the database restricts it.
+  describe "predictions append-only enforcement (ADR-0055)" do
+    test "UPDATE, DELETE and TRUNCATE of a prediction raise" do
+      Sandbox.unboxed_run(Repo, fn ->
+        marker = "predictions_append_only_#{System.unique_integer([:positive])}"
+        actor = Actor.system_job(marker)
+
+        {:ok, security} = Catalog.create_security(actor, %{name: marker, currency_code: "EUR"})
+
+        {:ok, benchmark} =
+          Catalog.create_security(actor, %{
+            name: marker <> " index",
+            currency_code: "EUR",
+            is_benchmark: true
+          })
+
+        id = insert_prediction!(marker, security.id, benchmark.id)
+
+        assert_raise Postgrex.Error, ~r/predictions is append-only: UPDATE/, fn ->
+          Repo.query!("UPDATE predictions SET probability = 0.99 WHERE id = $1", [id])
+        end
+
+        assert_raise Postgrex.Error, ~r/predictions is append-only: DELETE/, fn ->
+          Repo.query!("DELETE FROM predictions WHERE id = $1", [id])
+        end
+
+        assert_raise Postgrex.Error, ~r/predictions is append-only: TRUNCATE/, fn ->
+          Repo.query!("TRUNCATE predictions")
+        end
+
+        # The row is still there, as written.
+        %{rows: [[probability, direction]]} =
+          Repo.query!("SELECT probability, direction FROM predictions WHERE id = $1", [id])
+
+        assert Decimal.equal?(probability, Decimal.new("0.70"))
+        assert direction == "outperform"
+
+        # Neither the security nor its benchmark can be deleted beneath it.
+        for referenced <- [security.id, benchmark.id] do
+          assert_raise Postgrex.Error, ~r/predictions_(benchmark_)?security_id_fkey/, fn ->
+            Repo.transaction(fn ->
+              Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [
+                "system_job:" <> marker
+              ])
+
+              Repo.query!("DELETE FROM securities WHERE id = $1", [referenced])
+            end)
+          end
+        end
+
+        # Test hygiene only: the append-only triggers are disabled for THIS
+        # cleanup and enabled again — production never does this.
+        cleanup_predictions_and_securities(id, [security.id, benchmark.id])
+        cleanup_journal_for_resource(to_string(security.id))
+        cleanup_journal_for_resource(to_string(benchmark.id))
+      end)
+    end
+
+    test "a raw insert without a journal actor is rejected (armed at creation)" do
+      Sandbox.unboxed_run(Repo, fn ->
+        assert_raise Postgrex.Error, ~r/requires a journal actor/, fn ->
+          Repo.query!(
+            "INSERT INTO predictions (security_id, direction, probability, benchmark_kind, " <>
+              "benchmark_rate, resolves_on, made_at, author) " <>
+              "VALUES (1, 'outperform', 0.70, 'rate', 0, current_date + 30, now(), 'operator')"
           )
         end
       end)
@@ -185,6 +275,43 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
     end)
 
     cleanup_security(security_id)
+  end
+
+  # A raw insert under a journal actor, set the way Journal.record/3 sets it:
+  # the permanence is the database's, so this test does not need the context.
+  defp insert_prediction!(marker, security_id, benchmark_id) do
+    {:ok, id} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [
+          "system_job:" <> marker
+        ])
+
+        %{rows: [[id]]} =
+          Repo.query!(
+            "INSERT INTO predictions (security_id, direction, probability, benchmark_kind, " <>
+              "benchmark_security_id, resolves_on, made_at, author) " <>
+              "VALUES ($1, 'outperform', 0.70, 'security', $2, " <>
+              "(now() AT TIME ZONE 'UTC')::date + 30, now() AT TIME ZONE 'UTC', 'operator') " <>
+              "RETURNING id",
+            [security_id, benchmark_id]
+          )
+
+        id
+      end)
+
+    id
+  end
+
+  defp cleanup_predictions_and_securities(id, security_ids) do
+    Repo.transaction(fn ->
+      Repo.query!("ALTER TABLE predictions DISABLE TRIGGER predictions_no_delete")
+      Repo.query!("ALTER TABLE predictions DISABLE TRIGGER predictions_require_journal_actor")
+      Repo.query!("DELETE FROM predictions WHERE id = $1", [id])
+      Repo.query!("ALTER TABLE predictions ENABLE TRIGGER predictions_require_journal_actor")
+      Repo.query!("ALTER TABLE predictions ENABLE TRIGGER predictions_no_delete")
+    end)
+
+    Enum.each(security_ids, &cleanup_security/1)
   end
 
   # audit_journal is not itself guard-armed (only business tables are), so a raw
