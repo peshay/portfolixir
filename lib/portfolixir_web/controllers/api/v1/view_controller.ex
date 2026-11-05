@@ -99,8 +99,8 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
 
   # dry_run=true (Sprint 25 X1, #894): the same delete, rolled back, answers
   # 200 with what it would remove, or the refusal the delete answers.
-  def delete(conn, %{"id" => id} = params) do
-    with {:ok, dry_run} <- DryRunParam.parse(params),
+  def delete(conn, %{"id" => id}) do
+    with {:ok, dry_run} <- DryRunParam.parse(conn),
          {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, removed} <- delete_view(conn.assigns.actor, view, dry_run) do
@@ -108,7 +108,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
         do: DryRunParam.answer(conn, removed),
         else: send_resp(conn, :no_content, "")
     else
-      {:error, :dry_run} -> DryRunParam.invalid(conn)
+      {:error, {:dry_run_param, errors}} -> DryRunParam.invalid(conn, errors)
       {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "view")
       nil -> not_found(conn)
       :error -> not_found(conn)

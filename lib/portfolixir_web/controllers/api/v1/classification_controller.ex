@@ -53,8 +53,8 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
 
   # dry_run=true (Sprint 25 X1, #894): the same delete, rolled back, answers
   # what it would remove, or the refusal the delete answers.
-  def delete(conn, %{"id" => id} = params) do
-    with {:ok, dry_run} <- DryRunParam.parse(params),
+  def delete(conn, %{"id" => id}) do
+    with {:ok, dry_run} <- DryRunParam.parse(conn),
          {:ok, cid} <- IdParam.parse(id),
          %Classification{} = classification <- Classifications.get_classification(cid) do
       actor = conn.assigns.actor
@@ -69,7 +69,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
         |> render_delete(conn, "classification")
       end
     else
-      {:error, :dry_run} -> DryRunParam.invalid(conn)
+      {:error, {:dry_run_param, errors}} -> DryRunParam.invalid(conn, errors)
       nil -> not_found(conn)
       :error -> not_found(conn)
     end
@@ -124,8 +124,8 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     end
   end
 
-  def delete_category(conn, %{"classification_id" => classification_id, "id" => id} = params) do
-    with {:ok, dry_run} <- DryRunParam.parse(params),
+  def delete_category(conn, %{"classification_id" => classification_id, "id" => id}) do
+    with {:ok, dry_run} <- DryRunParam.parse(conn),
          {:ok, cid} <- IdParam.parse(classification_id),
          {:ok, category_id} <- IdParam.parse(id),
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
@@ -141,7 +141,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
         |> render_delete(conn, "category")
       end
     else
-      {:error, :dry_run} -> DryRunParam.invalid(conn)
+      {:error, {:dry_run_param, errors}} -> DryRunParam.invalid(conn, errors)
       :error -> not_found(conn)
       nil -> not_found(conn)
       %{} -> not_found(conn)

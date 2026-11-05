@@ -291,4 +291,46 @@ defmodule PortfolixirWeb.ApiV1DryRunDeleteTest do
     assert conn |> delete("/api/v1/views/#{t.view.id}?dry_run=false") |> response(204)
     refute Buckets.get_view(t.view.id)
   end
+
+  # User story (Sprint 25 closing act, X1, #894):
+  # As the operator's agent asking a cascading delete what it would remove,
+  # I want a misspelled or empty dry_run refused,
+  # so that a typo in the question never runs the real delete.
+  #
+  # Acceptance criteria:
+  # - Any query parameter other than dry_run (dryRun, dry-run, dryrun, or
+  #   one unrelated) answers 422 naming it, on each of the three routes.
+  # - An empty dry_run= answers 422 errors.dry_run ["is invalid"]: only an
+  #   absent dry_run, false or true is accepted.
+  # - Nothing is deleted by any of them, every table counted before and
+  #   after.
+  test "a misspelled or empty dry_run answers 422 and deletes nothing", %{conn: conn, t: t} do
+    paths = [
+      "/api/v1/classifications/#{t.classification.id}/categories/#{t.root.id}",
+      "/api/v1/classifications/#{t.classification.id}",
+      "/api/v1/views/#{t.view.id}"
+    ]
+
+    counts = table_counts()
+
+    for path <- paths, key <- ["dryRun", "dry-run", "dryrun", "confirm"] do
+      assert conn |> delete(path <> "?#{key}=true") |> json_response(422) ==
+               %{"errors" => %{key => ["is unknown: this delete takes only dry_run"]}},
+             "#{path} #{key}"
+    end
+
+    for path <- paths do
+      assert conn |> delete(path <> "?dry_run=") |> json_response(422) ==
+               %{"errors" => %{"dry_run" => ["is invalid"]}},
+             path
+
+      assert conn |> delete(path <> "?dry_run=true&dryRun=true") |> json_response(422) ==
+               %{"errors" => %{"dryRun" => ["is unknown: this delete takes only dry_run"]}},
+             path
+    end
+
+    assert table_counts() == counts
+    assert Classifications.get_classification(t.classification.id)
+    assert Buckets.get_view(t.view.id)
+  end
 end
