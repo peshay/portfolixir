@@ -105,6 +105,19 @@ defmodule Portfolixir.Catalog.Quotes do
     |> Repo.one()
   end
 
+  @doc """
+  Whether a positive close dated on or after `date` is stored for the
+  security. A stored close of 0 or below is no price and does not count, as
+  the window return reads closes (ADR-0055 amendment of 2026-11-05, §2: the
+  evidence that a day's data is in).
+  """
+  @spec positive_close_on_or_after?(integer(), Date.t()) :: boolean()
+  def positive_close_on_or_after?(security_id, %Date{} = date) when is_integer(security_id) do
+    SecurityQuote
+    |> where([q], q.security_id == ^security_id and q.date >= ^date and q.close > 0)
+    |> Repo.exists?()
+  end
+
   @doc "Quotes between `from` and `to` inclusive, ascending by date."
   def range(security_id, %Date{} = from, %Date{} = to, opts \\ [])
       when is_integer(security_id) do

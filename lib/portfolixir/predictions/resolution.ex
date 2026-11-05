@@ -11,27 +11,38 @@ defmodule Portfolixir.Predictions.Resolution do
 
   ## The status
 
-    * `:open` — while today is **on or before** `resolves_on`. ADR-0055
-      says a call is open "until `resolves_on` has passed", and its end
-      close is the last close on or before `resolves_on`: on that day
-      itself the day's close may not be stored yet (the quote sync fetches
-      it after the market closes), so a read on the day could score the
-      call on the day before's close and flip it once the day's close
-      lands. From the day after, the end close is final. Nothing is read
-      or computed for an open call. "Today" is the instance's calendar day
-      (`Portfolixir.Clock.today/0`), the one every domain check reads
-      (E25 S6, G08); the ADR names UTC only for the day a call is made.
+    * `:open` — while today is **on or before** `resolves_on`, and after
+      it **until the end close is in** (ADR-0055 amendment of 2026-11-05,
+      §2, finality): until each priced side (the security, and a security
+      benchmark) has a stored positive close dated on or after
+      `resolves_on` (`WindowReturn.close_dated_on_or_after?/2`), or until
+      7 days after `resolves_on` have passed (the staleness bound,
+      `WindowReturn.staleness_days/0`), whichever comes first. The newer
+      close is the evidence that the day's data is in and is never used in
+      the measurement: the end close stays the last close on or before
+      `resolves_on`. Without the wait, a call read the day after
+      `resolves_on` from an older close could read a hit and then a miss
+      once the late close of `resolves_on` arrived (the sync runs every 6
+      hours, a US close is published after the instance's day starts,
+      manual quotes arrive late). Nothing is computed for an open call. A
+      fixed-rate benchmark has no close to wait for. "Today" is the
+      instance's calendar day (`Portfolixir.Clock.today/0`), the one every
+      domain check reads (E25 S6, G08); the ADR names UTC only for the day
+      a call is made.
     * `:resolved` — with `outcome` `:hit` or `:miss`;
     * `:unresolved` — with `reason` `:no_start_close`, `:no_end_close`,
       `:no_benchmark_close` or `:no_fx_rate`, never estimated.
 
   ## The dates
 
-    * `start_on` — the day before the UTC day of `made_at`
+    * `start_on` — the UTC day of `made_at`
       (`Portfolixir.Predictions.Prediction.made_on/1`): the start close is
-      the last close **strictly before** the day the call was made, so a
-      call made during a trading day is never measured from a close it
-      could have seen coming. A close dated on the made day is never used.
+      the last close **on or before** the day the call was made (ADR-0055
+      amendment of 2026-11-05, §1). A call made before that day's close is
+      measured from a close that comes after it, and a call made after the
+      close starts from a price it knew, with no move in between, so no
+      call scores a move it had seen. A close dated after the made day is
+      never the start.
     * `end_on` — `resolves_on`: the end close is the last close on or
       before it.
 
@@ -152,14 +163,43 @@ defmodule Portfolixir.Predictions.Resolution do
   """
   @spec resolve(Prediction.t(), Date.t()) :: t()
   def resolve(%Prediction{} = prediction, %Date{} = today) do
-    start_on = Date.add(Prediction.made_on(prediction), -1)
+    start_on = Prediction.made_on(prediction)
     end_on = prediction.resolves_on
     base = %__MODULE__{status: :open, start_on: start_on, end_on: end_on}
 
-    if Date.compare(today, end_on) == :gt,
-      do: resolve_passed(base, prediction),
-      else: base
+    if Date.compare(today, end_on) == :gt do
+      prediction = with_securities(prediction)
+
+      if awaiting_end_close?(prediction, end_on, today),
+        do: base,
+        else: resolve_passed(base, prediction)
+    else
+      base
+    end
   end
+
+  # Finality (ADR-0055 amendment of 2026-11-05, §2): within the staleness
+  # bound after resolves_on, a call waits until every priced side has a
+  # close dated on or after resolves_on.
+  defp awaiting_end_close?(prediction, end_on, today) do
+    Date.diff(today, end_on) <= WindowReturn.staleness_days() and
+      not Enum.all?(priced_sides(prediction), &WindowReturn.close_dated_on_or_after?(&1, end_on))
+  end
+
+  defp priced_sides(%Prediction{benchmark_kind: :security} = prediction),
+    do: [prediction.security, prediction.benchmark_security]
+
+  defp priced_sides(%Prediction{} = prediction), do: [prediction.security]
+
+  defp with_securities(%Prediction{benchmark_kind: :security} = prediction),
+    do: %{
+      prediction
+      | security: security(prediction),
+        benchmark_security: benchmark_security(prediction)
+    }
+
+  defp with_securities(%Prediction{} = prediction),
+    do: %{prediction | security: security(prediction)}
 
   defp resolve_passed(base, prediction) do
     with {:ok, security} <- security_side(prediction, base),

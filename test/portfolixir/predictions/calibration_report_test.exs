@@ -7,8 +7,9 @@ defmodule Portfolixir.Predictions.CalibrationReportTest do
   # each figure worked out by hand.
   #
   # Every call is made on 2026-03-04 (the test clock seam of
-  # create_prediction/3), so its start close stands for 2026-03-03; the
-  # report reads with today: 2026-11-05.
+  # create_prediction/3), so its start close stands for 2026-03-04, the day
+  # made (ADR-0055 amendment of 2026-11-05); the 03-03 close below is the
+  # last on or before it. The report reads with today: 2026-11-05.
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures, only: [create_security!: 1, put_quotes!: 2]
@@ -199,7 +200,8 @@ defmodule Portfolixir.Predictions.CalibrationReportTest do
       assert is_binary(Map.fetch!(basis, key)) and basis[key] != "", "basis.#{key}"
     end
 
-    assert basis.start_close =~ "strictly before"
+    assert basis.start_close =~ "on or before the UTC day the prediction was made"
+    assert basis.resolution =~ "until each priced side has a stored close dated on or after"
     assert basis.outcome =~ "excess = 0"
     assert basis.distributions =~ "not counted"
     assert basis.excluded =~ "unresolved"

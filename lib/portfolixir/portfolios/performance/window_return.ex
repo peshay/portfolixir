@@ -26,10 +26,10 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
 
   Which `D` a caller passes is the caller's rule, not this module's:
 
-    * the prediction resolution (ADR-0055 §3) passes the day before the day
-      of `made_at` (UTC) for the start, because the start close is the last
-      one **strictly before** the day the call was made, and `resolves_on`
-      for the end;
+    * the prediction resolution (ADR-0055 §3, as amended on 2026-11-05)
+      passes the UTC day of `made_at` for the start, because the start
+      close is the last one **on or before** the day the call was made, and
+      `resolves_on` for the end;
     * the sale hindsight read (D-3) passes the sale day for the start and
       each span's end date for the end.
 
@@ -159,6 +159,17 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
         {:ok, close_entry(adjusted, on)}
     end
   end
+
+  @doc """
+  Whether a positive close dated **on or after** `on` is stored for the
+  security: the evidence that the data of `on` is in (ADR-0055 amendment
+  of 2026-11-05, §2, finality). It never stands for `on`; the close that
+  does is `close_on_or_before/2`'s. Positive closes only, as that lookup
+  counts them.
+  """
+  @spec close_dated_on_or_after?(Security.t(), Date.t()) :: boolean()
+  def close_dated_on_or_after?(%Security{id: id}, %Date{} = on),
+    do: Quotes.positive_close_on_or_after?(id, on)
 
   @doc """
   The security's price return in EUR from the close standing for `start_on`

@@ -144,13 +144,16 @@ defmodule Portfolixir.Predictions.Calibration do
     %{
       resolution:
         "Each prediction is resolved at read from stored closes; nothing is stored. It is open " <>
-          "while the instance's calendar day is on or before resolves_on, then resolved (hit or " <>
-          "miss) or unresolved with its reason: no_start_close, no_end_close, " <>
-          "no_benchmark_close or no_fx_rate, never estimated.",
+          "while the instance's calendar day is on or before resolves_on, and after it until " <>
+          "each priced side has a stored close dated on or after resolves_on (the security, " <>
+          "and a security benchmark; that close is evidence the day's data is in and is never " <>
+          "used in the measurement) or until staleness_days after resolves_on have passed. " <>
+          "Then it is resolved (hit or miss) or unresolved with its reason: no_start_close, " <>
+          "no_end_close, no_benchmark_close or no_fx_rate, never estimated.",
       start_close:
-        "The security's last close strictly before the UTC day the prediction was made " <>
-          "(standing for the day before it), and the benchmark security's for the same date; " <>
-          "a close on the day made is never used.",
+        "The security's last close on or before the UTC day the prediction was made (standing " <>
+          "for the day made), and the benchmark security's for the same date; a close dated " <>
+          "after the day made is never used.",
       end_close: "The last close on or before resolves_on, for the security and the benchmark.",
       staleness_days: WindowReturn.staleness_days(),
       currency:
