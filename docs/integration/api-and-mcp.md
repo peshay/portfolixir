@@ -3556,6 +3556,28 @@ tree stays intrinsic and cannot be reassigned.
   category with the categories below it, the securities assigned there and
   the targets filed under them; each row is journaled as its own delete,
   the lowest categories first and the category itself last.
+- `?dry_run=true` on the three cascading deletes (the two `DELETE` routes
+  above and `DELETE /api/v1/views/:id`) deletes nothing: the real delete
+  runs in a transaction that always rolls back, so the answer is exactly
+  what the delete would do, never a count computed beside it (issue #894).
+  It answers `200` with, per kind of row the delete reaches, the count and
+  the ids (ascending) it would remove, every kind listed, `0` where none
+  would go; a category's dry run, for example:
+
+  ```json
+  {"data": {"dry_run": true, "would_remove": {"categories": {"count": 2, "ids": [12, 13]}, "assignments": {"count": 1, "ids": [40]}, "targets": {"count": 2, "ids": [21, 22]}}}}
+  ```
+
+  A classification answers `classifications`, `categories`, `assignments`,
+  `target_plans` and `targets`; a category `categories` (itself and those
+  below it), `assignments` and `targets`; a view `views`,
+  `view_include_buckets`, `view_exclude_buckets`, `target_plans`, `targets`
+  and `depot_snapshots`. A delete the server refuses is refused by its dry
+  run with the same status and body: `422` for a built-in classification,
+  `409` naming the policy rules that read it, `404` for an unknown id.
+  Nothing is written, the audit journal included. Absent, empty or `false`
+  is the delete itself; any other value answers `422`
+  `{"errors": {"dry_run": ["is invalid"]}}` and deletes nothing.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
   to a category (`security_id`, `category_id`), replacing any existing assignment
   for that security in the classification. The response carries a `status` of
@@ -3640,7 +3662,9 @@ a view is not journaled: no rule can read it yet.
   /api/v1/views/:id/buckets"]}`).
 - `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`); the
   plans scoped to it, with their targets, and its depot snapshots are
-  journaled one delete each before the view's.
+  journaled one delete each before the view's. With `?dry_run=true` it
+  deletes nothing and answers `200` with what it would remove, as the
+  classification deletes above describe.
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
   Body: `{"include": [..], "exclude": [..], "include_all": false}` (the sets
   optional, default `[]`, arrays of bucket ids). Optional `include_all` is
@@ -4488,12 +4512,15 @@ API may have committed it, and its answer cannot be read.
   category, every security's assignment in it, every target weight on its
   categories and every target plan of it; the description names each, and
   that each of those rows is journaled as its own delete before the
-  classification's (E25).
+  classification's (E25). `dry_run: true` deletes nothing and answers
+  `would_remove`, per kind the count and the ids, or the delete's refusal
+  (issue #894).
 - `portfolixir.classifications.categories.update`
 - `portfolixir.classifications.categories.delete` — one call removes the
   category with its sub-categories at every depth, the assignments to any of
   them and the target weights on any of them; the journal keeps each as its
-  own delete, the category itself last.
+  own delete, the category itself last. `dry_run: true` answers what would
+  go, as on the classification delete.
 - `portfolixir.classifications.assign`
 - `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
@@ -4553,6 +4580,7 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.views.delete` — one call removes the view with its bucket
   sets, every target plan scoped to it and every depot snapshot taken in its
   scope; each is journaled as its own delete before the view's.
+  `dry_run: true` answers what would go, as on the classification delete.
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`;
   without an `id`, the total of every account (#1007).

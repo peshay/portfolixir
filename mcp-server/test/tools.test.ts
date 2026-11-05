@@ -1612,6 +1612,61 @@ describe("Portfolixir MCP tools", () => {
     assert.match(description("portfolixir.views.delete"), /snapshots/);
   });
 
+  // User story (Sprint 25 X1, #894; plan D-4):
+  // As the operating LLM agent about to run a cascading delete,
+  // I want each of the three cascading delete tools to take dry_run and say
+  // what it answers,
+  // so that I can tell the operator what goes before anything goes.
+  //
+  // Acceptance criteria:
+  // - The classification, category and view delete tools' schemas carry an
+  //   optional boolean dry_run, and their descriptions name it, that it
+  //   deletes nothing, that it answers would_remove per kind with the count
+  //   and the ids, or the refusal the delete would answer.
+  // - dry_run true is sent as dry_run=true on the DELETE; without it the
+  //   DELETE is sent as before; a dry_run that is not a boolean is refused
+  //   before any request.
+  const dryRunDeletes: Array<[string, Record<string, unknown>, string]> = [
+    ["portfolixir.classifications.delete", { id: 4 }, "/api/v1/classifications/4"],
+    [
+      "portfolixir.classifications.categories.delete",
+      { classification_id: 3, id: 5 },
+      "/api/v1/classifications/3/categories/5"
+    ],
+    ["portfolixir.views.delete", { id: 2 }, "/api/v1/views/2"]
+  ];
+
+  it("names dry_run on the three cascading delete tools", () => {
+    for (const [name] of dryRunDeletes) {
+      const tool = listTools().find((entry) => entry.name === name);
+      const description = tool?.description ?? "";
+
+      assert.deepEqual(tool?.inputSchema.properties?.dry_run, { type: "boolean" }, name);
+      assert.ok(!tool?.inputSchema.required?.includes("dry_run"), name);
+      assert.match(description, /dry_run true deletes nothing/, name);
+      assert.match(description, /would_remove/, name);
+      assert.match(description, /count and ids/, name);
+      assert.match(description, /refusal/, name);
+    }
+  });
+
+  it("sends dry_run=true on the three cascading deletes", async () => {
+    for (const [name, args, path] of dryRunDeletes) {
+      const { client, requests } = createRecordingClient({ data: { dry_run: true, would_remove: {} } });
+
+      await callTool(client, name, { ...args, dry_run: true });
+      await callTool(client, name, args);
+
+      assert.equal(requests[0].method, "DELETE", name);
+      assert.equal(requests[0].path, `${path}?dry_run=true`, name);
+      assert.equal(requests[1].method, "DELETE", name);
+      assert.equal(requests[1].path, path, name);
+
+      await assert.rejects(callTool(client, name, { ...args, dry_run: "yes" }), name);
+      assert.equal(requests.length, 2, name);
+    }
+  });
+
   // E25 S6, F45 and T-10: view-definition writes are journaled with the sets
   // before and after, and a bucket delete rewrites every owner through its
   // journaled writer, an emptied override staying explicit-empty.

@@ -50,7 +50,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       # compares strictly after a date. Each story of the sprint appends its own
       # summary sentence and items: F1 (ADR-0055 §2), a prediction names its
       # security and its benchmark, and neither can be merged away or deleted
-      # beneath it; S2 (FR-50; I18 modes 1 and 2, plan D-3), what a sale missed.
+      # beneath it; S2 (FR-50; I18 modes 1 and 2, plan D-3), what a sale missed;
+      # F4, F5 and N1 (ADR-0055 §5; F32; I13); X1 (#894, idea F21; plan D-4),
+      # the three cascading deletes take dry_run, the real delete rolled back.
       date: ~D[2026-11-06],
       summary:
         "Sprint 25, F1 (ADR-0055 §2): a prediction is permanent, so a security a " <>
@@ -90,7 +92,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "recorded with portfolixir.predictions.create: a recorded call, never a trade. " <>
           "Sprint 25, N1 (idea I13; plan D-5): portfolixir.notes.append says how an outside " <>
           "aggregator records a news item, as an evidence entry dated the day it became " <>
-          "public, a summary and the link, never the article; no parameter is added.",
+          "public, a summary and the link, never the article; no parameter is added. " <>
+          "Sprint 25, X1: DELETE /api/v1/classifications/:id, " <>
+          "DELETE /api/v1/classifications/:classification_id/categories/:id and " <>
+          "DELETE /api/v1/views/:id take dry_run=true, and their MCP tools dry_run true: the " <>
+          "real delete runs in a transaction that always rolls back, and the answer names what " <>
+          "it would remove, per kind the count and the ids, or the refusal the delete answers, " <>
+          "with nothing written. To keep the tool list within its schema budget, the three " <>
+          "descriptions are shortened, every rule they state kept (#894).",
       endpoints: [
         "GET /api/v1/sales/hindsight",
         "POST /api/v1/predictions",
@@ -195,7 +204,30 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "news archive), and a direction read from it recorded as a prediction with " <>
           "portfolixir.predictions.create and note_id on the entry; its other wording is " <>
           "tightened to pay for the bytes, every rule it stated kept, the closed sets in the " <>
-          "schema (idea I13; plan D-5)"
+          "schema (idea I13; plan D-5)",
+        "DELETE /api/v1/classifications/:id, " <>
+          "DELETE /api/v1/classifications/:classification_id/categories/:id and " <>
+          "DELETE /api/v1/views/:id (portfolixir.classifications.delete, " <>
+          "portfolixir.classifications.categories.delete and portfolixir.views.delete, whose " <>
+          "schemas gain an optional boolean dry_run and whose descriptions name it), dry_run " <>
+          "added: dry_run=true runs the real delete inside a transaction that always rolls " <>
+          "back and answers 200 " <>
+          ~s({"data": {"dry_run": true, "would_remove": {kind: {"count": n, "ids": [...]}}}}) <>
+          ", every kind the delete reaches listed, a count of 0 and no ids where none would " <>
+          "go: a classification's classifications, categories, assignments, target_plans and " <>
+          "targets; a category's categories (itself and those below it), assignments and " <>
+          "targets; a view's views, view_include_buckets, view_exclude_buckets, target_plans, " <>
+          "targets and depot_snapshots. The ids are the rows the delete then removes, ascending; " <>
+          "deleting a tree with two categories, one assigned security and a plan of two targets " <>
+          ~s(reads categories {"count": 2, ...}, assignments {"count": 1, ...}, target_plans ) <>
+          ~s({"count": 1, ...} and targets {"count": 2, ...}. A delete the server refuses is ) <>
+          "refused by its dry run with the same status and body: 422 for a built-in " <>
+          "classification, 409 naming the policy rules that read it, 404 for an unknown id. " <>
+          "Nothing is written, the audit journal included, and nothing outside the transaction " <>
+          "is told. Absent, empty or false is the delete as before (a view's 204, the others' " <>
+          ~s({"data": {"deleted": true}}) <>
+          "); any other value answers 422 errors.dry_run [\"is invalid\"] and deletes nothing " <>
+          "(#894; plan D-4)"
       ],
       removed_endpoints: [],
       removed_tools: [],
