@@ -4152,8 +4152,12 @@ freigegebenen Zeilen als Vorher-Abbild.
   der Cursor. Es kombiniert sich mit den fünf Filtern, `meta.filters.since`
   spiegelt es, und `limit` behält Standard und Höchstwert. Ein Lauf ab
   `since=1970-01-01`, der jedes `as_of` zurückgibt, erreicht jeden Eintrag
-  genau einmal, auch die jenseits der neuesten 1000, die ein Read ohne
-  `since` nicht zeigen kann. Ohne `since` bleibt der Read unverändert,
+  mindestens einmal und überspringt keinen, auch die jenseits der neuesten
+  1000, die ein Read ohne `since` nicht zeigen kann. Eine volle Seite, die
+  einen noch laufenden Schreibvorgang erreicht, antwortet ein `as_of` ohne
+  `~<id>`, die In-flight-Grenze: später erneut abfragen, nicht sofort, und
+  damit rechnen, dass der nächste Read schon gelesene Einträge erneut
+  liefert, wie die `delta_note` der Antwort sagt. Ohne `since` bleibt der Read unverändert,
   neueste zuerst. Die Seite nimmt dasselbe `since`
   (`/journal?since=2026-10-28`, oder den Zeitpunkt oder Cursor, den der Read
   beantwortet hat) und listet dieselben Einträge, neueste zuerst.

@@ -987,6 +987,9 @@ describe("Portfolixir MCP tools", () => {
   //   answered cursor) and forwards it with the other filters.
   // - Its description says the delta is oldest first, pages by as_of with
   //   has_more, and that the top-level as_of is the cursor, not meta.as_of.
+  // - Closing act (J2, the agent's lens): it states the siblings' in-flight
+  //   rule, in their words: an as_of with no ~id means poll later, a write
+  //   is in flight, and a later read may re-deliver an entry, never skip one.
   it("forwards since= on journal.list and describes its paged delta", async () => {
     const { client, requests } = createRecordingClient({ data: [] });
     const cursor = "2026-10-28T09:15:02.250000Z~48";
@@ -1005,6 +1008,8 @@ describe("Portfolixir MCP tools", () => {
     assert.match(journal.description, /has_more/);
     assert.match(journal.description, /page by as_of/);
     assert.match(journal.description, /top-level as_of is the cursor, not meta\.as_of/);
+    assert.match(journal.description, /with no ~id, poll later: a write is in flight/);
+    assert.match(journal.description, /A later read may re-deliver an entry, never skip one/);
   });
 
   // User story (Sprint 7 closing act, #414 parity gap):
@@ -1497,7 +1502,9 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.notes.list",
       "portfolixir.events.list",
       "portfolixir.targets.list",
-      "portfolixir.targets.list_positions"
+      "portfolixir.targets.list_positions",
+      // Closing act (J2, the agent's lens): the journal's paged delta too.
+      "portfolixir.journal.list"
     ]) {
       assert.match(description(name), /never skips? one/, name);
     }

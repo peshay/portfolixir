@@ -3821,8 +3821,11 @@ they replaced or released as the before-image.
   the read's instant, not the cursor. It combines with the five filters,
   `meta.filters.since` echoes it, and `limit` keeps its default and maximum.
   A walk from `since=1970-01-01`, feeding each `as_of` back, reaches every
-  entry once, including those past the newest 1000 that a read without
-  `since` cannot show. Without `since` the read is unchanged, newest first.
+  entry at least once and skips none, including those past the newest 1000
+  that a read without `since` cannot show. A full page that reaches a write
+  still in flight answers an `as_of` with no `~<id>`, the in-flight bound:
+  poll again later, not at once, and expect the next read to re-deliver
+  entries already read, as the response's `delta_note` says. Without `since` the read is unchanged, newest first.
   The page takes the same `since` (`/journal?since=2026-10-28`, or the
   instant or cursor the read answered) and lists the same entries newest
   first.

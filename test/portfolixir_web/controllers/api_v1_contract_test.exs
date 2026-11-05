@@ -79,6 +79,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert journal_since =~ "oldest first"
     assert journal_since =~ "2026-10-28T09:15:02.250000Z~48"
     assert journal_since =~ "Without since the read is unchanged"
+    # Closing act (J2, the agent's lens): a walk reaches every entry at least
+    # once and skips none; a page at the in-flight bound answers an as_of
+    # with no ~id, and the next read may re-deliver entries (the delta_note).
+    assert journal_since =~ "every entry at least once, none skipped"
+    assert journal_since =~ "an as_of with no ~id"
+    assert journal_since =~ "may re-deliver entries already read"
+    refute journal_since =~ "each once"
+    assert newest["summary"] =~ "reaches every entry at least once and skips none"
+    refute newest["summary"] =~ "reaches every entry once"
 
     # D1 (FR-49; plan D-2): the position dossier, one route, its item naming
     # every part and the read it mirrors.
