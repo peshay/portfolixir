@@ -31,6 +31,7 @@ defmodule Portfolixir.Predictions do
   alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityNote
+  alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Predictions.Calibration
   alias Portfolixir.Predictions.Prediction
   alias Portfolixir.Predictions.Resolution
@@ -208,9 +209,10 @@ defmodule Portfolixir.Predictions do
   @doc """
   The prediction's resolution at read (ADR-0055 §3,
   `Portfolixir.Predictions.Resolution`): `open` while today is on or
-  before `resolves_on`, then `resolved` with its outcome or `unresolved`
-  with its reason, naming the closes, dates and returns used. Nothing is
-  stored.
+  before `resolves_on` and after it until its end close is in (at most 7
+  days; ADR-0055 amendment of 2026-11-05, §2), then `resolved` with its
+  outcome or `unresolved` with its reason, naming the closes, dates and
+  returns used. Nothing is stored.
 
   `opts[:today]` injects today (AR-2), for tests; it defaults to the
   instance's calendar day, `Portfolixir.Clock.today/0`, the one "today"
@@ -237,10 +239,12 @@ defmodule Portfolixir.Predictions do
       matches nothing (and mints no atom);
     * `model` — the model an agent named, exactly;
     * `due_before` — the due query of ADR-0055 §5: **open** predictions
-      whose `resolves_on` is on or before the date, so those with
-      `today <= resolves_on <= date` (open is derived from the date alone,
-      `Portfolixir.Predictions.Resolution`); a call already past its date
-      is resolved or unresolved, not due;
+      whose `resolves_on` is on or before the date. Open is derived at
+      read (`Portfolixir.Predictions.Resolution`): a call not yet past its
+      date, and one past it still waiting for its end close (at most 7
+      days; ADR-0055 amendment of 2026-11-05, §2), so this filter reads
+      through `list_with_resolution/2`; a call already resolved or
+      unresolved is not due;
     * `resolves_from`, `resolves_to` — `resolves_on` on or after, on or
       before the date (both inclusive);
     * `limit` — at most that many, newest first.
@@ -250,10 +254,14 @@ defmodule Portfolixir.Predictions do
   """
   @spec list_predictions([filter()], keyword()) :: [Prediction.t()]
   def list_predictions(filters \\ [], opts \\ []) when is_list(filters) and is_list(opts) do
-    today = today(opts)
+    if Keyword.has_key?(filters, :due_before),
+      do: filters |> list_with_resolution(opts) |> Enum.map(& &1.prediction),
+      else: list_stored(filters)
+  end
 
+  defp list_stored(filters) do
     Enum.reduce_while(filters, Prediction, fn filter, query ->
-      case filter(query, filter, today) do
+      case filter(query, filter) do
         :none -> {:halt, :none}
         query -> {:cont, query}
       end
@@ -277,13 +285,15 @@ defmodule Portfolixir.Predictions do
   (ADR-0055 §5): `:open`, `:resolved` or `:unresolved`, or its string; any
   other value matches nothing (and mints no atom). With a status, `limit`
   counts the predictions that status kept, so the newest resolved call is
-  found behind any number of newer open ones. `opts[:today]` as in
-  `list_predictions/2`.
+  found behind any number of newer open ones. `due_before` is the status
+  `open` with `resolves_on` on or before its date, so beside another
+  status it matches nothing. `opts[:today]` as in `list_predictions/2`.
   """
   @spec list_with_resolution([filter() | status_filter()], keyword()) :: [resolved_entry()]
   def list_with_resolution(filters \\ [], opts \\ []) when is_list(filters) and is_list(opts) do
     today = today(opts)
     {status_filters, storage} = Keyword.split(filters, [:status])
+    {status_filters, storage} = due_as_open(status_filters, storage)
 
     case parse_status(status_filters) do
       :none ->
@@ -291,14 +301,14 @@ defmodule Portfolixir.Predictions do
 
       nil ->
         storage
-        |> list_predictions(today: today)
+        |> list_stored()
         |> with_resolution(today)
 
       status ->
         {limit, storage} = Keyword.pop(storage, :limit)
 
         (storage ++ status_window(status, today))
-        |> list_predictions(today: today)
+        |> list_stored()
         |> with_resolution(today)
         |> Enum.filter(&(&1.resolution.status == status))
         |> take(limit)
@@ -361,9 +371,30 @@ defmodule Portfolixir.Predictions do
 
   defp status_atom(_other), do: :none
 
-  # Open is derived from the date alone, so the query narrows to the
-  # candidates before any close is read.
-  defp status_window(:open, today), do: [resolves_from: today]
+  # The due query is the open status with resolves_on on or before its date
+  # (ADR-0055 §5): each due_before becomes a resolves_to bound beside it.
+  defp due_as_open(status_filters, storage) do
+    case Keyword.pop_values(storage, :due_before) do
+      {[], storage} ->
+        {status_filters, storage}
+
+      {dates, storage} ->
+        {status_filters ++ [status: :open], storage ++ Enum.map(dates, &due_bound/1)}
+    end
+  end
+
+  defp due_bound(%Date{} = date), do: {:resolves_to, date}
+
+  defp due_bound(other),
+    do: raise(ArgumentError, "unknown prediction filter :due_before: #{inspect(other)}")
+
+  # The query narrows to the candidates before any close is read: a call is
+  # open at most staleness_days after resolves_on (finality, ADR-0055
+  # amendment of 2026-11-05, §2), and resolved or unresolved only once
+  # resolves_on has passed. The status itself is the resolution's.
+  defp status_window(:open, today),
+    do: [resolves_from: Date.add(today, -WindowReturn.staleness_days())]
+
   defp status_window(_passed, today), do: [resolves_to: Date.add(today, -1)]
 
   defp take(entries, nil), do: entries
@@ -372,35 +403,32 @@ defmodule Portfolixir.Predictions do
   defp take(_entries, n),
     do: raise(ArgumentError, "unknown prediction filter :limit: #{inspect(n)}")
 
-  defp filter(query, {:security_id, id}, _today) when is_integer(id),
+  defp filter(query, {:security_id, id}) when is_integer(id),
     do: where(query, [p], p.security_id == ^id)
 
-  defp filter(query, {:author, author}, _today) when author in [:operator, :agent],
+  defp filter(query, {:author, author}) when author in [:operator, :agent],
     do: where(query, [p], p.author == ^author)
 
-  defp filter(query, {:author, author}, today) when is_binary(author) do
+  defp filter(query, {:author, author}) when is_binary(author) do
     if author in Prediction.authors(),
-      do: filter(query, {:author, String.to_existing_atom(author)}, today),
+      do: filter(query, {:author, String.to_existing_atom(author)}),
       else: :none
   end
 
-  defp filter(_query, {:author, _other}, _today), do: :none
+  defp filter(_query, {:author, _other}), do: :none
 
-  defp filter(query, {:model, model}, _today) when is_binary(model),
+  defp filter(query, {:model, model}) when is_binary(model),
     do: where(query, [p], p.model == ^model)
 
-  defp filter(query, {:due_before, %Date{} = date}, today),
-    do: where(query, [p], p.resolves_on >= ^today and p.resolves_on <= ^date)
-
-  defp filter(query, {:resolves_from, %Date{} = date}, _today),
+  defp filter(query, {:resolves_from, %Date{} = date}),
     do: where(query, [p], p.resolves_on >= ^date)
 
-  defp filter(query, {:resolves_to, %Date{} = date}, _today),
+  defp filter(query, {:resolves_to, %Date{} = date}),
     do: where(query, [p], p.resolves_on <= ^date)
 
-  defp filter(query, {:limit, n}, _today) when is_integer(n) and n > 0, do: limit(query, ^n)
+  defp filter(query, {:limit, n}) when is_integer(n) and n > 0, do: limit(query, ^n)
 
-  defp filter(_query, {key, value}, _today) do
+  defp filter(_query, {key, value}) do
     raise ArgumentError, "unknown prediction filter #{inspect(key)}: #{inspect(value)}"
   end
 end

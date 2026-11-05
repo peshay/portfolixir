@@ -151,7 +151,7 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
                "status" => "open",
                "outcome" => nil,
                "reason" => nil,
-               "start_on" => made_at |> DateTime.to_date() |> Date.add(-1) |> Date.to_iso8601(),
+               "start_on" => made_on,
                "end_on" => data["resolves_on"],
                "security" => nil,
                "benchmark" => nil,
@@ -160,7 +160,7 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
 
       assert data["permanence_note"] =~ "cannot be edited, withdrawn or deleted"
       assert data["permanence_note"] =~ "a correction is a new prediction"
-      assert data["computation_basis"]["start_close"] =~ "strictly before"
+      assert data["computation_basis"]["start_close"] =~ "on or before the UTC day"
       assert data["computation_basis"]["staleness_days"] == 7
       assert data["computation_basis"]["outcome"] =~ "excess = 0 is a miss"
 
@@ -257,7 +257,7 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
       benchmark = benchmark!("Synthetic Flat Index")
       prediction = past_prediction!(security, %{"benchmark" => "security:#{benchmark.id}"})
 
-      start_on = prediction |> Predictions.Prediction.made_on() |> Date.add(-1)
+      start_on = prediction |> Predictions.Prediction.made_on()
       end_on = prediction.resolves_on
 
       put_quotes!(security, [{start_on, "100"}, {end_on, "110"}])
@@ -318,7 +318,7 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
     test "a rate benchmark names its compounding, an unresolved call its reason", %{conn: conn} do
       security = security!("Synthetic Absolute Co.")
       absolute = past_prediction!(security, %{"direction" => "underperform"})
-      start_on = absolute |> Predictions.Prediction.made_on() |> Date.add(-1)
+      start_on = absolute |> Predictions.Prediction.made_on()
       put_quotes!(security, [{start_on, "50"}, {absolute.resolves_on, "40"}])
 
       resolution =
@@ -393,7 +393,7 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
       past_prediction!(falling, %{"probability" => "0.60", "model" => "example-model-2"}, 90, 12)
 
     for {prediction, security, end_close} <- [{hit, rising, "110"}, {miss, falling, "90"}] do
-      start_on = prediction |> Predictions.Prediction.made_on() |> Date.add(-1)
+      start_on = prediction |> Predictions.Prediction.made_on()
       put_quotes!(security, [{start_on, "100"}, {prediction.resolves_on, end_close}])
     end
 
