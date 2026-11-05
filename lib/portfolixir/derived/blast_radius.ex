@@ -47,6 +47,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Portfolios.Portfolio
+  alias Portfolixir.Predictions.Prediction
   alias Portfolixir.Repo
   alias Portfolixir.Settings.Setting
 
@@ -87,6 +88,11 @@ defmodule Portfolixir.Derived.BlastRadius do
   # like the policy rules above — a record of another shape still widens.
   def for_write("security_note", %{__struct__: SecurityNote}), do: []
   def for_write("security_event", %{__struct__: SecurityEvent}), do: []
+
+  # A prediction (ADR-0055) is a recorded call, resolved at read from stored
+  # closes: no walk, quote, rate or rule reads it, so no portfolio's derived
+  # values move. Resolved per struct, like the knowledge records above.
+  def for_write("prediction", %{__struct__: Prediction}), do: []
 
   # The default view (H61) is a preference: which scope a page opens on, read
   # by no walk, quote, rate or rule, so no portfolio's derived values move.

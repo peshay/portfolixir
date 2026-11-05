@@ -26,6 +26,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Tax => "lib/portfolixir/tax.ex",
     Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex",
     Portfolixir.Lifecycle => "lib/portfolixir/lifecycle.ex",
+    # ADR-0055: predictions, born actor-first, their table armed at creation.
+    Portfolixir.Predictions => "lib/portfolixir/predictions.ex",
     # #1272: the preference store, whose default-view key is journaled (H61).
     Portfolixir.Settings => "lib/portfolixir/settings.ex"
   }
@@ -42,7 +44,9 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Tax,
     Portfolixir.Knowledge,
     # ADR-0050: born actor-first, its two tables armed at creation.
-    Portfolixir.Lifecycle
+    Portfolixir.Lifecycle,
+    # ADR-0055: born actor-first, its table armed at creation.
+    Portfolixir.Predictions
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -105,10 +109,11 @@ defmodule Portfolixir.WriteActorTest do
   # The classifier must not pass vacuously (#1269): it once kept only the
   # last call it visited in a body and so read 7 writers instead of 62 (66
   # with the preference store, #1272; 71 once it follows `defdelegate` and
-  # local captures, Sprint 22's closing act). A
+  # local captures, Sprint 22's closing act; 72 with the predictions write,
+  # ADR-0055). A
   # count below this floor means it stopped seeing writers; raise the floor
   # when writers are added, never lower it to make a red run pass.
-  @writer_floor 71
+  @writer_floor 72
 
   # Pre-existing public context writers not yet actor-first (later leaf-first
   # slices: Portfolios/Classifications → Ledger → Imports). SHRINK-ONLY: a stale

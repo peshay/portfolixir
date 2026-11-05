@@ -20,7 +20,7 @@ msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:1489
-#: lib/portfolixir_web/live/journal/row.ex:179
+#: lib/portfolixir_web/live/journal/row.ex:180
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:343
 #: lib/portfolixir_web/live/portfolio_live.ex:2659
 #, elixir-autogen
@@ -110,7 +110,7 @@ msgid "Date"
 msgstr "Datum"
 
 #: lib/portfolixir_web/field_label.ex:47
-#: lib/portfolixir_web/live/journal/row.ex:92
+#: lib/portfolixir_web/live/journal/row.ex:93
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:390
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:1322
 #: lib/portfolixir_web/live/portfolio_live.ex:2859
@@ -124,7 +124,7 @@ msgstr "Depot"
 #: lib/portfolixir_web/live/dashboard_live.ex:1493
 #: lib/portfolixir_web/live/imports_live.ex:375
 #: lib/portfolixir_web/live/imports_live.ex:1290
-#: lib/portfolixir_web/live/journal/row.ex:180
+#: lib/portfolixir_web/live/journal/row.ex:181
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:342
 #, elixir-autogen
 msgid "Depots"
@@ -319,7 +319,7 @@ msgstr "Aktuelle Bestände prüfen"
 #: lib/portfolixir_web/live/dashboard_live.ex:1485
 #: lib/portfolixir_web/live/imports_live.ex:365
 #: lib/portfolixir_web/live/imports_live.ex:1282
-#: lib/portfolixir_web/live/journal/row.ex:181
+#: lib/portfolixir_web/live/journal/row.ex:182
 #: lib/portfolixir_web/live/portfolio_live.ex:1113
 #: lib/portfolixir_web/live/portfolio_live.ex:1207
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:572
@@ -1902,7 +1902,7 @@ msgstr "Kumulierte TTWROR über die Zeit"
 msgid "Allocation"
 msgstr "Allokation"
 
-#: lib/portfolixir_web/live/journal/row.ex:102
+#: lib/portfolixir_web/live/journal/row.ex:103
 #: lib/portfolixir_web/live/portfolio_live.ex:1861
 #, elixir-autogen
 msgid "Classification"
@@ -1910,7 +1910,7 @@ msgstr "Klassifizierung"
 
 #: lib/portfolixir_web/live/classifications_live.ex:510
 #: lib/portfolixir_web/live/classifications_live.ex:1377
-#: lib/portfolixir_web/live/journal/row.ex:103
+#: lib/portfolixir_web/live/journal/row.ex:104
 #: lib/portfolixir_web/live/portfolio_live.ex:2118
 #: lib/portfolixir_web/live/portfolio_live.ex:2426
 #: lib/portfolixir_web/live/securities/merge_preview.ex:815
@@ -3373,7 +3373,7 @@ msgid "Add depot & account"
 msgstr "Depot & Konto anlegen"
 
 #: lib/portfolixir_web/field_label.ex:49
-#: lib/portfolixir_web/live/journal/row.ex:91
+#: lib/portfolixir_web/live/journal/row.ex:92
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:135
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:389
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:267
@@ -3989,7 +3989,7 @@ msgstr "Alte Anteile"
 #: lib/portfolixir_web/account_names.ex:147
 #: lib/portfolixir_web/field_label.ex:51
 #: lib/portfolixir_web/field_label.ex:52
-#: lib/portfolixir_web/live/journal/row.ex:99
+#: lib/portfolixir_web/live/journal/row.ex:100
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:222
 #, elixir-autogen, elixir-format
 msgid "Portfolio"
@@ -6381,7 +6381,7 @@ msgid "All depots, cash accounts and positions · no filters"
 msgstr "Alle Depots, Verrechnungskonten und Positionen · keine Filter"
 
 #: lib/portfolixir_web/live/buckets_live.ex:222
-#: lib/portfolixir_web/live/journal/row.ex:100
+#: lib/portfolixir_web/live/journal/row.ex:101
 #, elixir-autogen, elixir-format
 msgid "Bucket"
 msgstr "Bucket"
@@ -6423,7 +6423,7 @@ msgid "Two steps: 1. Create buckets — tags on depots, cash accounts and positi
 msgstr "Zwei Schritte: 1. Buckets anlegen — Tags an Depots, Verrechnungskonten und Positionen. 2. Eine Ansicht anlegen — ein gespeicherter Ein-/Ausschlussfilter über Buckets; Ausschluss gewinnt immer. Eine Ansicht ist, was der Ansichtsumschalter auf der Vermögensseite anbietet, also braucht es beides."
 
 #: lib/portfolixir_web/live/buckets_live.ex:104
-#: lib/portfolixir_web/live/journal/row.ex:101
+#: lib/portfolixir_web/live/journal/row.ex:102
 #: lib/portfolixir_web/policy_rule_label.ex:29
 #, elixir-autogen, elixir-format
 msgid "View"
@@ -7482,7 +7482,7 @@ msgstr "Diese Regel beenden? Sie wird ab heute nicht mehr ausgewertet; die Regel
 msgid "Retire this rule? Its version in force started today, so it ends tonight. The rule and its versions stay readable."
 msgstr "Diese Regel beenden? Ihre geltende Version begann heute und endet deshalb heute Abend. Die Regel und ihre Versionen bleiben lesbar."
 
-#: lib/portfolixir_web/live/journal/row.ex:106
+#: lib/portfolixir_web/live/journal/row.ex:107
 #: lib/portfolixir_web/live/risk_live.ex:547
 #, elixir-autogen, elixir-format
 msgid "Rule"
@@ -11495,7 +11495,7 @@ msgid "Exchange rate"
 msgstr "Wechselkurs"
 
 #: lib/portfolixir_web/field_label.ex:87
-#: lib/portfolixir_web/live/journal/row.ex:86
+#: lib/portfolixir_web/live/journal/row.ex:87
 #, elixir-autogen, elixir-format
 msgid "Former ISIN"
 msgstr "Frühere ISIN"
@@ -14270,43 +14270,43 @@ msgstr "mit Was-wäre-wenn-Szenarien"
 msgid "without what-if scenarios"
 msgstr "ohne Was-wäre-wenn-Szenarien"
 
-#: lib/portfolixir_web/live/journal/row.ex:112
+#: lib/portfolixir_web/live/journal/row.ex:113
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Allowance order"
 msgstr "Freistellungsauftrag"
 
-#: lib/portfolixir_web/live/journal/row.ex:95
+#: lib/portfolixir_web/live/journal/row.ex:96
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Cash account buckets"
 msgstr "Buckets des Verrechnungskontos"
 
-#: lib/portfolixir_web/live/journal/row.ex:89
+#: lib/portfolixir_web/live/journal/row.ex:90
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Category assignment"
 msgstr "Kategorie-Zuordnung"
 
-#: lib/portfolixir_web/live/journal/row.ex:97
+#: lib/portfolixir_web/live/journal/row.ex:98
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Depot buckets"
 msgstr "Buckets des Depots"
 
-#: lib/portfolixir_web/live/journal/row.ex:114
+#: lib/portfolixir_web/live/journal/row.ex:115
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Merge"
 msgstr "Zusammenführung"
 
-#: lib/portfolixir_web/live/journal/row.ex:98
+#: lib/portfolixir_web/live/journal/row.ex:99
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Position buckets"
 msgstr "Buckets der Position"
 
-#: lib/portfolixir_web/live/journal/row.ex:109
+#: lib/portfolixir_web/live/journal/row.ex:110
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Recorded statement"
@@ -14318,13 +14318,13 @@ msgctxt "journal kind"
 msgid "Research note"
 msgstr "Research-Notiz"
 
-#: lib/portfolixir_web/live/journal/row.ex:115
+#: lib/portfolixir_web/live/journal/row.ex:116
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Retired import row"
 msgstr "Entfernte Importzeile"
 
-#: lib/portfolixir_web/live/journal/row.ex:107
+#: lib/portfolixir_web/live/journal/row.ex:108
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Rule version"
@@ -14336,37 +14336,37 @@ msgctxt "journal kind"
 msgid "Security event"
 msgstr "Termin"
 
-#: lib/portfolixir_web/live/journal/row.ex:113
+#: lib/portfolixir_web/live/journal/row.ex:114
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Setting"
 msgstr "Einstellung"
 
-#: lib/portfolixir_web/live/journal/row.ex:108
+#: lib/portfolixir_web/live/journal/row.ex:109
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Snapshot"
 msgstr "Snapshot"
 
-#: lib/portfolixir_web/live/journal/row.ex:105
+#: lib/portfolixir_web/live/journal/row.ex:106
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Target plan"
 msgstr "Soll-Plan"
 
-#: lib/portfolixir_web/live/journal/row.ex:104
+#: lib/portfolixir_web/live/journal/row.ex:105
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Target weight"
 msgstr "Soll-Gewicht"
 
-#: lib/portfolixir_web/live/journal/row.ex:111
+#: lib/portfolixir_web/live/journal/row.ex:112
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Tax parameters"
 msgstr "Steuerparameter"
 
-#: lib/portfolixir_web/live/journal/row.ex:110
+#: lib/portfolixir_web/live/journal/row.ex:111
 #, elixir-autogen, elixir-format
 msgctxt "journal kind"
 msgid "Tax profile"
@@ -14754,3 +14754,9 @@ msgstr "Gezahlt im Zeitraum: die Gebühren und Steuern, die im selben Zeitraum v
 #, elixir-autogen, elixir-format
 msgid "The “Since” value “%{value}” is not readable — the whole journal is shown."
 msgstr "„Seit“-Wert „%{value}“ ist nicht lesbar — das ganze Journal wird gezeigt."
+
+#: lib/portfolixir_web/live/journal/row.ex:86
+#, elixir-autogen, elixir-format
+msgctxt "journal kind"
+msgid "Prediction"
+msgstr "Prognose"

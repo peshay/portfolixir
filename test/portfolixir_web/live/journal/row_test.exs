@@ -85,4 +85,21 @@ defmodule PortfolixirWeb.Journal.RowTest do
   test "a delete without a before-image folds no values" do
     assert Row.build(entry(%{operation: :delete})).change == %{lines: [:deleted], values: []}
   end
+
+  # User story (ADR-0055; Sprint 25 plan, F1):
+  # As the operator reading the audit journal,
+  # I want a recorded prediction named as one, in my language,
+  # so that the agent's calls read as calls, not as a code.
+  #
+  # Acceptance criteria:
+  # - A prediction's create reads "Prediction <id>", in German "Prognose <id>".
+  test "a prediction is named as its kind and id" do
+    prediction = entry(%{resource_type: "prediction", resource_id: "7", after: %{}})
+
+    assert Row.build(prediction).entity == "Prediction 7"
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+      assert Row.build(prediction).entity == "Prognose 7"
+    end)
+  end
 end
