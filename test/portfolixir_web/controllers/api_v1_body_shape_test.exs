@@ -80,6 +80,7 @@ defmodule PortfolixirWeb.ApiV1BodyShapeTest do
       {:post, "/api/v1/portfolios", "portfolio"},
       {:patch, "/api/v1/portfolios/#{world.portfolio.id}", "portfolio"},
       {:post, "/api/v1/securities/#{security.id}/events", "event"},
+      {:post, "/api/v1/predictions", "prediction"},
       {:post, "/api/v1/securities", "security"},
       {:patch, "/api/v1/securities/#{security.id}", "security"},
       {:post, "/api/v1/portfolios/#{world.portfolio.id}/policy_rules", "rule"},

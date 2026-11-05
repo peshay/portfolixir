@@ -930,6 +930,93 @@ auf `/securities/:id`: der Thesenstand oben, die Einträge neueste zuerst mit
 sichtbarer Art und Quellenqualität, ersetzte Einträge als ersetzt markiert,
 Widerrufe lesbar und ein Formular, das einen Eintrag als Betreiber anhängt.
 
+### Prognosen (ADR-0055)
+
+Eine **Prognose** ist ein dauerhafter Datensatz einer Einschätzung zu einem
+Wertpapier: Es entwickelt sich bis `resolves_on` besser (`outperform`) oder
+schlechter (`underperform`) als eine Benchmark, mit einer genannten
+Wahrscheinlichkeit. **Sie lässt sich nicht bearbeiten, zurückziehen oder
+löschen**, von niemandem: Es gibt absichtlich kein `PATCH` und kein `DELETE`.
+Eine irrtümliche Prognose bleibt und zählt; eine Korrektur ist eine neue
+Prognose, und beide zählen. Status, Ergebnis und Zahlen werden bei jedem Lesen
+aus gespeicherten Schlusskursen abgeleitet und nie gespeichert, sodass ein
+später korrigierter Kurs das Ergebnis sichtbar ändert. Stufe (c): Bewertet
+wird, was festgehalten wurde, bevor sein Ergebnis bekannt war. Kein Feld
+trägt eine Order, eine Größe oder ein Limit, und nichts schlägt eines vor.
+
+- `POST /api/v1/predictions` — hält eine Prognose aus einem
+  `prediction`-Objekt fest (`201`): `security_id`; `direction`
+  (`outperform`, `underperform`); `probability`, ein **Dezimal-String** von
+  `"0.50"` bis `"0.99"` in Schritten von `0.01` (eine JSON-Zahl liefert
+  `422`; `"0.49"` liefert `422` mit der Gegenrichtung, denn eine Prognose
+  unter 50 % ist die entgegengesetzte über 50 %, und `"1.00"` wird
+  abgelehnt, weil sich eine als sicher genannte Prognose nicht bewerten
+  lässt); `benchmark`, geschrieben wie `benchmark=` — `security:<id>` eines
+  mit `is_benchmark` markierten Wertpapiers (nicht des Wertpapiers selbst)
+  oder `rate:<dezimal>`, ein fester Jahreszins, wobei `rate:0` die Prognose
+  absolut macht; `resolves_on`, 7 bis 1.830 Tage nach dem UTC-Tag, an dem
+  sie abgegeben wird; `model`, das Modell, auf dem ein Agent läuft
+  (höchstens 100 Zeichen), **Pflicht für ein API-Token**, abgelehnt für die
+  Seiten des Betreibers; optional `note_id`, ein Research-Log-Eintrag
+  desselben Wertpapiers (seine These, seine Entscheidung, seine Nachricht);
+  optional `rationale` (höchstens 4.000 Zeichen). `made_at` ist die Uhr des
+  Servers, `author` (`agent` für jedes API-Token) und `actor` (der Name des
+  Tokens) stammen aus dem Zugang: Ein Body mit einem der drei liefert `422`
+  mit diesem Feld, denn eine in die Vergangenheit datierte Prognose ist eine,
+  die mit dem Ergebnis vor Augen abgegeben wurde. Jede Ablehnung ist ein
+  `422` mit allen Feldfehlern zugleich; gespeichert wird nichts. Der
+  Schreibvorgang wird als `prediction` / `create` unter dem Token
+  journalisiert.
+- `GET /api/v1/predictions/:id` — eine Prognose mit ihrer `resolution`,
+  einer `permanence_note` und der `computation_basis` der Auflösungsregel;
+  `404` für eine unbekannte ID.
+
+Eine gelesene Prognose trägt `id`, `security_id`, `direction`,
+`probability`, `benchmark`, `resolves_on`, `made_at`, `made_on` (ihr
+UTC-Tag), `author`, `actor`, `model`, `note_id`, `rationale` und
+`resolution`:
+
+- `status` — `open`, solange der Kalendertag der Instanz auf oder vor
+  `resolves_on` liegt; danach `resolved` mit `outcome` `hit` oder `miss`
+  oder `unresolved` mit `reason` `no_start_close`, `no_end_close`,
+  `no_benchmark_close` oder `no_fx_rate`, nie geschätzt;
+- `start_on` — der Tag vor dem UTC-Tag der Abgabe: Der Startkurs ist der
+  letzte Schlusskurs **strikt vor** diesem Tag, sodass eine Prognose nie an
+  einem Kurs gemessen wird, den sie kommen sehen konnte; `end_on` —
+  `resolves_on`, der Endkurs der letzte an oder vor diesem Tag; ein
+  Schlusskurs, der mehr als 7 Tage älter ist als das Datum, für das er
+  steht, ist kein Kurs;
+- `security` — `security_id`, `currency_code`, `start` und `end` (jeweils
+  `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate` und
+  `eur_value`, der Kurs zum gespeicherten EUR-Hub-Kurs seines eigenen Datums
+  in EUR umgerechnet) und `return`, der EUR-Wert am Ende durch den am Start
+  minus 1; `null`, solange offen oder wenn diese Seite keine Antwort hat;
+- `benchmark` — die Seiten einer Wertpapier-Benchmark nach derselben Regel
+  oder `{kind: "rate", rate, from, to, days, return}`, der Zins täglich
+  verzinst über die Tage zwischen den beiden Daten, für die die Kurse des
+  Wertpapiers stehen;
+- `excess` — die Rendite des Wertpapiers minus die der Benchmark: Eine
+  `outperform`-Prognose trifft, wenn er über 0 liegt, eine
+  `underperform`-Prognose, wenn er unter 0 liegt, und 0 ist für beide ein
+  Fehlschlag. Nur Kursrenditen: Ausschüttungen zählen auf keiner Seite.
+
+Beispiel-Payload zum Festhalten:
+
+```json
+{
+  "prediction": {
+    "security_id": 12,
+    "direction": "outperform",
+    "probability": "0.65",
+    "benchmark": "security:7",
+    "resolves_on": "2027-05-03",
+    "model": "example-model-1",
+    "note_id": 41,
+    "rationale": "Der Hochlauf des Werks aus dem Thesen-Eintrag zeigt sich in den nächsten zwei Quartalen."
+  }
+}
+```
+
 ### Wertpapier-Termine (ADR-0048)
 
 Ein **Wertpapier-Termin** ist eine datierte Aussage darüber, dass einem

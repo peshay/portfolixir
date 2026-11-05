@@ -197,6 +197,13 @@ defmodule PortfolixirWeb.Router do
     get("/notes/uncorroborated", NoteController, :uncorroborated)
     get("/notes/expiring", NoteController, :expiring)
 
+    # Predictions (ADR-0055 §5): permanent calls, resolved and scored at
+    # read. Deliberately no PATCH and no DELETE: a prediction is never
+    # edited, withdrawn or deleted (§2). The calibration read comes before
+    # the id route it would otherwise match.
+    post("/predictions", PredictionController, :create)
+    get("/predictions/:id", PredictionController, :show)
+
     # Security events (FR-44, ADR-0048 §5): a dated calendar fact that books
     # nothing, tracked for the WHOLE CATALOG rather than the holdings. The
     # four reads are the acceptance criteria; held_only= narrows and is never

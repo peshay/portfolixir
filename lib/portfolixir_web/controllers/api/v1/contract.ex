@@ -66,8 +66,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "its computation_basis (I18 modes 1 and 2; plan D-3). Its MCP tool, " <>
           "portfolixir.sales.hindsight, is new, read-only and in every profile, and its " <>
           "description says it scores nothing and gives no verdict; the schema ceilings grow " <>
-          "by its own 2,302 bytes per profile and no more.",
-      endpoints: ["GET /api/v1/sales/hindsight"],
+          "by its own 2,302 bytes per profile and no more. " <>
+          "Sprint 25, F4 (ADR-0055 §5): POST /api/v1/predictions records one permanent " <>
+          "call on one security (outperform or underperform a benchmark by resolves_on, " <>
+          "with a probability from 0.50 to 0.99), its author, actor and made_at stated by " <>
+          "the server, journaled under the token; GET /api/v1/predictions/:id answers it " <>
+          "with its resolution derived at read, the closes used and the rule's " <>
+          "computation_basis. Nothing edits, withdraws or deletes a prediction.",
+      endpoints: [
+        "GET /api/v1/sales/hindsight",
+        "POST /api/v1/predictions",
+        "GET /api/v1/predictions/:id"
+      ],
       tools: ["portfolixir.sales.hindsight"],
       parameters: [
         "GET /api/v1/securities/:id/merge_preview?target_id= and POST /api/v1/securities/:id/merge (portfolixir.securities.merge_preview and portfolixir.securities.merge), no parameter added: a source that a prediction is about, or that a prediction is scored against as its benchmark security, is refused with 409, errors.code predictions among errors.guards, its detail \"security #<id> is named by <n> prediction(s), as the security called or the benchmark: a prediction is permanent (ADR-0055 §2), so it can neither move nor vanish.\"; where merging the other way would pass, the guard's remedy says so, as for research_notes (ADR-0050 §9; ADR-0055 §2)",
@@ -100,7 +110,26 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "distributions after a sale are not booked, so a dividend payer's miss is " <>
           "understated, as computation_basis says. A malformed id, date, limit or benchmark " <>
           "answers 422 naming it, to before from 422 on to; an unknown id answers no rows. " <>
-          "Nothing is written (FR-50; plan D-3)"
+          "Nothing is written (FR-50; plan D-3)",
+        "POST /api/v1/predictions, new: a prediction object {security_id, direction " <>
+          ~s[(outperform | underperform), probability (a decimal string from "0.50" to ] <>
+          ~s["0.99" in steps of 0.01; a JSON number is refused), benchmark (security:<id> of ] <>
+          "a security flagged is_benchmark, or rate:<decimal>, rate:0 the absolute call), " <>
+          "resolves_on (7 to 1,830 days after the UTC day it is made), model (required for " <>
+          "an agent's token, refused for the operator's), note_id (optional, a research-log " <>
+          "entry of the same security), rationale (optional)}; 201 with the read below. " <>
+          "made_at, author and actor are the server's: a body carrying one answers 422 " <>
+          "naming it, as every refused field does (0.49 names the other direction). The " <>
+          "write is journaled as prediction / create under the token (ADR-0055 §5, write)",
+        "GET /api/v1/predictions/:id, new: {id, security_id, direction, probability, " <>
+          "benchmark, resolves_on, made_at, made_on, author, actor, model, note_id, " <>
+          "rationale, resolution, permanence_note, computation_basis}; resolution {status " <>
+          "(open | resolved | unresolved), outcome (hit | miss), reason (no_start_close, " <>
+          "no_end_close, no_benchmark_close, no_fx_rate), start_on, end_on, security " <>
+          "{security_id, currency_code, start, end, return}, benchmark (a security's sides " <>
+          "as the security's, or {kind rate, rate, from, to, days, return}), excess}, each " <>
+          "end {stands_for, date, close, stored_close, source, fx_rate, eur_value}; derived " <>
+          "at every read, never stored; 404 for an unknown id (ADR-0055 §5, read)"
       ],
       removed_endpoints: [],
       removed_tools: [],
