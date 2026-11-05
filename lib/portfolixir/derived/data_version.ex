@@ -45,6 +45,7 @@ defmodule Portfolixir.Derived.DataVersion do
 
   alias Portfolixir.Derived.PostCommit
   alias Portfolixir.Derived.Refresher
+  alias Portfolixir.DryRun
   alias Portfolixir.Repo
 
   @global "global"
@@ -140,8 +141,9 @@ defmodule Portfolixir.Derived.DataVersion do
       # is the only place that knows the EXPANDED base list — `:all` resolves
       # to every portfolio above. Fire-and-forget, and a no-op when the
       # refresher is not running: the bump must never depend on it
-      # (ADR-0039 amendment §3).
-      Refresher.notify(bases)
+      # (ADR-0039 amendment §3). A dry run's bump rolls back with its
+      # transaction, so neither process is told of it (Sprint 25 X1).
+      unless DryRun.active?(), do: Refresher.notify(bases)
     end
 
     :ok
@@ -155,7 +157,7 @@ defmodule Portfolixir.Derived.DataVersion do
     if pending_column?(repo) do
       pending = repo.in_transaction?()
       repo.insert_all(@table, Enum.map(bases, &%{basis: &1, pending: pending}))
-      if pending, do: PostCommit.notify()
+      if pending and not DryRun.active?(), do: PostCommit.notify()
     else
       repo.insert_all(@table, Enum.map(bases, &%{basis: &1}))
     end

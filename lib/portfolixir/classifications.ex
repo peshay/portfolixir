@@ -21,8 +21,11 @@ defmodule Portfolixir.Classifications do
   alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.DryRun
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.Target
+  alias Portfolixir.Portfolios.TargetPlan
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
@@ -310,6 +313,27 @@ defmodule Portfolixir.Classifications do
     end
   end
 
+  @doc """
+  The dry run of `delete_classification/2` (Sprint 25 X1, #894; plan D-4):
+  the real delete, run in a transaction that always rolls back
+  (`Portfolixir.DryRun`). Answers `{:ok, removed}`, per kind (the
+  classification, its categories, the stored assignments, the target plans
+  and their targets) the count and the ids the delete would remove, or the
+  refusal the delete would answer. Writes nothing.
+  """
+  def dry_run_delete_classification(%Actor{} = actor, %Classification{} = classification) do
+    DryRun.run(
+      [
+        classifications: Classification,
+        categories: Category,
+        assignments: Assignment,
+        target_plans: TargetPlan,
+        targets: Target
+      ],
+      fn -> delete_classification(actor, classification) end
+    )
+  end
+
   # E25 S6, F43: the tree's rows go first, each through its journaled writer
   # — every plan with its targets, every stored assignment, every category
   # leaves first — then the classification; the foreign keys' cascades stay
@@ -567,6 +591,21 @@ defmodule Portfolixir.Classifications do
         {:error, reason} -> {:error, reason}
       end
     end
+  end
+
+  @doc """
+  The dry run of `delete_category/2` (Sprint 25 X1, #894; plan D-4): the
+  real delete, run in a transaction that always rolls back
+  (`Portfolixir.DryRun`). Answers `{:ok, removed}`, per kind (the category
+  and those below it, the stored assignments to them, the targets filed
+  under them) the count and the ids the delete would remove, or the refusal
+  the delete would answer. Writes nothing.
+  """
+  def dry_run_delete_category(%Actor{} = actor, %Category{} = category) do
+    DryRun.run(
+      [categories: Category, assignments: Assignment, targets: Target],
+      fn -> delete_category(actor, category) end
+    )
   end
 
   # The category and every category below it, as stored now.
