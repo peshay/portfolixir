@@ -2968,6 +2968,91 @@ const notesExpiringZ = z.object({
   limit: z.number().int().min(1).optional()
 });
 
+// Sprint 25, F4 (ADR-0055 §§1, 5): a prediction's write and its reads. The
+// probability is a two-place string from "0.50" to "0.99"; the server
+// states made_at, author and actor, so the write's object is strict and
+// refuses them before any request instead of dropping them.
+const PREDICTION_MODEL_MAX = 100;
+const PREDICTION_RATIONALE_MAX = 4000;
+
+const predictionCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "direction", "probability", "benchmark", "resolves_on", "model"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    direction: { type: "string", enum: ["outperform", "underperform"] },
+    probability: { type: "string", pattern: "^0\\.[5-9][0-9]$", description: "\"0.50\" to \"0.99\", two places" },
+    benchmark: {
+      type: "string",
+      pattern: benchmarkSelector.pattern,
+      description: "security:<id> of a benchmark security other than this one, or rate:<decimal>"
+    },
+    resolves_on: { type: "string", description: boundedDate("The date the call is about.") },
+    model: {
+      type: "string",
+      minLength: 1,
+      maxLength: PREDICTION_MODEL_MAX,
+      description: "the model you run on, as its provider names it"
+    },
+    note_id: { type: "integer", minimum: 1, description: "a research-log entry of the same security" },
+    rationale: { type: "string", maxLength: PREDICTION_RATIONALE_MAX, description: capNote(PREDICTION_RATIONALE_MAX) }
+  }
+};
+
+const predictionCreateZ = z
+  .object({
+    security_id: z.number().int().positive(),
+    direction: z.enum(["outperform", "underperform"]),
+    probability: z.string().regex(/^0\.[5-9][0-9]$/),
+    benchmark: benchmarkSelectorZ,
+    resolves_on: z.string(),
+    model: cappedText(PREDICTION_MODEL_MAX).pipe(z.string().min(1)),
+    note_id: z.number().int().positive().optional(),
+    rationale: cappedText(PREDICTION_RATIONALE_MAX).optional()
+  })
+  .strict();
+
+const predictionsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    status: { type: "string", enum: ["open", "resolved", "unresolved"] },
+    author: { type: "string", enum: ["operator", "agent"] },
+    model: { type: "string", description: TEXT_FILTER },
+    due_before: { type: "string", description: boundedDate("Open calls resolving on or before it.") },
+    limit: { type: "integer", minimum: 1, description: "newest calls to keep (default 100, at most 500)" }
+  }
+};
+
+const predictionsListZ = z.object({
+  security_id: z.number().int().positive().optional(),
+  status: z.enum(["open", "resolved", "unresolved"]).optional(),
+  author: z.enum(["operator", "agent"]).optional(),
+  model: optionalString(),
+  due_before: optionalString(),
+  limit: z.number().int().min(1).optional()
+});
+
+const predictionsCalibrationSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    author: { type: "string", enum: ["operator", "agent"] },
+    model: { type: "string", description: TEXT_FILTER },
+    from: { type: "string", description: boundedDate("Earliest resolves_on.") },
+    to: { type: "string", description: boundedDate("Latest resolves_on.") }
+  }
+};
+
+const predictionsCalibrationZ = z.object({
+  author: z.enum(["operator", "agent"]).optional(),
+  model: optionalString(),
+  from: optionalString(),
+  to: optionalString()
+});
+
 // Issue #737: the daily sync and the one-shot historical backfill share one
 // tool; scope picks the feed.
 const exchangeRateSyncSchema = {
@@ -3037,14 +3122,14 @@ const declaredTools: DeclaredTool[] = [
     "portfolixir.securities.delete",
     "Delete security",
     "Delete a local security when nothing references it. A policy rule reading it answers 409 with errors.policy_rules. " +
-      "Bookings, quotes, research notes, security events or policy-rule versions answer 409 with errors.referenced_by " +
+      "Bookings, quotes, research notes, events, predictions or rule versions answer 409 with errors.referenced_by " +
       "(the referencing tables, counted, e.g. {\"transactions\": 3}), errors.remedy and " +
       "errors.remedy_route: remedy \"merge\" for a duplicate — preview the merge with " +
       "GET /api/v1/securities/:id/merge_preview?target_id=<the security to keep> " +
-      "(portfolixir.securities.merge_preview) — or \"retire\" when research notes " +
-      "or rule versions reference it, which a merge cannot carry (portfolixir.securities.update with is_retired true). Before an " +
+      "(portfolixir.securities.merge_preview) — or \"retire\" when notes, predictions " +
+      "or rule versions reference it, which no merge carries (portfolixir.securities.update with is_retired true). Before an " +
       "unreferenced security goes, its category assignments, position targets, position bucket overrides and ISIN " +
-      "aliases are removed, each journaled under the API token; no cascade removes them." +
+      "aliases are removed, each journaled under the API token; no cascade." +
       " A delete that loses a race to a concurrent write answers 409 with errors.detail alone and deletes nothing: read the row again and retry.",
     idSchema,
     idZ
@@ -3076,11 +3161,11 @@ const declaredTools: DeclaredTool[] = [
       "preview (removed, boundary_removed, absorbed; flow_basis). Show both outcomes; the " +
       "choices are the operator's. Decimals: strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
-      "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
+      "retired_target, quote_basis_mismatch, research_notes, predictions, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
       "legacy_hashed_split (a split to move still carries an import hash; errors.splits names it — change " +
       "its kind back or delete it), invalid_source_isin (errors.source_isin " +
-      "fails its check digit: fix or clear it on the source first), or " +
+      "fails its check digit: fix or clear it first), or " +
       "identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or " +
       "with a former ISIN, or of one merged into either before, that would no longer find the target) " +
       "and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
@@ -3225,6 +3310,36 @@ const declaredTools: DeclaredTool[] = [
     "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; it echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest (default 1000, max 10000), echoed with truncated." + REIMPORT_GUARANTEE,
     notesExpiringSchema,
     notesExpiringZ
+  ),
+  // Sprint 25, F4 (ADR-0055 §5): predictions, permanent calls resolved and
+  // scored at read. Ladder (c): scored only against prices after the call.
+  tool(
+    "portfolixir.predictions.create",
+    "Record a prediction",
+    "Record one prediction (ADR-0055): security_id will outperform or underperform its benchmark by resolves_on, with a stated probability. PERMANENT: it cannot be edited, withdrawn or deleted, by anyone, and no tool does so; a mistaken one stays and counts, and a correction is a new prediction, both counted. Check every field first. A recorded call, never a trade: no order, no size. probability is a string from \"0.50\" to \"0.99\" (below 0.50 is the other direction above it: 0.49 answers 422 naming it). benchmark: security:<id> of a security flagged is_benchmark, or rate:<decimal>, a fixed annual rate (rate:0: the price rises or falls). resolves_on: 7 to 1830 days after today (UTC). model is required: name the model you run on, since models change under one token. note_id: the research-log entry it belongs to (a thesis, a decision, a news item; portfolixir.notes.append), whose thesis holds the invalidation. author (agent), actor (the token's name) and made_at are the server's and cannot be sent. Read it back with portfolixir.predictions.get; it is scored at read (portfolixir.predictions.calibration). Journaled under the API token.",
+    predictionCreateSchema,
+    predictionCreateZ
+  ),
+  tool(
+    "portfolixir.predictions.list",
+    "List predictions",
+    "The predictions (ADR-0055), newest first, each permanent (never edited, withdrawn or deleted) and read with its resolution, derived at read and never stored: status open (until resolves_on has passed), resolved with outcome hit or miss, or unresolved with reason no_start_close, no_end_close, no_benchmark_close or no_fx_rate, never estimated; the closes used, both returns and the excess, as portfolixir.predictions.get. Optional security_id, status, author (operator | agent), model and due_before, the due query: open calls whose resolves_on is on or before the date. limit (default 100, at most 500) is echoed with truncated. Decimals are strings; computation_basis states the rule.",
+    predictionsListSchema,
+    predictionsListZ
+  ),
+  tool(
+    "portfolixir.predictions.get",
+    "Get a prediction",
+    "One prediction (ADR-0055), permanent (a correction is a new prediction), with its resolution at read: status, outcome or reason, start_on (the day before the UTC day made: its close the last strictly before that day) and end_on (resolves_on); per side start and end {stands_for, date, close, stored_close, source, fx_rate, eur_value}, in EUR at the stored rate of the close's date, a close over 7 days older than its date being none, and return; a rate benchmark compounds daily over the days between. excess = security return - benchmark return: outperform hits above 0, underperform below, 0 misses. Price only. Decimals are strings; computation_basis states the rule; 404 for an unknown id.",
+    idSchema,
+    idZ
+  ),
+  tool(
+    "portfolixir.predictions.calibration",
+    "Calibration of the predictions",
+    "How well the recorded calls are calibrated (ADR-0055, ladder (c)), over the resolved predictions: the Brier score (mean of (p - o)^2, o 1 for a hit; lower is better) with its standard_error and the reference 0.25 (saying 0.50 to everything); sharpness (mean of p - 0.50) beside it; the hit rate with its standard error beside the mean stated probability; five bands (0.50-0.59 to 0.90-0.99) whose hit_rate is \"too_few\" under 20 resolved calls; counts, open and unresolved by reason (excluded and counted); and the same block per author and per model. Optional author, model, from and to (resolves_on, inclusive). Expect too_few for long: the headline score with its standard error carries meaning first. It scores calls and makes none; predictions are permanent, so nothing tidies the report. Decimals are strings; computation_basis states every formula.",
+    predictionsCalibrationSchema,
+    predictionsCalibrationZ
   ),
   tool("portfolixir.quotes.sync", "Sync quotes", "Sync quote history for one security. Returns status (ok, skipped or error) and, when not ok, a reason such as missing_ticker, no_provider_adapter or persist_failed (the fetched quotes could not be stored). A history of any length is stored in one call. One sync of a security runs at a time: while one runs (including the background backfill a newly created security starts), a second call answers 409 and calls no provider — wait for it rather than retrying in a loop.", {
     type: "object",
@@ -4415,6 +4530,27 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery("/api/v1/notes/expiring", args, ["days", "security_id", "limit"])
+      );
+    case "portfolixir.predictions.create":
+      return client.request("POST", "/api/v1/predictions", { prediction: args });
+    case "portfolixir.predictions.list":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/predictions", args, [
+          "security_id",
+          "status",
+          "author",
+          "model",
+          "due_before",
+          "limit"
+        ])
+      );
+    case "portfolixir.predictions.get":
+      return client.request("GET", `/api/v1/predictions/${args.id}`);
+    case "portfolixir.predictions.calibration":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/predictions/calibration", args, ["author", "model", "from", "to"])
       );
     case "portfolixir.quotes.sync":
       return client.request("POST", `/api/v1/securities/${args.security_id}/sync_quotes`, {});
