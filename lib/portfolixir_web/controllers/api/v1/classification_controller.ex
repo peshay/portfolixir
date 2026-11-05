@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
 
   alias Portfolixir.Classifications
   alias Portfolixir.Classifications.Classification
+  alias PortfolixirWeb.Api.V1.DryRunParam
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.PolicyConflict
@@ -50,19 +51,41 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     end
   end
 
-  def delete(conn, %{"id" => id}) do
-    with {:ok, cid} <- IdParam.parse(id),
+  # dry_run=true (Sprint 25 X1, #894): the same delete, rolled back, answers
+  # what it would remove, or the refusal the delete answers.
+  def delete(conn, %{"id" => id} = params) do
+    with {:ok, dry_run} <- DryRunParam.parse(params),
+         {:ok, cid} <- IdParam.parse(id),
          %Classification{} = classification <- Classifications.get_classification(cid) do
-      case Classifications.delete_classification(conn.assigns.actor, classification) do
-        {:ok, _classification} -> json(conn, %{data: %{deleted: true}})
-        {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "classification")
-        {:error, reason} -> render_error(conn, reason)
+      actor = conn.assigns.actor
+
+      if dry_run do
+        actor
+        |> Classifications.dry_run_delete_classification(classification)
+        |> render_dry_run(conn, "classification")
+      else
+        actor
+        |> Classifications.delete_classification(classification)
+        |> render_delete(conn, "classification")
       end
     else
+      {:error, :dry_run} -> DryRunParam.invalid(conn)
       nil -> not_found(conn)
       :error -> not_found(conn)
     end
   end
+
+  # A delete's answer; its dry run answers what it would remove, and is
+  # refused as the delete is.
+  defp render_dry_run({:ok, removed}, conn, _kind), do: DryRunParam.answer(conn, removed)
+  defp render_dry_run(refused, conn, kind), do: render_delete(refused, conn, kind)
+
+  defp render_delete({:ok, _deleted}, conn, _kind), do: json(conn, %{data: %{deleted: true}})
+
+  defp render_delete({:error, {:policy_rules, rules}}, conn, kind),
+    do: PolicyConflict.render(conn, rules, kind)
+
+  defp render_delete({:error, reason}, conn, _kind), do: render_error(conn, reason)
 
   def create_category(conn, %{"classification_id" => classification_id} = params) do
     with {:ok, id} <- IdParam.parse(classification_id) do
@@ -101,16 +124,24 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     end
   end
 
-  def delete_category(conn, %{"classification_id" => classification_id, "id" => id}) do
-    with {:ok, cid} <- IdParam.parse(classification_id),
+  def delete_category(conn, %{"classification_id" => classification_id, "id" => id} = params) do
+    with {:ok, dry_run} <- DryRunParam.parse(params),
+         {:ok, cid} <- IdParam.parse(classification_id),
          {:ok, category_id} <- IdParam.parse(id),
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
-      case Classifications.delete_category(conn.assigns.actor, category) do
-        {:ok, _category} -> json(conn, %{data: %{deleted: true}})
-        {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "category")
-        {:error, reason} -> render_error(conn, reason)
+      actor = conn.assigns.actor
+
+      if dry_run do
+        actor
+        |> Classifications.dry_run_delete_category(category)
+        |> render_dry_run(conn, "category")
+      else
+        actor
+        |> Classifications.delete_category(category)
+        |> render_delete(conn, "category")
       end
     else
+      {:error, :dry_run} -> DryRunParam.invalid(conn)
       :error -> not_found(conn)
       nil -> not_found(conn)
       %{} -> not_found(conn)
