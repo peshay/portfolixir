@@ -383,6 +383,28 @@ defmodule Portfolixir.Predictions.ResolutionTest do
     assert {resolution.status, resolution.outcome} == {:resolved, :miss}
   end
 
+  # User story (the Sprint 25 closing act's money lens, reproduced):
+  # As the agent calling a USD stock against a USD index,
+  # I want a call whose two sides moved exactly alike to read excess 0,
+  # so that it is the miss ADR-0055 §3 says it is, not a 1E-33 hit.
+  test "identical moves in one non-EUR currency: excess exactly 0, a miss" do
+    stock = security!("US Stock Co.", "USD")
+    index = benchmark!("US Broad Index", "USD")
+    put_quotes!(stock, [{~D[2026-03-04], "123"}, {~D[2026-06-01], "135.3"}])
+    put_quotes!(index, [{~D[2026-03-04], "17"}, {~D[2026-06-01], "18.7"}])
+    rate!(~D[2026-03-04], "1.07")
+    rate!(~D[2026-06-01], "1.13")
+
+    # Both returns: (end x 1.07) / (start x 1.13) - 1, one division of
+    # exact products = 0.041592920353982300884955752212389 (window return
+    # test); excess 0.
+    resolution = resolve(predict!(stock, "outperform", "security:#{index.id}"))
+    assert Decimal.to_string(resolution.security.return) == "0.041592920353982300884955752212389"
+    assert Decimal.to_string(resolution.benchmark.return) == "0.041592920353982300884955752212389"
+    assert_decimal(resolution.excess, "0")
+    assert {resolution.status, resolution.outcome} == {:resolved, :miss}
+  end
+
   # User story (F2, ADR-0055 §3 "Staleness"; D-10 condition 4):
   # As the agent reading its score,
   # I want a call without a usable close or rate named unresolved with its

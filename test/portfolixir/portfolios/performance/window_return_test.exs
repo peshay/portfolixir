@@ -116,8 +116,9 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturnTest do
   # Acceptance criteria:
   # - A USD move of +20 % while EUR/USD rises from 1.25 to 1.60 reads
   #   -6.25 % in EUR; one rate for both ends would read +20 %.
-  # - A rate whose inverse does not terminate is carried at 34 significant
-  #   digits, with no other rounding on the way.
+  # - The return is one division of exact products, rounded once to 34
+  #   significant digits; a rate whose inverse does not terminate is
+  #   carried at 34 digits only in the displayed fx_rate and eur_value.
   test "a moving EUR/USD rate: each close at its own date's rate" do
     security = create_security!(name: "US Growth", ticker: "USG", currency: "USD")
     put_quotes!(security, [{~D[2026-03-02], "100"}, {~D[2026-06-01], "120"}])
@@ -142,16 +143,69 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturnTest do
 
     assert {:ok, moved} = WindowReturn.price_return(other, ~D[2026-03-03], ~D[2026-06-02])
 
-    # Start: 100 x (1 / 1.1 = 0.9090909090909090909090909090909091)
-    #   = 90.90909090909090909090909090909091.
-    # End: 130 x (1 / 1.2 = 0.8333333333333333333333333333333333)
-    #   = 108.3333333333333333333333333333333 (rounded to 34 digits).
-    # 108.3333333333333333333333333333333 / 90.90909090909090909090909090909091
-    #   = 1.191666666666666666666666666666666 at 34 digits (the exact
-    #   quotient 130 x 1.1 / (100 x 1.2) = 1.191666...), minus 1.
+    # Displayed: start 100 x (1 / 1.1 = 0.9090909090909090909090909090909091)
+    #   = 90.90909090909090909090909090909091; end 130 x (1 / 1.2 =
+    #   0.8333333333333333333333333333333333) = 108.3333333333333333333333333333333
+    #   (rounded to 34 digits).
+    # The return is not their quotient but one division of exact products:
+    #   (130 x 1.1) / (100 x 1.2) = 143.0 / 120.0 = 1.191666... rounded once
+    #   to 34 digits half-up = 1.191666666666666666666666666666667, minus 1
+    #   (Python decimal, prec 34, ROUND_HALF_UP). The quotient of the two
+    #   rounded EUR values read ...666.
     assert Decimal.to_string(moved.start.eur_value) == "90.90909090909090909090909090909091"
     assert Decimal.to_string(moved.end.eur_value) == "108.3333333333333333333333333333333"
-    assert Decimal.to_string(moved.return) == "0.191666666666666666666666666666666"
+    assert Decimal.to_string(moved.return) == "0.191666666666666666666666666666667"
+  end
+
+  # User story (the Sprint 25 closing act's money lens, reproduced):
+  # As the agent whose call on a USD stock is scored against a USD index,
+  # I want two identical moves in the same currency to read exactly the
+  # same EUR return,
+  # so that an excess of exactly 0 is a miss and never a 1E-33 hit.
+  #
+  # Acceptance criteria:
+  # - USD security 123 -> 135.3 and USD benchmark 17 -> 18.7 (both +10 %)
+  #   while EUR/USD moves 1.07 -> 1.13: both returns are
+  #   0.041592920353982300884955752212389, equal to the last digit. Through
+  #   34-digit inverse rates they read ...390 and ...389.
+  test "two identical moves in one currency read exactly equal returns" do
+    stock = create_security!(name: "US Stock", ticker: "USS", currency: "USD")
+    index = create_security!(name: "US Index", ticker: "USI", currency: "USD")
+    put_quotes!(stock, [{~D[2026-03-02], "123"}, {~D[2026-06-01], "135.3"}])
+    put_quotes!(index, [{~D[2026-03-02], "17"}, {~D[2026-06-01], "18.7"}])
+    rate!(~D[2026-03-02], "1.07")
+    rate!(~D[2026-06-01], "1.13")
+
+    assert {:ok, a} = WindowReturn.price_return(stock, ~D[2026-03-02], ~D[2026-06-01])
+    assert {:ok, b} = WindowReturn.price_return(index, ~D[2026-03-02], ~D[2026-06-01])
+
+    # (135.3 x 1.07) / (123 x 1.13) = 144.771 / 138.99 and
+    # (18.7 x 1.07) / (17 x 1.13) = 20.009 / 19.21, both exactly
+    # 1.1 x 1.07 / 1.13 = 1.04159292035398230088495575221238938...; one
+    # division each, rounded to 34 digits half-up:
+    # 1.041592920353982300884955752212389, minus 1.
+    assert Decimal.to_string(a.return) == "0.041592920353982300884955752212389"
+    assert Decimal.to_string(b.return) == "0.041592920353982300884955752212389"
+    assert Decimal.equal?(Decimal.sub(a.return, b.return), 0)
+  end
+
+  # User story (S1, ADR-0055 §3 "Currency"; the closing act's money lens):
+  # As the operator holding a London listing quoted in pence,
+  # I want its return read through GBP x 100, the factor cancelling,
+  # so that a pence quote reads the EUR move it is.
+  test "a GBX security: GBP x 100, the factor cancels in the one division" do
+    security = create_security!(name: "London Co.", ticker: "LDN", currency: "GBX")
+    put_quotes!(security, [{~D[2026-03-02], "1000"}, {~D[2026-06-01], "1100"}])
+    rate!(~D[2026-03-02], "0.85", "GBP")
+    rate!(~D[2026-06-01], "0.88", "GBP")
+
+    assert {:ok, result} = WindowReturn.price_return(security, ~D[2026-03-02], ~D[2026-06-01])
+
+    # Hub rates 0.85 x 100 = 85 and 0.88 x 100 = 88 pence per EUR; the
+    # displayed fx_rate is 1 / 85 at 34 digits. Return: (1100 x 85) /
+    # (1000 x 88) - 1 = 93500 / 88000 - 1 = 1.0625 - 1 = 0.0625.
+    assert Decimal.to_string(result.start.fx_rate) == "0.01176470588235294117647058823529412"
+    assert_decimal(result.return, "0.0625")
   end
 
   # User story (S1, ADR-0055 §3 "Currency", "as valuation does"):
@@ -198,8 +252,8 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturnTest do
     rate!(~D[2026-03-02], "0.95", "CHF")
 
     assert {:ok, result} = WindowReturn.price_return(security, ~D[2026-03-02], ~D[2026-06-01])
-    # Both closes at 1 / 0.95: the rate cancels, 110 / 100 - 1 = 0.1 (the
-    # quotient of the two 34-digit EUR values rounds back to 1.1).
+    # Both closes at the hub rate 0.95: it cancels in the one division,
+    # (110 x 0.95) / (100 x 0.95) - 1 = 104.5 / 95 - 1 = 0.1 exactly.
     assert_decimal(result.return, "0.1")
   end
 
