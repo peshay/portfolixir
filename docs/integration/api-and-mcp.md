@@ -3575,9 +3575,13 @@ tree stays intrinsic and cannot be reassigned.
   and `depot_snapshots`. A delete the server refuses is refused by its dry
   run with the same status and body: `422` for a built-in classification,
   `409` naming the policy rules that read it, `404` for an unknown id.
-  Nothing is written, the audit journal included. Absent, empty or `false`
-  is the delete itself; any other value answers `422`
-  `{"errors": {"dry_run": ["is invalid"]}}` and deletes nothing.
+  Nothing is written, the audit journal included. Absent or `false` is the
+  delete itself; any other value, an empty `dry_run=` included, answers
+  `422` `{"errors": {"dry_run": ["is invalid"]}}`, and any other query
+  parameter (`dryRun`, `dry-run`, ...) answers `422` naming it,
+  `{"errors": {"dryRun": ["is unknown: this delete takes only dry_run"]}}`;
+  either deletes nothing, so a typo never turns the question into the
+  delete. The MCP tools refuse a misspelled key before any request.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
   to a category (`security_id`, `category_id`), replacing any existing assignment
   for that security in the classification. The response carries a `status` of

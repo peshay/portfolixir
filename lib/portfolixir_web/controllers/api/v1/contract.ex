@@ -224,10 +224,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "refused by its dry run with the same status and body: 422 for a built-in " <>
           "classification, 409 naming the policy rules that read it, 404 for an unknown id. " <>
           "Nothing is written, the audit journal included, and nothing outside the transaction " <>
-          "is told. Absent, empty or false is the delete as before (a view's 204, the others' " <>
+          "is told. Absent or false is the delete as before (a view's 204, the others' " <>
           ~s({"data": {"deleted": true}}) <>
-          "); any other value answers 422 errors.dry_run [\"is invalid\"] and deletes nothing " <>
-          "(#894; plan D-4)"
+          "); any other value, an empty dry_run= included, answers 422 errors.dry_run " <>
+          "[\"is invalid\"], and any other query parameter (dryRun, dry-run, dryrun) answers " <>
+          "422 naming it, errors.<key> [\"is unknown: this delete takes only dry_run\"]; " <>
+          "either deletes nothing, and the three MCP tools refuse a misspelled key before any " <>
+          "request (#894; plan D-4)"
       ],
       removed_endpoints: [],
       removed_tools: [],

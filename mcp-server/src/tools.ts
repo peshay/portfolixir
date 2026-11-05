@@ -828,11 +828,15 @@ const categoryDeleteSchema = {
   }
 };
 
-const categoryDeleteZ = z.object({
-  classification_id: z.number().int().positive(),
-  id: z.number().int().positive(),
-  dry_run: z.boolean().optional()
-});
+// .strict() on the three deletes: a misspelled dry_run (dryRun, dry-run,
+// dryrun) is refused before any request, never dropped into the real delete.
+const categoryDeleteZ = z
+  .object({
+    classification_id: z.number().int().positive(),
+    id: z.number().int().positive(),
+    dry_run: z.boolean().optional()
+  })
+  .strict();
 
 const dryRunDeleteSchema = {
   type: "object",
@@ -841,7 +845,9 @@ const dryRunDeleteSchema = {
   properties: { id: { type: "integer", minimum: 1 }, dry_run: { type: "boolean" } }
 };
 
-const dryRunDeleteZ = z.object({ id: z.number().int().positive(), dry_run: z.boolean().optional() });
+const dryRunDeleteZ = z
+  .object({ id: z.number().int().positive(), dry_run: z.boolean().optional() })
+  .strict();
 
 const assignBulkSchema = {
   type: "object",

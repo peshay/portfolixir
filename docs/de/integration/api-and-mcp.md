@@ -3896,9 +3896,14 @@ neu zugeordnet werden.
   lehnt ihr Probelauf mit demselben Status und Body ab: `422` für eine
   eingebaute Klassifizierung, `409` mit den Regeln, die sie lesen, `404` für
   eine unbekannte id. Nichts wird geschrieben, auch nicht ins Audit-Journal.
-  Fehlt der Wert, ist er leer oder `false`, ist es die Löschung selbst; jeder
-  andere Wert liefert `422` `{"errors": {"dry_run": ["is invalid"]}}` und
-  löscht nichts.
+  Fehlt der Wert oder ist er `false`, ist es die Löschung selbst; jeder
+  andere Wert, auch ein leeres `dry_run=`, liefert `422`
+  `{"errors": {"dry_run": ["is invalid"]}}`, und jeder andere
+  Query-Parameter (`dryRun`, `dry-run`, ...) liefert `422` mit seinem Namen,
+  `{"errors": {"dryRun": ["is unknown: this delete takes only dry_run"]}}`;
+  beides löscht nichts, sodass ein Tippfehler die Frage nie zur Löschung
+  macht. Die MCP-Tools lehnen einen falsch geschriebenen Schlüssel vor jeder
+  Anfrage ab.
 - `PUT /api/v1/classifications/:classification_id/assignments` ordnet ein
   Wertpapier einer Kategorie zu (`security_id`, `category_id`) und ersetzt jede
   bestehende Zuordnung dieses Wertpapiers in der Klassifizierung. Die Antwort trägt
