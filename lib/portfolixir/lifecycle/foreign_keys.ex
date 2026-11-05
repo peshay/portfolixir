@@ -36,7 +36,8 @@ defmodule Portfolixir.Lifecycle.ForeignKeys do
       their journaled context function once the guard has found both sets
       equal (§7).
     * `:refuse` — a reference that can neither move nor vanish refuses the
-      merge (§9: research notes, ADR-0044 §3; rule versions, ADR-0049 §8).
+      merge (§9: research notes, ADR-0044 §3; rule versions, ADR-0049 §8;
+      predictions, as their security or their benchmark, ADR-0055 §2).
 
   ## Delete dispositions
 
@@ -187,6 +188,26 @@ defmodule Portfolixir.Lifecycle.ForeignKeys do
       merge: :refuse,
       delete: :restrict,
       basis: "§9 guard and ADR-0049 §8: a rule version naming the source refuses both"
+    },
+    %{
+      constraint: "predictions_security_id_fkey",
+      table: "predictions",
+      columns: ["security_id"],
+      references: "securities",
+      merge: :refuse,
+      delete: :restrict,
+      basis: "§9 guard and ADR-0055 §2: a scored prediction can neither move nor vanish"
+    },
+    %{
+      constraint: "predictions_benchmark_security_id_fkey",
+      table: "predictions",
+      columns: ["benchmark_security_id"],
+      references: "securities",
+      merge: :refuse,
+      delete: :restrict,
+      basis:
+        "§9 guard and ADR-0055 §2: the benchmark a prediction is scored against can " <>
+          "neither move nor vanish"
     },
     # --- cash accounts ------------------------------------------------------
     %{

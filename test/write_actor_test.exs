@@ -170,7 +170,10 @@ defmodule Portfolixir.WriteActorTest do
                   # hashes, append-only and armed in the migrations that create
                   # them — the journal records who merged and who retired.
                   "merge_records",
-                  "retired_import_hashes"
+                  "retired_import_hashes",
+                  # ADR-0055 §2: predictions, append-only and armed in the
+                  # migration that creates them — an agent writes these rows.
+                  "predictions"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
