@@ -15,6 +15,19 @@ defmodule Portfolixir.DryRun do
   delete wrote — the journal's entries, the derived layer's version events —
   rolls back with the rest.
 
+  The transaction is REPEATABLE READ (Sprint 25 closing act): at READ
+  COMMITTED each read took a fresh snapshot, so a row a concurrent
+  transaction deleted between the read before the delete and the read after
+  it was named as one the delete removes. Both reads now see one snapshot
+  plus the transaction's own deletes. A delete that then meets a row a
+  concurrent transaction changed fails with a serialization failure, and
+  the dry run answers `{:error, :concurrent_change}`: nothing was deleted
+  either way, and a retry decides. Under the SQL sandbox the dry run's
+  transaction is a savepoint inside the test's, where PostgreSQL refuses an
+  isolation level, so the level is set only where `Repo.transaction/1`
+  opens a transaction of its own; the scratch-database tests
+  (`Portfolixir.LockRace.DryRunDeleteTest`) pin it on real connections.
+
   Nothing outside the transaction hears of a dry run: while one runs,
   `active?/0` is true in its process, and the derived layer's version bump
   (`Portfolixir.Derived.DataVersion`) then tells neither the refresher nor
@@ -39,14 +52,18 @@ defmodule Portfolixir.DryRun do
   real delete) in a transaction that always rolls back. Answers
   `{:ok, removed}` with, per kind of `kinds`, the count and the ids of the
   rows the delete removed (every kind listed, a count of 0 where it removed
-  none), or the delete's own `{:error, reason}`.
+  none), the delete's own `{:error, reason}`, or `{:error,
+  :concurrent_change}` when a concurrent transaction changed a row the
+  delete reached after the dry run's snapshot.
   """
   @spec run(kinds(), (-> {:ok, term()} | {:error, term()})) :: {:ok, removed()} | {:error, term()}
   def run(kinds, delete) when is_list(kinds) and is_function(delete, 0) do
     previous = Process.put(@flag, true)
+    own_transaction? = own_transaction?()
 
     try do
       fn ->
+        if own_transaction?, do: Repo.query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         before = ids(kinds)
 
         case delete.() do
@@ -58,6 +75,15 @@ defmodule Portfolixir.DryRun do
       |> case do
         {:error, {__MODULE__, answer}} -> answer
       end
+    rescue
+      error in Postgrex.Error ->
+        case error do
+          %Postgrex.Error{postgres: %{code: :serialization_failure}} ->
+            {:error, :concurrent_change}
+
+          _other ->
+            reraise error, __STACKTRACE__
+        end
     after
       if previous, do: Process.put(@flag, previous), else: Process.delete(@flag)
     end
@@ -66,6 +92,15 @@ defmodule Portfolixir.DryRun do
   @doc "Whether a dry run is running in this process."
   @spec active?() :: boolean()
   def active?, do: Process.get(@flag, false)
+
+  # Whether `Repo.transaction/1` opens a transaction of its own here, whose
+  # isolation level can still be set: not inside another transaction, and
+  # not on the SQL sandbox's ownership pool, whose every transaction is a
+  # savepoint inside the test's.
+  defp own_transaction? do
+    not Repo.in_transaction?() and
+      Ecto.Adapter.lookup_meta(Repo.get_dynamic_repo()).opts[:pool] != DBConnection.Ownership
+  end
 
   defp ids(kinds) do
     Map.new(kinds, fn {kind, schema} ->

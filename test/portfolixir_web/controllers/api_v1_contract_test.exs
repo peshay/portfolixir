@@ -231,6 +231,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert dry_run =~ "an empty dry_run= included"
     assert dry_run =~ "any other query parameter (dryRun, dry-run, dryrun) answers 422 naming it"
     assert dry_run =~ "a misspelled key"
+    assert dry_run =~ "REPEATABLE READ"
+    assert dry_run =~ ~s(409 errors.code "concurrent_change")
 
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.

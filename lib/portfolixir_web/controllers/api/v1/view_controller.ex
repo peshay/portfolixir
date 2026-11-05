@@ -109,6 +109,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
         else: send_resp(conn, :no_content, "")
     else
       {:error, {:dry_run_param, errors}} -> DryRunParam.invalid(conn, errors)
+      {:error, :concurrent_change} -> DryRunParam.concurrent_change(conn)
       {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "view")
       nil -> not_found(conn)
       :error -> not_found(conn)

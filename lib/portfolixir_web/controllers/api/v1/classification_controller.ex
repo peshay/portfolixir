@@ -78,6 +78,10 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   # A delete's answer; its dry run answers what it would remove, and is
   # refused as the delete is.
   defp render_dry_run({:ok, removed}, conn, _kind), do: DryRunParam.answer(conn, removed)
+
+  defp render_dry_run({:error, :concurrent_change}, conn, _kind),
+    do: DryRunParam.concurrent_change(conn)
+
   defp render_dry_run(refused, conn, kind), do: render_delete(refused, conn, kind)
 
   defp render_delete({:ok, _deleted}, conn, _kind), do: json(conn, %{data: %{deleted: true}})
