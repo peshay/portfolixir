@@ -55,6 +55,66 @@ defmodule Portfolixir.SeededUpgrade.PredictionsTest do
     assert %{rows: [[1]]} = SeededUpgrade.query!(upgrade, "SELECT count(*) FROM predictions")
   end
 
+  # User story (ADR-0055 amendment of 2026-11-05, §3; the closing act's
+  # UAT persona): the rate cap is a CHECK added to a table an instance on
+  # the branch may already hold, and a prediction is never rewritten (§2).
+  #
+  # Acceptance criteria:
+  # - Seeded with a prediction against rate:5 (accepted by the CHECK of
+  #   20261105140000), the database migrates to head: the cap is added NOT
+  #   VALID, so the stored call stays as made and is not rewritten.
+  # - After the upgrade, a new row against rate:5 is refused by
+  #   predictions_benchmark_rate_cap_check, and one against rate:1 is
+  #   stored.
+  @tag seeded_upgrade: 20_261_105_170_000
+  test "the rate cap does not stop the upgrade over a stored rate above 1",
+       %{seeded_upgrade: migration} do
+    upgrade =
+      SeededUpgrade.upgrade!(
+        from: 20_261_105_140_000,
+        seed: fn db ->
+          security =
+            insert!(db, "INSERT INTO securities #{row(~w(name currency_code))}", ["Gamma", "EUR"])
+
+          insert_rate_prediction!(db, security, 5)
+          security
+        end
+      )
+
+    assert migration in upgrade.migrated
+
+    assert %{rows: [[rate]]} =
+             SeededUpgrade.query!(upgrade, "SELECT benchmark_rate FROM predictions")
+
+    assert Decimal.equal?(rate, 5)
+
+    assert_raise Postgrex.Error, ~r/predictions_benchmark_rate_cap_check/, fn ->
+      SeededUpgrade.journaled!(upgrade, fn ->
+        insert_rate_prediction!(upgrade, upgrade.seeded, 5)
+      end)
+    end
+
+    SeededUpgrade.journaled!(upgrade, fn ->
+      insert_rate_prediction!(upgrade, upgrade.seeded, 1)
+    end)
+
+    assert %{rows: [[2]]} = SeededUpgrade.query!(upgrade, "SELECT count(*) FROM predictions")
+  end
+
+  defp insert_rate_prediction!(db, security, rate) do
+    SeededUpgrade.query!(
+      db,
+      """
+      INSERT INTO predictions
+        (security_id, direction, probability, benchmark_kind, benchmark_rate, resolves_on,
+         made_at, author)
+      VALUES ($1, 'outperform', 0.60, 'rate', $2,
+              (now() AT TIME ZONE 'UTC')::date + 30, now() AT TIME ZONE 'UTC', 'operator')
+      """,
+      [security, rate]
+    )
+  end
+
   defp seed_notes(db) do
     first = insert!(db, "INSERT INTO securities #{row(~w(name currency_code))}", ["Alpha", "EUR"])
     second = insert!(db, "INSERT INTO securities #{row(~w(name currency_code))}", ["Beta", "EUR"])
