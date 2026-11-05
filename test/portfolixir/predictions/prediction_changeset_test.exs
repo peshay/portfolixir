@@ -9,6 +9,7 @@ defmodule Portfolixir.Predictions.PredictionChangesetTest do
   alias Portfolixir.Actor
   alias Portfolixir.Predictions
   alias Portfolixir.Predictions.Prediction
+  alias Portfolixir.Repo
   alias Portfolixir.WorldFixtures
 
   defp agent, do: Actor.api_token_rw("research-agent")
@@ -113,12 +114,13 @@ defmodule Portfolixir.Predictions.PredictionChangesetTest do
   # so that a stated bound cannot drift from the enforced one.
   #
   # Acceptance criteria:
-  # - The accessors answer 0.50, 0.99, 7, 1,830, 100 and 4,000.
+  # - The accessors answer 0.50, 0.99, 7, 1,830, 1, 100 and 4,000.
   test "the bounds the struct states are the ones it enforces" do
     assert Prediction.min_probability() == Decimal.new("0.50")
     assert Prediction.max_probability() == Decimal.new("0.99")
     assert Prediction.min_days() == 7
     assert Prediction.max_days() == 1830
+    assert Prediction.max_rate() == Decimal.new(1)
     assert Prediction.model_max() == 100
     assert Prediction.rationale_max() == 4000
 
@@ -126,5 +128,46 @@ defmodule Portfolixir.Predictions.PredictionChangesetTest do
              errors_on_create(%{model: String.duplicate("m", Prediction.model_max() + 1)})
 
     assert too_long =~ "100"
+  end
+
+  # User story (the Sprint 25 closing act's UAT persona, reproduced;
+  # ADR-0055 amendment of 2026-11-05, §3):
+  # As the operator's agent naming a fixed-rate benchmark,
+  # I want a rate above 1 refused with the fraction form named,
+  # so that rate:5 meant as 5 % is never stored as 500 % a year on a record
+  # nobody can correct.
+  #
+  # Acceptance criteria:
+  # - rate:1 (100 % a year) and rate:-0.999999 (the engine's floor) are
+  #   accepted; rate:1.000001 and rate:5 are refused on benchmark, the
+  #   message naming the fraction form (rate:0.02 is 2 % a year).
+  # - The database refuses a raw row above 1 by its own CHECK.
+  test "a fixed rate is a fraction up to 1" do
+    for rate <- ["1", "-0.999999", "0.02"] do
+      assert {:ok, prediction} = errors_on_create(%{benchmark: "rate:" <> rate})
+      assert Decimal.equal?(prediction.benchmark_rate, Decimal.new(rate))
+    end
+
+    for rate <- ["1.000001", "5", "10"] do
+      assert {:error, %{benchmark: [message]}} = errors_on_create(%{benchmark: "rate:" <> rate})
+      assert message =~ "a fraction from -0.999999 to 1"
+      assert message =~ "rate:0.02 is 2 % a year"
+    end
+
+    security = security!()
+
+    assert_raise Postgrex.Error, ~r/predictions_benchmark_rate_cap_check/, fn ->
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'system_job:rate-cap', true)")
+
+        Repo.query!(
+          "INSERT INTO predictions (security_id, direction, probability, benchmark_kind, " <>
+            "benchmark_rate, resolves_on, made_at, author) " <>
+            "VALUES ($1, 'outperform', 0.70, 'rate', 5, " <>
+            "(now() AT TIME ZONE 'UTC')::date + 30, now() AT TIME ZONE 'UTC', 'operator')",
+          [security.id]
+        )
+      end)
+    end
   end
 end

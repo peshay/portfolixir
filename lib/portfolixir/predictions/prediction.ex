@@ -25,7 +25,10 @@ defmodule Portfolixir.Predictions.Prediction do
   `benchmark=` spells them — `"security:<id>"` or `"rate:<decimal>"` — and
   stored as `benchmark_kind` with exactly one of `benchmark_security_id`
   (a foreign key, so a benchmark security restricts its delete as the
-  security does) and `benchmark_rate`. `benchmark/1` spells it back.
+  security does) and `benchmark_rate`, a fraction from -0.999999 to 1
+  (`rate:0.02` is 2 % a year; ADR-0055 amendment of 2026-11-05, §3, and the
+  `cap_prediction_benchmark_rate` migration's CHECK). `benchmark/1` spells
+  it back.
 
   `probability` and `benchmark_rate` are `Decimal`s, never floats; a float
   given for the probability is refused rather than converted.
@@ -46,6 +49,9 @@ defmodule Portfolixir.Predictions.Prediction do
 
   @min_probability Decimal.new("0.50")
   @max_probability Decimal.new("0.99")
+  # ADR-0055 amendment of 2026-11-05, §3: a prediction's fixed rate is a
+  # fraction up to 1; the lower bound is the engine's (Benchmark).
+  @max_rate Decimal.new(1)
   @min_days 7
   @max_days 1830
   @model_max 100
@@ -108,6 +114,13 @@ defmodule Portfolixir.Predictions.Prediction do
   @doc "The largest probability a call states: `0.99`."
   @spec max_probability() :: Decimal.t()
   def max_probability, do: @max_probability
+
+  @doc """
+  The largest fixed rate a prediction's `rate:` benchmark names: `1`, a
+  fraction (100 % a year; ADR-0055 amendment of 2026-11-05, §3).
+  """
+  @spec max_rate() :: Decimal.t()
+  def max_rate, do: @max_rate
 
   @doc "The fewest days `resolves_on` lies after the UTC day of `made_at`: 7."
   @spec min_days() :: pos_integer()
@@ -199,6 +212,7 @@ defmodule Portfolixir.Predictions.Prediction do
     |> check_constraint(:probability, name: :predictions_probability_check)
     |> check_constraint(:benchmark, name: :predictions_benchmark_check)
     |> check_constraint(:benchmark, name: :predictions_benchmark_rate_check)
+    |> check_constraint(:benchmark, name: :predictions_benchmark_rate_cap_check)
     |> check_constraint(:benchmark, name: :predictions_benchmark_security_check)
     |> check_constraint(:resolves_on, name: :predictions_resolves_on_check)
     |> check_constraint(:author, name: :predictions_author_check)
@@ -343,10 +357,13 @@ defmodule Portfolixir.Predictions.Prediction do
   end
 
   # The rule a remembered benchmark selector is read by (ADR-0046 §4): a
-  # finite decimal inside the engine's bound and exact at its scale.
+  # finite decimal inside the engine's bound and exact at its scale, and
+  # for a prediction at most 1 (ADR-0055 amendment of 2026-11-05, §3: a
+  # fraction, so rate:5 meant as 5 % is refused, not stored as 500 %).
   defp put_benchmark(changeset, "rate:" <> raw) do
     with {:ok, rate} <- BoundedDecimal.parse(raw),
-         {:ok, rate} <- Benchmark.exact_rate(rate) do
+         {:ok, rate} <- Benchmark.exact_rate(rate),
+         :ok <- within_cap(rate) do
       changeset
       |> put_change(:benchmark_kind, :rate)
       |> put_change(:benchmark_rate, rate)
@@ -355,14 +372,17 @@ defmodule Portfolixir.Predictions.Prediction do
         add_error(
           changeset,
           :benchmark,
-          "rate must be a decimal annual rate from -0.999999 to 10, such as rate:0.02 for 2 % " <>
-            "a year or rate:0 for an absolute call"
+          "rate must be an annual rate as a fraction from -0.999999 to 1: rate:0.02 is 2 % a " <>
+            "year, rate:1 is 100 %, rate:0 the absolute call"
         )
     end
   end
 
   defp put_benchmark(changeset, _other),
     do: add_error(changeset, :benchmark, benchmark_shape_message())
+
+  defp within_cap(rate),
+    do: if(Decimal.compare(rate, @max_rate) == :gt, do: :error, else: :ok)
 
   defp benchmark_shape_message,
     do: "must be security:<id> of a benchmark security or rate:<decimal>, such as rate:0"
