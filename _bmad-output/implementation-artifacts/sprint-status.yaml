@@ -66,10 +66,15 @@ story_location: _bmad-output/implementation-artifacts
 #   its planning PR, which SIGNED ADR-0017's and ADR-0046's amendments of
 #   2026-11-04;
 # - main at a1fd4da, unmoved during the sprint, so no rebase was needed;
-# - every Required Local Check exited 0 on c8885be, the closing act's last
-#   fix (5,659 tests; the browser tests 10 in 10 in the fix lane); every
-#   head of #1388 ran CI with no re-run; the one red head, 7b660ba, was
-#   fixed by a commit (below).
+# - on c8885be, the closing act's last fix, every Required Local Check
+#   exited 0 but one: `mix coveralls` (5,661 tests, coverage 94.6 %) had
+#   one failure, securities_sync_rearm_test:194, older than the sprint and
+#   outside its diff, which passed 5 in 5 alone and in every other full
+#   run (an older S2 below); `mix test` passed whole on the integrated head
+#   before the fixes (5,654) and in the UI fix lane (5,659); the browser
+#   tests 10 in 10 in the fix lane and 3 in 3 in the re-check. Every head of
+#   #1388 ran CI with no re-run; the one red head, 7b660ba, was fixed by a
+#   commit (below).
 #
 # BUILD ORDER (D-6, history forward only): M1 (2), Lane M (2: tea v1.27.3
 # and the version report), J1 (3), J2 (3), J3 (3), D1 (4), B1 (4), B2 (2),
@@ -155,7 +160,11 @@ story_location: _bmad-output/implementation-artifacts
 #   where the code (and ADR-0046's amendment) use the booking day's rate
 #   (#1356); S3, the sunburst's tooltip stays on touch after a tap
 #   (#1366); OTP 28 cannot compile logo_lookup.ex's @issuers (a note on
-#   #1390, no defect on today's toolchain). Unconfirmed and not filed: one
+#   #1390, no defect on today's toolchain); S2, a flaky test:
+#   securities_sync_rearm_test:194 failed once under the final coveralls
+#   run (4 provider fetches for 2 securities) and passed 5 in 5 alone, a
+#   line on #1365 (the diff reaches neither QuoteSync nor the page).
+#   Unconfirmed and not filed: one
 #   heap-cap test (walk_memory_bound_test) failed once under four
 #   worktrees' load and passed alone and in every full run since.
 # - FILINGS: #1390 (M4's move, not a finding). Nothing withheld to make a
