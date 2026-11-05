@@ -840,7 +840,11 @@ reads from the item (positive, negative) is not written into the note: it is
 recorded as a prediction (`POST /api/v1/predictions`,
 `portfolixir.predictions.create`) with `note_id` pointing at the note, so the
 call is resolved and scored like any other. The aggregation runs outside the
-app; Portfolixir fetches no news itself.
+app; Portfolixir fetches no news itself. A news entry is an entry like any
+other for `GET /api/v1/notes/unreviewed` (`portfolixir.notes.unreviewed`): it
+takes its position off that list. Whether the thesis itself was reviewed is
+the thesis state's `last_reviewed_at`, which only `thesis` and
+`invalidation_check` entries move.
 
 The human view is the **Research** tab of the security detail pane on
 `/securities/:id`: the thesis state on top, the entries newest first with
@@ -867,7 +871,10 @@ size or a limit, and nothing proposes one.
   `"1.00"` is refused because a call stated as certain cannot be scored);
   `benchmark`, as `benchmark=` spells it — `security:<id>` of a security
   flagged `is_benchmark` (not the security itself) or `rate:<decimal>`, a
-  fixed annual rate, `rate:0` making the call absolute; `resolves_on`, 7 to
+  fixed annual rate as a **fraction** from `-0.999999` to `1` (`rate:0.02` is
+  2 % a year; a rate above 1 answers `422` naming the fraction form, because
+  `rate:5` meant as 5 % would be 500 % a year on a record that can never be
+  corrected), `rate:0` making the call absolute; `resolves_on`, 7 to
   1,830 days after the UTC day it is made; `model`, the model an agent runs
   on (at most 100 characters), **required for an API token**, refused for
   the operator's pages; optional `note_id`, a research-log entry of the same
@@ -878,6 +885,8 @@ size or a limit, and nothing proposes one.
   because a prediction dated in the past is one made with its outcome in
   view. Every refusal is a `422` with all field errors at once; nothing is
   stored. The write is journaled as `prediction` / `create` under the token.
+  A prediction also keeps its security and its benchmark security from ever
+  being merged away or deleted; retire one instead.
 - `GET /api/v1/predictions/:id` — one prediction with its `resolution`, a
   `permanence_note` and the resolution rule's `computation_basis`; `404` for
   an unknown id.
@@ -888,7 +897,8 @@ size or a limit, and nothing proposes one.
   `unresolved`, derived at read; `limit` then counts the calls the status
   kept), `author` (`operator`, `agent`), `model` (exactly as named) and
   `due_before`, **the due query**: the open predictions whose `resolves_on`
-  is on or before the date. A malformed filter answers `422` naming it.
+  is on or before the date, a call past its date that still waits for its
+  end close included. A malformed filter answers `422` naming it.
 - `GET /api/v1/predictions/calibration` — the calibration report over the
   predictions the filters name, each resolved at read as of today:
   `counts` (`total`, `open`, `resolved`, and `unresolved` by reason);
@@ -916,18 +926,27 @@ A prediction read carries `id`, `security_id`, `direction`, `probability`,
 `actor`, `model`, `note_id`, `rationale` and `resolution`:
 
 - `status` — `open` while the instance's calendar day is on or before
-  `resolves_on`; then `resolved`, with `outcome` `hit` or `miss`, or
-  `unresolved`, with `reason` `no_start_close`, `no_end_close`,
-  `no_benchmark_close` or `no_fx_rate`, never estimated;
-- `start_on` — the day before the UTC day made: the start close is the last
-  close **strictly before** that day, so a call is never measured from a
-  close it could have seen coming; `end_on` — `resolves_on`, the end close
-  the last on or before it; a close more than 7 days older than the date it
+  `resolves_on`, and after it **until its end close is in**: until the
+  security, and a benchmark security, each have a stored close dated on or
+  after `resolves_on` (the evidence that the day's data is in, never used in
+  the measurement), or until 7 days after `resolves_on` have passed. So a
+  resolved call never flips when the close of `resolves_on` arrives late.
+  Then `resolved`, with `outcome` `hit` or `miss`, or `unresolved`, with
+  `reason` `no_start_close`, `no_end_close`, `no_benchmark_close` or
+  `no_fx_rate`, never estimated (ADR-0055, amendment of 2026-11-05);
+- `start_on` — the UTC day made: the start close is the last close **on or
+  before** that day, so a call made after the day's close starts from the
+  price it knew, and one made before it from a close that comes after it: no
+  call scores a move it had seen; `end_on` — `resolves_on`, the end close the
+  last on or before it; a close more than 7 days older than the date it
   stands for is no close;
 - `security` — `security_id`, `currency_code`, `start` and `end` (each
   `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate` and
   `eur_value`, the close converted to EUR at the stored EUR-hub rate of its
-  own date) and `return`, the EUR value at the end over the start minus 1;
+  own date) and `return`, the EUR value at the end over the start minus 1,
+  computed as one division of exact products
+  (`(end close × start hub rate) / (start close × end hub rate) − 1`), so two
+  equal moves in one currency read equal returns to the last digit;
   `null` while open or when that side has no answer;
 - `benchmark` — a security benchmark's sides by the same rule, or
   `{kind: "rate", rate, from, to, days, return}`, the rate compounded daily
@@ -4243,8 +4262,13 @@ executes them, and nothing places, proposes or sizes a trade.
   benchmark), or none where the agent has no view, each recorded with
   `portfolixir.predictions.create` naming the agent's model and, where one
   exists, the thesis's `note_id`. Its text says a prediction is permanent and
-  is a recorded call, never a trade: no order and no size. Under the `read`
-  profile it records nothing and hands the operator the list.
+  is a recorded call, never a trade: no order and no size. Where two
+  catalogue rows match the security, it asks the operator which to keep
+  before recording, since a prediction keeps both its security and its
+  benchmark from a merge; it checks with `portfolixir.quotes.list` that the
+  security and a benchmark security have a stored close in the last 7 days,
+  and uses a `rate:` benchmark otherwise. Under the `read` profile it records
+  nothing and hands the operator the list.
 
 The prompts exist over MCP only: a prompt is an instruction to the user's
 agent, and the API has nothing to serve it to.
@@ -4414,8 +4438,13 @@ API may have committed it, and its answer cannot be read.
   first field, that a prediction cannot be edited, withdrawn or deleted, that
   a mistaken one stays and counts and that a correction is a new prediction,
   and tells the agent to name its model, which the schema requires; the
-  probability is a string from `"0.50"` to `"0.99"`, and a `made_at`,
-  `author` or `actor` is refused before any request.
+  probability is a string from `"0.50"` to `"0.99"` (`"0.49"` is refused
+  before any request: record the other direction at `"0.51"`), a `rate:`
+  benchmark is a fraction up to 1, and a `made_at`, `author` or `actor` is
+  refused before any request. It says the start close is the last on or
+  before the UTC day made, that a call stays open after `resolves_on` until
+  its end close is in (at most 7 days), and that a prediction keeps its
+  security and benchmark from a merge or a delete.
 - `portfolixir.predictions.list` — the predictions with their status at
   read, filtered as `GET /api/v1/predictions` is, the due query
   (`due_before`) among them.

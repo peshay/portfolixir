@@ -181,6 +181,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert review =~ "a recorded call, never a trade, no order and no size"
 
+    # The Sprint 25 closing act (ADR-0055 amendment of 2026-11-05): the
+    # start close, the wait for the end close and the rate as a fraction are
+    # stated where an agent reads the write, the read, the list and the
+    # prompt.
+    assert newest["summary"] =~ "Sprint 25 closing act (ADR-0055 amendment of 2026-11-05): "
+    assert write =~ "rate:0.02 is 2 % a year"
+    assert write =~ "a rate above 1 answers 422 naming the fraction form"
+
+    assert read =~
+             "start_on (the UTC day made: the start close is the last close on or before it)"
+
+    assert read =~ "until each priced side has a stored close dated on or after resolves_on"
+    assert listed =~ "a call waiting for its end close included"
+    assert review =~ "which of two matching catalogue rows to keep"
+    assert review =~ "a stored close in the last 7 days"
+
     # N1 (idea I13; plan D-5): the news convention, one item on notes.append
     # that adds no parameter.
     assert newest["summary"] =~ "Sprint 25, N1 (idea I13; plan D-5): "
@@ -198,7 +214,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
           "source_quality as judged",
           "never the article",
           "portfolixir.predictions.create",
-          "note_id"
+          "note_id",
+          "counts for portfolixir.notes.unreviewed",
+          "last_reviewed_at"
         ] do
       assert news =~ part, part
     end
