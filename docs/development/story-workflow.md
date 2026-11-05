@@ -51,6 +51,35 @@ API and MCP coverage is part of the story contract. When a visible function is
 added or changed, update `/api/v1` and `mcp-server/` tests and behavior in the
 same story, or document why that surface is not applicable.
 
+## What a story's own tests do not cover
+
+Four rules for the story's own run, before the orchestrating session
+integrates it. Each comes from a defect that reached integration or the
+closing act in Sprint 24 although every story test was green (Sprint 24
+retrospective, carry-forwards 1 to 4).
+
+- **Run `test/invariants` beside the story's own tests.** *Why:* the
+  invariants are app-wide rules no single story's tests restate; a story
+  that built a native date input passed its own tests and turned the suite
+  red at integration on two invariants (J3).
+- **A story that changes what a writer stores searches the whole suite for
+  the shape it changes**, `test/portfolixir/seeded_upgrade/` included, and
+  runs every test it finds. *Why:* a test far from the writer still
+  expected the old shape, and only the orchestrator's full run found it
+  (J1).
+- **A screen story's test drives the field as the operator does**: a half
+  value, Enter, a resize across a breakpoint, a link handed over. A figure
+  on the screen is compared with the API answer for the same request, its
+  period stated. *Why:* tests that pinned what was rendered passed while
+  the screen failed under use; one compared the screen with an API call
+  over a different period and passed only because the fixture's figures
+  were recent (B2, J3).
+- **A gate a story adds gets an attack case in its self-test**: an input
+  the gate must refuse, seen refused. *Why:* a schema-budget rule added in
+  Sprint 24 measured only the last row and never asked whether a named tool
+  was new; it checked less than it said until the closing act gave it an
+  attack case (D1).
+
 Run the required gates before review: the full list in `AGENTS.md` at the
 repository root ("Required Local Checks"). It is CI's `pre-commit`, `test`,
 `quality`, `advisories` and `browser` jobs, so a branch that passes it passes CI. The six-command copy
