@@ -83,6 +83,7 @@ defmodule PortfolixirWeb.Journal.Row do
   def kind_label("security_quotes"), do: gettext("Quotes")
   def kind_label("security_event"), do: pgettext("journal kind", "Security event")
   def kind_label("security_note"), do: pgettext("journal kind", "Research note")
+  def kind_label("prediction"), do: pgettext("journal kind", "Prediction")
   def kind_label("security_identifier_alias"), do: gettext("Former ISIN")
 
   def kind_label("security_category_assignment"),
