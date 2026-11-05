@@ -45,6 +45,30 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 25,
+      # Sprint 25's sprint PR. Dated the day after entry 24, because since=
+      # compares strictly after a date. F1 (ADR-0055 §2): a prediction names
+      # its security and its benchmark, and neither can be merged away or
+      # deleted beneath it.
+      date: ~D[2026-11-06],
+      summary:
+        "Sprint 25, F1 (ADR-0055 §2): a prediction is permanent, so a security a " <>
+          "prediction is about, or is scored against as its benchmark, can neither be " <>
+          "merged away nor deleted: the merge preview and apply refuse such a source with the " <>
+          "guard code predictions, and DELETE /api/v1/securities/:id answers 409 with " <>
+          "referenced_by predictions and the remedy retire.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/securities/:id/merge_preview?target_id= and POST /api/v1/securities/:id/merge (portfolixir.securities.merge_preview and portfolixir.securities.merge), no parameter added: a source that a prediction is about, or that a prediction is scored against as its benchmark security, is refused with 409, errors.code predictions among errors.guards, its detail \"security #<id> is named by <n> prediction(s), as the security called or the benchmark: a prediction is permanent (ADR-0055 §2), so it can neither move nor vanish.\"; where merging the other way would pass, the guard's remedy says so, as for research_notes (ADR-0050 §9; ADR-0055 §2)",
+        "DELETE /api/v1/securities/:id (portfolixir.securities.delete), no parameter added: a security a prediction names, as the security called or as its benchmark security, answers 409 with errors.referenced_by {\"predictions\": n} (a prediction counted once), errors.remedy retire and errors.remedy_route PATCH /api/v1/securities/:id, the detail naming the predictions in words; nothing is deleted (ADR-0050 §11; ADR-0055 §2)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 24,
       # Sprint 24's sprint PR. J1 (#1378; ADR-0017, amendment of 2026-11-04):
       # a delete's journal after is null. Dated the day after entry 23,

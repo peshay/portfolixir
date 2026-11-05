@@ -159,6 +159,37 @@ defmodule Portfolixir.Predictions do
     end
   end
 
+  @doc """
+  How many predictions name each of `security_ids`, as the security a call
+  is about or as the benchmark it is scored against; a prediction naming a
+  security both ways is counted once. Only the ids some prediction names
+  are keys. A security merge refuses a source any prediction names
+  (ADR-0050 §9, ADR-0055 §2).
+  """
+  @spec count_naming([integer()]) :: %{optional(integer()) => pos_integer()}
+  def count_naming([]), do: %{}
+
+  def count_naming(security_ids) when is_list(security_ids) do
+    named =
+      from(p in Prediction,
+        where: p.security_id in ^security_ids,
+        select: %{id: p.id, security_id: p.security_id}
+      )
+      |> union_all(
+        ^from(p in Prediction,
+          where: p.benchmark_security_id in ^security_ids,
+          select: %{id: p.id, security_id: p.benchmark_security_id}
+        )
+      )
+
+    from(n in subquery(named),
+      group_by: n.security_id,
+      select: {n.security_id, count(n.id, :distinct)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
   @doc "One prediction by id, or `nil`."
   @spec get_prediction(integer()) :: Prediction.t() | nil
   def get_prediction(id) when is_integer(id), do: Repo.get(Prediction, id)

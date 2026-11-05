@@ -26,7 +26,9 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   `benchmark_mismatch`, `retired_target` (the target retired while the
   source is live), `quote_basis_mismatch` (`treat_quotes_as_raw` differs
   while the source has quotes), `research_notes` (ADR-0044 §3: notes can
-  neither move nor vanish), `policy_rules` (a rule version naming the source,
+  neither move nor vanish), `predictions` (ADR-0055 §2: a prediction about
+  the source, or scored against it as its benchmark, is permanent),
+  `policy_rules` (a rule version naming the source,
   answered in ADR-0049 §8's shape: the guard names the rules and carries
   them), `position_buckets_mismatch` (§7's membership rule, per depot, with
   the target security's position in that depot read as T's and the source's
@@ -240,6 +242,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.Targets
+  alias Portfolixir.Predictions
   alias Portfolixir.Repo
 
   @zero Decimal.new("0")
@@ -252,6 +255,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     :retired_target,
     :quote_basis_mismatch,
     :research_notes,
+    :predictions,
     :policy_rules,
     :position_buckets_mismatch,
     :identity_unresolvable,
@@ -675,6 +679,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       quotes: quote_spans(quote_rows),
       quote_rows: quote_rows,
       notes: counts("security_notes", ids),
+      predictions: Predictions.count_naming(ids),
       rules: Map.new(ids, &{&1, PolicyRules.referencing(:security, &1)}),
       assignments:
         Assignment
@@ -1129,6 +1134,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       retired_guard(base),
       quote_basis_guard(base),
       notes_guard(base),
+      predictions_guard(base),
       rules_guard(base),
       membership_guard(base),
       split_ratio_guard(base),
@@ -1225,6 +1231,23 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       "the source carries no research notes",
       "security ##{source.id} carries #{count} research note(s): the research log is " <>
         "append-only (ADR-0044 §3), so its notes can neither move nor vanish."
+    )
+  end
+
+  # ADR-0055 §2: a prediction is permanent, about its security and scored
+  # against its benchmark, so a source either names can neither move it nor
+  # take it along.
+  defp predictions_guard(%{source: source, data: data}) do
+    count = Map.get(data.predictions, source.id, 0)
+
+    guard(
+      :predictions,
+      "no prediction naming the source",
+      count == 0,
+      "no prediction names the source",
+      "security ##{source.id} is named by #{count} prediction(s), as the security called or " <>
+        "the benchmark: a prediction is permanent (ADR-0055 §2), so it can neither move nor " <>
+        "vanish."
     )
   end
 

@@ -553,14 +553,15 @@ verengen, was der Betreiber sieht.
 - `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn nichts darauf
   verweist. Liest eine Policy-Regel es, antwortet der Aufruf mit
   `409 Conflict` und `errors.policy_rules`. Buchungen, Kurshistorie,
-  Recherche-Notizen, Wertpapier-Ereignisse oder Regelversionen ergeben
+  Recherche-Notizen, Wertpapier-Ereignisse, Regelversionen oder Prognosen
+  (über das Wertpapier oder gegen es als Benchmark gewertet) ergeben
   `409 Conflict` mit `errors.referenced_by` (die verweisenden Tabellen,
   gezählt, etwa `{"transactions": 3, "security_quotes": 120}`),
   `errors.remedy` und `errors.remedy_route`: `merge` für ein Duplikat, dessen
   Route die Zusammenführungs-Vorschau
   `GET /api/v1/securities/:id/merge_preview?target_id=` ist, ergänzt um die
-  ID des Wertpapiers, das bleibt, oder `retire`, wenn Recherche-Notizen oder
-  Regelversionen darauf verweisen, weil eine Zusammenführung sie nicht
+  ID des Wertpapiers, das bleibt, oder `retire`, wenn Recherche-Notizen,
+  Regelversionen oder Prognosen darauf verweisen, weil eine Zusammenführung sie nicht
   mitnehmen kann (die Route ist `PATCH /api/v1/securities/:id` mit
   `is_retired: true`). Bevor ein unreferenziertes Wertpapier gelöscht wird,
   werden seine Kategorie-Zuordnungen, Positionsziele,
@@ -664,9 +665,11 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   sein, und das Ziel darf nicht stillgelegt sein, solange die Quelle lebt;
   solange die Quelle Kurse hat, müssen beide ihre synchronisierten Kurse
   gleich behandeln (`treat_quotes_as_raw`). Eine Quelle mit
-  Recherche-Notizen oder eine, die eine eigene Regel liest, wird abgelehnt,
-  weil eine Notiz weder wandern noch verschwinden kann und eine
-  Regelversion ihr Subjekt behält (`research_notes`, `policy_rules` mit
+  Recherche-Notizen, eine, die eine Prognose nennt (als bewertetes
+  Wertpapier oder als Benchmark), oder eine, die eine eigene Regel liest,
+  wird abgelehnt, weil eine Notiz und eine Prognose weder wandern noch
+  verschwinden können und eine Regelversion ihr Subjekt behält
+  (`research_notes`, `predictions`, `policy_rules` mit
   `errors.policy_rules`); wo die Zusammenführung in die andere Richtung
   gelänge, sagt das Detail es. Jede Position der Quelle in einem Depot muss
   ihre Ansichtszugehörigkeit behalten (`position_buckets_mismatch`). Ein

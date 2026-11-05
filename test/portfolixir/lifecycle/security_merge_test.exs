@@ -38,6 +38,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
+  alias Portfolixir.Predictions
 
   import Portfolixir.WorldFixtures, only: [printable_bucket!: 1]
 
@@ -950,6 +951,45 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert guard.remedy == :merge_other_way
     end
 
+    # User story (ADR-0055 §2, ADR-0050 §9; Sprint 25 plan, F1):
+    # As the operator merging a duplicate security,
+    # I want a source that a prediction is about, or that a prediction is
+    # scored against, refused naming the predictions,
+    # so that a scored call never moves to another security or vanishes
+    # with the source.
+    #
+    # Acceptance criteria:
+    # - A prediction on the source refuses as predictions, counted by the
+    #   source's id; the remedy is to merge the other way while the reverse
+    #   passes.
+    # - A prediction scored against the source as its benchmark refuses the
+    #   same way; nothing is written either time.
+    test "predictions naming the source, as its call or its benchmark, refuse", ctx do
+      worked_example!(ctx)
+      prediction!(ctx.source, "rate:0")
+
+      guard = refused_guard!(ctx, :predictions)
+
+      assert guard.detail =~
+               "security ##{ctx.source.id} is named by 1 prediction(s), as the security " <>
+                 "called or the benchmark: a prediction is permanent (ADR-0055 §2)"
+
+      assert guard.remedy == :merge_other_way
+
+      ctx = fresh_pair!(ctx, "Index Z")
+
+      for security <- [ctx.source, ctx.target] do
+        {:ok, _flagged} =
+          Catalog.update_security(Actor.owner_ui(), security, %{is_benchmark: true})
+      end
+
+      worked_example!(ctx)
+      prediction!(security!("Called Z"), "security:#{ctx.source.id}")
+
+      guard = refused_guard!(ctx, :predictions)
+      assert guard.detail =~ "security ##{ctx.source.id} is named by 1 prediction(s)"
+    end
+
     # User story:
     # As the operator merging a live duplicate into a security I retired,
     # I want the refusal to say that merging the other way would pass,
@@ -1378,6 +1418,20 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       })
 
     record
+  end
+
+  defp prediction!(security, benchmark) do
+    {:ok, prediction} =
+      Predictions.create_prediction(agent(), %{
+        "security_id" => security.id,
+        "direction" => "outperform",
+        "probability" => "0.65",
+        "benchmark" => benchmark,
+        "resolves_on" => Date.to_iso8601(Date.add(Date.utc_today(), 60)),
+        "model" => "example-model-1"
+      })
+
+    prediction
   end
 
   # Refused on the preview and the apply with `code` among the failed guards,

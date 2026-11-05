@@ -191,6 +191,47 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
     assert footer(view) == ["Abbrechen", "Zusammenführen in…", "Stattdessen stilllegen"]
   end
 
+  # User story (ADR-0055 §2; Sprint 25 plan, F1):
+  # As the operator deleting a security the agent's predictions name,
+  # I want "Cannot delete" to count the predictions and say why no merge
+  # helps,
+  # so that I retire the security instead of looking for a merge that would
+  # be refused.
+  #
+  # Acceptance criteria:
+  # - "“Nordwind Industrie AG” still has 1 booking and 2 predictions.", then
+  #   the predictions sentence; no "Merge into…". In German too.
+  test "Cannot delete for predictions names them and offers no merge" do
+    security = %Security{id: 7, name: "Nordwind Industrie AG"}
+    counts = %{"transactions" => 1, "predictions" => 2}
+
+    html =
+      render_component(&RowContextMenu.delete_blocked_dialog/1,
+        security: security,
+        counts: counts
+      )
+
+    assert dialog_paragraphs(html) == [
+             "“Nordwind Industrie AG” still has 1 booking and 2 predictions.",
+             "A prediction is a permanent record, and no merge carries it. Retiring hides the security from the active list; everything is kept."
+           ]
+
+    refute html =~ "delete-blocked-merge"
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+      html =
+        render_component(&RowContextMenu.delete_blocked_dialog/1,
+          security: security,
+          counts: counts
+        )
+
+      assert dialog_paragraphs(html) == [
+               "„Nordwind Industrie AG“ hat noch 1 Buchung und 2 Prognosen.",
+               "Eine Prognose ist ein dauerhafter Eintrag und zieht bei keiner Zusammenführung mit. Stilllegen blendet das Wertpapier aus der aktiven Liste aus; alles bleibt erhalten."
+             ]
+    end)
+  end
+
   defp dialog_paragraphs(html) do
     html
     |> Floki.parse_fragment!()
