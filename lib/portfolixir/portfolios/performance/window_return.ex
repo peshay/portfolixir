@@ -38,23 +38,40 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
   Each close converts to EUR at the stored EUR-hub rate **of the close's own
   date**, by valuation's rule: the most recent stored rate on or before that
   date, carried forward without a bound, never a later one
-  (`Portfolixir.Fx.rate/3`, which the daily valuation walk and the benchmark
-  comparison compute alike: `fx_rate = 1 / the hub rate`, GBX through
-  `GBP × 100`). A EUR close converts at exactly 1. A currency with no stored
+  (`Portfolixir.Fx.hub_rate/2`; the displayed `fx_rate` is
+  `Portfolixir.Fx.rate/3`'s, which the daily valuation walk and the
+  benchmark comparison compute alike: `fx_rate = 1 / the hub rate`, GBX
+  through `GBP × 100`). A EUR close converts at exactly 1. A currency with no stored
   rate on or before the close's date is `:no_fx_rate`. The rate carries no
   staleness bound of its own, as in valuation; the close date it is read for
   does.
 
   ## The return and its precision
 
-  `return = end.eur_value / start.eur_value - 1`, a `Decimal`. Every step
-  (the inverse rate, the EUR value, the quotient) runs at `Decimal`'s
-  default context, 34 significant digits rounded half-up (IEEE 754
-  decimal128), and nothing is rounded on purpose: the benchmark comparison's
-  bought-once `benchmark_return` is computed the same way (ADR-0046), and
-  `Portfolixir.Fx` keeps every conversion at full precision (ADR-0003,
-  ADR-0007). Rounding is the display's: a payload carries the Decimal as a
-  string, unrounded.
+  `return = end EUR value / start EUR value - 1`, computed as **one
+  division of exact products** from the stored hub rates
+  (`Portfolixir.Fx.hub_rate/2`, units of the currency per 1 EUR):
+
+      return = (end.close × start_hub) / (start.close × end_hub) - 1
+
+  which is `(end.close / end_hub) / (start.close / start_hub) - 1`. The two
+  products are exact (a stored close and a stored rate have few digits);
+  the quotient is rounded once, at `Decimal`'s default context, 34
+  significant digits half-up (IEEE 754 decimal128), and the subtraction of
+  1 is exact. GBX's factor of 100 (`GBP × 100`) cancels in the ratio; EUR's
+  hub rate is 1.
+
+  **Why not the quotient of the EUR values:** each EUR value multiplies a
+  close by a 34-digit-rounded inverse rate, so two identical moves in the
+  same non-EUR currency read returns differing by 1E-33, and an excess
+  that is exactly 0 (a miss, ADR-0055 §3) read as a hit (the Sprint 25
+  closing act's money lens: USD 123 -> 135.3 against USD 17 -> 18.7 while
+  EUR/USD moved 1.07 -> 1.13). With one division, equal ratios give equal
+  returns to the last digit. The displayed `fx_rate` and `eur_value` stay
+  as before (`fx_rate = 1 / hub`, `eur_value = close × fx_rate`, each at 34
+  digits), for reading, not for the return. Nothing else is rounded on
+  purpose (ADR-0003, ADR-0007); a payload carries the Decimal as a string,
+  unrounded.
 
   It is a **price return**: distributions are not counted, on either side.
 
@@ -186,15 +203,15 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
          {:ok, end_row} <- stored_close(security, end_on) |> found(:no_end_close),
          # One read of the split events for both ends: one basis.
          [start_adjusted, end_adjusted] <- Quotes.adjust_rows([start_row, end_row], security),
-         {:ok, opening} <- in_eur(close_entry(start_adjusted, start_on), security),
-         {:ok, closing} <- in_eur(close_entry(end_adjusted, end_on), security) do
+         {:ok, opening, start_hub} <- in_eur(close_entry(start_adjusted, start_on), security),
+         {:ok, closing, end_hub} <- in_eur(close_entry(end_adjusted, end_on), security) do
       {:ok,
        %{
          security_id: security.id,
          currency_code: security.currency_code,
          start: opening,
          end: closing,
-         return: Decimal.sub(Decimal.div(closing.eur_value, opening.eur_value), @one)
+         return: ratio_return(opening.close, start_hub, closing.close, end_hub)
        }}
     end
   end
@@ -253,13 +270,26 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
     }
   end
 
+  # One division of exact products (see "The return and its precision").
+  defp ratio_return(start_close, start_hub, end_close, end_hub) do
+    Decimal.mult(end_close, start_hub)
+    |> Decimal.div(Decimal.mult(start_close, end_hub))
+    |> Decimal.sub(@one)
+  end
+
+  # The displayed fx_rate is Fx.rate(currency, "EUR", date): 1 / the hub
+  # rate, the same division rate/3 makes; EUR is exactly 1.
   defp in_eur(entry, %Security{currency_code: currency}) do
-    case Fx.rate(currency, @eur, entry.date) do
-      {:ok, rate} ->
-        {:ok, Map.merge(entry, %{fx_rate: rate, eur_value: Decimal.mult(entry.close, rate)})}
+    case Fx.hub_rate(currency, entry.date) do
+      {:ok, hub} ->
+        rate = fx_rate(currency, hub)
+        {:ok, Map.merge(entry, %{fx_rate: rate, eur_value: Decimal.mult(entry.close, rate)}), hub}
 
       {:error, :no_rate} ->
         {:error, :no_fx_rate}
     end
   end
+
+  defp fx_rate(@eur, _hub), do: @one
+  defp fx_rate(_currency, hub), do: Decimal.div(@one, hub)
 end
