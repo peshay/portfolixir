@@ -4024,6 +4024,13 @@ naming the already-booked event) stays inline in the dialog.
   marks each side beyond which more tabs lie, and the row always comes to rest
   with a whole tab at its left edge — also at its end, where a little empty
   space follows the last tab.
+- **On an iPhone's home screen** ("Add to Home Screen" in Safari's share
+  menu) the shortcut shows the Portfolixir logo on its light background,
+  labelled with the page title. iOS stores the icon when the shortcut is
+  made and never fetches it again, so after an upgrade that changes the
+  icon — and once after the upgrade that brought it, if the shortcut still
+  shows a letter "P" — remove the shortcut from the home screen and add it
+  again.
 - Theme: system, light, and dark modes are supported (the menu is
   *Erscheinungsbild* in German).
 - Accent: violet, teal, and coral logo accent choices are supported. The
