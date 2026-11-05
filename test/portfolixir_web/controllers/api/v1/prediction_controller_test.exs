@@ -361,4 +361,288 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
       assert conn |> get("/api/v1/predictions/abc") |> json_response(404)
     end
   end
+
+  # An open call made today through the context, resolving `days` from now.
+  defp open_prediction!(security, days, extra \\ %{}) do
+    attrs =
+      Map.merge(
+        %{
+          "security_id" => security.id,
+          "direction" => "outperform",
+          "probability" => "0.55",
+          "benchmark" => "rate:0",
+          "resolves_on" => Date.to_iso8601(Date.add(Clock.today(), days)),
+          "model" => "example-model-1"
+        },
+        extra
+      )
+
+    {:ok, prediction} = Predictions.create_prediction(Actor.api_token_rw(nil), attrs)
+    prediction
+  end
+
+  # Two resolved agent calls (a hit at 0.70 under example-model-1, a miss at
+  # 0.60 under example-model-2), one unresolved for want of a close, and one
+  # open; plus an operator's call that is open.
+  defp calibration_world! do
+    rising = security!("Synthetic Rising Co.")
+    falling = security!("Synthetic Falling Co.")
+    hit = past_prediction!(rising, %{"probability" => "0.70"})
+
+    miss =
+      past_prediction!(falling, %{"probability" => "0.60", "model" => "example-model-2"}, 90, 12)
+
+    for {prediction, security, end_close} <- [{hit, rising, "110"}, {miss, falling, "90"}] do
+      start_on = prediction |> Predictions.Prediction.made_on() |> Date.add(-1)
+      put_quotes!(security, [{start_on, "100"}, {prediction.resolves_on, end_close}])
+    end
+
+    unresolved = past_prediction!(security!("Synthetic Unquoted Co."), %{}, 80, 14)
+    open = open_prediction!(rising, 20)
+
+    {:ok, operator} =
+      Predictions.create_prediction(Actor.owner_ui(), %{
+        "security_id" => falling.id,
+        "direction" => "underperform",
+        "probability" => "0.80",
+        "benchmark" => "rate:0.02",
+        "resolves_on" => Date.to_iso8601(Date.add(Clock.today(), 60))
+      })
+
+    %{
+      rising: rising,
+      hit: hit,
+      miss: miss,
+      unresolved: unresolved,
+      open: open,
+      operator: operator
+    }
+  end
+
+  defp list(conn, query) do
+    conn
+    |> get("/api/v1/predictions", query)
+    |> json_response(200)
+    |> Map.fetch!("data")
+  end
+
+  defp ids(data), do: Enum.map(data["predictions"], & &1["id"])
+
+  describe "GET /api/v1/predictions" do
+    # User story (F4, ADR-0055 §5):
+    # As the operator's agent starting a review run,
+    # I want the predictions with their status at read, filtered by the
+    # security, the status, the author, the model and the due date,
+    # so that I find the calls due for a look and the ones already scored.
+    #
+    # Acceptance criteria:
+    # - Newest first, each read as GET /api/v1/predictions/:id reads it,
+    #   with limit, truncated, as_of, the filters echoed, the permanence
+    #   note and the resolution rule's computation_basis.
+    # - status, author, model and security_id narrow; due_before answers
+    #   the open calls whose resolves_on is on or before the date.
+    # - limit keeps the newest and says truncated.
+    test "lists the calls with their status, filtered", %{conn: conn} do
+      world = calibration_world!()
+
+      all = list(conn, %{})
+      assert length(all["predictions"]) == 5
+      assert all["limit"] == 100
+      assert all["truncated"] == false
+      assert all["as_of"] == Date.to_iso8601(Clock.today())
+      assert all["permanence_note"] =~ "cannot be edited, withdrawn or deleted"
+      assert all["computation_basis"]["end_close"] =~ "on or before resolves_on"
+
+      assert all["filters"] == %{
+               "security_id" => nil,
+               "status" => nil,
+               "author" => nil,
+               "model" => nil,
+               "due_before" => nil
+             }
+
+      # Newest first: the two made today, then by made_at descending.
+      assert Enum.take(ids(all), -3) == [world.unresolved.id, world.miss.id, world.hit.id]
+
+      resolved = list(conn, %{"status" => "resolved"})
+      assert Enum.sort(ids(resolved)) == Enum.sort([world.hit.id, world.miss.id])
+
+      assert Enum.all?(resolved["predictions"], &(&1["resolution"]["status"] == "resolved"))
+      assert ids(list(conn, %{"status" => "unresolved"})) == [world.unresolved.id]
+
+      assert Enum.sort(ids(list(conn, %{"status" => "open"}))) ==
+               Enum.sort([world.open.id, world.operator.id])
+
+      assert ids(list(conn, %{"author" => "operator"})) == [world.operator.id]
+      assert ids(list(conn, %{"model" => "example-model-2"})) == [world.miss.id]
+
+      assert Enum.sort(ids(list(conn, %{"security_id" => world.rising.id}))) ==
+               Enum.sort([world.hit.id, world.open.id])
+
+      due = Date.to_iso8601(Date.add(Clock.today(), 30))
+      due_list = list(conn, %{"due_before" => due})
+      assert ids(due_list) == [world.open.id]
+      assert due_list["filters"]["due_before"] == due
+
+      page = list(conn, %{"limit" => "2", "status" => "resolved"})
+      assert length(page["predictions"]) == 2
+      assert page["truncated"] == false
+
+      cut = list(conn, %{"limit" => "1", "status" => "resolved"})
+      assert length(cut["predictions"]) == 1
+      assert cut["truncated"] == true
+    end
+
+    test "a malformed filter answers 422 naming it", %{conn: conn} do
+      for {key, value} <- [
+            {"status", "closed"},
+            {"author", "robot"},
+            {"due_before", "tomorrow"},
+            {"security_id", "abc"},
+            {"limit", "0"},
+            {"model", "line\nbreak"}
+          ] do
+        assert %{"errors" => errors} =
+                 conn |> get("/api/v1/predictions", %{key => value}) |> json_response(422)
+
+        assert Map.has_key?(errors, key), "#{key}=#{inspect(value)}"
+      end
+    end
+  end
+
+  describe "GET /api/v1/predictions/calibration" do
+    # User story (F4, ADR-0055 §4):
+    # As the operator who wants to know how much weight my agent's calls
+    # deserve,
+    # I want the calibration report over the resolved calls, split by
+    # author and model, with its basis,
+    # so that I read the score with its uncertainty rather than a memory.
+    #
+    # Acceptance criteria:
+    # - counts (open, resolved, unresolved by reason), the Brier score with
+    #   its standard error and the 0.25 reference, sharpness, the hit rate
+    #   with its standard error beside the mean stated probability, the five
+    #   bands (a band under 20 resolved calls reads hit_rate "too_few"), the
+    #   groups by author and model, and computation_basis; every Decimal a
+    #   string, a missing figure null.
+    # - author, model, from and to (resolves_on, inclusive) narrow it; to
+    #   before from, an unknown author or a malformed date answer 422.
+    test "scores the resolved calls with their uncertainty and bands", %{conn: conn} do
+      calibration_world!()
+
+      report =
+        conn
+        |> get("/api/v1/predictions/calibration")
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert report["as_of"] == Date.to_iso8601(Clock.today())
+
+      assert report["filters"] == %{
+               "author" => nil,
+               "model" => nil,
+               "from" => nil,
+               "to" => nil
+             }
+
+      assert report["counts"] == %{
+               "total" => 5,
+               "open" => 2,
+               "resolved" => 2,
+               "unresolved" => %{
+                 "no_start_close" => 1,
+                 "no_end_close" => 0,
+                 "no_benchmark_close" => 0,
+                 "no_fx_rate" => 0
+               }
+             }
+
+      # e = (0.70 - 1)^2 = 0.09 and (0.60 - 0)^2 = 0.36: Brier 0.45 / 2 =
+      # 0.225; its standard error sqrt((2 x 0.1377 - 0.45^2) / (4 x 1)) =
+      # sqrt(0.018225) = 0.135.
+      assert report["brier"] == %{
+               "score" => "0.225",
+               "standard_error" => "0.135",
+               "standard_error_reason" => nil,
+               "reference" => "0.25"
+             }
+
+      # (0.20 + 0.10) / 2 = 0.15; one hit of two, sqrt(1 x 1 / (4 x 1)) = 0.5.
+      assert report["sharpness"] == "0.15"
+
+      assert report["hit_rate"] == %{
+               "rate" => "0.5",
+               "hits" => 1,
+               "mean_probability" => "0.65",
+               "standard_error" => "0.5",
+               "standard_error_reason" => nil
+             }
+
+      assert [
+               %{"from" => "0.50", "to" => "0.59", "count" => 0, "mean_probability" => nil},
+               %{"from" => "0.60", "to" => "0.69", "count" => 1, "mean_probability" => "0.6"},
+               %{"from" => "0.70", "to" => "0.79", "count" => 1, "mean_probability" => "0.7"},
+               %{"from" => "0.80", "to" => "0.89", "count" => 0},
+               %{"from" => "0.90", "to" => "0.99", "count" => 0}
+             ] = report["bands"]
+
+      assert Enum.all?(report["bands"], &(&1["hit_rate"] == "too_few"))
+
+      assert [%{"author" => "agent"} = agent, %{"author" => "operator"} = operator] =
+               report["groups"]["author"]
+
+      assert agent["counts"]["resolved"] == 2
+      assert operator["counts"]["open"] == 1
+      assert operator["brier"]["score"] == nil
+      assert operator["brier"]["standard_error_reason"] == "no_resolved"
+
+      assert Enum.map(report["groups"]["model"], & &1["model"]) ==
+               ["example-model-1", "example-model-2", nil]
+
+      one = Enum.find(report["groups"]["model"], &(&1["model"] == "example-model-2"))
+      assert one["brier"]["score"] == "0.36"
+      assert one["brier"]["standard_error"] == nil
+      assert one["brier"]["standard_error_reason"] == "one_resolved"
+
+      basis = report["computation_basis"]
+      assert basis["minimum_band_count"] == 20
+      assert basis["reference"] == "0.25"
+      assert basis["bands"] =~ "too_few"
+      assert basis["excluded"] =~ "counted"
+      assert basis["distributions"] =~ "not counted"
+      assert report["permanence_note"] =~ "a correction is a new prediction"
+    end
+
+    test "narrows by author, model and the resolves_on range", %{conn: conn} do
+      world = calibration_world!()
+
+      read = fn query ->
+        conn
+        |> get("/api/v1/predictions/calibration", query)
+        |> json_response(200)
+        |> Map.fetch!("data")
+      end
+
+      assert read.(%{"author" => "operator"})["counts"]["total"] == 1
+      assert read.(%{"model" => "example-model-1"})["counts"]["total"] == 3
+
+      day = Date.to_iso8601(world.hit.resolves_on)
+      only_hit = read.(%{"from" => day, "to" => day})
+      assert only_hit["counts"]["total"] == 1
+      assert only_hit["brier"]["score"] == "0.09"
+      assert only_hit["filters"]["from"] == day
+
+      for {query, field} <- [
+            {%{"author" => "robot"}, "author"},
+            {%{"from" => "2026-13-01"}, "from"},
+            {%{"from" => "2026-05-02", "to" => "2026-05-01"}, "to"},
+            {%{"model" => "tab\u0000"}, "model"}
+          ] do
+        assert %{"errors" => errors} =
+                 conn |> get("/api/v1/predictions/calibration", query) |> json_response(422)
+
+        assert Map.has_key?(errors, field), inspect(query)
+      end
+    end
+  end
 end

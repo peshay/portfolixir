@@ -869,6 +869,35 @@ size or a limit, and nothing proposes one.
 - `GET /api/v1/predictions/:id` — one prediction with its `resolution`, a
   `permanence_note` and the resolution rule's `computation_basis`; `404` for
   an unknown id.
+- `GET /api/v1/predictions` — the predictions newest first, each read as
+  above, with `as_of`, the `filters` echoed, `limit` (default 100, max 500)
+  and `truncated`, the `permanence_note` and the `computation_basis`.
+  Optional filters: `security_id`, `status` (`open`, `resolved`,
+  `unresolved`, derived at read; `limit` then counts the calls the status
+  kept), `author` (`operator`, `agent`), `model` (exactly as named) and
+  `due_before`, **the due query**: the open predictions whose `resolves_on`
+  is on or before the date. A malformed filter answers `422` naming it.
+- `GET /api/v1/predictions/calibration` — the calibration report over the
+  predictions the filters name, each resolved at read as of today:
+  `counts` (`total`, `open`, `resolved`, and `unresolved` by reason);
+  `brier` — the Brier score over every resolved prediction (the mean of
+  `(probability − outcome)²`, outcome 1 for a hit and 0 for a miss; lower is
+  better), its `standard_error` and the `reference` `"0.25"`, the score of
+  saying 50 % to everything; `sharpness`, the mean of `probability − 0.50`,
+  beside it, since saying 50 % to everything is perfectly calibrated and
+  says nothing; `hit_rate` (`rate`, `hits`, `mean_probability` and its
+  `standard_error`); five `bands` (`0.50`–`0.59` to `0.90`–`0.99`), each
+  with its `count` and `mean_probability`, and a `hit_rate` only from 20
+  resolved predictions: below, it is the string `"too_few"`; `groups`, the
+  same block per `author` and per `model`; and the whole
+  `computation_basis`. With no resolved prediction every figure is `null`,
+  and a standard error is `null` with `standard_error_reason`
+  `no_resolved` or, with one, `one_resolved`. Open and unresolved
+  predictions enter no score and are counted. Optional filters: `author`,
+  `model`, and `from` / `to`, a `resolves_on` range, both inclusive; `to`
+  before `from` answers `422` on `to`. **Expect `too_few` for a long time**:
+  the headline score with its standard error carries meaning from the first
+  resolutions.
 
 A prediction read carries `id`, `security_id`, `direction`, `probability`,
 `benchmark`, `resolves_on`, `made_at`, `made_on` (its UTC day), `author`,
