@@ -249,7 +249,11 @@ defmodule PortfolixirWeb.JournalLive do
             </span>
           </div>
 
-          <form id="journal-filters" class="journal-filters" phx-change="filter_form">
+          <%!-- Enter in „Seit“ submits the form: to the page itself, read
+               like a change, so the chips' filters stay (closing act, J3);
+               a form without phx-submit would GET /journal from its own
+               fields alone. --%>
+          <form id="journal-filters" class="journal-filters" phx-change="filter_form" phx-submit="filter_form">
             <label class="journal-filters__kind">
               <span class="visually-hidden"><%= gettext("Kind") %></span>
               <select id="journal-kind" name="resource_type">

@@ -8637,7 +8637,10 @@ changed this week“, a poller walks forward. Built in
    at 390 px it stacks under the kind like the checkbox; nothing scrolls
    sideways.
 2. **What it sends:** the form's one `phx-change` carries it with the kind
-   and the checkbox. A typed date, on blur, patches `/journal?since=<YYYY-MM-DD>`,
+   and the checkbox; Enter submits the form to the same handler
+   (`phx-submit`, closing act, J3), so the chips' actor, operation and one
+   entry stay, where a native submit would GET `/journal` from the form's
+   own fields alone. A typed date, on blur, patches `/journal?since=<YYYY-MM-DD>`,
    the start of that day in UTC, and the list starts again from its newest
    page; an emptied field patches the cut away. A value it cannot read
    („2026-10-2“, „2026-10“) keeps the cut as it is and patches nothing

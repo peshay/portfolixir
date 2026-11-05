@@ -250,4 +250,43 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
     refute_patched(view)
     refute basis(view) =~ "seit"
   end
+
+  # User story (Sprint 24 closing act, J3; board 01 ①):
+  # As the operator who types a date into „Seit“ and presses Enter,
+  # I want Enter to set the cut as leaving the field does,
+  # so that the actor, the operation and the one entry I filtered on stay.
+  #
+  # Acceptance criteria:
+  # - The form submits to the page itself (`phx-submit`), never as a
+  #   native GET that rebuilds the URL from the form's fields alone.
+  # - Submitting a date patches the cut in and keeps actor_type, operation,
+  #   resource_type and resource_id.
+  test "Enter in „Seit“ sets the cut and keeps the other filters", %{conn: conn} do
+    fixture!()
+    since = Date.to_iso8601(Date.add(Date.utc_today(), -1))
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/journal?resource_type=security&resource_id=r-1&actor_type=owner_ui&operation=update&locale=de"
+      )
+
+    assert has_element?(view, "#journal-filters[phx-submit='filter_form']")
+
+    view
+    |> form("#journal-filters", %{"since" => since, "resource_type" => "security"})
+    |> render_submit()
+
+    assert_patch(
+      view,
+      "/journal?" <>
+        URI.encode_query(
+          resource_type: "security",
+          resource_id: "r-1",
+          actor_type: "owner_ui",
+          operation: "update",
+          since: since
+        )
+    )
+  end
 end
