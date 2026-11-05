@@ -213,6 +213,19 @@ describe("the companion's prompts", () => {
       assert.match(text, framing);
     }
 
+    // The Sprint 25 closing act (agent's lens, UAT persona; ADR-0055
+    // amendment of 2026-11-05): two catalogue rows for one security are
+    // settled before a permanent call names one; a benchmark without a
+    // stored close in the last 7 days is replaced by a rate:; the rate is a
+    // fraction; a call stays open until its end close is in.
+    assert.match(text, /two catalogue rows match/);
+    assert.match(text, /ask the operator which to keep before recording/);
+    assert.match(text, /portfolixir\.quotes\.list/);
+    assert.match(text, /stored close in the last 7 days/);
+    assert.match(text, /resolves unresolved and stays in the counts/);
+    assert.match(text, /rate:0\.02 is 2 % a year/);
+    assert.match(text, /until its end close is in/);
+
     const read = await promptText("position_review", {}, "read");
     assert.match(read, /cannot record a prediction/);
     assert.doesNotMatch(await promptText("position_review", {}, "full"), /cannot record a prediction/);

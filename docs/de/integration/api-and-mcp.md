@@ -936,7 +936,12 @@ aus der Nachricht liest (positiv, negativ), kommt nicht in den Eintrag: Sie
 wird als Prognose festgehalten (`POST /api/v1/predictions`,
 `portfolixir.predictions.create`) mit `note_id` auf den Eintrag, sodass die
 Einschätzung wie jede andere aufgelöst und bewertet wird. Die Aggregation
-läuft außerhalb der App; Portfolixir ruft selbst keine Nachrichten ab.
+läuft außerhalb der App; Portfolixir ruft selbst keine Nachrichten ab. Für
+`GET /api/v1/notes/unreviewed` (`portfolixir.notes.unreviewed`) ist ein
+Nachrichten-Eintrag ein Eintrag wie jeder andere: Er nimmt seine Position von
+dieser Liste. Ob die These selbst überprüft wurde, sagt `last_reviewed_at` im
+Thesenstand, das nur Einträge der Art `thesis` und `invalidation_check`
+bewegen.
 
 Die menschliche Sicht ist der Tab **Research** im Wertpapier-Detailbereich
 auf `/securities/:id`: der Thesenstand oben, die Einträge neueste zuerst mit
@@ -966,8 +971,12 @@ trägt eine Order, eine Größe oder ein Limit, und nichts schlägt eines vor.
   abgelehnt, weil sich eine als sicher genannte Prognose nicht bewerten
   lässt); `benchmark`, geschrieben wie `benchmark=` — `security:<id>` eines
   mit `is_benchmark` markierten Wertpapiers (nicht des Wertpapiers selbst)
-  oder `rate:<dezimal>`, ein fester Jahreszins, wobei `rate:0` die Prognose
-  absolut macht; `resolves_on`, 7 bis 1.830 Tage nach dem UTC-Tag, an dem
+  oder `rate:<dezimal>`, ein fester Jahreszins als **Bruch** von
+  `-0.999999` bis `1` (`rate:0.02` sind 2 % im Jahr; ein Zins über 1 liefert
+  `422` mit der Bruchschreibweise, denn `rate:5`, gemeint als 5 %, wären
+  500 % im Jahr auf einem Datensatz, der sich nie korrigieren lässt), wobei
+  `rate:0` die Prognose absolut macht; `resolves_on`, 7 bis 1.830 Tage nach
+  dem UTC-Tag, an dem
   sie abgegeben wird; `model`, das Modell, auf dem ein Agent läuft
   (höchstens 100 Zeichen), **Pflicht für ein API-Token**, abgelehnt für die
   Seiten des Betreibers; optional `note_id`, ein Research-Log-Eintrag
@@ -979,7 +988,9 @@ trägt eine Order, eine Größe oder ein Limit, und nichts schlägt eines vor.
   die mit dem Ergebnis vor Augen abgegeben wurde. Jede Ablehnung ist ein
   `422` mit allen Feldfehlern zugleich; gespeichert wird nichts. Der
   Schreibvorgang wird als `prediction` / `create` unter dem Token
-  journalisiert.
+  journalisiert. Eine Prognose bewahrt außerdem ihr Wertpapier und ihr
+  Benchmark-Wertpapier davor, je zusammengeführt oder gelöscht zu werden;
+  stattdessen wird eines stillgelegt.
 - `GET /api/v1/predictions/:id` — eine Prognose mit ihrer `resolution`,
   einer `permanence_note` und der `computation_basis` der Auflösungsregel;
   `404` für eine unbekannte ID.
@@ -990,8 +1001,9 @@ trägt eine Order, eine Größe oder ein Limit, und nichts schlägt eines vor.
   `resolved`, `unresolved`, beim Lesen abgeleitet; `limit` zählt dann die
   Prognosen, die der Status behält), `author` (`operator`, `agent`), `model`
   (genau wie genannt) und `due_before`, **die Fälligkeitsabfrage**: die
-  offenen Prognosen, deren `resolves_on` auf oder vor dem Datum liegt. Ein
-  fehlerhafter Filter liefert `422` mit seinem Namen.
+  offenen Prognosen, deren `resolves_on` auf oder vor dem Datum liegt,
+  einschließlich einer, deren Datum vorbei ist und die noch auf ihren
+  Endkurs wartet. Ein fehlerhafter Filter liefert `422` mit seinem Namen.
 - `GET /api/v1/predictions/calibration` — der Kalibrierungsbericht über die
   Prognosen, die die Filter nennen, jede zum heutigen Tag aufgelöst:
   `counts` (`total`, `open`, `resolved` und `unresolved` nach Grund);
@@ -1021,12 +1033,20 @@ UTC-Tag), `author`, `actor`, `model`, `note_id`, `rationale` und
 `resolution`:
 
 - `status` — `open`, solange der Kalendertag der Instanz auf oder vor
-  `resolves_on` liegt; danach `resolved` mit `outcome` `hit` oder `miss`
-  oder `unresolved` mit `reason` `no_start_close`, `no_end_close`,
-  `no_benchmark_close` oder `no_fx_rate`, nie geschätzt;
-- `start_on` — der Tag vor dem UTC-Tag der Abgabe: Der Startkurs ist der
-  letzte Schlusskurs **strikt vor** diesem Tag, sodass eine Prognose nie an
-  einem Kurs gemessen wird, den sie kommen sehen konnte; `end_on` —
+  `resolves_on` liegt, und danach, **bis ihr Endkurs da ist**: bis das
+  Wertpapier und ein Benchmark-Wertpapier je einen gespeicherten Schlusskurs
+  mit Datum an oder nach `resolves_on` haben (der Beleg, dass die Daten des
+  Tages da sind, nie in der Messung verwendet) oder bis 7 Tage nach
+  `resolves_on` vergangen sind. So kippt eine aufgelöste Prognose nie, wenn
+  der Schlusskurs von `resolves_on` spät eintrifft. Danach `resolved` mit
+  `outcome` `hit` oder `miss` oder `unresolved` mit `reason`
+  `no_start_close`, `no_end_close`, `no_benchmark_close` oder `no_fx_rate`,
+  nie geschätzt (ADR-0055, Ergänzung vom 2026-11-05);
+- `start_on` — der UTC-Tag der Abgabe: Der Startkurs ist der letzte
+  Schlusskurs **an oder vor** diesem Tag, sodass eine Prognose nach dem
+  Tagesschluss vom Kurs ausgeht, den sie kannte, und eine davor von einem
+  Schlusskurs, der nach ihr kommt: Keine Prognose wird für eine Bewegung
+  bewertet, die sie schon gesehen hatte; `end_on` —
   `resolves_on`, der Endkurs der letzte an oder vor diesem Tag; ein
   Schlusskurs, der mehr als 7 Tage älter ist als das Datum, für das er
   steht, ist kein Kurs;
@@ -1034,7 +1054,11 @@ UTC-Tag), `author`, `actor`, `model`, `note_id`, `rationale` und
   `stands_for`, `date`, `close`, `stored_close`, `source`, `fx_rate` und
   `eur_value`, der Kurs zum gespeicherten EUR-Hub-Kurs seines eigenen Datums
   in EUR umgerechnet) und `return`, der EUR-Wert am Ende durch den am Start
-  minus 1; `null`, solange offen oder wenn diese Seite keine Antwort hat;
+  minus 1, berechnet als eine Division exakter Produkte
+  (`(Endkurs × Hub-Kurs am Start) / (Startkurs × Hub-Kurs am Ende) − 1`),
+  sodass zwei gleiche Bewegungen in einer Währung bis zur letzten Stelle
+  gleiche Renditen ergeben; `null`, solange offen oder wenn diese Seite
+  keine Antwort hat;
 - `benchmark` — die Seiten einer Wertpapier-Benchmark nach derselben Regel
   oder `{kind: "rate", rate, from, to, days, return}`, der Zins täglich
   verzinst über die Tage zwischen den beiden Daten, für die die Kurse des
@@ -4629,8 +4653,13 @@ Trade.
   Sicht hat, jede festgehalten mit `portfolixir.predictions.create` unter dem
   Modell des Agenten und, wo es einen gibt, der `note_id` der These. Sein Text
   sagt, dass eine Prognose dauerhaft ist und eine festgehaltene Einschätzung,
-  nie ein Trade: keine Order und keine Größe. Unter dem Profil `read` hält er
-  nichts fest und gibt dem Betreiber die Liste.
+  nie ein Trade: keine Order und keine Größe. Passen zwei Katalogzeilen auf
+  das Wertpapier, fragt er den Betreiber vor dem Festhalten, welche bleiben
+  soll, denn eine Prognose bewahrt ihr Wertpapier und ihre Benchmark vor
+  einer Zusammenführung; er prüft mit `portfolixir.quotes.list`, dass das
+  Wertpapier und ein Benchmark-Wertpapier einen gespeicherten Schlusskurs in
+  den letzten 7 Tagen haben, und nimmt sonst eine `rate:`-Benchmark. Unter
+  dem Profil `read` hält er nichts fest und gibt dem Betreiber die Liste.
 
 Die Prompts gibt es nur über MCP: Ein Prompt ist eine Anweisung an den
 Agenten des Nutzers, und die API hat nichts, dem sie ihn liefern könnte.
@@ -4820,8 +4849,14 @@ lässt sich nicht lesen.
   zurückziehen oder löschen lässt, dass eine irrtümliche bleibt und zählt
   und dass eine Korrektur eine neue Prognose ist, und fordert den Agenten
   auf, sein Modell zu nennen, das das Schema verlangt; die
-  Wahrscheinlichkeit ist ein String von `"0.50"` bis `"0.99"`, und ein
-  `made_at`, `author` oder `actor` wird vor jeder Anfrage abgelehnt.
+  Wahrscheinlichkeit ist ein String von `"0.50"` bis `"0.99"` (`"0.49"`
+  wird vor jeder Anfrage abgelehnt: die Gegenrichtung mit `"0.51"`
+  festhalten), eine `rate:`-Benchmark ist ein Bruch bis 1, und ein
+  `made_at`, `author` oder `actor` wird vor jeder Anfrage abgelehnt. Sie
+  sagt, dass der Startkurs der letzte an oder vor dem UTC-Tag der Abgabe
+  ist, dass eine Prognose nach `resolves_on` offen bleibt, bis ihr Endkurs
+  da ist (höchstens 7 Tage), und dass eine Prognose ihr Wertpapier und ihre
+  Benchmark vor Zusammenführung und Löschung bewahrt.
 - `portfolixir.predictions.list` — die Prognosen mit ihrem Status beim
   Lesen, gefiltert wie `GET /api/v1/predictions`, darunter die
   Fälligkeitsabfrage (`due_before`).

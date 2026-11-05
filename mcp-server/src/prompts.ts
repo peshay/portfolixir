@@ -261,6 +261,8 @@ function positionReview(securityId: string | undefined, profile: McpProfile): st
   const find = /^[1-9][0-9]{0,18}$/.test(given)
     ? `The operator named security ${given}; if portfolixir.securities.dossier answers 404, ask which position they meant.`
     : "Ask the operator which position to review, and find its id with portfolixir.securities.list (query by name, ISIN or ticker).";
+  const duplicates =
+    "If two catalogue rows match the security (the same ISIN, name or ticker twice), ask the operator which to keep before recording: a prediction keeps its security, and its benchmark security, from ever being merged or deleted (retire only).";
 
   return `# Position review: one position, ending in recorded predictions
 
@@ -274,7 +276,7 @@ You are reviewing one position in Portfolixir with the operator: ${target}. You 
 - ${RECORD_LINE[profile]}
 
 ## Step 1: find the position
-${find}
+${find} ${duplicates}
 
 ## Step 2: read the position
 - portfolixir.securities.dossier: the security's record, holdings, derived metrics, newest research-log entries, upcoming and recent events, categories and position targets in one read.
@@ -286,14 +288,14 @@ Summarise in a few lines: the thesis and whether its invalidation condition hold
 ## Step 3: state your predictions, or none
 For each view you actually hold, state:
 - direction: outperform or underperform;
-- benchmark: security:<id> of a security flagged is_benchmark (portfolixir.securities.list with is_benchmark true), or rate:<decimal>, a fixed annual rate; rate:0 makes the call absolute, the price rises or falls. A view that the position is worth keeping is outperform against what the money would otherwise sit in;
+- benchmark: security:<id> of a security flagged is_benchmark (portfolixir.securities.list with is_benchmark true), or rate:<decimal>, a fixed annual rate as a fraction up to 1 (rate:0.02 is 2 % a year; above 1 is refused); rate:0 makes the call absolute, the price rises or falls. A view that the position is worth keeping is outperform against what the money would otherwise sit in. Check with portfolixir.quotes.list (security_id, from a week ago) that the reviewed security, and a benchmark security, has a stored close in the last 7 days; where the benchmark has none, use a rate: benchmark instead. A call without a close at its start or end resolves unresolved and stays in the counts;
 - probability: a string from "0.50" to "0.99" that the direction holds; a belief below 0.50 is the other direction above it;
 - resolves_on: the date the call is about, 7 to 1,830 days after today;
 - the thesis entry it belongs to, as note_id, where one exists, and a one-line rationale.
 Where you have no view, or would say 0.50, say so and record none: a call you would not stand behind only adds noise to the score, and fewer honest calls beat many.
 
 ## Step 4: record them
-Show the operator the list first. Then record each with portfolixir.predictions.create: security_id, direction, probability, benchmark, resolves_on and model; name the model you run on, as its provider names it, because the score is split by model; add note_id and rationale where you have them. Read each back with portfolixir.predictions.get: it stays open until resolves_on has passed, and portfolixir.predictions.calibration scores it from then on.
+Show the operator the list first. Then record each with portfolixir.predictions.create: security_id, direction, probability, benchmark, resolves_on and model; name the model you run on, as its provider names it, because the score is split by model; add note_id and rationale where you have them. Read each back with portfolixir.predictions.get: it is measured from the last close on or before the UTC day you record it, stays open after resolves_on until its end close is in (at most 7 days), and portfolixir.predictions.calibration scores it from then on.
 
 End with a short summary: the calls recorded, or none and why, and when the first one resolves.
 `;

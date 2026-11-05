@@ -90,6 +90,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "Sprint 25, F5 (ADR-0055 §5; idea F32): the MCP prompt position_review walks the " <>
           "agent through one position and ends by asking for predictions, or none, each " <>
           "recorded with portfolixir.predictions.create: a recorded call, never a trade. " <>
+          "Sprint 25 closing act (ADR-0055 amendment of 2026-11-05): a prediction is " <>
+          "measured from the last close on or before the UTC day it is made, not before it; " <>
+          "after resolves_on it stays open until each priced side has a stored close dated on " <>
+          "or after resolves_on, at most 7 days, so a resolved call does not flip when a late " <>
+          "close arrives; a fixed rate is a fraction up to 1, a rate above it answers 422; a " <>
+          "window's return is one division of exact products, so two equal moves in one " <>
+          "currency read equal returns. Every read re-resolves under the rules; the four " <>
+          "tools' descriptions, the prompt and notes.append say so within the same raise. " <>
           "Sprint 25, N1 (idea I13; plan D-5): portfolixir.notes.append says how an outside " <>
           "aggregator records a news item, as an evidence entry dated the day it became " <>
           "public, a summary and the link, never the article; no parameter is added. " <>
@@ -150,7 +158,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "full profiles), new: a prediction object {security_id, direction " <>
           ~s[(outperform | underperform), probability (a decimal string from "0.50" to ] <>
           ~s["0.99" in steps of 0.01; a JSON number is refused), benchmark (security:<id> of ] <>
-          "a security flagged is_benchmark, or rate:<decimal>, rate:0 the absolute call), " <>
+          "a security flagged is_benchmark, or rate:<decimal>, a fraction from -0.999999 to 1: " <>
+          "rate:0.02 is 2 % a year, rate:0 the absolute call, and a rate above 1 answers 422 " <>
+          "naming the fraction form), " <>
           "resolves_on (7 to 1,830 days after the UTC day it is made), model (required for " <>
           "an agent's token, refused for the operator's), note_id (optional, a research-log " <>
           "entry of the same security), rationale (optional)}; 201 with the read below. " <>
@@ -162,15 +172,19 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "benchmark, resolves_on, made_at, made_on, author, actor, model, note_id, " <>
           "rationale, resolution, permanence_note, computation_basis}; resolution {status " <>
           "(open | resolved | unresolved), outcome (hit | miss), reason (no_start_close, " <>
-          "no_end_close, no_benchmark_close, no_fx_rate), start_on, end_on, security " <>
+          "no_end_close, no_benchmark_close, no_fx_rate), start_on (the UTC day made: the " <>
+          "start close is the last close on or before it), end_on (resolves_on), security " <>
           "{security_id, currency_code, start, end, return}, benchmark (a security's sides " <>
           "as the security's, or {kind rate, rate, from, to, days, return}), excess}, each " <>
           "end {stands_for, date, close, stored_close, source, fx_rate, eur_value}; derived " <>
-          "at every read, never stored; 404 for an unknown id (ADR-0055 §5, read)",
+          "at every read, never stored; status is open while today is on or before " <>
+          "resolves_on and after it until each priced side has a stored close dated on or " <>
+          "after resolves_on, at most 7 days; 404 for an unknown id (ADR-0055 §5, read)",
         "GET /api/v1/predictions (portfolixir.predictions.list, read-only, in every " <>
           "profile), new: optional security_id, status (open | resolved | " <>
           "unresolved, derived at read), author (operator | agent), model and due_before " <>
-          "(the due query: open predictions whose resolves_on is on or before the date), " <>
+          "(the due query: open predictions whose resolves_on is on or before the date, a " <>
+          "call waiting for its end close included), " <>
           "limit (default 100, at most 500, newest first, with truncated); it answers " <>
           "{as_of, filters, limit, truncated, predictions, permanence_note, " <>
           "computation_basis}, each prediction read as GET /api/v1/predictions/:id reads " <>
@@ -196,13 +210,19 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "recorded with portfolixir.predictions.create naming its model and optionally the " <>
           "thesis's note_id; its text says a prediction is permanent and a recorded call, " <>
           "never a trade, no order and no size, and under the read profile it records " <>
-          "nothing; no tool changed (ADR-0055 §5; idea F32)",
+          "nothing; it asks the operator which of two matching catalogue rows to keep " <>
+          "before recording, checks with portfolixir.quotes.list for a stored close in the " <>
+          "last 7 days and uses a rate: benchmark where a benchmark has none, and names the " <>
+          "rate as a fraction and the wait for the end close; no tool changed (ADR-0055 §5; " <>
+          "idea F32)",
         "POST /api/v1/securities/:security_id/notes (portfolixir.notes.append), no " <>
           "parameter added: the tool's description states how an outside aggregator records " <>
           "a news item, kind evidence, as_of the day it became public, source_url the " <>
           "article, source_quality as judged, a summary and the link, never the article (no " <>
           "news archive), and a direction read from it recorded as a prediction with " <>
-          "portfolixir.predictions.create and note_id on the entry; its other wording is " <>
+          "portfolixir.predictions.create and note_id on the entry, and that any entry, news " <>
+          "too, counts for portfolixir.notes.unreviewed, the thesis's review being its " <>
+          "last_reviewed_at (thesis and invalidation_check entries); its other wording is " <>
           "tightened to pay for the bytes, every rule it stated kept, the closed sets in the " <>
           "schema (idea I13; plan D-5)",
         "DELETE /api/v1/classifications/:id, " <>

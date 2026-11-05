@@ -324,14 +324,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
       "Sprint 25, F4 (ADR-0055 §5): the predictions, portfolixir.predictions.create, a write " +
       "in the book and full profiles, and portfolixir.predictions.list, .get and .calibration, " +
       "reads in every profile, whose own schemas the rule of Sprint 24's D-2 lets the ceilings " +
-      "grow by and no more: their tools/list entries measure 2,598 + 1,567 + 1,009 + 1,685 = " +
-      "6,859 bytes in book and full and 4,261 in read, which lists no create, so read 106,612 " +
-      "+ 4,261 = 110,873, book 175,683 + 6,859 = 182,542 and full 210,238 + 6,859 = 217,097; " +
-      "the merge preview and the delete of a security name predictions, paid for by " +
-      "tightening their own wording, and no other tool's bytes are added",
-    read: 110_873,
-    book: 182_542,
-    full: 217_097,
+      "grow by and no more: their tools/list entries, with the Sprint 25 closing act's wording " +
+      "(the start close, the wait for the end close, the rate as a fraction, the lifecycle " +
+      "lock), measure 2,958 + 1,607 + 1,049 + 1,685 = 7,299 bytes in book and full and 4,341 " +
+      "in read, which lists no create, so read 106,612 + 4,341 = 110,953, book 175,683 + " +
+      "7,299 = 182,982 and full 210,238 + 7,299 = 217,537; the merge preview and the delete " +
+      "of a security name predictions, and notes.append names notes.unreviewed, each paid for " +
+      "by tightening its own wording, and no other tool's bytes are added",
+    read: 110_953,
+    book: 182_982,
+    full: 217_537,
     raisedBy: {
       tools: [
         "portfolixir.predictions.create",
@@ -339,9 +341,9 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
         "portfolixir.predictions.get",
         "portfolixir.predictions.calibration"
       ],
-      read: 4_261,
-      book: 6_859,
-      full: 6_859
+      read: 4_341,
+      book: 7_299,
+      full: 7_299
     }
   }
 ];
