@@ -8653,7 +8653,15 @@ changed this week“, a poller walks forward. Built in
    handed over while the field still shows that date, so a change of
    another filter does not widen it to the start of the day; a date the
    operator picks replaces it. An unreadable `since` reads as absent, as
-   every parameter the API would refuse (LiveParam, #868).
+   every parameter the API would refuse (LiveParam, #868), and says so
+   (closing act, J3): under the basis line an attention data note
+   (`data-role="journal-since-unread"`) reads „„Seit“-Wert „garbage“ ist
+   nicht lesbar — das ganze Journal wird gezeigt.“ (English "The “Since”
+   value “garbage” is not readable — the whole journal is shown."), for
+   `garbage`, a cursor cut after its `~` or `2026-13-01` alike, so the
+   whole journal is never taken for the slice the link meant. The value is
+   the URL's, untrusted: escaped text in a `<bdi>`, cut to 40 characters
+   and „…“.
 4. **The basis line** (② on the board) names the cut in its existing clause
    order, right after „Neueste zuerst“: „Neueste zuerst · seit 28.10.2026
    (UTC) · die neuesten 100 Einträge · ohne Was-wäre-wenn-Szenarien · Zeiten

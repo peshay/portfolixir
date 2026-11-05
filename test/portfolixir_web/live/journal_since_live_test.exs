@@ -289,4 +289,50 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
         )
     )
   end
+
+  # User story (Sprint 24 closing act, J3; decision D-4):
+  # As the operator opening a link whose since the page cannot read,
+  # I want the page to say so beside its basis line,
+  # so that the whole journal is never mistaken for the slice I was sent.
+  #
+  # Acceptance criteria:
+  # - /journal?since=garbage, a cursor cut after its „~“ and 2026-13-01
+  #   each show the whole journal with a note naming the value: „„Seit“-Wert
+  #   „garbage“ ist nicht lesbar — das ganze Journal wird gezeigt.“ /
+  #   "The “Since” value “garbage” is not readable — the whole journal is
+  #   shown."
+  # - The value is untrusted: it renders as text only, and past 40
+  #   characters it is cut with „…“.
+  # - A readable since, or none, shows no note.
+  test "an unreadable since in a link is named, the whole journal shown", %{conn: conn} do
+    %{old: old, recent: recent} = fixture!()
+
+    for value <- ["garbage", "2026-10-28T09:15:02Z~", "2026-13-01"] do
+      {:ok, view, _html} =
+        live(conn, "/journal?" <> URI.encode_query(since: value, locale: "de"))
+
+      assert Enum.all?(old ++ recent, &(&1 in page_ids(view)))
+      refute basis(view) =~ "seit"
+
+      assert view |> element("[data-role='journal-since-unread']") |> render() |> text() =~
+               "„Seit“-Wert „#{value}“ ist nicht lesbar — das ganze Journal wird gezeigt."
+    end
+
+    {:ok, view, _html} = live(conn, "/journal?since=garbage&locale=en")
+
+    assert view |> element("[data-role='journal-since-unread']") |> render() |> text() =~
+             "The “Since” value “garbage” is not readable — the whole journal is shown."
+
+    hostile = "<script>alert(1)</script>" <> String.duplicate("x", 60)
+    {:ok, view, html} = live(conn, "/journal?" <> URI.encode_query(since: hostile))
+    refute html =~ "<script>alert(1)"
+    note = view |> element("[data-role='journal-since-unread']") |> render() |> text()
+    assert note =~ "“" <> String.slice(hostile, 0, 40) <> "…”"
+    refute note =~ String.slice(hostile, 0, 41)
+
+    for link <- ["/journal", "/journal?since=#{Date.to_iso8601(Date.utc_today())}"] do
+      {:ok, view, _html} = live(conn, link)
+      refute has_element?(view, "[data-role='journal-since-unread']")
+    end
+  end
 end
