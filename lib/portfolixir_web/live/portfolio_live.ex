@@ -3628,12 +3628,16 @@ defmodule PortfolixirWeb.PortfolioLive do
   # benchmark has no priced day at all, that nothing is covered.
   # The costs line (ADR-0046, amended 2026-11-04; board 02, A): the payload's
   # two sums as the money formatter writes them, each figure in its own span.
+  # The space before each figure is a no-break space, in every language, so
+  # a narrow line never ends on „Steuern“ with its figure below (closing
+  # act, B2).
   defp costs_paid_line(%{costs_paid: costs, base_currency: currency}) do
-    StoredText.isolate(
-      gettext("Paid in the period: fees %{fees} · taxes %{taxes}; the benchmark pays none.",
-        fees: StoredText.slot(:fees),
-        taxes: StoredText.slot(:taxes)
-      ),
+    gettext("Paid in the period: fees %{fees} · taxes %{taxes}; the benchmark pays none.",
+      fees: StoredText.slot(:fees),
+      taxes: StoredText.slot(:taxes)
+    )
+    |> String.replace(~r/ (?=\x{0})/u, "\u00a0")
+    |> StoredText.isolate(
       fees: costs_figure(costs.fees, currency),
       taxes: costs_figure(costs.taxes, currency)
     )
