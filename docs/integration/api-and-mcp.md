@@ -830,6 +830,18 @@ Example append payload:
 }
 ```
 
+**A news item from an outside aggregator** (idea I13; Sprint 25 plan D-5) is
+recorded as an ordinary entry, and no field is added for it: `kind`
+`evidence`; `as_of` the date the item became public, which is the
+statement's cut-off date, so it sits beside the close of that day; `source_url`
+the article; `source_quality` as the aggregator judged it; `body` a summary and the link, **never the
+article** — Portfolixir keeps no news archive. A direction the aggregator
+reads from the item (positive, negative) is not written into the note: it is
+recorded as a prediction (`POST /api/v1/predictions`,
+`portfolixir.predictions.create`) with `note_id` pointing at the note, so the
+call is resolved and scored like any other. The aggregation runs outside the
+app; Portfolixir fetches no news itself.
+
 The human view is the **Research** tab of the security detail pane on
 `/securities/:id`: the thesis state on top, the entries newest first with
 kind and source quality visible, superseded entries marked as such,
@@ -4356,7 +4368,10 @@ API may have committed it, and its answer cannot be read.
   derived thesis state; the description states that entries never vanish
   (ADR-0044).
 - `portfolixir.notes.append` — the only write the log admits; a retraction
-  with `supersedes_id` is how a finding is withdrawn.
+  with `supersedes_id` is how a finding is withdrawn. Its description says how
+  an outside aggregator records a news item: `kind` `evidence`, `as_of` the
+  day it became public, a summary and the link, never the article, and a
+  direction read from it as a prediction with `note_id` on the entry.
 - `portfolixir.notes.unreviewed` — held positions with no entry for N days.
 - `portfolixir.notes.uncorroborated` — entries whose source quality is not
   primary.
