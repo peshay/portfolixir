@@ -224,7 +224,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "refused by its dry run with the same status and body: 422 for a built-in " <>
           "classification, 409 naming the policy rules that read it, 404 for an unknown id. " <>
           "Nothing is written, the audit journal included, and nothing outside the transaction " <>
-          "is told. Absent or false is the delete as before (a view's 204, the others' " <>
+          "is told. The transaction is REPEATABLE READ, so the reads before and after the " <>
+          "delete see one snapshot and a row a concurrent transaction deleted is never " <>
+          ~s(listed; a dry run a concurrent change intervened in answers 409 errors.code ) <>
+          ~s("concurrent_change" with a detail to retry, nothing deleted. ) <>
+          "Absent or false is the delete as before (a view's 204, the others' " <>
           ~s({"data": {"deleted": true}}) <>
           "); any other value, an empty dry_run= included, answers 422 errors.dry_run " <>
           "[\"is invalid\"], and any other query parameter (dryRun, dry-run, dryrun) answers " <>

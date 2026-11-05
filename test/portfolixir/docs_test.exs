@@ -4092,7 +4092,8 @@ defmodule Portfolixir.DocsTest do
   # - Both references name dry_run=true on the three DELETE routes, the
   #   rollback, the would_remove answer with its kinds, the same refusal and
   #   the 422 on a value that is not a boolean, an empty one included, and
-  #   on any other parameter, naming it (the Sprint 25 closing act).
+  #   on any other parameter, naming it, and the REPEATABLE READ snapshot
+  #   with its 409 concurrent_change (the Sprint 25 closing act).
   # - Both name dry_run true on each of the three MCP delete tools.
   test "the API reference documents the cascading deletes' dry run in English and German" do
     shared = [
@@ -4101,7 +4102,9 @@ defmodule Portfolixir.DocsTest do
       "`depot_snapshots`",
       ~s(`{"errors": {"dry_run": ["is invalid"]}}`),
       # The closing act: a misspelled key answers 422 naming it.
-      ~s(`{"errors": {"dryRun": ["is unknown: this delete takes only dry_run"]}}`)
+      ~s(`{"errors": {"dryRun": ["is unknown: this delete takes only dry_run"]}}`),
+      "`REPEATABLE READ`",
+      ~s({"errors": {"code": "concurrent_change", "detail": "..."}})
     ]
 
     for {path, fragments} <- [

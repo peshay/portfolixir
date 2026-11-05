@@ -8,7 +8,8 @@ defmodule PortfolixirWeb.Api.V1.DryRunParam do
   `dry_run=true` runs the real delete in a transaction that always rolls
   back (`Portfolixir.DryRun`) and answers 200 with what it would remove, per
   kind; a delete the server refuses is refused by its dry run with the same
-  status and body. Absent or `false` is the delete itself; any other value,
+  status and body, and a dry run a concurrent change intervened in answers
+  409 `errors.code "concurrent_change"`, nothing deleted, to retry. Absent or `false` is the delete itself; any other value,
   an empty `dry_run=` included, answers 422 `errors.dry_run ["is invalid"]`,
   as the API's other boolean query parameters do, and any other parameter
   (`dryRun`, `dry-run`, `dryrun`, ...) answers 422 naming it, so a typo never
@@ -64,6 +65,25 @@ defmodule PortfolixirWeb.Api.V1.DryRunParam do
   @spec answer(Plug.Conn.t(), Portfolixir.DryRun.removed()) :: Plug.Conn.t()
   def answer(conn, removed) when is_map(removed),
     do: json(conn, %{data: %{dry_run: true, would_remove: removed}})
+
+  @doc """
+  The 409 a dry run answers when a concurrent transaction changed a row the
+  delete reached while it ran (`Portfolixir.DryRun`, REPEATABLE READ):
+  nothing was deleted, and a retry decides.
+  """
+  @spec concurrent_change(Plug.Conn.t()) :: Plug.Conn.t()
+  def concurrent_change(conn) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{
+      errors: %{
+        code: "concurrent_change",
+        detail:
+          "a concurrent change intervened while the dry run read what the delete would " <>
+            "remove, and nothing was deleted: retry the dry run"
+      }
+    })
+  end
 
   @doc "The 422 a `dry_run` that is not a boolean, or another parameter, answers."
   @spec invalid(Plug.Conn.t(), map()) :: Plug.Conn.t()
