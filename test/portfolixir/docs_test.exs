@@ -4080,4 +4080,51 @@ defmodule Portfolixir.DocsTest do
     refute normalized_text("docs/integration/api-and-mcp.md") =~
              "for pagination (both non-negative integers)"
   end
+
+  # User story (Sprint 25 X1, #894; plan D-4):
+  # As the operator's agent, or its author reading the API reference,
+  # I want the three cascading deletes' dry run described where the deletes
+  # are, in English and German,
+  # so that I know it deletes nothing, what it answers and that a refusal
+  # reads the same.
+  #
+  # Acceptance criteria:
+  # - Both references name dry_run=true on the three DELETE routes, the
+  #   rollback, the would_remove answer with its kinds, the same refusal and
+  #   the 422 on a value that is not a boolean.
+  # - Both name dry_run true on each of the three MCP delete tools.
+  test "the API reference documents the cascading deletes' dry run in English and German" do
+    shared = [
+      ~s({"data": {"dry_run": true, "would_remove": {"categories": {"count": 2, "ids": [12, 13]}),
+      "`view_include_buckets`",
+      "`depot_snapshots`",
+      ~s(`{"errors": {"dry_run": ["is invalid"]}}`)
+    ]
+
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`?dry_run=true` on the three cascading deletes",
+             "runs in a transaction that always rolls back",
+             "with the same status and body",
+             "`dry_run: true` deletes nothing"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`?dry_run=true` an den drei kaskadierenden Löschungen",
+             "in einer Transaktion, die immer zurückgerollt wird",
+             "mit demselben Status und Body",
+             "`dry_run: true` löscht nichts"
+           ]}
+        ] do
+      doc = normalized_text(path)
+
+      for fragment <- shared ++ fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      assert length(String.split(doc, "`dry_run: true` ")) == 4,
+             "#{path}: each of the three delete tools names dry_run"
+    end
+  end
 end
