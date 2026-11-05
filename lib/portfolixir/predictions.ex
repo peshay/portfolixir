@@ -26,9 +26,11 @@ defmodule Portfolixir.Predictions do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Predictions.Prediction
+  alias Portfolixir.Predictions.Resolution
   alias Portfolixir.Repo
 
   @typedoc """
@@ -189,6 +191,24 @@ defmodule Portfolixir.Predictions do
     |> Repo.all()
     |> Map.new()
   end
+
+  @doc """
+  The prediction's resolution at read (ADR-0055 §3,
+  `Portfolixir.Predictions.Resolution`): `open` while today is on or
+  before `resolves_on`, then `resolved` with its outcome or `unresolved`
+  with its reason, naming the closes, dates and returns used. Nothing is
+  stored.
+
+  `opts[:today]` injects today (AR-2), for tests; it defaults to the
+  instance's calendar day, `Portfolixir.Clock.today/0`, the one "today"
+  every domain check reads (E25 S6, G08).
+  """
+  @spec resolve(Prediction.t(), keyword()) :: Resolution.t()
+  def resolve(%Prediction{} = prediction, opts \\ []) do
+    Resolution.resolve(prediction, today(opts))
+  end
+
+  defp today(opts), do: Keyword.get_lazy(opts, :today, &Clock.today/0)
 
   @doc "One prediction by id, or `nil`."
   @spec get_prediction(integer()) :: Prediction.t() | nil
