@@ -3896,6 +3896,12 @@ neu zugeordnet werden.
   lehnt ihr Probelauf mit demselben Status und Body ab: `422` für eine
   eingebaute Klassifizierung, `409` mit den Regeln, die sie lesen, `404` für
   eine unbekannte id. Nichts wird geschrieben, auch nicht ins Audit-Journal.
+  Die Transaktion des Probelaufs ist `REPEATABLE READ`, sodass seine
+  Lesungen vor und nach der Löschung einen Snapshot sehen und eine Zeile,
+  die eine gleichzeitige Transaktion inzwischen gelöscht hat, nie genannt
+  wird; ein Probelauf, der auf eine solche Änderung trifft, liefert `409`
+  `{"errors": {"code": "concurrent_change", "detail": "..."}}`, nichts wird
+  gelöscht, und ein erneuter Versuch entscheidet.
   Fehlt der Wert oder ist er `false`, ist es die Löschung selbst; jeder
   andere Wert, auch ein leeres `dry_run=`, liefert `422`
   `{"errors": {"dry_run": ["is invalid"]}}`, und jeder andere

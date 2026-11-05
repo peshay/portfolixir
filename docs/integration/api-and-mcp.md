@@ -3575,7 +3575,12 @@ tree stays intrinsic and cannot be reassigned.
   and `depot_snapshots`. A delete the server refuses is refused by its dry
   run with the same status and body: `422` for a built-in classification,
   `409` naming the policy rules that read it, `404` for an unknown id.
-  Nothing is written, the audit journal included. Absent or `false` is the
+  Nothing is written, the audit journal included. The dry run's
+  transaction is `REPEATABLE READ`, so its reads before and after the
+  delete see one snapshot, and a row a concurrent transaction deleted
+  meanwhile is never listed; a dry run that meets such a change answers
+  `409` `{"errors": {"code": "concurrent_change", "detail": "..."}}`,
+  nothing deleted, and a retry decides. Absent or `false` is the
   delete itself; any other value, an empty `dry_run=` included, answers
   `422` `{"errors": {"dry_run": ["is invalid"]}}`, and any other query
   parameter (`dryRun`, `dry-run`, ...) answers `422` naming it,
