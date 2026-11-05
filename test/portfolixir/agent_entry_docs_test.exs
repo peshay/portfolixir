@@ -100,6 +100,7 @@ defmodule Portfolixir.AgentEntryDocsTest do
           "## Prompts",
           "`first_setup`",
           "`import_converter`",
+          "`position_review`",
           "## What connecting costs",
           "## Read on",
           "The total across every portfolio needs no view: `portfolixir.views.valuation` without an id"
@@ -784,7 +785,8 @@ defmodule Portfolixir.AgentEntryDocsTest do
             "Authorization: Bearer",
             "PORTFOLIXIR_MCP_TOKEN",
             "first_setup",
-            "import_converter"
+            "import_converter",
+            "position_review"
           ] do
         assert flat =~ fragment, "#{path}: #{fragment}"
       end

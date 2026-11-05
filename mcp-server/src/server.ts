@@ -58,8 +58,9 @@ export function serverInstructions(policy: ToolPolicy = {}): string {
  * API request (`callTool`), and a test holds it to the properties the
  * published schema names. Under a profile (A1, #992) it lists only that
  * profile's tools, and `callTool` refuses any other tool again at the call.
- * It offers two prompts (A4, #983), the same under every profile; the
- * first-setup prompt embeds the profile that runs.
+ * It offers three prompts (A4, #983; position_review, Sprint 25 F5), the
+ * same under every profile; the first-setup and position-review prompts
+ * embed the profile that runs.
  */
 export function createPortfolixirMcpServer(
   client: ApiClient,

@@ -166,6 +166,21 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~
              "the schema ceilings grow by the four tools' own bytes and no more"
 
+    # F5 (ADR-0055 §5; idea F32): the prompt that asks for predictions, MCP
+    # only, with one item naming the tools it walks and its framing.
+    assert newest["summary"] =~ "Sprint 25, F5 (ADR-0055 §5; idea F32): "
+    assert hd(Contract.entries()).prompts == ["position_review"]
+    assert [review] = by_decision.("(ADR-0055 §5; idea F32)")
+    assert String.starts_with?(review, "The MCP prompt position_review (prompts/get; MCP only")
+
+    for part <- ~w(security_id portfolixir.securities.dossier portfolixir.notes.list
+                   portfolixir.events.list portfolixir.predictions.list
+                   portfolixir.predictions.create note_id) do
+      assert review =~ part, part
+    end
+
+    assert review =~ "a recorded call, never a trade, no order and no size"
+
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.
     newest = Enum.find(data["entries"], &(&1["version"] == 24))

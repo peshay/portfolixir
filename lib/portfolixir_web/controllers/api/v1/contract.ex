@@ -84,7 +84,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "prediction is permanent, create's before its first field, and the schema " <>
           "ceilings grow by the four tools' own bytes and no more; the merge preview and " <>
           "the delete of a security name predictions among their refusals, paid for by " <>
-          "tightening their own wording.",
+          "tightening their own wording. " <>
+          "Sprint 25, F5 (ADR-0055 §5; idea F32): the MCP prompt position_review walks the " <>
+          "agent through one position and ends by asking for predictions, or none, each " <>
+          "recorded with portfolixir.predictions.create: a recorded call, never a trade.",
       endpoints: [
         "GET /api/v1/sales/hindsight",
         "POST /api/v1/predictions",
@@ -170,11 +173,22 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "hit_rate the string too_few under 20 resolved calls), groups {author, model} " <>
           "(the same block per author and per model), permanence_note, computation_basis}; " <>
           "every figure a string, null with no resolved call, a standard error null with " <>
-          "standard_error_reason no_resolved or one_resolved (ADR-0055 §4, calibration)"
+          "standard_error_reason no_resolved or one_resolved (ADR-0055 §4, calibration)",
+        "The MCP prompt position_review (prompts/get; MCP only, no route serves a prompt), " <>
+          "new, under every profile, with one optional argument, security_id: it walks the " <>
+          "agent through one position (portfolixir.securities.dossier, the open theses and " <>
+          "their invalidation conditions in portfolixir.notes.list, the upcoming events in " <>
+          "portfolixir.events.list and the calls already recorded in " <>
+          "portfolixir.predictions.list), then asks for predictions (direction, probability " <>
+          "from 0.50 to 0.99, resolves_on, benchmark) or none where it has no view, each " <>
+          "recorded with portfolixir.predictions.create naming its model and optionally the " <>
+          "thesis's note_id; its text says a prediction is permanent and a recorded call, " <>
+          "never a trade, no order and no size, and under the read profile it records " <>
+          "nothing; no tool changed (ADR-0055 §5; idea F32)"
       ],
       removed_endpoints: [],
       removed_tools: [],
-      prompts: [],
+      prompts: ["position_review"],
       removed_prompts: []
     },
     %{

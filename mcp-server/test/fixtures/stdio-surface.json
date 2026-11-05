@@ -6504,6 +6504,18 @@
                   "required": false
                 }
               ]
+            },
+            {
+              "name": "position_review",
+              "title": "Position review",
+              "description": "Walk through one position: read its dossier, its open theses and their invalidation conditions, its upcoming events and the calls already recorded, then state predictions (direction, probability, date and benchmark) or none where there is no view, each recorded as a permanent call to be scored. A recorded call, never a trade.",
+              "arguments": [
+                {
+                  "name": "security_id",
+                  "description": "The id of the security to review, if known.",
+                  "required": false
+                }
+              ]
             }
           ]
         }
