@@ -4026,6 +4026,7 @@ input[pattern]:invalid:not(:placeholder-shown) {
   font-weight: 600;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .metric-tooltip p .benchmark-costs__info {
   display: block;

@@ -394,11 +394,11 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       {expected, info} =
         case locale do
           "en" ->
-            {"Paid in the period: fees #{fees} EUR · taxes #{taxes} EUR; the benchmark pays none.",
+            {"Paid in the period: fees\u00a0#{fees} EUR · taxes\u00a0#{taxes} EUR; the benchmark pays none.",
              "Paid in the period: the fees and taxes booked in the same period across all portfolios, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."}
 
           "de" ->
-            {"Im Zeitraum gezahlt: Gebühren #{fees} EUR · Steuern #{taxes} EUR — die Benchmark zahlt keine.",
+            {"Im Zeitraum gezahlt: Gebühren\u00a0#{fees} EUR · Steuern\u00a0#{taxes} EUR — die Benchmark zahlt keine.",
              "Gezahlt im Zeitraum: die Gebühren und Steuern, die im selben Zeitraum über alle Portfolios gebucht wurden, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
         end
 
@@ -413,6 +413,14 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       refute html =~ ~r/selection and timing/i
       refute html =~ ~r/Auswahl und Timing/i
     end
+
+    # At 390 px a label never ends one line and its figure starts the next
+    # (closing act, B2): a no-break space joins them in the copy (above),
+    # and a figure never breaks between its amount and its currency.
+    css = File.read!("priv/static/app.css")
+
+    assert [_, fig] = Regex.run(~r/\.benchmark-costs \.benchmark-costs__fig \{([^}]*)\}/, css)
+    assert fig =~ "white-space: nowrap;"
 
     # The formatter's own spelling of the payload's fees, pinned.
     assert Format.money(Decimal.new("1254.2"), "en") == "1,254.20"
@@ -489,11 +497,11 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
 
     for {locale, line, total_info} <- [
           {"en",
-           "Paid in the period: fees 0.00 EUR · taxes 0.00 EUR; the benchmark pays none. " <>
+           "Paid in the period: fees\u00a00.00 EUR · taxes\u00a00.00 EUR; the benchmark pays none. " <>
              "1 cost in USD has no stored rate on its booking day and is not included.",
            "Paid in the period: the fees and taxes booked in the same period across all portfolios, converted at their booking day's rate; refunds reduce the taxes. Not included is the return the money paid would otherwise have earned."},
           {"de",
-           "Im Zeitraum gezahlt: Gebühren 0,00 EUR · Steuern 0,00 EUR — die Benchmark zahlt keine. " <>
+           "Im Zeitraum gezahlt: Gebühren\u00a00,00 EUR · Steuern\u00a00,00 EUR — die Benchmark zahlt keine. " <>
              "1 Kostenposten in USD ohne gespeicherten Kurs am Buchungstag ist nicht enthalten.",
            "Gezahlt im Zeitraum: die Gebühren und Steuern, die im selben Zeitraum über alle Portfolios gebucht wurden, umgerechnet zum Kurs ihres Buchungstags; Erstattungen mindern die Steuern. Nicht enthalten ist der Ertrag, den das gezahlte Geld sonst erwirtschaftet hätte."}
         ] do

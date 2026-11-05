@@ -8743,8 +8743,13 @@ the absence in both languages.
 
 After `.benchmark-row__coverage`: `.benchmark-costs` (block, `--space-1`
 above, 12.5 px, `--color-text-muted`, the rows' detail ink);
-`.benchmark-costs__fig` (600, `--color-text`, tabular figures);
-`.metric-tooltip p .benchmark-costs__info` (block, 6 px above). Every
+`.benchmark-costs__fig` (600, `--color-text`, tabular figures,
+`white-space: nowrap`, so a figure never breaks between its amount and its
+currency); `.metric-tooltip p .benchmark-costs__info` (block, 6 px above).
+The space between a label and its figure („Steuern 4,50 EUR“) is a
+no-break space, set by `costs_paid_line/1` before each slot in every
+language, so at 390 px a label never ends a line with its figure on the
+next (closing act, B2). Every
 colour is a token, so light and dark and the three accents follow.
 
 ### Stated, not settled here
