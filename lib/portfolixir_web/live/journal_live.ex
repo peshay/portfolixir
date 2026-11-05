@@ -56,9 +56,35 @@ defmodule PortfolixirWeb.JournalLive do
     {:noreply,
      assign(socket,
        opts: opts,
+       since_unread: since_unread(params, opts),
        rows: Enum.map(entries, &Row.build(&1, security_names)),
        truncated: truncated
      )}
+  end
+
+  # A `since` in the URL the parser could not read (closing act, J3): the
+  # page shows the whole journal, as it does for any parameter it cannot
+  # read, and says so, so the whole journal is never taken for the slice a
+  # link was meant to open. The value is the URL's, untrusted: text only.
+  defp since_unread(%{"since" => value}, opts) when is_binary(value) and value != "",
+    do: if(opts[:since], do: nil, else: value)
+
+  defp since_unread(_params, _opts), do: nil
+
+  @since_shown 40
+
+  defp since_unread_note(value) do
+    shown =
+      if String.length(value) > @since_shown,
+        do: String.slice(value, 0, @since_shown) <> "…",
+        else: value
+
+    StoredText.isolate(
+      gettext("The “Since” value “%{value}” is not readable — the whole journal is shown.",
+        value: StoredText.slot(:value)
+      ),
+      value: shown
+    )
   end
 
   # The names of the securities the page's entries name only by id, read in
@@ -294,6 +320,10 @@ defmodule PortfolixirWeb.JournalLive do
           </form>
 
           <p class="summary-basis" data-role="journal-basis"><%= basis(@opts, @rows, @truncated) %></p>
+
+          <AppShell.data_note :if={@since_unread} severity={:attention} data-role="journal-since-unread">
+            <%= since_unread_note(@since_unread) %>
+          </AppShell.data_note>
 
           <p :if={@opts[:resource_id]} class="hint" data-role="journal-entity-filter">
             <.link patch="/journal"><%= gettext("Show every entry") %></.link>
