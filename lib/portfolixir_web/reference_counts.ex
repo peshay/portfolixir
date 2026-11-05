@@ -16,7 +16,8 @@ defmodule PortfolixirWeb.ReferenceCounts do
 
   # The order the parts are named in: what moves with a merge first, then
   # what holds the record whatever happens.
-  @order ~w(transactions security_quotes security_events security_notes policy_rule_versions)
+  @order ~w(transactions security_quotes security_events security_notes policy_rule_versions
+            predictions)
 
   @typedoc "A count per referencing table, as `Delete.referenced_by/1` answers it."
   @type counts :: %{optional(String.t()) => non_neg_integer()}
@@ -76,4 +77,7 @@ defmodule PortfolixirWeb.ReferenceCounts do
 
   defp part("policy_rule_versions", n),
     do: ngettext("%{count} rule version", "%{count} rule versions", n)
+
+  defp part("predictions", n),
+    do: ngettext("%{count} prediction", "%{count} predictions", n)
 end

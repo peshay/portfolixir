@@ -500,13 +500,15 @@ full list.
 - `DELETE /api/v1/securities/:id` deletes a security when nothing references
   it. A policy rule that reads it answers `409 Conflict` with
   `errors.policy_rules`. Bookings, quote history, research notes, security
-  events or policy-rule versions answer `409 Conflict` with
+  events, policy-rule versions or predictions (about the security or
+  scored against it as their benchmark) answer `409 Conflict` with
   `errors.referenced_by` (the referencing tables, counted, for example
   `{"transactions": 3, "security_quotes": 120}`), `errors.remedy` and
   `errors.remedy_route`: `merge` for a duplicate, whose route is the merge
   preview `GET /api/v1/securities/:id/merge_preview?target_id=` completed
-  with the id of the security to keep, or `retire` when research notes or
-  rule versions reference it, because a merge cannot carry them (the route
+  with the id of the security to keep, or `retire` when research notes,
+  rule versions or predictions reference it, because a merge cannot carry
+  them (the route
   is `PATCH /api/v1/securities/:id` with `is_retired: true`). Before an
   unreferenced security is deleted, its category assignments, position
   targets, position bucket overrides and ISIN aliases are removed, each
@@ -590,9 +592,11 @@ confirms with the same `plan_digest`, so both see the same plan.
   currency, be both or neither a benchmark, and the target must not be
   retired while the source is live; while the source has quotes, both must
   treat their synced quotes alike (`treat_quotes_as_raw`). A source with
-  research notes or read by a policy rule is refused, because a note can
-  neither move nor vanish and a rule version keeps its subject
-  (`research_notes`, `policy_rules` with `errors.policy_rules`); where
+  research notes, named by a prediction (as the security called or the
+  benchmark) or read by a policy rule is refused, because a note and a
+  prediction can neither move nor vanish and a rule version keeps its
+  subject (`research_notes`, `predictions`, `policy_rules` with
+  `errors.policy_rules`); where
   merging the other way would pass, the detail says so. Each position the
   source holds in a depot must keep its view membership
   (`position_buckets_mismatch`). A split of the source the target carries in

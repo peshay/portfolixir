@@ -49,10 +49,30 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 24's sprint PR (version 24). Dated strictly after entry 23, so
-    # since=2026-11-04 still returns it. Each story appends its own items;
-    # each is found by its issue, so a later story's item does not move
+    # Sprint 25's sprint PR (version 25). Dated strictly after entry 24, so
+    # since=2026-11-05 still returns it. Each story appends its own items;
+    # each is found by its decision, so a later story's item does not move
     # another's.
+    assert newest["version"] == 25
+    assert newest["date"] == "2026-11-06"
+
+    by_decision = fn marker ->
+      Enum.filter(newest["parameters"], &String.contains?(&1, marker))
+    end
+
+    # F1 (ADR-0055 §2): a prediction names its security and its benchmark,
+    # and neither can be merged away or deleted beneath it. No route or
+    # tool; one item on the merge, one on the delete.
+    assert newest["summary"] =~ "Sprint 25, F1 (ADR-0055 §2): "
+    assert [merge, delete] = by_decision.("ADR-0055 §2)")
+    assert String.starts_with?(merge, "GET /api/v1/securities/:id/merge_preview?target_id=")
+    assert merge =~ "errors.code predictions"
+    assert String.starts_with?(delete, "DELETE /api/v1/securities/:id")
+    assert delete =~ ~s(errors.referenced_by {"predictions": n})
+    assert delete =~ "errors.remedy retire"
+
+    # Sprint 24's sprint PR (version 24), now the entry before the newest.
+    newest = Enum.find(data["entries"], &(&1["version"] == 24))
     assert newest["version"] == 24
     assert newest["date"] == "2026-11-05"
     params = newest["parameters"]

@@ -29,7 +29,7 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
       `position_buckets_mismatch`; for a security `same_security`,
       `not_live`, `currency_mismatch`, `benchmark_mismatch`,
       `retired_target`, `quote_basis_mismatch`, `research_notes`,
-      `policy_rules` (with `errors.policy_rules`),
+      `predictions`, `policy_rules` (with `errors.policy_rules`),
       `position_buckets_mismatch`, `split_ratio_mismatch`,
       `split_event_mismatch`, `split_linearity`, `legacy_hashed_split`,
       `invalid_source_isin`, `identity_unresolvable`
