@@ -2287,6 +2287,50 @@ Beispiel-Payloads für Konten:
   `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
   max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
   wegfielen, und die Antwort nennt das angewandte `limit`.
+- `GET /api/v1/sales/hindsight` (FR-50, Idee I18; Sprint-25-Plan D-3)
+  beantwortet, **was jedem Verkauf entging**: eine Zeile je Verkaufsbuchung
+  (Typ `sell`, ein Verkauf ohne vorherigen Kauf eingeschlossen; eine
+  Auslieferung ist kein Verkauf, sie bewegt Stücke ohne Preis), neueste
+  zuerst, mit der Kursrendite des verkauften Wertpapiers in EUR über vier
+  Spannen nach dem Verkauf. Nur lesend; nichts wird gespeichert, jeder
+  Lesezugriff leitet die Zahlen aus den in diesem Moment gespeicherten
+  Schlusskursen und Kursen ab. Optionale `portfolio_id`, `security_id`,
+  `from` und `to` (das Verkaufsdatum, beide einschließlich) grenzen die
+  Zeilen ein; `limit` deckelt sie (Standard 100, höchstens 500), und die
+  Antwort nennt es mit `truncated`. Ein optionales `benchmark=` ist das des
+  Benchmark-Vergleichs (ADR-0046): `rate:<decimal>`, ein fester Jahreszins
+  mit täglicher Verzinsung, oder `security:<id>`, ein als `is_benchmark`
+  markiertes Wertpapier (jedes andere wird abgelehnt); ohne es nennt jede
+  Spanne nur die eigene Rendite des Wertpapiers. Die Antwort ist `{as_of,
+  spans, benchmark, rows, limit, truncated, computation_basis}`. Eine Zeile
+  trägt `sale_id` (die Transaktions-ID der Buchung), `portfolio_id`,
+  `securities_account_id`, `date`, `security` `{id, name, currency_code}`,
+  die gebuchten `quantity`, `price`
+  und `currency_code` und `start`: den Schlusskurs, der für den
+  Verkaufstag steht (der letzte positive Schlusskurs an oder vor ihm,
+  höchstens 7 Tage älter), `{stands_for, date, close, stored_close, source,
+  fx_rate, eur_value}`, oder `null` mit `start_reason`. Der gebuchte Preis
+  steht daneben und geht in keine Zahl ein: Beide Seiten werden von einem
+  Schlusskurs aus gemessen. Jede der vier `spans` trägt `span` (`1m`, `3m`,
+  `12m`: der Verkaufstag um Kalendermonate verschoben; `latest`: das Datum
+  des neuesten gespeicherten Schlusskurses des Wertpapiers, höchstens
+  heute), `end_on`, `days`, `status`, `reason`, `security` `{return, start,
+  end}`, `benchmark` `{return, start, end}` (`start` und `end` bei einem
+  Zins `null`) und `difference`, die Rendite des Wertpapiers minus die der
+  Benchmark. `status` ist `complete`, `pending` (die Spanne endet nach
+  heute; keine Zahl) oder `incomplete` mit `reason` `no_start_close`,
+  `no_end_close`, `no_fx_rate` oder `no_benchmark_close`, wobei die eigene
+  Zahl des Wertpapiers erhalten bleibt. Ein Verkauf bei einem Schlusskurs
+  von 100, dem einen Monat später 110 folgen, ergibt für `1m` `"0.1"`;
+  gegen eine Benchmark von 200 auf 210 eine Benchmark-Rendite von `"0.05"`
+  und eine Differenz von `"0.05"`. Es ist eine Kursrendite: Ausschüttungen
+  nach dem Verkauf sind nicht gebucht, sodass das Entgangene eines
+  Dividendenzahlers unterschätzt ist, und `computation_basis`
+  (Eingangsreihe, Fenster, Referenz, Lücken, `price_only`, `sales`,
+  `booked_price`) sagt das. Kein Feld fällt ein Urteil. Eine ungültige ID,
+  ein ungültiges Datum, `limit` oder `benchmark` ergibt `422` mit ihrem
+  Namen, `to` vor `from` `422` auf `to`; eine unbekannte ID ergibt keine
+  Zeilen.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und

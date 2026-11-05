@@ -211,6 +211,35 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
     end
   end
 
+  # User story (FR-50, I18 modes 1 and 2; Sprint 25 plan D-3, "No verdict"):
+  # As the maintainer holding the scope ladder,
+  # I want the read of what a sale missed checked the same way,
+  # so that a sale's spans stay figures and never become a judgement such as
+  # "sold too early".
+  #
+  # Acceptance criteria:
+  # - No key of GET /api/v1/sales/hindsight contains signal, recommend,
+  #   rating, score, action, alert, verdict or advice, without a benchmark
+  #   and with one, over complete, pending and incomplete spans.
+  test "the sale hindsight read carries no verdict key", %{conn: conn} do
+    world = base_world()
+    sold = create_security!(name: "Verdict Sold", ticker: "VSD")
+    seed_series!(sold.id, Enum.map(0..400, &"#{100 + rem(&1, 9)}"), ~D[2026-02-27])
+    sell!(world, sold, quantity: "1", price: "100", date: ~D[2025-02-03])
+    sell!(world, sold, quantity: "1", price: "100", date: Date.add(Date.utc_today(), -2))
+
+    for path <- ["/api/v1/sales/hindsight", "/api/v1/sales/hindsight?benchmark=rate:0.02"] do
+      %{"data" => data} = conn |> get(path) |> json_response(200)
+
+      statuses = for row <- data["rows"], span <- row["spans"], uniq: true, do: span["status"]
+      assert Enum.sort(statuses) == ["complete", "incomplete", "pending"], path
+
+      assert offenders(data) == [],
+             "#{path} carries verdict keys #{inspect(offenders(data))}: what a sale missed " <>
+               "is a figure, never a judgement of the sale (plan D-3)."
+    end
+  end
+
   # User story (FR-41, ADR-0051 §11, identity I8):
   # As the maintainer holding the scope ladder,
   # I want the contribution reads checked the same way,

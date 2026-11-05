@@ -71,7 +71,31 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert delete =~ ~s(errors.referenced_by {"predictions": n})
     assert delete =~ "errors.remedy retire"
 
-    # Sprint 24's sprint PR (version 24), now the entry before the newest.
+    # S2 (FR-50; I18 modes 1 and 2, plan D-3): what a sale missed, one route
+    # and, with its MCP tool, one tool; one item naming the row, the spans,
+    # the statuses and their reasons, the optional benchmark and the basis.
+    assert newest["summary"] =~ "Sprint 25, S2 (FR-50): "
+    assert "GET /api/v1/sales/hindsight" in newest["endpoints"]
+
+    assert [hindsight] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET /api/v1/sales/hindsight")
+             )
+
+    for part <- ~w(portfolio_id security_id from to limit benchmark is_benchmark start spans
+                   end_on pending incomplete no_start_close no_end_close no_fx_rate
+                   no_benchmark_close difference computation_basis) do
+      assert hindsight =~ part, part
+    end
+
+    assert hindsight =~ "an orphan sell included and an outbound delivery not"
+    assert hindsight =~ ~s(a 1m return of "0.1")
+    assert hindsight =~ "a dividend payer's miss is understated"
+    assert hindsight =~ "(FR-50; plan D-3)"
+
+    # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
+    # Dated strictly after entry 23, so since=2026-11-04 still returns it.
     newest = Enum.find(data["entries"], &(&1["version"] == 24))
     assert newest["version"] == 24
     assert newest["date"] == "2026-11-05"
@@ -115,7 +139,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert "GET /api/v1/securities/:id/dossier" in newest["endpoints"]
     assert "portfolixir.securities.dossier" in newest["tools"]
     assert newest["summary"] =~ "1,423 bytes per profile"
-    assert hd(Contract.entries()).prompts == []
+    assert Enum.find(Contract.entries(), &(&1.version == 24)).prompts == []
 
     assert [dossier] =
              Enum.filter(

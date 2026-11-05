@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
+  alias Portfolixir.Portfolios.Performance.SaleHindsight
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Portfolios.TargetPlan
   alias Portfolixir.Tax.AllowanceOrder
@@ -2105,6 +2106,95 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       window: benchmark_window(costs.window),
       excluded: costs.excluded,
       computation_basis: Map.update!(costs.computation_basis, :window, &benchmark_window/1)
+    }
+  end
+
+  @doc """
+  What a sale missed (I18 modes 1 and 2; the Sprint 25 plan's D-3): the
+  rows of `SaleHindsight.report/1` with every financial value a Decimal
+  string, every date ISO 8601, each status and reason a string, and the
+  computation basis in the payload. The benchmark is named as the benchmark
+  comparison names it, or null when none was asked for.
+  """
+  def sale_hindsight(report) do
+    %{
+      as_of: date(report.today),
+      spans: SaleHindsight.span_labels(),
+      benchmark: hindsight_benchmark(report.benchmark),
+      rows: Enum.map(report.rows, &hindsight_row/1),
+      limit: report.limit,
+      truncated: report.truncated,
+      computation_basis: report.computation_basis
+    }
+  end
+
+  defp hindsight_benchmark(nil), do: nil
+
+  defp hindsight_benchmark({:rate, rate}),
+    do: benchmark_reference(%{kind: :rate, annual_rate: rate})
+
+  defp hindsight_benchmark({:security, security}) do
+    benchmark_reference(%{
+      kind: :security,
+      security_id: security.id,
+      name: security.name,
+      currency_code: security.currency_code
+    })
+  end
+
+  defp hindsight_row(row) do
+    %{
+      sale_id: row.sale_id,
+      portfolio_id: row.portfolio_id,
+      securities_account_id: row.securities_account_id,
+      date: date(row.date),
+      security: %{
+        id: row.security.id,
+        name: row.security.name,
+        currency_code: row.security.currency_code
+      },
+      quantity: decimal(row.quantity),
+      price: decimal(row.price),
+      currency_code: row.currency_code,
+      start: window_end(row.start),
+      start_reason: reason(row.start_reason),
+      spans: Enum.map(row.spans, &hindsight_span/1)
+    }
+  end
+
+  defp hindsight_span(span) do
+    %{
+      span: span.span,
+      end_on: date(span.end_on),
+      days: span.days,
+      status: Atom.to_string(span.status),
+      reason: reason(span.reason),
+      security: hindsight_side(span.security),
+      benchmark: hindsight_side(span.benchmark),
+      difference: decimal(span.difference)
+    }
+  end
+
+  defp hindsight_side(nil), do: nil
+
+  defp hindsight_side(side) do
+    %{return: decimal(side.return), start: window_end(side.start), end: window_end(side.end)}
+  end
+
+  # One end of a WindowReturn window: the date asked for, the close's own
+  # date, the close (split-adjusted) and as stored, its source, and the EUR
+  # rate and value.
+  defp window_end(nil), do: nil
+
+  defp window_end(point) do
+    %{
+      stands_for: date(point.stands_for),
+      date: date(point.date),
+      close: decimal(point.close),
+      stored_close: decimal(point.stored_close),
+      source: point.source,
+      fx_rate: decimal(point.fx_rate),
+      eur_value: decimal(point.eur_value)
     }
   end
 
