@@ -3738,7 +3738,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.journal.list",
     "List audit journal",
-    "Append-only audit-journal entries, newest first: who (actor_type; actor_label, a token's name, else null), what (operation on resource_type/resource_id) and before/after of every financial write, deletions included. A change's before is the row under the write's lock, an update's after the row it stored, so two writes from one read chain (the second's before is the first's after). A delete's after is null; one by release 2026.11.8 or earlier repeats the deleted record or holds the emptied set. Real writes unless include_scenarios=true. Echoes as_of, filters, order, limit and truncated. since reaches past the newest 1000: entries after it, oldest first, has_more; page by as_of, the next since (the top-level as_of is the cursor, not meta.as_of).",
+    "Append-only audit journal, newest first: who (actor_type; actor_label: a token's name or null), what (operation, resource_type/resource_id) and before/after of each financial write and delete. before is the row under the write's lock, an update's after what it stored: two writes from one read chain (second's before = first's after). A delete's after is null (release 2026.11.8 or earlier: the deleted record or emptied set). Real writes unless include_scenarios. Echoes filters, order, limit, truncated. since reaches past the newest 1000: entries after it, oldest first, has_more; page by as_of (the top-level as_of is the cursor, not meta.as_of; with no ~id, poll later: a write is in flight). A later read may re-deliver an entry, never skip one.",
 
     journalListSchema,
     journalListZ
