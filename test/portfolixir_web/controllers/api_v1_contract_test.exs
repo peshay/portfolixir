@@ -112,14 +112,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     end
 
     assert [write] = by_decision.("(ADR-0055 §5, write)")
-    assert String.starts_with?(write, "POST /api/v1/predictions, new: ")
+
+    assert String.starts_with?(
+             write,
+             "POST /api/v1/predictions (portfolixir.predictions.create, "
+           )
+
     assert write =~ ~s(from "0.50" to "0.99")
     assert write =~ "a JSON number is refused"
     assert write =~ "made_at, author and actor are the server's"
     assert write =~ "journaled as prediction / create under the token"
 
     assert [read] = by_decision.("(ADR-0055 §5, read)")
-    assert String.starts_with?(read, "GET /api/v1/predictions/:id, new: ")
+    assert String.starts_with?(read, "GET /api/v1/predictions/:id (portfolixir.predictions.get, ")
 
     for part <-
           ~w(resolution permanence_note computation_basis outcome no_start_close no_end_close
@@ -128,7 +133,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     end
 
     assert [listed] = by_decision.("(ADR-0055 §5, list)")
-    assert String.starts_with?(listed, "GET /api/v1/predictions, new: ")
+    assert String.starts_with?(listed, "GET /api/v1/predictions (portfolixir.predictions.list, ")
 
     for part <- ~w(security_id status author model due_before limit truncated computation_basis) do
       assert listed =~ part, part
@@ -137,7 +142,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert listed =~ "open predictions whose resolves_on is on or before the date"
 
     assert [calibration] = by_decision.("(ADR-0055 §4, calibration)")
-    assert String.starts_with?(calibration, "GET /api/v1/predictions/calibration, new: ")
+
+    assert String.starts_with?(
+             calibration,
+             "GET /api/v1/predictions/calibration (portfolixir.predictions.calibration, "
+           )
 
     for part <- ~w(author model from to counts brier standard_error sharpness hit_rate bands
                    groups too_few computation_basis no_resolved one_resolved) do
@@ -146,6 +155,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert calibration =~ ~s(reference "0.25")
     assert newest["summary"] =~ "bands shown from 20 resolved calls (too_few below)"
+
+    for tool <- ~w(portfolixir.predictions.create portfolixir.predictions.list
+                   portfolixir.predictions.get portfolixir.predictions.calibration) do
+      assert tool in newest["tools"], tool
+    end
+
+    assert write =~ "a write in the book and full profiles"
+
+    assert newest["summary"] =~
+             "the schema ceilings grow by the four tools' own bytes and no more"
 
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.

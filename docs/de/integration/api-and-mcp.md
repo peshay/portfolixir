@@ -4452,8 +4452,9 @@ idempotent, weil eine Wiederholung eine weitere Version anfügt;
 `portfolixir.exchange_rates.sync`, die einen externen Anbieter erreichen, und
 für `portfolixir.securities.create`, das bei eingeschalteter Anreicherung der
 Instanz einen Kursnachlauf beim Anbieter und eine Logo-Suche anstößt.
-Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und eine neue
-Regel (`portfolixir.policy_rules.create`), sind nicht destruktiv, und ihre
+Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append`, eine neue
+Regel (`portfolixir.policy_rules.create`) und eine Prognose
+(`portfolixir.predictions.create`), sind nicht destruktiv, und ihre
 Beschreibungen sagen, dass das Angefügte dauerhaft ist.
 
 **Ohne Rückfrage freigebbare Lesezugriffe.** Ein Host darf jedes Tool mit
@@ -4745,6 +4746,22 @@ lässt sich nicht lesen.
 - `portfolixir.notes.uncorroborated` — Einträge, deren Quellenqualität nicht
   `primary` ist.
 - `portfolixir.notes.expiring` — datierte Sperren, die in N Tagen ablaufen.
+- `portfolixir.predictions.create` — hält eine Prognose fest (ADR-0055), ein
+  Schreibvorgang in den Profilen `book` und `full`; seine Beschreibung sagt
+  vor dem ersten Feld, dass sich eine Prognose nicht bearbeiten,
+  zurückziehen oder löschen lässt, dass eine irrtümliche bleibt und zählt
+  und dass eine Korrektur eine neue Prognose ist, und fordert den Agenten
+  auf, sein Modell zu nennen, das das Schema verlangt; die
+  Wahrscheinlichkeit ist ein String von `"0.50"` bis `"0.99"`, und ein
+  `made_at`, `author` oder `actor` wird vor jeder Anfrage abgelehnt.
+- `portfolixir.predictions.list` — die Prognosen mit ihrem Status beim
+  Lesen, gefiltert wie `GET /api/v1/predictions`, darunter die
+  Fälligkeitsabfrage (`due_before`).
+- `portfolixir.predictions.get` — eine Prognose mit ihrer Auflösung und den
+  verwendeten Kursen.
+- `portfolixir.predictions.calibration` — der Kalibrierungsbericht; die drei
+  Lesezugriffe sind schreibgeschützt, in jedem Profil, und sagen kurz, dass
+  eine Prognose dauerhaft ist.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert` — jede Zeile wird als manuell gespeichert; das

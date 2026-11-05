@@ -4088,8 +4088,9 @@ since a repeat adds another version; `openWorldHint` is true for
 `portfolixir.exchange_rates.sync`, which reach an external provider, and for
 `portfolixir.securities.create`, which queues a quote backfill from the
 provider and a logo lookup when the instance's enrichment is enabled. The
-append-only writes, `portfolixir.notes.append` and a new policy rule
-(`portfolixir.policy_rules.create`), are non-destructive, and their
+append-only writes, `portfolixir.notes.append`, a new policy rule
+(`portfolixir.policy_rules.create`) and a prediction
+(`portfolixir.predictions.create`), are non-destructive, and their
 descriptions say that what they add is permanent.
 
 **Auto-approvable reads.** A host may run every tool with `readOnlyHint: true`
@@ -4349,6 +4350,21 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.notes.uncorroborated` — entries whose source quality is not
   primary.
 - `portfolixir.notes.expiring` — dated blocks expiring within N days.
+- `portfolixir.predictions.create` — records one prediction (ADR-0055), a
+  write in the `book` and `full` profiles; its description says, before its
+  first field, that a prediction cannot be edited, withdrawn or deleted, that
+  a mistaken one stays and counts and that a correction is a new prediction,
+  and tells the agent to name its model, which the schema requires; the
+  probability is a string from `"0.50"` to `"0.99"`, and a `made_at`,
+  `author` or `actor` is refused before any request.
+- `portfolixir.predictions.list` — the predictions with their status at
+  read, filtered as `GET /api/v1/predictions` is, the due query
+  (`due_before`) among them.
+- `portfolixir.predictions.get` — one prediction with its resolution and the
+  closes it used.
+- `portfolixir.predictions.calibration` — the calibration report; the three
+  reads are read-only, in every profile, and say briefly that a prediction is
+  permanent.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert` — every row stored as manual; its schema offers
