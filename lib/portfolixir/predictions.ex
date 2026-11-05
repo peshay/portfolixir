@@ -17,7 +17,9 @@ defmodule Portfolixir.Predictions do
   refused by the database.
 
   The status (`open`, `resolved`, `unresolved`), the outcome and the
-  calibration report are derived at read (§§3–4) and are not stored.
+  calibration report are derived at read (§§3–4) and are not stored:
+  `resolve/2` and `list_with_resolution/2` (`Portfolixir.Predictions.Resolution`),
+  and `calibration_report/2` (`Portfolixir.Predictions.Calibration`).
   """
 
   import Ecto.Query
@@ -29,6 +31,7 @@ defmodule Portfolixir.Predictions do
   alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityNote
+  alias Portfolixir.Predictions.Calibration
   alias Portfolixir.Predictions.Prediction
   alias Portfolixir.Predictions.Resolution
   alias Portfolixir.Repo
@@ -300,6 +303,33 @@ defmodule Portfolixir.Predictions do
         |> Enum.filter(&(&1.resolution.status == status))
         |> take(limit)
     end
+  end
+
+  @calibration_filters [:author, :model, :resolves_from, :resolves_to]
+
+  @doc """
+  The calibration report (ADR-0055 §4): the stored predictions the filters
+  name, each resolved at read as of today (`resolve/2`), scored by
+  `Portfolixir.Predictions.Calibration.report/1` (`counts`, `brier`,
+  `sharpness`, `hit_rate`, `bands`, `groups`), with its
+  `computation_basis`.
+
+  Filters, each optional and combined with AND: `author`, `model`,
+  `resolves_from` and `resolves_to` (inclusive), read as
+  `list_predictions/2` reads them; any other filter raises
+  `ArgumentError`, naming it. `opts[:today]` as in `list_predictions/2`.
+  """
+  @spec calibration_report(keyword(), keyword()) :: map()
+  def calibration_report(filters \\ [], opts \\ []) when is_list(filters) and is_list(opts) do
+    Enum.each(filters, fn {key, value} ->
+      unless key in @calibration_filters,
+        do: raise(ArgumentError, "unknown calibration filter #{inspect(key)}: #{inspect(value)}")
+    end)
+
+    filters
+    |> list_with_resolution(opts)
+    |> Calibration.report()
+    |> Map.put(:computation_basis, Calibration.computation_basis())
   end
 
   defp with_resolution(predictions, today) do
