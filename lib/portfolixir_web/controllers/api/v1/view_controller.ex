@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.View
+  alias PortfolixirWeb.Api.V1.DryRunParam
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.PolicyConflict
@@ -96,12 +97,18 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     end
   end
 
-  def delete(conn, %{"id" => id}) do
-    with {:ok, vid} <- IdParam.parse(id),
+  # dry_run=true (Sprint 25 X1, #894): the same delete, rolled back, answers
+  # 200 with what it would remove, or the refusal the delete answers.
+  def delete(conn, %{"id" => id} = params) do
+    with {:ok, dry_run} <- DryRunParam.parse(params),
+         {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
-         {:ok, _} <- Buckets.delete_view(conn.assigns.actor, view) do
-      send_resp(conn, :no_content, "")
+         {:ok, removed} <- delete_view(conn.assigns.actor, view, dry_run) do
+      if dry_run,
+        do: DryRunParam.answer(conn, removed),
+        else: send_resp(conn, :no_content, "")
     else
+      {:error, :dry_run} -> DryRunParam.invalid(conn)
       {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "view")
       nil -> not_found(conn)
       :error -> not_found(conn)
@@ -109,6 +116,9 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end
+
+  defp delete_view(actor, view, true), do: Buckets.dry_run_delete_view(actor, view)
+  defp delete_view(actor, view, false), do: Buckets.delete_view(actor, view)
 
   @doc """
   Replaces a view's include/exclude bucket sets. Body: `{"include": [..],
