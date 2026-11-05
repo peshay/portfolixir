@@ -279,6 +279,27 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
     assert dossier["metrics"]["metrics"]["sma_50"]["insufficient_data"] == true
   end
 
+  # User story (Sprint 24 closing act, D1; the agent's lens):
+  # As the agent reading the dossier's targets part,
+  # I want the parts note to say which plan the rows come from,
+  # so that I never conclude "no target" when the only SOLL row sits in a
+  # view's active plan.
+  #
+  # Acceptance criteria:
+  # - parts.targets names the scope: each portfolio's active plan of the
+  #   unscoped view.
+  # - It names the read that answers a view's plan: position_targets with
+  #   view=.
+  test "the parts note names the plan the targets part reads", %{conn: conn} do
+    _portfolio = base_world(name: "Synthetic Delta")
+    security = create_security!(name: "Synthetic Scope Equity", ticker: "SSEQ")
+
+    note = get!(conn, "/api/v1/securities/#{security.id}/dossier")["data"]["parts"]["targets"]
+
+    assert note =~ "active plan of the unscoped view"
+    assert note =~ "/api/v1/portfolios/:portfolio_id/position_targets?view=:view_id"
+  end
+
   # User story:
   # As the agent holding the id of a security the operator merged away,
   # I want the dossier to name the survivor, as securities.get does,

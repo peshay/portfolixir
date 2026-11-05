@@ -23,7 +23,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
       the root, `nil` where it is not filed;
     * `targets` — the position-target read's rows naming the security, per
       portfolio, in the active plan of the unscoped (Gesamt) view, as that
-      read answers without parameters.
+      read answers without parameters; the parts note says so and names the
+      same read with `view=`, which answers a view's plan.
 
   Drift is left out on purpose (D-2): it needs a classification and a
   valuation per portfolio, and the `targets` part names the read that states
@@ -70,7 +71,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
     categories: "GET /api/v1/classifications (portfolixir.classifications.list)",
     targets:
       "GET /api/v1/portfolios/:portfolio_id/position_targets (portfolixir.targets.list_positions), " <>
-        "per portfolio, its rows naming the security; targets.drift names the read that states drift"
+        "its rows naming the security in each portfolio's active plan of the unscoped view; " <>
+        "a view's plan: GET /api/v1/portfolios/:portfolio_id/position_targets?view=:view_id; " <>
+        "targets.drift names the read that states drift"
   }
 
   @doc """

@@ -1014,7 +1014,8 @@ computation basis or note, so a part always equals what its read answers.
     filed;
   - `targets` — `rows`, the position target rows of
     `GET /api/v1/portfolios/:portfolio_id/position_targets` naming the
-    security, per portfolio, in the active plan of the unscoped view, and
+    security, per portfolio, in the active plan of the unscoped view (a
+    view's plan is the same read with `view=`; `parts.targets` says so), and
     `drift`, naming the read that states each row's drift: the dossier
     computes none.
 
