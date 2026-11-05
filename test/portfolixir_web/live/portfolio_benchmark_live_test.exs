@@ -276,7 +276,9 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
   # The seed world plus costs in the window: a buy's fee and tax legs, a
   # standalone fee, a tax and a tax refund, so the two sums are exact and
   # the fee crosses a thousands separator: fees 4.20 + 1250.00 = 1254.20,
-  # taxes 1.30 + 10.00 - 2.00 = 9.30.
+  # taxes 1.30 + 10.00 - 2.00 = 9.30. One fee of 3.00 lies outside the
+  # page's default period (1y), so a read of another period (`max`: fees
+  # 1257.20) differs from the page's.
   defp seed_costs_world do
     world = seed_world()
     WorldFixtures.deposit!(world, "2000", Date.add(world.today, -12))
@@ -290,6 +292,7 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     )
 
     for {type, amount, days_ago} <- [
+          {"fee", "3.00", 400},
           {"fee", "1250.00", 5},
           {"tax", "10.00", 4},
           {"tax_refund", "2.00", 3}
@@ -309,13 +312,15 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
   end
 
   # The comparison's own payload over the public API: the same read an agent
-  # makes for the page's scope (the total) and benchmark.
-  defp total_costs_paid(conn, benchmark) do
+  # makes for the page's scope (the total), benchmark and period — the
+  # page's default, 1y (`PortfolioLive`'s `param_period/1`); the API's own
+  # default is `max`.
+  defp total_costs_paid(conn, benchmark, period \\ "1y") do
     conn
     |> recycle()
     |> put_req_header("accept", "application/json")
     |> put_req_header("authorization", "Bearer test-api-token")
-    |> get("/api/v1/performance/benchmark", %{"benchmark" => benchmark})
+    |> get("/api/v1/performance/benchmark", %{"benchmark" => benchmark, "period" => period})
     |> json_response(200)
     |> get_in(["data", "costs_paid"])
   end
@@ -347,8 +352,8 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
   #   the benchmark pays none." / „Im Zeitraum gezahlt: Gebühren 1.254,20 EUR
   #   · Steuern 9,30 EUR — die Benchmark zahlt keine.“
   # - The two figures are the comparison payload's costs_paid fees and taxes
-  #   (GET /api/v1/performance/benchmark for the same scope and benchmark),
-  #   formatted by Format.money (D-1, criterion 4).
+  #   (GET /api/v1/performance/benchmark for the same scope, benchmark and
+  #   period), formatted by Format.money (D-1, criterion 4).
   # - The ⓘ carries the sentence: what was summed, at which rate, and that
   #   the forgone return of the money paid is not in it.
   # - Hidden while the comparison computes.
@@ -362,6 +367,9 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     for benchmark <- ["rate:0.02", "security:#{world.bench.id}"] do
       assert %{"fees" => "1254.2", "taxes" => "9.3"} = total_costs_paid(conn, benchmark)
     end
+
+    # The fee before the period counts only in a read of another period.
+    assert %{"fees" => "1257.2"} = total_costs_paid(conn, "rate:0.02", "max")
 
     costs = total_costs_paid(conn, "rate:0.02")
 
