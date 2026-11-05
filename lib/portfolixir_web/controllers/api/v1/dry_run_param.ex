@@ -8,22 +8,51 @@ defmodule PortfolixirWeb.Api.V1.DryRunParam do
   `dry_run=true` runs the real delete in a transaction that always rolls
   back (`Portfolixir.DryRun`) and answers 200 with what it would remove, per
   kind; a delete the server refuses is refused by its dry run with the same
-  status and body. Absent, empty or `false` is the delete itself; any other
-  value answers 422 `errors.dry_run ["is invalid"]`, as the API's other
-  boolean query parameters do, so a typo never turns a question into a
-  delete.
+  status and body. Absent or `false` is the delete itself; any other value,
+  an empty `dry_run=` included, answers 422 `errors.dry_run ["is invalid"]`,
+  as the API's other boolean query parameters do, and any other parameter
+  (`dryRun`, `dry-run`, `dryrun`, ...) answers 422 naming it, so a typo never
+  turns a question into a delete (Sprint 25 closing act: before, a
+  misspelled key was dropped and an empty value read as false, and both ran
+  the real delete).
   """
 
   import Plug.Conn, only: [put_status: 2]
   import Phoenix.Controller, only: [json: 2]
 
-  @doc "Reads `dry_run` from the request's params: `{:ok, boolean}` or `{:error, :dry_run}`."
-  @spec parse(map()) :: {:ok, boolean()} | {:error, :dry_run}
-  def parse(params) when is_map(params) do
-    case Map.get(params, "dry_run") do
-      value when value in [nil, "", "false", false] -> {:ok, false}
-      value when value in ["true", true] -> {:ok, true}
-      _other -> {:error, :dry_run}
+  @unknown "is unknown: this delete takes only dry_run"
+
+  @doc """
+  Reads `dry_run` from the request: `{:ok, boolean}`, or
+  `{:error, {:dry_run_param, errors}}` for a `dry_run` that is not a boolean
+  or for any other query (or body) parameter, which `invalid/2` answers.
+  The route's path parameters are not looked at.
+  """
+  @spec parse(Plug.Conn.t()) :: {:ok, boolean()} | {:error, {:dry_run_param, map()}}
+  def parse(%Plug.Conn{} = conn) do
+    case unknown_keys(conn) do
+      [] -> parse_value(conn.params)
+      keys -> {:error, {:dry_run_param, Map.new(keys, &{&1, [@unknown]})}}
+    end
+  end
+
+  defp unknown_keys(conn) do
+    [conn.query_params, conn.body_params]
+    |> Enum.flat_map(fn
+      params when is_map(params) -> Map.keys(params)
+      _unfetched -> []
+    end)
+    |> Enum.reject(&(&1 == "dry_run"))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp parse_value(params) do
+    case Map.fetch(params, "dry_run") do
+      :error -> {:ok, false}
+      {:ok, value} when value in ["false", false] -> {:ok, false}
+      {:ok, value} when value in ["true", true] -> {:ok, true}
+      {:ok, _other} -> {:error, {:dry_run_param, %{dry_run: ["is invalid"]}}}
     end
   end
 
@@ -36,11 +65,11 @@ defmodule PortfolixirWeb.Api.V1.DryRunParam do
   def answer(conn, removed) when is_map(removed),
     do: json(conn, %{data: %{dry_run: true, would_remove: removed}})
 
-  @doc "The 422 a `dry_run` that is not a boolean answers."
-  @spec invalid(Plug.Conn.t()) :: Plug.Conn.t()
-  def invalid(conn) do
+  @doc "The 422 a `dry_run` that is not a boolean, or another parameter, answers."
+  @spec invalid(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def invalid(conn, errors) when is_map(errors) do
     conn
     |> put_status(:unprocessable_entity)
-    |> json(%{errors: %{dry_run: ["is invalid"]}})
+    |> json(%{errors: errors})
   end
 end

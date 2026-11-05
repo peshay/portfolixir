@@ -225,6 +225,12 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert dry_run =~ "the same status and body"
     assert dry_run =~ ~s(errors.dry_run ["is invalid"])
     assert dry_run =~ "the audit journal included"
+    # The closing act: an empty dry_run and a misspelled key are refused.
+    assert dry_run =~ "Absent or false is the delete as before"
+    refute dry_run =~ "empty or false"
+    assert dry_run =~ "an empty dry_run= included"
+    assert dry_run =~ "any other query parameter (dryRun, dry-run, dryrun) answers 422 naming it"
+    assert dry_run =~ "a misspelled key"
 
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.

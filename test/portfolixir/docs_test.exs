@@ -4091,14 +4091,17 @@ defmodule Portfolixir.DocsTest do
   # Acceptance criteria:
   # - Both references name dry_run=true on the three DELETE routes, the
   #   rollback, the would_remove answer with its kinds, the same refusal and
-  #   the 422 on a value that is not a boolean.
+  #   the 422 on a value that is not a boolean, an empty one included, and
+  #   on any other parameter, naming it (the Sprint 25 closing act).
   # - Both name dry_run true on each of the three MCP delete tools.
   test "the API reference documents the cascading deletes' dry run in English and German" do
     shared = [
       ~s({"data": {"dry_run": true, "would_remove": {"categories": {"count": 2, "ids": [12, 13]}),
       "`view_include_buckets`",
       "`depot_snapshots`",
-      ~s(`{"errors": {"dry_run": ["is invalid"]}}`)
+      ~s(`{"errors": {"dry_run": ["is invalid"]}}`),
+      # The closing act: a misspelled key answers 422 naming it.
+      ~s(`{"errors": {"dryRun": ["is unknown: this delete takes only dry_run"]}}`)
     ]
 
     for {path, fragments} <- [
@@ -4107,14 +4110,16 @@ defmodule Portfolixir.DocsTest do
              "`?dry_run=true` on the three cascading deletes",
              "runs in a transaction that always rolls back",
              "with the same status and body",
-             "`dry_run: true` deletes nothing"
+             "`dry_run: true` deletes nothing",
+             "Absent or `false` is the delete itself; any other value, an empty `dry_run=` included"
            ]},
           {"docs/de/integration/api-and-mcp.md",
            [
              "`?dry_run=true` an den drei kaskadierenden Löschungen",
              "in einer Transaktion, die immer zurückgerollt wird",
              "mit demselben Status und Body",
-             "`dry_run: true` löscht nichts"
+             "`dry_run: true` löscht nichts",
+             "Fehlt der Wert oder ist er `false`, ist es die Löschung selbst; jeder andere Wert, auch ein leeres `dry_run=`"
            ]}
         ] do
       doc = normalized_text(path)

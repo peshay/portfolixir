@@ -1667,6 +1667,26 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // User story (Sprint 25 closing act, X1, #894):
+  // As the operating LLM agent asking a cascading delete what it would remove,
+  // I want a misspelled dry_run refused before any request,
+  // so that a typo in the question never runs the real delete.
+  //
+  // Acceptance criteria:
+  // - dryRun, dry-run and dryrun (each true) are refused by the three delete
+  //   tools, naming the key, and no request is sent.
+  it("refuses a misspelled dry_run on the three cascading deletes before any request", async () => {
+    for (const [name, args] of dryRunDeletes) {
+      const { client, requests } = createRecordingClient({ data: { deleted: true } });
+
+      for (const key of ["dryRun", "dry-run", "dryrun"]) {
+        await assert.rejects(callTool(client, name, { ...args, [key]: true }), new RegExp(key), `${name} ${key}`);
+      }
+
+      assert.equal(requests.length, 0, name);
+    }
+  });
+
   // E25 S6, F45 and T-10: view-definition writes are journaled with the sets
   // before and after, and a bucket delete rewrites every owner through its
   // journaled writer, an emptied override staying explicit-empty.
