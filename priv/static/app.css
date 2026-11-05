@@ -11368,7 +11368,9 @@ dialog.merge-dialog {
 /* The date field „Seit“ beside the kind (Sprint 24 J3; board
    ux-design-2026-11-04-sprint24/01-journal-since, pick Q1 = A ①): the
    checkbox's label anatomy, its ISO date input (UX-DR19) in the page's
-   font, ten characters wide. */
+   font. Twelve characters plus the 9 px paddings and 1 px borders of the
+   border-box: „YYYY-MM-DD“, wider than any date, fits whole in Inter and
+   in the usual fallbacks (closing act, J3; 11ch cut „2026-10-20“). */
 .journal-filters__since {
   display: inline-flex;
   align-items: center;
@@ -11378,7 +11380,7 @@ dialog.merge-dialog {
 
 .journal-filters__since input {
   font: inherit;
-  width: 11ch;
+  width: calc(12ch + 20px);
 }
 
 /* ② A reading table, not a matrix: it fits its wrapper and its cells wrap;
