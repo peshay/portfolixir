@@ -177,7 +177,11 @@ const OPEN_WORLD = [
 ];
 
 // Writes that only ever add, and whose additions are permanent.
-const APPEND_ONLY = ["portfolixir.notes.append", "portfolixir.policy_rules.create"];
+const APPEND_ONLY = [
+  "portfolixir.notes.append",
+  "portfolixir.policy_rules.create",
+  "portfolixir.predictions.create"
+];
 
 describe("the companion's published tool surface", () => {
   // User story (E25 S7, F21):
