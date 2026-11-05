@@ -4013,6 +4013,24 @@ describe("Portfolixir MCP tools", () => {
     assert.match(description, /computation_basis/);
   });
 
+  // User story (Sprint 24 closing act, D1; the agent's lens):
+  // As the agent reading the dossier's targets part,
+  // I want the description to say which plan its rows come from,
+  // so that I never conclude "no target" when the only SOLL row sits in a
+  // view's active plan.
+  //
+  // Acceptance criteria:
+  // - The description names each portfolio's active plan of the unscoped view
+  //   as the targets part's scope, and portfolixir.targets.list_positions
+  //   with view= as the read of a view's plan.
+  it("names the plan the dossier's targets part reads", () => {
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.securities.dossier")?.description ?? "";
+
+    assert.match(description, /targets: [^.]*each portfolio's active plan of the unscoped view/);
+    assert.match(description, /a view's plan: portfolixir\.targets\.list_positions view=/);
+  });
+
   // #838 (ADR-0047 §6 as amended 2026-09-19): the description tells the
   // agent where the threshold is — `required`, on every metric, in both
   // states — so it does not have to read the basis prose to find it.

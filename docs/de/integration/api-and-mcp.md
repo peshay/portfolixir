@@ -1091,8 +1091,9 @@ ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
     Wertpapier nicht eingeordnet ist;
   - `targets` — `rows`, die Positionsziel-Zeilen aus
     `GET /api/v1/portfolios/:portfolio_id/position_targets`, die das
-    Wertpapier nennen, je Portfolio, im aktiven Plan der View-losen Sicht,
-    und `drift`, das den Lesezugriff nennt, der die Abweichung jeder Zeile
+    Wertpapier nennen, je Portfolio, im aktiven Plan der View-losen Sicht
+    (den Plan einer View liest derselbe Lesezugriff mit `view=`; das sagt
+    auch `parts.targets`), und `drift`, das den Lesezugriff nennt, der die Abweichung jeder Zeile
     angibt: Das Dossier berechnet keine.
 
 Bewusst ausgelassen: Kurse, Trades, Lots und Transaktionen, jeweils eine lange

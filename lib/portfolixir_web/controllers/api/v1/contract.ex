@@ -107,7 +107,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "the categories from the root to it, or null where the security is not filed; " <>
           "targets.rows are the rows of GET /api/v1/portfolios/:portfolio_id/position_targets " <>
           "naming the security, per portfolio, in the active plan of the unscoped view " <>
-          "(portfolio_id, classification_id, category_id, target_weight, stale), and " <>
+          "(portfolio_id, classification_id, category_id, target_weight, stale; a view's " <>
+          "plan is the same read with view=, which parts.targets names), and " <>
           "targets.drift names the read that states each row's drift; the dossier computes " <>
           "no drift. A security with nothing recorded answers each part empty at 200. A " <>
           "merged-away id answers 404 with errors.merged_into {kind, id}, as " <>
