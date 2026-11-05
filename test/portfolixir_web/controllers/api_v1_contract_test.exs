@@ -181,6 +181,28 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert review =~ "a recorded call, never a trade, no order and no size"
 
+    # N1 (idea I13; plan D-5): the news convention, one item on notes.append
+    # that adds no parameter.
+    assert newest["summary"] =~ "Sprint 25, N1 (idea I13; plan D-5): "
+    assert [news] = by_decision.("(idea I13; plan D-5)")
+
+    assert String.starts_with?(
+             news,
+             "POST /api/v1/securities/:security_id/notes (portfolixir.notes.append), no parameter added"
+           )
+
+    for part <- [
+          "kind evidence",
+          "as_of the day it became public",
+          "source_url the article",
+          "source_quality as judged",
+          "never the article",
+          "portfolixir.predictions.create",
+          "note_id"
+        ] do
+      assert news =~ part, part
+    end
+
     # Sprint 24's sprint PR (version 24), found by version from Sprint 25 on.
     # Dated strictly after entry 23, so since=2026-11-04 still returns it.
     newest = Enum.find(data["entries"], &(&1["version"] == 24))

@@ -563,4 +563,41 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     refute File.read!("docs/integration/api-and-mcp.md") =~ "the operator's own standard"
     refute File.read!("docs/de/integration/api-and-mcp.md") =~ "Maßstab des Betreibers"
   end
+
+  # User story (Sprint 25, N1; idea I13, plan D-5):
+  # As an outside aggregator, or the operator who runs one, reading the
+  # research-log reference,
+  # I want it to say how a news item is recorded,
+  # so that each item is dated by when it became public, kept as a summary
+  # and a link, never as the article, and a direction read from it is
+  # scored as a prediction.
+  #
+  # Acceptance criteria:
+  # - The EN and DE research-log sections name kind evidence, as_of the date
+  #   the item became public, source_url the article, source_quality as
+  #   judged, a summary and the link and never the article, that no news
+  #   archive is kept, and a direction recorded as a prediction with note_id
+  #   pointing at the note; the MCP tool list says notes.append states it.
+  test "the research-log reference states the news convention" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "**A news item from an outside aggregator** (idea I13; Sprint 25 plan D-5)",
+         "`kind` `evidence`; `as_of` the date the item became public",
+         "`source_url` the article; `source_quality` as the aggregator judged it",
+         "`body` a summary and the link, **never the article** — Portfolixir keeps no news archive",
+         "`portfolixir.predictions.create`) with `note_id` pointing at the note",
+         "Its description says how an outside aggregator records a news item"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "**Eine Nachricht von einem externen Aggregator** (Idee I13; Sprint-25-Plan D-5)",
+         "`kind` `evidence`; `as_of` das Datum, an dem die Nachricht öffentlich wurde",
+         "`source_url` der Artikel; `source_quality`, wie der Aggregator sie beurteilt hat",
+         "`body` eine Zusammenfassung und der Link, **nie der Artikel** — Portfolixir führt kein Nachrichtenarchiv",
+         "`portfolixir.predictions.create`) mit `note_id` auf den Eintrag",
+         "Seine Beschreibung sagt, wie ein externer Aggregator eine Nachricht festhält"
+       ]}
+    ])
+  end
 end
