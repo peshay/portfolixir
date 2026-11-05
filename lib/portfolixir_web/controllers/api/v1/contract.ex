@@ -63,13 +63,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "latest close), each the sold security's price return in EUR from its close on the " <>
           "sale day, beside the optional benchmark= of the benchmark comparison and the " <>
           "difference, or pending or incomplete with its reason; read-only, no verdict, with " <>
-          "its computation_basis (I18 modes 1 and 2; plan D-3).",
+          "its computation_basis (I18 modes 1 and 2; plan D-3). Its MCP tool, " <>
+          "portfolixir.sales.hindsight, is new, read-only and in every profile, and its " <>
+          "description says it scores nothing and gives no verdict; the schema ceilings grow " <>
+          "by its own 2,302 bytes per profile and no more.",
       endpoints: ["GET /api/v1/sales/hindsight"],
-      tools: [],
+      tools: ["portfolixir.sales.hindsight"],
       parameters: [
         "GET /api/v1/securities/:id/merge_preview?target_id= and POST /api/v1/securities/:id/merge (portfolixir.securities.merge_preview and portfolixir.securities.merge), no parameter added: a source that a prediction is about, or that a prediction is scored against as its benchmark security, is refused with 409, errors.code predictions among errors.guards, its detail \"security #<id> is named by <n> prediction(s), as the security called or the benchmark: a prediction is permanent (ADR-0055 §2), so it can neither move nor vanish.\"; where merging the other way would pass, the guard's remedy says so, as for research_notes (ADR-0050 §9; ADR-0055 §2)",
         "DELETE /api/v1/securities/:id (portfolixir.securities.delete), no parameter added: a security a prediction names, as the security called or as its benchmark security, answers 409 with errors.referenced_by {\"predictions\": n} (a prediction counted once), errors.remedy retire and errors.remedy_route PATCH /api/v1/securities/:id, the detail naming the predictions in words; nothing is deleted (ADR-0050 §11; ADR-0055 §2)",
-        "GET /api/v1/sales/hindsight, new, read-only: optional portfolio_id, security_id, " <>
+        "GET /api/v1/sales/hindsight (portfolixir.sales.hindsight, read-only, in every " <>
+          "profile), new: optional portfolio_id, security_id, " <>
           "from and to (the sale date, both inclusive, the bounded dates every read takes), " <>
           "limit (default 100, at most 500, newest sale first, with truncated) and benchmark " <>
           "(rate:<decimal> or security:<id> of a security flagged is_benchmark, read as the " <>
