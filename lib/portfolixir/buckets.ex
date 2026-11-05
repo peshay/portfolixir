@@ -50,6 +50,7 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Buckets.ViewExcludeBucket
   alias Portfolixir.Buckets.ViewIncludeBucket
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.DryRun
   alias Portfolixir.Engines.BucketResolution
   alias Portfolixir.Input.Text
   alias Portfolixir.Journal
@@ -60,6 +61,8 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Portfolios.Snapshots
+  alias Portfolixir.Portfolios.Target
+  alias Portfolixir.Portfolios.TargetPlan
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
@@ -751,6 +754,28 @@ defmodule Portfolixir.Buckets do
       [] -> delete_unreferenced_view(actor, view)
       rules -> {:error, {:policy_rules, rules}}
     end
+  end
+
+  @doc """
+  The dry run of `delete_view/2` (Sprint 25 X1, #894; plan D-4): the real
+  delete, run in a transaction that always rolls back
+  (`Portfolixir.DryRun`). Answers `{:ok, removed}`, per kind (the view, its
+  include and exclude bucket-set rows, the target plans scoped to it and
+  their targets, its depot snapshots) the count and the ids the delete
+  would remove, or the refusal the delete would answer. Writes nothing.
+  """
+  def dry_run_delete_view(%Actor{} = actor, %View{} = view) do
+    DryRun.run(
+      [
+        views: View,
+        view_include_buckets: ViewIncludeBucket,
+        view_exclude_buckets: ViewExcludeBucket,
+        target_plans: TargetPlan,
+        targets: Target,
+        depot_snapshots: Snapshot
+      ],
+      fn -> delete_view(actor, view) end
+    )
   end
 
   # E25 S6, F43: the rows scoped to the view go first, each through its
