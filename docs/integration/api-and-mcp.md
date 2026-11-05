@@ -2107,6 +2107,43 @@ Example account payloads:
   `limit` bounds the annual matrix to its newest years (default 100, max
   1000); `computation_basis.window` names the cut when years were dropped, and
   the answer echoes the applied `limit`.
+- `GET /api/v1/sales/hindsight` (FR-50, idea I18; Sprint 25 plan D-3)
+  answers **what each sale missed**: one row per sale booking (type `sell`,
+  an orphan sell included; an outbound delivery is no sale, it moves shares
+  without a price), newest first, with the sold security's price return in
+  EUR over four spans after the sale. Read-only; nothing is stored, every
+  read derives the figures from the closes and rates stored at that moment.
+  Optional `portfolio_id`, `security_id`, `from` and `to` (the sale date,
+  both inclusive) narrow the rows; `limit` caps them (default 100, at most
+  500) and the answer echoes it with `truncated`. An optional `benchmark=`
+  is the benchmark comparison's (ADR-0046): `rate:<decimal>`, a fixed annual
+  rate compounding daily, or `security:<id>`, a security flagged
+  `is_benchmark` (any other is refused); without it each span answers the
+  security's own return only. The answer is `{as_of, spans, benchmark, rows,
+  limit, truncated, computation_basis}`. A row carries `sale_id` (the
+  booking's transaction id), `portfolio_id`, `securities_account_id`,
+  `date`, `security` `{id, name, currency_code}`, the booked `quantity`, `price` and `currency_code`, and
+  `start`: the close standing for the sale day (the last positive close on
+  or before it, at most 7 days older), `{stands_for, date, close,
+  stored_close, source, fx_rate, eur_value}`, or `null` with `start_reason`.
+  The booked price is shown beside it and enters no figure: both sides are
+  measured from a close. Each of the four `spans` carries `span` (`1m`,
+  `3m`, `12m`: the sale day shifted by calendar months; `latest`: the date
+  of the security's latest stored close, today at most), `end_on`, `days`,
+  `status`, `reason`, `security` `{return, start, end}`, `benchmark`
+  `{return, start, end}` (`start` and `end` `null` for a rate) and
+  `difference`, the security's return minus the benchmark's. `status` is
+  `complete`, `pending` (the span ends after today; no figure) or
+  `incomplete` with `reason` `no_start_close`, `no_end_close`, `no_fx_rate`
+  or `no_benchmark_close`, where the security's own figure is kept. A sale
+  at a close of 100 followed by 110 a month later reads `"0.1"` for `1m`;
+  against a benchmark from 200 to 210, a benchmark return of `"0.05"` and a
+  difference of `"0.05"`. It is a price return: distributions after the
+  sale are not booked, so a dividend payer's miss is understated, and
+  `computation_basis` (input series, window, reference, gaps, `price_only`,
+  `sales`, `booked_price`) says so. No field gives a verdict. A malformed id,
+  date, `limit` or `benchmark` answers `422` naming it, `to` before `from`
+  `422` on `to`; an unknown id answers no rows.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
