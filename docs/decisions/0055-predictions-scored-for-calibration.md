@@ -10,7 +10,11 @@ description: "Decision for gate B4.2 (FR-46, FR-47; idea F1). A prediction is a 
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
   The owner's question was answered on 2026-11-05 ("ja f1", the Sprint 24
   plan's D-10): "measure the agent" at the small shape, with the four
-  conditions, which opened gate B4.2.
+  conditions, which opened gate B4.2. Amended on 2026-11-05 by the Sprint
+  25 closing act, adopted by the merge of the Sprint 25 PR: the start close
+  is the last close on or before the day made, a resolution waits for its
+  end close, and a fixed-rate benchmark of a prediction is a fraction up to
+  1 (see "Amendment of 2026-11-05 (the Sprint 25 closing act)" below).
 - **Date:** 2026-11-05
 - **Answers:** gate B4.2; FR-46 and FR-47 (`epics.md`), narrowed here;
   idea F1 (`_bmad-output/planning-artifacts/ideas.md`).
@@ -67,7 +71,7 @@ A row in a new table `predictions`:
 | `security_id` | the security the call is about |
 | `direction` | `outperform` or `underperform`: the security's price return against the benchmark's over the prediction's window |
 | `probability` | the stated probability that the direction holds, a `Decimal` from `0.50` to `0.99` in steps of `0.01`; a string in the API and the MCP schema |
-| `benchmark` | ADR-0046's two kinds, as `benchmark=` spells them: `security:<id>` (a catalogue security flagged `is_benchmark`) or `rate:<decimal>` (a fixed annual rate; `rate:0` makes the call absolute: the price rises or falls) |
+| `benchmark` | ADR-0046's two kinds, as `benchmark=` spells them: `security:<id>` (a catalogue security flagged `is_benchmark`) or `rate:<decimal>` (a fixed annual rate; `rate:0` makes the call absolute: the price rises or falls). *(Amendment of 2026-11-05: the rate is a fraction from -0.999999 to 1; `rate:0.02` is 2 % a year.)* |
 | `resolves_on` | the date the call is about, at least 7 and at most 1,830 days after the day it was made |
 | `made_at` | the server's clock at the write, never the caller's |
 | `author`, `actor` | derived from the credential, as the research log does (ADR-0054 §1): `operator` or `agent`, and the token's name |
@@ -109,13 +113,15 @@ A delete answers 409 naming the predictions.
 ### 3. Resolution happens at read, from stored closes, in EUR
 
 A prediction is `open` until `resolves_on` has passed, then `resolved` or
-`unresolved`. Nothing stores the outcome; every read derives it, and the
-payload names the closes it used, so a quote corrected later changes the
-outcome visibly rather than silently.
+`unresolved`. *(Amendment of 2026-11-05: after it, open until its end
+close is in, at most 7 days.)* Nothing stores the outcome; every read
+derives it, and the payload names the closes it used, so a quote corrected
+later changes the outcome visibly rather than silently.
 
 - **Start:** the security's last close **strictly before** the day of
   `made_at` (UTC), so a call made during a trading day is never measured
   from a close it could have seen coming. The same day for the benchmark.
+  *(Amendment of 2026-11-05: the last close **on or before** the day made.)*
 - **End:** the last close on or before `resolves_on`.
 - **Staleness:** a close more than 7 calendar days before the date it
   stands for is no close. Then the prediction is `unresolved` with its
@@ -253,3 +259,72 @@ in the idea list (2026-11-01 to 2026-11-05), and the Sprint 24 plan's D-10.
 - The resolution rule of §3 (a window's return in EUR from stored closes,
   with a staleness bound) is the same computation idea I18 needs for what a
   sale missed; one function serves both.
+
+## Amendment of 2026-11-05 (the Sprint 25 closing act)
+
+**Status:** adopted by the merge of the Sprint 25 PR. The closing act's
+lenses reproduced three defects in the rules above before any prediction
+was recorded on an instance; each change below is flippable by a comment
+naming it. Nothing is stored (§3), so every prediction re-resolves under
+these rules at its next read.
+
+### 1. The start close is the last close on or before the day made
+
+**Was:** the last close strictly before the UTC day of `made_at`.
+**Now:** the security's last close **on or before** the UTC day of
+`made_at`, within the 7-day staleness bound, and the same date for a
+benchmark security.
+
+**Why** (the money lens, reproduced): a window that starts at a close dated
+before the call includes the move from that close to the moment of the
+call, which the caller already knows. The quote sync stores the day's close
+the same evening, so an agent writing at 22:00 UTC sees today's close and
+the jump since yesterday, and a call measured from yesterday's close scores
+a move it had seen. Reproduced: closes Monday 100 and Tuesday 110, a call
+made Tuesday at 22:00 UTC, `outperform` against `rate:0`: measured from 100
+it is a hit, from 110 a miss. From the day made's close, a call made before
+that close is measured from a close that comes after it, and a call made
+after the close starts from a price it knew with no move in between: no
+call scores a move it saw. The old rule contradicted §6 ("scored only
+against prices that came after it").
+
+**To flip:** a comment naming "ADR-0055 start before".
+
+### 2. A resolution waits for its end close
+
+**Now:** after `resolves_on` has passed, a prediction stays `open` until
+each priced side (the security, and a security benchmark) has a stored
+positive close dated **on or after** `resolves_on`, or until 7 days after
+`resolves_on` have passed (the staleness bound). That close is the evidence
+that the day's data is in; it is never used in the measurement, whose end
+close stays the last close on or before `resolves_on`. After the 7 days, a
+prediction resolves with what is stored, or reads `unresolved` with its
+reason. The due query (§5) follows: a call waiting for its end close is
+open, so it is due. A later correction of a stored quote still changes the
+outcome visibly, as §3 says.
+
+**Why** (the UAT persona, reproduced): a call read the day after
+`resolves_on`, measured from an older close standing for `resolves_on`
+(within 7 days), read `resolved hit`; when the close of `resolves_on`
+arrived late (the sync runs every 6 hours, a US close is published after
+the instance's day starts, manual quotes arrive late), the same call read
+`resolved miss`, and the Brier score moved. A resolved call that changes
+without any correction is a score nobody can quote.
+
+**To flip:** a comment naming "ADR-0055 finality".
+
+### 3. A fixed-rate benchmark of a prediction is a fraction up to 1
+
+**Now:** `rate:<decimal>` on a prediction is a fraction from -0.999999 to
+1: `rate:0.02` is 2 % a year. A rate above 1 is refused with a message
+naming the fraction form, by the changeset and by a database CHECK added
+in a new migration. The lower bound is the engine's, unchanged; the
+benchmark comparison's own wider range (ADR-0046, up to 10) is unchanged.
+
+**Why** (the UAT persona, reproduced): `rate:5`, meant as 5 %, was accepted
+as 500 % a year on a record that can never be corrected (§2), and the
+descriptions said only "a fixed annual rate". A rate above 100 % a year is
+not a benchmark anyone makes a call against; refusing it turns the likeliest
+typo into an answer before the write.
+
+**To flip:** a comment naming "ADR-0055 rate cap".
