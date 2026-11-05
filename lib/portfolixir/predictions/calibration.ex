@@ -55,6 +55,7 @@ defmodule Portfolixir.Predictions.Calibration do
   string.
   """
 
+  alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Predictions.Prediction
   alias Portfolixir.Predictions.Resolution
 
@@ -129,6 +130,83 @@ defmodule Portfolixir.Predictions.Calibration do
   @doc "The Brier score of saying 50 % to everything: `0.25`."
   @spec reference() :: Decimal.t()
   def reference, do: @reference
+
+  @doc """
+  The report's `computation_basis` (ADR-0055 §4; the brief addendum's
+  "Every metric documents its computation basis"): the resolution rule of
+  §3, the formulas, the minimum band count, what is excluded and counted,
+  that no distribution is counted, the small-sample rule, the groups and
+  the precision. Text a reader checks a figure against, plus the three
+  numbers it names (`minimum_band_count`, `reference`, `staleness_days`).
+  """
+  @spec computation_basis() :: %{atom() => String.t() | pos_integer() | Decimal.t()}
+  def computation_basis do
+    %{
+      resolution:
+        "Each prediction is resolved at read from stored closes; nothing is stored. It is open " <>
+          "while the instance's calendar day is on or before resolves_on, then resolved (hit or " <>
+          "miss) or unresolved with its reason: no_start_close, no_end_close, " <>
+          "no_benchmark_close or no_fx_rate, never estimated.",
+      start_close:
+        "The security's last close strictly before the UTC day the prediction was made " <>
+          "(standing for the day before it), and the benchmark security's for the same date; " <>
+          "a close on the day made is never used.",
+      end_close: "The last close on or before resolves_on, for the security and the benchmark.",
+      staleness_days: WindowReturn.staleness_days(),
+      currency:
+        "Both closes are converted to EUR at the stored EUR-hub rate of each close's own date, " <>
+          "as valuation does; each return is end EUR value / start EUR value - 1. A close more " <>
+          "than staleness_days calendar days before the date it stands for is no close. Closes " <>
+          "are read in the current split basis.",
+      benchmark:
+        "security:<id>: the benchmark security's return by the same rule and the same dates. " <>
+          "rate:<r>: Benchmark.daily_rate_factor(r) compounded once per calendar day between the " <>
+          "two dates the security's closes stand for; rate:0 is the absolute call.",
+      outcome:
+        "excess = security return - benchmark return; outperform hits when excess > 0, " <>
+          "underperform when excess < 0; excess = 0 is a miss for both.",
+      distributions:
+        "Price returns only: dividends and other distributions are not counted, on either side.",
+      brier_score:
+        "Mean over the n resolved predictions of (p - o)^2, p the stated probability, o 1 for " <>
+          "a hit and 0 for a miss. Lower is better; reference is the score of saying 0.50 to " <>
+          "everything.",
+      reference: @reference,
+      brier_standard_error:
+        "The sample standard deviation of the squared errors over sqrt(n), computed as " <>
+          "sqrt((n * sum(e^2) - sum(e)^2) / (n^2 * (n - 1))).",
+      sharpness:
+        "Mean of (p - 0.50) over the resolved predictions: how far from a coin the calls are " <>
+          "stated. Saying 0.50 to everything is perfectly calibrated and has sharpness 0.",
+      hit_rate:
+        "hits / n over the resolved predictions, beside mean_probability, the mean stated " <>
+          "probability, which a calibrated author's hit rate matches.",
+      hit_rate_standard_error:
+        "The same estimator as the Brier score's: the sample standard deviation of the 0/1 " <>
+          "outcomes over sqrt(n), sqrt(hits * (n - hits) / (n^2 * (n - 1))); not the binomial " <>
+          "sqrt(rate * (1 - rate) / n), which reads 0 for a single call.",
+      bands:
+        "Five bands by stated probability, 0.50-0.59, 0.60-0.69, 0.70-0.79, 0.80-0.89 and " <>
+          "0.90-0.99, each with its resolved count and mean stated probability. A band shows " <>
+          "its hit rate from minimum_band_count resolved predictions; below, hit_rate is " <>
+          "too_few. Expect too_few for a long time: the headline score with its standard error " <>
+          "carries meaning from the first resolutions.",
+      minimum_band_count: @minimum_band_count,
+      excluded:
+        "Open and unresolved predictions are excluded from every score and counted: open, and " <>
+          "unresolved by reason.",
+      small_samples:
+        "With no resolved prediction every score is null and both standard errors are null with " <>
+          "standard_error_reason no_resolved; with one, both standard errors are null with " <>
+          "one_resolved (a sample standard deviation divides by n - 1).",
+      groups:
+        "The same block per author and per model; an operator's prediction names no model and " <>
+          "is grouped under model null.",
+      precision:
+        "Every figure is a Decimal at 34 significant digits, rounded half-up, unrounded " <>
+          "otherwise; square roots by Decimal.sqrt at the same precision."
+    }
+  end
 
   @doc """
   The report over `entries`: the block (see the module doc) over all of
