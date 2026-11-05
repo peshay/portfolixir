@@ -102,4 +102,23 @@ defmodule PortfolixirWeb.Journal.RowTest do
       assert Row.build(prediction).entity == "Prognose 7"
     end)
   end
+
+  # User story (the Sprint 25 closing act's correctness lens):
+  # As the operator filtering the audit journal by kind,
+  # I want the kind select to offer predictions,
+  # so that the agent's recorded calls can be listed on their own.
+  #
+  # Acceptance criteria:
+  # - Row.kinds/0, the kind select's list, includes "prediction", right
+  #   after the research note, and every kind it offers has a label.
+  test "the kind select offers predictions" do
+    assert "prediction" in Row.kinds()
+
+    assert Enum.drop_while(Row.kinds(), &(&1 != "security_note")) |> Enum.take(2) ==
+             ["security_note", "prediction"]
+
+    for kind <- Row.kinds() do
+      refute Row.kind_label(kind) == kind, kind
+    end
+  end
 end
