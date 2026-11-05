@@ -289,6 +289,19 @@ defmodule Portfolixir.Fx do
   end
 
   @doc """
+  The EUR-hub rate of `currency` on or before `date`: units of the currency
+  per 1 EUR, the rate `rate/3` triangulates on (`1` for EUR, `GBP × 100` for
+  GBX), carried forward from the most recent stored positive rate.
+  `{:error, :no_rate}` when none is stored on or before the date.
+
+  `rate(currency, "EUR", date)` is `1 / hub_rate(currency, date)`; a caller
+  that divides two converted amounts can multiply by the hub rates instead
+  and divide once, so no 34-digit inverse is rounded into its quotient.
+  """
+  @spec hub_rate(String.t(), Date.t()) :: {:ok, Decimal.t()} | {:error, :no_rate}
+  def hub_rate(currency, %Date{} = date), do: eur_rate(currency, date)
+
+  @doc """
   Converts `amount` using the rate stored on **exactly** `date`.
 
   `convert/4` values at the most recent rate on or before the date, which is
