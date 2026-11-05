@@ -59,6 +59,7 @@
         "portfolixir.exchange_rates.list",
         "portfolixir.classifications.list",
         "portfolixir.trades.list",
+        "portfolixir.sales.hindsight",
         "portfolixir.targets.list",
         "portfolixir.targets.list_positions",
         "portfolixir.portfolios.allocation",
@@ -199,6 +200,7 @@
         "portfolixir.classifications.assign",
         "portfolixir.classifications.assign_bulk",
         "portfolixir.trades.list",
+        "portfolixir.sales.hindsight",
         "portfolixir.targets.list",
         "portfolixir.targets.set",
         "portfolixir.targets.list_positions",
@@ -380,6 +382,7 @@
         "portfolixir.classifications.assign_bulk",
         "portfolixir.classifications.unassign",
         "portfolixir.trades.list",
+        "portfolixir.sales.hindsight",
         "portfolixir.targets.list",
         "portfolixir.targets.set",
         "portfolixir.targets.delete",
@@ -3565,6 +3568,51 @@
                     "type": "string",
                     "format": "date",
                     "description": "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.sales.hindsight",
+              "title": "What each sale missed",
+              "description": "What each sale missed (FR-50): one row per sale booking (type sell, orphan sells included; an outbound delivery is no sale), newest first, with the sold security's price return in EUR over four spans: 1m, 3m and 12m (the sale day shifted by calendar months) and latest (to its latest stored close). Each span runs from the close standing for the sale day (the last close on or before it, at most 7 days older; the booked price is shown beside it and enters no figure) to the close standing for end_on. Optional benchmark (rate:<decimal> or security:<id> flagged is_benchmark) adds its return over the same span and difference = security return - benchmark return; without it, the security's own return only. status: complete, pending (end after today, no figure) or incomplete with reason no_start_close, no_end_close, no_fx_rate or no_benchmark_close (the security's figure kept). Price only: distributions after a sale are not counted, so a dividend payer's miss is understated. IT SCORES NOTHING AND GIVES NO VERDICT: no field says a sale was early or right. portfolio_id, security_id and from/to (the sale date) narrow the rows; limit is echoed with truncated. Decimals are strings; computation_basis states the rules.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "portfolio_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "security_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Earliest sale date. An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Latest sale date. An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
+                  },
+                  "benchmark": {
+                    "type": "string",
+                    "pattern": "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
+                    "description": "Optional. As on portfolixir.portfolios.benchmark: `rate:<decimal>`, a fixed effective annual rate, or `security:<id>`, a security flagged is_benchmark."
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "rows, newest sale first (default 100, at most 500)"
                   }
                 }
               },

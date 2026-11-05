@@ -2107,7 +2107,8 @@ Example account payloads:
   `limit` bounds the annual matrix to its newest years (default 100, max
   1000); `computation_basis.window` names the cut when years were dropped, and
   the answer echoes the applied `limit`.
-- `GET /api/v1/sales/hindsight` (FR-50, idea I18; Sprint 25 plan D-3)
+- `GET /api/v1/sales/hindsight` (`portfolixir.sales.hindsight`, in every
+  profile; FR-50, idea I18; Sprint 25 plan D-3)
   answers **what each sale missed**: one row per sale booking (type `sell`,
   an orphan sell included; an outbound delivery is no sale, it moves shares
   without a price), newest first, with the sold security's price return in
@@ -4308,6 +4309,10 @@ API may have committed it, and its answer cannot be read.
   invested-capital difference
 - `portfolixir.cashflow.costs` — the #726 roll-up with the stated
   legs-not-gross series rule
+- `portfolixir.sales.hindsight` — what each sale missed (FR-50):
+  `GET /api/v1/sales/hindsight` with its filters and the optional
+  `benchmark`, read-only in every profile; the description says it scores
+  nothing and gives no verdict
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.splits.incomplete` — the incomplete-split check (#1292),

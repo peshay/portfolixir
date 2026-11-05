@@ -304,6 +304,19 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     book: 173_381,
     full: 207_936,
     raisedBy: { tools: ["portfolixir.securities.dossier"], read: 1_423, book: 1_423, full: 1_423 }
+  },
+  {
+    since: "2026-11-06",
+    why:
+      "Sprint 25, S2 (FR-50): what each sale missed, portfolixir.sales.hindsight, a read in " +
+      "every profile, whose own schema the rule of Sprint 24's D-2 lets the ceilings grow by " +
+      "and no more: its tools/list entry measures 2,302 bytes in each profile, so read " +
+      "104,310 + 2,302 = 106,612, book 173,381 + 2,302 = 175,683 and full 207,936 + 2,302 = " +
+      "210,238; no other tool's bytes are added",
+    read: 106_612,
+    book: 175_683,
+    full: 210_238,
+    raisedBy: { tools: ["portfolixir.sales.hindsight"], read: 2_302, book: 2_302, full: 2_302 }
   }
 ];
 
@@ -531,6 +544,7 @@ describe("the schema budget", () => {
       "the manifest's tools, removals applied, are the companion's"
     );
     assert.equal(debuts.get("portfolixir.securities.dossier"), "2026-11-05");
+    assert.equal(debuts.get("portfolixir.sales.hindsight"), "2026-11-06");
     assert.equal(debuts.get("portfolixir.transactions.cash_mismatch"), "2026-11-04");
   });
 });

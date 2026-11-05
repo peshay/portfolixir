@@ -76,6 +76,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # the statuses and their reasons, the optional benchmark and the basis.
     assert newest["summary"] =~ "Sprint 25, S2 (FR-50): "
     assert "GET /api/v1/sales/hindsight" in newest["endpoints"]
+    assert "portfolixir.sales.hindsight" in newest["tools"]
+    assert newest["summary"] =~ "2,302 bytes per profile"
 
     assert [hindsight] =
              Enum.filter(
