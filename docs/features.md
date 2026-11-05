@@ -70,7 +70,7 @@ and the decision in
 
 ## Prompts that carry the no-advice stance
 
-The MCP companion offers two prompts, ready-made instructions you hand your
+The MCP companion offers three prompts, ready-made instructions you hand your
 agent to run against your own instance:
 
 - `first_setup` checks the instance and the active profile, reads what exists,
@@ -79,8 +79,12 @@ agent to run against your own instance:
 - `import_converter` has your agent write a converter, run on your machine,
   from a bank or broker export to a file the Imports page previews before
   anything is booked.
+- `position_review` walks your agent through one position, its dossier, open
+  theses, invalidation conditions and upcoming events, and ends by asking for
+  predictions, or none where it has no view: permanent calls that Portfolixir
+  resolves against stored closes and scores for calibration, never trades.
 
-Both carry the same stance in their own text:
+All three carry the same stance in their own text:
 
 > The system prepares decisions and the operator executes them: nothing here places, proposes or sizes a trade, and neither do you.
 > Do not recommend buying, selling or weighting anything; describe what is recorded.

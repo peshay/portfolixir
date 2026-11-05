@@ -443,11 +443,17 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   # - The EN and DE MCP pages name first_setup and import_converter, the
   #   confirmation rule, the file for the Imports page, that booking row by
   #   row is no substitute, and why the prompts are MCP only.
+  # - Sprint 25, F5 (ADR-0055 §5): they name position_review too, the tools
+  #   it records with, and that its result is a recorded call, never a
+  #   trade.
   test "the MCP prompts are documented" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
        [
-         "**Prompts.** The companion offers two MCP prompts",
+         "**Prompts.** The companion offers three MCP prompts",
+         "`position_review`",
+         "`portfolixir.predictions.create`",
+         "is a recorded call, never a trade: no order and no size",
          "`first_setup`",
          "writes nothing without the operator's confirmation",
          "`import_converter`",
@@ -457,7 +463,10 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
-         "**Prompts.** Der Begleitdienst bietet zwei MCP-Prompts",
+         "**Prompts.** Der Begleitdienst bietet drei MCP-Prompts",
+         "`position_review`",
+         "`portfolixir.predictions.create`",
+         "nie ein Trade: keine Order und keine Größe",
          "`first_setup`",
          "schreibt nichts ohne die Bestätigung des Betreibers",
          "`import_converter`",

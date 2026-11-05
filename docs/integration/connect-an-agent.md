@@ -9,7 +9,7 @@ lang_de: /de/integration/connect-an-agent.html
 
 # Connect an Agent
 
-The MCP companion in `mcp-server/` gives an agent Portfolixir's tools and two
+The MCP companion in `mcp-server/` gives an agent Portfolixir's tools and three
 prompts. It calls the instance's JSON API with `PORTFOLIXIR_API_TOKEN` and
 nothing else. Connect it one of two ways: the agent's client starts it as a
 local process (stdio), or the client reaches the companion the Compose stack
@@ -156,3 +156,7 @@ Once the record holds data, ask the agent about one position: the
 `portfolixir.securities.dossier` tool gives it the security's record,
 holdings, metrics, newest research-log entries, events, categories and
 position targets in one read, each part equal to what its own read answers.
+The `position_review` prompt walks it through that read, the open theses and
+the upcoming events, and ends by asking it for predictions, or none where it
+has no view, which Portfolixir records permanently and scores for
+calibration; a recorded call, never a trade.

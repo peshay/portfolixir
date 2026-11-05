@@ -8,6 +8,7 @@ import { connectCompanion } from "./support/companion.js";
 
 // Sprint 17, Lane A4 (#983): two prompts, MCP only. A prompt is an
 // instruction to the user's own agent; the API has nothing to serve it to.
+// Sprint 25, F5 (ADR-0055 §5; idea F32): a third, position_review.
 
 const NO_ADVICE = [
   /The system prepares decisions and the operator executes them/,
@@ -57,11 +58,12 @@ describe("the companion's prompts", () => {
   //
   // Acceptance criteria:
   // - The server advertises the prompts capability.
-  // - prompts/list answers exactly first_setup and import_converter, each with
-  //   a title and a description; import_converter takes one optional argument,
-  //   export_file.
+  // - prompts/list answers exactly first_setup, import_converter and
+  //   position_review (F5), each with a title and a description;
+  //   import_converter takes one optional argument, export_file, and
+  //   position_review one, security_id.
   // - An unknown prompt is an error.
-  it("lists the two prompts under every profile", async () => {
+  it("lists the three prompts under every profile", async () => {
     for (const profile of MCP_PROFILES) {
       const companion = await connectCompanion(undefined, { profile });
 
@@ -71,7 +73,7 @@ describe("the companion's prompts", () => {
         const { prompts } = await companion.mcp.listPrompts();
         assert.deepEqual(
           prompts.map((prompt) => prompt.name),
-          ["first_setup", "import_converter"],
+          ["first_setup", "import_converter", "position_review"],
           profile
         );
 
@@ -84,6 +86,10 @@ describe("the companion's prompts", () => {
         assert.deepEqual(
           (prompts[1].arguments ?? []).map((argument) => [argument.name, argument.required ?? false]),
           [["export_file", false]]
+        );
+        assert.deepEqual(
+          (prompts[2].arguments ?? []).map((argument) => [argument.name, argument.required ?? false]),
+          [["security_id", false]]
         );
 
         await assert.rejects(companion.mcp.getPrompt({ name: "nope", arguments: {} }), /nope/);
@@ -146,6 +152,70 @@ describe("the companion's prompts", () => {
     assert.match(readSetup, /PORTFOLIXIR_MCP_PROFILE=book and PORTFOLIXIR_MCP_READ_ONLY unset or false/);
     assert.doesNotMatch(text, /another book write can undo/);
     assert.match(await promptText("first_setup", {}, "full"), /needs none of them/);
+  });
+
+  // User story (Sprint 25, F5; ADR-0055 §5, idea F32):
+  // As the operator who wants my agent's calls on a position measured,
+  // I want a prompt that walks the agent through one position and ends by
+  // asking for predictions, or none where it has no view,
+  // so that the calls get recorded at all, as calls and never as trades.
+  //
+  // Acceptance criteria:
+  // - The text has the agent read the position dossier, the open theses
+  //   with their invalidation conditions, the upcoming events and the calls
+  //   already recorded, naming the tools that answer each.
+  // - It then asks for predictions with direction, probability from 0.50 to
+  //   0.99, resolves_on and benchmark, or none where the agent has no view,
+  //   each recorded with portfolixir.predictions.create naming its model and
+  //   optionally a note_id pointing at the thesis, and says a prediction is
+  //   permanent.
+  // - It carries the no-advice framing: a recorded call, never a trade, no
+  //   order and no size.
+  // - Every tool it names exists, under every profile; under read it says
+  //   no call can be recorded there, and a given security_id is named.
+  it("position_review reads one position and asks for recorded calls, never trades", async () => {
+    for (const profile of MCP_PROFILES) {
+      const text = await promptText("position_review", {}, profile);
+      assertNamesOnlyRealTools(`position_review/${profile}`, text);
+    }
+
+    const text = await promptText("position_review", { security_id: "42" }, "book");
+
+    for (const tool of [
+      "portfolixir.securities.list",
+      "portfolixir.securities.dossier",
+      "portfolixir.notes.list",
+      "portfolixir.events.list",
+      "portfolixir.predictions.list",
+      "portfolixir.predictions.create"
+    ]) {
+      assert.ok(text.includes(tool), tool);
+    }
+    assertNamesOnlyRealTools("position_review/book", text);
+
+    assert.match(text, /security 42/);
+    assert.match(text, /invalidation_condition/);
+    assert.match(text, /direction/);
+    assert.match(text, /probability/);
+    assert.match(text, /from "0\.50" to "0\.99"/);
+    assert.match(text, /resolves_on/);
+    assert.match(text, /benchmark/);
+    assert.match(text, /rate:0/);
+    assert.match(text, /no view/);
+    assert.match(text, /record none/);
+    assert.match(text, /name the model you run on/);
+    assert.match(text, /note_id/);
+    assert.match(text, /cannot be edited, withdrawn or deleted/);
+    assert.match(text, /a recorded call, never a trade/);
+    assert.match(text, /no order and no size/);
+
+    for (const framing of NO_ADVICE) {
+      assert.match(text, framing);
+    }
+
+    const read = await promptText("position_review", {}, "read");
+    assert.match(read, /cannot record a prediction/);
+    assert.doesNotMatch(await promptText("position_review", {}, "full"), /cannot record a prediction/);
   });
 
   // User story (#1173):
