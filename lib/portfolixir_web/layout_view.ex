@@ -1538,13 +1538,6 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
-            // The ninth inline hook (owner decision 2026-08-05, DESIGN.md →
-            // Motion): a cosmetic count-up to an already-known final value.
-            // requestAnimationFrame drives the count, Intl.NumberFormat
-            // formats each frame, and the accent bar beneath reports the
-            // count's real progress. The hook reads prefers-reduced-motion
-            // before the first frame: under `reduce` the settling state does
-            // not occur — the final value renders immediately.
             // #869 (review round DC-C1): a <details> inside a live form —
             // the booking drawer's costs. LiveView removes every attribute
             // the server did not render, `open` included, so the first
@@ -1814,6 +1807,13 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // The count-up hook (owner decision 2026-08-05, DESIGN.md →
+            // Motion): a cosmetic count-up to an already-known final value.
+            // requestAnimationFrame drives the count, Intl.NumberFormat
+            // formats each frame, and the accent bar beneath reports the
+            // count's real progress. The hook reads prefers-reduced-motion
+            // before the first frame: under `reduce` the settling state does
+            // not occur — the final value renders immediately.
             Hooks.CountUp = {
               mounted: function () {
                 this.lastValue = null;

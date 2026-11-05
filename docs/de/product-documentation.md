@@ -4431,6 +4431,13 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   der weitere Reiter liegen, und die Zeile kommt immer mit einem ganzen Reiter
   am linken Rand zur Ruhe — auch an ihrem Ende, wo nach dem letzten Reiter ein
   wenig Leerraum folgt.
+- **Auf dem Home-Bildschirm eines iPhones** („Zum Home-Bildschirm“ im
+  Teilen-Menü von Safari) zeigt die Verknüpfung das Portfolixir-Logo auf
+  seinem hellen Hintergrund, beschriftet mit dem Seitentitel. iOS speichert
+  das Symbol, wenn die Verknüpfung angelegt wird, und lädt es nie wieder
+  nach: Nach einem Upgrade, das das Symbol ändert — und einmal nach dem
+  Upgrade, das es gebracht hat, falls die Verknüpfung noch ein „P“ zeigt —
+  die Verknüpfung vom Home-Bildschirm entfernen und neu hinzufügen.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt (das Menü heißt
   *Erscheinungsbild*).
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
