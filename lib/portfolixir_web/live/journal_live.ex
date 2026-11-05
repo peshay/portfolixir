@@ -126,20 +126,26 @@ defmodule PortfolixirWeb.JournalLive do
   # The field „Seit“ (board 01 ①) holds a date. A cut handed over as an
   # instant or a cursor shows as its UTC date and is kept as handed over
   # while the field still shows that date, so another filter change does
-  # not widen it to the day; an empty or unreadable field is no cut.
+  # not widen it to the day; an empty field is no cut. A value it cannot
+  # read keeps the current cut (closing act, J3): a mistyped digit never
+  # widens the list to the whole journal, and as nothing patches, the field
+  # keeps the typed text with its `:invalid` mark (`pattern`).
   defp form_since(value, current) do
     cond do
       current && value == since_value(current) ->
         current
 
+      value in [nil, ""] ->
+        nil
+
       is_binary(value) ->
         case SinceParam.parse_page(%{"since" => value}) do
           {:ok, since} -> since
-          {:error, :since} -> nil
+          {:error, :since} -> current
         end
 
       true ->
-        nil
+        current
     end
   end
 
@@ -156,8 +162,12 @@ defmodule PortfolixirWeb.JournalLive do
     end
   end
 
-  defp patch(socket, changes),
-    do: push_patch(socket, to: path(Keyword.merge(socket.assigns.opts, changes)))
+  # A change that leaves the page's URL as it is patches nothing, so the
+  # page renders nothing anew and a field keeps what was typed into it.
+  defp patch(socket, changes) do
+    to = path(Keyword.merge(socket.assigns.opts, changes))
+    if to == path(socket.assigns.opts), do: socket, else: push_patch(socket, to: to)
+  end
 
   # The page's URL for `opts`, its parameters in one fixed order so a view
   # has one link: only what differs from the API's default is written.

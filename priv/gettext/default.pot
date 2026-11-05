@@ -1666,8 +1666,8 @@ msgid "e.g. PP Import"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:361
-#: lib/portfolixir_web/live/journal_live.ex:197
-#: lib/portfolixir_web/live/journal_live.ex:330
+#: lib/portfolixir_web/live/journal_live.ex:207
+#: lib/portfolixir_web/live/journal_live.ex:340
 #, elixir-autogen, elixir-format
 msgid "Entries"
 msgstr ""
@@ -5517,7 +5517,7 @@ msgid "Derived from"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:5274
-#: lib/portfolixir_web/live/journal_live.ex:301
+#: lib/portfolixir_web/live/journal_live.ex:311
 #: lib/portfolixir_web/live/securities_live.ex:3377
 #: lib/portfolixir_web/live/securities_live.ex:6663
 #, elixir-autogen, elixir-format
@@ -5563,7 +5563,7 @@ msgid "Invalidation condition"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:2562
-#: lib/portfolixir_web/live/journal_live.ex:244
+#: lib/portfolixir_web/live/journal_live.ex:254
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:488
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:267
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:293
@@ -8197,7 +8197,7 @@ msgstr ""
 msgid "+ other account"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:400
+#: lib/portfolixir_web/live/journal_live.ex:410
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:246
 #, elixir-autogen, elixir-format
 msgid "After"
@@ -8919,7 +8919,7 @@ msgid_plural "Every dropped quote stands in the merge's record with its date, va
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/journal_live.ex:398
+#: lib/portfolixir_web/live/journal_live.ex:408
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1005
 #, elixir-autogen, elixir-format
 msgid "Field"
@@ -12175,7 +12175,7 @@ msgstr ""
 msgid "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards."
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:302
+#: lib/portfolixir_web/live/journal_live.ex:312
 #: lib/portfolixir_web/live/securities/merge_preview.ex:321
 #, elixir-autogen, elixir-format
 msgid "Change"
@@ -14179,21 +14179,21 @@ msgstr ""
 msgid "with “remove as duplicates”"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:487
+#: lib/portfolixir_web/live/journal_live.ex:497
 #, elixir-autogen, elixir-format
 msgid "%{count} entry"
 msgid_plural "%{count} entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/journal_live.ex:203
-#: lib/portfolixir_web/live/journal_live.ex:299
+#: lib/portfolixir_web/live/journal_live.ex:213
+#: lib/portfolixir_web/live/journal_live.ex:309
 #, elixir-autogen, elixir-format
 msgid "Actor"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:357
-#: lib/portfolixir_web/live/journal_live.ex:191
+#: lib/portfolixir_web/live/journal_live.ex:201
 #, elixir-autogen, elixir-format
 msgid "Audit journal"
 msgstr ""
@@ -14213,49 +14213,49 @@ msgstr ""
 msgid "Deleted"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:192
+#: lib/portfolixir_web/live/journal_live.ex:202
 #, elixir-autogen, elixir-format
 msgid "Every stored change, who made it and what stood before"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:456
+#: lib/portfolixir_web/live/journal_live.ex:466
 #, elixir-autogen, elixir-format
 msgid "Newest first"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:290
+#: lib/portfolixir_web/live/journal_live.ex:300
 #, elixir-autogen, elixir-format
 msgid "No entry matches these filters."
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:227
-#: lib/portfolixir_web/live/journal_live.ex:300
+#: lib/portfolixir_web/live/journal_live.ex:237
+#: lib/portfolixir_web/live/journal_live.ex:310
 #, elixir-autogen, elixir-format
 msgid "Operation"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:285
-#: lib/portfolixir_web/live/journal_live.ex:291
+#: lib/portfolixir_web/live/journal_live.ex:295
+#: lib/portfolixir_web/live/journal_live.ex:301
 #, elixir-autogen, elixir-format
 msgid "Show every entry"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:298
+#: lib/portfolixir_web/live/journal_live.ex:308
 #, elixir-autogen, elixir-format
 msgid "Time (UTC)"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:467
+#: lib/portfolixir_web/live/journal_live.ex:477
 #, elixir-autogen, elixir-format
 msgid "times in UTC"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:464
+#: lib/portfolixir_web/live/journal_live.ex:474
 #, elixir-autogen, elixir-format
 msgid "with what-if scenarios"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:465
+#: lib/portfolixir_web/live/journal_live.ex:475
 #, elixir-autogen, elixir-format
 msgid "without what-if scenarios"
 msgstr ""
@@ -14362,86 +14362,86 @@ msgctxt "journal kind"
 msgid "Tax profile"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:212
+#: lib/portfolixir_web/live/journal_live.ex:222
 #, elixir-autogen, elixir-format
 msgid "All"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:246
+#: lib/portfolixir_web/live/journal_live.ex:256
 #, elixir-autogen, elixir-format
 msgid "All kinds"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:201
+#: lib/portfolixir_web/live/journal_live.ex:211
 #, elixir-autogen, elixir-format
 msgid "Filter the journal"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:278
+#: lib/portfolixir_web/live/journal_live.ex:288
 #, elixir-autogen, elixir-format
 msgid "Include what-if scenarios"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:316
-#: lib/portfolixir_web/live/journal_live.ex:338
+#: lib/portfolixir_web/live/journal_live.ex:326
+#: lib/portfolixir_web/live/journal_live.ex:348
 #, elixir-autogen, elixir-format
 msgid "Only this entry"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:459
+#: lib/portfolixir_web/live/journal_live.ex:469
 #, elixir-autogen, elixir-format
 msgid "actor %{actor}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:504
+#: lib/portfolixir_web/live/journal_live.ex:514
 #, elixir-autogen, elixir-format
 msgid "kind %{kind}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:501
-#: lib/portfolixir_web/live/journal_live.ex:507
+#: lib/portfolixir_web/live/journal_live.ex:511
+#: lib/portfolixir_web/live/journal_live.ex:517
 #, elixir-autogen, elixir-format
 msgid "only %{entry}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:461
+#: lib/portfolixir_web/live/journal_live.ex:471
 #, elixir-autogen, elixir-format
 msgid "operation %{operation}"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:399
+#: lib/portfolixir_web/live/journal_live.ex:409
 #, elixir-autogen, elixir-format
 msgid "Before"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:393
+#: lib/portfolixir_web/live/journal_live.ex:403
 #, elixir-autogen, elixir-format
 msgid "Stored values"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:429
+#: lib/portfolixir_web/live/journal_live.ex:439
 #, elixir-autogen, elixir-format
 msgid "changed to"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:385
+#: lib/portfolixir_web/live/journal_live.ex:395
 #, elixir-autogen, elixir-format
 msgid "deleted, with every value"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:349
+#: lib/portfolixir_web/live/journal_live.ex:359
 #, elixir-autogen, elixir-format
 msgid "Show older entries"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:484
+#: lib/portfolixir_web/live/journal_live.ex:494
 #, elixir-autogen, elixir-format
 msgid "the newest %{count} entry"
 msgid_plural "the newest %{count} entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/journal_live.ex:353
+#: lib/portfolixir_web/live/journal_live.ex:363
 #, elixir-autogen, elixir-format
 msgid "The newest %{max} are shown, the most one page holds; a filter reaches older entries."
 msgstr ""
@@ -14708,12 +14708,12 @@ msgstr ""
 msgid "%{name} (copy)"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:457
+#: lib/portfolixir_web/live/journal_live.ex:467
 #, elixir-autogen, elixir-format
 msgid "since %{date} (UTC)"
 msgstr ""
 
-#: lib/portfolixir_web/live/journal_live.ex:256
+#: lib/portfolixir_web/live/journal_live.ex:266
 #, elixir-autogen, elixir-format
 msgid "Since"
 msgstr ""

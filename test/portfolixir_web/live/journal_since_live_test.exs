@@ -217,4 +217,37 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
     view |> form("#journal-filters", %{"resource_type" => "security"}) |> render_change()
     assert_patch(view, "/journal?" <> URI.encode_query(resource_type: "security", since: instant))
   end
+
+  # User story (Sprint 24 closing act, J3; board 01 ①):
+  # As the operator typing a date into „Seit“,
+  # I want a date the field cannot read to leave my cut as it was,
+  # so that a slip of one digit neither widens the list to the whole
+  # journal nor erases what I typed (the field marks it as not a date).
+  #
+  # Acceptance criteria:
+  # - With a cut set, „2026-10-2“ patches nothing: the URL and the cut stay,
+  #   and the rows stay the cut's.
+  # - With no cut, „2026-10“ patches nothing.
+  # - An empty field still clears the cut.
+  test "an unreadable „Seit“ keeps the cut and patches nothing", %{conn: conn} do
+    %{old: old, recent: recent} = fixture!()
+    since = Date.to_iso8601(Date.add(Date.utc_today(), -1))
+
+    {:ok, view, _html} = live(conn, "/journal?since=#{since}&locale=de")
+
+    view |> form("#journal-filters", %{"since" => "2026-10-2"}) |> render_change()
+    refute_patched(view)
+    assert has_element?(view, "#journal-since[value='#{since}']")
+    assert basis(view) =~ "seit "
+    assert Enum.all?(recent, &(&1 in page_ids(view)))
+    refute Enum.any?(old, &(&1 in page_ids(view)))
+
+    view |> form("#journal-filters", %{"since" => ""}) |> render_change()
+    assert_patch(view, "/journal")
+
+    {:ok, view, _html} = live(conn, "/journal?locale=de")
+    view |> form("#journal-filters", %{"since" => "2026-10"}) |> render_change()
+    refute_patched(view)
+    refute basis(view) =~ "seit"
+  end
 end
