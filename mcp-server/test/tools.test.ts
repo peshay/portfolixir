@@ -4374,7 +4374,7 @@ describe("Portfolixir MCP tools", () => {
     assert.match(list, /\btruncated\b/);
 
     const get = description("portfolixir.predictions.get");
-    assert.match(get, /strictly before/);
+    assert.match(get, /the last on or before that day/);
     assert.match(get, /excess/);
 
     const calibration = description("portfolixir.predictions.calibration");
@@ -4754,6 +4754,47 @@ describe("Portfolixir MCP tools", () => {
       "awareness",
       "unverified"
     ]);
+  });
+
+  // User story (the Sprint 25 closing act's agent's lens and UAT persona;
+  // ADR-0055 amendment of 2026-11-05):
+  // As the operator's agent about to record a permanent call,
+  // I want the descriptions to say what the server will do with it,
+  // so that I neither send a call the companion refuses, nor misread a rate,
+  // nor wonder why a call past its date still reads open.
+  //
+  // Acceptance criteria:
+  // - create: 0.49 is refused before any request and the other direction is
+  //   recorded at 0.51; rate:0.02 is 2 % a year and a rate above 1 is
+  //   refused; the start close is the last on or before the UTC day made; a
+  //   call stays open after resolves_on until its end close is in (at most
+  //   7 days); a prediction keeps its security and benchmark from being
+  //   merged or deleted (retire only).
+  // - list and get say open lasts until the end close is in.
+  it("describes the start close, the wait for the end close, the rate and the lock", () => {
+    const description = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
+    const write = description("portfolixir.predictions.create");
+
+    assert.doesNotMatch(write, /0\.49 answers 422/);
+    assert.match(write, /0\.49 is refused before any request; record the other direction at 0\.51/);
+    assert.match(write, /rate:0\.02 is 2 % a year, above 1 is refused/);
+    assert.match(write, /the last close on or before the UTC day made/);
+    assert.match(write, /stays open after resolves_on until its end close is in \(at most 7 days\)/);
+    assert.match(write, /from ever being merged or deleted \(retire only\)/);
+
+    assert.match(description("portfolixir.predictions.list"), /until resolves_on has passed and its end close is in/);
+    assert.match(description("portfolixir.predictions.get"), /open after it until its end close is in/);
+  });
+
+  // User story (the Sprint 25 closing act's UAT persona, N1):
+  // As an outside aggregator appending news on a held position,
+  // I want notes.append to say that a news entry clears the unreviewed list,
+  // so that the thesis's own last_reviewed_at is read as the review signal.
+  it("says a news entry counts for notes.unreviewed, the thesis review being last_reviewed_at", () => {
+    const append = listTools().find((tool) => tool.name === "portfolixir.notes.append")?.description ?? "";
+    assert.match(append, /counts for portfolixir\.notes\.unreviewed/);
+    assert.match(append, /last_reviewed_at/);
+    assert.match(append, /thesis and invalidation_check/);
   });
 
   // User story (Sprint 25, N1; idea I13, plan D-5):
