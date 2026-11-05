@@ -8633,7 +8633,7 @@ changed this week“, a poller walks forward. Built in
    The board drew a native date input; the build follows UX-DR19, which
    gives the native picker up app-wide. Empty means no cut. The label has
    the scenarios checkbox's anatomy: inline-flex, centred, a 6 px gap,
-   13 px; the input inherits the page's font, 11ch wide. It wraps with the form's other controls, so
+   13 px; the input inherits the page's font, `calc(12ch + 20px)` wide. It wraps with the form's other controls, so
    at 390 px it stacks under the kind like the checkbox; nothing scrolls
    sideways.
 2. **What it sends:** the form's one `phx-change` carries it with the kind
@@ -8676,7 +8676,13 @@ changed this week“, a poller walks forward. Built in
 
 One block after `.journal-filters__scenarios`: `.journal-filters__since`
 (inline-flex, `align-items: center`, 6 px gap, 13 px) and its input
-(`font: inherit`, `width: 11ch`). No colour of its own.
+(`font: inherit`, `width: calc(12ch + 20px)`). No colour of its own. The
+width is twelve characters plus the input's 9 px paddings and 1 px borders,
+which the border-box takes from it (closing act, J3): `11ch` left about
+eight characters of text and cut „2026-10-20“, and `calc(10ch + 20px)` or
+`calc(11ch + 20px)` still cut the placeholder „YYYY-MM-DD“, whose letters
+are wider than digits. Measured in Chromium at 13 px, the placeholder
+fits whole in Inter, DejaVu Sans, FreeSans and Arial.
 
 ### Stated, not settled here
 

@@ -335,4 +335,23 @@ defmodule PortfolixirWeb.JournalSinceLiveTest do
       refute has_element?(view, "[data-role='journal-since-unread']")
     end
   end
+
+  # User story (Sprint 24 closing act, J3; board 01 ①; UX-DR19):
+  # As the operator reading the field „Seit“,
+  # I want its placeholder and a date to fit the field whole,
+  # so that neither „YYYY-MM-DD“ nor „2026-10-20“ is cut at its end.
+  #
+  # Acceptance criteria:
+  # - The input is twelve characters wide plus its 9 px paddings and 1 px
+  #   borders (the box is border-box): `width: calc(12ch + 20px)`. Measured
+  #   in Chromium at 13 px, the placeholder's text, the widest of the three,
+  #   fits with Inter, DejaVu Sans, FreeSans and Arial (scrollWidth equals
+  #   clientWidth); `11ch` cut „2026-10-20“ (91 > 88 px) and
+  #   `calc(11ch + 20px)` cut „YYYY-MM-DD“ in Arial (101 > 98 px).
+  test "the field „Seit“ holds its placeholder and a date whole" do
+    css = File.read!("priv/static/app.css")
+
+    assert [_, rule] = Regex.run(~r/\.journal-filters__since input \{([^}]*)\}/, css)
+    assert rule =~ "width: calc(12ch + 20px);"
+  end
 end
