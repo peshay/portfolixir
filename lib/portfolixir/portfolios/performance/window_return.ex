@@ -189,6 +189,21 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
     do: Quotes.positive_close_on_or_after?(id, on)
 
   @doc """
+  EUR per one unit of `currency` on `on`, by the conversion's rule (see the
+  module doc): `1 / the most recent stored EUR-hub rate on or before it`,
+  exactly 1 for EUR, `{:error, :no_fx_rate}` without a stored rate path. A
+  close's own `fx_rate` in `price_return/3` is this rate on the close's
+  date; what a switch cost converts cash with it (ADR-0057 §2).
+  """
+  @spec eur_rate(String.t(), Date.t()) :: {:ok, Decimal.t()} | {:error, :no_fx_rate}
+  def eur_rate(currency, %Date{} = on) when is_binary(currency) do
+    case Fx.hub_rate(currency, on) do
+      {:ok, hub} -> {:ok, fx_rate(currency, hub)}
+      {:error, :no_rate} -> {:error, :no_fx_rate}
+    end
+  end
+
+  @doc """
   The security's price return in EUR from the close standing for `start_on`
   to the close standing for `end_on` (see the module doc for each rule).
 

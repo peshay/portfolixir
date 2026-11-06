@@ -169,9 +169,10 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
       end
 
     spans =
-      Enum.map(@spans, fn {label, months} ->
-        span(label, Date.shift(sale.date, month: months), sale, security, benchmark, today)
-      end) ++ [latest_span(sale, security, benchmark, today)]
+      Enum.map(span_ends(sale, today), fn
+        {label, nil} -> incomplete(label, nil, sale, :no_end_close, nil)
+        {label, end_on} -> span(label, end_on, sale, security, benchmark, today)
+      end)
 
     %{
       sale_id: sale.id,
@@ -188,19 +189,29 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
     }
   end
 
-  defp latest_span(sale, security, benchmark, today) do
+  @doc """
+  The end date of each span of a sale (its security preloaded), in
+  `span_labels/0` order: `1m`, `3m` and `12m` shifted by calendar months,
+  `latest` the date of the security's latest stored close capped at
+  `today`, or nil when that date is not after the sale day (the span is
+  then incomplete, `:no_end_close`). What a switch cost
+  (`Portfolixir.Portfolios.Performance.SaleReinvestment`, ADR-0057 §2)
+  measures over the same ends.
+  """
+  @spec span_ends(Transaction.t(), Date.t()) :: [{String.t(), Date.t() | nil}]
+  def span_ends(%Transaction{security: %Security{} = security} = sale, %Date{} = today) do
+    Enum.map(@spans, fn {label, months} -> {label, Date.shift(sale.date, month: months)} end) ++
+      [{"latest", latest_end(sale, security, today)}]
+  end
+
+  defp latest_end(sale, security, today) do
     case Quotes.latest(security.id) do
       %{date: %Date{} = date} ->
         end_on = Enum.min([date, today], Date)
-
-        if Date.compare(end_on, sale.date) == :gt do
-          span("latest", end_on, sale, security, benchmark, today)
-        else
-          incomplete("latest", nil, sale, :no_end_close, nil)
-        end
+        if Date.compare(end_on, sale.date) == :gt, do: end_on, else: nil
 
       nil ->
-        incomplete("latest", nil, sale, :no_end_close, nil)
+        nil
     end
   end
 
