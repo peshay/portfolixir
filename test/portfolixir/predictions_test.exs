@@ -463,6 +463,39 @@ defmodule Portfolixir.PredictionsTest do
     end
   end
 
+  # User story (Sprint 26 V1, #1365 line 2; board 02 part 3 ②):
+  # As the operator removing a security's benchmark flag,
+  # I want to know how many recorded predictions keep measuring against it,
+  # so that I read that the flag only gates new calls, not the recorded ones.
+  #
+  # Acceptance criteria:
+  # - Counts the predictions whose benchmark is the security, of every
+  #   author; a call about the security itself is not counted.
+  # - A security no prediction measures against counts 0.
+  describe "count_measuring_against/1" do
+    test "counts the predictions that name the security as their benchmark" do
+      index = benchmark!("Measured Index")
+      other = benchmark!("Other Index")
+      a = security!("Alpha Co.")
+
+      {:ok, _} = create(agent(), attrs(a, %{"benchmark" => "security:#{index.id}"}))
+
+      {:ok, _} =
+        create(
+          operator(),
+          attrs(a, %{"benchmark" => "security:#{index.id}"}) |> Map.delete("model")
+        )
+
+      {:ok, _} = create(agent(), attrs(a, %{"benchmark" => "security:#{other.id}"}))
+      # A call about the index itself measures against a rate, not against it.
+      {:ok, _} = create(agent(), attrs(index))
+
+      assert Predictions.count_measuring_against(index.id) == 2
+      assert Predictions.count_measuring_against(other.id) == 1
+      assert Predictions.count_measuring_against(a.id) == 0
+    end
+  end
+
   # User story (ADR-0055 §3; E25 S6, F53's rule):
   # As the operator whose pages are served from derived values,
   # I want a prediction — a record no walk, quote, rate or rule reads — to

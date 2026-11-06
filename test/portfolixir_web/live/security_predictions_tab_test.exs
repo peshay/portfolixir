@@ -354,4 +354,60 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
     assert css =~
              ~r/\.research-entry\.prediction-entry--hit \{\s*border-left-color: var\(--color-positive\);/s
   end
+
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
+  defp unflag(view, security) do
+    render_click(view, "row_action", %{"action" => "benchmark", "id" => "#{security.id}"})
+    view |> element("#securities-action-result-status") |> render() |> text()
+  end
+
+  # User story (V1, #1365 line 2; board 02 part 3 ②, judgment call 8):
+  # As the operator removing a security's benchmark flag,
+  # I want the note to say how many recorded predictions keep measuring
+  # against it, and that a new one can no longer name it,
+  # so that I do not believe the flag rewrites recorded calls.
+  #
+  # Acceptance criteria:
+  # - With predictions measuring against it: "… is no longer a benchmark.
+  #   3 recorded predictions keep measuring against it; a new prediction
+  #   can no longer name it as its benchmark." (1: "1 recorded prediction
+  #   keeps …"); in German as the board writes it.
+  # - Without: the shipped sentence alone.
+  test "unflagging a benchmark counts the predictions that keep measuring against it",
+       %{conn: conn} do
+    w = world()
+    quiet = benchmark!("Synthetic Quiet Index")
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert unflag(view, w.index) =~
+             "Synthetic Industrial Index is no longer a benchmark. 3 recorded predictions keep measuring against it; a new prediction can no longer name it as its benchmark."
+
+    refute Catalog.get_security(w.index.id).is_benchmark
+
+    note = unflag(view, quiet)
+    assert note =~ "Synthetic Quiet Index is no longer a benchmark"
+    refute note =~ "prediction"
+
+    # German, and the singular: one more benchmark with one call against it.
+    single = benchmark!("Synthetic Single Index")
+
+    predict!(Actor.api_token_rw("research-agent"), w.security, -2, %{
+      "benchmark" => "security:#{single.id}",
+      "resolves_on" => Date.to_iso8601(day(30)),
+      "model" => "model-alpha-3"
+    })
+
+    {:ok, view, _html} = live(german(conn), "/securities")
+
+    assert unflag(view, single) =~
+             "Synthetic Single Index ist keine Benchmark mehr. 1 festgehaltene Prognose misst weiter an ihr; eine neue Prognose kann sie nicht mehr als Benchmark nennen."
+  end
 end
