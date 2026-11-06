@@ -7,7 +7,9 @@ description: What an agent knows about a security is recorded as entries that ar
 # ADR-0044: security knowledge as an append-only log, with the thesis state as its projection
 
 - **Status:** Accepted (owner sign-off 2026-09-03, decision gate per
-  [ADR-0026](0026-epic-batch-workflow.html) step 1)
+  [ADR-0026](0026-epic-batch-workflow.html) step 1). Amended 2026-11-06,
+  adopted by the merge of the Sprint 26 planning PR: an entry may carry a
+  headline, an event type and a tone (see the amendment at the end)
 - **Date:** 2026-08-27 (signed 2026-09-03)
 - **Closes gate:** B4.1 (theses and conviction as structured fields), together
   with the agent's P0-6 (an append-only research log). The two were opened
@@ -249,3 +251,46 @@ would be expensive:
 The signature closes gate B4.1 and settles the object; it does not schedule the
 work. Which batch builds it is a separate decision, and stories may now be cut
 against this ADR.
+
+## Amendment of 2026-11-06: a headline, an event type and a tone on an entry
+
+**Adopted by the merge of the Sprint 26 planning PR**, together with
+[ADR-0056's amendment of the same day](0056-news-layer-fetched-matched-stored-labelled-outside.html#amendment-of-2026-11-06-the-owners-shape),
+which it serves. Built with the news layer's second sprint (ADR-0056 §11),
+not before.
+
+**Why:** the owner wants a news item that became knowledge to be drawn on
+the security's chart at the date it became public, with a short headline,
+and rated positive or negative (2026-11-06). An entry today carries only
+its `body`, so a chart has nothing short to show, and nothing says what
+kind of event an entry records.
+
+**What changes in §2.** Three optional fields join the entry, each set
+once at write like every other field, never edited (§3 stands: a
+correction is a new entry that supersedes):
+
+- `headline`: plain text, at most 80 characters, control and invisible
+  characters handled as ADR-0054 §4 sets. The chart shows it; an entry
+  without one is not drawn on the chart.
+- `event_type` ∈ `earnings` · `guidance` · `capital_measure` · `legal` ·
+  `m_and_a` · `product` · `regulatory` · `macro`, a fixed set mapped with
+  `String.to_existing_atom/1`. ADR-0056 §7's `noise` is not in the set: an
+  entry is what was judged worth keeping.
+- `tone` ∈ `-1` · `0` · `+1`: the writer's reading of the item for the
+  security, a stored statement and not a computed figure. It colours a
+  marker; it is never a filter, a sort key or a signal (no advice), as
+  ADR-0056 §7 already binds for a label's tone.
+
+The three are accepted on `evidence` and `event_result` entries only; on
+any other kind they are refused with 422 naming the field. When an entry
+is written from a news story (ADR-0056 §8, `cluster_id`), the server
+pre-fills `headline` from the story's title (cut at 80 characters on a
+word boundary) and `event_type` and `tone` from the story's active label,
+if there is one; the writer may change any of them before the write, and
+the write is the confirmation NFR-10 asks for. The entry keeps the id of
+the label it took them from.
+
+**What does not change:** the log stays append-only, the author stays
+derived from the credential, `machine_generated` stays reserved for a
+local-model path (an outside model's label becomes an entry only through
+an agent's write).

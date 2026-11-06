@@ -49,7 +49,11 @@ same way. No real portfolio, name or machine detail appears.
 - **C, Nebelbalken:** no digits, a soft bar in the figure's colour. The
   calmest, but in tables it reads like a loading state.
 
-Silence adopts B; a review comment "I22 A" or "I22 C" changes it.
+**Picked: C**, by the owner on 2026-11-06, against the recommendation B.
+Its one known weakness, that a bar in a table can read as a loading state,
+is answered by the switch in the top bar, which shows the mode is on; the
+build keeps C's shape as drawn here. The board's text still names B as
+recommended, as it stood when the owner chose.
 
 ## Rebuilding
 
