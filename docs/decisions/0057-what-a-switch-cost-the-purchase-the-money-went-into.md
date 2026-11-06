@@ -8,6 +8,8 @@ description: "Decision for I18's third comparison (FR-50's mode 3). A sale is co
 
 - **Status:** Accepted. Adopted by the merge of the Sprint 26 planning PR
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
+  Amended once (see "Amendment of 2026-11-06: same-day ties without ids
+  (closing act)" below).
 - **Date:** 2026-11-06
 - **Answers:** FR-50's third comparison (`epics.md`: "the trade the
   sale's money went into with its booked costs, needs its own decision");
@@ -64,6 +66,8 @@ the same cash account after it:
    after it, of any security other than the one sold.
 3. **Order:** proceeds wait in a queue by sale date, then booking id; buys
    take from the oldest proceeds first, in date order, then booking id.
+   *(Amendment of 2026-11-06: no booking id decides; same-day sales and
+   same-day buys share pro rata.)*
    A buy takes at most its own cash debit (its price, quantity and fees);
    a sale's last buy may be funded in part, the rest of it by the next
    proceeds or by other money.
@@ -230,4 +234,116 @@ two sides were held over.
 | The window | 30 calendar days | a comment naming another number |
 | Transfers | not followed | "I18 follow transfers" |
 | Taxes | apart, both sides before tax | "I18 taxes inside" (counts the switch's tax and not the kept side's) |
+| Taxes added back | as cash at face value (amendment of 2026-11-06, §2) | "I18 taxes grow" (grows them with the bought security, once F7 can grow the kept side's) |
+| Same-day ties | pro rata, no booking id (amendment of 2026-11-06, §1) | "I18 ties by id" (brings the rebook attack back) |
 | A total | none | "I18 total" |
+
+## Amendment of 2026-11-06: same-day ties without ids (closing act)
+
+**Status:** adopted by the merge of the Sprint 26 PR. The closing act's
+lenses reproduced one defect in the rule above, and three places where
+this record said less than the read does, before any instance read the
+block. Each change below is flippable by a comment naming it. Nothing is
+stored (§8), so every sale re-derives its matches under these rules at its
+next read.
+
+### 1. Same-day ties are split pro rata, never by booking id
+
+**Was (§1.3):** proceeds wait in a queue by sale date, then booking id;
+buys take in date order, then booking id; a `tax_refund` belonged to the
+sale of the same security, date and cash account with the greatest id
+below its own.
+
+**Found** (the money lens, reproduced): a booking id is not a fact of the
+money, and a true, journaled delete and rebook of an unchanged booking
+(ADR-0017) gives it a new, higher id. Three attacks:
+
+- Two buys X and Y on one day, each 10 at 100, paid from one sale of
+  1000; X then falls to 50 and Y rises to 150. Before, X (the lower id)
+  took the money: switched 500 against kept 1000, a difference of −500.
+  After deleting X and booking it again unchanged, Y took it: +500.
+- Two sales A and B on one day, 1000 each, A's security rising and B's
+  falling, one buy of 1000. Rebooking A handed the buy to B, and A's
+  losing switch vanished from the comparison.
+- A `tax_refund` booked before its sale (a lower id) stayed off the sale;
+  rebooking the sale attached it.
+
+§1 and §7 said nobody chooses ("the operator and the agent choose
+nothing"); while ids decided, a rebook chose.
+
+**Now (§1.3):**
+
+- **Proceeds wait in date groups**, one per sale date, and the buys of a
+  date take as one group, in date order, from the oldest proceeds group
+  first, each buy at most its own cash debit. On one date the day's sales
+  enter the queue before its buys take (a same-day buy counts, as §1
+  says).
+- **Within one pairing** of a proceeds group and a buy group, the amount
+  `t = min(the group's remaining proceeds, the buy group's remaining
+  debit)` is split **pro rata**: each sale gives in proportion to its
+  remaining proceeds, each buy takes in proportion to its remaining debit,
+  so sale `i` gives buy `j` the amount `t × r_i / R × d_j / D`.
+- **A buy of a security sold in the same group** may not take from that
+  sale (§1.2). The pairing then runs in rounds: in each round every buy
+  takes `f ×` its remaining debit, split over the sales it may take from
+  in proportion to their remaining proceeds, `f` being the largest factor
+  up to 1 at which no sale gives more than it has; the rounds repeat until
+  no allowed pair has money on both sides. Each round pays every buy it
+  can or uses up a sale, so the rounds end; without such a buy, one round
+  is the split above.
+- **A `tax_refund`** of the sold security on the sale's date and cash
+  account belongs to that sale whatever order the two were booked in; if
+  several sales of that security share the date and the account, they
+  share it in proportion to their booked cash amounts (equally when none
+  is positive).
+- **A candidate pays money:** a buy with no positive cash debit (a
+  zero-price buy, which the ledger accepts) is no candidate, so a sale
+  whose only later buy is one reads `no_buy_within_30_days`, never
+  `proceeds_taken_by_earlier_sale` (the closing act's A1).
+- **Exact until shown:** amounts are carried as exact fractions and
+  rounded once when shown, so a split adds back to its whole; each side of
+  a span is one quotient of exact products, dividing by each hub rate
+  once, so an even switch reads a difference of exactly 0 at any rate
+  (the closing act's M3: at a hub rate of 1.3 it read −1E-31).
+
+With these, the attacks read the same before and after the rebook: the
+two buys take 500 each (switched 250 + 750 = 1000 against kept 1000, a
+difference of 0); the two sales give 500 each (A: kept 750, switched 500,
+−250; B: kept 250, switched 500, +250); the refund joins its sale either
+way.
+
+**Why:** the rule must be a reading of the money, and the money does not
+know the order in which bookings were typed. Pro rata is the split that
+treats two bookings of one date alike without asking which came first.
+
+**To flip:** a comment naming "I18 ties by id" (it brings the rebook
+attack back).
+
+### 2. The taxes added back are not a full before-tax comparison
+
+**Now stated (§3):** the sale's taxes are added back to the switched side
+as **cash at face value**. That is not a fully before-tax comparison: the
+money the tax took would have been invested too, so the difference is off
+by about `−taxes_apart ×` the bought security's return since the buy (it
+understates a switch into a riser and overstates one into a faller).
+
+**Why it stays:** growing the tax with the bought security would set it
+against a kept-side tax that is not known either; the kept position's
+latent tax is F7's tax forward projection, behind its own gate (§9). A
+face-value add-back is the smaller error, and it is stated. The basis's
+`before_tax` clause says so.
+
+**To flip:** a comment naming "I18 taxes grow", once F7 can grow the kept
+side's tax too.
+
+### 3. Two precisions the read already followed
+
+- **A buy's own taxes** are part of its cash debit (§1.3: its price,
+  quantity, fees and taxes), so they are inside the difference, like its
+  fees, and are not in `fees_inside`, which names fees only.
+- **`no_cash_account`** (§4) covers a sale with no cash account, and also
+  a sale whose booked cash amount on its account is not positive, a
+  write-off at price 0: no settlement is no proceeds.
+
+The basis's `before_tax` and `no_match` clauses say both. Nothing to
+flip: they describe the read and change nothing.
