@@ -322,16 +322,36 @@ defmodule Portfolixir.Classifications do
   refusal the delete would answer. Writes nothing.
   """
   def dry_run_delete_classification(%Actor{} = actor, %Classification{} = classification) do
-    DryRun.run(
-      [
-        classifications: Classification,
-        categories: Category,
-        assignments: Assignment,
-        target_plans: TargetPlan,
-        targets: Target
-      ],
-      fn -> delete_classification(actor, classification) end
-    )
+    DryRun.run(classification_delete_kinds(), fn ->
+      delete_classification(actor, classification)
+    end)
+  end
+
+  @doc """
+  `delete_classification/2` held to `held_to:`, the answer of its dry run
+  the screen showed (Sprint 26 V4, #894; `Portfolixir.DryRun.held_to/3`):
+  the delete commits only when it removes exactly those ids, and answers
+  `{:ok, removed}`; otherwise nothing is deleted and it answers
+  `{:error, {:changed, removed}}` with what the delete removes now. A
+  refusal is the delete's own.
+  """
+  def delete_classification(%Actor{} = actor, %Classification{} = classification,
+        held_to: expected
+      ) do
+    DryRun.held_to(classification_delete_kinds(), expected, fn ->
+      delete_classification(actor, classification)
+    end)
+  end
+
+  # The kinds of row a classification's delete reaches.
+  defp classification_delete_kinds do
+    [
+      classifications: Classification,
+      categories: Category,
+      assignments: Assignment,
+      target_plans: TargetPlan,
+      targets: Target
+    ]
   end
 
   # E25 S6, F43: the tree's rows go first, each through its journaled writer
@@ -602,11 +622,21 @@ defmodule Portfolixir.Classifications do
   the delete would answer. Writes nothing.
   """
   def dry_run_delete_category(%Actor{} = actor, %Category{} = category) do
-    DryRun.run(
-      [categories: Category, assignments: Assignment, targets: Target],
-      fn -> delete_category(actor, category) end
-    )
+    DryRun.run(category_delete_kinds(), fn -> delete_category(actor, category) end)
   end
+
+  @doc """
+  `delete_category/2` held to `held_to:`, the answer of its dry run the
+  screen showed (Sprint 26 V4, #894; `Portfolixir.DryRun.held_to/3`):
+  `{:ok, removed}` when the delete removes exactly those ids, otherwise
+  nothing is deleted and the answer is `{:error, {:changed, removed}}`.
+  """
+  def delete_category(%Actor{} = actor, %Category{} = category, held_to: expected) do
+    DryRun.held_to(category_delete_kinds(), expected, fn -> delete_category(actor, category) end)
+  end
+
+  # The kinds of row a category's delete reaches.
+  defp category_delete_kinds, do: [categories: Category, assignments: Assignment, targets: Target]
 
   # The category and every category below it, as stored now.
   defp subtree(%Category{id: id, classification_id: classification_id}) do

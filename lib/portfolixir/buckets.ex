@@ -765,17 +765,29 @@ defmodule Portfolixir.Buckets do
   would remove, or the refusal the delete would answer. Writes nothing.
   """
   def dry_run_delete_view(%Actor{} = actor, %View{} = view) do
-    DryRun.run(
-      [
-        views: View,
-        view_include_buckets: ViewIncludeBucket,
-        view_exclude_buckets: ViewExcludeBucket,
-        target_plans: TargetPlan,
-        targets: Target,
-        depot_snapshots: Snapshot
-      ],
-      fn -> delete_view(actor, view) end
-    )
+    DryRun.run(view_delete_kinds(), fn -> delete_view(actor, view) end)
+  end
+
+  @doc """
+  `delete_view/2` held to `held_to:`, the answer of its dry run the screen
+  showed (Sprint 26 V4, #894; `Portfolixir.DryRun.held_to/3`):
+  `{:ok, removed}` when the delete removes exactly those ids, otherwise
+  nothing is deleted and the answer is `{:error, {:changed, removed}}`.
+  """
+  def delete_view(%Actor{} = actor, %View{} = view, held_to: expected) do
+    DryRun.held_to(view_delete_kinds(), expected, fn -> delete_view(actor, view) end)
+  end
+
+  # The kinds of row a view's delete reaches.
+  defp view_delete_kinds do
+    [
+      views: View,
+      view_include_buckets: ViewIncludeBucket,
+      view_exclude_buckets: ViewExcludeBucket,
+      target_plans: TargetPlan,
+      targets: Target,
+      depot_snapshots: Snapshot
+    ]
   end
 
   # E25 S6, F43: the rows scoped to the view go first, each through its
