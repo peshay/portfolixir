@@ -333,16 +333,17 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
     first = SaleReinvestment.blocks([one, two], @today)
     assert first == SaleReinvestment.blocks([one, two], @today)
 
-    # one (the lower id) is spent first: 300 into the first buy; two gives
-    # 100 to the first buy and 200 to the second.
-    assert [%{amount_taken: taken}] = Map.fetch!(first, one.id).buys
-    assert_decimal(taken, "300")
+    # Same-day ties are split pro rata, never by id (ADR-0057 as amended on
+    # 2026-11-06): proceeds 300 + 300 = 600 on 2025-01-15, debits
+    # 400 + 400 = 800 on 2025-01-16, t = min(600, 800) = 600; each sale
+    # gives each buy 600 x (300 / 600) x (400 / 800) = 150.
+    for sale <- [one, two] do
+      assert [%{amount_taken: first_buy}, %{amount_taken: second_buy}] =
+               Map.fetch!(first, sale.id).buys
 
-    assert [%{amount_taken: hundred}, %{amount_taken: two_hundred}] =
-             Map.fetch!(first, two.id).buys
-
-    assert_decimal(hundred, "100")
-    assert_decimal(two_hundred, "200")
+      assert_decimal(first_buy, "150")
+      assert_decimal(second_buy, "150")
+    end
   end
 
   # User story (R1, ADR-0057 §2: the two sides, per span):
@@ -788,5 +789,279 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
     assert_decimal(spans["1m"].difference, "0")
     assert_decimal(spans["3m"].income_apart, "25")
     assert_decimal(spans["3m"].difference, "0")
+  end
+
+  # --- Sprint 26 closing act, M1 (ADR-0057 as amended on 2026-11-06) ---
+
+  # Deletes a booking through the Ledger and books it again unchanged: a
+  # true, journaled correction that gives the booking a new, higher id.
+  defp rebook!(world, %Transaction{} = row, security) do
+    {:ok, _deleted} = Ledger.delete_transaction(Actor.owner_ui(), row)
+
+    book = if row.type == "buy", do: &buy!/3, else: &sell!/3
+
+    book.(world, security,
+      quantity: Decimal.to_string(row.quantity),
+      price: Decimal.to_string(row.price),
+      fees: Decimal.to_string(row.fees),
+      taxes: Decimal.to_string(row.taxes),
+      date: row.date
+    )
+  end
+
+  # The span figures of a block, by span label, with the booking ids left
+  # out: what must not move when a booking is deleted and booked again.
+  defp figures(block) do
+    %{
+      status: block.status,
+      reason: block.reason,
+      proceeds: block.proceeds,
+      a: block.share_of_proceeds_matched,
+      unallocated: block.unallocated,
+      buys:
+        block.buys
+        |> Enum.map(&{&1.security.id, &1.date, &1.amount_taken, &1.share_of_buy})
+        |> Enum.sort(),
+      spans: Enum.map(block.spans, &Map.take(&1, [:span, :kept, :switched, :difference]))
+    }
+  end
+
+  # User story (closing act M1, ADR-0057 §1.3 as amended: same-day buys
+  # without ids):
+  # As the operator who bought two securities on one day with a sale's money,
+  # I want the proceeds split over both buys in proportion to their debits,
+  # so that which buy was booked first, or rebooked later, cannot decide
+  # what the switch cost.
+  #
+  # Acceptance criteria:
+  # - Two same-day buys of 1000 each share one sale's 1000 pro rata: each
+  #   takes 500, share_of_buy 0.5.
+  # - Deleting the first buy and booking it again unchanged (a higher id)
+  #   leaves every figure as it was.
+  test "two same-day buys share the proceeds pro rata, whatever their ids" do
+    world = base_world(name: "Tie Buys")
+    sold = security!("TB0")
+    x = security!("TBX")
+    y = security!("TBY")
+
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "100"}])
+    put_quotes!(x, [{~D[2025-02-14], "50"}])
+    put_quotes!(y, [{~D[2025-02-14], "150"}])
+
+    # Proceeds 10 x 100 = 1000; debits 10 x 100 = 1000 each, both on
+    # 2025-01-20: t = min(1000, 2000) = 1000, each buy takes
+    # 1000 x 1000 / 2000 = 500, share 500 / 1000 = 0.5.
+    sale = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy_x = buy!(world, x, quantity: "10", price: "100", date: ~D[2025-01-20])
+    buy!(world, y, quantity: "10", price: "100", date: ~D[2025-01-20])
+
+    before = block(sale)
+
+    assert [%{amount_taken: taken_x, share_of_buy: share_x}, %{amount_taken: taken_y}] =
+             Enum.sort_by(before.buys, &(&1.security.id == y.id))
+
+    assert_decimal(taken_x, "500")
+    assert_decimal(share_x, "0.5")
+    assert_decimal(taken_y, "500")
+    assert_decimal(before.share_of_proceeds_matched, "1")
+
+    # 1m (2025-02-15): kept = 1 x 10 x 100 = 1000; switched = 0.5 x 10 x 50
+    # + 0.5 x 10 x 150 = 250 + 750 = 1000; difference = 0. (By id, X alone
+    # took the money: 500 - 1000 = -500; after rebooking X, Y: +500.)
+    one = Enum.find(before.spans, &(&1.span == "1m"))
+    assert_decimal(one.kept, "1000")
+    assert_decimal(one.switched, "1000")
+    assert_decimal(one.difference, "0")
+
+    rebook!(world, buy_x, x)
+    assert figures(block(sale)) == figures(before)
+  end
+
+  # User story (closing act M1, ADR-0057 §1.3 as amended: same-day sales
+  # without ids):
+  # As the operator who sold two positions on one day and bought one,
+  # I want the buy funded by both sales in proportion to their proceeds,
+  # so that rebooking one sale cannot make a losing switch vanish.
+  #
+  # Acceptance criteria:
+  # - Two same-day sales of 1000 each fund one buy of 1000 with 500 each,
+  #   a = 0.5 for both.
+  # - Deleting one sale and booking it again unchanged leaves both blocks'
+  #   figures as they were.
+  test "two same-day sales fund one buy pro rata, whatever their ids" do
+    world = base_world(name: "Tie Sales")
+    rises = security!("TSA")
+    falls = security!("TSB")
+    bought = security!("TSZ")
+
+    put_quotes!(rises, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "150"}])
+    put_quotes!(falls, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "50"}])
+    put_quotes!(bought, [{~D[2025-02-14], "100"}])
+
+    # Proceeds 1000 each on 2025-01-15; the buy's debit 10 x 100 = 1000:
+    # t = min(2000, 1000) = 1000, each sale gives 1000 x 1000 / 2000 = 500,
+    # a = 500 / 1000 = 0.5, unallocated 500, share_of_buy 500 / 1000 = 0.5.
+    sale_a = sell!(world, rises, quantity: "10", price: "100", date: ~D[2025-01-15])
+    sale_b = sell!(world, falls, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(world, bought, quantity: "10", price: "100", date: ~D[2025-01-16])
+
+    blocks = SaleReinvestment.blocks([sale_a, sale_b], @today)
+    a = Map.fetch!(blocks, sale_a.id)
+    b = Map.fetch!(blocks, sale_b.id)
+
+    for block <- [a, b] do
+      assert block.status == :matched
+      assert [%{amount_taken: taken, share_of_buy: share}] = block.buys
+      assert_decimal(taken, "500")
+      assert_decimal(share, "0.5")
+      assert_decimal(block.share_of_proceeds_matched, "0.5")
+      assert_decimal(block.unallocated, "500")
+    end
+
+    # 1m: A kept = 0.5 x 10 x 150 = 750, switched = 0.5 x 10 x 100 = 500,
+    # difference -250; B kept = 0.5 x 10 x 50 = 250, switched 500, +250.
+    # (By id, A alone: 1000 - 1500 = -500 and B no_match; after rebooking
+    # A, B alone: +500 and the losing switch gone.)
+    one_a = Enum.find(a.spans, &(&1.span == "1m"))
+    assert_decimal(one_a.kept, "750")
+    assert_decimal(one_a.switched, "500")
+    assert_decimal(one_a.difference, "-250")
+    one_b = Enum.find(b.spans, &(&1.span == "1m"))
+    assert_decimal(one_b.kept, "250")
+    assert_decimal(one_b.difference, "250")
+
+    rebooked = rebook!(world, sale_a, rises)
+    after_rebook = SaleReinvestment.blocks([rebooked, sale_b], @today)
+    assert figures(Map.fetch!(after_rebook, rebooked.id)) == figures(a)
+    assert figures(Map.fetch!(after_rebook, sale_b.id)) == figures(b)
+  end
+
+  # User story (closing act M1, ADR-0057 §1.1 as amended: a refund without
+  # ids):
+  # As the operator whose sale brought a tax refund booked beside it,
+  # I want the refund attached to its sale whatever the order the two were
+  # booked in, and split pro rata over two same-day sales of the security,
+  # so that rebooking either booking cannot move the proceeds.
+  #
+  # Acceptance criteria:
+  # - A tax_refund booked before its sale (a lower id) still joins the sale's
+  #   proceeds and is a negative tax of it.
+  # - Two same-day sales of the security on the account share one refund in
+  #   proportion to their proceeds.
+  # - Deleting a sale and booking it again unchanged moves nothing.
+  test "a tax refund attaches to its sale whatever the ids, pro rata over a day's sales" do
+    world = base_world(name: "Tie Refund")
+    sold = security!("TRX")
+    bought = security!("TRZ")
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "100"}])
+    put_quotes!(bought, [{~D[2025-02-14], "1010"}])
+
+    # The refund is booked first, so its id is below both sales'.
+    {:ok, refund} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: sold.id,
+        type: "tax_refund",
+        date: ~D[2025-01-15],
+        gross_amount: "40",
+        currency_code: "EUR"
+      })
+
+    small = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    large = sell!(world, sold, quantity: "30", price: "100", date: ~D[2025-01-15])
+    assert refund.id < small.id
+    buy!(world, bought, quantity: "4", price: "1010", date: ~D[2025-01-20])
+
+    # The refund 40 splits by the sales' cash amounts 1000 and 3000:
+    #   small: 40 x 1000 / 4000 = 10, proceeds 1010, taxes 0 - 10 = -10
+    #   large: 40 x 3000 / 4000 = 30, proceeds 3030, taxes -30
+    # The buy's debit 4 x 1010 = 4040 = 1010 + 3030: t = 4040, each sale
+    # gives all of its proceeds, a = 1; share_of_buy 1010 / 4040 = 0.25 and
+    # 3030 / 4040 = 0.75.
+    blocks = SaleReinvestment.blocks([small, large], @today)
+    first = Map.fetch!(blocks, small.id)
+    second = Map.fetch!(blocks, large.id)
+    assert_decimal(first.proceeds, "1010")
+    assert_decimal(second.proceeds, "3030")
+    assert_decimal(first.share_of_proceeds_matched, "1")
+    assert [%{share_of_buy: quarter}] = first.buys
+    assert_decimal(quarter, "0.25")
+
+    # 1m: small kept = 1 x 10 x 100 = 1000, switched = 0.25 x 4 x 1010 =
+    # 1010, taxes_apart = -10, difference = 1010 - 10 - 1000 = 0; large kept
+    # = 3000, switched = 0.75 x 4 x 1010 = 3030, taxes_apart = -30,
+    # difference 0.
+    one = Enum.find(first.spans, &(&1.span == "1m"))
+    assert_decimal(one.switched, "1010")
+    assert_decimal(one.taxes_apart, "-10")
+    assert_decimal(one.difference, "0")
+    two = Enum.find(second.spans, &(&1.span == "1m"))
+    assert_decimal(two.switched, "3030")
+    assert_decimal(two.taxes_apart, "-30")
+    assert_decimal(two.difference, "0")
+
+    # The small sale deleted and booked again: now its id is above the
+    # refund's and the large sale's; nothing moves.
+    rebooked = rebook!(world, small, sold)
+    again = SaleReinvestment.blocks([rebooked, large], @today)
+    assert figures(Map.fetch!(again, rebooked.id)) == figures(first)
+    assert figures(Map.fetch!(again, large.id)) == figures(second)
+  end
+
+  # User story (closing act M1, ADR-0057 §1.3 as amended: a buy of a
+  # security sold in the same group):
+  # As the operator who sold X and Y on one day and then bought X back and
+  # Z,
+  # I want the pro rata split to keep X's money out of the X buy and still
+  # end, by rule,
+  # so that the exclusion of the sold security holds without any id.
+  #
+  # Acceptance criteria:
+  # - The pairing runs in rounds: each buy takes f x its need, split over
+  #   the sales it may take from by their remaining proceeds, f the largest
+  #   factor up to 1 that no sale overdraws; the rounds repeat until no
+  #   allowed pair has money on both sides.
+  test "a buy of a security sold the same day takes only from the other sales" do
+    world = base_world(name: "Tie Exclusion")
+    x = security!("TEX")
+    y = security!("TEY")
+    z = security!("TEZ")
+
+    sale_x = sell!(world, x, quantity: "1", price: "100", date: ~D[2025-01-15])
+    sale_y = sell!(world, y, quantity: "1", price: "100", date: ~D[2025-01-15])
+    buy_x = buy!(world, x, quantity: "1", price: "100", date: ~D[2025-01-16])
+    buy_z = buy!(world, z, quantity: "1", price: "100", date: ~D[2025-01-16])
+
+    # Proceeds X 100, Y 100; needs: buy X 100 (may take from Y only), buy Z
+    # 100 (from X and Y).
+    # Round 1: E(buy X) = 100, E(buy Z) = 200; loads: sale X 100/200 = 1/2,
+    #   sale Y 100/100 + 100/200 = 3/2; f = min(1, 2, 2/3) = 2/3.
+    #   Y -> buy X = 2/3 x 100 x 100/100 = 200/3; X -> Z = Y -> Z =
+    #   2/3 x 100 x 100/200 = 100/3. Sale Y is used up; X has 200/3 left;
+    #   each buy needs 100/3 more.
+    # Round 2: buy X has no sale left to take from; E(buy Z) = 200/3, load of
+    #   X = (100/3)/(200/3) = 1/2, f = 1: X -> Z += 100/3. Buy Z is paid.
+    # Sale X: Z took 200/3, a = (200/3)/100 = 2/3, unallocated 100/3.
+    # Sale Y: buy X 200/3 and Z 100/3, a = 1, unallocated 0.
+    blocks = SaleReinvestment.blocks([sale_x, sale_y], @today)
+
+    from_x = Map.fetch!(blocks, sale_x.id)
+    assert [%{buy_id: z_id, amount_taken: x_to_z}] = from_x.buys
+    assert z_id == buy_z.id
+    assert_decimal(x_to_z, "66.66666666666666666666666666666667")
+    assert_decimal(from_x.share_of_proceeds_matched, "0.6666666666666666666666666666666667")
+    assert_decimal(from_x.unallocated, "33.33333333333333333333333333333333")
+
+    from_y = Map.fetch!(blocks, sale_y.id)
+
+    assert [%{buy_id: ^z_id, amount_taken: y_to_z}, %{amount_taken: y_to_x} = to_x] =
+             Enum.sort_by(from_y.buys, &(&1.buy_id == buy_x.id))
+
+    assert to_x.buy_id == buy_x.id
+    assert_decimal(y_to_x, "66.66666666666666666666666666666667")
+    assert_decimal(y_to_z, "33.33333333333333333333333333333333")
+    assert_decimal(from_y.share_of_proceeds_matched, "1")
+    assert_decimal(from_y.unallocated, "0")
   end
 end

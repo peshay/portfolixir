@@ -7,23 +7,35 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   and the figures from the closes and rates the catalogue holds at that
   moment, so the same ledger always gives the same answer.
 
-  ## The matching rule (ADR-0057 §1)
+  ## The matching rule (ADR-0057 §1, as amended on 2026-11-06)
+
+  No booking id decides anything: a booking deleted and booked again
+  unchanged gives the same answer.
 
     1. **Proceeds** are the sale's booked cash amount on its cash account
        (`Portfolixir.Ledger.Projection.cash_amount/1`: its settlement, after
        its fees and taxes), in that account's currency. A tax refund split
        off the sale (a `tax_refund` booking of the sold security on the
-       sale's date and cash account, the shape the import gives it) is a
-       negative tax of the sale: its cash joins the proceeds and its amount
-       lowers the sale's taxes.
+       sale's date and cash account, the shape the import gives it, booked
+       before or after the sale) is a negative tax of the sale: its cash
+       joins the proceeds and its amount lowers the sale's taxes. Several
+       sales of that security on that date and account share it in
+       proportion to their booked cash amounts (equally when none is
+       positive).
     2. **Candidates** are `buy` bookings debiting the same cash account,
        dated on or after the sale's date and at most #{30} calendar days after
        it, of any security other than the one sold.
-    3. **Order:** proceeds wait in a queue by sale date, then booking id;
-       buys take from the oldest proceeds first, in date order, then booking
-       id, each at most its own cash debit (`cash_amount/1` negated: price,
-       quantity, fees and taxes). On one date the day's sales enter the queue
-       before its buys take from it.
+    3. **Order:** proceeds wait in date groups, one per sale date; buys take
+       as date groups, in date order, from the oldest proceeds group first,
+       each buy at most its own cash debit (`cash_amount/1` negated: price,
+       quantity, fees and taxes). On one date the day's sales enter the
+       queue before its buys take from it. Within one pairing of a proceeds
+       group and a buy group the amount `t = min(the group's remaining
+       proceeds, the buy group's remaining debit)` is split **pro rata**:
+       each sale gives in proportion to its remaining proceeds, each buy
+       takes in proportion to its remaining debit. Where a buy may not take
+       from a sale of its own security, the pairing runs in rounds (see
+       `pair/3`) until no allowed pair has money on both sides.
     4. What is left over is `unallocated` and stays out of the comparison.
 
   A sale with no cash account, or whose booked cash amount is not positive
@@ -160,18 +172,28 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
       rule:
         "found by rule, never chosen (ADR-0057 §1): a sale's proceeds, its booked cash " <>
           "amount on its cash account (its settlement after its fees and taxes; a tax_refund " <>
-          "of the sold security booked on the sale's date and cash account after it is a " <>
-          "negative tax of the sale and joins them), go into the buy bookings that debit " <>
-          "the same cash account, of any security other than the one sold",
+          "of the sold security booked on the sale's date and cash account, before or after " <>
+          "it, is a negative tax of the sale and joins them, shared by that day's sales of " <>
+          "the security on the account in proportion to their cash amounts), go into the " <>
+          "buy bookings that debit the same cash account, of any security other than the " <>
+          "one sold. No booking id decides: a booking deleted and booked again unchanged " <>
+          "gives the same answer",
       window:
         "a buy is a candidate from the sale's date to #{@window_days} calendar days after " <>
           "it, both included; a sale less than #{@window_days} days old can still be " <>
           "matched by a buy booked later",
       order:
-        "proceeds wait in a queue by sale date, then booking id; buys take from the oldest " <>
-          "proceeds first, in date order, then booking id, each at most its own cash debit " <>
-          "(price x quantity plus its fees and taxes); on one date the day's sales enter " <>
-          "the queue before its buys take. A buy funded in part counts with its " <>
+        "proceeds wait in date groups, one per sale date; the buys of each date, as one " <>
+          "group in date order, take from the oldest proceeds group first, each buy at most " <>
+          "its own cash debit (price x quantity plus its fees and taxes); on one date the " <>
+          "day's sales enter the queue before its buys take. Within a pairing of a proceeds " <>
+          "group and a buy group, t = min(the group's remaining proceeds, the buy group's " <>
+          "remaining debit) is split pro rata: each sale gives in proportion to its " <>
+          "remaining proceeds, each buy takes in proportion to its remaining debit; where " <>
+          "a buy may not take from a sale of its own security, the pairing repeats on what " <>
+          "is left, each buy splitting its take over the sales it may take from by their " <>
+          "remaining proceeds, until no allowed pair has money on both sides. Amounts are " <>
+          "exact until shown. A buy funded in part counts with its " <>
           "share_of_buy. What no buy took is unallocated and stays out of the comparison: " <>
           "money that waited is not money that switched. share_of_proceeds_matched (a) is " <>
           "the sum taken over the proceeds",
@@ -295,15 +317,17 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   end
 
   @doc """
-  The matching rule (ADR-0057 §1) over ledger rows: `buy`, `sell` and
-  `tax_refund` bookings, each with its `cash_account_id`. Pure: the same
-  rows give the same answer.
+  The matching rule (ADR-0057 §1, as amended on 2026-11-06) over ledger
+  rows: `buy`, `sell` and `tax_refund` bookings, each with its
+  `cash_account_id`. Pure, and free of booking ids: the same rows give the
+  same answer, and so do the same rows deleted and booked again.
 
   Answers `%{sale_id => match}` for every sell with a cash account, where a
-  match is `%{security_id, proceeds, taxes, fees, refunds, takes,
-  candidate?}`: the sold security, the proceeds (or nil when not positive), the sale's taxes net of its refunds
-  (signed), its fees, the refund bookings, the takes (`%{buy, amount}`, in
-  queue order) and whether any candidate buy existed.
+  match is `%{security_id, proceeds, taxes, fees, takes, candidate?}`: the
+  sold security, the proceeds (an exact `Fraction`, or nil when not
+  positive), the sale's taxes net of its share of the refunds (signed), its
+  fees, the takes (`%{buy, amount}`, the amount an exact `Fraction`, by buy
+  date) and whether any candidate buy existed.
   """
   @spec match([Transaction.t() | map()]) :: %{optional(integer()) => map()}
   def match(rows) when is_list(rows) do
@@ -315,17 +339,11 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   end
 
   defp match_account(rows) do
-    sales = rows |> Enum.filter(&(&1.type == "sell")) |> Enum.sort_by(&order_key/1)
-    buys = rows |> Enum.filter(&(&1.type == "buy")) |> Enum.sort_by(&order_key/1)
-    refunds = refunds_by_sale(Enum.filter(rows, &(&1.type == "tax_refund")), sales)
-
-    entries = Enum.map(sales, &entry(&1, Map.get(refunds, &1.id, [])))
-
-    takes =
-      (Enum.map(entries, &{:sale, &1}) ++ Enum.map(buys, &{:buy, &1}))
-      |> Enum.sort_by(&event_key/1)
-      |> Enum.reduce({[], %{}}, &step/2)
-      |> elem(1)
+    sales = Enum.filter(rows, &(&1.type == "sell"))
+    buys = Enum.filter(rows, &(&1.type == "buy"))
+    refunds = refund_shares(Enum.filter(rows, &(&1.type == "tax_refund")), sales)
+    entries = Enum.map(sales, &entry(&1, Map.get(refunds, &1.id, Fraction.zero())))
+    takes = allocate(entries, buys)
 
     Enum.map(entries, fn entry ->
       {entry.sale.id,
@@ -333,49 +351,49 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
          security_id: entry.sale.security_id,
          proceeds: entry.proceeds,
          taxes: entry.taxes,
-         fees: entry.sale.fees || @zero,
-         refunds: entry.refunds,
-         takes: takes |> Map.get(entry.sale.id, []) |> Enum.reverse(),
+         fees: Fraction.new(entry.sale.fees || @zero),
+         takes: takes_of(takes, entry.sale.id),
          candidate?: Enum.any?(buys, &candidate?(entry.sale, &1))
        }}
     end)
   end
 
-  defp order_key(row), do: {Date.to_gregorian_days(row.date), row.id}
+  # A refund split off a sale (a tax_refund of the sold security on the
+  # sale's date and cash account) belongs to that sale, whatever the order
+  # the two were booked in. Several sales of the security on that date and
+  # account share it in proportion to their booked cash amounts (equally
+  # when none is positive): no booking id decides.
+  defp refund_shares(refunds, sales) do
+    Enum.reduce(refunds, %{}, fn refund, shares ->
+      siblings =
+        Enum.filter(sales, &(&1.security_id == refund.security_id and &1.date == refund.date))
 
-  # On one date, the day's sales enter the queue before its buys take.
-  defp event_key({:sale, entry}), do: {Date.to_gregorian_days(entry.sale.date), 0, entry.sale.id}
-  defp event_key({:buy, buy}), do: {Date.to_gregorian_days(buy.date), 1, buy.id}
+      weights = refund_weights(siblings)
+      total = weights |> Enum.map(&elem(&1, 1)) |> Fraction.sum()
+      amount = Fraction.new(cash(refund))
 
-  # A refund split off a sale is booked right after it: it belongs to the
-  # sale of the same security, date and cash account with the greatest id
-  # below its own.
-  defp refunds_by_sale(refunds, sales) do
-    refunds
-    |> Enum.flat_map(fn refund ->
-      sales
-      |> Enum.filter(
-        &(&1.security_id == refund.security_id and &1.date == refund.date and &1.id < refund.id)
-      )
-      |> Enum.max_by(& &1.id, fn -> nil end)
-      |> case do
-        nil -> []
-        sale -> [{sale.id, refund}]
-      end
+      Enum.reduce(weights, shares, fn {sale, weight}, acc ->
+        share = amount |> Fraction.mult(weight) |> Fraction.divide(total)
+        Map.update(acc, sale.id, share, &Fraction.add(&1, share))
+      end)
     end)
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
   end
 
-  defp entry(sale, refunds) do
-    refunded = Enum.reduce(refunds, @zero, &Decimal.add(cash(&1), &2))
-    proceeds = Decimal.add(cash(sale), refunded)
+  defp refund_weights(siblings) do
+    weights = Enum.map(siblings, &{&1, &1 |> cash() |> Decimal.max(@zero) |> Fraction.new()})
+
+    if Enum.any?(weights, fn {_sale, weight} -> Fraction.positive?(weight) end),
+      do: weights,
+      else: Enum.map(siblings, &{&1, Fraction.new(1)})
+  end
+
+  defp entry(sale, refunded) do
+    proceeds = sale |> cash() |> Fraction.new() |> Fraction.add(refunded)
 
     %{
       sale: sale,
-      refunds: refunds,
-      taxes: Decimal.sub(sale.taxes || @zero, refunded),
-      proceeds: if(positive?(proceeds), do: proceeds, else: nil),
-      remaining: if(positive?(proceeds), do: proceeds, else: @zero)
+      taxes: sale.taxes |> Kernel.||(@zero) |> Fraction.new() |> Fraction.sub(refunded),
+      proceeds: if(Fraction.positive?(proceeds), do: proceeds, else: nil)
     }
   end
 
@@ -386,41 +404,143 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
 
   defp debit_fraction(buy), do: Fraction.new(debit(buy))
 
-  defp positive?(amount), do: Decimal.compare(amount, @zero) == :gt
+  # The allocation (§1.3 as amended): proceeds wait in date groups, one per
+  # sale date; on each date the day's group joins the queue, then the day's
+  # buys, as one group, take from the oldest group first. A group pairing
+  # splits pro rata (`pair/3`). Answers `%{{sale_id, buy_id} => amount}`.
+  defp allocate(entries, buys) do
+    sales_by_date =
+      entries
+      |> Enum.filter(& &1.proceeds)
+      |> Enum.group_by(& &1.sale.date)
 
-  defp step({:sale, entry}, {queue, takes}), do: {queue ++ [entry], takes}
+    buys_by_date =
+      buys
+      |> Enum.filter(&Fraction.positive?(debit_fraction(&1)))
+      |> Enum.group_by(& &1.date)
 
-  defp step({:buy, buy}, {queue, takes}) do
-    debit = debit(buy)
+    state = %{
+      queue: [],
+      remaining: Map.new(entries, &{&1.sale.id, &1.proceeds || Fraction.zero()}),
+      need: Map.new(buys, &{&1.id, debit_fraction(&1)}),
+      takes: %{}
+    }
 
-    if positive?(debit) do
-      take(queue, buy, debit, [], takes)
-    else
-      {queue, takes}
+    (Map.keys(sales_by_date) ++ Map.keys(buys_by_date))
+    |> Enum.uniq()
+    |> Enum.sort(Date)
+    |> Enum.reduce(state, fn date, state ->
+      state = %{state | queue: state.queue ++ group(sales_by_date, date)}
+      take_day(state, date, Map.get(buys_by_date, date, []))
+    end)
+    |> Map.fetch!(:takes)
+  end
+
+  defp group(sales_by_date, date) do
+    case Map.get(sales_by_date, date) do
+      nil -> []
+      entries -> [{date, Enum.map(entries, & &1.sale)}]
     end
   end
 
-  # The buy walks the queue oldest first and takes from each eligible
-  # entry until its debit is paid or the queue ends; `need` is what is still
-  # unpaid, `:paid` once nothing is.
-  defp take([], _buy, _need, passed, takes), do: {Enum.reverse(passed), takes}
-  defp take(queue, _buy, :paid, passed, takes), do: {Enum.reverse(passed, queue), takes}
+  # The day's buys walk the queue oldest group first, each group within
+  # the window of the day.
+  defp take_day(state, _date, []), do: state
 
-  defp take([entry | rest], buy, need, passed, takes) do
-    if eligible?(entry, buy) do
-      amount = Decimal.min(entry.remaining, need)
-      entry = %{entry | remaining: Decimal.sub(entry.remaining, amount)}
-      taken = %{buy: buy, amount: amount}
-      takes = Map.update(takes, entry.sale.id, [taken], &[taken | &1])
-      left = Decimal.sub(need, amount)
-      take(rest, buy, if(positive?(left), do: left, else: :paid), [entry | passed], takes)
-    else
-      take(rest, buy, need, [entry | passed], takes)
+  defp take_day(state, date, buys) do
+    Enum.reduce(state.queue, state, fn {sale_date, sales}, state ->
+      if Date.diff(date, sale_date) <= @window_days,
+        do: pair(state, sales, buys),
+        else: state
+    end)
+  end
+
+  # One pairing of a proceeds group with a buy group, in rounds. In a round
+  # each buy j still owed money takes f x need_j, split over the sales i it
+  # may take from (another security, money left) in proportion to their
+  # remaining proceeds r_i: x_ij = f x need_j x r_i / E_j, E_j = the sum of
+  # those r_i. f is the largest factor, at most 1, that no sale gives more
+  # than it has. Without a buy of a sold security, one round is the plain pro
+  # rata split: t = min(R, D), x_ij = t x r_i / R x need_j / D. Each round
+  # either pays every buy it can (f = 1) or uses up a sale, so the rounds
+  # end; the amounts are exact fractions, so no booking order rounds them.
+  defp pair(state, sales, buys) do
+    live = Enum.filter(sales, &Fraction.positive?(Map.fetch!(state.remaining, &1.id)))
+
+    active =
+      for buy <- buys,
+          Fraction.positive?(Map.fetch!(state.need, buy.id)),
+          eligible = Enum.filter(live, &(&1.security_id != buy.security_id)),
+          eligible != [],
+          do:
+            {buy, eligible,
+             eligible |> Enum.map(&Map.fetch!(state.remaining, &1.id)) |> Fraction.sum()}
+
+    case active do
+      [] -> state
+      active -> round(state, sales, buys, active)
     end
   end
 
-  defp eligible?(entry, buy),
-    do: positive?(entry.remaining) and candidate?(entry.sale, buy)
+  defp round(state, sales, buys, active) do
+    # The round reads the amounts as they stood when it began.
+    %{need: need, remaining: remaining} = state
+
+    loads =
+      Enum.reduce(active, %{}, fn {buy, eligible, supply}, loads ->
+        load = Fraction.divide(Map.fetch!(need, buy.id), supply)
+
+        Enum.reduce(eligible, loads, fn sale, loads ->
+          Map.update(loads, sale.id, load, &Fraction.add(&1, load))
+        end)
+      end)
+
+    one = Fraction.new(1)
+
+    factor =
+      loads
+      |> Map.values()
+      |> Enum.map(&Fraction.divide(one, &1))
+      |> Enum.reduce(one, &Fraction.min/2)
+
+    state =
+      for {buy, eligible, supply} <- active, sale <- eligible, reduce: state do
+        state ->
+          amount =
+            factor
+            |> Fraction.mult(Map.fetch!(need, buy.id))
+            |> Fraction.mult(Map.fetch!(remaining, sale.id))
+            |> Fraction.divide(supply)
+
+          give(state, sale.id, buy, amount)
+      end
+
+    if Fraction.compare(factor, one) == :eq, do: state, else: pair(state, sales, buys)
+  end
+
+  defp give(state, sale_id, buy, amount) do
+    %{
+      state
+      | remaining: Map.update!(state.remaining, sale_id, &Fraction.sub(&1, amount)),
+        need: Map.update!(state.need, buy.id, &Fraction.sub(&1, amount)),
+        takes:
+          Map.update(state.takes, sale_id, %{buy.id => {buy, amount}}, fn by_buy ->
+            Map.update(by_buy, buy.id, {buy, amount}, fn {buy, sum} ->
+              {buy, Fraction.add(sum, amount)}
+            end)
+          end)
+    }
+  end
+
+  # A sale's takes, by buy date (the booking id only orders the display of
+  # two buys of one date; it decides no amount).
+  defp takes_of(takes, sale_id) do
+    takes
+    |> Map.get(sale_id, %{})
+    |> Map.values()
+    |> Enum.sort_by(fn {buy, _amount} -> {Date.to_gregorian_days(buy.date), buy.id} end)
+    |> Enum.map(fn {buy, amount} -> %{buy: buy, amount: amount} end)
+  end
 
   defp candidate?(sale, buy) do
     days = Date.diff(buy.date, sale.date)
@@ -442,33 +562,33 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   end
 
   defp block(sale, %{takes: takes, proceeds: proceeds} = match, context) do
-    taken = Enum.reduce(takes, @zero, &Decimal.add(&1.amount, &2))
+    taken = takes |> Enum.map(& &1.amount) |> Fraction.sum()
     [%{buy: first} | _rest] = takes
     base = base(sale, :matched, nil)
 
-    # The sides take exact fractions (see measure/5).
+    # The sides take the exact fractions (see measure/5).
     switch = %{
       currency: base.currency_code,
-      taken: Fraction.new(taken),
-      proceeds: Fraction.new(proceeds),
-      taxes: Fraction.new(match.taxes),
-      fees: Fraction.new(match.fees),
-      takes: Enum.map(takes, &%{&1 | amount: Fraction.new(&1.amount)})
+      taken: taken,
+      proceeds: proceeds,
+      taxes: match.taxes,
+      fees: match.fees,
+      takes: takes
     }
 
     %{
       base
-      | proceeds: proceeds,
+      | proceeds: Fraction.to_decimal(proceeds),
         buys: Enum.map(takes, &matched_buy/1),
         days_to_first_buy: Date.diff(first.date, sale.date),
-        share_of_proceeds_matched: Decimal.div(taken, proceeds),
-        unallocated: Decimal.sub(proceeds, taken),
+        share_of_proceeds_matched: taken |> Fraction.divide(proceeds) |> Fraction.to_decimal(),
+        unallocated: proceeds |> Fraction.sub(taken) |> Fraction.to_decimal(),
         spans: spans(sale, switch, context)
     }
   end
 
   defp no_match(sale, match, reason) do
-    proceeds = match && match.proceeds
+    proceeds = match && match.proceeds && Fraction.to_decimal(match.proceeds)
     %{base(sale, :no_match, reason) | proceeds: proceeds, unallocated: proceeds}
   end
 
@@ -499,8 +619,8 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
       security: buy.security,
       quantity: buy.quantity,
       cash_debit: debit,
-      amount_taken: amount,
-      share_of_buy: Decimal.div(amount, debit)
+      amount_taken: Fraction.to_decimal(amount),
+      share_of_buy: amount |> Fraction.divide(Fraction.new(debit)) |> Fraction.to_decimal()
     }
   end
 

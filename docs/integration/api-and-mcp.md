@@ -2292,8 +2292,13 @@ Example account payloads:
   amount on its cash account, after its fees and taxes) go into the buys
   that debit the same cash account, dated from the sale's date to 30
   calendar days after it, of any security other than the one sold; oldest
-  proceeds first (by sale date, then booking id), each buy taking at most
-  its own cash debit, so a larger buy is funded in part. The block carries
+  proceeds first (by sale date), each buy taking at most its own cash
+  debit, so a larger buy is funded in part. Same-day sales and same-day buys
+  share **pro rata** (each sale by its remaining proceeds, each buy by its
+  remaining debit), never by booking id: a booking deleted and booked again
+  unchanged moves no figure. A `tax_refund` of the sold security on the
+  sale's date and cash account joins that sale's proceeds whatever order
+  the two were booked in. The block carries
   `status` (`matched` or `no_match`), `reason` (`no_buy_within_30_days`,
   `proceeds_taken_by_earlier_sale`, `no_cash_account`), `cash_account_id`,
   `currency_code` (the cash account's), `proceeds`, `buys` (`buy_id`,

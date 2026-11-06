@@ -2496,9 +2496,15 @@ Beispiel-Payloads für Konten:
   gebuchte Geldbetrag des Verkaufs auf seinem Konto, nach Gebühren und
   Steuern) geht in die Käufe, die dasselbe Konto belasten, datiert vom
   Verkaufsdatum bis 30 Kalendertage danach, in ein anderes Wertpapier als
-  das verkaufte; der älteste Erlös zuerst (nach Verkaufsdatum, dann
-  Buchungs-ID), jeder Kauf nimmt höchstens seine eigene Belastung, sodass
-  ein größerer Kauf nur teilweise finanziert ist. Der Block trägt `status`
+  das verkaufte; der älteste Erlös zuerst (nach Verkaufsdatum), jeder Kauf
+  nimmt höchstens seine eigene Belastung, sodass ein größerer Kauf nur
+  teilweise finanziert ist. Verkäufe desselben Tages und Käufe desselben
+  Tages teilen **anteilig** (jeder Verkauf nach seinem verbleibenden Erlös,
+  jeder Kauf nach seiner verbleibenden Belastung), nie nach Buchungs-ID:
+  Eine Buchung, die gelöscht und unverändert neu gebucht wird, bewegt keine
+  Zahl. Ein `tax_refund` des verkauften Wertpapiers am Verkaufsdatum auf
+  demselben Konto gehört zum Erlös dieses Verkaufs, gleich in welcher
+  Reihenfolge beide gebucht wurden. Der Block trägt `status`
   (`matched` oder `no_match`), `reason` (`no_buy_within_30_days`,
   `proceeds_taken_by_earlier_sale`, `no_cash_account`), `cash_account_id`,
   `currency_code` (die des Kontos), `proceeds`, `buys` (`buy_id`, `date`,
