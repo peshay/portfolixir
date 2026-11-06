@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.PredictionsLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Clock
+  alias Portfolixir.Input.Text
   alias Portfolixir.Predictions
   alias Portfolixir.Predictions.Prediction
   alias PortfolixirWeb.AppShell
@@ -38,6 +39,10 @@ defmodule PortfolixirWeb.PredictionsLive do
   alias PortfolixirWeb.PredictionLabel
   alias PortfolixirWeb.StoredText
 
+  # Every figure on this page is a ratio (a Brier score, its error and
+  # reference, a sharpness, a band's bounds), a percentage or a count, so
+  # each stays in the privacy mode (P1): `Format.plain_decimal/2`, never
+  # the masked `Format.decimal/2`.
   @authors ~w(operator agent)
   @statuses ~w(open due resolved unresolved)
   # A model is stored at up to 100 characters (Prediction.model_max/0).
@@ -66,8 +71,13 @@ defmodule PortfolixirWeb.PredictionsLive do
 
   defp closed(_value, _allowed), do: nil
 
-  defp model(value) when is_binary(value) and value != "" and byte_size(value) <= @model_max,
-    do: value
+  # A model filter is a text a stored model can be (`Input.Text`'s rule,
+  # which the model was stored under): valid UTF-8, no control or invisible
+  # character, at most the stored length. Anything else, such as `%00`,
+  # which the database refuses in a query, filters nothing.
+  defp model(value) when is_binary(value) and value != "" do
+    if Text.check(value, max: @model_max) == :ok, do: value
+  end
 
   defp model(_value), do: nil
 
@@ -236,7 +246,7 @@ defmodule PortfolixirWeb.PredictionsLive do
             <:line>
               <%= gettext(
                 "Brier score: the mean of (p − o)² over the resolved predictions, p the stated probability, o 1 for a hit and 0 otherwise. The reference %{reference} is the score of “always 50 %”.",
-                reference: Format.decimal(@report.brier.reference, 2)
+                reference: Format.plain_decimal(@report.brier.reference, 2)
               ) %>
             </:line>
             <:line>
@@ -271,17 +281,17 @@ defmodule PortfolixirWeb.PredictionsLive do
         <article class="stat stat--compact" data-role="prediction-brier">
           <span><%= gettext("Brier score") %></span>
           <strong>
-            <%= Format.decimal(@report.brier.score, 3) %><small class="value-suffix"> ± <%= Format.decimal(@report.brier.standard_error, 3) %></small>
+            <%= Format.plain_decimal(@report.brier.score, 3) %><small class="value-suffix"> ± <%= Format.plain_decimal(@report.brier.standard_error, 3) %></small>
           </strong>
           <small class="stat__sub">
             <%= gettext("± standard error · reference %{reference} = always 50 % · lower is better",
-              reference: Format.decimal(@report.brier.reference, 2)
+              reference: Format.plain_decimal(@report.brier.reference, 2)
             ) %>
           </small>
         </article>
         <article class="stat stat--compact" data-role="prediction-sharpness">
           <span><%= gettext("Sharpness") %></span>
-          <strong><%= Format.decimal(@report.sharpness, 2) %></strong>
+          <strong><%= Format.plain_decimal(@report.sharpness, 2) %></strong>
           <small class="stat__sub">
             <%= gettext("mean distance of the probability from 0.50 · 0 = always 50 %") %>
           </small>
@@ -411,7 +421,7 @@ defmodule PortfolixirWeb.PredictionsLive do
               <td><%= row.model %></td>
               <td class="num"><%= row.block.counts.resolved %></td>
               <td class="num"><%= brier(row.block) %></td>
-              <td class="num"><%= Format.decimal(row.block.sharpness, 2) %></td>
+              <td class="num"><%= Format.plain_decimal(row.block.sharpness, 2) %></td>
               <td class="num"><%= hit_rate(row.block) %></td>
               <td class="num"><%= percent(row.block.hit_rate.mean_probability) %></td>
             </tr>
@@ -427,7 +437,7 @@ defmodule PortfolixirWeb.PredictionsLive do
                 "%{count} resolved · sharpness %{sharpness} · mean stated %{mean}",
                 "%{count} resolved · sharpness %{sharpness} · mean stated %{mean}",
                 row.block.counts.resolved,
-                sharpness: Format.decimal(row.block.sharpness, 2),
+                sharpness: Format.plain_decimal(row.block.sharpness, 2),
                 mean: percent(row.block.hit_rate.mean_probability)
               ) %>
             </span>
@@ -636,11 +646,12 @@ defmodule PortfolixirWeb.PredictionsLive do
 
   defp unresolved(counts), do: counts.unresolved |> Map.values() |> Enum.sum()
 
-  defp band_label(band), do: "#{Format.decimal(band.from, 2)}–#{Format.decimal(band.to, 2)}"
+  defp band_label(band),
+    do: "#{Format.plain_decimal(band.from, 2)}–#{Format.plain_decimal(band.to, 2)}"
 
   defp brier(block),
     do:
-      "#{Format.decimal(block.brier.score, 3)} ± #{Format.decimal(block.brier.standard_error, 3)}"
+      "#{Format.plain_decimal(block.brier.score, 3)} ± #{Format.plain_decimal(block.brier.standard_error, 3)}"
 
   defp hit_rate(block),
     do: "#{percent(block.hit_rate.rate)} ± #{Format.percent(block.hit_rate.standard_error)}"

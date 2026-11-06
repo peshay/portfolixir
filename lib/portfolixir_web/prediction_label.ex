@@ -147,10 +147,13 @@ defmodule PortfolixirWeb.PredictionLabel do
 
   defp rate_text(rate), do: Format.percent(rate) <> " %"
 
-  @doc "The stated probability as a whole percent: `65 %`."
+  @doc """
+  The stated probability as a whole percent: `65 %`. A percentage, so it
+  stays in the privacy mode (P1).
+  """
   @spec probability(Prediction.t()) :: String.t()
   def probability(%Prediction{probability: probability}),
-    do: Format.decimal(Decimal.mult(probability, 100), 0) <> " %"
+    do: Format.plain_decimal(Decimal.mult(probability, 100), 0) <> " %"
 
   @doc "The author, with the model an agent named isolated: `Agent · model-x`, `Operator`."
   @spec author(Prediction.t()) :: HTML.safe()
