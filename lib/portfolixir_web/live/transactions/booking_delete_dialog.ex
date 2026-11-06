@@ -210,9 +210,9 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
             <span :if={@deleting.subject.ids} class="phone-row__ids"><span><%= @deleting.subject.ids %></span></span>
           </span>
           <span class="phone-row__figures">
-            <span class="phone-row__figure"><%= @deleting.subject.figure %></span>
+            <span class="phone-row__figure"><%= PrivacyMode.html(@deleting.subject.figure) %></span>
             <span :if={@deleting.subject.figure2} class="phone-row__figure2">
-              <%= @deleting.subject.figure2 %>
+              <%= PrivacyMode.html(@deleting.subject.figure2) %>
             </span>
           </span>
         </p>

@@ -44,6 +44,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.MergePreview
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.StoredText
 
   require CappedAsync
@@ -159,7 +160,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     <div class="modal-body">
       <div class="merge-route" data-role="merge-route">
         <b><%= label(@name_tags, @kind, @source) %></b>
-        <span class="merge-route__meta"><%= source_meta(assigns) %></span>
+        <span class="merge-route__meta"><%= PrivacyMode.html(source_meta(assigns)) %></span>
       </div>
       <p :if={@legal == []} class="merge-empty"><%= no_target_text(@kind) %></p>
       <form id="merge-target-form" data-role="merge-target-form" phx-change="pick_target" phx-target={@myself}>
@@ -182,7 +183,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
               <b><%= label(@name_tags, @kind, candidate.account) %></b>
               <small><%= candidate_meta(@kind, candidate, @bucket_names) %></small>
             </span>
-            <span class="merge-target__balance num"><%= candidate_figure(assigns, candidate) %></span>
+            <span class="merge-target__balance num"><%= PrivacyMode.html(candidate_figure(assigns, candidate)) %></span>
           </label>
           <p :if={@illegal != []} class="merge-sub-caps">
             <%= ngettext("Not selectable (%{count})", "Not selectable (%{count})", length(@illegal)) %>
@@ -204,7 +205,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
               <b><%= label(@name_tags, @kind, candidate.account) %></b>
               <small><%= candidate_meta(@kind, candidate, @bucket_names) %></small>
             </span>
-            <span class="merge-target__balance num"><%= candidate_figure(assigns, candidate) %></span>
+            <span class="merge-target__balance num"><%= PrivacyMode.html(candidate_figure(assigns, candidate)) %></span>
             <span class="merge-target__why"><%= Enum.map_join(candidate.reasons, ", ", &reason/1) %></span>
           </label>
         </fieldset>

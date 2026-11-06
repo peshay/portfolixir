@@ -9480,6 +9480,15 @@ the bar is green or red where the figure was.
   disabled field's box (`.booking-fact-static`, `data-fact` naming the
   field) holding the bar, since an input's value can only hold the bar's
   markup as text. The facts that are no figure keep their disabled fields.
+- **A dialog's figures are bars, as the page's are.** The booking delete
+  dialog's subject („[bar] EUR“, „[bar] × [bar] EUR“), the merge dialog's
+  route line and each candidate's balance, the merge previews' duplicate
+  pairs, „Ändert außerdem: …“ and flow lines, a quote's „gespeichert [bar]“,
+  the import's correction lines and the done page's row descriptions: each
+  string that carries a hidden figure is drawn through `PrivacyMode.html/1`.
+  A sentence built around a stored name (`StoredText.isolate/2`) draws it
+  so itself: its translated text is screen markup, while the stored name
+  keeps its text.
 
 ### The import preview *(closing act, privacy lens, S2)*
 

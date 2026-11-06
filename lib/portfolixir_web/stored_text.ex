@@ -26,11 +26,16 @@ defmodule PortfolixirWeb.StoredText do
   A stored value may also be markup the caller built safely (a link whose
   label is itself isolated, `link/2`); it is put in as it is.
 
+  The sentence around the slots is screen markup, so a figure the privacy
+  mode hid in it (its stand-in text, `PortfolixirWeb.PrivacyMode`) is drawn
+  as the bar there (`PrivacyMode.html/1`); a stored value keeps its text.
+
   Attribute strings (`aria-label`, `data-confirm`, `title`) cannot hold
   `<bdi>`; they are not covered here.
   """
 
   alias Phoenix.HTML
+  alias PortfolixirWeb.PrivacyMode
 
   @slot ~r/\x{0}([a-z_]+)\x{0}/u
 
@@ -86,7 +91,7 @@ defmodule PortfolixirWeb.StoredText do
   defp piece(part, values) do
     case Regex.run(@slot, part) do
       [^part, key] -> stored(Map.get(values, key))
-      _text -> escape(part)
+      _text -> part |> PrivacyMode.html() |> HTML.safe_to_string()
     end
   end
 
