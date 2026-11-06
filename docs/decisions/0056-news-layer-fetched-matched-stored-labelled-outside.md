@@ -6,11 +6,13 @@ description: "Decision for gate B3.3, narrowed to news (idea F12, idea I21; exte
 
 # ADR-0056: the news layer — feeds fetched, matched and deduplicated by rule inside the app, labelled by a model outside it
 
-- **Status:** Proposed. Adopted by the merge of the PR that carries it
-  (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
-  The merge opens gate B3.3 **for news feeds only**; every other kind of
-  acquisition (bank, broker and wallet sync, F13; CPI and other series)
-  stays behind it.
+- **Status:** Accepted. Signed by the merge of #1399 on 2026-11-05
+  (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature),
+  and confirmed with its amendment of 2026-11-06 by the merge of the
+  Sprint 26 planning PR, after the owner's doubts and his answer the same
+  day (see "Amendment of 2026-11-06" at the end). The merge opens gate B3.3
+  **for news feeds only**; every other kind of acquisition (bank, broker
+  and wallet sync, F13; CPI and other series) stays behind it.
 - **Date:** 2026-11-05
 - **Answers:** gate B3.3 for news (the addendum's "Parked, with reasons");
   idea F12 (data collectors and their health), narrowed to news; idea I21
@@ -419,3 +421,76 @@ in the agent's context tokens and run time.
 | Retention | 90 days | a comment on this record |
 | Digest default | materiality ≥ 2, tier ≥ secondary | per call |
 | Token scope for the labeller | none (ADR-0054) | a new reason, in its own record |
+
+## Amendment of 2026-11-06: the owner's shape
+
+**Adopted by the merge of the Sprint 26 planning PR.** The merge of #1399
+on 2026-11-05 signed this record; the owner then said, on 2026-11-06,
+that he was not yet sure of it, and settled it the same day: the stream is
+acceptable as a **staging area**, so long as only what is really relevant
+becomes lasting knowledge. In his words, stated generically: feeds are
+fetched and kept 90 days, a cheaper model pre-sorts and tags them on a
+schedule, and an agent picks what matters, assigns it to its security,
+rates it and marks the rest as read or irrelevant, so nothing is read
+twice; what lasts should explain afterwards why a price moved, and give an
+outlook where it can (quarterly results, profit warnings, regulatory
+items). That is §7 to §9 as signed. Four things are added, each because
+the record as signed did not answer it.
+
+### A1. The feed parser is hardened against hostile XML
+
+§5 bounds the request and says nothing about what is done with the
+answer. A feed is XML from a host the operator registered and does not
+control, so the parser is a hostile-input surface in its own right, as
+ADR-0021 says of a PDF. **The parser:**
+
+- never turns an element or attribute name into an atom (Erlang's
+  `xmerl` does by default, which `AGENTS.md`'s rule on atoms from external
+  input forbids);
+- processes no document type declaration: no external entity is ever
+  resolved (no file, no URL), no internal entity is ever expanded; only
+  the five predefined XML entities and numeric character references are
+  decoded;
+- parses at most the bounded client's byte cap, refuses nesting deeper
+  than 64 and more than 5,000 items in one answer;
+- reads RSS 2.0 and Atom 1.0 only.
+
+A refusal is the feed's `last_error` (`parse_refused` with its reason) and
+counts in `err_24h`; it never stops another feed. **Acceptance, beside
+§14:** fixtures for an entity expansion bomb, an external entity naming a
+local file and a URL, a document 10,000 levels deep and one over the byte
+cap are each refused without the parser reading past the refusal, and the
+atom count of the VM is unchanged by parsing 1,000 distinct element names.
+The parser is a new dependency or a small parser of the app's own; the
+story that builds it chooses, and a new dependency goes through the
+maintenance lane's audit and is pinned.
+
+### A2. What lasts is a research note with a headline, an event type and a tone
+
+§8's promotion stays the only way a story becomes knowledge. The note it
+writes carries a `headline`, an `event_type` and a `tone`, by
+[ADR-0044's amendment of 2026-11-06](0044-security-knowledge-as-an-append-only-log.html#amendment-of-2026-11-06-a-headline-an-event-type-and-a-tone-on-an-entry),
+pre-filled from the story and its active label and confirmed by the
+agent's write. **The security chart draws research notes with a headline
+as markers at their `as_of`, never a raw item or a story:** what the
+operator sees on the chart is what someone judged worth keeping. The
+markers' board comes with the second sprint's planning PR, with §10's
+view.
+
+### A3. A feed's yield is visible, and a flooding feed is capped
+
+*Why:* the owner's worry is that an agent fills the app with feeds nobody
+reads. The retention of §12 bounds how long an item stays, not how many
+arrive. **Added to §6:** each feed reports `items_30d`, `promoted_30d` and
+`yield_30d` (promoted stories over items, a decimal string); a feed with
+at least 50 items and none promoted in 30 days carries `low_yield: true`
+in `news.health` and on §10's screen. Nothing disables a feed by itself:
+the operator decides. **Added to §5:** a feed stores at most 200 items in
+24 hours; the rest are dropped and counted as `dropped_cap`. **To flip:**
+a number by comment.
+
+### A4. When it is built
+
+Not in Sprint 26, which owes three screens and the privacy mode. §11's
+first sprint is Sprint 27, its second, with §10's view and A2's markers,
+Sprint 28. **To flip:** "News in 26".
