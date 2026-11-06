@@ -52,7 +52,7 @@ defmodule PortfolixirWeb.PredictionLabel do
   def badge_class(:miss), do: "badge badge--retired"
   def badge_class(:unresolved), do: "badge badge--undetermined"
 
-  @doc "The badge's words: `open · 145 days left`, `open · waiting for the close`, `Hit`, …"
+  @doc "The badge's words: `open · 145 days left`, `open · waiting for the close`, `hit`, …"
   @spec status(state(), Prediction.t(), Date.t()) :: String.t()
   def status(:open, %Prediction{resolves_on: on}, %Date{} = today) do
     days = Date.diff(on, today)
@@ -60,7 +60,10 @@ defmodule PortfolixirWeb.PredictionLabel do
   end
 
   def status(:waiting, _prediction, _today), do: gettext("open · waiting for the close")
-  def status(:hit, _prediction, _today), do: gettext("Hit")
+  # The badge words are state participles in one form, lower case, as
+  # „offen“, „verfehlt“ and „nicht aufgelöst“ are: „getroffen“, not the noun
+  # „Treffer“ (closing act, the UAT persona on V1; board 02 drew „Treffer“).
+  def status(:hit, _prediction, _today), do: gettext("hit")
   def status(:miss, _prediction, _today), do: gettext("missed")
   def status(:unresolved, _prediction, _today), do: gettext("not resolved")
 

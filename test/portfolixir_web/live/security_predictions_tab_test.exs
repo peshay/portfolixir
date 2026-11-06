@@ -218,7 +218,7 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
     hit = entry(view, w.hit)
     assert hit =~ "prediction-entry--hit"
     assert hit =~ ~s(class="badge badge--thesis-intact")
-    assert text(hit) =~ "Hit"
+    assert text(hit) =~ "hit"
     assert text(hit) =~ "Return +10.00 %"
     assert text(hit) =~ "Benchmark return +3.00 %"
     assert text(hit) =~ "Excess +7.00 pp"

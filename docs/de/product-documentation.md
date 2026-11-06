@@ -781,7 +781,7 @@ von:
   sobald der Auflösungstag vorbei ist und der Schlusskurs, der sie
   entscheidet, noch fehlt (höchstens 7 Tage; die Zeile unter der Aussage
   nennt den letzten Tag);
-- **Treffer** oder **verfehlt**, sobald aufgelöst, mit den Zahlen: die
+- **getroffen** oder **verfehlt**, sobald aufgelöst, mit den Zahlen: die
   Rendite des Wertpapiers, die Rendite der Benchmark, die **Überrendite**
   in Prozentpunkten (jede mit zwei Nachkommastellen, damit die drei
   aufgehen) und die Daten der beiden verwendeten Schlusskurse.

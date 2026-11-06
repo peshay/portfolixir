@@ -712,7 +712,7 @@ fixed rate. The status is one of:
 - **open · *n* days left**, or **open · waiting for the close** once the
   resolution day has passed and the close that settles it is not in yet
   (at most 7 days; the line under the claim names the last day);
-- **Hit** or **missed** once resolved, with the figures: the security's
+- **hit** or **missed** once resolved, with the figures: the security's
   return, the benchmark's return, the **excess** in percentage points
   (each with two decimals, so the three add up) and the dates of the two
   closes used. A miss is muted, not red: it is an

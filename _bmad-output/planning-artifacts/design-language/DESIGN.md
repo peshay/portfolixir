@@ -8867,7 +8867,7 @@ The tab writes nothing (ADR-0055 §2): no form, no edit, no withdrawal.
 |---|---|---|
 | open | „offen · noch 145 Tage“ (`badge--neutral`) | the timeline's accent |
 | open, past its day | „offen · wartet auf den Schlusskurs“ (`badge--neutral`) | accent |
-| hit | „Treffer“ (`badge--thesis-intact`, the green outline) | `--color-positive` |
+| hit | „getroffen“ (`badge--thesis-intact`, the green outline; board 02 drew „Treffer“ — the closing act made it the state participle every other badge is, lower case) | `--color-positive` |
 | missed | „verfehlt“ (`badge--retired`, muted, never red: a miss is an expected outcome, not a data fault) | `--color-border-strong` |
 | not resolved | „nicht aufgelöst“ (`badge--undetermined`, dashed) | dashed `--color-border-strong` |
 
@@ -9005,7 +9005,8 @@ reads as no filter; nothing is made an atom.
 4. **„Nach Urheber und Modell“** (`#prediction-groups-table`): Operator
    „—“, Agent „alle Modelle“, then each model, indented and muted
    (`tr.prediction-groups__model`); columns Aufgelöst, Brier-Score ± SE,
-   Schärfe, Trefferquote ± SE, Ø angegeben — the read's `groups`.
+   Schärfe, Trefferquote ± SE (the error in „Pp“, „66,7 % ± 14,2 Pp“, as
+   the card says it; closing act), Ø angegeben — the read's `groups`.
 5. **„Alle Prognosen“** (`section#prediction-list`): status chips
    (`#prediction-status-chips`) „Alle 21 · Offen 7 · Fällig 1 · Aufgelöst
    12 · Nicht aufgelöst 2“, each count in `span.filter-chip__count`;
@@ -9030,7 +9031,7 @@ row: the author and model over „3 aufgelöst · Schärfe 0,22 · Ø angegeben
 71,7 %“, the Brier score ± SE right, the hit rate under it. A list row:
 the security (linked) over the claim with its probability and the made
 line; right, the excess once resolved or „noch 145 Tage“, and under it
-the status („Treffer“, „verfehlt“, „offen“, „wartet auf Schlusskurs“ or
+the status („getroffen“, „verfehlt“, „offen“, „wartet auf Schlusskurs“ or
 the reason). The chip rows wrap, as every `.filter-chips` row does.
 
 ### The `app.css` rules (between `Sprint 26 V2 begin` / `end`)

@@ -612,7 +612,7 @@ msgstr ""
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:842
 #: lib/portfolixir_web/live/securities/filter_popover.ex:89
 #: lib/portfolixir_web/live/securities_live.ex:3602
-#: lib/portfolixir_web/prediction_label.ex:164
+#: lib/portfolixir_web/prediction_label.ex:167
 #, elixir-autogen, elixir-format
 msgid "Operator"
 msgstr ""
@@ -5475,8 +5475,8 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:3603
 #: lib/portfolixir_web/live/tax_live.ex:605
 #: lib/portfolixir_web/live/tax_live.ex:616
-#: lib/portfolixir_web/prediction_label.ex:161
-#: lib/portfolixir_web/prediction_label.ex:163
+#: lib/portfolixir_web/prediction_label.ex:164
+#: lib/portfolixir_web/prediction_label.ex:166
 #, elixir-autogen, elixir-format
 msgid "Agent"
 msgstr ""
@@ -6124,7 +6124,7 @@ msgstr[1] ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2687
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:892
-#: lib/portfolixir_web/prediction_label.ex:72
+#: lib/portfolixir_web/prediction_label.ex:75
 #, elixir-autogen, elixir-format
 msgid "no exchange rate"
 msgstr ""
@@ -14813,7 +14813,8 @@ msgid_plural "the target is named by %{count} predictions, and a prediction is n
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/prediction_label.ex:178
+#: lib/portfolixir_web/live/predictions_live.ex:668
+#: lib/portfolixir_web/prediction_label.ex:181
 #, elixir-autogen, elixir-format
 msgid "%{value} pp"
 msgstr ""
@@ -14849,15 +14850,9 @@ msgstr ""
 msgid "Excess = return − the benchmark's return. “Outperforms” hits above 0, “underperforms” below 0; exactly 0 misses both. A fixed rate compounds daily; 0 % is the absolute call (rises, falls)."
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:136
+#: lib/portfolixir_web/prediction_label.ex:139
 #, elixir-autogen, elixir-format
 msgid "Falls by %{date}"
-msgstr ""
-
-#: lib/portfolixir_web/live/predictions_live.ex:645
-#: lib/portfolixir_web/prediction_label.ex:63
-#, elixir-autogen, elixir-format
-msgid "Hit"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:58
@@ -14865,7 +14860,7 @@ msgstr ""
 msgid "It is scored at read from stored closes, both sides in EUR at the stored exchange rate of their day; no result is ever stored."
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:104
+#: lib/portfolixir_web/prediction_label.ex:107
 #, elixir-autogen, elixir-format
 msgid "No exchange rate to EUR is stored for the day of a close the call needs."
 msgstr ""
@@ -14875,12 +14870,12 @@ msgstr ""
 msgid "No prediction is recorded for this security."
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:119
+#: lib/portfolixir_web/prediction_label.ex:122
 #, elixir-autogen, elixir-format
 msgid "Outperforms %{benchmark} by %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:139
+#: lib/portfolixir_web/prediction_label.ex:142
 #, elixir-autogen, elixir-format
 msgid "Outperforms %{rate} a year by %{date}"
 msgstr ""
@@ -14930,7 +14925,7 @@ msgstr ""
 msgid "Return"
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:133
+#: lib/portfolixir_web/prediction_label.ex:136
 #, elixir-autogen, elixir-format
 msgid "Rises by %{date}"
 msgstr ""
@@ -14940,12 +14935,12 @@ msgstr ""
 msgid "Start: the last close on or before the day it was made. End: the last on or before the resolution day. It is scored once a close from the resolution day on is in, at the latest %{days} days after it."
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:142
+#: lib/portfolixir_web/prediction_label.ex:145
 #, elixir-autogen, elixir-format
 msgid "Stays below %{rate} a year by %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:97
+#: lib/portfolixir_web/prediction_label.ex:100
 #, elixir-autogen, elixir-format
 msgid "The benchmark has no close on or up to %{days} days before %{start} or %{end}."
 msgstr ""
@@ -14955,42 +14950,42 @@ msgstr ""
 msgid "The resolution day has passed; it is scored once a close from %{date} on is in, at the latest on %{last}."
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:83
-#: lib/portfolixir_web/prediction_label.ex:90
+#: lib/portfolixir_web/prediction_label.ex:86
+#: lib/portfolixir_web/prediction_label.ex:93
 #, elixir-autogen, elixir-format
 msgid "The security has no close on or up to %{days} days before %{date}."
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:122
+#: lib/portfolixir_web/prediction_label.ex:125
 #, elixir-autogen, elixir-format
 msgid "Underperforms %{benchmark} by %{date}"
 msgstr ""
 
 #: lib/portfolixir_web/live/predictions_live.ex:646
-#: lib/portfolixir_web/prediction_label.ex:64
+#: lib/portfolixir_web/prediction_label.ex:67
 #, elixir-autogen, elixir-format
 msgid "missed"
 msgstr ""
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:893
-#: lib/portfolixir_web/prediction_label.ex:71
+#: lib/portfolixir_web/prediction_label.ex:74
 #, elixir-autogen, elixir-format
 msgid "no benchmark close"
 msgstr ""
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:894
-#: lib/portfolixir_web/prediction_label.ex:70
+#: lib/portfolixir_web/prediction_label.ex:73
 #, elixir-autogen, elixir-format
 msgid "no end close"
 msgstr ""
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:891
-#: lib/portfolixir_web/prediction_label.ex:69
+#: lib/portfolixir_web/prediction_label.ex:72
 #, elixir-autogen, elixir-format
 msgid "no start close"
 msgstr ""
 
-#: lib/portfolixir_web/prediction_label.ex:65
+#: lib/portfolixir_web/prediction_label.ex:68
 #, elixir-autogen, elixir-format
 msgid "not resolved"
 msgstr ""
@@ -15663,4 +15658,10 @@ msgstr ""
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:554
 #, elixir-autogen, elixir-format
 msgid "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata; sales and buys on the same day share pro rata."
+msgstr ""
+
+#: lib/portfolixir_web/live/predictions_live.ex:645
+#: lib/portfolixir_web/prediction_label.ex:66
+#, elixir-autogen, elixir-format
+msgid "hit"
 msgstr ""
