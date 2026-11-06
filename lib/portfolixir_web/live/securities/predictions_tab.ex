@@ -154,7 +154,7 @@ defmodule PortfolixirWeb.Securities.PredictionsTab do
         <div>
           <dt><%= gettext("Return") %></dt>
           <dd class="num">
-            <span class={PredictionLabel.sign_class(@resolution.security.return)}><%= PredictionLabel.return(@resolution.security.return) %></span>
+            <span class={PredictionLabel.sign_class(@resolution.security.return)} data-role="prediction-return"><%= PredictionLabel.return(@resolution.security.return) %></span>
           </dd>
         </div>
         <div>
@@ -164,7 +164,11 @@ defmodule PortfolixirWeb.Securities.PredictionsTab do
         <div>
           <dt><%= gettext("Excess") %></dt>
           <dd class="num">
-            <span class={PredictionLabel.sign_class(@resolution.excess)}><%= PredictionLabel.excess(@resolution.excess) %></span>
+            <%!-- No sign colour (closing act, board 02 call 5 flipped): the
+                 excess is what the call is judged on, so a colour beside the
+                 badge reads as a second verdict; the badge says the outcome,
+                 the sign the direction. --%>
+            <span data-role="prediction-excess"><%= PredictionLabel.excess(@resolution.excess) %></span>
           </dd>
         </div>
         <div>

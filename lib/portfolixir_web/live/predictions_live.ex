@@ -597,7 +597,9 @@ defmodule PortfolixirWeb.PredictionsLive do
       </td>
       <td class="num">
         <%= if @state in [:hit, :miss] do %>
-          <span class={PredictionLabel.sign_class(@resolution.excess)}><%= PredictionLabel.excess(@resolution.excess) %></span>
+          <%!-- No sign colour, as on the security's tab: the badge beside
+               it says the outcome (closing act, board 02 call 5 flipped). --%>
+          <span data-role="prediction-excess"><%= PredictionLabel.excess(@resolution.excess) %></span>
         <% else %>
           —
         <% end %>
@@ -627,7 +629,7 @@ defmodule PortfolixirWeb.PredictionsLive do
         <span class="phone-row__figure">
           <%= cond do %>
             <% @state in [:hit, :miss] -> %>
-              <span class={PredictionLabel.sign_class(@resolution.excess)}><%= PredictionLabel.excess(@resolution.excess) %></span>
+              <span data-role="prediction-excess"><%= PredictionLabel.excess(@resolution.excess) %></span>
             <% @state == :open -> %>
               <%= ngettext("%{count} day left", "%{count} days left", Date.diff(@prediction.resolves_on, @today)) %>
             <% true -> %>

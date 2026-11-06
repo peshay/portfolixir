@@ -785,8 +785,8 @@ von:
   Rendite des Wertpapiers, die Rendite der Benchmark, die **Überrendite**
   in Prozentpunkten und die Daten der beiden verwendeten Schlusskurse.
   „verfehlt“ ist gedämpft, nicht rot: ein erwartbarer Ausgang, kein
-  Fehler. Die Überrendite behält ihre Vorzeichenfarbe, eine verfehlte
-  „Fällt“-Aussage kann also eine grüne Überrendite zeigen;
+  Fehler. Die Überrendite trägt keine Gewinn- oder Verlustfarbe: Das
+  Badge sagt den Ausgang, das Vorzeichen die Richtung;
 - **nicht aufgelöst**, mit dem Grund als Wort und als Satz (kein
   Startkurs, kein Endkurs, kein Benchmark-Kurs, kein Wechselkurs). Sie
   wird nie geschätzt.

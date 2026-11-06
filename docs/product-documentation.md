@@ -715,8 +715,8 @@ fixed rate. The status is one of:
 - **Hit** or **missed** once resolved, with the figures: the security's
   return, the benchmark's return, the **excess** in percentage points and
   the dates of the two closes used. A miss is muted, not red: it is an
-  expected outcome, not a fault. The excess keeps its sign colour, so a
-  missed "Falls" call can show a green excess;
+  expected outcome, not a fault. The excess carries no gain or loss
+  colour: the badge says the outcome, the sign says the direction;
 - **not resolved**, with its reason as a word and a sentence (no start
   close, no end close, no benchmark close, no exchange rate). It is never
   estimated.
