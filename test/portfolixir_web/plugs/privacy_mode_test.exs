@@ -232,4 +232,65 @@ defmodule PortfolixirWeb.PrivacyModeTest do
   end
 
   # --- Sprint 26 fix P end ---
+
+  # --- Sprint 26 fix J begin ---
+  # User story (P1, the closing act's follow-up to the language switch):
+  # As an operator who opened a page from another site's link,
+  # I want the privacy switch never to carry that link's view along, and
+  # to stay on this page when its address has a doubled slash,
+  # so that pressing it neither makes the foreign view my remembered one
+  # nor takes me to another page.
+  #
+  # Acceptance criteria:
+  # - On a Wealth page whose ?view= came from another site, the switch's
+  #   link carries no ?view=, on Holdings and on the Allocation tab; on one
+  #   whose ?view= is the remembered choice it still does (S7E-2).
+  # - Every preference parameter of an address (view, benchmark, locale)
+  #   is left out of the link; the page's other parameters stay as written.
+  # - A doubled leading slash stays this page's path, never a host (H26),
+  #   on the page's first render and in toggle_href/2.
+  test "the switch drops a foreign view and keeps a doubled slash on this page" do
+    Portfolixir.Classifications.ensure_builtins()
+
+    {:ok, view} =
+      Portfolixir.Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Retirement"})
+
+    base_world(name: "Privacy Views")
+
+    stored =
+      build_conn()
+      |> put_preference_cookie("portfolixir_view", "total")
+      |> from("cross-site")
+
+    for path <- ["/portfolio", "/portfolio?tab=allocation"] do
+      separator = if path =~ "?", do: "&", else: "?"
+      {:ok, page, _html} = live(stored, path <> separator <> "view=#{view.id}")
+      html = render_async(page)
+
+      assert html =~ "Retirement"
+      refute switch_href(html) =~ "view=", path
+    end
+
+    {:ok, page, _html} = build_conn() |> from("same-origin") |> live("/portfolio?view=#{view.id}")
+    assert switch_href(render_async(page)) =~ "view=#{view.id}"
+
+    assert PortfolixirWeb.PrivacyMode.toggle_href(
+             "/securities?view=3&q=x&benchmark[]=security:1&locale=de",
+             false
+           ) == "/securities?q=x&privacy=on"
+
+    assert PortfolixirWeb.PrivacyMode.toggle_href("//securities/5?tab=predictions", false) ==
+             "/securities/5?tab=predictions&privacy=on"
+
+    %{security: security} = world_with_security!()
+
+    html =
+      build_conn()
+      |> get("http://www.example.com//securities/#{security.id}?tab=predictions")
+      |> html_response(200)
+
+    assert switch_href(html) == "/securities/#{security.id}?tab=predictions&privacy=on"
+  end
+
+  # --- Sprint 26 fix J end ---
 end

@@ -4,7 +4,7 @@ defmodule PortfolixirWeb.AppShell do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Input.Text
-  alias PortfolixirWeb.UiAuth
+  alias PortfolixirWeb.PageAddress
 
   attr(:current_path, :string, default: "/")
 
@@ -101,7 +101,7 @@ defmodule PortfolixirWeb.AppShell do
             <a
               id="privacy-mode"
               class={["privacy-toggle", privacy_on?() && "is-active"]}
-              href={PortfolixirWeb.PrivacyMode.toggle_href(@page_address || @current_path, privacy_on?())}
+              href={PortfolixirWeb.PrivacyMode.toggle_href(@page_address, @current_path, privacy_on?())}
               role="button"
               aria-pressed={if privacy_on?(), do: "true", else: "false"}
               title={gettext("Hide amounts")}
@@ -450,38 +450,12 @@ defmodule PortfolixirWeb.AppShell do
   # set for the request and the LiveView before anything renders.
   defp privacy_on?, do: PortfolixirWeb.PrivacyMode.on?()
 
-  # The language switch links to the page's own address with `locale` set:
-  # its path and query as its last `handle_params` saw them
-  # (`@page_address`), so a switch keeps a tab, the filters and a
-  # comparison, a list's repeated keys as written (closing act of Sprint 26,
-  # as the privacy switch). The preferences in that address (a view, a
-  # benchmark) are left out and the ones the page carries in `current_path`
-  # put back (a remembered view; S7E-2): a choice another site's link put
-  # into the address never rides on a request of this instance. Leading
-  # slashes are one, so a doubled one stays a local path (H26).
-  @carried_preferences ~w(view benchmark benchmark_rate rail)
-
-  defp locale_href(page_address, current_path, locale) do
-    address =
-      if page_address, do: String.replace(page_address, ~r{^/+}, "/"), else: current_path
-
-    {path, kept} = address |> UiAuth.safe_return_path() |> path_and_pairs()
-
-    carried =
-      current_path
-      |> path_and_pairs()
-      |> elem(1)
-      |> Enum.filter(&(UiAuth.preference(&1) in @carried_preferences))
-
-    path <> "?" <> Enum.join(kept ++ carried ++ ["locale=" <> to_string(locale)], "&")
-  end
-
-  defp path_and_pairs(address) do
-    case String.split(address || "/", "?", parts: 2) do
-      [path] -> {path, []}
-      [path, query] -> {path, String.split(query, "&", trim: true)}
-    end
-  end
+  # The language switch links to the page's own address with `locale` set,
+  # as the privacy switch does (`PortfolixirWeb.PageAddress`): a tab, the
+  # filters and a comparison stay; a preference another site's link put
+  # into the address does not (S7E-2); a doubled slash stays local (H26).
+  defp locale_href(page_address, current_path, locale),
+    do: PageAddress.link(page_address, current_path, ["locale=" <> to_string(locale)])
 
   defp locale_label("de"), do: gettext("German")
   defp locale_label("en"), do: gettext("English")

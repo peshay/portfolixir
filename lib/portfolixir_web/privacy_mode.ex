@@ -36,6 +36,7 @@ defmodule PortfolixirWeb.PrivacyMode do
 
   alias Phoenix.HTML.Engine
   alias PortfolixirWeb.FetchSite
+  alias PortfolixirWeb.PageAddress
   alias PortfolixirWeb.PreferenceCookie
 
   @cookie "portfolixir_privacy"
@@ -168,22 +169,19 @@ defmodule PortfolixirWeb.PrivacyMode do
 
   @doc """
   The address a page's switch links to: the page's own path and query with
-  `privacy` set to the other state.
+  `privacy` set to the other state, without a preference another site's
+  link put into the address; the preferences `current_path` carries (a
+  remembered view) are kept (`PortfolixirWeb.PageAddress`).
   """
-  @spec toggle_href(String.t() | nil, boolean()) :: String.t()
-  def toggle_href(path, on) do
-    uri = URI.parse(path || "/")
-    pairs = without_choice(uri.query) ++ ["privacy=" <> if(on, do: "off", else: @on)]
-
-    URI.to_string(%URI{path: uri.path || "/", query: Enum.join(pairs, "&")})
+  @spec toggle_href(String.t() | nil, String.t() | nil, boolean()) :: String.t()
+  def toggle_href(page_address, current_path \\ nil, on) do
+    PageAddress.link(page_address, current_path, ["privacy=" <> if(on, do: "off", else: @on)])
   end
 
   # A query's pairs as written, every `privacy` pair left out. The raw
   # pairs, not a decoded map: a list (`cur[]=EUR&cur[]=USD`) or a nested
   # key (`a[b]=c`) keeps its form, its repeats and its order, which a map
   # re-encoded loses or cannot encode at all.
-  defp without_choice(nil), do: []
-
   defp without_choice(query) do
     query
     |> String.split("&", trim: true)
