@@ -22,9 +22,10 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
        sales of that security on that date and account share it in
        proportion to their booked cash amounts (equally when none is
        positive).
-    2. **Candidates** are `buy` bookings debiting the same cash account,
-       dated on or after the sale's date and at most #{30} calendar days after
-       it, of any security other than the one sold.
+    2. **Candidates** are `buy` bookings debiting the same cash account
+       (a positive cash debit: a zero-price buy is none), dated on or after
+       the sale's date and at most #{30} calendar days after it, of any
+       security other than the one sold.
     3. **Order:** proceeds wait in date groups, one per sale date; buys take
        as date groups, in date order, from the oldest proceeds group first,
        each buy at most its own cash debit (`cash_amount/1` negated: price,
@@ -180,8 +181,9 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
           "gives the same answer",
       window:
         "a buy is a candidate from the sale's date to #{@window_days} calendar days after " <>
-          "it, both included; a sale less than #{@window_days} days old can still be " <>
-          "matched by a buy booked later",
+          "it, both included, when its cash debit is positive (a zero-price buy is none); " <>
+          "a sale less than #{@window_days} days old can still be matched by a buy booked " <>
+          "later",
       order:
         "proceeds wait in date groups, one per sale date; the buys of each date, as one " <>
           "group in date order, take from the oldest proceeds group first, each buy at most " <>
@@ -340,7 +342,10 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
 
   defp match_account(rows) do
     sales = Enum.filter(rows, &(&1.type == "sell"))
-    buys = Enum.filter(rows, &(&1.type == "buy"))
+    # A candidate pays money: a buy with no positive cash debit (a
+    # zero-price buy, which the ledger accepts) takes nothing and counts for
+    # no reason (the closing act's A1).
+    buys = Enum.filter(rows, &(&1.type == "buy" and Fraction.positive?(debit_fraction(&1))))
     refunds = refund_shares(Enum.filter(rows, &(&1.type == "tax_refund")), sales)
     entries = Enum.map(sales, &entry(&1, Map.get(refunds, &1.id, Fraction.zero())))
     takes = allocate(entries, buys)
@@ -414,10 +419,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
       |> Enum.filter(& &1.proceeds)
       |> Enum.group_by(& &1.sale.date)
 
-    buys_by_date =
-      buys
-      |> Enum.filter(&Fraction.positive?(debit_fraction(&1)))
-      |> Enum.group_by(& &1.date)
+    buys_by_date = Enum.group_by(buys, & &1.date)
 
     state = %{
       queue: [],

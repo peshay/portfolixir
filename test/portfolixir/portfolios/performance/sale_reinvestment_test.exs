@@ -287,6 +287,24 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
     end
   end
 
+  # User story (closing act A1, ADR-0057 §1.2: a candidate pays money):
+  # As the agent reading a sale whose only later buy cost nothing,
+  # I want that buy not counted as a candidate,
+  # so that the sale reads no_buy_within_30_days and never claims an earlier
+  # sale took money that no buy asked for.
+  #
+  # Acceptance criteria:
+  # - A buy with no positive cash debit (a zero-price buy, which the ledger
+  #   accepts) is no candidate: the sale reads no_match,
+  #   no_buy_within_30_days.
+  test "a buy with no positive debit is no candidate" do
+    world = base_world(name: "Switch Free Buy")
+    sale = sell!(world, security!("SFB"), quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(world, security!("BFB"), quantity: "5", price: "0", date: ~D[2025-01-16])
+
+    assert %{status: :no_match, reason: :no_buy_within_30_days, buys: []} = block(sale)
+  end
+
   # User story (R1, ADR-0057 §1.4: what is left over):
   # As the operator who spent part of the money and kept the rest,
   # I want the part no buy took within 30 days named unallocated and kept out
