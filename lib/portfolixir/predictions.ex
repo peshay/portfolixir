@@ -220,6 +220,22 @@ defmodule Portfolixir.Predictions do
   end
 
   @doc """
+  The distinct models agents have named on their predictions, sorted by
+  name; an operator's call names none and adds nothing. The calibration
+  report's model filter offers them (Sprint 26 V2).
+  """
+  @spec list_models() :: [String.t()]
+  def list_models do
+    from(p in Prediction,
+      where: not is_nil(p.model),
+      distinct: true,
+      order_by: p.model,
+      select: p.model
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   The prediction's resolution at read (ADR-0055 §3,
   `Portfolixir.Predictions.Resolution`): `open` while today is on or
   before `resolves_on` and after it until its end close is in (at most 7

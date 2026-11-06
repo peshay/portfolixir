@@ -496,6 +496,27 @@ defmodule Portfolixir.PredictionsTest do
     end
   end
 
+  # User story (Sprint 26 V2; board 02 part 2 ②, the model chips):
+  # As the operator filtering the calibration report by model,
+  # I want every model an agent has named offered as a chip,
+  # so that a model's calls are one click away, whichever filter is on.
+  #
+  # Acceptance criteria:
+  # - The distinct models of every stored prediction, sorted by name; an
+  #   operator's call, which names none, adds nothing.
+  describe "list_models/0" do
+    test "the distinct models the agent named, by name" do
+      a = security!("Alpha Co.")
+
+      {:ok, _} = create(agent(), attrs(a, %{"model" => "example-model-2"}))
+      {:ok, _} = create(agent(), attrs(a, %{"model" => "example-model-1"}))
+      {:ok, _} = create(agent(), attrs(a, %{"model" => "example-model-2"}))
+      {:ok, _} = create(operator(), attrs(a) |> Map.delete("model"))
+
+      assert Predictions.list_models() == ["example-model-1", "example-model-2"]
+    end
+  end
+
   # User story (ADR-0055 §3; E25 S6, F53's rule):
   # As the operator whose pages are served from derived values,
   # I want a prediction — a record no walk, quote, rate or rule reads — to
