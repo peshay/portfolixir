@@ -5599,6 +5599,81 @@ details[open] > .cat-summary::before {
 }
 /* --- Sprint 26 V1 end --- */
 
+/* --- Sprint 26 V2 begin: Wealth -> Predictions, the calibration report --- */
+/* F1 (ADR-0055 §4; board ux-design-2026-11-06-sprint26-f1, part 2, pick A).
+   The KPI band's compact cards, data tables and the summary-basis voice;
+   new are the bands' "too few" sentence, the model rows' indent and the
+   list's fit to its wrapper (Risk's fit tables): the name cell keeps a
+   14 rem floor and wraps, figures never do. */
+@media (max-width: 560px) {
+  #prediction-list-table-wrap,
+  #prediction-groups-table-wrap {
+    display: none;
+  }
+}
+.prediction-filters {
+  margin: 0 0 var(--space-4);
+}
+.prediction-bands,
+.prediction-groups {
+  margin-top: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}
+.prediction-bands .section-title h3,
+.prediction-groups .section-title h3 {
+  margin: 0;
+}
+.prediction-bands__why {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 13px;
+}
+.prediction-too-few {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.prediction-groups__model td:first-child {
+  padding-left: 1.75rem;
+  color: var(--color-text-muted);
+}
+.filter-chip__count {
+  margin-left: 0.4em;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.data-table-wrapper > .prediction-list-table {
+  min-width: 0;
+}
+.prediction-list-table td.cell-name {
+  min-width: 14rem;
+  overflow-wrap: anywhere;
+}
+.prediction-list-table td.cell-name a {
+  display: block;
+}
+.prediction-list-table td.num {
+  white-space: nowrap;
+}
+.prediction-list-table td .policy-rule__words {
+  display: block;
+}
+.prediction-list-table td.cell-name .policy-rule__words {
+  white-space: normal;
+}
+.prediction-list-table td .badge {
+  white-space: normal;
+}
+.prediction-list-table td .badge + .policy-rule__reason {
+  display: block;
+}
+/* Rows without a logo: the body takes the elastic track (as the trades'). */
+#prediction-list-phone-rows .phone-row,
+#prediction-groups-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+/* --- Sprint 26 V2 end --- */
+
 /* Classification category descriptions */
 .cat-description {
   margin: 0.1rem 0 0.35rem;

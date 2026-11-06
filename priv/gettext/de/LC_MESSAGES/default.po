@@ -80,7 +80,7 @@ msgstr "Wertpapiere anlegen"
 msgid "Currency"
 msgstr "Währung"
 
-#: lib/portfolixir_web/components/app_shell.ex:400
+#: lib/portfolixir_web/components/app_shell.ex:411
 #, elixir-autogen
 msgid "Dark"
 msgstr "Dunkel"
@@ -135,8 +135,8 @@ msgstr "Depots"
 msgid "Display preferences"
 msgstr "Anzeigeeinstellungen"
 
-#: lib/portfolixir_web/components/app_shell.ex:545
-#: lib/portfolixir_web/components/app_shell.ex:546
+#: lib/portfolixir_web/components/app_shell.ex:556
+#: lib/portfolixir_web/components/app_shell.ex:557
 #: lib/portfolixir_web/live/portfolio_live.ex:1714
 #: lib/portfolixir_web/live/portfolio_live.ex:1715
 #: lib/portfolixir_web/live/securities_live.ex:1030
@@ -145,7 +145,7 @@ msgstr "Anzeigeeinstellungen"
 msgid "Dismiss"
 msgstr "Schließen"
 
-#: lib/portfolixir_web/components/app_shell.ex:432
+#: lib/portfolixir_web/components/app_shell.ex:443
 #, elixir-autogen
 msgid "English"
 msgstr "Englisch"
@@ -166,7 +166,7 @@ msgstr "Börse"
 msgid "Fees"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:431
+#: lib/portfolixir_web/components/app_shell.ex:442
 #, elixir-autogen
 msgid "German"
 msgstr "Deutsch"
@@ -187,7 +187,7 @@ msgstr "ISIN"
 msgid "Language"
 msgstr "Sprache"
 
-#: lib/portfolixir_web/components/app_shell.ex:399
+#: lib/portfolixir_web/components/app_shell.ex:410
 #, elixir-autogen
 msgid "Light"
 msgstr "Hell"
@@ -205,7 +205,7 @@ msgstr "Ein Depot mit einem Verrechnungskonto verknüpfen"
 msgid "Accent color"
 msgstr "Akzentfarbe"
 
-#: lib/portfolixir_web/components/app_shell.ex:408
+#: lib/portfolixir_web/components/app_shell.ex:419
 #, elixir-autogen
 msgid "Coral"
 msgstr "Koralle"
@@ -220,12 +220,12 @@ msgstr "Lokales Portfolio-Tracking"
 msgid "Workflow path"
 msgstr "Workflow-Pfad"
 
-#: lib/portfolixir_web/components/app_shell.ex:407
+#: lib/portfolixir_web/components/app_shell.ex:418
 #, elixir-autogen
 msgid "Teal"
 msgstr "Petrol"
 
-#: lib/portfolixir_web/components/app_shell.ex:406
+#: lib/portfolixir_web/components/app_shell.ex:417
 #, elixir-autogen
 msgid "Violet"
 msgstr "Violett"
@@ -315,7 +315,7 @@ msgstr "Transaktion erfassen"
 msgid "Review current holdings"
 msgstr "Aktuelle Bestände prüfen"
 
-#: lib/portfolixir_web/components/app_shell.ex:311
+#: lib/portfolixir_web/components/app_shell.ex:322
 #: lib/portfolixir_web/live/dashboard_live.ex:1485
 #: lib/portfolixir_web/live/imports_live.ex:365
 #: lib/portfolixir_web/live/imports_live.ex:1282
@@ -362,7 +362,7 @@ msgstr "Depot auswählen"
 msgid "Select security"
 msgstr "Wertpapier auswählen"
 
-#: lib/portfolixir_web/components/app_shell.ex:398
+#: lib/portfolixir_web/components/app_shell.ex:409
 #: lib/portfolixir_web/live/journal/row.ex:70
 #, elixir-autogen
 msgid "System"
@@ -401,7 +401,7 @@ msgstr "Transaktionshistorie"
 msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
-#: lib/portfolixir_web/components/app_shell.ex:318
+#: lib/portfolixir_web/components/app_shell.ex:329
 #: lib/portfolixir_web/live/dashboard_live.ex:1497
 #: lib/portfolixir_web/live/securities/bond_strip.ex:316
 #: lib/portfolixir_web/live/securities_live.ex:1664
@@ -435,7 +435,7 @@ msgstr "Typ"
 msgid "Asset class"
 msgstr "Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:347
+#: lib/portfolixir_web/components/app_shell.ex:358
 #: lib/portfolixir_web/live/classifications_live.ex:267
 #: lib/portfolixir_web/live/classifications_live.ex:611
 #: lib/portfolixir_web/live/classifications_live.ex:619
@@ -603,6 +603,8 @@ msgstr "Online-Quelle"
 
 #: lib/portfolixir_web/live/journal/row.ex:67
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:394
+#: lib/portfolixir_web/live/predictions_live.ex:176
+#: lib/portfolixir_web/live/predictions_live.ex:449
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:842
 #: lib/portfolixir_web/live/securities/filter_popover.ex:89
 #: lib/portfolixir_web/live/securities_live.ex:3566
@@ -1106,7 +1108,7 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/components/app_shell.ex:854
+#: lib/portfolixir_web/components/app_shell.ex:865
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:606
 #, elixir-autogen, elixir-format
 msgid "Actions for %{row}"
@@ -1369,7 +1371,7 @@ msgstr "Eröffnungsdatum"
 msgid "Open positions (FIFO)"
 msgstr "Offene Positionen (FIFO)"
 
-#: lib/portfolixir_web/components/app_shell.ex:297
+#: lib/portfolixir_web/components/app_shell.ex:308
 #: lib/portfolixir_web/live/dashboard_live.ex:233
 #: lib/portfolixir_web/live/securities_live.ex:4243
 #, elixir-autogen, elixir-format
@@ -3031,7 +3033,7 @@ msgstr "Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = ü
 msgid "Toggle the category's securities"
 msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 
-#: lib/portfolixir_web/components/app_shell.ex:330
+#: lib/portfolixir_web/components/app_shell.ex:341
 #: lib/portfolixir_web/live/buckets_live.ex:306
 #: lib/portfolixir_web/live/imports_live.ex:2901
 #: lib/portfolixir_web/live/imports_live.ex:2927
@@ -3040,7 +3042,7 @@ msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 msgid "Accounts & depots"
 msgstr "Konten & Depots"
 
-#: lib/portfolixir_web/components/app_shell.ex:325
+#: lib/portfolixir_web/components/app_shell.ex:336
 #, elixir-autogen, elixir-format
 msgid "Administration"
 msgstr "Verwaltung"
@@ -3050,12 +3052,12 @@ msgstr "Verwaltung"
 msgid "Allocation & targets"
 msgstr "Allokation & Ziele"
 
-#: lib/portfolixir_web/components/app_shell.ex:275
+#: lib/portfolixir_web/components/app_shell.ex:286
 #, elixir-autogen, elixir-format
 msgid "History"
 msgstr "Historie"
 
-#: lib/portfolixir_web/components/app_shell.ex:280
+#: lib/portfolixir_web/components/app_shell.ex:291
 #: lib/portfolixir_web/live/journal/row.ex:69
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:1657
 #, elixir-autogen, elixir-format
@@ -3067,7 +3069,7 @@ msgstr "Import"
 msgid "Section tabs"
 msgstr "Bereichs-Tabs"
 
-#: lib/portfolixir_web/components/app_shell.ex:304
+#: lib/portfolixir_web/components/app_shell.ex:315
 #: lib/portfolixir_web/live/portfolio_live.ex:980
 #: lib/portfolixir_web/live/portfolio_live.ex:983
 #: lib/portfolixir_web/live/portfolio_live.ex:996
@@ -3499,7 +3501,7 @@ msgstr "Die neuen Datensätze starten mit diesen Buckets getaggt."
 msgid "The new tag could not be created."
 msgstr "Der neue Tag konnte nicht angelegt werden."
 
-#: lib/portfolixir_web/components/app_shell.ex:340
+#: lib/portfolixir_web/components/app_shell.ex:351
 #: lib/portfolixir_web/components/view_switcher.ex:94
 #: lib/portfolixir_web/live/buckets_live.ex:63
 #: lib/portfolixir_web/live/buckets_live.ex:80
@@ -4968,19 +4970,19 @@ msgid_plural "%{count} without an asset class"
 msgstr[0] "eins ohne Anlageklasse"
 msgstr[1] "%{count} ohne Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:902
+#: lib/portfolixir_web/components/app_shell.ex:913
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Attention"
 msgstr "Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:901
+#: lib/portfolixir_web/components/app_shell.ex:912
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Note"
 msgstr "Hinweis"
 
-#: lib/portfolixir_web/components/app_shell.ex:903
+#: lib/portfolixir_web/components/app_shell.ex:914
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Problem"
@@ -5470,6 +5472,9 @@ msgstr "Noch keine Gebühren oder Steuern gebucht."
 
 #: lib/portfolixir_web/live/journal/row.ex:68
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:393
+#: lib/portfolixir_web/live/predictions_live.ex:176
+#: lib/portfolixir_web/live/predictions_live.ex:455
+#: lib/portfolixir_web/live/predictions_live.ex:465
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:843
 #: lib/portfolixir_web/live/risk_live.ex:673
 #: lib/portfolixir_web/live/securities_live.ex:3567
@@ -6125,7 +6130,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 msgid "no exchange rate"
 msgstr "kein Wechselkurs"
 
-#: lib/portfolixir_web/components/app_shell.ex:888
+#: lib/portfolixir_web/components/app_shell.ex:899
 #, elixir-autogen, elixir-format
 msgctxt "price freshness"
 msgid "stale"
@@ -6817,6 +6822,10 @@ msgid "Bought → sold"
 msgstr "Gekauft → verkauft"
 
 #: lib/portfolixir_web/live/income_live.ex:575
+#: lib/portfolixir_web/live/predictions_live.ex:290
+#: lib/portfolixir_web/live/predictions_live.ex:343
+#: lib/portfolixir_web/live/predictions_live.ex:404
+#: lib/portfolixir_web/live/predictions_live.ex:437
 #, elixir-autogen, elixir-format
 msgid "Hit rate"
 msgstr "Trefferquote"
@@ -6938,6 +6947,7 @@ msgid "52-week range"
 msgstr "52-Wochen-Spanne"
 
 #: lib/portfolixir_web/live/dashboard_live.ex:568
+#: lib/portfolixir_web/live/predictions_live.ex:489
 #, elixir-autogen, elixir-format
 msgid "Due"
 msgstr "Fällig"
@@ -7265,6 +7275,7 @@ msgstr "weniger"
 msgid "A rule that has been in force keeps its subject as part of its history. Retiring the security hides it from the active list and keeps both."
 msgstr "Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte. Stilllegen blendet das Wertpapier aus der aktiven Liste aus und behält beides."
 
+#: lib/portfolixir_web/live/predictions_live.ex:340
 #: lib/portfolixir_web/policy_rule_label.ex:36
 #, elixir-autogen, elixir-format
 msgid "Band"
@@ -7551,6 +7562,7 @@ msgid_plural "Show the retired rules (%{count})"
 msgstr[0] "Beendete Regel anzeigen (%{count})"
 msgstr[1] "Beendete Regeln anzeigen (%{count})"
 
+#: lib/portfolixir_web/live/predictions_live.ex:530
 #: lib/portfolixir_web/live/risk_live.ex:550
 #, elixir-autogen, elixir-format
 msgid "State"
@@ -9601,26 +9613,26 @@ msgstr "Version von:"
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr "%{field} enthält unsichtbare Zeichen (%{characters})"
 
-#: lib/portfolixir_web/components/app_shell.ex:746
+#: lib/portfolixir_web/components/app_shell.ex:757
 #, elixir-autogen, elixir-format
 msgid "The text contains %{count} invisible character."
 msgid_plural "The text contains %{count} invisible characters."
 msgstr[0] "Der Text enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Text enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:754
+#: lib/portfolixir_web/components/app_shell.ex:765
 #, elixir-autogen, elixir-format
 msgid "The name contains %{count} invisible character."
 msgid_plural "The name contains %{count} invisible characters."
 msgstr[0] "Der Name enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Name enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:776
+#: lib/portfolixir_web/components/app_shell.ex:787
 #, elixir-autogen, elixir-format
 msgid "Text with the characters made visible"
 msgstr "Text mit sichtbar gemachten Zeichen"
 
-#: lib/portfolixir_web/components/app_shell.ex:777
+#: lib/portfolixir_web/components/app_shell.ex:788
 #, elixir-autogen, elixir-format
 msgid "Name with the characters made visible"
 msgstr "Name mit sichtbar gemachten Zeichen"
@@ -10696,7 +10708,7 @@ msgstr "„%{name}“ wurde inzwischen gelöscht; die Liste ist neu geladen."
 msgid "“%{name}” was merged into %{target} meanwhile; the list is reloaded."
 msgstr "„%{name}“ wurde inzwischen in %{target} zusammengeführt; die Liste ist neu geladen."
 
-#: lib/portfolixir_web/components/app_shell.ex:762
+#: lib/portfolixir_web/components/app_shell.ex:773
 #, elixir-autogen, elixir-format
 msgid "A former name contains %{count} invisible character."
 msgid_plural "A former name contains %{count} invisible characters."
@@ -10717,14 +10729,14 @@ msgid_plural "An import that writes one of them exactly so keeps booking to this
 msgstr[0] "Ein Import, der ihn genau so schreibt, bucht weiter auf dieses Depot."
 msgstr[1] "Ein Import, der einen von ihnen genau so schreibt, bucht weiter auf dieses Depot."
 
-#: lib/portfolixir_web/components/app_shell.ex:770
+#: lib/portfolixir_web/components/app_shell.ex:781
 #, elixir-autogen, elixir-format
 msgid "Former names contain %{count} invisible character."
 msgid_plural "Former names contain %{count} invisible characters."
 msgstr[0] "Frühere Namen enthalten %{count} unsichtbares Zeichen."
 msgstr[1] "Frühere Namen enthalten %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:778
+#: lib/portfolixir_web/components/app_shell.ex:789
 #, elixir-autogen, elixir-format
 msgid "Names with the characters made visible"
 msgstr "Namen mit sichtbar gemachten Zeichen"
@@ -13786,29 +13798,29 @@ msgid_plural "%{count} securities match."
 msgstr[0] "%{count} Wertpapier passt."
 msgstr[1] "%{count} Wertpapiere passen."
 
-#: lib/portfolixir_web/components/app_shell.ex:572
+#: lib/portfolixir_web/components/app_shell.ex:583
 #, elixir-autogen, elixir-format
 msgid "About this section"
 msgstr "Zu diesem Abschnitt"
 
-#: lib/portfolixir_web/components/app_shell.ex:643
+#: lib/portfolixir_web/components/app_shell.ex:654
 #, elixir-autogen, elixir-format
 msgctxt "data-note clamp"
 msgid "less"
 msgstr "weniger"
 
-#: lib/portfolixir_web/components/app_shell.ex:642
+#: lib/portfolixir_web/components/app_shell.ex:653
 #, elixir-autogen, elixir-format
 msgctxt "data-note clamp"
 msgid "more"
 msgstr "mehr"
 
-#: lib/portfolixir_web/components/app_shell.ex:690
+#: lib/portfolixir_web/components/app_shell.ex:701
 #, elixir-autogen, elixir-format
 msgid "Show details"
 msgstr "Details anzeigen"
 
-#: lib/portfolixir_web/components/app_shell.ex:680
+#: lib/portfolixir_web/components/app_shell.ex:691
 #, elixir-autogen, elixir-format
 msgctxt "data-note fold"
 msgid "%{count} Attention"
@@ -13816,7 +13828,7 @@ msgid_plural "%{count} Attention"
 msgstr[0] "%{count} Achtung"
 msgstr[1] "%{count} Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:685
+#: lib/portfolixir_web/components/app_shell.ex:696
 #, elixir-autogen, elixir-format
 msgctxt "data-note fold"
 msgid "%{count} Note"
@@ -13955,7 +13967,7 @@ msgstr "Fehlt bei den Trades: %{counts}."
 msgid "Not in the total: %{counts}."
 msgstr "Nicht in der Summe: %{counts}."
 
-#: lib/portfolixir_web/components/app_shell.ex:690
+#: lib/portfolixir_web/components/app_shell.ex:701
 #, elixir-autogen, elixir-format
 msgid "Hide details"
 msgstr "Details ausblenden"
@@ -14208,7 +14220,7 @@ msgstr[1] "%{count} Einträge"
 msgid "Actor"
 msgstr "Akteur"
 
-#: lib/portfolixir_web/components/app_shell.ex:357
+#: lib/portfolixir_web/components/app_shell.ex:368
 #: lib/portfolixir_web/live/journal_live.ex:227
 #, elixir-autogen, elixir-format
 msgid "Audit journal"
@@ -14379,6 +14391,8 @@ msgid "Tax profile"
 msgstr "Steuerprofil"
 
 #: lib/portfolixir_web/live/journal_live.ex:248
+#: lib/portfolixir_web/live/predictions_live.ex:176
+#: lib/portfolixir_web/live/predictions_live.ex:487
 #, elixir-autogen, elixir-format
 msgid "All"
 msgstr "Alle"
@@ -14818,6 +14832,7 @@ msgstr "Benchmark-Rendite"
 msgid "Closes"
 msgstr "Schlusskurse"
 
+#: lib/portfolixir_web/live/predictions_live.ex:531
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:165
 #, elixir-autogen, elixir-format
 msgid "Excess"
@@ -14833,6 +14848,7 @@ msgstr "Überrendite = Rendite − Rendite der Benchmark. „Übertrifft“ trif
 msgid "Falls by %{date}"
 msgstr "Fällt bis %{date}"
 
+#: lib/portfolixir_web/live/predictions_live.ex:629
 #: lib/portfolixir_web/prediction_label.ex:63
 #, elixir-autogen, elixir-format
 msgid "Hit"
@@ -14863,12 +14879,15 @@ msgstr "Übertrifft %{benchmark} bis %{date}"
 msgid "Outperforms %{rate} a year by %{date}"
 msgstr "Übertrifft %{rate} p. a. bis %{date}"
 
+#: lib/portfolixir_web/components/app_shell.ex:273
+#: lib/portfolixir_web/live/predictions_live.ex:134
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:93
 #: lib/portfolixir_web/live/securities_live.ex:4254
 #, elixir-autogen, elixir-format
 msgid "Predictions"
 msgstr "Prognosen"
 
+#: lib/portfolixir_web/live/predictions_live.ex:148
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:80
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:87
 #, elixir-autogen, elixir-format
@@ -14941,6 +14960,7 @@ msgstr "Für das Wertpapier liegt am oder bis %{days} Tage vor dem %{date} kein 
 msgid "Underperforms %{benchmark} by %{date}"
 msgstr "Bleibt bis %{date} hinter %{benchmark} zurück"
 
+#: lib/portfolixir_web/live/predictions_live.ex:630
 #: lib/portfolixir_web/prediction_label.ex:64
 #, elixir-autogen, elixir-format
 msgid "missed"
@@ -14989,3 +15009,220 @@ msgstr[1] "%{name} ist keine Benchmark mehr. %{count} festgehaltene Prognosen me
 #, elixir-autogen, elixir-format
 msgid "Delete this security? Bookings, quotes, events, research entries, predictions and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
 msgstr "Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge, Prognosen und eigene Regeln blockieren das Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs, jeweils im Journal festgehalten, und das Logo."
+
+#: lib/portfolixir_web/live/predictions_live.ex:618
+#, elixir-autogen, elixir-format
+msgid "%{count} day left"
+msgid_plural "%{count} days left"
+msgstr[0] "noch %{count} Tag"
+msgstr[1] "noch %{count} Tage"
+
+#: lib/portfolixir_web/live/predictions_live.ex:426
+#, elixir-autogen, elixir-format
+msgid "%{count} resolved · sharpness %{sharpness} · mean stated %{mean}"
+msgid_plural "%{count} resolved · sharpness %{sharpness} · mean stated %{mean}"
+msgstr[0] "%{count} aufgelöst · Schärfe %{sharpness} · Ø angegeben %{mean}"
+msgstr[1] "%{count} aufgelöst · Schärfe %{sharpness} · Ø angegeben %{mean}"
+
+#: lib/portfolixir_web/live/predictions_live.ex:305
+#, elixir-autogen, elixir-format
+msgid "%{open} open and %{unresolved} not resolved count in no score"
+msgstr "%{open} offen und %{unresolved} nicht aufgelöst zählen in keinem Score"
+
+#: lib/portfolixir_web/live/predictions_live.ex:371
+#, elixir-autogen, elixir-format
+msgid "A hit rate per band shows from %{minimum} resolved predictions in the band; none has reached %{minimum} yet. Until then the Brier score with its standard error carries the finding."
+msgstr "Eine Trefferquote je Band zeigt sich erst ab %{minimum} aufgelösten Prognosen im Band; bisher erreicht keines %{minimum}. Bis dahin trägt der Brier-Score mit seinem Standardfehler die Aussage."
+
+#: lib/portfolixir_web/live/predictions_live.ex:498
+#, elixir-autogen, elixir-format
+msgid "All predictions"
+msgstr "Alle Prognosen"
+
+#: lib/portfolixir_web/live/predictions_live.ex:174
+#: lib/portfolixir_web/live/predictions_live.ex:399
+#, elixir-autogen, elixir-format
+msgid "Author"
+msgstr "Urheber"
+
+#: lib/portfolixir_web/live/predictions_live.ex:313
+#, elixir-autogen, elixir-format
+msgid "Basis: every resolved prediction once, its probability and outcome as on the security's Predictions tab."
+msgstr "Grundlage: jede aufgelöste Prognose einmal, Wahrscheinlichkeit und Ergebnis wie im Tab „Prognosen“ des Wertpapiers."
+
+#: lib/portfolixir_web/live/predictions_live.ex:272
+#: lib/portfolixir_web/live/predictions_live.ex:402
+#, elixir-autogen, elixir-format
+msgid "Brier score"
+msgstr "Brier-Score"
+
+#: lib/portfolixir_web/live/predictions_live.ex:237
+#, elixir-autogen, elixir-format
+msgid "Brier score: the mean of (p − o)² over the resolved predictions, p the stated probability, o 1 for a hit and 0 otherwise. The reference %{reference} is the score of “always 50 %”."
+msgstr "Brier-Score: Mittel von (p − o)² über die aufgelösten Prognosen, p die angegebene Wahrscheinlichkeit, o 1 bei Treffer und 0 sonst. Die Referenz %{reference} ist der Score von „immer 50 %“."
+
+#: lib/portfolixir_web/live/predictions_live.ex:394
+#, elixir-autogen, elixir-format
+msgid "By author and model"
+msgstr "Nach Urheber und Modell"
+
+#: lib/portfolixir_web/live/predictions_live.ex:334
+#, elixir-autogen, elixir-format
+msgid "By probability"
+msgstr "Nach Wahrscheinlichkeit"
+
+#: lib/portfolixir_web/live/predictions_live.ex:226
+#, elixir-autogen, elixir-format
+msgid "Calibration"
+msgstr "Kalibrierung"
+
+#: lib/portfolixir_web/live/predictions_live.ex:505
+#, elixir-autogen, elixir-format
+msgid "Filter by status"
+msgstr "Nach Stand filtern"
+
+#: lib/portfolixir_web/live/predictions_live.ex:172
+#, elixir-autogen, elixir-format
+msgid "Filter the predictions"
+msgstr "Prognosen filtern"
+
+#: lib/portfolixir_web/live/predictions_live.ex:253
+#, elixir-autogen, elixir-format
+msgid "Hit rate: hits divided by n, beside the mean stated probability, which a calibrated hit rate matches."
+msgstr "Trefferquote: Treffer durch n, neben der mittleren angegebenen Wahrscheinlichkeit, der eine kalibrierte Quote entspricht."
+
+#: lib/portfolixir_web/live/predictions_live.ex:136
+#, elixir-autogen, elixir-format
+msgid "How well the recorded predictions have scored · across all securities, independent of the view"
+msgstr "Wie gut die festgehaltenen Prognosen getroffen haben · über alle Wertpapiere, unabhängig von der Ansicht"
+
+#: lib/portfolixir_web/live/predictions_live.ex:527
+#, elixir-autogen, elixir-format
+msgid "Made · author"
+msgstr "Abgegeben · Urheber"
+
+#: lib/portfolixir_web/live/predictions_live.ex:342
+#: lib/portfolixir_web/live/predictions_live.ex:405
+#, elixir-autogen, elixir-format
+msgid "Mean stated"
+msgstr "Ø angegeben"
+
+#: lib/portfolixir_web/live/predictions_live.ex:187
+#: lib/portfolixir_web/live/predictions_live.ex:400
+#, elixir-autogen, elixir-format
+msgid "Model"
+msgstr "Modell"
+
+#: lib/portfolixir_web/live/predictions_live.ex:147
+#, elixir-autogen, elixir-format
+msgid "No prediction is recorded yet."
+msgstr "Noch ist keine Prognose festgehalten."
+
+#: lib/portfolixir_web/live/predictions_live.ex:521
+#, elixir-autogen, elixir-format
+msgid "No prediction matches this filter."
+msgstr "Keine Prognose passt zu diesem Filter."
+
+#: lib/portfolixir_web/live/predictions_live.ex:491
+#, elixir-autogen, elixir-format
+msgid "Not resolved"
+msgstr "Nicht aufgelöst"
+
+#: lib/portfolixir_web/live/predictions_live.ex:258
+#, elixir-autogen, elixir-format
+msgid "Open and unresolved predictions count in no score; they are counted."
+msgstr "Offene und nicht aufgelöste Prognosen zählen in keinem Score; sie werden gezählt."
+
+#: lib/portfolixir_web/live/predictions_live.ex:529
+#, elixir-autogen, elixir-format
+msgid "Prob."
+msgstr "Wahrsch."
+
+#: lib/portfolixir_web/live/predictions_live.ex:261
+#, elixir-autogen, elixir-format
+msgid "Resolved as on a security's Predictions tab; price return only, closes at most %{days} days old."
+msgstr "Auflösung wie im Tab „Prognosen“ des Wertpapiers; nur Kursrendite, Schlusskurse höchstens %{days} Tage alt."
+
+#: lib/portfolixir_web/live/predictions_live.ex:377
+#, elixir-autogen, elixir-format
+msgid "Resolved per band:"
+msgstr "Aufgelöst je Band:"
+
+#: lib/portfolixir_web/live/predictions_live.ex:528
+#, elixir-autogen, elixir-format
+msgid "Security · claim"
+msgstr "Wertpapier · Aussage"
+
+#: lib/portfolixir_web/live/predictions_live.ex:283
+#: lib/portfolixir_web/live/predictions_live.ex:403
+#, elixir-autogen, elixir-format
+msgid "Sharpness"
+msgstr "Schärfe"
+
+#: lib/portfolixir_web/live/predictions_live.ex:248
+#, elixir-autogen, elixir-format
+msgid "Sharpness: the mean of p − 0.50. Whoever always says 50 % is perfectly calibrated and says nothing."
+msgstr "Schärfe: Mittel von p − 0,50. Wer immer 50 % sagt, ist perfekt kalibriert und sagt nichts."
+
+#: lib/portfolixir_web/live/predictions_live.ex:243
+#, elixir-autogen, elixir-format
+msgid "Standard error: the sample standard deviation of the squared errors, divided by √n; for the hit rate, that of the hits."
+msgstr "Standardfehler: die Standardabweichung der quadrierten Fehler in der Stichprobe, geteilt durch √n; bei der Trefferquote die der Treffer."
+
+#: lib/portfolixir_web/live/predictions_live.ex:456
+#, elixir-autogen, elixir-format
+msgid "all models"
+msgstr "alle Modelle"
+
+#: lib/portfolixir_web/live/predictions_live.ex:286
+#, elixir-autogen, elixir-format
+msgid "mean distance of the probability from 0.50 · 0 = always 50 %"
+msgstr "Ø Abstand der Wahrscheinlichkeit von 0,50 · 0 = immer 50 %"
+
+#: lib/portfolixir_web/live/predictions_live.ex:354
+#, elixir-autogen, elixir-format
+msgid "too few · %{count} of %{minimum}"
+msgid_plural "too few · %{count} of %{minimum}"
+msgstr[0] "zu wenige · %{count} von %{minimum}"
+msgstr[1] "zu wenige · %{count} von %{minimum}"
+
+#: lib/portfolixir_web/live/predictions_live.ex:632
+#, elixir-autogen, elixir-format
+msgid "waiting for the close"
+msgstr "wartet auf Schlusskurs"
+
+#: lib/portfolixir_web/live/predictions_live.ex:295
+#, elixir-autogen, elixir-format
+msgid "± %{se} pp standard error · mean stated %{mean}"
+msgstr "± %{se} Pp Standardfehler · Ø angegeben %{mean}"
+
+#: lib/portfolixir_web/live/predictions_live.ex:277
+#, elixir-autogen, elixir-format
+msgid "± standard error · reference %{reference} = always 50 % · lower is better"
+msgstr "± Standardfehler · Referenz %{reference} = immer 50 % · niedriger ist besser"
+
+#: lib/portfolixir_web/live/predictions_live.ex:228
+#, elixir-autogen, elixir-format
+msgid "· %{resolved} resolved · %{open} open · %{unresolved} not resolved"
+msgstr "· %{resolved} aufgelöst · %{open} offen · %{unresolved} nicht aufgelöst"
+
+#: lib/portfolixir_web/live/predictions_live.ex:488
+#, elixir-autogen, elixir-format
+msgctxt "prediction status"
+msgid "Open"
+msgstr "Offen"
+
+#: lib/portfolixir_web/live/predictions_live.ex:302
+#: lib/portfolixir_web/live/predictions_live.ex:341
+#: lib/portfolixir_web/live/predictions_live.ex:401
+#: lib/portfolixir_web/live/predictions_live.ex:490
+#, elixir-autogen, elixir-format
+msgctxt "prediction status"
+msgid "Resolved"
+msgstr "Aufgelöst"
+
+#: lib/portfolixir_web/live/predictions_live.ex:633
+#, elixir-autogen, elixir-format
+msgctxt "prediction status"
+msgid "open"
+msgstr "offen"

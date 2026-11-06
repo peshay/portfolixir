@@ -89,6 +89,8 @@ defmodule PortfolixirWeb.Router do
       live("/snapshots", SnapshotsLive)
       live("/tax", TaxLive)
       live("/risk", RiskLive)
+      # Sprint 26 V2 (ADR-0055 §4; board ux-design-2026-11-06-sprint26-f1, pick A).
+      live("/predictions", PredictionsLive)
       live("/imports", ImportsLive)
       live("/buckets", BucketsLive)
       live("/classifications", ClassificationsLive, :index)

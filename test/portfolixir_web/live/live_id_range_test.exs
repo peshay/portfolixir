@@ -6,7 +6,7 @@ defmodule PortfolixirWeb.LiveIdRangeTest do
   @past_bigint "99999999999999999999999"
 
   @live_routes ~w(/ /portfolio /securities /portfolios /transactions /cashflow /snapshots /tax
-                  /risk /imports /buckets /classifications)
+                  /risk /predictions /imports /buckets /classifications)
 
   @id_keys ~w(id security_id classification_id category_id transaction_id view_id view
               security_ids)
