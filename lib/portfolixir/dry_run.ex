@@ -59,34 +59,82 @@ defmodule Portfolixir.DryRun do
   @spec run(kinds(), (-> {:ok, term()} | {:error, term()})) :: {:ok, removed()} | {:error, term()}
   def run(kinds, delete) when is_list(kinds) and is_function(delete, 0) do
     previous = Process.put(@flag, true)
-    own_transaction? = own_transaction?()
 
     try do
-      fn ->
-        if own_transaction?, do: Repo.query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-        before = ids(kinds)
-
-        case delete.() do
-          {:ok, _deleted} -> Repo.rollback({__MODULE__, {:ok, removed(kinds, before)}})
-          {:error, reason} -> Repo.rollback({__MODULE__, {:error, reason}})
-        end
-      end
-      |> Repo.transaction()
-      |> case do
-        {:error, {__MODULE__, answer}} -> answer
-      end
-    rescue
-      error in Postgrex.Error ->
-        case error do
-          %Postgrex.Error{postgres: %{code: :serialization_failure}} ->
-            {:error, :concurrent_change}
-
-          _other ->
-            reraise error, __STACKTRACE__
-        end
+      transact(kinds, delete, &{:rollback, {:ok, &1}})
     after
       if previous, do: Process.put(@flag, previous), else: Process.delete(@flag)
     end
+  end
+
+  @doc """
+  Runs `delete` (the real delete) held to `expected`, a dry run's answer
+  (Sprint 26 V4, #894; board 04, "the confirm holds to the list it
+  showed"): in one transaction it reads the ids, deletes, reads what the
+  delete removed, and commits only when that equals `expected`, every kind
+  and every id. Otherwise it rolls the delete back and answers
+  `{:error, {:changed, removed}}`, `removed` what the delete removes now —
+  the dry run's answer as it stands, for the screen to show. A refusal is
+  the delete's own `{:error, reason}`; `{:error, :concurrent_change}` as in
+  `run/2`.
+
+  The check and the delete are one transaction, at the same REPEATABLE READ
+  the dry run runs at, rather than a fresh dry run followed by the delete:
+  between two transactions a row could land that the second removes and
+  the first did not name. Within one snapshot the ids read before the
+  delete are the ones the delete meets, and a row a concurrent transaction
+  changes after the snapshot fails the delete with a serialization failure,
+  which deletes nothing either.
+
+  This is the real delete, so the derived layer's version bump tells the
+  refresher and the post-commit process as any delete does; on the
+  rolled-back path they read a state that did not change.
+  """
+  @spec held_to(kinds(), removed(), (-> {:ok, term()} | {:error, term()})) ::
+          {:ok, removed()} | {:error, {:changed, removed()}} | {:error, term()}
+  def held_to(kinds, expected, delete)
+      when is_list(kinds) and is_map(expected) and is_function(delete, 0) do
+    transact(kinds, delete, fn removed ->
+      if removed == expected,
+        do: {:commit, {:ok, removed}},
+        else: {:rollback, {:error, {:changed, removed}}}
+    end)
+  end
+
+  # The delete in one transaction: the ids before it, the delete, then what
+  # it removed, which `decide` commits or rolls back with an answer.
+  defp transact(kinds, delete, decide) do
+    own_transaction? = own_transaction?()
+
+    fn ->
+      if own_transaction?, do: Repo.query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+      before = ids(kinds)
+
+      case delete.() do
+        {:ok, _deleted} ->
+          case decide.(removed(kinds, before)) do
+            {:commit, answer} -> answer
+            {:rollback, answer} -> Repo.rollback({__MODULE__, answer})
+          end
+
+        {:error, reason} ->
+          Repo.rollback({__MODULE__, {:error, reason}})
+      end
+    end
+    |> Repo.transaction()
+    |> case do
+      {:ok, answer} -> answer
+      {:error, {__MODULE__, answer}} -> answer
+    end
+  rescue
+    error in Postgrex.Error ->
+      case error do
+        %Postgrex.Error{postgres: %{code: :serialization_failure}} ->
+          {:error, :concurrent_change}
+
+        _other ->
+          reraise error, __STACKTRACE__
+      end
   end
 
   @doc "Whether a dry run is running in this process."
