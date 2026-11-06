@@ -220,21 +220,32 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   defp refund_unit?(_unit), do: false
 
   defp preview(txs, opts) do
-    {entries, errors, refused} =
+    {entries, errors, refused, figures} =
       txs
       |> Enum.with_index(1)
-      |> Enum.reduce({[], [], []}, fn {raw, row}, {acc_entries, acc_errors, acc_refused} ->
+      |> Enum.reduce({[], [], [], %{}}, fn {raw, row},
+                                           {acc_entries, acc_errors, acc_refused, acc_figures} ->
         case to_entry(raw, row) do
           {:ok, entry} ->
-            {[entry | acc_entries], acc_errors, acc_refused}
+            {[entry | acc_entries], acc_errors, acc_refused, acc_figures}
 
           {:error, message} ->
-            {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused}
+            {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused, acc_figures}
+
+          # The privacy mode (Sprint 26 I22): a message that quotes figures
+          # names them, so a view that hides amounts hides them (`Preview`'s
+          # `figures`).
+          {:error, message, quoted} ->
+            {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused,
+             PortfolioPerformance.put_figures(acc_figures, row, quoted)}
 
           # ADR-0053 A5: a refused credit keeps its would-be entry (#1118).
           {:refused, message, credit} ->
+            {quoted, credit} = Map.pop(credit, :figures, [])
+
             {acc_entries, [%{row: row, message: message} | acc_errors],
-             [Map.put(credit, :row, row) | acc_refused]}
+             [Map.put(credit, :row, row) | acc_refused],
+             PortfolioPerformance.put_figures(acc_figures, row, quoted)}
         end
       end)
 
@@ -245,7 +256,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       source_filename: Keyword.get(opts, :filename),
       entries: entries,
       errors: Enum.sort_by(Enum.reverse(errors) ++ ticker_warnings(entries), & &1.row),
-      refused_credits: Enum.reverse(refused)
+      refused_credits: Enum.reverse(refused),
+      figures: figures
     }
   end
 
@@ -365,7 +377,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         {:error, reason}
 
       {:error, {:invalid_decimal, value}} ->
-        {:error, PortfolioPerformance.decimal_message(value)}
+        PortfolioPerformance.decimal_error(value)
+
+      {:error, {:invalid_unit, unit}} ->
+        # The unit as the file wrote it may hold an amount: it is quoted as
+        # a figure.
+        {:error, gettext("invalid unit %{unit}", unit: unit),
+         PortfolioPerformance.figures([unit])}
 
       {:error, {:invalid_currency, which, value}} ->
         {:error, PortfolioPerformance.currency_message(which, value)}
@@ -466,11 +484,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
             {:cont, {:ok, fold_unit(Map.get(unit, "type"), amount, fees, taxes, refunds)}}
 
           {:error, _} ->
-            {:halt, {:error, PortfolioPerformance.decimal_message(unit["amount"])}}
+            {:halt, {:error, {:invalid_decimal, unit["amount"]}}}
         end
 
       other, _acc ->
-        {:halt, {:error, gettext("invalid unit %{unit}", unit: inspect(other))}}
+        {:halt, {:error, {:invalid_unit, inspect(other)}}}
     end)
     |> case do
       {:ok, {fees, taxes, refunds}} -> {:ok, {fees, taxes, Enum.reverse(refunds)}}
@@ -552,7 +570,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
            message: stored_fee_message(entry.kind, written),
            listed_message: listed_fee_message(entry.kind, written),
            head: fee_head(entry.kind, written),
-           again: fee_again(entry.kind)
+           again: fee_again(entry.kind),
+           figures: PortfolioPerformance.figures(Map.values(written))
          }}
     end
   end
@@ -849,11 +868,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # zero, so no such row was ever stored and no hash is affected.
   defp negative_amount_error(kind, %Decimal{} = amount) when kind not in @no_cash_kinds do
     if Decimal.negative?(amount) do
-      {:error,
-       negative_amount_message(
-         kind,
-         Decimals.format_locale(amount, Gettext.get_locale(PortfolixirWeb.Gettext))
-       )}
+      written = Decimals.format_locale(amount, Gettext.get_locale(PortfolixirWeb.Gettext))
+      {:error, negative_amount_message(kind, written), PortfolioPerformance.figures([written])}
     end
   end
 

@@ -294,12 +294,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   when the credit is booked, otherwise `{message, refused}`, where
   `refused` holds the row's would-be `entry` and the message it shows
   instead when the stored history holds that entry's content hash
-  (`stored_credit_message/1`). The row's kind comes from `entry`.
+  (`stored_credit_message/1`), and the `figures` its messages quote
+  (`figures/1`). The row's kind comes from `entry`.
   """
   @spec credit_refusal(:debit | :credit | nil, Entry.t(), map()) ::
           nil
           | {String.t(),
-             %{rule: :a5, entry: Entry.t(), message: String.t(), listed_message: String.t()}}
+             %{
+               rule: :a5,
+               entry: Entry.t(),
+               message: String.t(),
+               listed_message: String.t(),
+               figures: [String.t()]
+             }}
   def credit_refusal(direction, %Entry{} = entry, written) do
     written = Map.put(written, :kind, entry.kind)
 
@@ -313,9 +320,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
            rule: :a5,
            entry: entry,
            message: stored_credit_message(written),
-           listed_message: listed_credit_message(written)
+           listed_message: listed_credit_message(written),
+           figures: figures([written.cash, written[:refund], written[:rest]])
          }}
     end
+  end
+
+  @doc """
+  The figures a row message quotes, each as the message writes it: the
+  texts a view that hides amounts and quantities hides wherever the message
+  holds them (`Portfolixir.Imports.Preview`'s `figures`; the privacy mode,
+  Sprint 26 I22). Blank and missing ones are left out, and each is listed
+  once.
+  """
+  @spec figures([String.t() | nil]) :: [String.t()]
+  def figures(texts) do
+    texts
+    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+    |> Enum.uniq()
   end
 
   # ADR-0053 A8 (the amendment of 2026-10-09, #1188): the kinds whose own
@@ -358,7 +380,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
                message: String.t(),
                listed_message: String.t(),
                head: String.t(),
-               again: String.t()
+               again: String.t(),
+               figures: [String.t()]
              }}
   def refund_refusal(%Entry{kind: kind, companion_entries: [_ | _]} = entry, refund)
       when kind in @refund_uncarried_kinds do
@@ -369,7 +392,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
        message: stored_refund_message(kind, refund),
        listed_message: listed_refund_message(kind, refund),
        head: refund_head(kind, refund),
-       again: refund_again(kind)
+       again: refund_again(kind),
+       figures: figures([refund])
      }}
   end
 
@@ -774,6 +798,28 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   """
   @spec decimal_message(term()) :: String.t()
   def decimal_message(value) do
+    gettext("number %{value} cannot be read or is out of range", value: decimal_shown(value))
+  end
+
+  @doc """
+  `figures` with the figures row `row`'s message quotes put in
+  (`Portfolixir.Imports.Preview`'s `figures`); none, `figures` as it is.
+  """
+  @spec put_figures(%{pos_integer() => [String.t()]}, pos_integer(), [String.t()]) ::
+          %{pos_integer() => [String.t()]}
+  def put_figures(figures, _row, []), do: figures
+  def put_figures(figures, row, quoted), do: Map.put(figures, row, quoted)
+
+  @doc """
+  `decimal_message/1` as a row error with the figure it quotes (`figures/1`):
+  the value stands in a column of amounts or quantities, so a view that
+  hides them hides it too.
+  """
+  @spec decimal_error(term()) :: {:error, String.t(), [String.t()]}
+  def decimal_error(value),
+    do: {:error, decimal_message(value), figures([decimal_shown(value)])}
+
+  defp decimal_shown(value) do
     shown =
       case value do
         %Decimal{} = decimal -> Decimal.to_string(decimal)
@@ -781,9 +827,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
         other -> inspect(other, limit: 5)
       end
 
-    gettext("number %{value} cannot be read or is out of range",
-      value: String.slice(shown, 0, 40)
-    )
+    String.slice(shown, 0, 40)
   end
 
   defp blank_security_error(%Entry{security: %{} = security}) do

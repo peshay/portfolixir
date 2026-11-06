@@ -30,6 +30,13 @@ defmodule Portfolixir.Imports.Preview do
   already stored (#1219): `Portfolixir.Imports.row_errors/2` then names that
   booking between the two instead of the remedy (board
   ux-design-2026-11-01-sprint22/03 ③).
+
+  `figures` names, by row, the figures a row's messages quote — a cell
+  as the file wrote it, a figure the parser derived from the row — each as
+  the message writes it, for its row error and for the messages a refused
+  row shows instead (`message`, `listed_message`, `head`): the privacy mode
+  (Sprint 26 I22) hides each wherever the message holds it
+  (`PortfolixirWeb.Format.figures_in/2`). The messages stay as written.
   """
   @type refused_credit :: %{
           required(:row) => pos_integer(),
@@ -46,14 +53,16 @@ defmodule Portfolixir.Imports.Preview do
           source_filename: String.t() | nil,
           entries: [Entry.t()],
           errors: [%{row: pos_integer() | nil, message: String.t()}],
-          refused_credits: [refused_credit()]
+          refused_credits: [refused_credit()],
+          figures: %{pos_integer() => [String.t()]}
         }
 
   defstruct format: nil,
             source_filename: nil,
             entries: [],
             errors: [],
-            refused_credits: []
+            refused_credits: [],
+            figures: %{}
 
   @doc """
   Counts per kind across all entries in the preview, a companion split off

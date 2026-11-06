@@ -4735,6 +4735,12 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
   seine gespeicherten Verhältnisse (eine Wahrscheinlichkeit, ein
   Zielgewicht, ein Wechselkurs, ein Steuersatz), wie gespeichert. Die Seite
   bietet keinen Download an; das Journal über die API ist nicht betroffen.
+- **Die Importvorschau** verbirgt die Zahlen der Datei in ihren
+  Parser-Warnungen („Zeile 5: Gesamtpreis [Balken] passt nicht zu Betrag
+  [Balken] …“) und in einer Zeile „bereits gebucht“. Die Kopieren-Schaltfläche
+  kopiert die Warnungen mit jeder verborgenen Zahl als „••••“: Die
+  Zwischenablage hält nur Text, und die eingefügte Warnung nennt weiter die
+  Zeile und die Spalte, die zu korrigieren sind.
 - **Formulare behalten ihre Werte.** Ein Formular, das eine gespeicherte Zahl
   bearbeitet (die Buchungsleiste, eine Abrechnung, ein manueller Kurs),
   öffnet mit dem echten Wert, weil eine blind getippte Korrektur einen
