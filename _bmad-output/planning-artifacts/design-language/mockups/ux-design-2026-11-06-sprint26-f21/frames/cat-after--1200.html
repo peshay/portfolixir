@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cat-after</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+.delete-preview { margin: 0; }
+.delete-preview__lead { margin: 0 0 4px; font-size: 13px; color: var(--color-text); }
+.delete-preview__list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: var(--color-text); }
+.delete-preview__list li { overflow-wrap: anywhere; }
+.delete-preview__list li + li { margin-top: 2px; }
+.delete-preview__list li::marker { color: var(--color-text-muted); }
+.delete-preview__names { color: var(--color-text-muted); }
+.confirm-delete-blocked .modal-body ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); position: relative; }
+body.mock-noside .app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+.mock-scrim { position: fixed; inset: 0; z-index: 90; background: rgba(15, 23, 42, 0.4); }
+[data-theme="dark"] .mock-scrim { background: rgba(0, 0, 0, 0.55); }
+@media (min-width: 721px) {
+  dialog.mock-open { position: absolute; top: 0; left: 0; right: 0; z-index: 100; }
+}
+@media (max-width: 720px) {
+  dialog.mock-open { z-index: 100; }
+}
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; }
+dialog.mock-new { outline-offset: 4px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; padding-left: 10px !important; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -22px; top: 0; margin: 0; z-index: 120; }
+.modal-footer .mock-pin--abs { left: -10px; top: -10px; }
+@media (max-width: 720px) { .mock-pin--abs { left: -16px; top: -8px; } }
+.mock-clicked { outline: 2px solid var(--color-danger) !important; outline-offset: 2px; border-radius: 6px; }
+.mock-pinned { position: relative; }
+.mock-native { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100; width: 448px; box-sizing: border-box;
+  padding: 20px 24px 16px; border-radius: 8px; background: #fff; color: #1f1f1f; box-shadow: 0 2px 6px rgba(0,0,0,.15), 0 8px 24px rgba(0,0,0,.25);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0; }
+.mock-native__origin { margin: 0 0 10px; font-size: 14px; font-weight: 500; }
+.mock-native__text { margin: 0 0 20px; }
+.mock-native__buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.mock-native__buttons span { display: inline-block; min-width: 64px; padding: 7px 16px; border-radius: 16px; text-align: center; font-weight: 500; }
+.mock-native__ok { background: #0b57d0; color: #fff; }
+.mock-native__cancel { border: 1px solid #747775; color: #0b57d0; }
+.mock-native--phone { top: auto; bottom: 0; left: 0; right: 0; transform: none; width: auto; border-radius: 12px 12px 0 0; }
+</style>
+</head>
+<body class="mock-noside">
+<div class="mock-scrim" aria-hidden="true"></div>
+<dialog open="" id="delete-preview-dialog" class="modal booking-delete-dialog mock-open mock-new" aria-labelledby="delete-preview-title" aria-describedby="delete-preview-subject">
+<header class="modal-head"><h2 id="delete-preview-title">Kategorie löschen</h2>
+<button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></header>
+<div class="modal-body">
+<p id="delete-preview-subject" class="booking-delete__subject mock-pinned" data-role="delete-preview-subject"><span class="mock-pin mock-pin--abs">1</span><span class="phone-row__body"><span class="phone-row__name"><bdi>Stability</bdi></span><span class="phone-row__ids"><span>Kategorie in <bdi>Strategies</bdi></span></span></span><span class="phone-row__figures"><span class="phone-row__figure">2 Positionen</span></span></p>
+<div class="delete-preview mock-pinned" data-role="delete-preview-removes"><span class="mock-pin mock-pin--abs">2</span>
+<p class="delete-preview__lead">Das Löschen entfernt:</p>
+<ul class="delete-preview__list">
+<li>„<bdi>Stability</bdi>“ und 1 Kategorie darunter</li>
+<li>2 Wertpapierzuordnungen</li>
+<li>4 Zielgewichte</li></ul></div>
+<p class="hint mock-pinned" data-role="delete-preview-kept"><span class="mock-pin mock-pin--abs">3</span>Die Wertpapiere selbst bleiben; in dieser Klassifizierung stehen sie danach unter „Nicht zugeordnet“.</p>
+<p class="hint" data-role="delete-preview-journal">Das Audit-Journal hält jede Löschung mit allen Werten fest; wiederherstellen lässt sich nichts davon.</p></div>
+<div class="modal-footer modal-footer--band">
+<button type="button" class="button-ghost" data-role="delete-preview-cancel">Abbrechen</button><span class="modal-footer__spacer"></span>
+<button type="button" class="button-danger mock-pinned" id="delete-preview-confirm"><span class="mock-pin mock-pin--abs">4</span>Kategorie löschen</button></div></dialog>
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+        <div class="topbar-page" aria-live="polite">
+            <h1 id="app-topbar-title">Strategies</h1>
+            <p id="app-topbar-subtitle">Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren</p>
+        </div>
+      </div>
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="system">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+              <button type="button" class="theme-choice is-active" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="true" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="false" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+          </div>
+        </details>
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+          </div>
+        </details>
+        <nav class="locale-switcher" aria-label="Sprache">
+            <a id="locale-en" class="locale-link " href="/classifications/3?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+            <a id="locale-de" class="locale-link is-active" href="/classifications/3?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+        </nav>
+      </div>
+    </header>
+    <main class="app-main app-main--workspace">
+  <div id="classifications-workspace" class="workspace-page classifications-detail" data-classification="3">
+    <header class="detail-head">
+      <h2 id="classification-heading" class="result-focus-fallback" tabindex="-1">
+        Strategies
+      </h2>
+        <button type="button" class="button-danger" data-confirm="Diese Klassifizierung und alle ihre Kategorien löschen?">
+          Klassifizierung löschen
+        </button>
+    </header>
+    <div class="workspace-section workspace-section--controls">
+      <div class="view-switcher" role="group" aria-label="Aktive Ansicht">
+  <nav class="view-switcher__options" aria-label="Aktive Ansicht">
+    <a id="view-switch-total" class="view-chip is-active" href="/classifications/3?view=total" aria-current="true" aria-label="Alles" data-has-plan="" title="Hat einen Soll-Plan für die aktuelle Klassifizierung">
+      Alles<span class="view-chip__plan-dot" aria-hidden="true">•</span>
+    </a>
+      <a id="view-switch-2" class="view-chip " href="/classifications/3?view=2" aria-label="Nur Neuzugang">
+        Nur Neuzugang
+      </a>
+      <a id="view-switch-1" class="view-chip " href="/classifications/3?view=1" aria-label="Ohne Krypto">
+        Ohne Krypto
+      </a>
+  </nav>
+  <a class="view-switcher__manage" data-role="manage-views" href="/buckets" title="Ansichten anlegen, umbenennen und ihre Buckets bearbeiten">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><circle cx="12" cy="12" r="9"></circle></svg>
+    Ansichten
+  </a>
+  <details class="view-switcher__help metric-tooltip metric-tooltip--inline">
+    <summary aria-label="Über Ansichten">ⓘ</summary>
+    <p role="tooltip">
+      Eine Ansicht grenzt jede Kennzahl auf dieser Seite auf die passenden Positionen ein. Werte je Bucket sind überlappende Facetten, keine Aufteilung – eine Position kann mehreren Buckets angehören, daher können sich ihre Werte überschneiden und dürfen nicht als Summe gelesen werden.
+    </p>
+  </details>
+</div>
+    </div>
+    <div class="tree-head" data-role="tree-head">
+      <span class="tree-head__name">Kategorie</span>
+      <span class="tree-head__num">Positionen</span>
+      <span class="tree-head__num">Wert</span>
+      <span class="tree-head__num">Einstand</span>
+      <span class="tree-head__num">Ergebnis</span>
+      <span class="tree-head__actions" aria-hidden="true"></span>
+    </div>
+    <section class="tree">
+        <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="3" data-category="45">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#16a34a" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Stability">Stability</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">2</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+          7.011,60<small class="cell-note" data-role="category-value-left-out">ohne 1 Position</small>
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        6.000,00
+      </span>
+      <span class="cat-result is-positive" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>+1.011,60</b>
+        <small>+16,9%</small>
+        <span class="cat-result-partial" data-role="category-result-partial" title="Einige Positionen hier bleiben auf beiden Seiten der Summe außen vor, statt als Null zu zählen, weil sich für sie kein Ergebnis in EUR ableiten lässt.">1/2</span>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+        <button type="button" class="icon-mini" data-confirm="Diese Kategorie löschen?" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+    </ul>
+      <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="3" data-category="46">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#22c55e" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Quality">Quality</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">2</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+          7.011,60<small class="cell-note" data-role="category-value-left-out">ohne 1 Position</small>
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        6.000,00
+      </span>
+      <span class="cat-result is-positive" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>+1.011,60</b>
+        <small>+16,9%</small>
+        <span class="cat-result-partial" data-role="category-result-partial" title="Einige Positionen hier bleiben auf beiden Seiten der Summe außen vor, statt als Null zu zählen, weil sich für sie kein Ergebnis in EUR ableiten lässt.">1/2</span>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+        <button type="button" class="icon-mini" data-confirm="Diese Kategorie löschen?" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="3" data-security-id="3" data-role="security-row">
+  <span class="row-name" title="Allianz SE vinkulierte Namens-Aktien o.N.">Allianz SE vinkulierte Namens-Aktien o.N.</span>
+    <small class="row-ticker">ALV</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    60,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    7.011,60
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="40" data-security-id="40" data-role="security-row">
+  <span class="row-name" title="Larkspur Robotics Inc">Larkspur Robotics Inc</span>
+    <small class="row-ticker">LKRB</small>
+  <small class="row-ccy">USD</small>
+  <span class="row-quantity" data-role="security-quantity">
+    60,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    —
+  </span>
+</li>
+    </ul>
+  </div>
+</details>
+  </div>
+</details>
+        <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="3" data-category="47">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#2563eb" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Growth">Growth</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">6</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+          26.320,60<small class="cell-note" data-role="category-value-left-out">ohne 1 Position</small>
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        27.600,00
+      </span>
+      <span class="cat-result is-negative" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>-1.279,40</b>
+        <small>-4,6%</small>
+        <span class="cat-result-partial" data-role="category-result-partial" title="Einige Positionen hier bleiben auf beiden Seiten der Summe außen vor, statt als Null zu zählen, weil sich für sie kein Ergebnis in EUR ableiten lässt.">5/6</span>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+        <button type="button" class="icon-mini" data-confirm="Diese Kategorie löschen?" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+    </ul>
+      <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="3" data-category="48">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#1e40af" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Global Core">Global Core</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">3</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+          12.130,80<small class="cell-note" data-role="category-value-left-out">ohne 1 Position</small>
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        13.000,00
+      </span>
+      <span class="cat-result is-negative" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>-869,20</b>
+        <small>-6,7%</small>
+        <span class="cat-result-partial" data-role="category-result-partial" title="Einige Positionen hier bleiben auf beiden Seiten der Summe außen vor, statt als Null zu zählen, weil sich für sie kein Ergebnis in EUR ableiten lässt.">2/3</span>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+        <button type="button" class="icon-mini" data-confirm="Diese Kategorie löschen?" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="36" data-security-id="36" data-role="security-row">
+  <span class="row-name" title="Harborline Freight Inc">Harborline Freight Inc</span>
+    <small class="row-ticker">HBLF</small>
+  <small class="row-ccy">USD</small>
+  <span class="row-quantity" data-role="security-quantity">
+    50,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    —
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="5" data-security-id="5" data-role="security-row">
+  <span class="row-name" title="Vanguard FTSE All-World UCITS ETF USD Acc">Vanguard FTSE All-World UCITS ETF USD Acc</span>
+    <small class="row-ticker">VWCE</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    40,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    3.488,40
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="4" data-security-id="4" data-role="security-row">
+  <span class="row-name" title="iShares Core MSCI World UCITS ETF USD (Acc)">iShares Core MSCI World UCITS ETF USD (Acc)</span>
+    <small class="row-ticker">EUNL</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    120,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    8.642,40
+  </span>
+</li>
+    </ul>
+  </div>
+</details>
+      <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="3" data-category="49">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#3b82f6" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Platforms">Platforms</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">3</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+          14.189,80
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        14.600,00
+      </span>
+      <span class="cat-result is-negative" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>-410,20</b>
+        <small>-2,8%</small>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+        <button type="button" class="icon-mini" data-confirm="Diese Kategorie löschen?" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="1" data-security-id="1" data-role="security-row">
+  <span class="row-name" title="Apple Inc. Registered Shares o.N.">Apple Inc. Registered Shares o.N.</span>
+    <small class="row-ticker">AAPL</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    50,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    9.443,50
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="2" data-security-id="2" data-role="security-row">
+  <span class="row-name" title="Microsoft Corporation Registered Shares DL-,00000625">Microsoft Corporation Registered Shares DL-,00000625</span>
+    <small class="row-ticker">MSFT</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    2.345,20
+  </span>
+</li>
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="7" data-security-id="7" data-role="security-row">
+  <span class="row-name" title="NVIDIA Corporation Registered Shares DL-,001">NVIDIA Corporation Registered Shares DL-,001</span>
+    <small class="row-ticker">NVDA</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    2.401,10
+  </span>
+</li>
+    </ul>
+  </div>
+</details>
+  </div>
+</details>
+        <details class="cat-node" data-dropzone="" data-drop-kind="category" data-classification="3" data-category="50">
+  <summary class="cat-summary">
+    <span class="cat-name">
+      <span class="cat-swatch" style="background:#ffab01" aria-hidden="true"></span>
+      <span class="cat-name__text" title="Crypto">Crypto</span>
+    </span>
+    <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">1</span>
+    <span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">
+          2.569,68
+    </span>
+      <span class="cat-invested" data-role="category-invested" title="Was die hier eingeordneten Positionen gekostet haben, in EUR">
+        3.000,00
+      </span>
+      <span class="cat-result is-negative" data-role="category-result" title="Aktueller Wert minus Kosten über die heute hier eingeordneten Positionen. Geldgewichtet: Summe der Ergebnisse geteilt durch die Summe des investierten Kapitals.">
+        <b>-430,32</b>
+        <small>-14,3%</small>
+      </span>
+    <span class="cat-actions" data-no-toggle="">
+      <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>
+        <button type="button" class="icon-mini" data-confirm="Diese Kategorie löschen?" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+    </span>
+  </summary>
+  <div class="cat-body">
+    <ul class="cat-securities">
+        <li class="dnd-row is-draggable" draggable="true" data-drag-security="6" data-security-id="6" data-role="security-row">
+  <span class="row-name" title="Bitcoin">Bitcoin</span>
+    <small class="row-ticker">BTC</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    0,05<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    2.569,68
+  </span>
+</li>
+    </ul>
+  </div>
+</details>
+    </section>
+    <details id="unsorted" class="cat-node unsorted-node" data-dropzone="" data-drop-kind="unassign" data-classification="3">
+      <summary class="cat-summary">
+        <span class="cat-name">
+          <span class="cat-swatch is-empty" aria-hidden="true"></span>
+          <span class="cat-name__text">Nicht zugeordnet</span>
+          <span class="cat-without-holdings" data-role="without-holdings" title="Nicht zugeordnete Wertpapiere ohne Bestand, vom Filter ausgeblendet">+14 ohne Bestand</span>
+        </span>
+        <span class="cat-positions" data-role="unsorted-positions">
+          26
+        </span>
+        <span class="cat-value" data-role="unsorted-value">
+          <span class="cat-na">—</span>
+        </span>
+        <span class="cat-invested" data-role="unsorted-invested"><span class="cat-na">—</span></span>
+        <span class="cat-result" data-role="unsorted-result"><span class="cat-na">—</span></span>
+        <span class="cat-actions" aria-hidden="true"></span>
+      </summary>
+      <div class="cat-body">
+        <ul class="cat-securities">
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="24" data-security-id="24" data-role="security-row">
+  <span class="row-name" title="Alder Creek Timber Fund">Alder Creek Timber Fund</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    30,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    336,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="25" data-security-id="25" data-role="security-row">
+  <span class="row-name" title="Alder Creek Timber Fund Class B">Alder Creek Timber Fund Class B</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    114,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="12" data-security-id="12" data-role="security-row">
+  <span class="row-name" title="Alpine Test Werke AG">Alpine Test Werke AG</span>
+    <small class="row-ticker">ATW</small>
+  <small class="row-ccy">CHF</small>
+  <span class="row-quantity" data-role="security-quantity">
+    20,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    970,53
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="28" data-security-id="28" data-role="security-row">
+  <span class="row-name" title="Birchwood Global Savings Fund">Birchwood Global Savings Fund</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    0,33<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    1,11
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="42" data-security-id="42" data-role="security-row">
+  <span class="row-name" title="Birkenhain Wasser Anleihe 2029 1,50%">Birkenhain Wasser Anleihe 2029 1,50%</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    9,85
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="13" data-security-id="13" data-role="security-row">
+  <span class="row-name" title="Cobalt Ridge Logistics SE">Cobalt Ridge Logistics SE</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    30,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    1.275,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="23" data-security-id="23" data-role="security-row">
+  <span class="row-name" title="Helios Solar Systems SE">Helios Solar Systems SE</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    20,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    384,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="26" data-security-id="26" data-role="security-row">
+  <span class="row-name" title="Juniper Rail AG">Juniper Rail AG</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    18,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    297,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="27" data-security-id="27" data-role="security-row">
+  <span class="row-name" title="Juniper Rail AG">Juniper Rail AG</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    9,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    100,20
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="41" data-security-id="41" data-role="security-row">
+  <span class="row-name" title="Kestrel Anleihe 2030 2,75%">Kestrel Anleihe 2030 2,75%</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    50,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    4.862,50
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="11" data-security-id="11" data-role="security-row">
+  <span class="row-name" title="Kestrel Industrial Group NV">Kestrel Industrial Group NV</span>
+    <small class="row-ticker">KIGN</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    240,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="47" data-security-id="47" data-role="security-row">
+  <span class="row-name" title="Larkspur Rail AG 4,00 % Anleihe 2031">Larkspur Rail AG 4,00 % Anleihe 2031</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    100,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    10.025,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="14" data-security-id="14" data-role="security-row">
+  <span class="row-name" title="Meridian Global Equity ETF">Meridian Global Equity ETF</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    65,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    4.615,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="8" data-security-id="8" data-role="security-row">
+  <span class="row-name" title="Nordic Timber Holdings AB">Nordic Timber Holdings AB</span>
+    <small class="row-ticker">NTHB</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    30,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    1.279,20
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="17" data-security-id="17" data-role="security-row">
+  <span class="row-name" title="Orchid Bay Pharmaceuticals plc">Orchid Bay Pharmaceuticals plc</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    12,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    360,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="18" data-security-id="18" data-role="security-row">
+  <span class="row-name" title="Orchid Bay Pharmaceuticals plc">Orchid Bay Pharmaceuticals plc</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    12,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    360,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="43" data-security-id="43" data-role="security-row">
+  <span class="row-name" title="Ostsee Logistik 4,10% 2028/2033">Ostsee Logistik 4,10% 2028/2033</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    50,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    4.955,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="19" data-security-id="19" data-role="security-row">
+  <span class="row-name" title="Pinecrest Utilities SA">Pinecrest Utilities SA</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    8,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    200,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="20" data-security-id="20" data-role="security-row">
+  <span class="row-name" title="Pinecrest Utilities SA">Pinecrest Utilities SA</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    3,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    78,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="9" data-security-id="9" data-role="security-row">
+  <span class="row-name" title="Placeholder Anleihe 2031 3,25%">Placeholder Anleihe 2031 3,25%</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    5,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    —
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="21" data-security-id="21" data-role="security-row">
+  <span class="row-name" title="Quarry Lane Materials AG">Quarry Lane Materials AG</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    12,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    343,80
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="22" data-security-id="22" data-role="security-row">
+  <span class="row-name" title="Quarry Lane Materials AG">Quarry Lane Materials AG</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    4,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    224,40
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="50" data-security-id="50" data-role="security-row">
+  <span class="row-name" title="Tamarisk Systems Inc.">Tamarisk Systems Inc.</span>
+    <small class="row-ticker">TMSK</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    10,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    418,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="44" data-security-id="44" data-role="security-row">
+  <span class="row-name" title="Thornbury Water Fund">Thornbury Water Fund</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    5,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    600,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="45" data-security-id="45" data-role="security-row">
+  <span class="row-name" title="Thornbury Water Fund">Thornbury Water Fund</span>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    5,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value"><small class="cell-note">zum Handelspreis</small>
+    525,00
+  </span>
+</li>
+            <li class="dnd-row is-draggable" draggable="true" data-drag-security="46" data-security-id="46" data-role="security-row">
+  <span class="row-name" title="Wexmoor Instruments AG">Wexmoor Instruments AG</span>
+    <small class="row-ticker">WXI</small>
+  <small class="row-ccy">EUR</small>
+  <span class="row-quantity" data-role="security-quantity">
+    32,00<span class="row-quantity__unit"> Stück</span>
+  </span>
+  <span class="row-value" data-role="security-value">
+    652,80
+  </span>
+</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

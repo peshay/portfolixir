@@ -1,0 +1,72 @@
+{
+  "cls-before@1200": {
+    "file": "frames/cls-before--1200.html",
+    "width": 980,
+    "height": 420
+  },
+  "cls-refused@1200": {
+    "file": "frames/cls-refused--1200.html",
+    "width": 980,
+    "height": 484
+  },
+  "cls-after-a@1200": {
+    "file": "frames/cls-after-a--1200.html",
+    "width": 980,
+    "height": 517
+  },
+  "cls-after-b@1200": {
+    "file": "frames/cls-after-b--1200.html",
+    "width": 980,
+    "height": 558
+  },
+  "cat-before@1200": {
+    "file": "frames/cat-before--1200.html",
+    "width": 980,
+    "height": 420
+  },
+  "cat-after@1200": {
+    "file": "frames/cat-after--1200.html",
+    "width": 980,
+    "height": 513
+  },
+  "cat-after-dark@1200": {
+    "file": "frames/cat-after-dark--1200.html",
+    "width": 980,
+    "height": 513
+  },
+  "cat-after@390": {
+    "file": "frames/cat-after--390.html",
+    "width": 390,
+    "height": 780
+  },
+  "cat-changed@1200": {
+    "file": "frames/cat-changed--1200.html",
+    "width": 980,
+    "height": 597
+  },
+  "cat-refused@390": {
+    "file": "frames/cat-refused--390.html",
+    "width": 390,
+    "height": 780
+  },
+  "view-before@1200": {
+    "file": "frames/view-before--1200.html",
+    "width": 980,
+    "height": 517
+  },
+  "view-after@1200": {
+    "file": "frames/view-after--1200.html",
+    "width": 980,
+    "height": 427
+  },
+  "view-after@390": {
+    "file": "frames/view-after--390.html",
+    "width": 390,
+    "height": 780
+  },
+  "view-refused@1200": {
+    "file": "frames/view-refused--1200.html",
+    "width": 980,
+    "height": 476
+  }
+}

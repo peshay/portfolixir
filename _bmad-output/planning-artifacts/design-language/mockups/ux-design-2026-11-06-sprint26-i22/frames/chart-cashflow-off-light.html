@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../../../../priv/static/app.css">
+    <title>Portfolixir</title>
+  <style type="text/css">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+#security-detail-pane { position: static !important; inset: auto !important; max-height: none !important; height: auto !important; width: auto !important; box-shadow: none !important; }
+#securities-detail-splitter { display: none !important; }
+.securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; }
+#security-detail-pane { flex: none !important; min-height: 0 !important; overflow: visible !important; }</style><style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+#security-detail-pane { position: static !important; inset: auto !important; max-height: none !important; height: auto !important; width: auto !important; box-shadow: none !important; }
+#securities-detail-splitter { display: none !important; }
+.securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; }
+#security-detail-pane { flex: none !important; min-height: 0 !important; overflow: visible !important; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -10px; top: -10px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.chart-tooltip .pf-mask { font-size: inherit; }</style>
+<style id="proposal"></style>
+</head>
+  <body>
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+
+
+
+
+
+
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+
+        <div class="topbar-page" aria-live="polite">
+
+            <h1 id="app-topbar-title">Cashflow</h1>
+
+
+            <p id="app-topbar-subtitle">Erhaltene Dividenden und Zinsen</p>
+
+        </div>
+      </div>
+
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="light">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12"
+r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+
+              <button type="button" class="theme-choice" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="false" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+
+              <button type="button" class="theme-choice is-active" data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="true" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12"
+r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+
+          </div>
+        </details>
+
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+
+          </div>
+        </details>
+
+        <nav class="locale-switcher" aria-label="Sprache">
+
+            <a id="locale-en" class="locale-link " href="/cashflow?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+
+            <a id="locale-de" class="locale-link is-active" href="/cashflow?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+
+        </nav>
+      </div>
+    </header>
+
+    <main class="app-main app-main--workspace">
+
+  <div class="workspace-page">
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/portfolio" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Bestände">Bestände</span>
+  </a><a href="/portfolio?tab=allocation" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9Z"></path><path d="M21 12a9 9 0 0 0-9-9v9h9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+  </a><a href="/cashflow" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+  </a><a href="/snapshots" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M23 19a2
+2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2
+0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </span>
+    <span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+  </a><a href="/tax" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="5" y="3"
+width="14" height="18" rx="2"></rect><path d="M9 7h6"></path><circle cx="9" cy="11" r=".6"></circle><circle cx="12" cy="11" r=".6"></circle><circle cx="15" cy="11" r=".6"></circle><circle cx="9" cy="14"
+r=".6"></circle><circle cx="12" cy="14" r=".6"></circle><circle cx="15" cy="14" r=".6"></circle><path d="M9 17h6"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Steuern">Steuern</span>
+  </a><a href="/risk" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Risiko">Risiko</span>
+  </a>
+</nav>
+
+
+    <div class="workspace-section workspace-section--controls">
+    <nav class="segmented-control" data-role="cashflow-facets" aria-label="Cashflow-Facette">
+      <a href="/cashflow" class="segmented-control__option is-active" aria-current="true">
+        Erträge
+      </a>
+      <a href="/cashflow?tab=realized" class="segmented-control__option">
+
+        Trades
+      </a>
+      <a href="/cashflow?tab=flows" class="segmented-control__option">
+        Ein- &amp; Auszahlungen
+      </a>
+      <a href="/cashflow?tab=costs" class="segmented-control__option">
+        Kosten
+      </a>
+    </nav>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <section id="income-annual" class="workspace-section">
+      <h2>Jahresübersicht</h2>
+
+
+        <div id="income-chart" class="income-chart">
+
+          <ul class="chart-legend income-legend" data-role="income-legend">
+            <li class="chart-legend__item">
+              <span class="chart-legend__swatch income-legend__swatch--dividends" aria-hidden="true">
+              </span>
+              Dividenden
+            </li>
+            <li class="chart-legend__item">
+              <span class="chart-legend__swatch income-legend__swatch--interest" aria-hidden="true">
+              </span>
+              Zinsen
+            </li>
+          </ul>
+
+          <div class="income-chart-track">
+
+          <svg class="income-bars" viewBox="0 0 4 100" preserveAspectRatio="none" role="img" aria-label="Dividenden und Zinsen pro Jahr">
+            <g>
+
+
+              <rect class="income-bar income-bar--dividends" data-series="dividends" data-year="2023" x="0.1" y="0.0" width="0.8" height="61.97">
+                <title>
+                  2023 · Dividenden: 138,50
+                </title>
+              </rect>
+              <rect class="income-bar income-bar--interest" data-series="interest" data-year="2023" x="0.1" y="61.97" width="0.8" height="38.03">
+                <title>
+                  2023 · Zinsen: 85,00
+                </title>
+              </rect>
+            </g><g>
+
+              <rect class="income-bar income-bar--empty" data-year="2024" data-empty="true" x="1.1" y="99.4" width="0.8" height="0.6"></rect>
+
+
+            </g><g>
+
+
+              <rect class="income-bar income-bar--dividends" data-series="dividends" data-year="2025" x="2.1" y="94.45" width="0.8" height="0.0">
+                <title>
+                  2025 · Dividenden: 0,00
+                </title>
+              </rect>
+              <rect class="income-bar income-bar--interest" data-series="interest" data-year="2025" x="2.1" y="94.45" width="0.8" height="5.55">
+                <title>
+                  2025 · Zinsen: 12,40
+                </title>
+              </rect>
+            </g><g>
+
+
+              <rect class="income-bar income-bar--dividends" data-series="dividends" data-year="2026" x="3.1" y="93.87" width="0.8" height="5.59">
+                <title>
+                  2026 · Dividenden: 12,50
+                </title>
+              </rect>
+              <rect class="income-bar income-bar--interest" data-series="interest" data-year="2026" x="3.1" y="99.46000000000001" width="0.8" height="0.54">
+                <title>
+                  2026 · Zinsen: 1,20
+                </title>
+              </rect>
+            </g>
+          </svg>
+
+          <div class="income-bar-values" aria-hidden="true">
+
+              <span class="income-bar-value income-bar-value--dividends" data-year="2023" data-series="dividends" style="left: 12.5%; top: 30.98%">
+                138,50
+              </span>
+              <span class="income-bar-value income-bar-value--interest" data-year="2023" data-series="interest" style="left: 12.5%; top: 80.98%">
+                85,00
+              </span>
+
+
+
+
+
+
+
+
+
+
+          </div>
+
+          <div class="income-bar-labels">
+            <button type="button" class="income-bar-label is-active" data-year="2023" aria-pressed="true">
+              <strong>2023</strong>
+
+
+              <span>
+                223,50
+              </span>
+            </button><button type="button" class="income-bar-label " data-year="2024" aria-pressed="false">
+              <strong>2024</strong>
+
+
+              <span>
+                –
+              </span>
+            </button><button type="button" class="income-bar-label " data-year="2025" aria-pressed="false">
+              <strong>2025</strong>
+
+
+              <span>
+                12,40
+              </span>
+            </button><button type="button" class="income-bar-label " data-year="2026" aria-pressed="false">
+              <strong>2026</strong>
+
+
+              <span>
+                13,70
+              </span>
+            </button>
+          </div>
+          </div>
+        </div>
+
+
+        <details class="perf-table-disclosure" data-role="income-annual-disclosure">
+        <summary class="disclosure-summary">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+          Daten als Tabelle
+        </summary>
+        <p class="hint" data-role="disclosure-purpose">
+          Jahr × Monat, Dividenden und Zinsen getrennt — die Chartdaten ohne das Chart.
+        </p>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Jahr</th>
+                <th>Reihe</th>
+
+                  <th class="num">Jan</th>
+
+                  <th class="num">Feb</th>
+
+                  <th class="num">Mär</th>
+
+                  <th class="num">Apr</th>
+
+                  <th class="num">Mai</th>
+
+                  <th class="num">Jun</th>
+
+                  <th class="num">Jul</th>
+
+                  <th class="num">Aug</th>
+
+                  <th class="num">Sep</th>
+
+                  <th class="num">Okt</th>
+
+                  <th class="num">Nov</th>
+
+                  <th class="num">Dez</th>
+
+                <th class="num">Gesamt</th>
+              </tr>
+            </thead>
+            <tbody>
+
+                <tr class="income-year-row">
+                  <td rowspan="2">
+                    <button type="button" class="link-button">
+                      2026
+                    </button>
+                    <span class="muted">(EUR)</span>
+                  </td>
+                  <td>Dividenden</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num">12,50</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                  <td class="num is-total">12,50</td>
+                </tr>
+                <tr class="income-year-row">
+                  <td>Zinsen</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num">1,20</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                  <td class="num is-total">1,20</td>
+                </tr>
+
+                <tr class="income-year-row">
+                  <td rowspan="2">
+                    <button type="button" class="link-button">
+                      2025
+                    </button>
+                    <span class="muted">(EUR)</span>
+                  </td>
+                  <td>Dividenden</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                  <td class="num is-total">0,00</td>
+                </tr>
+                <tr class="income-year-row">
+                  <td>Zinsen</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num">12,40</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                  <td class="num is-total">12,40</td>
+                </tr>
+
+                <tr class="income-year-row">
+                  <td rowspan="2">
+                    <button type="button" class="link-button">
+                      2023
+                    </button>
+                    <span class="muted">(EUR)</span>
+                  </td>
+                  <td>Dividenden</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num">120,00</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num">18,50</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                  <td class="num is-total">138,50</td>
+                </tr>
+                <tr class="income-year-row">
+                  <td>Zinsen</td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num"><span class="matrix-zero">–</span></td>
+
+                    <td class="num">85,00</td>
+
+                  <td class="num is-total">85,00</td>
+                </tr>
+
+            </tbody>
+          </table>
+        </div>
+        </details>
+
+    </section>
+
+
+      <section id="income-detail" class="workspace-section">
+        <h2>
+          Zahlungen in 2023
+          <button type="button" class="button button-ghost">
+            Schließen
+          </button>
+        </h2>
+
+
+        <div id="income-month-chart" class="income-chart">
+          <div class="income-chart-track">
+          <svg class="income-bars" viewBox="0 0 12 100" preserveAspectRatio="none" role="img" aria-label="Erträge pro Monat in 2023">
+            <rect class="income-bar income-month-bar" data-month="1" x="0.1" y="100.0" width="0.8" height="0.0">
+              <title>Jan: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="2" x="1.1" y="100.0" width="0.8" height="0.0">
+              <title>Feb: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="3" x="2.1" y="100.0" width="0.8" height="0.0">
+              <title>Mär: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="4" x="3.1" y="100.0" width="0.8" height="0.0">
+              <title>Apr: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="5" x="4.1" y="0.0" width="0.8" height="100.0">
+              <title>Mai: 120,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="6" x="5.1" y="100.0" width="0.8" height="0.0">
+              <title>Jun: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="7" x="6.1" y="100.0" width="0.8" height="0.0">
+              <title>Jul: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="8" x="7.1" y="84.58" width="0.8" height="15.42">
+              <title>Aug: 18,50</title>
+            </rect><rect class="income-bar income-month-bar" data-month="9" x="8.1" y="100.0" width="0.8" height="0.0">
+              <title>Sep: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="10" x="9.1" y="100.0" width="0.8" height="0.0">
+              <title>Okt: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="11" x="10.1" y="100.0" width="0.8" height="0.0">
+              <title>Nov: 0,00</title>
+            </rect><rect class="income-bar income-month-bar" data-month="12" x="11.1" y="29.17" width="0.8" height="70.83">
+              <title>Dez: 85,00</title>
+            </rect>
+          </svg>
+          <div class="income-bar-labels" aria-hidden="true">
+            <span class="income-bar-label income-month-label">
+              Jan
+            </span><span class="income-bar-label income-month-label">
+              Feb
+            </span><span class="income-bar-label income-month-label">
+              Mär
+            </span><span class="income-bar-label income-month-label">
+              Apr
+            </span><span class="income-bar-label income-month-label">
+              Mai
+            </span><span class="income-bar-label income-month-label">
+              Jun
+            </span><span class="income-bar-label income-month-label">
+              Jul
+            </span><span class="income-bar-label income-month-label">
+              Aug
+            </span><span class="income-bar-label income-month-label">
+              Sep
+            </span><span class="income-bar-label income-month-label">
+              Okt
+            </span><span class="income-bar-label income-month-label">
+              Nov
+            </span><span class="income-bar-label income-month-label">
+              Dez
+            </span>
+          </div>
+          </div>
+        </div>
+
+
+        <div id="income-accumulated-chart" class="income-chart">
+          <div class="income-chart-track">
+            <svg class="income-bars income-accumulated" viewBox="0 0 11 100" preserveAspectRatio="none" role="img" aria-label="Kumulierte Dividenden und Zinsen im Jahr 2023">
+              <polyline class="income-accumulated-line" fill="none" points="0,100.0 1,100.0 2,100.0 3,100.0 4,46.31 5,46.31 6,46.31 7,38.03 8,38.03 9,38.03 10,38.03 11,0.0"></polyline>
+            </svg>
+            <div class="income-bar-labels">
+              <span class="income-bar-label income-month-label" data-month="1" data-total="0">
+                <strong>Jan</strong>
+                <span>0,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="2" data-total="0">
+                <strong>Feb</strong>
+                <span>0,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="3" data-total="0">
+                <strong>Mär</strong>
+                <span>0,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="4" data-total="0">
+                <strong>Apr</strong>
+                <span>0,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="5" data-total="120">
+                <strong>Mai</strong>
+                <span>120,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="6" data-total="120">
+                <strong>Jun</strong>
+                <span>120,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="7" data-total="120">
+                <strong>Jul</strong>
+                <span>120,00</span>
+              </span><span class="income-bar-label income-month-label" data-month="8" data-total="138.5">
+                <strong>Aug</strong>
+                <span>138,50</span>
+              </span><span class="income-bar-label income-month-label" data-month="9" data-total="138.5">
+                <strong>Sep</strong>
+                <span>138,50</span>
+              </span><span class="income-bar-label income-month-label" data-month="10" data-total="138.5">
+                <strong>Okt</strong>
+                <span>138,50</span>
+              </span><span class="income-bar-label income-month-label" data-month="11" data-total="138.5">
+                <strong>Nov</strong>
+                <span>138,50</span>
+              </span><span class="income-bar-label income-month-label" data-month="12" data-total="223.5">
+                <strong>Dez</strong>
+                <span>223,50</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+
+        <details class="perf-table-disclosure" data-role="income-payments-disclosure">
+        <summary class="disclosure-summary">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+          Daten als Tabelle
+        </summary>
+        <p class="hint" data-role="disclosure-purpose">
+          Jede Zahlung des Jahres mit Brutto, Steuer und Netto in ihrer Währung, das Netto auch in EUR.
+        </p>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Typ</th>
+                <th>Wertpapier</th>
+                <th class="num">Brutto</th>
+                <th class="num">Steuern</th>
+                <th class="num">Netto</th>
+                <th>Währung</th>
+                <th class="num">Netto (EUR)</th>
+              </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                  <td>15.05.2023</td>
+                  <td>Dividende</td>
+                  <td>Allianz SE vinkulierte Namens-Aktien o.N.</td>
+
+                  <td class="num">120,00</td>
+                  <td class="num">0,00</td>
+                  <td class="num">120,00</td>
+                  <td>EUR</td>
+                  <td class="num">120,00</td>
+                </tr>
+
+                <tr>
+                  <td>15.08.2023</td>
+                  <td>Dividende</td>
+                  <td>Apple Inc. Registered Shares o.N.</td>
+
+                  <td class="num">18,50</td>
+                  <td class="num">0,00</td>
+                  <td class="num">18,50</td>
+                  <td>EUR</td>
+                  <td class="num">18,50</td>
+                </tr>
+
+                <tr>
+                  <td>29.12.2023</td>
+                  <td>Zinsen</td>
+                  <td>Zinsen</td>
+
+                  <td class="num">85,00</td>
+                  <td class="num">0,00</td>
+                  <td class="num">85,00</td>
+                  <td>EUR</td>
+                  <td class="num">85,00</td>
+                </tr>
+
+            </tbody>
+          </table>
+        </div>
+        </details>
+      </section>
+
+
+
+
+
+
+
+
+  </div>
+
+    </main>
+  </div>
+</div></div>
+
+
+
+
+
+</body></html>

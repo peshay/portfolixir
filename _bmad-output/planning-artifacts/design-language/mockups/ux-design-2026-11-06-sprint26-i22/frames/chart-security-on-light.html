@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../../../../priv/static/app.css">
+    <title>Portfolixir</title>
+  <style type="text/css">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+#security-detail-pane { position: static !important; inset: auto !important; max-height: none !important; height: auto !important; width: auto !important; box-shadow: none !important; }
+#securities-detail-splitter { display: none !important; }
+.securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; }
+#security-detail-pane { flex: none !important; min-height: 0 !important; overflow: visible !important; }</style><style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+#security-detail-pane { position: static !important; inset: auto !important; max-height: none !important; height: auto !important; width: auto !important; box-shadow: none !important; }
+#securities-detail-splitter { display: none !important; }
+.securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; }
+#security-detail-pane { flex: none !important; min-height: 0 !important; overflow: visible !important; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -10px; top: -10px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.chart-tooltip .pf-mask { font-size: inherit; }</style>
+<style id="proposal">
+.mock-privacy { list-style: none; }
+.mock-privacy summary { color: var(--color-accent); background: var(--color-accent-soft); border-color: var(--color-accent) !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; border-radius: 8px; }
+.pf-mask { display: inline-block; width: 4.4em; height: 0.7em; vertical-align: 0.02em; user-select: none; border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in oklab, currentColor 32%, transparent), color-mix(in oklab, currentColor 14%, transparent));
+  filter: blur(0.08em); }
+.pf-mask__ph { visibility: hidden; }</style>
+</head>
+  <body>
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+
+
+
+
+
+
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+
+        <div class="topbar-page" aria-live="polite">
+
+            <h1 id="app-topbar-title">Wertpapiere</h1>
+
+
+            <p id="app-topbar-subtitle">Suchen, filtern und pflegen des investierbaren Universums.</p>
+
+        </div>
+      </div>
+
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen"><details class="theme-menu mock-privacy mock-new"><summary class="theme-menu-trigger" title="Beträge verbergen" aria-pressed="true"><svg width="16" height="16" viewBox="0 0 24 24"
+fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.1A9.8 9.8 0 0 1 12
+5c5 0 9 4.5 10 7-0.4 1-1.3 2.4-2.6 3.7M6.6 6.6C4.4 8 2.8 10.2 2 12c1 2.5
+5 7 10 7 1.9 0 3.6-.6 5.1-1.5"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg></summary></details>
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="light">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12"
+r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+
+              <button type="button" class="theme-choice" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="false" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+
+              <button type="button" class="theme-choice is-active" data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="true" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12"
+r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+
+          </div>
+        </details>
+
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+
+          </div>
+        </details>
+
+        <nav class="locale-switcher" aria-label="Sprache">
+
+            <a id="locale-en" class="locale-link " href="/securities?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+
+            <a id="locale-de" class="locale-link is-active" href="/securities?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+
+        </nav>
+      </div>
+    </header>
+
+    <main class="app-main app-main--workspace">
+
+  <section class="workspace-panel" id="securities-panel">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div id="securities-workspace" class="securities-workspace securities-workspace--split">
+
+
+
+
+        <aside class="detail-pane " id="security-detail-pane" aria-label="Ausgewähltes Wertpapier">
+
+
+  <header class="detail-pane-head">
+    <div class="detail-pane-head__title">
+
+
+      <span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">
+        N
+      </span>
+
+
+      <div>
+      <h2>Nordic Timber Holdings AB</h2>
+      <p class="detail-pane-sub">
+        SE0000000012 · NTHB · EUR
+
+          · Letzter <span class="pf-mask" aria-label="verborgen"><span class="pf-mask__ph" aria-hidden="true">38.519,46</span></span>
+          (02.10.2026)
+
+      </p>
+
+      </div>
+    </div>
+    <div class="detail-pane-head__actions">
+
+      <button type="button" id="detail-edit" class="button-ghost" aria-label="Stammdaten bearbeiten">
+        Bearbeiten
+      </button>
+      <button type="button" id="detail-record-split" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">
+        Split erfassen
+      </button>
+      <button type="button" id="detail-pane-fullscreen-toggle" class="icon-button" aria-label="Maximieren" title="Maximieren">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+      </button>
+      <a href="/securities" id="detail-pane-close" title="Detail schließen" class="icon-button" aria-label="Detail schließen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </a>
+    </div>
+  </header>
+
+
+
+
+
+  <nav id="detail-pane-tabs" class="detail-pane-tabs" role="tablist" data-tab-level="2" data-scroll-start="" aria-label="Wertpapier-Detailansicht" data-scroll-end="" style="--detail-tabs-tail: 0px;">
+
+      <button type="button" id="detail-tab-overview" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Übersicht
+      </button>
+
+      <button type="button" id="detail-tab-chart" role="tab" tabindex="0" aria-selected="true" aria-controls="detail-tab-panel-chart" class="detail-pane-tab is-active">
+        Diagramm
+      </button>
+
+      <button type="button" id="detail-tab-transactions" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Transaktionen
+      </button>
+
+      <button type="button" id="detail-tab-trades" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Trades
+      </button>
+
+      <button type="button" id="detail-tab-quotes" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Kurse
+      </button>
+
+      <button type="button" id="detail-tab-holdings" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Bestände
+      </button>
+
+      <button type="button" id="detail-tab-classifications" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Klassifizierungen
+      </button>
+
+      <button type="button" id="detail-tab-research" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Research
+      </button>
+
+      <button type="button" id="detail-tab-events" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab ">
+        Termine
+      </button>
+
+  </nav>
+
+
+    <section id="detail-tab-panel-chart" role="tabpanel" aria-labelledby="detail-tab-chart" class="detail-tab-panel detail-tab-panel--chart">
+      <div class="detail-pane-toolbar" role="toolbar" aria-label="Chart-Optionen">
+        <div class="range-buttons" role="group" aria-label="Zeitraum">
+
+            <button type="button" class="range-button ">
+              1M
+            </button>
+
+            <button type="button" class="range-button ">
+              3M
+            </button>
+
+            <button type="button" class="range-button ">
+              6M
+            </button>
+
+            <button type="button" class="range-button ">
+              YTD
+            </button>
+
+            <button type="button" class="range-button is-active">
+              1J
+            </button>
+
+            <button type="button" class="range-button ">
+              3J
+            </button>
+
+            <button type="button" class="range-button ">
+              5J
+            </button>
+
+            <button type="button" class="range-button ">
+              Max
+            </button>
+
+
+
+        </div>
+
+
+        <details id="detail-period-custom" class="period-disclosure" data-role="detail-period-custom">
+          <summary class="disclosure-summary">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+            Benutzerdefinierter Zeitraum …
+          </summary>
+
+        </details>
+
+        <div class="chart-toggles">
+          <button type="button" id="toggle-log" class="chart-toggle " aria-pressed="false" disabled="">
+            Logarithmische Skala
+          </button>
+          <button type="button" id="toggle-percent-mode" class="chart-toggle is-active mock-new" aria-pressed="true" disabled="" title="Im Privatsphäre-Modus immer an">
+            Prozent
+          </button>
+          <button type="button" id="toggle-transactions" class="chart-toggle is-active" aria-pressed="true">
+            Transaktionen anzeigen
+          </button>
+
+            <button type="button" id="toggle-ma-30" class="chart-toggle " aria-pressed="false">
+              MA30
+            </button>
+
+            <button type="button" id="toggle-ma-50" class="chart-toggle is-active" aria-pressed="true">
+              MA50
+            </button>
+
+            <button type="button" id="toggle-ma-200" class="chart-toggle is-active" aria-pressed="true">
+              MA200
+            </button>
+
+          <button type="button" id="toggle-cost-basis" class="chart-toggle " aria-pressed="false">
+            Einstandspreis
+          </button>
+          <button type="button" id="detail-sync" data-notify-permission="" class="chart-toggle ">
+            Kurse aktualisieren
+          </button>
+          <button type="button" id="chart-export-svg" class="chart-toggle" data-chart-export="svg">
+            SVG exportieren
+          </button>
+          <button type="button" id="chart-export-png" class="chart-toggle" data-chart-export="png">
+            PNG exportieren
+          </button>
+        </div>
+      </div>
+
+
+      <div class="chart-frame" id="chart-c81b814ebe22" data-chart-id="chart-c81b814ebe22" style="--chart-upx: 1.0256;">
+  <svg class="security-chart " role="img" aria-label="Kurschart" viewBox="0 0 960 320" preserveAspectRatio="xMidYMid meet" width="100%">
+
+      <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+
+    <line x1="56" y1="292.0" x2="936" y2="292.0"></line>
+
+    <line x1="56" y1="223.0" x2="936" y2="223.0"></line>
+
+    <line x1="56" y1="154.0" x2="936" y2="154.0"></line>
+
+    <line x1="56" y1="85.0" x2="936" y2="85.0"></line>
+
+    <line x1="56" y1="16.0" x2="936" y2="16.0"></line>
+
+</g>
+
+
+
+      <path class="quote-area" d="M56.0,106.79 L56.0,106.79 L74.72,200.24 L93.45,273.31 L112.17,256.82 L130.89,92.24 L149.62,236.77 L168.34,121.67 L187.06,28.55 L205.79,90.3 L224.51,242.27 L243.23,128.46 L261.96,266.84 L280.68,149.8
+L299.4,181.48 L318.13,144.95 L336.85,40.83 L355.57,93.86 L374.3,193.12 L393.02,125.22 L411.74,188.92 L430.47,125.55 L449.19,279.45 L467.91,205.73 L486.64,279.13 L505.36,166.29 L524.09,222.87 L542.81,232.57 L561.53,257.47 L580.26,135.57
+L598.98,86.75 L617.7,72.2 L636.43,93.86 L655.15,132.98 L673.87,173.08 L692.6,45.36 L711.32,39.54 L730.04,144.95 L748.77,129.1 L767.49,172.75 L786.21,205.41 L804.94,54.09 L823.66,39.22 L842.38,131.69 L861.11,109.38 L879.83,50.53
+L898.55,64.11 L917.28,158.53 L936.0,131.04 L936.0,292.0 L56.0,292.0 Z"></path>
+
+      <polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="56.0,106.79 74.72,200.24 93.45,273.31 112.17,256.82 130.89,92.24 149.62,236.77 168.34,121.67 187.06,28.55 205.79,90.3 224.51,242.27 243.23,128.46
+261.96,266.84 280.68,149.8 299.4,181.48 318.13,144.95 336.85,40.83 355.57,93.86 374.3,193.12 393.02,125.22 411.74,188.92 430.47,125.55 449.19,279.45 467.91,205.73 486.64,279.13 505.36,166.29 524.09,222.87 542.81,232.57
+561.53,257.47 580.26,135.57 598.98,86.75 617.7,72.2 636.43,93.86 655.15,132.98 673.87,173.08 692.6,45.36 711.32,39.54 730.04,144.95 748.77,129.1 767.49,172.75 786.21,205.41 804.94,54.09 823.66,39.22 842.38,131.69
+861.11,109.38 879.83,50.53 898.55,64.11 917.28,158.53 936.0,131.04"></polyline>
+
+
+
+
+
+          <path class="tx-marker tx-buy" d="M494.66,274.13 L499.16,282.63 L490.16,282.63 Z">
+            <title>Kauf am 20.04.2026 zu 42,10 EUR</title>
+          </path>
+
+
+
+
+      <g class="chart-axis-labels">
+
+    <text class="chart-axis-y " x="50" y="292.0" text-anchor="end" dominant-baseline="central">
+      -13,2%
+    </text>
+
+    <text class="chart-axis-y " x="50" y="223.0" text-anchor="end" dominant-baseline="central">
+      -8,3%
+    </text>
+
+    <text class="chart-axis-y " x="50" y="154.0" text-anchor="end" dominant-baseline="central">
+      -3,4%
+    </text>
+
+    <text class="chart-axis-y " x="50" y="85.0" text-anchor="end" dominant-baseline="central">
+      +1,6%
+    </text>
+
+    <text class="chart-axis-y is-top" x="50" y="16.0" text-anchor="end" dominant-baseline="central">
+      +6,5%
+    </text>
+
+  <text class="chart-axis-x" x="56" y="314" text-anchor="start">
+    07.11.2025
+  </text>
+  <text class="chart-axis-x" x="936" y="314" text-anchor="end">
+    02.10.2026
+  </text>
+</g>
+
+  </svg>
+
+<div class="chart-crosshair" style="left: 483.474px; top: 9px; height: 312px;"></div><div class="chart-tooltip" role="status" style="left: 495.474px; top: 265.152px;"><div class="chart-tooltip__date">17.04.2026</div><div class="chart-tooltip__price">-12,3%</div></div><div
+class="chart-zoom-rect" hidden=""></div></div>
+
+
+      <p class="detail-tab-hint" data-role="chart-basis">
+        Kursbasis: wie erfasst. Gespeicherte Kurse werden nie verändert (siehe Tab Kurse).
+      </p>
+
+
+      <dl id="detail-metrics" class="overview-metrics" data-role="detail-metrics">
+  <div class="overview-metric" data-role="metric-cell">
+  <dt>SMA 50</dt>
+
+  <dd class="">
+
+      <span class="pf-mask" aria-label="verborgen"><span class="pf-mask__ph" aria-hidden="true">38.519,46</span></span>
+      <small class="overview-metric__unit">
+        +1,3%
+      </small>
+
+    <small class="overview-metric__sub">
+
+
+      <span data-role="metric-window">24.10.2025 – 02.10.2026</span>
+      ·
+      <span data-role="metric-observations">
+        50 Beobachtungen
+      </span>
+    </small>
+  </dd>
+</div>
+  <div class="overview-metric" data-role="metric-cell">
+  <dt>SMA 200</dt>
+
+  <dd class="">
+
+      <span data-role="metric-na">nicht berechenbar</span>
+
+    <small class="overview-metric__sub">
+
+
+      <span data-role="metric-window">kein Fenster gemessen</span>
+      ·
+      <span data-role="metric-observations">
+        56 Beobachtungen
+      </span>
+    </small>
+  </dd>
+</div>
+  <div class="overview-metric" data-role="metric-cell">
+  <dt>Volatilität</dt>
+
+  <dd class="">
+
+      101,3%
+
+
+    <small class="overview-metric__sub">
+      <span data-role="metric-window-name">365 Tage</span>
+      <span>·</span>
+      <span data-role="metric-window">07.11.2025 – 02.10.2026</span>
+      ·
+      <span data-role="metric-observations">
+        47 Beobachtungen
+      </span>
+    </small>
+  </dd>
+</div>
+  <div class="overview-metric" data-role="metric-cell">
+  <dt>Max. Drawdown</dt>
+
+  <dd class="">
+
+      -16,9%
+
+
+    <small class="overview-metric__sub">
+      <span data-role="metric-window-name">365 Tage</span>
+      <span>·</span>
+      <span data-role="metric-window">07.11.2025 – 02.10.2026</span>
+      ·
+      <span data-role="metric-observations">
+        48 Beobachtungen
+      </span>
+    </small>
+  </dd>
+</div>
+  <div class="overview-metric" data-role="metric-cell">
+  <dt>Momentum</dt>
+
+  <dd class="is-negative">
+
+      -1,3%
+
+
+    <small class="overview-metric__sub">
+      <span data-role="metric-window-name">12 Monate</span>
+      <span>·</span>
+      <span data-role="metric-window">31.10.2025 – 02.10.2026</span>
+      ·
+      <span data-role="metric-observations">
+        2 Beobachtungen
+      </span>
+    </small>
+  </dd>
+</div>
+  <div class="overview-metric" data-role="metric-cell">
+  <dt>52-Wochen-Spanne</dt>
+  <dd class="is-negative">
+
+      -6,9%
+      <small class="overview-metric__unit">
+        zum Hoch · +12,1% zum Tief
+      </small>
+
+    <small class="overview-metric__sub">
+      <span data-role="metric-window">07.11.2025 – 02.10.2026</span>
+      ·
+      <span data-role="metric-observations">
+        48 Beobachtungen
+      </span>
+    </small>
+  </dd>
+</div>
+</dl>
+
+<div class="detail-tab-hint" data-role="metrics-basis">
+  Über die eigenen splitbereinigten Schlusskurse dieses Wertpapiers in EUR, nie umgerechnet.
+  <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+  <summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+  <p role="tooltip">
+      Ein Tag ohne gespeicherten Schlusskurs erzeugt keine Renditebeobachtung; nichts wird fortgeschrieben und differenziert.
+    <br>
+      Die Volatilität ist die Grundgesamtheits-Standardabweichung der Tagesrenditen des Fensters, annualisiert mit der Wurzel aus 252.
+    <br>
+      Berichtet, nicht bewertet: hier wird kein Signal, kein Rating und keine Empfehlung abgeleitet.
+    </p>
+</details>
+</div>
+    </section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</aside>
+
+    </div>
+  </section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </main>
+  </div>
+</div></div>
+
+
+
+
+
+</body></html>

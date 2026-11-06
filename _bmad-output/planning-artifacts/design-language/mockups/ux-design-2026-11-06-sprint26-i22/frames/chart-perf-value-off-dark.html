@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="de" data-theme="dark" data-accent="violet"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="../../../../../../priv/static/app.css">
+    <title>Portfolixir</title>
+  <style type="text/css">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+#security-detail-pane { position: static !important; inset: auto !important; max-height: none !important; height: auto !important; width: auto !important; box-shadow: none !important; }
+#securities-detail-splitter { display: none !important; }
+.securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; }
+#security-detail-pane { flex: none !important; min-height: 0 !important; overflow: visible !important; }</style><style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.topbar { position: relative !important; top: auto !important; }
+#security-detail-pane { position: static !important; inset: auto !important; max-height: none !important; height: auto !important; width: auto !important; box-shadow: none !important; }
+#securities-detail-splitter { display: none !important; }
+.securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; }
+#security-detail-pane { flex: none !important; min-height: 0 !important; overflow: visible !important; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -10px; top: -10px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.chart-tooltip .pf-mask { font-size: inherit; }</style>
+<style id="proposal"></style>
+</head>
+  <body>
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+
+
+
+
+
+
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+
+        <div class="topbar-page" aria-live="polite">
+
+            <h1 id="app-topbar-title">Vermögen</h1>
+
+
+            <p id="app-topbar-subtitle">Wert, Performance und Allokation</p>
+
+        </div>
+      </div>
+
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="dark">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12"
+r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+
+              <button type="button" class="theme-choice" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="false" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="false" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12"
+r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+
+              <button type="button" class="theme-choice is-active" data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="true" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+
+          </div>
+        </details>
+
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+
+          </div>
+        </details>
+
+        <nav class="locale-switcher" aria-label="Sprache">
+
+            <a id="locale-en" class="locale-link " href="/portfolio?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+
+            <a id="locale-de" class="locale-link is-active" href="/portfolio?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+
+        </nav>
+      </div>
+    </header>
+
+    <main class="app-main app-main--workspace">
+
+  <div id="portfolio-overview" class="workspace-page portfolio-overview">
+
+
+
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/portfolio" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Bestände">Bestände</span>
+  </a><a href="/portfolio?tab=allocation" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9Z"></path><path d="M21 12a9 9 0 0 0-9-9v9h9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+  </a><a href="/cashflow" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+  </a><a href="/snapshots" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M23 19a2
+2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2
+0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </span>
+    <span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+  </a><a href="/tax" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="5" y="3"
+width="14" height="18" rx="2"></rect><path d="M9 7h6"></path><circle cx="9" cy="11" r=".6"></circle><circle cx="12" cy="11" r=".6"></circle><circle cx="15" cy="11" r=".6"></circle><circle cx="9" cy="14"
+r=".6"></circle><circle cx="12" cy="14" r=".6"></circle><circle cx="15" cy="14" r=".6"></circle><path d="M9 17h6"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Steuern">Steuern</span>
+  </a><a href="/risk" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Risiko">Risiko</span>
+  </a>
+</nav>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <section id="portfolio-performance" class="workspace-section">
+      <header class="section-head">
+        <h2>Performance</h2>
+
+        <div class="section-head-controls">
+          <div class="segmented-control" data-role="chart-series" role="group" aria-label="Diagrammreihe">
+            <button type="button" class="segmented-control__option " aria-pressed="false">
+              % (TTWROR)
+            </button>
+            <button type="button" class="segmented-control__option is-active" aria-pressed="true">
+              Wert (EUR)
+            </button>
+          </div>
+          <div class="segmented-control" data-role="period-tokens" role="group" aria-label="Zeitraum">
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                YTD
+              </button>
+
+              <button type="button" class="segmented-control__option is-active" aria-pressed="true">
+                1J
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                3J
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                5J
+              </button>
+
+              <button type="button" class="segmented-control__option " aria-pressed="false">
+                Max
+              </button>
+
+
+
+          </div>
+
+          <details id="period-custom" class="period-disclosure" data-role="period-custom">
+            <summary class="disclosure-summary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+              Benutzerdefinierter Zeitraum …
+            </summary>
+            <div class="period-disclosure__body period-popover">
+
+              <form class="period-range" data-role="period-range">
+                <div class="period-range__pair">
+                  <div class="period-range__field">
+                    <label for="performance-from">Von</label>
+                    <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" id="performance-from" name="from" value="2025-11-06">
+                  </div>
+                  <span class="period-range__dash" aria-hidden="true">–</span>
+                  <div class="period-range__field">
+                    <label for="performance-to">Bis</label>
+                    <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" id="performance-to" name="to" value="2026-11-06">
+                  </div>
+                </div>
+
+
+                <div class="period-years" aria-label="Jahr" role="group" data-role="period-year">
+                  <button type="button" class="filter-chip " aria-pressed="false">
+                    2026
+                  </button><button type="button" class="filter-chip " aria-pressed="false">
+                    2025
+                  </button><button type="button" class="filter-chip " aria-pressed="false">
+                    2024
+                  </button><button type="button" class="filter-chip " aria-pressed="false">
+                    2023
+                  </button>
+                </div>
+                <div class="period-popover__foot">
+                  <button type="button" id="period-custom-cancel" class="button-ghost">
+                    Abbrechen
+                  </button>
+                  <button type="submit" class="button-primary">Anwenden</button>
+                </div>
+              </form>
+            </div>
+          </details>
+
+          <details class="period-disclosure" data-role="benchmark-picker">
+            <summary class="disclosure-summary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+              Benchmark…
+
+            </summary>
+            <form method="get" action="/portfolio" class="period-disclosure__body benchmark-form" data-role="benchmark-form">
+
+              <input type="hidden" name="benchmark[]" value="">
+              <label class="benchmark-form__option">
+                <input type="checkbox" name="benchmark[]" value="security:29">
+                Kestrel Industrial Group NV Index
+              </label>
+
+              <label class="benchmark-form__rate" for="benchmark-rate">
+                Fester Zins % p. a.
+              </label>
+              <input type="number" id="benchmark-rate" name="benchmark_rate" step="0.01" min="-99.99" max="1000">
+              <button type="submit">Anwenden</button>
+              <span class="hint">
+                Bis zu zwei Benchmarks — die ersten beiden angekreuzten gelten.
+              </span>
+            </form>
+          </details>
+        </div>
+      </header>
+
+
+
+
+
+
+
+
+
+        <p class="perf-badge is-positive" data-role="period-badge">
+          <strong>+9,0%</strong>
+          <span class="perf-badge-sep">·</span>
+
+          <span class="is-positive" data-role="period-badge-money">+7.348,65 EUR</span>
+          <span class="perf-badge-period">(1J)</span>
+        </p>
+        <figure id="performance-figure" class="perf-figure" data-chart-mode="value">
+  <div class="chart-frame" id="chart-080567664996" data-chart-id="chart-080567664996" style="--chart-upx: 1.0492;">
+  <svg class="security-chart " role="img" aria-label="Wert im Zeitverlauf" viewBox="0 0 960 320" preserveAspectRatio="xMidYMid meet" width="100%">
+
+      <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+
+    <line x1="56" y1="292.0" x2="936" y2="292.0"></line>
+
+    <line x1="56" y1="223.0" x2="936" y2="223.0"></line>
+
+    <line x1="56" y1="154.0" x2="936" y2="154.0"></line>
+
+    <line x1="56" y1="85.0" x2="936" y2="85.0"></line>
+
+    <line x1="56" y1="16.0" x2="936" y2="16.0"></line>
+
+</g>
+
+
+
+      <path class="quote-area" d="M56.0,279.45 L56.0,279.45 L58.41,276.48 L60.82,276.48 L63.23,276.48 L65.64,276.48 L68.05,276.48 L70.47,276.48 L72.88,276.48 L75.29,275.84 L77.7,275.84 L80.11,275.84 L82.52,275.84 L84.93,275.84
+L87.34,275.84 L89.75,275.84 L92.16,272.98 L94.58,272.98 L96.99,272.98 L99.4,272.98 L101.81,272.98 L104.22,272.98 L106.63,272.98 L109.04,265.54 L111.45,265.54 L113.86,265.54 L116.27,265.54 L118.68,265.54 L121.1,265.54 L123.51,265.54
+L125.92,256.17 L128.33,256.17 L130.74,256.17 L133.15,256.17 L135.56,256.17 L137.97,256.17 L140.38,256.17 L142.79,251.55 L145.21,251.55 L147.62,251.55 L150.03,251.55 L152.44,251.55 L154.85,251.55 L157.26,251.55 L159.67,251.34 L162.08,251.34
+L164.49,251.34 L166.9,251.34 L169.32,251.34 L171.73,251.34 L174.14,251.34 L176.55,251.38 L178.96,251.38 L181.37,251.38 L183.78,251.38 L186.19,251.38 L188.6,252.45 L191.01,252.45 L193.42,249.61 L195.84,249.61 L198.25,249.61 L200.66,249.61
+L203.07,249.61 L205.48,249.61 L207.89,249.61 L210.3,253.13 L212.71,253.13 L215.12,253.13 L217.53,253.13 L219.95,253.13 L222.36,253.13 L224.77,253.13 L227.18,246.79 L229.59,246.79 L232.0,246.79 L234.41,246.79 L236.82,246.79 L239.23,246.79
+L241.64,246.79 L244.05,241.72 L246.47,241.72 L248.88,241.72 L251.29,241.72 L253.7,241.72 L256.11,241.72 L258.52,241.72 L260.93,241.66 L263.34,241.66 L265.75,241.66 L268.16,241.66 L270.58,241.66 L272.99,241.66 L275.4,241.66 L277.81,241.37
+L280.22,241.37 L282.63,241.37 L285.04,241.37 L287.45,241.37 L289.86,241.37 L292.27,241.37 L294.68,241.9 L297.1,241.9 L299.51,241.9 L301.92,241.9 L304.33,241.9 L306.74,241.9 L309.15,241.9 L311.56,233.09 L313.97,233.09 L316.38,233.09
+L318.79,233.09 L321.21,233.09 L323.62,233.09 L326.03,233.09 L328.44,231.57 L330.85,231.57 L333.26,231.57 L335.67,231.57 L338.08,231.57 L340.49,231.57 L342.9,231.57 L345.32,236.29 L347.73,236.29 L350.14,236.29 L352.55,236.29 L354.96,236.29
+L357.37,236.29 L359.78,236.29 L362.19,230.32 L364.6,230.32 L367.01,230.32 L369.42,230.32 L371.84,230.32 L374.25,230.32 L376.66,230.32 L379.07,228.55 L381.48,228.55 L383.89,228.55 L386.3,228.55 L388.71,228.55 L391.12,228.55 L393.53,228.55
+L395.95,228.27 L398.36,228.27 L400.77,228.27 L403.18,228.27 L405.59,228.25 L408.0,228.25 L410.41,228.25 L412.82,228.98 L415.23,228.98 L417.64,228.98 L420.05,228.98 L422.47,228.98 L424.88,228.98 L427.29,228.98 L429.7,221.85 L432.11,221.85
+L434.52,221.85 L436.93,221.85 L439.34,221.85 L441.75,213.27 L444.16,213.27 L446.58,218.26 L448.99,218.26 L451.4,218.26 L453.81,175.59 L456.22,175.45 L458.63,175.45 L461.04,175.45 L463.45,171.18 L465.86,171.18 L468.27,171.18 L470.68,171.18
+L473.1,171.18 L475.51,171.18 L477.92,171.18 L480.33,163.56 L482.74,163.56 L485.15,163.56 L487.56,163.56 L489.97,163.56 L492.38,163.56 L494.79,163.56 L497.21,163.53 L499.62,163.53 L502.03,163.53 L504.44,163.53 L506.85,163.53 L509.26,163.53
+L511.67,163.53 L514.08,163.12 L516.49,163.12 L518.9,163.12 L521.32,163.12 L523.73,163.12 L526.14,163.12 L528.55,163.12 L530.96,148.2 L533.37,148.2 L535.78,148.2 L538.19,148.2 L540.6,148.2 L543.01,148.2 L545.42,148.2 L547.84,148.7
+L550.25,148.7 L552.66,148.7 L555.07,148.7 L557.48,148.7 L559.89,148.7 L562.3,148.7 L564.71,142.49 L567.12,142.49 L569.53,142.49 L571.95,142.49 L574.36,136.43 L576.77,136.41 L579.18,136.41 L581.59,140.95 L584.0,140.95 L586.41,140.95
+L588.82,140.95 L591.23,140.95 L593.64,140.95 L596.05,140.95 L598.47,145.07 L600.88,145.07 L603.29,145.07 L605.7,145.07 L608.11,145.07 L610.52,145.07 L612.93,145.07 L615.34,138.77 L617.75,138.77 L620.16,138.77 L622.58,138.77 L624.99,136.09
+L627.4,136.09 L629.81,136.09 L632.22,135.52 L634.63,135.52 L637.04,135.52 L639.45,135.52 L641.86,135.52 L644.27,135.52 L646.68,119.74 L649.1,117.92 L651.51,117.92 L653.92,117.92 L656.33,117.92 L658.74,117.92 L661.15,117.92 L663.56,117.92
+L665.97,70.73 L668.38,70.73 L670.79,70.73 L673.21,70.73 L675.62,70.73 L678.03,70.73 L680.44,70.73 L682.85,69.37 L685.26,69.37 L687.67,69.37 L690.08,69.37 L692.49,69.37 L694.9,77.96 L697.32,77.96 L699.73,77.96 L702.14,77.96
+L704.55,77.96 L706.96,77.96 L709.37,77.96 L711.78,77.96 L714.19,77.96 L716.6,80.01 L719.01,80.01 L721.42,80.01 L723.84,80.01 L726.25,80.01 L728.66,80.01 L731.07,80.01 L733.48,73.6 L735.89,73.6 L738.3,73.6 L740.71,73.6
+L743.12,73.6 L745.53,73.6 L747.95,73.6 L750.36,69.45 L752.77,69.45 L755.18,69.45 L757.59,69.45 L760.0,69.45 L762.41,69.45 L764.82,69.45 L767.23,65.97 L769.64,65.97 L772.05,65.97 L774.47,65.97 L776.88,65.97 L779.29,65.97
+L781.7,65.97 L784.11,55.96 L786.52,55.96 L788.93,55.96 L791.34,48.87 L793.75,48.87 L796.16,48.87 L798.58,48.87 L800.99,53.68 L803.4,53.68 L805.81,53.68 L808.22,53.68 L810.63,53.68 L813.04,53.68 L815.45,53.68 L817.86,61.8
+L820.27,61.8 L822.68,61.8 L825.1,61.8 L827.51,61.8 L829.92,61.8 L832.33,61.8 L834.74,57.45 L837.15,57.45 L839.56,56.61 L841.97,56.61 L844.38,56.61 L846.79,56.61 L849.21,56.61 L851.62,56.22 L854.03,56.22 L856.44,56.22
+L858.85,56.22 L861.26,56.22 L863.67,56.22 L866.08,56.22 L868.49,53.04 L870.9,53.04 L873.32,53.04 L875.73,53.04 L878.14,53.04 L880.55,53.04 L882.96,53.04 L885.37,56.16 L887.78,56.16 L890.19,56.16 L892.6,56.16 L895.01,56.16
+L897.42,56.16 L899.84,56.16 L902.25,61.66 L904.66,61.66 L907.07,29.46 L909.48,29.46 L911.89,30.05 L914.3,29.78 L916.71,29.78 L919.12,30.59 L921.53,30.59 L923.95,30.59 L926.36,30.59 L928.77,30.53 L931.18,30.55 L933.59,29.98
+L936.0,28.55 L936.0,292.0 L56.0,292.0 Z"></path>
+
+      <polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="56.0,279.45 58.41,276.48 60.82,276.48 63.23,276.48 65.64,276.48 68.05,276.48 70.47,276.48 72.88,276.48 75.29,275.84 77.7,275.84 80.11,275.84
+82.52,275.84 84.93,275.84 87.34,275.84 89.75,275.84 92.16,272.98 94.58,272.98 96.99,272.98 99.4,272.98 101.81,272.98 104.22,272.98 106.63,272.98 109.04,265.54 111.45,265.54 113.86,265.54 116.27,265.54 118.68,265.54
+121.1,265.54 123.51,265.54 125.92,256.17 128.33,256.17 130.74,256.17 133.15,256.17 135.56,256.17 137.97,256.17 140.38,256.17 142.79,251.55 145.21,251.55 147.62,251.55 150.03,251.55 152.44,251.55 154.85,251.55 157.26,251.55
+159.67,251.34 162.08,251.34 164.49,251.34 166.9,251.34 169.32,251.34 171.73,251.34 174.14,251.34 176.55,251.38 178.96,251.38 181.37,251.38 183.78,251.38 186.19,251.38 188.6,252.45 191.01,252.45 193.42,249.61 195.84,249.61
+198.25,249.61 200.66,249.61 203.07,249.61 205.48,249.61 207.89,249.61 210.3,253.13 212.71,253.13 215.12,253.13 217.53,253.13 219.95,253.13 222.36,253.13 224.77,253.13 227.18,246.79 229.59,246.79 232.0,246.79 234.41,246.79
+236.82,246.79 239.23,246.79 241.64,246.79 244.05,241.72 246.47,241.72 248.88,241.72 251.29,241.72 253.7,241.72 256.11,241.72 258.52,241.72 260.93,241.66 263.34,241.66 265.75,241.66 268.16,241.66 270.58,241.66 272.99,241.66
+275.4,241.66 277.81,241.37 280.22,241.37 282.63,241.37 285.04,241.37 287.45,241.37 289.86,241.37 292.27,241.37 294.68,241.9 297.1,241.9 299.51,241.9 301.92,241.9 304.33,241.9 306.74,241.9 309.15,241.9 311.56,233.09
+313.97,233.09 316.38,233.09 318.79,233.09 321.21,233.09 323.62,233.09 326.03,233.09 328.44,231.57 330.85,231.57 333.26,231.57 335.67,231.57 338.08,231.57 340.49,231.57 342.9,231.57 345.32,236.29 347.73,236.29 350.14,236.29
+352.55,236.29 354.96,236.29 357.37,236.29 359.78,236.29 362.19,230.32 364.6,230.32 367.01,230.32 369.42,230.32 371.84,230.32 374.25,230.32 376.66,230.32 379.07,228.55 381.48,228.55 383.89,228.55 386.3,228.55 388.71,228.55
+391.12,228.55 393.53,228.55 395.95,228.27 398.36,228.27 400.77,228.27 403.18,228.27 405.59,228.25 408.0,228.25 410.41,228.25 412.82,228.98 415.23,228.98 417.64,228.98 420.05,228.98 422.47,228.98 424.88,228.98 427.29,228.98
+429.7,221.85 432.11,221.85 434.52,221.85 436.93,221.85 439.34,221.85 441.75,213.27 444.16,213.27 446.58,218.26 448.99,218.26 451.4,218.26 453.81,175.59 456.22,175.45 458.63,175.45 461.04,175.45 463.45,171.18 465.86,171.18
+468.27,171.18 470.68,171.18 473.1,171.18 475.51,171.18 477.92,171.18 480.33,163.56 482.74,163.56 485.15,163.56 487.56,163.56 489.97,163.56 492.38,163.56 494.79,163.56 497.21,163.53 499.62,163.53 502.03,163.53 504.44,163.53
+506.85,163.53 509.26,163.53 511.67,163.53 514.08,163.12 516.49,163.12 518.9,163.12 521.32,163.12 523.73,163.12 526.14,163.12 528.55,163.12 530.96,148.2 533.37,148.2 535.78,148.2 538.19,148.2 540.6,148.2 543.01,148.2
+545.42,148.2 547.84,148.7 550.25,148.7 552.66,148.7 555.07,148.7 557.48,148.7 559.89,148.7 562.3,148.7 564.71,142.49 567.12,142.49 569.53,142.49 571.95,142.49 574.36,136.43 576.77,136.41 579.18,136.41 581.59,140.95
+584.0,140.95 586.41,140.95 588.82,140.95 591.23,140.95 593.64,140.95 596.05,140.95 598.47,145.07 600.88,145.07 603.29,145.07 605.7,145.07 608.11,145.07 610.52,145.07 612.93,145.07 615.34,138.77 617.75,138.77 620.16,138.77
+622.58,138.77 624.99,136.09 627.4,136.09 629.81,136.09 632.22,135.52 634.63,135.52 637.04,135.52 639.45,135.52 641.86,135.52 644.27,135.52 646.68,119.74 649.1,117.92 651.51,117.92 653.92,117.92 656.33,117.92 658.74,117.92
+661.15,117.92 663.56,117.92 665.97,70.73 668.38,70.73 670.79,70.73 673.21,70.73 675.62,70.73 678.03,70.73 680.44,70.73 682.85,69.37 685.26,69.37 687.67,69.37 690.08,69.37 692.49,69.37 694.9,77.96 697.32,77.96
+699.73,77.96 702.14,77.96 704.55,77.96 706.96,77.96 709.37,77.96 711.78,77.96 714.19,77.96 716.6,80.01 719.01,80.01 721.42,80.01 723.84,80.01 726.25,80.01 728.66,80.01 731.07,80.01 733.48,73.6 735.89,73.6
+738.3,73.6 740.71,73.6 743.12,73.6 745.53,73.6 747.95,73.6 750.36,69.45 752.77,69.45 755.18,69.45 757.59,69.45 760.0,69.45 762.41,69.45 764.82,69.45 767.23,65.97 769.64,65.97 772.05,65.97 774.47,65.97
+776.88,65.97 779.29,65.97 781.7,65.97 784.11,55.96 786.52,55.96 788.93,55.96 791.34,48.87 793.75,48.87 796.16,48.87 798.58,48.87 800.99,53.68 803.4,53.68 805.81,53.68 808.22,53.68 810.63,53.68 813.04,53.68
+815.45,53.68 817.86,61.8 820.27,61.8 822.68,61.8 825.1,61.8 827.51,61.8 829.92,61.8 832.33,61.8 834.74,57.45 837.15,57.45 839.56,56.61 841.97,56.61 844.38,56.61 846.79,56.61 849.21,56.61 851.62,56.22
+854.03,56.22 856.44,56.22 858.85,56.22 861.26,56.22 863.67,56.22 866.08,56.22 868.49,53.04 870.9,53.04 873.32,53.04 875.73,53.04 878.14,53.04 880.55,53.04 882.96,53.04 885.37,56.16 887.78,56.16 890.19,56.16
+892.6,56.16 895.01,56.16 897.42,56.16 899.84,56.16 902.25,61.66 904.66,61.66 907.07,29.46 909.48,29.46 911.89,30.05 914.3,29.78 916.71,29.78 919.12,30.59 921.53,30.59 923.95,30.59 926.36,30.59 928.77,30.53
+931.18,30.55 933.59,29.98 936.0,28.55"></polyline>
+
+
+
+
+
+
+      <g class="chart-axis-labels">
+
+    <text class="chart-axis-y " x="50" y="292.0" text-anchor="end" dominant-baseline="central">
+      76.033
+    </text>
+
+    <text class="chart-axis-y " x="50" y="223.0" text-anchor="end" dominant-baseline="central">
+      79.247
+    </text>
+
+    <text class="chart-axis-y " x="50" y="154.0" text-anchor="end" dominant-baseline="central">
+      82.462
+    </text>
+
+    <text class="chart-axis-y " x="50" y="85.0" text-anchor="end" dominant-baseline="central">
+      85.677
+    </text>
+
+    <text class="chart-axis-y is-top" x="50" y="16.0" text-anchor="end" dominant-baseline="central">
+      88.892
+    </text>
+
+  <text class="chart-axis-x" x="56" y="314" text-anchor="start">
+    06.11.2025
+  </text>
+  <text class="chart-axis-x" x="936" y="314" text-anchor="end">
+    06.11.2026
+  </text>
+</g>
+
+  </svg>
+
+<div class="chart-crosshair" style="left: 685.095px; top: 9px; height: 304.984px;"></div><div class="chart-tooltip" role="status" style="left: 697.095px; top: 67.3018px;"><div class="chart-tooltip__date">04.08.2026</div><div class="chart-tooltip__price">+8,0%
+· 86.004,68 EUR</div></div><div class="chart-zoom-rect" hidden=""></div></div>
+
+
+
+
+</figure>
+
+
+
+        <p class="hint" data-role="performance-basis">
+          06.11.2025 – 06.11.2026
+
+          <span data-role="performance-as-of">
+            · berechnet 06.11.2026 10:37 UTC
+          </span>
+        </p>
+
+
+
+
+
+    </section>
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </main>
+  </div>
+</div></div>
+
+
+
+
+
+</body></html>

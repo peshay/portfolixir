@@ -76,3 +76,93 @@ node render.js
 
 The build sends GET requests only. The theme and Wealth's column pick are
 written to the browser's own storage before the load.
+
+## Board 02: the charts in privacy mode
+
+Drawn on 2026-11-06 after the owner picked C: what the charts do while
+the mode is on, in look C. Board 01's files are untouched; board 02 has
+its own scripts and frames (`frames/chart-*.html`,
+`frames/sizes-charts.json`).
+
+| File | What it is |
+|---|---|
+| `02-privacy-charts.html` → `02-privacy-charts--1200.png` | The board, rendered at 1200 px: the rule table, then each chart off (today) above on; Wealth's "Wert" also in the dark theme. |
+| `build-charts.js` | Captures the chart frames from the review instance, switches the mode on in the live DOM (board 01's rule and look C, plus each chart's change), writes `frames/chart-*.html` and the board. Holds the proposed strings. |
+| `board-charts.js` | Lays out board 02 from `frames/sizes-charts.json`. |
+| `render-charts.js` | Renders board 02 to PNG. |
+
+### The rule for charts
+
+- **An axis in a currency switches to percent, indexed to the window's
+  start**, and **no tooltip names an amount**; an amount that stays in a
+  tooltip's line becomes the look C bar. Percentages, dates and the
+  line's shape stay.
+- **Wealth → Performance, "% (TTWROR)"** (the default): the axis is
+  already percent and stays; the tooltip "+9,0% · 88.307,02 EUR" keeps
+  its shape with the amount as fog, and so does the badge above.
+- **Wealth → Performance, "Wert (EUR)"**: the series is renamed "Wert
+  (%)", its axis shows the value in percent of the value on the window's
+  first day, a line under the chart says deposits and withdrawals count
+  in it (so it is no return), and the tooltip reads "+9,0% · Wert +12,3%"
+  (TTWROR first, as today). Judgement, flippable: "I22 Wert aus" hides
+  the series while the mode is on and shows TTWROR only.
+- **A security's chart** (the Diagramm tab, and the small curve on the
+  Übersicht tab): its own "Prozent" view, pressed and locked ("Im
+  Privatsphäre-Modus immer an"), which already locks the log scale;
+  moving averages and the cost line are re-based with it. The pane head's
+  last price and SMA 50 are prices and become fog. A trade's tooltip line
+  ("Kauf 30 zu 42,10 EUR") hides quantity and price.
+- **Cashflow → Erträge** (years, months, accumulated): no axis to switch;
+  the bars keep their heights (ratios, like the percentages the mode
+  keeps), every amount in and under them becomes fog, a zero included,
+  and a bar's native tooltip keeps its year and series without the
+  amount. Judgement, flippable: "I22 Balken in Prozent" labels each bar
+  with its share of the window instead.
+- **Charts already in percent** (Snapshots' comparison, Risk,
+  Allocation) keep their axes; their amounts follow board 01.
+- **Built on the server**, like board 01's placeholder: the amount never
+  reaches the page, so a percent axis is the server's (SecurityChart's
+  `percent_mode?`, or the same re-basing for Wealth), never a relabelling
+  in the browser.
+
+### How the "on" frames were made
+
+- **The security chart** is the shipped component's own percent view,
+  switched on in the live page with its "Prozent" toggle: no redraw.
+- **Wealth's "Wert"** has no percent view on Wealth, so its five axis
+  labels are relabelled in the page from the chart's own points, and the
+  board labels that frame a redraw. It is exact: `percent_mode?`
+  re-bases each value affinely, (v − v₀) / v₀, and pads the range by 5 %
+  of its span, so line, fill and gridlines stay where the server drew
+  them; the values come from the points' tooltip labels and the map from
+  their positions (least squares).
+- **Tooltips** are the live hook's, shown by resting the pointer over the
+  chart; their text is then changed as the rule says. On the security
+  chart the tooltip snaps to the close of 17.04.2026, three days before
+  the seed's buy, so the trade's line is described, not shown.
+
+### Strings (board 02)
+
+Existing: "% (TTWROR)", "Wert (%{currency})" (the series as shipped),
+"Prozent", "Logarithmische Skala", and board 01's switch ("Beträge
+verbergen").
+
+| English | German |
+|---|---|
+| Value (%) | Wert (%) |
+| In privacy mode the axis shows the value in percent of the value at the window’s start, deposits and withdrawals included; the return is TTWROR. | Im Privatsphäre-Modus zeigt die Achse den Wert in Prozent des Werts am Fensterbeginn, Ein- und Auszahlungen eingeschlossen; die Rendite zeigt TTWROR. |
+| Value %{percent} (tooltip) | Wert %{percent} |
+| Always on in privacy mode (title of the locked "Percent") | Im Privatsphäre-Modus immer an |
+
+### Rebuilding board 02
+
+With the review instance running (above), from this folder:
+
+```bash
+node build-charts.js    # captures frames/chart-*.html, writes 02-privacy-charts.html
+node render-charts.js   # renders 02-privacy-charts--1200.png
+```
+
+The build sends GET requests; its clicks change only what a page shows
+(Wealth's series, the security chart's "Prozent", a year on Cashflow),
+and the pointer rests over a chart for its tooltip. Nothing is submitted.

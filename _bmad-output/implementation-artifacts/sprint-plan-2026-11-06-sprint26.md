@@ -274,9 +274,25 @@ Under `_bmad-output/planning-artifacts/design-language/mockups/`:
   closes; A does not fit 1200 px either. Mode 3 sits in the same chooser
   because it compares the same rows over the same spans; its buys, the
   cost line, the taxes apart and `no_match` open under each sale.
-- **Board 04, the delete dialogs** (`ux-design-2026-11-06-sprint26-f21/`): BOARD04_PICK
-- **Board 05, charts in the privacy mode** (board 02 of the i22 folder):
-  BOARD05_PICK
+- **Board 04, the delete dialogs** (`ux-design-2026-11-06-sprint26-f21/`): the three cascading deletes in the booking
+  delete dialog's anatomy: „Das Löschen entfernt:“ with one line per kind
+  and its count, what stays, the journal sentence; the refusal with the
+  rules that block it and only „Schließen“; the changed-while-open state;
+  the phone sheet. **A, recommended: counts only;** B adds names (two of
+  nine assignments and „7 weitere“), which repeat the page behind the
+  dialog and grow with the data. „F21 B“ changes it. Decided on the board,
+  each flippable: the confirm deletes only if the delete removes exactly
+  the ids the dialog showed, else it shows the changed state („F21 ohne
+  Abgleich“ drops the check); a kind with no rows gets no line.
+- **Board 05, charts in the privacy mode** (`02-privacy-charts` in the
+  i22 folder): no pick, board 01's rule applied to every chart: a euro
+  axis becomes percent of the window start (Wealth's „Wert“ becomes
+  „Wert (%)“ with a line saying deposits and withdrawals count in it),
+  the security chart is held in its own „Prozent“ view, cash-flow bars
+  keep their heights and lose their amounts, every amount left in a
+  tooltip or badge is look C. Two choices flip by comment: „I22 Wert aus“
+  (hide the value series in the mode) and „I22 Balken in Prozent“ (label
+  bars with their share).
 
 Silence adopts each recommendation; a comment naming another option
 changes it. Each story writes its anatomy into `DESIGN.md`.
