@@ -478,6 +478,40 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
     assert_decimal(one.difference, "12.5")
   end
 
+  # User story (closing act M3, ADR-0057 §2: each side one division):
+  # As the operator whose switch inside a USD account came out even,
+  # I want the difference to read exactly 0,
+  # so that an even switch never reads as a tiny loss or gain.
+  #
+  # Acceptance criteria:
+  # - At a EUR-hub rate whose inverse does not terminate (1.3), kept and
+  #   switched are equal to the last digit and the difference is exactly 0.
+  test "an even switch at a hub rate of 1.3 reads a difference of exactly 0" do
+    world = base_world(name: "Sides Even", cash_currency: "USD")
+    sold = security!("SEV", "USD")
+    bought = security!("BEV", "USD")
+    rate!(~D[2025-01-02], "1.3")
+
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "110"}])
+    put_quotes!(bought, [{~D[2025-02-14], "275"}])
+
+    # Proceeds 10 x 100 = 1000 USD; the buy's debit 4 x 250 = 1000 USD: a = 1.
+    sale =
+      sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15], currency: "USD")
+
+    buy!(world, bought, quantity: "4", price: "250", date: ~D[2025-01-20], currency: "USD")
+
+    # 1m: kept = 1000 x 10 x 110 / (1000 x 1.3) = 1100 / 1.3; switched =
+    # 1000 x 4 x 275 / (1000 x 1.3) = 1100 / 1.3: the same quotient, one
+    # division each, so 846.1538461538461538461538461538462 both, and the
+    # difference exactly 0. (Through 110 x (1 / 1.3) and 275 x (1 / 1.3),
+    # each inverse rounded at 34 digits, the two sides differed by 1E-31.)
+    one = Enum.find(block(sale).spans, &(&1.span == "1m"))
+    assert Decimal.equal?(one.difference, Decimal.new(0)), inspect(one.difference)
+    assert one.switched == one.kept
+    assert_decimal(one.kept, "846.1538461538461538461538461538462")
+  end
+
   # User story (R1, ADR-0057 §2: pending and incomplete, as in FR-50):
   # As the agent reading a recent or a sparsely priced switch,
   # I want a span not yet reached named pending, and one that cannot be

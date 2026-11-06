@@ -44,17 +44,25 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
       be worth had it been kept;
     * **switched** = the sum over the matched buys of, for a buy dated after
       the end, the amount it took as cash in the account's currency at the
-      end's rate (`WindowReturn.eur_rate/2` on the end date), and for one on
+      end's rate (`WindowReturn.hub_rate/2` on the end date), and for one on
       or before it, the share of the buy this sale paid for × the buy's
       quantity × the bought security's close at the end, in EUR;
     * **difference** = switched − kept.
 
-  Every close and its EUR value is `WindowReturn.price_return/3`'s: the
-  split-adjusted close standing for the date (at most 7 days older), at the
-  stored EUR-hub rate of its own date. A booked quantity is read in that
-  basis: multiplied by the ratio of the security's splits after its booking
-  date (`QuoteAdjustment.cumulative_ratio_after/2`), so a split is not a
-  move. Each side is computed as one division of exact products. A span
+  Every close is `WindowReturn.price_return/3`'s: the split-adjusted close
+  standing for the date (at most 7 days older), converted at the stored
+  EUR-hub rate of its own date. A booked quantity is read in that basis:
+  multiplied by the ratio of the security's splits after its booking date
+  (`QuoteAdjustment.cumulative_ratio_after/2`), so a split is not a move.
+
+  **Precision** (the Sprint 26 closing act's M3): every figure is carried as
+  an exact fraction (`SaleReinvestment.Fraction`) of the stored closes,
+  rates, quantities and amounts, each converted to EUR by dividing by its
+  hub rate once (never multiplied by the rounded `1 / hub`, as
+  `WindowReturn`'s return does since Sprint 25), and rounded once when it
+  is shown, at 34 significant digits half-up. The difference is the exact
+  `switched + taxes_apart − kept`, rounded once, so a switch that came out
+  even reads exactly 0 at any rate. A span
   that cannot be measured is `:incomplete` with the `side` (`:kept` or
   `:switched`) and `WindowReturn`'s reason (`:no_start_close`,
   `:no_end_close`, `:no_fx_rate`).
@@ -92,6 +100,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Performance.SaleHindsight
+  alias Portfolixir.Portfolios.Performance.SaleReinvestment.Fraction
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Repo
 
@@ -172,14 +181,17 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
           "switched = for each matched buy dated after the end, the amount it took as cash " <>
           "(it earns nothing while it waits), otherwise its share_of_buy x its quantity x " <>
           "the bought security's close at the end; difference = switched + taxes_apart - " <>
-          "kept, unrounded. A span that cannot be measured is incomplete with side (kept " <>
+          "kept. A span that cannot be measured is incomplete with side (kept " <>
           "or switched) and reason (no_start_close, no_end_close, no_fx_rate)",
       prices:
         "both sides in EUR with the sale hindsight's rules: the close standing for a date " <>
           "is the last positive stored close on or before it, at most #{staleness} calendar " <>
           "days older, split-adjusted, converted at the stored EUR-hub rate of its own date; " <>
           "a booked quantity is read in the same basis (times the ratio of the splits after " <>
-          "its date); cash, fees, taxes and income convert at the rate of the span's end",
+          "its date); cash, fees, taxes and income convert at the rate of the span's end. " <>
+          "Each figure is one quotient of exact products, dividing by each hub rate (units " <>
+          "per 1 EUR) once, rounded once to 34 significant digits; the difference is the " <>
+          "exact switched + taxes_apart - kept rounded once, so an even switch reads 0",
       before_tax:
         "both sides are compared before tax: the sale's fees and each buy's fees are paid " <>
           "out of the money that switched, so they are inside the difference, and " <>
@@ -372,6 +384,8 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   # A buy's cash debit: its booked cash amount on its account, negated.
   defp debit(buy), do: Decimal.negate(cash(buy))
 
+  defp debit_fraction(buy), do: Fraction.new(debit(buy))
+
   defp positive?(amount), do: Decimal.compare(amount, @zero) == :gt
 
   defp step({:sale, entry}, {queue, takes}), do: {queue ++ [entry], takes}
@@ -431,7 +445,16 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     taken = Enum.reduce(takes, @zero, &Decimal.add(&1.amount, &2))
     [%{buy: first} | _rest] = takes
     base = base(sale, :matched, nil)
-    switch = Map.merge(match, %{taken: taken, currency: base.currency_code})
+
+    # The sides take exact fractions (see measure/5).
+    switch = %{
+      currency: base.currency_code,
+      taken: Fraction.new(taken),
+      proceeds: Fraction.new(proceeds),
+      taxes: Fraction.new(match.taxes),
+      fees: Fraction.new(match.fees),
+      takes: Enum.map(takes, &%{&1 | amount: Fraction.new(&1.amount)})
+    }
 
     %{
       base
@@ -501,23 +524,31 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     end
   end
 
+  # Every figure is an exact fraction until it is shown: each one is a
+  # quotient of exact products (stored closes, rates, quantities and
+  # amounts), rounded once by `Fraction.to_decimal/1`, so two sides that are
+  # equal in exact arithmetic read equal to the last digit and an even
+  # switch reads a difference of exactly 0. A close converts to EUR by
+  # dividing by its date's stored hub rate once, as `WindowReturn`'s return
+  # does, never through the rounded `1 / hub`.
   defp measure(label, end_on, sale, switch, context) do
     with {:ok, kept} <- kept(sale, switch, end_on, context),
-         {:ok, rate} <- cash_rate(switch.currency, end_on),
-         {:ok, switched} <- switched(switch, end_on, rate, context),
+         {:ok, hub} <- cash_hub(switch.currency, end_on),
+         {:ok, switched} <- switched(switch, end_on, hub, context),
          {:ok, income} <- income_apart(switch, end_on, context) do
-      taxes = taxes_apart(switch, rate)
+      taxes = taxes_apart(switch, hub)
 
       %{
         span_base(label, end_on, :complete)
-        | kept: kept,
-          switched: switched,
+        | kept: Fraction.to_decimal(kept),
+          switched: Fraction.to_decimal(switched),
           # Before tax (§3): the sale's taxes are added back to the
           # switched side, because the kept side's latent tax is not known.
-          difference: switched |> Decimal.add(taxes) |> Decimal.sub(kept),
-          fees_inside: fees_inside(switch, end_on, rate),
-          taxes_apart: taxes,
-          income_apart: income
+          difference:
+            switched |> Fraction.add(taxes) |> Fraction.sub(kept) |> Fraction.to_decimal(),
+          fees_inside: switch |> fees_inside(end_on, hub) |> Fraction.to_decimal(),
+          taxes_apart: Fraction.to_decimal(taxes),
+          income_apart: Fraction.to_decimal(income)
       }
     else
       {:error, side, reason} -> incomplete(label, end_on, side, reason)
@@ -525,97 +556,101 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   end
 
   # kept = a x the sold quantity x the sold security's close at the end, in
-  # EUR, as one division: taken x quantity x close in EUR / proceeds. The
-  # quantity is read in the closes' basis (the splits after the sale).
+  # EUR: taken x quantity x close / (proceeds x the close date's hub rate).
+  # The quantity is read in the closes' basis (the splits after the sale).
   defp kept(sale, switch, end_on, context) do
-    case WindowReturn.price_return(sale.security, sale.date, end_on) do
-      {:ok, result} ->
-        {numerator, denominator} = ratio_after(context, sale.security_id, sale.date)
-
-        {:ok,
-         switch.taken
-         |> Decimal.mult(sale.quantity)
-         |> Decimal.mult(numerator)
-         |> Decimal.mult(result.end.eur_value)
-         |> Decimal.div(Decimal.mult(switch.proceeds, denominator))}
-
-      {:error, reason} ->
-        {:error, :kept, reason}
+    with {:ok, result} <- WindowReturn.price_return(sale.security, sale.date, end_on),
+         {:ok, hub} <- hub(sale.security.currency_code, result.end.date) do
+      {:ok,
+       switch.taken
+       |> Fraction.mult(Fraction.new(sale.quantity))
+       |> Fraction.mult(ratio_after(context, sale.security_id, sale.date))
+       |> Fraction.mult(Fraction.new(result.end.close))
+       |> Fraction.divide(Fraction.mult(switch.proceeds, hub))}
+    else
+      {:error, reason} -> {:error, :kept, reason}
     end
   end
 
-  # Cash in the account's currency converts at the end's rate.
-  defp cash_rate(currency, end_on) do
-    case WindowReturn.eur_rate(currency, end_on) do
-      {:ok, rate} -> {:ok, rate}
+  # Cash in the account's currency converts at the end's hub rate.
+  defp cash_hub(currency, end_on) do
+    case hub(currency, end_on) do
+      {:ok, hub} -> {:ok, hub}
       {:error, reason} -> {:error, :switched, reason}
     end
   end
 
-  defp switched(switch, end_on, rate, context) do
-    Enum.reduce_while(switch.takes, {:ok, @zero}, fn take, {:ok, sum} ->
-      case bought_value(take, end_on, rate, context) do
-        {:ok, value} -> {:cont, {:ok, Decimal.add(sum, value)}}
+  # Units of `currency` per 1 EUR on `on` (`WindowReturn.hub_rate/2`: the
+  # most recent stored rate on or before it, EUR exactly 1), as an exact
+  # fraction.
+  defp hub(currency, on) do
+    with {:ok, hub} <- WindowReturn.hub_rate(currency, on), do: {:ok, Fraction.new(hub)}
+  end
+
+  defp switched(switch, end_on, hub, context) do
+    Enum.reduce_while(switch.takes, {:ok, Fraction.zero()}, fn take, {:ok, sum} ->
+      case bought_value(take, end_on, hub, context) do
+        {:ok, value} -> {:cont, {:ok, Fraction.add(sum, value)}}
         {:error, reason} -> {:halt, {:error, :switched, reason}}
       end
     end)
   end
 
-  # A buy dated after the end is still cash: the amount it took, at the
-  # end's rate. A buy on or before it is the share this sale paid for x the
-  # buy's quantity (in the closes' basis) x the bought security's close at
-  # the end, in EUR, as one division.
-  defp bought_value(%{buy: buy, amount: amount}, end_on, rate, context) do
+  # A buy dated after the end is still cash: the amount it took over the
+  # end's hub rate. A buy on or before it is the share this sale paid for x
+  # the buy's quantity (in the closes' basis) x the bought security's close
+  # at the end, over the close date's hub rate.
+  defp bought_value(%{buy: buy, amount: amount}, end_on, hub, context) do
     if Date.compare(buy.date, end_on) == :gt do
-      {:ok, Decimal.mult(amount, rate)}
+      {:ok, Fraction.divide(amount, hub)}
     else
-      case WindowReturn.price_return(buy.security, end_on, end_on) do
-        {:ok, result} ->
-          {numerator, denominator} = ratio_after(context, buy.security_id, buy.date)
-
-          {:ok,
-           amount
-           |> Decimal.mult(buy.quantity)
-           |> Decimal.mult(numerator)
-           |> Decimal.mult(result.end.eur_value)
-           |> Decimal.div(Decimal.mult(debit(buy), denominator))}
-
-        # A one-day window: its start is its end.
-        {:error, reason} when reason in [:no_start_close, :no_end_close] ->
-          {:error, :no_end_close}
-
-        {:error, reason} ->
-          {:error, reason}
+      with {:ok, result} <- end_close(buy.security, end_on),
+           {:ok, close_hub} <- hub(buy.security.currency_code, result.end.date) do
+        {:ok,
+         amount
+         |> Fraction.mult(Fraction.new(buy.quantity))
+         |> Fraction.mult(ratio_after(context, buy.security_id, buy.date))
+         |> Fraction.mult(Fraction.new(result.end.close))
+         |> Fraction.divide(Fraction.mult(debit_fraction(buy), close_hub))}
       end
+    end
+  end
+
+  # The close standing for the end, through the one window-return function:
+  # a one-day window, whose start is its end.
+  defp end_close(security, end_on) do
+    case WindowReturn.price_return(security, end_on, end_on) do
+      {:ok, result} -> {:ok, result}
+      {:error, reason} when reason in [:no_start_close, :no_end_close] -> {:error, :no_end_close}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   # --- Costs and income (ADR-0057 §3) ---
 
   # a x the sale's taxes (net of its refunds, signed), as cash at the end's
-  # rate: taken x taxes x rate / proceeds.
-  defp taxes_apart(switch, rate) do
+  # hub rate: taken x taxes / (proceeds x hub).
+  defp taxes_apart(switch, hub) do
     switch.taken
-    |> Decimal.mult(switch.taxes)
-    |> Decimal.mult(rate)
-    |> Decimal.div(switch.proceeds)
+    |> Fraction.mult(switch.taxes)
+    |> Fraction.divide(Fraction.mult(switch.proceeds, hub))
   end
 
   # a x the sale's fees + each buy's share x its fees, for the buys dated on
-  # or before the end (a later buy's money is still cash), at the end's rate.
-  # The fees are already inside the switched side; this names them.
-  defp fees_inside(switch, end_on, rate) do
-    sale_fees = switch.taken |> Decimal.mult(switch.fees) |> Decimal.div(switch.proceeds)
+  # or before the end (a later buy's money is still cash), over the end's
+  # hub rate. The fees are already inside the switched side; this names them.
+  defp fees_inside(switch, end_on, hub) do
+    sale_fees = switch.taken |> Fraction.mult(switch.fees) |> Fraction.divide(switch.proceeds)
 
     switch.takes
     |> Enum.filter(&(Date.compare(&1.buy.date, end_on) != :gt))
     |> Enum.reduce(sale_fees, fn %{buy: buy, amount: amount}, sum ->
       amount
-      |> Decimal.mult(buy.fees || @zero)
-      |> Decimal.div(debit(buy))
-      |> Decimal.add(sum)
+      |> Fraction.mult(Fraction.new(buy.fees || @zero))
+      |> Fraction.divide(debit_fraction(buy))
+      |> Fraction.add(sum)
     end)
-    |> Decimal.mult(rate)
+    |> Fraction.divide(hub)
   end
 
   # The bought positions' booked distributions (dividends, and interest on a
@@ -627,9 +662,9 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     switch.takes
     |> Enum.filter(&(Date.compare(&1.buy.date, end_on) != :gt))
     |> Enum.flat_map(fn take -> distributions(take, end_on, context) end)
-    |> Enum.reduce_while({:ok, @zero}, fn {take, distribution, rows}, {:ok, sum} ->
+    |> Enum.reduce_while({:ok, Fraction.zero()}, fn {take, distribution, rows}, {:ok, sum} ->
       case distribution_part(take, distribution, rows, end_on) do
-        {:ok, part} -> {:cont, {:ok, Decimal.add(sum, part)}}
+        {:ok, part} -> {:cont, {:ok, Fraction.add(sum, part)}}
         {:error, reason} -> {:halt, {:error, :switched, reason}}
       end
     end)
@@ -650,19 +685,21 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     held = held_before(rows, buy.security_id, distribution.date)
 
     with true <- Decimal.compare(held, @zero) == :gt,
-         {:ok, rate} <- WindowReturn.eur_rate(account_currency(distribution), end_on) do
-      {numerator, denominator} = splits_between(rows, buy.date, distribution.date)
+         {:ok, hub} <- hub(account_currency(distribution), end_on) do
       gross = Decimal.add(distribution.gross_amount || @zero, distribution.taxes || @zero)
 
       {:ok,
        amount
-       |> Decimal.mult(buy.quantity)
-       |> Decimal.mult(numerator)
-       |> Decimal.mult(gross)
-       |> Decimal.mult(rate)
-       |> Decimal.div(debit(buy) |> Decimal.mult(denominator) |> Decimal.mult(held))}
+       |> Fraction.mult(Fraction.new(buy.quantity))
+       |> Fraction.mult(splits_between(rows, buy.date, distribution.date))
+       |> Fraction.mult(Fraction.new(gross))
+       |> Fraction.divide(
+         debit_fraction(buy)
+         |> Fraction.mult(Fraction.new(held))
+         |> Fraction.mult(hub)
+       )}
     else
-      false -> {:ok, @zero}
+      false -> {:ok, Fraction.zero()}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -681,7 +718,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
 
   # The ratio of the portfolio's split rows after `from` and before `to`:
   # the splits the held quantity of `held_before/3` has applied since the
-  # buy.
+  # buy, as an exact fraction.
   defp splits_between(rows, from, to) do
     rows
     |> Enum.filter(fn row ->
@@ -691,15 +728,20 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     |> Enum.reduce({1, 1}, fn row, {p, q} ->
       {p * row.split_ratio_numerator, q * row.split_ratio_denominator}
     end)
+    |> ratio()
   end
 
   # The cumulative ratio of the security's splits after `date` (a split on
-  # the date itself applies before that day's trades, ADR-0028 §3).
+  # the date itself applies before that day's trades, ADR-0028 §3), as an
+  # exact fraction.
   defp ratio_after(context, security_id, date) do
     context.splits
     |> Map.get(security_id, [])
     |> QuoteAdjustment.cumulative_ratio_after(date)
+    |> ratio()
   end
+
+  defp ratio({p, q}), do: Fraction.divide(Fraction.new(p), Fraction.new(q))
 
   defp incomplete(label, end_on, side, reason),
     do: %{span_base(label, end_on, :incomplete) | side: side, reason: reason}
