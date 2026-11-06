@@ -57,8 +57,79 @@ async function deleteDialogs(browser) {
   await page.close();
 }
 
+// V3: "After the sale"'s table wrapper on a security's Trades tab is as tall
+// as its table, so the legend follows it, and in fullscreen it is no nested
+// scroll box.
+async function hindsightWrapper(page, label) {
+  await page.waitForSelector(".hs-detail-section .hs-table-wrapper");
+  await nextFrame(page);
+  const m = await page.evaluate(() => {
+    const wrapper = document.querySelector(".hs-detail-section .hs-table-wrapper");
+    const table = wrapper.querySelector("table");
+    const legend = document.querySelector(".hs-detail-section .hs-legend");
+    const w = wrapper.getBoundingClientRect();
+    return {
+      wrapper: w.height,
+      table: table.getBoundingClientRect().height,
+      gap: legend ? legend.getBoundingClientRect().top - w.bottom : null,
+      scroll: wrapper.scrollHeight - wrapper.clientHeight
+    };
+  });
+  check(m.wrapper - m.table <= 2, label + ": the wrapper is taller than its table " + JSON.stringify(m));
+  check(m.gap === null || m.gap <= 16, label + ": the legend is pushed away " + JSON.stringify(m));
+  check(m.scroll <= 1, label + ": the wrapper scrolls on its own " + JSON.stringify(m));
+}
+
+// V1: an ⓘ panel on a short tab in fullscreen opens whole: no box between
+// it and the scrolling pane cuts it.
+async function tipWhole(page, tipSelector, label) {
+  await page.waitForSelector(tipSelector + " > summary");
+  await page.click(tipSelector + " > summary");
+  await page.waitForFunction((s) => document.querySelector(s).open, tipSelector);
+  await nextFrame(page);
+  const cut = await page.evaluate((s) => {
+    const tip = document.querySelector(s);
+    const panel = tip.querySelector("p[role='tooltip']") || tip.querySelector("p");
+    const r = panel.getBoundingClientRect();
+    const cuts = [];
+    for (let el = tip.parentElement; el && el !== document.body; el = el.parentElement) {
+      const style = getComputedStyle(el);
+      if (style.overflowY === "visible" && style.overflowX === "visible") continue;
+      const c = el.getBoundingClientRect();
+      const yClipped = style.overflowY !== "visible" && (r.bottom > c.bottom + 0.5 || r.top < c.top - 0.5);
+      const xClipped = r.left < c.left - 0.5 || r.right > c.right + 0.5;
+      if (yClipped || xClipped) {
+        cuts.push({ box: el.className || el.tagName, panel: [r.top, r.bottom], clip: [c.top, c.bottom] });
+      }
+      if (el.classList.contains("detail-pane")) break;
+    }
+    return cuts;
+  }, tipSelector);
+  check(cut.length === 0, label + ": the panel is cut " + JSON.stringify(cut));
+}
+
+async function tradesTab(browser) {
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  await ready(page, "/securities/" + args.security_id + "?tab=trades");
+  await hindsightWrapper(page, "the Trades tab at 1200");
+
+  await page.click("#detail-pane-fullscreen-toggle");
+  await page.waitForSelector(".detail-pane--fullscreen");
+  await hindsightWrapper(page, "the Trades tab in fullscreen");
+
+  await page.click("#detail-tab-predictions");
+  await page.waitForSelector("#detail-tab-panel-predictions");
+  await tipWhole(
+    page,
+    "[data-role='predictions-basis'] details.metric-tooltip",
+    "the Predictions tab's ⓘ in fullscreen"
+  );
+  await page.close();
+}
+
 const CASES = {
-  delete_dialogs: deleteDialogs
+  delete_dialogs: deleteDialogs,
+  trades_tab: tradesTab
 };
 
 (async () => {
