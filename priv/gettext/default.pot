@@ -14813,7 +14813,7 @@ msgid_plural "the target is named by %{count} predictions, and a prediction is n
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/prediction_label.ex:173
+#: lib/portfolixir_web/prediction_label.ex:178
 #, elixir-autogen, elixir-format
 msgid "%{value} pp"
 msgstr ""

@@ -219,9 +219,9 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
     assert hit =~ "prediction-entry--hit"
     assert hit =~ ~s(class="badge badge--thesis-intact")
     assert text(hit) =~ "Hit"
-    assert text(hit) =~ "Return +10.0 %"
-    assert text(hit) =~ "Benchmark return +3.0 %"
-    assert text(hit) =~ "Excess +7.0 pp"
+    assert text(hit) =~ "Return +10.00 %"
+    assert text(hit) =~ "Benchmark return +3.00 %"
+    assert text(hit) =~ "Excess +7.00 pp"
     assert hit =~ ~s(class="is-positive")
     assert text(hit) =~ "Closes #{Format.date(day(-100))} → #{Format.date(day(-10))}"
     assert text(hit) =~ "Synthetic rationale: the ramp-up is not in the index."
@@ -238,7 +238,7 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
     assert text(miss) =~ "Falls by #{Format.date(day(-10))}"
     # The excess carries no sign colour beside "missed" (board, call 5,
     # flipped in the closing act; see the fix D test below).
-    assert text(miss) =~ "Excess +10.0 pp"
+    assert text(miss) =~ "Excess +10.00 pp"
 
     unresolved = entry(view, w.unresolved)
     assert unresolved =~ "prediction-entry--unresolved"
@@ -280,10 +280,15 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
           {"Return", data["resolution"]["security"]["return"]},
           {"Benchmark return", data["resolution"]["benchmark"]["return"]}
         ] do
-      assert hit =~ "#{label} #{Format.signed_percent(Decimal.new(value))} %"
+      assert hit =~ "#{label} #{two_decimals(value)} %"
     end
 
-    assert hit =~ "Excess #{Format.signed_percent(Decimal.new(data["resolution"]["excess"]))} pp"
+    assert hit =~ "Excess #{two_decimals(data["resolution"]["excess"])} pp"
+  end
+
+  # The API's fraction as the tab shows it: a signed percent, two decimals.
+  defp two_decimals(value) do
+    value |> Decimal.new() |> Decimal.mult(100) |> Format.plain_signed_decimal(2)
   end
 
   # User story (V1, board 02 part 1 ②, the ⓘ):
@@ -436,7 +441,7 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
       |> live("/securities/#{security.id}?tab=predictions")
 
     assert text(entry(view, hit)) =~ "70 %"
-    assert text(entry(view, hit)) =~ "+10.0 %"
+    assert text(entry(view, hit)) =~ "+10.00 %"
     assert text(entry(view, hit)) =~ "pp"
     assert text(entry(view, miss)) =~ "55 %"
     refute view |> element("#detail-tab-panel-predictions") |> render() =~ "pf-mask"
@@ -480,6 +485,29 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
              view,
              "#prediction-#{w.hit.id} [data-role='prediction-return'].is-positive"
            )
+  end
+
+  # User story (closing act, UAT persona on V1):
+  # As the operator checking a resolved call by hand,
+  # I want the return, the benchmark's return and the excess to add up,
+  # so that „+2,4 % − +0,2 % = +2,3 Pp“ does not look like a wrong sum.
+  #
+  # Acceptance criteria:
+  # - The three figures show two decimals, on the tab and in the report's
+  #   list: 2.448 %, 0.183 % and 2.265 pp read „+2.45 %“, „+0.18 %“ and
+  #   „+2.27 pp“, which add up.
+  test "a resolved call's three figures show two decimals and add up", %{conn: conn} do
+    w = world()
+    {:ok, view, _html} = live(conn, "/securities/#{w.security.id}?tab=predictions")
+    hit = view |> entry(w.hit) |> text()
+
+    assert hit =~ "Return +10.00 %"
+    assert hit =~ "Benchmark return +3.00 %"
+    assert hit =~ "Excess +7.00 pp"
+
+    assert PortfolixirWeb.PredictionLabel.return(Decimal.new("0.02448")) == "+2.45 %"
+    assert PortfolixirWeb.PredictionLabel.return(Decimal.new("0.00183")) == "+0.18 %"
+    assert PortfolixirWeb.PredictionLabel.excess(Decimal.new("0.02265")) == "+2.27 pp"
   end
 
   # --- Sprint 26 fix D end ---
