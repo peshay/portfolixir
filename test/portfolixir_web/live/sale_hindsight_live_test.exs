@@ -466,6 +466,9 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
     assert text(view, "#sale-hindsight tr[data-sale='#{lone.id}'] td.hs-nobuys") =~
              "Keine Anschlusskäufe gefunden"
 
+    assert text(view, "#sale-hindsight [data-role='hindsight-info'] p") =~
+             "der letzte zählt anteilig; Verkäufe und Käufe desselben Tages teilen anteilig."
+
     refute_verdict(view)
 
     {:ok, view, _html} = live(conn, "/cashflow?tab=realized&hindsight=reinvestment")
@@ -610,6 +613,11 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
 
     assert text(view, "#sale-hindsight [data-role='hindsight-info'] p") =~
              "Follow-on purchase: the buys from the sale's cash account"
+
+    # ADR-0057 as amended: sales and buys on one day share pro rata, never
+    # in booking order.
+    assert text(view, "#sale-hindsight [data-role='hindsight-info'] p") =~
+             "the last one counts pro rata; sales and buys on the same day share pro rata."
 
     assert text(view, "#sale-hindsight .hs-legend") =~
              "Per span switched − kept in EUR, both before tax"

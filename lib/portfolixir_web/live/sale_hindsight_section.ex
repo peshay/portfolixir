@@ -552,7 +552,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   defp switch_info_lines do
     [
       gettext(
-        "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata.",
+        "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata; sales and buys on the same day share pro rata.",
         days: SaleReinvestment.window_days()
       ),
       gettext(
