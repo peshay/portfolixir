@@ -28,12 +28,15 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   # Figures that stay in the mode where a decimal comma alone would read as
   # an amount, as the walk lists them: Risk's metric cards are percentages
   # and ratios of returns; the predictions' calibration report holds Brier
-  # scores, sharpness and probability bands, ratios of probabilities.
+  # scores, sharpness and probability bands, ratios of probabilities; the
+  # journal's stored ratios (a probability, a weight, an exchange rate) read
+  # as stored, a raw decimal in a table cell.
   @plain_selectors [
     "[data-role^='risk-metric-']",
     "#prediction-calibration",
     "[data-role='prediction-bands']",
-    "[data-role='prediction-groups']"
+    "[data-role='prediction-groups']",
+    "[data-figure='ratio']"
   ]
 
   # A page's views are many but finite; this bounds a link that would
@@ -160,7 +163,8 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           "/cashflow?tab=realized&hindsight=reinvestment",
           "/securities/#{ctx.sold.id}?tab=trades&hindsight=rate",
           "/securities/#{ctx.sold.id}?tab=predictions",
-          "/predictions"
+          "/predictions",
+          "/journal"
         ] do
       assert expected in visited, "the walk never opened #{expected}"
     end
@@ -261,20 +265,36 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   # The walk's text scan (test/browser/privacy_leak.js), on the server's
   # markup, text node by text node: an amount in German form outside a
   # percentage, percentage points, a ratio or a JSON array of ids, a
-  # quantity its unit names,
+  # quantity its unit names, a raw stored decimal in a table cell ("123.45",
+  # the journal's stored values; closing act of Sprint 26, finding S2),
   # and the stand-in text of a hidden figure where the bar belongs. Scripts,
   # styles and templates are not text; the plain selectors' figures stay.
   @amount ~r/(?<![\d.,])(?<!×)(?<!× )(?<!x)(?<!x )(?<!\[)([+\-−]?\d{1,3}(?:\.\d{3})*,\d+)(?![\d,])(?!\s*(?:%|pp\b|Pp\b|PP\b|Prozentpunkte|Jahre|years|MB\b|-Fache|times\b))/u
   @quantity ~r/(?<![\d.,])(\d[\d.,]*)\s*(Stück|shares?|units?)(?![\p{L}])/u
 
+  # A raw decimal as stored ("123.45", "1234.5", "-0.5"): a point and one to
+  # four digits, not part of a word, a time, a German date ("06.11.2026",
+  # "06.11."), a version ("0.1.14") or a German amount ("1.234,56"), and not
+  # a percentage. What reads as no decimal is left out: three digits after
+  # at most three are a German thousands group ("1.250", a count), a month
+  # and a year are a German month ("11.2025").
+  @raw ~r/(?<![\p{L}\d.,:\/_])([+\-−]?\d+\.\d{1,4})(?![\d.])(?!,\d)(?!\s*(?:%|pp\b|Pp\b|PP\b|Prozentpunkte))/u
+  @not_decimal [~r/^[+\-−]?\d{1,3}\.\d{3}$/u, ~r/^(0?[1-9]|1[0-2])\.(19|20)\d\d$/u]
+
   defp refute_amounts(path, html) do
-    nodes = text_nodes(html)
+    tree = readable_tree(html)
+    nodes = collect_text(tree)
+
+    raw =
+      tree
+      |> Floki.find("td, th")
+      |> Enum.flat_map(&(&1 |> collect_text() |> Enum.join(" ") |> raw_decimals()))
 
     hits =
       Enum.flat_map(nodes, fn text ->
         Enum.map(Regex.scan(@amount, text), fn [_, amount] -> amount end) ++
           Enum.map(Regex.scan(@quantity, text), fn [_, n, unit] -> n <> " " <> unit end)
-      end)
+      end) ++ raw
 
     assert hits == [], "#{path} names #{inspect(Enum.take(hits, 8))} with the privacy mode on"
 
@@ -282,17 +302,20 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
            "#{path} draws a hidden figure as its text, not as the bar"
   end
 
-  # The page's text node by node, as the walk reads it, without scripts,
-  # styles, templates and the plain selectors' elements.
-  defp text_nodes(html) do
-    html
-    |> Floki.parse_document!()
-    |> then(fn tree ->
-      Enum.reduce(["script", "style", "template" | @plain_selectors], tree, fn selector, acc ->
-        Floki.filter_out(acc, selector)
-      end)
+  defp raw_decimals(text) do
+    for [_, decimal] <- Regex.scan(@raw, text),
+        not Enum.any?(@not_decimal, &Regex.match?(&1, decimal)),
+        do: decimal
+  end
+
+  # The page as the walk reads it, without scripts, styles, templates and
+  # the plain selectors' elements.
+  defp readable_tree(html) do
+    tree = Floki.parse_document!(html)
+
+    Enum.reduce(["script", "style", "template" | @plain_selectors], tree, fn selector, acc ->
+      Floki.filter_out(acc, selector)
     end)
-    |> collect_text()
   end
 
   defp collect_text(nodes) when is_list(nodes), do: Enum.flat_map(nodes, &collect_text/1)

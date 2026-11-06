@@ -60,7 +60,11 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     # and counts (fix round of the closing act, P-fix 2).
     "#prediction-calibration",
     "[data-role='prediction-bands']",
-    "[data-role='prediction-groups']"
+    "[data-role='prediction-groups']",
+    # The journal's stored ratios (a probability, a weight, an exchange
+    # rate, a tax rate) read as stored, a raw decimal in a table cell; its
+    # amounts, prices and quantities are bars (closing act, finding S2).
+    "[data-figure='ratio']"
   ]
 
   # Data attributes whose value is an amount when it is a number; a chart's
@@ -192,9 +196,15 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
           list
       end
     else
-      [path]
+      [path | extra_addresses(path)]
     end
   end
+
+  # The journal's newest page on the seed holds quotes and predictions; its
+  # bookings, with their prices, quantities and fees, are walked by kind
+  # (closing act of Sprint 26: the journal leaked them unseen).
+  defp extra_addresses("/journal"), do: ["/journal?resource_type=transaction"]
+  defp extra_addresses(_path), do: []
 
   # A held security with trades, a bond and the one with the most quotes;
   # a classification.

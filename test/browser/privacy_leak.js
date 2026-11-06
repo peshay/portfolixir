@@ -43,9 +43,17 @@ const THEMES = ["light", "dark"];
 // risk-adjusted return) sit in the elements `plainSelectors` lists, each
 // with the reason it stays. A quantity is also any number its unit names,
 // a whole one included: "30 Stück", "12 shares".
+// In a table cell a raw decimal as stored is an amount too ("123.45",
+// "1234.5": the journal's stored values; closing act of Sprint 26, finding
+// S2): a point and one to four digits, not part of a word, a time, a German
+// date ("06.11.2026", "06.11."), a version ("0.1.14") or a German amount;
+// three digits after at most three are a German thousands group ("1.250")
+// and a month and a year a German month ("11.2025"), neither a decimal.
 function scan(args) {
   const AMOUNT = /(^|[^\d.,])([+\-−]?\d{1,3}(?:\.\d{3})*,\d+)(?![\d,])/g;
   const QUANTITY = /(^|[^\d.,])(\d[\d.,]*)\s*(Stück|shares?|units?)(?![\p{L}])/gu;
+  const RAW = /(^|[^\p{L}\d.,:\/_])([+\-−]?\d+\.\d{1,4})(?![\d.])(?!,\d)/gu;
+  const NOT_DECIMAL = [/^[+\-−]?\d{1,3}\.\d{3}$/, /^(0?[1-9]|1[0-2])\.(19|20)\d\d$/];
   const findings = [];
   const plainBefore = /(×|x|\[)\s*$/;
   const plainAfter = /^\s*(%|pp\b|Pp\b|PP\b|Prozentpunkte|Jahre|years|MB\b|-Fache|times\b)/;
@@ -77,6 +85,19 @@ function scan(args) {
     return out;
   };
 
+  const rawIn = (text) => {
+    const out = [];
+    RAW.lastIndex = 0;
+    let m;
+    while ((m = RAW.exec(text)) !== null) {
+      const start = m.index + m[1].length;
+      const after = text.slice(start + m[2].length, start + m[2].length + 16);
+      if (plainAfter.test(after) || NOT_DECIMAL.some((re) => re.test(m[2]))) continue;
+      out.push(m[2]);
+    }
+    return out;
+  };
+
   // 1. The visible text, node by node, so a hit names its element.
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
@@ -87,7 +108,9 @@ function scan(args) {
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     const visible = rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
-    for (const hit of amountsIn(node.nodeValue)) {
+    const hits = amountsIn(node.nodeValue);
+    if (el.closest("td, th")) hits.push(...rawIn(node.nodeValue));
+    for (const hit of hits) {
       findings.push({ where: visible ? "visible text" : "hidden text", hit, context: describe(el) });
     }
     // Board 01, look C: a hidden figure on the screen is the bar, never its
