@@ -9323,7 +9323,7 @@ After `.booking-delete-dialog .hint`: `.delete-preview` (no margin);
 marker `--color-text-muted`); `.confirm-delete-blocked .modal-body ul`.
 Every colour is a token, so light and dark and the three accents follow.
 
-## Amendment 2026-11-06 — The privacy mode *(Sprint 26 P1, idea I22, FR-51; board `mockups/ux-design-2026-11-06-sprint26-i22`, board 01 pick C „Nebelbalken“ by the owner; plan D-4, D-5)*
+## Amendment 2026-11-06 — The privacy mode *(Sprint 26 P1 and P2, idea I22, FR-51; board `mockups/ux-design-2026-11-06-sprint26-i22`, board 01 pick C „Nebelbalken“ by the owner, board 02 „charts in the privacy mode“; plan D-4, D-5)*
 
 ### The rule
 
@@ -9366,6 +9366,31 @@ the bar is green or red where the figure was.
 4. **The source:** an attribute a script reads an amount from
    (`data-count-to`, a month's `data-total`) is left out in the mode, and
    the count-up shows the bar without counting.
+
+### Charts *(board 02)*
+
+- **An axis in a currency becomes percent of the window's start**, on the
+  server: `SecurityChart` draws an `:absolute` series in its percent view
+  (re-based on the first value, the 5 % padding of its span unchanged),
+  never a relabelling in the browser.
+- **Wealth → Performance, „Wert (%)“:** the series' button reads „Wert
+  (%)“, a `.hint` line under the chart (`data-role="perf-privacy-basis"`)
+  says „Im Privatsphäre-Modus zeigt die Achse den Wert in Prozent des
+  Werts am Fensterbeginn, Ein- und Auszahlungen eingeschlossen; die Rendite
+  zeigt TTWROR.“, and the tooltip reads „+9,0% · Wert +12,3%“ (TTWROR
+  first). The TTWROR series keeps its axis; its tooltip and the badge keep
+  their shape with the amount as the bar.
+- **A security's chart:** its „Prozent“ toggle is pressed and disabled,
+  titled „Im Privatsphäre-Modus immer an“, the log scale disabled with it;
+  the small curve on the Übersicht tab follows the same rule. The pane
+  head's last price and the moving averages are prices and are bars. A
+  trade's tooltip line reads „Kauf [bar] zu [bar] EUR“, and its payload
+  carries no quantity and no price.
+- **Cashflow → Erträge:** the bars keep their heights (ratios); every
+  amount in and under them is a bar; a bar's native tooltip keeps its year
+  and series and drops „: amount“.
+- **Charts already in percent** (Snapshots' comparison, Risk, Allocation)
+  keep their axes.
 
 ### Stated, not settled here
 
