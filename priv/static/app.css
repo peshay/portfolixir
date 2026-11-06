@@ -8751,6 +8751,24 @@ select:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
+/* The privacy mode's fixed figure in the notes-only drawer (Sprint 26 I22,
+   fix round of the closing act): the disabled field's box, holding the bar
+   an input's value cannot hold. */
+.booking-fact-static {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+.booking-fact-static.num {
+  justify-content: flex-end;
+}
 /* "Neuer Snapshot" is a `.disclosure-summary` and nothing else (H4 ⑤b; the
    closing act's finding, board ux-review-2026-10-03/03-gamma-surface-repairs,
    G4): a local summary rule (accent, 600) outranked the class. */

@@ -10,6 +10,9 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
   import Phoenix.LiveViewTest
   import PortfolixirWeb.PreferenceCookieHelpers
 
+  import Portfolixir.WorldFixtures,
+    only: [add_depot: 2, base_world: 1, deposit!: 3]
+
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Imports
@@ -59,6 +62,23 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
   defp refute_stand_in(label, text) do
     refute String.contains?(text, PrivacyMode.text()),
            "#{label} draws a hidden figure as its text, not as the bar: #{text}"
+  end
+
+  # The bar's markup inside an attribute value (an input's value, a title):
+  # a hidden figure a template put where no markup can go.
+  defp refute_mask_in_attributes(label, html) do
+    leaked =
+      html
+      |> Floki.parse_fragment!()
+      |> Floki.find("*")
+      |> Enum.flat_map(fn {_tag, attributes, _children} ->
+        for {name, value} <- attributes,
+            String.contains?(value, "pf-mask"),
+            not (name == "class" and value == "pf-mask"),
+            do: {name, value}
+      end)
+
+    assert leaked == [], "#{label} holds the bar's markup in an attribute: #{inspect(leaked)}"
   end
 
   describe "the import preview" do
@@ -177,6 +197,67 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
       refute_figures("the already-booked line", box)
       refute_stand_in("the already-booked line", shown)
     end
+  end
+
+  describe "the notes-only drawer" do
+    # User story (fix round of the Sprint 26 closing act, privacy lens, S2):
+    # As the operator who opens "Edit" on a cash transfer with the privacy
+    # mode on,
+    # I want its fixed facts to show each figure as the bar,
+    # so that the drawer neither prints the amount nor the bar's markup as
+    # a field's text.
+    #
+    # Acceptance criteria:
+    # - The amount fact is no input: a static element in its place holds
+    #   the bar, and no attribute of the drawer holds the bar's markup.
+    # - The facts that are no figure (type, date, accounts) keep their
+    #   disabled controls with their values.
+    # - With the mode off, the amount is the disabled input with its value,
+    #   as before.
+    test "a fixed amount is the bar in a static element, never an input's value", %{conn: conn} do
+      world = base_world(name: "Masked Drawer", cash_name: "Girokonto", depot_name: "Depot 1")
+      deposit!(world, "1500", ~D[2026-09-03])
+      savings = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot 2")
+
+      {:ok, transfer} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          type: "cash_transfer",
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          counter_cash_account_id: savings.cash.id,
+          gross_amount: "1500",
+          currency_code: "EUR",
+          date: ~D[2026-09-03]
+        })
+
+      view = open_edit(masked(conn, "en"), transfer)
+      facts = view |> element("#booking-facts") |> render()
+
+      refute_mask_in_attributes("the drawer's facts", facts)
+      refute has_element?(view, "#booking-facts [name='note[gross_amount]']")
+      assert has_element?(view, "#booking-facts [data-fact='gross_amount'] .pf-mask")
+      refute_figures("the drawer's facts", facts)
+      refute_stand_in("the drawer's facts", text(facts))
+
+      assert has_element?(
+               view,
+               "#booking-facts input[name='note[date]'][disabled][value='2026-09-03']"
+             )
+
+      plain = open_edit(conn, transfer)
+
+      assert has_element?(
+               plain,
+               "#booking-facts input[name='note[gross_amount]'][disabled][value='1,500.00']"
+             )
+    end
+  end
+
+  defp open_edit(conn, tx) do
+    {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#tx-kebab-#{tx.id}") |> render_click()
+    view |> element("#tx-edit-#{tx.id}") |> render_click()
+    view
   end
 
   defp by_hand!(portfolio) do
