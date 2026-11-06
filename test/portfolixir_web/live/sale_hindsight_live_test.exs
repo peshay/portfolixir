@@ -674,4 +674,109 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
   end
 
   # --- Sprint 26 R3 end ---
+
+  # --- Sprint 26 fix P begin ---
+  # The privacy mode (P1) on "After the sale" (closing act, P-fix 1): the
+  # section built its phone rows, mode 3's invested line and its cost
+  # title by concatenating a masked figure, which crashed the page.
+
+  defp masked(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_privacy",
+        "on"
+      )
+
+  # The section renders, its figures are bars, none of `figures` is
+  # anywhere in its markup (text or attribute), and no hidden figure is
+  # drawn as its stand-in text.
+  defp assert_masked(view, section, figures) do
+    html = view |> element(section) |> render()
+
+    assert html =~ "pf-mask", "no figure of #{section} is drawn as the bar"
+
+    for figure <- figures do
+      refute html =~ figure, "#{figure} shows in #{section} with the privacy mode on"
+    end
+
+    refute html |> LazyHTML.from_fragment() |> LazyHTML.text() |> String.contains?("••••"),
+           "a hidden figure of #{section} is drawn as text"
+  end
+
+  # User story (P1 x V3/R3, the closing act's finding 1):
+  # As the operator who switched the privacy mode on before sharing my
+  # screen,
+  # I want "After the sale" to render in each of its four comparisons, on
+  # Cash flow → Trades and on a security's Trades tab, its amounts and
+  # quantities as bars,
+  # so that the mode neither crashes the page nor shows what a sale was.
+  #
+  # Acceptance criteria:
+  # - Cash flow → Trades renders with the mode on in the comparisons none,
+  #   a fixed rate, a flagged security and the follow-on purchase; the
+  #   security's Trades tab in none and the follow-on purchase.
+  # - No sale price, quantity, start close, invested amount, buy amount,
+  #   kept or switched value, fee or tax shows, in the text or a cell's
+  #   title; each is the bar, and none is drawn as the text „••••“.
+  # - Percentages stay: a span's return, a fixed rate's percent.
+  test "the section renders in every comparison with the privacy mode on and shows no amount",
+       %{conn: conn} do
+    %{sold: sold, sale: sale, bench: bench} = world()
+    figures = ["101.50", "1,015.00", "1,000.00", "100.00", "10 ×"]
+
+    for query <- [
+          "hindsight=none",
+          "hindsight=rate&hindsight_rate=3",
+          "hindsight=security&hindsight_benchmark=#{bench.id}"
+        ] do
+      {:ok, view, _html} = conn |> masked() |> live("/cashflow?tab=realized&" <> query)
+      assert_masked(view, "#sale-hindsight", figures)
+      assert has_element?(view, "#sale-hindsight [data-role='hindsight-phone-row']"), query
+    end
+
+    {:ok, view, _html} =
+      conn |> masked() |> live("/cashflow?tab=realized&hindsight=rate&hindsight_rate=3")
+
+    assert text(view, "#sale-hindsight .hs-group") =~ "Difference to 3.00 % p.a."
+
+    assert text(view, "#sale-hindsight tr[data-sale='#{sale.id}'] td[data-span='3m'] .hs-lead") =~
+             "%"
+
+    {:ok, view, _html} = conn |> masked() |> live("/securities/#{sold.id}?tab=trades")
+    assert_masked(view, "#detail-sale-hindsight", figures)
+  end
+
+  test "the follow-on purchase renders with the privacy mode on and shows no amount",
+       %{conn: conn} do
+    %{sold: sold, sale: sale} = switch_world()
+    figures = ["101.50", "1,003.50", "802.00", "201.50", "300.00", "10.00", "1.50"]
+
+    {:ok, view, _html} = conn |> masked() |> live("/cashflow?tab=realized&hindsight=reinvestment")
+    assert_masked(view, "#sale-hindsight", figures)
+
+    assert has_element?(
+             view,
+             "#sale-hindsight tr[data-role='hindsight-detail'][data-sale='#{sale.id}']",
+             "Synthetic Next Fund"
+           )
+
+    assert has_element?(
+             view,
+             "#sale-hindsight td[data-span='1m'][title*='Fees, inside the difference: ••••']"
+           )
+
+    assert text(
+             view,
+             "#sale-hindsight tr[data-sale='#{sale.id}'] [data-role='hindsight-invested']"
+           ) =~
+             "of the proceeds"
+
+    {:ok, view, _html} =
+      conn |> masked() |> live("/securities/#{sold.id}?tab=trades&hindsight=reinvestment")
+
+    assert_masked(view, "#detail-sale-hindsight", figures)
+  end
+
+  # --- Sprint 26 fix P end ---
 end

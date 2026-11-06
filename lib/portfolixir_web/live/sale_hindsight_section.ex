@@ -57,6 +57,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
 
   # The chooser's modes in their order; `:reinvestment` is R3's follow-on
@@ -419,7 +420,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
                   </.link>
                 </td>
                 <td class="hs-sale">
-                  <%= Format.date(entry.row.date) %> <span class="stat__sub"><%= sale_line(entry.row) %></span>
+                  <%= Format.date(entry.row.date) %> <span class="stat__sub"><%= PrivacyMode.html(sale_line(entry.row)) %></span>
                 </td>
                 <%= if @switch? do %>
                   <.invested_cell block={entry.row.reinvestment} />
@@ -458,10 +459,12 @@ defmodule PortfolixirWeb.SaleHindsightSection do
               <%= entry.row.security.name %><SecurityNames.twin_id tag={entry.twin_id} />
             </span>
             <span class="phone-row__ids">
-              <%= gettext("Sale") %> <%= Format.date(entry.row.date) %> · <%= sale_line(entry.row) %>
+              <%= gettext("Sale") %> <%= Format.date(entry.row.date) %> · <%= PrivacyMode.html(sale_line(entry.row)) %>
             </span>
             <span class="phone-row__ids">
-              <%= if @switch?, do: invested_line(entry.row.reinvestment), else: start_line(entry.row) %>
+              <%= PrivacyMode.html(
+                if @switch?, do: invested_line(entry.row.reinvestment), else: start_line(entry.row)
+              ) %>
             </span>
           </span>
           <dl :if={not @switch? or matched?(entry.row, true)} class="hs-grid">
@@ -574,7 +577,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   defp start_cell(assigns) do
     ~H"""
     <td class="num">
-      <%= Format.decimal(@row.start.eur_value, 2) %> <small class="value-suffix">EUR</small><%= for line <- start_subs(@row) do %><%= " " %><span class="stat__sub"><%= line %></span><% end %>
+      <%= Format.decimal(@row.start.eur_value, 2) %> <small class="value-suffix">EUR</small><%= for line <- start_subs(@row) do %><%= " " %><span class="stat__sub"><%= PrivacyMode.html(line) %></span><% end %>
     </td>
     """
   end
@@ -597,9 +600,13 @@ defmodule PortfolixirWeb.SaleHindsightSection do
 
   defp start_line(%{start: nil, start_reason: reason}), do: reason_text(reason)
 
+  # A text that may carry a hidden figure (the privacy mode, P1): built by
+  # interpolation, which reads it as its stand-in text, and drawn by
+  # `PrivacyMode.html/1`, which draws that text as the bar. A masked
+  # figure is no binary, so `<>` on it raises.
   defp start_line(%{start: start} = row) do
     Enum.join(
-      [gettext("Start close") <> " " <> Format.decimal(start.eur_value, 2) <> " EUR"] ++
+      ["#{gettext("Start close")} #{Format.decimal(start.eur_value, 2)} EUR"] ++
         start_subs(row),
       " · "
     )
@@ -630,7 +637,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
 
   defp cell_body(assigns) do
     ~H"""
-    <span class={["hs-lead", @cell.lead_class]}><%= if @cell.lead do %><%= @cell.lead %><% else %><span aria-hidden="true">—</span><% end %><%= if @cell[:suffix] do %> <small class="value-suffix"><%= @cell.suffix %></small><% end %></span><%= for line <- @cell.subs do %><%= " " %><span class="stat__sub"><%= line %></span><% end %>
+    <span class={["hs-lead", @cell.lead_class]}><%= if @cell.lead do %><%= @cell.lead %><% else %><span aria-hidden="true">—</span><% end %><%= if @cell[:suffix] do %> <small class="value-suffix"><%= @cell.suffix %></small><% end %></span><%= for line <- @cell.subs do %><%= " " %><span class="stat__sub"><%= PrivacyMode.html(line) %></span><% end %>
     """
   end
 
@@ -770,10 +777,8 @@ defmodule PortfolixirWeb.SaleHindsightSection do
       )
 
   defp invested_line(%{status: :matched} = block) do
-    gettext("Invested") <>
-      " " <>
-      Format.decimal(invested(block), 2) <>
-      " " <> block.currency_code <> " · " <> share_text(block)
+    "#{gettext("Invested")} #{Format.decimal(invested(block), 2)} #{block.currency_code} · " <>
+      share_text(block)
   end
 
   defp invested_line(_no_match), do: ""
@@ -812,8 +817,8 @@ defmodule PortfolixirWeb.SaleHindsightSection do
       )
 
     ~H"""
-    <span class="hs-detail__buys"><%= gettext("Proceeds invested in") %>: <%= for {{name, line}, index} <- Enum.with_index(@buys) do %><%= if index > 0, do: "; " %><b><%= name %></b>, <%= line %><% end %></span>
-    <span :if={@costs} class="hs-detail__costs"><%= span_label(@costs.span) %> · <%= cost_text(@costs) %></span>
+    <span class="hs-detail__buys"><%= gettext("Proceeds invested in") %>: <%= for {{name, line}, index} <- Enum.with_index(@buys) do %><%= if index > 0, do: "; " %><b><%= name %></b>, <%= PrivacyMode.html(line) %><% end %></span>
+    <span :if={@costs} class="hs-detail__costs"><%= span_label(@costs.span) %> · <%= PrivacyMode.html(cost_text(@costs)) %></span>
     """
   end
 
@@ -864,7 +869,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   defp cost_amount(amount) do
     if Format.displayed_sign(amount, 2) == :zero,
       do: pgettext("hindsight costs", "none"),
-      else: Format.decimal(amount, 2) <> " EUR"
+      else: "#{Format.decimal(amount, 2)} EUR"
   end
 
   defp span_label(label) do
@@ -944,5 +949,6 @@ defmodule PortfolixirWeb.SaleHindsightSection do
 
   defp legend(_none), do: gettext("Per span the sold security's price return")
 
-  defp rate_text(rate), do: Format.decimal(Decimal.mult(rate, 100), 2)
+  # A rate is a percentage and stays in the privacy mode (P1).
+  defp rate_text(rate), do: Format.plain_decimal(Decimal.mult(rate, 100), 2)
 end
