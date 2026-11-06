@@ -15542,11 +15542,6 @@ msgstr "Gebühren, in der Differenz"
 msgid "Follow-on purchase"
 msgstr "Anschlusskauf"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:554
-#, elixir-autogen, elixir-format
-msgid "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata."
-msgstr "Anschlusskauf: die Käufe vom Verrechnungskonto des Verkaufs, am Verkaufstag oder bis zu %{days} Tage danach, verbrauchen den Erlös in Datumsfolge, bis er aufgebraucht ist; der letzte zählt anteilig."
-
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:403
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:780
 #, elixir-autogen, elixir-format
@@ -15674,3 +15669,8 @@ msgstr "Wert %{percent}"
 #, elixir-autogen, elixir-format
 msgid "Value (%)"
 msgstr "Wert (%)"
+
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:554
+#, elixir-autogen, elixir-format
+msgid "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata; sales and buys on the same day share pro rata."
+msgstr "Anschlusskauf: die Käufe vom Verrechnungskonto des Verkaufs, am Verkaufstag oder bis zu %{days} Tage danach, verbrauchen den Erlös in Datumsfolge, bis er aufgebraucht ist; der letzte zählt anteilig; Verkäufe und Käufe desselben Tages teilen anteilig."
