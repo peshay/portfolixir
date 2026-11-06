@@ -60,7 +60,7 @@ defmodule PortfolixirWeb.BucketsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/buckets"
       page_title={gettext("Views")}
       page_subtitle={gettext("Saved filters that scope the analytics, built from bucket tags")}

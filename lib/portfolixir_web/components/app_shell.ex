@@ -6,6 +6,13 @@ defmodule PortfolixirWeb.AppShell do
   alias Portfolixir.Input.Text
 
   attr(:current_path, :string, default: "/")
+
+  # The page's own address, path and query, as its last `handle_params`
+  # saw it (`PortfolixirWeb.PrivacyMode.on_mount/4` keeps it in
+  # `@page_address`): the privacy switch links back to it, so switching
+  # keeps a tab, the filters and a comparison. `current_path` names the
+  # section, not the address.
+  attr(:page_address, :string, default: nil)
   attr(:page_title, :string, default: nil)
   attr(:page_subtitle, :string, default: nil)
   attr(:main_class, :any, default: "app-main--workspace")
@@ -93,7 +100,7 @@ defmodule PortfolixirWeb.AppShell do
             <a
               id="privacy-mode"
               class={["privacy-toggle", privacy_on?() && "is-active"]}
-              href={PortfolixirWeb.PrivacyMode.toggle_href(@current_path, privacy_on?())}
+              href={PortfolixirWeb.PrivacyMode.toggle_href(@page_address || @current_path, privacy_on?())}
               role="button"
               aria-pressed={if privacy_on?(), do: "true", else: "false"}
               title={gettext("Hide amounts")}

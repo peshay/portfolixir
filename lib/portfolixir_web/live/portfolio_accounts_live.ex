@@ -80,7 +80,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/portfolios"
       page_title={gettext("Accounts & depots")}
       page_subtitle={gettext("Depots, cash accounts, and their buckets")}

@@ -229,7 +229,7 @@ defmodule PortfolixirWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/"
       page_title={gettext("Overview")}
       page_subtitle={gettext("Local portfolio tracking")}

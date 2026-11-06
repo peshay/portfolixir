@@ -620,7 +620,7 @@ defmodule PortfolixirWeb.TaxLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path={@current_path}
       page_title={gettext("Tax")}
       page_subtitle={gettext("Recorded broker tax statements")}

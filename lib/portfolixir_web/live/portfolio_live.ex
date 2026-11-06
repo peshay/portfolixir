@@ -978,7 +978,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   @impl true
   def render(%{portfolio: nil} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Wealth")}>
+    <AppShell.shell page_address={@page_address} current_path={@current_path} page_title={gettext("Wealth")}>
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Wealth") %></h2>
@@ -992,7 +992,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path={@current_path}
       page_title={gettext("Wealth")}
       page_subtitle={gettext("Value, performance and allocation")}

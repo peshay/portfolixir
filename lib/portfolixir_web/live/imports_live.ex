@@ -193,7 +193,7 @@ defmodule PortfolixirWeb.ImportsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/imports"
       page_title={gettext("Imports")}
       page_subtitle={gettext("Bulk-import Portfolio Performance CSV or JSON exports.")}

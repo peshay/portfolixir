@@ -128,4 +128,108 @@ defmodule PortfolixirWeb.PrivacyModeTest do
     other = build_conn() |> put_preference_cookie(@cookie, "yes") |> get("/transactions")
     assert leaked(html_response(other, 200)) != []
   end
+
+  # --- Sprint 26 fix P begin ---
+
+  # User story (P1, the closing act's finding 4):
+  # As the operator switching the mode on a page whose address carries a
+  # list or a nested parameter,
+  # I want the switch to keep the address as it was,
+  # so that the switch never answers an error page.
+  #
+  # Acceptance criteria:
+  # - `?privacy=on` beside `benchmark[]=…` or `a[b]=c` redirects to the
+  #   address without it, every other pair kept as written, repeated keys
+  #   and their order included.
+  # - Every `privacy` pair is dropped, wherever it stands.
+  # - The switch's link keeps repeated keys too, and sets one `privacy`.
+  test "the switch keeps list and nested parameters, their order and repeats" do
+    for {address, back} <- [
+          {"/?benchmark[]=security:1&privacy=on", "/?benchmark[]=security:1"},
+          {"/?a[b]=c&privacy=on", "/?a[b]=c"},
+          {"/securities?cur[]=EUR&cur[]=USD&privacy=on&q=x",
+           "/securities?cur[]=EUR&cur[]=USD&q=x"},
+          {"/securities?privacy=off&q=a%26b&privacy=on", "/securities?q=a%26b"},
+          {"/portfolio?privacy=on", "/portfolio"}
+        ] do
+      conn = build_conn() |> from("same-origin") |> get(address)
+      assert redirected_to(conn, 302) == back, address
+    end
+
+    assert PortfolixirWeb.PrivacyMode.toggle_href("/securities?cur[]=EUR&cur[]=USD", false) ==
+             "/securities?cur[]=EUR&cur[]=USD&privacy=on"
+
+    assert PortfolixirWeb.PrivacyMode.toggle_href("/?privacy=on&a[b]=c&privacy=off", true) ==
+             "/?a[b]=c&privacy=off"
+
+    assert PortfolixirWeb.PrivacyMode.toggle_href("/cashflow", false) == "/cashflow?privacy=on"
+    assert PortfolixirWeb.PrivacyMode.toggle_href(nil, false) == "/?privacy=on"
+  end
+
+  # User story (P1, the closing act's finding 5):
+  # As the operator switching the mode on a security's Predictions tab or a
+  # filtered list,
+  # I want the switch to bring me back to the page I was on, with its tab,
+  # its filters and its comparison,
+  # so that switching never takes me off the page.
+  #
+  # Acceptance criteria:
+  # - On every page the switch links to the page's own address, path and
+  #   query, with `privacy` set: a security's detail with its tab, Cash
+  #   flow's facet with the "After the sale" comparison, a filtered list.
+  # - After a patch inside the page (a tab, a filter) the switch follows
+  #   the new address.
+  test "the switch keeps the page's address, its tab, filters and comparison" do
+    %{security: security} = world_with_security!()
+
+    for address <- [
+          "/securities/#{security.id}?tab=predictions",
+          "/securities?q=Privacy&holding=all",
+          "/cashflow?tab=realized&hindsight=rate&hindsight_rate=3",
+          "/predictions?author=agent",
+          "/portfolio?tab=allocation",
+          "/transactions?keep=1",
+          "/journal?keep=1",
+          "/?keep=1"
+        ] do
+      {:ok, _view, html} = build_conn() |> live(address)
+      assert switch_href(html) == address_with(address, "on"), address
+    end
+
+    {:ok, view, _html} = build_conn() |> live("/securities/#{security.id}")
+    view |> element("#detail-tab-predictions") |> render_click()
+
+    assert switch_href(render(view)) ==
+             "/securities/#{security.id}?tab=predictions&privacy=on"
+  end
+
+  defp world_with_security! do
+    world = base_world(name: "Privacy Switch")
+    security = create_security!(name: "Privacy Fixture AG", ticker: "PFX")
+    buy!(world, security, quantity: "3", price: "10", date: ~D[2026-01-05])
+
+    {:ok, _tree} =
+      Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+        name: "Strategy"
+      })
+
+    %{security: security}
+  end
+
+  defp switch_href(html) do
+    [href] =
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("#privacy-mode")
+      |> LazyHTML.attribute("href")
+
+    href
+  end
+
+  defp address_with(address, state) do
+    separator = if String.contains?(address, "?"), do: "&", else: "?"
+    address <> separator <> "privacy=" <> state
+  end
+
+  # --- Sprint 26 fix P end ---
 end

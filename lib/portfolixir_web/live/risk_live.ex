@@ -210,7 +210,7 @@ defmodule PortfolixirWeb.RiskLive do
       )
 
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path={@current_path}
       page_title={gettext("Risk")}
       page_subtitle={gettext("Concentration and movement · view: %{view}", view: @view_name)}
