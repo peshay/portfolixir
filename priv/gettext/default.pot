@@ -236,7 +236,7 @@ msgstr ""
 #: lib/portfolixir_web/field_label.ex:55
 #: lib/portfolixir_web/live/classifications_live.ex:609
 #: lib/portfolixir_web/live/classifications_live.ex:1190
-#: lib/portfolixir_web/live/classifications_live.ex:3655
+#: lib/portfolixir_web/live/classifications_live.ex:3656
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:94
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:338
@@ -2039,7 +2039,7 @@ msgstr ""
 msgid "Built-in"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3464
+#: lib/portfolixir_web/live/classifications_live.ex:3465
 #, elixir-autogen, elixir-format
 msgid "Built-in classifications cannot be edited"
 msgstr ""
@@ -2054,12 +2054,12 @@ msgstr ""
 msgid "Category created"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3402
+#: lib/portfolixir_web/live/classifications_live.ex:3403
 #, elixir-autogen, elixir-format
 msgid "Category deleted"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3467
+#: lib/portfolixir_web/live/classifications_live.ex:3468
 #, elixir-autogen, elixir-format
 msgid "Category not found"
 msgstr ""
@@ -2211,7 +2211,7 @@ msgstr ""
 msgid "No classifications yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3466
+#: lib/portfolixir_web/live/classifications_live.ex:3467
 #, elixir-autogen, elixir-format
 msgid "Not found"
 msgstr ""
@@ -2233,7 +2233,7 @@ msgid "Search securities in this tree…"
 msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:1023
-#: lib/portfolixir_web/live/classifications_live.ex:3471
+#: lib/portfolixir_web/live/classifications_live.ex:3472
 #, elixir-autogen, elixir-format
 msgid "Something went wrong"
 msgstr ""
@@ -2243,12 +2243,12 @@ msgstr ""
 msgid "Target category"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3465
+#: lib/portfolixir_web/live/classifications_live.ex:3466
 #, elixir-autogen, elixir-format
 msgid "That category belongs to another tree"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3468
+#: lib/portfolixir_web/live/classifications_live.ex:3469
 #, elixir-autogen, elixir-format
 msgid "This tree cannot be reassigned"
 msgstr ""
@@ -6358,7 +6358,7 @@ msgstr[1] ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:359
 #: lib/portfolixir_web/live/buckets_live.ex:1039
-#: lib/portfolixir_web/live/classifications_live.ex:3442
+#: lib/portfolixir_web/live/classifications_live.ex:3443
 #, elixir-autogen, elixir-format
 msgid "%{count} position"
 msgid_plural "%{count} positions"
@@ -6865,7 +6865,7 @@ msgid "%{assigned} of %{total} securities assigned"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:672
-#: lib/portfolixir_web/live/classifications_live.ex:3431
+#: lib/portfolixir_web/live/classifications_live.ex:3432
 #: lib/portfolixir_web/live/delete_preview_dialog.ex:229
 #, elixir-autogen, elixir-format
 msgid "%{count} category"
@@ -6874,7 +6874,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:676
-#: lib/portfolixir_web/live/classifications_live.ex:3432
+#: lib/portfolixir_web/live/classifications_live.ex:3433
 #, elixir-autogen, elixir-format
 msgid "%{count} level"
 msgid_plural "%{count} levels"
@@ -7778,22 +7778,22 @@ msgstr ""
 msgid "is less than the fees and taxes of this sale"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3484
+#: lib/portfolixir_web/live/classifications_live.ex:3485
 #, elixir-autogen, elixir-format
 msgid "%{security} already carries a position target under another category"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3477
+#: lib/portfolixir_web/live/classifications_live.ex:3478
 #, elixir-autogen, elixir-format
 msgid "%{security} no longer sits under %{category} — clear its position target there"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3534
+#: lib/portfolixir_web/live/classifications_live.ex:3535
 #, elixir-autogen, elixir-format
 msgid "A target must lie between 0 and 100 %"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3531
+#: lib/portfolixir_web/live/classifications_live.ex:3532
 #, elixir-autogen, elixir-format
 msgid "A target carries at most four decimal places in percent"
 msgstr ""
@@ -11617,12 +11617,12 @@ msgstr ""
 msgid "Buckets — tags on depots and cash accounts. A view picks buckets and narrows every figure to their accounts; an account can carry several."
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3549
+#: lib/portfolixir_web/live/classifications_live.ex:3550
 #, elixir-autogen, elixir-format
 msgid "Cash target: at most four decimal places in percent"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3551
+#: lib/portfolixir_web/live/classifications_live.ex:3552
 #, elixir-autogen, elixir-format
 msgid "Cash target: must lie between 0 and 100 %"
 msgstr ""
@@ -11649,22 +11649,22 @@ msgstr ""
 msgid "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the journal records the change, and the previous name stays readable there."
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3554
+#: lib/portfolixir_web/live/classifications_live.ex:3555
 #, elixir-autogen, elixir-format
 msgid "Position target of “%{security}” under “%{category}”: at most four decimal places in percent"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3562
+#: lib/portfolixir_web/live/classifications_live.ex:3563
 #, elixir-autogen, elixir-format
 msgid "Position target of “%{security}” under “%{category}”: must lie between 0 and 100 %"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3569
+#: lib/portfolixir_web/live/classifications_live.ex:3570
 #, elixir-autogen, elixir-format
 msgid "Target of “%{category}”: at most four decimal places in percent"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3575
+#: lib/portfolixir_web/live/classifications_live.ex:3576
 #, elixir-autogen, elixir-format
 msgid "Target of “%{category}”: must lie between 0 and 100 %"
 msgstr ""
@@ -12173,12 +12173,12 @@ msgstr ""
 msgid "sell"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3328
+#: lib/portfolixir_web/live/classifications_live.ex:3329
 #, elixir-autogen, elixir-format
 msgid "Not added: under “%{parent}” the new category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up."
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3658
+#: lib/portfolixir_web/live/classifications_live.ex:3659
 #, elixir-autogen, elixir-format
 msgid "Parent category"
 msgstr ""
@@ -13064,12 +13064,12 @@ msgstr ""
 msgid "Duplicate as draft"
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3540
+#: lib/portfolixir_web/live/classifications_live.ex:3541
 #, elixir-autogen, elixir-format
 msgid "Not saved: “%{name}” is archived and steers nothing. Activate it or duplicate it as a draft, then edit."
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3359
+#: lib/portfolixir_web/live/classifications_live.ex:3360
 #, elixir-autogen, elixir-format
 msgid "Not moved: under “%{parent}” a category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up."
 msgstr ""
@@ -15443,7 +15443,7 @@ msgstr[1] ""
 msgid "A rule that has been in force keeps its subject as part of its history, so the delete stays blocked; retiring the rule on Wealth → Risk stops its evaluation."
 msgstr ""
 
-#: lib/portfolixir_web/live/classifications_live.ex:3449
+#: lib/portfolixir_web/live/classifications_live.ex:3450
 #, elixir-autogen, elixir-format
 msgid "Category in %{classification}"
 msgstr ""

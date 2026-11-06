@@ -3267,8 +3267,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # Format a running sum (already a percentage Decimal) for display, trimming
   # trailing zeros so "100.0" reads "100", in the page's number format: a
-  # German page reads "95,5", as the Allocation basis line does (UAT-8).
-  defp format_sum(%Decimal{} = sum), do: PortfolixirWeb.Format.exact(sum)
+  # German page reads "95,5", as the Allocation basis line does (UAT-8). A
+  # percentage, no amount: it stays in the privacy mode (Sprint 26 P1).
+  defp format_sum(%Decimal{} = sum), do: PortfolixirWeb.Format.plain_exact(sum)
 
   defp to_decimal(%Decimal{} = value), do: value
   defp to_decimal(nil), do: @zero
