@@ -442,7 +442,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   defp signed(%Decimal{} = value) do
     formatted = Format.exact(value)
-    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
+    if Decimal.compare(value, 0) == :gt, do: "+#{formatted}", else: formatted
   end
 
   # -- the ISIN choice (G3-A) --------------------------------------------------------

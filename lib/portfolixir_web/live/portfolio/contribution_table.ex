@@ -46,6 +46,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
 
   # The board's limit: above it the table shows the largest by absolute
@@ -304,7 +305,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
       >
         <span class="phone-row__body">
           <span class="phone-row__name"><%= position_name(position) %><SecurityNames.twin_id tag={position.twin_id} /></span>
-          <span class="phone-row__ids"><%= phone_line(position) %></span>
+          <span class="phone-row__ids"><%= PrivacyMode.html(phone_line(position)) %></span>
         </span>
         <span class="phone-row__figures">
           <span class={["phone-row__figure", sign_class(position.contribution)]}>
@@ -322,10 +323,12 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
         <span class="phone-row__body">
           <span class="phone-row__name"><%= gettext("Not attributed to a position") %></span>
           <span class="phone-row__ids">
-            <%= Enum.join(
-              Enum.map(@f.lines, &phone_rest(&1, @f.remainder[&1])) ++
-                Enum.map(@f.unvalued_accounts, &account_mark/1),
-              " · "
+            <%= PrivacyMode.html(
+              Enum.join(
+                Enum.map(@f.lines, &phone_rest(&1, @f.remainder[&1])) ++
+                  Enum.map(@f.unvalued_accounts, &account_mark/1),
+                " · "
+              )
             ) %>
           </span>
         </span>
@@ -402,7 +405,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
           "%{count} positions counted zero on some days of the period:",
           length(@unvalued)
         ) %>
-        <span :for={{position, index} <- Enum.with_index(@unvalued)}><%= if index > 0, do: ", " %><b><%= position_name(position) %></b> (<%= unvalued_detail(position) %>)</span>.
+        <span :for={{position, index} <- Enum.with_index(@unvalued)}><%= if index > 0, do: ", " %><b><%= position_name(position) %></b> (<%= PrivacyMode.html(unvalued_detail(position)) %>)</span>.
         <%= ngettext(
           "It stays in the sum, as in the result above.",
           "They stay in the sum, as in the result above.",
@@ -434,7 +437,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   defp account_list(assigns) do
     ~H"""
-    <span :for={{account, index} <- Enum.with_index(@accounts)}><%= if index > 0, do: ", " %><b><%= account_name(account) %></b> (<%= account_detail(account) %>)</span>
+    <span :for={{account, index} <- Enum.with_index(@accounts)}><%= if index > 0, do: ", " %><b><%= account_name(account) %></b> (<%= PrivacyMode.html(account_detail(account)) %>)</span>
     """
   end
 

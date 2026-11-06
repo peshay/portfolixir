@@ -616,7 +616,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   end
 
   defp cash_amount(delta, currency),
-    do: Format.money(Decimal.abs(delta)) <> if(currency, do: " " <> currency, else: "")
+    do: "#{Format.money(Decimal.abs(delta))}" <> if(currency, do: " " <> currency, else: "")
 
   # The cash a leg took out is what the delete gives back, and the reverse.
   defp more?(delta), do: Decimal.compare(delta, @zero) == :lt

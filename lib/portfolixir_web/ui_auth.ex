@@ -184,7 +184,8 @@ defmodule PortfolixirWeb.UiAuth do
 
   The path keeps its query **without the preference parameters** — `view`,
   `locale`, `benchmark` (`benchmark[]`), `benchmark_rate` (E25 S7 review
-  round, S7E-2) and `rail` (Sprint 24 P2). The redirect after a login is a request from the instance
+  round, S7E-2), `rail` (Sprint 24 P2) and `privacy` (Sprint 26 P1). The
+  redirect after a login is a request from the instance
   itself, so a choice it carried would be remembered
   (`PortfolixirWeb.FetchSite`), including one another site's link put into
   the path the login page was sent to. A request the login interrupts
@@ -206,7 +207,7 @@ defmodule PortfolixirWeb.UiAuth do
 
   def safe_return_path(_path), do: "/"
 
-  @preference_parameters ~w(view locale benchmark benchmark_rate rail)
+  @preference_parameters ~w(view locale benchmark benchmark_rate rail privacy)
 
   # Every other pair stays as it was written, in its order.
   defp without_preferences(path) do

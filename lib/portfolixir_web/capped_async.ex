@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.CappedAsync do
 
   alias Phoenix.LiveView.Socket
   alias PortfolixirWeb.HeapCap
+  alias PortfolixirWeb.PrivacyMode
 
   require Phoenix.LiveView
 
@@ -46,8 +47,10 @@ defmodule PortfolixirWeb.CappedAsync do
   """
   defmacro start_async(socket, name, fun) do
     quote do
+      privacy_mode = PortfolixirWeb.PrivacyMode.on?()
+
       Phoenix.LiveView.start_async(unquote(socket), unquote(name), fn ->
-        PortfolixirWeb.CappedAsync.__watch__(unquote(fun))
+        PortfolixirWeb.CappedAsync.__watch__(unquote(fun), privacy_mode)
       end)
     end
   end
@@ -93,9 +96,11 @@ defmodule PortfolixirWeb.CappedAsync do
     do: Task.Supervisor.start_child(supervisor, capped(fun))
 
   defp run(socket, name, fun) do
+    privacy_mode = PrivacyMode.on?()
+
     socket
     |> put_flight(name, :running)
-    |> Phoenix.LiveView.start_async(name, fn -> __watch__(fun) end)
+    |> Phoenix.LiveView.start_async(name, fn -> __watch__(fun, privacy_mode) end)
   end
 
   @doc false
@@ -106,13 +111,23 @@ defmodule PortfolixirWeb.CappedAsync do
   # without one (killed past the cap) becomes this task's exit with the
   # worker's reason. It traps exits, so its page going away reaches it as a
   # message and stops the worker.
-  @spec __watch__((-> term())) :: term()
-  def __watch__(fun) when is_function(fun, 0) do
+  #
+  # The worker formats in the privacy mode of the page that started it
+  # (Sprint 26 P1): a figure a load formats there is hidden as the page's
+  # own are.
+  @spec __watch__((-> term()), boolean()) :: term()
+  def __watch__(fun, privacy_mode \\ false) when is_function(fun, 0) do
     Process.flag(:trap_exit, true)
-    Portfolixir.HeapCap.run(fun)
+
+    Portfolixir.HeapCap.run(fn ->
+      PrivacyMode.put(privacy_mode)
+      fun.()
+    end)
   end
 
   defp capped(fun) do
+    fun = PrivacyMode.carry(fun)
+
     fn ->
       HeapCap.cap!()
       fun.()

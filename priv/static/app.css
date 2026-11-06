@@ -777,6 +777,53 @@ textarea {
   background: var(--color-accent-coral);
 }
 
+/* ===== Privacy mode (Sprint 26 P1, I22; board 01, look C "Nebelbalken") =====
+   The switch sits first in the top bar's controls, beside the appearance
+   menu, and wears the accent while the mode is on. A hidden figure is one
+   empty element of a fixed width (4.4em, so it grows with the font only),
+   a soft bar in the figure's own colour: the server sends no digit, so
+   there is nothing to blur. */
+.privacy-toggle {
+  display: inline-flex;
+  width: 32px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.privacy-toggle:hover,
+.privacy-toggle:focus-visible {
+  color: var(--color-text);
+  outline: none;
+  border-color: var(--color-border-strong);
+}
+
+.privacy-toggle.is-active {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.pf-mask {
+  display: inline-block;
+  width: 4.4em;
+  height: 0.7em;
+  vertical-align: 0.02em;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, currentColor 32%, transparent),
+    color-mix(in oklab, currentColor 14%, transparent)
+  );
+  filter: blur(0.08em);
+  user-select: none;
+}
+
 .locale-switcher {
   display: inline-flex;
   min-height: 32px;

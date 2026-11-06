@@ -31,6 +31,9 @@ defmodule PortfolixirWeb.Router do
     plug(PortfolixirWeb.ViewScope)
     plug(PortfolixirWeb.BenchmarkScope)
     plug(PortfolixirWeb.RailScope)
+    # Sprint 26 P1 (I22): the privacy mode, per browser; a `?privacy=` choice
+    # is remembered and answered with a redirect without it.
+    plug(PortfolixirWeb.PrivacyMode)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers, @secure_headers)
@@ -69,13 +72,17 @@ defmodule PortfolixirWeb.Router do
   scope "/", PortfolixirWeb do
     pipe_through(:browser)
 
+    # The privacy mode rides in the LiveView's signed session, so the
+    # connected mount renders masked as the first render did (Sprint 26 P1).
     live_session :browser,
+      session: {PortfolixirWeb.PrivacyMode, :live_session, []},
       on_mount: [
         PortfolixirWeb.HeapCap,
         PortfolixirWeb.LiveUiAuth,
         PortfolixirWeb.LiveIdRange,
         PortfolixirWeb.LiveEventGuard,
         PortfolixirWeb.LiveLocale,
+        PortfolixirWeb.PrivacyMode,
         PortfolixirWeb.LiveViewScope,
         PortfolixirWeb.LiveBenchmarkScope
       ] do

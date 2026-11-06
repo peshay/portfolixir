@@ -318,10 +318,10 @@ defmodule PortfolixirWeb.RiskLive do
                 metric={@risk.metrics.risk_adjusted_return[@window]}
                 undefined={gettext("undefined — volatility is 0")}
               >
-                <:value :let={m}><%= Format.decimal(m.value, 2) %></:value>
+                <:value :let={m}><%= Format.plain_decimal(m.value, 2) %></:value>
                 <:sub :let={m}>
                   <%= gettext("risk-free rate %{rate} % · return per unit of risk",
-                    rate: Format.decimal(Decimal.mult(m.risk_free_rate, 100), 2)
+                    rate: Format.plain_decimal(Decimal.mult(m.risk_free_rate, 100), 2)
                   ) %>
                 </:sub>
               </.metric_card>
@@ -371,7 +371,7 @@ defmodule PortfolixirWeb.RiskLive do
                       <td><%= holding.security_name %></td>
                       <td class="muted risk-col-optional"><%= asset_class_label(holding.asset_class) %></td>
                       <td class="num risk-col-optional"><%= Format.money(holding.market_value) %> <%= @risk.base_currency %></td>
-                      <td class="num"><%= Format.decimal(holding.weight, 1) %> %</td>
+                      <td class="num"><%= Format.plain_decimal(holding.weight, 1) %> %</td>
                       <td>
                         <span class={["badge", severity_class(holding.severity)]} data-severity={holding.severity}>
                           <%= threshold_label(holding, @defaults) %>
@@ -390,7 +390,7 @@ defmodule PortfolixirWeb.RiskLive do
             </header>
             <article class="stat stat--compact risk-hhi" data-role="risk-hhi">
               <strong data-band={@risk.hhi.band}>
-                <%= Format.decimal(@risk.hhi.value, 0) %>
+                <%= Format.plain_decimal(@risk.hhi.value, 0) %>
                 <small class="value-suffix"><%= band_label(@risk.hhi.band) %></small>
               </strong>
               <div class="risk-hhi__track" aria-hidden="true">
@@ -398,8 +398,8 @@ defmodule PortfolixirWeb.RiskLive do
               </div>
               <small class="stat__sub">
                 <%= gettext("0 · low below %{low} · %{high} and above concentrated · 10,000",
-                  low: Format.decimal(@defaults.hhi.low, 0),
-                  high: Format.decimal(@defaults.hhi.high, 0)
+                  low: Format.plain_decimal(@defaults.hhi.low, 0),
+                  high: Format.plain_decimal(@defaults.hhi.high, 0)
                 ) %>
               </small>
             </article>
@@ -460,7 +460,7 @@ defmodule PortfolixirWeb.RiskLive do
                       </td>
                       <td class="num">
                         <%= if pair.value,
-                          do: Format.decimal(pair.value, 2),
+                          do: Format.plain_decimal(pair.value, 2),
                           else: gettext("not computable") %>
                       </td>
                       <td class="num"><%= pair.observations %> / <%= pair.required %></td>
@@ -743,7 +743,7 @@ defmodule PortfolixirWeb.RiskLive do
     <article class="stat stat--compact" data-role="risk-metric-correlations" data-refused={is_nil(@highest) || nil}>
       <span><%= gettext("Correlations") %></span>
       <%= if @highest do %>
-        <strong><%= Format.decimal(@highest.value, 2) %></strong>
+        <strong><%= Format.plain_decimal(@highest.value, 2) %></strong>
         <small class="stat__sub">
           <%= ngettext(
             "highest of %{count} pair · 1 year",
@@ -792,7 +792,8 @@ defmodule PortfolixirWeb.RiskLive do
   # DB1).
   defp drawdown_class(value), do: if(negative?(value), do: "is-negative", else: "is-flat")
 
-  defp signed_percent(%Decimal{} = value), do: Format.signed_decimal(Decimal.mult(value, 100), 1)
+  defp signed_percent(%Decimal{} = value),
+    do: Format.plain_signed_decimal(Decimal.mult(value, 100), 1)
 
   defp severity_class("hard"), do: "badge--danger"
   defp severity_class("warn"), do: "badge-warning"
@@ -801,19 +802,19 @@ defmodule PortfolixirWeb.RiskLive do
   # The lens's own vocabulary, not a verdict: the threshold a weight is above,
   # or the one it is still below.
   defp threshold_label(%{asset_class: @etf, severity: "warn"}, d),
-    do: gettext("above %{pct} %", pct: Format.decimal(d.etf.warn, 0))
+    do: gettext("above %{pct} %", pct: Format.plain_decimal(d.etf.warn, 0))
 
   defp threshold_label(%{asset_class: @etf}, d),
-    do: gettext("below %{pct} %", pct: Format.decimal(d.etf.warn, 0))
+    do: gettext("below %{pct} %", pct: Format.plain_decimal(d.etf.warn, 0))
 
   defp threshold_label(%{severity: "hard"}, d),
-    do: gettext("above %{pct} %", pct: Format.decimal(d.stock.hard, 0))
+    do: gettext("above %{pct} %", pct: Format.plain_decimal(d.stock.hard, 0))
 
   defp threshold_label(%{severity: "warn"}, d),
-    do: gettext("above %{pct} %", pct: Format.decimal(d.stock.warn, 0))
+    do: gettext("above %{pct} %", pct: Format.plain_decimal(d.stock.warn, 0))
 
   defp threshold_label(_ok, d),
-    do: gettext("below %{pct} %", pct: Format.decimal(d.stock.warn, 0))
+    do: gettext("below %{pct} %", pct: Format.plain_decimal(d.stock.warn, 0))
 
   defp band_label("low"), do: gettext("low")
   defp band_label("moderate"), do: gettext("moderate")

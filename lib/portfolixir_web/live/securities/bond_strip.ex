@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PrivacyMode
 
   attr(:security, :map, required: true)
   attr(:bond, :map, default: nil)
@@ -66,12 +67,12 @@ defmodule PortfolixirWeb.Securities.BondStrip do
           </button>
         </p>
         <p :if={held?(@bond)} class="detail-tab-hint" data-role="bond-nominal-hint">
-          <%= gettext(
+          <%= PrivacyMode.html(gettext(
             "Nominal held: %{amount} %{currency}, %{quantity} units × 100 %{currency} (one unit is a hundredth of the nominal).",
             amount: Format.decimal(@bond.nominal_held.amount, 2),
             currency: @bond.nominal_held.currency_code,
             quantity: Format.exact(@bond.quantity)
-          ) %>
+          )) %>
         </p>
       <% end %>
     </section>
@@ -109,7 +110,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       <dt><%= gettext("Coupon") %></dt>
       <dd>
         <%= if @security.coupon_rate do %>
-          <%= Format.exact(@security.coupon_rate) %> %
+          <%= Format.plain_exact(@security.coupon_rate) %> %
           <small class="overview-metric__unit"><%= gettext("p. a.") %></small>
           <small :if={payment(@security)} class="overview-metric__sub">
             <%= payment(@security) %>
@@ -183,7 +184,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
               months: @bond.remaining_term.whole_months
             ) %>
             <small class="overview-metric__sub">
-              <%= gettext("%{years} years from", years: Format.decimal(@bond.remaining_term.years, 2)) %>
+              <%= gettext("%{years} years from", years: Format.plain_decimal(@bond.remaining_term.years, 2)) %>
               <time datetime={Date.to_iso8601(@bond.as_of)}><%= Format.date(@bond.as_of) %></time>
             </small>
         <% end %>
@@ -372,13 +373,13 @@ defmodule PortfolixirWeb.Securities.BondStrip do
 
   defp payment(_security), do: nil
 
-  defp percent(ratio), do: ratio |> Decimal.mult(100) |> Format.decimal(2)
+  defp percent(ratio), do: ratio |> Decimal.mult(100) |> Format.plain_decimal(2)
 
   # "2,5 ÷ 97,25": the coupon over the price the valuation uses, both as
   # stored (the closing act on U7: a 4,125 % coupon read 4,13, beside a yield
   # computed from 4,125). Only the computed figures are rounded.
   defp ratio_text(%Decimal{} = coupon_rate, %Decimal{} = price),
-    do: "#{Format.exact(coupon_rate)} ÷ #{Format.exact(price)}"
+    do: "#{Format.plain_exact(coupon_rate)} ÷ #{Format.exact(price)}"
 
   defp ratio_text(_coupon_rate, _price), do: ""
 

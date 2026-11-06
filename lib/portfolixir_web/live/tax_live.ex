@@ -45,6 +45,7 @@ defmodule PortfolixirWeb.TaxLive do
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PrivacyMode
 
   # Rendered with the statement's printed sign: the loss pots and the
   # allowance-consumption figures appear as negatives on the paper even though
@@ -673,10 +674,10 @@ defmodule PortfolixirWeb.TaxLive do
               </div>
               <p class="summary-basis" data-role="budget-basis">
                 <%= if @summary.as_of do %>
-                  <%= gettext("Allowance %{used} of %{granted} used",
+                  <%= PrivacyMode.html(gettext("Allowance %{used} of %{granted} used",
                     used: Format.money(@summary.allowance_used),
                     granted: Format.money(@summary.allowance_granted)
-                  ) %>
+                  )) %>
                   · <%= gettext("as of %{date}", date: Format.date(@summary.as_of)) %>
                   <span :if={@summary.institutions != []}>
                     · <%= for {institution, index} <- Enum.with_index(@summary.institutions) do %><%= if index > 0 do %>, <% end %><%= institution %><.paren_agent_mark :if={institution in @summary.agent_institutions} lead={gettext("Statement by:")} /><% end %>
@@ -938,40 +939,40 @@ defmodule PortfolixirWeb.TaxLive do
                 </div>
                 <div>
                   <dt><%= gettext("Allowance granted / used") %></dt>
-                  <dd><%= printed_group(entry.row, [:allowance_granted, :allowance_used]) %></dd>
+                  <dd><%= PrivacyMode.html(printed_group(entry.row, [:allowance_granted, :allowance_used])) %></dd>
                 </div>
                 <div>
                   <dt><%= gettext("Loss pots: equities / other / carry-forward") %></dt>
                   <dd>
-                    <%= printed_group(entry.row, [
+                    <%= PrivacyMode.html(printed_group(entry.row, [
                       :loss_pot_equities,
                       :loss_pot_other,
                       :loss_carryforward_prior_years
-                    ]) %>
+                    ])) %>
                   </dd>
                 </div>
                 <div>
                   <dt><%= gettext("Foreign withholding: pot / credited") %></dt>
                   <dd>
-                    <%= printed_group(entry.row, [:withholding_tax_pot, :withholding_tax_credited]) %>
+                    <%= PrivacyMode.html(printed_group(entry.row, [:withholding_tax_pot, :withholding_tax_credited])) %>
                   </dd>
                 </div>
                 <div>
                   <dt><%= gettext("Withheld: capital-gains tax / solidarity surcharge / church tax") %></dt>
                   <dd>
-                    <%= printed_group(entry.row, [
+                    <%= PrivacyMode.html(printed_group(entry.row, [
                       :capital_gains_tax_withheld,
                       :solidarity_surcharge_withheld,
                       :church_tax_withheld
-                    ]) %>
+                    ])) %>
                   </dd>
                 </div>
               </dl>
 
               <p class="summary-basis">
-                <%= gettext("Tax-free trim budget at this institution: %{value}.",
+                <%= PrivacyMode.html(gettext("Tax-free trim budget at this institution: %{value}.",
                   value: Format.money(Budget.tax_free_trim_budget(entry.row))
-                ) %>
+                )) %>
               </p>
 
               <%!-- Each consistency finding is a data note with the check
@@ -986,7 +987,7 @@ defmodule PortfolixirWeb.TaxLive do
                   clamp
                   data-role="statement-finding"
                 >
-                  <%= finding_text(finding) %>
+                  <%= PrivacyMode.html(finding_text(finding)) %>
                   <:actions>
                     <%= if order_finding?(finding) do %>
                       <button type="button" class="link-button" phx-click="toggle_form" phx-value-form="order">

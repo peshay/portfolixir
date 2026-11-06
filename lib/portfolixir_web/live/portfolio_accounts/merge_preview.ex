@@ -445,7 +445,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
 
   defp signed_exact(%Decimal{} = value) do
     formatted = Format.exact(value)
-    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
+    if Decimal.compare(value, 0) == :gt, do: "+#{formatted}", else: formatted
   end
 
   defp security_names(preview) do

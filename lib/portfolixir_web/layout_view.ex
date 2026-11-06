@@ -13,6 +13,10 @@ defmodule PortfolixirWeb.LayoutView do
     # content; the root layout outlives a live redirect, and the SidebarRail
     # hook keeps the rail there.
     rail = if conn && PortfolixirWeb.RailScope.collapsed?(conn), do: "collapsed"
+    # Sprint 26 P1 (I22): the privacy mode of the request, for a hook that
+    # draws a hidden figure in a tooltip (its accessible name). A word, never
+    # the cookie's content.
+    privacy = conn && PortfolixirWeb.PrivacyMode.on?(conn)
     # A plain Map.put: the root layout is rendered both by LiveView (tracked
     # assigns) and by the session controller (a plain map, #764).
     assigns =
@@ -20,10 +24,16 @@ defmodule PortfolixirWeb.LayoutView do
       |> Map.put(:locale, locale)
       |> Map.put(:csp_nonce, csp_nonce)
       |> Map.put(:rail, rail)
+      |> Map.put(:privacy, privacy)
 
     ~H"""
     <!DOCTYPE html>
-    <html lang={@locale} data-rail={@rail}>
+    <html
+      lang={@locale}
+      data-rail={@rail}
+      data-privacy={@privacy && "on"}
+      data-privacy-label={@privacy && PortfolixirWeb.PrivacyMode.label()}
+    >
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -84,6 +94,27 @@ defmodule PortfolixirWeb.LayoutView do
             var Hooks = {};
 
             window.Portfolixir = window.Portfolixir || {};
+
+            // The privacy mode (Sprint 26 P1, I22): a display string the
+            // server built carries a hidden figure as the constant text
+            // "••••", never the figure. Written into a tooltip, each one is
+            // drawn as the same bar the server draws in markup (look C);
+            // everything else stays text.
+            var PRIVACY_TEXT = "\u2022\u2022\u2022\u2022";
+            window.Portfolixir.writeMaskedText = function (node, text) {
+              var parts = String(text).split(PRIVACY_TEXT);
+              node.textContent = "";
+              parts.forEach(function (part, index) {
+                if (index > 0) {
+                  var bar = document.createElement("span");
+                  bar.className = "pf-mask";
+                  bar.setAttribute("role", "img");
+                  bar.setAttribute("aria-label", document.documentElement.getAttribute("data-privacy-label") || "hidden");
+                  node.appendChild(bar);
+                }
+                if (part) node.appendChild(document.createTextNode(part));
+              });
+            };
 
             // CSS properties we need to bake into the exported SVG so the
             // file renders the same as on-screen without our stylesheet.
@@ -1103,7 +1134,7 @@ defmodule PortfolixirWeb.LayoutView do
                 var v = centre.querySelector(".sunburst-centre__value");
                 var s = centre.querySelector(".sunburst-centre__sub");
                 if (l) l.textContent = label;
-                if (v) v.textContent = value;
+                if (v) window.Portfolixir.writeMaskedText(v, value);
                 if (s) s.textContent = sub;
               },
               render: function (seg) {
@@ -1121,7 +1152,7 @@ defmodule PortfolixirWeb.LayoutView do
 
                 var meta = document.createElement("div");
                 meta.className = "sunburst-tooltip__meta";
-                meta.textContent = percent + "%" + (value ? " · " + value : "");
+                window.Portfolixir.writeMaskedText(meta, percent + "%" + (value ? " · " + value : ""));
                 this.tooltip.appendChild(meta);
 
                 this.tooltip.hidden = false;

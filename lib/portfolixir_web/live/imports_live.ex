@@ -3276,17 +3276,17 @@ defmodule PortfolixirWeb.ImportsLive do
   defp price_lines(_tx, _changes), do: nil
 
   defp amount(%Decimal{} = value, currency) when is_binary(currency),
-    do: Format.money(value) <> " " <> currency
+    do: "#{Format.money(value)} #{currency}"
 
   defp amount(_value, _currency), do: "—"
 
   defp price_amount(%Decimal{} = value, currency) when is_binary(currency),
-    do: Format.native_amount(value) <> " " <> currency
+    do: "#{Format.native_amount(value)} #{currency}"
 
   defp price_amount(_value, _currency), do: "—"
 
   defp signed_amount(%Decimal{} = value, currency),
-    do: Format.signed_decimal(value, 2) <> " " <> currency
+    do: "#{Format.signed_decimal(value, 2)} #{currency}"
 
   defp sign_class(%Decimal{} = value) do
     case Format.displayed_sign(value, 2) do

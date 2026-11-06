@@ -90,6 +90,20 @@ defmodule PortfolixirWeb.AppShell do
           </div>
 
           <div class="topbar-controls" aria-label={gettext("Display preferences")}>
+            <a
+              id="privacy-mode"
+              class={["privacy-toggle", privacy_on?() && "is-active"]}
+              href={PortfolixirWeb.PrivacyMode.toggle_href(@current_path, privacy_on?())}
+              role="button"
+              aria-pressed={if privacy_on?(), do: "true", else: "false"}
+              title={gettext("Hide amounts")}
+              data-privacy-mode={if privacy_on?(), do: "on", else: "off"}
+            >
+              <.icon :if={privacy_on?()} name={:eye_off} size={16} class="theme-svg-icon" />
+              <.icon :if={!privacy_on?()} name={:eye} size={16} class="theme-svg-icon" />
+              <span class="visually-hidden"><%= gettext("Hide amounts") %></span>
+            </a>
+
             <details id="theme-mode" class="theme-menu" aria-label={gettext("Theme")} data-theme-control>
               <summary class="theme-menu-trigger" title={gettext("Theme")}>
                 <span
@@ -427,6 +441,10 @@ defmodule PortfolixirWeb.AppShell do
   # Merges `locale` into the path's existing query (rather than appending a
   # second `?`), so surface state such as the Wealth tab (ADR-0022) survives
   # a language switch.
+  # The mode of the process that renders the shell (`PortfolixirWeb.PrivacyMode`):
+  # set for the request and the LiveView before anything renders.
+  defp privacy_on?, do: PortfolixirWeb.PrivacyMode.on?()
+
   defp locale_href(path, locale) do
     uri = URI.parse(path)
 
@@ -1000,6 +1018,16 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:sun),
     do:
       ~s(<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>)
+
+  # The privacy mode's switch (Sprint 26 P1, board 01): an eye, crossed out
+  # while the mode is on.
+  defp icon_paths(:eye),
+    do:
+      ~s(<path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12Z"/><circle cx="12" cy="12" r="3"/>)
+
+  defp icon_paths(:eye_off),
+    do:
+      ~s(<path d="M3 3l18 18"/><path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7-0.4 1-1.3 2.4-2.6 3.7M6.6 6.6C4.4 8 2.8 10.2 2 12c1 2.5 5 7 10 7 1.9 0 3.6-.6 5.1-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>)
 
   defp icon_paths(:moon),
     do: ~s(<path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"/>)

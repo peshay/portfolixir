@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.BookingDeleteDialog
@@ -513,14 +514,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                       </span>
                     </span>
                     <span class="phone-row__figures">
-                      <span class="phone-row__figure" data-role="phone-amount"><%= phone_amount(transaction, @filters["account_ids"]) %></span>
+                      <span class="phone-row__figure" data-role="phone-amount"><%= PrivacyMode.html(phone_amount(transaction, @filters["account_ids"])) %></span>
                       <span
                         :if={dq_figure(@dq_filter, transaction)}
                         class="phone-row__figure2"
                         data-role="dq-figure"
-                      ><%= LedgerChecks.figure_text(dq_figure(@dq_filter, transaction)) %></span>
+                      ><%= PrivacyMode.html(LedgerChecks.figure_text(dq_figure(@dq_filter, transaction))) %></span>
                       <span :if={phone_size(transaction)} class="phone-row__figure2" data-role="phone-size">
-                        <%= phone_size(transaction) %>
+                        <%= PrivacyMode.html(phone_size(transaction)) %>
                       </span>
                       <span
                         :if={@balance_account}
@@ -2242,7 +2243,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         "—"
 
       amount ->
-        signed_money(transaction, amount, account_ids) <> " " <> money_currency(transaction)
+        "#{signed_money(transaction, amount, account_ids)} #{money_currency(transaction)}"
     end
   end
 

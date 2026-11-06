@@ -44,6 +44,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Portfolio.ContributionTable
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionManagementLive
@@ -1095,7 +1096,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   id="count-kpi-total"
                   class="count-up"
                   phx-hook="CountUp"
-                  data-count-to={Decimal.to_string(@valuation.total_with_cash, :normal)}
+                  data-count-to={Format.amount_attribute(@valuation.total_with_cash)}
                   data-decimals="2"
                 ><span data-count-digits><%= Format.money(@valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @valuation.base_currency %></small>
               </strong>
@@ -1210,7 +1211,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   id="count-kpi-securities"
                   class="count-up"
                   phx-hook="CountUp"
-                  data-count-to={Decimal.to_string(@valuation.total_value, :normal)}
+                  data-count-to={Format.amount_attribute(@valuation.total_value)}
                   data-decimals="2"
                 ><span data-count-digits><%= Format.money(@valuation.total_value) %></span></span><small class="value-suffix"><%= @valuation.base_currency %></small>
               </strong>
@@ -1299,7 +1300,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </details>
               </div>
               <strong :if={@performance && @performance.wealth_multiple}>
-                ×<%= Format.decimal(@performance.wealth_multiple, 2) %>
+                ×<%= Format.plain_decimal(@performance.wealth_multiple, 2) %>
               </strong>
               <strong :if={@performance && is_nil(@performance.wealth_multiple)} class="stat-empty">
                 <%= gettext("n/a") %>
@@ -1959,7 +1960,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                     </span>
                     <span class="legend-name"><%= segment.name %></span>
                     <span class="legend-value">
-                      <%= segment.percent %>%<%= if segment[:value], do: " · #{segment.value}" %>
+                      <%= segment.percent %>%<%= if segment[:value], do: PrivacyMode.html(" · #{segment.value}") %>
                     </span>
                   </li>
                 <% end %>
@@ -2646,7 +2647,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <span class="phone-row__ids"><%= row.securities_account_name %></span>
                 </span>
                 <span class="phone-row__figures">
-                  <span class="phone-row__figure"><%= holdings_units(row.quantity) %></span>
+                  <span class="phone-row__figure"><%= PrivacyMode.html(holdings_units(row.quantity)) %></span>
                 </span>
               </li>
             </ul>
@@ -3134,13 +3135,13 @@ defmodule PortfolixirWeb.PortfolioLive do
         <AppShell.data_note
           id="dq-missing-fx-note"
           clamp :if={@missing_fx.count > 0} severity={:attention} data-role="dq-missing-fx">
-          <%= ngettext(
+          <%= PrivacyMode.html(ngettext(
             "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}.",
             "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}.",
             @missing_fx.count,
             base: @valuation.base_currency,
             entries: Enum.join(@missing_fx.names, ", ")
-          ) %>
+          )) %>
           <:actions>
             <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
           </:actions>
@@ -3148,13 +3149,13 @@ defmodule PortfolixirWeb.PortfolioLive do
         <AppShell.data_note
           id="dq-unvalued-cash-note"
           clamp :if={@unvalued_cash != []} severity={:attention} data-role="dq-unvalued-cash">
-          <%= ngettext(
+          <%= PrivacyMode.html(ngettext(
             "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}.",
             "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
             length(@unvalued_cash),
             base: @valuation.base_currency,
             names: Enum.map_join(@unvalued_cash, ", ", &ValuationNotes.unvalued_cash_label/1)
-          ) %>
+          )) %>
           <:actions :if={@missing_fx.count == 0}>
             <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
           </:actions>
@@ -3262,10 +3263,10 @@ defmodule PortfolixirWeb.PortfolioLive do
       >
         <%= gettext("no asset class") %>
       </span>
-      (<%= gettext("quote %{close} · price per unit %{price}",
+      (<%= PrivacyMode.html(gettext("quote %{close} · price per unit %{price}",
         close: Format.exact(@finding.latest_quote.close),
         price: Format.exact(@finding.last_unit_scale_booking.price)
-      ) %>)
+      )) %>)
     </span>
     """
   end
@@ -3283,7 +3284,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     ~H"""
     <%= if @lead_space, do: " " %><span class="dq-negative-entry">
       <.link navigate={"/securities/#{@finding.security_id}?tab=quotes"}><%= @finding.name %></.link>
-      (<%= gettext(
+      (<%= PrivacyMode.html(gettext(
         "%{kind} %{date} at %{price} %{currency} · quote %{quote_date}: %{close} %{currency}, %{ratio} times that",
         kind: implausible_quote_kind(@finding.kind),
         date: Format.date(@finding.date),
@@ -3291,8 +3292,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         currency: @finding.currency_code,
         quote_date: Format.date(@finding.quote_date),
         close: Format.exact(@finding.close),
-        ratio: Format.decimal(@finding.ratio, 2)
-      ) %>)
+        ratio: Format.plain_decimal(@finding.ratio, 2)
+      )) %>)
     </span>
     """
   end
@@ -3589,7 +3590,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp benchmark_name({:security, security}), do: security.name
 
   defp benchmark_name({:rate, rate}),
-    do: gettext("%{rate} % p.a.", rate: Format.decimal(Decimal.mult(rate, 100), 2))
+    do: gettext("%{rate} % p.a.", rate: Format.plain_decimal(Decimal.mult(rate, 100), 2))
 
   defp comparison_name(%{kind: :security, name: name}), do: name
   defp comparison_name(%{kind: :rate, annual_rate: rate}), do: benchmark_name({:rate, rate})
@@ -3856,12 +3857,12 @@ defmodule PortfolixirWeb.PortfolioLive do
           style={"--seg-delay: #{seg_reveal_delay(seg_index, length(@segments))}ms"}
           data-label={segment.name}
           data-percent={segment.percent}
-          data-value={segment.value}
+          data-value={text(segment.value)}
           data-target={segment.target}
           phx-click="select_segment"
           phx-value-name={segment.name}
           phx-value-percent={segment.percent}
-          phx-value-amount={segment.value}
+          phx-value-amount={text(segment.value)}
           phx-value-target={segment.target}
           phx-value-color={segment.color}
         >
@@ -3871,6 +3872,12 @@ defmodule PortfolixirWeb.PortfolioLive do
     </svg>
     """
   end
+
+  # A figure written into an attribute for a hook: its text, which in the
+  # privacy mode is the constant placeholder text, never the bar's markup
+  # (Sprint 26 P1).
+  defp text(nil), do: nil
+  defp text(value), do: to_string(value)
 
   # The centre of the sunburst (issue 793, DESIGN.md → Sunburst centre): the
   # touched segment — name, value, actual against target — or, untouched,
@@ -3887,13 +3894,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       data-role="sunburst-centre"
       aria-live="polite"
       data-label={@centre.label}
-      data-value={@centre.value}
+      data-value={text(@centre.value)}
       data-sub={@centre.sub}
       data-currency={@centre.currency}
       data-target-word={gettext("target")}
     >
       <span class="sunburst-centre__label"><%= @centre.label %></span>
-      <strong class="sunburst-centre__value"><%= @centre.value %></strong>
+      <strong class="sunburst-centre__value"><%= PrivacyMode.html(@centre.value) %></strong>
       <span class="sunburst-centre__sub"><%= @centre.sub %></span>
     </div>
     """

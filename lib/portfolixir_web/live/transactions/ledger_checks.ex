@@ -105,8 +105,8 @@ defmodule PortfolixirWeb.Transactions.LedgerChecks do
   def figure_text({:own_rate, rate, amount, currency}),
     do:
       gettext("settlement amount at its own rate %{rate}: %{amount}",
-        rate: Format.exact(rate),
-        amount: Format.money(amount) <> " " <> currency
+        rate: Format.plain_exact(rate),
+        amount: "#{Format.money(amount)} #{currency}"
       )
 
   @doc """

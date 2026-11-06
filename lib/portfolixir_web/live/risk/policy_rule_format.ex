@@ -35,17 +35,22 @@ defmodule PortfolixirWeb.Risk.PolicyRuleFormat do
   @spec value(String.t() | atom(), Decimal.t() | nil) :: String.t()
   def value(_measure, nil), do: "—"
   def value(measure, value) when is_atom(measure), do: value(Atom.to_string(measure), value)
-  def value("max_drawdown", value), do: "#{Format.signed_decimal(value, 1)}\u00A0%"
-  def value(measure, value) when measure in @percent, do: "#{Format.decimal(value, 1)}\u00A0%"
-  def value("drift", value), do: "#{Format.signed_decimal(value, 1)}\u00A0#{gettext("pp")}"
-  def value(_hhi, value), do: Format.decimal(value, 0)
+  def value("max_drawdown", value), do: "#{Format.plain_signed_decimal(value, 1)}\u00A0%"
+
+  def value(measure, value) when measure in @percent,
+    do: "#{Format.plain_decimal(value, 1)}\u00A0%"
+
+  def value("drift", value), do: "#{Format.plain_signed_decimal(value, 1)}\u00A0#{gettext("pp")}"
+  def value(_hhi, value), do: Format.plain_decimal(value, 0)
 
   @doc "The signed distance to the nearest line."
   @spec distance(String.t() | atom(), Decimal.t() | nil) :: String.t() | nil
   def distance(_measure, nil), do: nil
   def distance(measure, value) when is_atom(measure), do: distance(Atom.to_string(measure), value)
-  def distance("hhi", value), do: Format.signed_decimal(value, 0)
-  def distance(_measure, value), do: "#{Format.signed_decimal(value, 1)}\u00A0#{gettext("pp")}"
+  def distance("hhi", value), do: Format.plain_signed_decimal(value, 0)
+
+  def distance(_measure, value),
+    do: "#{Format.plain_signed_decimal(value, 1)}\u00A0#{gettext("pp")}"
 
   @doc "A version's line: its threshold, or its band `lower … upper`."
   @spec line(map()) :: String.t()

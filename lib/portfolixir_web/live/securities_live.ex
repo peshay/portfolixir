@@ -47,6 +47,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.Securities.BondStrip
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
@@ -1611,12 +1612,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp detail_valuation_status(%{status: %{unvalued_reason: :missing_fx}} = assigns) do
     ~H"""
     <p class="detail-pane-status badge-warning" data-role="detail-valuation-status">
-      <%= gettext(
+      <%= PrivacyMode.html(gettext(
         "Not counted in the portfolio totals — latest price %{price} %{currency} is known, but no exchange rate to %{bases} is stored. Sync exchange rates to include it.",
         price: Format.decimal(@status.latest_price, 2),
         currency: @status.price_currency,
         bases: Enum.join(@status.missing_rate_currencies, ", ")
-      ) %>
+      )) %>
     </p>
     """
   end
@@ -1624,12 +1625,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp detail_valuation_status(%{status: %{price_source: :trade}} = assigns) do
     ~H"""
     <p class="detail-pane-status" data-role="detail-valuation-status">
-      <%= gettext(
+      <%= PrivacyMode.html(gettext(
         "No current quote — counted in the portfolio totals at the last own trade price of %{price} %{currency}%{date}.",
         price: Format.decimal(@status.latest_price, 2),
         currency: @status.price_currency,
         date: if(@status.price_date, do: " (#{Format.date(@status.price_date)})", else: "")
-      ) %>
+      )) %>
     </p>
     """
   end
@@ -1692,7 +1693,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       currency: finding.currency_code,
       quote_date: Format.date(finding.quote_date),
       close: Format.exact(finding.close),
-      ratio: Format.decimal(finding.ratio, 2)
+      ratio: Format.plain_decimal(finding.ratio, 2)
     )
   end
 
@@ -2618,7 +2619,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <%= Format.date(trade.open_date) %> → <%= Format.date(trade.close_date) %>
               </span>
               <span class="phone-row__ids">
-                <%= units(trade.quantity) %> · <%= ngettext(
+                <%= PrivacyMode.html(units(trade.quantity)) %> · <%= ngettext(
                   "%{count} day",
                   "%{count} days",
                   trade.holding_period_days
@@ -3082,12 +3083,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
             clamp
             data-role="holdings-unvalued"
           >
-            <%= ngettext(
+            <%= PrivacyMode.html(ngettext(
               "%{count} position is missing from the total — no price is known for this security (no quote and no own trade): %{rows}.",
               "%{count} positions are missing from the total — no price is known for this security (no quote and no own trade): %{rows}.",
               length(@unvalued),
               rows: unvalued_rows_label(@unvalued)
-            ) %>
+            )) %>
           </AppShell.data_note>
         </div>
       <% end %>
