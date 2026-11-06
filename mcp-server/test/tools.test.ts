@@ -4188,7 +4188,8 @@ describe("Portfolixir MCP tools", () => {
       "from",
       "to",
       "benchmark",
-      "limit"
+      "limit",
+      "include"
     ]);
     assert.equal(schema?.required, undefined);
     assert.equal(schema?.additionalProperties, false);
@@ -4220,6 +4221,81 @@ describe("Portfolixir MCP tools", () => {
     assert.match(description, /\btruncated\b/);
     assert.match(description, /computation_basis/);
   });
+
+  // --- Sprint 26 R2 begin ---
+  // User story (Sprint 26, R2; ADR-0057 §4, I18 mode 3):
+  // As the agent asked whether a switch was worth it,
+  // I want the sale hindsight tool to take include reinvestment and its
+  // description to say what the block is,
+  // so that I hand over a comparison found by rule, before tax and price
+  // only, and never present it as more.
+  //
+  // Acceptance criteria:
+  // - include (only "reinvestment") is sent as include=reinvestment, beside
+  //   benchmark when both are given.
+  // - Any other include value, and any unknown key (a misspelled include),
+  //   is refused before any request.
+  // - The description names include reinvestment, that the buys are found
+  //   by rule (the same cash account, 30 days, oldest proceeds first), the
+  //   kept and the switched side, before tax with fees_inside and
+  //   taxes_apart, price only with income_apart never added, unallocated
+  //   and no_match.
+  it("takes include reinvestment and says what a switch cost means", async () => {
+    const { client, requests } = createRecordingClient({ data: { rows: [] } });
+
+    await callTool(client, "portfolixir.sales.hindsight", { include: "reinvestment" });
+    await callTool(client, "portfolixir.sales.hindsight", {
+      benchmark: "rate:0.02",
+      include: "reinvestment"
+    });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/sales/hindsight?include=reinvestment",
+        "/api/v1/sales/hindsight?benchmark=rate%3A0.02&include=reinvestment"
+      ]
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.sales.hindsight", { include: "reinvestmnt" }));
+    await assert.rejects(callTool(client, "portfolixir.sales.hindsight", { include: "" }));
+    for (const key of ["includ", "inclde", "Include"]) {
+      await assert.rejects(
+        callTool(client, "portfolixir.sales.hindsight", { [key]: "reinvestment" }),
+        new RegExp(key),
+        key
+      );
+    }
+    assert.equal(requests.length, 2);
+
+    const tool = listTools().find((entry) => entry.name === "portfolixir.sales.hindsight");
+    const include = tool?.inputSchema.properties?.include as { type?: string; enum?: string[] } | undefined;
+    assert.equal(include?.type, "string");
+    assert.deepEqual(include?.enum, ["reinvestment"]);
+
+    const description = tool?.description ?? "";
+    assert.match(description, /include reinvestment/);
+    assert.match(description, /FOUND BY RULE/);
+    assert.match(description, /same cash account/);
+    assert.match(description, /30 days/);
+    assert.match(description, /oldest/);
+    assert.match(description, /BEFORE TAX/);
+    assert.match(description, /PRICE ONLY/);
+    for (const part of [
+      "kept",
+      "switched",
+      "fees_inside",
+      "taxes_apart",
+      "income_apart",
+      "unallocated",
+      "no_match",
+      "share_of_proceeds_matched"
+    ]) {
+      assert.match(description, new RegExp(`\\b${part}\\b`), part);
+    }
+    assert.match(description, /never added/);
+  });
+  // --- Sprint 26 R2 end ---
 
   // User story (Sprint 25, F4; ADR-0055 §5):
   // As the operator's agent with a view on a position,
