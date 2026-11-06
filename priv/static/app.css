@@ -12291,3 +12291,174 @@ dialog.merge-dialog {
   font-weight: 500;
   color: var(--color-text-muted);
 }
+
+/* ===== "After the sale" (Sprint 26 V3; I18 modes 1 and 2, FR-50; board
+   ux-design-2026-11-06-sprint26-i18, pick C) ===== */
+/* What each sale missed, one row per sale booking, under the trades list
+   of Cash flow → Trades and on a security's Trades tab
+   (`PortfolixirWeb.SaleHindsightSection`; DESIGN.md → Amendment
+   2026-11-06). The comparison chooser: a label, the segmented control, and
+   the one field the chosen kind needs (the rate and Apply, or the flagged
+   securities' select). */
+.hs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.hs-controls__label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.hs-controls__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.hs-controls__field input {
+  width: 6.5em;
+}
+.hs-controls__field select {
+  max-width: 100%;
+}
+
+.hs-section > h2 {
+  margin-bottom: 4px;
+}
+.hs-basis {
+  margin: 0 0 12px;
+}
+
+/* The table fits its wrapper (issue 1322's anatomy): a stored name breaks
+   inside its cell, the figures never wrap. The wrapper's scroller stays for
+   what still does not fit. */
+.data-table-wrapper > .hs-table {
+  min-width: 0;
+  width: 100%;
+}
+.hs-table td[data-role="hindsight-name"] {
+  min-width: 10rem;
+  overflow-wrap: anywhere;
+}
+.hs-table th.num,
+.hs-table td.num {
+  white-space: nowrap;
+}
+
+/* One row per sale booking. The spans are a column group whose head says
+   what the lead figure is; each cell is the lead figure over its sub-lines
+   (security vs. benchmark, or the reason, or the end date). */
+.hs-table .hs-grouprow th {
+  padding-top: 6px;
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+.hs-table th.hs-group {
+  text-align: left;
+  border-left: 1px solid var(--color-border);
+}
+.hs-group__sub {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.hs-th-sub {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.hs-table thead tr:last-child th:nth-last-child(4),
+.hs-table td.hs-span:nth-last-child(4) {
+  border-left: 1px solid var(--color-border);
+}
+.hs-table td.hs-span,
+.hs-table td.hs-sale {
+  white-space: nowrap;
+}
+.hs-lead {
+  display: block;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hs-span .stat__sub,
+.hs-table td .stat__sub {
+  display: block;
+}
+.hs-span--open .hs-lead {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.data-table td.hs-span--open {
+  color: var(--color-text-muted);
+}
+.hs-lead.decimal-positive {
+  color: var(--color-positive);
+}
+.hs-lead.decimal-negative {
+  color: var(--color-danger);
+}
+.hs-legend {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+/* The security page's Trades tab: the same section under the FIFO list. */
+.hs-detail-section {
+  margin-top: 20px;
+}
+
+/* Under 560 px: one row per sale, the four spans as a 2 x 2 grid of label
+   over lead figure over sub-line, every figure the table row has. */
+.hs-phone-row {
+  display: block;
+}
+.hs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 8px 0 0;
+}
+.hs-grid__cell {
+  padding-left: 6px;
+}
+.hs-grid dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.hs-grid dd {
+  margin: 0;
+  font-size: 14px;
+}
+.hs-grid dd .stat__sub {
+  display: block;
+}
+.hs-grid__cell.trade-pa--na .hs-lead,
+.hs-grid__cell.hs-span--open .hs-lead {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+@media (max-width: 560px) {
+  .hs-table-wrapper {
+    display: none;
+  }
+  .hs-phone-rows {
+    display: block;
+  }
+  .hs-controls .segmented-control {
+    display: flex;
+    width: 100%;
+  }
+  .hs-controls .segmented-control__option {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

@@ -206,11 +206,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # the securities list pre-filtered. UI events patch the URL instead of
   # mutating assigns directly.
   @impl true
-  def handle_params(params, _uri, socket) do
+  def handle_params(params, uri, socket) do
     tab = safe_tab(params["tab"])
 
     socket =
       socket
+      # The Trades tab's "After the sale" reads its chooser from the address
+      # (Sprint 26 V3, `PortfolixirWeb.SaleHindsightSection`).
+      |> assign(:page_uri, uri)
       |> assign(:query, safe_query(params["q"]))
       |> assign(
         :holding_status,
@@ -1438,7 +1441,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <.trades_tab_panel
           trades={@detail_trades}
           currency_code={@selected_security.currency_code}
-        />
+        >
+          <%!-- Sprint 26 V3 (board ux-design-2026-11-06-sprint26-i18):
+               "After the sale", filtered to this security. --%>
+          <.live_component
+            module={PortfolixirWeb.SaleHindsightSection}
+            id="detail-sale-hindsight"
+            uri={@page_uri}
+            security_id={@selected_security.id}
+          />
+        </.trades_tab_panel>
       <% end %>
 
       <%= if @detail_tab == "quotes" do %>
@@ -2194,6 +2206,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   attr(:trades, :map, required: true)
   attr(:currency_code, :string, default: nil)
+  # Sprint 26 V3: "After the sale", under the closed trades.
+  slot(:inner_block)
 
   defp trades_tab_panel(assigns) do
     assigns =
@@ -2668,6 +2682,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           ) %> · <%= gettext("income received while a trade was open not included") %>
         </p>
       <% end %>
+      <%= render_slot(@inner_block) %>
     </section>
     """
   end

@@ -120,11 +120,26 @@ defmodule PortfolixirWeb.BenchmarkScope do
 
   def parse_rate(_raw), do: :error
 
+  @doc """
+  The rate a percentage names (`2.5` is 2.5 % p.a.) as the fraction the
+  engine reads, through the same bound and scale as `parse_rate/1`:
+  `{:ok, rate}` or `:error`. The Wealth page's rate field and the sale
+  hindsight's (Sprint 26 V3, `PortfolixirWeb.SaleHindsightSection`) both
+  read their percentage through it.
+  """
+  @spec rate_from_percent(term()) :: {:ok, Decimal.t()} | :error
+  def rate_from_percent(%Decimal{} = percent),
+    do: Benchmark.exact_rate(Decimal.div(percent, @hundred))
+
+  def rate_from_percent(_percent), do: :error
+
   # The picker's rate field is a percentage; the stored selector carries the
   # fraction the engine reads.
   defp rate_selector(raw) when is_binary(raw) do
-    case parse_decimal(raw) do
-      {:ok, percent} -> rate_fraction(Decimal.div(percent, @hundred))
+    with {:ok, percent} <- parse_decimal(raw),
+         {:ok, rate} <- rate_from_percent(percent) do
+      ["rate:" <> Decimal.to_string(rate, :normal)]
+    else
       :error -> []
     end
   end

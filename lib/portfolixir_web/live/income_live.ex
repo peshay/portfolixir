@@ -72,8 +72,10 @@ defmodule PortfolixirWeb.IncomeLive do
   @default_facet "income"
 
   @impl true
-  def handle_params(params, _uri, socket) do
-    {:noreply, socket |> assign(:facet, facet(params["tab"])) |> load_facet()}
+  def handle_params(params, uri, socket) do
+    # The address carries the "After the sale" chooser too (Sprint 26 V3).
+    {:noreply,
+     socket |> assign(:facet, facet(params["tab"])) |> assign(:uri, uri) |> load_facet()}
   end
 
   # Each facet loads its own read once, on first visit (the income read stays
@@ -786,6 +788,16 @@ defmodule PortfolixirWeb.IncomeLive do
               ) %>
             </p>
           </section>
+
+          <%!-- Sprint 26 V3 (I18 modes 1 and 2, FR-50; board
+               ux-design-2026-11-06-sprint26-i18, pick C): what each sale
+               missed, one row per sale booking, under the trades list and
+               before the matrix. --%>
+          <.live_component
+            module={PortfolixirWeb.SaleHindsightSection}
+            id="sale-hindsight"
+            uri={@uri}
+          />
 
           <section id="realized-annual" class="workspace-section">
             <%!-- The section keeps its heading on the h1/h2/h3 ramp; only the

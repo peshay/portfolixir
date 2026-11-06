@@ -194,7 +194,9 @@ defmodule PortfolixirWeb.SecurityPageExplanationsLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=trades")
 
-    title = "#detail-tab-panel-trades div.section-title"
+    # Sprint 26 V3: the panel carries "After the sale" with its own title
+    # under the closed trades; this is the closed trades' title.
+    title = "#detail-tab-panel-trades > div.section-title"
     assert text(view, title <> " h3") == "Closed trades (FIFO)"
 
     tip = title <> ~s( details.metric-tooltip--section[data-role="section-info"])

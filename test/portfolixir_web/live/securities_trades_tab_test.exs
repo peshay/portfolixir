@@ -296,7 +296,9 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     {:ok, view, _html} = live(conn, "/securities/#{birkenhain.id}?tab=trades")
     doc = document(view)
 
-    assert text(Floki.find(doc, "#detail-tab-panel-trades h3")) == "Closed trades (FIFO)"
+    # Sprint 26 V3: "After the sale" adds an h3 of its own under the trades.
+    assert text(Floki.find(doc, "#detail-tab-panel-trades > div.section-title h3")) ==
+             "Closed trades (FIFO)"
 
     assert text(Floki.find(doc, "#detail-closed-trades-note .data-note__body")) =~
              "1 sale has no matched buy for all or part of its quantity (shares from an " <>
