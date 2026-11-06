@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
@@ -225,7 +226,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
           ) %>
         </AppShell.data_note>
         <p class="hint" data-role="booking-delete-consequence">
-          <%= sentences(@deleting.consequence) %>
+          <%= PrivacyMode.html(sentences(@deleting.consequence)) %>
         </p>
         <p class="hint" data-role="booking-delete-journal"><%= @deleting.journal %></p>
       </div>
@@ -255,7 +256,9 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   end
 
   # The sentences of one paragraph, each escaped unless it is markup already
-  # (a stored name isolated in `<bdi>`), one space between them.
+  # (a stored name isolated in `<bdi>`), one space between them. A figure
+  # the privacy mode hides is its stand-in text in a sentence, which the
+  # template draws as the bar (`PrivacyMode.html/1`).
   defp sentences(list) do
     {:safe,
      list

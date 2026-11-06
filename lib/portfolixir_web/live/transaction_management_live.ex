@@ -1884,7 +1884,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     assigns = assign(assigns, :figure, dq_figure(assigns.filter, assigns.transaction))
 
     ~H"""
-    <small :if={@figure} class="cell-note" data-role="dq-figure"><%= LedgerChecks.figure_text(@figure) %></small>
+    <small :if={@figure} class="cell-note" data-role="dq-figure"><%= PrivacyMode.html(LedgerChecks.figure_text(@figure)) %></small>
     """
   end
 
