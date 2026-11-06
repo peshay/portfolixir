@@ -9322,3 +9322,56 @@ After `.booking-delete-dialog .hint`: `.delete-preview` (no margin);
 `--color-text`; `li` `overflow-wrap: anywhere`, 2 px between items, the
 marker `--color-text-muted`); `.confirm-delete-blocked .modal-body ul`.
 Every colour is a token, so light and dark and the three accents follow.
+
+## Amendment 2026-11-06 — The privacy mode *(Sprint 26 P1, idea I22, FR-51; board `mockups/ux-design-2026-11-06-sprint26-i22`, board 01 pick C „Nebelbalken“ by the owner; plan D-4, D-5)*
+
+### The rule
+
+While the mode is on, **every figure in a currency and every quantity** —
+values, cash, cost, gains in a currency, net flows, prices and buy-in
+prices, quantities, a zero included — is **one constant placeholder of a
+fixed width**. **What stays:** percentages (returns, shares, allocation,
+drift), dates, day counts, counts of positions, ratios (the wealth
+multiplier, a correlation, an exchange rate, a risk-adjusted return). A
+figure keeps its colour: the sign class is computed from the value, so
+the bar is green or red where the figure was.
+
+### Anatomy
+
+1. **The switch** (`#privacy-mode`): the first control in the top bar's
+   `.topbar-controls`, beside the appearance menu, a 32 px square like
+   `.theme-menu-trigger`. Off: the eye icon, muted. On: the crossed-out
+   eye, the accent (`.privacy-toggle.is-active`: accent ink, accent
+   border, `--color-accent-soft` fill), `aria-pressed="true"`. Its name
+   and title is „Beträge verbergen“ / "Hide amounts" in both states. It is
+   a link (`role="button"`) to the page's own address with `?privacy=on`
+   or `off`; the server remembers the choice in a signed cookie of this
+   browser and answers with a redirect to the address without it, so the
+   page reloads masked and a reload never replays a choice.
+2. **The bar** (look C): `<span class=pf-mask role=img
+   aria-label=verborgen></span>`, empty, `inline-block`, `width: 4.4em`
+   (it grows with the font size only), `height: 0.7em`, a pill
+   (`border-radius: 999px`), a left-to-right gradient of `currentColor` at
+   32 % to 14 %, `filter: blur(0.08em)`, `user-select: none`. The board's
+   placeholder digits under the blur are gone: the server sends no digit,
+   so the bar holds none, and a selection copies nothing. Its attribute
+   values are unquoted single words, so the markup holds no quote.
+3. **Where markup cannot go** (a native tooltip, an attribute a hook
+   reads, a chart's JSON payload, a sentence built as text) a hidden
+   figure is the constant text „••••“. A template that prints such a
+   sentence draws each one as the bar (`PrivacyMode.html/1`); the chart's
+   tooltip and the sunburst's centre do the same in the browser
+   (`Portfolixir.writeMaskedText`). The text never reaches the screen as
+   text.
+4. **The source:** an attribute a script reads an amount from
+   (`data-count-to`, a month's `data-total`) is left out in the mode, and
+   the count-up shows the bar without counting.
+
+### Stated, not settled here
+
+- **Forms keep their values:** a form that edits a stored figure opens
+  with the real value; a masked input would either submit the mask or have
+  the operator retype every figure blind. Flippable: „I22 Formulare
+  verbergen“ (the edit entries then close while the mode is on).
+- **The bar in a table can read as a loading state** (board 01's known
+  weakness of C); the pressed switch in the top bar says the mode is on.

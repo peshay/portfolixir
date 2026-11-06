@@ -4699,6 +4699,34 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Die Wertpapierauswahl des Imports sagt einem Screenreader, wie viele
   Wertpapiere eine Suche gefunden hat oder dass keines passt (#1342).
 
+### Privatsphäre-Modus
+
+Das Auge in der Kopfleiste, neben dem Darstellungsmenü, verbirgt alle
+Beträge („Beträge verbergen“). Solange es gedrückt ist, erscheint jede Zahl
+in einer Währung und jede Stückzahl — Werte, Bargeld, Kosten, Gewinne in
+einer Währung, Nettoflüsse, Kurse und Einstandskurse, Stückzahlen — als ein
+weicher Balken fester Breite in der Farbe der Zahl. Es bleiben: Prozente
+(Renditen, Anteile, Allokation, Abweichung), Daten, Tageszahlen, Anzahlen von
+Positionen und Verhältnisse wie der Vermögensmultiplikator.
+
+- **Die Zahl erreicht die Seite nie.** Der Server ersetzt sie, bevor die
+  Seite gesendet wird; sie steht weder im Seitenquelltext noch in einer
+  kopierten Auswahl noch in der Ausgabe eines Screenreaders (der „verborgen“
+  liest), und jeder Balken ist gleich breit, wie lang die Zahl auch ist.
+- **Je Browser.** Die Wahl liegt in einem Cookie dieses Browsers und übersteht
+  ein Neuladen; ein anderer Browser oder ein anderes Gerät hat seine eigene.
+  Auf dem Server wird nichts davon gespeichert, und ein Link einer anderen
+  Website kann auf der Seite, die er öffnet, Zahlen verbergen, aber nie
+  zeigen.
+- **Formulare behalten ihre Werte.** Ein Formular, das eine gespeicherte Zahl
+  bearbeitet (die Buchungsleiste, eine Abrechnung, ein manueller Kurs),
+  öffnet mit dem echten Wert, weil eine blind getippte Korrektur einen
+  falschen Betrag buchen könnte.
+- **Kein Schloss.** Wer an der Tastatur sitzt, schaltet ihn ab; er hält Zahlen
+  von einem Bildschirm fern, den andere sehen. Die JSON-API und der
+  MCP-Begleiter sind nicht betroffen: Ein Darstellungsmodus ist keine
+  Fähigkeit der Daten.
+
 ## Audit-Journal
 
 Jede Änderung an Finanzdaten wird in einem append-only Audit-Journal in derselben

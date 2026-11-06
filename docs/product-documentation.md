@@ -4263,6 +4263,31 @@ naming the already-booked event) stays inline in the dialog.
 - The import's security picker announces how many securities a search
   found, or that none did, to a screen reader (#1342).
 
+### Privacy mode
+
+The eye in the top bar, beside the appearance menu, hides every amount
+("Hide amounts"). While it is pressed, every figure in a currency and every
+quantity — values, cash, cost, gains in a currency, net flows, prices and
+buy-in prices, quantities — shows as one soft bar of a fixed width, in the
+figure's own colour. What stays: percentages (returns, shares, allocation,
+drift), dates, day counts, counts of positions and ratios such as the wealth
+multiplier.
+
+- **The figure never reaches the page.** The server replaces it before the
+  page is sent, so it is not in the page source, a copied selection or a
+  screen reader's output (which reads "hidden"), and every bar has the same
+  width, whatever the figure's length.
+- **Per browser.** The choice is kept in a cookie of this browser and
+  survives a reload; another browser or device has its own. Nothing about it
+  is stored on the server, and a link from another site can hide figures on
+  the page it opens but never show them.
+- **Forms keep their values.** A form that edits a stored figure (the
+  booking drawer, a statement, a manual quote) opens with the real value,
+  because a correction typed blind could book a wrong amount.
+- **Not a lock.** Anyone at the keyboard can switch it off; it keeps figures
+  off a screen others can see. The JSON API and the MCP companion are not
+  affected: a presentation mode is no capability of the data.
+
 ## Audit Journal
 
 Every change to financial data is recorded in an append-only audit journal in the
