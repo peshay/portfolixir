@@ -549,7 +549,7 @@ defmodule PortfolixirWeb.IncomeLive do
                       <span class="num"><%= Format.date(sell.date) %></span>
                       <%!-- #1074: one unit is a unit, any other quantity —
                            a fraction included — is units (U1's rule). --%>
-                      <span class="num"><%= units(sell.quantity) %></span>
+                      <span class="num"><%= PrivacyMode.html(units(sell.quantity)) %></span>
                     </li>
                   </ul>
                 </details>
