@@ -2282,7 +2282,9 @@ Example account payloads:
   `computation_basis` (input series, window, reference, gaps, `price_only`,
   `sales`, `booked_price`) says so. No field gives a verdict. A malformed id,
   date, `limit` or `benchmark` answers `422` naming it, `to` before `from`
-  `422` on `to`; an unknown id answers no rows.
+  `422` on `to`; an unknown id answers no rows. The human view is **After
+  the sale** under the trades list of `/cashflow?tab=realized` and on a
+  security's Trades tab (Sprint 26), computed by the same function.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current

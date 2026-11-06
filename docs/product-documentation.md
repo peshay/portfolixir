@@ -2609,6 +2609,28 @@ missing buy.
 
 *Cash flow → Trades on the synthetic demo dataset, in the German interface.*
 
+**After the sale** (Sprint 26, FR-50) follows the trades list: what each
+sale missed, one row per **sale booking** — not per FIFO round trip, so a
+sale of delivered-in shares or one that closed two lots is one row. Each
+row shows the sale (date, quantity × booked price), the start close in EUR
+(the close of the sale day or the last one before it, at most 7 days
+older; the booked price enters no figure) and four spans from the sale
+day: **1M**, **3M**, **12M** and **To date** (up to the latest close). The
+**Comparison** chooser picks what a span is set against: **None** shows the
+sold security's own price return; **Fixed rate** takes a rate in % p.a.
+(typed with a point or a comma, from -99.9999 to 1000; anything else is
+named under the field and not computed) and shows the difference to it;
+**Security** compares with a security flagged as a benchmark on the
+Securities page and shows the difference, with "security vs. benchmark"
+under it. A span that ends after today reads "running" with its end date; a
+span without a close or a rate reads its reason ("no start close", "no
+exchange rate", …) and is never estimated. The chooser is part of the
+address, so a link opens the same comparison. The figures are those of
+`GET /api/v1/sales/hindsight` and the MCP tool `portfolixir.sales.hindsight`
+for the same comparison; the ⓘ states their basis. They are price returns:
+distributions after the sale are not included. The section says nothing
+about whether a sale was right — it shows what the price did.
+
 **The security's own Trades tab** (issue #1029) is where every row of the
 facet and of the Overview card leads, and since Sprint 18 it shows the same
 figure: its **Closed trades (FIFO)** table carries the **p. a.** column
@@ -2624,7 +2646,9 @@ under the list states its basis: across every depot, fees and taxes are in
 the realised P&L but not in the average buy and sell prices, and income
 received while a trade was open is not included. The ⓘ beside *Closed
 trades (FIFO)* holds the rules: deliveries open no lot, and p. a. only from
-365 days of holding and only where a rate solves the flows. The
+365 days of holding and only where a rate solves the flows. Under the
+closed trades the tab carries **After the sale** for this security's sales
+alone, with the same chooser and spans as on Cash flow → Trades. The
 realised P&L and its fees and taxes are in the trade's currency, a trade
 across currencies converting them at its own rate, as on the facet (issue
 #1108), and **Realised P&L** names that currency at every width ("+188.75
