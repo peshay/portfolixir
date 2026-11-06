@@ -466,4 +466,29 @@ defmodule PortfolixirWeb.PredictionsLiveTest do
   end
 
   # --- Sprint 26 fix P end ---
+
+  # --- Sprint 26 fix D begin ---
+  # The closing act's design critic and UAT persona on the report.
+
+  # User story (closing act, design critic V2):
+  # As the operator on Wealth's Predictions tab, on a desktop or a phone,
+  # I want the author and model chips to keep the gutter the other Wealth
+  # tabs' control rows keep,
+  # so that the chips do not start at the screen's edge.
+  #
+  # Acceptance criteria:
+  # - The chips sit in Wealth's control band (`.workspace-section
+  #   .workspace-section--controls`), the band that carries the section's
+  #   inline padding (16 px floor), as the view switcher does.
+  test "the author and model chips sit in Wealth's control band", %{conn: conn} do
+    world()
+    {:ok, view, _html} = live(conn, "/predictions")
+
+    assert has_element?(
+             view,
+             ".workspace-section.workspace-section--controls > #prediction-filters"
+           )
+  end
+
+  # --- Sprint 26 fix D end ---
 end
