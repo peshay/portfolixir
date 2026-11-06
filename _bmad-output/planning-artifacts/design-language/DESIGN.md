@@ -1799,6 +1799,14 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
   With the zero floor the heading shrinks to its box and ends in the
   ellipsis, "Konten & De…". The container's `overflow-x: clip` and the
   heading's ellipsis and `nowrap` stay as they are.
+  *Amended 2026-11-06 (Sprint 26 closing act, the design critic on P1):*
+  under 420 px, where the privacy switch shares the row, the heading is
+  14 px at `line-height: 1.2` and `white-space: normal`, so a title too
+  long for one line wraps onto a second instead of ending in the ellipsis.
+  Whether it fits on one line depends on the device's font (no web font
+  ships): a fit by pixels held on one machine and not on CI's runner. The
+  browser test measures the title in the page's font and again in a wide
+  monospace font.
 - **Value suffix:** inside {components.value-slot} the currency renders as a
   `<small>` at {typography.stat-label} size and {colors.text-muted}, 4 px
   after the digits. The digits keep tabular numerals and never wrap.

@@ -1860,8 +1860,14 @@ li + li {
     gap: 2px;
   }
 
+  /* A title too long for the narrow row wraps onto a second line instead of
+     ending in an ellipsis: whether it fits on one depends on the device's
+     font (no web font ships), so a fit by pixels held on one machine and
+     not on another. Words still break only at their own hyphens. */
   .topbar-page h1 {
     font-size: 14px;
+    line-height: 1.2;
+    white-space: normal;
   }
 }
 

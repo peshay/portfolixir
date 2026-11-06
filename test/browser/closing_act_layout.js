@@ -152,6 +152,26 @@ async function topbarTitles(browser) {
     if (m.scroll > m.client || m.page > 0) {
       errors.push(path + ": the title is cut " + JSON.stringify(m));
     }
+    // The attack case: no web font ships, so the title is drawn in the
+    // device's font. A wide monospace font stands in for a wider device
+    // font than this machine's; the title must still show whole.
+    const wide = await page.evaluate(() => {
+      const style = document.createElement("style");
+      style.textContent = "#app-topbar-title { font-family: monospace !important; }";
+      document.head.appendChild(style);
+      const title = document.querySelector("#app-topbar-title");
+      const result = {
+        text: title.textContent.trim(),
+        scroll: title.scrollWidth,
+        client: title.clientWidth,
+        page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+      };
+      style.remove();
+      return result;
+    });
+    if (wide.scroll > wide.client || wide.page > 0) {
+      errors.push(path + ": in a wide font the title is cut " + JSON.stringify(wide));
+    }
   }
   await context.close();
   check(errors.length === 0, "at 390 px: " + errors.join("; "));
