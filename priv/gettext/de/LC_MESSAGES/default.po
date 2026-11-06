@@ -343,8 +343,8 @@ msgstr "Wertpapiere"
 #: lib/portfolixir_web/live/portfolio_live.ex:2418
 #: lib/portfolixir_web/live/portfolio_live.ex:2861
 #: lib/portfolixir_web/live/risk_live.ex:362
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:399
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:917
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:400
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:922
 #: lib/portfolixir_web/live/transaction_management_live.ex:1834
 #: lib/portfolixir_web/live/transaction_management_live.ex:2050
 #: lib/portfolixir_web/live/transaction_management_live.ex:2612
@@ -1221,7 +1221,7 @@ msgstr "Persönliche Notiz für dieses Wertpapier hinzufügen…"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1619
 #: lib/portfolixir_web/live/portfolio_live.ex:1685
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:350
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:351
 #: lib/portfolixir_web/live/securities_live.ex:1273
 #, elixir-autogen, elixir-format
 msgid "Apply"
@@ -5878,7 +5878,7 @@ msgstr "%{name} ist keine Benchmark mehr"
 
 #: lib/portfolixir/catalog/security_fields.ex:85
 #: lib/portfolixir_web/field_label.ex:66
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:360
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:361
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:651
 #, elixir-autogen, elixir-format
 msgid "Benchmark"
@@ -5920,13 +5920,13 @@ msgid "Benchmark…"
 msgstr "Benchmark…"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1674
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:338
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:339
 #, elixir-autogen, elixir-format
 msgid "Fixed rate % p.a."
 msgstr "Fester Zins % p. a."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1671
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:376
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:377
 #, elixir-autogen, elixir-format
 msgid "No benchmark securities yet — mark one on the Securities page."
 msgstr "Noch keine Benchmark-Wertpapiere — eines auf der Seite Wertpapiere markieren."
@@ -6124,7 +6124,7 @@ msgstr[0] "Eine gehaltene Position hat einen Preis, aber keinen gespeicherten We
 msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeicherten Wechselkurs zu %{base} und fehlen daher in den Summen: %{entries}."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2687
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:887
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:892
 #: lib/portfolixir_web/prediction_label.ex:72
 #, elixir-autogen, elixir-format
 msgid "no exchange rate"
@@ -10619,13 +10619,13 @@ msgstr "Der Kursanbieter braucht den Ticker des Wertpapiers."
 msgid "The security has no currency."
 msgstr "Das Wertpapier hat keine Währung."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:908
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:913
 #: lib/portfolixir_web/live/securities_live.ex:7151
 #, elixir-autogen, elixir-format
 msgid "1M"
 msgstr "1M"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:909
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:914
 #: lib/portfolixir_web/live/securities_live.ex:7152
 #, elixir-autogen, elixir-format
 msgid "3M"
@@ -13814,7 +13814,7 @@ msgstr[0] "%{count} Wertpapier passt."
 msgstr[1] "%{count} Wertpapiere passen."
 
 #: lib/portfolixir_web/components/app_shell.ex:601
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:517
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:520
 #, elixir-autogen, elixir-format
 msgid "About this section"
 msgstr "Zu diesem Abschnitt"
@@ -14982,19 +14982,19 @@ msgstr "Bleibt bis %{date} hinter %{benchmark} zurück"
 msgid "missed"
 msgstr "verfehlt"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:888
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:893
 #: lib/portfolixir_web/prediction_label.ex:71
 #, elixir-autogen, elixir-format
 msgid "no benchmark close"
 msgstr "kein Benchmark-Kurs"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:889
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:894
 #: lib/portfolixir_web/prediction_label.ex:70
 #, elixir-autogen, elixir-format
 msgid "no end close"
 msgstr "kein Endkurs"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:886
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:891
 #: lib/portfolixir_web/prediction_label.ex:69
 #, elixir-autogen, elixir-format
 msgid "no start close"
@@ -15246,174 +15246,174 @@ msgctxt "prediction status"
 msgid "open"
 msgstr "offen"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:910
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:915
 #, elixir-autogen, elixir-format
 msgid "12M"
 msgstr "12M"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:535
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:538
 #, elixir-autogen, elixir-format
 msgid "A benchmark security is measured the same way, from the same start day to the same end day; a fixed rate compounds daily over the span's calendar days."
 msgstr "Ein Benchmark-Wertpapier wird gleich gemessen, vom selben Start- bis zum selben Endtag; ein fester Zins wird täglich über die Kalendertage der Spanne verzinst."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:538
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:541
 #, elixir-autogen, elixir-format
 msgid "A span that ends after today is still running and has no figure. Where a close or an exchange rate is missing, the span stays without a figure and names the reason: never estimated."
 msgstr "Eine Spanne, die nach heute endet, läuft noch und hat keine Zahl. Fehlt ein Kurs oder ein Wechselkurs, bleibt die Spanne ohne Zahl und nennt den Grund: nie geschätzt."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:301
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:310
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:395
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:449
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:302
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:311
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:396
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:450
 #, elixir-autogen, elixir-format
 msgid "After the sale"
 msgstr "Nach dem Verkauf"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:588
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:591
 #, elixir-autogen, elixir-format
 msgid "Close %{date}"
 msgstr "Schluss %{date}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:317
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:318
 #, elixir-autogen, elixir-format
 msgid "Comparison"
 msgstr "Vergleich"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:926
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:931
 #, elixir-autogen, elixir-format
 msgid "Difference to %{name}"
 msgstr "Differenz zu %{name}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:923
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:928
 #, elixir-autogen, elixir-format
 msgid "Difference to %{rate} % p.a."
 msgstr "Differenz zu %{rate} % p. a."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:916
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:921
 #, elixir-autogen, elixir-format
 msgid "Fixed rate"
 msgstr "Fester Zins"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:525
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:528
 #, elixir-autogen, elixir-format
 msgid "How the sold security moved after the sale: in EUR, over 1, 3 and 12 calendar months from the sale day and up to the latest close."
 msgstr "Wie sich das verkaufte Wertpapier nach dem Verkauf bewegt hat: in EUR, über 1, 3 und 12 Kalendermonate ab dem Verkaufstag und bis zum letzten Schlusskurs."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:904
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:909
 #, elixir-autogen, elixir-format
 msgid "No close at the span's end and none in the 7 days before"
 msgstr "Kein Schlusskurs am Ende der Spanne und keiner in den 7 Tagen davor"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:892
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:897
 #, elixir-autogen, elixir-format
 msgid "No close on the sale day and none in the 7 days before"
 msgstr "Kein Schlusskurs am Verkaufstag und keiner in den 7 Tagen davor"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:895
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:900
 #, elixir-autogen, elixir-format
 msgid "No stored rate to EUR for one of the two closes"
 msgstr "Kein gespeicherter Wechselkurs nach EUR für einen der beiden Kurse"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:386
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:387
 #, elixir-autogen, elixir-format
 msgid "Not a rate to compare with: enter a percentage from -99.9999 to 1000, such as 2.5."
 msgstr "Kein Zins zum Vergleichen: einen Prozentsatz von -99,9999 bis 1000 eingeben, etwa 2,5."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:541
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:544
 #, elixir-autogen, elixir-format
 msgid "One row per sale booking, not per FIFO lot; a sale with no matched buy counts, a delivery is not a sale."
 msgstr "Eine Zeile je Verkaufsbuchung, nicht je FIFO-Lot; ein Verkauf ohne zugeordneten Kauf zählt mit, eine Auslieferung ist kein Verkauf."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:941
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:946
 #, elixir-autogen, elixir-format
 msgid "Per span the difference to %{name}, below it security vs. benchmark"
 msgstr "Je Spanne die Differenz zu %{name}, darunter Wertpapier ggü. Benchmark"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:935
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:940
 #, elixir-autogen, elixir-format
 msgid "Per span the difference to %{rate} % p.a., below it security vs. rate"
 msgstr "Je Spanne die Differenz zu %{rate} % p. a., darunter Wertpapier ggü. Zins"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:945
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:950
 #, elixir-autogen, elixir-format
 msgid "Per span the sold security's price return"
 msgstr "Je Spanne die Kursrendite des verkauften Wertpapiers"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:303
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:304
 #, elixir-autogen, elixir-format
 msgid "Price move per sale in EUR · from the sale day · one row per sale booking"
 msgstr "Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:532
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:535
 #, elixir-autogen, elixir-format
 msgid "Price return: distributions after the sale are not booked, so for a dividend payer the figure is too low."
 msgstr "Kursrendite: Ausschüttungen nach dem Verkauf sind nicht gebucht, bei einem Dividendenzahler ist die Zahl also zu niedrig."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:496
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:499
 #, elixir-autogen, elixir-format
 msgid "Price return: distributions after the sale not included"
 msgstr "Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:400
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:461
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:401
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:462
 #, elixir-autogen, elixir-format
 msgid "Sale"
 msgstr "Verkauf"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:402
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:602
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:403
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:609
 #, elixir-autogen, elixir-format
 msgid "Start close"
 msgstr "Startkurs"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:899
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:904
 #, elixir-autogen, elixir-format
 msgid "The benchmark security has no close for the start or the end; the security's figure stays"
 msgstr "Das Benchmark-Wertpapier hat keinen Kurs für den Start oder das Ende; die Zahl des Wertpapiers bleibt"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:928
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:933
 #, elixir-autogen, elixir-format
 msgid "The security's price move"
 msgstr "Kursentwicklung des Wertpapiers"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:528
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:531
 #, elixir-autogen, elixir-format
 msgid "The start is the close of the sale day or the last one before it, at most %{days} days older; the booked sale price stands beside it and enters no figure."
 msgstr "Start ist der Schlusskurs des Verkaufstags oder der letzte davor, höchstens %{days} Tage älter; der gebuchte Verkaufskurs steht daneben und geht in keine Zahl ein."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:911
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:916
 #, elixir-autogen, elixir-format
 msgid "To date"
 msgstr "Bis heute"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:911
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:916
 #, elixir-autogen, elixir-format
 msgid "latest close"
 msgstr "letzter Kurs"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:646
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:653
 #, elixir-autogen, elixir-format
 msgid "running"
 msgstr "läuft"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:648
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:655
 #, elixir-autogen, elixir-format
 msgid "until %{date}"
 msgstr "bis %{date}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:658
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:679
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:665
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:686
 #, elixir-autogen, elixir-format
 msgid "vs."
 msgstr "ggü."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:915
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:920
 #, elixir-autogen, elixir-format
 msgctxt "hindsight comparison"
 msgid "None"
 msgstr "Ohne"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:489
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:492
 #, elixir-autogen, elixir-format
 msgid "The newest sale; older ones are left out."
 msgid_plural "The newest %{count} sales; older ones are left out."
@@ -15515,130 +15515,130 @@ msgid_plural "“%{name}” and %{count} categories below it"
 msgstr[0] "„%{name}“ und %{count} Kategorie darunter"
 msgstr[1] "„%{name}“ und %{count} Kategorien darunter"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:849
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:854
 #, elixir-autogen, elixir-format
 msgid "%{count} day after the sale"
 msgid_plural "%{count} days after the sale"
 msgstr[0] "%{count} Tag nach dem Verkauf"
 msgstr[1] "%{count} Tage nach dem Verkauf"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:768
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:775
 #, elixir-autogen, elixir-format
 msgid "%{share} of the proceeds"
 msgstr "%{share} des Erlöses"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:920
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:925
 #, elixir-autogen, elixir-format
 msgid "Difference switched − kept, in EUR"
 msgstr "Differenz gewechselt − behalten, in EUR"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:856
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:861
 #, elixir-autogen, elixir-format
 msgid "Fees, inside the difference"
 msgstr "Gebühren, in der Differenz"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:918
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:923
 #, elixir-autogen, elixir-format
 msgid "Follow-on purchase"
 msgstr "Anschlusskauf"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:551
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:554
 #, elixir-autogen, elixir-format
 msgid "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata."
 msgstr "Anschlusskauf: die Käufe vom Verrechnungskonto des Verkaufs, am Verkaufstag oder bis zu %{days} Tage danach, verbrauchen den Erlös in Datumsfolge, bis er aufgebraucht ist; der letzte zählt anteilig."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:402
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:773
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:403
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:780
 #, elixir-autogen, elixir-format
 msgid "Invested"
 msgstr "Angelegt"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:555
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:558
 #, elixir-autogen, elixir-format
 msgid "Kept: what the sold position would be worth, scaled to the part of the proceeds invested, price only. Switched: the value of the bought position; before the buy date the money counts as cash at its booked amount."
 msgstr "Behalten: was die verkaufte Position wert wäre, auf den angelegten Teil des Erlöses skaliert, nur Kurs. Gewechselt: der Wert der gekauften Position; vor dem Kaufdatum zählt das Geld als Cash zum gebuchten Betrag."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:796
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:801
 #, elixir-autogen, elixir-format
 msgid "No follow-on purchases found: no buy from the sale's cash account within %{days} days of the sale day"
 msgstr "Keine Anschlusskäufe gefunden: kein Kauf vom Verrechnungskonto des Verkaufs binnen %{days} Tagen ab dem Verkaufstag"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:783
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:788
 #, elixir-autogen, elixir-format
 msgid "No follow-on purchases found: the buys within %{days} days were paid from an earlier sale's proceeds"
 msgstr "Keine Anschlusskäufe gefunden: die Käufe binnen %{days} Tagen bezahlte der Erlös eines früheren Verkaufs"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:790
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:795
 #, elixir-autogen, elixir-format
 msgid "No follow-on purchases found: the sale has no cash account, or no proceeds booked on it"
 msgstr "Keine Anschlusskäufe gefunden: der Verkauf hat kein Verrechnungskonto oder keinen darauf gebuchten Erlös"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:931
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:936
 #, elixir-autogen, elixir-format
 msgid "Per span switched − kept in EUR, both before tax"
 msgstr "Je Spanne gewechselt − behalten in EUR, beide vor Steuern"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:815
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:820
 #, elixir-autogen, elixir-format
 msgid "Proceeds invested in"
 msgstr "Erlös angelegt in"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:558
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:561
 #, elixir-autogen, elixir-format
 msgid "The booked fees of the sale and the buys are inside the difference. The sale's taxes are named apart and added back to the switched side, because the kept side's latent tax is just as unknown: both sides before tax. The bought position's income is named, not added."
 msgstr "Die gebuchten Gebühren des Verkaufs und der Käufe stecken in der Differenz. Die Steuern des Verkaufs stehen daneben und werden der gewechselten Seite zugerechnet, weil die latente Steuer der behaltenen Seite ebenso unbekannt ist: beide Seiten vor Steuern. Erträge der gekauften Position werden genannt, nicht addiert."
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:858
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:863
 #, elixir-autogen, elixir-format
 msgid "The buys' income, not added"
 msgstr "Erträge der Käufe, nicht addiert"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:857
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:862
 #, elixir-autogen, elixir-format
 msgid "The sale's taxes, added back to the switched side"
 msgstr "Steuern des Verkaufs, der gewechselten Seite zugerechnet"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:843
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:848
 #, elixir-autogen, elixir-format
 msgid "bought %{date}"
 msgstr "gekauft %{date}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:727
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:734
 #, elixir-autogen, elixir-format
 msgid "kept %{amount}"
 msgstr "behalten %{amount}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:735
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:742
 #, elixir-autogen, elixir-format
 msgid "kept side"
 msgstr "behaltene Seite"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:846
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:851
 #, elixir-autogen, elixir-format
 msgid "on the sale day"
 msgstr "am Verkaufstag"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:836
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:841
 #, elixir-autogen, elixir-format
 msgid "pro rata %{part} of %{amount} %{currency}"
 msgstr "anteilig %{part} von %{amount} %{currency}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:728
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:735
 #, elixir-autogen, elixir-format
 msgid "switched %{amount}"
 msgstr "gewechselt %{amount}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:734
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:741
 #, elixir-autogen, elixir-format
 msgid "switched side"
 msgstr "gewechselte Seite"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:715
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:722
 #, elixir-autogen, elixir-format
 msgid "taxes added back %{amount}"
 msgstr "Steuern zugerechnet %{amount}"
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:866
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:871
 #, elixir-autogen, elixir-format
 msgctxt "hindsight costs"
 msgid "none"
