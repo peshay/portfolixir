@@ -209,6 +209,9 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
   # counted per referencing table from the refusal ({:referenced, counts});
   # nil when the refusal carried no count.
   attr(:counts, :map, default: nil)
+  # #1340: where the focus goes when the dialog closes — the row's kebabs,
+  # since the menu item that opened it left with the menu.
+  attr(:focus_return, :string, default: nil)
 
   def delete_blocked_dialog(assigns) do
     ~H"""
@@ -219,6 +222,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
       class="modal confirm-delete-blocked"
       phx-hook="ModalDialog"
       data-close-event="close_delete_blocked"
+      data-focus-return={@focus_return}
       aria-labelledby="delete-blocked-title"
     >
         <header class="modal-head">

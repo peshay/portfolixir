@@ -293,7 +293,7 @@ components:
     basis: 'one line under the grid: the series, the currency, the gap rule, the annualization, and that the block reports rather than evaluates'
   security-events-tab:
     placement: 'the ninth tab of the detail pane — "Dates", de "Termine" (issue 828, pick D2-B); the Research tab keeps exactly what it has. The label follows the bilingual rule: the source string is English, the German translation is German, and a German word in the English UI needs the term-of-art carve-out, which a calendar tab does not have'
-    rows: 'the .research-timeline shape of ADR-0044 reused, not a second list: an ordered list, newest relevant first, each entry a head / body / meta stack. The head carries the kind as a badge, the date said the way it is known (a day, a range, a month), the timing qualifier and the ADR-0044 source quality as words; the body is the note; the meta line is the source link and the last-checked day. The timing qualifier and the confirmed marker are two different facts and neither label may contain the other — "Announced" is the date being set, "Took place" is it having happened (Sprint 13 closing act)'
+    rows: 'the .research-timeline shape of ADR-0044 reused, not a second list: an ordered list, newest relevant first, each entry a head / body / meta stack. The head carries the kind as a badge, the date said the way it is known (a day, a range, a month), the timing qualifier and the ADR-0044 source quality as words; the body is the note; the meta line is the source link and the last-checked day, joined by „ · “ and absent when neither is known (#1365). The timing qualifier and the confirmed marker are two different facts and neither label may contain the other — "Announced" is the date being set, "Took place" is it having happened (Sprint 13 closing act)'
   due-card:
     placement: 'the Overview attention column beside Off target and data quality (issue 828, pick D3-A) — no route, no sidebar entry, per ADR-0024'
     scope: 'the WHOLE CATALOG by default; a security with no position carries a "no position" badge and is kept, because filtering it away is the defect the object exists to prevent'
@@ -8868,8 +8868,10 @@ The tab writes nothing (ADR-0055 §2): no form, no edit, no withdrawal.
 After `.research-entry__body`: `.prediction-entry__claim` (wrapping flex
 row, baseline), `.prediction-entry__p` (tabular, 700, no wrap) and its
 label, `.prediction-entry__facts dd.num` (tabular, no wrap),
-`.prediction-entry p.research-entry__meta` (`margin: 0`, the paragraph's
-browser margins removed), `.prediction-entry__reason`, the three left
+~~`.prediction-entry p.research-entry__meta` (`margin: 0`, the paragraph's
+browser margins removed)~~ (since the polish pass below, `margin: 0` is
+`.research-entry__meta`'s own, for every meta line),
+`.prediction-entry__reason`, the three left
 edges, and under 560 px the facts two abreast (`repeat(2, minmax(0,
 1fr))`): the shipped facts grid stacks to one column under 480 px for the
 thesis's long labels, which these four do not have. Every colour is a
@@ -8889,6 +8891,34 @@ token.
   such predictions the shipped sentence stands alone. The security form has
   no benchmark field, so the line lives in the row action's note, not in a
   help text (the board's finding).
+
+### #1365, the polish pass on the screen V1 touches (plan D-10)
+
+Conformance repairs to the anatomy already stated; no new pattern.
+
+- **A dialog opened from a row menu gives the focus back to the row's
+  kebab** (#1340), as the #912 booking dialogs do (*Amendment 2026-10-03*,
+  **Focus**): the menu item that opened it is gone when it closes, so the
+  dialog names its return target in `data-focus-return`. „Kann nicht
+  gelöscht werden“ and „Logo verwalten“ on Securities name the row's two
+  kebabs, `#row-kebab-<id>` and `#phone-kebab-<id>`, whichever the width
+  shows; „Kann nicht gelöscht werden“ on Accounts names
+  `#account-kebab-<id>` or `#cash-kebab-<id>`; „Buckets bearbeiten“ on
+  Buckets names `#view-kebab-<id>`. Esc, ×, Abbrechen and „Stattdessen
+  stilllegen“ (a retired row stays listed) all land there.
+- **A fact label breaks at a syllable** where the browser can hyphenate
+  the page's language: the thesis and research facts' `dt` carries
+  `hyphens: auto` (with `-webkit-hyphens`) beside `overflow-wrap:
+  anywhere`, which stays the last resort for a browser without a
+  dictionary for the page's `lang` (the test's headless Chromium is one,
+  so the browser test pins the computed style and the `lang`, not the
+  break). „Invalidierungsbedingung“ at 1200 px breaks with a hyphen at a
+  syllable, not as „…BEDINGUN / G“.
+- **A Termine entry's meta line** (`security-events-tab`, rows): the
+  source link and the last-checked day joined by „ · “, as every meta line
+  in the app joins its facts („Quelle · Zuletzt geprüft 04.11.2026“); a
+  paragraph with no margins of its own, the entry's gap spacing it; absent
+  when the entry has neither.
 
 ### Stated, not settled here
 

@@ -265,4 +265,65 @@ defmodule PortfolixirWeb.SecurityMetricsEventsPanelTest do
 
     assert has_element?(view, "#detail-tab-panel-events .empty-state")
   end
+
+  # User story (#1365, the polish pass on the security page; board
+  # ux-design-2026-11-06-sprint26-f1, "Found while drawing"):
+  # As a local portfolio maintainer reading the Termine tab,
+  # I want an entry's meta line to read as two facts and to be there only
+  # when it says something,
+  # so that „Quelle“ and „Zuletzt geprüft …“ do not run together and an
+  # entry with neither does not end in empty space.
+  #
+  # Acceptance criteria:
+  # - With a source and a checked day, the meta line reads
+  #   „Quelle · Zuletzt geprüft 04.11.2026“, the separator every meta line
+  #   in the app uses.
+  # - With only one of them, it reads that one alone, with no separator.
+  # - With neither, the entry has no meta line.
+  test "a Termine entry's meta line separates its facts and is absent when empty", %{conn: conn} do
+    security = create_security!(name: "Meta Co", ticker: "MTC")
+
+    for {date, extra} <- [
+          {~D[2026-11-20], %{source_url: "https://ir.example.org/a", checked_at: ~D[2026-11-04]}},
+          {~D[2026-11-21], %{checked_at: ~D[2026-11-04]}},
+          {~D[2026-11-22], %{}}
+        ] do
+      {:ok, _} =
+        Events.create_event(
+          Actor.owner_ui(),
+          Map.merge(
+            %{
+              security_id: security.id,
+              kind: "earnings",
+              date: date,
+              timing: "estimated",
+              source_quality: "primary"
+            },
+            extra
+          )
+        )
+    end
+
+    Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=events&locale=de")
+
+    metas =
+      view
+      |> element("#detail-tab-panel-events")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("[data-role='event-entry']")
+      |> Enum.map(fn entry ->
+        entry
+        |> Floki.find(".research-entry__meta")
+        |> Enum.map(&(&1 |> Floki.text() |> String.split() |> Enum.join(" ")))
+      end)
+
+    assert Enum.sort(metas) ==
+             Enum.sort([
+               ["Quelle · Zuletzt geprüft 04.11.2026"],
+               ["Zuletzt geprüft 04.11.2026"],
+               []
+             ])
+  end
 end

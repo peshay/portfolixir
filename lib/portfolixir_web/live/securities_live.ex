@@ -959,9 +959,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         focus_fallback="#detail-record-split"
       />
 
+      <%!-- #1340 (#1365): both dialogs open from the row menu, which is
+           gone when they close, so each names the row's kebab — the
+           table's or the phone card's, whichever is shown — as the #912
+           dialogs do. --%>
       <%= if @delete_blocked do %>
         <RowContextMenu.delete_blocked_dialog
           security={@delete_blocked}
+          focus_return={row_kebabs(@delete_blocked.id)}
           rules={@delete_blocked_rules}
           merge?={@delete_blocked_merge?}
           counts={@delete_blocked_counts}
@@ -988,6 +993,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <%= if @logo_dialog_security do %>
         <LogoOverrideDialog.dialog
           security={@logo_dialog_security}
+          focus_return={row_kebabs(@logo_dialog_security.id)}
           upload={@uploads.logo}
           upload_error={@logo_upload_error}
         />
@@ -995,6 +1001,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
     </AppShell.shell>
     """
   end
+
+  # A row's two kebabs, the table's and the phone card's: the ModalDialog
+  # hook gives the focus to the first of them that is shown.
+  defp row_kebabs(id), do: "#row-kebab-#{id}, #phone-kebab-#{id}"
 
   defp find_open_menu_security(securities, menu_id) do
     securities
@@ -1564,10 +1574,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <AppShell.invisible_text_note texts={[event.note]}>
                   <%= gettext("It is corrected over the API or MCP.") %>
                 </AppShell.invisible_text_note>
-                <p class="research-entry__meta">
+                <%!-- #1365: the meta line is there only when it says
+                     something, and its two facts are joined by the " · "
+                     every meta line in the app uses. --%>
+                <p :if={event.source_url || event.checked_at} class="research-entry__meta">
                   <a :if={event.source_url} href={event.source_url} rel="noopener noreferrer" target="_blank">
                     <%= gettext("Source") %>
                   </a>
+                  <%= if event.source_url && event.checked_at do %>
+                    ·
+                  <% end %>
                   <span :if={event.checked_at} data-role="event-checked">
                     <%= gettext("Last checked %{date}", date: Format.date(event.checked_at)) %>
                   </span>
