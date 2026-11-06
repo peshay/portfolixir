@@ -86,7 +86,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "sold quantity x the sold close at the end in EUR, switched = each buy's share x " <>
           "its quantity x the bought close at the end in EUR, or the amount as cash at the " <>
           "end's rate for a buy dated after the end, difference = switched + taxes_apart - " <>
-          "kept (before tax: the sale's taxes, a refund negative, are added back); " <>
+          "kept (before tax: the sale's taxes, a refund negative, are added back as cash " <>
+          "at face value, which basis.before_tax says is not a fully before-tax " <>
+          "comparison; a buy's own taxes are inside its debit); " <>
           "fees_inside names the fees inside it, income_apart the bought positions' " <>
           "distributions, never added (price only); a span is pending, or incomplete with " <>
           "side kept or switched and its reason. A sale of 1000 into a buy of 5 at 200 whose " <>

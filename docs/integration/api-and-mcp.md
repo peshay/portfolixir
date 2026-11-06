@@ -2312,9 +2312,14 @@ Example account payloads:
   buy dated after the end counts as cash in its account's currency at the
   end's rate), and `difference` is `switched + taxes_apart − kept`, both in
   EUR and **before tax**: the fees are inside it and named as
-  `fees_inside`; the sale's taxes are named as `taxes_apart` (a refund
-  negative) and added back, because the kept position's latent tax is not
-  booked. It is **price only**: `income_apart` names the bought positions'
+  `fees_inside` (a buy's own taxes are part of its debit, so inside the
+  difference and not in `fees_inside`); the sale's taxes are named as
+  `taxes_apart` (a refund negative) and added back, because the kept
+  position's latent tax is not booked. They are added back as cash at face
+  value, so it is not a fully before-tax comparison: the difference is off
+  by about `−taxes_apart` × the bought security's return since the buy.
+  A sale whose booked cash is not positive (a write-off at price 0) reads
+  `no_cash_account`. It is **price only**: `income_apart` names the bought positions'
   distributions and is never added. A span is `pending`, or `incomplete`
   with `side` (`kept` or `switched`) and its reason. A sale of 1000 whose
   money bought 5 at 200, the sold close moving from 100 to 110 and the

@@ -85,12 +85,17 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     * **fees_inside** = `a` × the sale's fees + each matched buy's share ×
       its fees, for the buys dated on or before the end, as cash at the
       end's rate: the switched side already carries them; the line names
-      how much of the difference they are.
+      how much of the difference they are. A buy's own taxes are part of
+      its cash debit, so they are inside the difference too, and not in
+      this line.
     * **taxes_apart** = `a` × the sale's taxes, signed (a refund split off
       the sale is negative), as cash at the end's rate, **added back to the
       switched side**: `difference = switched + taxes_apart − kept`, both
-      sides before tax, because the kept position's latent tax is not
-      booked (deriving it is F7, behind its own gate).
+      sides before the sale's tax, because the kept position's latent tax
+      is not booked (deriving it is F7, behind its own gate). Added back at
+      face value, it is not a fully before-tax comparison: the difference is
+      off by about `−taxes_apart ×` the bought security's return since the
+      buy (ADR-0057 as amended on 2026-11-06, flip "I18 taxes grow").
     * **income_apart**: the bought positions' booked distributions (a
       `dividend`, or `interest` naming a bond) dated after each buy and on
       or before the end, before withholding tax (`gross_amount` + `taxes`),
@@ -221,13 +226,20 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
           "per 1 EUR) once, rounded once to 34 significant digits; the difference is the " <>
           "exact switched + taxes_apart - kept rounded once, so an even switch reads 0",
       before_tax:
-        "both sides are compared before tax: the sale's fees and each buy's fees are paid " <>
-          "out of the money that switched, so they are inside the difference, and " <>
-          "fees_inside names them (a x the sale's fees plus each buy's share of its fees, " <>
-          "for the buys dated on or before the end); the sale's booked taxes are named apart " <>
-          "as taxes_apart (a x them, signed: a refund is negative) and added back to the " <>
-          "switched side, because the kept position's latent tax is not booked and is not " <>
-          "derived",
+        "both sides are compared before tax, that is before the sale's tax: the sale's " <>
+          "fees and each buy's fees are paid out of the money that switched, so they are " <>
+          "inside the difference, " <>
+          "and fees_inside names them (a x the sale's fees plus each buy's share of its " <>
+          "fees, for the buys dated on or before the end); a buy's own taxes are part of its " <>
+          "cash debit, so they are inside the difference too, and not in fees_inside. The " <>
+          "sale's booked taxes are named apart as taxes_apart (a x them, signed: a refund is " <>
+          "negative) and added back to the switched side, because the kept position's " <>
+          "latent tax is not booked and is not derived. They are added back as cash at face " <>
+          "value, so this is not a fully before-tax comparison: money not taken by the tax " <>
+          "would have been invested too, so the difference is off by about " <>
+          "-taxes_apart x the bought security's return since the buy. It stays so because " <>
+          "growing the tax would compare it with a kept-side tax that is unknown; deriving " <>
+          "that is the tax forward projection F7, behind its own gate",
       price_only:
         "price only on both sides: the kept side's distributions after the sale are not " <>
           "booked, so income_apart names the bought positions' booked distributions after " <>
@@ -246,7 +258,8 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
       no_match:
         "no_match names its reason: no_buy_within_30_days (no candidate buy), " <>
           "proceeds_taken_by_earlier_sale (the candidates were paid by earlier proceeds), " <>
-          "no_cash_account (no cash account or no positive settlement on it)",
+          "no_cash_account (no cash account, or a booked cash amount on it that is not " <>
+          "positive, such as a write-off at price 0)",
       currency:
         "proceeds, cash_debit, amount_taken and unallocated are in currency_code, the " <>
           "sale's cash account's currency; every span figure is in EUR",
