@@ -4552,15 +4552,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp render_cell(%Field{key: :asset_class} = field, row),
     do: asset_class_cell(field, row, "quick-assign")
 
+  # #1365 (Sprint 26 M1): the badge, code and signed cells are HEEx, which
+  # escapes every value by construction; no clause builds markup with raw/1
+  # (Sobelow's XSS.Raw), and a test keeps it so.
   defp render_cell(%Field{render_hint: :badge, key: key} = field, security) do
     case SecurityFields.value(field, security) do
       nil ->
         ""
 
       value ->
-        Phoenix.HTML.raw(
-          ~s(<span class="badge">#{Phoenix.HTML.html_escape(display_value(key, value)) |> safe_to_string()}</span>)
-        )
+        assigns = %{label: display_value(key, value)}
+
+        ~H"""
+        <span class="badge"><%= @label %></span>
+        """
     end
   end
 
@@ -4570,9 +4575,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         ""
 
       value ->
-        Phoenix.HTML.raw(
-          ~s(<code>#{Phoenix.HTML.html_escape(display_value(key, value)) |> safe_to_string()}</code>)
-        )
+        assigns = %{label: display_value(key, value)}
+
+        ~H"""
+        <code><%= @label %></code>
+        """
     end
   end
 
@@ -4621,11 +4628,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         if stale_change?(field, security) do
           "—"
         else
-          formatted = Format.signed_decimal(decimal_for_display(value), 2)
+          assigns = %{
+            class: decimal_class(value, 2),
+            formatted: Format.signed_decimal(decimal_for_display(value), 2)
+          }
 
-          Phoenix.HTML.raw(
-            ~s(<span class="#{decimal_class(value, 2)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
-          )
+          ~H"""
+          <span class={@class}><%= @formatted %></span>
+          """
         end
     end
   end
@@ -4648,11 +4658,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
               # 02 ⑦, found while drawing 4): the Overview tab's form, one
               # decimal with the sign glued on, coloured by the percent as
               # shown, here and in the phone row's day change.
-              formatted = signed_pa(decimal)
+              assigns = %{class: percent_figure_class(decimal), formatted: signed_pa(decimal)}
 
-              Phoenix.HTML.raw(
-                ~s(<span class="#{percent_figure_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
-              )
+              ~H"""
+              <span class={@class}><%= @formatted %></span>
+              """
             end
         end
     end
