@@ -2518,10 +2518,16 @@ Beispiel-Payloads für Konten:
   Wertpapiers am Ende (ein Kauf nach dem Ende zählt als Geld in der Währung
   seines Kontos zum Kurs des Endes), und `difference` ist `switched +
   taxes_apart − kept`, beides in EUR und **vor Steuern**: Die Gebühren
-  stecken darin und sind als `fees_inside` genannt; die Steuern des Verkaufs
-  sind als `taxes_apart` genannt (eine Erstattung negativ) und werden
-  zurückaddiert, weil die latente Steuer der behaltenen Position nicht
-  gebucht ist. Es ist **nur Kurs**: `income_apart` nennt die Ausschüttungen
+  stecken darin und sind als `fees_inside` genannt (die eigenen Steuern
+  eines Kaufs sind Teil seiner Belastung, also in der Differenz und nicht in
+  `fees_inside`); die Steuern des Verkaufs sind als `taxes_apart` genannt
+  (eine Erstattung negativ) und werden zurückaddiert, weil die latente
+  Steuer der behaltenen Position nicht gebucht ist. Sie werden als Geld zum
+  Nennwert zurückaddiert, es ist also kein vollständiger Vergleich vor
+  Steuern: Die Differenz weicht um etwa `−taxes_apart` × die Rendite des
+  gekauften Wertpapiers seit dem Kauf ab. Ein Verkauf, dessen gebuchter
+  Geldbetrag nicht positiv ist (eine Ausbuchung zum Preis 0), ergibt
+  `no_cash_account`. Es ist **nur Kurs**: `income_apart` nennt die Ausschüttungen
   der gekauften Positionen und wird nie addiert. Eine Spanne ist `pending`
   oder `incomplete` mit `side` (`kept` oder `switched`) und ihrem Grund. Ein
   Verkauf über 1000, dessen Geld 5 Stück zu 200 kaufte, bei einem

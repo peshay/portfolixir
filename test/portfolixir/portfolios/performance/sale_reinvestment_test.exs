@@ -1101,4 +1101,31 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
 
     assert basis.days_to_first_buy =~ "0 when it is on the sale's own date"
   end
+
+  # User story (closing act M2, M4b, M4c; ADR-0057 as amended on
+  # 2026-11-06):
+  # As the agent reading what a switch cost,
+  # I want the basis to say what "before tax" leaves out, where a buy's own
+  # taxes sit and what no_cash_account covers,
+  # so that I do not read the difference as more than it is.
+  #
+  # Acceptance criteria:
+  # - before_tax says the taxes are added back as cash at face value, that
+  #   this is not a fully before-tax comparison, and names the bias
+  #   (-taxes_apart x the bought security's return) and why it stays.
+  # - before_tax says a buy's own taxes are inside its debit, so inside the
+  #   difference, and not in fees_inside.
+  # - no_match says no_cash_account covers a sale with a non-positive
+  #   settlement, a write-off at price 0.
+  test "the basis states the taxes' bias, a buy's own taxes and a write-off" do
+    basis = SaleReinvestment.computation_basis()
+
+    assert basis.before_tax =~ "added back as cash at face value"
+    assert basis.before_tax =~ "not a fully before-tax comparison"
+    assert basis.before_tax =~ "-taxes_apart x the bought security's return"
+    assert basis.before_tax =~ "F7"
+    assert basis.before_tax =~ "a buy's own taxes are part of its cash debit"
+    assert basis.before_tax =~ "not in fees_inside"
+    assert basis.no_match =~ "a write-off at price 0"
+  end
 end
