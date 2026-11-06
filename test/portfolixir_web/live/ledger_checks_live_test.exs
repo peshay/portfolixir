@@ -536,4 +536,48 @@ defmodule PortfolixirWeb.LedgerChecksLiveTest do
     refute has_element?(history, "#transaction-dq-note.data-note--problem")
     refute has_element?(history, ~s(tr[data-transaction="#{clean.id}"]))
   end
+
+  # --- Sprint 26 fix P begin ---
+  # User story (P1 x Sprint 23 V1, the closing act's grep for masked figures
+  # built into text):
+  # As the operator reading a ledger check's rows while the privacy mode is
+  # on,
+  # I want each row's second line to draw its figure as the bar, on the
+  # desk row as on the phone row,
+  # so that the line keeps the mode and shows no stand-in text.
+  #
+  # Acceptance criteria:
+  # - Under ?dq=cash_mismatch and ?dq=rate_only each row's figure line
+  #   reads its words with the bar, never the figure nor „••••“.
+  test "a check's figure line draws its hidden figure as the bar in the privacy mode",
+       %{conn: conn} do
+    world = base_world(name: "Masked Checks", cash_name: "Masked Cash", depot_name: "MC Depot")
+    arbolia = create_security!(name: "Arbolia Inc.", ticker: "ARBL", currency: "EUR")
+    edited = insert_edited_trade!(world, arbolia, ~D[2026-04-16], "806.00")
+    usd = create_security!(name: "Synthetic Dollar Corp", ticker: "SDC", currency: "USD")
+    rated = insert_rate_only!(world, usd, ~D[2026-04-20])
+
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_privacy",
+        "on"
+      )
+
+    for {check, row} <- [{"cash_mismatch", edited}, {"rate_only", rated}],
+        tag <- ["tr", "li"] do
+      {:ok, history, _html} = live(conn, "/transactions?dq=" <> check)
+
+      html =
+        history
+        |> element(~s(#{tag}[data-transaction="#{row.id}"] [data-role="dq-figure"]))
+        |> render()
+
+      assert html =~ ~s(class="pf-mask"), "#{check} #{tag}"
+      refute html =~ "••••", "#{check} #{tag}"
+      refute html =~ "816.00" or html =~ "1,864.90", "#{check} #{tag}"
+    end
+  end
+
+  # --- Sprint 26 fix P end ---
 end

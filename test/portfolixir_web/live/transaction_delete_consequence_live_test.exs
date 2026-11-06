@@ -288,4 +288,41 @@ defmodule PortfolixirWeb.TransactionDeleteConsequenceLiveTest do
 
     tx
   end
+
+  # --- Sprint 26 fix P begin ---
+  # User story (P1 x V4, the closing act's grep for masked figures built
+  # into text):
+  # As the operator deleting a booking while the privacy mode is on,
+  # I want the dialog's sentence to say what changes with its amounts and
+  # quantities as bars,
+  # so that the dialog keeps the mode and draws no stand-in text.
+  #
+  # Acceptance criteria:
+  # - With the mode on, "Afterwards Depot 1 holds … fewer units …, and
+  #   Girokonto has … EUR more." carries the bar for the quantity and the
+  #   amount, neither the figures nor the text „••••“.
+  test "the sentence draws its hidden figures as the bar in the privacy mode",
+       %{conn: conn, world: world, security: security} do
+    buy = buy!(world, security, quantity: "10", price: "80", date: ~D[2026-09-01])
+
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_privacy",
+        "on"
+      )
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#tx-kebab-#{buy.id}") |> render_click()
+    view |> element("#tx-delete-#{buy.id}") |> render_click()
+    html = view |> element("[data-role='booking-delete-consequence']") |> render()
+
+    assert text(html) =~ "Afterwards Depot 1 holds"
+    assert text(html) =~ "fewer units of Kestrel Robotik SE, and Girokonto has"
+    assert length(Regex.scan(~r/class="pf-mask"/, html)) == 2
+    refute html =~ "800.00"
+    refute html =~ "••••"
+  end
+
+  # --- Sprint 26 fix P end ---
 end
