@@ -223,10 +223,17 @@ defmodule PortfolixirWeb.UiAuth do
     end
   end
 
-  # The pair's key as Plug decodes it, `view[]` and `benchmark[0]` included.
-  defp preference_pair?(pair) do
+  defp preference_pair?(pair), do: preference(pair) != nil
+
+  @doc """
+  The preference parameter a raw query pair (`"view=3"`, `"benchmark[]=…"`)
+  sets, by its key as Plug decodes it, or `nil` for any other pair.
+  """
+  @spec preference(String.t()) :: String.t() | nil
+  def preference(pair) when is_binary(pair) do
     key = pair |> String.split("=", parts: 2) |> hd() |> decode_key()
-    (key |> String.split("[", parts: 2) |> hd()) in @preference_parameters
+    name = key |> String.split("[", parts: 2) |> hd()
+    if name in @preference_parameters, do: name
   end
 
   defp decode_key(key) do
