@@ -190,6 +190,19 @@ D-14), in a portfolio of its own, "Round Trip Depot":
   keeps the row with the reason dash and names the remedy; the Trades facet
   and the Overview card leave it out of every total and name it.
 
+Sprint 26's "After the sale" (I18 modes 1 and 2, FR-50; step 21 of the
+seed) reads each sale against the closes around it:
+
+- **Three sales with closes around them:** "Wrenfield Gardens AG",
+  "Brightwater Utilities plc" and "Saltmarsh Logistics SE", and the flagged
+  benchmark "Kestrel Industrial Group NV Index", carry a weekday close from
+  a few days before the sale up to the day of the first run, synthetic
+  closes on a straight path. Cash flow → Trades → „Nach dem Verkauf“ reads
+  their spans with figures and the spans that have not ended as „läuft“;
+  the other sales keep their reasons („kein Startkurs“, „kein
+  Wechselkurs“). The sold securities are no longer held, so no value
+  history moves.
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate

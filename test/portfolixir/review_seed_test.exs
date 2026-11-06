@@ -21,6 +21,7 @@ defmodule Portfolixir.ReviewSeedTest do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.Performance.Contribution
+  alias Portfolixir.Portfolios.Performance.SaleHindsight
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
@@ -424,6 +425,46 @@ defmodule Portfolixir.ReviewSeedTest do
     rows = Map.put(row_counts(), :cash_accounts, length(Portfolios.list_cash_accounts()))
     seed!()
     assert Map.put(row_counts(), :cash_accounts, length(Portfolios.list_cash_accounts())) == rows
+  end
+
+  # User story (Sprint 26 V3, I18 modes 1 and 2; plan row V3: "the review
+  # seed gains closes around three of its sales"):
+  # As the reviewer checking "After the sale" against its board on the
+  # review instance,
+  # I want three of the seed's sales, and the flagged benchmark, to carry
+  # synthetic closes around the sale,
+  # so that the section shows figures, running spans and a reason, where
+  # every span read "no start close" before.
+  #
+  # Acceptance criteria:
+  # - Compared with the flagged "Kestrel Industrial Group NV Index", the
+  #   sales of Wrenfield Gardens AG, Brightwater Utilities plc and
+  #   Saltmarsh Logistics SE each read a start close, a complete 1m span
+  #   with a difference, and at least one pending span.
+  # - Tamarisk Mining Ltd's sale keeps the read's own reason, no start
+  #   close.
+  # - A second run writes no quote (the first test pins the quotes).
+  test "three of the seed's sales carry closes for After the sale (V3)" do
+    seed!()
+
+    index =
+      Repo.one!(from(s in Security, where: s.name == "Kestrel Industrial Group NV Index"))
+
+    rows =
+      [benchmark: {:security, index}]
+      |> SaleHindsight.report()
+      |> Map.fetch!(:rows)
+      |> Enum.group_by(& &1.security.name)
+
+    for name <- ["Wrenfield Gardens AG", "Brightwater Utilities plc", "Saltmarsh Logistics SE"] do
+      assert [row] = rows[name], name
+      assert row.start, name
+      one = Enum.find(row.spans, &(&1.span == "1m"))
+      assert %{status: :complete, difference: %Decimal{}} = one, name
+      assert Enum.any?(row.spans, &(&1.status == :pending)), name
+    end
+
+    assert [%{start: nil, start_reason: :no_start_close}] = rows["Tamarisk Mining Ltd"]
   end
 
   defp stored_class(name) do
