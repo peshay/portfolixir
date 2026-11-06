@@ -1,0 +1,1346 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unflag-before</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+tr.mock-synth { box-shadow: none; }
+p.mock-synth, li.phone-row.mock-synth { padding-left: 9px; }
+tr.mock-synth > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.stat.mock-synth { box-shadow: inset 3px 0 0 #f59e0b, var(--shadow-panel); }
+.mock-report { padding: 4px; }
+.native-confirm { margin: 14px auto 18px; width: 460px; box-sizing: border-box; border: 1px solid #c9ced6; border-radius: 10px; background: #fff; color: #1f2937; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); padding: 12px 14px; font: 13px/1.45 system-ui, sans-serif; }
+.native-confirm p { margin: 0 0 8px; }
+.native-confirm .origin { font-weight: 600; font-size: 12.5px; }
+.native-confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.native-confirm .btns span { padding: 4px 14px; border-radius: 6px; border: 1px solid #c9ced6; font-size: 12.5px; }
+.native-confirm .btns span.ok { background: #2563eb; border-color: #2563eb; color: #fff; }
+.native-confirm.mock-new { outline-offset: 3px; }
+.workspace-panel, .securities-workspace, .securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+.detail-pane { overflow: visible !important; max-height: none !important; }
+.securities-list-pane, .securities-list-pane .data-table-wrapper, .workspace-panel .data-table-wrapper { height: auto !important; min-height: 0 !important; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <section class="workspace-panel" id="securities-panel">
+    <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+      <form class="search-field" id="securities-search-form">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input id="securities-search" type="search" name="query" value="" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" autocomplete="off" aria-label="Wertpapiere suchen">
+      </form>
+      <button type="button" id="filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg>
+        Filter
+      </button>
+      <div class="toolbar-actions">
+        <button type="button" id="open-new-dialog" class="icon-button" aria-label="Neu anlegen" title="Neu anlegen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        </button>
+        <button type="button" id="sync-prices" class="icon-button " data-notify-permission="" aria-label="Kurse aktualisieren" title="Kurse aktualisieren">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3.2-6.9"></path><path d="M21 4v5h-5"></path></svg>
+        </button>
+        <button type="button" id="toggle-column-popover" class="icon-button " aria-label="Spalten" aria-expanded="false" title="Spalten">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="3" y="4" width="6" height="16" rx="1"></rect><rect x="11" y="4" width="6" height="16" rx="1"></rect><rect x="19" y="4" width="2" height="16" rx="1"></rect></svg>
+        </button>
+        <div class="popover-container">
+        </div>
+      </div>
+    </div>
+    <div class="popover-container">
+    </div>
+    <div id="securities-action-result" class="inline-result " data-role="action-result" tabindex="-1" data-focus-fallback="#securities-search">
+  <div id="securities-action-result-status" role="status" class="inline-result__region">
+  <div class="data-note data-note--note">
+<span class="data-note__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"></path></svg></span>
+<span class="data-note__word">Hinweis</span>
+<div class="data-note__body"><bdi>Kestrel Industrial Group NV Index</bdi> ist keine Benchmark mehr<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">×</button></div></div></div>
+  <div id="securities-action-result-alert" role="alert" class="inline-result__region">
+  </div>
+</div>
+    <div id="securities-workspace" class="securities-workspace securities-workspace--list-only">
+      <div id="securities-list-pane" class="securities-list-pane">
+        <div class="data-table-wrapper" id="securities-table" data-storage-key="securities.columns" data-default-columns="[&quot;name&quot;,&quot;ticker_symbol&quot;,&quot;isin&quot;,&quot;currency_code&quot;,&quot;asset_class&quot;,&quot;latest_price&quot;,&quot;day_change_pct&quot;]" data-current-columns="[&quot;name&quot;,&quot;ticker_symbol&quot;,&quot;isin&quot;,&quot;currency_code&quot;,&quot;asset_class&quot;,&quot;latest_price&quot;,&quot;day_change_pct&quot;]">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="row-actions-head" aria-label="Zeilenaktionen"></th>
+                  <th class="">
+                      <button type="button" class="sort-toggle">
+                        Name ↑
+                      </button>
+                  </th>
+                  <th class="">
+                      <button type="button" class="sort-toggle">
+                        Ticker
+                      </button>
+                  </th>
+                  <th class="">
+                      <button type="button" class="sort-toggle">
+                        ISIN
+                      </button>
+                  </th>
+                  <th class="">
+                      <button type="button" class="sort-toggle">
+                        Währung
+                      </button>
+                  </th>
+                  <th class="">
+                      <button type="button" class="sort-toggle">
+                        Anlageklasse
+                      </button>
+                  </th>
+                  <th class="num">
+                      <button type="button" class="sort-toggle">
+                        Letzter Kurs
+                      </button>
+                  </th>
+                  <th class="num">
+                      <button type="button" class="sort-toggle">
+                        Tagesänderung %
+                      </button>
+                  </th>
+              </tr>
+            </thead>
+            <tbody>
+                <tr id="security-row-31" class="security-row " role="link">
+                  <td class="row-actions">
+                    <button type="button" id="row-kebab-31" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV (roh)" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+                  </td>
+                    <td class="">
+                        <a href="/securities/31" class="row-target row-target--with-logo" tabindex="0">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+                          <span class="row-target__label">Kestrel Industrial Group NV (roh)</span>
+                        </a>
+                    </td>
+                    <td class="">
+                    </td>
+                    <td class="">
+                    </td>
+                    <td class="">
+                        EUR
+                    </td>
+                    <td class="">
+                        <span class="badge" data-asset-class="stated">Aktie</span>
+                    </td>
+                    <td class="num">
+                    </td>
+                    <td class="num">
+                    </td>
+                </tr>
+                <tr id="security-row-29" class="security-row " role="link">
+                  <td class="row-actions">
+                    <button type="button" id="row-kebab-29" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV Index" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+                  </td>
+                    <td class="">
+                        <a href="/securities/29" class="row-target row-target--with-logo" tabindex="0">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+                          <span class="row-target__label">Kestrel Industrial Group NV Index</span>
+                        </a>
+                    </td>
+                    <td class="">
+                    </td>
+                    <td class="">
+                    </td>
+                    <td class="">
+                        EUR
+                    </td>
+                    <td class="">
+                        <span class="badge" data-asset-class="stated">Aktie</span>
+                    </td>
+                    <td class="num">
+                    </td>
+                    <td class="num">
+                    </td>
+                </tr>
+                <tr id="security-row-47" class="security-row " role="link">
+                  <td class="row-actions">
+                    <button type="button" id="row-kebab-47" class="row-actions__kebab" aria-label="Aktionen für Larkspur Rail AG 4,00 % Anleihe 2031" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+                  </td>
+                    <td class="">
+                        <a href="/securities/47" class="row-target row-target--with-logo" tabindex="0">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        L
+      </span>
+                          <span class="row-target__label">Larkspur Rail AG 4,00 % Anleihe 2031</span>
+                        </a>
+                    </td>
+                    <td class="">
+                    </td>
+                    <td class="">
+                        XSLARKSPUR33
+                    </td>
+                    <td class="">
+                        EUR
+                    </td>
+                    <td class="">
+                        <span class="badge" data-asset-class="stated">Anleihe</span>
+                    </td>
+                    <td class="num">
+                        <span class="quote-stale-cell">100,25<span class="quote-stale" data-role="quote-stale">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="quote-stale__icon" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  <span>veraltet · 30.06.2026</span>
+</span></span>
+                    </td>
+                    <td class="num">
+                        —
+                    </td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul id="securities-phone-rows" class="phone-rows" aria-label="Wertpapiere">
+            <li id="security-phone-24" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        A
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/24" class="phone-row__target">
+                  <span class="phone-row__name">Alder Creek Timber Fund</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Fonds</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-24" class="row-actions__kebab" aria-label="Aktionen für Alder Creek Timber Fund" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-25" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        A
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/25" class="phone-row__target">
+                  <span class="phone-row__name">Alder Creek Timber Fund Class B</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Fonds</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-25" class="row-actions__kebab" aria-label="Aktionen für Alder Creek Timber Fund Class B" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-3" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        A
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/3" class="phone-row__target">
+                  <span class="phone-row__name">Allianz SE vinkulierte Namens-Aktien o.N.</span>
+                </a>
+                <span class="phone-row__ids">
+                  ALV · DE0008404005 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  116,86<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-negative">-1,4%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-3" class="row-actions__kebab" aria-label="Aktionen für Allianz SE vinkulierte Namens-Aktien o.N." aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-12" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        A
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/12" class="phone-row__target">
+                  <span class="phone-row__name">Alpine Test Werke AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  ATW · CH0000000017 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  46,10<small class="value-suffix">CHF</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+1,1%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-12" class="row-actions__kebab" aria-label="Aktionen für Alpine Test Werke AG" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-1" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        A
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/1" class="phone-row__target">
+                  <span class="phone-row__name">Apple Inc. Registered Shares o.N.</span>
+                </a>
+                <span class="phone-row__ids">
+                  AAPL · US0378331005 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  188,87<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+1,4%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-1" class="row-actions__kebab" aria-label="Aktionen für Apple Inc. Registered Shares o.N." aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-49" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        A
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/49" class="phone-row__target">
+                  <span class="phone-row__name">Arbolia Inc.</span>
+                </a>
+                <span class="phone-row__ids">
+                  ARBL · US0ARBOLIA15 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-49" class="row-actions__kebab" aria-label="Aktionen für Arbolia Inc." aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-28" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        B
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/28" class="phone-row__target">
+                  <span class="phone-row__name">Birchwood Global Savings Fund</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000157 · <span class="badge" data-asset-class="stated">Fonds</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-28" class="row-actions__kebab" aria-label="Aktionen für Birchwood Global Savings Fund" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-42" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        B
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/42" class="phone-row__target">
+                  <span class="phone-row__name">Birkenhain Wasser Anleihe 2029 1,50%</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Anleihe</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  0,99<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+0,3%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-42" class="row-actions__kebab" aria-label="Aktionen für Birkenhain Wasser Anleihe 2029 1,50%" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-6" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        B
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/6" class="phone-row__target">
+                  <span class="phone-row__name">Bitcoin</span>
+                </a>
+                <span class="phone-row__ids">
+                  BTC · <span class="badge" data-asset-class="stated">Kryptowährung</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  51.393,52<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+0,8%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-6" class="row-actions__kebab" aria-label="Aktionen für Bitcoin" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-35" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        B
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/35" class="phone-row__target">
+                  <span class="phone-row__name">Brightwater Utilities plc</span>
+                </a>
+                <span class="phone-row__ids">
+                  BWU · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-35" class="row-actions__kebab" aria-label="Aktionen für Brightwater Utilities plc" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-13" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        C
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/13" class="phone-row__target">
+                  <span class="phone-row__name">Cobalt Ridge Logistics SE</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000041 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-13" class="row-actions__kebab" aria-label="Aktionen für Cobalt Ridge Logistics SE" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-39" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        C
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/39" class="phone-row__target">
+                  <span class="phone-row__name">Corvid Analytics AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  CVA · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  64,20<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="quote-stale" data-role="quote-stale">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="quote-stale__icon" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  <span>veraltet · 28.10.2026</span>
+</span></span>
+              </span>
+              <button type="button" id="phone-kebab-39" class="row-actions__kebab" aria-label="Aktionen für Corvid Analytics AG" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-36" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        H
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/36" class="phone-row__target">
+                  <span class="phone-row__name">Harborline Freight Inc</span>
+                </a>
+                <span class="phone-row__ids">
+                  HBLF · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  33,00<small class="value-suffix">USD</small>
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-36" class="row-actions__kebab" aria-label="Aktionen für Harborline Freight Inc" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-10" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        H
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/10" class="phone-row__target">
+                  <span class="phone-row__name">Helios Solar Systems SE</span>
+                </a>
+                <span class="phone-row__ids">
+                  HLSO · DE000HLSO0001 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-10" class="row-actions__kebab" aria-label="Aktionen für Helios Solar Systems SE · DE000HLSO0001" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-23" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        H
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/23" class="phone-row__target">
+                  <span class="phone-row__name">Helios Solar Systems SE</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000124 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-23" class="row-actions__kebab" aria-label="Aktionen für Helios Solar Systems SE · XS0000000124" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-26" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        J
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/26" class="phone-row__target">
+                  <span class="phone-row__name">Juniper Rail AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000132 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-26" class="row-actions__kebab" aria-label="Aktionen für Juniper Rail AG · XS0000000132" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-27" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        J
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/27" class="phone-row__target">
+                  <span class="phone-row__name">Juniper Rail AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000140 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-27" class="row-actions__kebab" aria-label="Aktionen für Juniper Rail AG · XS0000000140" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-41" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/41" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Anleihe 2030 2,75%</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Anleihe</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  97,25<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+0,2%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-41" class="row-actions__kebab" aria-label="Aktionen für Kestrel Anleihe 2030 2,75%" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-48" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/48" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Bay Resources Inc.</span>
+                </a>
+                <span class="phone-row__ids">
+                  KBR · CA00KESTREL3 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-48" class="row-actions__kebab" aria-label="Aktionen für Kestrel Bay Resources Inc." aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-11" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/11" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Industrial Group NV</span>
+                </a>
+                <span class="phone-row__ids">
+                  KIGN · NL0000000019 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  24,00<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-negative">-0,4%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-11" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-16" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/16" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Industrial Group NV (USD)</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000058 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  46,10<small class="value-suffix">USD</small>
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-16" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV (USD)" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-30" class="phone-row is-retired" data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/30" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Industrial Group NV (alt)</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Aktie</span>
+                  <span class="badge">
+                    Stillgelegt
+                  </span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-30" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV (alt)" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-31" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/31" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Industrial Group NV (roh)</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-31" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV (roh)" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-29" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        K
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/29" class="phone-row__target">
+                  <span class="phone-row__name">Kestrel Industrial Group NV Index</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-29" class="row-actions__kebab" aria-label="Aktionen für Kestrel Industrial Group NV Index" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-47" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        L
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/47" class="phone-row__target">
+                  <span class="phone-row__name">Larkspur Rail AG 4,00 % Anleihe 2031</span>
+                </a>
+                <span class="phone-row__ids">
+                  XSLARKSPUR33 · <span class="badge" data-asset-class="stated">Anleihe</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  100,25<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="quote-stale" data-role="quote-stale">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="quote-stale__icon" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  <span>veraltet · 30.06.2026</span>
+</span></span>
+              </span>
+              <button type="button" id="phone-kebab-47" class="row-actions__kebab" aria-label="Aktionen für Larkspur Rail AG 4,00 % Anleihe 2031" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-40" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        L
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/40" class="phone-row__target">
+                  <span class="phone-row__name">Larkspur Robotics Inc</span>
+                </a>
+                <span class="phone-row__ids">
+                  LKRB · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  27,50<small class="value-suffix">USD</small>
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-40" class="row-actions__kebab" aria-label="Aktionen für Larkspur Robotics Inc" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-38" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        L
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/38" class="phone-row__target">
+                  <span class="phone-row__name">Linden Bay Bond 2029</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Anleihe</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  98,80<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="quote-stale" data-role="quote-stale">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="quote-stale__icon" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  <span>veraltet · 18.10.2026</span>
+</span></span>
+              </span>
+              <button type="button" id="phone-kebab-38" class="row-actions__kebab" aria-label="Aktionen für Linden Bay Bond 2029" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-14" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        M
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/14" class="phone-row__target">
+                  <span class="phone-row__name">Meridian Global Equity ETF</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000025 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-14" class="row-actions__kebab" aria-label="Aktionen für Meridian Global Equity ETF" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-2" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        M
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/2" class="phone-row__target">
+                  <span class="phone-row__name">Microsoft Corporation Registered Shares DL-,00000625</span>
+                </a>
+                <span class="phone-row__ids">
+                  MSFT · US5949181045 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  234,52<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+0,2%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-2" class="row-actions__kebab" aria-label="Aktionen für Microsoft Corporation Registered Shares DL-,00000625" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-7" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        N
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/7" class="phone-row__target">
+                  <span class="phone-row__name">NVIDIA Corporation Registered Shares DL-,001</span>
+                </a>
+                <span class="phone-row__ids">
+                  NVDA · US67066G1040 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  240,11<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+1,1%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-7" class="row-actions__kebab" aria-label="Aktionen für NVIDIA Corporation Registered Shares DL-,001" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-8" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        N
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/8" class="phone-row__target">
+                  <span class="phone-row__name">Nordic Timber Holdings AB</span>
+                </a>
+                <span class="phone-row__ids">
+                  NTHB · SE0000000012 · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  42,64<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="quote-stale" data-role="quote-stale">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="quote-stale__icon" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r=".6"></circle></svg>
+  <span>veraltet · 02.10.2026</span>
+</span></span>
+              </span>
+              <button type="button" id="phone-kebab-8" class="row-actions__kebab" aria-label="Aktionen für Nordic Timber Holdings AB" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-17" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        O
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/17" class="phone-row__target">
+                  <span class="phone-row__name">Orchid Bay Pharmaceuticals plc</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000066 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-17" class="row-actions__kebab" aria-label="Aktionen für Orchid Bay Pharmaceuticals plc · XS0000000066" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-18" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        O
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/18" class="phone-row__target">
+                  <span class="phone-row__name">Orchid Bay Pharmaceuticals plc</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000074 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-18" class="row-actions__kebab" aria-label="Aktionen für Orchid Bay Pharmaceuticals plc · XS0000000074" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-43" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        O
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/43" class="phone-row__target">
+                  <span class="phone-row__name">Ostsee Logistik 4,10% 2028/2033</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <form id="phone-quick-assign-43" data-swallow-click="" class="quick-assign-form">
+<select name="asset_class" class="quick-assign-select" aria-label="Anlageklasse zuweisen">
+<option value="" selected="">—</option>
+<option value="equity">Aktie</option>
+<option value="etf">ETF</option>
+<option value="fund">Fonds</option>
+<option value="government_bond">Staatsanleihe</option>
+<option value="bond">Anleihe</option>
+<option value="crypto">Kryptowährung</option>
+<option value="commodity">Rohstoff</option>
+<option value="index">Index</option>
+<option value="warrant">Optionsschein</option>
+<option value="knock_out">Knock-out-Produkt</option>
+<option value="factor_certificate">Faktor-Zertifikat</option>
+<option value="discount_certificate">Discount-Zertifikat</option>
+<option value="bonus_certificate">Bonus-Zertifikat</option>
+<option value="express_certificate">Express-Zertifikat</option>
+<option value="reverse_convertible">Aktienanleihe</option>
+<option value="other">Sonstiges</option></select></form>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  99,10<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+0,3%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-43" class="row-actions__kebab" aria-label="Aktionen für Ostsee Logistik 4,10% 2028/2033" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-19" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        P
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/19" class="phone-row__target">
+                  <span class="phone-row__name">Pinecrest Utilities SA</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000082 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-19" class="row-actions__kebab" aria-label="Aktionen für Pinecrest Utilities SA · XS0000000082" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-20" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        P
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/20" class="phone-row__target">
+                  <span class="phone-row__name">Pinecrest Utilities SA</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000090 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-20" class="row-actions__kebab" aria-label="Aktionen für Pinecrest Utilities SA · XS0000000090" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-9" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        P
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/9" class="phone-row__target">
+                  <span class="phone-row__name">Placeholder Anleihe 2031 3,25%</span>
+                </a>
+                <span class="phone-row__ids">
+                  keine Kennung · <span class="badge" data-asset-class="stated">Anleihe</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-9" class="row-actions__kebab" aria-label="Aktionen für Placeholder Anleihe 2031 3,25%" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-21" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        Q
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/21" class="phone-row__target">
+                  <span class="phone-row__name">Quarry Lane Materials AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000108 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-21" class="row-actions__kebab" aria-label="Aktionen für Quarry Lane Materials AG · XS0000000108" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-22" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        Q
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/22" class="phone-row__target">
+                  <span class="phone-row__name">Quarry Lane Materials AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000116 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-22" class="row-actions__kebab" aria-label="Aktionen für Quarry Lane Materials AG · XS0000000116" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-37" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        S
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/37" class="phone-row__target">
+                  <span class="phone-row__name">Sable Point Energy ASA</span>
+                </a>
+                <span class="phone-row__ids">
+                  SPE · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  18,40<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="is-flat">0,0%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-37" class="row-actions__kebab" aria-label="Aktionen für Sable Point Energy ASA" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-34" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        S
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/34" class="phone-row__target">
+                  <span class="phone-row__name">Saltmarsh Logistics SE</span>
+                </a>
+                <span class="phone-row__ids">
+                  SLS · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-34" class="row-actions__kebab" aria-label="Aktionen für Saltmarsh Logistics SE" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-33" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        T
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/33" class="phone-row__target">
+                  <span class="phone-row__name">Tamarisk Mining Ltd</span>
+                </a>
+                <span class="phone-row__ids">
+                  TMS · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-33" class="row-actions__kebab" aria-label="Aktionen für Tamarisk Mining Ltd" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-50" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        T
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/50" class="phone-row__target">
+                  <span class="phone-row__name">Tamarisk Systems Inc.</span>
+                </a>
+                <span class="phone-row__ids">
+                  TMSK · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  41,80<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+1,2%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-50" class="row-actions__kebab" aria-label="Aktionen für Tamarisk Systems Inc." aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-44" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        T
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/44" class="phone-row__target">
+                  <span class="phone-row__name">Thornbury Water Fund</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000165 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-44" class="row-actions__kebab" aria-label="Aktionen für Thornbury Water Fund · XS0000000165" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-45" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        T
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/45" class="phone-row__target">
+                  <span class="phone-row__name">Thornbury Water Fund</span>
+                </a>
+                <span class="phone-row__ids">
+                  XS0000000173 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-45" class="row-actions__kebab" aria-label="Aktionen für Thornbury Water Fund · XS0000000173" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-5" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        V
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/5" class="phone-row__target">
+                  <span class="phone-row__name">Vanguard FTSE All-World UCITS ETF USD Acc</span>
+                </a>
+                <span class="phone-row__ids">
+                  VWCE · IE00BK5BQT80 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  87,21<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-positive">+1,0%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-5" class="row-actions__kebab" aria-label="Aktionen für Vanguard FTSE All-World UCITS ETF USD Acc" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-46" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        W
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/46" class="phone-row__target">
+                  <span class="phone-row__name">Wexmoor Instruments AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  WXI · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  20,40<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="is-flat">0,0%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-46" class="row-actions__kebab" aria-label="Aktionen für Wexmoor Instruments AG" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-32" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        W
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/32" class="phone-row__target">
+                  <span class="phone-row__name">Wrenfield Gardens AG</span>
+                </a>
+                <span class="phone-row__ids">
+                  WRG · <span class="badge" data-asset-class="stated">Aktie</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  kein Kurs
+                </span>
+                <span class="phone-row__figure2">—</span>
+              </span>
+              <button type="button" id="phone-kebab-32" class="row-actions__kebab" aria-label="Aktionen für Wrenfield Gardens AG" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+            <li id="security-phone-4" class="phone-row " data-role="phone-row">
+      <span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">
+        I
+      </span>
+              <span class="phone-row__body">
+                <a href="/securities/4" class="phone-row__target">
+                  <span class="phone-row__name">iShares Core MSCI World UCITS ETF USD (Acc)</span>
+                </a>
+                <span class="phone-row__ids">
+                  EUNL · IE00B4L5Y983 · <span class="badge" data-asset-class="stated">ETF</span>
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure">
+                  72,02<small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2"><span class="decimal-negative">-0,7%</span></span>
+              </span>
+              <button type="button" id="phone-kebab-4" class="row-actions__kebab" aria-label="Aktionen für iShares Core MSCI World UCITS ETF USD (Acc)" aria-haspopup="menu" aria-expanded="false">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><circle cx="12" cy="6" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="18" r="1.4"></circle></svg>
+</button>
+            </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

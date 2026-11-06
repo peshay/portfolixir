@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>report-a</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* F1 (ADR-0055 §5): the security's Prognosen tab. The list is the research
+   timeline's anatomy (.research-timeline, .research-entry, its head, meta,
+   facts and body); only the claim line, the probability, the status's left
+   edge and the reason line are new. */
+.prediction-entry__claim { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.prediction-entry__claim strong { font-weight: 650; }
+.prediction-entry__p { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.prediction-entry__p-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted); }
+.prediction-entry__facts dd.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prediction-entry p.research-entry__meta { margin: 0; }
+.prediction-entry__reason { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.research-entry.prediction-entry--hit { border-left-color: var(--color-positive); }
+.research-entry.prediction-entry--miss { border-left-color: var(--color-border-strong); }
+.research-entry.prediction-entry--unresolved { border-left-style: dashed; border-left-color: var(--color-border-strong); }
+/* The report: the KPI band's compact cards, data tables, the summary-basis
+   voice; new are the bands' "too few" sentence and the model rows' indent. */
+.prediction-filters { margin: 0 0 var(--space-4); }
+.prediction-bands, .prediction-groups { margin-top: var(--space-5); display: grid; gap: var(--space-2); }
+.prediction-bands__why { margin: 0; max-width: 72ch; font-size: 13px; }
+.prediction-too-few { color: var(--color-text-muted); font-size: 12px; }
+.prediction-groups__model td:first-child { padding-left: 1.75rem; color: var(--color-text-muted); }
+.prediction-list-table td.cell-name a { display: block; }
+/* The list fits its wrapper (Risk's fit tables, Sprint 24 P1's floor and
+   break): the name cell keeps a 14 rem floor and wraps, figures never do. */
+.data-table-wrapper > .prediction-list-table { min-width: 0; }
+.prediction-list-table td.cell-name { min-width: 14rem; overflow-wrap: anywhere; }
+.prediction-list-table td.num { white-space: nowrap; }
+.prediction-list-table td .policy-rule__words { display: block; }
+.prediction-list-table td.cell-name .policy-rule__words { white-space: normal; }
+.prediction-list-table td .badge { white-space: normal; }
+.filter-chip__count { margin-left: 0.4em; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.prediction-bands .section-title h3, .prediction-groups .section-title h3 { margin: 0; }
+.prediction-list-table td .badge + .policy-rule__reason { display: block; }
+/* Rows without a logo: the body takes the elastic track (as the trades'). */
+#prediction-list-phone-rows .phone-row,
+#prediction-groups-phone-rows .phone-row { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 560px) {
+  #prediction-list-table-wrap { display: none; }
+  .research-entry__facts.prediction-entry__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #prediction-groups-table-wrap { display: none; }
+}
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+tr.mock-synth { box-shadow: none; }
+p.mock-synth, li.phone-row.mock-synth { padding-left: 9px; }
+tr.mock-synth > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.stat.mock-synth { box-shadow: inset 3px 0 0 #f59e0b, var(--shadow-panel); }
+.mock-report { padding: 4px; }
+.native-confirm { margin: 14px auto 18px; width: 460px; box-sizing: border-box; border: 1px solid #c9ced6; border-radius: 10px; background: #fff; color: #1f2937; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); padding: 12px 14px; font: 13px/1.45 system-ui, sans-serif; }
+.native-confirm p { margin: 0 0 8px; }
+.native-confirm .origin { font-weight: 600; font-size: 12.5px; }
+.native-confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.native-confirm .btns span { padding: 4px 14px; border-radius: 6px; border: 1px solid #c9ced6; font-size: 12.5px; }
+.native-confirm .btns span.ok { background: #2563eb; border-color: #2563eb; color: #fff; }
+.native-confirm.mock-new { outline-offset: 3px; }
+.workspace-panel, .securities-workspace, .securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+.detail-pane { overflow: visible !important; max-height: none !important; }
+.securities-list-pane, .securities-list-pane .data-table-wrapper, .workspace-panel .data-table-wrapper { height: auto !important; min-height: 0 !important; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+        <div class="topbar-page" aria-live="polite">
+            <h1 id="app-topbar-title">Prognosen</h1>
+            <p id="app-topbar-subtitle">Wie gut die festgehaltenen Prognosen getroffen haben · über alle Wertpapiere, unabhängig von der Ansicht</p>
+        </div>
+      </div>
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="system">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+              <button type="button" class="theme-choice is-active" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="true" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="false" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+          </div>
+        </details>
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+          </div>
+        </details>
+        <nav class="locale-switcher" aria-label="Sprache">
+            <a id="locale-en" class="locale-link " href="/risk?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+            <a id="locale-de" class="locale-link is-active" href="/risk?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+        </nav>
+      </div>
+    </header>
+    <main class="app-main app-main--workspace">
+  <div class="workspace-page">
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" data-scroll-start="" data-scroll-end="" style="--area-tabs-tail: 0px;">
+  <a href="/portfolio" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Bestände">Bestände</span>
+  </a><a href="/portfolio?tab=allocation" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9Z"></path><path d="M21 12a9 9 0 0 0-9-9v9h9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+  </a><a href="/cashflow" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+  </a><a href="/snapshots" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </span>
+    <span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+  </a><a href="/tax" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h6"></path><circle cx="9" cy="11" r=".6"></circle><circle cx="12" cy="11" r=".6"></circle><circle cx="15" cy="11" r=".6"></circle><circle cx="9" cy="14" r=".6"></circle><circle cx="12" cy="14" r=".6"></circle><circle cx="15" cy="14" r=".6"></circle><path d="M9 17h6"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Steuern">Steuern</span>
+  </a><a href="/risk" class="area-tab">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Risiko">Risiko</span>
+  </a>
+<a href="/predictions" class="area-tab is-active mock-new" aria-current="page">
+<span class="mock-pin">1</span>
+<span class="area-tab__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="0.6"></circle></svg></span>
+<span class="area-tab__label" data-label="Prognosen">Prognosen</span></a></nav>
+  <div class="mock-new mock-report">
+<div class="filter-chips prediction-filters" role="group" aria-label="Urheber, Modell">
+<span class="mock-pin">2</span>
+<span class="filter-chips__family">Urheber</span>
+<button type="button" class="filter-chip is-active" aria-pressed="true">Alle</button>
+<button type="button" class="filter-chip" aria-pressed="false">Operator</button>
+<button type="button" class="filter-chip" aria-pressed="false">Agent</button>
+<span class="filter-chips__family">Modell</span>
+<button type="button" class="filter-chip" aria-pressed="false">model-alpha-2</button>
+<button type="button" class="filter-chip" aria-pressed="false">model-alpha-3</button></div>
+<section class="workspace-section kpi-band prediction-calibration" id="prediction-calibration" aria-labelledby="prediction-calibration-title">
+<header class="section-head">
+<div class="section-title">
+<h2 id="prediction-calibration-title">Kalibrierung <span class="section-head__meta">· 12 aufgelöst · 7 offen · 2 nicht aufgelöst</span></h2>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Brier-Score: Mittel von (p − o)² über die aufgelösten Prognosen, p die angegebene Wahrscheinlichkeit, o 1 bei Treffer und 0 sonst. Die Referenz 0,25 ist der Score von „immer 50 %“.<br>
+Standardfehler: die Standardabweichung der quadrierten Fehler in der Stichprobe, geteilt durch √n; bei der Trefferquote die der Treffer.<br>
+Schärfe: Mittel von p − 0,50. Wer immer 50 % sagt, ist perfekt kalibriert und sagt nichts.<br>
+Trefferquote: Treffer durch n, neben der mittleren angegebenen Wahrscheinlichkeit, der eine kalibrierte Quote entspricht.<br>
+Offene und nicht aufgelöste Prognosen zählen in keinem Score; sie werden gezählt.<br>
+Auflösung wie im Tab „Prognosen“ des Wertpapiers; nur Kursrendite.</p></details></div></header>
+<div class="kpi-band__support prediction-kpis mock-synth-cards">
+<article class="stat stat--compact mock-synth" data-role="prediction-brier">
+<span>
+<span class="mock-pin">3</span>Brier-Score</span>
+<strong>0,186<small class="value-suffix"> ± 0,041</small></strong>
+<small class="stat__sub">± Standardfehler · Referenz 0,25 = immer 50 % · niedriger ist besser</small></article>
+<article class="stat stat--compact mock-synth" data-role="prediction-sharpness">
+<span>
+<span class="mock-pin">4</span>Schärfe</span>
+<strong>0,17</strong>
+<small class="stat__sub">Ø Abstand der Wahrscheinlichkeit von 0,50 · 0 = immer 50 %</small></article>
+<article class="stat stat--compact mock-synth" data-role="prediction-hit-rate">
+<span>Trefferquote</span>
+<strong>66,7<small class="value-suffix">%</small></strong>
+<small class="stat__sub">± 14,2 Pp Standardfehler · Ø angegeben 66,7&nbsp;%</small></article>
+<article class="stat stat--compact mock-synth" data-role="prediction-counts">
+<span>Aufgelöst</span>
+<strong>12</strong>
+<small class="stat__sub">7 offen und 2 nicht aufgelöst zählen in keinem Score</small></article></div>
+<p class="summary-basis">Grundlage: jede aufgelöste Prognose einmal, Wahrscheinlichkeit und Ergebnis wie im Tab „Prognosen“ des Wertpapiers.</p>
+<div class="prediction-bands" data-role="prediction-bands" data-state="too_few">
+<div class="section-title">
+<h3>
+<span class="mock-pin">5</span>Nach Wahrscheinlichkeit</h3></div>
+<p class="prediction-bands__why">Eine Trefferquote je Band zeigt sich erst ab 20 aufgelösten Prognosen im Band; bisher erreicht keines 20. Bis dahin trägt der Brier-Score mit seinem Standardfehler die Aussage.</p>
+<p class="summary-basis prediction-bands__counts mock-synth">Aufgelöst je Band: 0,50–0,59: <span class="num">2</span> · 0,60–0,69: <span class="num">5</span> · 0,70–0,79: <span class="num">3</span> · 0,80–0,89: <span class="num">2</span> · 0,90–0,99: <span class="num">0</span></p></div>
+<div class="prediction-groups" data-role="prediction-groups">
+<div class="section-title">
+<h3>
+<span class="mock-pin">6</span>Nach Urheber und Modell</h3></div>
+<div class="data-table-wrapper" id="prediction-groups-table-wrap">
+<table class="data-table prediction-groups-table">
+<thead>
+<tr>
+<th>Urheber</th>
+<th>Modell</th>
+<th class="num">Aufgelöst</th>
+<th class="num">Brier-Score</th>
+<th class="num">Schärfe</th>
+<th class="num">Trefferquote</th>
+<th class="num">Ø angegeben</th></tr></thead>
+<tbody>
+<tr class="mock-synth">
+<td>Operator</td>
+<td>—</td>
+<td class="num">4</td>
+<td class="num">0,203 ± 0,057</td>
+<td class="num">0,11</td>
+<td class="num">75,0&nbsp;% ± 25,0</td>
+<td class="num">61,2&nbsp;%</td></tr>
+<tr class="mock-synth">
+<td>Agent</td>
+<td>alle Modelle</td>
+<td class="num">8</td>
+<td class="num">0,178 ± 0,056</td>
+<td class="num">0,19</td>
+<td class="num">62,5&nbsp;% ± 18,3</td>
+<td class="num">69,4&nbsp;%</td></tr>
+<tr class="mock-synth prediction-groups__model">
+<td>Agent</td>
+<td>model-alpha-2</td>
+<td class="num">3</td>
+<td class="num">0,158 ± 0,103</td>
+<td class="num">0,22</td>
+<td class="num">66,7&nbsp;% ± 33,3</td>
+<td class="num">71,7&nbsp;%</td></tr>
+<tr class="mock-synth prediction-groups__model">
+<td>Agent</td>
+<td>model-alpha-3</td>
+<td class="num">5</td>
+<td class="num">0,190 ± 0,074</td>
+<td class="num">0,18</td>
+<td class="num">60,0&nbsp;% ± 24,5</td>
+<td class="num">68,0&nbsp;%</td></tr></tbody></table></div>
+<ul class="phone-rows" id="prediction-groups-phone-rows">
+<li class="phone-row mock-synth">
+<span class="phone-row__body">
+<span class="phone-row__name">Operator</span>
+<span class="phone-row__ids">4 aufgelöst · Schärfe 0,11 · Ø angegeben 61,2&nbsp;%</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">0,203 ± 0,057</span>
+<span class="phone-row__figure2">Trefferquote 75,0&nbsp;% ± 25,0</span></span></li>
+<li class="phone-row mock-synth">
+<span class="phone-row__body">
+<span class="phone-row__name">Agent · alle Modelle</span>
+<span class="phone-row__ids">8 aufgelöst · Schärfe 0,19 · Ø angegeben 69,4&nbsp;%</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">0,178 ± 0,056</span>
+<span class="phone-row__figure2">Trefferquote 62,5&nbsp;% ± 18,3</span></span></li>
+<li class="phone-row mock-synth">
+<span class="phone-row__body">
+<span class="phone-row__name">Agent · model-alpha-2</span>
+<span class="phone-row__ids">3 aufgelöst · Schärfe 0,22 · Ø angegeben 71,7&nbsp;%</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">0,158 ± 0,103</span>
+<span class="phone-row__figure2">Trefferquote 66,7&nbsp;% ± 33,3</span></span></li>
+<li class="phone-row mock-synth">
+<span class="phone-row__body">
+<span class="phone-row__name">Agent · model-alpha-3</span>
+<span class="phone-row__ids">5 aufgelöst · Schärfe 0,18 · Ø angegeben 68,0&nbsp;%</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">0,190 ± 0,074</span>
+<span class="phone-row__figure2">Trefferquote 60,0&nbsp;% ± 24,5</span></span></li></ul></div></section>
+<section class="workspace-section prediction-list" id="prediction-list" aria-labelledby="prediction-list-title">
+<header class="section-head">
+<div class="section-title">
+<h2 id="prediction-list-title">
+<span class="mock-pin">7</span>Alle Prognosen</h2></div></header>
+<div class="filter-chips" role="group">
+<button type="button" class="filter-chip is-active" aria-pressed="true">Alle<span class="filter-chip__count">21</span></button>
+<button type="button" class="filter-chip" aria-pressed="false">Offen<span class="filter-chip__count">7</span></button>
+<button type="button" class="filter-chip" aria-pressed="false">Fällig<span class="filter-chip__count">1</span></button>
+<button type="button" class="filter-chip" aria-pressed="false">Aufgelöst<span class="filter-chip__count">12</span></button>
+<button type="button" class="filter-chip" aria-pressed="false">Nicht aufgelöst<span class="filter-chip__count">2</span></button></div>
+<div class="data-table-wrapper" id="prediction-list-table-wrap">
+<table class="data-table prediction-list-table" id="prediction-list-table">
+<thead>
+<tr>
+<th>Abgegeben · Urheber</th>
+<th class="cell-name">Wertpapier · Aussage</th>
+<th class="num">Wahrsch.</th>
+<th>Stand</th>
+<th class="num">Überrendite</th></tr></thead>
+<tbody>
+<tr class="mock-synth" data-role="prediction-row">
+<td>04.11.2026<span class="policy-rule__words">Agent · model-alpha-3</span></td>
+<td class="cell-name">
+<a href="/securities/1?tab=predictions">Apple Inc. Registered Shares o.N.</a>
+<span class="policy-rule__words">Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 31.03.2027</span></td>
+<td class="num">65&nbsp;%</td>
+<td>
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">offen · noch 145 Tage</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>20.10.2026<span class="policy-rule__words">Agent · model-alpha-3</span></td>
+<td class="cell-name">
+<a href="/securities/50?tab=predictions">Tamarisk Systems Inc.</a>
+<span class="policy-rule__words">Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 05.11.2026</span></td>
+<td class="num">70&nbsp;%</td>
+<td>
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">offen · wartet auf den Schlusskurs</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>12.10.2026<span class="policy-rule__words">Operator</span></td>
+<td class="cell-name">
+<a href="/securities/2?tab=predictions">Microsoft Corporation Registered Shares DL-,00000625</a>
+<span class="policy-rule__words">Steigt bis 15.12.2026</span></td>
+<td class="num">60&nbsp;%</td>
+<td>
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">offen · noch 39 Tage</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>21.09.2026<span class="policy-rule__words">Agent · model-alpha-2</span></td>
+<td class="cell-name">
+<a href="/securities/3?tab=predictions">Allianz SE vinkulierte Namens-Aktien o.N.</a>
+<span class="policy-rule__words">Übertrifft 2,0&nbsp;% p. a. bis 03.05.2027</span></td>
+<td class="num">75&nbsp;%</td>
+<td>
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">offen · noch 178 Tage</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>07.09.2026<span class="policy-rule__words">Agent · model-alpha-3</span></td>
+<td class="cell-name">
+<a href="/securities/1?tab=predictions">Apple Inc. Registered Shares o.N.</a>
+<span class="policy-rule__words">Fällt bis 07.10.2026</span></td>
+<td class="num">55&nbsp;%</td>
+<td>
+<span class="badge badge--retired" data-role="prediction-status" data-status="resolved" data-outcome="miss">verfehlt</span></td>
+<td class="num">
+<span class="is-positive">+2,2&nbsp;Pp</span></td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>17.08.2026<span class="policy-rule__words">Agent · model-alpha-3</span></td>
+<td class="cell-name">
+<a href="/securities/4?tab=predictions">iShares Core MSCI World UCITS ETF USD (Acc)</a>
+<span class="policy-rule__words">Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 31.12.2026</span></td>
+<td class="num">55&nbsp;%</td>
+<td>
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">offen · noch 55 Tage</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>03.08.2026<span class="policy-rule__words">Operator</span></td>
+<td class="cell-name">
+<a href="/securities/14?tab=predictions">Meridian Global Equity ETF</a>
+<span class="policy-rule__words">Bleibt bis 29.01.2027 hinter <bdi>Kestrel Industrial Group NV Index</bdi> zurück</span></td>
+<td class="num">65&nbsp;%</td>
+<td>
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">offen · noch 84 Tage</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-synth" data-role="prediction-row">
+<td>20.07.2026<span class="policy-rule__words">Agent · model-alpha-3</span></td>
+<td class="cell-name">
+<a href="/securities/49?tab=predictions">Arbolia Inc.</a>
+<span class="policy-rule__words">Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 20.10.2026</span></td>
+<td class="num">60&nbsp;%</td>
+<td>
+<span class="badge badge--undetermined" data-role="prediction-status" data-status="unresolved">nicht aufgelöst</span>
+<span class="policy-rule__reason">kein Wechselkurs</span></td>
+<td class="num">—</td></tr>
+<tr class="mock-elided">
+<td colspan="5">… 13 weitere Prognosen, für das Board gekürzt</td></tr></tbody></table></div>
+<ul class="phone-rows" id="prediction-list-phone-rows">
+<li class="phone-row mock-synth" data-role="phone-row">
+<span class="phone-row__body">
+<span class="phone-row__name">Apple Inc. Registered Shares o.N.</span>
+<span class="phone-row__ids">
+<span>Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 31.03.2027 · 65&nbsp;%</span></span>
+<span class="phone-row__ids">04.11.2026 · Agent · model-alpha-3</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">noch 145 Tage</span>
+<span class="phone-row__figure2">offen</span></span></li>
+<li class="phone-row mock-synth" data-role="phone-row">
+<span class="phone-row__body">
+<span class="phone-row__name">Tamarisk Systems Inc.</span>
+<span class="phone-row__ids">
+<span>Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 05.11.2026 · 70&nbsp;%</span></span>
+<span class="phone-row__ids">20.10.2026 · Agent · model-alpha-3</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">—</span>
+<span class="phone-row__figure2">wartet auf Schlusskurs</span></span></li>
+<li class="phone-row mock-synth" data-role="phone-row">
+<span class="phone-row__body">
+<span class="phone-row__name">Microsoft Corporation Registered Shares DL-,00000625</span>
+<span class="phone-row__ids">
+<span>Steigt bis 15.12.2026 · 60&nbsp;%</span></span>
+<span class="phone-row__ids">12.10.2026 · Operator</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">noch 39 Tage</span>
+<span class="phone-row__figure2">offen</span></span></li>
+<li class="phone-row mock-synth" data-role="phone-row">
+<span class="phone-row__body">
+<span class="phone-row__name">Allianz SE vinkulierte Namens-Aktien o.N.</span>
+<span class="phone-row__ids">
+<span>Übertrifft 2,0&nbsp;% p. a. bis 03.05.2027 · 75&nbsp;%</span></span>
+<span class="phone-row__ids">21.09.2026 · Agent · model-alpha-2</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">noch 178 Tage</span>
+<span class="phone-row__figure2">offen</span></span></li>
+<li class="phone-row mock-synth" data-role="phone-row">
+<span class="phone-row__body">
+<span class="phone-row__name">Apple Inc. Registered Shares o.N.</span>
+<span class="phone-row__ids">
+<span>Fällt bis 07.10.2026 · 55&nbsp;%</span></span>
+<span class="phone-row__ids">07.09.2026 · Agent · model-alpha-3</span></span>
+<span class="phone-row__figures">
+<span class="phone-row__figure">
+<span class="is-positive">+2,2&nbsp;Pp</span></span>
+<span class="phone-row__figure2">verfehlt</span></span></li>
+<li class="mock-elided">… 16 weitere Prognosen, für das Board gekürzt</li></ul></section></div></div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>
