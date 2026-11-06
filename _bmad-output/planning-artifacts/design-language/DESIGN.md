@@ -9471,6 +9471,16 @@ the bar is green or red where the figure was.
   (a remembered view) kept, and a doubled leading slash read as one, never
   as a host (H26).
 
+### The open states *(closing act, privacy lens)*
+
+- **A fixed figure in a drawer is the bar, never a field's value.** The
+  notes-only drawer („Bearbeiten“ on a kind the screen does not book) shows
+  the booking's facts as disabled fields; a figure among them — an amount,
+  a quantity, a price, taxes — is, in the mode, a static element of the
+  disabled field's box (`.booking-fact-static`, `data-fact` naming the
+  field) holding the bar, since an input's value can only hold the bar's
+  markup as text. The facts that are no figure keep their disabled fields.
+
 ### The import preview *(closing act, privacy lens, S2)*
 
 - **A parser warning quotes the file's figures; they are bars.** „Zeile 5:

@@ -2474,11 +2474,22 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <div id="booking-facts" class="form-grid">
           <label :for={fact <- @facts}>
             <span><%= fact.label %></span>
-            <%= if fact.control == :select do %>
+            <%= cond do %>
+              <% fact.control == :select -> %>
               <select name={"note[#{fact.field}]"} disabled>
                 <option selected><%= fact.value %></option>
               </select>
-            <% else %>
+              <% match?(%PrivacyMode.Hidden{}, fact.value) -> %>
+              <%!-- The privacy mode (DESIGN.md → Privacy mode, the open
+                   states): a fixed figure is the bar, which an input's value
+                   can only hold as its markup's text; a static element in
+                   the disabled field's place holds it. --%>
+              <span
+                class={["booking-fact-static", fact.num? && "num"]}
+                data-fact={fact.field}
+                aria-disabled="true"
+              ><%= PrivacyMode.html(fact.value) %></span>
+              <% true -> %>
               <input
                 type="text"
                 name={"note[#{fact.field}]"}
