@@ -3773,7 +3773,7 @@
             {
               "name": "portfolixir.sales.hindsight",
               "title": "What each sale missed",
-              "description": "What each sale missed (FR-50): one row per sale booking (type sell, orphan sells included; an outbound delivery is no sale), newest first, with the sold security's price return in EUR over four spans: 1m, 3m and 12m (the sale day shifted by calendar months) and latest (to its latest stored close). Each span runs from the close standing for the sale day (the last close on or before it, at most 7 days older; the booked price is shown beside it and enters no figure) to the close standing for end_on. Optional benchmark (rate:<decimal> or security:<id> flagged is_benchmark) adds its return over the same span and difference = security return - benchmark return; without it, the security's own return only. status: complete, pending (end after today, no figure) or incomplete with reason no_start_close, no_end_close, no_fx_rate or no_benchmark_close (the security's figure kept). Price only: distributions after a sale are not counted, so a dividend payer's miss is understated. IT SCORES NOTHING AND GIVES NO VERDICT: no field says a sale was early or right. portfolio_id, security_id and from/to (the sale date) narrow the rows; limit is echoed with truncated. Decimals are strings; computation_basis states the rules.",
+              "description": "FR-50: one row per sale booking (orphan sells included, outbound deliveries not), newest first: the sold security's price return in EUR over 1m, 3m, 12m (calendar months) and latest (its latest close), from the close standing for the sale day (at most 7 days older; the booked price enters no figure) to end_on's. benchmark (rate:<decimal> a year, or security:<id> flagged is_benchmark) adds its return and difference = security - benchmark. status: complete, pending (ends after today) or incomplete with reason no_start_close, no_end_close, no_fx_rate or no_benchmark_close (its figure kept). Price only: a dividend payer's miss is understated. include reinvestment adds what the switch cost, buys FOUND BY RULE, never chosen: buys from the same cash account within 30 days, of another security, take proceeds oldest first (buys, share_of_proceeds_matched, unallocated, days_to_first_buy, or no_match, reason); per span kept (that share of the sold position) and switched (the bought positions, cash until each buy) in EUR, difference = switched + taxes_apart - kept, BEFORE TAX (fees_inside; the sale's taxes_apart added back), PRICE ONLY (income_apart, never added). IT SCORES NOTHING AND GIVES NO VERDICT. portfolio_id, security_id, from/to (sale date) narrow; limit is echoed with truncated. Decimals are strings; computation_basis states the rules.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -3789,22 +3789,28 @@
                   "from": {
                     "type": "string",
                     "format": "date",
-                    "description": "Earliest sale date. An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
+                    "description": "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
                   },
                   "to": {
                     "type": "string",
                     "format": "date",
-                    "description": "Latest sale date. An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
+                    "description": "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored."
                   },
                   "benchmark": {
                     "type": "string",
                     "pattern": "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
-                    "description": "Optional. As on portfolixir.portfolios.benchmark: `rate:<decimal>`, a fixed effective annual rate, or `security:<id>`, a security flagged is_benchmark."
+                    "description": "security:<id> flagged is_benchmark"
                   },
                   "limit": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "rows, newest sale first (default 100, at most 500)"
+                    "description": "default 100, max 500"
+                  },
+                  "include": {
+                    "type": "string",
+                    "enum": [
+                      "reinvestment"
+                    ]
                   }
                 }
               },

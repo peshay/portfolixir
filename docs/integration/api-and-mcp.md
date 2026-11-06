@@ -2285,6 +2285,42 @@ Example account payloads:
   `422` on `to`; an unknown id answers no rows. The human view is **After
   the sale** under the trades list of `/cashflow?tab=realized` and on a
   security's Trades tab (Sprint 26), computed by the same function.
+
+  **What a switch cost** (`include=reinvestment`; I18 mode 3, ADR-0057):
+  each row gains `reinvestment`, the purchases the sale's money went into,
+  **found by rule, never chosen**. The proceeds (the sale's booked cash
+  amount on its cash account, after its fees and taxes) go into the buys
+  that debit the same cash account, dated from the sale's date to 30
+  calendar days after it, of any security other than the one sold; oldest
+  proceeds first (by sale date, then booking id), each buy taking at most
+  its own cash debit, so a larger buy is funded in part. The block carries
+  `status` (`matched` or `no_match`), `reason` (`no_buy_within_30_days`,
+  `proceeds_taken_by_earlier_sale`, `no_cash_account`), `cash_account_id`,
+  `currency_code` (the cash account's), `proceeds`, `buys` (`buy_id`,
+  `date`, `security`, `quantity`, `cash_debit`, `amount_taken`,
+  `share_of_buy`), `days_to_first_buy`, `share_of_proceeds_matched` (the
+  ADR's `a`: the sum the buys took over the proceeds) and `unallocated`
+  (money that waited, left out). Per FR-50 span, `kept` is `a` × the sold
+  quantity × the sold security's close at the end, `switched` each matched
+  buy's share × its quantity × the bought security's close at the end (a
+  buy dated after the end counts as cash in its account's currency at the
+  end's rate), and `difference` is `switched + taxes_apart − kept`, both in
+  EUR and **before tax**: the fees are inside it and named as
+  `fees_inside`; the sale's taxes are named as `taxes_apart` (a refund
+  negative) and added back, because the kept position's latent tax is not
+  booked. It is **price only**: `income_apart` names the bought positions'
+  distributions and is never added. A span is `pending`, or `incomplete`
+  with `side` (`kept` or `switched`) and its reason. A sale of 1000 whose
+  money bought 5 at 200, the sold close moving from 100 to 110 and the
+  bought one to 210, reads `kept` `"1100"`, `switched` `"1050"` and
+  `difference` `"-50"` for `1m`. `computation_basis.reinvestment` states
+  the rule, the window, the order, the spans, the prices, before tax, price
+  only, that money is fungible (a deposit in between could have paid the
+  buy), that dates carry no time and that a `cash_transfer` is not
+  followed. `benchmark=` and `include=reinvestment` combine. Any other
+  `include` value, an empty one or a list (`include=reinvestmnt`,
+  `include=`) answers `422` on `include`, so a misspelling never drops the
+  block silently. No verdict and no total over all switches.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -4525,7 +4561,9 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.sales.hindsight` — what each sale missed (FR-50):
   `GET /api/v1/sales/hindsight` with its filters and the optional
   `benchmark`, read-only in every profile; the description says it scores
-  nothing and gives no verdict
+  nothing and gives no verdict. Its `include` (`reinvestment`) adds what a
+  switch cost, and the description says what that block is: found by rule,
+  before tax, price only
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.splits.incomplete` — the incomplete-split check (#1292),

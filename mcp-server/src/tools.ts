@@ -3711,35 +3711,45 @@ const declaredTools: DeclaredTool[] = [
   // Sprint 25, S2 (FR-50; I18 modes 1 and 2, plan D-3): what each sale
   // missed, over four spans after the sale, with ADR-0046's optional
   // benchmark. Ladder (c); it scores no sale.
+  // --- Sprint 26 R2 begin ---
+  // R2 (ADR-0057 §4, I18 mode 3): include reinvestment, what a switch cost.
+  // The schema is strict, so a misspelled include is refused before any
+  // request, never dropped (Sprint 25's carry-forward 2). Its bytes are paid
+  // for by tightening this description's own wording, every rule kept.
   tool(
     "portfolixir.sales.hindsight",
     "What each sale missed",
-    "What each sale missed (FR-50): one row per sale booking (type sell, orphan sells included; an outbound delivery is no sale), newest first, with the sold security's price return in EUR over four spans: 1m, 3m and 12m (the sale day shifted by calendar months) and latest (to its latest stored close). Each span runs from the close standing for the sale day (the last close on or before it, at most 7 days older; the booked price is shown beside it and enters no figure) to the close standing for end_on. Optional benchmark (rate:<decimal> or security:<id> flagged is_benchmark) adds its return over the same span and difference = security return - benchmark return; without it, the security's own return only. status: complete, pending (end after today, no figure) or incomplete with reason no_start_close, no_end_close, no_fx_rate or no_benchmark_close (the security's figure kept). Price only: distributions after a sale are not counted, so a dividend payer's miss is understated. IT SCORES NOTHING AND GIVES NO VERDICT: no field says a sale was early or right. portfolio_id, security_id and from/to (the sale date) narrow the rows; limit is echoed with truncated. Decimals are strings; computation_basis states the rules.",
+    "FR-50: one row per sale booking (orphan sells included, outbound deliveries not), newest first: the sold security's price return in EUR over 1m, 3m, 12m (calendar months) and latest (its latest close), from the close standing for the sale day (at most 7 days older; the booked price enters no figure) to end_on's. benchmark (rate:<decimal> a year, or security:<id> flagged is_benchmark) adds its return and difference = security - benchmark. status: complete, pending (ends after today) or incomplete with reason no_start_close, no_end_close, no_fx_rate or no_benchmark_close (its figure kept). Price only: a dividend payer's miss is understated. include reinvestment adds what the switch cost, buys FOUND BY RULE, never chosen: buys from the same cash account within 30 days, of another security, take proceeds oldest first (buys, share_of_proceeds_matched, unallocated, days_to_first_buy, or no_match, reason); per span kept (that share of the sold position) and switched (the bought positions, cash until each buy) in EUR, difference = switched + taxes_apart - kept, BEFORE TAX (fees_inside; the sale's taxes_apart added back), PRICE ONLY (income_apart, never added). IT SCORES NOTHING AND GIVES NO VERDICT. portfolio_id, security_id, from/to (sale date) narrow; limit is echoed with truncated. Decimals are strings; computation_basis states the rules.",
     {
       type: "object",
       additionalProperties: false,
       properties: {
         portfolio_id: { type: "integer", minimum: 1 },
         security_id: { type: "integer", minimum: 1 },
-        from: { type: "string", format: "date", description: boundedDate("Earliest sale date.") },
-        to: { type: "string", format: "date", description: boundedDate("Latest sale date.") },
+        from: { type: "string", format: "date", description: boundedDate() },
+        to: { type: "string", format: "date", description: boundedDate() },
         benchmark: {
           ...benchmarkSelector,
           description:
-            "Optional. As on portfolixir.portfolios.benchmark: `rate:<decimal>`, a fixed effective annual rate, or `security:<id>`, a security flagged is_benchmark."
+            "security:<id> flagged is_benchmark"
         },
-        limit: { type: "integer", minimum: 1, description: "rows, newest sale first (default 100, at most 500)" }
+        limit: { type: "integer", minimum: 1, description: "default 100, max 500" },
+        include: { type: "string", enum: ["reinvestment"] }
       }
     },
-    z.object({
-      portfolio_id: z.number().int().positive().optional(),
-      security_id: z.number().int().positive().optional(),
-      from: optionalString(),
-      to: optionalString(),
-      benchmark: benchmarkSelectorZ.optional(),
-      limit: z.number().int().min(1).optional()
-    })
+    z
+      .object({
+        portfolio_id: z.number().int().positive().optional(),
+        security_id: z.number().int().positive().optional(),
+        from: optionalString(),
+        to: optionalString(),
+        benchmark: benchmarkSelectorZ.optional(),
+        limit: z.number().int().min(1).optional(),
+        include: z.enum(["reinvestment"]).optional()
+      })
+      .strict()
   ),
+  // --- Sprint 26 R2 end ---
   tool(
     "portfolixir.targets.list",
     "List target weights",
@@ -4783,7 +4793,9 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "from",
           "to",
           "benchmark",
-          "limit"
+          "limit",
+          // Sprint 26 R2 (ADR-0057 §4)
+          "include"
         ])
       );
     case "portfolixir.targets.list":

@@ -2489,6 +2489,46 @@ Beispiel-Payloads für Konten:
   Zeilen. Die Ansicht für den Menschen ist **Nach dem Verkauf** unter der
   Trade-Liste von `/cashflow?tab=realized` und im Trades-Tab eines
   Wertpapiers (Sprint 26), berechnet von derselben Funktion.
+
+  **Was ein Umschichten kostete** (`include=reinvestment`; I18 Modus 3,
+  ADR-0057): Jede Zeile erhält `reinvestment`, die Käufe, in die das Geld
+  des Verkaufs floss, **per Regel gefunden, nie ausgewählt**. Der Erlös (der
+  gebuchte Geldbetrag des Verkaufs auf seinem Konto, nach Gebühren und
+  Steuern) geht in die Käufe, die dasselbe Konto belasten, datiert vom
+  Verkaufsdatum bis 30 Kalendertage danach, in ein anderes Wertpapier als
+  das verkaufte; der älteste Erlös zuerst (nach Verkaufsdatum, dann
+  Buchungs-ID), jeder Kauf nimmt höchstens seine eigene Belastung, sodass
+  ein größerer Kauf nur teilweise finanziert ist. Der Block trägt `status`
+  (`matched` oder `no_match`), `reason` (`no_buy_within_30_days`,
+  `proceeds_taken_by_earlier_sale`, `no_cash_account`), `cash_account_id`,
+  `currency_code` (die des Kontos), `proceeds`, `buys` (`buy_id`, `date`,
+  `security`, `quantity`, `cash_debit`, `amount_taken`, `share_of_buy`),
+  `days_to_first_buy`, `share_of_proceeds_matched` (das `a` der ADR: die
+  Summe, die die Käufe nahmen, durch den Erlös) und `unallocated` (Geld, das
+  wartete, bleibt außen vor). Je FR-50-Spanne ist `kept` `a` × die verkaufte
+  Stückzahl × der Schlusskurs des verkauften Wertpapiers am Ende, `switched`
+  der Anteil jedes Kaufs × seine Stückzahl × der Schlusskurs des gekauften
+  Wertpapiers am Ende (ein Kauf nach dem Ende zählt als Geld in der Währung
+  seines Kontos zum Kurs des Endes), und `difference` ist `switched +
+  taxes_apart − kept`, beides in EUR und **vor Steuern**: Die Gebühren
+  stecken darin und sind als `fees_inside` genannt; die Steuern des Verkaufs
+  sind als `taxes_apart` genannt (eine Erstattung negativ) und werden
+  zurückaddiert, weil die latente Steuer der behaltenen Position nicht
+  gebucht ist. Es ist **nur Kurs**: `income_apart` nennt die Ausschüttungen
+  der gekauften Positionen und wird nie addiert. Eine Spanne ist `pending`
+  oder `incomplete` mit `side` (`kept` oder `switched`) und ihrem Grund. Ein
+  Verkauf über 1000, dessen Geld 5 Stück zu 200 kaufte, bei einem
+  verkauften Schlusskurs von 100 auf 110 und einem gekauften auf 210, ergibt
+  für `1m` `kept` `"1100"`, `switched` `"1050"` und `difference` `"-50"`.
+  `computation_basis.reinvestment` nennt die Regel, das Fenster, die
+  Reihenfolge, die Spannen, die Kurse, vor Steuern, nur Kurs, dass Geld
+  austauschbar ist (eine Einzahlung dazwischen hätte den Kauf bezahlen
+  können), dass Buchungen keine Uhrzeit tragen und dass ein `cash_transfer`
+  nicht verfolgt wird. `benchmark=` und `include=reinvestment` lassen sich
+  kombinieren. Jeder andere `include`-Wert, ein leerer oder eine Liste
+  (`include=reinvestmnt`, `include=`), ergibt `422` auf `include`, sodass
+  ein Tippfehler den Block nie stillschweigend weglässt. Kein Urteil und
+  keine Summe über alle Umschichtungen.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -4943,7 +4983,9 @@ lässt sich nicht lesen.
 - `portfolixir.sales.hindsight` — was jedem Verkauf entging (FR-50):
   `GET /api/v1/sales/hindsight` mit seinen Filtern und dem optionalen
   `benchmark`, nur lesend in jedem Profil; die Beschreibung sagt, dass es
-  nichts bewertet und kein Urteil fällt
+  nichts bewertet und kein Urteil fällt. Sein `include` (`reinvestment`)
+  fügt hinzu, was ein Umschichten kostete, und die Beschreibung sagt, was
+  dieser Block ist: per Regel gefunden, vor Steuern, nur Kurs
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.splits.incomplete` — die Prüfung unvollständiger Splits
