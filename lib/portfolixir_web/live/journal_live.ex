@@ -33,7 +33,9 @@ defmodule PortfolixirWeb.JournalLive do
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.Journal.Change
   alias PortfolixirWeb.Journal.Row
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.StoredText
 
   # The actor chips, in the board's order. A read-only token cannot write,
@@ -428,7 +430,7 @@ defmodule PortfolixirWeb.JournalLive do
         <% :deleted -> %>
           <span class="journal-change__line"><%= gettext("deleted, with every value") %></span>
         <% {field, from, to} -> %>
-          <span class="journal-change__line"><%= change_line(field, from, to) %></span>
+          <span class="journal-change__line" data-figure={Change.ratio?(field) && "ratio"}><%= change_line(field, from, to) %></span>
       <% end %>
     <% end %>
     <details :if={@change.values != []} class="journal-values">
@@ -445,10 +447,13 @@ defmodule PortfolixirWeb.JournalLive do
           </tr>
         </thead>
         <tbody>
-          <tr :for={{field, before, after_value} <- @change.values}>
+          <tr
+            :for={{field, before, after_value} <- @change.values}
+            data-figure={Change.ratio?(field) && "ratio"}
+          >
             <td><%= field %></td>
-            <td><%= StoredText.bdi(before) %></td>
-            <td><%= StoredText.bdi(after_value) %></td>
+            <td><%= stored(before) %></td>
+            <td><%= stored(after_value) %></td>
           </tr>
         </tbody>
       </table>
@@ -466,15 +471,21 @@ defmodule PortfolixirWeb.JournalLive do
        escape(field),
        ": </span>",
        ~s(<span class="journal-change__from">),
-       safe(StoredText.bdi(from)),
+       safe(stored(from)),
        "</span>",
        ~s(<span class="journal-change__arrow" aria-hidden="true"> → </span>),
        ~s(<span class="visually-hidden"> ),
        escape(gettext("changed to")),
        " </span>",
-       safe(StoredText.bdi(to))
+       safe(stored(to))
      ]}
   end
+
+  # A stored value, isolated: text as text; in the privacy mode a hidden
+  # figure as the bar, alone or inside a list or a map (`Change`).
+  defp stored(%PrivacyMode.Hidden{} = hidden), do: PrivacyMode.html(hidden)
+  defp stored({:safe, iodata}), do: {:safe, ["<bdi>", iodata, "</bdi>"]}
+  defp stored(text) when is_binary(text), do: StoredText.bdi(text)
 
   defp escape(text), do: text |> Phoenix.HTML.html_escape() |> safe()
   defp safe({:safe, iodata}), do: iodata

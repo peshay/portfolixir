@@ -4288,6 +4288,13 @@ multiplier.
   survives a reload; another browser or device has its own. Nothing about it
   is stored on the server, and a link from another site can hide figures on
   the page it opens but never show them.
+- **The Audit journal** hides the stored figures too: in a change line and
+  under "Stored values" a price, a quantity, fees, taxes, an amount and a
+  stored tax figure are bars, inside a stored list as well (a quote write's
+  closes). The entry's ids, dates, kinds and texts stay, and so do its
+  stored ratios (a probability, a target weight, an exchange rate, a tax
+  rate), as stored. The page offers no download; the journal over the API
+  is not affected.
 - **Forms keep their values.** A form that edits a stored figure (the
   booking drawer, a statement, a manual quote) opens with the real value,
   because a correction typed blind could book a wrong amount.

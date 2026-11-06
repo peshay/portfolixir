@@ -9422,6 +9422,30 @@ the bar is green or red where the figure was.
 - **Charts already in percent** (Snapshots' comparison, Risk, Allocation)
   keep their axes.
 
+### The audit journal *(closing act, finding S2)*
+
+- **Stored values are figures too.** In a change line („price: [bar] →
+  [bar]“) and in the fold „Gespeicherte Werte“ every value of a field that
+  holds a figure in a currency or a quantity is the bar, a zero included:
+  `price`, `quantity`, `fees`, `taxes`, the amounts of a booking
+  (`gross_amount`, `security_amount`, `settlement_amount`), a quote's
+  `close`, a bond's `face_value` and the tax records' stored figures
+  (`PortfolixirWeb.Journal.Change.hidden_fields/0`). Inside a stored list or
+  map (a quote write's rows, a merge's manifest) the same fields are bars
+  within the JSON text. An empty value stays „—“.
+- **What stays:** ids, dates, kinds, texts, and the stored ratios — a
+  probability, a benchmark rate, a target weight, a rule's bounds, an
+  exchange rate (`settlement_fx_rate`, as a ledger check shows it), a
+  coupon rate and the tax rates — as stored (`shown_fields/0`). Each such
+  row and line carries `data-figure="ratio"`, so the leak walk reads its
+  raw decimal as the ratio it is. The fields are named, not guessed from
+  the value (a stored value is a string); a test fails on any stored
+  decimal field in neither list.
+- **The screen only.** The page renders the journal and offers no raw JSON
+  view and no download; `GET /api/v1/journal` and its MCP tool are
+  untouched, as every API read is (plan D-4). A download, if one is ever
+  added, is a deliberate act and is not masked.
+
 ### Stated, not settled here
 
 - **Forms keep their values:** a form that edits a stored figure opens
