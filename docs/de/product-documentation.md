@@ -2877,6 +2877,30 @@ liefern.
 
 *Cashflow → Trades auf dem synthetischen Demo-Datensatz.*
 
+**Nach dem Verkauf** (Sprint 26, FR-50) folgt der Trade-Liste: was jeder
+Verkauf verpasst hat, eine Zeile je **Verkaufsbuchung** — nicht je
+FIFO-Rundlauf, ein Verkauf eingelieferter Stücke oder einer, der zwei Lots
+schließt, ist also eine Zeile. Jede Zeile zeigt den Verkauf (Datum, Stück ×
+gebuchter Kurs), den Startkurs in EUR (den Schlusskurs des Verkaufstags
+oder den letzten davor, höchstens 7 Tage älter; der gebuchte Kurs geht in
+keine Zahl ein) und vier Spannen ab dem Verkaufstag: **1M**, **3M**,
+**12M** und **Bis heute** (bis zum letzten Schlusskurs). Die Auswahl
+**Vergleich** legt fest, womit eine Spanne verglichen wird: **Ohne** zeigt
+die eigene Kursrendite des verkauften Wertpapiers; **Fester Zins** nimmt
+einen Zins in % p. a. (mit Komma oder Punkt, von -99,9999 bis 1000; alles
+andere wird unter dem Feld genannt und nicht gerechnet) und zeigt die
+Differenz dazu; **Wertpapier** vergleicht mit einem Wertpapier, das auf der
+Seite Wertpapiere als Benchmark markiert ist, und zeigt die Differenz,
+darunter „Wertpapier ggü. Benchmark“. Eine Spanne, die nach heute endet,
+lautet „läuft“ mit ihrem Enddatum; einer Spanne ohne Kurs oder Wechselkurs
+steht ihr Grund („kein Startkurs“, „kein Wechselkurs“, …), sie wird nie
+geschätzt. Die Auswahl gehört zur Adresse, ein Link öffnet also denselben
+Vergleich. Die Zahlen sind die von `GET /api/v1/sales/hindsight` und des
+MCP-Werkzeugs `portfolixir.sales.hindsight` für denselben Vergleich; das ⓘ
+nennt ihre Basis. Es sind Kursrenditen: Ausschüttungen nach dem Verkauf
+sind nicht enthalten. Der Abschnitt sagt nichts darüber, ob ein Verkauf
+richtig war — er zeigt, was der Kurs getan hat.
+
 **Der Trades-Tab des Wertpapiers** (Issue #1029) ist das Ziel jeder Zeile
 der Facette und der Übersichtskarte, und seit Sprint 18 zeigt er dieselbe
 Zahl: Seine Tabelle **Abgeschlossene Trades (FIFO)** trägt die Spalte
@@ -2893,7 +2917,10 @@ Liste nennt ihre Basis: über alle Depots, Gebühren und Steuern stehen im
 realisierten G/V, nicht in Ø Kauf und Ø Verkauf, und Erträge während der
 Haltedauer sind nicht enthalten. Das ⓘ neben *Abgeschlossene Trades (FIFO)*
 hält die Regeln: Einlieferungen eröffnen keinen Lot, und p. a. erst ab 365
-Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
+Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst. Unter den
+abgeschlossenen Trades trägt der Tab **Nach dem Verkauf** für die Verkäufe
+dieses Wertpapiers allein, mit derselben Auswahl und denselben Spannen wie
+unter Cashflow → Trades.
 Der realisierte G/V und seine Gebühren und Steuern stehen in der Währung des
 Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs
 umgerechnet, wie in der Facette (Issue #1108), und **Realisierter G/V**

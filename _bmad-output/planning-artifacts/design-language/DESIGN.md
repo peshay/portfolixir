@@ -9015,3 +9015,116 @@ their own); the phone rows' two tracks (no logo). Every colour is a token.
   report and the list; the page stays a reading of the API's reads rather
   than counting open calls past their day itself.
 <!-- Sprint 26 V2 end -->
+
+## Amendment 2026-11-06 — "After the sale": what each sale missed *(Sprint 26 V3, I18 modes 1 and 2, FR-50; board `mockups/ux-design-2026-11-06-sprint26-i18`, pick C)*
+
+The human view of `GET /api/v1/sales/hindsight` and the MCP tool
+`portfolixir.sales.hindsight`. Built in `PortfolixirWeb.SaleHindsightSection`,
+one LiveComponent both pages mount; the figures are
+`Portfolixir.Portfolios.Performance.SaleHindsight.report/1`'s, the function
+the API answers with, so a figure on the screen is the API's for the same
+comparison (a LiveView test compares them).
+
+### Placement
+
+- **Cash flow → Trades** (`/cashflow?tab=realized`): `section#sale-hindsight`
+  (`.workspace-section.hs-section`), after `#realized-trades` and before
+  „Realisiert je Periode“. All sale bookings of every depot.
+- **A security's Trades tab** (`/securities/:id?tab=trades`):
+  `section#detail-sale-hindsight` (`.hs-detail-section`), the last child of
+  the tab panel, under the closed trades' basis line; filtered with the
+  read's `security_id`, without the security column.
+- **No sale, no section**: a read with no row renders an empty, hidden
+  placeholder, so a security never sold carries no empty block.
+
+### Anatomy, top to bottom
+
+1. **The head.** On Cash flow an `h2` „Nach dem Verkauf“ over the basis
+   line `.summary-basis.hs-basis` „Kursentwicklung je Verkauf in EUR · ab
+   dem Verkaufstag · eine Zeile je Verkaufsbuchung“ with the ⓘ at its end;
+   on the security page `div.section-title` with an `h3` and the ⓘ
+   (`.metric-tooltip--section`). The ⓘ (`data-role="hindsight-info"`)
+   carries the computation basis in six clauses, the first, a blank line,
+   then one per line: the spans in EUR from the sale day; the start close
+   (the sale day's or the last one before it, at most 7 days older, the
+   booked price beside it and in no figure); a price return, distributions
+   not booked; a benchmark measured the same way and a fixed rate
+   compounding daily; a span after today running, a missing close or rate
+   named and never estimated; one row per sale booking, not per FIFO lot.
+2. **The chooser** `.hs-controls` (`data-role="hindsight-compare"`): the
+   muted label „Vergleich“, the shipped segmented control „Ohne · Fester
+   Zins · Wertpapier“ as links that patch the address, and the one field
+   the chosen kind needs: „Fester Zins % p. a.“ with „Anwenden“ (a text
+   field, `inputmode="decimal"`, `.num`, read by `DecimalInput`, bounded by
+   the Wealth page's rate bound, `BenchmarkScope.rate_from_percent/1`), or
+   the select of the securities flagged `is_benchmark` (ADR-0046), or the
+   shipped hint „Noch keine Benchmark-Wertpapiere — eines auf der Seite
+   Wertpapiere markieren.“ when none is. A rate the bound refuses or that
+   does not read as a figure is named under the chooser in a `role="alert"`
+   hint („Kein Zins zum Vergleichen: …“); the spans then show the
+   security's own return, as with „Ohne“.
+3. **The table** `.data-table.hs-table` in `.hs-table-wrapper`, one row per
+   sale booking, newest first. A group row names the four spans' lead
+   figure („Nach dem Verkauf · Differenz zu <Name>“, „… · Differenz zu
+   3,00 % p. a.“, „… · Kursentwicklung des Wertpapiers“). Columns:
+   Wertpapier (a link to its Trades tab, the twin identifier where two
+   rows' names read the same; not on the security page); Verkauf (the date
+   over „quantity × booked price currency“); Startkurs (the close in EUR,
+   „Schluss <date>“ where it is not the sale day, the close in its own
+   currency where that is not EUR; or the muted dash over „kein
+   Startkurs“); 1M · 3M · 12M · Bis heute („letzter Kurs“ under it).
+4. **A span cell** `td.hs-span[data-span]`: the lead figure `.hs-lead`
+   over its sub-lines `.stat__sub`, signed and coloured as every return,
+   tabular figures:
+   - compared: the difference over „+2,4% ggü. +1,1%“ (the security's
+     return against the benchmark's or the rate's);
+   - „Ohne“: the security's own price return, no sub-line;
+   - not ended (`pending`): „läuft“ over „bis <end date>“, muted
+     (`.hs-span--open`), no figure;
+   - not measurable (`incomplete`): the muted dash (`.trade-pa--na`) over
+     the reason in words („kein Startkurs“, „kein Endkurs“, „kein
+     Wechselkurs“, „kein Benchmark-Kurs“), the long reason as the cell's
+     title; where only the benchmark is missing, the security's own figure
+     stays („+2,7% ggü. —“).
+5. **Under 560 px** the table gives way to `ul.phone-rows.hs-phone-rows`:
+   per sale its name, „Verkauf <date> · quantity × price“, the start
+   close, and the four spans as a 2 × 2 grid (`dl.hs-grid`) of label over
+   lead figure over sub-line, every figure the table row has; the chooser
+   spans the row.
+6. **The legend** `.summary-basis.hs-legend`: what the lead figure is („Je
+   Spanne die Differenz zu <Name>, darunter Wertpapier ggü. Benchmark“)
+   and „Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten“.
+   Past the read's 100 rows a hint names the cut.
+
+### The URL is the comparison
+
+`hindsight=none|rate|security`, `hindsight_rate=<percent>` and
+`hindsight_benchmark=<id>`; a chooser link keeps its own parameter and
+drops the others', and every other parameter of the page (its tab, its
+filters, the locale) rides along as it came. Without `hindsight` the
+section compares with the first flagged benchmark, or with nothing when
+none is flagged. A link handed over opens the same comparison.
+
+### What it never says
+
+No word on whether a sale was right or early, no colour on a row, no
+ranking and no sum of what the sales missed (AGENTS.md: no advice); a
+LiveView test refuses the verdict words in both languages. No second
+benchmark, no distributions, no latent tax.
+
+### Room for mode 3
+
+The chooser's modes are an atom list (`SaleHindsightSection.modes/0`); R3
+(ADR-0057, „Anschlusskauf“) adds one mode, its label and its row and
+detail rendering. Board 03's mode-3 rules (`.hs-has-detail`, `.hs-detail`,
+`.hs-nobuys`, `.hs-detail-phone`) are left to R3, which renders them.
+
+### The `app.css` rules of the pick
+
+Board 03's `proposal.css` without option B's and mode 3's rules, at the end
+of `app.css` under "After the sale": `.hs-controls` and its label and
+field; `.hs-basis`; the table fitting its wrapper and its group head
+(`.hs-grouprow`, `.hs-group`, `.hs-th-sub`, the border before 1M);
+`.hs-lead` and its sign colours; `.hs-span--open`; `.hs-legend`;
+`.hs-detail-section`; the phone rows and `.hs-grid`, and the 560 px block.
+Every colour is a token.

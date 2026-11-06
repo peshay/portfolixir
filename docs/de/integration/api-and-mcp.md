@@ -2486,7 +2486,9 @@ Beispiel-Payloads für Konten:
   `booked_price`) sagt das. Kein Feld fällt ein Urteil. Eine ungültige ID,
   ein ungültiges Datum, `limit` oder `benchmark` ergibt `422` mit ihrem
   Namen, `to` vor `from` `422` auf `to`; eine unbekannte ID ergibt keine
-  Zeilen.
+  Zeilen. Die Ansicht für den Menschen ist **Nach dem Verkauf** unter der
+  Trade-Liste von `/cashflow?tab=realized` und im Trades-Tab eines
+  Wertpapiers (Sprint 26), berechnet von derselben Funktion.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
