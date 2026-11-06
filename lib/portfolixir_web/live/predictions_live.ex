@@ -172,41 +172,45 @@ defmodule PortfolixirWeb.PredictionsLive do
   attr(:models, :list, required: true)
 
   # Board 02 ②: the author and model chips. Chips are toggles, so they
-  # carry aria-pressed (UX-DR7).
+  # carry aria-pressed (UX-DR7). They sit in Wealth's control band, as the
+  # other Wealth tabs' view switcher does, which gives them the section's
+  # inline gutter (closing act, design critic V2).
   defp filters(assigns) do
     ~H"""
-    <div
-      id="prediction-filters"
-      class="filter-chips prediction-filters"
-      role="group"
-      aria-label={gettext("Filter the predictions")}
-    >
-      <span class="filter-chips__family"><%= gettext("Author") %></span>
-      <button
-        :for={{value, label} <- [{nil, gettext("All")}, {"operator", gettext("Operator")}, {"agent", gettext("Agent")}]}
-        type="button"
-        id={"prediction-chip-author-#{value || "all"}"}
-        class={["filter-chip", @filters.author == value && "is-active"]}
-        aria-pressed={to_string(@filters.author == value)}
-        phx-click="filter_author"
-        phx-value-author={value || ""}
+    <div class="workspace-section workspace-section--controls">
+      <div
+        id="prediction-filters"
+        class="filter-chips prediction-filters"
+        role="group"
+        aria-label={gettext("Filter the predictions")}
       >
-        <%= label %>
-      </button>
-      <%= if @models != [] do %>
-        <span class="filter-chips__family"><%= gettext("Model") %></span>
+        <span class="filter-chips__family"><%= gettext("Author") %></span>
         <button
-          :for={{model, index} <- Enum.with_index(@models)}
+          :for={{value, label} <- [{nil, gettext("All")}, {"operator", gettext("Operator")}, {"agent", gettext("Agent")}]}
           type="button"
-          id={"prediction-chip-model-#{chip_id(model, index)}"}
-          class={["filter-chip", @filters.model == model && "is-active"]}
-          aria-pressed={to_string(@filters.model == model)}
-          phx-click="filter_model"
-          phx-value-model={model}
+          id={"prediction-chip-author-#{value || "all"}"}
+          class={["filter-chip", @filters.author == value && "is-active"]}
+          aria-pressed={to_string(@filters.author == value)}
+          phx-click="filter_author"
+          phx-value-author={value || ""}
         >
-          <bdi><%= model %></bdi>
+          <%= label %>
         </button>
-      <% end %>
+        <%= if @models != [] do %>
+          <span class="filter-chips__family"><%= gettext("Model") %></span>
+          <button
+            :for={{model, index} <- Enum.with_index(@models)}
+            type="button"
+            id={"prediction-chip-model-#{chip_id(model, index)}"}
+            class={["filter-chip", @filters.model == model && "is-active"]}
+            aria-pressed={to_string(@filters.model == model)}
+            phx-click="filter_model"
+            phx-value-model={model}
+          >
+            <bdi><%= model %></bdi>
+          </button>
+        <% end %>
+      </div>
     </div>
     """
   end
