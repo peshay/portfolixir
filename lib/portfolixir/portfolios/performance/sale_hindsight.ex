@@ -52,6 +52,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.Performance.SaleReinvestment
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Repo
 
@@ -109,16 +110,22 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
 
   Options: `:benchmark` (`t:benchmark/0`, default none), `:portfolio_id`,
   `:security_id`, `:from`, `:to` (the sale date, inclusive), `:limit`
-  (default #{@default_limit}) and `:today` (default `Portfolixir.Clock.today/0`).
+  (default #{@default_limit}), `:today` (default `Portfolixir.Clock.today/0`)
+  and `:include`, a list that may name `:reinvestment` (I18 mode 3,
+  ADR-0057 §4): each row then carries `reinvestment`, its block from
+  `Portfolixir.Portfolios.Performance.SaleReinvestment.blocks/2`, and the
+  basis carries `reinvestment`, that read's own.
 
-  Answers `%{rows, limit, truncated, benchmark, today, computation_basis}`;
-  `truncated` is true when more sales matched than `limit`.
+  Answers `%{rows, limit, truncated, benchmark, include, today,
+  computation_basis}`; `truncated` is true when more sales matched than
+  `limit`.
   """
   @spec report(keyword()) :: %{
           rows: [row()],
           limit: pos_integer(),
           truncated: boolean(),
           benchmark: benchmark(),
+          include: [:reinvestment],
           today: Date.t(),
           computation_basis: map()
         }
@@ -126,17 +133,37 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
     benchmark = Keyword.get(opts, :benchmark)
     today = Keyword.get_lazy(opts, :today, &Clock.today/0)
     limit = Keyword.get(opts, :limit, @default_limit)
+    include = Keyword.get(opts, :include, [])
 
     {sales, rest} = opts |> sales(limit + 1) |> Enum.split(limit)
+    rows = Enum.map(sales, &row(&1, benchmark, today))
 
     %{
-      rows: Enum.map(sales, &row(&1, benchmark, today)),
+      rows: rows |> with_reinvestment(sales, include, today),
       limit: limit,
       truncated: rest != [],
       benchmark: benchmark,
+      include: include,
       today: today,
-      computation_basis: computation_basis(benchmark)
+      computation_basis: benchmark |> computation_basis() |> with_reinvestment_basis(include)
     }
+  end
+
+  # I18 mode 3 (ADR-0057 §4): what each switch cost, on request, beside the
+  # spans; the two questions are independent of each other.
+  defp with_reinvestment(rows, sales, include, today) do
+    if :reinvestment in include do
+      blocks = SaleReinvestment.blocks(sales, today)
+      Enum.map(rows, &Map.put(&1, :reinvestment, Map.fetch!(blocks, &1.sale_id)))
+    else
+      rows
+    end
+  end
+
+  defp with_reinvestment_basis(basis, include) do
+    if :reinvestment in include,
+      do: Map.put(basis, :reinvestment, SaleReinvestment.computation_basis()),
+      else: basis
   end
 
   defp sales(opts, fetch) do

@@ -138,6 +138,85 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   def window_days, do: @window_days
 
   @doc """
+  The computation basis of the blocks (AGENTS.md: every metric of ladder
+  levels (a)-(c) states it in its payload; ADR-0057 §4): the rule, the 30
+  days, the order, the spans, the prices, before tax, price only, and what
+  the rule cannot see.
+  """
+  @spec computation_basis() :: %{atom() => String.t()}
+  def computation_basis do
+    staleness = WindowReturn.staleness_days()
+
+    %{
+      rule:
+        "found by rule, never chosen (ADR-0057 §1): a sale's proceeds, its booked cash " <>
+          "amount on its cash account (its settlement after its fees and taxes; a tax_refund " <>
+          "of the sold security booked on the sale's date and cash account after it is a " <>
+          "negative tax of the sale and joins them), go into the buy bookings that debit " <>
+          "the same cash account, of any security other than the one sold",
+      window:
+        "a buy is a candidate from the sale's date to #{@window_days} calendar days after " <>
+          "it, both included; a sale less than #{@window_days} days old can still be " <>
+          "matched by a buy booked later",
+      order:
+        "proceeds wait in a queue by sale date, then booking id; buys take from the oldest " <>
+          "proceeds first, in date order, then booking id, each at most its own cash debit " <>
+          "(price x quantity plus its fees and taxes); on one date the day's sales enter " <>
+          "the queue before its buys take. A buy funded in part counts with its " <>
+          "share_of_buy. What no buy took is unallocated and stays out of the comparison: " <>
+          "money that waited is not money that switched. share_of_proceeds_matched (a) is " <>
+          "the sum taken over the proceeds",
+      spans:
+        "FR-50's spans and ends (1m, 3m, 12m, latest), pending while the end is after " <>
+          "today. kept = a x the sold quantity x the sold security's close at the end; " <>
+          "switched = for each matched buy dated after the end, the amount it took as cash " <>
+          "(it earns nothing while it waits), otherwise its share_of_buy x its quantity x " <>
+          "the bought security's close at the end; difference = switched + taxes_apart - " <>
+          "kept, unrounded. A span that cannot be measured is incomplete with side (kept " <>
+          "or switched) and reason (no_start_close, no_end_close, no_fx_rate)",
+      prices:
+        "both sides in EUR with the sale hindsight's rules: the close standing for a date " <>
+          "is the last positive stored close on or before it, at most #{staleness} calendar " <>
+          "days older, split-adjusted, converted at the stored EUR-hub rate of its own date; " <>
+          "a booked quantity is read in the same basis (times the ratio of the splits after " <>
+          "its date); cash, fees, taxes and income convert at the rate of the span's end",
+      before_tax:
+        "both sides are compared before tax: the sale's fees and each buy's fees are paid " <>
+          "out of the money that switched, so they are inside the difference, and " <>
+          "fees_inside names them (a x the sale's fees plus each buy's share of its fees, " <>
+          "for the buys dated on or before the end); the sale's booked taxes are named apart " <>
+          "as taxes_apart (a x them, signed: a refund is negative) and added back to the " <>
+          "switched side, because the kept position's latent tax is not booked and is not " <>
+          "derived",
+      price_only:
+        "price only on both sides: the kept side's distributions after the sale are not " <>
+          "booked, so income_apart names the bought positions' booked distributions after " <>
+          "each buy and up to the end (before withholding tax, each buy's part by its share " <>
+          "of the quantity held the day before) and is never added; this understates " <>
+          "whichever side paid more",
+      fungible_money:
+        "money is fungible: a deposit or a dividend that arrived in between could have paid " <>
+          "for the buy instead; the rule assumes the sale's proceeds are spent first",
+      dates:
+        "bookings carry a date, not a time: a buy on the sale's own date counts, though it " <>
+          "may have been paid otherwise",
+      transfers:
+        "money moved to another account by a cash_transfer is not followed: a switch made " <>
+          "through another account reads no_match",
+      no_match:
+        "no_match names its reason: no_buy_within_30_days (no candidate buy), " <>
+          "proceeds_taken_by_earlier_sale (the candidates were paid by earlier proceeds), " <>
+          "no_cash_account (no cash account or no positive settlement on it)",
+      currency:
+        "proceeds, cash_debit, amount_taken and unallocated are in currency_code, the " <>
+          "sale's cash account's currency; every span figure is in EUR",
+      no_total:
+        "no field gives a verdict and no total over all switches is reported; nothing is " <>
+          "stored, every read derives the matches from the ledger"
+    }
+  end
+
+  @doc """
   Each sale's block, keyed by the sale's id. The ledger rows the rule reads
   (every `buy`, `sell` and `tax_refund` of the sales' cash accounts) are
   loaded once; nothing is written.
