@@ -744,6 +744,10 @@ und die Datenqualitäts-Hinweise des Katalogs (veralteter oder fehlender
 Kurs, fehlendes Logo) lassen sie in Ruhe; sie kann trotzdem gehalten werden
 und ist dann einfach beides. Die API listet Benchmarks mit
 `is_benchmark=true`. Was der Vergleich zeigt, steht unter Performance.
+Das Entfernen der Markierung (**Benchmark-Markierung entfernen**) hindert
+nur eine *neue* Prognose daran, das Wertpapier als Benchmark zu nennen:
+Messen festgehaltene Prognosen an ihm, sagt der Hinweis, wie viele es
+weiter tun.
 
 **Stillgelegte Wertpapiere.** Ein Wertpapier, das Sie nicht mehr halten und
 dessen Notierung endete — ausverkauft oder delistet —, bleibt im Katalog,
@@ -759,6 +763,45 @@ Buchung stellt also die Basis neu fest, statt die Lücke als Rendite zu
 melden — das kann frühere TTWROR-Werte ändern (#610). **Reaktivieren** im
 selben Menü hebt es auf. Ihr Agent legt ein Wertpapier mit
 `portfolixir.securities.update` und `is_retired` still.
+
+### Tab „Prognosen“ (die festgehaltenen Aussagen zum Wertpapier, ADR-0055)
+
+Der Tab **Prognosen**, nach Research, listet die zum Wertpapier
+festgehaltenen Prognosen — die Aussage, dass es eine Benchmark bis zu
+einem Datum übertrifft oder hinter ihr zurückbleibt, mit einer angegebenen
+Wahrscheinlichkeit — **die neueste zuerst**. Jeder Eintrag zeigt seinen
+Stand, seine Nummer, den Tag der Abgabe, den Urheber (*Operator* oder
+*Agent* mit dem Modell, das der Agent genannt hat) und die Aussage in
+einem Satz neben ihrer Wahrscheinlichkeit: „Übertrifft *Index* bis
+31.03.2027“, „Steigt bis …“ für eine absolute Aussage (`rate:0`),
+„Übertrifft 2,0 % p. a. bis …“ für einen festen Satz. Der Stand ist einer
+von:
+
+- **offen · noch *n* Tage**, oder **offen · wartet auf den Schlusskurs**,
+  sobald der Auflösungstag vorbei ist und der Schlusskurs, der sie
+  entscheidet, noch fehlt (höchstens 7 Tage; die Zeile unter der Aussage
+  nennt den letzten Tag);
+- **Treffer** oder **verfehlt**, sobald aufgelöst, mit den Zahlen: die
+  Rendite des Wertpapiers, die Rendite der Benchmark, die **Überrendite**
+  in Prozentpunkten und die Daten der beiden verwendeten Schlusskurse.
+  „verfehlt“ ist gedämpft, nicht rot: ein erwartbarer Ausgang, kein
+  Fehler. Die Überrendite behält ihre Vorzeichenfarbe, eine verfehlte
+  „Fällt“-Aussage kann also eine grüne Überrendite zeigen;
+- **nicht aufgelöst**, mit dem Grund als Wort und als Satz (kein
+  Startkurs, kein Endkurs, kein Benchmark-Kurs, kein Wechselkurs). Sie
+  wird nie geschätzt.
+
+Es folgen die Begründung und der Research-Eintrag, zu dem die Aussage
+gehört (ein Link in den Tab Research). Das **ⓘ** der Zeile sagt, wie
+gewertet wird: beim Lesen aus gespeicherten Schlusskursen, beide Seiten in
+EUR, nur Kursrendite, mit der Grenze von 7 Tagen für einen veralteten
+Kurs. **Nichts im Tab schreibt**: Eine Prognose wird über die API oder MCP
+festgehalten (`POST /api/v1/predictions`,
+`portfolixir.predictions.create`) und nie geändert, zurückgezogen oder
+gelöscht; eine korrigierte Aussage ist eine neue, und beide zählen. Der
+Tab zeigt dieselben Zahlen, die `GET /api/v1/predictions?security_id=`
+antwortet. Ein Wertpapier mit Prognosen lässt sich nicht löschen, und die
+Lösch-Bestätigung nennt sie unter dem, was blockiert.
 
 ## Konten und Depots
 
@@ -4298,7 +4341,7 @@ oder nächsten Reiter (am Ende geht es von vorn weiter), **Pos1** und **Ende**
 springen zum ersten und letzten, und der Reiter, der den Fokus erhält, öffnet
 seinen Bereich. Öffnet die Seite auf einem Reiter — über einen Link, ein
 Neuladen, Zurück oder Vor oder eine geteilte Adresse —, rollt die Zeile diesen
-Reiter ins Bild; das zählt auf dem Telefon, wo die neun Reiter nicht
+Reiter ins Bild; das zählt auf dem Telefon, wo die zehn Reiter nicht
 hineinpassen.
 
 Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:

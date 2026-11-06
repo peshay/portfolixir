@@ -680,7 +680,10 @@ quote sync, so there is no second quote source. A benchmark is never offered
 in a booking form and the catalog's data-quality reminders (stale or missing
 quote, missing logo) leave it alone; it may still be held, and then it is
 simply both. The API lists benchmarks with `is_benchmark=true`. What the
-comparison shows is described under Performance.
+comparison shows is described under Performance. Removing the flag
+(**Unmark benchmark**) only stops a *new* prediction from naming the
+security as its benchmark: where recorded predictions measure against it,
+the note says how many keep doing so.
 
 **Retired securities.** A security you no longer hold and whose listing has
 ended — sold out or delisted — stays in the catalog because its bookings do.
@@ -694,6 +697,40 @@ stale quote as a market observation, so a later booking restates the basis
 instead of reporting the gap as return, which can change past TTWROR figures
 (#610). **Reactivate** in the same menu undoes it. Your agent retires a
 security with `portfolixir.securities.update` and `is_retired`.
+
+### Predictions tab (the security's recorded calls, ADR-0055)
+
+The **Predictions** tab, after Research, lists the predictions recorded on
+the security — a call that it outperforms or underperforms a benchmark by
+a date, with a stated probability — **newest first**. Each entry shows its
+status, its number, the day it was made, its author (*Operator*, or
+*Agent* with the model the agent named) and the claim in one sentence
+beside its probability: "Outperforms *Index* by 31.03.2027", "Rises by
+…" for an absolute call (`rate:0`), "Outperforms 2.0 % a year by …" for a
+fixed rate. The status is one of:
+
+- **open · *n* days left**, or **open · waiting for the close** once the
+  resolution day has passed and the close that settles it is not in yet
+  (at most 7 days; the line under the claim names the last day);
+- **Hit** or **missed** once resolved, with the figures: the security's
+  return, the benchmark's return, the **excess** in percentage points and
+  the dates of the two closes used. A miss is muted, not red: it is an
+  expected outcome, not a fault. The excess keeps its sign colour, so a
+  missed "Falls" call can show a green excess;
+- **not resolved**, with its reason as a word and a sentence (no start
+  close, no end close, no benchmark close, no exchange rate). It is never
+  estimated.
+
+The rationale and the research entry the call belongs to (a link into the
+Research tab) follow. The line's **ⓘ** states how a call is scored: at
+read from stored closes, both sides in EUR, price return only, with the
+7-day staleness bound. **Nothing on the tab writes**: a prediction is
+recorded over the API or MCP (`POST /api/v1/predictions`,
+`portfolixir.predictions.create`) and is never changed, withdrawn or
+deleted; a corrected call is a new one, and both count. The tab shows the
+same figures `GET /api/v1/predictions?security_id=` answers. A security
+with predictions cannot be deleted, and the delete confirmation names
+them among what blocks.
 
 ## Accounts and Depots
 
@@ -3901,7 +3938,7 @@ selected tab, **Arrow Left/Right** move to the previous or next tab (wrapping
 at the ends), **Home** and **End** jump to the first and last, and the tab
 that receives focus opens its panel. When the page opens on a tab — from a link, a
 reload, back or forward, or a shared URL — the row scrolls that tab into
-view, which matters on a phone, where the nine tabs do not fit.
+view, which matters on a phone, where the ten tabs do not fit.
 
 The detail pane shows a server-rendered SVG price chart with:
 

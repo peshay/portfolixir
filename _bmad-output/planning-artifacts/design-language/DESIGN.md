@@ -8783,3 +8783,120 @@ colour is a token, so light and dark and the three accents follow.
   drew no mention, and the first build named them only in the payload's
   `costs_paid.excluded`, so a missing rate read as a smaller cost on the
   screen; the line now carries the clause its states describe.
+
+<!-- Sprint 26 V1 begin -->
+## Amendment 2026-11-06 — Wertpapier → Prognosen: a security's predictions *(Sprint 26 V1, idea F1; board `mockups/ux-design-2026-11-06-sprint26-f1`, part 1 and part 3; ADR-0055 §5)*
+
+The security page's tenth tab, „Prognosen“ (English "Predictions"), is the
+human view of the calls recorded on one security over the API or MCP.
+Built in `PortfolixirWeb.Securities.PredictionsTab` (its panel) and
+`PortfolixirWeb.PredictionLabel` (the claim, the status, the reason and
+the author, shared with Wealth → Prognosen). The entries are
+`Predictions.list_with_resolution(security_id: id)`, the read
+`GET /api/v1/predictions?security_id=` answers from, so a figure on the
+tab is the API's figure, formatted; a LiveView test compares the two.
+The tab writes nothing (ADR-0055 §2): no form, no edit, no withdrawal.
+
+### Anatomy
+
+1. **The tab** sits after „Research“ and before „Termine“
+   (`#detail-tab-predictions`, `tab=predictions` in the URL): a prediction
+   points at a research entry, so the two stand together. The row scrolls
+   since #817; ten tabs keep the roving tabindex of #837. The calls are
+   read only while the tab is open, since each is resolved from stored
+   closes.
+2. **The line and its ⓘ** (`div.detail-tab-hint`,
+   `data-role="predictions-basis"`), as Research and Termine: „Festgehaltene
+   Prognosen zu diesem Wertpapier, die neueste zuerst. Keine wird geändert
+   oder gelöscht.“ The ⓘ (`AppShell.section_info`) states the basis in
+   seven sentences: permanence; scored at read in EUR at the stored rate
+   of each close's day, nothing stored; the start and end close and the
+   wait for the end close; the staleness bound; the excess rule with a
+   fixed rate compounded daily and 0 % the absolute call; price return
+   only; recorded over the API or MCP. The staleness bound is read from
+   the computation basis (`Calibration.computation_basis().staleness_days`),
+   never written twice.
+3. **The list** is the research timeline's anatomy
+   (`ol.research-timeline.prediction-timeline`,
+   `data-role="prediction-timeline"`), newest first, one
+   `li.research-entry.prediction-entry.prediction-entry--{state}` per call
+   (`id="prediction-{id}"`, `data-state`):
+   - **head:** the status badge (`data-role="prediction-status"`), then
+     `span.research-entry__meta` „#21 · 04.11.2026 · Agent · model-alpha-3“
+     (the UTC day made; an operator's call reads „Operator“, the model is
+     stored text in `<bdi>`);
+   - **the claim** (`p.prediction-entry__claim`): one sentence in
+     `<strong>` — „Übertrifft {Benchmark} bis {Datum}“, „Bleibt bis {Datum}
+     hinter {Benchmark} zurück“, „Steigt / Fällt bis {Datum}“ for
+     `rate:0`, „Übertrifft 2,0 % p. a. bis {Datum}“ / „Bleibt bis {Datum}
+     unter 2,0 % p. a.“ for a fixed rate, the benchmark's name in `<bdi>` —
+     beside `span.prediction-entry__p`, the uppercase label
+     „Wahrscheinlichkeit“ and the whole percent („65 %“);
+   - **a line under the claim** (`p.prediction-entry__reason`, 12 px,
+     muted) only when there is something to wait for or a reason: waiting,
+     „Der Auflösungstag ist vorbei; gewertet wird, sobald ein Schlusskurs
+     ab dem {Datum} vorliegt, spätestens am {Datum + 7}.“; unresolved, the
+     reason as a bold word and a sentence („kein Benchmark-Kurs: Für die
+     Benchmark liegt am oder bis 7 Tage vor dem {Start} oder dem {Ende}
+     kein Schlusskurs vor.“);
+   - **the facts, only once resolved**
+     (`dl.research-entry__facts.prediction-entry__facts`): Rendite,
+     Benchmark-Rendite, Überrendite (in „Pp“) and Schlusskurse (the dates
+     of the two closes used, „07.09.2026 → 07.10.2026“). The return and the
+     excess keep the sign colour (`is-positive` / `is-negative`), so a
+     missed „Fällt“ call shows a green „+2,2 Pp“ beside „verfehlt“: the
+     colour is the measurement's sign, the badge the call's outcome;
+   - **the rationale** (`p.research-entry__body`) and **the research
+     entry** it belongs to (`p.research-entry__meta`, a link to
+     `?tab=research#research-entry-{id}`, „Research #1 · These“, the kind
+     in the research log's own words).
+4. **The empty state:** `p.empty-state` „Für dieses Wertpapier ist keine
+   Prognose festgehalten. Festgehalten wird über die API oder MCP.“
+
+### The status, by state
+
+| State | Badge | Left edge |
+|---|---|---|
+| open | „offen · noch 145 Tage“ (`badge--neutral`) | the timeline's accent |
+| open, past its day | „offen · wartet auf den Schlusskurs“ (`badge--neutral`) | accent |
+| hit | „Treffer“ (`badge--thesis-intact`, the green outline) | `--color-positive` |
+| missed | „verfehlt“ (`badge--retired`, muted, never red: a miss is an expected outcome, not a data fault) | `--color-border-strong` |
+| not resolved | „nicht aufgelöst“ (`badge--undetermined`, dashed) | dashed `--color-border-strong` |
+
+### The `app.css` rules (between `Sprint 26 V1 begin` / `end`)
+
+After `.research-entry__body`: `.prediction-entry__claim` (wrapping flex
+row, baseline), `.prediction-entry__p` (tabular, 700, no wrap) and its
+label, `.prediction-entry__facts dd.num` (tabular, no wrap),
+`.prediction-entry p.research-entry__meta` (`margin: 0`, the paragraph's
+browser margins removed), `.prediction-entry__reason`, the three left
+edges, and under 560 px the facts two abreast (`repeat(2, minmax(0,
+1fr))`): the shipped facts grid stacks to one column under 480 px for the
+thesis's long labels, which these four do not have. Every colour is a
+token.
+
+### #1365, the two lines of board 02 part 3
+
+- **The delete confirmation** (the row menu's `data-confirm`) names
+  „Prognosen“ among what blocks: „… Buchungen, Kurse, Termine,
+  Research-Einträge, Prognosen und eigene Regeln blockieren das Löschen.
+  …“ (ADR-0055 §2, `delete: :restrict`).
+- **Removing a benchmark flag** where recorded predictions measure against
+  the security: the inline note reads „{Name} ist keine Benchmark mehr. 13
+  festgehaltene Prognosen messen weiter an ihr; eine neue Prognose kann
+  sie nicht mehr als Benchmark nennen.“ (singular „1 festgehaltene Prognose
+  misst …“), counted by `Predictions.count_measuring_against/1`. Without
+  such predictions the shipped sentence stands alone. The security form has
+  no benchmark field, so the line lives in the row action's note, not in a
+  help text (the board's finding).
+
+### Stated, not settled here
+
+- **The benchmark's missing close names both days.** The board's sentence
+  names one date; the read's reason `no_benchmark_close` does not say
+  whether the start or the end close is missing, so the sentence names
+  the day made and the resolution day („… vor dem {Start} oder dem
+  {Ende} …“). `no_fx_rate` likewise reads „Für den Tag eines Schlusskurses,
+  den die Prognose braucht, ist kein Wechselkurs nach EUR gespeichert.“
+  without a date or currency. Naming the side is a change to the read.
+<!-- Sprint 26 V1 end -->
