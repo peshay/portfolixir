@@ -258,6 +258,13 @@ re-checks because a local hook can be skipped.
   retrospective); the gates stand in for the human read (ADR-0026,
   "Compensating controls"; ADR-0036), and the merge is the owner's acceptance
   (ADR-0026 step 4).
+- **On your own `agent/<provider>/…` branch and its PR, rebase onto `main`
+  and push with `git push --force-with-lease` without asking**, for the
+  rebase and for the history cleanup before promotion; never on `main` or on
+  a branch someone else pushed to. *Why:* `main` requires a linear, current
+  branch, so a sprint PR cannot be promoted without it, and Sprint 25's PR
+  sat conflicting and without CI for hours while the session asked; the
+  owner granted it standing on 2026-11-06 (Sprint 25 retrospective).
 - **Ask the owner only what only the owner knows**: a fact on the owner's own
   instance, a change to how stored money data is booked or corrected, scope and
   non-goals. Decide everything else with its reason, flippable by a comment,
