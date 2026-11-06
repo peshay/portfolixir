@@ -216,7 +216,10 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     assert Buckets.get_view(v.id).name == "New"
 
-    menu_click(view, "view", v.id, "delete_view")
+    # Sprint 26 V4: the row menu's Delete opens the dialog; its button
+    # deletes.
+    menu_click(view, "view", v.id, "ask_delete_view")
+    view |> element("#delete-preview-confirm") |> render_click()
     assert Buckets.get_view(v.id) == nil
   end
 
@@ -660,7 +663,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       {:ok, live, html} = live(conn, "/buckets")
       doc = Floki.parse_document!(html)
 
-      assert Floki.find(doc, ~s(#view-#{view.id} button[phx-click="delete_view"])) == []
+      assert Floki.find(doc, ~s(#view-#{view.id} button[phx-click="ask_delete_view"])) == []
       assert Floki.find(doc, ~s(#bucket-#{crypto.id} button[phx-click="delete_bucket"])) == []
 
       live
@@ -670,7 +673,9 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       menu = Floki.parse_document!(render(live)) |> Floki.find(~s([role="menu"]))
       assert text(menu) =~ "Edit buckets"
       assert text(menu) =~ "Rename"
-      assert [_] = Floki.find(menu, ~s(button[phx-click="delete_view"][data-confirm]))
+      # Sprint 26 V4: the view's delete confirms in the app's own dialog.
+      assert [_] = Floki.find(menu, ~s(button[phx-click="ask_delete_view"]))
+      assert [] = Floki.find(menu, ~s(button[phx-click="ask_delete_view"][data-confirm]))
 
       live
       |> element(

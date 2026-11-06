@@ -11684,6 +11684,48 @@ dialog.merge-dialog {
   min-width: 0;
 }
 
+/* ④ The cascading deletes (Sprint 26 V4, F21, issue 894; board
+   ux-design-2026-11-06-sprint26-f21, pick A) join the booking delete's
+   dialog: what the delete removes, read from its dry run, is one lead line
+   and one bullet per kind with its count. A refusal there takes the
+   securities' "Cannot delete" text rules, and its list of rules. */
+.delete-preview {
+  margin: 0;
+}
+
+.delete-preview__lead {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.delete-preview__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.delete-preview__list li {
+  overflow-wrap: anywhere;
+}
+
+.delete-preview__list li + li {
+  margin-top: 2px;
+}
+
+.delete-preview__list li::marker {
+  color: var(--color-text-muted);
+}
+
+.confirm-delete-blocked .modal-body ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 /* The close button keeps its size beside a title that wraps and takes the
    44 px floor under a coarse pointer from `.icon-button` itself since
    Sprint 18 U4, which subsumed the three rules closing act γ D6 wrote

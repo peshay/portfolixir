@@ -1157,10 +1157,24 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert Portfolixir.Repo.get(Portfolixir.Classifications.Category, category.id).color ==
              "#abcdef"
 
-    render_hook(view, "delete_category", %{"id" => to_string(category.id)})
+    # Sprint 26 V4: each delete confirms in its dialog.
+    render_hook(view, "ask_delete_category", %{"id" => to_string(category.id)})
+
+    render_hook(view, "confirm_delete_preview", %{
+      "kind" => "category",
+      "id" => to_string(category.id)
+    })
+
     refute Portfolixir.Repo.get(Portfolixir.Classifications.Category, category.id)
 
-    render_hook(view, "delete_classification", %{})
+    render_hook(view, "ask_delete_classification", %{})
+
+    assert {:error, {:live_redirect, %{to: "/classifications"}}} =
+             render_hook(view, "confirm_delete_preview", %{
+               "kind" => "classification",
+               "id" => to_string(classification.id)
+             })
+
     refute Classifications.get_classification(classification.id)
   end
 
@@ -2287,7 +2301,14 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     {:ok, view, _html} =
       live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
 
-    render_hook(view, "delete_category", %{"id" => to_string(world.platforms.id)})
+    # Sprint 26 V4: the delete confirms in its dialog.
+    render_hook(view, "ask_delete_category", %{"id" => to_string(world.platforms.id)})
+
+    render_hook(view, "confirm_delete_preview", %{
+      "kind" => "category",
+      "id" => to_string(world.platforms.id)
+    })
+
     html = render(view)
 
     assert note_text(html) =~ ~r/bezahlt wurde: Harborline Freight Inc, Einstand 1\.500,00 USD\./
