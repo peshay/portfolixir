@@ -72,7 +72,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "share_of_proceeds_matched (ADR-0057's a: the sum the buys took over the proceeds), " <>
           "unallocated, spans [{span, end_on, status, side, reason, kept, switched, " <>
           "difference, fees_inside, taxes_apart, income_apart}]}, and computation_basis " <>
-          "gains reinvestment {rule, window, order, spans, prices, before_tax, price_only, " <>
+          "gains reinvestment {rule, window, order, days_to_first_buy, spans, prices, " <>
+          "before_tax, price_only, " <>
           "fungible_money, dates, transfers, no_match, currency, no_total}. The proceeds (the " <>
           "sale's booked cash amount on its cash account) go into the buys debiting the same " <>
           "account dated from the sale's date to 30 calendar days after it, of another " <>

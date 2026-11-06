@@ -2509,9 +2509,10 @@ Beispiel-Payloads für Konten:
   `proceeds_taken_by_earlier_sale`, `no_cash_account`), `cash_account_id`,
   `currency_code` (die des Kontos), `proceeds`, `buys` (`buy_id`, `date`,
   `security`, `quantity`, `cash_debit`, `amount_taken`, `share_of_buy`),
-  `days_to_first_buy`, `share_of_proceeds_matched` (das `a` der ADR: die
-  Summe, die die Käufe nahmen, durch den Erlös) und `unallocated` (Geld, das
-  wartete, bleibt außen vor). Je FR-50-Spanne ist `kept` `a` × die verkaufte
+  `days_to_first_buy` (Kalendertage vom Verkaufsdatum bis zum ersten
+  zugeordneten Kauf, `0` am Verkaufstag), `share_of_proceeds_matched` (das
+  `a` der ADR: die Summe, die die Käufe nahmen, durch den Erlös) und
+  `unallocated` (Geld, das wartete, bleibt außen vor). Je FR-50-Spanne ist `kept` `a` × die verkaufte
   Stückzahl × der Schlusskurs des verkauften Wertpapiers am Ende, `switched`
   der Anteil jedes Kaufs × seine Stückzahl × der Schlusskurs des gekauften
   Wertpapiers am Ende (ein Kauf nach dem Ende zählt als Geld in der Währung

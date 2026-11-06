@@ -321,7 +321,7 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightControllerTest do
     basis = data["computation_basis"]["reinvestment"]
 
     for key <-
-          ~w(rule window order spans prices before_tax price_only fungible_money dates transfers no_match currency no_total) do
+          ~w(rule window order days_to_first_buy spans prices before_tax price_only fungible_money dates transfers no_match currency no_total) do
       assert is_binary(basis[key]), key
     end
 
