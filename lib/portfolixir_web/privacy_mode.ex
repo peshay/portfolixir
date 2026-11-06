@@ -170,17 +170,35 @@ defmodule PortfolixirWeb.PrivacyMode do
   The address a page's switch links to: the page's own path and query with
   `privacy` set to the other state.
   """
-  @spec toggle_href(String.t(), boolean()) :: String.t()
+  @spec toggle_href(String.t() | nil, boolean()) :: String.t()
   def toggle_href(path, on) do
     uri = URI.parse(path || "/")
+    pairs = without_choice(uri.query) ++ ["privacy=" <> if(on, do: "off", else: @on)]
 
-    query =
-      (uri.query || "")
-      |> URI.decode_query()
-      |> Map.put("privacy", if(on, do: "off", else: @on))
-      |> URI.encode_query()
+    URI.to_string(%URI{path: uri.path || "/", query: Enum.join(pairs, "&")})
+  end
 
-    URI.to_string(%URI{path: uri.path || "/", query: query})
+  # A query's pairs as written, every `privacy` pair left out. The raw
+  # pairs, not a decoded map: a list (`cur[]=EUR&cur[]=USD`) or a nested
+  # key (`a[b]=c`) keeps its form, its repeats and its order, which a map
+  # re-encoded loses or cannot encode at all.
+  defp without_choice(nil), do: []
+
+  defp without_choice(query) do
+    query
+    |> String.split("&", trim: true)
+    |> Enum.reject(&choice?/1)
+  end
+
+  defp choice?(pair) do
+    [key | _value] = String.split(pair, "=", parts: 2)
+    decoded_key(key) == "privacy"
+  end
+
+  defp decoded_key(key) do
+    URI.decode_www_form(key)
+  rescue
+    ArgumentError -> key
   end
 
   defp apply_mode(conn, on) do
@@ -195,7 +213,7 @@ defmodule PortfolixirWeb.PrivacyMode do
   # replays a switch. Only a path of this origin; a path that a browser
   # would read as another host (`//host`, a backslash) goes to the start.
   defp redirect_without_choice(conn) do
-    query = conn.query_params |> Map.delete("privacy") |> URI.encode_query()
+    query = conn.query_string |> without_choice() |> Enum.join("&")
     path = local_path(conn.request_path)
     location = if query == "", do: path, else: path <> "?" <> query
 
@@ -219,11 +237,27 @@ defmodule PortfolixirWeb.PrivacyMode do
   @doc """
   Sets the mode for a LiveView's process from its session, on its
   disconnected and its connected mount alike, and assigns
-  `:privacy_mode`.
+  `:privacy_mode`; keeps the page's address in `:page_address` for the
+  switch, from every `handle_params`.
   """
   def on_mount(:default, _params, session, socket) do
     on = put(Map.get(session, @session_key) === true)
-    {:cont, Phoenix.Component.assign(socket, :privacy_mode, on)}
+
+    socket =
+      socket
+      |> Phoenix.Component.assign(privacy_mode: on, page_address: nil)
+      |> Phoenix.LiveView.attach_hook(:privacy_page_address, :handle_params, &page_address/3)
+
+    {:cont, socket}
+  end
+
+  # The address the switch links back to (`PortfolixirWeb.AppShell`'s
+  # `page_address`): the page's path and query as this `handle_params`
+  # sees them, after every patch too, never its host.
+  defp page_address(_params, uri, socket) do
+    %URI{path: path, query: query} = URI.parse(uri)
+    address = URI.to_string(%URI{path: path || "/", query: query})
+    {:cont, Phoenix.Component.assign(socket, :page_address, address)}
   end
 
   @doc """

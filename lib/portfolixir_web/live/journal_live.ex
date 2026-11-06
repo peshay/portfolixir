@@ -222,7 +222,7 @@ defmodule PortfolixirWeb.JournalLive do
     assigns = assign(assigns, :actor_chips, @actor_chips)
 
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/journal"
       page_title={gettext("Audit journal")}
       page_subtitle={gettext("Every stored change, who made it and what stood before")}

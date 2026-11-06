@@ -455,7 +455,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/securities"
       page_title={gettext("Securities")}
       page_subtitle={gettext("Search, filter and curate the investable universe.")}

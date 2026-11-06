@@ -128,7 +128,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path="/transactions"
       page_title={gettext("Transactions")}
       page_subtitle={gettext("Every booking across accounts and depots")}

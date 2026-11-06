@@ -263,7 +263,7 @@ defmodule PortfolixirWeb.IncomeLive do
   @impl true
   def render(%{portfolio: nil} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Cash flow")}>
+    <AppShell.shell page_address={@page_address} current_path={@current_path} page_title={gettext("Cash flow")}>
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Income") %></h2>
@@ -283,7 +283,7 @@ defmodule PortfolixirWeb.IncomeLive do
       |> assign(:top_contributors, top_contributors(assigns.income.positions))
 
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path={@current_path}
       page_title={facet_title(@facet)}
       page_subtitle={facet_subtitle(@facet)}

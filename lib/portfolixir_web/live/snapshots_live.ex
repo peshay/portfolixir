@@ -328,7 +328,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
   @impl true
   def render(%{portfolio: nil} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Snapshots")}>
+    <AppShell.shell page_address={@page_address} current_path={@current_path} page_title={gettext("Snapshots")}>
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Snapshots") %></h2>
@@ -342,7 +342,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
   def render(assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path={@current_path}
       page_title={gettext("Snapshots")}
       page_subtitle={gettext("Freeze a depot state and compare against it")}

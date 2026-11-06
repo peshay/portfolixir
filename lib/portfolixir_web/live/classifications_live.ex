@@ -267,7 +267,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   @impl true
   def render(%{live_action: :show, tree: nil} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Classifications")}>
+    <AppShell.shell page_address={@page_address} current_path={@current_path} page_title={gettext("Classifications")}>
       <div class="workspace-page">
         <p class="alert-error" role="alert"><%= gettext("Classification not found") %></p>
       </div>
@@ -277,7 +277,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   def render(%{live_action: :show} = assigns) do
     ~H"""
-    <AppShell.shell
+    <AppShell.shell page_address={@page_address}
       current_path={@current_path}
       page_title={ClassificationName.display(@tree.classification)}
       page_subtitle={gettext("Organise securities by dragging them between categories")}
@@ -592,7 +592,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   def render(%{live_action: :new} = assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("New classification")}>
+    <AppShell.shell page_address={@page_address} current_path={@current_path} page_title={gettext("New classification")}>
       <div class="workspace-page">
         <AppShell.inline_result
           id="classifications-result"
@@ -619,7 +619,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   def render(assigns) do
     ~H"""
-    <AppShell.shell current_path={@current_path} page_title={gettext("Classifications")}>
+    <AppShell.shell page_address={@page_address} current_path={@current_path} page_title={gettext("Classifications")}>
       <div class="workspace-page">
         <%!-- #808 (review C11): the index is the door to a tree, so each row
              says what that tree holds — its size, its assignment state and
