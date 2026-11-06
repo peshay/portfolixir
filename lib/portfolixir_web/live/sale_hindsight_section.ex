@@ -431,7 +431,11 @@ defmodule PortfolixirWeb.SaleHindsightSection do
       </ul>
 
       <p :if={@report.truncated} class="hint" data-role="hindsight-truncated">
-        <%= gettext("The newest %{count} sales; older ones are left out.", count: @report.limit) %>
+        <%= ngettext(
+          "The newest sale; older ones are left out.",
+          "The newest %{count} sales; older ones are left out.",
+          @report.limit
+        ) %>
       </p>
       <p class="summary-basis hs-legend">
         <%= @legend %> · <%= gettext("Price return: distributions after the sale not included") %>
