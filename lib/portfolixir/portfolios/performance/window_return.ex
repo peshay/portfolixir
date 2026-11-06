@@ -189,16 +189,18 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturn do
     do: Quotes.positive_close_on_or_after?(id, on)
 
   @doc """
-  EUR per one unit of `currency` on `on`, by the conversion's rule (see the
-  module doc): `1 / the most recent stored EUR-hub rate on or before it`,
-  exactly 1 for EUR, `{:error, :no_fx_rate}` without a stored rate path. A
-  close's own `fx_rate` in `price_return/3` is this rate on the close's
-  date; what a switch cost converts cash with it (ADR-0057 §2).
+  The stored EUR-hub rate of `currency` on `on`, by the conversion's rule
+  (see the module doc): units of the currency per 1 EUR, the most recent
+  stored rate on or before it, exactly 1 for EUR, GBX through `GBP × 100`;
+  `{:error, :no_fx_rate}` without a stored rate path. A close's `fx_rate`
+  in `price_return/3` is `1 / this rate` on the close's date. What a switch
+  cost (ADR-0057 §2) divides by it once, as the return does, so an amount
+  is never multiplied by a rounded inverse.
   """
-  @spec eur_rate(String.t(), Date.t()) :: {:ok, Decimal.t()} | {:error, :no_fx_rate}
-  def eur_rate(currency, %Date{} = on) when is_binary(currency) do
+  @spec hub_rate(String.t(), Date.t()) :: {:ok, Decimal.t()} | {:error, :no_fx_rate}
+  def hub_rate(currency, %Date{} = on) when is_binary(currency) do
     case Fx.hub_rate(currency, on) do
-      {:ok, hub} -> {:ok, fx_rate(currency, hub)}
+      {:ok, hub} -> {:ok, hub}
       {:error, :no_rate} -> {:error, :no_fx_rate}
     end
   end
