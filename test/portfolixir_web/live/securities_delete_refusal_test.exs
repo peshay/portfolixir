@@ -121,8 +121,9 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
   # so that I see why the way out is merge or retire.
   #
   # Acceptance criteria:
-  # - The confirmation names bookings, quotes, events, research entries and
-  #   policy rules as what blocks, and the classifications, position
+  # - The confirmation names bookings, quotes, events, research entries,
+  #   predictions and policy rules as what blocks (predictions since Sprint
+  #   26 V1, #1365 line 1, board 02 part 3 ①), and the classifications, position
   #   targets, bucket assignments, former ISINs and the logo as removed with
   #   it, each "recorded in the journal", never "journaled" (R10d; the review
   #   of Sprint 19 U6); it no longer says notes are lost.
@@ -138,7 +139,7 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert confirmation(view, researched) ==
-             "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
+             "Delete this security? Bookings, quotes, events, research entries, predictions and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
 
     delete_row(view, researched)
 
@@ -169,7 +170,7 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
     {:ok, view, _html} = live(german(conn), "/securities")
 
     assert confirmation(view, researched) ==
-             "Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge und eigene Regeln blockieren das Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs, jeweils im Journal festgehalten, und das Logo."
+             "Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge, Prognosen und eigene Regeln blockieren das Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs, jeweils im Journal festgehalten, und das Logo."
 
     delete_row(view, researched)
 

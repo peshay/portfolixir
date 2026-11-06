@@ -180,8 +180,10 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         phx-value-action="delete"
         phx-value-id={@security.id}
         data-confirm={
+          # Sprint 26 V1 (#1365 line 1, board 02 part 3 ①): a prediction
+          # blocks the delete too (ADR-0055 §2, delete: :restrict).
           gettext(
-            "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
+            "Delete this security? Bookings, quotes, events, research entries, predictions and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
           )
         }
       >

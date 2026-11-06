@@ -5924,7 +5924,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _updated} ->
         flash =
           if sec.is_benchmark,
-            do: gettext("%{name} is no longer a benchmark", name: StoredText.slot(:name)),
+            do: unflagged_benchmark(sec),
             else: gettext("Marked %{name} as benchmark", name: StoredText.slot(:name))
 
         {:noreply,
@@ -6086,6 +6086,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
+
+  # Sprint 26 V1 (#1365 line 2, board 02 part 3 ②, judgment call 8): the
+  # flag gates only new predictions, so where recorded ones measure against
+  # the security the note says how many keep doing so.
+  defp unflagged_benchmark(%Security{id: id}) do
+    case Predictions.count_measuring_against(id) do
+      0 ->
+        gettext("%{name} is no longer a benchmark", name: StoredText.slot(:name))
+
+      count ->
+        ngettext(
+          "%{name} is no longer a benchmark. %{count} recorded prediction keeps measuring against it; a new prediction can no longer name it as its benchmark.",
+          "%{name} is no longer a benchmark. %{count} recorded predictions keep measuring against it; a new prediction can no longer name it as its benchmark.",
+          count,
+          name: StoredText.slot(:name)
+        )
+    end
+  end
 
   defp refresh_logo_dialog(socket) do
     case socket.assigns[:logo_dialog_security] do

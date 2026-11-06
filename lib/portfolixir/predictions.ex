@@ -207,6 +207,19 @@ defmodule Portfolixir.Predictions do
   end
 
   @doc """
+  How many predictions measure against `security_id`: name it as their
+  benchmark security, of every author. A call about the security itself is
+  not counted. The benchmark flag gates only new calls; a recorded one keeps
+  measuring against the security when the flag is removed (ADR-0055 §2;
+  Sprint 26 V1, #1365).
+  """
+  @spec count_measuring_against(integer()) :: non_neg_integer()
+  def count_measuring_against(security_id) when is_integer(security_id) do
+    from(p in Prediction, where: p.benchmark_security_id == ^security_id)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  @doc """
   The prediction's resolution at read (ADR-0055 §3,
   `Portfolixir.Predictions.Resolution`): `open` while today is on or
   before `resolves_on` and after it until its end close is in (at most 7
