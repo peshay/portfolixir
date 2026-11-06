@@ -14823,7 +14823,7 @@ msgid_plural "the target is named by %{count} predictions, and a prediction is n
 msgstr[0] "Das Ziel wird von %{count} Prognose genannt, und eine Prognose wird nie verschoben oder gelöscht."
 msgstr[1] "Das Ziel wird von %{count} Prognosen genannt, und eine Prognose wird nie verschoben oder gelöscht."
 
-#: lib/portfolixir_web/prediction_label.ex:173
+#: lib/portfolixir_web/prediction_label.ex:178
 #, elixir-autogen, elixir-format
 msgid "%{value} pp"
 msgstr "%{value} Pp"

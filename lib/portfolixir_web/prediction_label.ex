@@ -163,22 +163,32 @@ defmodule PortfolixirWeb.PredictionLabel do
   def author(%Prediction{author: :agent}), do: StoredText.isolate(gettext("Agent"), [])
   def author(%Prediction{author: :operator}), do: StoredText.isolate(gettext("Operator"), [])
 
-  @doc "A signed return as a one-decimal percent: `+10.0 %`."
+  # A resolved call's three figures — its return, the benchmark's and the
+  # excess — show two decimals, so the rounded parts add up within the last
+  # digit (closing act, the UAT persona: „+2,4 % − +0,2 % = +2,3 Pp“ read as
+  # a wrong sum at one decimal). A percentage: it stays in the privacy mode.
+  @places 2
+
+  @doc "A signed return as a two-decimal percent: `+10.00 %`."
   @spec return(Decimal.t()) :: String.t()
-  def return(%Decimal{} = value), do: Format.signed_percent(value) <> " %"
+  def return(%Decimal{} = value), do: points(value) <> " %"
 
-  @doc "The excess in percentage points: `+7.0 pp`."
+  @doc "The excess in percentage points, two decimals: `+7.00 pp`."
   @spec excess(Decimal.t()) :: String.t()
-  def excess(%Decimal{} = value),
-    do: gettext("%{value} pp", value: Format.signed_percent(value))
+  def excess(%Decimal{} = value), do: gettext("%{value} pp", value: points(value))
 
-  @doc "The sign colour of a figure as displayed, or nil for one that reads zero."
+  defp points(fraction),
+    do: fraction |> Decimal.mult(100) |> Format.plain_signed_decimal(@places)
+
+  @doc "The sign colour of a return as displayed, or nil for one that reads zero."
   @spec sign_class(Decimal.t() | nil) :: String.t() | nil
-  def sign_class(value) do
-    case Format.displayed_percent_sign(value) do
+  def sign_class(%Decimal{} = value) do
+    case value |> Decimal.mult(100) |> Format.displayed_sign(@places) do
       :positive -> "is-positive"
       :negative -> "is-negative"
-      _zero_or_none -> nil
+      _zero -> nil
     end
   end
+
+  def sign_class(_value), do: nil
 end

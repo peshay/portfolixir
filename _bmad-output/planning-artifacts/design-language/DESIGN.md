@@ -8841,7 +8841,11 @@ The tab writes nothing (ADR-0055 §2): no form, no edit, no withdrawal.
      kein Schlusskurs vor.“);
    - **the facts, only once resolved**
      (`dl.research-entry__facts.prediction-entry__facts`): Rendite,
-     Benchmark-Rendite, Überrendite (in „Pp“) and Schlusskurse (the dates
+     Benchmark-Rendite, Überrendite (in „Pp“) — the three with **two
+     decimals** („+2,45 %“, „+0,18 %“, „+2,27 Pp“), so the rounded parts
+     add up within the last digit (closing act, the UAT persona: at one
+     decimal „+2,4 % − +0,2 %“ read „+2,3 Pp“); the report's list shows the
+     excess the same way — and Schlusskurse (the dates
      of the two closes used, „07.09.2026 → 07.10.2026“). The return keeps
      the sign colour (`is-positive` / `is-negative`,
      `data-role="prediction-return"`); the excess

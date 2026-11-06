@@ -344,7 +344,7 @@ defmodule PortfolixirWeb.PredictionsLiveTest do
     assert row =~ "#{Format.date(day(-98))} Agent · model-alpha-3"
     assert row =~ "Synthetic Gearworks AG"
     assert row =~ "Underperforms Synthetic Industrial Index by #{Format.date(day(-10))}"
-    assert row =~ "55 % missed +7.0 pp"
+    assert row =~ "55 % missed +7.00 pp"
 
     assert has_element?(
              view,

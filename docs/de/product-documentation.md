@@ -783,7 +783,8 @@ von:
   nennt den letzten Tag);
 - **Treffer** oder **verfehlt**, sobald aufgelöst, mit den Zahlen: die
   Rendite des Wertpapiers, die Rendite der Benchmark, die **Überrendite**
-  in Prozentpunkten und die Daten der beiden verwendeten Schlusskurse.
+  in Prozentpunkten (jede mit zwei Nachkommastellen, damit die drei
+  aufgehen) und die Daten der beiden verwendeten Schlusskurse.
   „verfehlt“ ist gedämpft, nicht rot: ein erwartbarer Ausgang, kein
   Fehler. Die Überrendite trägt keine Gewinn- oder Verlustfarbe: Das
   Badge sagt den Ausgang, das Vorzeichen die Richtung;
