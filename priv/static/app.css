@@ -1840,6 +1840,31 @@ li + li {
   }
 }
 
+/* A phone's top bar holds four controls since the privacy switch (Sprint
+   26 P1), which left the title 88 px at 390 px: "Konten & Depots" read
+   "Konten & D…". Under 420 px the bar's spacing tightens to what the
+   controls need — the burger's column to its 32 px, the gaps to 6 px and
+   2 px — and the title steps down to 14 px, so the longest German titles
+   of the main pages show whole (closing act, design critic on P1). */
+@media (max-width: 420px) {
+  .topbar {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    column-gap: 6px;
+  }
+
+  .topbar-primary {
+    gap: 6px;
+  }
+
+  .topbar-controls {
+    gap: 2px;
+  }
+
+  .topbar-page h1 {
+    font-size: 14px;
+  }
+}
+
 /* ===== Securities toolbar, table, popovers, modal ===== */
 
 .workspace-panel {

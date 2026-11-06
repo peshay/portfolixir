@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias PortfolixirWeb.PreferenceCookieHelpers
 
   @moduletag :browser
   @moduletag timeout: 120_000
@@ -120,5 +121,39 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
     sell!(world, security, quantity: "20", price: "71", date: ~D[2025-07-09])
 
     assert run!("trades_tab", base_url, %{security_id: security.id}) == %{"ok" => true}
+  end
+
+  # User story (Sprint 26 closing act, design critic on P1):
+  # As the operator on a phone with the privacy switch in the top bar,
+  # I want the page's title to show whole,
+  # so that "Konten & Depots" does not read "Konten & D…".
+  #
+  # Acceptance criteria:
+  # - At 390 px, in German with the privacy mode on, the top bar's title on
+  #   /securities, /transactions, /portfolios and /journal is not cut
+  #   (`#app-topbar-title` scrollWidth ≤ clientWidth), and the page does not
+  #   scroll sideways.
+  test "the top bar's longest titles fit at 390 px beside the privacy switch",
+       %{base_url: base_url} do
+    _world = base_world(name: "Phone Portfolio")
+
+    cookies =
+      for {name, value} <- [{"portfolixir_locale", "de"}, {"portfolixir_privacy", "on"}] do
+        [
+          name,
+          name
+          |> PreferenceCookieHelpers.cookie_pair(value)
+          |> String.split("=", parts: 2)
+          |> List.last()
+        ]
+      end
+
+    result =
+      run!("topbar_titles", base_url, %{
+        cookies: cookies,
+        paths: ["/securities", "/transactions", "/portfolios", "/journal"]
+      })
+
+    assert result == %{"ok" => true}
   end
 end
