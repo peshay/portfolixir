@@ -2458,7 +2458,8 @@ Beispiel-Payloads für Konten:
   mit täglicher Verzinsung, oder `security:<id>`, ein als `is_benchmark`
   markiertes Wertpapier (jedes andere wird abgelehnt); ohne es nennt jede
   Spanne nur die eigene Rendite des Wertpapiers. Die Antwort ist `{as_of,
-  spans, benchmark, rows, limit, truncated, computation_basis}`. Eine Zeile
+  spans, benchmark, include, rows, limit, truncated, computation_basis}`,
+  wobei `include` das angewandte `include` nennt (`[]` ohne eines). Eine Zeile
   trägt `sale_id` (die Transaktions-ID der Buchung), `portfolio_id`,
   `securities_account_id`, `date`, `security` `{id, name, currency_code}`,
   die gebuchten `quantity`, `price`
@@ -2540,8 +2541,12 @@ Beispiel-Payloads für Konten:
   nicht verfolgt wird. `benchmark=` und `include=reinvestment` lassen sich
   kombinieren. Jeder andere `include`-Wert, ein leerer oder eine Liste
   (`include=reinvestmnt`, `include=`), ergibt `422` auf `include`, sodass
-  ein Tippfehler den Block nie stillschweigend weglässt. Kein Urteil und
-  keine Summe über alle Umschichtungen.
+  ein falsch geschriebener `include`-Wert den Block nie stillschweigend
+  weglässt. Ein unbekannter Schlüssel wird ignoriert, wie bei jedem Lesen
+  (`includ=reinvestment` antwortet `200` ohne den Block); `data` nennt das
+  angewandte `include` (`[]` oder `["reinvestment"]`), wie es `benchmark`
+  nennt, sodass ein fehlender Block nie stillschweigend fehlt. Kein Urteil
+  und keine Summe über alle Umschichtungen.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und

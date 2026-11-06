@@ -2121,6 +2121,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       as_of: date(report.today),
       spans: SaleHindsight.span_labels(),
       benchmark: hindsight_benchmark(report.benchmark),
+      # Sprint 26 closing act, A2: the include applied, echoed as benchmark
+      # is, so a block that did not come (a misspelled key) is never silent.
+      include: Enum.map(report.include, &Atom.to_string/1),
       rows: Enum.map(report.rows, &hindsight_row/1),
       limit: report.limit,
       truncated: report.truncated,

@@ -56,7 +56,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "portfolixir.sales.hindsight take include=reinvestment, what each switch cost: the " <>
           "buys a sale's money went into, found by rule (the same cash account, within 30 " <>
           "days, oldest proceeds first), and per span the kept and the switched side in EUR, " <>
-          "before tax and price only; any other include answers 422. The tool's own bytes " <>
+          "before tax and price only; any other include value answers 422, and data.include " <>
+          "echoes the include applied. The tool's own bytes " <>
           "stay within the ceilings, paid for by tightening its description.",
       # --- Sprint 26 R2 end ---
       endpoints: [],
@@ -95,10 +96,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "closes move from 100 to 110 and to 210 reads " <>
           ~s(kept "1100", switched "1050" and difference "-50") <>
           " for 1m. Amounts in currency_code, span figures in EUR, all " <>
-          "Decimal strings; benchmark= and include combine. Any other include, an empty one " <>
-          "or a list included (include=reinvestmnt, include=, include[]=...), answers 422 " <>
-          "errors.include, so a misspelling never drops the block. Nothing is stored and no " <>
-          "field gives a verdict or a total (I18 mode 3; ADR-0057 §4)"
+          "Decimal strings; benchmark= and include combine. Any other include value, an " <>
+          "empty one or a list included (include=reinvestmnt, include=, include[]=...), " <>
+          "answers 422 errors.include, so a misspelled include value never drops the block; " <>
+          "an unknown key is ignored, as on every read (includ=reinvestment answers 200 " <>
+          "without the block), and data.include echoes the include applied ([] or " <>
+          "[\"reinvestment\"]), as benchmark is echoed, so the missing block is never " <>
+          "silent. Nothing is stored and no field gives a verdict or a total (I18 mode 3; " <>
+          "ADR-0057 §4)"
         # --- Sprint 26 R2 end ---
       ],
       removed_endpoints: [],

@@ -381,6 +381,34 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightControllerTest do
     end
   end
 
+  # User story (closing act A2; Sprint 25 carry-forward 2):
+  # As the agent who misspelled the include key itself (includ=),
+  # I want the response to say which include it applied,
+  # so that a block that did not come is never silent.
+  #
+  # Acceptance criteria:
+  # - data.include echoes the include applied: [] without one,
+  #   ["reinvestment"] with include=reinvestment, as benchmark is echoed.
+  # - An unknown key (includ=reinvestment) is ignored, as on every read,
+  #   and answers 200 with data.include [] and no block.
+  test "the response echoes the include it applied", %{conn: conn} do
+    switch_world()
+
+    %{"data" => plain} = conn |> get("/api/v1/sales/hindsight") |> json_response(200)
+    assert plain["include"] == []
+
+    %{"data" => asked} =
+      conn |> get("/api/v1/sales/hindsight?include=reinvestment") |> json_response(200)
+
+    assert asked["include"] == ["reinvestment"]
+
+    %{"data" => misspelled} =
+      conn |> get("/api/v1/sales/hindsight?includ=reinvestment") |> json_response(200)
+
+    assert misspelled["include"] == []
+    refute Enum.any?(misspelled["rows"], &Map.has_key?(&1, "reinvestment"))
+  end
+
   # --- Sprint 26 R2 end ---
 
   # User story (S2): the read is the API token's, as every /api/v1 read.

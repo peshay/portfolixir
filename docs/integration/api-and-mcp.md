@@ -2258,8 +2258,9 @@ Example account payloads:
   is the benchmark comparison's (ADR-0046): `rate:<decimal>`, a fixed annual
   rate compounding daily, or `security:<id>`, a security flagged
   `is_benchmark` (any other is refused); without it each span answers the
-  security's own return only. The answer is `{as_of, spans, benchmark, rows,
-  limit, truncated, computation_basis}`. A row carries `sale_id` (the
+  security's own return only. The answer is `{as_of, spans, benchmark, include,
+  rows, limit, truncated, computation_basis}`, `include` echoing the
+  `include` applied (`[]` without one). A row carries `sale_id` (the
   booking's transaction id), `portfolio_id`, `securities_account_id`,
   `date`, `security` `{id, name, currency_code}`, the booked `quantity`, `price` and `currency_code`, and
   `start`: the close standing for the sale day (the last positive close on
@@ -2330,8 +2331,12 @@ Example account payloads:
   buy), that dates carry no time and that a `cash_transfer` is not
   followed. `benchmark=` and `include=reinvestment` combine. Any other
   `include` value, an empty one or a list (`include=reinvestmnt`,
-  `include=`) answers `422` on `include`, so a misspelling never drops the
-  block silently. No verdict and no total over all switches.
+  `include=`) answers `422` on `include`, so a misspelled include value
+  never drops the block silently. An unknown key is ignored, as on every
+  read (`includ=reinvestment` answers `200` without the block); `data`
+  echoes the include applied as `include` (`[]` or `["reinvestment"]`),
+  as it echoes `benchmark`, so a missing block is never silent. No verdict
+  and no total over all switches.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
