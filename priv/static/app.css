@@ -5536,6 +5536,69 @@ details[open] > .cat-summary::before {
   overflow-wrap: anywhere;
 }
 
+/* --- Sprint 26 V1 begin: the security's Predictions tab --- */
+/* F1 (ADR-0055 §5; board ux-design-2026-11-06-sprint26-f1, part 1). The
+   list is the research timeline's anatomy (.research-timeline,
+   .research-entry, its head, meta, facts and body); only the claim line,
+   the probability, the status's left edge and the reason line are new. An
+   open call keeps the timeline's accent edge; a hit takes the intact
+   thesis's green, a miss the muted edge (an expected outcome, not a data
+   fault), an unresolved call the dashed edge of "undetermined". */
+.prediction-entry__claim {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+.prediction-entry__claim strong {
+  font-weight: 650;
+}
+.prediction-entry__p {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.prediction-entry__p-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.prediction-entry__facts dd.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The research link's meta line is a paragraph: no browser margins. */
+.prediction-entry p.research-entry__meta {
+  margin: 0;
+}
+.prediction-entry__reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.research-entry.prediction-entry--hit {
+  border-left-color: var(--color-positive);
+}
+.research-entry.prediction-entry--miss {
+  border-left-color: var(--color-border-strong);
+}
+.research-entry.prediction-entry--unresolved {
+  border-left-style: dashed;
+  border-left-color: var(--color-border-strong);
+}
+/* Under 560 px a resolved call's four facts stay two abreast (board 02,
+   judgment call 9): the shipped facts grid stacks to one column under
+   480 px for the thesis's long labels, which these four do not have. */
+@media (max-width: 560px) {
+  .research-entry__facts.prediction-entry__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* --- Sprint 26 V1 end --- */
+
 /* Classification category descriptions */
 .cat-description {
   margin: 0.1rem 0 0.35rem;

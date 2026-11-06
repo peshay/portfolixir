@@ -13,7 +13,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   alias Portfolixir.WorldFixtures
 
   defp detail_tab_keys,
-    do: ~w(overview chart transactions trades quotes holdings classifications research events)
+    do:
+      ~w(overview chart transactions trades quotes holdings classifications research predictions events)
 
   defmodule RaisingAdapter do
     @moduledoc false
@@ -1018,7 +1019,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # Acceptance criteria:
     # - The row keeps `role="tablist"` and each tab keeps `role="tab"`.
     # - Roving tabindex: `tabindex="0"` on the selected tab, `"-1"` on the
-    #   other eight; the stop moves with the selection.
+    #   other nine (Sprint 26 V1 added Predictions); the stop moves with the
+    #   selection.
     # - `aria-selected` renders as the strings "true"/"false".
     # - `aria-controls` sits only on the selected tab, and names a panel that
     #   exists; the others point at nothing because their panel is not in
@@ -1031,7 +1033,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, ~s(#detail-pane-tabs[role="tablist"][phx-hook="DetailTabs"]))
 
       tabs = Enum.map(detail_tab_keys(), &{&1, view |> element("#detail-tab-#{&1}") |> render()})
-      assert length(tabs) == 9
+      assert length(tabs) == 10
 
       for {tab, html} <- tabs do
         assert html =~ ~s(role="tab")

@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.Valuation
+  alias Portfolixir.Predictions
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ChangedSince
@@ -51,6 +52,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.ManualQuotes
   alias PortfolixirWeb.Securities.MergeDialog
+  alias PortfolixirWeb.Securities.PredictionsTab
   alias PortfolixirWeb.Securities.QuoteReleaseDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
@@ -64,7 +66,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
 
-  @tabs ~w(overview chart transactions trades quotes holdings classifications research events)
+  @tabs ~w(overview chart transactions trades quotes holdings classifications research predictions events)
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
@@ -158,6 +160,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:detail_metric_block, nil)
      |> assign(:detail_events, [])
+     |> assign(:detail_predictions, [])
      |> assign(:detail_classifications, [])
      |> assign(:detail_new_category_for, nil)
      |> assign(:detail_notes, [])
@@ -1478,6 +1481,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
+      <%!-- Sprint 26 V1 (ADR-0055 §5; board ux-design-2026-11-06-sprint26-f1,
+           part 1): the security's predictions, after Research. --%>
+      <%= if @detail_tab == "predictions" do %>
+        <PredictionsTab.panel
+          security={@selected_security}
+          entries={@detail_predictions}
+          note_kinds={Map.new(@detail_notes, &{&1.id, &1.kind})}
+          today={Clock.today()}
+        />
+      <% end %>
+
       <%!-- #828 (ADR-0048, design pick D2-B): the security's calendar, in the
            research timeline's shape and with ADR-0044's source-quality
            vocabulary. The Research tab keeps exactly what it had. --%>
@@ -1547,7 +1561,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </section>
       <% end %>
 
-      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research events) do %>
+      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research predictions events) do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -4234,6 +4248,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {"holdings", gettext("Holdings")},
       {"classifications", gettext("Classifications")},
       {"research", gettext("Research")},
+      # Sprint 26 V1 (board ux-design-2026-11-06-sprint26-f1, judgment call
+      # 1): a prediction points at a research entry, so the two stand
+      # together; the row scrolls since #817.
+      {"predictions", gettext("Predictions")},
       # #828 (design pick D2-B): the ninth tab, and the one new tab the
       # sprint's budget allowed. #817 landed first so the D6 scroll-snap and
       # edge fade keep it reachable in a ~360 px pane.
@@ -6432,6 +6450,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
     |> assign(:detail_metric_block, nil)
     |> assign(:detail_events, [])
+    |> assign(:detail_predictions, [])
     |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
     |> assign(:detail_lineage, %{former_isins: [], merged_from: []})
@@ -6546,7 +6565,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
       merged_from: Map.get(Lifecycle.merged_from(:security, [id]), id, [])
     })
     |> load_research_log()
+    |> load_predictions()
   end
+
+  # Sprint 26 V1 (ADR-0055 §5): the security's predictions with their
+  # resolution at read — the read `GET /api/v1/predictions?security_id=`
+  # answers from. Each call is resolved from stored closes, so they are read
+  # only while their tab is open.
+  defp load_predictions(
+         %{assigns: %{selected_security: %Security{id: id}, detail_tab: "predictions"}} = socket
+       ),
+       do: assign(socket, :detail_predictions, Predictions.list_with_resolution(security_id: id))
+
+  defp load_predictions(socket), do: assign(socket, :detail_predictions, [])
 
   # ADR-0044 §6: the research log newest first and the thesis state derived
   # from it — one read, the projection computed over the rows just loaded.

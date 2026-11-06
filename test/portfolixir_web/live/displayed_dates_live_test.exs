@@ -453,7 +453,7 @@ defmodule PortfolixirWeb.DisplayedDatesLiveTest do
         ] ++
           ["/portfolios", "/tax", "/risk"] ++
           for tab <-
-                ~w(overview chart transactions trades quotes holdings classifications research events),
+                ~w(overview chart transactions trades quotes holdings classifications research predictions events),
               do: "/securities/#{nordwind.id}?tab=#{tab}"
 
       states =
