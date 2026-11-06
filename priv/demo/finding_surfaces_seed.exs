@@ -2124,4 +2124,64 @@ end
 
 IO.puts("Sprint 21 γ2: Tamarisk Systems Inc. (a booking a tenth of its quote)")
 
+# 21. Sprint 26 V3 (I18 modes 1 and 2, FR-50; board
+#     ux-design-2026-11-06-sprint26-i18): "After the sale" on Cash flow →
+#     Trades reads each sale against the closes around it, and the seed
+#     stored none, so every span read "no start close". Three sales of step
+#     15 (Wrenfield Gardens AG, Brightwater Utilities plc, Saltmarsh
+#     Logistics SE) and the flagged benchmark "Kestrel Industrial Group NV
+#     Index" (step 14m) get a weekday close from a few days before the
+#     sale up to today: SYNTHETIC closes on a straight synthetic path, no
+#     real price. The sold securities are no longer held, so no value
+#     history moves. Each series is written only while the security has no
+#     close at all, and anchored on the sale booking's own date, so a
+#     re-run on a later day writes nothing. The other sales keep the read's
+#     own reasons (no start close, no exchange rate).
+synthetic_closes = fn security, from, start_close, daily_drift ->
+  if Portfolixir.Catalog.Quotes.latest(security.id) == nil do
+    rows =
+      for day <- Date.range(Date.add(from, -5), today),
+          Date.day_of_week(day) <= 5 do
+        days = Decimal.new(Date.diff(day, from))
+        factor = Decimal.add(1, Decimal.mult(days, Decimal.new(daily_drift)))
+        close = start_close |> Decimal.new() |> Decimal.mult(factor) |> Decimal.round(2)
+        %{date: day, close: close}
+      end
+
+    {:ok, _} = Catalog.upsert_quotes(owner, security.id, rows)
+  end
+end
+
+sale_day = fn security ->
+  security.id
+  |> Ledger.list_transactions_for_security()
+  |> Enum.filter(&(&1.type == "sell"))
+  |> Enum.map(& &1.date)
+  |> Enum.min(Date, fn -> nil end)
+end
+
+hindsight_sales =
+  for {name, start_close, drift} <- [
+        {"Wrenfield Gardens AG", "70.60", "0.0006"},
+        {"Brightwater Utilities plc", "32.80", "0.0009"},
+        {"Saltmarsh Logistics SE", "22.10", "-0.0012"}
+      ],
+      security = find_security.(name),
+      security != nil,
+      day = sale_day.(security),
+      day != nil do
+    synthetic_closes.(security, day, start_close, drift)
+    day
+  end
+
+case {find_security.("Kestrel Industrial Group NV Index"), hindsight_sales} do
+  {%{} = index, [_ | _] = days} ->
+    synthetic_closes.(index, Enum.min(days, Date), "100.00", "0.0003")
+
+  _missing ->
+    :ok
+end
+
+IO.puts("Sprint 26 V3: synthetic closes around three sales and the benchmark index")
+
 IO.puts("review seed done (timber position: #{timber_state})")
