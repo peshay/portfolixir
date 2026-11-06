@@ -32,16 +32,47 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   existed (earlier proceeds funded it) and `:no_buy_within_30_days` when
   none did.
 
+  ## The two sides, per span (ADR-0057 §2)
+
+  The spans are FR-50's, over the same ends as the sale's own row
+  (`SaleHindsight.span_ends/2`): `1m`, `3m`, `12m` and `latest`, each
+  `:pending` while its end is after today. With `a` the share of the
+  proceeds the matched buys took:
+
+    * **kept** = `a` × the sold quantity × the sold security's close at the
+      end, in EUR: what the part of the position whose money went on would
+      be worth had it been kept;
+    * **switched** = the sum over the matched buys of, for a buy dated after
+      the end, the amount it took as cash in the account's currency at the
+      end's rate (`WindowReturn.eur_rate/2` on the end date), and for one on
+      or before it, the share of the buy this sale paid for × the buy's
+      quantity × the bought security's close at the end, in EUR;
+    * **difference** = switched − kept.
+
+  Every close and its EUR value is `WindowReturn.price_return/3`'s: the
+  split-adjusted close standing for the date (at most 7 days older), at the
+  stored EUR-hub rate of its own date. A booked quantity is read in that
+  basis: multiplied by the ratio of the security's splits after its booking
+  date (`QuoteAdjustment.cumulative_ratio_after/2`), so a split is not a
+  move. Each side is computed as one division of exact products. A span
+  that cannot be measured is `:incomplete` with the `side` (`:kept` or
+  `:switched`) and `WindowReturn`'s reason (`:no_start_close`,
+  `:no_end_close`, `:no_fx_rate`).
+
   `match/1` is the rule as a pure function over ledger rows; `blocks/2`
   loads the rows once and answers each sale's block.
   """
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.QuoteAdjustment
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.Performance.SaleHindsight
+  alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Repo
 
   @window_days 30
@@ -92,17 +123,29 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   loaded once; nothing is written.
   """
   @spec blocks([Transaction.t()], Date.t()) :: %{optional(integer()) => block()}
-  def blocks(sales, %Date{} = _today) when is_list(sales) do
+  def blocks(sales, %Date{} = today) when is_list(sales) do
     ledger = sales |> cash_account_ids() |> load_ledger()
     matching = match(ledger)
     loaded = Map.new(ledger, &{&1.id, &1})
+    context = %{today: today, splits: split_events(matching)}
 
     Map.new(sales, fn sale ->
       # The row as loaded with its security and cash account, where the
       # ledger read holds it.
       sale = Map.get(loaded, sale.id, sale)
-      {sale.id, block(sale, Map.get(matching, sale.id))}
+      {sale.id, block(sale, Map.get(matching, sale.id), context)}
     end)
+  end
+
+  # The split events (ADR-0028) of every sold and bought security, in one
+  # read: each quantity is read in the closes' current display basis.
+  defp split_events(matching) do
+    matching
+    |> Enum.flat_map(fn {_sale_id, match} ->
+      [match.security_id | Enum.map(match.takes, & &1.buy.security_id)]
+    end)
+    |> Enum.uniq()
+    |> Quotes.split_events_by_security()
   end
 
   defp cash_account_ids(sales) do
@@ -127,8 +170,8 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   rows give the same answer.
 
   Answers `%{sale_id => match}` for every sell with a cash account, where a
-  match is `%{proceeds, taxes, fees, refunds, takes, candidate?}`: the
-  proceeds (or nil when not positive), the sale's taxes net of its refunds
+  match is `%{security_id, proceeds, taxes, fees, refunds, takes,
+  candidate?}`: the sold security, the proceeds (or nil when not positive), the sale's taxes net of its refunds
   (signed), its fees, the refund bookings, the takes (`%{buy, amount}`, in
   queue order) and whether any candidate buy existed.
   """
@@ -157,6 +200,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     Enum.map(entries, fn entry ->
       {entry.sale.id,
        %{
+         security_id: entry.sale.security_id,
          proceeds: entry.proceeds,
          taxes: entry.taxes,
          fees: entry.sale.fees || @zero,
@@ -207,12 +251,15 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
 
   defp cash(row), do: Projection.cash_amount(row) || @zero
 
+  # A buy's cash debit: its booked cash amount on its account, negated.
+  defp debit(buy), do: Decimal.negate(cash(buy))
+
   defp positive?(amount), do: Decimal.compare(amount, @zero) == :gt
 
   defp step({:sale, entry}, {queue, takes}), do: {queue ++ [entry], takes}
 
   defp step({:buy, buy}, {queue, takes}) do
-    debit = Decimal.negate(cash(buy))
+    debit = debit(buy)
 
     if positive?(debit) do
       take(queue, buy, debit, [], takes)
@@ -250,27 +297,32 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
 
   # A sale's block: no_match with its reason, or the matched buys, a, the
   # unallocated rest and the days to the first buy.
-  defp block(sale, nil), do: no_match(sale, nil, :no_cash_account)
-  defp block(sale, %{proceeds: nil} = match), do: no_match(sale, match, :no_cash_account)
+  defp block(sale, nil, _context), do: no_match(sale, nil, :no_cash_account)
 
-  defp block(sale, %{takes: []} = match) do
+  defp block(sale, %{proceeds: nil} = match, _context),
+    do: no_match(sale, match, :no_cash_account)
+
+  defp block(sale, %{takes: []} = match, _context) do
     reason =
       if match.candidate?, do: :proceeds_taken_by_earlier_sale, else: :no_buy_within_30_days
 
     no_match(sale, match, reason)
   end
 
-  defp block(sale, %{takes: takes, proceeds: proceeds}) do
+  defp block(sale, %{takes: takes, proceeds: proceeds} = match, context) do
     taken = Enum.reduce(takes, @zero, &Decimal.add(&1.amount, &2))
     [%{buy: first} | _rest] = takes
+    base = base(sale, :matched, nil)
+    switch = Map.merge(match, %{taken: taken, currency: base.currency_code})
 
     %{
-      base(sale, :matched, nil)
+      base
       | proceeds: proceeds,
         buys: Enum.map(takes, &matched_buy/1),
         days_to_first_buy: Date.diff(first.date, sale.date),
         share_of_proceeds_matched: Decimal.div(taken, proceeds),
-        unallocated: Decimal.sub(proceeds, taken)
+        unallocated: Decimal.sub(proceeds, taken),
+        spans: spans(sale, switch, context)
     }
   end
 
@@ -298,7 +350,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   defp account_currency(_sale), do: nil
 
   defp matched_buy(%{buy: buy, amount: amount}) do
-    debit = Decimal.negate(cash(buy))
+    debit = debit(buy)
 
     %{
       buy_id: buy.id,
@@ -308,6 +360,134 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
       cash_debit: debit,
       amount_taken: amount,
       share_of_buy: Decimal.div(amount, debit)
+    }
+  end
+
+  # --- The two sides, per span (ADR-0057 §2) ---
+
+  defp spans(sale, switch, context) do
+    sale
+    |> SaleHindsight.span_ends(context.today)
+    |> Enum.map(fn {label, end_on} -> span(label, end_on, sale, switch, context) end)
+  end
+
+  # FR-50's latest span without a close after the sale has no end.
+  defp span(label, nil, _sale, _switch, _context),
+    do: incomplete(label, nil, :kept, :no_end_close)
+
+  defp span(label, end_on, sale, switch, context) do
+    if Date.compare(end_on, context.today) == :gt do
+      span_base(label, end_on, :pending)
+    else
+      measure(label, end_on, sale, switch, context)
+    end
+  end
+
+  defp measure(label, end_on, sale, switch, context) do
+    with {:ok, kept} <- kept(sale, switch, end_on, context),
+         {:ok, rate} <- cash_rate(switch.currency, end_on),
+         {:ok, switched} <- switched(switch, end_on, rate, context) do
+      %{
+        span_base(label, end_on, :complete)
+        | kept: kept,
+          switched: switched,
+          difference: Decimal.sub(switched, kept)
+      }
+    else
+      {:error, side, reason} -> incomplete(label, end_on, side, reason)
+    end
+  end
+
+  # kept = a x the sold quantity x the sold security's close at the end, in
+  # EUR, as one division: taken x quantity x close in EUR / proceeds. The
+  # quantity is read in the closes' basis (the splits after the sale).
+  defp kept(sale, switch, end_on, context) do
+    case WindowReturn.price_return(sale.security, sale.date, end_on) do
+      {:ok, result} ->
+        {numerator, denominator} = ratio_after(context, sale.security_id, sale.date)
+
+        {:ok,
+         switch.taken
+         |> Decimal.mult(sale.quantity)
+         |> Decimal.mult(numerator)
+         |> Decimal.mult(result.end.eur_value)
+         |> Decimal.div(Decimal.mult(switch.proceeds, denominator))}
+
+      {:error, reason} ->
+        {:error, :kept, reason}
+    end
+  end
+
+  # Cash in the account's currency converts at the end's rate.
+  defp cash_rate(currency, end_on) do
+    case WindowReturn.eur_rate(currency, end_on) do
+      {:ok, rate} -> {:ok, rate}
+      {:error, reason} -> {:error, :switched, reason}
+    end
+  end
+
+  defp switched(switch, end_on, rate, context) do
+    Enum.reduce_while(switch.takes, {:ok, @zero}, fn take, {:ok, sum} ->
+      case bought_value(take, end_on, rate, context) do
+        {:ok, value} -> {:cont, {:ok, Decimal.add(sum, value)}}
+        {:error, reason} -> {:halt, {:error, :switched, reason}}
+      end
+    end)
+  end
+
+  # A buy dated after the end is still cash: the amount it took, at the
+  # end's rate. A buy on or before it is the share this sale paid for x the
+  # buy's quantity (in the closes' basis) x the bought security's close at
+  # the end, in EUR, as one division.
+  defp bought_value(%{buy: buy, amount: amount}, end_on, rate, context) do
+    if Date.compare(buy.date, end_on) == :gt do
+      {:ok, Decimal.mult(amount, rate)}
+    else
+      case WindowReturn.price_return(buy.security, end_on, end_on) do
+        {:ok, result} ->
+          {numerator, denominator} = ratio_after(context, buy.security_id, buy.date)
+
+          {:ok,
+           amount
+           |> Decimal.mult(buy.quantity)
+           |> Decimal.mult(numerator)
+           |> Decimal.mult(result.end.eur_value)
+           |> Decimal.div(Decimal.mult(debit(buy), denominator))}
+
+        # A one-day window: its start is its end.
+        {:error, reason} when reason in [:no_start_close, :no_end_close] ->
+          {:error, :no_end_close}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # The cumulative ratio of the security's splits after `date` (a split on
+  # the date itself applies before that day's trades, ADR-0028 §3).
+  defp ratio_after(context, security_id, date) do
+    context.splits
+    |> Map.get(security_id, [])
+    |> QuoteAdjustment.cumulative_ratio_after(date)
+  end
+
+  defp incomplete(label, end_on, side, reason),
+    do: %{span_base(label, end_on, :incomplete) | side: side, reason: reason}
+
+  defp span_base(label, end_on, status) do
+    %{
+      span: label,
+      end_on: end_on,
+      status: status,
+      side: nil,
+      reason: nil,
+      kept: nil,
+      switched: nil,
+      difference: nil,
+      fees_inside: nil,
+      taxes_apart: nil,
+      income_apart: nil
     }
   end
 end

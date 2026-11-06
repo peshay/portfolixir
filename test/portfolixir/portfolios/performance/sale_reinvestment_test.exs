@@ -10,8 +10,18 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, sell!: 3]
+    only: [
+      add_depot: 2,
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      put_quotes!: 2,
+      sell!: 3
+    ]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Fx
+  alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Performance.SaleReinvestment
 
@@ -26,6 +36,14 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
 
   defp block(sale, today \\ @today),
     do: Map.fetch!(SaleReinvestment.blocks([sale], today), sale.id)
+
+  # A EUR-hub rate: `rate` units of USD per 1 EUR from `date` on.
+  defp rate!(date, rate) do
+    {:ok, 1} =
+      Fx.upsert_many([
+        %{base_currency: "EUR", quote_currency: "USD", date: date, rate: rate, source: "manual"}
+      ])
+  end
 
   defp security!(ticker, currency \\ "EUR"),
     do: create_security!(name: "Synthetic #{ticker}", ticker: ticker, currency: currency)
@@ -324,5 +342,230 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
 
     assert_decimal(hundred, "100")
     assert_decimal(two_hundred, "200")
+  end
+
+  # User story (R1, ADR-0057 §2: the two sides, per span):
+  # As the operator asking whether a switch was worth it,
+  # I want, per FR-50 span, what the sold part would be worth had I kept it
+  # beside what the bought positions are worth, and the difference,
+  # so that I read what the money did where it went.
+  #
+  # Acceptance criteria:
+  # - The spans are FR-50's: 1m, 3m, 12m and latest, with the same end
+  #   dates as the sale's own row.
+  # - kept = a x the sold quantity x the sold security's close at the end,
+  #   in EUR; switched = the share of each buy this sale paid for x the
+  #   buy's quantity x the bought security's close at the end, in EUR;
+  #   difference = switched + taxes_apart - kept, before tax.
+  # - A buy funded in part counts with its share only.
+  test "one sale and one buy: kept, switched and the difference per span" do
+    world = base_world(name: "Sides One")
+    sold = security!("SD1")
+    bought = security!("BD1")
+    part = security!("BD2")
+
+    put_quotes!(sold, [
+      {~D[2025-01-15], "100"},
+      {~D[2025-02-14], "110"},
+      {~D[2025-04-15], "90"},
+      {~D[2026-01-15], "130"},
+      {~D[2026-03-02], "150"}
+    ])
+
+    put_quotes!(bought, [
+      {~D[2025-02-14], "210"},
+      {~D[2025-04-15], "240"},
+      {~D[2026-01-15], "180"},
+      {~D[2026-03-02], "260"}
+    ])
+
+    # Proceeds 10 x 100 = 1000; the buy's debit 5 x 200 = 1000: a = 1.
+    sale = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(world, bought, quantity: "5", price: "200", date: ~D[2025-01-20])
+
+    block = block(sale)
+    assert Enum.map(block.spans, & &1.span) == ["1m", "3m", "12m", "latest"]
+
+    # kept = 1 x 10 x the sold close; switched = (1000 / 1000) x 5 x the
+    # bought close; difference = switched + 0 - kept:
+    #   1m (2025-02-15, Friday's closes): 10 x 110 = 1100, 5 x 210 = 1050, -50
+    #   3m (2025-04-15):                  10 x  90 =  900, 5 x 240 = 1200, 300
+    #   12m (2026-01-15):                 10 x 130 = 1300, 5 x 180 =  900, -400
+    #   latest (2026-03-02):              10 x 150 = 1500, 5 x 260 = 1300, -200
+    expected = [
+      {"1m", ~D[2025-02-15], "1100", "1050", "-50"},
+      {"3m", ~D[2025-04-15], "900", "1200", "300"},
+      {"12m", ~D[2026-01-15], "1300", "900", "-400"},
+      {"latest", ~D[2026-03-02], "1500", "1300", "-200"}
+    ]
+
+    for {label, end_on, kept, switched, difference} <- expected do
+      span = Enum.find(block.spans, &(&1.span == label))
+      assert span.status == :complete, label
+      assert span.end_on == end_on, label
+      assert_decimal(span.kept, kept)
+      assert_decimal(span.switched, switched)
+      assert_decimal(span.difference, difference)
+    end
+
+    # The same sale funding part of a larger buy: proceeds 1000 of a debit
+    # 8 x 200 = 1600, share 0.625, so 0.625 x 8 = 5 shares count:
+    #   1m switched = 1000 x 8 x 210 / 1600 = 1050, as above.
+    other = base_world(name: "Sides Part")
+    put_quotes!(part, [{~D[2025-02-14], "210"}])
+    part_sale = sell!(other, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(other, part, quantity: "8", price: "200", date: ~D[2025-01-20])
+
+    one = Enum.find(block(part_sale).spans, &(&1.span == "1m"))
+    assert_decimal(one.kept, "1100")
+    assert_decimal(one.switched, "1050")
+    assert_decimal(one.difference, "-50")
+  end
+
+  # User story (R1, ADR-0057 §2: before a buy the money waits as cash; D-8.3
+  # every money identity at a moving rate):
+  # As the operator holding in EUR who switched within a USD account,
+  # I want both sides in EUR at the end's rates, and the money a later buy
+  # took counted as cash in its account's currency until that buy,
+  # so that a moving euro and the waiting both show.
+  #
+  # Acceptance criteria:
+  # - The proceeds and the queue run in the cash account's currency (USD).
+  # - Each close converts at its own date's stored rate; the cash of a buy
+  #   dated after the span's end converts at the end's rate.
+  test "a USD account at a moving rate, and a buy after a span's end held as cash" do
+    world = base_world(name: "Sides Dollar", cash_currency: "USD")
+    sold = security!("SDU", "USD")
+    early = security!("BDU", "USD")
+    late = security!("BLU", "USD")
+
+    # EUR-hub rates: 1.25 USD per EUR on the sale day (1 USD = 0.8 EUR),
+    # 1.6 on 2025-02-28 (1 USD = 0.625 EUR).
+    rate!(~D[2025-01-31], "1.25")
+    rate!(~D[2025-02-28], "1.6")
+
+    put_quotes!(sold, [{~D[2025-01-31], "100"}, {~D[2025-02-28], "110"}])
+    put_quotes!(early, [{~D[2025-02-28], "260"}])
+
+    # The sale on Friday 2025-01-31: its 1m span ends on 2025-02-28 (28
+    # days), so a buy on day 30 (2025-03-02) is after that span's end.
+    # Proceeds 10 x 100 = 1000 USD; debits 2 x 200 = 400 USD (day 3) and
+    # 3 x 200 = 600 USD (day 30): a = 1000 / 1000 = 1.
+    sale =
+      sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-31], currency: "USD")
+
+    buy!(world, early, quantity: "2", price: "200", date: ~D[2025-02-03], currency: "USD")
+    buy!(world, late, quantity: "3", price: "200", date: ~D[2025-03-02], currency: "USD")
+
+    block = block(sale)
+    assert block.currency_code == "USD"
+    assert_decimal(block.proceeds, "1000")
+    assert block.days_to_first_buy == 3
+
+    # 1m, at 0.625 EUR per USD (the rate of 2025-02-28, not the sale day's
+    # 0.8):
+    #   kept     = 1 x 10 x 110 x 0.625                    = 687.5
+    #   switched = (400 / 400) x 2 x 260 x 0.625            = 325
+    #            + 600 USD as cash x 0.625                  = 375
+    #                                                       = 700
+    #   difference = 700 - 687.5                            = 12.5
+    one = Enum.find(block.spans, &(&1.span == "1m"))
+    assert one.status == :complete
+    assert one.end_on == ~D[2025-02-28]
+    assert_decimal(one.kept, "687.5")
+    assert_decimal(one.switched, "700")
+    assert_decimal(one.difference, "12.5")
+  end
+
+  # User story (R1, ADR-0057 §2: pending and incomplete, as in FR-50):
+  # As the agent reading a recent or a sparsely priced switch,
+  # I want a span not yet reached named pending, and one that cannot be
+  # measured named incomplete with the side and the reason,
+  # so that no figure is estimated.
+  #
+  # Acceptance criteria:
+  # - A span whose end is after today is pending, with no figure.
+  # - Without a close of the sold security at the end: incomplete, side
+  #   kept, no_end_close; without one of a bought security: side switched.
+  test "a pending span, and incomplete spans with their side and reason" do
+    world = base_world(name: "Sides Gaps")
+    sold = security!("SDG")
+    bought = security!("BDG")
+
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "110"}, {~D[2025-04-15], "90"}])
+    put_quotes!(bought, [{~D[2025-02-14], "210"}])
+
+    sale = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(world, bought, quantity: "5", price: "200", date: ~D[2025-01-20])
+
+    # Today 2025-06-01: 1m and 3m have ended, 12m (2026-01-15) has not.
+    spans = Map.new(block(sale, ~D[2025-06-01]).spans, &{&1.span, &1})
+
+    assert %{status: :complete} = spans["1m"]
+
+    # 3m: the sold security has a close (90), the bought one has none from
+    # 2025-04-08 to 2025-04-15.
+    assert %{status: :incomplete, side: :switched, reason: :no_end_close, kept: nil} =
+             spans["3m"]
+
+    assert %{status: :pending, reason: nil, kept: nil, switched: nil, difference: nil} =
+             spans["12m"]
+
+    # latest: the sold security's latest close, 2025-04-15, as the row's.
+    assert spans["latest"].end_on == ~D[2025-04-15]
+    assert spans["latest"].status == :incomplete
+
+    # A sale whose sold security has no close at a span's end: side kept.
+    gap = base_world(name: "Sides Kept Gap")
+    unpriced = security!("SDN")
+    put_quotes!(unpriced, [{~D[2025-01-15], "100"}])
+    gap_sale = sell!(gap, unpriced, quantity: "1", price: "100", date: ~D[2025-01-15])
+    buy!(gap, bought, quantity: "1", price: "100", date: ~D[2025-01-16])
+
+    gap_spans = Map.new(block(gap_sale, ~D[2025-06-01]).spans, &{&1.span, &1})
+    assert %{status: :incomplete, side: :kept, reason: :no_end_close} = gap_spans["1m"]
+    # No close after the sale: the latest span has no end, as in FR-50.
+    assert %{status: :incomplete, side: :kept, reason: :no_end_close, end_on: nil} =
+             gap_spans["latest"]
+  end
+
+  # User story (R1, ADR-0057 §2: split-adjusted closes, ADR-0028):
+  # As the operator whose sold or bought security split after the switch,
+  # I want each quantity read in the closes' basis,
+  # so that a split is not a move on either side.
+  #
+  # Acceptance criteria:
+  # - A 2:1 split after the sale doubles the sold quantity the kept side
+  #   prices; one after the buy doubles the bought quantity.
+  test "a split after the sale or the buy is not a move" do
+    world = base_world(name: "Sides Split")
+    sold = security!("SDS")
+    bought = security!("BDS")
+
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "55"}])
+    put_quotes!(bought, [{~D[2025-02-14], "105"}])
+
+    # A position of the sold security is left, so its split books.
+    buy!(world, sold, quantity: "20", price: "90", date: ~D[2024-06-03])
+    sale = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(world, bought, quantity: "5", price: "200", date: ~D[2025-01-20])
+
+    for security <- [sold, bought] do
+      {:ok, _rows} =
+        Splits.book_split(Actor.owner_ui(), %{
+          security_id: security.id,
+          date: ~D[2025-02-01],
+          ratio_numerator: 2,
+          ratio_denominator: 1
+        })
+    end
+
+    # 1m, closes of 2025-02-14 after the split, quantities x 2:
+    #   kept     = 1 x 10 x 2 x 55            = 1100
+    #   switched = (1000 / 1000) x 5 x 2 x 105 = 1050
+    one = Enum.find(block(sale).spans, &(&1.span == "1m"))
+    assert_decimal(one.kept, "1100")
+    assert_decimal(one.switched, "1050")
+    assert_decimal(one.difference, "-50")
   end
 end
