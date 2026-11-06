@@ -407,4 +407,63 @@ defmodule PortfolixirWeb.PredictionsLiveTest do
     {:ok, view, _html} = live(conn, "/predictions")
     assert text_of(view, ".area-tab[href='/predictions']") == "Prognosen"
   end
+
+  # --- Sprint 26 fix P begin ---
+  # The privacy mode (P1) on the report (closing act, P-fix 2): a
+  # probability is a percentage, the Brier score, its error, its reference,
+  # the sharpness and a band's bounds are ratios; all stay, and the list
+  # that crashed on a masked probability renders.
+
+  # User story (P1 x V2, the closing act's finding 2):
+  # As the operator who switched the privacy mode on before sharing my
+  # screen,
+  # I want the calibration report and the list to render as they do
+  # without it,
+  # so that the mode hides amounts, not the scores of my predictions.
+  #
+  # Acceptance criteria:
+  # - /predictions renders with the mode on; its cards read the API's
+  #   Brier score ± standard error, the 0.25 reference and the sharpness.
+  # - Each listed call shows its probability ("70 %"), on the table row and
+  #   the phone row, and the excess in percentage points stays.
+  # - No figure of the page is the bar: it shows no amount.
+  test "the report and the list render with the privacy mode on and keep their ratios",
+       %{conn: conn} do
+    %{hit_a2: hit} = world()
+
+    {:ok, view, _html} =
+      conn
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie("portfolixir_privacy", "on")
+      |> live("/predictions")
+
+    # The test process rendered the first page in the mode; the expected
+    # figures are formatted outside it.
+    PortfolixirWeb.PrivacyMode.put(false)
+
+    assert_cards(view, api("/api/v1/predictions/calibration"))
+
+    assert text_of(view, "tr[data-role='prediction-row'][data-prediction-id='#{hit.id}']") =~
+             "70 %"
+
+    assert text_of(view, "#prediction-list-phone-rows li[data-prediction-id='#{hit.id}']") =~
+             "70 %"
+
+    refute view |> element("main") |> render() =~ "pf-mask"
+  end
+
+  test "a model filter that is no text a model can be opens the unfiltered report",
+       %{conn: conn} do
+    world()
+
+    # Invalid UTF-8 is refused before the page, by Plug's query parser.
+    for raw <- ["%00", "model%01x", "a%0Ab", "a%E2%80%8Bb"] do
+      {:ok, view, _html} = live(conn, "/predictions?model=" <> raw)
+
+      assert text_of(view, "#prediction-calibration-title") ==
+               "Calibration · 4 resolved · 2 open · 1 not resolved",
+             raw
+    end
+  end
+
+  # --- Sprint 26 fix P end ---
 end

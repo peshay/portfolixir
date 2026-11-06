@@ -410,4 +410,35 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
     assert unflag(view, single) =~
              "Synthetic Single Index ist keine Benchmark mehr. 1 festgehaltene Prognose misst weiter an ihr; eine neue Prognose kann sie nicht mehr als Benchmark nennen."
   end
+
+  # --- Sprint 26 fix P begin ---
+  # User story (P1 x V1, the closing act's finding 2):
+  # As the operator who switched the privacy mode on before sharing my
+  # screen,
+  # I want a security's Predictions tab to render with each call's
+  # probability and its returns in percent,
+  # so that the mode hides amounts, not my predictions.
+  #
+  # Acceptance criteria:
+  # - /securities/:id?tab=predictions renders with the mode on.
+  # - A call shows its probability ("70 %", "55 %"); a resolved one its
+  #   return, the benchmark's and the excess in percent and pp.
+  # - No figure of the tab is the bar.
+  test "the tab renders with the privacy mode on and keeps probabilities and returns",
+       %{conn: conn} do
+    %{security: security, hit: hit, miss: miss} = world()
+
+    {:ok, view, _html} =
+      conn
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie("portfolixir_privacy", "on")
+      |> live("/securities/#{security.id}?tab=predictions")
+
+    assert text(entry(view, hit)) =~ "70 %"
+    assert text(entry(view, hit)) =~ "+10.0 %"
+    assert text(entry(view, hit)) =~ "pp"
+    assert text(entry(view, miss)) =~ "55 %"
+    refute view |> element("#detail-tab-panel-predictions") |> render() =~ "pf-mask"
+  end
+
+  # --- Sprint 26 fix P end ---
 end
