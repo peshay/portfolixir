@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.AppShell do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Input.Text
+  alias PortfolixirWeb.UiAuth
 
   attr(:current_path, :string, default: "/")
 
@@ -190,7 +191,7 @@ defmodule PortfolixirWeb.AppShell do
                 <a
                   id={"locale-#{elem(locale, 0)}"}
                   class={["locale-link", current_locale() == elem(locale, 0) && "is-active"]}
-                  href={locale_href(@current_path, elem(locale, 0))}
+                  href={locale_href(@page_address, @current_path, elem(locale, 0))}
                   hreflang={elem(locale, 0)}
                   aria-label={locale_label(elem(locale, 0))}
                   aria-current={if current_locale() == elem(locale, 0), do: "true", else: nil}
@@ -445,23 +446,41 @@ defmodule PortfolixirWeb.AppShell do
     Gettext.get_locale(PortfolixirWeb.Gettext)
   end
 
-  # Merges `locale` into the path's existing query (rather than appending a
-  # second `?`), so surface state such as the Wealth tab (ADR-0022) survives
-  # a language switch.
   # The mode of the process that renders the shell (`PortfolixirWeb.PrivacyMode`):
   # set for the request and the LiveView before anything renders.
   defp privacy_on?, do: PortfolixirWeb.PrivacyMode.on?()
 
-  defp locale_href(path, locale) do
-    uri = URI.parse(path)
+  # The language switch links to the page's own address with `locale` set:
+  # its path and query as its last `handle_params` saw them
+  # (`@page_address`), so a switch keeps a tab, the filters and a
+  # comparison, a list's repeated keys as written (closing act of Sprint 26,
+  # as the privacy switch). The preferences in that address (a view, a
+  # benchmark) are left out and the ones the page carries in `current_path`
+  # put back (a remembered view; S7E-2): a choice another site's link put
+  # into the address never rides on a request of this instance. Leading
+  # slashes are one, so a doubled one stays a local path (H26).
+  @carried_preferences ~w(view benchmark benchmark_rate rail)
 
-    query =
-      (uri.query || "")
-      |> URI.decode_query()
-      |> Map.put("locale", to_string(locale))
-      |> URI.encode_query()
+  defp locale_href(page_address, current_path, locale) do
+    address =
+      if page_address, do: String.replace(page_address, ~r{^/+}, "/"), else: current_path
 
-    URI.to_string(%{uri | query: query})
+    {path, kept} = address |> UiAuth.safe_return_path() |> path_and_pairs()
+
+    carried =
+      current_path
+      |> path_and_pairs()
+      |> elem(1)
+      |> Enum.filter(&(UiAuth.preference(&1) in @carried_preferences))
+
+    path <> "?" <> Enum.join(kept ++ carried ++ ["locale=" <> to_string(locale)], "&")
+  end
+
+  defp path_and_pairs(address) do
+    case String.split(address || "/", "?", parts: 2) do
+      [path] -> {path, []}
+      [path, query] -> {path, String.split(query, "&", trim: true)}
+    end
   end
 
   defp locale_label("de"), do: gettext("German")
