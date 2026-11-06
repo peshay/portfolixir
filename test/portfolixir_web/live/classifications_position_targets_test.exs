@@ -502,6 +502,49 @@ defmodule PortfolixirWeb.ClassificationsPositionTargetsTest do
     assert child_hint(view, "Growth") == {"children Σ 65%", true}
   end
 
+  # User story (Sprint 26 closing act, design critic on P1):
+  # As the operator who switched the privacy mode on before sharing my
+  # screen,
+  # I want the plan editor to keep its percentages,
+  # so that the plan stays readable — a target weight is no amount.
+  #
+  # Acceptance criteria:
+  # - With the privacy mode on, "children Σ", "Σ positions", the Σ row and
+  #   "Not allocated" read their percentages, as with the mode off.
+  test "the plan editor's sums stay with the privacy mode on", %{conn: conn} = ctx do
+    owner = Actor.owner_ui()
+
+    category =
+      &Classifications.create_category(owner, Map.put(&1, :classification_id, ctx.tree.id))
+
+    {:ok, growth} = category.(%{name: "Growth"})
+    {:ok, core} = category.(%{name: "Core market", parent_id: growth.id})
+    {:ok, platforms} = category.(%{name: "Platforms", parent_id: growth.id})
+    kestrel = create_security!(name: "Kestrel Industrial Test NV", ticker: "KIT")
+    {:ok, _} = Classifications.assign_security(owner, kestrel.id, ctx.tree.id, core.id)
+
+    {:ok, _} =
+      Targets.set_targets(owner, ctx.portfolio.id, ctx.tree.id, [
+        %{category_id: growth.id, target_weight: "0.60"},
+        %{category_id: platforms.id, target_weight: "0.35"},
+        %{category_id: core.id, security_id: kestrel.id, target_weight: "0.25"}
+      ])
+
+    view =
+      conn
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        "portfolixir_privacy",
+        "on"
+      )
+      |> open(ctx.tree)
+
+    assert has_element?(view, "#privacy-mode[data-privacy-mode='on']")
+    assert child_hint(view, "Growth") == {"children Σ 60%", false}
+    assert has_element?(view, "#soll-position-sum-#{core.id}", "25")
+    assert view |> element("[data-role='soll-sum']") |> render() =~ ~r/>\s*60%/
+    assert view |> element("[data-role='soll-remainder']") |> render() =~ ~r/>\s*40%/
+  end
+
   # The hint text of the category row named `name`, and whether it is flagged.
   defp child_hint(view, name) do
     row =
