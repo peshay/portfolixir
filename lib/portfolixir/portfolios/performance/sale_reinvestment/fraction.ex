@@ -40,7 +40,8 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment.Fraction do
 
   @doc "`a / b`; `b` must not be 0."
   @spec divide(t(), t()) :: t()
-  def divide({n1, d1}, {n2, d2}) when n2 != 0, do: reduce(n1 * d2, d1 * n2)
+  def divide(_a, {0, _d}), do: raise(ArithmeticError, "a fraction cannot be divided by 0")
+  def divide({n1, d1}, {n2, d2}), do: reduce(n1 * d2, d1 * n2)
 
   @spec sum([t()]) :: t()
   def sum(fractions), do: Enum.reduce(fractions, zero(), &add/2)
@@ -68,7 +69,6 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment.Fraction do
   def to_decimal({n, 1}), do: Decimal.new(n)
   def to_decimal({n, d}), do: Decimal.div(Decimal.new(n), Decimal.new(d))
 
-  defp reduce(_n, 0), do: raise(ArithmeticError, "a fraction's denominator cannot be 0")
   defp reduce(n, d) when d < 0, do: reduce(-n, -d)
 
   defp reduce(n, d) do

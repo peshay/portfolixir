@@ -76,8 +76,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "fungible_money, dates, transfers, no_match, currency, no_total}. The proceeds (the " <>
           "sale's booked cash amount on its cash account) go into the buys debiting the same " <>
           "account dated from the sale's date to 30 calendar days after it, of another " <>
-          "security, oldest proceeds first by sale date then id, each buy taking at most its " <>
-          "cash debit; the rest is unallocated and stays out. Per FR-50 span kept = a x the " <>
+          "security, oldest proceeds first by sale date, each buy taking at most its cash " <>
+          "debit; same-day sales and same-day buys share pro rata (by remaining proceeds and " <>
+          "remaining debit), never by booking id, so a booking deleted and booked again " <>
+          "unchanged moves nothing, and a tax_refund of the sold security on the sale's date " <>
+          "and account joins its proceeds whatever the booking order; the rest is " <>
+          "unallocated and stays out. Per FR-50 span kept = a x the " <>
           "sold quantity x the sold close at the end in EUR, switched = each buy's share x " <>
           "its quantity x the bought close at the end in EUR, or the amount as cash at the " <>
           "end's rate for a buy dated after the end, difference = switched + taxes_apart - " <>
