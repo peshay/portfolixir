@@ -9506,6 +9506,10 @@ the bar is green or red where the figure was.
   stand-in text on the screen fail the walk, and an amount written without
   its thousands dots („4250,00“) counts as one. A new dialog that shows
   figures joins the list.
+- **A hidden quantity's unit word does not count it.** In English „1 unit“
+  against „2 units“ would tell a hidden quantity of one; in the mode every
+  quantity reads „[bar] units“ (`plural_count/1`). German „Stück“ has one
+  form.
 
 ### The import preview *(closing act, privacy lens, S2)*
 

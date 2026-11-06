@@ -377,6 +377,32 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
     refute html =~ "absorbs #{PrivacyMode.text()}"
   end
 
+  # User story (fix round of the Sprint 26 closing act, privacy lens,
+  # minor):
+  # As the operator with the privacy mode on in English,
+  # I want a hidden quantity's unit word not to depend on the quantity,
+  # so that "unit" against "units" does not tell that it is exactly one.
+  #
+  # Acceptance criteria:
+  # - In the mode, one unit and twelve units both read "[bar] units"; with
+  #   the mode off, "1 unit" and "12 units".
+  test "a hidden quantity's unit word does not tell whether it is one" do
+    Gettext.with_locale(PortfolixirWeb.Gettext, "en", fn ->
+      size = fn quantity ->
+        PortfolixirWeb.TransactionManagementLive.phone_size(%{quantity: Decimal.new(quantity)})
+      end
+
+      # The mode of this test's own process, which ends with it.
+      PrivacyMode.put(false)
+      assert size.("1") == "1 unit"
+      assert size.("12") == "12 units"
+
+      PrivacyMode.put(true)
+      assert size.("1") == "#{PrivacyMode.text()} units"
+      assert size.("12") == "#{PrivacyMode.text()} units"
+    end)
+  end
+
   # A state's text, the attributes a reader meets (a native tooltip, an
   # accessible name, an input's value or placeholder) and its markup's
   # attributes: no figure, no stand-in text, no bar's markup out of place.

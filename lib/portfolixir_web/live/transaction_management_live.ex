@@ -2269,10 +2269,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   @doc """
   The count a quantity's plural follows: one unit is a unit, any other
-  quantity — a fraction included — is units (U1 closing act, R10b).
+  quantity — a fraction included — is units (U1 closing act, R10b). In the
+  privacy mode the quantity is hidden, and so is whether it is one: every
+  quantity is units (the privacy lens of the Sprint 26 closing act).
   """
-  def plural_count(%Decimal{} = quantity),
-    do: if(Decimal.equal?(quantity, 1), do: 1, else: 2)
+  def plural_count(%Decimal{} = quantity) do
+    if Decimal.equal?(quantity, 1) and not PrivacyMode.on?(), do: 1, else: 2
+  end
 
   # The currency a booking's money is in: the cash a booking moves is in its
   # cash account's currency (ADR-0015, amendment of 2026-10-07, point 1) — for
