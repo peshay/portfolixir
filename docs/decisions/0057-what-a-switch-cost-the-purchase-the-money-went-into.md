@@ -301,10 +301,17 @@ nothing"); while ids decided, a rebook chose.
   whose only later buy is one reads `no_buy_within_30_days`, never
   `proceeds_taken_by_earlier_sale` (the closing act's A1).
 - **Exact until shown:** amounts are carried as exact fractions and
-  rounded once when shown, so a split adds back to its whole; each side of
-  a span is one quotient of exact products, dividing by each hub rate
-  once, so an even switch reads a difference of exactly 0 at any rate
-  (the closing act's M3: at a hub rate of 1.3 it read −1E-31).
+  rounded once when shown, so a split adds back to its whole exactly
+  before it is shown (the shown parts, each rounded to 34 digits, can
+  miss the shown whole by one unit in the last digit: 100 into three
+  equal buys shows 33.33…33 three times); each side of a span is one
+  quotient of exact products, dividing by each hub rate once, so an even
+  switch reads a difference of exactly 0 at any rate (the closing act's
+  M3: at a hub rate of 1.3 it read −1E-31). A close adjusted by a split
+  ratio that does not terminate (3:1) is rounded by the catalog before it
+  enters the quotient, so there a residue of one unit in the 34th digit
+  can remain (the re-check's finding, recorded on the API and MCP polish
+  list).
 
 With these, the attacks read the same before and after the rebook: the
 two buys take 500 each (switched 250 + 750 = 1000 against kept 1000, a
