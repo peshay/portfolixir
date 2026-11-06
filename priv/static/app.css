@@ -3209,8 +3209,12 @@ img.security-logo {
   z-index: 5;
 }
 
+/* `clip`, not `hidden`: `hidden` made the panel a scroll box on both axes
+   and cut an ⓘ panel at a short tab's bottom; `clip` keeps the inline cut
+   and lets the ⓘ reach into the pane, which scrolls (Sprint 26 closing act,
+   design critic V1). */
 .detail-pane--fullscreen .detail-tab-panel {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .detail-pane--fullscreen .chart-frame {
@@ -12509,6 +12513,13 @@ dialog.merge-dialog {
 /* The security page's Trades tab: the same section under the FIFO list. */
 .hs-detail-section {
   margin-top: 20px;
+}
+/* The tab sits in `.workspace-panel`, whose table wrapper fills the panel
+   (`height: 100%`, for the securities list): here the wrapper is as tall as
+   its table, so the legend follows it and fullscreen holds no nested scroll
+   box (Sprint 26 closing act, design critic V3). */
+.hs-detail-section .data-table-wrapper {
+  height: auto;
 }
 
 /* Under 560 px: one row per sale, the four spans as a 2 x 2 grid of label

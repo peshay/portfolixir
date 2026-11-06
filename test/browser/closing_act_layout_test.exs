@@ -17,7 +17,8 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
   # only, no external network: the browser talks to 127.0.0.1.
   use PortfolixirWeb.ConnCase, async: false
 
-  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, buy!: 3, create_security!: 1, put_quotes!: 2, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
@@ -87,5 +88,37 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
       })
 
     assert result == %{"ok" => true}
+  end
+
+  # User story (Sprint 26 closing act, design critic V3 and V1):
+  # As the operator reading a security's Trades tab and its Predictions tab,
+  # I want "After the sale" to end where its table ends and an ⓘ to open
+  # whole in fullscreen,
+  # so that no blank band pushes the legend away, no table scrolls inside
+  # the page, and no line of the computation basis is cut off.
+  #
+  # Acceptance criteria:
+  # - On /securities/:id?tab=trades at 1200 px, "After the sale"'s table
+  #   wrapper is as tall as its table (2 px of borders allowed), the legend
+  #   follows it within 16 px, and the wrapper does not scroll on its own;
+  #   the same in fullscreen.
+  # - In fullscreen, the Predictions tab's ⓘ opens with no box between it
+  #   and the scrolling pane cutting its panel.
+  test "After the sale ends with its table, and a fullscreen tab's ⓘ opens whole",
+       %{base_url: base_url} do
+    world = base_world(name: "Trades Portfolio")
+    security = create_security!(name: "Synthetic Sold Fund", ticker: "SSF")
+
+    put_quotes!(security, [
+      {~D[2025-01-02], "60"},
+      {~D[2025-07-09], "71"},
+      {~D[2025-08-08], "72"},
+      {~D[2025-10-09], "73"}
+    ])
+
+    buy!(world, security, quantity: "20", price: "60", date: ~D[2025-01-02])
+    sell!(world, security, quantity: "20", price: "71", date: ~D[2025-07-09])
+
+    assert run!("trades_tab", base_url, %{security_id: security.id}) == %{"ok" => true}
   end
 end
