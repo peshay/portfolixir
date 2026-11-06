@@ -1,0 +1,101 @@
+{
+  "a": {
+    "file": "frames/a.html",
+    "width": 1060,
+    "height": 1285,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1400
+    }
+  },
+  "b": {
+    "file": "frames/b.html",
+    "width": 1060,
+    "height": 950,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "c": {
+    "file": "frames/c.html",
+    "width": 1060,
+    "height": 1406,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "c-dark": {
+    "file": "frames/c-dark.html",
+    "width": 1060,
+    "height": 1406,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "c-none": {
+    "file": "frames/c-none.html",
+    "width": 1060,
+    "height": 648,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "c-rate": {
+    "file": "frames/c-rate.html",
+    "width": 1060,
+    "height": 650,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "c-info": {
+    "file": "frames/c-info.html",
+    "width": 1060,
+    "height": 818,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "m3": {
+    "file": "frames/m3.html",
+    "width": 1060,
+    "height": 901,
+    "scroller": {
+      "client": 1007,
+      "scroll": 1007
+    }
+  },
+  "security": {
+    "file": "frames/security.html",
+    "width": 1060,
+    "height": 517,
+    "scroller": {
+      "client": 1032,
+      "scroll": 1032
+    }
+  },
+  "c-390": {
+    "file": "frames/c-390.html",
+    "width": 390,
+    "height": 1872,
+    "scroller": null
+  },
+  "c-390-dark": {
+    "file": "frames/c-390-dark.html",
+    "width": 390,
+    "height": 1322,
+    "scroller": null
+  },
+  "m3-390": {
+    "file": "frames/m3-390.html",
+    "width": 390,
+    "height": 1255,
+    "scroller": null
+  }
+}

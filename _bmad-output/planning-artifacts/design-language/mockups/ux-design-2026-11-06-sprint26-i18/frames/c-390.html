@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>c-390</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">/* Board 03 (Sprint 26, I18): what the story adds to priv/static/app.css
+   for "Nach dem Verkauf". Every frame carries it in <style id="proposal">;
+   build.js reads it from this file. Option A and B's rules are at the end
+   and are not built unless the owner picks them. */
+
+/* The comparison chooser: a label, the segmented control, and the one
+   field the chosen kind needs (the rate and Apply, or the flagged
+   securities' select). */
+.hs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.hs-controls__label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.hs-controls__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.hs-controls__field input {
+  width: 6.5em;
+}
+.hs-controls__field select {
+  max-width: 100%;
+}
+
+.hs-section > h2 {
+  margin-bottom: 4px;
+}
+.hs-basis {
+  margin: 0 0 12px;
+}
+
+/* The table fits its wrapper (#1322's anatomy): a stored name breaks
+   inside its cell, the figures never wrap, the line under a mode-3 row
+   wraps between words. The wrapper's scroller stays for what still does
+   not fit. */
+.data-table-wrapper > .hs-table {
+  min-width: 0;
+  width: 100%;
+}
+.hs-table td[data-role="hindsight-name"] {
+  min-width: 10rem;
+  overflow-wrap: anywhere;
+}
+.hs-table th.num,
+.hs-table td.num {
+  white-space: nowrap;
+}
+
+/* The table: one row per sale booking. The spans are a column group whose
+   head says what the lead figure is; each cell is the lead figure over its
+   sub-lines (Wertpapier ggü. Benchmark, or the reason, or the end date). */
+.hs-table .hs-grouprow th {
+  padding-top: 6px;
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+.hs-table th.hs-group {
+  text-align: left;
+  border-left: 1px solid var(--color-border);
+}
+.hs-group__sub {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.hs-th-sub {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.hs-table thead tr:last-child th:nth-last-child(4),
+.hs-table td.hs-span:nth-last-child(4),
+.hs-table td.hs-nobuys {
+  border-left: 1px solid var(--color-border);
+}
+.hs-table td.hs-span,
+.hs-table td.hs-sale {
+  white-space: nowrap;
+}
+.hs-lead {
+  display: block;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hs-span .stat__sub,
+.hs-table td .stat__sub {
+  display: block;
+}
+.hs-span--open .hs-lead {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.data-table td.hs-span--open {
+  color: var(--color-text-muted);
+}
+.hs-lead.decimal-positive {
+  color: var(--color-positive);
+}
+.hs-lead.decimal-negative {
+  color: var(--color-danger);
+}
+.hs-table td.hs-nobuys {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: normal;
+}
+/* Mode 3: the cost line of a matched sale, under its row. */
+.hs-table tr.hs-has-detail td {
+  border-bottom: 0;
+}
+.hs-table tr.hs-detail td {
+  padding-top: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+.hs-detail__buys,
+.hs-detail__costs {
+  display: block;
+}
+.hs-table tr.hs-detail b,
+.hs-detail-phone b {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.hs-legend {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+/* The security page's Trades tab: the same section under the FIFO list. */
+.hs-detail-section {
+  margin-top: 20px;
+}
+
+/* Under 560 px: one row per sale, the four spans as a 2 x 2 grid of label
+   over lead figure over sub-line, every figure the table row has. */
+.hs-phone-row {
+  display: block;
+}
+.hs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 8px 0 0;
+}
+.hs-grid__cell {
+  padding-left: 6px;
+}
+.hs-grid dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.hs-grid dd {
+  margin: 0;
+  font-size: 14px;
+}
+.hs-grid dd .stat__sub {
+  display: block;
+}
+.hs-grid__cell.trade-pa--na .hs-lead,
+.hs-grid__cell.hs-span--open .hs-lead {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.hs-nobuys--phone,
+.hs-detail-phone {
+  margin: 8px 0 0;
+  padding-left: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+@media (max-width: 560px) {
+  .hs-table-wrapper {
+    display: none;
+  }
+  .hs-phone-rows {
+    display: block;
+  }
+  .hs-controls .segmented-control {
+    display: flex;
+    width: 100%;
+  }
+  .hs-controls .segmented-control__option {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
+
+/* Option B only: the row's toggle and the row that opens under it. */
+.hs-b-toggle {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 1px 8px 1px 4px;
+  min-height: 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  box-shadow: none;
+}
+.hs-b-toggle.is-open svg {
+  transform: rotate(90deg);
+}
+.hs-b-row td {
+  background: var(--color-bg-muted);
+}
+.hs-b-head {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+}
+.hs-b-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.hs-b-cell {
+  padding-left: 6px;
+}
+.hs-b-cell dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.hs-b-cell dd {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.hs-b-k {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.app-frame { padding-left: 0 !important; margin-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+th.mock-new, td.mock-new { outline-offset: -2px; border-radius: 0; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: 4px; top: 4px; margin: 0; z-index: 5; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px !important; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+#security-detail-pane { position: static !important; inset: auto !important; transform: none !important; max-height: none !important; height: auto !important; box-shadow: none !important; }
+</style>
+</head>
+<body>
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox" aria-label="Navigation umschalten">
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+        <div class="topbar-page" aria-live="polite">
+            <h1 id="app-topbar-title">Trades</h1>
+            <p id="app-topbar-subtitle">Abgeschlossene Trades und ihr realisiertes Ergebnis</p>
+        </div>
+      </div>
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="light">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+              <button type="button" class="theme-choice" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="false" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+              <button type="button" class="theme-choice is-active" data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="true" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+          </div>
+        </details>
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+          </div>
+        </details>
+        <nav class="locale-switcher" aria-label="Sprache">
+            <a id="locale-en" class="locale-link " href="/cashflow?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+            <a id="locale-de" class="locale-link is-active" href="/cashflow?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+        </nav>
+      </div>
+    </header>
+    <main class="app-main app-main--workspace">
+  <div class="workspace-page">
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs" style="--area-tabs-tail: 74px;">
+  <a href="/portfolio" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Bestände">Bestände</span>
+  </a><a href="/portfolio?tab=allocation" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9Z"></path><path d="M21 12a9 9 0 0 0-9-9v9h9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span>
+  </a><a href="/cashflow" class="area-tab is-active" aria-current="page">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Cashflow">Cashflow</span>
+  </a><a href="/snapshots" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </span>
+    <span class="area-tab__label" data-label="Snapshots">Snapshots</span>
+  </a><a href="/tax" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h6"></path><circle cx="9" cy="11" r=".6"></circle><circle cx="12" cy="11" r=".6"></circle><circle cx="15" cy="11" r=".6"></circle><circle cx="9" cy="14" r=".6"></circle><circle cx="12" cy="14" r=".6"></circle><circle cx="15" cy="14" r=".6"></circle><path d="M9 17h6"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Steuern">Steuern</span>
+  </a><a href="/risk" class="area-tab ">
+    <span class="area-tab__icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"></path></svg>
+    </span>
+    <span class="area-tab__label" data-label="Risiko">Risiko</span>
+  </a>
+</nav>
+    <div class="workspace-section workspace-section--controls">
+    <nav class="segmented-control" data-role="cashflow-facets" aria-label="Cashflow-Facette">
+      <a href="/cashflow" class="segmented-control__option">
+        Erträge
+      </a>
+      <a href="/cashflow?tab=realized" class="segmented-control__option is-active" aria-current="true">
+        Trades
+      </a>
+      <a href="/cashflow?tab=flows" class="segmented-control__option">
+        Ein- &amp; Auszahlungen
+      </a>
+      <a href="/cashflow?tab=costs" class="segmented-control__option">
+        Kosten
+      </a>
+    </nav>
+    </div>
+      <section class="workspace-section">
+        <div class="summary-basis" data-role="facet-basis">
+          Beträge in EUR · FIFO je Wertpapier · alle Depots
+          <details class="metric-tooltip metric-tooltip--inline" data-role="facet-info">
+            <summary aria-label="Zu dieser Facette">ⓘ</summary>
+            <p role="tooltip" data-role="facet-composition">
+              Realisierte Gewinne und Verluste aus FIFO-gematchten, im Ledger gebuchten Verkäufen über alle Portfolios, nach dem Schlussdatum jedes Verkaufs. Ohne Dividenden und Zinsen, Ein- und Auszahlungen sowie Kosten — jede hat ihre eigene Cashflow-Facette. Jeder Verkauf wird über den EUR-Hub zum Wechselkurs seines eigenen Schlusstags in EUR umgerechnet; ein Verkauf, für dessen Tag kein Wechselkurs gespeichert ist, bleibt aus den Summen ausgeschlossen und wird hier benannt — nie zum Wechselkurs eines Nachbartags umgerechnet.
+              <br><br>Einlieferungen eröffnen keinen Lot
+              <br>p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst
+              <br><br>Kauf ohne Gegenwert in der Währung des Verkaufs: Ein Kauf, den der Verkauf schließt, hat keinen Gegenwert in der Währung des Verkaufs.<br>Dritte Währung: Der Verkauf oder ein Kauf, den er schließt, ist weder in der Währung des Wertpapiers noch in der seines Kontos bepreist; kein Wechselkurs behebt das.<br>Kauf in anderer Währung bezahlt: Ein Kauf, den der Verkauf schließt, wurde in einer anderen Währung als der des Verkaufs bezahlt, die kein gespeicherter Wert überbrückt; kein Wechselkurs behebt das.<br>Kauf mit Betrag null: Ein Kauf, den der Verkauf schließt, hat einen Betrag von null, den das Nachladen der Kurse nicht ergänzt.
+            </p>
+          </details>
+        </div>
+      </section>
+      <section id="realized-trades" class="workspace-section kpi-band">
+          <div id="realized-trades-table-wrapper" class="data-table-wrapper">
+            <table id="realized-trades-table" class="data-table">
+              <thead>
+                <tr>
+                  <th>Wertpapier</th>
+                  <th>Gekauft → verkauft</th>
+                  <th class="num">Haltedauer</th>
+                  <th class="num">Stückzahl</th>
+                  <th class="num">Einstand</th>
+                  <th class="num">Erlös</th>
+                  <th class="num">p. a.</th>
+                  <th class="num col-subject">Ergebnis</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-role="realized-trade">
+                  <td data-role="trade-name">
+                    <a href="/securities/35?tab=trades">
+                      Brightwater Utilities plc
+                    </a>
+                  </td>
+                  <td>
+                    24.06.2025 → 27.09.2026
+                  </td>
+                  <td class="num">
+                    460 Tage
+                  </td>
+                  <td class="num">10,0000</td>
+                  <td class="num">
+                    300,00 <small class="value-suffix">EUR</small>
+                  </td>
+                  <td class="num">
+                    330,00 <small class="value-suffix">EUR</small>
+                  </td>
+                  <td class="num trade-pa is-positive">
+                    +7,9%
+                  </td>
+                  <td class="num col-subject is-positive" data-role="trade-result">
+                    +30,00 <small class="value-suffix">EUR</small>
+                    <span class="stat__sub">
+                      +10,0%
+                    </span>
+                  </td>
+                </tr><tr class="mock-elided"><td colspan="8">… 6 weitere Trades, für das Board gekürzt</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul id="realized-trades-phone-rows" class="phone-rows" aria-label="Trades">
+            <li class="phone-row" data-role="phone-row">
+              <span class="phone-row__body">
+                <a href="/securities/35?tab=trades" class="phone-row__target">
+                  <span class="phone-row__name">Brightwater Utilities plc</span>
+                </a>
+                <span class="phone-row__ids">
+                  24.06.2025 → 27.09.2026 · 460 Tage
+                </span>
+              </span>
+              <span class="phone-row__figures">
+                <span class="phone-row__figure is-positive">
+                  +30,00 <small class="value-suffix">EUR</small>
+                </span>
+                <span class="phone-row__figure2">
+                  <span class="decimal-positive">+10,0%</span> · <span class="decimal-positive">+7,9%</span> p. a.
+                </span>
+              </span>
+            </li><li class="mock-elided">… 6 weitere Trades, für das Board gekürzt</li>
+          </ul>
+        <p class="summary-basis" data-role="trades-basis">
+          Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten
+        </p>
+      </section><section id="sale-hindsight" class="workspace-section hs-section mock-new" data-role="sale-hindsight">
+<h2>Nach dem Verkauf</h2>
+<div class="summary-basis hs-basis">Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung<details class="metric-tooltip metric-tooltip--inline" data-role="hindsight-info"><summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Wie sich das verkaufte Wertpapier nach dem Verkauf bewegt hat: in EUR, über 1, 3 und 12 Kalendermonate ab dem Verkaufstag und bis zum letzten Schlusskurs.<br><br>Start ist der Schlusskurs des Verkaufstags oder der letzte davor, höchstens 7 Tage älter; der gebuchte Verkaufskurs steht daneben und geht in keine Zahl ein.<br>Kursrendite: Ausschüttungen nach dem Verkauf sind nicht gebucht, bei einem Dividendenzahler ist die Zahl also zu niedrig.<br>Ein Benchmark-Wertpapier wird gleich gemessen, vom selben Start- bis zum selben Endtag; ein fester Zins wird täglich über die Kalendertage der Spanne verzinst.<br>Eine Spanne, die nach heute endet, läuft noch und hat keine Zahl. Fehlt ein Kurs oder ein Wechselkurs, bleibt die Spanne ohne Zahl und nennt den Grund: nie geschätzt.<br>Eine Zeile je Verkaufsbuchung, nicht je FIFO-Lot; ein Verkauf ohne zugeordneten Kauf zählt mit, eine Auslieferung ist kein Verkauf.</p></details><span class="mock-pin">4</span></div>
+<div class="hs-controls" data-role="hindsight-compare"><span class="mock-pin">1</span>
+<span class="hs-controls__label" id="hs-compare-label">Vergleich</span>
+<nav class="segmented-control" aria-labelledby="hs-compare-label"><a href="#" class="segmented-control__option">Ohne</a><a href="#" class="segmented-control__option">Fester Zins</a><a href="#" class="segmented-control__option is-active" aria-current="true">Wertpapier</a><a href="#" class="segmented-control__option">Anschlusskauf</a></nav>
+<span class="hs-controls__field"><label for="hs-bench" class="visually-hidden">Benchmark</label><select id="hs-bench"><option selected="">Kestrel Industrial Group NV Index</option></select></span>
+</div>
+<div class="data-table-wrapper hs-table-wrapper"><table class="data-table hs-table"><thead>
+<tr class="hs-grouprow"><th colspan="3"></th><th colspan="4" class="hs-group">Nach dem Verkauf <span class="hs-group__sub">· Differenz zu Kestrel Industrial Group NV Index</span></th></tr>
+<tr><th>Wertpapier</th><th>Verkauf</th><th class="num">Startkurs</th><th class="num">1M</th><th class="num">3M</th><th class="num">12M</th><th class="num">Bis heute<span class="hs-th-sub">letzter Kurs</span></th></tr>
+</thead><tbody>
+<tr data-role="hindsight-row" data-sale="65">
+<td data-role="hindsight-name"><a href="#">Harborline Freight Inc</a></td>
+<td class="hs-sale">07.10.2026<span class="stat__sub">10 × 36,00 USD</span></td>
+<td class="num trade-pa--na" title="Kein Schlusskurs am Verkaufstag und keiner in den 7 Tagen davor"><span aria-hidden="true">—</span>
+<span class="stat__sub">kein Startkurs</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 07.11.2026</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 07.01.2027</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 07.10.2027</span></td>
+<td class="num hs-span trade-pa--na" title="Kein Schlusskurs am Verkaufstag und keiner in den 7 Tagen davor">
+<span class="hs-lead ">—</span>
+<span class="stat__sub">kein Startkurs</span></td></tr>
+<tr data-role="hindsight-row" data-sale="63">
+<td data-role="hindsight-name"><a href="#">Brightwater Utilities plc</a></td>
+<td class="hs-sale">27.09.2026<span class="stat__sub">13 × 33,00 EUR</span></td>
+<td class="num mock-synth">32,80 <small class="value-suffix">EUR</small>
+<span class="stat__sub">Schluss 25.09.2026</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-positive">+1,3%</span>
+<span class="stat__sub">+2,4% ggü. +1,1%</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 27.12.2026</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 27.09.2027</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-positive">+1,7%</span>
+<span class="stat__sub">+3,7% ggü. +2,0%</span></td></tr>
+<tr data-role="hindsight-row" data-sale="97">
+<td data-role="hindsight-name"><a href="#">Kestrel Bay Resources Inc.</a></td>
+<td class="hs-sale">09.07.2026<span class="stat__sub">10 × 120,00 CAD</span></td>
+<td class="num mock-synth">75,10 <small class="value-suffix">EUR</small>
+<span class="stat__sub">Schluss 09.07.2026</span>
+<span class="stat__sub">119,60 CAD</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-negative">−3,7%</span>
+<span class="stat__sub">−2,3% ggü. +1,4%</span></td>
+<td class="num hs-span trade-pa--na mock-synth" title="Kein gespeicherter Wechselkurs nach EUR für einen der beiden Kurse">
+<span class="hs-lead ">—</span>
+<span class="stat__sub">kein Wechselkurs</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 09.07.2027</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-negative">−3,7%</span>
+<span class="stat__sub">−0,8% ggü. +2,9%</span></td></tr>
+<tr data-role="hindsight-row" data-sale="56">
+<td data-role="hindsight-name"><a href="#">Wrenfield Gardens AG</a></td>
+<td class="hs-sale">09.07.2026<span class="stat__sub">20 × 71,00 EUR</span></td>
+<td class="num mock-synth">70,60 <small class="value-suffix">EUR</small>
+<span class="stat__sub">Schluss 09.07.2026</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-negative">−0,4%</span>
+<span class="stat__sub">+1,0% ggü. +1,4%</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-positive">+2,2%</span>
+<span class="stat__sub">+4,4% ggü. +2,2%</span></td>
+<td class="num hs-span hs-span--open">
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 09.07.2027</span></td>
+<td class="num hs-span mock-synth">
+<span class="hs-lead decimal-positive">+2,2%</span>
+<span class="stat__sub">+5,1% ggü. +2,9%</span></td></tr>
+<tr data-role="hindsight-row" data-sale="11">
+<td data-role="hindsight-name"><a href="#">Microsoft Corporation Registered Shares DL-,00000625</a></td>
+<td class="hs-sale">10.09.2023<span class="stat__sub">10 × 220,00 EUR</span></td>
+<td class="num mock-synth">218,90 <small class="value-suffix">EUR</small>
+<span class="stat__sub">Schluss 08.09.2023</span></td>
+<td class="num hs-span trade-pa--na mock-synth" title="Das Benchmark-Wertpapier hat keinen Kurs für den Start oder das Ende; die Zahl des Wertpapiers bleibt">
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+2,7% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></td>
+<td class="num hs-span trade-pa--na mock-synth" title="Das Benchmark-Wertpapier hat keinen Kurs für den Start oder das Ende; die Zahl des Wertpapiers bleibt">
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+12,4% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></td>
+<td class="num hs-span trade-pa--na mock-synth" title="Das Benchmark-Wertpapier hat keinen Kurs für den Start oder das Ende; die Zahl des Wertpapiers bleibt">
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+31,8% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></td>
+<td class="num hs-span trade-pa--na mock-synth" title="Das Benchmark-Wertpapier hat keinen Kurs für den Start oder das Ende; die Zahl des Wertpapiers bleibt">
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+84,2% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></td></tr>
+<tr class="mock-elided"><td colspan="7">… 5 weitere Verkäufe, für das Board gekürzt</td></tr>
+</tbody></table></div>
+<ul class="phone-rows hs-phone-rows" aria-label="Nach dem Verkauf">
+<li class="phone-row hs-phone-row" data-role="hindsight-row" data-sale="65">
+<span class="phone-row__body">
+<span class="phone-row__name">Harborline Freight Inc</span>
+<span class="phone-row__ids">Verkauf 07.10.2026 · 10 × 36,00 USD</span>
+<span class="phone-row__ids">kein Startkurs</span></span>
+<dl class="hs-grid">
+<div class="hs-grid__cell hs-span--open">
+<dt>1M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 07.11.2026</span></dd></div>
+<div class="hs-grid__cell hs-span--open">
+<dt>3M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 07.01.2027</span></dd></div>
+<div class="hs-grid__cell hs-span--open">
+<dt>12M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 07.10.2027</span></dd></div>
+<div class="hs-grid__cell trade-pa--na">
+<dt><span class="mock-pin">3</span>Bis heute</dt>
+<dd>
+<span class="hs-lead ">—</span>
+<span class="stat__sub">kein Startkurs</span></dd></div></dl></li>
+<li class="phone-row hs-phone-row" data-role="hindsight-row" data-sale="63">
+<span class="phone-row__body">
+<span class="phone-row__name">Brightwater Utilities plc</span>
+<span class="phone-row__ids">Verkauf 27.09.2026 · 13 × 33,00 EUR</span>
+<span class="phone-row__ids">Startkurs 32,80 EUR · 25.09.2026</span></span>
+<dl class="hs-grid">
+<div class="hs-grid__cell mock-synth">
+<dt>1M</dt>
+<dd>
+<span class="hs-lead decimal-positive">+1,3%</span>
+<span class="stat__sub">+2,4% ggü. +1,1%</span></dd></div>
+<div class="hs-grid__cell hs-span--open">
+<dt><span class="mock-pin">2</span>3M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 27.12.2026</span></dd></div>
+<div class="hs-grid__cell hs-span--open">
+<dt>12M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 27.09.2027</span></dd></div>
+<div class="hs-grid__cell mock-synth">
+<dt>Bis heute</dt>
+<dd>
+<span class="hs-lead decimal-positive">+1,7%</span>
+<span class="stat__sub">+3,7% ggü. +2,0%</span></dd></div></dl></li>
+<li class="phone-row hs-phone-row" data-role="hindsight-row" data-sale="97">
+<span class="phone-row__body">
+<span class="phone-row__name">Kestrel Bay Resources Inc.</span>
+<span class="phone-row__ids">Verkauf 09.07.2026 · 10 × 120,00 CAD</span>
+<span class="phone-row__ids">Startkurs 75,10 EUR · 09.07.2026</span></span>
+<dl class="hs-grid">
+<div class="hs-grid__cell mock-synth">
+<dt>1M</dt>
+<dd>
+<span class="hs-lead decimal-negative">−3,7%</span>
+<span class="stat__sub">−2,3% ggü. +1,4%</span></dd></div>
+<div class="hs-grid__cell trade-pa--na mock-synth">
+<dt>3M</dt>
+<dd>
+<span class="hs-lead ">—</span>
+<span class="stat__sub">kein Wechselkurs</span></dd></div>
+<div class="hs-grid__cell hs-span--open">
+<dt>12M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 09.07.2027</span></dd></div>
+<div class="hs-grid__cell mock-synth">
+<dt>Bis heute</dt>
+<dd>
+<span class="hs-lead decimal-negative">−3,7%</span>
+<span class="stat__sub">−0,8% ggü. +2,9%</span></dd></div></dl></li>
+<li class="phone-row hs-phone-row" data-role="hindsight-row" data-sale="56">
+<span class="phone-row__body">
+<span class="phone-row__name">Wrenfield Gardens AG</span>
+<span class="phone-row__ids">Verkauf 09.07.2026 · 20 × 71,00 EUR</span>
+<span class="phone-row__ids">Startkurs 70,60 EUR · 09.07.2026</span></span>
+<dl class="hs-grid">
+<div class="hs-grid__cell mock-synth">
+<dt>1M</dt>
+<dd>
+<span class="hs-lead decimal-negative">−0,4%</span>
+<span class="stat__sub">+1,0% ggü. +1,4%</span></dd></div>
+<div class="hs-grid__cell mock-synth">
+<dt>3M</dt>
+<dd>
+<span class="hs-lead decimal-positive">+2,2%</span>
+<span class="stat__sub">+4,4% ggü. +2,2%</span></dd></div>
+<div class="hs-grid__cell hs-span--open">
+<dt>12M</dt>
+<dd>
+<span class="hs-lead ">läuft</span>
+<span class="stat__sub">bis 09.07.2027</span></dd></div>
+<div class="hs-grid__cell mock-synth">
+<dt>Bis heute</dt>
+<dd>
+<span class="hs-lead decimal-positive">+2,2%</span>
+<span class="stat__sub">+5,1% ggü. +2,9%</span></dd></div></dl></li>
+<li class="phone-row hs-phone-row" data-role="hindsight-row" data-sale="11">
+<span class="phone-row__body">
+<span class="phone-row__name">Microsoft Corporation Registered Shares DL-,00000625</span>
+<span class="phone-row__ids">Verkauf 10.09.2023 · 10 × 220,00 EUR</span>
+<span class="phone-row__ids">Startkurs 218,90 EUR · 08.09.2023</span></span>
+<dl class="hs-grid">
+<div class="hs-grid__cell trade-pa--na mock-synth">
+<dt>1M</dt>
+<dd>
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+2,7% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></dd></div>
+<div class="hs-grid__cell trade-pa--na mock-synth">
+<dt>3M</dt>
+<dd>
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+12,4% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></dd></div>
+<div class="hs-grid__cell trade-pa--na mock-synth">
+<dt>12M</dt>
+<dd>
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+31,8% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></dd></div>
+<div class="hs-grid__cell trade-pa--na mock-synth">
+<dt>Bis heute</dt>
+<dd>
+<span class="hs-lead ">—</span>
+<span class="stat__sub">+84,2% ggü. —</span>
+<span class="stat__sub">kein Benchmark-Kurs</span></dd></div></dl></li>
+<li class="mock-elided">… 5 weitere Verkäufe, für das Board gekürzt</li>
+</ul>
+<p class="summary-basis hs-legend">Je Spanne die Differenz zu Kestrel Industrial Group NV Index, darunter Wertpapier ggü. Benchmark · Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten</p>
+</section>
+  </div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

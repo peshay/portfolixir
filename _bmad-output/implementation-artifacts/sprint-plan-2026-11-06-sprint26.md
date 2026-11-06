@@ -134,7 +134,7 @@ decision here touches them.
 |---|---|---|---|---|
 | V1 | F1; ADR-0055 | the security page's **„Prognosen“ tab**: the security's predictions with day made, author and model, the claim, the benchmark and the status (open with days left, hit or miss with the excess, unresolved with its reason), the note that a prediction is permanent, the computation basis behind the ⓘ; the empty state. #1365's two prediction lines fixed in the files it touches: the pre-delete text names predictions; the benchmark flag's help text says recorded predictions keep the security as their benchmark | 02 | 3 |
 | V2 | F1; ADR-0055 §4 | the **calibration report's** home, as board 02's pick places it: Brier with its standard error and the 0.25 reference, sharpness, the hit rate with its standard error, the five bands shown from 20 resolved (else the sentence why), the groups by author and model, the list of all predictions across securities | 02 | 3 |
-| V3 | I18 modes 1 and 2; FR-50 | **what a sale missed** on "All trades" and on the security's Trades tab, as board 03's pick lays it out: the benchmark chooser (none, a fixed rate, a flagged security), the four spans, `pending` and `incomplete` with their reasons, the basis behind the ⓘ; no verdict word anywhere | 03 | 3 |
+| V3 | I18 modes 1 and 2; FR-50 | **what a sale missed** on "All trades" and on the security's Trades tab, as board 03's pick lays it out: the benchmark chooser (none, a fixed rate, a flagged security), the four spans, `pending` and `incomplete` with their reasons, the basis behind the ⓘ; no verdict word anywhere. **The review seed gains closes around three of its sales** (synthetic), because on today's seed every span reads „kein Startkurs“ and the page could not be checked against its board | 03 | 3 |
 | V4 | F21; #894 | the three cascading deletes confirm in the app's own delete dialog, which lists from the dry run what the delete removes, or the refusal instead of a delete button, as board 04 draws it; `data-confirm` leaves the three controls | 04 | 3 |
 
 **Lane R, what a switch cost (I18 mode 3, ADR-0057; risk tier: a money
@@ -252,7 +252,17 @@ Under `_bmad-output/planning-artifacts/design-language/mockups/`:
   **picked by you: C, the soft bar.**
 - **Board 02, predictions** (`ux-design-2026-11-06-sprint26-f1/`): BOARD02_PICK
 - **Board 03, what a sale missed and what a switch cost**
-  (`ux-design-2026-11-06-sprint26-i18/`): BOARD03_PICK
+  (`ux-design-2026-11-06-sprint26-i18/`): **C, recommended:** a section „Nach dem Verkauf“ of its
+  own under the trades list (and on the security's Trades tab, filtered),
+  one row per sale booking, a chooser „Vergleich“ (Ohne, Fester Zins,
+  Wertpapier, Anschlusskauf for mode 3), the four spans with all three
+  figures and no click. *Why not A or B* (a column group on each trade, or
+  a row that opens): the read has one row per sale booking and "All
+  trades" one row per FIFO round trip, so on the seed three of ten sales
+  have no trade row, and one sale's figures would repeat on every lot it
+  closes; A does not fit 1200 px either. Mode 3 sits in the same chooser
+  because it compares the same rows over the same spans; its buys, the
+  cost line, the taxes apart and `no_match` open under each sale.
 - **Board 04, the delete dialogs** (`ux-design-2026-11-06-sprint26-f21/`): BOARD04_PICK
 - **Board 05, charts in the privacy mode** (board 02 of the i22 folder):
   BOARD05_PICK
