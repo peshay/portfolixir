@@ -1551,6 +1551,32 @@ trägt Öffnen und, bei eigenen Bäumen, Löschen; **+** in der Überschrift leg
 einen neuen an. Gibt es gar keine Bäume, sagt die Übersicht das, statt eine
 leere Liste zu zeigen.
 
+**Das Löschen einer Klassifizierung, einer Kategorie oder einer Ansicht sagt,
+was mitgeht** (Issue #894). **Klassifizierung löschen** im Kopf des Baums (oder
+**Löschen** im Zeilenmenü der Übersicht), das **×** in der Zeile einer
+Kategorie und **Löschen** im Zeilenmenü einer Ansicht auf der Seite Ansichten
+öffnen je einen Dialog, den des Buchungs-Löschens, statt der Rückfrage des
+Browsers. Der Dialog nennt, was gewählt wurde — einen Baum mit Kategorien und
+Ebenen, eine Kategorie mit ihrer Klassifizierung und ihren Positionen, eine
+Ansicht mit ihrer Regel, Positionen und Konten — und listet, was das Löschen
+entfernt, gelesen aus dem Probelauf des Löschens selbst, eine Zeile je Art mit
+ihrer Zahl: *Das Löschen entfernt: 6 Kategorien, 9 Wertpapierzuordnungen, 2
+Soll-Pläne, 18 Zielgewichte* (eine Kategorie zählt die darunter: *„Stability“
+und 1 Kategorie darunter*; eine Ansicht ihre Pläne, Ziele und Snapshots). Eine
+Art ohne Zeilen bekommt keine Zeile, und ein Löschen, das sonst nichts
+mitnimmt, sagt *Sonst wird nichts mit gelöscht.* Darunter steht, was bleibt
+(die Wertpapiere, ihre Buchungen und Kurse), und dass das Audit-Journal jede
+Löschung mit allen Werten festhält und sich nichts davon wiederherstellen
+lässt. **Abbrechen** (oder Escape) schließt ihn; der rote Knopf löscht. Er
+löscht nur, was der Dialog gelistet hat: Hat sich etwas geändert, während der
+Dialog offen war — ein inzwischen zugeordnetes Wertpapier, ein neuer Plan oder
+Snapshot —, wird nichts gelöscht, ein Hinweis sagt es, und der Dialog zeigt
+die neue Liste zur erneuten Bestätigung. Liest eine eigene Regel, was gewählt
+wurde, sagt der Dialog das, bevor etwas geklickt ist: Er heißt **Kann nicht
+gelöscht werden**, nennt jede Regel mit Stand und Ansicht und bietet nur
+**Schließen**. Der Agent stellt dieselbe Frage mit `dry_run=true` am Löschen
+(siehe [API und MCP](integration/api-and-mcp.html)).
+
 Wertpapiere können in **Klassifizierungsbäume** geordnet werden. Eigene Bäume
 sind frei gestaltbare Ordner mit Farben; integrierte Bäume für **Anlageklasse**
 und **Währung** werden aus jedem Wertpapier abgeleitet und sind immer vorhanden.
@@ -3289,7 +3315,8 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   Ansicht, einer Kategorie, einer Klassifizierung oder eines Wertpapiers
   abgelehnt, weil Regeln es lesen, nennt die Ablehnung die Regeln mit Stand und
   Ansicht, und jeder Name führt auf „Risiko“ in der Ansicht, in der die Regel
-  gilt. Eine Regel, deren gültige Linie der Agent mit seinem API-Token gezogen
+  gilt; bei einer Ansicht, einer Kategorie oder einer Klassifizierung zeigt der
+  Lösch-Dialog diese Ablehnung schon beim Öffnen, bevor gelöscht wird. Eine Regel, deren gültige Linie der Agent mit seinem API-Token gezogen
   hat, endet in ihrer Wortzeile mit **„Agent“** — geplante und beendete Regeln
   ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
   „Operator“ oder „Agent“ (E25). Eine Regel, die zuletzt der Agent benannt

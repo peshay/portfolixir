@@ -216,8 +216,9 @@ Eine beendete Regel wird genauso umbenannt.
 
 Ein Wertpapier, eine Kategorie, eine Klassifizierung oder eine Ansicht, die
 eine Regel liest, lässt sich nicht löschen, solange die Regel existiert. Die
-Ablehnung — im Meldungsband der Seiten Ansichten und Klassifizierungen, im
-Dialog **Kann nicht gelöscht werden** auf der Wertpapierseite — nennt jede
+Ablehnung — im Dialog **Kann nicht gelöscht werden**, der auf den Seiten
+Ansichten und Klassifizierungen anstelle des Lösch-Dialogs öffnet, bevor etwas
+gelöscht ist, und auf der Wertpapierseite nach Löschen — nennt jede
 Regel mit Stand und Ansicht, etwa „Einzeltitel höchstens 10 %“ (gilt,
 Ansicht „Alles“), und jeder Name führt auf „Risiko“ in der Ansicht, in der die
 Regel gilt. Der Link macht diese Ansicht auf jedem Vermögens-Reiter zur

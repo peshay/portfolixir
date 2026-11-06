@@ -9128,3 +9128,122 @@ field; `.hs-basis`; the table fitting its wrapper and its group head
 `.hs-lead` and its sign colours; `.hs-span--open`; `.hs-legend`;
 `.hs-detail-section`; the phone rows and `.hs-grid`, and the 560 px block.
 Every colour is a token.
+
+## Amendment 2026-11-06 — The cascading deletes say what they remove *(Sprint 26 V4, idea F21; board `mockups/ux-design-2026-11-06-sprint26-f21` (board 04), pick A "counts only"; issue 894; plan D-6, D-8)*
+
+Sprint 25 built the agent's half of F21: `dry_run=true` on the delete of a
+classification, a category and a view runs the real delete in a
+transaction that always rolls back and answers, per kind, the count and
+the ids it would remove, or the refusal (`Portfolixir.DryRun`). This is the
+screen's half. The three deletes stop asking with the browser's
+`window.confirm` (`data-confirm`), which named no count, and join the
+booking delete's dialog (above, "Deleting a booking"). Built in
+`PortfolixirWeb.DeletePreviewDialog` (the dialog, its words, the dry run
+and the held delete), `ClassificationsLive` (the tree head's **Delete
+classification**, the index row menu's **Delete**, a category's **×**) and
+`BucketsLive` (a view's row menu **Delete**).
+
+### The dialog *(conformance: the booking delete's anatomy, unchanged)*
+
+- **Shape.** A native dialog element `#delete-preview-dialog.modal
+  .booking-delete-dialog` on the `ModalDialog` hook, `data-close-event`
+  `cancel_delete_preview` (Escape, the ×, Cancel): 460 px, under 720 px the
+  merge dialog's bottom sheet with the stacked band foot, through the
+  `.booking-delete-dialog` selector lists — membership, not a copy.
+- **① The subject box** (`.booking-delete__subject`) names what was chosen
+  the way the list it was chosen from names it, and never an amount:
+  - a classification: its name over "6 Kategorien · 2 Ebenen" (the index
+    row's counts);
+  - a category: its name over "Kategorie in Strategies", its positions
+    (the tree row's count) on the right;
+  - a view: its name over its rule as the row's chips read ("Alles · außer
+    Crypto", each bucket name in its own `<bdi>`), its positions over its
+    accounts on the right.
+- **② What the delete removes**, read from the dry run when the dialog
+  opens (`.delete-preview`): the lead "Das Löschen entfernt:"
+  (`.delete-preview__lead`) and a bulleted list (`.delete-preview__list`),
+  **one line per kind with its count, in a fixed order** — categories,
+  security assignments, target plans, target weights, snapshots. A kind
+  with 0 rows gets no line. The subject is in the box and gets no line; a
+  category counts itself, so its first line names it: "„Stability“ und 1
+  Kategorie darunter" (no line when nothing sits below it). A view's bucket
+  sets (`view_include_buckets`, `view_exclude_buckets`) are the view itself
+  and get no line. When nothing but the subject goes: "Sonst wird nichts
+  mit gelöscht." (`.hint.delete-preview__nothing`). **Pick A**: counts
+  only, no names ("F21 B" would add them); the names repeat what stands
+  behind the dialog and grow with the data.
+- **③ What stays**, one `.hint` per delete — a classification "Die
+  Wertpapiere selbst, ihre Buchungen und Kurse bleiben.", a category "Die
+  Wertpapiere selbst bleiben; in dieser Klassifizierung stehen sie danach
+  unter „Nicht zugeordnet“.", a view "Die Buckets und ihre Zuordnungen
+  bleiben." — then the journal sentence "Das Audit-Journal hält jede
+  Löschung mit allen Werten fest; wiederherstellen lässt sich nichts
+  davon."
+- **④ The band foot**: Abbrechen (ghost, `autofocus`), the spacer, the
+  danger button that names the act — "Klassifizierung löschen",
+  "Kategorie löschen" (the catalogue's string the × carried as its
+  `aria-label`), "Ansicht löschen". **One confirmation**: the three
+  controls carry no `data-confirm`; the `layout_view.ex` note lists them
+  with the booking delete as the exceptions to #765.
+
+### The refusal, before the click *(ADR-0049 §8)*
+
+A policy rule that reads the subject is the dry run's answer too, so the
+dialog shows it when it opens, not after an OK: the same dialog with
+`.confirm-delete-blocked`, titled "Kann nicht gelöscht werden", the box,
+the securities' sentence "„name“ wird von eigenen Regeln gelesen:", the
+rules as a list (`PolicyRuleReferences.rule`, each name linked to Wealth →
+Risk in its view; `.confirm-delete-blocked .modal-body ul`: 18 px indent,
+13 px, line height 1.55), the quiet reason "Eine Regel, die gegolten hat,
+behält ihren Bezug als Teil ihrer Geschichte; darum bleibt das Löschen
+gesperrt. Sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre
+Auswertung." — it does not promise that retiring frees the delete — and a
+foot with "Schließen" only. The page's message band no longer carries
+these refusals.
+
+### The confirm holds to the list it showed *(decided on the board; "F21 ohne Abgleich" flips it)*
+
+The confirm deletes only when the delete removes exactly the ids the
+dialog showed: `Classifications.delete_classification/3`,
+`delete_category/3` and `Buckets.delete_view/3` take `held_to:` the dry
+run's answer and run `Portfolixir.DryRun.held_to/3` — read the ids, delete,
+read what went, commit only on equality, in one transaction at the dry
+run's REPEATABLE READ. Otherwise nothing is deleted and the dialog shows
+the new state under an `attention` data note in the status region: "Was das
+Löschen entfernt, hat sich geändert, während dieser Dialog offen war.
+Nichts wurde gelöscht; der Dialog zeigt jetzt den neuen Stand." — the split
+delete's changed shape. A rule added meanwhile turns the dialog into the
+refusal with the same note; a subject gone meanwhile closes it with the
+page's problem ("Diese Ansicht existiert nicht mehr.", "Nicht gefunden").
+
+**A dry run that meets a concurrent change** (`concurrent_change`, not
+drawn on the board) shows its own attention note instead of the list,
+"Während der Prüfung hat sich etwas geändert, und nichts wurde gelöscht.
+Erneut prüfen, um zu sehen, was das Löschen jetzt entfernt.", and a foot
+of Abbrechen and "Erneut prüfen", which runs the dry run again.
+
+### Nothing on the screen reaches the delete but the confirm *(plan D-8, carry-forward 2)*
+
+Opening (`ask_delete_classification`, `ask_delete_category`,
+`ask_delete_view`) runs only the dry run. The page keeps the open dialog
+in its assigns; `confirm_delete_preview` acts on that dialog and only when
+its `kind` and `id` name the dialog's subject and the dialog lists a
+removal — no dialog, another kind or id, a value that is no id, or a
+refusal confirm nothing. The former direct-delete events
+(`delete_classification`, `delete_classification_row`, `delete_category`,
+`delete_view`) are gone and reach the page's catch-all.
+
+### After
+
+A classification deleted returns to the index; a category deleted says
+"Kategorie gelöscht" in the page's result slot and the tree's figures
+follow; a view deleted says "Ansicht gelöscht".
+
+### The `app.css` rules of the pick
+
+After `.booking-delete-dialog .hint`: `.delete-preview` (no margin);
+`.delete-preview__lead` (0 0 4 px, 13 px, `--color-text`);
+`.delete-preview__list` (18 px indent, 13 px, line height 1.55,
+`--color-text`; `li` `overflow-wrap: anywhere`, 2 px between items, the
+marker `--color-text-muted`); `.confirm-delete-blocked .modal-body ul`.
+Every colour is a token, so light and dark and the three accents follow.
