@@ -103,19 +103,21 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
   # Acceptance criteria:
   # - Every direct block of `.classifications-detail` that is not a band takes
   #   the band's inline gutter (16 px floor), the heading the band's top
-  #   padding and the last block its bottom padding — no new value.
+  #   padding and the last block its bottom padding — no new value. A
+  #   modal dialog is no block: it keeps its own centring (Sprint 26
+  #   closing act, V4; test/browser/closing_act_layout_test.exs measures it).
   # - Under 560 px a category row lies on two lines of the same grid: marker,
   #   swatch, name (which may wrap) and its "+N without holdings" first, the
   #   actions at the end; value and result under their column heads second.
   #   The swatch never shrinks.
   test "the classification detail's own blocks keep the band gutter" do
-    assert block(".classifications-detail > :not(.workspace-section)") =~
+    assert block(".classifications-detail > :not(.workspace-section):not(dialog)") =~
              ~r/margin-inline:\s*clamp\(16px, 2\.4vw, 28px\)/
 
     assert block(".classifications-detail > .detail-head") =~
              ~r/margin-top:\s*clamp\(18px, 2\.4vw, 28px\)/
 
-    assert block(".classifications-detail > :last-child") =~
+    assert block(".classifications-detail > :last-child:not(dialog)") =~
              ~r/margin-bottom:\s*clamp\(18px, 2\.4vw, 28px\)/
   end
 

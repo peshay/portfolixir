@@ -5888,7 +5888,10 @@ details[open] > .cat-summary::before {
    at x = 0 — at the screen's edge on a phone, at the sidebar's on the
    desktop. No new value: the band's own padding, the one the page's alerts
    already take (`.workspace-page > .alert-*`). */
-.classifications-detail > :not(.workspace-section) {
+/* A modal dialog among the blocks (the delete dialog, Sprint 26 V4) is
+   none of them: it centres itself in the top layer with `margin: auto`,
+   which the gutter would pin to the left (closing act, design critic V4). */
+.classifications-detail > :not(.workspace-section):not(dialog) {
   margin-inline: clamp(16px, 2.4vw, 28px);
 }
 
@@ -5903,7 +5906,7 @@ details[open] > .cat-summary::before {
   margin-top: clamp(18px, 2.4vw, 28px);
 }
 
-.classifications-detail > :last-child {
+.classifications-detail > :last-child:not(dialog) {
   margin-bottom: clamp(18px, 2.4vw, 28px);
 }
 
