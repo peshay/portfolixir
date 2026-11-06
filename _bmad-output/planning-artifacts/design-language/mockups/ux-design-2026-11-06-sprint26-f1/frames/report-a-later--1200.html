@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>report-a-later</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* F1 (ADR-0055 §5): the security's Prognosen tab. The list is the research
+   timeline's anatomy (.research-timeline, .research-entry, its head, meta,
+   facts and body); only the claim line, the probability, the status's left
+   edge and the reason line are new. */
+.prediction-entry__claim { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.prediction-entry__claim strong { font-weight: 650; }
+.prediction-entry__p { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.prediction-entry__p-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted); }
+.prediction-entry__facts dd.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prediction-entry p.research-entry__meta { margin: 0; }
+.prediction-entry__reason { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.research-entry.prediction-entry--hit { border-left-color: var(--color-positive); }
+.research-entry.prediction-entry--miss { border-left-color: var(--color-border-strong); }
+.research-entry.prediction-entry--unresolved { border-left-style: dashed; border-left-color: var(--color-border-strong); }
+/* The report: the KPI band's compact cards, data tables, the summary-basis
+   voice; new are the bands' "too few" sentence and the model rows' indent. */
+.prediction-filters { margin: 0 0 var(--space-4); }
+.prediction-bands, .prediction-groups { margin-top: var(--space-5); display: grid; gap: var(--space-2); }
+.prediction-bands__why { margin: 0; max-width: 72ch; font-size: 13px; }
+.prediction-too-few { color: var(--color-text-muted); font-size: 12px; }
+.prediction-groups__model td:first-child { padding-left: 1.75rem; color: var(--color-text-muted); }
+.prediction-list-table td.cell-name a { display: block; }
+/* The list fits its wrapper (Risk's fit tables, Sprint 24 P1's floor and
+   break): the name cell keeps a 14 rem floor and wraps, figures never do. */
+.data-table-wrapper > .prediction-list-table { min-width: 0; }
+.prediction-list-table td.cell-name { min-width: 14rem; overflow-wrap: anywhere; }
+.prediction-list-table td.num { white-space: nowrap; }
+.prediction-list-table td .policy-rule__words { display: block; }
+.prediction-list-table td.cell-name .policy-rule__words { white-space: normal; }
+.prediction-list-table td .badge { white-space: normal; }
+.filter-chip__count { margin-left: 0.4em; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.prediction-bands .section-title h3, .prediction-groups .section-title h3 { margin: 0; }
+.prediction-list-table td .badge + .policy-rule__reason { display: block; }
+/* Rows without a logo: the body takes the elastic track (as the trades'). */
+#prediction-list-phone-rows .phone-row,
+#prediction-groups-phone-rows .phone-row { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 560px) {
+  #prediction-list-table-wrap { display: none; }
+  .research-entry__facts.prediction-entry__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #prediction-groups-table-wrap { display: none; }
+}
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+tr.mock-synth { box-shadow: none; }
+p.mock-synth, li.phone-row.mock-synth { padding-left: 9px; }
+tr.mock-synth > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.stat.mock-synth { box-shadow: inset 3px 0 0 #f59e0b, var(--shadow-panel); }
+.mock-report { padding: 4px; }
+.native-confirm { margin: 14px auto 18px; width: 460px; box-sizing: border-box; border: 1px solid #c9ced6; border-radius: 10px; background: #fff; color: #1f2937; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); padding: 12px 14px; font: 13px/1.45 system-ui, sans-serif; }
+.native-confirm p { margin: 0 0 8px; }
+.native-confirm .origin { font-weight: 600; font-size: 12.5px; }
+.native-confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.native-confirm .btns span { padding: 4px 14px; border-radius: 6px; border: 1px solid #c9ced6; font-size: 12.5px; }
+.native-confirm .btns span.ok { background: #2563eb; border-color: #2563eb; color: #fff; }
+.native-confirm.mock-new { outline-offset: 3px; }
+.workspace-panel, .securities-workspace, .securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+.detail-pane { overflow: visible !important; max-height: none !important; }
+.securities-list-pane, .securities-list-pane .data-table-wrapper, .workspace-panel .data-table-wrapper { height: auto !important; min-height: 0 !important; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <div class="workspace-page">
+  <div class="mock-new mock-report">
+<section class="workspace-section prediction-calibration" aria-label="Kalibrierung">
+<header class="section-head">
+<div class="section-title">
+<h2>Kalibrierung <span class="section-head__meta">· 86 aufgelöst · 9 offen · 5 nicht aufgelöst</span></h2>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Brier-Score: Mittel von (p − o)² über die aufgelösten Prognosen, p die angegebene Wahrscheinlichkeit, o 1 bei Treffer und 0 sonst. Die Referenz 0,25 ist der Score von „immer 50 %“.<br>
+Standardfehler: die Standardabweichung der quadrierten Fehler in der Stichprobe, geteilt durch √n; bei der Trefferquote die der Treffer.<br>
+Schärfe: Mittel von p − 0,50. Wer immer 50 % sagt, ist perfekt kalibriert und sagt nichts.<br>
+Trefferquote: Treffer durch n, neben der mittleren angegebenen Wahrscheinlichkeit, der eine kalibrierte Quote entspricht.<br>
+Offene und nicht aufgelöste Prognosen zählen in keinem Score; sie werden gezählt.<br>
+Auflösung wie im Tab „Prognosen“ des Wertpapiers; nur Kursrendite.</p></details></div></header>
+<p class="mock-elided">Kennzahlen wie oben, mit den Zahlen dieses späteren Stands — für das Board gekürzt</p>
+<div class="prediction-bands" data-role="prediction-bands">
+<div class="section-title">
+<h3>
+<span class="mock-pin">5</span>Nach Wahrscheinlichkeit</h3></div>
+<div class="data-table-wrapper">
+<table class="data-table prediction-bands-table">
+<thead>
+<tr>
+<th>Band</th>
+<th class="num">Aufgelöst</th>
+<th class="num">Ø angegeben</th>
+<th class="num">Trefferquote</th></tr></thead>
+<tbody>
+<tr class="mock-synth">
+<td>0,50–0,59</td>
+<td class="num">14</td>
+<td class="num">55,0&nbsp;%</td>
+<td class="num">
+<span class="prediction-too-few">zu wenige · 14 von 20</span></td></tr>
+<tr class="mock-synth">
+<td>0,60–0,69</td>
+<td class="num">31</td>
+<td class="num">64,0&nbsp;%</td>
+<td class="num">61,3&nbsp;%</td></tr>
+<tr class="mock-synth">
+<td>0,70–0,79</td>
+<td class="num">24</td>
+<td class="num">74,0&nbsp;%</td>
+<td class="num">66,7&nbsp;%</td></tr>
+<tr class="mock-synth">
+<td>0,80–0,89</td>
+<td class="num">13</td>
+<td class="num">83,0&nbsp;%</td>
+<td class="num">
+<span class="prediction-too-few">zu wenige · 13 von 20</span></td></tr>
+<tr class="mock-synth">
+<td>0,90–0,99</td>
+<td class="num">4</td>
+<td class="num">93,0&nbsp;%</td>
+<td class="num">
+<span class="prediction-too-few">zu wenige · 4 von 20</span></td></tr></tbody></table></div></div></section></div></div>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>

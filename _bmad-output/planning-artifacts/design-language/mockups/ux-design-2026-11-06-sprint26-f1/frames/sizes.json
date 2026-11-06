@@ -1,0 +1,82 @@
+{
+  "tab@1200": {
+    "file": "frames/tab--1200.html",
+    "width": 980,
+    "height": 744
+  },
+  "tab-dark@1200": {
+    "file": "frames/tab-dark--1200.html",
+    "width": 980,
+    "height": 744
+  },
+  "tab@390": {
+    "file": "frames/tab--390.html",
+    "width": 390,
+    "height": 1243
+  },
+  "tab-dark@390": {
+    "file": "frames/tab-dark--390.html",
+    "width": 390,
+    "height": 1243
+  },
+  "tab-tip@1200": {
+    "file": "frames/tab-tip--1200.html",
+    "width": 980,
+    "height": 728
+  },
+  "tab-empty@1200": {
+    "file": "frames/tab-empty--1200.html",
+    "width": 980,
+    "height": 208
+  },
+  "tab-empty@390": {
+    "file": "frames/tab-empty--390.html",
+    "width": 390,
+    "height": 329
+  },
+  "report-a@1200": {
+    "file": "frames/report-a--1200.html",
+    "width": 980,
+    "height": 1459
+  },
+  "report-a-dark@1200": {
+    "file": "frames/report-a-dark--1200.html",
+    "width": 980,
+    "height": 1459
+  },
+  "report-a@390": {
+    "file": "frames/report-a--390.html",
+    "width": 390,
+    "height": 1987
+  },
+  "report-a-later@1200": {
+    "file": "frames/report-a-later--1200.html",
+    "width": 980,
+    "height": 419
+  },
+  "report-b@1200": {
+    "file": "frames/report-b--1200.html",
+    "width": 980,
+    "height": 1236
+  },
+  "delete-before@1200": {
+    "file": "frames/delete-before--1200.html",
+    "width": 980,
+    "height": 440
+  },
+  "delete-after@1200": {
+    "file": "frames/delete-after--1200.html",
+    "width": 980,
+    "height": 461
+  },
+  "unflag-before@1200": {
+    "file": "frames/unflag-before--1200.html",
+    "width": 980,
+    "height": 298
+  },
+  "unflag-after@1200": {
+    "file": "frames/unflag-after--1200.html",
+    "width": 980,
+    "height": 318
+  }
+}

@@ -250,7 +250,18 @@ Under `_bmad-output/planning-artifacts/design-language/mockups/`:
 
 - **Board 01, the privacy mode's look** (`ux-design-2026-11-06-sprint26-i22/`):
   **picked by you: C, the soft bar.**
-- **Board 02, predictions** (`ux-design-2026-11-06-sprint26-f1/`): BOARD02_PICK
+- **Board 02, predictions** (`ux-design-2026-11-06-sprint26-f1/`): the tab „Prognosen“ after „Research“ in the
+  research timeline's anatomy (open, hit, miss, unresolved with its reason;
+  figures only once resolved; „verfehlt“ muted, not red), its empty state,
+  and #1365's two lines (the delete confirmation names predictions; the
+  note after removing a benchmark flag counts the predictions that keep
+  measuring against it). **The report: A, recommended,** a Wealth tab
+  „Prognosen“ with author and model filters, the calibration cards, the
+  bands (below 20 the sentence why), the groups and „Alle Prognosen“
+  across securities with the due query. *Why not B* (a block on Risiko):
+  Risiko is read through the view, calibration measures an author across
+  every security, and the list and the due query would have no place.
+  „F1 B“ changes it.
 - **Board 03, what a sale missed and what a switch cost**
   (`ux-design-2026-11-06-sprint26-i18/`): **C, recommended:** a section „Nach dem Verkauf“ of its
   own under the trades list (and on the security's Trades tab, filtered),

@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tab</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+/* F1 (ADR-0055 §5): the security's Prognosen tab. The list is the research
+   timeline's anatomy (.research-timeline, .research-entry, its head, meta,
+   facts and body); only the claim line, the probability, the status's left
+   edge and the reason line are new. */
+.prediction-entry__claim { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.prediction-entry__claim strong { font-weight: 650; }
+.prediction-entry__p { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.prediction-entry__p-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted); }
+.prediction-entry__facts dd.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prediction-entry p.research-entry__meta { margin: 0; }
+.prediction-entry__reason { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.research-entry.prediction-entry--hit { border-left-color: var(--color-positive); }
+.research-entry.prediction-entry--miss { border-left-color: var(--color-border-strong); }
+.research-entry.prediction-entry--unresolved { border-left-style: dashed; border-left-color: var(--color-border-strong); }
+/* The report: the KPI band's compact cards, data tables, the summary-basis
+   voice; new are the bands' "too few" sentence and the model rows' indent. */
+.prediction-filters { margin: 0 0 var(--space-4); }
+.prediction-bands, .prediction-groups { margin-top: var(--space-5); display: grid; gap: var(--space-2); }
+.prediction-bands__why { margin: 0; max-width: 72ch; font-size: 13px; }
+.prediction-too-few { color: var(--color-text-muted); font-size: 12px; }
+.prediction-groups__model td:first-child { padding-left: 1.75rem; color: var(--color-text-muted); }
+.prediction-list-table td.cell-name a { display: block; }
+/* The list fits its wrapper (Risk's fit tables, Sprint 24 P1's floor and
+   break): the name cell keeps a 14 rem floor and wraps, figures never do. */
+.data-table-wrapper > .prediction-list-table { min-width: 0; }
+.prediction-list-table td.cell-name { min-width: 14rem; overflow-wrap: anywhere; }
+.prediction-list-table td.num { white-space: nowrap; }
+.prediction-list-table td .policy-rule__words { display: block; }
+.prediction-list-table td.cell-name .policy-rule__words { white-space: normal; }
+.prediction-list-table td .badge { white-space: normal; }
+.filter-chip__count { margin-left: 0.4em; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.prediction-bands .section-title h3, .prediction-groups .section-title h3 { margin: 0; }
+.prediction-list-table td .badge + .policy-rule__reason { display: block; }
+/* Rows without a logo: the body takes the elastic track (as the trades'). */
+#prediction-list-phone-rows .phone-row,
+#prediction-groups-phone-rows .phone-row { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 560px) {
+  #prediction-list-table-wrap { display: none; }
+  .research-entry__facts.prediction-entry__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #prediction-groups-table-wrap { display: none; }
+}
+</style>
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+body.mock-noside .app-frame { padding-left: 0 !important; }
+.app-shell, .app-frame, .app-main, .workspace-page { min-height: 0 !important; }
+.app-main { padding-bottom: 12px; }
+.topbar { position: relative !important; top: auto !important; }
+.transactions-columns { display: block !important; }
+dialog[open] { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; max-height: none !important; box-shadow: none !important; }
+dialog.booking-drawer { position: static !important; max-height: none !important; margin: 0 !important; }
+.modal-body { max-height: none !important; overflow: visible !important; }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+tr.mock-new { outline-offset: -2px; }
+.mock-synth { box-shadow: inset 3px 0 0 #f59e0b; }
+tr.mock-synth { box-shadow: none; }
+p.mock-synth, li.phone-row.mock-synth { padding-left: 9px; }
+tr.mock-synth > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.stat.mock-synth { box-shadow: inset 3px 0 0 #f59e0b, var(--shadow-panel); }
+.mock-report { padding: 4px; }
+.native-confirm { margin: 14px auto 18px; width: 460px; box-sizing: border-box; border: 1px solid #c9ced6; border-radius: 10px; background: #fff; color: #1f2937; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); padding: 12px 14px; font: 13px/1.45 system-ui, sans-serif; }
+.native-confirm p { margin: 0 0 8px; }
+.native-confirm .origin { font-weight: 600; font-size: 12.5px; }
+.native-confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.native-confirm .btns span { padding: 4px 14px; border-radius: 6px; border: 1px solid #c9ced6; font-size: 12.5px; }
+.native-confirm .btns span.ok { background: #2563eb; border-color: #2563eb; color: #fff; }
+.native-confirm.mock-new { outline-offset: 3px; }
+.workspace-panel, .securities-workspace, .securities-workspace--split { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+.detail-pane { overflow: visible !important; max-height: none !important; }
+.securities-list-pane, .securities-list-pane .data-table-wrapper, .workspace-panel .data-table-wrapper { height: auto !important; min-height: 0 !important; }
+.mock-pin { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: #c026d3; color: #fff; font: 700 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0 4px; vertical-align: middle; box-shadow: 0 0 0 2px #fff; }
+.mock-pin--abs { position: absolute; left: -8px; top: -8px; margin: 0; z-index: 60; }
+.mock-pinned { position: relative; }
+.mock-elided { margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--color-border-strong); border-radius: 6px; font-size: 11.5px; color: var(--color-text-muted); list-style: none; text-align: center; }
+tr.mock-elided td { padding: 6px 10px; font-size: 11.5px; color: var(--color-text-muted); text-align: center; }
+</style>
+</head>
+<body class="mock-noside">
+
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <div class="app-frame">
+    <main class="app-main app-main--workspace">
+  <section class="workspace-panel" id="securities-panel">
+    <div id="securities-workspace" class="securities-workspace securities-workspace--split" style="--securities-list-height: 360px;">
+        <aside class="detail-pane " id="security-detail-pane" aria-label="Ausgewähltes Wertpapier">
+  <header class="detail-pane-head">
+    <div class="detail-pane-head__title">
+      <span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">
+        A
+      </span>
+      <div>
+      <h2>Apple Inc. Registered Shares o.N.</h2>
+      <p class="detail-pane-sub">
+        US0378331005 · AAPL · EUR
+          · Letzter 188,87
+          (06.11.2026)
+      </p>
+      </div>
+    </div>
+    <div class="detail-pane-head__actions">
+      <button type="button" id="detail-edit" class="button-ghost" aria-label="Stammdaten bearbeiten">
+        Bearbeiten
+      </button>
+      <button type="button" id="detail-record-split" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">
+        Split erfassen
+      </button>
+      <button type="button" id="detail-pane-fullscreen-toggle" class="icon-button" aria-label="Maximieren" title="Maximieren">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+      </button>
+      <a href="/securities" id="detail-pane-close" title="Detail schließen" class="icon-button" aria-label="Detail schließen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </a>
+    </div>
+  </header>
+  <nav id="detail-pane-tabs" class="detail-pane-tabs" role="tablist" data-tab-level="2" aria-label="Wertpapier-Detailansicht" data-scroll-end="" style="--detail-tabs-tail: 19px;">
+      <button type="button" id="detail-tab-overview" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab" style="margin-left: -427px;">
+        Übersicht
+      </button>
+      <button type="button" id="detail-tab-chart" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Diagramm
+      </button>
+      <button type="button" id="detail-tab-transactions" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Transaktionen
+      </button>
+      <button type="button" id="detail-tab-trades" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Trades
+      </button>
+      <button type="button" id="detail-tab-quotes" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Kurse
+      </button>
+      <button type="button" id="detail-tab-holdings" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Bestände
+      </button>
+      <button type="button" id="detail-tab-classifications" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Klassifizierungen
+      </button>
+      <button type="button" id="detail-tab-research" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Research
+      </button>
+<button type="button" id="detail-tab-predictions" role="tab" tabindex="0" aria-selected="true" aria-controls="detail-tab-panel-predictions" class="detail-pane-tab is-active mock-new">
+<span class="mock-pin">1</span>Prognosen</button>
+      <button type="button" id="detail-tab-events" role="tab" tabindex="-1" aria-selected="false" class="detail-pane-tab">
+        Termine
+      </button>
+  </nav>
+    <section id="detail-tab-panel-predictions" role="tabpanel" aria-labelledby="detail-tab-predictions" class="detail-tab-panel detail-tab-panel--predictions mock-new">
+<div class="detail-tab-hint" data-role="predictions-basis">
+<span class="mock-pin">2</span>Festgehaltene Prognosen zu diesem Wertpapier, die neueste zuerst. Keine wird geändert oder gelöscht. <details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Eine Prognose bleibt, wie sie abgegeben wurde: Sie wird nie geändert, zurückgezogen oder gelöscht. Eine korrigierte Prognose ist eine neue, und beide zählen.<br>
+Ausgewertet wird beim Lesen aus gespeicherten Schlusskursen, beide Seiten in EUR zum gespeicherten Wechselkurs ihres Tages; ein Ergebnis wird nie gespeichert.<br>
+Start: der letzte Schlusskurs am oder vor dem Tag der Abgabe. Ende: der letzte am oder vor dem Auflösungstag. Gewertet wird erst, wenn ein Schlusskurs ab dem Auflösungstag vorliegt, längstens 7 Tage danach.<br>
+Ein Schlusskurs, der mehr als 7 Tage vor seinem Datum liegt, zählt nicht; dann bleibt die Prognose nicht aufgelöst, mit ihrem Grund, und wird nie geschätzt.<br>
+Überrendite = Rendite − Rendite der Benchmark. „Übertrifft“ trifft bei mehr als 0, „bleibt zurück“ bei weniger als 0; genau 0 verfehlt beide. Ein fester Satz wird täglich verzinst; 0 % ist die absolute Aussage (steigt, fällt).<br>
+Nur Kursrendite: Ausschüttungen zählen auf keiner Seite.<br>
+Festgehalten wird über die API oder MCP.</p></details></div>
+<ol class="research-timeline prediction-timeline" data-role="prediction-timeline">
+<li id="prediction-21" class="research-entry prediction-entry prediction-entry--open mock-synth" data-role="prediction-entry">
+<div class="research-entry__head">
+<span class="badge badge--neutral" data-role="prediction-status" data-status="open">
+<span class="mock-pin">3</span>offen · noch 145 Tage</span>
+<span class="research-entry__meta">#21 · 04.11.2026 · Agent · model-alpha-3</span></div>
+<p class="prediction-entry__claim">
+<strong>
+<span class="mock-pin">4</span>Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 31.03.2027</strong>
+<span class="prediction-entry__p">
+<span class="prediction-entry__p-label">Wahrscheinlichkeit</span> 65&nbsp;%</span></p>
+<p class="research-entry__body">Services margin holds above 40 % while the index carries no services exposure; recorded at the end of a position review.</p>
+<p class="research-entry__meta">
+<a href="#research-entry-1">Research #1 · These</a>
+<span class="mock-pin">7</span></p></li>
+<li id="prediction-17" class="research-entry prediction-entry prediction-entry--miss mock-synth" data-role="prediction-entry">
+<div class="research-entry__head">
+<span class="badge badge--retired" data-role="prediction-status" data-status="resolved" data-outcome="miss">verfehlt</span>
+<span class="research-entry__meta">#17 · 07.09.2026 · Agent · model-alpha-3</span></div>
+<p class="prediction-entry__claim">
+<strong>Fällt bis 07.10.2026</strong>
+<span class="prediction-entry__p">
+<span class="prediction-entry__p-label">Wahrscheinlichkeit</span> 55&nbsp;%</span></p>
+<dl class="research-entry__facts prediction-entry__facts">
+<div>
+<dt>Rendite</dt>
+<dd class="num">
+<span class="is-positive">+2,2&nbsp;%</span></dd></div>
+<div>
+<dt>Benchmark-Rendite</dt>
+<dd class="num">0,0&nbsp;%</dd></div>
+<div>
+<dt>Überrendite</dt>
+<dd class="num">
+<span class="is-positive">+2,2&nbsp;Pp</span></dd></div>
+<div>
+<dt>Schlusskurse</dt>
+<dd>07.09.2026 → 07.10.2026</dd></div></dl>
+<p class="research-entry__body">The regulatory case on the app store fee could compress the services margin before the ruling.</p>
+<p class="research-entry__meta">
+<a href="#research-entry-3">Research #3 · Risiko</a></p></li>
+<li id="prediction-12" class="research-entry prediction-entry prediction-entry--hit mock-synth" data-role="prediction-entry">
+<div class="research-entry__head">
+<span class="badge badge--thesis-intact" data-role="prediction-status" data-status="resolved" data-outcome="hit">Treffer</span>
+<span class="research-entry__meta">#12 · 09.07.2026 · Agent · model-alpha-2</span></div>
+<p class="prediction-entry__claim">
+<strong>Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 09.10.2026</strong>
+<span class="prediction-entry__p">
+<span class="prediction-entry__p-label">Wahrscheinlichkeit</span> 70&nbsp;%</span></p>
+<dl class="research-entry__facts prediction-entry__facts">
+<div>
+<dt>Rendite</dt>
+<dd class="num">
+<span class="mock-pin">5</span>
+<span class="is-positive">+8,4&nbsp;%</span></dd></div>
+<div>
+<dt>Benchmark-Rendite</dt>
+<dd class="num">+3,1&nbsp;%</dd></div>
+<div>
+<dt>Überrendite</dt>
+<dd class="num">
+<span class="is-positive">+5,3&nbsp;Pp</span></dd></div>
+<div>
+<dt>Schlusskurse</dt>
+<dd>09.07.2026 → 09.10.2026</dd></div></dl>
+<p class="research-entry__body">Thesis #1: the services mix keeps margins up through the cycle; the index has no services exposure.</p>
+<p class="research-entry__meta">
+<a href="#research-entry-1">Research #1 · These</a></p></li>
+<li id="prediction-8" class="research-entry prediction-entry prediction-entry--unresolved mock-synth" data-role="prediction-entry">
+<div class="research-entry__head">
+<span class="badge badge--undetermined" data-role="prediction-status" data-status="unresolved">nicht aufgelöst</span>
+<span class="research-entry__meta">#8 · 15.06.2026 · Operator</span></div>
+<p class="prediction-entry__claim">
+<strong>Übertrifft <bdi>Kestrel Industrial Group NV Index</bdi> bis 31.08.2026</strong>
+<span class="prediction-entry__p">
+<span class="prediction-entry__p-label">Wahrscheinlichkeit</span> 80&nbsp;%</span></p>
+<p class="prediction-entry__reason">
+<span class="mock-pin">6</span><b>kein Benchmark-Kurs:</b> Für die Benchmark liegt am oder bis 7 Tage vor dem 15.06.2026 kein Schlusskurs vor.</p></li></ol></section>
+</aside>
+    </div>
+  </section>
+    </main>
+  </div>
+</div></div>
+
+</body>
+</html>
