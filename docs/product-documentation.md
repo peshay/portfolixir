@@ -730,7 +730,8 @@ recorded over the API or MCP (`POST /api/v1/predictions`,
 deleted; a corrected call is a new one, and both count. The tab shows the
 same figures `GET /api/v1/predictions?security_id=` answers. A security
 with predictions cannot be deleted, and the delete confirmation names
-them among what blocks.
+them among what blocks. How all calls score together is on
+**Wealth → Predictions**.
 
 ## Accounts and Depots
 
@@ -1982,7 +1983,9 @@ The **Wealth** entry in the navigation opens the wealth overview, organised
 into tabs (ADR-0022): **Holdings** (value, performance, positions, data
 quality, cash),
 **Allocation & targets** (the sunburst and drift table), and **Cash flow**
-(the received dividends and interest report). The Holdings tab opens with
+(the received dividends and interest report); **Snapshots**, **Tax**,
+**Risk** and **Predictions** follow, each described in its own section
+below. The Holdings tab opens with
 the **key-figure band in two tiers** (issue #797): three lead figures at
 full size — the total value including cash with its securities/cash
 composition, the TTWROR with the period's absolute result, and the
@@ -2989,6 +2992,48 @@ The **Risk** tab of the Wealth area shows two things that answer one question
 The page reports; it does not recommend. The same figures are on
 `GET /api/v1/portfolios/:portfolio_id/risk` and the MCP tool
 `portfolixir.portfolios.risk`, with all three windows.
+
+## Predictions (how the recorded calls have scored)
+
+The **Predictions** tab of the Wealth area (`/predictions`) is the
+calibration report of ADR-0055: how well the recorded predictions — the
+agent's and your own — have scored, **across all securities and
+independent of the active view**, which its subtitle says. It measures
+how much weight a call deserves; it recommends nothing.
+
+- **Author and model** chips at the top narrow the whole page: *All*,
+  *Operator* or *Agent*, and each model an agent has named (a second click
+  on a model clears it). The filters live in the address, so a filtered
+  report can be linked: `/predictions?author=agent&model=…`.
+- **Calibration**, with how many calls are resolved, open and not
+  resolved: the **Brier score** with its standard error beside the
+  reference 0.25 (the score of always saying 50 %; lower is better), the
+  **sharpness** (how far from 50 % the calls are stated: saying 50 % to
+  everything is perfectly calibrated and says nothing), the **hit rate**
+  with its standard error beside the mean stated probability, which a
+  calibrated author's hit rate matches, and the resolved count. Open and
+  unresolved calls count in no score; they are counted. The **ⓘ** gives
+  every formula.
+- **By probability**, the five bands 0.50–0.59 to 0.90–0.99. A band shows
+  its hit rate only from **20 resolved calls in it**; until one does, a
+  sentence says why and one line counts the calls per band, and the Brier
+  score with its standard error carries the finding. Expect that for a
+  long time: it is the honest answer for a small sample.
+- **By author and model**: the same figures for the operator, the agent
+  over all its models, and each model, so a change of model shows.
+- **All predictions** across securities, newest first: the day made and
+  the author, the security (a link to its Predictions tab) and the claim,
+  the probability, the status (a call not resolved names its reason) and
+  the excess once resolved. The chips *All*, *Open*, *Due*, *Resolved*
+  and *Not resolved* carry their counts; **Due** lists the open calls
+  whose resolution day has come, the API's `due_before` query. On a phone
+  the groups and the list are two-line rows.
+
+The same report is `GET /api/v1/predictions/calibration` (with `author`,
+`model`, `from` and `to`) and the MCP tool
+`portfolixir.predictions.calibration`; the list is
+`GET /api/v1/predictions` and `portfolixir.predictions.list`. The page
+shows the figures those reads answer.
 
 ## Imports
 

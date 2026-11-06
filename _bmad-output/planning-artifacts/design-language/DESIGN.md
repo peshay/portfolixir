@@ -8900,3 +8900,118 @@ token.
   den die Prognose braucht, ist kein Wechselkurs nach EUR gespeichert.“
   without a date or currency. Naming the side is a change to the read.
 <!-- Sprint 26 V1 end -->
+
+<!-- Sprint 26 V2 begin -->
+## Amendment 2026-11-06 — Vermögen → Prognosen: the calibration report *(Sprint 26 V2, idea F1; board `mockups/ux-design-2026-11-06-sprint26-f1`, part 2, pick A; ADR-0055 §4)*
+
+The calibration report lives on Wealth's seventh tab, „Prognosen“
+(English "Predictions", `/predictions`), with the target glyph (`:target`,
+three concentric circles no other destination carries). Built in
+`PortfolixirWeb.PredictionsLive`; the report is
+`Predictions.calibration_report/2` and the list
+`Predictions.list_with_resolution/2`, the reads
+`GET /api/v1/predictions/calibration` and `GET /api/v1/predictions` answer
+from, so the page and the agent state the same figures (LiveView tests
+compare them for the same filter). The tab does not depend on the view:
+the subtitle says so, „Wie gut die festgehaltenen Prognosen getroffen
+haben · über alle Wertpapiere, unabhängig von der Ansicht“. The page
+writes nothing and proposes nothing (ADR-0055 §§2, 6).
+
+### Placement and URL
+
+`AppShell.wealth_tabs/1` gains the seventh entry; the sidebar's Wealth
+entry stays current on `/predictions`. The state is the URL: `author`
+(`operator` | `agent`), `model` (a model an agent named) and `status`
+(`open` | `due` | `resolved` | `unresolved`); a chip click patches it, so a
+filtered report can be linked and a reload keeps it. An unknown value
+reads as no filter; nothing is made an atom.
+
+### Anatomy, top to bottom
+
+1. **The filter chips** (`#prediction-filters.filter-chips.prediction-filters`):
+   the family „Urheber“ with „Alle“, „Operator“, „Agent“, then „Modell“
+   with one chip per model an agent has named
+   (`Predictions.list_models/0`, the model in `<bdi>`); a second click on
+   the pressed model chip clears it. Chips are toggles with `aria-pressed`.
+   They narrow everything below.
+2. **„Kalibrierung“** (`section#prediction-calibration.kpi-band`), the
+   heading's meta „· 12 aufgelöst · 7 offen · 2 nicht aufgelöst“, its ⓘ
+   with six sentences (the Brier formula with the reference, the standard
+   error's estimator, sharpness, the hit rate beside the mean stated
+   probability, what counts in no score, the resolution with the staleness
+   bound read from the computation basis). Four compact cards
+   (`.stat.stat--compact`):
+   - „Brier-Score“ `0,186 ± 0,041` (the standard error in the value's
+     suffix), sub „± Standardfehler · Referenz 0,25 = immer 50 % ·
+     niedriger ist besser“, the reference from the read;
+   - „Schärfe“ `0,17`, sub „Ø Abstand der Wahrscheinlichkeit von 0,50 · 0
+     = immer 50 %“;
+   - „Trefferquote“ `66,7 %`, sub „± 14,2 Pp Standardfehler · Ø angegeben
+     66,7 %“;
+   - „Aufgelöst“ `12`, sub „7 offen und 2 nicht aufgelöst zählen in keinem
+     Score“.
+   A standard error the read leaves null (one resolved call) reads „± —“,
+   never „± 0“. Then `p.summary-basis` „Grundlage: jede aufgelöste
+   Prognose einmal, Wahrscheinlichkeit und Ergebnis wie im Tab „Prognosen“
+   des Wertpapiers.“
+3. **„Nach Wahrscheinlichkeit“** (`div.prediction-bands`,
+   `data-state="too_few" | "table"`). While no band has the read's
+   `minimum_band_count` (20): `p.prediction-bands__why` „Eine
+   Trefferquote je Band zeigt sich erst ab 20 aufgelösten Prognosen im
+   Band; bisher erreicht keines 20. Bis dahin trägt der Brier-Score mit
+   seinem Standardfehler die Aussage.“ and one count line
+   (`p.summary-basis.prediction-bands__counts`) „Aufgelöst je Band:
+   0,50–0,59: 2 · 0,60–0,69: 5 · …“. From the first band at 20, the table
+   Band · Aufgelöst · Ø angegeben · Trefferquote, a band below 20 reading
+   „zu wenige · 14 von 20“ (`span.prediction-too-few`).
+4. **„Nach Urheber und Modell“** (`#prediction-groups-table`): Operator
+   „—“, Agent „alle Modelle“, then each model, indented and muted
+   (`tr.prediction-groups__model`); columns Aufgelöst, Brier-Score ± SE,
+   Schärfe, Trefferquote ± SE, Ø angegeben — the read's `groups`.
+5. **„Alle Prognosen“** (`section#prediction-list`): status chips
+   (`#prediction-status-chips`) „Alle 21 · Offen 7 · Fällig 1 · Aufgelöst
+   12 · Nicht aufgelöst 2“, each count in `span.filter-chip__count`;
+   „Fällig“ is the API's `due_before` today. The table
+   (`#prediction-list-table`), newest first, one
+   `tr[data-role=prediction-row]` per call: „Abgegeben · Urheber“ (the day
+   made over the author and model), „Wertpapier · Aussage“ (the security,
+   a link to its tab `?tab=predictions`, over the claim), „Wahrsch.“,
+   „Stand“ (the security tab's badge; a call not resolved adds its reason
+   word below), „Überrendite“ (sign-coloured once resolved, else „—“).
+   No filter match: „Keine Prognose passt zu diesem Filter.“
+6. **The empty page**, with no prediction stored at all: „Noch ist keine
+   Prognose festgehalten. Festgehalten wird über die API oder MCP.“, no
+   cards, no list.
+
+### Under 560 px *(UX-DR27)*
+
+The groups table and the list table give way to two-line rows
+(`#prediction-groups-phone-rows`, `#prediction-list-phone-rows`). A group
+row: the author and model over „3 aufgelöst · Schärfe 0,22 · Ø angegeben
+71,7 %“, the Brier score ± SE right, the hit rate under it. A list row:
+the security (linked) over the claim with its probability and the made
+line; right, the excess once resolved or „noch 145 Tage“, and under it
+the status („Treffer“, „verfehlt“, „offen“, „wartet auf Schlusskurs“ or
+the reason). The chip rows wrap, as every `.filter-chips` row does.
+
+### The `app.css` rules (between `Sprint 26 V2 begin` / `end`)
+
+The 560 px block hiding `#prediction-list-table-wrap` and
+`#prediction-groups-table-wrap`; `.prediction-filters` (`--space-4`
+below); `.prediction-bands`, `.prediction-groups` (`--space-5` above, a
+grid with `--space-2` gaps) and their `h3` (`margin: 0`);
+`.prediction-bands__why` (72ch, 13 px); `.prediction-too-few` (muted,
+12 px); `.prediction-groups__model td:first-child` (1.75 rem indent,
+muted); `.filter-chip__count` (muted, tabular, 0.4 em before); the list's
+fit to its wrapper (`min-width: 0`; the name cell a 14 rem floor that
+wraps anywhere; figures never wrap; the words and the reason on lines of
+their own); the phone rows' two tracks (no logo). Every colour is a token.
+
+### Stated, not settled here
+
+- **No `resolves_on` range chips.** The read takes `from` and `to`; the
+  board drew no control and nothing on the page needed one.
+- **„Fällig“ counts through the due read**, a third read beside the
+  report and the list; the page stays a reading of the API's reads rather
+  than counting open calls past their day itself.
+<!-- Sprint 26 V2 end -->
