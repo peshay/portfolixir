@@ -2634,8 +2634,8 @@ missing buy.
 
 *Cash flow → Trades on the synthetic demo dataset, in the German interface.*
 
-**After the sale** (Sprint 26, FR-50) follows the trades list: what each
-sale missed, one row per **sale booking** — not per FIFO round trip, so a
+**After the sale** (Sprint 26, FR-50) follows the trades list: how each
+sold security moved afterwards, one row per **sale booking** — not per FIFO round trip, so a
 sale of delivered-in shares or one that closed two lots is one row. Each
 row shows the sale (date, quantity × booked price), the start close in EUR
 (the close of the sale day or the last one before it, at most 7 days

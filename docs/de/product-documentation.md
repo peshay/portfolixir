@@ -2904,8 +2904,8 @@ liefern.
 
 *Cashflow → Trades auf dem synthetischen Demo-Datensatz.*
 
-**Nach dem Verkauf** (Sprint 26, FR-50) folgt der Trade-Liste: was jeder
-Verkauf verpasst hat, eine Zeile je **Verkaufsbuchung** — nicht je
+**Nach dem Verkauf** (Sprint 26, FR-50) folgt der Trade-Liste: wie sich jedes
+verkaufte Wertpapier danach bewegt hat, eine Zeile je **Verkaufsbuchung** — nicht je
 FIFO-Rundlauf, ein Verkauf eingelieferter Stücke oder einer, der zwei Lots
 schließt, ist also eine Zeile. Jede Zeile zeigt den Verkauf (Datum, Stück ×
 gebuchter Kurs), den Startkurs in EUR (den Schlusskurs des Verkaufstags
