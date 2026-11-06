@@ -21,6 +21,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Fx
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Performance.SaleReinvestment
@@ -567,5 +568,191 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
     assert_decimal(one.kept, "1100")
     assert_decimal(one.switched, "1050")
     assert_decimal(one.difference, "-50")
+  end
+
+  # User story (R1, ADR-0057 §3: fees inside, taxes apart):
+  # As the operator who paid to switch,
+  # I want the fees inside the difference and named as one line, and the
+  # sale's taxes named apart and added back to the switched side,
+  # so that the switch is compared before tax, as the kept position would be.
+  #
+  # Acceptance criteria:
+  # - fees_inside = a x the sale's fees + each buy's share x its fees, for
+  #   the buys dated on or before the span's end, in EUR.
+  # - taxes_apart = a x the sale's taxes, in EUR; difference = switched +
+  #   taxes_apart - kept.
+  # - A buy dated after the end adds no fee yet: its money is still cash.
+  test "the fees inside the difference and the sale's taxes apart" do
+    world = base_world(name: "Costs")
+    sold = security!("SCO")
+    bought = security!("BCO")
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "110"}])
+    put_quotes!(bought, [{~D[2025-02-14], "200"}])
+
+    # Proceeds 10 x 100 - fees 10 - taxes 40 = 950; the buy's debit
+    # 4 x 180 + fees 40 = 760, all of it taken: a = 760 / 950 = 0.8.
+    sale =
+      sell!(world, sold,
+        quantity: "10",
+        price: "100",
+        fees: "10",
+        taxes: "40",
+        date: ~D[2025-01-15]
+      )
+
+    buy!(world, bought, quantity: "4", price: "180", fees: "40", date: ~D[2025-01-20])
+
+    block = block(sale)
+    assert_decimal(block.proceeds, "950")
+    assert_decimal(block.share_of_proceeds_matched, "0.8")
+    assert_decimal(block.unallocated, "190")
+
+    # 1m, in EUR at 1:
+    #   kept         = 760 x 10 x 110 / 950          = 880   (0.8 x 10 x 110)
+    #   switched     = 760 x 4 x 200 / 760           = 800
+    #   taxes_apart  = 760 x 40 / 950                = 32    (0.8 x 40)
+    #   fees_inside  = 760 x 10 / 950 + 760 x 40 / 760 = 8 + 40 = 48
+    #   difference   = 800 + 32 - 880                = -48
+    one = Enum.find(block.spans, &(&1.span == "1m"))
+    assert_decimal(one.kept, "880")
+    assert_decimal(one.switched, "800")
+    assert_decimal(one.taxes_apart, "32")
+    assert_decimal(one.fees_inside, "48")
+    assert_decimal(one.difference, "-48")
+    assert_decimal(one.income_apart, "0")
+
+    # A sale on Friday 2025-01-31 (1m ends 2025-02-28) at flat prices, with
+    # a buy on day 3 and one on day 30, after the 1m end. Proceeds 1000;
+    # debits 4 x 100 + 4 = 404 and 5 x 100 + 6 = 506: a = 910 / 1000 = 0.91.
+    flat = base_world(name: "Costs Flat")
+    flat_sold = security!("SCF")
+    early = security!("BCE")
+    late = security!("BCL")
+
+    put_quotes!(flat_sold, [
+      {~D[2025-01-31], "100"},
+      {~D[2025-02-28], "100"},
+      {~D[2025-04-30], "100"}
+    ])
+
+    put_quotes!(early, [{~D[2025-02-28], "100"}, {~D[2025-04-30], "100"}])
+    put_quotes!(late, [{~D[2025-04-30], "100"}])
+
+    flat_sale = sell!(flat, flat_sold, quantity: "10", price: "100", date: ~D[2025-01-31])
+    buy!(flat, early, quantity: "4", price: "100", fees: "4", date: ~D[2025-02-03])
+    buy!(flat, late, quantity: "5", price: "100", fees: "6", date: ~D[2025-03-02])
+
+    spans = Map.new(block(flat_sale).spans, &{&1.span, &1})
+
+    #   1m (2025-02-28): kept = 910 x 10 x 100 / 1000 = 910;
+    #     switched = 404 x 4 x 100 / 404 = 400, + 506 as cash = 906;
+    #     fees_inside = 0 + 404 x 4 / 404 = 4 (the later buy's fee is not
+    #     paid yet); difference = 906 - 910 = -4
+    #   3m (2025-04-30): switched = 400 + 506 x 5 x 100 / 506 = 900;
+    #     fees_inside = 4 + 6 = 10; difference = 900 - 910 = -10
+    assert_decimal(spans["1m"].kept, "910")
+    assert_decimal(spans["1m"].switched, "906")
+    assert_decimal(spans["1m"].fees_inside, "4")
+    assert_decimal(spans["1m"].difference, "-4")
+    assert_decimal(spans["3m"].switched, "900")
+    assert_decimal(spans["3m"].fees_inside, "10")
+    assert_decimal(spans["3m"].difference, "-10")
+  end
+
+  # User story (R1, ADR-0057 §3: the sale's taxes apart, signed):
+  # As the operator whose sale brought a tax refund,
+  # I want the refund named as a negative taxes_apart and its cash among the
+  # proceeds,
+  # so that a refund flatters the switch no more than a tax burdens it.
+  #
+  # Acceptance criteria:
+  # - A tax_refund of the sold security on the sale's date and cash account
+  #   (the shape the import gives a refund split off a sale) joins the
+  #   proceeds and is a negative tax of the sale.
+  test "a tax refund on the sale is a negative taxes_apart" do
+    world = base_world(name: "Costs Refund")
+    sold = security!("SRF")
+    bought = security!("BRF")
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "110"}])
+    put_quotes!(bought, [{~D[2025-02-14], "220"}])
+
+    sale = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+
+    {:ok, _refund} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: sold.id,
+        type: "tax_refund",
+        date: ~D[2025-01-15],
+        gross_amount: "25",
+        currency_code: "EUR"
+      })
+
+    # Proceeds 1000 + the refund 25 = 1025; the buy's debit 5 x 205 = 1025.
+    buy!(world, bought, quantity: "5", price: "205", date: ~D[2025-01-20])
+
+    block = block(sale)
+    assert_decimal(block.proceeds, "1025")
+    assert_decimal(block.share_of_proceeds_matched, "1")
+
+    # 1m: kept = 1025 x 10 x 110 / 1025 = 1100; switched = 1025 x 5 x 220 /
+    # 1025 = 1100; taxes_apart = 1025 x (0 - 25) / 1025 = -25;
+    # difference = 1100 + (-25) - 1100 = -25.
+    one = Enum.find(block.spans, &(&1.span == "1m"))
+    assert_decimal(one.kept, "1100")
+    assert_decimal(one.switched, "1100")
+    assert_decimal(one.taxes_apart, "-25")
+    assert_decimal(one.difference, "-25")
+  end
+
+  # User story (R1, ADR-0057 §3: income is price only on both sides):
+  # As the operator whose new position paid a dividend,
+  # I want the bought positions' booked distributions within the span named
+  # apart and never added,
+  # so that I see them without the comparison counting what the kept side
+  # cannot.
+  #
+  # Acceptance criteria:
+  # - income_apart is each bought position's part of the distributions
+  #   booked on its security after the buy and up to the span's end, before
+  #   withholding tax (net plus tax): the share of the buy this sale paid for
+  #   x the buy's quantity over the quantity held the day before.
+  # - The difference does not include it.
+  test "the bought positions' distributions are named apart, never added" do
+    world = base_world(name: "Costs Income")
+    sold = security!("SIN")
+    bought = security!("BIN")
+    put_quotes!(sold, [{~D[2025-01-15], "100"}, {~D[2025-02-14], "100"}, {~D[2025-04-15], "100"}])
+    put_quotes!(bought, [{~D[2025-02-14], "100"}, {~D[2025-04-15], "100"}])
+
+    # 10 shares held before the sale: the dividends are paid on 20.
+    buy!(world, bought, quantity: "10", price: "90", date: ~D[2024-12-02])
+    sale = sell!(world, sold, quantity: "10", price: "100", date: ~D[2025-01-15])
+    buy!(world, bought, quantity: "10", price: "100", date: ~D[2025-01-20])
+
+    for {date, net, tax} <- [{~D[2025-02-10], "18", "2"}, {~D[2025-03-10], "30", "0"}] do
+      {:ok, _dividend} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          security_id: bought.id,
+          type: "dividend",
+          date: date,
+          gross_amount: net,
+          taxes: tax,
+          currency_code: "EUR"
+        })
+    end
+
+    spans = Map.new(block(sale).spans, &{&1.span, &1})
+
+    #   1m (2025-02-15): 1000 x 10 x (18 + 2) / (1000 x 20) = 10
+    #   3m (2025-04-15): 10 + 1000 x 10 x 30 / (1000 x 20)  = 10 + 15 = 25
+    # kept = switched = 1000 at flat prices: the difference stays 0.
+    assert_decimal(spans["1m"].income_apart, "10")
+    assert_decimal(spans["1m"].difference, "0")
+    assert_decimal(spans["3m"].income_apart, "25")
+    assert_decimal(spans["3m"].difference, "0")
   end
 end

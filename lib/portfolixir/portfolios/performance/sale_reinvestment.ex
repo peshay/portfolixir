@@ -59,6 +59,25 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   `:switched`) and `WindowReturn`'s reason (`:no_start_close`,
   `:no_end_close`, `:no_fx_rate`).
 
+  ## Costs and income (ADR-0057 §3)
+
+    * **fees_inside** = `a` × the sale's fees + each matched buy's share ×
+      its fees, for the buys dated on or before the end, as cash at the
+      end's rate: the switched side already carries them; the line names
+      how much of the difference they are.
+    * **taxes_apart** = `a` × the sale's taxes, signed (a refund split off
+      the sale is negative), as cash at the end's rate, **added back to the
+      switched side**: `difference = switched + taxes_apart − kept`, both
+      sides before tax, because the kept position's latent tax is not
+      booked (deriving it is F7, behind its own gate).
+    * **income_apart**: the bought positions' booked distributions (a
+      `dividend`, or `interest` naming a bond) dated after each buy and on
+      or before the end, before withholding tax (`gross_amount` + `taxes`),
+      each buy's part being the share this sale paid for × its quantity over
+      the quantity the portfolio held the day before, at the end's rate.
+      Named and **never added**: the kept side's distributions are not
+      booked, so both sides are price only.
+
   `match/1` is the rule as a pure function over ledger rows; `blocks/2`
   loads the rows once and answers each sale's block.
   """
@@ -68,6 +87,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
@@ -127,7 +147,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     ledger = sales |> cash_account_ids() |> load_ledger()
     matching = match(ledger)
     loaded = Map.new(ledger, &{&1.id, &1})
-    context = %{today: today, splits: split_events(matching)}
+    context = %{today: today, splits: split_events(matching), income: income_rows(matching)}
 
     Map.new(sales, fn sale ->
       # The row as loaded with its security and cash account, where the
@@ -146,6 +166,25 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
     end)
     |> Enum.uniq()
     |> Quotes.split_events_by_security()
+  end
+
+  # Every booking of the bought securities, for their distributions and the
+  # quantities held when each was paid (ADR-0057 §3, income apart).
+  defp income_rows(matching) do
+    ids =
+      matching
+      |> Enum.flat_map(fn {_sale_id, match} -> Enum.map(match.takes, & &1.buy.security_id) end)
+      |> Enum.uniq()
+
+    case ids do
+      [] ->
+        %{}
+
+      ids ->
+        from(t in Transaction, where: t.security_id in ^ids, preload: [:cash_account])
+        |> Repo.all()
+        |> Enum.group_by(&{&1.portfolio_id, &1.security_id})
+    end
   end
 
   defp cash_account_ids(sales) do
@@ -386,12 +425,20 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
   defp measure(label, end_on, sale, switch, context) do
     with {:ok, kept} <- kept(sale, switch, end_on, context),
          {:ok, rate} <- cash_rate(switch.currency, end_on),
-         {:ok, switched} <- switched(switch, end_on, rate, context) do
+         {:ok, switched} <- switched(switch, end_on, rate, context),
+         {:ok, income} <- income_apart(switch, end_on, context) do
+      taxes = taxes_apart(switch, rate)
+
       %{
         span_base(label, end_on, :complete)
         | kept: kept,
           switched: switched,
-          difference: Decimal.sub(switched, kept)
+          # Before tax (§3): the sale's taxes are added back to the
+          # switched side, because the kept side's latent tax is not known.
+          difference: switched |> Decimal.add(taxes) |> Decimal.sub(kept),
+          fees_inside: fees_inside(switch, end_on, rate),
+          taxes_apart: taxes,
+          income_apart: income
       }
     else
       {:error, side, reason} -> incomplete(label, end_on, side, reason)
@@ -462,6 +509,109 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
           {:error, reason}
       end
     end
+  end
+
+  # --- Costs and income (ADR-0057 §3) ---
+
+  # a x the sale's taxes (net of its refunds, signed), as cash at the end's
+  # rate: taken x taxes x rate / proceeds.
+  defp taxes_apart(switch, rate) do
+    switch.taken
+    |> Decimal.mult(switch.taxes)
+    |> Decimal.mult(rate)
+    |> Decimal.div(switch.proceeds)
+  end
+
+  # a x the sale's fees + each buy's share x its fees, for the buys dated on
+  # or before the end (a later buy's money is still cash), at the end's rate.
+  # The fees are already inside the switched side; this names them.
+  defp fees_inside(switch, end_on, rate) do
+    sale_fees = switch.taken |> Decimal.mult(switch.fees) |> Decimal.div(switch.proceeds)
+
+    switch.takes
+    |> Enum.filter(&(Date.compare(&1.buy.date, end_on) != :gt))
+    |> Enum.reduce(sale_fees, fn %{buy: buy, amount: amount}, sum ->
+      amount
+      |> Decimal.mult(buy.fees || @zero)
+      |> Decimal.div(debit(buy))
+      |> Decimal.add(sum)
+    end)
+    |> Decimal.mult(rate)
+  end
+
+  # The bought positions' booked distributions (dividends, and interest on a
+  # bond) dated after each buy and on or before the end, before withholding
+  # tax (the cash credited plus the tax withheld): each buy's part is the
+  # share this sale paid for x the buy's quantity (in that day's basis) over
+  # the quantity the portfolio held the day before. Named, never added.
+  defp income_apart(switch, end_on, context) do
+    switch.takes
+    |> Enum.filter(&(Date.compare(&1.buy.date, end_on) != :gt))
+    |> Enum.flat_map(fn take -> distributions(take, end_on, context) end)
+    |> Enum.reduce_while({:ok, @zero}, fn {take, distribution, rows}, {:ok, sum} ->
+      case distribution_part(take, distribution, rows, end_on) do
+        {:ok, part} -> {:cont, {:ok, Decimal.add(sum, part)}}
+        {:error, reason} -> {:halt, {:error, :switched, reason}}
+      end
+    end)
+  end
+
+  defp distributions(%{buy: buy} = take, end_on, context) do
+    rows = Map.get(context.income, {buy.portfolio_id, buy.security_id}, [])
+
+    rows
+    |> Enum.filter(fn row ->
+      row.type in ["dividend", "interest"] and Date.compare(row.date, buy.date) == :gt and
+        Date.compare(row.date, end_on) != :gt
+    end)
+    |> Enum.map(&{take, &1, rows})
+  end
+
+  defp distribution_part(%{buy: buy, amount: amount}, distribution, rows, end_on) do
+    held = held_before(rows, buy.security_id, distribution.date)
+
+    with true <- Decimal.compare(held, @zero) == :gt,
+         {:ok, rate} <- WindowReturn.eur_rate(account_currency(distribution), end_on) do
+      {numerator, denominator} = splits_between(rows, buy.date, distribution.date)
+      gross = Decimal.add(distribution.gross_amount || @zero, distribution.taxes || @zero)
+
+      {:ok,
+       amount
+       |> Decimal.mult(buy.quantity)
+       |> Decimal.mult(numerator)
+       |> Decimal.mult(gross)
+       |> Decimal.mult(rate)
+       |> Decimal.div(debit(buy) |> Decimal.mult(denominator) |> Decimal.mult(held))}
+    else
+      false -> {:ok, @zero}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # The quantity of the security the portfolio held across its depots after
+  # every booking dated before `date` (Positions' fold).
+  defp held_before(rows, security_id, date) do
+    rows
+    |> Enum.filter(&(Date.compare(&1.date, date) == :lt))
+    |> Positions.calculate()
+    |> Enum.reduce(@zero, fn
+      {{_account, ^security_id}, quantity}, sum -> Decimal.add(sum, quantity)
+      _other, sum -> sum
+    end)
+  end
+
+  # The ratio of the portfolio's split rows after `from` and before `to`:
+  # the splits the held quantity of `held_before/3` has applied since the
+  # buy.
+  defp splits_between(rows, from, to) do
+    rows
+    |> Enum.filter(fn row ->
+      row.type == "split" and Date.compare(row.date, from) == :gt and
+        Date.compare(row.date, to) == :lt
+    end)
+    |> Enum.reduce({1, 1}, fn row, {p, q} ->
+      {p * row.split_ratio_numerator, q * row.split_ratio_denominator}
+    end)
   end
 
   # The cumulative ratio of the security's splits after `date` (a split on
