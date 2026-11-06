@@ -342,7 +342,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_live.ex:2860
 #: lib/portfolixir_web/live/risk_live.ex:362
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:377
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:653
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:657
 #: lib/portfolixir_web/live/transaction_management_live.ex:1833
 #: lib/portfolixir_web/live/transaction_management_live.ex:2049
 #: lib/portfolixir_web/live/transaction_management_live.ex:2611
@@ -6130,7 +6130,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2686
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:623
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:627
 #: lib/portfolixir_web/prediction_label.ex:72
 #, elixir-autogen, elixir-format
 msgid "no exchange rate"
@@ -10605,13 +10605,13 @@ msgstr ""
 msgid "The security has no currency."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:644
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:648
 #: lib/portfolixir_web/live/securities_live.ex:7146
 #, elixir-autogen, elixir-format
 msgid "1M"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:645
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:649
 #: lib/portfolixir_web/live/securities_live.ex:7147
 #, elixir-autogen, elixir-format
 msgid "3M"
@@ -13798,7 +13798,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/components/app_shell.ex:583
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:457
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:461
 #, elixir-autogen, elixir-format
 msgid "About this section"
 msgstr ""
@@ -14966,19 +14966,19 @@ msgstr ""
 msgid "missed"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:624
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:628
 #: lib/portfolixir_web/prediction_label.ex:71
 #, elixir-autogen, elixir-format
 msgid "no benchmark close"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:625
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:629
 #: lib/portfolixir_web/prediction_label.ex:70
 #, elixir-autogen, elixir-format
 msgid "no end close"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:622
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:626
 #: lib/portfolixir_web/prediction_label.ex:69
 #, elixir-autogen, elixir-format
 msgid "no start close"
@@ -15230,17 +15230,17 @@ msgctxt "prediction status"
 msgid "open"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:646
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:650
 #, elixir-autogen, elixir-format
 msgid "12M"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:475
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:479
 #, elixir-autogen, elixir-format
 msgid "A benchmark security is measured the same way, from the same start day to the same end day; a fixed rate compounds daily over the span's calendar days."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:478
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:482
 #, elixir-autogen, elixir-format
 msgid "A span that ends after today is still running and has no figure. Where a close or an exchange rate is missing, the span stays without a figure and names the reason: never estimated."
 msgstr ""
@@ -15253,7 +15253,7 @@ msgstr ""
 msgid "After the sale"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:511
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:515
 #, elixir-autogen, elixir-format
 msgid "Close %{date}"
 msgstr ""
@@ -15263,37 +15263,37 @@ msgstr ""
 msgid "Comparison"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:659
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:663
 #, elixir-autogen, elixir-format
 msgid "Difference to %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:656
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:660
 #, elixir-autogen, elixir-format
 msgid "Difference to %{rate} % p.a."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:652
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:656
 #, elixir-autogen, elixir-format
 msgid "Fixed rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:465
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:469
 #, elixir-autogen, elixir-format
 msgid "How the sold security moved after the sale: in EUR, over 1, 3 and 12 calendar months from the sale day and up to the latest close."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:640
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:644
 #, elixir-autogen, elixir-format
 msgid "No close at the span's end and none in the 7 days before"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:628
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:632
 #, elixir-autogen, elixir-format
 msgid "No close on the sale day and none in the 7 days before"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:631
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:635
 #, elixir-autogen, elixir-format
 msgid "No stored rate to EUR for one of the two closes"
 msgstr ""
@@ -15303,22 +15303,22 @@ msgstr ""
 msgid "Not a rate to compare with: enter a percentage from -99.9999 to 1000, such as 2.5."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:481
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:485
 #, elixir-autogen, elixir-format
 msgid "One row per sale booking, not per FIFO lot; a sale with no matched buy counts, a delivery is not a sale."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:671
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:675
 #, elixir-autogen, elixir-format
 msgid "Per span the difference to %{name}, below it security vs. benchmark"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:665
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:669
 #, elixir-autogen, elixir-format
 msgid "Per span the difference to %{rate} % p.a., below it security vs. rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:675
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:679
 #, elixir-autogen, elixir-format
 msgid "Per span the sold security's price return"
 msgstr ""
@@ -15328,12 +15328,12 @@ msgstr ""
 msgid "Price move per sale in EUR · from the sale day · one row per sale booking"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:472
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:476
 #, elixir-autogen, elixir-format
 msgid "Price return: distributions after the sale are not booked, so for a dividend payer the figure is too low."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:437
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:441
 #, elixir-autogen, elixir-format
 msgid "Price return: distributions after the sale not included"
 msgstr ""
@@ -15345,59 +15345,61 @@ msgid "Sale"
 msgstr ""
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:379
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:525
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:529
 #, elixir-autogen, elixir-format
 msgid "Start close"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:635
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:639
 #, elixir-autogen, elixir-format
 msgid "The benchmark security has no close for the start or the end; the security's figure stays"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:434
-#, elixir-autogen, elixir-format
-msgid "The newest %{count} sales; older ones are left out."
-msgstr ""
-
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:661
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:665
 #, elixir-autogen, elixir-format
 msgid "The security's price move"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:468
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:472
 #, elixir-autogen, elixir-format
 msgid "The start is the close of the sale day or the last one before it, at most %{days} days older; the booked sale price stands beside it and enters no figure."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:647
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:651
 #, elixir-autogen, elixir-format
 msgid "To date"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:647
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:651
 #, elixir-autogen, elixir-format
 msgid "latest close"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:569
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:573
 #, elixir-autogen, elixir-format
 msgid "running"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:571
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:575
 #, elixir-autogen, elixir-format
 msgid "until %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:581
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:602
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:585
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:606
 #, elixir-autogen, elixir-format
 msgid "vs."
 msgstr ""
 
-#: lib/portfolixir_web/live/sale_hindsight_section.ex:651
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:655
 #, elixir-autogen, elixir-format
 msgctxt "hindsight comparison"
 msgid "None"
 msgstr ""
+
+#: lib/portfolixir_web/live/sale_hindsight_section.ex:434
+#, elixir-autogen, elixir-format
+msgid "The newest sale; older ones are left out."
+msgid_plural "The newest %{count} sales; older ones are left out."
+msgstr[0] ""
+msgstr[1] ""

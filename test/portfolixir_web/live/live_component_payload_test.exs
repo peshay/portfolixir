@@ -68,7 +68,15 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
       # is manual, so the selected security offers it.
       PortfolixirWeb.Securities.QuoteReleaseDialog => [
         {"/securities/#{security.id}", "open_quote_release", %{}, "#quote-release-dialog"}
+      ],
+      # --- Sprint 26 V3 begin ---
+      # "After the sale" on the security's Trades tab: mounted with the tab,
+      # its rate and benchmark events patch the address.
+      PortfolixirWeb.SaleHindsightSection => [
+        {"/securities/#{security.id}?tab=trades", "select_detail_tab", %{"tab" => "trades"},
+         "#detail-sale-hindsight"}
       ]
+      # --- Sprint 26 V3 end ---
     }
   end
 
