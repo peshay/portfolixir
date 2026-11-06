@@ -9445,10 +9445,13 @@ the bar is green or red where the figure was.
   view and no download; `GET /api/v1/journal` and its MCP tool are
   untouched, as every API read is (plan D-4). A download, if one is ever
   added, is a deliberate act and is not masked.
-- **The language switch** keeps the page's address as the privacy switch
-  does (`@page_address`: path and query as written, a `locale` set),
-  without a preference another site's link put into the address; the
-  preferences the page carries itself (a remembered view) stay.
+- **Both switches link alike** (`PortfolixirWeb.PageAddress`): the
+  language and the privacy switch link to the page's address
+  (`@page_address`: path and query as written) with their own pair set,
+  without a preference another site's link put into the address (a
+  `view`, a `benchmark`; S7E-2), the preferences the page carries itself
+  (a remembered view) kept, and a doubled leading slash read as one, never
+  as a host (H26).
 
 ### Stated, not settled here
 
