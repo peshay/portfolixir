@@ -12,9 +12,12 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightController do
   `benchmark` compares nothing. `include=reinvestment` (I18 mode 3,
   ADR-0057 §4) adds to each row what the switch cost: the buys its money
   went into, found by rule, and per span the kept and the switched side.
-  Any other `include`, an empty one or a list included, answers 422 on
-  `include`, so a misspelling never drops the block silently (Sprint 25's
-  carry-forward 2). A malformed value answers 422 naming it; `to` before
+  Any other `include` value, an empty one or a list included, answers 422
+  on `include`, so a misspelled include value never drops the block
+  silently (Sprint 25's carry-forward 2). An unknown key (`includ=`) is
+  ignored, as on every read, and `data.include` echoes the include applied
+  (`[]` or `["reinvestment"]`), so the missing block is never silent
+  either. A malformed value answers 422 naming it; `to` before
   `from` answers 422 on `to`. Read-only; financial decimals are strings.
   """
   use PortfolixirWeb, :controller

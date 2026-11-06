@@ -78,6 +78,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert switch =~ "30 calendar days"
     assert switch =~ "before tax"
+    # The closing act's A2: the response echoes the include it applied, and
+    # what a misspelling refuses is the value, not the key.
+    assert switch =~ "data.include echoes"
+    assert switch =~ "a misspelled include value"
+    assert switch =~ "an unknown key is ignored"
     assert switch =~ "price only"
     assert switch =~ ~s(kept "1100", switched "1050" and difference "-50")
     assert switch =~ "include=reinvestmnt"
