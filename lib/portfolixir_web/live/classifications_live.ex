@@ -1757,7 +1757,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     case socket.assigns.delete_preview do
       %{state: :concurrent} = dialog ->
         case DeletePreviewDialog.recheck(Actor.owner_ui(), dialog) do
-          {:ok, fresh} -> {:noreply, assign(socket, :delete_preview, fresh)}
+          {:ok, fresh} -> {:noreply, show_fresh_delete_preview(socket, fresh)}
           {:error, reason} -> {:noreply, delete_preview_failed(socket, reason)}
         end
 
@@ -3388,11 +3388,36 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp confirm_delete_preview(socket, dialog) do
     case DeletePreviewDialog.confirm(Actor.owner_ui(), dialog) do
       :deleted -> deleted(socket, dialog)
-      {:changed, fresh} -> socket |> assign(:delete_preview, fresh) |> refresh_after_delete()
+      {:changed, fresh} -> show_fresh_delete_preview(socket, fresh)
       :gone -> delete_preview_failed(socket, :not_found)
       {:error, reason} -> delete_preview_failed(socket, reason)
     end
   end
+
+  # A dialog in its new state counts what is there now: the page reads the
+  # tree again, and the subject box is built again from the record and that
+  # tree, not carried over from the dialog that opened (closing act, the
+  # UAT persona on V4).
+  defp show_fresh_delete_preview(socket, fresh) do
+    socket = refresh_after_delete(socket)
+    assign(socket, :delete_preview, fresh_subject(socket, fresh))
+  end
+
+  defp fresh_subject(_socket, %{kind: :classification, id: id} = dialog) do
+    case Classifications.get_classification(id) do
+      nil -> dialog
+      classification -> %{dialog | subject: classification_subject(classification)}
+    end
+  end
+
+  defp fresh_subject(%{assigns: %{tree: %{} = tree}}, %{kind: :category, id: id} = dialog) do
+    case Classifications.get_category(id) do
+      nil -> dialog
+      category -> %{dialog | subject: category_subject(tree, category)}
+    end
+  end
+
+  defp fresh_subject(_socket, dialog), do: dialog
 
   defp deleted(socket, %{kind: :classification}),
     do: socket |> assign(:delete_preview, nil) |> push_navigate(to: "/classifications")
