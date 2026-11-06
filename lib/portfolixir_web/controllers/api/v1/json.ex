@@ -2160,7 +2160,66 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       start_reason: reason(row.start_reason),
       spans: Enum.map(row.spans, &hindsight_span/1)
     }
+    |> put_reinvestment(row)
   end
+
+  # --- Sprint 26 R2 begin ---
+  # What a switch cost (I18 mode 3; ADR-0057 §4), only when asked for with
+  # include=reinvestment: the block's amounts in its currency_code (the
+  # sale's cash account's), each span's figures in EUR, all Decimal strings.
+  defp put_reinvestment(json, %{reinvestment: block}),
+    do: Map.put(json, :reinvestment, reinvestment(block))
+
+  defp put_reinvestment(json, _row), do: json
+
+  defp reinvestment(block) do
+    %{
+      status: Atom.to_string(block.status),
+      reason: reason(block.reason),
+      cash_account_id: block.cash_account_id,
+      currency_code: block.currency_code,
+      proceeds: decimal(block.proceeds),
+      buys: Enum.map(block.buys, &reinvestment_buy/1),
+      days_to_first_buy: block.days_to_first_buy,
+      share_of_proceeds_matched: decimal(block.share_of_proceeds_matched),
+      unallocated: decimal(block.unallocated),
+      spans: Enum.map(block.spans, &reinvestment_span/1)
+    }
+  end
+
+  defp reinvestment_buy(buy) do
+    %{
+      buy_id: buy.buy_id,
+      date: date(buy.date),
+      security: %{
+        id: buy.security.id,
+        name: buy.security.name,
+        currency_code: buy.security.currency_code
+      },
+      quantity: decimal(buy.quantity),
+      cash_debit: decimal(buy.cash_debit),
+      amount_taken: decimal(buy.amount_taken),
+      share_of_buy: decimal(buy.share_of_buy)
+    }
+  end
+
+  defp reinvestment_span(span) do
+    %{
+      span: span.span,
+      end_on: date(span.end_on),
+      status: Atom.to_string(span.status),
+      side: reason(span.side),
+      reason: reason(span.reason),
+      kept: decimal(span.kept),
+      switched: decimal(span.switched),
+      difference: decimal(span.difference),
+      fees_inside: decimal(span.fees_inside),
+      taxes_apart: decimal(span.taxes_apart),
+      income_apart: decimal(span.income_apart)
+    }
+  end
+
+  # --- Sprint 26 R2 end ---
 
   defp hindsight_span(span) do
     %{

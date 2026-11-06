@@ -49,10 +49,46 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 25's sprint PR (version 25). Dated strictly after entry 24, so
-    # since=2026-11-05 still returns it. Each story appends its own items;
-    # each is found by its decision, so a later story's item does not move
-    # another's.
+    # Sprint 26's sprint PR (version 26). Dated strictly after entry 25, so
+    # since=2026-11-06 still returns it. Each story appends its own items
+    # between its own markers, each found by its decision.
+    assert newest["version"] == 26
+    assert newest["date"] == "2026-11-07"
+
+    # --- Sprint 26 R2 begin ---
+    # R2 (ADR-0057 §4): what a switch cost, one parameter on the sale
+    # hindsight read and its tool; no route or tool is added.
+    assert newest["summary"] =~ "Sprint 26, R2 (ADR-0057 §4): "
+    refute "GET /api/v1/sales/hindsight" in newest["endpoints"]
+    refute "portfolixir.sales.hindsight" in newest["tools"]
+
+    assert [switch] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET /api/v1/sales/hindsight?include=reinvestment")
+             )
+
+    for part <- ~w(reinvestment no_match no_buy_within_30_days proceeds_taken_by_earlier_sale
+                   no_cash_account buy_id amount_taken share_of_buy days_to_first_buy
+                   share_of_proceeds_matched unallocated kept switched difference fees_inside
+                   taxes_apart income_apart pending incomplete computation_basis
+                   fungible_money transfers errors.include) do
+      assert switch =~ part, part
+    end
+
+    assert switch =~ "30 calendar days"
+    assert switch =~ "before tax"
+    assert switch =~ "price only"
+    assert switch =~ ~s(kept "1100", switched "1050" and difference "-50")
+    assert switch =~ "include=reinvestmnt"
+    assert switch =~ "(I18 mode 3; ADR-0057 §4)"
+    # --- Sprint 26 R2 end ---
+
+    # Sprint 25's sprint PR (version 25), found by version from Sprint 26 on.
+    # Dated strictly after entry 24, so since=2026-11-05 still returns it.
+    # Each story appends its own items; each is found by its decision, so a
+    # later story's item does not move another's.
+    newest = Enum.find(data["entries"], &(&1["version"] == 25))
     assert newest["version"] == 25
     assert newest["date"] == "2026-11-06"
 
@@ -169,7 +205,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # F5 (ADR-0055 §5; idea F32): the prompt that asks for predictions, MCP
     # only, with one item naming the tools it walks and its framing.
     assert newest["summary"] =~ "Sprint 25, F5 (ADR-0055 §5; idea F32): "
-    assert hd(Contract.entries()).prompts == ["position_review"]
+    assert Enum.find(Contract.entries(), &(&1.version == 25)).prompts == ["position_review"]
     assert [review] = by_decision.("(ADR-0055 §5; idea F32)")
     assert String.starts_with?(review, "The MCP prompt position_review (prompts/get; MCP only")
 

@@ -45,6 +45,61 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 26,
+      # Sprint 26's sprint PR. Dated the day after entry 25, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-07],
+      # --- Sprint 26 R2 begin ---
+      summary:
+        "Sprint 26, R2 (ADR-0057 §4): GET /api/v1/sales/hindsight and " <>
+          "portfolixir.sales.hindsight take include=reinvestment, what each switch cost: the " <>
+          "buys a sale's money went into, found by rule (the same cash account, within 30 " <>
+          "days, oldest proceeds first), and per span the kept and the switched side in EUR, " <>
+          "before tax and price only; any other include answers 422. The tool's own bytes " <>
+          "stay within the ceilings, paid for by tightening its description.",
+      # --- Sprint 26 R2 end ---
+      endpoints: [],
+      tools: [],
+      parameters: [
+        # --- Sprint 26 R2 begin ---
+        "GET /api/v1/sales/hindsight?include=reinvestment (portfolixir.sales.hindsight's " <>
+          "include, whose description now says what the block means), new: each row gains " <>
+          "reinvestment {status (matched or no_match), reason (no_buy_within_30_days, " <>
+          "proceeds_taken_by_earlier_sale or no_cash_account), cash_account_id, " <>
+          "currency_code, proceeds, buys [{buy_id, date, security {id, name, currency_code}, " <>
+          "quantity, cash_debit, amount_taken, share_of_buy}], days_to_first_buy, " <>
+          "share_of_proceeds_matched (ADR-0057's a: the sum the buys took over the proceeds), " <>
+          "unallocated, spans [{span, end_on, status, side, reason, kept, switched, " <>
+          "difference, fees_inside, taxes_apart, income_apart}]}, and computation_basis " <>
+          "gains reinvestment {rule, window, order, spans, prices, before_tax, price_only, " <>
+          "fungible_money, dates, transfers, no_match, currency, no_total}. The proceeds (the " <>
+          "sale's booked cash amount on its cash account) go into the buys debiting the same " <>
+          "account dated from the sale's date to 30 calendar days after it, of another " <>
+          "security, oldest proceeds first by sale date then id, each buy taking at most its " <>
+          "cash debit; the rest is unallocated and stays out. Per FR-50 span kept = a x the " <>
+          "sold quantity x the sold close at the end in EUR, switched = each buy's share x " <>
+          "its quantity x the bought close at the end in EUR, or the amount as cash at the " <>
+          "end's rate for a buy dated after the end, difference = switched + taxes_apart - " <>
+          "kept (before tax: the sale's taxes, a refund negative, are added back); " <>
+          "fees_inside names the fees inside it, income_apart the bought positions' " <>
+          "distributions, never added (price only); a span is pending, or incomplete with " <>
+          "side kept or switched and its reason. A sale of 1000 into a buy of 5 at 200 whose " <>
+          "closes move from 100 to 110 and to 210 reads " <>
+          ~s(kept "1100", switched "1050" and difference "-50") <>
+          " for 1m. Amounts in currency_code, span figures in EUR, all " <>
+          "Decimal strings; benchmark= and include combine. Any other include, an empty one " <>
+          "or a list included (include=reinvestmnt, include=, include[]=...), answers 422 " <>
+          "errors.include, so a misspelling never drops the block. Nothing is stored and no " <>
+          "field gives a verdict or a total (I18 mode 3; ADR-0057 §4)"
+        # --- Sprint 26 R2 end ---
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 25,
       # Sprint 25's sprint PR. Dated the day after entry 24, because since=
       # compares strictly after a date. Each story of the sprint appends its own

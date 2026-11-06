@@ -220,7 +220,8 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   # Acceptance criteria:
   # - No key of GET /api/v1/sales/hindsight contains signal, recommend,
   #   rating, score, action, alert, verdict or advice, without a benchmark
-  #   and with one, over complete, pending and incomplete spans.
+  #   and with one, over complete, pending and incomplete spans, and with
+  #   include=reinvestment over a matched and a no_match block (ADR-0057 §5).
   test "the sale hindsight read carries no verdict key", %{conn: conn} do
     world = base_world()
     sold = create_security!(name: "Verdict Sold", ticker: "VSD")
@@ -228,7 +229,22 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
     sell!(world, sold, quantity: "1", price: "100", date: ~D[2025-02-03])
     sell!(world, sold, quantity: "1", price: "100", date: Date.add(Date.utc_today(), -2))
 
-    for path <- ["/api/v1/sales/hindsight", "/api/v1/sales/hindsight?benchmark=rate:0.02"] do
+    # --- Sprint 26 R2 begin ---
+    # What a switch cost (ADR-0057 §5, no verdict): a buy within 30 days of
+    # the first sale, so the walk covers a matched block and a no_match one.
+    bought = create_security!(name: "Verdict Bought", ticker: "VBT")
+    seed_series!(bought.id, Enum.map(0..400, &"#{50 + rem(&1, 7)}"), ~D[2026-02-27])
+    buy!(world, bought, quantity: "1", price: "50", date: ~D[2025-02-10])
+
+    paths = [
+      "/api/v1/sales/hindsight",
+      "/api/v1/sales/hindsight?benchmark=rate:0.02",
+      "/api/v1/sales/hindsight?include=reinvestment&benchmark=rate:0.02"
+    ]
+
+    # --- Sprint 26 R2 end ---
+
+    for path <- paths do
       %{"data" => data} = conn |> get(path) |> json_response(200)
 
       statuses = for row <- data["rows"], span <- row["spans"], uniq: true, do: span["status"]
@@ -238,6 +254,12 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
              "#{path} carries verdict keys #{inspect(offenders(data))}: what a sale missed " <>
                "is a figure, never a judgement of the sale (plan D-3)."
     end
+
+    # --- Sprint 26 R2 begin ---
+    %{"data" => switched} = conn |> get(List.last(paths)) |> json_response(200)
+    blocks = Enum.map(switched["rows"], & &1["reinvestment"]["status"])
+    assert Enum.sort(blocks) == ["matched", "no_match"]
+    # --- Sprint 26 R2 end ---
   end
 
   # User story (FR-41, ADR-0051 §11, identity I8):

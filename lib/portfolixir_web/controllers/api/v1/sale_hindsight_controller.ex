@@ -9,9 +9,13 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightController do
   100, at most 500) and `benchmark=` (ADR-0046's `rate:<decimal>` or
   `security:<id>`, read by `PortfolixirWeb.Api.V1.BenchmarkParam`
   unchanged, so a security must be flagged `is_benchmark`). Absent or blank,
-  `benchmark` compares nothing. A malformed value answers 422 naming it; `to`
-  before `from` answers 422 on `to`. Read-only; financial decimals are
-  strings.
+  `benchmark` compares nothing. `include=reinvestment` (I18 mode 3,
+  ADR-0057 §4) adds to each row what the switch cost: the buys its money
+  went into, found by rule, and per span the kept and the switched side.
+  Any other `include`, an empty one or a list included, answers 422 on
+  `include`, so a misspelling never drops the block silently (Sprint 25's
+  carry-forward 2). A malformed value answers 422 naming it; `to` before
+  `from` answers 422 on `to`. Read-only; financial decimals are strings.
   """
   use PortfolixirWeb, :controller
 
@@ -26,6 +30,7 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightController do
   # stored closes, so the cap sits below the cheaper roll-ups' 1,000.
   @default_limit 100
   @max_limit 500
+  @include_refusal "is invalid: include takes only reinvestment"
 
   def index(conn, params) do
     with {:ok, portfolio_id} <- id_filter(params, "portfolio_id", :portfolio_id),
@@ -34,10 +39,12 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightController do
          {:ok, to} <- date_param(params, "to", :to),
          :ok <- ordered(from, to),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
-         {:ok, benchmark} <- benchmark(params) do
+         {:ok, benchmark} <- benchmark(params),
+         {:ok, include} <- include(params) do
       report =
         SaleHindsight.report(
           benchmark: benchmark,
+          include: include,
           portfolio_id: portfolio_id,
           security_id: security_id,
           from: from,
@@ -49,8 +56,20 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightController do
     else
       # A refused benchmark= carries its own errors object (#959).
       {:error, {:benchmark, errors}} -> unprocessable(conn, errors)
+      {:error, :include} -> unprocessable(conn, %{include: [@include_refusal]})
       {:error, :invalid_range} -> unprocessable(conn, %{to: ["must be on or after from"]})
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
+    end
+  end
+
+  # Sprint 26 R2 (ADR-0057 §4): the one block include= names. Absent is
+  # none; the value must be exactly reinvestment, mapped by this clause and
+  # never turned into an atom from the request.
+  defp include(params) do
+    case Map.fetch(params, "include") do
+      :error -> {:ok, []}
+      {:ok, "reinvestment"} -> {:ok, [:reinvestment]}
+      {:ok, _other} -> {:error, :include}
     end
   end
 
