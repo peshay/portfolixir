@@ -8,7 +8,12 @@
 // live document (attributes, hidden text, a chart's JSON payload) and in
 // the page source the server sent. It fails as well on any step that did
 // not render: an error status, a crashed LiveView, a click that did not
-// arrive (fix round of the Sprint 26 closing act).
+// arrive (fix round of the Sprint 26 closing act). After the pages it opens
+// the declared open states — a dialog, a drawer, a flow's preview — each by
+// its own clicks, and reads each the same way, an enabled form control's
+// value excepted where the state is a form that edits a stored figure
+// (DESIGN.md → Privacy mode, "Forms keep their values"; the privacy lens of
+// the closing act).
 // Driven by test/browser/privacy_leak_test.exs, which boots the endpoint on
 // the review seed and passes its base URL and a JSON file of the pages to
 // walk.
@@ -33,7 +38,8 @@ const THEMES = ["light", "dark"];
 
 // Runs in the page: every figure in a currency or quantity it can find.
 // The pages render in German (`locale: de-DE`), so an amount is digits with
-// a decimal comma, thousands grouped by dots: "88.307,02", "-19,50", "0,00".
+// a decimal comma, thousands grouped by dots: "88.307,02", "-19,50", "0,00";
+// one written without its dots ("4250,00", a form's example) is one too.
 // What stays in the mode is told apart by what follows or precedes it: a
 // percentage ("9,0 %", "+9,0%"), percentage points ("1,2 pp"), a ratio
 // ("×1,09"), and the first two items of a JSON array of whole numbers
@@ -50,7 +56,7 @@ const THEMES = ["light", "dark"];
 // three digits after at most three are a German thousands group ("1.250")
 // and a month and a year a German month ("11.2025"), neither a decimal.
 function scan(args) {
-  const AMOUNT = /(^|[^\d.,])([+\-−]?\d{1,3}(?:\.\d{3})*,\d+)(?![\d,])/g;
+  const AMOUNT = /(^|[^\d.,])([+\-−]?(?:\d{1,3}(?:\.\d{3})+|\d+),\d+)(?![\d,])/g;
   const QUANTITY = /(^|[^\d.,])(\d[\d.,]*)\s*(Stück|shares?|units?)(?![\p{L}])/gu;
   const RAW = /(^|[^\p{L}\d.,:\/_])([+\-−]?\d+\.\d{1,4})(?![\d.])(?!,\d)/gu;
   const NOT_DECIMAL = [/^[+\-−]?\d{1,3}\.\d{3}$/, /^(0?[1-9]|1[0-2])\.(19|20)\d\d$/];
@@ -126,6 +132,16 @@ function scan(args) {
   // name says so and it holds a digit, whatever its form ("1263.00").
   // A chart's geometry is ratios and coordinates (board 02) and is not read.
   const READ = /^(title|aria-label|aria-description|aria-valuetext|alt|placeholder|value|label|content)$/;
+  // A form that edits a stored figure opens with the real value (DESIGN.md
+  // → Privacy mode, "Forms keep their values"): in a state declared so, an
+  // enabled control's value is the operator's to edit and is not read. A
+  // disabled or read-only control's value is a fact shown, and is.
+  const editable = (el) =>
+    args.allowFormValues === true &&
+    /^(INPUT|TEXTAREA|SELECT|OPTION)$/.test(el.tagName) &&
+    !el.disabled &&
+    !el.readOnly &&
+    !(el.closest && el.closest("select:disabled, fieldset:disabled"));
   for (const el of document.querySelectorAll("*")) {
     if (inPlain(el)) continue;
     for (const attr of el.attributes) {
@@ -134,6 +150,7 @@ function scan(args) {
         findings.push({ where: "attribute " + attr.name, hit: "a hidden figure's markup inside an attribute", context: describe(el) });
         continue;
       }
+      if (attr.name === "value" && editable(el)) continue;
       if (READ.test(attr.name)) {
         for (const hit of amountsIn(value)) {
           findings.push({ where: "attribute " + attr.name, hit, context: describe(el) });
@@ -149,7 +166,7 @@ function scan(args) {
   // a figure: only a value with a decimal separator, or an input whose
   // name says amount, is read.
   for (const input of document.querySelectorAll("input, textarea")) {
-    if (inPlain(input)) continue;
+    if (inPlain(input) || editable(input)) continue;
     const value = input.value || input.getAttribute("value") || "";
     const name = (input.getAttribute("name") || "") + " " + (input.id || "");
     if (!/\d/.test(value)) continue;
@@ -309,7 +326,10 @@ function short(findings) {
   const amountName = pages.amountName;
   const plainSelectors = pages.plainSelectors;
   const sourceChecked = new Set();
-  const read = (page) => page.evaluate(scan, { plainSelectors, amountData, amountName });
+  const read = (page, allowFormValues = false) =>
+    page.evaluate(scan, { plainSelectors, amountData, amountName, allowFormValues });
+  // PRIVACY_LEAK_ONLY=states walks the open states alone.
+  const statesOnly = only === "states";
   try {
     for (const theme of THEMES) {
       for (const viewport of WIDTHS) {
@@ -350,10 +370,10 @@ function short(findings) {
         };
 
         // Reads the page as it stands after a step, its failures first.
-        const check = async (label, connected) => {
+        const check = async (label, connected, allowFormValues = false) => {
           visited++;
           for (const f of await failures(page, statuses, connected)) findings.push({ page: label, ...f });
-          for (const f of await read(page)) findings.push({ page: label, ...f });
+          for (const f of await read(page, allowFormValues)) findings.push({ page: label, ...f });
         };
 
         // Clicks each in-page link to another view of the page (a patch),
@@ -384,7 +404,7 @@ function short(findings) {
 
         while (queue.length) {
           const path = queue.shift();
-          if (only && !path.startsWith(only)) continue;
+          if (statesOnly || (only && !path.startsWith(only))) continue;
           const tag = theme + " " + viewport.width + " " + path;
           const response = await page.goto(base + path).catch((error) => {
             findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: path });
@@ -445,6 +465,41 @@ function short(findings) {
             await handle.click();
             await check(tag + " " + sel, await settle(page));
           }
+        }
+
+        // The declared open states (the privacy lens of the closing act):
+        // each opened from its page by its own steps, checked to be open,
+        // and read; a state that does not open fails the walk.
+        for (const state of pages.openStates || []) {
+          if (only && !statesOnly && !state.url.startsWith(only)) continue;
+          const tag = theme + " " + viewport.width + " " + state.url + " [" + state.name + "]";
+          await page.goto(base + state.url).catch((error) => {
+            findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: state.url });
+          });
+          let connected = await settle(page);
+          let opened = true;
+          for (const step of state.steps) {
+            try {
+              if (step.click) await page.locator(step.click).locator("visible=true").first().click({ timeout: 5000 });
+              if (step.upload) await page.setInputFiles(step.upload[0], step.upload[1]);
+              connected = (await settle(page)) && connected;
+            } catch (error) {
+              opened = false;
+              findings.push({ page: tag, where: "open state", hit: "a step did not run: " + String(error && error.message).split("\n")[0], context: JSON.stringify(step) });
+              break;
+            }
+          }
+          if (opened) {
+            const open = await page
+              .locator(state.open)
+              .locator("visible=true")
+              .first()
+              .waitFor({ timeout: 8000 })
+              .then(() => true)
+              .catch(() => false);
+            if (!open) findings.push({ page: tag, where: "open state", hit: "the state did not open", context: state.open });
+          }
+          await check(tag, connected, state.allowFormValues === true);
         }
         await context.close();
       }

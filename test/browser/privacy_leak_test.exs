@@ -37,6 +37,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Predictions
   alias Portfolixir.Repo
 
@@ -76,6 +78,11 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
 
   # Views a page offers inside a tab that the mode changes (P2).
   @extra_clicks ["#portfolio-performance button[phx-value-mode='value']"]
+
+  # The file the import preview's open state drops: its row 5 carries a
+  # Gesamtpreis that contradicts its Betrag, so the preview shows a warning
+  # quoting the file's figures (the privacy lens of the closing act).
+  @warning_csv Path.expand("../../priv/demo/pp_csv_gesamtpreis_demo.csv", __DIR__)
 
   setup %{sandbox_owner: owner} do
     # The walk holds the shared connection for minutes, longer than the
@@ -129,6 +136,16 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   #   sent.
   # - A live route with a parameter the walk has no address for fails the
   #   test.
+  # - The declared open states are opened by their own clicks and read the
+  #   same way (the privacy lens of the closing act): the transaction delete
+  #   dialog, the booking drawer on a buy, the notes-only drawer, the depot
+  #   and the cash-account merge dialogs, the balance dialog, the security
+  #   logo dialog and an import preview with a warning row. A state that
+  #   does not open fails the test. The booking drawer edits stored figures
+  #   and keeps them (DESIGN.md, "Forms keep their values"), so an enabled
+  #   control's value is not read there; a disabled one's is, and so is
+  #   everything else. The bar's markup inside an attribute and the stand-in
+  #   text „••••“ on the screen fail the test in every state.
   test "no page of the shell shows an amount or a quantity while the privacy mode is on", %{
     base_url: base_url
   } do
@@ -142,7 +159,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
         plainSelectors: @plain_selectors,
         amountData: @amount_data,
         amountName: @amount_name,
-        extraClicks: @extra_clicks
+        extraClicks: @extra_clicks,
+        openStates: open_states()
       })
     )
 
@@ -168,6 +186,103 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     # detail tabs come on top).
     assert result["visited"] >= length(urls) * 4,
            "the walk read #{result["visited"]} views of #{length(urls)} addresses"
+  end
+
+  # The open states the walk opens after the pages (the privacy lens of the
+  # closing act): a dialog, a drawer or a flow's step, each with the clicks
+  # that open it on the review seed, the element that shows it open, and
+  # whether it is a form that edits stored figures. A new dialog that shows
+  # figures belongs here.
+  defp open_states do
+    buy = newest(["buy"])
+
+    notes_only =
+      newest(
+        ~w(cash_transfer balance_adjustment inbound_delivery outbound_delivery security_transfer)
+      )
+
+    cash = Repo.one(from(c in CashAccount, order_by: c.id, limit: 1))
+    depot = Repo.one(from(d in SecuritiesAccount, order_by: d.id, limit: 1))
+    security = Repo.one(from(t in Transaction, where: t.id == ^buy.id, select: t.security_id))
+
+    assert buy && notes_only && cash && depot && security,
+           "the review seed has no buy, notes-only booking, account or security to open states on"
+
+    tx_menu = fn tx -> "#tx-kebab-#{tx.id}, #tx-phone-kebab-#{tx.id}" end
+
+    [
+      %{
+        name: "transaction delete dialog",
+        url: "/transactions",
+        steps: [%{click: tx_menu.(buy)}, %{click: "#tx-delete-#{buy.id}"}],
+        open: "#booking-delete-dialog"
+      },
+      %{
+        name: "booking drawer, a buy",
+        url: "/transactions",
+        steps: [%{click: tx_menu.(buy)}, %{click: "#tx-edit-#{buy.id}"}],
+        open: "#booking-drawer",
+        allowFormValues: true
+      },
+      %{
+        name: "notes-only drawer",
+        url: "/transactions",
+        steps: [%{click: tx_menu.(notes_only)}, %{click: "#tx-edit-#{notes_only.id}"}],
+        open: "#booking-drawer #note-form"
+      },
+      %{
+        name: "depot merge dialog",
+        url: "/portfolios",
+        steps: [
+          %{click: "#account-kebab-#{depot.id}"},
+          %{click: "#account-row-menu-#{depot.id} [data-role='menu-merge']"}
+        ],
+        open: "#merge-dialog"
+      },
+      %{
+        name: "cash-account merge dialog",
+        url: "/portfolios",
+        steps: [
+          %{click: "#cash-kebab-#{cash.id}"},
+          %{click: "#cash-row-menu-#{cash.id} [data-role='menu-merge']"}
+        ],
+        open: "#merge-dialog"
+      },
+      %{
+        name: "balance dialog",
+        url: "/portfolios",
+        steps: [%{click: "#set-balance-#{cash.id}"}],
+        open: "#balance-dialog",
+        allowFormValues: true
+      },
+      %{
+        name: "security logo dialog",
+        url: "/securities",
+        steps: [
+          %{click: "#row-kebab-#{security}, #phone-kebab-#{security}"},
+          %{click: "#row-menu-#{security} button[phx-value-action='manage_logo']"}
+        ],
+        open: "#logo-override-dialog"
+      },
+      %{
+        name: "import preview with a warning row",
+        url: "/imports",
+        steps: [%{upload: ["input[name='pp_file']", @warning_csv]}],
+        open: "#parser-warnings-box"
+      }
+    ]
+  end
+
+  # The newest booking of one of `types`, so it stands on the history's
+  # first page.
+  defp newest(types) do
+    Repo.one(
+      from(t in Transaction,
+        where: t.type in ^types,
+        order_by: [desc: t.date, desc: t.id],
+        limit: 1
+      )
+    )
   end
 
   # Every live route of the router, as the addresses the walk opens.

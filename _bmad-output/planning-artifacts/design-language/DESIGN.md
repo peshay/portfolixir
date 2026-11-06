@@ -9489,6 +9489,23 @@ the bar is green or red where the figure was.
   A sentence built around a stored name (`StoredText.isolate/2`) draws it
   so itself: its translated text is screen markup, while the stored name
   keeps its text.
+- **A form's example holds no figure in the mode.** The balance dialog's
+  field offers „4250,00“ as its example; beside a hidden balance it reads
+  as that balance, so in the mode the field has no example.
+- **The leak walk opens them** (`test/browser/privacy_leak_test.exs`,
+  `open_states/0`): after the pages, each declared open state is opened by
+  its own clicks and read as a page is — the transaction delete dialog, the
+  booking drawer on a buy, the notes-only drawer, the depot and the
+  cash-account merge dialogs, the balance dialog, the security logo dialog
+  and an import preview with a warning row (the demo file
+  `priv/demo/pp_csv_gesamtpreis_demo.csv`). A state that does not open
+  fails the walk. A form that edits stored figures (the booking drawer, the
+  balance dialog) keeps its values (below), so there an enabled control's
+  value is not read; a disabled or read-only one's is, and so is everything
+  else. In every state the bar's markup inside an attribute and the
+  stand-in text on the screen fail the walk, and an amount written without
+  its thousands dots („4250,00“) counts as one. A new dialog that shows
+  figures joins the list.
 
 ### The import preview *(closing act, privacy lens, S2)*
 
