@@ -1082,4 +1082,23 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestmentTest do
     assert_decimal(from_y.share_of_proceeds_matched, "1")
     assert_decimal(from_y.unallocated, "0")
   end
+
+  # User story (closing act A5, AGENTS.md: every metric states its basis):
+  # As the agent reading days_to_first_buy,
+  # I want the payload's basis to define it,
+  # so that I know what the number counts without reading the code.
+  #
+  # Acceptance criteria:
+  # - computation_basis has days_to_first_buy: calendar days from the sale
+  #   date to the first matched buy's date, 0 on the sale day, null without
+  #   a match.
+  test "the basis defines days_to_first_buy" do
+    basis = SaleReinvestment.computation_basis()
+
+    assert basis.days_to_first_buy =~
+             "calendar days from the sale's date to the date of the " <>
+               "first matched buy"
+
+    assert basis.days_to_first_buy =~ "0 when it is on the sale's own date"
+  end
 end

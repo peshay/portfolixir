@@ -2298,14 +2298,15 @@ Example account payloads:
   remaining debit), never by booking id: a booking deleted and booked again
   unchanged moves no figure. A `tax_refund` of the sold security on the
   sale's date and cash account joins that sale's proceeds whatever order
-  the two were booked in. The block carries
-  `status` (`matched` or `no_match`), `reason` (`no_buy_within_30_days`,
+  the two were booked in. The block carries `status` (`matched` or
+  `no_match`), `reason` (`no_buy_within_30_days`,
   `proceeds_taken_by_earlier_sale`, `no_cash_account`), `cash_account_id`,
   `currency_code` (the cash account's), `proceeds`, `buys` (`buy_id`,
   `date`, `security`, `quantity`, `cash_debit`, `amount_taken`,
-  `share_of_buy`), `days_to_first_buy`, `share_of_proceeds_matched` (the
-  ADR's `a`: the sum the buys took over the proceeds) and `unallocated`
-  (money that waited, left out). Per FR-50 span, `kept` is `a` × the sold
+  `share_of_buy`), `days_to_first_buy` (calendar days from the sale's date
+  to the first matched buy, `0` on the sale day),
+  `share_of_proceeds_matched` (the ADR's `a`: the sum the buys took over
+  the proceeds) and `unallocated` (money that waited, left out). Per FR-50 span, `kept` is `a` × the sold
   quantity × the sold security's close at the end, `switched` each matched
   buy's share × its quantity × the bought security's close at the end (a
   buy dated after the end counts as cash in its account's currency at the

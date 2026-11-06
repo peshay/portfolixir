@@ -199,6 +199,10 @@ defmodule Portfolixir.Portfolios.Performance.SaleReinvestment do
           "share_of_buy. What no buy took is unallocated and stays out of the comparison: " <>
           "money that waited is not money that switched. share_of_proceeds_matched (a) is " <>
           "the sum taken over the proceeds",
+      days_to_first_buy:
+        "days_to_first_buy counts the calendar days from the sale's date to the date of " <>
+          "the first matched buy, 0 when it is on the sale's own date; null for a sale " <>
+          "with no match",
       spans:
         "FR-50's spans and ends (1m, 3m, 12m, latest), pending while the end is after " <>
           "today. kept = a x the sold quantity x the sold security's close at the end; " <>
