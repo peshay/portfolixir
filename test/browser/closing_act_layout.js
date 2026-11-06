@@ -127,9 +127,40 @@ async function tradesTab(browser) {
   await page.close();
 }
 
+// P1: at 390 px, beside the privacy switch, the top bar's title shows
+// whole on the pages with the longest German titles.
+async function topbarTitles(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const host = new URL(base).hostname;
+  await context.addCookies(
+    args.cookies.map(([name, value]) => ({ name, value, domain: host, path: "/" }))
+  );
+  const page = await context.newPage();
+  const errors = [];
+  for (const path of args.paths) {
+    await ready(page, path);
+    await page.waitForSelector("#privacy-mode");
+    const m = await page.evaluate(() => {
+      const title = document.querySelector("#app-topbar-title");
+      return {
+        text: title.textContent.trim(),
+        scroll: title.scrollWidth,
+        client: title.clientWidth,
+        page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+      };
+    });
+    if (m.scroll > m.client || m.page > 0) {
+      errors.push(path + ": the title is cut " + JSON.stringify(m));
+    }
+  }
+  await context.close();
+  check(errors.length === 0, "at 390 px: " + errors.join("; "));
+}
+
 const CASES = {
   delete_dialogs: deleteDialogs,
-  trades_tab: tradesTab
+  trades_tab: tradesTab,
+  topbar_titles: topbarTitles
 };
 
 (async () => {
