@@ -1199,7 +1199,7 @@ defmodule PortfolixirWeb.ImportsLive do
               </summary>
               <ul>
                 <li :for={dup <- entries}>
-                  <%= row_described(@preview, row_label(@file_rows, dup.row), row_description(@file_rows, dup.row)) %><%= if dup[:stored] do %> — <%= gettext("%{amount} stored", amount: dup.stored) %><% end %>
+                  <%= PrivacyMode.html(row_described(@preview, row_label(@file_rows, dup.row), row_description(@file_rows, dup.row))) %><%= if dup[:stored] do %> — <%= PrivacyMode.html(gettext("%{amount} stored", amount: dup.stored)) %><% end %>
                 </li>
               </ul>
             </details>
@@ -1221,12 +1221,12 @@ defmodule PortfolixirWeb.ImportsLive do
           </p>
           <ul>
             <li :for={behind <- @result.behind_restated_anchor}>
-              <%= row_behind_anchor(@preview,
+              <%= PrivacyMode.html(row_behind_anchor(@preview,
                 row: row_label(@file_rows, behind.row),
                 description: row_description(@file_rows, behind.row),
                 account: account_name(@existing_cash, behind.cash_account_id),
                 date: Format.date(behind.anchor_date)
-              ) %>
+              )) %>
             </li>
           </ul>
         </div>
@@ -2570,7 +2570,7 @@ defmodule PortfolixirWeb.ImportsLive do
                 <td><%= Format.date(entry.date) %></td>
                 <td><%= kind_label(entry.kind) %></td>
                 <td><bdi><%= held_back_where(entry) %></bdi></td>
-                <td class="num"><%= held_back_amount(entry) %></td>
+                <td class="num"><%= PrivacyMode.html(held_back_amount(entry)) %></td>
               </tr>
             </tbody>
           </table>
@@ -3335,7 +3335,8 @@ defmodule PortfolixirWeb.ImportsLive do
     |> then(&{:safe, &1})
   end
 
-  defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+  # Screen markup: a figure the privacy mode hid is drawn as the bar.
+  defp escape(text), do: text |> PrivacyMode.html() |> Phoenix.HTML.safe_to_string()
 
   # Board 07, N21 A: with lines the confirm leaves, the total names the
   # bookings it counts.
@@ -3734,7 +3735,7 @@ defmodule PortfolixirWeb.ImportsLive do
   defp correction_sentences(list) do
     {:safe,
      list
-     |> Enum.map(fn sentence -> sentence |> Phoenix.HTML.html_escape() |> elem(1) end)
+     |> Enum.map(fn sentence -> sentence |> PrivacyMode.html() |> elem(1) end)
      |> Enum.intersperse(" ")}
   end
 
@@ -3853,12 +3854,12 @@ defmodule PortfolixirWeb.ImportsLive do
     ~H"""
     <span :if={@line.legs || @line.price} class="import-correction__legs">
       <%= if @line.legs do %>
-        <span><%= elem(@line.legs, 0) %></span>
-        <span><%= elem(@line.legs, 1) %></span>
+        <span><%= PrivacyMode.html(elem(@line.legs, 0)) %></span>
+        <span><%= PrivacyMode.html(elem(@line.legs, 1)) %></span>
       <% end %>
       <%= if @line.price do %>
-        <span><%= elem(@line.price, 0) %></span>
-        <span><%= elem(@line.price, 1) %></span>
+        <span><%= PrivacyMode.html(elem(@line.price, 0)) %></span>
+        <span><%= PrivacyMode.html(elem(@line.price, 1)) %></span>
       <% end %>
     </span>
     """
@@ -3917,7 +3918,7 @@ defmodule PortfolixirWeb.ImportsLive do
                  common total). --%>
             <%= if @subject.total do %>
               <span class={["phone-row__figure", sign_class(elem(@subject.total, 0))]}>
-                <%= signed_amount(elem(@subject.total, 0), elem(@subject.total, 1)) %>
+                <%= PrivacyMode.html(signed_amount(elem(@subject.total, 0), elem(@subject.total, 1))) %>
               </span>
               <span class="phone-row__figure2"><%= gettext("Difference") %></span>
             <% end %>

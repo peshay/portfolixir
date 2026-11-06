@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.TransactionKindLabel
 
   attr(:kind, :string, required: true)
@@ -496,7 +497,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
                 <td><%= Format.date(pair.date) %></td>
                 <td><%= TransactionKindLabel.label(pair.type) %></td>
                 <td :if={@kind == "depot"}><%= Map.get(@security_names, pair.security_id) %></td>
-                <td class="num"><%= pair_amount(pair, @currency) %></td>
+                <td class="num"><%= PrivacyMode.html(pair_amount(pair, @currency)) %></td>
                 <td><%= gettext("%{source} and %{target}", source: @names.source, target: @names.target) %></td>
               </tr>
             </tbody>
@@ -509,7 +510,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
               <%= if @kind == "depot", do: " · " <> (Map.get(@security_names, pair.security_id) || "") %>
             </span>
             <span class="merge-lines__figure num">
-              <%= pair_amount(pair, @currency) %>
+              <%= PrivacyMode.html(pair_amount(pair, @currency)) %>
               <small><%= gettext("in %{source} and %{target}", source: @names.source, target: @names.target) %></small>
             </span>
           </li>
@@ -530,7 +531,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
               <% end %>
             </small>
             <small :if={@extra != []} class="merge-option__extra">
-              <%= gettext("Also changes: %{changes}", changes: Enum.join(@extra, " · ")) %>
+              <%= PrivacyMode.html(gettext("Also changes: %{changes}", changes: Enum.join(@extra, " · "))) %>
             </small>
           </span>
         </label>
@@ -707,7 +708,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
               <td><%= row.effect %></td>
               <td><%= row.booking %><small class="cell-note"><%= row.where %></small></td>
               <td class="num"><%= row.quantity %></td>
-              <td class="num"><%= row.amount %><small class="cell-note"><%= row.valued_at %></small></td>
+              <td class="num"><%= PrivacyMode.html(row.amount) %><small class="cell-note"><%= row.valued_at %></small></td>
             </tr>
           </tbody>
         </table>
@@ -725,8 +726,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
         >
           <span class="merge-lines__head"><%= row.date %> · <%= row.effect %></span>
           <span class="merge-lines__figure num">
-            <%= row.amount %>
-            <small><%= Enum.join(row.line_parts, " · ") %></small>
+            <%= PrivacyMode.html(row.amount) %>
+            <small><%= PrivacyMode.html(Enum.join(row.line_parts, " · ")) %></small>
           </span>
         </li>
       </ul>

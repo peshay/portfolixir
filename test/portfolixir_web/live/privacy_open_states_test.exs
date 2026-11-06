@@ -11,7 +11,7 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
   import PortfolixirWeb.PreferenceCookieHelpers
 
   import Portfolixir.WorldFixtures,
-    only: [add_depot: 2, base_world: 1, deposit!: 3]
+    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.PrivacyMode
+  alias PortfolixirWeb.StoredText
 
   @session_token "PRIVACYOPENSTATES0000000"
 
@@ -251,6 +252,126 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
                "#booking-facts input[name='note[gross_amount]'][disabled][value='1,500.00']"
              )
     end
+  end
+
+  describe "the dialogs" do
+    setup do
+      world = base_world(name: "Masked Dialogs", cash_name: "Girokonto", depot_name: "Depot 1")
+      deposit!(world, "5000", ~D[2026-01-02])
+      security = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+      buy = buy!(world, security, quantity: "12", price: "75.50", date: ~D[2026-01-14])
+      second = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot 2")
+      deposit!(%{world | cash: second.cash}, "1250", ~D[2026-01-03])
+      %{world: world, buy: buy, second: second}
+    end
+
+    # User story (fix round of the Sprint 26 closing act, privacy lens, S3):
+    # As the operator who deletes a booking with the privacy mode on,
+    # I want the dialog's subject to draw its amount and its size as bars,
+    # so that the dialog shows no figure and no stand-in text „••••“.
+    #
+    # Acceptance criteria:
+    # - The subject's figure („[bar] EUR“) and size („[bar] × [bar] EUR“)
+    #   are bars; no amount, no quantity and no stand-in text in the dialog.
+    test "the delete dialog draws the booking's figures as bars", %{conn: conn, buy: buy} do
+      {:ok, view, _html} = live(masked(conn), "/transactions")
+      view |> element("#tx-kebab-#{buy.id}") |> render_click()
+      view |> element("#tx-delete-#{buy.id}") |> render_click()
+
+      dialog = view |> element("#booking-delete-subject") |> render()
+
+      assert dialog =~ "pf-mask"
+      refute_open_state("the delete dialog's subject", dialog)
+    end
+
+    # User story (fix round of the Sprint 26 closing act, privacy lens, S3):
+    # As the operator who merges a cash account with the privacy mode on,
+    # I want the source's balance and every candidate's drawn as bars,
+    # in the first step and in the preview,
+    # so that the dialog shows no balance and no stand-in text „••••“.
+    #
+    # Acceptance criteria:
+    # - Step 1: the route's line („EUR · … · [bar] EUR“) and each
+    #   candidate's balance are bars.
+    # - Step 2, the preview: every balance and amount it names is a bar.
+    test "the cash-account merge dialog draws every balance as the bar", %{
+      conn: conn,
+      world: world,
+      second: second
+    } do
+      {:ok, view, _html} = live(masked(conn), "/portfolios")
+      view |> element("#cash-kebab-#{world.cash.id}") |> render_click()
+
+      view
+      |> element("#cash-row-menu-#{world.cash.id} [data-role='menu-merge']")
+      |> render_click()
+
+      step1 = view |> element("#merge-dialog") |> render()
+      assert step1 =~ "pf-mask"
+      refute_open_state("the merge dialog's first step", step1)
+
+      view
+      |> element("#merge-dialog form[data-role='merge-target-form']")
+      |> render_change(%{merge: %{target_id: "#{second.cash.id}"}})
+
+      view |> element("#merge-dialog [data-role='merge-continue']") |> render_click()
+
+      refute_open_state(
+        "the merge dialog's preview",
+        view |> element("#merge-dialog") |> render()
+      )
+    end
+  end
+
+  # A state's text, the attributes a reader meets (a native tooltip, an
+  # accessible name, an input's value or placeholder) and its markup's
+  # attributes: no figure, no stand-in text, no bar's markup out of place.
+  # User story (fix round of the Sprint 26 closing act, privacy lens, S3):
+  # As the operator reading a sentence a page builds around a stored name
+  # (an import correction's "On [account], the set balance absorbs …", a
+  # merge preview's effects) with the privacy mode on,
+  # I want each figure in it drawn as the bar,
+  # so that the stand-in text „••••“ never reaches the screen as text.
+  #
+  # Acceptance criteria:
+  # - `StoredText.isolate/2` draws a hidden figure in the translated
+  #   sentence as the bar; a stored value keeps its text, isolated.
+  test "a sentence around a stored name draws a hidden figure as the bar" do
+    # The mode of this test's own process, which ends with it.
+    PrivacyMode.put(true)
+
+    sentence =
+      "On #{StoredText.slot(:account)}, the set balance absorbs " <>
+        "#{PortfolixirWeb.Format.money(Decimal.new("12.50"))} EUR."
+
+    html =
+      sentence
+      |> StoredText.isolate(account: "Synthetic #{PrivacyMode.text()}")
+      |> Phoenix.HTML.safe_to_string()
+
+    assert html =~ "absorbs <span class=pf-mask"
+    assert html =~ "<bdi>Synthetic #{PrivacyMode.text()}</bdi>"
+    refute html =~ "absorbs #{PrivacyMode.text()}"
+  end
+
+  defp refute_open_state(label, html) do
+    shown = text(html)
+    refute_figures(label, shown)
+    refute_stand_in(label, shown)
+    refute_mask_in_attributes(label, html)
+
+    read =
+      html
+      |> Floki.parse_fragment!()
+      |> Floki.find("*")
+      |> Enum.flat_map(fn {_tag, attributes, _children} ->
+        for {name, value} <- attributes,
+            name in ~w(title aria-label aria-description value placeholder alt),
+            do: value
+      end)
+      |> Enum.join(" | ")
+
+    refute_figures(label <> "'s attributes", read)
   end
 
   defp open_edit(conn, tx) do

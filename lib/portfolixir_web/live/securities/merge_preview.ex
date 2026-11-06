@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.PortfolioAccounts.MergePreview, as: AccountMergePreview
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecuritiesLive
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.StoredText
@@ -356,7 +357,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
             <span class="merge-lines__figure num">
               <%= fifo_money(year.source) %> · <%= fifo_money(year.target) %> →
               <b><%= fifo_money(year.after) %></b>
-              <small><%= fifo_change_line(year.change) %></small>
+              <small><%= PrivacyMode.html(fifo_change_line(year.change)) %></small>
             </span>
           </li>
           <li :for={open <- @fifo.open_lots} data-role="merge-fifo-open-line">
@@ -643,10 +644,10 @@ defmodule PortfolixirWeb.Securities.MergePreview do
               "The %{count} bookings of the source are deleted.",
               length(@pairs)
             ) %>
-            <%= gettext("Holdings afterwards") %> <b><%= gettext("%{quantity} shares", quantity: Format.exact(@holdings.collapsed)) %></b>.
+            <%= gettext("Holdings afterwards") %> <b><%= PrivacyMode.html(gettext("%{quantity} shares", quantity: Format.exact(@holdings.collapsed))) %></b>.
           </small>
           <small :if={@collapsed.cash_accounts != []} class="merge-option__extra">
-            <%= gettext("Also changes: %{changes}", changes: Enum.join(collapse_effects(@collapsed), " · ")) %>
+            <%= PrivacyMode.html(gettext("Also changes: %{changes}", changes: Enum.join(collapse_effects(@collapsed), " · "))) %>
           </small>
         </span>
       </label>
@@ -660,7 +661,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
               "All %{count} bookings stand at the target afterwards.",
               @keep.transaction_count
             ) %>
-            <%= gettext("Holdings afterwards") %> <b><%= gettext("%{quantity} shares", quantity: Format.exact(@holdings.keep)) %></b>.
+            <%= gettext("Holdings afterwards") %> <b><%= PrivacyMode.html(gettext("%{quantity} shares", quantity: Format.exact(@holdings.keep))) %></b>.
           </small>
         </span>
       </label>
@@ -708,7 +709,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
             <td><%= Format.date(pair.date) %></td>
             <td><%= TransactionKindLabel.label(pair.type) %></td>
             <td class="num"><%= if pair.quantity, do: Format.exact(pair.quantity), else: "—" %></td>
-            <td class="num"><%= pair_amount(pair, @currency) %></td>
+            <td class="num"><%= PrivacyMode.html(pair_amount(pair, @currency)) %></td>
             <td><%= pair_place(pair, @names) %></td>
           </tr>
         </tbody>
@@ -723,7 +724,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           <%= Format.date(pair.date) %> · <%= TransactionKindLabel.label(pair.type) %>
         </span>
         <span class="merge-lines__figure num">
-          <%= if pair.quantity, do: gettext("%{quantity} shares", quantity: Format.exact(pair.quantity)) <> " · " %><%= pair_amount(pair, @currency) %>
+          <%= if pair.quantity, do: PrivacyMode.html(gettext("%{quantity} shares", quantity: Format.exact(pair.quantity)) <> " · ") %><%= PrivacyMode.html(pair_amount(pair, @currency)) %>
           <small><%= pair_place(pair, @names) %></small>
         </span>
       </li>

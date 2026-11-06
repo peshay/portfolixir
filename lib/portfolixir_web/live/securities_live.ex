@@ -3735,7 +3735,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <small class="value-suffix"><%= @currency_code %></small>
               </span>
               <span :if={q.adjusted?} class="phone-row__figure2">
-                <%= gettext("stored %{value}", value: Format.decimal(q.stored_close, 2)) %>
+                <%= PrivacyMode.html(gettext("stored %{value}", value: Format.decimal(q.stored_close, 2))) %>
               </span>
             </span>
           </li>

@@ -3038,11 +3038,11 @@ defmodule PortfolixirWeb.PortfolioLive do
               <.link navigate={"/securities/#{entry.security_id}?tab=transactions"}>
                 <%= entry.name %>
               </.link>
-              (<%= Enum.map_join(
+              (<%= PrivacyMode.html(Enum.map_join(
                 entry.depots,
                 ", ",
                 &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
-              ) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
+              )) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
             </span>
           </:actions>
         </AppShell.data_note>
@@ -3719,9 +3719,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:safe,
      [
        ~s(<span class="benchmark-costs__fig">),
-       Phoenix.HTML.safe_to_string(
-         Phoenix.HTML.html_escape("#{Format.money(amount)} #{currency}")
-       ),
+       Phoenix.HTML.safe_to_string(PrivacyMode.html("#{Format.money(amount)} #{currency}")),
        "</span>"
      ]}
   end
