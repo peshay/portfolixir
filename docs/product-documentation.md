@@ -1408,6 +1408,30 @@ carries Open and, for a custom tree, Delete; **+** in the heading creates a
 new one. With no trees at all the index says so rather than rendering an
 empty list.
 
+**Deleting a classification, a category or a view says what goes with it**
+(issue #894). **Delete classification** in the tree's head (or **Delete** in
+the index row's menu), the **×** on a category's row, and **Delete** in a
+view's row menu on the Views page each open one dialog, the booking delete's,
+instead of the browser's own question. The dialog names what you chose — a
+tree with its categories and levels, a category with its classification and
+positions, a view with its rule, positions and accounts — and lists what the
+delete removes, read from the delete's own dry run, one line per kind with its
+count: *The delete removes: 6 categories, 9 security assignments, 2 target
+plans, 18 target weights* (a category counts the ones below it: *“Stability”
+and 1 category below it*; a view its plans, targets and snapshots). A kind
+with nothing in it gets no line, and a delete that takes nothing else says
+*Nothing else is removed with it.* Below that: what stays (the securities, and
+their bookings and quotes) and that the audit journal records each deletion
+with every value, none of which can be restored. **Cancel** (or Escape) closes
+it; the red button deletes. The button deletes only what the dialog listed:
+if something changed while the dialog was open — a security assigned in the
+meantime, a plan or a snapshot added — nothing is deleted, a note says so,
+and the dialog shows the new list to confirm again. When a policy rule reads
+what you chose, the dialog says so before you click anything: it is titled
+**Cannot delete**, names each rule with its status and view, and offers only
+**Close**. Your agent asks the same question with `dry_run=true` on the
+delete (see [API and MCP](integration/api-and-mcp.html)).
+
 Securities can be organised into **classification trees**. Custom trees are
 free-form folders with colours; built-in trees for **asset class** and
 **currency** are derived from each security and always present. Built-in
@@ -2984,7 +3008,9 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   applies in another view is found in that view: when deleting a view, a
   category, a classification or a security is refused because rules read it,
   the refusal names the rules with their status and view, and each name links
-  to Risk in the view the rule applies in. A rule whose line in force the
+  to Risk in the view the rule applies in; for a view, a category or a
+  classification the delete dialog shows that refusal as soon as it opens,
+  before any delete is clicked. A rule whose line in force the
   agent wrote with its API token ends its words with **"Agent"** — scheduled
   and retired rules too — and the dialog's version list names the author of
   every version, "Operator" or "Agent" (E25). A rule the agent named last

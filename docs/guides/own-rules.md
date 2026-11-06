@@ -202,9 +202,10 @@ one save writes both or neither. A retired rule is renamed the same way.
 ## What a rule protects
 
 A security, a category, a classification or a view that a rule reads cannot be
-deleted while the rule exists. The refusal — in the page's message band on the
-Views and Classifications pages, in the **Cannot delete** dialog on the
-securities page — names each rule with its status and its view, as in
+deleted while the rule exists. The refusal — in the **Cannot delete** dialog,
+which on the Views and Classifications pages opens in place of the delete
+dialog before anything is deleted, and on the securities page after Delete —
+names each rule with its status and its view, as in
 “Single names at most 10 %” (in force, view “Everything”), and each name links
 to Risk in the view the rule applies in. Following the link makes that view
 the active view on every Wealth tab, the way picking it in the view switcher
