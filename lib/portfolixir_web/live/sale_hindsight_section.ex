@@ -175,11 +175,17 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   # exact at its scale), so the screen computes exactly what
   # `benchmark=rate:<fraction>` computes.
   defp parse_rate(raw) do
-    case DecimalInput.parse(raw) do
+    case raw |> without_percent_sign() |> DecimalInput.parse() do
       {:ok, percent} -> BenchmarkScope.rate_from_percent(percent)
       _blank_or_invalid -> :error
     end
   end
+
+  # „2,5 %“ is the rate as it is written, and the field's label names the
+  # unit: one trailing percent sign, with the spaces around it, is dropped
+  # before the number is read (closing act, the UAT persona on V3). A sign
+  # alone leaves nothing, which stays refused.
+  defp without_percent_sign(raw), do: String.replace(raw, ~r/\s*%\s*\z/u, "")
 
   defp query_params(uri) do
     case URI.parse(uri) do

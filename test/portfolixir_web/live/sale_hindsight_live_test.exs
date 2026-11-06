@@ -787,4 +787,55 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
   end
 
   # --- Sprint 26 fix P end ---
+
+  # --- Sprint 26 fix D begin ---
+  # User story (closing act, UAT persona on V3):
+  # As the operator typing the rate as I would write it,
+  # I want „2,5 %“ in the fixed-rate field to be read as 2.5,
+  # so that the percent sign the label already names does not turn the
+  # rate into an error.
+  #
+  # Acceptance criteria:
+  # - A rate with a trailing percent sign, with or without spaces around it
+  #   („2,5 %“, „2.5%“, „ 3 % “), is read as the number before it, typed
+  #   or in a link, and each span reads the difference the API answers for
+  #   that rate.
+  # - Anything else stays refused as before: a sign alone, a sign with
+  #   text after it, a rate beyond the bound.
+  test "a fixed rate typed with a percent sign is read as its number", %{conn: conn} do
+    %{sale: sale} = world()
+    cell = "#sale-hindsight tr[data-sale='#{sale.id}'] td[data-span='3m'] .hs-lead"
+    rated = api_span(conn, %{"benchmark" => "rate:0.025"}, sale.id, "3m")
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized&hindsight=rate")
+
+    for typed <- ["2,5 %", "2.5%", " 2.5 % "] do
+      view
+      |> form("form[data-role='hindsight-rate-form']", %{"rate" => typed})
+      |> render_submit()
+
+      refute has_element?(view, "[data-role='hindsight-rate-error']"), typed
+      assert text(view, cell) == percent(rated["difference"]), typed
+    end
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        "/cashflow?tab=realized&hindsight=rate&hindsight_rate=" <> URI.encode_www_form("3 %")
+      )
+
+    refute has_element?(view, "[data-role='hindsight-rate-error']")
+    three = api_span(conn, %{"benchmark" => "rate:0.03"}, sale.id, "3m")
+    assert text(view, cell) == percent(three["difference"])
+
+    for typo <- ["%", "2,5 %x", "% 2,5x", "5000 %"] do
+      view
+      |> form("form[data-role='hindsight-rate-form']", %{"rate" => typo})
+      |> render_submit()
+
+      assert has_element?(view, "[data-role='hindsight-rate-error'][role='alert']"), typo
+    end
+  end
+
+  # --- Sprint 26 fix D end ---
 end
