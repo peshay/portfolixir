@@ -9053,7 +9053,8 @@ comparison (a LiveView test compares them).
    named and never estimated; one row per sale booking, not per FIFO lot.
 2. **The chooser** `.hs-controls` (`data-role="hindsight-compare"`): the
    muted label „Vergleich“, the shipped segmented control „Ohne · Fester
-   Zins · Wertpapier“ as links that patch the address, and the one field
+   Zins · Wertpapier · Anschlusskauf“ (the last R3's mode 3, below) as
+   links that patch the address, and the one field
    the chosen kind needs: „Fester Zins % p. a.“ with „Anwenden“ (a text
    field, `inputmode="decimal"`, `.num`, read by `DecimalInput`, bounded by
    the Wealth page's rate bound, `BenchmarkScope.rate_from_percent/1`), or
@@ -9098,7 +9099,8 @@ comparison (a LiveView test compares them).
 
 ### The URL is the comparison
 
-`hindsight=none|rate|security`, `hindsight_rate=<percent>` and
+`hindsight=none|rate|security|reinvestment` (the last R3's mode 3),
+`hindsight_rate=<percent>` and
 `hindsight_benchmark=<id>`; a chooser link keeps its own parameter and
 drops the others', and every other parameter of the page (its tab, its
 filters, the locale) rides along as it came. Without `hindsight` the
@@ -9112,17 +9114,90 @@ ranking and no sum of what the sales missed (AGENTS.md: no advice); a
 LiveView test refuses the verdict words in both languages. No second
 benchmark, no distributions, no latent tax.
 
-### Room for mode 3
+### Mode 3: „Anschlusskauf“, what a switch cost *(Sprint 26 R3; I18 mode 3, ADR-0057 §6; board frame `m3`)*
 
-The chooser's modes are an atom list (`SaleHindsightSection.modes/0`); R3
-(ADR-0057, „Anschlusskauf“) adds one mode, its label and its row and
-detail rendering. Board 03's mode-3 rules (`.hs-has-detail`, `.hs-detail`,
-`.hs-nobuys`, `.hs-detail-phone`) are left to R3, which renders them.
+The chooser's fourth choice, beside „Wertpapier“, not a block of its own:
+it compares the same rows over the same four spans. The figures are the
+same report's with `include: [:reinvestment]`, the read
+`GET /api/v1/sales/hindsight?include=reinvestment` answers with (a
+LiveView test compares a span's difference, both sides and the cost line
+with the API's for the same sale).
+
+1. **The address** `hindsight=reinvestment`; its link drops the rate and
+   benchmark parameters. An unknown `hindsight` value (misspelled, another
+   case, empty) is the default comparison, never an error.
+2. **The group head** „Nach dem Verkauf · Differenz gewechselt − behalten,
+   in EUR“; the third column is **„Angelegt“** instead of „Startkurs“: what
+   the matched buys took, in the sale's cash-account currency, over „94,3 %
+   des Erlöses“ (the read's `share_of_proceeds_matched`).
+3. **A span cell**: the lead figure is the difference in EUR, signed and
+   coloured as every amount (`.hs-lead` with its `.value-suffix` „EUR“),
+   over „behalten <kept>“ and „gewechselt <switched>“ and, where the sale
+   paid taxes, „Steuern zugerechnet <±taxes>“: the read adds the sale's
+   taxes back to the switched side (ADR-0057 §3), so the three lines add up
+   to the lead. The cell's title is that span's cost line. `pending` reads
+   „läuft“ over „bis <date>“ as in modes 1 and 2; `incomplete` the muted
+   dash over the reason („kein Endkurs“) and the side it is missing on
+   („gewechselte Seite“ / „behaltene Seite“), the long
+   reason as the title.
+4. **The detail row** `tr.hs-detail[data-role="hindsight-detail"]` under a
+   matched sale (`tr.hs-has-detail` gives up its bottom border to it), one
+   cell across the row, muted 12 px:
+   - `.hs-detail__buys`: „Erlös angelegt in: **<Name>**, gekauft <date> (5
+     Tage nach dem Verkauf), 400,00 EUR; **<Name>**, gekauft <date> (14 Tage
+     nach dem Verkauf), anteilig 610,10 von 655,00 EUR“ — „am Verkaufstag“
+     for a buy on the sale's date; the first buy's days are the read's
+     `days_to_first_buy`; „anteilig“ where the sale paid part of the buy;
+     amounts in the cash account's currency;
+   - `.hs-detail__costs`: the cost line of the latest span the read
+     measured, named by it: „Bis heute · Gebühren, in der Differenz:
+     12,40 EUR · Steuern des Verkaufs, der gewechselten Seite zugerechnet:
+     110,78 EUR · Erträge der Käufe, nicht addiert: keine“ (EUR at the
+     span end's rate; „keine“ for nothing). No line while no span is
+     measured.
+5. **No match**: the „Angelegt“ cell is the muted dash and one cell
+   `td.hs-nobuys` across the four spans names the reason in words:
+   „Keine Anschlusskäufe gefunden: kein Kauf vom Verrechnungskonto des
+   Verkaufs binnen 30 Tagen ab dem Verkaufstag“ (`no_buy_within_30_days`),
+   „… die Käufe binnen 30 Tagen bezahlte der Erlös eines früheren
+   Verkaufs“ (`proceeds_taken_by_earlier_sale`), „… der Verkauf hat kein
+   Verrechnungskonto oder keinen darauf gebuchten Erlös“
+   (`no_cash_account`).
+6. **Under 560 px** each phone row reads „Angelegt <amount> · <share> des
+   Erlöses“ in place of the start close, the 2 × 2 grid of the mode-3
+   cells, then `p.hs-detail-phone` with the buys and the cost line; a sale
+   with no match shows `p.hs-nobuys--phone` with its reason in the grid's
+   place.
+7. **The ⓘ** adds three clauses after a blank line: the rule (the buys from
+   the sale's cash account up to 30 days after it take the proceeds in date
+   order, the last one pro rata), the two sides (kept scaled to the part
+   invested, price only; switched the bought position, cash before the
+   buy), the costs (fees inside, the sale's taxes apart and added back,
+   both sides before tax, income named, not added). **The legend** „Je
+   Spanne gewechselt − behalten in EUR, beide vor Steuern · Kursrendite: …“.
+
+**Deviations from the board, with their reasons:** the fees are one figure,
+„Gebühren, in der Differenz: 12,40 EUR“, not split into „Verkauf“ and
+„Käufe“, because the read states `fees_inside` as one figure and the page
+holds none of its own; the taxes read „der gewechselten Seite
+zugerechnet“, not „nicht in der Differenz“, because ADR-0057 §3, signed
+after the board, adds them back to the switched side, so the cell's
+three lines add up to its lead; the cost line names its span, because the
+read gives fees, taxes and income per span (in EUR at the span end's rate,
+income growing with the span).
+
+The same rule as modes 1 and 2: no verdict word, no colour on a row, no
+ranking and no total over all switches (ADR-0057 §5); the LiveView test
+refuses the verdict words in mode 3 in both languages.
 
 ### The `app.css` rules of the pick
 
-Board 03's `proposal.css` without option B's and mode 3's rules, at the end
-of `app.css` under "After the sale": `.hs-controls` and its label and
+Board 03's `proposal.css` without option B's rules, at the end of `app.css`
+under "After the sale" and, for mode 3 (R3), under "After the sale, mode 3":
+`.hs-nobuys` with its border before the spans, `.hs-has-detail`,
+`.hs-detail` with `.hs-detail__buys` and `.hs-detail__costs`, the bold
+security names, and `.hs-detail-phone` / `.hs-nobuys--phone`. Modes 1
+and 2: `.hs-controls` and its label and
 field; `.hs-basis`; the table fitting its wrapper and its group head
 (`.hs-grouprow`, `.hs-group`, `.hs-th-sub`, the border before 1M);
 `.hs-lead` and its sign colours; `.hs-span--open`; `.hs-legend`;

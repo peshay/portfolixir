@@ -12504,3 +12504,44 @@ dialog.merge-dialog {
     text-align: center;
   }
 }
+
+/* ===== "After the sale", mode 3: the follow-on purchase (Sprint 26 R3;
+   I18 mode 3, ADR-0057 §6; board ux-design-2026-11-06-sprint26-i18, frame
+   m3) ===== */
+/* „Anschlusskauf“ in the same section: a sale with no follow-on purchase
+   reads its reason across the four spans, behind the spans' border; a
+   matched sale's buys and cost line open in a row under it, which takes
+   the row's bottom border. */
+.hs-table td.hs-nobuys {
+  border-left: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: normal;
+}
+.hs-table tr.hs-has-detail td {
+  border-bottom: 0;
+}
+.hs-table tr.hs-detail td {
+  padding-top: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+.hs-detail__buys,
+.hs-detail__costs {
+  display: block;
+}
+.hs-table tr.hs-detail b,
+.hs-detail-phone b {
+  color: var(--color-text);
+  font-weight: 600;
+}
+/* Under 560 px: the buys and the cost line, or the reason, under the
+   span grid. */
+.hs-nobuys--phone,
+.hs-detail-phone {
+  margin: 8px 0 0;
+  padding-left: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
