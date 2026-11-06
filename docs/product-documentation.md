@@ -4277,6 +4277,13 @@ multiplier.
   page is sent, so it is not in the page source, a copied selection or a
   screen reader's output (which reads "hidden"), and every bar has the same
   width, whatever the figure's length.
+- **Charts:** an axis in a currency switches to percent of the window's
+  start. Wealth's value series reads "Value (%)", and a line under it says
+  that deposits and withdrawals count in it, so it is no return (the return
+  is TTWROR). A security's chart is held in its "Percent" view, pressed and
+  locked; a trade's tooltip keeps its kind and hides its quantity and price.
+  Cash flow's bars keep their heights and lose their amounts; their tooltips
+  keep the year and the series.
 - **Per browser.** The choice is kept in a cookie of this browser and
   survives a reload; another browser or device has its own. Nothing about it
   is stored on the server, and a link from another site can hide figures on

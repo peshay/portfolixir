@@ -4713,6 +4713,14 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
   Seite gesendet wird; sie steht weder im Seitenquelltext noch in einer
   kopierten Auswahl noch in der Ausgabe eines Screenreaders (der „verborgen“
   liest), und jeder Balken ist gleich breit, wie lang die Zahl auch ist.
+- **Charts:** Eine Achse in einer Währung wechselt auf Prozent vom
+  Fensterbeginn. Die Wertreihe unter Vermögen heißt „Wert (%)“, und eine
+  Zeile darunter sagt, dass Ein- und Auszahlungen darin zählen, sie also
+  keine Rendite ist (die Rendite zeigt TTWROR). Der Chart eines Wertpapiers
+  bleibt in seiner Ansicht „Prozent“, gedrückt und gesperrt; der Tooltip
+  eines Trades behält seine Art und verbirgt Stückzahl und Kurs. Die Balken
+  unter Cashflow behalten ihre Höhe und verlieren ihre Beträge; ihre
+  Tooltips behalten Jahr und Reihe.
 - **Je Browser.** Die Wahl liegt in einem Cookie dieses Browsers und übersteht
   ein Neuladen; ein anderer Browser oder ein anderes Gerät hat seine eigene.
   Auf dem Server wird nichts davon gespeichert, und ein Link einer anderen
