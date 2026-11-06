@@ -642,7 +642,7 @@ defmodule PortfolixirWeb.PredictionsLive do
     """
   end
 
-  defp phone_status(:hit, _resolution), do: gettext("Hit")
+  defp phone_status(:hit, _resolution), do: gettext("hit")
   defp phone_status(:miss, _resolution), do: gettext("missed")
   defp phone_status(:unresolved, resolution), do: PredictionLabel.reason(resolution.reason)
   defp phone_status(:waiting, _resolution), do: gettext("waiting for the close")
@@ -659,8 +659,13 @@ defmodule PortfolixirWeb.PredictionsLive do
     do:
       "#{Format.plain_decimal(block.brier.score, 3)} ± #{Format.plain_decimal(block.brier.standard_error, 3)}"
 
+  # The standard error in percentage points, as the card's sub-line says it
+  # (closing act, the UAT persona on V2: „50,0 % ± 50,0“ had no unit).
   defp hit_rate(block),
-    do: "#{percent(block.hit_rate.rate)} ± #{Format.percent(block.hit_rate.standard_error)}"
+    do: "#{percent(block.hit_rate.rate)} ± #{points(block.hit_rate.standard_error)}"
+
+  defp points(nil), do: "—"
+  defp points(%Decimal{} = value), do: gettext("%{value} pp", value: Format.percent(value))
 
   defp percent(nil), do: "—"
   defp percent(%Decimal{} = value), do: Format.percent(value) <> " %"

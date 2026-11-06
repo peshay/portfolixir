@@ -293,7 +293,7 @@ defmodule PortfolixirWeb.PredictionsLiveTest do
              "Agent all models #{agent["counts"]["resolved"]} " <>
                "#{Format.decimal(d(agent["brier"]["score"]), 3)} ± #{Format.decimal(d(agent["brier"]["standard_error"]), 3)} " <>
                "#{Format.decimal(d(agent["sharpness"]), 2)} " <>
-               "#{Format.percent(d(agent["hit_rate"]["rate"]))} % ± #{Format.percent(d(agent["hit_rate"]["standard_error"]))} " <>
+               "#{Format.percent(d(agent["hit_rate"]["rate"]))} % ± #{Format.percent(d(agent["hit_rate"]["standard_error"]))} pp " <>
                "#{Format.percent(d(agent["hit_rate"]["mean_probability"]))} %"
 
     assert a3_row =~
@@ -512,6 +512,74 @@ defmodule PortfolixirWeb.PredictionsLiveTest do
       assert html =~ ~s(data-role="prediction-excess"), selector
       refute html =~ ~r/is-(positive|negative)/, selector
     end
+  end
+
+  # User story (closing act, UAT persona on V2):
+  # As the operator reading the report in German,
+  # I want every standard error of a hit rate in one unit and the status
+  # badges in one grammatical form,
+  # so that „± 33,3 Pp“ in the card and „50,0 % ± 50,0“ in the table do
+  # not read as two different things, and „Treffer“ beside „verfehlt“ not
+  # as two kinds of label.
+  #
+  # Acceptance criteria:
+  # - The groups table's and the phone rows' hit rate reads „… % ± … Pp“,
+  #   as the card's sub-line does; a missing standard error stays „± —“.
+  # - The status of a hit reads „getroffen“ (English "hit"), the state
+  #   participle beside „verfehlt“, „offen“ and „nicht aufgelöst“, on the
+  #   list's badge and in its phone rows.
+  test "the hit rate's error is in Pp everywhere, and a hit reads getroffen",
+       %{conn: conn} do
+    w = world()
+
+    {:ok, view, _html} = live(conn, "/predictions")
+    assert text_of(view, "tr[data-prediction-id='#{w.hit_a2.id}']") =~ "70 % hit +"
+
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
+    {:ok, view, _html} = live(conn, "/predictions")
+
+    rows =
+      view
+      |> element("#prediction-groups-table tbody")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("tr")
+      |> Enum.map(&(&1 |> Floki.find("td") |> Enum.at(5) |> Floki.text() |> squish()))
+
+    # Agent (all models) and model-alpha-3 have a standard error; the
+    # operator and model-alpha-2 one resolved call each, none.
+    assert [operator, agent, a2, a3] = rows
+    assert agent =~ ~r/^\d+,\d % ± \d+,\d Pp$/
+    assert a3 =~ ~r/^\d+,\d % ± \d+,\d Pp$/
+    assert operator =~ ~r/ ± —$/
+    assert a2 =~ ~r/ ± —$/
+
+    assert text_of(view, "#prediction-groups-phone-rows") =~ ~r/Trefferquote \d+,\d % ± \d+,\d Pp/
+    assert text_of(view, "[data-role='prediction-hit-rate'] .stat__sub") =~ "Pp Standardfehler"
+
+    assert text_of(
+             view,
+             "tr[data-prediction-id='#{w.hit_a2.id}'] [data-role='prediction-status']"
+           ) ==
+             "getroffen"
+
+    assert text_of(
+             view,
+             "tr[data-prediction-id='#{w.miss_a3.id}'] [data-role='prediction-status']"
+           ) ==
+             "verfehlt"
+
+    assert text_of(
+             view,
+             "#prediction-list-phone-rows li[data-prediction-id='#{w.hit_a2.id}'] .phone-row__figure2"
+           ) ==
+             "getroffen"
   end
 
   # --- Sprint 26 fix D end ---

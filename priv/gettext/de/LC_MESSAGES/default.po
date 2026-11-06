@@ -612,7 +612,7 @@ msgstr "Online-Quelle"
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:842
 #: lib/portfolixir_web/live/securities/filter_popover.ex:89
 #: lib/portfolixir_web/live/securities_live.ex:3602
-#: lib/portfolixir_web/prediction_label.ex:164
+#: lib/portfolixir_web/prediction_label.ex:167
 #, elixir-autogen, elixir-format
 msgid "Operator"
 msgstr "Operator"
@@ -5476,8 +5476,8 @@ msgstr "Noch keine Gebühren oder Steuern gebucht."
 #: lib/portfolixir_web/live/securities_live.ex:3603
 #: lib/portfolixir_web/live/tax_live.ex:605
 #: lib/portfolixir_web/live/tax_live.ex:616
-#: lib/portfolixir_web/prediction_label.ex:161
-#: lib/portfolixir_web/prediction_label.ex:163
+#: lib/portfolixir_web/prediction_label.ex:164
+#: lib/portfolixir_web/prediction_label.ex:166
 #, elixir-autogen, elixir-format
 msgid "Agent"
 msgstr "Agent"
@@ -6125,7 +6125,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2687
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:892
-#: lib/portfolixir_web/prediction_label.ex:72
+#: lib/portfolixir_web/prediction_label.ex:75
 #, elixir-autogen, elixir-format
 msgid "no exchange rate"
 msgstr "kein Wechselkurs"
@@ -14823,7 +14823,8 @@ msgid_plural "the target is named by %{count} predictions, and a prediction is n
 msgstr[0] "Das Ziel wird von %{count} Prognose genannt, und eine Prognose wird nie verschoben oder gelöscht."
 msgstr[1] "Das Ziel wird von %{count} Prognosen genannt, und eine Prognose wird nie verschoben oder gelöscht."
 
-#: lib/portfolixir_web/prediction_label.ex:178
+#: lib/portfolixir_web/live/predictions_live.ex:668
+#: lib/portfolixir_web/prediction_label.ex:181
 #, elixir-autogen, elixir-format
 msgid "%{value} pp"
 msgstr "%{value} Pp"
@@ -14859,23 +14860,17 @@ msgstr "Überrendite"
 msgid "Excess = return − the benchmark's return. “Outperforms” hits above 0, “underperforms” below 0; exactly 0 misses both. A fixed rate compounds daily; 0 % is the absolute call (rises, falls)."
 msgstr "Überrendite = Rendite − Rendite der Benchmark. „Übertrifft“ trifft bei mehr als 0, „bleibt zurück“ bei weniger als 0; genau 0 verfehlt beide. Ein fester Satz wird täglich verzinst; 0 % ist die absolute Aussage (steigt, fällt)."
 
-#: lib/portfolixir_web/prediction_label.ex:136
+#: lib/portfolixir_web/prediction_label.ex:139
 #, elixir-autogen, elixir-format
 msgid "Falls by %{date}"
 msgstr "Fällt bis %{date}"
-
-#: lib/portfolixir_web/live/predictions_live.ex:645
-#: lib/portfolixir_web/prediction_label.ex:63
-#, elixir-autogen, elixir-format
-msgid "Hit"
-msgstr "Treffer"
 
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:58
 #, elixir-autogen, elixir-format
 msgid "It is scored at read from stored closes, both sides in EUR at the stored exchange rate of their day; no result is ever stored."
 msgstr "Ausgewertet wird beim Lesen aus gespeicherten Schlusskursen, beide Seiten in EUR zum gespeicherten Wechselkurs ihres Tages; ein Ergebnis wird nie gespeichert."
 
-#: lib/portfolixir_web/prediction_label.ex:104
+#: lib/portfolixir_web/prediction_label.ex:107
 #, elixir-autogen, elixir-format
 msgid "No exchange rate to EUR is stored for the day of a close the call needs."
 msgstr "Für den Tag eines Schlusskurses, den die Prognose braucht, ist kein Wechselkurs nach EUR gespeichert."
@@ -14885,12 +14880,12 @@ msgstr "Für den Tag eines Schlusskurses, den die Prognose braucht, ist kein Wec
 msgid "No prediction is recorded for this security."
 msgstr "Für dieses Wertpapier ist keine Prognose festgehalten."
 
-#: lib/portfolixir_web/prediction_label.ex:119
+#: lib/portfolixir_web/prediction_label.ex:122
 #, elixir-autogen, elixir-format
 msgid "Outperforms %{benchmark} by %{date}"
 msgstr "Übertrifft %{benchmark} bis %{date}"
 
-#: lib/portfolixir_web/prediction_label.ex:139
+#: lib/portfolixir_web/prediction_label.ex:142
 #, elixir-autogen, elixir-format
 msgid "Outperforms %{rate} a year by %{date}"
 msgstr "Übertrifft %{rate} p. a. bis %{date}"
@@ -14940,7 +14935,7 @@ msgstr "Research #%{id} · %{kind}"
 msgid "Return"
 msgstr "Rendite"
 
-#: lib/portfolixir_web/prediction_label.ex:133
+#: lib/portfolixir_web/prediction_label.ex:136
 #, elixir-autogen, elixir-format
 msgid "Rises by %{date}"
 msgstr "Steigt bis %{date}"
@@ -14950,12 +14945,12 @@ msgstr "Steigt bis %{date}"
 msgid "Start: the last close on or before the day it was made. End: the last on or before the resolution day. It is scored once a close from the resolution day on is in, at the latest %{days} days after it."
 msgstr "Start: der letzte Schlusskurs am oder vor dem Tag der Abgabe. Ende: der letzte am oder vor dem Auflösungstag. Gewertet wird erst, wenn ein Schlusskurs ab dem Auflösungstag vorliegt, längstens %{days} Tage danach."
 
-#: lib/portfolixir_web/prediction_label.ex:142
+#: lib/portfolixir_web/prediction_label.ex:145
 #, elixir-autogen, elixir-format
 msgid "Stays below %{rate} a year by %{date}"
 msgstr "Bleibt bis %{date} unter %{rate} p. a."
 
-#: lib/portfolixir_web/prediction_label.ex:97
+#: lib/portfolixir_web/prediction_label.ex:100
 #, elixir-autogen, elixir-format
 msgid "The benchmark has no close on or up to %{days} days before %{start} or %{end}."
 msgstr "Für die Benchmark liegt am oder bis %{days} Tage vor dem %{start} oder dem %{end} kein Schlusskurs vor."
@@ -14965,42 +14960,42 @@ msgstr "Für die Benchmark liegt am oder bis %{days} Tage vor dem %{start} oder 
 msgid "The resolution day has passed; it is scored once a close from %{date} on is in, at the latest on %{last}."
 msgstr "Der Auflösungstag ist vorbei; gewertet wird, sobald ein Schlusskurs ab dem %{date} vorliegt, spätestens am %{last}."
 
-#: lib/portfolixir_web/prediction_label.ex:83
-#: lib/portfolixir_web/prediction_label.ex:90
+#: lib/portfolixir_web/prediction_label.ex:86
+#: lib/portfolixir_web/prediction_label.ex:93
 #, elixir-autogen, elixir-format
 msgid "The security has no close on or up to %{days} days before %{date}."
 msgstr "Für das Wertpapier liegt am oder bis %{days} Tage vor dem %{date} kein Schlusskurs vor."
 
-#: lib/portfolixir_web/prediction_label.ex:122
+#: lib/portfolixir_web/prediction_label.ex:125
 #, elixir-autogen, elixir-format
 msgid "Underperforms %{benchmark} by %{date}"
 msgstr "Bleibt bis %{date} hinter %{benchmark} zurück"
 
 #: lib/portfolixir_web/live/predictions_live.ex:646
-#: lib/portfolixir_web/prediction_label.ex:64
+#: lib/portfolixir_web/prediction_label.ex:67
 #, elixir-autogen, elixir-format
 msgid "missed"
 msgstr "verfehlt"
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:893
-#: lib/portfolixir_web/prediction_label.ex:71
+#: lib/portfolixir_web/prediction_label.ex:74
 #, elixir-autogen, elixir-format
 msgid "no benchmark close"
 msgstr "kein Benchmark-Kurs"
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:894
-#: lib/portfolixir_web/prediction_label.ex:70
+#: lib/portfolixir_web/prediction_label.ex:73
 #, elixir-autogen, elixir-format
 msgid "no end close"
 msgstr "kein Endkurs"
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:891
-#: lib/portfolixir_web/prediction_label.ex:69
+#: lib/portfolixir_web/prediction_label.ex:72
 #, elixir-autogen, elixir-format
 msgid "no start close"
 msgstr "kein Startkurs"
 
-#: lib/portfolixir_web/prediction_label.ex:65
+#: lib/portfolixir_web/prediction_label.ex:68
 #, elixir-autogen, elixir-format
 msgid "not resolved"
 msgstr "nicht aufgelöst"
@@ -15674,3 +15669,9 @@ msgstr "Wert (%)"
 #, elixir-autogen, elixir-format
 msgid "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata; sales and buys on the same day share pro rata."
 msgstr "Anschlusskauf: die Käufe vom Verrechnungskonto des Verkaufs, am Verkaufstag oder bis zu %{days} Tage danach, verbrauchen den Erlös in Datumsfolge, bis er aufgebraucht ist; der letzte zählt anteilig; Verkäufe und Käufe desselben Tages teilen anteilig."
+
+#: lib/portfolixir_web/live/predictions_live.ex:645
+#: lib/portfolixir_web/prediction_label.ex:66
+#, elixir-autogen, elixir-format
+msgid "hit"
+msgstr "getroffen"
