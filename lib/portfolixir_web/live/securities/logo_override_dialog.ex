@@ -24,6 +24,12 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
   attr(:upload, :any, required: true, doc: "the parent's `:logo` upload config")
   attr(:upload_error, :atom, default: nil, doc: "the store's refusal of the chosen file")
 
+  attr(:focus_return, :string,
+    default: nil,
+    doc:
+      "where the focus goes on close: the row's kebabs, as the menu that opened it is gone (#1340)"
+  )
+
   def dialog(assigns) do
     upload = assigns.upload
     errors = upload_errors(upload) ++ Enum.flat_map(upload.entries, &upload_errors(upload, &1))
@@ -43,6 +49,7 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
       class="modal logo-override"
       phx-hook="ModalDialog"
       data-close-event="close_logo_dialog"
+      data-focus-return={@focus_return}
       aria-labelledby="logo-override-title"
     >
         <header class="modal-head">

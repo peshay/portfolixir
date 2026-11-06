@@ -5441,8 +5441,13 @@ details[open] > .cat-summary::before {
   text-transform: uppercase;
   color: var(--color-text-muted);
   /* A long uppercase label ("Invalidierungsbedingung") must wrap inside its
-     column rather than run into the neighbour's (design-critic pass, 390 px). */
+     column rather than run into the neighbour's (design-critic pass, 390 px).
+     It breaks at a syllable where the browser can hyphenate the page's
+     language (`lang` on <html>), and anywhere only where it cannot (issue 1365:
+     „INVALIDIERUNGSBEDINGUN / G“ at 1200 px). */
   overflow-wrap: anywhere;
+  -webkit-hyphens: auto;
+  hyphens: auto;
 }
 /* Below a phone width the fact grids stack: two columns of uppercase labels
    do not fit 390 px minus the pane's padding. */
@@ -5565,7 +5570,11 @@ details[open] > .cat-summary::before {
   align-items: center;
   gap: var(--space-2);
 }
+/* A meta line that is a paragraph (a Termine entry's, a prediction's
+   research link) keeps no browser margins: the entry's gap spaces it
+   (issue 1365). */
 .research-entry__meta {
+  margin: 0;
   font-size: 12px;
   color: var(--color-text-muted);
 }
@@ -5616,10 +5625,6 @@ details[open] > .cat-summary::before {
 .prediction-entry__facts dd.num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-/* The research link's meta line is a paragraph: no browser margins. */
-.prediction-entry p.research-entry__meta {
-  margin: 0;
 }
 .prediction-entry__reason {
   margin: 0;

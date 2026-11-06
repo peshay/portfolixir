@@ -422,12 +422,15 @@ defmodule PortfolixirWeb.BucketsLive do
   defp view_bucket_modal(assigns) do
     ~H"""
     <%!-- Native dialog (UX-DR9, issue 646): opened via showModal() by the
-         ModalDialog hook; cancel (Esc) pushes the close event. --%>
+         ModalDialog hook; cancel (Esc) pushes the close event. It opens
+         from the view's row menu, which is gone when it closes, so the
+         row's kebab takes the focus back (#1340). --%>
     <dialog
       id="view-bucket-modal"
       class="modal"
       phx-hook="ModalDialog"
       data-close-event="close_bucket_picker"
+      data-focus-return={"#view-kebab-#{@view.id}"}
       aria-labelledby="view-bucket-modal-title"
     >
       <header class="modal-head">

@@ -662,7 +662,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   # "Cannot delete" (board 01): the securities page's dialog with another way
-  # out — the merge, whose first step opens for this account.
+  # out — the merge, whose first step opens for this account. It opens from
+  # the row menu, which is gone when it closes, so the row's kebab takes the
+  # focus back (#1340).
   attr(:blocked, :map, required: true)
 
   defp delete_blocked_dialog(assigns) do
@@ -672,6 +674,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       class="modal confirm-delete-blocked"
       phx-hook="ModalDialog"
       data-close-event="close_delete_blocked"
+      data-focus-return={"#" <> kebab_dom_id(@blocked.kind, @blocked.account.id)}
       aria-labelledby="delete-blocked-title"
     >
       <header class="modal-head">
