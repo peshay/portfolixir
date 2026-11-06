@@ -4297,6 +4297,24 @@ describe("Portfolixir MCP tools", () => {
   });
   // --- Sprint 26 R2 end ---
 
+  // --- Sprint 26 closing act R begin ---
+  // User story (Sprint 26 closing act, A3; ADR-0046's rate:<decimal>):
+  // As the agent asking what a sale missed against a savings rate,
+  // I want the benchmark parameter's own description to give the rate's
+  // scale,
+  // so that I send rate:0.02 for 2 % a year and never rate:2 (200 %).
+  //
+  // Acceptance criteria:
+  // - The benchmark property's description reads rate:0.02 = 2 % p.a. and
+  //   names security:<id> flagged is_benchmark.
+  it("gives the benchmark rate's scale on the parameter itself", () => {
+    const tool = listTools().find((entry) => entry.name === "portfolixir.sales.hindsight");
+    const benchmark = tool?.inputSchema.properties?.benchmark as { description?: string } | undefined;
+    assert.match(benchmark?.description ?? "", /rate:0\.02 = 2 % p\.a\./);
+    assert.match(benchmark?.description ?? "", /security:<id> flagged is_benchmark/);
+  });
+  // --- Sprint 26 closing act R end ---
+
   // User story (Sprint 25, F4; ADR-0055 §5):
   // As the operator's agent with a view on a position,
   // I want one write that records a call and three reads that resolve and
