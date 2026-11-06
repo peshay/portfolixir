@@ -56,9 +56,10 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     assert Catalog.get_security(security.id)
   end
 
-  # Acceptance criteria (ADR-0049 §8, board 06):
-  # - Deleting a category or a classification a rule reads shows the page's
-  #   error message naming the rules, and nothing is deleted.
+  # Acceptance criteria (ADR-0049 §8, board 06; Sprint 26 V4, board 04):
+  # - Deleting a category or a classification a rule reads shows the
+  #   refusal naming the rules in the delete dialog, before any delete is
+  #   clicked, and nothing is deleted.
   # - Deleting a view a rule reads (as context or as subject) does the same
   #   on /buckets, where it used to fail with no message at all.
   test "category, classification and view deletes name the rules", %{conn: conn} do
@@ -85,12 +86,14 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
 
     {:ok, view, _html} = live(conn, "/classifications/#{tree.id}")
 
-    html = render_hook(view, "delete_category", %{"id" => to_string(bonds.id)})
-    assert html =~ "Anleihen im Band"
+    render_hook(view, "ask_delete_category", %{"id" => to_string(bonds.id)})
+    assert view |> element("#delete-preview-dialog") |> render() =~ "Anleihen im Band"
+    refute has_element?(view, "#delete-preview-confirm")
     assert Classifications.get_category(bonds.id)
 
-    html = render_hook(view, "delete_classification", %{})
-    assert html =~ "Anleihen im Band"
+    render_hook(view, "ask_delete_classification", %{})
+    assert view |> element("#delete-preview-dialog") |> render() =~ "Anleihen im Band"
+    refute has_element?(view, "#delete-preview-confirm")
     assert Classifications.get_classification(tree.id)
 
     {:ok, spekulativ} =
@@ -115,14 +118,13 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     )
     |> render_click()
 
-    html =
-      buckets
-      |> element(
-        ~s([role="menu"] button[phx-click="delete_view"][phx-value-id="#{spekulativ.id}"])
-      )
-      |> render_click()
+    buckets
+    |> element(
+      ~s([role="menu"] button[phx-click="ask_delete_view"][phx-value-id="#{spekulativ.id}"])
+    )
+    |> render_click()
 
-    assert html =~ "Spielgeld klein halten"
+    assert buckets |> element("#delete-preview-dialog") |> render() =~ "Spielgeld klein halten"
     assert Buckets.get_view(spekulativ.id)
   end
 
@@ -134,13 +136,15 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
   # the active view's rules and carries no view switcher.
   #
   # Acceptance criteria:
-  # - The refusal band on /buckets names each rule with its status and the
-  #   view it applies in (its context, not the view being deleted), and the
-  #   rule's name — only the name — is a link.
+  # - The refusal on /buckets — since Sprint 26 V4 in the delete dialog —
+  #   names each rule with its status and the view it applies in (its
+  #   context, not the view being deleted), and the rule's name — only the
+  #   name — is a link.
   # - The link is a plain href to /risk?view=<the context's id>, or
   #   view=total for a portfolio-wide rule, so the view scope takes the
   #   choice on a full navigation; following it shows the rule on Risk.
-  # - A rule's name is text, never markup. The band's second sentence stays.
+  # - A rule's name is text, never markup. The dialog says the delete stays
+  #   blocked and that retiring the rule stops its evaluation.
   # - The same links reach the refusal on /classifications and the list in
   #   the securities delete-blocked dialog.
   test "a refusal links each rule to Risk in the view it applies in", %{conn: conn} do
@@ -184,20 +188,22 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     |> render_click()
 
     buckets
-    |> element(~s([role="menu"] button[phx-click="delete_view"][phx-value-id="#{spekulativ.id}"]))
+    |> element(
+      ~s([role="menu"] button[phx-click="ask_delete_view"][phx-value-id="#{spekulativ.id}"])
+    )
     |> render_click()
 
-    band = buckets |> element("#buckets-result .data-note--problem") |> render()
+    band = buckets |> element("#delete-preview-dialog") |> render()
 
     assert has_element?(
              buckets,
-             ~s(#buckets-result .data-note--problem a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
+             ~s(#delete-preview-dialog a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
              "Spielgeld <b>klein</b> halten"
            )
 
     assert has_element?(
              buckets,
-             ~s(#buckets-result .data-note--problem a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{inside.id}"]),
+             ~s(#delete-preview-dialog a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{inside.id}"]),
              "Spekulativ breit streuen"
            )
 
@@ -205,7 +211,7 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     refute band =~ "<b>klein</b>"
     assert band =~ "(in force, view “Everything”)"
     assert band =~ "(in force, view “#{spekulativ.name}”)"
-    assert band =~ "retiring it on Wealth → Risk stops its evaluation."
+    assert band =~ "retiring the rule on Wealth → Risk stops its evaluation."
     assert Buckets.get_view(spekulativ.id)
 
     # Following the link lands on Risk in that view, where the rule is.
@@ -240,11 +246,11 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
       )
 
     {:ok, classifications, _html} = live(conn, "/classifications/#{tree.id}")
-    render_hook(classifications, "delete_category", %{"id" => to_string(bonds.id)})
+    render_hook(classifications, "ask_delete_category", %{"id" => to_string(bonds.id)})
 
     assert has_element?(
              classifications,
-             ~s(#classifications-result .data-note--problem a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{banded.id}"]),
+             ~s(#delete-preview-dialog a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{banded.id}"]),
              "Anleihen im Band"
            )
 
@@ -278,7 +284,8 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
              "(in force, view “#{spekulativ.name}”)"
   end
 
-  # Acceptance criteria (#871, G6-A): on a German page the band reads
+  # Acceptance criteria (#871, G6-A; Sprint 26 V4): on a German page the
+  # delete dialog reads
   # „name“ (gilt, Ansicht „Alles“), the name still the only link.
   test "the refusal's links read in German on a German page", %{conn: conn} do
     world = base_world(name: "Refs")
@@ -306,14 +313,16 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
       )
 
     {:ok, buckets, _html} = live(conn, "/buckets")
-    html = render_hook(buckets, "delete_view", %{"id" => to_string(spekulativ.id)})
+    render_hook(buckets, "ask_delete_view", %{"id" => to_string(spekulativ.id)})
+    html = buckets |> element("#delete-preview-dialog") |> render()
 
-    assert html =~ "Wird von eigenen Regeln gelesen: „"
+    assert html =~ "Kann nicht gelöscht werden"
+    assert html =~ "wird von eigenen Regeln gelesen:"
     assert html =~ "“ (gilt, Ansicht „Alles“)"
 
     assert has_element?(
              buckets,
-             ~s(#buckets-result .data-note--problem a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
+             ~s(#delete-preview-dialog a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
              "Spielgeld klein halten"
            )
   end

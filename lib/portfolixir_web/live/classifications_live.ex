@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.DeletePreviewDialog
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
@@ -49,7 +50,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:planned_view_ids, [])
      |> assign(:view_gone_notice, false)
      |> assign(:view_matches_nothing, false)
-     |> assign(:soll_refused, nil)}
+     |> assign(:soll_refused, nil)
+     |> assign(:delete_preview, nil)}
   end
 
   # The per-security holdings/valuation is loaded asynchronously, after the
@@ -311,11 +313,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <% end %>
           </h2>
           <%= if @tree.editable do %>
+            <%!-- Sprint 26 V4 (F21, #894; board 04): the app's delete dialog,
+                 which lists from the dry run what the delete removes, is the
+                 one confirmation; no browser confirm before it. --%>
             <button
               type="button"
               class="button-danger"
-              phx-click="delete_classification"
-              data-confirm={gettext("Delete this classification and all its categories?")}
+              phx-click="ask_delete_classification"
             >
               <%= gettext("Delete classification") %>
             </button>
@@ -574,6 +578,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </ul>
           </div>
         </details>
+        <DeletePreviewDialog.dialog
+          :if={@delete_preview}
+          dialog={@delete_preview}
+          focus_fallback="#classification-heading"
+          focus_result="#classifications-result .data-note"
+        />
       </div>
     </AppShell.shell>
     """
@@ -739,21 +749,26 @@ defmodule PortfolixirWeb.ClassificationsLive do
               <AppShell.icon name={:external_link} />
               <%= gettext("Open") %>
             </.link>
+            <%!-- Sprint 26 V4: the same dialog as the detail head's button. --%>
             <button
               :if={not open_row.classification.built_in}
               type="button"
               id={"tree-delete-#{open_row.classification.id}"}
               class="row-context-menu__item row-context-menu__item--danger"
               role="menuitem"
-              phx-click="delete_classification_row"
+              phx-click="ask_delete_classification"
               phx-value-id={open_row.classification.id}
-              data-confirm={gettext("Delete this classification and all its categories?")}
             >
               <AppShell.icon name={:trash} />
               <%= gettext("Delete") %>
             </button>
           </AppShell.row_menu>
         </section>
+        <DeletePreviewDialog.dialog
+          :if={@delete_preview}
+          dialog={@delete_preview}
+          focus_fallback="#new-classification"
+        />
       </div>
     </AppShell.shell>
     """
@@ -1156,9 +1171,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <button
               type="button"
               class="icon-mini"
-              phx-click="delete_category"
+              phx-click="ask_delete_category"
               phx-value-id={@node.category.id}
-              data-confirm={gettext("Delete this category?")}
               aria-label={gettext("Delete category")}
               title={gettext("Delete category")}
             >×</button>
@@ -1672,13 +1686,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  def handle_event("delete_category", %{"id" => id}, socket) do
+  # Sprint 26 V4 (F21, #894; board 04): the category's × opens the delete
+  # dialog, which runs the delete's dry run and nothing else.
+  def handle_event("ask_delete_category", %{"id" => id}, socket) do
     with {:ok, category_id} <- LiveParam.fetch_id(id),
-         category when not is_nil(category) <- Classifications.get_category(category_id),
-         {:ok, _} <- Classifications.delete_category(Actor.owner_ui(), category) do
-      {:noreply, socket |> success(gettext("Category deleted")) |> reload_composition()}
+         %{} = tree <- socket.assigns.tree,
+         %{} = category <- Classifications.get_category(category_id),
+         true <- category.classification_id == tree.classification.id do
+      open_delete_preview(socket, :category, category, category_subject(tree, category))
     else
-      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       _ -> {:noreply, socket}
     end
   end
@@ -1697,28 +1713,55 @@ defmodule PortfolixirWeb.ClassificationsLive do
     {:noreply, assign(socket, :tree_menu_id, nil)}
   end
 
-  def handle_event("delete_classification_row", %{"id" => id_str}, socket) do
-    with {:ok, id} <- LiveParam.fetch_id(id_str),
-         classification when not is_nil(classification) <- Classifications.get_classification(id),
-         {:ok, _} <- Classifications.delete_classification(Actor.owner_ui(), classification) do
-      {:noreply, push_navigate(socket, to: "/classifications")}
-    else
-      {:error, reason} ->
-        {:noreply, socket |> assign(:tree_menu_id, nil) |> failure(error_message(reason))}
+  # Sprint 26 V4 (F21, #894; board 04): the detail head's button and the
+  # index row menu's "Delete" open the same dialog; only the id travels
+  # differently, because the index has no selected tree.
+  def handle_event("ask_delete_classification", %{"id" => id_str}, socket) do
+    socket = assign(socket, :tree_menu_id, nil)
 
-      _ ->
-        {:noreply, assign(socket, :tree_menu_id, nil)}
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
+         %{} = classification <- Classifications.get_classification(id) do
+      ask_delete_classification(socket, classification)
+    else
+      _ -> {:noreply, socket}
     end
   end
 
-  def handle_event("delete_classification", _params, socket) do
-    with id when not is_nil(id) <- socket.assigns.selected_id,
-         classification when not is_nil(classification) <- Classifications.get_classification(id),
-         {:ok, _} <- Classifications.delete_classification(Actor.owner_ui(), classification) do
-      {:noreply, push_navigate(socket, to: "/classifications")}
+  def handle_event("ask_delete_classification", params, socket)
+      when not is_map_key(params, "id") do
+    with id when is_integer(id) <- socket.assigns.selected_id,
+         %{} = classification <- Classifications.get_classification(id) do
+      ask_delete_classification(socket, classification)
     else
-      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_delete_preview", _params, socket),
+    do: {:noreply, assign(socket, :delete_preview, nil)}
+
+  # The one confirmation: the delete the open dialog lists, held to its
+  # list, and only when the event names that dialog's subject — no dialog,
+  # another kind or id, or a refusal confirm nothing (plan D-8,
+  # carry-forward 2).
+  def handle_event("confirm_delete_preview", %{"kind" => kind, "id" => id}, socket) do
+    dialog = socket.assigns.delete_preview
+
+    if DeletePreviewDialog.confirms?(dialog, kind, id),
+      do: {:noreply, confirm_delete_preview(socket, dialog)},
+      else: {:noreply, socket}
+  end
+
+  def handle_event("recheck_delete_preview", _params, socket) do
+    case socket.assigns.delete_preview do
+      %{state: :concurrent} = dialog ->
+        case DeletePreviewDialog.recheck(Actor.owner_ui(), dialog) do
+          {:ok, fresh} -> {:noreply, assign(socket, :delete_preview, fresh)}
+          {:error, reason} -> {:noreply, delete_preview_failed(socket, reason)}
+        end
+
+      _other ->
+        {:noreply, socket}
     end
   end
 
@@ -3320,6 +3363,101 @@ defmodule PortfolixirWeb.ClassificationsLive do
       ),
       parent: category_name(assigns, Ecto.Changeset.get_field(changeset, :parent_id))
     )
+  end
+
+  # -- the delete dialog (Sprint 26 V4) ------------------------------------------
+
+  defp ask_delete_classification(socket, classification) do
+    open_delete_preview(
+      socket,
+      :classification,
+      classification,
+      classification_subject(classification)
+    )
+  end
+
+  defp open_delete_preview(socket, kind, record, subject) do
+    case DeletePreviewDialog.open(Actor.owner_ui(), kind, record, subject) do
+      {:ok, dialog} -> {:noreply, assign(socket, :delete_preview, dialog)}
+      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+    end
+  end
+
+  defp confirm_delete_preview(socket, dialog) do
+    case DeletePreviewDialog.confirm(Actor.owner_ui(), dialog) do
+      :deleted -> deleted(socket, dialog)
+      {:changed, fresh} -> socket |> assign(:delete_preview, fresh) |> refresh_after_delete()
+      :gone -> delete_preview_failed(socket, :not_found)
+      {:error, reason} -> delete_preview_failed(socket, reason)
+    end
+  end
+
+  defp deleted(socket, %{kind: :classification}),
+    do: socket |> assign(:delete_preview, nil) |> push_navigate(to: "/classifications")
+
+  defp deleted(socket, %{kind: :category}) do
+    socket
+    |> assign(:delete_preview, nil)
+    |> success(gettext("Category deleted"))
+    |> reload_composition()
+  end
+
+  defp delete_preview_failed(socket, reason) do
+    socket
+    |> assign(:delete_preview, nil)
+    |> failure(error_message(reason))
+    |> refresh_after_delete()
+  end
+
+  # The page reads again what a delete elsewhere may have changed: a tree
+  # its composition, the index its rows.
+  defp refresh_after_delete(%{assigns: %{live_action: :show}} = socket),
+    do: reload_composition(socket)
+
+  defp refresh_after_delete(socket),
+    do: assign(socket, :index_rows, index_rows(socket.assigns.portfolio))
+
+  # The subject box: the tree as the index row counts it, "6 categories ·
+  # 2 levels" (board 04 ①).
+  defp classification_subject(classification) do
+    categories = Classifications.list_categories(classification.id)
+    count = length(categories)
+    levels = tree_depth(categories)
+
+    %{
+      name: ClassificationName.display(classification),
+      ids:
+        ngettext("%{count} category", "%{count} categories", count) <>
+          " · " <> ngettext("%{count} level", "%{count} levels", levels)
+    }
+  end
+
+  # The category as its tree row shows it: in which classification, and
+  # the positions the row counts (board 04 ①).
+  defp category_subject(tree, category) do
+    positions =
+      case find_node(tree.nodes, category.id) do
+        nil -> nil
+        node -> ngettext("%{count} position", "%{count} positions", total_count(node))
+      end
+
+    %{
+      name: category.name,
+      ids:
+        StoredText.isolate(
+          gettext("Category in %{classification}",
+            classification: StoredText.slot(:classification)
+          ),
+          classification: ClassificationName.display(tree.classification)
+        ),
+      figure: positions
+    }
+  end
+
+  defp find_node(nodes, id) do
+    Enum.find_value(nodes, fn node ->
+      if node.category.id == id, do: node, else: find_node(node.children, id)
+    end)
   end
 
   defp error_message(:builtin_locked), do: gettext("Built-in classifications cannot be edited")

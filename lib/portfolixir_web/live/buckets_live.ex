@@ -34,6 +34,7 @@ defmodule PortfolixirWeb.BucketsLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DeletePreviewDialog
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
@@ -52,6 +53,7 @@ defmodule PortfolixirWeb.BucketsLive do
      |> assign(:view_form_open?, false)
      |> assign(:bucket_form_open?, false)
      |> assign(:row_menu, nil)
+     |> assign(:delete_preview, nil)
      |> load_state()}
   end
 
@@ -194,6 +196,12 @@ defmodule PortfolixirWeb.BucketsLive do
           </ul>
           <p :if={@view_rows == []} class="hint"><%= gettext("No views yet.") %></p>
         </section>
+        <DeletePreviewDialog.dialog
+          :if={@delete_preview}
+          dialog={@delete_preview}
+          focus_fallback="#views-heading"
+          focus_result="#buckets-result .data-note"
+        />
 
         <section id="buckets-section" class="workspace-section">
           <header class="section-head">
@@ -530,9 +538,8 @@ defmodule PortfolixirWeb.BucketsLive do
         type="button"
         class="row-context-menu__item row-context-menu__item--danger"
         role="menuitem"
-        phx-click="delete_view"
+        phx-click="ask_delete_view"
         phx-value-id={@id}
-        data-confirm={gettext("Delete this view?")}
       >
         <AppShell.icon name={:trash} />
         <span><%= gettext("Delete") %></span>
@@ -730,24 +737,50 @@ defmodule PortfolixirWeb.BucketsLive do
     end
   end
 
-  def handle_event("delete_view", %{"id" => id}, socket) do
+  # Sprint 26 V4 (F21, #894; board 04): the row menu's "Delete" opens the
+  # app's delete dialog, which runs the delete's dry run and nothing else
+  # and lists what the delete removes, or the refusal of the rules that
+  # read the view (ADR-0049 §8) before any click on delete.
+  def handle_event("ask_delete_view", %{"id" => id}, socket) do
     socket = assign(socket, :row_menu, nil)
 
     with {:ok, view_id} <- LiveParam.fetch_id(id),
-         view when not is_nil(view) <- Buckets.get_view(view_id),
-         {:ok, _} <- Buckets.delete_view(Actor.owner_ui(), view) do
-      {:noreply, socket |> success(gettext("View deleted")) |> load_state()}
+         %{} = view <- Buckets.get_view(view_id) do
+      subject = view_subject(view, Enum.find(socket.assigns.view_rows, &(&1.id == view_id)))
+
+      case DeletePreviewDialog.open(Actor.owner_ui(), :view, view, subject) do
+        {:ok, dialog} -> {:noreply, assign(socket, :delete_preview, dialog)}
+        {:error, reason} -> {:noreply, delete_preview_failed(socket, reason)}
+      end
     else
-      # ADR-0049 §8: a view a rule reads is refused by name, where the delete
-      # used to fail with no message at all (board 06-rule-reference-409);
-      # each name links to Risk in the view the rule applies in (#871, G6-A).
-      {:error, {:policy_rules, rules}} ->
-        {:noreply, failure(socket, PolicyRuleReferences.refusal(rules))}
+      _ -> {:noreply, socket}
+    end
+  end
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, failure(socket, changeset_error(changeset))}
+  def handle_event("cancel_delete_preview", _params, socket),
+    do: {:noreply, assign(socket, :delete_preview, nil)}
 
-      _ ->
+  # The one confirmation: the delete the open dialog lists, held to its
+  # list, and only when the event names that dialog's view — no dialog,
+  # another kind or id, or a refusal confirm nothing (plan D-8,
+  # carry-forward 2).
+  def handle_event("confirm_delete_preview", %{"kind" => kind, "id" => id}, socket) do
+    dialog = socket.assigns.delete_preview
+
+    if DeletePreviewDialog.confirms?(dialog, kind, id),
+      do: {:noreply, confirm_delete_preview(socket, dialog)},
+      else: {:noreply, socket}
+  end
+
+  def handle_event("recheck_delete_preview", _params, socket) do
+    case socket.assigns.delete_preview do
+      %{state: :concurrent} = dialog ->
+        case DeletePreviewDialog.recheck(Actor.owner_ui(), dialog) do
+          {:ok, fresh} -> {:noreply, assign(socket, :delete_preview, fresh)}
+          {:error, reason} -> {:noreply, delete_preview_failed(socket, reason)}
+        end
+
+      _other ->
         {:noreply, socket}
     end
   end
@@ -959,6 +992,88 @@ defmodule PortfolixirWeb.BucketsLive do
       for cash <- cash_accounts, Map.get(assignments.cash, cash.id, []) == [], do: cash.name
 
     Enum.sort(depot_names ++ cash_names)
+  end
+
+  # -- the delete dialog (Sprint 26 V4) -----------------------------------------
+
+  defp confirm_delete_preview(socket, dialog) do
+    case DeletePreviewDialog.confirm(Actor.owner_ui(), dialog) do
+      :deleted ->
+        socket |> assign(:delete_preview, nil) |> success(gettext("View deleted")) |> load_state()
+
+      {:changed, fresh} ->
+        socket |> assign(:delete_preview, fresh) |> load_state()
+
+      :gone ->
+        delete_preview_failed(socket, :not_found)
+
+      {:error, reason} ->
+        delete_preview_failed(socket, reason)
+    end
+  end
+
+  defp delete_preview_failed(socket, reason) do
+    message =
+      case reason do
+        :not_found -> gettext("That view no longer exists.")
+        %Ecto.Changeset{} = changeset -> changeset_error(changeset)
+        _other -> gettext("Something went wrong")
+      end
+
+    socket |> assign(:delete_preview, nil) |> failure(message) |> load_state()
+  end
+
+  # The subject box: the view as its row names it — its rule over its
+  # positions and accounts (board 04 ①); no amount.
+  defp view_subject(view, nil), do: %{name: view.name}
+
+  defp view_subject(view, row) do
+    %{
+      name: view.name,
+      ids: rule_text(row.rule),
+      figure:
+        row.figures &&
+          ngettext("%{count} position", "%{count} positions", row.figures.positions),
+      figure2:
+        row.figures && ngettext("%{count} account", "%{count} accounts", row.figures.accounts)
+    }
+  end
+
+  # The row's rule chips as one line of text, each bucket's name isolated:
+  # "Everything · except Crypto".
+  defp rule_text(rule) do
+    include =
+      case rule.include do
+        :all when rule.exclude == [] ->
+          [gettext("All depots, cash accounts and positions · no filters")]
+
+        :all ->
+          [gettext("Everything")]
+
+        [] ->
+          [gettext("Only"), " ", gettext("nothing included")]
+
+        names ->
+          [gettext("Only"), " ", names_list(names)]
+      end
+
+    exclude =
+      if rule.exclude == [],
+        do: [],
+        else: [" · ", gettext("except"), " ", names_list(rule.exclude)]
+
+    {:safe,
+     Enum.map(include ++ exclude, fn
+       {:safe, iodata} -> iodata
+       text -> Phoenix.HTML.html_escape(text) |> Phoenix.HTML.safe_to_string()
+     end)}
+  end
+
+  defp names_list(names) do
+    {:safe,
+     names
+     |> Enum.map(fn name -> name |> StoredText.bdi() |> Phoenix.HTML.safe_to_string() end)
+     |> Enum.intersperse(", ")}
   end
 
   # -- helpers ----------------------------------------------------------------

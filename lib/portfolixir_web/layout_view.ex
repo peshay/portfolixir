@@ -59,8 +59,9 @@ defmodule PortfolixirWeb.LayoutView do
           (function () {
             // Every destructive control carries data-confirm (#765), unless a
             // destructive dialog is itself its one confirmation — the release
-            // of manual quotes, the delete of a booking (U1, #912): one
-            // confirmation, never two. The page loads no phoenix_html script,
+            // of manual quotes, the delete of a booking (U1, #912), the
+            // deletes of a classification, a category and a view (V4, #894):
+            // one confirmation, never two. The page loads no phoenix_html script,
             // so the attribute is honoured here: one capture-phase listener
             // ahead of LiveView's own, cancelling the click before phx-click
             // can see it.

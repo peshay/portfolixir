@@ -117,7 +117,13 @@ defmodule PortfolixirWeb.ClassificationsResultReloadTest do
     view = open!(conn, ctx.classification)
     assert invested(view, ctx.equity) == "1,000.00"
 
-    render_hook(view, "delete_category", %{"id" => to_string(ctx.core.id)})
+    # Sprint 26 V4: the delete confirms in its dialog.
+    render_hook(view, "ask_delete_category", %{"id" => to_string(ctx.core.id)})
+
+    render_hook(view, "confirm_delete_preview", %{
+      "kind" => "category",
+      "id" => to_string(ctx.core.id)
+    })
 
     assert invested(view, ctx.equity) == "—"
   end
