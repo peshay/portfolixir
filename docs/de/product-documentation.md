@@ -4726,6 +4726,14 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
   Auf dem Server wird nichts davon gespeichert, und ein Link einer anderen
   Website kann auf der Seite, die er öffnet, Zahlen verbergen, aber nie
   zeigen.
+- **Das Audit-Journal** verbirgt die gespeicherten Zahlen ebenso: In einer
+  Änderungszeile und unter „Gespeicherte Werte“ sind ein Kurs, eine
+  Stückzahl, Gebühren, Steuern, ein Betrag und eine gespeicherte Steuerzahl
+  Balken, auch in einer gespeicherten Liste (die Schlusskurse einer
+  Kurseingabe). IDs, Daten, Arten und Texte des Eintrags bleiben, ebenso
+  seine gespeicherten Verhältnisse (eine Wahrscheinlichkeit, ein
+  Zielgewicht, ein Wechselkurs, ein Steuersatz), wie gespeichert. Die Seite
+  bietet keinen Download an; das Journal über die API ist nicht betroffen.
 - **Formulare behalten ihre Werte.** Ein Formular, das eine gespeicherte Zahl
   bearbeitet (die Buchungsleiste, eine Abrechnung, ein manueller Kurs),
   öffnet mit dem echten Wert, weil eine blind getippte Korrektur einen
