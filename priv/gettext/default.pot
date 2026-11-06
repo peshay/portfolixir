@@ -5510,7 +5510,7 @@ msgstr ""
 msgid "Could not append the entry."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:199
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:203
 #: lib/portfolixir_web/live/securities_live.ex:3581
 #, elixir-autogen, elixir-format
 msgid "Decision"
@@ -5534,13 +5534,13 @@ msgstr ""
 msgid "Entry appended."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:196
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:200
 #: lib/portfolixir_web/live/securities_live.ex:3578
 #, elixir-autogen, elixir-format
 msgid "Event result"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:194
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:198
 #: lib/portfolixir_web/live/securities_live.ex:3576
 #, elixir-autogen, elixir-format
 msgid "Evidence"
@@ -5556,7 +5556,7 @@ msgstr ""
 msgid "Intact"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:195
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:199
 #: lib/portfolixir_web/live/securities_live.ex:3577
 #, elixir-autogen, elixir-format
 msgid "Invalidation check"
@@ -5639,7 +5639,7 @@ msgstr ""
 msgid "Retracted"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:198
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:202
 #: lib/portfolixir_web/live/securities_live.ex:3580
 #, elixir-autogen, elixir-format
 msgid "Retraction"
@@ -5652,7 +5652,7 @@ msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:289
 #: lib/portfolixir_web/live/risk_live.ex:215
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:197
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:201
 #: lib/portfolixir_web/live/securities_live.ex:3579
 #, elixir-autogen, elixir-format
 msgid "Risk"
@@ -5687,7 +5687,7 @@ msgstr ""
 msgid "Supersedes"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:193
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:197
 #: lib/portfolixir_web/live/securities_live.ex:1880
 #: lib/portfolixir_web/live/securities_live.ex:3322
 #: lib/portfolixir_web/live/securities_live.ex:3575
@@ -14833,7 +14833,7 @@ msgstr ""
 msgid "Benchmark return"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:171
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:175
 #, elixir-autogen, elixir-format
 msgid "Closes"
 msgstr ""
@@ -14854,7 +14854,7 @@ msgstr ""
 msgid "Falls by %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/predictions_live.ex:643
+#: lib/portfolixir_web/live/predictions_live.ex:645
 #: lib/portfolixir_web/prediction_label.ex:63
 #, elixir-autogen, elixir-format
 msgid "Hit"
@@ -14915,12 +14915,12 @@ msgstr ""
 msgid "Recorded predictions on this security, newest first. None is ever changed or deleted."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:187
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:191
 #, elixir-autogen, elixir-format
 msgid "Research #%{id}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/predictions_tab.ex:190
+#: lib/portfolixir_web/live/securities/predictions_tab.ex:194
 #, elixir-autogen, elixir-format
 msgid "Research #%{id} · %{kind}"
 msgstr ""
@@ -14966,7 +14966,7 @@ msgstr ""
 msgid "Underperforms %{benchmark} by %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/predictions_live.ex:644
+#: lib/portfolixir_web/live/predictions_live.ex:646
 #: lib/portfolixir_web/prediction_label.ex:64
 #, elixir-autogen, elixir-format
 msgid "missed"
@@ -15019,7 +15019,7 @@ msgstr[1] ""
 msgid "Delete this security? Bookings, quotes, events, research entries, predictions and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
 msgstr ""
 
-#: lib/portfolixir_web/live/predictions_live.ex:632
+#: lib/portfolixir_web/live/predictions_live.ex:634
 #, elixir-autogen, elixir-format
 msgid "%{count} day left"
 msgid_plural "%{count} days left"
@@ -15195,7 +15195,7 @@ msgid_plural "too few · %{count} of %{minimum}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/predictions_live.ex:646
+#: lib/portfolixir_web/live/predictions_live.ex:648
 #, elixir-autogen, elixir-format
 msgid "waiting for the close"
 msgstr ""
@@ -15230,7 +15230,7 @@ msgctxt "prediction status"
 msgid "Resolved"
 msgstr ""
 
-#: lib/portfolixir_web/live/predictions_live.ex:647
+#: lib/portfolixir_web/live/predictions_live.ex:649
 #, elixir-autogen, elixir-format
 msgctxt "prediction status"
 msgid "open"

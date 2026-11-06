@@ -490,5 +490,29 @@ defmodule PortfolixirWeb.PredictionsLiveTest do
            )
   end
 
+  # User story (closing act, UAT persona on V2; board 02 judgment call 5,
+  # flipped):
+  # As the operator scanning every call across securities,
+  # I want a resolved call's excess without a gain or loss colour,
+  # so that a green figure beside "missed" does not read as a verdict.
+  #
+  # Acceptance criteria:
+  # - In the list and its phone rows, a resolved call's excess carries no
+  #   sign colour; the badge or the status word carries the outcome.
+  test "the list's excess carries no sign colour", %{conn: conn} do
+    w = world()
+    {:ok, view, _html} = live(conn, "/predictions")
+
+    for selector <- [
+          "tr[data-prediction-id='#{w.miss_index.id}']",
+          "#prediction-list-phone-rows li[data-prediction-id='#{w.miss_index.id}']",
+          "tr[data-prediction-id='#{w.hit_a2.id}']"
+        ] do
+      html = view |> element(selector) |> render()
+      assert html =~ ~s(data-role="prediction-excess"), selector
+      refute html =~ ~r/is-(positive|negative)/, selector
+    end
+  end
+
   # --- Sprint 26 fix D end ---
 end

@@ -8842,10 +8842,14 @@ The tab writes nothing (ADR-0055 §2): no form, no edit, no withdrawal.
    - **the facts, only once resolved**
      (`dl.research-entry__facts.prediction-entry__facts`): Rendite,
      Benchmark-Rendite, Überrendite (in „Pp“) and Schlusskurse (the dates
-     of the two closes used, „07.09.2026 → 07.10.2026“). The return and the
-     excess keep the sign colour (`is-positive` / `is-negative`), so a
-     missed „Fällt“ call shows a green „+2,2 Pp“ beside „verfehlt“: the
-     colour is the measurement's sign, the badge the call's outcome;
+     of the two closes used, „07.09.2026 → 07.10.2026“). The return keeps
+     the sign colour (`is-positive` / `is-negative`,
+     `data-role="prediction-return"`); the excess
+     (`data-role="prediction-excess"`) carries **none** — amended in the
+     closing act (the UAT persona; board 02 judgment call 5 flipped): the
+     excess is the figure the call is judged on, so a green „+2,2 Pp“
+     beside „verfehlt“ read as a second verdict against the badge. The
+     badge says the outcome, the sign the direction;
    - **the rationale** (`p.research-entry__body`) and **the research
      entry** it belongs to (`p.research-entry__meta`, a link to
      `?tab=research#research-entry-{id}`, „Research #1 · These“, the kind
@@ -9007,7 +9011,8 @@ reads as no filter; nothing is made an atom.
    made over the author and model), „Wertpapier · Aussage“ (the security,
    a link to its tab `?tab=predictions`, over the claim), „Wahrsch.“,
    „Stand“ (the security tab's badge; a call not resolved adds its reason
-   word below), „Überrendite“ (sign-coloured once resolved, else „—“).
+   word below), „Überrendite“ (once resolved, else „—“; no sign colour,
+   as on the security's tab).
    No filter match: „Keine Prognose passt zu diesem Filter.“
 6. **The empty page**, with no prediction stored at all: „Noch ist keine
    Prognose festgehalten. Festgehalten wird über die API oder MCP.“, no

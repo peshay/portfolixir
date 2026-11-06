@@ -154,8 +154,9 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
   # - Open: "open · 145 days left"; past its date and waiting for the
   #   close: "open · waiting for the close" with the day by which it is
   #   scored. No figure on an open or unresolved call.
-  # - Hit and miss show the return, the benchmark return, the excess in pp
-  #   (sign-coloured) and the dates of the closes used; "missed" is muted
+  # - Hit and miss show the return (sign-coloured), the benchmark return,
+  #   the excess in pp (no sign colour, closing act) and the dates of the
+  #   closes used; "missed" is muted
   #   (`badge--retired`), never red; "hit" takes the intact thesis outline.
   # - Unresolved names its reason as a word and as a sentence.
   # - The rationale and the research entry the call belongs to, linked.
@@ -235,7 +236,8 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
     refute miss =~ "badge--danger"
     assert text(miss) =~ "missed"
     assert text(miss) =~ "Falls by #{Format.date(day(-10))}"
-    # The excess keeps its sign colour beside "missed" (board, call 5).
+    # The excess carries no sign colour beside "missed" (board, call 5,
+    # flipped in the closing act; see the fix D test below).
     assert text(miss) =~ "Excess +10.0 pp"
 
     unresolved = entry(view, w.unresolved)
@@ -441,4 +443,44 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
   end
 
   # --- Sprint 26 fix P end ---
+
+  # --- Sprint 26 fix D begin ---
+  # The closing act's UAT persona on the tab.
+
+  # The class of the excess figure in the entry of `prediction`.
+  defp excess_class(view, prediction) do
+    view
+    |> element("#prediction-#{prediction.id} [data-role='prediction-excess']")
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.attribute("class")
+  end
+
+  # User story (closing act, UAT persona on V1; board 02 judgment call 5,
+  # flipped):
+  # As the operator reading a missed "Falls" call,
+  # I want its excess without a gain or loss colour,
+  # so that a green figure beside "missed" does not read as a verdict the
+  # badge contradicts.
+  #
+  # Acceptance criteria:
+  # - A resolved call's excess carries no sign colour, hit or missed; the
+  #   badge carries the outcome.
+  # - The security's own return keeps its sign colour: it is a measurement
+  #   of the security, not of the call.
+  test "a resolved call's excess carries no sign colour", %{conn: conn} do
+    w = world()
+    {:ok, view, _html} = live(conn, "/securities/#{w.security.id}?tab=predictions")
+
+    assert excess_class(view, w.miss) == []
+    assert excess_class(view, w.hit) == []
+    assert text(entry(view, w.miss)) =~ "Excess +10"
+
+    assert has_element?(
+             view,
+             "#prediction-#{w.hit.id} [data-role='prediction-return'].is-positive"
+           )
+  end
+
+  # --- Sprint 26 fix D end ---
 end
