@@ -801,7 +801,8 @@ festgehalten (`POST /api/v1/predictions`,
 gelöscht; eine korrigierte Aussage ist eine neue, und beide zählen. Der
 Tab zeigt dieselben Zahlen, die `GET /api/v1/predictions?security_id=`
 antwortet. Ein Wertpapier mit Prognosen lässt sich nicht löschen, und die
-Lösch-Bestätigung nennt sie unter dem, was blockiert.
+Lösch-Bestätigung nennt sie unter dem, was blockiert. Wie alle Aussagen
+zusammen getroffen haben, zeigt **Vermögen → Prognosen**.
 
 ## Konten und Depots
 
@@ -2185,7 +2186,9 @@ echten Instanz.*
 Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
 organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Positionen,
 Datenqualität, Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Cashflow**
-(der Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab beginnt
+(der Bericht über erhaltene Dividenden und Zinsen); es folgen **Snapshots**,
+**Steuern**, **Risiko** und **Prognosen**, jeder in einem eigenen Abschnitt
+unten beschrieben. Der Bestände-Tab beginnt
 mit dem **Kennzahlen-Band in zwei Ebenen** (Issue #797): drei Leitkennzahlen
 in voller Größe — der Gesamtwert inklusive Cash mit seiner Zusammensetzung
 aus Wertpapieren und Cash, die TTWROR mit dem absoluten Ergebnis des
@@ -3292,6 +3295,53 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
 Die Seite berichtet, sie empfiehlt nicht. Dieselben Zahlen liefert
 `GET /api/v1/portfolios/:portfolio_id/risk` und das MCP-Werkzeug
 `portfolixir.portfolios.risk`, mit allen drei Fenstern.
+
+## Prognosen (wie die festgehaltenen Aussagen getroffen haben)
+
+Der Tab **Prognosen** im Vermögens-Bereich (`/predictions`) ist der
+Kalibrierungsbericht aus ADR-0055: wie gut die festgehaltenen Prognosen —
+die des Agenten und Ihre eigenen — getroffen haben, **über alle
+Wertpapiere und unabhängig von der aktiven Ansicht**, was die Kopfzeile
+sagt. Er misst, wie viel Gewicht eine Aussage verdient; er empfiehlt
+nichts.
+
+- **Urheber und Modell** als Chips oben schränken die ganze Seite ein:
+  *Alle*, *Operator* oder *Agent*, und jedes Modell, das ein Agent genannt
+  hat (ein zweiter Klick auf ein Modell hebt es auf). Die Filter stehen in
+  der Adresse, ein gefilterter Bericht lässt sich also verlinken:
+  `/predictions?author=agent&model=…`.
+- **Kalibrierung**, mit der Zahl der aufgelösten, offenen und nicht
+  aufgelösten Prognosen: der **Brier-Score** mit seinem Standardfehler
+  neben der Referenz 0,25 (der Score von „immer 50 %“; niedriger ist
+  besser), die **Schärfe** (wie weit von 50 % die Aussagen angegeben sind:
+  wer immer 50 % sagt, ist perfekt kalibriert und sagt nichts), die
+  **Trefferquote** mit ihrem Standardfehler neben der mittleren
+  angegebenen Wahrscheinlichkeit, der eine kalibrierte Quote entspricht,
+  und die Zahl der aufgelösten. Offene und nicht aufgelöste Prognosen
+  zählen in keinem Score; sie werden gezählt. Das **ⓘ** nennt jede Formel.
+- **Nach Wahrscheinlichkeit**, die fünf Bänder 0,50–0,59 bis 0,90–0,99.
+  Ein Band zeigt seine Trefferquote erst ab **20 aufgelösten Prognosen
+  darin**; bis eines sie erreicht, sagt ein Satz warum, eine Zeile zählt
+  die Prognosen je Band, und der Brier-Score mit seinem Standardfehler
+  trägt die Aussage. Das bleibt lange so: Es ist die ehrliche Antwort
+  einer kleinen Stichprobe.
+- **Nach Urheber und Modell**: dieselben Zahlen für den Operator, den
+  Agenten über alle Modelle und jedes Modell, sodass ein Modellwechsel
+  sichtbar wird.
+- **Alle Prognosen** über alle Wertpapiere, die neueste zuerst: Tag der
+  Abgabe und Urheber, das Wertpapier (ein Link in seinen Tab Prognosen)
+  und die Aussage, die Wahrscheinlichkeit, der Stand (eine nicht
+  aufgelöste nennt ihren Grund) und die Überrendite, sobald aufgelöst. Die
+  Chips *Alle*, *Offen*, *Fällig*, *Aufgelöst* und *Nicht aufgelöst*
+  tragen ihre Zahl; **Fällig** zeigt die offenen Prognosen, deren
+  Auflösungstag gekommen ist, die Abfrage `due_before` der API. Auf dem
+  Telefon sind die Gruppen und die Liste zweizeilige Zeilen.
+
+Derselbe Bericht ist `GET /api/v1/predictions/calibration` (mit
+`author`, `model`, `from` und `to`) und das MCP-Werkzeug
+`portfolixir.predictions.calibration`; die Liste ist
+`GET /api/v1/predictions` und `portfolixir.predictions.list`. Die Seite
+zeigt die Zahlen, die diese Lesezugriffe antworten.
 
 ## Imports
 
