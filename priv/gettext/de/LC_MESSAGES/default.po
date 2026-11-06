@@ -236,7 +236,7 @@ msgstr "Violett"
 #: lib/portfolixir_web/field_label.ex:55
 #: lib/portfolixir_web/live/classifications_live.ex:609
 #: lib/portfolixir_web/live/classifications_live.ex:1190
-#: lib/portfolixir_web/live/classifications_live.ex:3656
+#: lib/portfolixir_web/live/classifications_live.ex:3681
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:94
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:119
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:338
@@ -2040,7 +2040,7 @@ msgstr "Hinzufügen"
 msgid "Built-in"
 msgstr "Vordefiniert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3465
+#: lib/portfolixir_web/live/classifications_live.ex:3490
 #, elixir-autogen, elixir-format
 msgid "Built-in classifications cannot be edited"
 msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
@@ -2055,12 +2055,12 @@ msgstr "Verrechnungskonto aktualisiert"
 msgid "Category created"
 msgstr "Kategorie angelegt"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3403
+#: lib/portfolixir_web/live/classifications_live.ex:3428
 #, elixir-autogen, elixir-format
 msgid "Category deleted"
 msgstr "Kategorie gelöscht"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3468
+#: lib/portfolixir_web/live/classifications_live.ex:3493
 #, elixir-autogen, elixir-format
 msgid "Category not found"
 msgstr "Kategorie nicht gefunden"
@@ -2212,7 +2212,7 @@ msgstr "Noch keine Kategorien."
 msgid "No classifications yet."
 msgstr "Noch keine Klassifizierungen."
 
-#: lib/portfolixir_web/live/classifications_live.ex:3467
+#: lib/portfolixir_web/live/classifications_live.ex:3492
 #, elixir-autogen, elixir-format
 msgid "Not found"
 msgstr "Nicht gefunden"
@@ -2233,8 +2233,8 @@ msgstr "Übergeordnet"
 msgid "Search securities in this tree…"
 msgstr "Wertpapiere in diesem Baum suchen…"
 
-#: lib/portfolixir_web/live/buckets_live.ex:1023
-#: lib/portfolixir_web/live/classifications_live.ex:3472
+#: lib/portfolixir_web/live/buckets_live.ex:1044
+#: lib/portfolixir_web/live/classifications_live.ex:3497
 #, elixir-autogen, elixir-format
 msgid "Something went wrong"
 msgstr "Etwas ist schiefgelaufen"
@@ -2244,12 +2244,12 @@ msgstr "Etwas ist schiefgelaufen"
 msgid "Target category"
 msgstr "Zielkategorie"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3466
+#: lib/portfolixir_web/live/classifications_live.ex:3491
 #, elixir-autogen, elixir-format
 msgid "That category belongs to another tree"
 msgstr "Diese Kategorie gehört zu einem anderen Baum"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3469
+#: lib/portfolixir_web/live/classifications_live.ex:3494
 #, elixir-autogen, elixir-format
 msgid "This tree cannot be reassigned"
 msgstr "Dieser Baum kann nicht neu zugewiesen werden"
@@ -3218,7 +3218,7 @@ msgstr "Standard-Ansicht"
 #: lib/portfolixir_web/components/view_switcher.ex:56
 #: lib/portfolixir_web/live/buckets_live.ex:126
 #: lib/portfolixir_web/live/buckets_live.ex:374
-#: lib/portfolixir_web/live/buckets_live.ex:1054
+#: lib/portfolixir_web/live/buckets_live.ex:1075
 #: lib/portfolixir_web/live/classifications_live.ex:2445
 #: lib/portfolixir_web/live/classifications_live.ex:2639
 #: lib/portfolixir_web/live/dashboard_live.ex:339
@@ -6350,7 +6350,7 @@ msgid "net, all costs included"
 msgstr "netto, alle Kosten enthalten"
 
 #: lib/portfolixir_web/live/buckets_live.ex:360
-#: lib/portfolixir_web/live/buckets_live.ex:1041
+#: lib/portfolixir_web/live/buckets_live.ex:1062
 #, elixir-autogen, elixir-format
 msgid "%{count} account"
 msgid_plural "%{count} accounts"
@@ -6358,8 +6358,8 @@ msgstr[0] "%{count} Konto"
 msgstr[1] "%{count} Konten"
 
 #: lib/portfolixir_web/live/buckets_live.ex:359
-#: lib/portfolixir_web/live/buckets_live.ex:1039
-#: lib/portfolixir_web/live/classifications_live.ex:3443
+#: lib/portfolixir_web/live/buckets_live.ex:1060
+#: lib/portfolixir_web/live/classifications_live.ex:3468
 #, elixir-autogen, elixir-format
 msgid "%{count} position"
 msgid_plural "%{count} positions"
@@ -6395,7 +6395,7 @@ msgstr "Zu den Buckets"
 
 #: lib/portfolixir_web/live/buckets_live.ex:132
 #: lib/portfolixir_web/live/buckets_live.ex:372
-#: lib/portfolixir_web/live/buckets_live.ex:1051
+#: lib/portfolixir_web/live/buckets_live.ex:1072
 #, elixir-autogen, elixir-format
 msgid "All depots, cash accounts and positions · no filters"
 msgstr "Alle Depots, Verrechnungskonten und Positionen · keine Filter"
@@ -6433,8 +6433,8 @@ msgid "Edit buckets"
 msgstr "Buckets bearbeiten"
 
 #: lib/portfolixir_web/live/buckets_live.ex:377
-#: lib/portfolixir_web/live/buckets_live.ex:1057
-#: lib/portfolixir_web/live/buckets_live.ex:1060
+#: lib/portfolixir_web/live/buckets_live.ex:1078
+#: lib/portfolixir_web/live/buckets_live.ex:1081
 #, elixir-autogen, elixir-format
 msgid "Only"
 msgstr "Nur"
@@ -6457,7 +6457,7 @@ msgid "View actions"
 msgstr "Aktionen zur Ansicht"
 
 #: lib/portfolixir_web/live/buckets_live.ex:382
-#: lib/portfolixir_web/live/buckets_live.ex:1066
+#: lib/portfolixir_web/live/buckets_live.ex:1087
 #, elixir-autogen, elixir-format
 msgid "except"
 msgstr "außer"
@@ -6468,7 +6468,7 @@ msgid "no default"
 msgstr "kein Standard"
 
 #: lib/portfolixir_web/live/buckets_live.ex:379
-#: lib/portfolixir_web/live/buckets_live.ex:1057
+#: lib/portfolixir_web/live/buckets_live.ex:1078
 #, elixir-autogen, elixir-format
 msgid "nothing included"
 msgstr "nichts eingeschlossen"
@@ -6866,7 +6866,7 @@ msgid "%{assigned} of %{total} securities assigned"
 msgstr "%{assigned} von %{total} Wertpapieren zugeordnet"
 
 #: lib/portfolixir_web/live/classifications_live.ex:672
-#: lib/portfolixir_web/live/classifications_live.ex:3432
+#: lib/portfolixir_web/live/classifications_live.ex:3457
 #: lib/portfolixir_web/live/delete_preview_dialog.ex:229
 #, elixir-autogen, elixir-format
 msgid "%{count} category"
@@ -6875,7 +6875,7 @@ msgstr[0] "%{count} Kategorie"
 msgstr[1] "%{count} Kategorien"
 
 #: lib/portfolixir_web/live/classifications_live.ex:676
-#: lib/portfolixir_web/live/classifications_live.ex:3433
+#: lib/portfolixir_web/live/classifications_live.ex:3458
 #, elixir-autogen, elixir-format
 msgid "%{count} level"
 msgid_plural "%{count} levels"
@@ -7779,22 +7779,22 @@ msgstr "gehalten, aber nicht bewertbar"
 msgid "is less than the fees and taxes of this sale"
 msgstr "ist kleiner als die Gebühren und Steuern dieses Verkaufs"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3485
+#: lib/portfolixir_web/live/classifications_live.ex:3510
 #, elixir-autogen, elixir-format
 msgid "%{security} already carries a position target under another category"
 msgstr "%{security} hat bereits ein Positionsziel unter einer anderen Kategorie"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3478
+#: lib/portfolixir_web/live/classifications_live.ex:3503
 #, elixir-autogen, elixir-format
 msgid "%{security} no longer sits under %{category} — clear its position target there"
 msgstr "%{security} liegt nicht mehr unter %{category} – leere dort sein Positionsziel"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3535
+#: lib/portfolixir_web/live/classifications_live.ex:3560
 #, elixir-autogen, elixir-format
 msgid "A target must lie between 0 and 100 %"
 msgstr "Ein Ziel muss zwischen 0 und 100 % liegen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3532
+#: lib/portfolixir_web/live/classifications_live.ex:3557
 #, elixir-autogen, elixir-format
 msgid "A target carries at most four decimal places in percent"
 msgstr "Ein Ziel hat in Prozent höchstens vier Nachkommastellen"
@@ -11625,12 +11625,12 @@ msgstr "Zur Liquiditätsrolle"
 msgid "Buckets — tags on depots and cash accounts. A view picks buckets and narrows every figure to their accounts; an account can carry several."
 msgstr "Buckets — Tags für Depots und Verrechnungskonten. Eine Ansicht wählt Buckets aus und grenzt jede Kennzahl auf deren Konten ein; ein Konto kann mehreren angehören."
 
-#: lib/portfolixir_web/live/classifications_live.ex:3550
+#: lib/portfolixir_web/live/classifications_live.ex:3575
 #, elixir-autogen, elixir-format
 msgid "Cash target: at most four decimal places in percent"
 msgstr "Cash-Ziel: höchstens vier Nachkommastellen in Prozent"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3552
+#: lib/portfolixir_web/live/classifications_live.ex:3577
 #, elixir-autogen, elixir-format
 msgid "Cash target: must lie between 0 and 100 %"
 msgstr "Cash-Ziel: muss zwischen 0 und 100 % liegen"
@@ -11657,22 +11657,22 @@ msgstr "Liquiditätsrolle — wie ein Verrechnungskonto zählt: Verfügbares Cas
 msgid "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the journal records the change, and the previous name stays readable there."
 msgstr "Nur der Name ändert sich: Speichern legt keine neue Version an. Der Name gilt für die Regel mit allen Versionen; das Journal hält die Änderung fest, und der bisherige Name bleibt dort lesbar."
 
-#: lib/portfolixir_web/live/classifications_live.ex:3555
+#: lib/portfolixir_web/live/classifications_live.ex:3580
 #, elixir-autogen, elixir-format
 msgid "Position target of “%{security}” under “%{category}”: at most four decimal places in percent"
 msgstr "Positionsziel von „%{security}“ unter „%{category}“: höchstens vier Nachkommastellen in Prozent"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3563
+#: lib/portfolixir_web/live/classifications_live.ex:3588
 #, elixir-autogen, elixir-format
 msgid "Position target of “%{security}” under “%{category}”: must lie between 0 and 100 %"
 msgstr "Positionsziel von „%{security}“ unter „%{category}“: muss zwischen 0 und 100 % liegen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3570
+#: lib/portfolixir_web/live/classifications_live.ex:3595
 #, elixir-autogen, elixir-format
 msgid "Target of “%{category}”: at most four decimal places in percent"
 msgstr "Soll von „%{category}“: höchstens vier Nachkommastellen in Prozent"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3576
+#: lib/portfolixir_web/live/classifications_live.ex:3601
 #, elixir-autogen, elixir-format
 msgid "Target of “%{category}”: must lie between 0 and 100 %"
 msgstr "Soll von „%{category}“: muss zwischen 0 und 100 % liegen"
@@ -12188,7 +12188,7 @@ msgstr "Verkauf"
 msgid "Not added: under “%{parent}” the new category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up."
 msgstr "Nicht angelegt: Unter „%{parent}“ läge die neue Kategorie auf Ebene %{level} — eine Klassifizierung hat höchstens %{max} Ebenen. Bei „Übergeordnet“ eine Kategorie weiter oben wählen."
 
-#: lib/portfolixir_web/live/classifications_live.ex:3659
+#: lib/portfolixir_web/live/classifications_live.ex:3684
 #, elixir-autogen, elixir-format
 msgid "Parent category"
 msgstr "Übergeordnete Kategorie"
@@ -13074,7 +13074,7 @@ msgstr "Archiviert — diese Version steuert nichts und ist nur lesbar; die Verm
 msgid "Duplicate as draft"
 msgstr "Als Entwurf duplizieren"
 
-#: lib/portfolixir_web/live/classifications_live.ex:3541
+#: lib/portfolixir_web/live/classifications_live.ex:3566
 #, elixir-autogen, elixir-format
 msgid "Not saved: “%{name}” is archived and steers nothing. Activate it or duplicate it as a draft, then edit."
 msgstr "Nicht gespeichert: „%{name}“ ist archiviert und steuert nichts. Aktivieren oder als Entwurf duplizieren, dann ändern."
@@ -15453,7 +15453,7 @@ msgstr[1] "%{count} Zielgewichte"
 msgid "A rule that has been in force keeps its subject as part of its history, so the delete stays blocked; retiring the rule on Wealth → Risk stops its evaluation."
 msgstr "Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; darum bleibt das Löschen gesperrt. Sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung."
 
-#: lib/portfolixir_web/live/classifications_live.ex:3450
+#: lib/portfolixir_web/live/classifications_live.ex:3475
 #, elixir-autogen, elixir-format
 msgid "Category in %{classification}"
 msgstr "Kategorie in %{classification}"
@@ -15473,7 +15473,7 @@ msgstr "Sonst wird nichts mit gelöscht."
 msgid "Something changed while the check ran, and nothing was deleted. Check again to see what the delete removes now."
 msgstr "Während der Prüfung hat sich etwas geändert, und nichts wurde gelöscht. Erneut prüfen, um zu sehen, was das Löschen jetzt entfernt."
 
-#: lib/portfolixir_web/live/buckets_live.ex:1021
+#: lib/portfolixir_web/live/buckets_live.ex:1042
 #, elixir-autogen, elixir-format
 msgid "That view no longer exists."
 msgstr "Diese Ansicht existiert nicht mehr."

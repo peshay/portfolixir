@@ -779,7 +779,7 @@ defmodule PortfolixirWeb.BucketsLive do
     case socket.assigns.delete_preview do
       %{state: :concurrent} = dialog ->
         case DeletePreviewDialog.recheck(Actor.owner_ui(), dialog) do
-          {:ok, fresh} -> {:noreply, assign(socket, :delete_preview, fresh)}
+          {:ok, fresh} -> {:noreply, show_fresh_delete_preview(socket, fresh)}
           {:error, reason} -> {:noreply, delete_preview_failed(socket, reason)}
         end
 
@@ -1005,7 +1005,7 @@ defmodule PortfolixirWeb.BucketsLive do
         socket |> assign(:delete_preview, nil) |> success(gettext("View deleted")) |> load_state()
 
       {:changed, fresh} ->
-        socket |> assign(:delete_preview, fresh) |> load_state()
+        show_fresh_delete_preview(socket, fresh)
 
       :gone ->
         delete_preview_failed(socket, :not_found)
@@ -1013,6 +1013,27 @@ defmodule PortfolixirWeb.BucketsLive do
       {:error, reason} ->
         delete_preview_failed(socket, reason)
     end
+  end
+
+  # A dialog in its new state counts what is there now: the page reads its
+  # rows again, and the subject box is built again from the view and its
+  # row (closing act, the UAT persona on V4).
+  defp show_fresh_delete_preview(socket, %{id: id} = fresh) do
+    socket = load_state(socket)
+
+    fresh =
+      case Buckets.get_view(id) do
+        nil ->
+          fresh
+
+        view ->
+          %{
+            fresh
+            | subject: view_subject(view, Enum.find(socket.assigns.view_rows, &(&1.id == id)))
+          }
+      end
+
+    assign(socket, :delete_preview, fresh)
   end
 
   defp delete_preview_failed(socket, reason) do

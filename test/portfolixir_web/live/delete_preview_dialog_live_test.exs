@@ -7,7 +7,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
   use PortfolixirWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
-  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+  import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -64,6 +64,8 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
 
     %{
       world: world,
+      first: first,
+      second: second,
       third: third,
       classification: classification,
       root: root,
@@ -434,6 +436,68 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     view |> element("#delete-preview-confirm") |> render_click()
     refute Classifications.get_category(t.root.id)
   end
+
+  # --- Sprint 26 fix D begin ---
+  # User story (closing act, UAT persona on V4):
+  # As the operator whose tree changed while the delete dialog was open,
+  # I want the refreshed dialog's subject box to count what is there now,
+  # so that its head does not say "2 positions" over a list that counts 3.
+  #
+  # Acceptance criteria:
+  # - A category's dialog that found the answer changed shows the branch's
+  #   new position count in its subject box.
+  # - A classification's dialog that found the answer changed shows the
+  #   tree's new category and level counts in its subject box.
+  test "a refreshed dialog's subject box counts what is there now", %{conn: conn} do
+    t = world()
+
+    # Held, so the tree's rows count them as positions once the holdings
+    # are in.
+    for security <- [t.first, t.second, t.third], do: buy!(t.world, security, [])
+
+    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    render_async(view)
+
+    view
+    |> element(~s(button[phx-click="ask_delete_category"][phx-value-id="#{t.root.id}"]))
+    |> render_click()
+
+    assert subject(view) =~ "2 positions"
+
+    {:ok, _} =
+      Classifications.assign_security(owner(), t.third.id, t.classification.id, t.child.id)
+
+    view |> element("#delete-preview-confirm") |> render_click()
+    assert has_element?(view, "#delete-preview-dialog [data-role=delete-preview-changed]")
+    assert subject(view) =~ "3 positions"
+
+    view |> element("[data-role=delete-preview-cancel]") |> render_click()
+    view |> element("header.detail-head button.button-danger") |> render_click()
+    assert subject(view) =~ "2 categories · 2 levels"
+
+    {:ok, _} =
+      Classifications.create_category(owner(), %{
+        classification_id: t.classification.id,
+        name: "Growth income small caps",
+        parent_id: t.child.id
+      })
+
+    view |> element("#delete-preview-confirm") |> render_click()
+    assert has_element?(view, "#delete-preview-dialog [data-role=delete-preview-changed]")
+    assert subject(view) =~ "3 categories · 3 levels"
+  end
+
+  defp subject(view) do
+    view
+    |> element("#delete-preview-dialog [data-role=delete-preview-subject]")
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.text(sep: " ")
+    |> String.split()
+    |> Enum.join(" ")
+  end
+
+  # --- Sprint 26 fix D end ---
 
   # User story (V4, #894):
   # As the operator who opened a delete dialog by mistake,
