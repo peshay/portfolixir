@@ -33,6 +33,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.StoredText
 
   @impl true
@@ -422,13 +423,13 @@ defmodule PortfolixirWeb.SnapshotsLive do
                   <span class="stat-empty">—</span>
                 <% end %>
                 <small class="hint">
-                  <%= gettext(
+                  <%= PrivacyMode.html(gettext(
                     "Buy-and-hold of the holdings frozen on %{date}: %{then} → %{today} %{currency}",
                     date: Format.date(@comparison.as_of),
                     then: Format.money(@comparison.as_of_value),
                     today: Format.money(@comparison.current_value),
                     currency: @comparison.base_currency
-                  ) %>
+                  )) %>
                 </small>
               </article>
               <div

@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
@@ -341,7 +342,7 @@ defmodule PortfolixirWeb.DashboardLive do
                 id="count-wealth-card"
                 class="count-up"
                 phx-hook="CountUp"
-                data-count-to={Decimal.to_string(@wealth_card.valuation.total_with_cash, :normal)}
+                data-count-to={Format.amount_attribute(@wealth_card.valuation.total_with_cash)}
                 data-decimals="2"
               ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @wealth_card.valuation.base_currency %></small>
             </strong>
@@ -926,9 +927,9 @@ defmodule PortfolixirWeb.DashboardLive do
            groups every group's count leads, so none falls below the clamp;
            the groups with their names follow. --%>
       <%= if length(@groups) > 1 do %>
-        <span data-role="wealth-card-excluded-counts"><%= gettext("Not in the total: %{counts}.", counts: Enum.join(@counts, ", ")) %> </span><%= excluded_groups_sentence(Enum.join(@groups, " · ")) %>
+        <span data-role="wealth-card-excluded-counts"><%= gettext("Not in the total: %{counts}.", counts: Enum.join(@counts, ", ")) %> </span><%= PrivacyMode.html(excluded_groups_sentence(Enum.join(@groups, " · "))) %>
       <% else %>
-        <%= excluded_sentence(Enum.join(@groups, " · ")) %>
+        <%= PrivacyMode.html(excluded_sentence(Enum.join(@groups, " · "))) %>
       <% end %>
       <%!-- The space before the link is the sentence's own: a parser that
            drops whitespace-only text between two elements keeps it. --%>

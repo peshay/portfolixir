@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.ViewSwitcher
 
@@ -1008,13 +1009,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
       )
 
     ~H"""
-    <span><%= for segment <- @segments do %><%= case segment do %><% {:amount, amount} -> %><span class="num"><%= amount %></span><% text -> %><%= text %><% end %><% end %></span>
+    <span><%= for segment <- @segments do %><%= case segment do %><% {:amount, amount} -> %><span class="num"><%= PrivacyMode.html(amount) %></span><% text -> %><%= text %><% end %><% end %></span>
     """
   end
 
   defp excluded_line_cost(assigns) do
     ~H"""
-    <span class={paid_elsewhere?(@member) && "num"}><%= cost_or_reason(@member, @currency) %></span>
+    <span class={paid_elsewhere?(@member) && "num"}><%= PrivacyMode.html(cost_or_reason(@member, @currency)) %></span>
     """
   end
 

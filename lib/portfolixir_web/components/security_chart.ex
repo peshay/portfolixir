@@ -238,12 +238,12 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   end
 
   defp point_display(q, _geometry, %{value_mode: :percent_values}),
-    do: Format.signed_decimal(chart_decimal(q.close), 1) <> "%"
+    do: Format.plain_signed_decimal(chart_decimal(q.close), 1) <> "%"
 
   defp point_display(q, _geometry, assigns) do
     case assigns.currency_code do
       code when is_binary(code) and code != "" ->
-        Format.decimal(chart_decimal(q.close), 2) <> " " <> code
+        "#{Format.decimal(chart_decimal(q.close), 2)} #{code}"
 
       _none ->
         Format.decimal(chart_decimal(q.close), 2)
@@ -685,7 +685,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # sign glued on, no space before "%" ("+10,4%"); a tick that reads zero
   # carries no sign.
   defp format_percent(value) when is_float(value),
-    do: Format.signed_decimal(Decimal.from_float(value), 1) <> "%"
+    do: Format.plain_signed_decimal(Decimal.from_float(value), 1) <> "%"
 
   defp format_percent(_), do: "—"
 end

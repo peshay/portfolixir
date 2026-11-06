@@ -10,7 +10,19 @@ defmodule PortfolixirWeb.Format do
 
   Formatting is a display concern — values stay full-precision `Decimal`
   everywhere else (ADR-0003); rounding happens only here.
+
+  **The privacy mode** (Sprint 26 P1, I22; `PortfolixirWeb.PrivacyMode`):
+  while it is on for the rendering process, `money/2`, `native_amount/2`,
+  `exact/2`, `decimal/3` and `signed_decimal/3` return the one constant
+  placeholder instead of the figure, whatever it is — they render amounts
+  and quantities, so they hide unless told otherwise. A figure that is no
+  amount and no quantity (a ratio, a rate, a percent axis, a size) is
+  formatted with `plain_exact/2`, `plain_decimal/3` or
+  `plain_signed_decimal/3`, which stay; `percent/2` and `signed_percent/2`
+  stay too. A missing value reads as an em dash either way.
   """
+
+  alias PortfolixirWeb.PrivacyMode
 
   @doc """
   Formats a Decimal as a money amount with two decimals, e.g. `1.234,50` (de)
@@ -22,6 +34,12 @@ defmodule PortfolixirWeb.Format do
   def money(value, locale \\ nil)
 
   def money(%Decimal{} = value, locale) do
+    if PrivacyMode.on?(), do: PrivacyMode.hidden(), else: money_text(value, locale)
+  end
+
+  def money(_value, _locale), do: "—"
+
+  defp money_text(value, locale) do
     value
     |> Decimal.round(2)
     |> unsigned_zero()
@@ -29,7 +47,18 @@ defmodule PortfolixirWeb.Format do
     |> localize(locale || current_locale())
   end
 
-  def money(_value, _locale), do: "—"
+  @doc """
+  An amount as a machine-readable attribute value (a count-up's target, a
+  bar's total), the plain decimal string; `nil` while the privacy mode is
+  on, so the attribute is left out of the page (Sprint 26 P1), and `nil`
+  for a non-number.
+  """
+  @spec amount_attribute(term()) :: String.t() | nil
+  def amount_attribute(%Decimal{} = value) do
+    if PrivacyMode.on?(), do: nil, else: Decimal.to_string(value, :normal)
+  end
+
+  def amount_attribute(_value), do: nil
 
   @doc """
   Formats a Decimal fraction as a percentage with one decimal, e.g. `0.185`
@@ -59,13 +88,25 @@ defmodule PortfolixirWeb.Format do
   def exact(value, locale \\ nil)
 
   def exact(%Decimal{} = value, locale) do
+    if PrivacyMode.on?(), do: PrivacyMode.hidden(), else: plain_exact(value, locale)
+  end
+
+  def exact(_value, _locale), do: "—"
+
+  @doc """
+  `exact/2` for a figure that is no amount and no quantity (a rate, a
+  coupon in percent): it stays in the privacy mode.
+  """
+  def plain_exact(value, locale \\ nil)
+
+  def plain_exact(%Decimal{} = value, locale) do
     value
     |> Decimal.normalize()
     |> Decimal.to_string(:normal)
     |> localize(locale || current_locale())
   end
 
-  def exact(_value, _locale), do: "—"
+  def plain_exact(_value, _locale), do: "—"
 
   @doc """
   Formats a Decimal with the given number of decimal places, applying locale
@@ -75,13 +116,28 @@ defmodule PortfolixirWeb.Format do
   def decimal(value, places, locale \\ nil)
 
   def decimal(%Decimal{} = value, places, locale) do
+    if PrivacyMode.on?(),
+      do: PrivacyMode.hidden(),
+      else: plain_decimal(value, places, locale)
+  end
+
+  def decimal(_value, _places, _locale), do: "—"
+
+  @doc """
+  `decimal/3` for a figure that is no amount and no quantity (a ratio, a
+  rate, a correlation, a count of years, a file size): it stays in the
+  privacy mode.
+  """
+  def plain_decimal(value, places, locale \\ nil)
+
+  def plain_decimal(%Decimal{} = value, places, locale) do
     value
     |> Decimal.round(places)
     |> Decimal.to_string(:normal)
     |> localize(locale || current_locale())
   end
 
-  def decimal(_value, _places, _locale), do: "—"
+  def plain_decimal(_value, _places, _locale), do: "—"
 
   @doc """
   Formats a native amount — a balance no rate converts — with at least two
@@ -92,8 +148,12 @@ defmodule PortfolixirWeb.Format do
   def native_amount(value, locale \\ nil)
 
   def native_amount(%Decimal{} = value, locale) do
-    %Decimal{exp: exp} = Decimal.normalize(value)
-    decimal(value, max(2, -exp), locale)
+    if PrivacyMode.on?() do
+      PrivacyMode.hidden()
+    else
+      %Decimal{exp: exp} = Decimal.normalize(value)
+      plain_decimal(value, max(2, -exp), locale)
+    end
   end
 
   def native_amount(_value, _locale), do: "—"
@@ -110,12 +170,27 @@ defmodule PortfolixirWeb.Format do
   def signed_decimal(value, places, locale \\ nil)
 
   def signed_decimal(%Decimal{} = value, places, locale) do
+    if PrivacyMode.on?(),
+      do: PrivacyMode.hidden(),
+      else: plain_signed_decimal(value, places, locale)
+  end
+
+  def signed_decimal(_value, _places, _locale), do: "—"
+
+  @doc """
+  `signed_decimal/3` for a figure that is no amount and no quantity (a
+  change in percent or percentage points, on an axis or a rule): it stays
+  in the privacy mode.
+  """
+  def plain_signed_decimal(value, places, locale \\ nil)
+
+  def plain_signed_decimal(%Decimal{} = value, places, locale) do
     value
     |> Decimal.round(places)
     |> signed_text(locale || current_locale())
   end
 
-  def signed_decimal(_value, _places, _locale), do: "—"
+  def plain_signed_decimal(_value, _places, _locale), do: "—"
 
   @doc """
   Formats a Decimal fraction as a signed percentage with one decimal, e.g.

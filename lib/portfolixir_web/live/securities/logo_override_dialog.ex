@@ -196,7 +196,7 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
     do: "#{max(div(bytes + 1023, 1024), 1)} KB"
 
   defp file_size(bytes) when is_integer(bytes),
-    do: Format.decimal(Decimal.div(bytes, 1024 * 1024), 1) <> " MB"
+    do: Format.plain_decimal(Decimal.div(bytes, 1024 * 1024), 1) <> " MB"
 
   defp file_size(_bytes), do: ""
 end

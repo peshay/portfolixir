@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.IncomeLive do
   alias PortfolixirWeb.ExcludedSales
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionManagementLive
@@ -1368,7 +1369,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     :for={point <- accumulated_months(@income, @selected_year)}
                     class="income-bar-label income-month-label"
                     data-month={point.month}
-                    data-total={Decimal.to_string(Decimal.normalize(point.total), :normal)}
+                    data-total={Format.amount_attribute(Decimal.normalize(point.total))}
                   >
                     <strong><%= month_label(point.month) %></strong>
                     <span><%= money(point.total) %></span>
@@ -1439,7 +1440,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 <span class="contributor-figures">
                   <strong><%= money(row.gross) %></strong>
                   <span class="muted">
-                    <%= gettext("net %{net}", net: money(row.net)) %>
+                    <%= PrivacyMode.html(gettext("net %{net}", net: money(row.net))) %>
                   </span>
                 </span>
               </li>
