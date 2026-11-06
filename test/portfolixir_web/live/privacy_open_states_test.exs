@@ -321,11 +321,34 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
         view |> element("#merge-dialog") |> render()
       )
     end
+
+    # User story (fix round of the Sprint 26 closing act, privacy lens, S3):
+    # As the operator who states a balance with the privacy mode on,
+    # I want the balance field's example to show no figure,
+    # so that an example amount is not read as my account's balance.
+    #
+    # Acceptance criteria:
+    # - In the mode, the balance field has no placeholder with a digit;
+    #   with the mode off it keeps its example.
+    test "the balance dialog's example holds no figure", %{conn: conn, world: world} do
+      {:ok, view, _html} = live(masked(conn), "/portfolios")
+      view |> element("#set-balance-#{world.cash.id}") |> render_click()
+
+      [{_tag, attributes, _children}] =
+        view
+        |> element("#balance-dialog input[name='balance[amount]']")
+        |> render()
+        |> Floki.parse_fragment!()
+
+      {_name, placeholder} = List.keyfind(attributes, "placeholder", 0, {"placeholder", ""})
+      refute placeholder =~ ~r/\d/, "the balance field's example reads #{placeholder}"
+
+      {:ok, plain, _html} = live(conn, "/portfolios")
+      plain |> element("#set-balance-#{world.cash.id}") |> render_click()
+      assert has_element?(plain, "#balance-dialog input[name='balance[amount]'][placeholder]")
+    end
   end
 
-  # A state's text, the attributes a reader meets (a native tooltip, an
-  # accessible name, an input's value or placeholder) and its markup's
-  # attributes: no figure, no stand-in text, no bar's markup out of place.
   # User story (fix round of the Sprint 26 closing act, privacy lens, S3):
   # As the operator reading a sentence a page builds around a stored name
   # (an import correction's "On [account], the set balance absorbs …", a
@@ -354,6 +377,9 @@ defmodule PortfolixirWeb.PrivacyOpenStatesTest do
     refute html =~ "absorbs #{PrivacyMode.text()}"
   end
 
+  # A state's text, the attributes a reader meets (a native tooltip, an
+  # accessible name, an input's value or placeholder) and its markup's
+  # attributes: no figure, no stand-in text, no bar's markup out of place.
   defp refute_open_state(label, html) do
     shown = text(html)
     refute_figures(label, shown)

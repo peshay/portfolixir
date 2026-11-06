@@ -443,7 +443,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     inputmode="decimal"
                     class="num"
                     required
-                    placeholder={DecimalInput.value(Decimal.new("4250.00"))}
+                    placeholder={balance_example(@privacy_mode)}
                     aria-invalid={"amount" in @balance_invalid && "true"}
                     aria-describedby={"amount" in @balance_invalid && "balance-error"}
                   />
@@ -1684,4 +1684,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   defp balance_field(:date), do: "date"
   defp balance_field(:gross_amount), do: "amount"
   defp balance_field(_field), do: nil
+
+  # The balance field's example, "4250,00": in the privacy mode none, since
+  # an example amount beside a hidden balance reads as that balance (the
+  # privacy lens of the closing act).
+  defp balance_example(true), do: nil
+  defp balance_example(_off), do: DecimalInput.value(Decimal.new("4250.00"))
 end
