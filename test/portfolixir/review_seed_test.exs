@@ -467,6 +467,43 @@ defmodule Portfolixir.ReviewSeedTest do
     assert [%{start: nil, start_reason: :no_start_close}] = rows["Tamarisk Mining Ltd"]
   end
 
+  # --- Sprint 26 R3 begin ---
+  # User story (Sprint 26 R3, I18 mode 3; ADR-0057 §6; plan row R3):
+  # As the reviewer checking „Anschlusskauf“ against board 03 on the review
+  # instance,
+  # I want a seed sale whose proceeds a buy from the same cash account took
+  # within 30 days,
+  # so that the mode shows a match, its buy, a pro rata share and figures,
+  # beside a sale with no follow-on purchase.
+  #
+  # Acceptance criteria:
+  # - Brightwater Utilities plc's sale (step 15b, today - 40) is matched to
+  #   the Alpine Test Werke AG buy (step 12, today - 10) 30 days later,
+  #   funded in part, and its 1m span is complete with a difference; both
+  #   dates are relative to the seed's today, so the match holds on any day.
+  # - Saltmarsh Logistics SE's sale reads no_match, no buy within 30 days.
+  test "a seed sale reads a follow-on purchase for Anschlusskauf (R3)" do
+    seed!()
+
+    rows =
+      [include: [:reinvestment]]
+      |> SaleHindsight.report()
+      |> Map.fetch!(:rows)
+      |> Enum.group_by(& &1.security.name)
+
+    assert [%{reinvestment: block}] = rows["Brightwater Utilities plc"]
+    assert %{status: :matched, days_to_first_buy: 30, buys: [buy]} = block
+    assert buy.security.name == "Alpine Test Werke AG"
+    assert Decimal.compare(buy.share_of_buy, 1) == :lt
+    one = Enum.find(block.spans, &(&1.span == "1m"))
+    assert %{status: :complete, difference: %Decimal{}} = one
+
+    assert [%{reinvestment: %{status: :no_match, reason: :no_buy_within_30_days}}] =
+             rows["Saltmarsh Logistics SE"]
+  end
+
+  # --- Sprint 26 R3 end ---
+
   defp stored_class(name) do
     Repo.one!(from(s in Security, where: s.name == ^name, select: s.asset_class))
   end

@@ -16,7 +16,7 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, create_security!: 1, put_quotes!: 2, sell!: 3]
+    only: [base_world: 1, buy!: 3, create_security!: 1, put_quotes!: 2, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -50,6 +50,97 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
   end
 
   defp percent(string), do: string |> Decimal.new() |> Format.signed_percent() |> Kernel.<>("%")
+
+  # --- Sprint 26 R3 begin ---
+  # Mode 3 (ADR-0057): the API's reinvestment block of one sale, and one of
+  # its spans, for the same sales the screen reads.
+  defp api_block(conn, sale_id) do
+    %{"data" => data} =
+      conn
+      |> api_conn()
+      |> get("/api/v1/sales/hindsight", %{"include" => "reinvestment"})
+      |> json_response(200)
+
+    Enum.find(data["rows"], &(&1["sale_id"] == sale_id))["reinvestment"]
+  end
+
+  defp api_switch_span(block, label), do: Enum.find(block["spans"], &(&1["span"] == label))
+
+  # The text of every element the selector matches, in document order.
+  defp texts(view, selector) do
+    view
+    |> render()
+    |> LazyHTML.from_document()
+    |> LazyHTML.query(selector)
+    |> Enum.map(&(&1 |> LazyHTML.text() |> squish()))
+  end
+
+  defp money(string), do: string |> Decimal.new() |> Format.decimal(2)
+  defp signed_money(string), do: string |> Decimal.new() |> Format.signed_decimal(2)
+
+  # A sale and the buys its proceeds went into (ADR-0057 §1), all from the
+  # one cash account: the 2025-01-15 sale (10 x 101.50, fees 1.50, taxes
+  # 10.00, so 1,003.50 of proceeds) pays a buy 5 days later in full (8 x
+  # 100 + 2.00 fees = 802.00) and 201.50 of a 300.00 buy 21 days later. The
+  # first bought fund has a close on every span's end; the second none after
+  # April 2025, so the 12m and latest spans miss a close on the switched
+  # side. A recent sale's proceeds pay a buy on its own day, so its spans
+  # run. A third sale has no buy within 30 days.
+  defp switch_world do
+    world = base_world(name: "Switch Screen")
+
+    sold = create_security!(name: "Synthetic Sold Fund", ticker: "SSF")
+
+    put_quotes!(sold, [
+      {~D[2025-01-15], "100"},
+      {~D[2025-02-14], "110"},
+      {~D[2025-04-15], "120"},
+      {~D[2026-01-15], "90"}
+    ])
+
+    sale =
+      sell!(world, sold,
+        quantity: "10",
+        price: "101.50",
+        fees: "1.50",
+        taxes: "10.00",
+        date: ~D[2025-01-15]
+      )
+
+    next = create_security!(name: "Synthetic Next Fund", ticker: "SNF")
+
+    put_quotes!(next, [
+      {~D[2025-01-20], "100"},
+      {~D[2025-02-14], "105"},
+      {~D[2025-04-15], "110"},
+      {~D[2026-01-15], "120"}
+    ])
+
+    second = create_security!(name: "Synthetic Second Fund", ticker: "SSE")
+
+    put_quotes!(second, [
+      {~D[2025-02-05], "100"},
+      {~D[2025-02-14], "102"},
+      {~D[2025-04-15], "104"}
+    ])
+
+    buy!(world, next, quantity: "8", price: "100", fees: "2.00", date: ~D[2025-01-20])
+    buy!(world, second, quantity: "3", price: "100", date: ~D[2025-02-05])
+
+    recent_day = Date.add(Clock.today(), -3)
+    recent_security = create_security!(name: "Synthetic Recent Fund", ticker: "SRF")
+    put_quotes!(recent_security, [{recent_day, "40"}])
+    recent = sell!(world, recent_security, quantity: "1", price: "40", date: recent_day)
+    buy!(world, next, quantity: "1", price: "30", date: recent_day)
+
+    alone = create_security!(name: "Synthetic Alone Fund", ticker: "SAF")
+    put_quotes!(alone, [{~D[2025-06-02], "12"}])
+    lone = sell!(world, alone, quantity: "2", price: "12", date: ~D[2025-06-02])
+
+    %{sold: sold, sale: sale, recent: recent, recent_day: recent_day, lone: lone}
+  end
+
+  # --- Sprint 26 R3 end ---
 
   # A sale on 2025-01-15 whose 1m, 3m and 12m spans have passed, a flagged
   # benchmark with closes on the same days, a recent sale whose spans have
@@ -332,8 +423,12 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
   #   Startkurs".
   # - No verdict word appears in the section: too early, too late, right,
   #   wrong, mistake, missed out, better, worse (nor their German).
+  # - Mode 3 (R3, ADR-0057 §5), in English and in German, carries none
+  #   either, and speaks German: „Anschlusskauf“, „Angelegt“, „behalten“,
+  #   „gewechselt“, „Erlös angelegt in“, „Keine Anschlusskäufe gefunden“.
   test "the section speaks German and carries no verdict", %{conn: conn} do
     %{recent: recent, unpriced: unpriced} = world()
+    %{sale: switched, lone: lone} = switch_world()
 
     {:ok, view, _html} = live(conn, "/cashflow?tab=realized&locale=de")
 
@@ -350,28 +445,233 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
     assert text(view, "#sale-hindsight tr[data-sale='#{unpriced.id}'] td[data-span='1m']") =~
              "kein Startkurs"
 
+    refute_verdict(view)
+
+    # --- Sprint 26 R3 begin ---
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized&hindsight=reinvestment&locale=de")
+
+    assert text(view, "[data-role='hindsight-compare']") =~
+             "Vergleich Ohne Fester Zins Wertpapier Anschlusskauf"
+
+    assert text(view, "#sale-hindsight thead") =~ "Angelegt 1M 3M 12M Bis heute"
+    one = text(view, "#sale-hindsight tr[data-sale='#{switched.id}'] td[data-span='1m']")
+    assert one =~ "behalten" and one =~ "gewechselt" and one =~ "Steuern zugerechnet"
+
+    assert text(
+             view,
+             "#sale-hindsight tr[data-role='hindsight-detail'][data-sale='#{switched.id}']"
+           ) =~
+             "Erlös angelegt in: Synthetic Next Fund, gekauft 20.01.2025 (5 Tage nach dem Verkauf)"
+
+    assert text(view, "#sale-hindsight tr[data-sale='#{lone.id}'] td.hs-nobuys") =~
+             "Keine Anschlusskäufe gefunden"
+
+    refute_verdict(view)
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized&hindsight=reinvestment")
+    assert text(view, "#sale-hindsight thead") =~ "Invested"
+    refute_verdict(view)
+    # --- Sprint 26 R3 end ---
+  end
+
+  @verdicts [
+    "too early",
+    "too late",
+    "wrong",
+    "mistake",
+    "missed out",
+    "better",
+    "worse",
+    "zu früh",
+    "zu spät",
+    "richtig",
+    "falsch",
+    "fehler",
+    "besser",
+    "schlechter",
+    "verpasst"
+  ]
+
+  defp refute_verdict(view) do
     section = view |> text("#sale-hindsight") |> String.downcase()
 
-    verdicts = [
-      "too early",
-      "too late",
-      "wrong",
-      "mistake",
-      "missed out",
-      "better",
-      "worse",
-      "zu früh",
-      "zu spät",
-      "richtig",
-      "falsch",
-      "fehler",
-      "besser",
-      "schlechter",
-      "verpasst"
-    ]
-
-    for word <- verdicts do
+    for word <- @verdicts do
       refute section =~ word, word
     end
   end
+
+  # --- Sprint 26 R3 begin ---
+
+  # User story (R3, I18 mode 3; ADR-0057 §6; board 03 frame m3):
+  # As the operator who sold one thing and bought another with the money,
+  # I want the chooser's fourth comparison „Anschlusskauf“ to set each sale
+  # against the buys its proceeds went into, per span,
+  # so that I see what the switch did, with its fees, its taxes and the
+  # days to the first buy, without asking the agent.
+  #
+  # Acceptance criteria:
+  # - With hindsight=reinvestment a span reads the difference switched −
+  #   kept in EUR over "kept" and "switched", and "taxes added back" where
+  #   the sale paid taxes; the difference is the API's for
+  #   include=reinvestment, to the displayed cent.
+  # - The third column reads "Invested": what the buys took and its share
+  #   of the proceeds.
+  # - Under each matched sale its buys: name, date, the days after the sale,
+  #   the amount, "pro rata x of y" for a buy funded in part; then the cost
+  #   line of its latest measured span: the fees inside, the sale's taxes
+  #   added back, the buys' income not added.
+  # - A span not ended reads "running"; one the read cannot measure reads
+  #   its reason and the side it is missing on; a sale with no follow-on
+  #   purchase reads its reason in words across the spans.
+  # - The phone rows carry the same figures; the ⓘ and the legend add mode
+  #   3's basis.
+  test "Follow-on purchase sets each sale against the buys its money went into, as the API answers",
+       %{conn: conn} do
+    %{sale: sale, recent: recent, recent_day: recent_day, lone: lone} = switch_world()
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized&hindsight=reinvestment")
+
+    assert has_element?(
+             view,
+             "[data-role='hindsight-compare'] a.is-active",
+             "Follow-on purchase"
+           )
+
+    block = api_block(conn, sale.id)
+    assert block["status"] == "matched"
+    row = "#sale-hindsight tr[data-role='hindsight-row'][data-sale='#{sale.id}']"
+
+    one = api_switch_span(block, "1m")
+
+    assert text(view, "#{row} td[data-span='1m'] .hs-lead") ==
+             signed_money(one["difference"]) <> " EUR"
+
+    assert text(view, "#{row} td[data-span='1m'] .hs-lead") =~ "44.47"
+
+    assert texts(view, "#{row} td[data-span='1m'] .stat__sub") == [
+             "kept #{money(one["kept"])}",
+             "switched #{money(one["switched"])}",
+             "taxes added back #{signed_money(one["taxes_apart"])}"
+           ]
+
+    assert texts(view, "#{row} td[data-role='hindsight-invested'] .stat__sub") ==
+             ["100.0% of the proceeds"]
+
+    assert text(view, "#{row} td[data-role='hindsight-invested']") =~ "1,003.50 EUR"
+
+    twelve = text(view, "#{row} td[data-span='12m']")
+    assert twelve =~ "no end close" and twelve =~ "switched side"
+
+    assert has_element?(
+             view,
+             "#{row} td[data-span='12m'][title=\"No close at the span's end and none in the 7 days before\"]"
+           )
+
+    detail = "#sale-hindsight tr[data-role='hindsight-detail'][data-sale='#{sale.id}']"
+    three = api_switch_span(block, "3m")
+
+    assert texts(view, "#{detail} .hs-detail__buys, #{detail} .hs-detail__costs") == [
+             "Proceeds invested in: Synthetic Next Fund, bought #{Format.date(~D[2025-01-20])} " <>
+               "(5 days after the sale), 802.00 EUR; Synthetic Second Fund, bought " <>
+               "#{Format.date(~D[2025-02-05])} (21 days after the sale), pro rata 201.50 of " <>
+               "300.00 EUR",
+             "3M · Fees, inside the difference: #{money(three["fees_inside"])} EUR · " <>
+               "The sale's taxes, added back to the switched side: " <>
+               "#{money(three["taxes_apart"])} EUR · The buys' income, not added: none"
+           ]
+
+    assert money(three["fees_inside"]) == "3.50"
+    assert block["days_to_first_buy"] == 5
+
+    pending = "#sale-hindsight tr[data-role='hindsight-row'][data-sale='#{recent.id}']"
+
+    assert texts(view, "#{pending} td[data-role='hindsight-invested'] .stat__sub") ==
+             ["75.0% of the proceeds"]
+
+    assert texts(view, "#{pending} td[data-span='1m'] span") ==
+             ["running", "until #{Format.date(Date.shift(recent_day, month: 1))}"]
+
+    assert api_block(conn, lone.id)["reason"] == "no_buy_within_30_days"
+
+    assert text(view, "#sale-hindsight tr[data-sale='#{lone.id}'] td.hs-nobuys") ==
+             "No follow-on purchases found: no buy from the sale's cash account within 30 days of the sale day"
+
+    refute has_element?(
+             view,
+             "#sale-hindsight tr[data-role='hindsight-detail'][data-sale='#{lone.id}']"
+           )
+
+    phone = "#sale-hindsight li[data-role='hindsight-phone-row'][data-sale='#{sale.id}']"
+    assert text(view, phone) =~ "Invested 1,003.50 EUR · 100.0% of the proceeds"
+    assert text(view, "#{phone} .hs-detail-phone") =~ "pro rata 201.50 of 300.00 EUR"
+
+    assert text(view, "#sale-hindsight li[data-sale='#{lone.id}'] .hs-nobuys--phone") =~
+             "No follow-on purchases found"
+
+    assert text(view, "#sale-hindsight [data-role='hindsight-info'] p") =~
+             "Follow-on purchase: the buys from the sale's cash account"
+
+    assert text(view, "#sale-hindsight .hs-legend") =~
+             "Per span switched − kept in EUR, both before tax"
+  end
+
+  # User story (R3; the chooser's state is the address):
+  # As the operator handing a link to the switch comparison to myself or
+  # the agent,
+  # I want the fourth choice to live in the address,
+  # so that the link opens it again, on Cash flow and on the security's
+  # Trades tab, and an address nobody wrote does not crash the page.
+  #
+  # Acceptance criteria:
+  # - Choosing „Follow-on purchase“ patches hindsight=reinvestment; „None“
+  #   from there drops the buys.
+  # - An unknown hindsight value (misspelled, upper case, empty) opens the
+  #   default comparison.
+  # - The security's Trades tab opens mode 3 from its link, keeps the tab
+  #   and shows its sale's buys under it.
+  test "the fourth choice is part of the address, and an unknown one falls back",
+       %{conn: conn} do
+    %{sold: sold, sale: sale} = switch_world()
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    assert has_element?(view, "[data-role='hindsight-compare'] a.is-active", "None")
+
+    view |> element("[data-role='hindsight-compare'] a", "Follow-on purchase") |> render_click()
+    assert_patch(view, "/cashflow?tab=realized&hindsight=reinvestment")
+    assert has_element?(view, "tr[data-role='hindsight-detail'][data-sale='#{sale.id}']")
+
+    view |> element("[data-role='hindsight-compare'] a", "None") |> render_click()
+    assert_patch(view, "/cashflow?tab=realized&hindsight=none")
+    refute has_element?(view, "tr[data-role='hindsight-detail']")
+
+    for value <- ["Reinvestment", "reinvest", "", "%00"] do
+      {:ok, view, _html} = live(conn, "/cashflow?tab=realized&hindsight=#{value}")
+      assert has_element?(view, "[data-role='hindsight-compare'] a.is-active", "None"), value
+      refute has_element?(view, "tr[data-role='hindsight-detail']"), value
+    end
+
+    {:ok, view, _html} = live(conn, "/securities/#{sold.id}?tab=trades&hindsight=reinvestment")
+
+    assert has_element?(
+             view,
+             "#detail-sale-hindsight [data-role='hindsight-compare'] a.is-active",
+             "Follow-on purchase"
+           )
+
+    assert has_element?(
+             view,
+             "#detail-sale-hindsight tr[data-role='hindsight-detail'][data-sale='#{sale.id}'] td[colspan='6']",
+             "Synthetic Next Fund"
+           )
+
+    refute has_element?(view, "#detail-sale-hindsight [data-role='hindsight-name']")
+
+    view
+    |> element("#detail-sale-hindsight [data-role='hindsight-compare'] a", "None")
+    |> render_click()
+
+    assert_patch(view, "/securities/#{sold.id}?tab=trades&hindsight=none")
+  end
+
+  # --- Sprint 26 R3 end ---
 end

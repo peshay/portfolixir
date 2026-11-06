@@ -33,15 +33,24 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   row, no ranking, no sum of what the sales missed (AGENTS.md: no advice).
 
   **Comparison modes** are an atom list (`modes/0`), each with its query
-  value, its chooser label and its resolution. A fourth mode (R3, ADR-0057's
-  follow-on purchase) adds one entry to `@modes`, one `mode_label/1` clause
-  and its own row rendering; the rows and the URL handling stay as they are.
+  value, its chooser label and its resolution. The fourth, `:reinvestment`
+  („Anschlusskauf“, `hindsight=reinvestment`; Sprint 26 R3, I18 mode 3,
+  ADR-0057 §6, board frame m3), reads the same report with
+  `include: [:reinvestment]`, as `GET /api/v1/sales/hindsight?include=reinvestment`
+  does: the third column is „Angelegt“ (what the buys took and its share
+  of the proceeds), a span is the difference switched − kept in EUR over
+  both sides and, where the sale paid taxes, the taxes the read adds back;
+  a matched sale's buys (date, days after the sale, amount or „anteilig“)
+  and the cost line of its latest measured span open in a row under it; a
+  sale with no match reads its reason across the spans. An unknown
+  `hindsight` value is the default comparison.
   """
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Catalog
   alias Portfolixir.Portfolios.Performance.SaleHindsight
+  alias Portfolixir.Portfolios.Performance.SaleReinvestment
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.DecimalInput
@@ -50,8 +59,10 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecurityNames
 
-  # The chooser's modes in their order. R3 adds `:switch` here.
-  @modes [:none, :rate, :security]
+  # The chooser's modes in their order; `:reinvestment` is R3's follow-on
+  # purchase (I18 mode 3, ADR-0057), read with the API's
+  # `include=reinvestment`.
+  @modes [:none, :rate, :security, :reinvestment]
   @mode_params Map.new(@modes, &{Atom.to_string(&1), &1})
   @param_prefix "hindsight"
   @rate_param "hindsight_rate"
@@ -88,7 +99,8 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     report =
       SaleHindsight.report(
         benchmark: comparison.benchmark,
-        security_id: security_id
+        security_id: security_id,
+        include: include(comparison)
       )
 
     rows =
@@ -116,10 +128,16 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     resolve(mode, params, benchmarks)
   end
 
+  # Mode 3 reads the same rows with the reinvestment block, as
+  # `GET /api/v1/sales/hindsight?include=reinvestment` does.
+  defp include(%{mode: :reinvestment}), do: [:reinvestment]
+  defp include(_comparison), do: []
+
   defp default_mode([]), do: :none
   defp default_mode(_benchmarks), do: :security
 
   defp resolve(:none, _params, _benchmarks), do: %{base(:none) | benchmark: nil}
+  defp resolve(:reinvestment, _params, _benchmarks), do: base(:reinvestment)
 
   defp resolve(:rate, params, _benchmarks) do
     case params[@rate_param] do
@@ -203,6 +221,9 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   # A mode keeps its own parameter and drops the others'.
   defp mode_path(uri, :none, _comparison), do: path_with(uri, [{@param_prefix, "none"}])
 
+  defp mode_path(uri, :reinvestment, _comparison),
+    do: path_with(uri, [{@param_prefix, "reinvestment"}])
+
   defp mode_path(uri, :rate, comparison),
     do: path_with(uri, [{@param_prefix, "rate"}, {@rate_param, comparison.rate_input}])
 
@@ -263,6 +284,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
         group_head: group_head(assigns.comparison),
         legend: legend(assigns.comparison),
         show_name?: is_nil(assigns.security_id),
+        switch?: assigns.comparison.mode == :reinvestment,
         spans: span_heads()
       )
 
@@ -281,12 +303,12 @@ defmodule PortfolixirWeb.SaleHindsightSection do
           <%= gettext(
             "Price move per sale in EUR · from the sale day · one row per sale booking"
           ) %>
-          <.info />
+          <.info switch={@switch?} />
         </div>
       <% else %>
         <div class="section-title">
           <h3 class="detail-section-title"><%= gettext("After the sale") %></h3>
-          <.info section />
+          <.info section switch={@switch?} />
         </div>
       <% end %>
 
@@ -376,25 +398,50 @@ defmodule PortfolixirWeb.SaleHindsightSection do
             <tr>
               <th :if={@show_name?}><%= gettext("Security") %></th>
               <th><%= gettext("Sale") %></th>
-              <th class="num"><%= gettext("Start close") %></th>
+              <th class="num">
+                <%= if @switch?, do: gettext("Invested"), else: gettext("Start close") %>
+              </th>
               <th :for={{label, sub} <- @spans} class="num">
                 <%= label %><span :if={sub} class="hs-th-sub"><%= sub %></span>
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr :for={entry <- @rows} data-role="hindsight-row" data-sale={entry.row.sale_id}>
-              <td :if={@show_name?} data-role="hindsight-name">
-                <.link navigate={"/securities/#{entry.security_id}?tab=trades"}>
-                  <%= entry.row.security.name %><SecurityNames.twin_id tag={entry.twin_id} />
-                </.link>
-              </td>
-              <td class="hs-sale">
-                <%= Format.date(entry.row.date) %> <span class="stat__sub"><%= sale_line(entry.row) %></span>
-              </td>
-              <.start_cell row={entry.row} />
-              <.span_cell :for={span <- entry.row.spans} span={span} />
-            </tr>
+            <%= for entry <- @rows do %>
+              <tr
+                data-role="hindsight-row"
+                data-sale={entry.row.sale_id}
+                class={matched?(entry.row, @switch?) && "hs-has-detail"}
+              >
+                <td :if={@show_name?} data-role="hindsight-name">
+                  <.link navigate={"/securities/#{entry.security_id}?tab=trades"}>
+                    <%= entry.row.security.name %><SecurityNames.twin_id tag={entry.twin_id} />
+                  </.link>
+                </td>
+                <td class="hs-sale">
+                  <%= Format.date(entry.row.date) %> <span class="stat__sub"><%= sale_line(entry.row) %></span>
+                </td>
+                <%= if @switch? do %>
+                  <.invested_cell block={entry.row.reinvestment} />
+                  <td :if={not matched?(entry.row, true)} colspan="4" class="hs-nobuys">
+                    <%= no_match_text(entry.row.reinvestment.reason) %>
+                  </td>
+                <% else %>
+                  <.start_cell row={entry.row} />
+                <% end %>
+                <.span_cell :for={{label, cell} <- cells(entry.row, @switch?)} label={label} cell={cell} />
+              </tr>
+              <tr
+                :if={matched?(entry.row, @switch?)}
+                class="hs-detail"
+                data-role="hindsight-detail"
+                data-sale={entry.row.sale_id}
+              >
+                <td colspan={if @show_name?, do: 7, else: 6}>
+                  <.switch_detail row={entry.row} />
+                </td>
+              </tr>
+            <% end %>
           </tbody>
         </table>
       </div>
@@ -413,20 +460,28 @@ defmodule PortfolixirWeb.SaleHindsightSection do
             <span class="phone-row__ids">
               <%= gettext("Sale") %> <%= Format.date(entry.row.date) %> · <%= sale_line(entry.row) %>
             </span>
-            <span class="phone-row__ids"><%= start_line(entry.row) %></span>
+            <span class="phone-row__ids">
+              <%= if @switch?, do: invested_line(entry.row.reinvestment), else: start_line(entry.row) %>
+            </span>
           </span>
-          <dl class="hs-grid">
+          <dl :if={not @switch? or matched?(entry.row, true)} class="hs-grid">
             <div
-              :for={{span, {label, _sub}} <- Enum.zip(entry.row.spans, @spans)}
-              class={["hs-grid__cell" | span_classes(cell(span))]}
-              title={cell(span).title}
+              :for={{{_span, cell}, {label, _sub}} <- Enum.zip(cells(entry.row, @switch?), @spans)}
+              class={["hs-grid__cell" | span_classes(cell)]}
+              title={cell.title}
             >
               <dt><%= label %></dt>
               <dd>
-                <.cell_body cell={cell(span)} />
+                <.cell_body cell={cell} />
               </dd>
             </div>
           </dl>
+          <p :if={matched?(entry.row, @switch?)} class="hs-detail-phone">
+            <.switch_detail row={entry.row} />
+          </p>
+          <p :if={@switch? and not matched?(entry.row, true)} class="hs-nobuys hs-nobuys--phone">
+            <%= no_match_text(entry.row.reinvestment.reason) %>
+          </p>
         </li>
       </ul>
 
@@ -445,6 +500,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   end
 
   attr(:section, :boolean, default: false)
+  attr(:switch, :boolean, default: false)
 
   # The computation basis in words (AGENTS.md: every (a)-(c) metric states
   # its basis; the payload's `computation_basis` says the same for the
@@ -459,7 +515,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
       data-role="hindsight-info"
     >
       <summary aria-label={gettext("About this section")}>ⓘ</summary>
-      <p role="tooltip"><%= for {line, index} <- Enum.with_index(info_lines()) do %><br :if={index == 1} /><br :if={index > 0} /><%= line %><% end %></p>
+      <p role="tooltip"><%= for {line, index} <- Enum.with_index(info_lines()) do %><br :if={index == 1} /><br :if={index > 0} /><%= line %><% end %><%= for {line, index} <- Enum.with_index(if(@switch, do: switch_info_lines(), else: [])) do %><br :if={index == 0} /><br /><%= line %><% end %></p>
     </details>
     """
   end
@@ -484,6 +540,23 @@ defmodule PortfolixirWeb.SaleHindsightSection do
       ),
       gettext(
         "One row per sale booking, not per FIFO lot; a sale with no matched buy counts, a delivery is not a sale."
+      )
+    ]
+  end
+
+  # Mode 3's three clauses (ADR-0057 §§1-3): the rule, the two sides, the
+  # costs; the payload's `computation_basis.reinvestment` says the same.
+  defp switch_info_lines do
+    [
+      gettext(
+        "Follow-on purchase: the buys from the sale's cash account, on the sale day or up to %{days} days after it, take the proceeds in date order until they are used up; the last one counts pro rata.",
+        days: SaleReinvestment.window_days()
+      ),
+      gettext(
+        "Kept: what the sold position would be worth, scaled to the part of the proceeds invested, price only. Switched: the value of the bought position; before the buy date the money counts as cash at its booked amount."
+      ),
+      gettext(
+        "The booked fees of the sale and the buys are inside the difference. The sale's taxes are named apart and added back to the switched side, because the kept side's latent tax is just as unknown: both sides before tax. The bought position's income is named, not added."
       )
     ]
   end
@@ -537,27 +610,27 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     "#{Format.exact(row.quantity)} × #{price} #{row.currency_code}"
   end
 
-  attr(:span, :map, required: true)
+  attr(:label, :string, required: true)
+  attr(:cell, :map, required: true)
 
   defp span_cell(assigns) do
-    assigns = assign(assigns, :cell, cell(assigns.span))
-
     ~H"""
-    <td
-      class={["num", "hs-span" | span_classes(@cell)]}
-      title={@cell.title}
-      data-span={@span.span}
-    >
+    <td class={["num", "hs-span" | span_classes(@cell)]} title={@cell.title} data-span={@label}>
       <.cell_body cell={@cell} />
     </td>
     """
   end
 
+  # A row's spans as `{label, cell}`: the sale's own spans in modes 1 and 2,
+  # its reinvestment block's in mode 3 (none for a sale with no match).
+  defp cells(row, false), do: Enum.map(row.spans, &{&1.span, cell(&1)})
+  defp cells(%{reinvestment: block}, true), do: Enum.map(block.spans, &{&1.span, switch_cell(&1)})
+
   attr(:cell, :map, required: true)
 
   defp cell_body(assigns) do
     ~H"""
-    <span class={["hs-lead", @cell.lead_class]}><%= if @cell.lead do %><%= @cell.lead %><% else %><span aria-hidden="true">—</span><% end %></span><%= for line <- @cell.subs do %><%= " " %><span class="stat__sub"><%= line %></span><% end %>
+    <span class={["hs-lead", @cell.lead_class]}><%= if @cell.lead do %><%= @cell.lead %><% else %><span aria-hidden="true">—</span><% end %><%= if @cell[:suffix] do %> <small class="value-suffix"><%= @cell.suffix %></small><% end %></span><%= for line <- @cell.subs do %><%= " " %><span class="stat__sub"><%= line %></span><% end %>
     """
   end
 
@@ -613,6 +686,193 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     %{state: :value, lead: percent(own), lead_class: sign_class(own), subs: [], title: nil}
   end
 
+  # --- Mode 3: the follow-on purchase (R3; ADR-0057 §§2-4, board 03 m3) ---
+
+  defp matched?(%{reinvestment: %{status: :matched}}, true), do: true
+  defp matched?(_row, _switch?), do: false
+
+  # A span of the reinvestment block: the difference switched − kept in
+  # EUR over both sides, and the sale's taxes where it paid any, because
+  # the read adds them back to the switched side (§3), so the three lines
+  # add up to the lead; the cost line of the span is the cell's title.
+  defp switch_cell(%{status: :pending} = span), do: cell(span)
+
+  defp switch_cell(%{status: :incomplete, reason: reason, side: side}) do
+    %{
+      state: :missing,
+      lead: nil,
+      lead_class: nil,
+      subs: [reason_text(reason), side_text(side)],
+      title: reason_title(reason)
+    }
+  end
+
+  defp switch_cell(%{status: :complete, difference: difference} = span) do
+    taxes =
+      if Format.displayed_sign(span.taxes_apart, 2) == :zero,
+        do: [],
+        else: [
+          gettext("taxes added back %{amount}",
+            amount: Format.signed_decimal(span.taxes_apart, 2)
+          )
+        ]
+
+    %{
+      state: :value,
+      lead: Format.signed_decimal(difference, 2),
+      suffix: "EUR",
+      lead_class: money_sign_class(difference),
+      subs:
+        [
+          gettext("kept %{amount}", amount: Format.decimal(span.kept, 2)),
+          gettext("switched %{amount}", amount: Format.decimal(span.switched, 2))
+        ] ++ taxes,
+      title: cost_text(span)
+    }
+  end
+
+  defp side_text(:switched), do: gettext("switched side")
+  defp side_text(_kept), do: gettext("kept side")
+
+  defp money_sign_class(amount) do
+    case Format.displayed_sign(amount, 2) do
+      :positive -> "decimal-positive"
+      :negative -> "decimal-negative"
+      _zero -> nil
+    end
+  end
+
+  attr(:block, :map, required: true)
+
+  defp invested_cell(%{block: %{status: :matched}} = assigns) do
+    ~H"""
+    <td class="num" data-role="hindsight-invested">
+      <%= Format.decimal(invested(@block), 2) %> <small class="value-suffix"><%= @block.currency_code %></small> <span class="stat__sub"><%= share_text(@block) %></span>
+    </td>
+    """
+  end
+
+  defp invested_cell(assigns) do
+    ~H"""
+    <td class="num trade-pa--na" data-role="hindsight-invested"><span aria-hidden="true">—</span></td>
+    """
+  end
+
+  # What the matched buys took of the proceeds, in the cash account's
+  # currency: the sum of the read's `amount_taken`.
+  defp invested(block),
+    do: Enum.reduce(block.buys, Decimal.new(0), &Decimal.add(&1.amount_taken, &2))
+
+  defp share_text(block),
+    do:
+      gettext("%{share} of the proceeds",
+        share: Format.percent(block.share_of_proceeds_matched) <> "%"
+      )
+
+  defp invested_line(%{status: :matched} = block) do
+    gettext("Invested") <>
+      " " <>
+      Format.decimal(invested(block), 2) <>
+      " " <> block.currency_code <> " · " <> share_text(block)
+  end
+
+  defp invested_line(_no_match), do: ""
+
+  defp no_match_text(:proceeds_taken_by_earlier_sale),
+    do:
+      gettext(
+        "No follow-on purchases found: the buys within %{days} days were paid from an earlier sale's proceeds",
+        days: SaleReinvestment.window_days()
+      )
+
+  defp no_match_text(:no_cash_account),
+    do:
+      gettext(
+        "No follow-on purchases found: the sale has no cash account, or no proceeds booked on it"
+      )
+
+  defp no_match_text(_no_buy_within_30_days),
+    do:
+      gettext(
+        "No follow-on purchases found: no buy from the sale's cash account within %{days} days of the sale day",
+        days: SaleReinvestment.window_days()
+      )
+
+  attr(:row, :map, required: true)
+
+  # Under a matched sale: the buys its proceeds went into, then the cost
+  # line of its latest measured span, named by that span.
+  defp switch_detail(assigns) do
+    block = assigns.row.reinvestment
+
+    assigns =
+      assign(assigns,
+        buys: buy_texts(assigns.row, block),
+        costs: block.spans |> Enum.reverse() |> Enum.find(&(&1.status == :complete))
+      )
+
+    ~H"""
+    <span class="hs-detail__buys"><%= gettext("Proceeds invested in") %>: <%= for {{name, line}, index} <- Enum.with_index(@buys) do %><%= if index > 0, do: "; " %><b><%= name %></b>, <%= line %><% end %></span>
+    <span :if={@costs} class="hs-detail__costs"><%= span_label(@costs.span) %> · <%= cost_text(@costs) %></span>
+    """
+  end
+
+  defp buy_texts(row, block) do
+    block.buys
+    |> Enum.with_index()
+    |> Enum.map(fn {buy, index} ->
+      days = if index == 0, do: block.days_to_first_buy, else: Date.diff(buy.date, row.date)
+      {buy_name(buy), buy_line(buy, days, block.currency_code)}
+    end)
+  end
+
+  defp buy_name(%{security: %{name: name}}), do: name
+  defp buy_name(_buy), do: "—"
+
+  defp buy_line(buy, days, currency) do
+    amount =
+      if Decimal.compare(buy.share_of_buy, 1) == :lt,
+        do:
+          gettext("pro rata %{part} of %{amount} %{currency}",
+            part: Format.decimal(buy.amount_taken, 2),
+            amount: Format.decimal(buy.cash_debit, 2),
+            currency: currency
+          ),
+        else: "#{Format.decimal(buy.amount_taken, 2)} #{currency}"
+
+    "#{gettext("bought %{date}", date: Format.date(buy.date))} (#{days_text(days)}), #{amount}"
+  end
+
+  defp days_text(0), do: gettext("on the sale day")
+
+  defp days_text(days),
+    do: ngettext("%{count} day after the sale", "%{count} days after the sale", days)
+
+  # One span's costs (§3), in EUR at the span end's rate: the fees inside
+  # the difference, the sale's taxes added back, the buys' income named.
+  defp cost_text(span) do
+    Enum.join(
+      [
+        "#{gettext("Fees, inside the difference")}: #{cost_amount(span.fees_inside)}",
+        "#{gettext("The sale's taxes, added back to the switched side")}: #{cost_amount(span.taxes_apart)}",
+        "#{gettext("The buys' income, not added")}: #{cost_amount(span.income_apart)}"
+      ],
+      " · "
+    )
+  end
+
+  defp cost_amount(amount) do
+    if Format.displayed_sign(amount, 2) == :zero,
+      do: pgettext("hindsight costs", "none"),
+      else: Format.decimal(amount, 2) <> " EUR"
+  end
+
+  defp span_label(label) do
+    SaleHindsight.span_labels()
+    |> Enum.zip(span_heads())
+    |> Enum.find_value(label, fn {key, {head, _sub}} -> if key == label, do: head end)
+  end
+
   defp percent(%Decimal{} = fraction), do: Format.signed_percent(fraction) <> "%"
 
   defp sign_class(fraction) do
@@ -655,6 +915,9 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   defp mode_label(:none), do: pgettext("hindsight comparison", "None")
   defp mode_label(:rate), do: gettext("Fixed rate")
   defp mode_label(:security), do: gettext("Security")
+  defp mode_label(:reinvestment), do: gettext("Follow-on purchase")
+
+  defp group_head(%{mode: :reinvestment}), do: gettext("Difference switched − kept, in EUR")
 
   defp group_head(%{benchmark: {:rate, rate}}),
     do: gettext("Difference to %{rate} % p.a.", rate: rate_text(rate))
@@ -663,6 +926,9 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     do: gettext("Difference to %{name}", name: security.name)
 
   defp group_head(_none), do: gettext("The security's price move")
+
+  defp legend(%{mode: :reinvestment}),
+    do: gettext("Per span switched − kept in EUR, both before tax")
 
   defp legend(%{benchmark: {:rate, rate}}),
     do:

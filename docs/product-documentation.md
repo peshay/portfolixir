@@ -2655,6 +2655,28 @@ for the same comparison; the ⓘ states their basis. They are price returns:
 distributions after the sale are not included. The section says nothing
 about whether a sale was right — it shows what the price did.
 
+The chooser's fourth option, **Follow-on purchase** (Sprint 26, ADR-0057),
+sets each sale against the buys its money went into. Nobody picks them: the
+buys from the sale's cash account on the sale day or up to 30 days after it
+take the proceeds in date order, the last one pro rata. The third column
+then reads **Invested** — what those buys took, and its share of the
+proceeds — and each span reads the difference **switched − kept** in EUR,
+with **kept** (the sold position scaled to the part invested) and
+**switched** (the bought position; money not yet spent counts as cash)
+under it. The booked fees of the sale and the buys are inside the
+difference; the sale's taxes are added back to the switched side and shown
+as "taxes added back", because the tax the kept position would owe one day
+is not known, so both sides are before tax. Under each sale a line names
+the buys (date, days after the sale, amount, "pro rata" for a buy the sale
+paid in part) and the costs of its latest measured span: the fees inside
+the difference, the sale's taxes, and the bought positions' income, which
+is named but not added. A sale with no follow-on purchase says why ("no buy
+from the sale's cash account within 30 days of the sale day", "paid from an
+earlier sale's proceeds", "no cash account"). A missing close names the
+side it is missing on. The figures are those of `GET /api/v1/sales/hindsight`
+with `include=reinvestment`; the address carries `hindsight=reinvestment`.
+There is no verdict and no total over all switches.
+
 **The security's own Trades tab** (issue #1029) is where every row of the
 facet and of the Overview card leads, and since Sprint 18 it shows the same
 figure: its **Closed trades (FIFO)** table carries the **p. a.** column

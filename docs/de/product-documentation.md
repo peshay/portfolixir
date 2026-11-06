@@ -2927,6 +2927,31 @@ nennt ihre Basis. Es sind Kursrenditen: Ausschüttungen nach dem Verkauf
 sind nicht enthalten. Der Abschnitt sagt nichts darüber, ob ein Verkauf
 richtig war — er zeigt, was der Kurs getan hat.
 
+Die vierte Wahl der Auswahl, **Anschlusskauf** (Sprint 26, ADR-0057), stellt
+jeden Verkauf den Käufen gegenüber, in die sein Geld ging. Niemand wählt
+sie aus: Die Käufe vom Verrechnungskonto des Verkaufs, am Verkaufstag oder
+bis zu 30 Tage danach, verbrauchen den Erlös in Datumsfolge, der letzte
+anteilig. Die dritte Spalte heißt dann **Angelegt** — was diese Käufe
+genommen haben, und sein Anteil am Erlös —, und jede Spanne zeigt die
+Differenz **gewechselt − behalten** in EUR, darunter **behalten** (die
+verkaufte Position, auf den angelegten Teil skaliert) und **gewechselt**
+(die gekaufte Position; noch nicht ausgegebenes Geld zählt als Cash). Die
+gebuchten Gebühren des Verkaufs und der Käufe stecken in der Differenz; die
+Steuern des Verkaufs werden der gewechselten Seite zugerechnet und als
+„Steuern zugerechnet“ gezeigt, weil die Steuer, die die behaltene Position
+einmal schulden würde, unbekannt ist: Beide Seiten stehen vor Steuern. Unter
+jedem Verkauf nennt eine Zeile die Käufe (Datum, Tage nach dem Verkauf,
+Betrag, „anteilig“ für einen Kauf, den der Verkauf nur zum Teil bezahlt
+hat) und die Kosten seiner letzten gemessenen Spanne: die Gebühren in der
+Differenz, die Steuern des Verkaufs und die Erträge der gekauften
+Positionen, die genannt, aber nicht addiert werden. Ein Verkauf ohne
+Anschlusskauf sagt, warum („kein Kauf vom Verrechnungskonto des Verkaufs
+binnen 30 Tagen ab dem Verkaufstag“, „bezahlte der Erlös eines früheren
+Verkaufs“, „kein Verrechnungskonto“). Fehlt ein Kurs, steht dabei, auf
+welcher Seite. Die Zahlen sind die von `GET /api/v1/sales/hindsight` mit
+`include=reinvestment`; die Adresse trägt `hindsight=reinvestment`. Es gibt
+kein Urteil und keine Summe über alle Wechsel.
+
 **Der Trades-Tab des Wertpapiers** (Issue #1029) ist das Ziel jeder Zeile
 der Facette und der Übersichtskarte, und seit Sprint 18 zeigt er dieselbe
 Zahl: Seine Tabelle **Abgeschlossene Trades (FIFO)** trägt die Spalte
