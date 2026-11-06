@@ -3730,8 +3730,7 @@ const declaredTools: DeclaredTool[] = [
         to: { type: "string", format: "date", description: boundedDate() },
         benchmark: {
           ...benchmarkSelector,
-          description:
-            "security:<id> flagged is_benchmark"
+          description: "rate:0.02 = 2 % p.a., or security:<id> flagged is_benchmark"
         },
         limit: { type: "integer", minimum: 1, description: "default 100, max 500" },
         include: { type: "string", enum: ["reinvestment"] }

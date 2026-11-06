@@ -65,7 +65,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       parameters: [
         # --- Sprint 26 R2 begin ---
         "GET /api/v1/sales/hindsight?include=reinvestment (portfolixir.sales.hindsight's " <>
-          "include, whose description now says what the block means), new: each row gains " <>
+          "include, whose description now says what the block means; its benchmark " <>
+          "parameter's description gives the rate's scale, rate:0.02 = 2 % p.a.), new: each " <>
+          "row gains " <>
           "reinvestment {status (matched or no_match), reason (no_buy_within_30_days, " <>
           "proceeds_taken_by_earlier_sale or no_cash_account), cash_account_id, " <>
           "currency_code, proceeds, buys [{buy_id, date, security {id, name, currency_code}, " <>
