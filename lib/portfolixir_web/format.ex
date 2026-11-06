@@ -61,6 +61,23 @@ defmodule PortfolixirWeb.Format do
   def amount_attribute(_value), do: nil
 
   @doc """
+  A sentence that quotes figures as a source wrote them — an import's row
+  warning, with the `figures` its parser names (`Portfolixir.Imports.Preview`)
+  — as the privacy mode shows it: while the mode is on, each figure,
+  wherever the sentence holds it, is the stand-in text, which a template
+  draws as the bar (`PrivacyMode.html/1`) and a clipboard keeps as text
+  (it holds no markup); otherwise the sentence as it is. The figures are
+  whole texts, never re-formatted, so the sentence off the mode reads as the
+  file wrote it (Sprint 26 I22, fix round of the closing act).
+  """
+  @spec figures_in(String.t(), [String.t()]) :: String.t()
+  def figures_in(text, figures) when is_binary(text) and is_list(figures) do
+    if PrivacyMode.on?() and figures != [],
+      do: String.replace(text, figures, PrivacyMode.text()),
+      else: text
+  end
+
+  @doc """
   Formats a Decimal fraction as a percentage with one decimal, e.g. `0.185`
   → `18,5` (de) / `18.5` (en). The percent sign is left to the caller.
 

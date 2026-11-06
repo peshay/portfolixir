@@ -117,22 +117,35 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
           # #1128: a row is numbered as a spreadsheet shows the file, the
           # header being row 1, so the first booking row is row 2. No content
           # hash reads the number (`ImportHash.parts/2`).
-          {tagged, errors, refused} =
+          {tagged, errors, refused, figures} =
             data_rows
             |> Enum.with_index(2)
-            |> Enum.reduce({[], [], []}, fn {raw, row}, {acc_entries, acc_errors, acc_refused} ->
+            |> Enum.reduce({[], [], [], %{}}, fn {raw, row},
+                                                 {acc_entries, acc_errors, acc_refused,
+                                                  acc_figures} ->
               case to_entry(header_row, raw, row) do
                 {:ok, entry, side} ->
-                  {[{entry, side} | acc_entries], acc_errors, acc_refused}
+                  {[{entry, side} | acc_entries], acc_errors, acc_refused, acc_figures}
 
                 {:error, message} ->
-                  {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused}
+                  {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused,
+                   acc_figures}
+
+                # The privacy mode (Sprint 26 I22): a message that quotes
+                # figures names them, so a view that hides amounts hides
+                # them (`Preview`'s `figures`).
+                {:error, message, quoted} ->
+                  {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused,
+                   PortfolioPerformance.put_figures(acc_figures, row, quoted)}
 
                 # ADR-0053 A5: a refused credit keeps its would-be entry
                 # (#1118).
                 {:refused, message, credit} ->
+                  {quoted, credit} = Map.pop(credit, :figures, [])
+
                   {acc_entries, [%{row: row, message: message} | acc_errors],
-                   [Map.put(credit, :row, row) | acc_refused]}
+                   [Map.put(credit, :row, row) | acc_refused],
+                   PortfolioPerformance.put_figures(acc_figures, row, quoted)}
               end
             end)
 
@@ -144,7 +157,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
              source_filename: Keyword.get(opts, :filename),
              entries: entries,
              errors: Enum.sort_by(Enum.reverse(errors) ++ paired, & &1.row),
-             refused_credits: Enum.reverse(refused)
+             refused_credits: Enum.reverse(refused),
+             figures: figures
            }}
         end
     end
@@ -458,12 +472,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
            nil <- PortfolioPerformance.credit_refusal(direction, entry, written) do
         {:ok, entry}
       else
+        {:figures, message, figures} -> {:error, message, figures}
         {message, refused} -> {:refused, message, refused}
         message -> {:error, message}
       end
     else
       {:error, reason} when is_binary(reason) -> {:error, reason}
-      {:error, {:invalid_decimal, value}} -> {:error, PortfolioPerformance.decimal_message(value)}
+      {:error, {:invalid_decimal, value}} -> PortfolioPerformance.decimal_error(value)
     end
   end
 
@@ -531,12 +546,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   # The cells as the file wrote them, and the Gesamtpreis they give (closing
   # act, UAT: the operator could not see what the cell should have held),
-  # to the cent and in the file's own notation, as the cells beside it.
+  # to the cent and in the file's own notation, as the cells beside it;
+  # with the figures it quotes (`PortfolioPerformance.figures/1`).
   defp reading_message(readings, cells, expected) do
     written = fn column -> cells |> Map.get(column, "") |> String.trim() end
+    expected = Decimals.format_de(expected)
+    quoted = [written.("Gesamtpreis"), written.("Betrag")]
+
+    quoted =
+      quoted ++
+        if(readings.fees, do: [written.("Gebühren")], else: []) ++
+        if(readings.taxes, do: [written.("Steuern")], else: []) ++ [expected]
+
+    {:figures, reading_text(readings, written, expected), PortfolioPerformance.figures(quoted)}
+  end
+
+  defp reading_text(readings, written, expected) do
     total = written.("Gesamtpreis")
     amount = written.("Betrag")
-    expected = Decimals.format_de(expected)
 
     case {readings.fees, readings.taxes} do
       {nil, nil} ->

@@ -9471,6 +9471,27 @@ the bar is green or red where the figure was.
   (a remembered view) kept, and a doubled leading slash read as one, never
   as a host (H26).
 
+### The import preview *(closing act, privacy lens, S2)*
+
+- **A parser warning quotes the file's figures; they are bars.** „Zeile 5:
+  Gesamtpreis [bar] passt nicht zu Betrag [bar], Gebühren [bar] und
+  Steuern [bar] (erwartet [bar]) — Zeile nicht übernommen“. The parsers
+  write each message as before and name, by row, the figures it quotes
+  (`Preview`'s `figures`: a cell as the file wrote it, a figure derived
+  from the row, as the message writes it); the page hides each wherever the
+  message holds it (`Format.figures_in/2`) and draws the box through
+  `PrivacyMode.html/1`. The figures are never re-formatted, so with the
+  mode off the warning reads as the file wrote it. A refused row's
+  „bereits gebucht: …“ line draws the stored booking's quantity and amount
+  as bars too, and the done page's refused rows read as the box does.
+- **The clipboard gets the stand-in text.** „Kopieren“ copies the warnings
+  as the box shows them, each hidden figure as „••••“: a clipboard holds no
+  markup, and a pasted warning that names the row and the column is still
+  useful, where a copy switched off in the mode would not be. The stand-in
+  text reaches the clipboard, never the screen.
+- **The import has no API route and no MCP tool** (ADR-0029), so the
+  warnings exist on this page only; the mode touches no stored record.
+
 ### Stated, not settled here
 
 - **Forms keep their values:** a form that edits a stored figure opens

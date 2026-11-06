@@ -4296,6 +4296,11 @@ multiplier.
   stored ratios (a probability, a target weight, an exchange rate, a tax
   rate), as stored. The page offers no download; the journal over the API
   is not affected.
+- **The import preview** hides the file's figures in its parser warnings
+  ("Row 5: Gesamtpreis [bar] does not match Betrag [bar] …") and in an
+  "already booked" line. The copy button copies the warnings with each
+  hidden figure as "••••": the clipboard holds text only, and the pasted
+  warning still names the row and the column to fix.
 - **Forms keep their values.** A form that edits a stored figure (the
   booking drawer, a statement, a manual quote) opens with the real value,
   because a correction typed blind could book a wrong amount.

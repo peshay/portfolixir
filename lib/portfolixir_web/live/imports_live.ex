@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.ReferenceCounts
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
@@ -412,7 +413,7 @@ defmodule PortfolixirWeb.ImportsLive do
       >
         <h3 id="parser-warnings-title" class="parser-warnings__title"><%= gettext("Parser warnings") %></h3>
         <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
-        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@row_errors, @preview) %></pre>
+        <pre class="parser-warnings__rows" tabindex="0"><%= PrivacyMode.html(parser_warning_text(@row_errors, @preview)) %></pre>
         <:actions>
           <button
             type="button"
@@ -1088,7 +1089,7 @@ defmodule PortfolixirWeb.ImportsLive do
       >
         <p class="muted"><%= refused_rows_head(@preview, length(@refused_rows)) %></p>
         <ul>
-          <li :for={err <- @refused_rows}><%= row_message(@preview, err.row || "?", err.message) %></li>
+          <li :for={err <- @refused_rows}><%= PrivacyMode.html(row_message(@preview, err.row || "?", shown_message(@preview, err))) %></li>
         </ul>
       </div>
 
@@ -5113,14 +5114,34 @@ defmodule PortfolixirWeb.ImportsLive do
   # book it again" where the remedy stood. Plain text, because the warnings
   # box is a copyable <pre>. Two or more bookings are all named and none is
   # chosen, in the correction section's words.
+  #
+  #
+  # The privacy mode (Sprint 26 I22): a booked row's own figures are hidden
+  # in its head here, the booking's through `Format`, so the sentence it
+  # becomes is shown as it is; every other row's figures are hidden when its
+  # message is shown (`shown_message/2`).
   defp shown_row_errors(preview) do
     preview
     |> Imports.row_errors()
     |> Enum.map(fn
-      %{booked: booked} = error -> %{error | message: booked_message(booked)}
-      error -> error
+      %{booked: booked} = error ->
+        booked = %{booked | head: Format.figures_in(booked.head, quoted(preview, error))}
+        %{error | message: booked_message(booked)}
+
+      error ->
+        error
     end)
   end
+
+  # A row's message as the page shows it: the figures it quotes
+  # (`Preview`'s `figures`) hidden in the privacy mode, each as the stand-in
+  # text a template draws as the bar; a booked row's sentence as it is.
+  defp shown_message(_preview, %{booked: _booked} = error), do: error.message
+
+  defp shown_message(preview, error),
+    do: Format.figures_in(error.message, quoted(preview, error))
+
+  defp quoted(%Preview{figures: figures}, %{row: row}), do: Map.get(figures, row, [])
 
   defp booked_message(%{head: head, again: again, bookings: [booking]}),
     do:
@@ -5190,7 +5211,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parser_warning_text(errors, preview) do
     errors
-    |> Enum.map(fn err -> row_message(preview, err.row || "?", err.message) end)
+    |> Enum.map(fn err -> row_message(preview, err.row || "?", shown_message(preview, err)) end)
     |> Enum.join("\n")
   end
 
