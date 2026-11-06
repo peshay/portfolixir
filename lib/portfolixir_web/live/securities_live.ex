@@ -1283,16 +1283,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 phx-click="toggle_detail_log"
                 class={["chart-toggle", @detail_log_scale? && "is-active"]}
                 aria-pressed={to_string(@detail_log_scale?)}
-                disabled={@detail_percent_mode?}
+                disabled={@detail_percent_mode? or PrivacyMode.on?()}
               >
                 <%= gettext("Log scale") %>
               </button>
+              <%!-- Board 02 (Sprint 26 P2): in the privacy mode the chart is
+                   held in its percent view, pressed and locked. --%>
               <button
                 type="button"
                 id="toggle-percent-mode"
                 phx-click="toggle_detail_percent_mode"
-                class={["chart-toggle", @detail_percent_mode? && "is-active"]}
-                aria-pressed={to_string(@detail_percent_mode?)}
+                class={["chart-toggle", (@detail_percent_mode? or PrivacyMode.on?()) && "is-active"]}
+                aria-pressed={to_string(@detail_percent_mode? or PrivacyMode.on?())}
+                disabled={PrivacyMode.on?()}
+                title={if PrivacyMode.on?(), do: gettext("Always on in privacy mode")}
               >
                 <%= gettext("Percent") %>
               </button>
@@ -1368,8 +1372,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
             quotes={@detail_quotes}
             transactions={@detail_transactions}
             overlays={chart_overlays}
-            log_scale?={@detail_log_scale? and not @detail_percent_mode?}
-            percent_mode?={@detail_percent_mode?}
+            log_scale?={@detail_log_scale? and not @detail_percent_mode? and not PrivacyMode.on?()}
+            percent_mode?={@detail_percent_mode? or PrivacyMode.on?()}
             show_transactions?={@detail_show_transactions?}
             currency_code={@selected_security.currency_code}
           />

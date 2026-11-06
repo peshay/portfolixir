@@ -1004,7 +1004,7 @@ defmodule PortfolixirWeb.LayoutView do
                 var line = function (className, text) {
                   var node = document.createElement("div");
                   node.className = className;
-                  node.textContent = text;
+                  window.Portfolixir.writeMaskedText(node, text);
                   tooltip.appendChild(node);
                 };
                 // #1163: every string is the server's display string in the

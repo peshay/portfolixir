@@ -1156,7 +1156,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     phx-value-year={bar.year}
                   >
                     <title>
-                      <%= bar.year %> · <%= gettext("Dividends") %>: <%= money(bar.dividends) %>
+                      <%= bar.year %> · <%= gettext("Dividends") %><%= bar_amount(bar.dividends) %>
                     </title>
                   </rect>
                   <rect
@@ -1172,7 +1172,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     phx-value-year={bar.year}
                   >
                     <title>
-                      <%= bar.year %> · <%= gettext("Interest") %>: <%= money(bar.interest) %>
+                      <%= bar.year %> · <%= gettext("Interest") %><%= bar_amount(bar.interest) %>
                     </title>
                   </rect>
                 </g>
@@ -1327,7 +1327,7 @@ defmodule PortfolixirWeb.IncomeLive do
                   width="0.8"
                   height={bar.height}
                 >
-                  <title><%= month_label(bar.month) %>: <%= money(bar.total) %></title>
+                  <title><%= month_label(bar.month) %><%= bar_amount(bar.total) %></title>
                 </rect>
               </svg>
               <div class="income-bar-labels" aria-hidden="true">
@@ -1697,6 +1697,13 @@ defmodule PortfolixirWeb.IncomeLive do
   end
 
   defp money(value), do: Format.money(value)
+
+  # A bar's native tooltip (an SVG <title>, text only): its amount after a
+  # colon; in the privacy mode none, so the tooltip keeps its year and
+  # series and names no amount (board 02, Sprint 26 P2).
+  defp bar_amount(value) do
+    if PrivacyMode.on?(), do: "", else: ": #{money(value)}"
+  end
 
   # Month abbreviations through gettext, so the German matrix reads
   # Mär/Mai/Okt/Dez instead of leaking strftime's English %b output

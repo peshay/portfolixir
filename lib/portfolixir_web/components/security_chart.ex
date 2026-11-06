@@ -22,6 +22,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     * `:currency_code` — string label for the Y axis
     * `:aria_label` — accessible name of the rendered svg
 
+  **The privacy mode** (Sprint 26 P2, I22, board 02): while it is on, a
+  series in a currency (`:value_mode` `:absolute`) is drawn in its percent
+  view, re-based on the window's first value, so the axis, the tooltip and
+  the payload carry percentages and no amount; a trade's line keeps its
+  kind and hides its quantity and price, and the payload leaves both out.
+  A series already in percent keeps its axis.
+
   Reasoning: the repo has no JS bundler, so charts are produced as a
   single `<svg>` element. Interactivity (range/log) is handled at the
   LiveView level — this component is purely a renderer.
@@ -31,6 +38,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.TransactionManagementLive
 
@@ -65,6 +73,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # (sobelow 0.16, #1006).
   # sobelow_skip ["XSS.Raw"]
   def chart(assigns) do
+    # Board 02: an axis in a currency switches to percent in the privacy
+    # mode, built here on the server, never relabelled in the browser.
+    assigns =
+      if PrivacyMode.on?() and assigns.value_mode == :absolute,
+        do: assign(assigns, :percent_mode?, true),
+        else: assigns
+
     geometry =
       build_geometry(assigns.quotes, assigns.log_scale?,
         percent_mode?: assigns.percent_mode?,
@@ -281,18 +296,30 @@ defmodule PortfolixirWeb.Components.SecurityChart do
           %{
             date: payload_date(tx.date),
             type: tx.type,
-            quantity: chart_decimal_string(tx.quantity),
-            price: chart_decimal_string(tx.price),
             label: tx_line(tx, currency_code),
             x: round2(x),
             y: round2(y)
           }
+          |> put_trade_figures(tx)
         ]
       end
     end)
   end
 
   defp round2(value), do: Float.round(:erlang.float(value), 2)
+
+  # A trade's quantity and price as stored, for a reader of the payload;
+  # left out in the privacy mode, where they are figures to hide.
+  defp put_trade_figures(entry, tx) do
+    if PrivacyMode.on?() do
+      entry
+    else
+      Map.merge(entry, %{
+        quantity: chart_decimal_string(tx.quantity),
+        price: chart_decimal_string(tx.price)
+      })
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # Geometry

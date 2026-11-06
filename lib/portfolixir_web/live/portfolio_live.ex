@@ -1493,7 +1493,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   phx-value-mode="value"
                   aria-pressed={to_string(@chart_mode == "value")}
                 >
-                  <%= gettext("Value (%{currency})", currency: display_currency(assigns)) %>
+                  <%= value_series_label(assigns) %>
                 </button>
               </div>
               <div
@@ -3311,6 +3311,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp display_currency(%{performance: %{base_currency: currency}}), do: currency
   defp display_currency(_assigns), do: "EUR"
 
+  # Board 02 (Sprint 26 P2): in the privacy mode the value series is drawn
+  # in percent of the window's first value, and its name says so.
+  defp value_series_label(assigns) do
+    if PrivacyMode.on?(),
+      do: gettext("Value (%)"),
+      else: gettext("Value (%{currency})", currency: display_currency(assigns))
+  end
+
   # The portfolio chart renders through the shared SecurityChart component
   # (ADR-0022: one chart path, the security detail chart set the quality bar).
   # The TTWROR series passes its cumulative percentages as ready-made percent
@@ -3363,6 +3371,13 @@ defmodule PortfolixirWeb.PortfolioLive do
         overlays={Enum.map(@overlays, &%{&1 | points: downsample(&1.points)})}
         overlays_extend_range?={true}
       />
+      <%!-- Board 02 (Sprint 26 P2): the value in percent is no return,
+           since a deposit raises it; the line says so. --%>
+      <p :if={@mode == "value" and PrivacyMode.on?()} class="hint" data-role="perf-privacy-basis">
+        <%= gettext(
+          "In privacy mode the axis shows the value in percent of the value at the window’s start, deposits and withdrawals included; the return is TTWROR."
+        ) %>
+      </p>
       <%!-- ADR-0046 §2: the bought-once overlays, named — a dashed line
            without a legend is a guess. --%>
       <ul :if={@overlays != []} class="chart-legend" data-role="benchmark-legend">
@@ -3441,6 +3456,8 @@ defmodule PortfolixirWeb.PortfolioLive do
     lookups =
       Enum.map(overlays, &{&1.label, Map.new(&1.points, fn p -> {p.date, p.fraction} end)})
 
+    first_value = series |> List.first() |> then(&(&1 && &1.value))
+
     Enum.map(series, fn point ->
       close =
         case mode do
@@ -3452,11 +3469,26 @@ defmodule PortfolixirWeb.PortfolioLive do
         date: point.date,
         close: close,
         label:
-          "#{signed_percent(point.cumulative_ttwror)}% · #{Format.money(point.value)} #{currency}" <>
+          "#{signed_percent(point.cumulative_ttwror)}% · #{value_label(mode, point.value, first_value, currency)}" <>
             overlay_labels(lookups, point.date)
       }
     end)
   end
+
+  # The tooltip's second figure: the value in its currency, or, for the
+  # value series in the privacy mode, the value in percent of the window's
+  # first value, as the axis shows it ("Value +12.3%", board 02). In the
+  # TTWROR series the value stays an amount, hidden by the formatter.
+  defp value_label(:value, value, %Decimal{} = first, currency) do
+    if PrivacyMode.on?() and not Decimal.equal?(first, 0) do
+      change = value |> Decimal.sub(first) |> Decimal.div(first)
+      gettext("Value %{percent}", percent: "#{signed_percent(change)}%")
+    else
+      "#{Format.money(value)} #{currency}"
+    end
+  end
+
+  defp value_label(_mode, value, _first, currency), do: "#{Format.money(value)} #{currency}"
 
   # The crosshair tooltip names each benchmark's bought-once return on the
   # hovered day, after the portfolio's own pair (ADR-0046 §4).
