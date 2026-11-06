@@ -1,10 +1,14 @@
 // The privacy mode's leak test (Sprint 26 P3, I22, FR-51; plan D-1 exit
 // criterion 3): with the mode switched on through its own switch, every page
-// of the shell — each live route the router lists, each area tab it links
-// and each detail tab it offers — is walked in both themes at 1200 and
-// 390 px, and the walk fails on any figure in a currency or quantity it
-// finds: in the visible text, in the live document (attributes, hidden
-// text, a chart's JSON payload) and in the page source the server sent.
+// of the shell — each live route the router lists, each area tab it links,
+// each detail tab it offers and each view it links in place (Cash flow's
+// facets, "After the sale"'s comparison modes, any link naming a tab) — is
+// walked in both themes at 1200 and 390 px, and the walk fails on any
+// figure in a currency or quantity it finds: in the visible text, in the
+// live document (attributes, hidden text, a chart's JSON payload) and in
+// the page source the server sent. It fails as well on any step that did
+// not render: an error status, a crashed LiveView, a click that did not
+// arrive (fix round of the Sprint 26 closing act).
 // Driven by test/browser/privacy_leak_test.exs, which boots the endpoint on
 // the review seed and passes its base URL and a JSON file of the pages to
 // walk.
@@ -32,7 +36,10 @@ const THEMES = ["light", "dark"];
 // a decimal comma, thousands grouped by dots: "88.307,02", "-19,50", "0,00".
 // What stays in the mode is told apart by what follows or precedes it: a
 // percentage ("9,0 %", "+9,0%"), percentage points ("1,2 pp"), a ratio
-// ("×1,09"). The other figures that stay (a correlation, a rate, a
+// ("×1,09"), and the first two items of a JSON array of whole numbers
+// ("[36,37]", a stored record's ids in the journal's stored values: a
+// comma there separates items and is no decimal comma; the walk flagged it
+// only while the ids had at most three digits). The other figures that stay (a correlation, a rate, a
 // risk-adjusted return) sit in the elements `plainSelectors` lists, each
 // with the reason it stays. A quantity is also any number its unit names,
 // a whole one included: "30 Stück", "12 shares".
@@ -40,7 +47,7 @@ function scan(args) {
   const AMOUNT = /(^|[^\d.,])([+\-−]?\d{1,3}(?:\.\d{3})*,\d+)(?![\d,])/g;
   const QUANTITY = /(^|[^\d.,])(\d[\d.,]*)\s*(Stück|shares?|units?)(?![\p{L}])/gu;
   const findings = [];
-  const plainBefore = /(×|x)\s*$/;
+  const plainBefore = /(×|x|\[)\s*$/;
   const plainAfter = /^\s*(%|pp\b|Pp\b|PP\b|Prozentpunkte|Jahre|years|MB\b|-Fache|times\b)/;
 
   // Elements whose figures are not amounts and stay in the mode, by the
@@ -175,6 +182,7 @@ function scan(args) {
 // every figure in it is one the page carried before any script ran.
 async function sourceFindings(context, url, plainSelectors, amountData, amountName) {
   const response = await context.request.get(url, { headers: { "accept-language": "de-DE" } });
+  if (response.status() >= 400) return [{ where: "HTTP status", hit: String(response.status()), context: url }];
   const html = await response.text();
   const page = await context.newPage();
   try {
@@ -186,12 +194,76 @@ async function sourceFindings(context, url, plainSelectors, amountData, amountNa
 }
 
 // Waits until the page at `url` is connected and its loads have landed.
+// False when it never connects: a page that crashed, an error page.
 async function settle(page) {
-  await page.waitForFunction(() => document.querySelector("[data-phx-main].phx-connected") !== null, null, { timeout: 15000 });
+  const connected = await page
+    .waitForFunction(() => document.querySelector("[data-phx-main].phx-connected") !== null, null, { timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
   await page
     .waitForFunction(() => document.querySelector("[aria-busy='true'], .phx-loading, .value-slot-pending") === null, null, { timeout: 8000 })
     .catch(() => {});
   await page.waitForTimeout(250);
+  return connected;
+}
+
+// A walk that reads a crashed page checks nothing (the closing act of
+// Sprint 26 found one that passed on two pages that answered 500 or
+// crashed on a tab): every step is also checked for a failure. An error
+// status of any document the page loaded, a page that never connected, a
+// LiveView that crashed (LiveView announces it with
+// `phx:page-loading-start` of kind "error", counted per document by the
+// init script below: the document a navigation leaves announces one as
+// its socket closes, and goes with it) or still shows its error class, and
+// a step that did not arrive where it was sent, which is how a crashed tab
+// looks once LiveView has re-joined at the address before the click.
+function watchErrors(context) {
+  return context.addInitScript(() => {
+    window.__privacyLeakCrashes = 0;
+    window.addEventListener("phx:page-loading-start", (event) => {
+      if (event.detail && event.detail.kind === "error") window.__privacyLeakCrashes++;
+    });
+  });
+}
+
+async function failures(page, statuses, connected) {
+  const out = statuses.splice(0).map((s) => ({ where: "HTTP status", hit: String(s.status), context: s.url }));
+  if (!connected) out.push({ where: "LiveView", hit: "the page never connected", context: page.url() });
+  const state = await page
+    .evaluate(() => {
+      const crashes = window.__privacyLeakCrashes || 0;
+      window.__privacyLeakCrashes = 0;
+      return { crashes, error: document.querySelector("[data-phx-main].phx-error, .phx-error") !== null };
+    })
+    .catch(() => ({ crashes: 0, error: false }));
+  if (state.crashes > 0) out.push({ where: "LiveView", hit: "the LiveView crashed (" + state.crashes + "x)", context: page.url() });
+  if (state.error) out.push({ where: "LiveView", hit: "the page shows its error state", context: page.url() });
+  return out;
+}
+
+// The address of a link relative to the walk's base: path and query.
+function address(href, current) {
+  const url = new URL(href, current);
+  return url.pathname + url.search;
+}
+
+// The in-page links a page offers to another view of itself: Cash flow's
+// facets, "After the sale"'s comparison modes, and any link to the same
+// path that names a tab. Each is followed by a click (a patch) and later
+// opened as an address of its own.
+async function inPageLinks(page) {
+  return page.$$eval(
+    "main a[href]",
+    (as) =>
+      as
+        .filter((a) => {
+          const url = new URL(a.getAttribute("href"), location.href);
+          if (url.origin !== location.origin || url.pathname !== location.pathname) return false;
+          if (a.closest("[data-role='cashflow-facets'], [data-role='hindsight-compare']")) return true;
+          return /(^|[?&])(tab|hindsight)=/.test(url.search.slice(1));
+        })
+        .map((a) => a.getAttribute("href"))
+  );
 }
 
 function short(findings) {
@@ -214,6 +286,7 @@ function short(findings) {
   const amountName = pages.amountName;
   const plainSelectors = pages.plainSelectors;
   const sourceChecked = new Set();
+  const read = (page) => page.evaluate(scan, { plainSelectors, amountData, amountName });
   try {
     for (const theme of THEMES) {
       for (const viewport of WIDTHS) {
@@ -223,7 +296,15 @@ function short(findings) {
             localStorage.setItem("portfolixir-theme", th);
           } catch (_) {}
         }, theme);
+        await watchErrors(context);
         const page = await context.newPage();
+        // Every document the page loads, a reload after a failed join too.
+        const statuses = [];
+        page.on("response", (response) => {
+          if (response.request().resourceType() === "document" && response.status() >= 400) {
+            statuses.push({ status: response.status(), url: response.url() });
+          }
+        });
 
         // The switch itself: off on a first visit, on after one press, and
         // the address carries no choice afterwards.
@@ -238,22 +319,63 @@ function short(findings) {
 
         const queue = pages.urls.slice();
         const queued = new Set(queue);
+        const enqueue = (next) => {
+          if (!queued.has(next)) {
+            queued.add(next);
+            queue.push(next);
+          }
+        };
+
+        // Reads the page as it stands after a step, its failures first.
+        const check = async (label, connected) => {
+          visited++;
+          for (const f of await failures(page, statuses, connected)) findings.push({ page: label, ...f });
+          for (const f of await read(page)) findings.push({ page: label, ...f });
+        };
+
+        // Clicks each in-page link to another view of the page (a patch),
+        // checks it arrived there, and queues its address for a visit of
+        // its own; the views a click opens are followed the same way.
+        const followInPage = async (tag, clicked) => {
+          for (let round = 0; round < 4; round++) {
+            const hrefs = (await inPageLinks(page)).filter((href) => !clicked.has(address(href, page.url())));
+            if (!hrefs.length) return;
+            for (const href of hrefs) {
+              const target = address(href, page.url());
+              if (clicked.has(target)) continue;
+              clicked.add(target);
+              enqueue(target);
+              const link = await page.$(`main a[href="${href.replace(/"/g, '\\"')}"]`);
+              if (!link) continue;
+              await link.click();
+              await page.waitForURL((u) => u.pathname + u.search === target, { timeout: 5000 }).catch(() => {});
+              const connected = await settle(page);
+              const at = address(page.url(), page.url());
+              if (at !== target) {
+                findings.push({ page: tag + " → " + target, where: "LiveView", hit: "the click did not arrive (a crash re-joins at the address before it)", context: at });
+              }
+              await check(tag + " → " + target, connected);
+            }
+          }
+        };
+
         while (queue.length) {
           const path = queue.shift();
           if (only && !path.startsWith(only)) continue;
           const tag = theme + " " + viewport.width + " " + path;
-          await page.goto(base + path);
-          await settle(page);
-          visited++;
-          for (const f of await page.evaluate(scan, { plainSelectors, amountData, amountName })) {
-            findings.push({ page: tag, ...f });
+          const response = await page.goto(base + path).catch((error) => {
+            findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: path });
+            return null;
+          });
+          if (response && response.status() >= 400 && !statuses.length) {
+            statuses.push({ status: response.status(), url: response.url() });
           }
+          await check(tag, await settle(page));
 
           if (!sourceChecked.has(path)) {
             sourceChecked.add(path);
-            for (const f of await sourceFindings(context, base + path, plainSelectors, amountData, amountName)) {
-              findings.push({ page: "source " + path, ...f });
-            }
+            const source = await sourceFindings(context, base + path, plainSelectors, amountData, amountName);
+            for (const f of source) findings.push({ page: "source " + path, ...f });
           }
 
           // The area tabs the page links: each is a page of the shell.
@@ -261,22 +383,35 @@ function short(findings) {
           for (const href of links) {
             const url = new URL(href, base);
             if (url.origin !== new URL(base).origin) continue;
-            const next = url.pathname + url.search;
-            if (!queued.has(next)) {
-              queued.add(next);
-              queue.push(next);
-            }
+            enqueue(url.pathname + url.search);
           }
 
-          // The detail tabs it offers (buttons): each is pressed and read.
+          // The page's other views it links in place (a patch).
+          const clicked = new Set([address(page.url(), page.url())]);
+          await followInPage(tag, clicked);
+          if (address(page.url(), page.url()) !== path) {
+            await page.goto(base + path).catch(() => null);
+            await settle(page);
+          }
+
+          // The detail tabs it offers (buttons): each is pressed, checked
+          // to be the selected one afterwards, and read; the views a tab
+          // links in place are followed too.
           const tabs = await page.$$eval("[data-tab-level='2'] [role='tab']", (bs) => bs.map((b) => b.id).filter(Boolean));
           for (const id of tabs) {
-            await page.click("#" + id);
-            await settle(page);
-            visited++;
-            for (const f of await page.evaluate(scan, { plainSelectors, amountData, amountName })) {
-              findings.push({ page: tag + " #" + id, ...f });
+            const button = await page.$("#" + id);
+            if (!button) {
+              findings.push({ page: tag + " #" + id, where: "LiveView", hit: "the tab is gone (a crash re-join?)", context: page.url() });
+              continue;
             }
+            await button.click();
+            const connected = await settle(page);
+            const selected = await page.getAttribute("#" + id, "aria-selected").catch(() => null);
+            if (selected !== "true") {
+              findings.push({ page: tag + " #" + id, where: "LiveView", hit: "the pressed tab is not selected (a crash re-joins without it)", context: page.url() });
+            }
+            await check(tag + " #" + id, connected);
+            await followInPage(tag + " #" + id, clicked);
           }
 
           // The page's own extra views the mode changes (P2): each pressed
@@ -285,10 +420,7 @@ function short(findings) {
             const handle = await page.$(sel);
             if (!handle) continue;
             await handle.click();
-            await settle(page);
-            for (const f of await page.evaluate(scan, { plainSelectors, amountData, amountName })) {
-              findings.push({ page: tag + " " + sel, ...f });
-            }
+            await check(tag + " " + sel, await settle(page));
           }
         }
         await context.close();
@@ -297,7 +429,7 @@ function short(findings) {
 
     const unique = short(findings);
     if (unique.length) {
-      process.stdout.write(JSON.stringify({ ok: false, error: unique.length + " figure(s) leaked", visited, findings: unique.slice(0, 2000) }) + "\n");
+      process.stdout.write(JSON.stringify({ ok: false, error: unique.length + " finding(s): a figure leaked or a page failed", visited, findings: unique.slice(0, 2000) }) + "\n");
     } else {
       process.stdout.write(JSON.stringify({ ok: true, visited }) + "\n");
     }

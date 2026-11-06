@@ -10,8 +10,13 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # The pages are the router's: every live route of the shell, with an
   # address for each one that takes a parameter. A new shell route is walked
   # without a change here; one with a parameter this test cannot address
-  # fails it until it is given one. The walker follows each page's area tabs
-  # and presses each detail tab, so a new tab is walked too.
+  # fails it until it is given one. The walker follows each page's area tabs,
+  # presses each detail tab and clicks each view a page links in place
+  # (Cash flow's facets, "After the sale"'s comparison modes, any link that
+  # names a tab), so a new tab is walked too. A step that did not render --
+  # an error status, a crashed LiveView, a click that did not arrive --
+  # fails the walk as a leak does: a crashed page shows no figure and
+  # proves nothing (Sprint 26 closing act).
   #
   # Excluded from the test job (test/test_helper.exs): it needs Node, the
   # Playwright test/browser/package-lock.json pins and its Chromium, which
@@ -28,9 +33,11 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   import ExUnit.CaptureIO
 
   alias Ecto.Adapters.SQL.Sandbox
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Predictions
   alias Portfolixir.Repo
 
   @moduletag :browser
@@ -46,7 +53,14 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     # Risk's metric cards: volatility and drawdown in percent (the sign in
     # its own element), a risk-adjusted return and a correlation are ratios
     # of returns, never amounts.
-    "[data-role^='risk-metric-']"
+    "[data-role^='risk-metric-']",
+    # The predictions' calibration report: a Brier score, its standard
+    # error and its 0.25 reference, a sharpness and a probability band's
+    # bounds (0,50-0,59) are ratios of probabilities; the rest is percent
+    # and counts (fix round of the closing act, P-fix 2).
+    "#prediction-calibration",
+    "[data-role='prediction-bands']",
+    "[data-role='prediction-groups']"
   ]
 
   # Data attributes whose value is an amount when it is a number; a chart's
@@ -82,6 +96,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
 
     {:ok, {_ip, port}} = ThousandIsland.listener_info(server)
     seed!()
+    predict!()
     # "localhost", the endpoint's configured host, so the LiveView socket's
     # origin check passes.
     %{base_url: "http://localhost:#{port}"}
@@ -97,9 +112,12 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # Acceptance criteria:
   # - The walk turns the mode on through the switch in the top bar, and the
   #   address keeps no choice.
-  # - Every live route of the router is walked, each area tab a page links
-  #   and each detail tab it offers, in the light and the dark theme, at
-  #   1200 and 390 px, on the review seed.
+  # - Every live route of the router is walked, each area tab a page links,
+  #   each detail tab it offers and each view it links in place, in the
+  #   light and the dark theme, at 1200 and 390 px, on the review seed and
+  #   three synthetic predictions.
+  # - Any step that answers an error status, crashes its LiveView or does
+  #   not arrive where it was sent fails the test.
   # - It fails on any figure in a currency or quantity in the visible text,
   #   in hidden text, in an attribute (a native tooltip, an accessible name,
   #   an amount-valued data attribute, a hidden figure's markup put into an
@@ -208,6 +226,50 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   end
 
   defp address(_path), do: []
+
+  # The review seed records no prediction, and a page that lists one
+  # crashed in the mode once unseen (Sprint 26 closing act): the most traded
+  # security gets three, synthetic — one resolving 30 days ago, one open,
+  # one an agent's — so /predictions and the security's Predictions tab
+  # have rows to walk.
+  defp predict! do
+    security_id =
+      Repo.one(
+        from(t in Transaction,
+          where: not is_nil(t.security_id) and t.type in ["buy", "sell"],
+          group_by: t.security_id,
+          order_by: [desc: count(t.id)],
+          limit: 1,
+          select: t.security_id
+        )
+      )
+
+    today = Portfolixir.Clock.today()
+    earlier = DateTime.new!(Date.add(today, -200), ~T[12:00:00.000000], "Etc/UTC")
+
+    for {actor, attrs, opts} <- [
+          {Actor.owner_ui(), %{"probability" => "0.70", "resolves_on" => Date.add(today, -30)},
+           [now: earlier]},
+          {Actor.owner_ui(), %{"probability" => "0.65", "resolves_on" => Date.add(today, 60)},
+           []},
+          {Actor.api_token_rw("leak-agent"),
+           %{
+             "probability" => "0.55",
+             "direction" => "underperform",
+             "model" => "model-synthetic-1",
+             "resolves_on" => Date.add(today, -20)
+           }, [now: earlier]}
+        ] do
+      attrs =
+        Map.merge(
+          %{"security_id" => security_id, "direction" => "outperform", "benchmark" => "rate:0"},
+          attrs
+        )
+        |> Map.update!("resolves_on", &Date.to_iso8601/1)
+
+      {:ok, _prediction} = Predictions.create_prediction(actor, attrs, opts)
+    end
+  end
 
   defp seed! do
     conflicts = Code.get_compiler_option(:ignore_module_conflict)
