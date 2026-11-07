@@ -8,7 +8,7 @@ msgstr ""
 msgid "Application navigation"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:79
+#: lib/portfolixir_web/field_label.ex:83
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:339
 #, elixir-autogen
 msgid "Base currency"
@@ -2079,7 +2079,7 @@ msgstr ""
 msgid "Clear"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:83
+#: lib/portfolixir_web/field_label.ex:87
 #: lib/portfolixir_web/live/buckets_live.ex:242
 #: lib/portfolixir_web/live/buckets_live.ex:270
 #: lib/portfolixir_web/live/classifications_live.ex:436
@@ -2094,7 +2094,7 @@ msgstr ""
 msgid "Could not update cash account"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:80
+#: lib/portfolixir_web/field_label.ex:84
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:126
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:764
 #, elixir-autogen, elixir-format
@@ -7981,7 +7981,7 @@ msgstr ""
 msgid "Rename — %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:81
+#: lib/portfolixir_web/field_label.ex:85
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:134
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:121
 #, elixir-autogen, elixir-format
@@ -11514,7 +11514,7 @@ msgstr ""
 msgid "Counter depot"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:82
+#: lib/portfolixir_web/field_label.ex:86
 #, elixir-autogen, elixir-format
 msgid "Dimension"
 msgstr ""
@@ -11524,13 +11524,13 @@ msgstr ""
 msgid "Exchange rate"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:87
+#: lib/portfolixir_web/field_label.ex:91
 #: lib/portfolixir_web/live/journal/row.ex:87
 #, elixir-autogen, elixir-format
 msgid "Former ISIN"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:88
+#: lib/portfolixir_web/field_label.ex:92
 #, elixir-autogen, elixir-format
 msgid "ISIN change date"
 msgstr ""
@@ -11545,7 +11545,7 @@ msgstr ""
 msgid "Latest quote feed URL"
 msgstr ""
 
-#: lib/portfolixir_web/field_label.ex:86
+#: lib/portfolixir_web/field_label.ex:90
 #, elixir-autogen, elixir-format
 msgid "New ISIN"
 msgstr ""
@@ -15664,4 +15664,19 @@ msgstr ""
 #: lib/portfolixir_web/prediction_label.ex:66
 #, elixir-autogen, elixir-format
 msgid "hit"
+msgstr ""
+
+#: lib/portfolixir_web/field_label.ex:78
+#, elixir-autogen, elixir-format
+msgid "CIK"
+msgstr ""
+
+#: lib/portfolixir_web/field_label.ex:79
+#, elixir-autogen, elixir-format
+msgid "News aliases"
+msgstr ""
+
+#: lib/portfolixir_web/field_label.ex:80
+#, elixir-autogen, elixir-format
+msgid "Watched for news"
 msgstr ""

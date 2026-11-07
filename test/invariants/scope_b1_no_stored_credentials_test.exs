@@ -68,6 +68,11 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
   # entry needs a written reason and must still excuse a real name; the UI
   # password and the API tokens live in the environment and never need one.
   @allowlist %{
+    # ADR-0056 §2 (Sprint 27, N2).
+    {:field, "Portfolixir.News.Alias", "token"} =>
+      "a name or symbol the news matcher looks up as a word in a feed's text (ADR-0056 " <>
+        "§2: an alias `{token, context, case}` of a security's news identity), stored in " <>
+        "securities.news_aliases; it authenticates nothing and opens no bank or broker",
     {:settings_key, "ui_password_fingerprint"} =>
       "a signed session-cookie key, not a settings row: it holds a keyed HMAC of the " <>
         "environment's UI password (key derived from SECRET_KEY_BASE) so that changing " <>

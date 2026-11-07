@@ -1,7 +1,8 @@
 defmodule Portfolixir.SeededUpgrade.NewsTest do
-  # ADR-0056 (Sprint 27, N2): the migration of the news layer's tables
-  # creates new tables whose foreign keys point at the catalog an instance
-  # already holds. It runs over seeded rows here
+  # ADR-0056 (Sprint 27, N2): the two migrations of the news layer's
+  # tables. The first creates new tables whose foreign keys point at the
+  # catalog an instance already holds; the second adds three columns with
+  # CHECKs and a NOT NULL to `securities`. Each runs over seeded rows here
   # (docs/development/guide.md, "Upgrade migrations over legacy rows").
   # Every value is synthetic.
   #
@@ -12,8 +13,9 @@ defmodule Portfolixir.SeededUpgrade.NewsTest do
 
   @moduletag :seeded_upgrade
 
-  # The migration before the news tables.
+  # The migration before each of the two.
   @before_news_tables 20_261_105_170_000
+  @before_news_identity 20_261_107_120_000
 
   # User story (ADR-0056 §2, §4):
   # As the operator upgrading an instance whose catalog holds securities
@@ -50,6 +52,42 @@ defmodule Portfolixir.SeededUpgrade.NewsTest do
     assert %{rows: [[2]]} = SeededUpgrade.query!(upgrade, "SELECT count(*) FROM news_feeds")
   end
 
+  # User story (ADR-0056 §2):
+  # As the operator upgrading an instance with securities of every kind,
+  # I want the news identity columns added without touching them,
+  # so that the release boots and every security reads as having no CIK, no
+  # aliases and no watch until I or the agent set them.
+  #
+  # Acceptance criteria:
+  # - Seeded with a security carrying the bond master data and one with
+  #   only a name, the database migrates to head.
+  # - Both read news_cik NULL, news_aliases [] and news_watch false, which
+  #   the new CHECKs accept; a CIK of the wrong shape written afterwards is
+  #   refused.
+  @tag seeded_upgrade: 20_261_107_120_100
+  test "the news identity columns do not stop the upgrade over stored securities",
+       %{seeded_upgrade: migration} do
+    upgrade = SeededUpgrade.upgrade!(from: @before_news_identity, seed: &seed_securities/1)
+
+    assert migration in upgrade.migrated
+
+    assert %{rows: rows} =
+             SeededUpgrade.query!(
+               upgrade,
+               "SELECT news_cik, news_aliases, news_watch FROM securities ORDER BY id"
+             )
+
+    assert rows == [[nil, [], false], [nil, [], false]]
+
+    assert_raise Postgrex.Error, ~r/securities_news_cik_check/, fn ->
+      SeededUpgrade.journaled!(upgrade, fn ->
+        SeededUpgrade.query!(upgrade, "UPDATE securities SET news_cik = '123' WHERE id = $1", [
+          upgrade.seeded.bond
+        ])
+      end)
+    end
+  end
+
   defp seed_catalog(db) do
     first = insert!(db, "INSERT INTO securities #{row(~w(name currency_code))}", ["Alpha", "EUR"])
 
@@ -67,6 +105,18 @@ defmodule Portfolixir.SeededUpgrade.NewsTest do
       )
 
     %{first: first, category: category}
+  end
+
+  defp seed_securities(db) do
+    bond =
+      insert!(
+        db,
+        "INSERT INTO securities #{row(~w(name currency_code coupon_rate maturity_date))}",
+        ["Gamma 2.5% 2031", "EUR", Decimal.new("2.5"), ~D[2031-06-01]]
+      )
+
+    plain = insert!(db, "INSERT INTO securities #{row(~w(name currency_code))}", ["Delta", "USD"])
+    %{bond: bond, plain: plain}
   end
 
   defp insert_feed!(db, class, security, category) do
