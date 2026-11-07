@@ -34,10 +34,13 @@ defmodule Portfolixir.News do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Journal
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Matcher
+  alias Portfolixir.News.Universe
   alias Portfolixir.Repo
 
   @type moved :: %{
@@ -142,4 +145,144 @@ defmodule Portfolixir.News do
   end
 
   defp now, do: DateTime.utc_now()
+
+  # --- N4 ---
+
+  @rematch_days 7
+  @open_assignments [:unassigned, :ambiguous]
+
+  @type assigned_counts :: %{
+          assigned: non_neg_integer(),
+          unassigned: non_neg_integer(),
+          ambiguous: non_neg_integer()
+        }
+
+  @doc """
+  Matches aggregator items against the universe (ADR-0056 §2) and writes
+  each one's `assignment`, `security_id` and `candidates`: one security
+  named is `assigned` to it, none `unassigned`, several `ambiguous` with the
+  candidates sorted. Returns the count of each outcome over the items
+  matched.
+
+  **What is matched:** the item's **title**, and not its excerpt. A title
+  names the item's subject; an aggregator's excerpt often lists other
+  headlines and their publishers, so matching it would file an item under
+  every company its neighbours name. The title is split into sentences for
+  the context words (`Portfolixir.News.Matcher`).
+
+  **Which items:** only `aggregator` items that are `unassigned` or
+  `ambiguous`; any other id is skipped and left exactly as it is. An
+  `issuer`, `regulatory` or `thematic` item is bound by construction to its
+  feed's security or category (§2), and the matcher never moves it. An
+  assigned aggregator item keeps its assignment (it may sit in a story,
+  whose items belong to the story's security, and a later hand assignment
+  must not be undone by a machine); an unassigned or ambiguous item is in
+  no story (`Portfolixir.News.Item`), so writing one never breaks a story's
+  key.
+
+  **A security that vanished:** `candidates` carries no foreign key, so an
+  id may name a security deleted since. The matched securities are locked
+  `FOR KEY SHARE` in the write's transaction and any that no longer exist
+  are dropped before the outcome is decided; an item is never assigned to,
+  or listed with, a security that is gone.
+
+  Items are a staging area written by a system job (B7), so nothing here is
+  journaled. Pass `universe:` (a `Portfolixir.News.Matcher` index) to reuse
+  one already compiled.
+  """
+  @spec assign_aggregator_items([Item.t() | pos_integer()], keyword()) ::
+          {:ok, assigned_counts()}
+  def assign_aggregator_items(items_or_ids, opts \\ []) when is_list(items_or_ids) do
+    ids = items_or_ids |> Enum.map(&item_id/1) |> Enum.uniq()
+
+    if ids == [] do
+      {:ok, %{assigned: 0, unassigned: 0, ambiguous: 0}}
+    else
+      index = Keyword.get_lazy(opts, :universe, &Universe.aggregator_index/0)
+      Repo.transaction(fn -> assign_locked(ids, index) end)
+    end
+  end
+
+  @doc """
+  Re-matches the `unassigned` and `ambiguous` aggregator items first seen
+  within the 7 days before `now` (ADR-0056 §2), by `first_seen_at` (the
+  server's clock, B4). Called after a security's news identity changes
+  (`Portfolixir.Catalog`); an item older than the window keeps what it has.
+  """
+  @spec rematch_recent(DateTime.t()) :: {:ok, assigned_counts()}
+  def rematch_recent(%DateTime{} = now) do
+    since = DateTime.add(now, -@rematch_days * 86_400, :second)
+
+    from(i in Item,
+      where:
+        i.class == ^:aggregator and i.assignment in ^@open_assignments and
+          i.first_seen_at >= ^since,
+      order_by: i.id,
+      select: i.id
+    )
+    |> Repo.all()
+    |> assign_aggregator_items()
+  end
+
+  defp item_id(%Item{id: id}), do: id
+  defp item_id(id) when is_integer(id), do: id
+
+  defp assign_locked(ids, index) do
+    items =
+      Repo.all(
+        from(i in Item,
+          where:
+            i.id in ^ids and i.class == ^:aggregator and i.assignment in ^@open_assignments and
+              is_nil(i.cluster_id),
+          order_by: i.id,
+          lock: "FOR UPDATE"
+        )
+      )
+
+    matched = Enum.map(items, &{&1, Matcher.matches(&1.title, index)})
+    existing = existing_securities(matched)
+
+    Enum.reduce(matched, %{assigned: 0, unassigned: 0, ambiguous: 0}, fn {item, hits}, counts ->
+      outcome = hits |> Enum.filter(&MapSet.member?(existing, &1)) |> Matcher.outcome()
+      write_outcome(item, outcome)
+      Map.update!(counts, outcome_name(outcome), &(&1 + 1))
+    end)
+  end
+
+  defp existing_securities(matched) do
+    case matched |> Enum.flat_map(&elem(&1, 1)) |> Enum.uniq() do
+      [] ->
+        MapSet.new()
+
+      ids ->
+        from(s in Security, where: s.id in ^ids, lock: "FOR KEY SHARE", select: s.id)
+        |> Repo.all()
+        |> MapSet.new()
+    end
+  end
+
+  defp write_outcome(item, outcome) do
+    {assignment, security_id, candidates} =
+      case outcome do
+        {:assigned, id} -> {:assigned, id, []}
+        :unassigned -> {:unassigned, nil, []}
+        {:ambiguous, ids} -> {:ambiguous, nil, ids}
+      end
+
+    unless {item.assignment, item.security_id, item.candidates} ==
+             {assignment, security_id, candidates} do
+      Repo.update_all(from(i in Item, where: i.id == ^item.id),
+        set: [
+          assignment: assignment,
+          security_id: security_id,
+          candidates: candidates,
+          updated_at: now()
+        ]
+      )
+    end
+  end
+
+  defp outcome_name({:assigned, _id}), do: :assigned
+  defp outcome_name(:unassigned), do: :unassigned
+  defp outcome_name({:ambiguous, _ids}), do: :ambiguous
 end

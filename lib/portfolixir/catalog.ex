@@ -24,6 +24,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.News
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Repo
 
@@ -335,6 +336,9 @@ defmodule Portfolixir.Catalog do
     case Repo.transaction(multi) do
       {:ok, %{security: security}} ->
         maybe_enrich_security(security)
+        # A new security joins the news universe only by its watch flag: it
+        # has no holding and no target yet (ADR-0056 §2).
+        if security.news_watch, do: rematch_news()
         {:ok, security}
 
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} ->
@@ -424,11 +428,55 @@ defmodule Portfolixir.Catalog do
       |> Multi.prepend(isin_write_lock(security, attrs))
 
     case Repo.transaction(multi) do
-      {:ok, %{security: updated}} -> {:ok, updated}
-      {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:ok, %{security: updated} = changes} ->
+        if news_identity(Journal.locked_row(changes)) != news_identity(updated),
+          do: rematch_news()
+
+        {:ok, updated}
+
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes} ->
+        {:error, changeset}
+
       # The row was deleted before the write took its lock (E25 S6, F49).
-      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
+      {:error, {:journal_lock, _}, :not_found, _changes} ->
+        {:error, :not_found}
     end
+  end
+
+  # What decides which aggregator items name a security (ADR-0056 §2): its
+  # aliases, its ISIN and WKN (matched as literal words), and its watch flag
+  # (whether it is in the universe at all).
+  defp news_identity(%Security{} = security) do
+    {Enum.map(security.news_aliases || [], &Map.take(&1, [:token, :context, :case])),
+     security.isin, security.wkn, security.news_watch}
+  end
+
+  # ADR-0056 §2: a change to a security's news identity re-matches the last
+  # 7 days' unassigned and ambiguous aggregator items. It runs right after
+  # the identity write commits, not inside its transaction: the re-match is
+  # a system job's unjournaled write to the staging items (B7), it reads the
+  # whole universe and a week of items, and neither its time nor a failure of
+  # it may hold the security's row lock or undo the operator's journaled
+  # write. It reads the committed aliases, so it sees the change. Should it
+  # fail, the write stands and the error is logged; the next identity change
+  # re-matches the same window again. Called inside a caller's own
+  # transaction, it runs and commits with that transaction.
+  defp rematch_news do
+    if Repo.in_transaction?() do
+      {:ok, _counts} = News.rematch_recent(DateTime.utc_now())
+    else
+      try do
+        {:ok, _counts} = News.rematch_recent(DateTime.utc_now())
+      rescue
+        exception ->
+          Logger.error(
+            "news re-match after a news identity change failed: " <>
+              inspect(exception.__struct__)
+          )
+      end
+    end
+
+    :ok
   end
 
   # An edit that may change the ISIN takes the ISIN write lock ahead of the
