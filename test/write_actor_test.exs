@@ -178,7 +178,12 @@ defmodule Portfolixir.WriteActorTest do
                   "retired_import_hashes",
                   # ADR-0055 §2: predictions, append-only and armed in the
                   # migration that creates them — an agent writes these rows.
-                  "predictions"
+                  "predictions",
+                  # ADR-0056 B7: feeds and sources are journaled master data,
+                  # armed in the migration that creates them (a feed's guard
+                  # leaves the fetcher's health columns out).
+                  "news_feeds",
+                  "news_sources"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
