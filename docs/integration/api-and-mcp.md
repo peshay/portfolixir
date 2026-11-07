@@ -497,6 +497,9 @@ full list.
   `["is frozen once referenced (120 quotes, 3 transactions)"]`, and nothing
   is written. Resending the stored currency is no change, and the other
   fields stay editable.
+  It also takes the news identity (ADR-0056 §2): `news_identity`
+  `{"cik": ..., "aliases": [{"token", "context", "case"}]}` and the boolean
+  `news_watch`; see [News upkeep](#news-upkeep-adr-0056).
 - `DELETE /api/v1/securities/:id` deletes a security when nothing references
   it. A policy rule that reads it answers `409 Conflict` with
   `errors.policy_rules`. Bookings, quote history, research notes, security
@@ -1257,6 +1260,36 @@ no yield. A stored quote is a percent price at any level and is always
 used; `price_on_unit_scale` is `false` on every other yield. Accrued
 interest, fees and taxes are excluded; the reading reports, it does not
 evaluate.
+
+### News upkeep (ADR-0056)
+
+The writes that keep the news layer (§9, B1). Each is journaled under the
+calling token and closed: a field it does not take answers `422` naming it.
+Answers are compact: short codes, null fields left out.
+
+- `PUT /api/v1/news/feeds` registers or changes a feed from a `feed` object:
+  `class` (`issuer`, `regulatory`, `aggregator`, `thematic`), `url`,
+  `security_id` (issuer and regulatory) or `category_id` (thematic; an
+  aggregator binds to neither), `interval_minutes` (1 to 1,440, else the
+  class's default), `language` and `enabled`. With `id` it changes that feed;
+  without, the feed registered under `url`, else it creates one (`201`). A
+  key not sent keeps its stored value. A URL new to the feed is checked with
+  name resolution at once (B2): one that is not https, carries a user name,
+  does not resolve or resolves to a private, loopback, link-local or reserved
+  address answers `422` on `url` naming its code, e.g.
+  `url_not_allowed:private_address`. The class of a feed with stored items
+  does not change.
+- `DELETE /api/v1/news/feeds/:id` removes a feed and its day counters; its
+  items stay, detached, until retention. Answers `id` and `items_detached`.
+- `PUT /api/v1/news/sources` rates a domain by hand from a `source` object,
+  `domain` and `tier` (`primary`, `secondary`, `awareness`, `blocked`); no
+  later seed overwrites it.
+- `PATCH /api/v1/securities/:id` takes `news_identity` — `cik` (1 to 10
+  digits, `null` clears it) and `aliases`, each a literal `token` (no
+  pattern), optional `context` words of which one must share the sentence,
+  and `case` (`sensitive`, `insensitive`) — and `news_watch`, which puts a
+  security without a holding or a target into the news universe. A key of
+  `news_identity` not sent keeps its value; the security's read carries both.
 
 ### Logos
 

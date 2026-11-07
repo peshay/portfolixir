@@ -38,6 +38,8 @@ defmodule Portfolixir.News do
   alias Portfolixir.Journal
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
+  alias Portfolixir.News.FeedDay
+  alias Portfolixir.News.Fetcher
   alias Portfolixir.News.Item
   alias Portfolixir.News.Matcher
   alias Portfolixir.News.Scheduler
@@ -310,4 +312,185 @@ defmodule Portfolixir.News do
     do: Scheduler.run_one(feed_id, opts)
 
   # --- end N3 -----------------------------------------------------------------
+
+  # --- N8 ---------------------------------------------------------------------
+  # The upkeep writes (ADR-0056 §9, B1, B2, B7): a feed registered, changed or
+  # removed, each journaled as `news_feed` under the writer's actor. A source's
+  # tier is `Portfolixir.News.Sources.put_source/4`; a security's news identity
+  # is `Portfolixir.Catalog.update_security/3`.
+
+  @feed_class_kept "cannot change while the feed has stored items: their class is the feed's"
+
+  @doc """
+  Registers a feed, or changes one, on behalf of `actor` (`news.feeds_put`).
+
+  **Which feed:** with `id:` that feed (`{:error, :not_found}` when none);
+  without, the feed registered under the URL in `attrs`, else a new one. On
+  a stored feed a key not in `attrs` keeps its value. `attrs` is what
+  `Portfolixir.News.Feed.changeset/2` casts: class, url, security_id,
+  category_id, enabled, interval_minutes, language.
+
+  **The URL, at once (B2):** a URL new to the feed — on a create, or a
+  changed URL — passes `Portfolixir.News.Fetcher.check_url/2` with name
+  resolution before anything is written; a refusal is an error on `url`
+  naming its code (`url_not_allowed:private_address`, ...). An update that
+  keeps the URL is not checked here, so a feed whose name has since turned
+  private can still be disabled; the fetcher checks it before every fetch.
+  Options go to the check (a test's `:resolver`).
+
+  **The class of a feed with stored items does not change** (their class is
+  the feed's, a key of the database): an error on `class`.
+
+  Answers `{:ok, :created | :updated, feed}`; an update that changes nothing
+  records no entry.
+  """
+  @spec put_feed(Actor.t(), map(), keyword()) ::
+          {:ok, :created | :updated, Feed.t()}
+          | {:error, :not_found}
+          | {:error, Ecto.Changeset.t()}
+  def put_feed(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
+    {id, check_opts} = Keyword.pop(opts, :id)
+
+    with {:ok, prior} <- prior_feed(id, attrs) do
+      changeset =
+        (prior || %Feed{})
+        |> feed_changeset(attrs)
+        |> check_feed_url(prior, check_opts)
+
+      cond do
+        not changeset.valid? -> {:error, %{changeset | action: :insert}}
+        is_nil(prior) -> insert_feed(actor, changeset)
+        true -> update_feed(actor, prior, attrs)
+      end
+    end
+  end
+
+  defp prior_feed(nil, attrs) do
+    case attr(attrs, :url) do
+      url when is_binary(url) -> {:ok, Repo.get_by(Feed, url: String.trim(url))}
+      _none -> {:ok, nil}
+    end
+  end
+
+  defp prior_feed(id, _attrs) when is_integer(id) do
+    case Repo.get(Feed, id) do
+      nil -> {:error, :not_found}
+      feed -> {:ok, feed}
+    end
+  end
+
+  defp attr(attrs, key), do: Map.get(attrs, key, Map.get(attrs, Atom.to_string(key)))
+
+  defp feed_changeset(feed, attrs) do
+    feed
+    |> Feed.changeset(attrs)
+    |> Ecto.Changeset.foreign_key_constraint(:class,
+      name: :news_items_feed_class_fkey,
+      message: @feed_class_kept
+    )
+  end
+
+  defp check_feed_url(changeset, prior, opts) do
+    url = Ecto.Changeset.get_field(changeset, :url)
+
+    cond do
+      Keyword.has_key?(changeset.errors, :url) or not is_binary(url) -> changeset
+      prior && prior.url == url -> changeset
+      true -> refuse_url(changeset, Fetcher.check_url(url, opts))
+    end
+  end
+
+  defp refuse_url(changeset, :ok), do: changeset
+
+  defp refuse_url(changeset, {:error, {:url_not_allowed, reason}}),
+    do:
+      Ecto.Changeset.add_error(
+        changeset,
+        :url,
+        "is not allowed (url_not_allowed:#{reason}): #{url_refusal(reason)}"
+      )
+
+  defp url_refusal(:private_address),
+    do: "the name resolves to a private, loopback, link-local or reserved address"
+
+  defp url_refusal(:unresolvable), do: "the name does not resolve"
+  defp url_refusal(:scheme), do: "only https is fetched"
+  defp url_refusal(:userinfo), do: "a user name or password in the URL is refused"
+  defp url_refusal(:host), do: "the URL names no host that can be fetched"
+  defp url_refusal(:host_not_allowed), do: "the host is not allowed"
+
+  defp insert_feed(actor, changeset) do
+    Multi.new()
+    |> Multi.insert(:feed, changeset)
+    |> Journal.record(actor, resource_type: "news_feed", operation: :create, source: :feed)
+    |> Repo.transaction()
+    |> feed_written(:created)
+  end
+
+  defp update_feed(actor, prior, attrs) do
+    Multi.new()
+    |> Multi.update(:feed, &feed_changeset(Journal.locked_row(&1), attrs))
+    |> Journal.record(actor,
+      resource_type: "news_feed",
+      operation: :update,
+      source: :feed,
+      before: prior
+    )
+    |> Repo.transaction()
+    |> feed_written(:updated)
+  end
+
+  defp feed_written({:ok, %{feed: feed}}, written), do: {:ok, written, feed}
+
+  defp feed_written({:error, {:journal_lock, _}, :not_found, _changes}, _),
+    do: {:error, :not_found}
+
+  defp feed_written({:error, :feed, changeset, _changes}, _written), do: {:error, changeset}
+
+  @doc """
+  Removes the feed `feed_id` on behalf of `actor` (`news.feeds_delete`),
+  journaled as a `news_feed` delete.
+
+  Its items stay (§12): each is detached (`feed_id` null, nothing else
+  changed), so it ages out by retention and a promoted one stays for good.
+  Its day counters go with it. Neither is journaled (B7). Answers
+  `{:ok, %{feed: feed, items_detached: n}}` or `{:error, :not_found}`.
+  """
+  @spec delete_feed(Actor.t(), pos_integer()) ::
+          {:ok, %{feed: Feed.t(), items_detached: non_neg_integer()}} | {:error, :not_found}
+  def delete_feed(%Actor{} = actor, feed_id) when is_integer(feed_id) do
+    case Repo.get(Feed, feed_id) do
+      nil ->
+        {:error, :not_found}
+
+      feed ->
+        Multi.new()
+        |> Multi.run(:detached, fn repo, _changes ->
+          {detached, _} =
+            repo.update_all(from(i in Item, where: i.feed_id == ^feed.id),
+              set: [feed_id: nil, updated_at: now()]
+            )
+
+          {:ok, detached}
+        end)
+        |> Multi.delete_all(:days, from(d in FeedDay, where: d.feed_id == ^feed.id))
+        |> Multi.delete(:feed, &Journal.locked_row/1)
+        |> Journal.record(actor,
+          resource_type: "news_feed",
+          operation: :delete,
+          source: :feed,
+          before: feed
+        )
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{feed: deleted, detached: detached}} ->
+            {:ok, %{feed: deleted, items_detached: detached}}
+
+          {:error, {:journal_lock, _}, :not_found, _changes} ->
+            {:error, :not_found}
+        end
+    end
+  end
+
+  # --- end N8 -----------------------------------------------------------------
 end

@@ -550,6 +550,9 @@ verengen, was der Betreiber sieht.
   `["is frozen once referenced (120 quotes, 3 transactions)"]`, und nichts
   wird geschrieben. Die gespeicherte Währung erneut zu senden ist keine
   Änderung, und die übrigen Felder bleiben änderbar.
+  Sie nimmt auch die News-Identität (ADR-0056 §2): `news_identity`
+  `{"cik": ..., "aliases": [{"token", "context", "case"}]}` und das Boolean
+  `news_watch`; siehe [News-Pflege](#news-pflege-adr-0056).
 - `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn nichts darauf
   verweist. Liest eine Policy-Regel es, antwortet der Aufruf mit
   `409 Conflict` und `errors.policy_rules`. Buchungen, Kurshistorie,
@@ -1362,6 +1365,39 @@ Rendite. Ein gespeicherter Kurs ist in jeder Höhe ein Prozentkurs und wird
 immer verwendet; bei jeder anderen Rendite ist `price_on_unit_scale`
 `false`. Stückzinsen, Gebühren und Steuern sind nicht enthalten; die Lesung
 berichtet, sie bewertet nicht.
+
+### News-Pflege (ADR-0056)
+
+Die Schreibzugriffe, die die News-Schicht pflegen (§9, B1). Jeder wird unter
+dem aufrufenden Token journalisiert und ist geschlossen: Ein Feld, das er
+nicht nimmt, ergibt `422`, das es nennt. Die Antworten sind knapp: kurze
+Codes, leere Felder weggelassen.
+
+- `PUT /api/v1/news/feeds` registriert oder ändert einen Feed aus einem
+  `feed`-Objekt: `class` (`issuer`, `regulatory`, `aggregator`, `thematic`),
+  `url`, `security_id` (issuer und regulatory) oder `category_id` (thematic;
+  ein Aggregator bindet an keins), `interval_minutes` (1 bis 1.440, sonst der
+  Standard der Klasse), `language` und `enabled`. Mit `id` ändert er diesen
+  Feed; ohne den unter `url` registrierten, sonst legt er einen an (`201`).
+  Ein nicht gesendeter Schlüssel behält seinen gespeicherten Wert. Eine für
+  den Feed neue URL wird sofort mit Namensauflösung geprüft (B2): Eine, die
+  nicht https ist, einen Benutzernamen trägt, nicht auflöst oder auf eine
+  private, Loopback-, Link-Local- oder reservierte Adresse auflöst, ergibt
+  `422` auf `url` mit ihrem Code, etwa `url_not_allowed:private_address`. Die
+  Klasse eines Feeds mit gespeicherten Einträgen ändert sich nicht.
+- `DELETE /api/v1/news/feeds/:id` entfernt einen Feed und seine
+  Tageszähler; seine Einträge bleiben, abgehängt, bis zur Aufbewahrungsfrist.
+  Antwortet `id` und `items_detached`.
+- `PUT /api/v1/news/sources` bewertet eine Domain von Hand aus einem
+  `source`-Objekt, `domain` und `tier` (`primary`, `secondary`, `awareness`,
+  `blocked`); kein späterer Seed überschreibt das.
+- `PATCH /api/v1/securities/:id` nimmt `news_identity` — `cik` (1 bis 10
+  Ziffern, `null` löscht ihn) und `aliases`, je ein wörtliches `token` (kein
+  Muster), optionale `context`-Wörter, von denen eines im selben Satz stehen
+  muss, und `case` (`sensitive`, `insensitive`) — sowie `news_watch`, das ein
+  Wertpapier ohne Bestand und ohne Ziel in das News-Universum aufnimmt. Ein
+  nicht gesendeter Schlüssel von `news_identity` behält seinen Wert; die
+  Lesung des Wertpapiers trägt beide.
 
 ### Logos
 

@@ -73,6 +73,39 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "portfolixir.portfolios.bands and portfolixir.views.bands"
     # --- Sprint 27 S2 end ---
 
+    # --- Sprint 27 N8 begin ---
+    # N8 (ADR-0056 §9, B1): the news layer's upkeep writes, their three
+    # tools, and the news identity on the security's update.
+    assert newest["summary"] =~ "Sprint 27, N8 (ADR-0056 §9, B1): "
+
+    for endpoint <- [
+          "PUT /api/v1/news/feeds",
+          "DELETE /api/v1/news/feeds/:id",
+          "PUT /api/v1/news/sources"
+        ] do
+      assert endpoint in newest["endpoints"], endpoint
+      assert newest["summary"] =~ endpoint, endpoint
+    end
+
+    assert newest["summary"] =~ "unknown field answers 422 naming it"
+    assert newest["summary"] =~ "name resolution at once (B2)"
+
+    assert [identity] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(
+                 &1,
+                 "PATCH /api/v1/securities/:id (portfolixir.securities.update)"
+               )
+             )
+
+    for part <- ~w(news_identity news_watch cik aliases token context case news_cik news_aliases) do
+      assert identity =~ part, part
+    end
+
+    assert identity =~ "a key of news_identity not sent keeps its value"
+    # --- Sprint 27 N8 end ---
+
     # Sprint 26's sprint PR (version 26), found by version from Sprint 27 on.
     # Dated strictly after entry 25, so since=2026-11-06 still returns it.
     # Each story appends its own items between its own markers, each found

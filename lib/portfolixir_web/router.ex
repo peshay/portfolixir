@@ -431,6 +431,14 @@ defmodule PortfolixirWeb.Router do
     # screen's roll-up.
     get("/category-results", CategoryResultController, :total)
 
+    # --- Sprint 27 N8 begin ---
+    # ADR-0056 §9, B1 (Sprint 27, N8): the news layer's upkeep writes — a
+    # feed registered, changed or removed, and a source rated by hand.
+    put("/news/feeds", NewsUpkeepController, :put_feed)
+    delete("/news/feeds/:id", NewsUpkeepController, :delete_feed)
+    put("/news/sources", NewsUpkeepController, :put_source)
+    # --- Sprint 27 N8 end ---
+
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)
 

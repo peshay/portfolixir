@@ -137,6 +137,21 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
         "the news layer ADR-0056 opened (gate B3.3, for news feeds only): excerpts of " <>
           "at most 600 characters kept 90 days, so not the raw news archive the non-goal names"
     },
+    # --- Sprint 27 N8 begin ---
+    # The news layer's upkeep writes (ADR-0056 §9, B1): their routes, tools and
+    # web modules. Exactly feeds, sources, the upkeep controller and a
+    # security's news identity; a route or tool for news archives is caught.
+    %{
+      phrases: [~w(news feeds), ~w(news sources), ~w(news upkeep), ~w(news identity)],
+      kinds: [:route, :tool, :module],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "registering a feed, rating a source and naming a security's news identity, the " <>
+          "upkeep ADR-0056 §9 and B1 open with the fetcher; what the feeds bring is capped " <>
+          "and kept 90 days (§12), not the raw news archive the non-goal names"
+    },
+    # --- Sprint 27 N8 end ---
     %{
       phrases: [~w(sync now)],
       kinds: [:event],

@@ -58,8 +58,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "family's three forms, splits the value series into bands by level (total, " <>
               "category, security) that sum to it exactly on every day, each with its daily " <>
               "values, its share on the last day and its change without flows; the read " <>
-              "tools portfolixir.portfolios.bands and portfolixir.views.bands reach it."
+              "tools portfolixir.portfolios.bands and portfolixir.views.bands reach it.",
             # --- Sprint 27 S2 end ---
+            # --- Sprint 27 N8 begin ---
+            "Sprint 27, N8 (ADR-0056 §9, B1): the news layer's upkeep writes, each " <>
+              "journaled under its token and closed (an unknown field answers 422 naming " <>
+              "it): PUT /api/v1/news/feeds registers or changes a feed, its URL checked " <>
+              "with name resolution at once (B2); DELETE /api/v1/news/feeds/:id removes " <>
+              "one and keeps its items, detached; PUT /api/v1/news/sources rates a domain " <>
+              "by hand."
+            # --- Sprint 27 N8 end ---
           ],
           " "
         ),
@@ -67,8 +75,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- Sprint 27 S2 begin ---
         "GET /api/v1/portfolios/:portfolio_id/performance/bands",
         "GET /api/v1/views/:view_id/performance/bands",
-        "GET /api/v1/performance/bands"
+        "GET /api/v1/performance/bands",
         # --- Sprint 27 S2 end ---
+        # --- Sprint 27 N8 begin ---
+        "PUT /api/v1/news/feeds",
+        "DELETE /api/v1/news/feeds/:id",
+        "PUT /api/v1/news/sources"
+        # --- Sprint 27 N8 end ---
       ],
       tools: [
         # --- Sprint 27 S2 begin ---
@@ -76,7 +89,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.views.bands"
         # --- Sprint 27 S2 end ---
       ],
-      parameters: [],
+      parameters: [
+        # --- Sprint 27 N8 begin ---
+        "PATCH /api/v1/securities/:id (portfolixir.securities.update) takes news_identity " <>
+          "{cik, aliases, each {token, context, case}} and news_watch (ADR-0056 §2, B1): a key " <>
+          "of news_identity not sent keeps its value, an unknown key in it or in an alias " <>
+          "answers 422 naming it under news_identity, and news_cik or news_aliases sent " <>
+          "directly answer 422; the security's read (GET /api/v1/securities/:id, the update's " <>
+          "answer, projection=full and fields=) carries news_identity and news_watch."
+        # --- Sprint 27 N8 end ---
+      ],
       removed_endpoints: [],
       removed_tools: [],
       prompts: [],

@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.MergedAway
+  alias PortfolixirWeb.Api.V1.NewsIdentityParam
   alias PortfolixirWeb.Api.V1.PolicyConflict
   alias PortfolixirWeb.Api.V1.ReferencedConflict
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -176,16 +177,31 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     end
   end
 
+  # ADR-0056 §2, §9 (Sprint 27, N8): the update also takes the news identity
+  # as one block, `news_identity` {cik, aliases}, and `news_watch`; the block
+  # is closed and its refusals name what the request sent
+  # (`PortfolixirWeb.Api.V1.NewsIdentityParam`).
   def update(conn, %{"id" => id} = params) do
-    attrs = Map.get(params, "security", %{})
-
-    with security when not is_nil(security) <- Catalog.get_security(id),
+    with {:ok, attrs} <- NewsIdentityParam.parse(Map.get(params, "security", %{})),
+         security when not is_nil(security) <- Catalog.get_security(id),
          {:ok, updated} <- Catalog.update_security(conn.assigns.actor, security, attrs) do
       json(conn, %{data: JSON.security(updated)})
     else
-      nil -> not_found(conn)
-      {:error, :not_found} -> not_found(conn)
-      {:error, changeset} -> validation_error(conn, changeset)
+      nil ->
+        not_found(conn)
+
+      {:error, :not_found} ->
+        not_found(conn)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: changeset |> JSON.errors() |> NewsIdentityParam.errors()})
+
+      {:error, errors} when is_map(errors) ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: errors})
     end
   end
 
