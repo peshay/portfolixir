@@ -84,7 +84,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "and top story, the quiet securities and the unassigned and ambiguous items " <>
               "as counts, without labels and without a consumer cursor (issuer and " <>
               "regulatory stories always, aggregator and thematic ones with " <>
-              "include_unlabeled)."
+              "include_unlabeled). The read tools portfolixir.news.list, portfolixir.news.get, " <>
+              "portfolixir.news.health and portfolixir.news.digest reach them in every profile " <>
+              "and answer compact JSON."
             # --- Sprint 27 N7 end ---
           ],
           " "
@@ -116,8 +118,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- Sprint 27 N8 begin ---
         "portfolixir.news.feeds_put",
         "portfolixir.news.feeds_delete",
-        "portfolixir.news.sources_put"
+        "portfolixir.news.sources_put",
         # --- Sprint 27 N8 end ---
+        # --- Sprint 27 N7 begin ---
+        "portfolixir.news.list",
+        "portfolixir.news.get",
+        "portfolixir.news.health",
+        "portfolixir.news.digest"
+        # --- Sprint 27 N7 end ---
       ],
       parameters: [
         # --- Sprint 27 N8 begin ---

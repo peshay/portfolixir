@@ -168,8 +168,14 @@ describe("Portfolixir MCP tools", () => {
       // --- Sprint 27 N8 begin ---
       "portfolixir.news.feeds_put",
       "portfolixir.news.feeds_delete",
-      "portfolixir.news.sources_put"
+      "portfolixir.news.sources_put",
       // --- Sprint 27 N8 end ---
+      // --- Sprint 27 N7 begin ---
+      "portfolixir.news.list",
+      "portfolixir.news.get",
+      "portfolixir.news.health",
+      "portfolixir.news.digest"
+      // --- Sprint 27 N7 end ---
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");

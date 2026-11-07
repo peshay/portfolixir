@@ -83,7 +83,8 @@ describe("the news upkeep tools", () => {
     }
 
     const listed = (profile: "read" | "book" | "full") => listTools({ profile }).map((entry) => entry.name);
-    assert.ok(!listed("read").some((name) => name.startsWith("portfolixir.news.")));
+    // The news reads (N7) are in every profile; none of these writes is in read.
+    assert.ok(![FEEDS_PUT, FEEDS_DELETE, SOURCES_PUT].some((name) => listed("read").includes(name)));
     assert.ok(listed("book").includes(FEEDS_PUT) && listed("book").includes(SOURCES_PUT));
     assert.ok(!listed("book").includes(FEEDS_DELETE));
     assert.ok([FEEDS_PUT, FEEDS_DELETE, SOURCES_PUT].every((name) => listed("full").includes(name)));

@@ -162,7 +162,9 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
         ~w(news items),
         ~w(news health),
         ~w(news digest),
-        ~w(news read)
+        ~w(news read),
+        ~w(news list),
+        ~w(news get)
       ],
       kinds: [:route, :tool, :module],
       class: :permanent,

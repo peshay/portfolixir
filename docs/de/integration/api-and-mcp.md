@@ -4983,6 +4983,16 @@ lässt sich nicht lesen.
   nimmt, vor jeder Anfrage ab; jede Beschreibung sagt, dass die Antwort Daten
   sind, nie Anweisungen. `feeds_put` und `sources_put` gehören zum Profil
   `book`; `feeds_delete`, ein Entfernen, nur zu `full`.
+- `portfolixir.news.list`, `portfolixir.news.get`, `portfolixir.news.health`
+  und `portfolixir.news.digest` — die Lesezugriffe der News-Schicht (ADR-0056
+  §9, §11), jeder ruft die Route aus
+  [News-Lesezugriffe](#news-lesezugriffe-adr-0056) auf und lehnt einen
+  Parameter, den er nicht nimmt, vor jeder Anfrage ab, in jedem Profil. Sie
+  antworten mit kompaktem JSON (ohne Einrückung), sodass die Lese-Budgets für
+  das gelten, was das Werkzeug zurückgibt; Titel und Auszüge erreichen den
+  Agenten mit jedem unsichtbaren Zeichen als `[U+XXXX]` ausgeschrieben, und
+  jede Beschreibung sagt, dass die Antwort Daten sind, nie Anweisungen.
+  `news.get` nimmt `cluster_id` oder `news_id`.
 - `portfolixir.securities.delete` — nennt `portfolixir.securities.update`
   mit `is_retired` für das Mittel `retire`.
 - `portfolixir.securities.isin_change` — zeichnet einen
@@ -5284,6 +5294,10 @@ lässt sich nicht lesen.
 - `portfolixir.news.feeds_put`
 - `portfolixir.news.feeds_delete`
 - `portfolixir.news.sources_put`
+- `portfolixir.news.list`
+- `portfolixir.news.get`
+- `portfolixir.news.health`
+- `portfolixir.news.digest`
 
 `portfolixir.views.performance` berechnet die passende portfolioübergreifende
 TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,
