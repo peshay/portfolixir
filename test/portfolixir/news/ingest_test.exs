@@ -6,6 +6,8 @@ defmodule Portfolixir.News.IngestTest do
   import Ecto.Query
   import Portfolixir.NewsFixtures
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Clock
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Ingest
@@ -213,6 +215,76 @@ defmodule Portfolixir.News.IngestTest do
       # Past it, the window has room again.
       next_day = DateTime.add(@now, 25, :hour)
       assert {:ok, %{stored: 6}} = Ingest.ingest(feed, flood ++ [parsed(206)], next_day)
+    end
+  end
+
+  defp watched!(name, token) do
+    {:ok, security} =
+      Catalog.update_security(Actor.owner_ui(), security!(name), %{
+        news_watch: true,
+        news_aliases: [%{token: token, context: [], case: "insensitive"}]
+      })
+
+    security
+  end
+
+  # User story:
+  # As the operator's agent reading what my feeds collected,
+  # I want every item a fetch stores to land where it belongs before I read
+  # it: an issuer's or a regulator's on its security whatever its title
+  # names, an aggregator's on the one security of my universe it names, or
+  # in the queue as unassigned or ambiguous,
+  # so that identity holds end to end and nothing waits for a second pass.
+  #
+  # Acceptance criteria (§14 item 1, through `Ingest.ingest/3`):
+  # - Aggregator items with one, none and several alias hits are stored
+  #   `assigned` (to that security), `unassigned`, and `ambiguous` with the
+  #   sorted candidates.
+  # - Issuer and regulatory items land on their feed's security even when
+  #   their title names another security of the universe.
+  describe "matching at ingest (§2, §14 item 1)" do
+    test "an aggregator item with one, none and several hits" do
+      northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
+      larkspur = watched!("Larkspur Robotics Inc", "Larkspur")
+      feed = feed!(%{class: "aggregator", url: "https://search.example.com/rss?q=n"})
+
+      items =
+        for {n, title} <- [
+              {1, "Northwind Harbour wins a port contract"},
+              {2, "Markets drift ahead of the holiday"},
+              {3, "Larkspur and Northwind Harbour agree a joint venture"}
+            ] do
+          parsed(n, %{
+            title: title,
+            link: "https://search.example.com/r?u=#{n}",
+            source_domain: "wire.example.com"
+          })
+        end
+
+      assert {:ok, %{stored: 3}} = Ingest.ingest(feed, items, @now)
+
+      assert [one, none, several] = items(feed)
+      assert {one.assignment, one.security_id, one.candidates} == {:assigned, northwind.id, []}
+      assert {none.assignment, none.security_id, none.candidates} == {:unassigned, nil, []}
+
+      assert {several.assignment, several.security_id, several.candidates} ==
+               {:ambiguous, nil, Enum.sort([northwind.id, larkspur.id])}
+    end
+
+    test "issuer and regulatory items land on their security whatever their title names" do
+      northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
+      _larkspur = watched!("Larkspur Robotics Inc", "Larkspur")
+      issuer = feed!(%{class: "issuer", security_id: northwind.id})
+      regulatory = feed!(%{class: "regulatory", security_id: northwind.id})
+
+      title = "Northwind Harbour comments on Larkspur's offer"
+      {:ok, %{stored: 1}} = Ingest.ingest(issuer, [parsed(1, %{title: title})], @now)
+      {:ok, %{stored: 1}} = Ingest.ingest(regulatory, [parsed(2, %{title: title})], @now)
+
+      for item <- items(issuer) ++ items(regulatory) do
+        assert {item.assignment, item.security_id, item.candidates, item.tier} ==
+                 {:assigned, northwind.id, [], :primary}
+      end
     end
   end
 end
