@@ -160,3 +160,11 @@ The `position_review` prompt walks it through that read, the open theses and
 the upcoming events, and ends by asking it for predictions, or none where it
 has no view, which Portfolixir records permanently and scores for
 calibration; a recorded call, never a trade.
+
+Once the agent has registered news feeds (`portfolixir.news.feeds_put`), it
+starts a run with `portfolixir.news.digest`: one compact row per security with
+something new, the quiet ones and the unassigned items as counts. It reads a
+security's stories with `portfolixir.news.list`, one story with its link and
+excerpt with `portfolixir.news.get`, and the collector's health with
+`portfolixir.news.health`. Headlines are a feed's text: the tools return them
+as data, never instructions.
