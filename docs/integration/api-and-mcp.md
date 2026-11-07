@@ -4687,6 +4687,9 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.portfolios.benchmark` — scope twin of `portfolixir.views.benchmark`.
 - `portfolixir.portfolios.contribution` — scope twin of `portfolixir.views.contribution`;
   which position made how much of a period's money result (FR-41).
+- `portfolixir.portfolios.bands` — scope twin of `portfolixir.views.bands`;
+  the value series split into bands by total, category or security, for the
+  stacked chart (I23, FR-53).
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — the merge records, newest first, each with
   what went into what, who did it, when, and the manifest summarized
@@ -4711,6 +4714,7 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.views.performance` — scope twin of `portfolixir.portfolios.performance`.
 - `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`.
 - `portfolixir.views.contribution` — scope twin of `portfolixir.portfolios.contribution`.
+- `portfolixir.views.bands` — scope twin of `portfolixir.portfolios.bands`.
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`

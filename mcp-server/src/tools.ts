@@ -1756,6 +1756,39 @@ const viewContributionSchema = {
 
 const viewContributionZ = viewPerformanceZ.omit({ series: true });
 
+// --- Sprint 27 S2 begin ---
+// The stacked value chart's bands (I23, FR-53): the contribution reads'
+// scope and period parameters, plus the level, the tree, the category drilled
+// into and the order.
+const bandsProperties = {
+  level: { type: "string", enum: ["total", "category", "security"] },
+  classification_id: { type: "integer", minimum: 1 },
+  category_id: { type: "integer", minimum: 1 },
+  sort: { type: "string", enum: ["size", "change"] }
+};
+
+const bandsZ = {
+  level: z.enum(["total", "category", "security"]).optional(),
+  classification_id: z.number().int().positive().optional(),
+  category_id: z.number().int().positive().optional(),
+  sort: z.enum(["size", "change"]).optional()
+};
+
+const portfolioBandsSchema = {
+  ...contributionSchema,
+  properties: { ...contributionSchema.properties, ...bandsProperties }
+};
+
+const portfolioBandsZ = contributionZ.extend(bandsZ);
+
+const viewBandsSchema = {
+  ...viewContributionSchema,
+  properties: { ...viewContributionSchema.properties, ...bandsProperties }
+};
+
+const viewBandsZ = viewContributionZ.extend(bandsZ);
+// --- Sprint 27 S2 end ---
+
 // -- buckets & views (ADR-0018) --------------------------------------------
 
 const bucketSchema = objectWith("bucket", {
@@ -3913,6 +3946,16 @@ const declaredTools: DeclaredTool[] = [
     contributionSchema,
     contributionZ
   ),
+  // --- Sprint 27 S2 begin ---
+  tool(
+    "portfolixir.portfolios.bands",
+    "Portfolio value bands",
+    "The value chart split into bands (I23, FR-53): dates, the performance series' days, and bands that sum to it exactly on every date. level: total (one band, the series), category (default: one band per root category of classification_id, else of the tree the scope's targets use, else the first custom tree; plus cash and unclassified) or security (one per security plus cash; with category_id, that category's securities, summing to its band). A band: key, kind, id, name, color (the category's own or null), values (aligned with dates), start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without a start value. Over 8 bands the smallest merge into other (members listed), ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to and view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
+      portfolioScopeTwin("portfolixir.views.bands", "contributions"),
+    portfolioBandsSchema,
+    portfolioBandsZ
+  ),
+  // --- Sprint 27 S2 end ---
   tool(
     "portfolixir.journal.list",
     "List audit journal",
@@ -4052,6 +4095,16 @@ const declaredTools: DeclaredTool[] = [
     viewContributionSchema,
     viewContributionZ
   ),
+  // --- Sprint 27 S2 begin ---
+  tool(
+    "portfolixir.views.bands",
+    "View value bands (cross-portfolio)",
+    "Value bands of a bucket view (id is the view id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to the series of portfolixir.views.performance; the default tree is the one this view's target plans use. level, classification_id, category_id, sort, period, year and from/to as there." +
+      viewScopeTwin("portfolixir.portfolios.bands", "contributions"),
+    viewBandsSchema,
+    viewBandsZ
+  ),
+  // --- Sprint 27 S2 end ---
   tool(
     "portfolixir.securities_accounts.set_buckets",
     "Set depot default buckets",
@@ -4967,6 +5020,23 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "view"
         ])
       );
+    // --- Sprint 27 S2 begin ---
+    case "portfolixir.portfolios.bands":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance/bands`, args, [
+          "period",
+          "year",
+          "from",
+          "to",
+          "view",
+          "level",
+          "classification_id",
+          "category_id",
+          "sort"
+        ])
+      );
+    // --- Sprint 27 S2 end ---
     case "portfolixir.journal.list":
       return client.request(
         "GET",
@@ -5047,6 +5117,22 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "to"
         ])
       );
+    // --- Sprint 27 S2 begin ---
+    case "portfolixir.views.bands":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/${args.id === undefined ? "" : `views/${args.id}/`}performance/bands`, args, [
+          "period",
+          "year",
+          "from",
+          "to",
+          "level",
+          "classification_id",
+          "category_id",
+          "sort"
+        ])
+      );
+    // --- Sprint 27 S2 end ---
     case "portfolixir.views.set_buckets":
       return client.request("PUT", `/api/v1/views/${args.id}/buckets`, {
         include: args.include ?? [],

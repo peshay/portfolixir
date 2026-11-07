@@ -116,6 +116,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.performance",
       "portfolixir.portfolios.benchmark",
       "portfolixir.portfolios.contribution",
+      "portfolixir.portfolios.bands",
       "portfolixir.journal.list",
       "portfolixir.merges.list",
       "portfolixir.buckets.list",
@@ -133,6 +134,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.performance",
       "portfolixir.views.benchmark",
       "portfolixir.views.contribution",
+      "portfolixir.views.bands",
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
@@ -3623,6 +3625,120 @@ describe("Portfolixir MCP tools", () => {
     assert.match(viewText, /portfolixir\.portfolios\.contribution shape/);
     assert.match(viewText, /portfolio_id null/);
     assert.match(viewText, /Decimal strings/);
+  });
+
+  // User story (I23, FR-53; coverage rule):
+  // As the operator's agent asking what a scope's wealth is made of,
+  // I want one read-only tool per scope, twins of each other, that answers
+  // the value series split into bands,
+  // so that I read the same bands the stacked chart draws, from the API.
+  //
+  // Acceptance criteria:
+  // - portfolixir.portfolios.bands routes to GET
+  //   /portfolios/:portfolio_id/performance/bands with view, period, year,
+  //   from/to, level, classification_id, category_id and sort;
+  //   portfolixir.views.bands to GET /views/:id/performance/bands, or with
+  //   no id to GET /performance/bands, without view.
+  // - Both are reads (readOnlyHint), so every profile lists them.
+  // - level and sort are enums; a value outside them never leaves the
+  //   companion.
+  // - The descriptions name the levels, the band fields, the merge into
+  //   other, the change, Decimal strings and computation_basis.
+  it("issues a GET to /performance/bands for the two bands tools", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { portfolio_id: 3, level: "category", bands: [] }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.bands", {
+      portfolio_id: 3,
+      period: "ytd",
+      view: 5,
+      level: "security",
+      category_id: 7,
+      sort: "change"
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(
+      requests[0].path,
+      "/api/v1/portfolios/3/performance/bands?period=ytd&view=5&level=security&category_id=7&sort=change"
+    );
+    assert.equal((result.structuredContent as any).data.level, "category");
+
+    await callTool(client, "portfolixir.views.bands", { id: 2, year: 2025, classification_id: 4 });
+    await callTool(client, "portfolixir.views.bands", { from: "2025-01-01", to: "2025-06-30" });
+
+    assert.equal(requests[1].path, "/api/v1/views/2/performance/bands?year=2025&classification_id=4");
+    assert.equal(requests[2].path, "/api/v1/performance/bands?from=2025-01-01&to=2025-06-30");
+
+    await assert.rejects(callTool(client, "portfolixir.portfolios.bands", { portfolio_id: 3, level: "sector" }));
+    await assert.rejects(callTool(client, "portfolixir.views.bands", { sort: "name" }));
+    assert.equal(requests.length, 3);
+
+    const tools = listTools();
+    const portfolioTool = tools.find((tool) => tool.name === "portfolixir.portfolios.bands");
+    const viewTool = tools.find((tool) => tool.name === "portfolixir.views.bands");
+
+    assert.deepEqual(portfolioTool?.inputSchema.required, ["portfolio_id"]);
+    assert.equal(viewTool?.inputSchema.required, undefined);
+    assert.deepEqual(Object.keys(portfolioTool?.inputSchema.properties ?? {}).sort(), [
+      "category_id",
+      "classification_id",
+      "from",
+      "level",
+      "period",
+      "portfolio_id",
+      "sort",
+      "to",
+      "view",
+      "year"
+    ]);
+    assert.deepEqual(Object.keys(viewTool?.inputSchema.properties ?? {}).sort(), [
+      "category_id",
+      "classification_id",
+      "from",
+      "id",
+      "level",
+      "period",
+      "sort",
+      "to",
+      "year"
+    ]);
+
+    for (const tool of [portfolioTool, viewTool]) {
+      assert.equal(tool?.annotations.readOnlyHint, true, tool?.name);
+      assert.equal(tool?.annotations.destructiveHint, false, tool?.name);
+
+      for (const profile of ["read", "book", "full"] as const) {
+        assert.ok(
+          listTools({ profile }).some((listed) => listed.name === tool?.name),
+          `${tool?.name} in ${profile}`
+        );
+      }
+    }
+
+    const portfolioText = portfolioTool?.description ?? "";
+    for (const fragment of [
+      /sum to it exactly on every date/,
+      /total/,
+      /unclassified/,
+      /category_id/,
+      /color/,
+      /share/,
+      /\(end_value - start_value - net_flows\) \/ start_value/,
+      /other/,
+      /ties by name/,
+      /category of today/,
+      /counts zero/,
+      /Decimal strings/,
+      /computation_basis/
+    ]) {
+      assert.match(portfolioText, fragment);
+    }
+
+    const viewText = viewTool?.description ?? "";
+    assert.match(viewText, /portfolixir\.portfolios\.bands shape/);
+    assert.match(viewText, /portfolio_id null/);
   });
 
   it("forwards year and from/to period params on the performance tools", async () => {
