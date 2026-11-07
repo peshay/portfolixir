@@ -38,7 +38,20 @@ defmodule PortfolixirWeb.PrivacyModeTest do
   # its attributes could carry them (English separators, raw decimals).
   @figures ~w(5,000.00 5000 1,263.00 1263 1,336.50 1336.5 3,737.00 3737 42.10 44.55 5,073.50 5073.5)
 
-  defp leaked(html), do: Enum.filter(@figures, &String.contains?(html, &1))
+  # An id in an address (the stacked chart's `tree=` and `category=`, a
+  # view's or a security's id), in a chooser's option or in an event's
+  # `phx-value-*` is a row id, not a figure: a sequence that happens to
+  # reach 1263 must not read as the position's market value.
+  @id_sites [
+    ~r/([?&;](?:amp;)?[a-z_]*(?:tree|category|id|view|portfolio)=)\d+/,
+    ~r/(<option[^>]*\svalue=")\d+(?=")/,
+    ~r/(\sphx-value-[a-z-]+=")\d+(?=")/
+  ]
+
+  defp leaked(html) do
+    html = Enum.reduce(@id_sites, html, &Regex.replace(&1, &2, "\\1ID"))
+    Enum.filter(@figures, &String.contains?(html, &1))
+  end
 
   defp switch_tag(html) do
     [tag] = Regex.run(~r/<a[^>]*id="privacy-mode"[^>]*>/, html)
