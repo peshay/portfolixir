@@ -130,6 +130,13 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "an unknown parameter answers 422 naming it"
     assert newest["summary"] =~ "since by first sight"
     assert newest["summary"] =~ "without labels and without a consumer cursor"
+
+    for tool <- ~w(portfolixir.news.list portfolixir.news.get portfolixir.news.health
+                   portfolixir.news.digest) do
+      assert tool in newest["tools"], tool
+      assert newest["summary"] =~ tool, tool
+    end
+
     # --- Sprint 27 N7 end ---
 
     # Sprint 26's sprint PR (version 26), found by version from Sprint 27 on.
