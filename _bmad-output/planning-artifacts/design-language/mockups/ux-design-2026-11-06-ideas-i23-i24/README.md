@@ -10,8 +10,14 @@ sprint's planning boards: nothing is picked yet, and each idea's row in
 |---|---|
 | `01-stacked-chart.html` → `01-stacked-chart--light.png`, `--dark.png` | I23: today's Performance chart, then A (recommended: a level bar with Gesamt · Kategorien · Einzelwerte, the classification, and the sort), A after a click on a category, B (a third series "Anteil %", 100 % stacked) and C (a "Beitrag" series, flow-neutral, a diverging stack). |
 | `02-dip-bars.html` → `02-dip-bars--light.png`, `--dark.png` | I24: A (recommended: horizontal bars per position over a stored shock window, sorted by fall, with the market's fall as a dashed line), A at the category level with one category open, B (a matrix of positions × windows to compare shocks) and C (indexed lines, rejected). |
-| `build.js` | Generates the synthetic series and writes both boards. |
-| `render.js` | Renders both boards to PNG at 1x, light and dark, reduced to 256 colours. |
+| `03-crash-rankings.html` → `03-crash-rankings--light.png`, `--dark.png` | I24 as the owner narrowed it on 2026-11-07: a "Crashes" section on Wealth's Risk tab with three controls (the window, the list: Verlierer · Gewinner · Erholer, the securities: held in the view · whole catalogue), the eight strongest per list against the market, and the windows behind a disclosure, detected by a rule from one benchmark and named by the operator, or made by hand and marked "manuell". Drawn the same way as boards 01 and 02. |
+| `build.js` | Generates the synthetic series and writes the three boards. |
+| `render.js` | Renders the boards to PNG at 1x, light and dark, reduced to 256 colours. |
+
+## Changed after the first draw
+
+- **2026-11-07, board 01:** the owner adopted A and found the brown shades of the drilled category unattractive. The drilled securities now take the app's palette in order (blue, teal, violet), not shades of the category's colour; at the category level the bands keep each category's own colour, the one the operator set, else the palette, exactly as the allocation sunburst draws it.
+- **2026-11-07, board 03** was added; board 02 stays as the record of the wider first shape.
 
 ## How these differ from the sprint boards
 

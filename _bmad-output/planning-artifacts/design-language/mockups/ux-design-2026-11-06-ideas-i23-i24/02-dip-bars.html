@@ -88,6 +88,24 @@ table.mock-heat td { padding: 6px 10px; text-align: right; font-variant-numeric:
 table.mock-heat td:first-child { text-align: left; min-width: 190px; padding-left: 0; }
 table.mock-heat td.na { color: var(--color-text-muted); font-style: italic; text-align: center; background: var(--color-bg-muted); }
 .mock-switch-row { display: flex; gap: 8px; align-items: center; }
+.mock-rank { display: grid; grid-template-columns: 26px 250px 1fr 74px; gap: 0 10px; align-items: center; font-size: 12.5px; }
+.mock-rank--extra { grid-template-columns: 26px 250px 1fr 74px 150px; }
+.mock-rank .h { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); padding: 0 0 5px; border-bottom: 1px solid var(--color-border); }
+.mock-rank .c { padding: 5px 0; border-bottom: 1px solid var(--color-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mock-rank .num { text-align: right; font-variant-numeric: tabular-nums; }
+.mock-rank .rank { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.mock-watch { font-size: 10.5px; color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+.mock-not { color: var(--color-danger); font-weight: 600; }
+.mock-origin { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); }
+.mock-origin--manual { background: var(--color-bg-muted); color: var(--color-text-muted); }
+.mock-link { color: var(--color-accent); font-weight: 600; text-decoration: none; }
+.mock-addbtn { border: 1px dashed var(--color-accent); border-radius: var(--radius-md); color: var(--color-accent); }
+table.mock-wins { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.mock-wins th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); padding: 4px 6px; border-bottom: 1px solid var(--color-border); }
+table.mock-wins td { padding: 6px; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+table.mock-wins .num { text-align: right; font-variant-numeric: tabular-nums; }
+.mock-pair--top { align-items: start; }
+.mock-pair .mock-rank { grid-template-columns: 22px 230px 1fr 60px; }
 .mock-mask { display: inline-block; width: 4.4em; height: 0.7em; border-radius: 999px; background: linear-gradient(90deg, color-mix(in oklab, currentColor 32%, transparent), color-mix(in oklab, currentColor 14%, transparent)); filter: blur(0.08em); }
 </style>
 </head>
