@@ -81,6 +81,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     :identifier_aliases,
     :thesis_state,
     :bond,
+    :news_identity,
+    :news_watch,
     :inserted_at,
     :updated_at
   ]
@@ -133,10 +135,22 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # stored class and a maturity date or coupon, #1068), `null` for any
       # other security and on listings.
       bond: bond_field(security),
+      # ADR-0056 §2 (Sprint 27, N8): the news identity the matcher reads —
+      # the CIK and the literal aliases — and whether the security is in the
+      # news universe without a holding or a target. Written through the
+      # update as `news_identity` and `news_watch`.
+      news_identity: %{
+        cik: security.news_cik,
+        aliases: Enum.map(security.news_aliases || [], &news_alias/1)
+      },
+      news_watch: security.news_watch,
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
     }
   end
+
+  defp news_alias(news_alias),
+    do: %{token: news_alias.token, context: news_alias.context, case: news_alias.case}
 
   defp thesis_state_field(%Security{thesis_state: %{status: _} = state}), do: thesis_state(state)
   defp thesis_state_field(_security), do: nil
