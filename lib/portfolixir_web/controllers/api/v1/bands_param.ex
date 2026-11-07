@@ -1,0 +1,79 @@
+defmodule PortfolixirWeb.Api.V1.BandsParam do
+  @moduledoc """
+  Shared parsing for the bands reads (I23, FR-53): `level`, `sort`,
+  `classification_id` and `category_id`, read strictly. A value outside its
+  set, or an id that is malformed, is refused naming the parameter; the
+  values map onto atoms by an explicit whitelist, never `String.to_atom/1`
+  (AGENTS.md).
+  """
+
+  alias PortfolixirWeb.Api.V1.IdParam
+
+  @levels %{"total" => :total, "category" => :category, "security" => :security}
+  @sorts %{"size" => :size, "change" => :change}
+
+  @doc """
+  The keyword options for `Portfolixir.Portfolios.Performance.Bands`, or
+  `{:error, errors}` with the 422 body's `errors` map.
+  """
+  @spec resolve(map()) :: {:ok, keyword()} | {:error, map()}
+  def resolve(params) do
+    with {:ok, level} <- choice(params, "level", @levels, "total, category, security"),
+         {:ok, sort} <- choice(params, "sort", @sorts, "size, change"),
+         {:ok, classification_id} <- id(params, "classification_id"),
+         {:ok, category_id} <- id(params, "category_id") do
+      {:ok,
+       []
+       |> put_present(:level, level)
+       |> put_present(:sort, sort)
+       |> put_present(:classification_id, classification_id)
+       |> put_present(:category_id, category_id)}
+    end
+  end
+
+  @doc """
+  The 422 body's `errors` map for an error the bands read returns, or `nil`
+  for one that is not about these parameters.
+  """
+  @spec errors(atom()) :: map() | nil
+  def errors(:invalid_period), do: %{period: ["is invalid"]}
+  def errors(:classification_not_found), do: %{classification_id: ["does not exist"]}
+  def errors(:category_not_found), do: %{category_id: ["does not exist"]}
+
+  def errors(:category_outside_classification),
+    do: %{category_id: ["is not a category of classification_id"]}
+
+  def errors(:category_needs_security_level),
+    do: %{category_id: ["applies only to level security"]}
+
+  def errors(_other), do: nil
+
+  defp choice(params, key, allowed, names) do
+    case Map.get(params, key) do
+      nil ->
+        {:ok, nil}
+
+      raw ->
+        case Map.fetch(allowed, raw) do
+          {:ok, value} -> {:ok, value}
+          :error -> {:error, %{key => ["is invalid: must be one of #{names}"]}}
+        end
+    end
+  end
+
+  defp id(params, key) do
+    case Map.get(params, key) do
+      nil ->
+        {:ok, nil}
+
+      raw ->
+        case IdParam.parse(raw) do
+          {:ok, id} -> {:ok, id}
+          :error -> {:error, %{key => ["is invalid"]}}
+        end
+    end
+  end
+
+  defp put_present(opts, _key, nil), do: opts
+  defp put_present(opts, key, value), do: Keyword.put(opts, key, value)
+end

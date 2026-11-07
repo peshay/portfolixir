@@ -45,6 +45,38 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 27,
+      # Sprint 27's sprint PR. Dated the day after entry 26, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-08],
+      summary:
+        Enum.join(
+          [
+            # --- Sprint 27 S2 begin ---
+            "Sprint 27, S2 (I23, FR-53): GET .../performance/bands, new in the performance " <>
+              "family's three forms, splits the value series into bands by level (total, " <>
+              "category, security) that sum to it exactly on every day, each with its daily " <>
+              "values, its share on the last day and its change without flows."
+            # --- Sprint 27 S2 end ---
+          ],
+          " "
+        ),
+      endpoints: [
+        # --- Sprint 27 S2 begin ---
+        "GET /api/v1/portfolios/:portfolio_id/performance/bands",
+        "GET /api/v1/views/:view_id/performance/bands",
+        "GET /api/v1/performance/bands"
+        # --- Sprint 27 S2 end ---
+      ],
+      tools: [],
+      parameters: [],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 26,
       # Sprint 26's sprint PR. Dated the day after entry 25, because since=
       # compares strictly after a date. Each story of the sprint appends its

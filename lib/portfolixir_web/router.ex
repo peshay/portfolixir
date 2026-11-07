@@ -250,6 +250,9 @@ defmodule PortfolixirWeb.Router do
     # FR-41 (ADR-0051 §6): which position made how much of a period's result,
     # in the performance family's two forms.
     get("/portfolios/:portfolio_id/performance/contribution", ContributionController, :index)
+    # I23, FR-53 (Sprint 27 S2): the stacked value chart's bands, in the
+    # performance family's three forms.
+    get("/portfolios/:portfolio_id/performance/bands", BandsController, :index)
     get("/portfolios/:portfolio_id/income", IncomeController, :index)
     get("/portfolios/:portfolio_id/allocation", AllocationController, :index)
 
@@ -414,11 +417,13 @@ defmodule PortfolixirWeb.Router do
     get("/views/:view_id/performance", ViewPerformanceController, :show)
     get("/views/:view_id/performance/benchmark", ViewBenchmarkController, :show)
     get("/views/:view_id/performance/contribution", ViewContributionController, :show)
+    get("/views/:view_id/performance/bands", ViewBandsController, :show)
     # #1056 (Sprint 19 plan D-7): the performance family with no view, every
     # account in EUR, beside the view-less valuation.
     get("/performance", ViewPerformanceController, :total)
     get("/performance/benchmark", ViewBenchmarkController, :total)
     get("/performance/contribution", ViewContributionController, :total)
+    get("/performance/bands", ViewBandsController, :total)
     # #901 (ADR-0051 §6): the category result's view form, beside the
     # portfolio read's view= narrowing.
     get("/views/:view_id/category-results", CategoryResultController, :show)
