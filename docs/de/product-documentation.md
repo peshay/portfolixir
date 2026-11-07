@@ -3462,6 +3462,48 @@ Derselbe Bericht ist `GET /api/v1/predictions/calibration` (mit
 `GET /api/v1/predictions` und `portfolixir.predictions.list`. Die Seite
 zeigt die Zahlen, die diese Lesezugriffe antworten.
 
+## News (für den Agenten, in diesem Sprint)
+
+Portfolixir ruft News-Feeds ab, die Sie oder Ihr Agent registrieren, und
+behält, was sie bringen, als kurze Einträge, nie als Artikel (ADR-0056). Was
+es heute tut:
+
+- **Feeds registriert der Agent** (oder Sie über die API): den Newsroom eines
+  Emittenten oder einen Meldungs-Feed, an ein Wertpapier gebunden, einen
+  Themen-Feed, an eine Kategorie gebunden, oder einen News-Such-Feed, an
+  nichts gebunden. Die News-Identität eines Wertpapiers — die Namen und
+  Kürzel, die für es stehen — wird am Wertpapier gesetzt, und ein Wertpapier,
+  das Sie nicht halten, lässt sich beobachten.
+- **Abgerufen** im Intervall jedes Feeds, jeder Feed für sich: Ein Feed, der
+  scheitert, hält keinen anderen auf, und die URL eines Feeds wird vor jedem
+  Abruf geprüft, damit sie nie eine private Adresse erreicht.
+- **Zugeordnet**: Ein Eintrag eines Emittenten oder einer Aufsicht gehört
+  durch seinen Feed zu seinem Wertpapier; ein Eintrag aus einer News-Suche
+  landet bei dem einen Wertpapier, das er nennt, und einer, der keins oder
+  mehrere nennt, wartet als nicht zugeordnet oder mehrdeutig. Nichts wird
+  geraten.
+- **Entdoppelt** zu Storys: dieselbe Meldung von mehreren Seiten, in einer
+  Sprache, ist eine Story; ihr Repräsentant wird nach der Stufe der Quelle
+  gewählt, nie danach, wer zuerst abgerufen wurde.
+- **Zustand**: je Feed der letzte erfolgreiche Abruf, sein Ertrag und
+  `stale`, sobald er 24 Stunden keinen Erfolg hatte, sodass ein toter Feed
+  anders aussieht als ein ruhiges Wertpapier.
+
+Einträge werden 90 Tage behalten, Auszüge höchstens 600 Zeichen. Der Agent
+liest alles über seine Werkzeuge — den Digest dessen, was je Wertpapier neu
+ist, die Storys eines Wertpapiers, eine Story mit ihrem Link, den Zustand —,
+beschrieben in [API und MCP](integration/api-and-mcp.html#news-lesezugriffe-adr-0056).
+**Auf dem Bildschirm erscheint noch nichts**: Die Feeds und ihr Zustand, die
+Storys eines Wertpapiers und die Warteschlange der nicht zugeordneten und
+mehrdeutigen Einträge erhalten ihre Seite in Sprint 28.
+
+Ein Meldungs-Feed auf `sec.gov` braucht Ihre Kontaktadresse im User-Agent,
+den der Abruf sendet, wie die SEC es verlangt: Setzen Sie
+`PORTFOLIXIR_NEWS_USER_AGENT`, wie es
+[Home-Deployment](home-deployment.html#geheimnisse-und-einstellungen) beschreibt.
+Bis dahin stellt ein solcher Feed keine Anfrage und zeigt
+`user_agent_missing`.
+
 ## Imports
 
 Die Imports-Seite akzeptiert Portfolio-Performance-Transaktionsexporte im Format

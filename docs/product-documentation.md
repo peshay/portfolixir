@@ -3143,6 +3143,43 @@ The same report is `GET /api/v1/predictions/calibration` (with `author`,
 `GET /api/v1/predictions` and `portfolixir.predictions.list`. The page
 shows the figures those reads answer.
 
+## News (for the agent, this sprint)
+
+Portfolixir fetches news feeds that you or your agent register, and keeps
+what they bring as short records, never as articles (ADR-0056). What it does
+today:
+
+- **Feeds are registered by the agent** (or by you over the API): an
+  issuer's newsroom or a filing feed bound to a security, a theme feed bound
+  to a category, or a news search feed bound to nothing. A security's news
+  identity — the names and symbols that stand for it — is set on the
+  security, and a security you do not hold can be watched.
+- **Fetched** on each feed's interval, each feed on its own: a feed that
+  fails never stops another, and a feed's URL is checked before every fetch
+  so it never reaches a private address.
+- **Matched**: an issuer's or a regulator's item belongs to its security by
+  construction; an item from a news search lands on the one security it
+  names, and one that names none, or several, waits as unassigned or
+  ambiguous. Nothing is guessed.
+- **Deduplicated** into stories: the same release from several sites, in one
+  language, is one story, its representative chosen by the source's tier,
+  never by who was fetched first.
+- **Health**: each feed's last successful fetch, its yield, and `stale` once
+  it has had no success for 24 hours, so a dead feed reads differently from a
+  quiet security.
+
+Items are kept 90 days, excerpts at most 600 characters. The agent reads all
+of it through its tools — the digest of what is new per security, a
+security's stories, one story with its link, the health — described in
+[API and MCP](integration/api-and-mcp.html#news-reads-adr-0056). **Nothing is
+shown on screen yet**: the feeds and their health, a security's stories and
+the queue of unassigned and ambiguous items get their screen in Sprint 28.
+
+A filing feed on `sec.gov` needs your contact in the user agent the fetcher
+sends, as the SEC asks: set `PORTFOLIXIR_NEWS_USER_AGENT` as
+[Home Deployment](home-deployment.html#secrets-and-settings) describes. Until
+it is set, such a feed makes no request and reads `user_agent_missing`.
+
 ## Imports
 
 The Imports page accepts Portfolio Performance transaction exports in CSV or
