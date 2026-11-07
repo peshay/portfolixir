@@ -303,6 +303,24 @@ table.mock-heat td { padding: 6px 10px; text-align: right; font-variant-numeric:
 table.mock-heat td:first-child { text-align: left; min-width: 190px; padding-left: 0; }
 table.mock-heat td.na { color: var(--color-text-muted); font-style: italic; text-align: center; background: var(--color-bg-muted); }
 .mock-switch-row { display: flex; gap: 8px; align-items: center; }
+.mock-rank { display: grid; grid-template-columns: 26px 250px 1fr 74px; gap: 0 10px; align-items: center; font-size: 12.5px; }
+.mock-rank--extra { grid-template-columns: 26px 250px 1fr 74px 150px; }
+.mock-rank .h { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); padding: 0 0 5px; border-bottom: 1px solid var(--color-border); }
+.mock-rank .c { padding: 5px 0; border-bottom: 1px solid var(--color-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mock-rank .num { text-align: right; font-variant-numeric: tabular-nums; }
+.mock-rank .rank { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.mock-watch { font-size: 10.5px; color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+.mock-not { color: var(--color-danger); font-weight: 600; }
+.mock-origin { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); }
+.mock-origin--manual { background: var(--color-bg-muted); color: var(--color-text-muted); }
+.mock-link { color: var(--color-accent); font-weight: 600; text-decoration: none; }
+.mock-addbtn { border: 1px dashed var(--color-accent); border-radius: var(--radius-md); color: var(--color-accent); }
+table.mock-wins { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.mock-wins th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); padding: 4px 6px; border-bottom: 1px solid var(--color-border); }
+table.mock-wins td { padding: 6px; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+table.mock-wins .num { text-align: right; font-variant-numeric: tabular-nums; }
+.mock-pair--top { align-items: start; }
+.mock-pair .mock-rank { grid-template-columns: 22px 230px 1fr 60px; }
 .mock-mask { display: inline-block; width: 4.4em; height: 0.7em; border-radius: 999px; background: linear-gradient(90deg, color-mix(in oklab, currentColor 32%, transparent), color-mix(in oklab, currentColor 14%, transparent)); filter: blur(0.08em); }
 `;
 
@@ -334,7 +352,7 @@ function board01() {
   const bySize = [...CATS].sort((a, b) => b.values[N - 1] - a.values[N - 1]); // largest at the bottom
   const catRows = bySize.map((c) => ({ ...rowFor(c, total), drill: c.secs.length > 1 })).reverse(); // the legend reads like the stack: top band first
   const einzel = CATS.find((c) => c.key === 'einzel');
-  const einzelSecs = einzel.secs.map((s, k) => ({ name: s.n, color: shade(einzel.color, [-0.25, 0.1, 0.45][k]), values: s.values, flows: s.flows }));
+  const einzelSecs = einzel.secs.map((s, k) => ({ name: s.n, color: ['#2563eb', '#0d9488', '#7c3aed'][k] /* updated 2026-11-07: the palette's own hues, not shades of the category (the owner found the brown shades unattractive) */, values: s.values, flows: s.flows }));
   const einzelTotal = einzel.values[N - 1];
   const buy = { i: 128, label: 'Kauf EM-ETF' };
   const dip = { i: N - 2, label: 'Abverkauf', anchor: 'end' };
@@ -347,7 +365,7 @@ function board01() {
   const a = `<figure class="mock-fig">${tag('rec', 'A · empfohlen · Ebene Kategorien, nach Größe gestapelt')}<div class="mock-frame">${head(levelBar('Kategorien', '<span class="mock-crumbs">Alle Kategorien</span>'))}<div class="mock-body"><div>${areaChart(bySize, { mode: 'value', mark: [buy, dip] })}<p class="mock-basis">Basis: Marktwert je Kategorie am Tagesende in EUR, Klassifikation „Anlageklassen“; Cash als eigenes Band; Veränderung ohne Ein- und Auszahlungen. Größtes Band unten; die Legende liest sich wie der Stapel, oberstes Band zuerst.</p></div><div>${legend(catRows)}<div class="mock-why"><p>Ein Klick auf eine Kategorie (› in der Legende oder auf ihr Band) öffnet sie: der Chart zeigt dann nur sie, gestapelt nach ihren Einzelwerten.</p><p>Der Kauf im Mai erscheint als <b>Stufe</b> im türkisen Band. Das ist ehrlich (der Wert stieg), aber kein Kursgewinn.</p></div></div></div></div></figure>`;
 
   const drillRows = einzelSecs.map((s) => ({ ...rowFor(s, einzelTotal) })).sort((p, q) => p.chg - q.chg);
-  const a2 = `<figure class="mock-fig">${tag('rec', 'A · nach dem Klick auf „Einzelwerte“, sortiert nach Veränderung')}<div class="mock-frame">${head(levelBar('Einzelwerte', '<span class="mock-crumbs"><a>Alle Kategorien</a><span>›</span>Einzelwerte</span>', 'Veränderung'))}<div class="mock-body"><div>${areaChart([...einzelSecs].sort((p, q) => rowFor(q, 1).chg - rowFor(p, 1).chg), { mode: 'value', mark: [dip] })}<p class="mock-basis">Basis: Marktwert je Wertpapier der Kategorie „Einzelwerte“ in EUR; Anteil an der Kategorie. Schattierungen der Kategoriefarbe, damit man weiß, wo man ist.</p></div><div>${legend(drillRows, { title: 'Wertpapier', sortedBy: 'chg', clickable: false })}<div class="mock-why"><p>Der Brotkrumenpfad führt zurück. „Ebene: Einzelwerte“ ohne Klick auf eine Kategorie zeigt alle Wertpapiere des Views; über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen.</p></div></div></div></div></figure>`;
+  const a2 = `<figure class="mock-fig">${tag('rec', 'A · nach dem Klick auf „Einzelwerte“, sortiert nach Veränderung')}<div class="mock-frame">${head(levelBar('Einzelwerte', '<span class="mock-crumbs"><a>Alle Kategorien</a><span>›</span>Einzelwerte</span>', 'Veränderung'))}<div class="mock-body"><div>${areaChart([...einzelSecs].sort((p, q) => rowFor(q, 1).chg - rowFor(p, 1).chg), { mode: 'value', mark: [dip] })}<p class="mock-basis">Basis: Marktwert je Wertpapier der Kategorie „Einzelwerte“ in EUR; Anteil an der Kategorie. Farben: die Palette der App der Reihe nach (geändert am 07.11.2026, vorher Schattierungen der Kategoriefarbe, die braun wirkten); der Pfad oben zeigt, wo man ist.</p></div><div>${legend(drillRows, { title: 'Wertpapier', sortedBy: 'chg', clickable: false })}<div class="mock-why"><p>Der Brotkrumenpfad führt zurück. „Ebene: Einzelwerte“ ohne Klick auf eine Kategorie zeigt alle Wertpapiere des Views; über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen.</p></div></div></div></div></figure>`;
 
   const b = `<div class="mock-fig">${tag('alt', 'B · dritte Ansicht „Anteil %“, 100 % gestapelt')}<div class="mock-frame">${head(levelBar('Kategorien', '<span class="mock-crumbs">Alle Kategorien</span>'), ['% (TTWROR)', 'Wert (EUR)', 'Anteil %'], 'Anteil %')}<div class="mock-body"><div>${areaChart(bySize, { mode: 'share', mark: [buy, dip] })}<p class="mock-basis">Basis: Anteil jeder Kategorie am Marktwert des Views je Tag.</p></div><div>${legend(catRows, { showEur: false })}<div class="mock-why"><p>Zeigt, wie sich die <b>Gewichte</b> verschieben, nicht die Größe. Verrät keine Beträge, passt also zum Privatsphäre-Modus (I22): dort wäre das die einzige Form.</p></div></div></div></div></div>`;
 
@@ -464,6 +482,87 @@ function board02() {
   return page('Idee I24 — was ein Markt-Dip getroffen hat', body);
 }
 
+
+// ---------------------------------------------------------------------------
+// Board 03: I24 as narrowed by the owner on 2026-11-07: price-only rankings
+// per crash window, a section on Wealth's Risk tab, windows detected by a
+// rule from one benchmark's stored quotes and named by the operator.
+
+// Synthetic per-security figures for the pandemic window. fall: close at the
+// window's start to the security's own lowest close inside the window;
+// rebound: own trough to the close three months after the market's trough;
+// days: trading days from the own trough back to the window-start close
+// (null: not yet). held: in the active view today.
+const CATALOG = [
+  { n: 'MSCI World ETF', c: '#2563eb', held: true, fall: -33.9, rebound: 38.2, days: 112 },
+  { n: 'S&P 500 ETF', c: '#2563eb', held: true, fall: -32.1, rebound: 40.5, days: 101 },
+  { n: 'Emerging Markets ETF', c: '#0d9488', held: true, fall: -31.4, rebound: 35.1, days: 146 },
+  { n: 'Tech-Einzelwert A', c: '#d97706', held: true, fall: -38.7, rebound: 71.4, days: 44 },
+  { n: 'Industrie-Einzelwert B', c: '#d97706', held: true, fall: -41.3, rebound: 29.8, days: 287 },
+  { n: 'Versorger-Einzelwert C', c: '#d97706', held: true, fall: null },
+  { n: 'Staatsanleihen ETF', c: '#db2777', held: true, fall: 1.8, rebound: 0.9, days: 0 },
+  { n: 'Gold ETC', c: '#65a30d', held: true, fall: -6.4, rebound: 12.3, days: 27 },
+  { n: 'Bitcoin', c: '#7c3aed', held: true, fall: -46.2, rebound: 118.6, days: 36 },
+  { n: 'Reise-Einzelwert D', c: '#9ca3af', held: false, fall: -63.5, rebound: 44.0, days: null },
+  { n: 'Halbleiter ETF', c: '#9ca3af', held: false, fall: -35.8, rebound: 62.7, days: 49 },
+  { n: 'Pharma-Einzelwert E', c: '#9ca3af', held: false, fall: 6.2, rebound: 4.1, days: 0 },
+  { n: 'Online-Handel F', c: '#9ca3af', held: false, fall: 9.4, rebound: 21.5, days: 0 },
+];
+const CRASH_MARKET = { fall: -33.9, rebound: 38.2 };
+
+function rankList(rows, { key, lo, hi, bm, extra = null, extraHead = '' }) {
+  const pos = (v) => ((v - lo) / (hi - lo)) * 100;
+  const ticks = [];
+  for (let t = Math.ceil(lo / 20) * 20; t <= hi; t += 20) ticks.push(t);
+  let h = `<div class="mock-rank${extra ? ' mock-rank--extra' : ''}"><div class="h">#</div><div class="h">Wertpapier</div><div class="h">${key === 'rebound' ? 'Erholung ab eigenem Tief, +3 Monate' : 'Bewegung im Fenster, bis zum eigenen Tief'}</div><div class="h num">%</div>${extra ? `<div class="h num">${extraHead}</div>` : ''}`;
+  rows.forEach((r, i) => {
+    const v = r[key];
+    const z = pos(0), p = pos(v);
+    h += `<div class="c rank">${i + 1}</div><div class="c"><span class="mock-sw" style="background:${r.c}"></span>${esc(r.n)}${r.held ? '' : ' <span class="mock-watch">beobachtet</span>'}</div>`;
+    h += `<div class="c"><div class="mock-track"><div class="bar" style="left:${Math.min(z, p)}%;width:${Math.max(Math.abs(p - z), 0.4)}%;background:${v < 0 ? 'var(--color-danger)' : 'var(--color-positive)'};opacity:.85"></div><div class="zero" style="left:${z}%"></div><div class="bm" style="left:${pos(bm)}%"></div></div></div>`;
+    h += `<div class="c num ${v < 0 ? 'neg' : 'pos'}">${pct(v)}</div>${extra ? `<div class="c num">${extra(r)}</div>` : ''}`;
+  });
+  h += `<div></div><div></div><div class="mock-axis">${ticks.map((t) => `<span style="left:${pos(t)}%">${t > 0 ? '+' : ''}${t} %</span>`).join('')}</div><div></div>${extra ? '<div></div>' : ''}</div>`;
+  return h;
+}
+
+function board03() {
+  const withQuotes = CATALOG.filter((r) => r.fall !== null);
+  const losers = withQuotes.filter((r) => r.fall < 0).sort((a, b) => a.fall - b.fall).slice(0, 8);
+  const rebounders = withQuotes.filter((r) => r.fall < 0).sort((a, b) => b.rebound - a.rebound).slice(0, 8);
+  const winners = withQuotes.filter((r) => r.fall > 0).sort((a, b) => b.fall - a.fall);
+  const windowSel = `<span class="mock-select"><b>Pandemie-Crash</b>&nbsp;· 19.02.–23.03.2020 · MSCI World −33,9 % <span class="mock-origin">erkannt</span> ▾</span>`;
+  const head = (mode, scope = 'Ganzer Katalog') => `<header class="section-head"><h2>Crashes</h2><div class="section-head-controls">${windowSel}${seg(['Verlierer', 'Gewinner', 'Erholer'], mode)}${seg(['Gehaltene im View', 'Ganzer Katalog'], scope)}</div></header>`;
+  const meta = `<div class="mock-subbar"><span>Hoch <b>19.02.2020</b></span><span>Tief <b>23.03.2020</b></span><span>Erholung gemessen bis <b>23.06.2020</b> (3 Monate)</span><span style="flex:1"></span><a class="mock-link">Im Depot ansehen →</a></div>`;
+  const basis = (txt) => `<p class="mock-basis">${txt} <b>Verzerrt:</b> nur Wertpapiere, die heute im Katalog sind; was damals fiel und aussortiert wurde, fehlt.</p>`;
+  const gap = `<p class="mock-basis">1 Wertpapier ohne Kurse in diesem Fenster (Versorger-Einzelwert C, Kurse ab 2021): nicht gelistet, nicht geschätzt.</p>`;
+
+  const a = `<figure class="mock-fig">${tag('rec', 'Verlierer · ganzer Katalog')}<div class="mock-frame">${head('Verlierer')}${meta}${rankList(losers, { key: 'fall', lo: -70, hi: 10, bm: CRASH_MARKET.fall })}${basis('Basis: Schlusskurse, Prozent vom Kurs am Fensterbeginn bis zum eigenen tiefsten Schluss im Fenster; <span class="mock-bm-key"></span>MSCI World im selben Fenster. Die acht stärksten, „Alle 11 zeigen“ darunter.')}${gap}</div></figure>`;
+
+  const b = `<figure class="mock-fig">${tag('rec', 'Erholer · ganzer Katalog')}<div class="mock-frame">${head('Erholer')}${meta}${rankList(rebounders, { key: 'rebound', lo: -10, hi: 130, bm: CRASH_MARKET.rebound, extraHead: 'Tage bis Vorkrisenkurs', extra: (r) => r.days === null ? '<span class="mock-not">noch nicht</span>' : r.days })}${basis('Basis: Schlusskurse, Prozent vom eigenen Tief bis drei Monate nach dem Tief des Markts; Tage: Handelstage vom eigenen Tief bis zum ersten Schluss auf oder über dem Kurs am Fensterbeginn; <span class="mock-bm-key"></span>MSCI World über dieselbe Spanne.')}<div class="mock-why"><p>Reise-Einzelwert D steht auf Platz 4 der Erholer und hat den Vorkrisenkurs trotzdem nie wieder erreicht: wer 63 % fällt, braucht 174 % zurück. Deshalb steht die Spalte „Tage“ neben dem Rang.</p></div></div></figure>`;
+
+  const c = `<figure class="mock-fig">${tag('rec', 'Gewinner · ganzer Katalog')}<div class="mock-frame">${head('Gewinner')}${meta}${rankList(winners, { key: 'fall', lo: -10, hi: 20, bm: -10 })}<p class="mock-basis">Nur 3 von 12 Wertpapieren mit Kursen stiegen im Fenster. Die Marktlinie liegt bei −33,9 %, außerhalb der Skala, am linken Rand.</p></div></figure>`;
+
+  const wins = [
+    ['Pandemie-Crash', '19.02.2020', '23.03.2020', '−33,9 %', 'erkannt'],
+    ['Bärenmarkt 2022', '04.01.2022', '12.10.2022', '−25,9 %', 'erkannt'],
+    ['Zollschock', '18.02.2025', '08.04.2025', '−16,1 %', 'erkannt'],
+    ['<i>ohne Namen</i>', '03.10.2018', '24.12.2018', '−17,5 %', 'erkannt'],
+    ['Kriegsbeginn Ukraine', '16.02.2022', '07.03.2022', '−9,8 %', 'manuell'],
+    ['Abverkauf', '04.11.2026', '06.11.2026', '−3,7 %', 'manuell'],
+  ];
+  const table = `<table class="mock-wins"><thead><tr><th>Name</th><th>Hoch</th><th>Tief</th><th class="num">MSCI World</th><th>Herkunft</th><th></th></tr></thead><tbody>${wins.map((w) => `<tr><td>${w[0]}</td><td>${w[1]}</td><td>${w[2]}</td><td class="num neg">${w[3]}</td><td><span class="mock-origin${w[4] === 'manuell' ? ' mock-origin--manual' : ''}">${w[4]}</span></td><td><a class="mock-link">${w[4] === 'erkannt' ? 'Umbenennen' : 'Bearbeiten'}</a></td></tr>`).join('')}</tbody></table>`;
+  const d = `<figure class="mock-fig">${tag('rec', 'Fenster verwalten · hinter einem Aufklapper unter dem Abschnitt')}<div class="mock-frame"><header class="section-head"><h2 style="font-size:14px">▾ Crash-Fenster</h2><div class="section-head-controls"><span class="mock-select">Regel: MSCI World, Hoch → Tief ab −10 %</span><button type="button" class="segmented-control__option mock-addbtn">+ Fenster anlegen</button></div></header>${table}<div class="mock-why"><p><b>Erkannt</b> heißt: Hoch und Tief kommen aus der Regel über die gespeicherten Kurse des Vergleichsindex; für jeden Agenten dieselben Daten. Ausgeliefert wird nur ein Name für bekannte Fenster; ein erkanntes Fenster ohne Namen erscheint trotzdem. <b>Manuell</b> heißt: von dir oder einem Agenten über die API angelegt, mit Name und Daten.</p><p>Die Regel zieht den Kriegsbeginn in den Bärenmarkt 2022 hinein, und der Zollschock beginnt bei ihr schon im Februar 2025: wer genau diese Tage sehen will, legt sie manuell an, wie hier.</p></div></div></figure>`;
+
+  const body = `<div class="mock-board mock-head">
+<h1>Idee I24 — Crashes: Verlierer, Gewinner, Erholer <span class="mock-synth">SYNTHETISCHE DATEN</span></h1>
+<p class="mock-note">Ideen-Board vom 07.11.2026, nach den Antworten des Owners: nur Kurse, je Wertpapier, kein Depot; ein Abschnitt auf Vermögen › Risiko unter den bestehenden Abschnitten, kein neuer Menüpunkt. Die Daten der erkannten Fenster sind ungefähr, die Regel liefert die echten; jede Bewegung ist <b>erfunden</b>. Grau: beobachtete, nicht gehaltene Wertpapiere.</p>
+<div class="mock-pickbar"><p><b>Ein Abschnitt, drei Schalter:</b> welches Fenster, welche Liste (Verlierer · Gewinner · Erholer), welche Wertpapiere (gehaltene im View · ganzer Katalog). Die Liste zeigt die acht stärksten, mit der Marktlinie zum Vergleich. „Im Depot ansehen“ öffnet Bestände mit dem Fenster als Zeitraum: dort steht, was dein damaliges Depot getan hat.</p></div>
+</div>
+<div class="mock-board">${a}${b}<div class="mock-pair mock-pair--top">${c}${d}</div></div>`;
+  return page('Idee I24 — Crashes', body);
+}
+
 // One element per line inside each SVG and between the board's blocks, so
 // the written files stay reviewable line by line.
 const lines = (html) => html
@@ -471,4 +570,5 @@ const lines = (html) => html
   .replace(/<\/(figure|div|tr|table|header)></g, '</$1>\n<');
 fs.writeFileSync(path.join(__dirname, '01-stacked-chart.html'), lines(board01()));
 fs.writeFileSync(path.join(__dirname, '02-dip-bars.html'), lines(board02()));
-console.log('wrote 01-stacked-chart.html and 02-dip-bars.html');
+fs.writeFileSync(path.join(__dirname, '03-crash-rankings.html'), lines(board03()));
+console.log('wrote 01-stacked-chart.html, 02-dip-bars.html and 03-crash-rankings.html');
