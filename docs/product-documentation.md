@@ -2451,8 +2451,10 @@ add up to the value line on every day, and a buy shows as a step in its
 band, because the bands are market values. A security that moved between
 categories is drawn in its category of today for the whole window: a
 classification is stored as it is now. In the **privacy mode** the stack is
-drawn as a 100 % stack, each band's share of the day, and the legend keeps
-share and change but no value. Your agent reads the same bands over
+drawn as a 100 % stack, each band's share of the day's positive bands, and
+the legend keeps share and change but no value; its share is taken on the
+same basis, so with an overdrawn cash account a band that fills the stack
+reads 100 % (the API's `share` is the net one). Your agent reads the same bands over
 `…/performance/bands` and the MCP tools `portfolixir.portfolios.bands` and
 `portfolixir.views.bands` ([API and MCP](integration/api-and-mcp.html)).
 

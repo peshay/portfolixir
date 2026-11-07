@@ -2701,8 +2701,10 @@ in seinem Band, denn die Bänder sind Marktwerte. Ein Wertpapier, das die
 Kategorie gewechselt hat, steht für den ganzen Zeitraum in seiner heutigen
 Kategorie: eine Klassifizierung ist so gespeichert, wie sie jetzt ist. Im
 **Privatsphäre-Modus** wird der Stapel als 100-%-Stapel gezeichnet, jedes
-Band als Anteil am Tag, und die Legende behält Anteil und Veränderung, aber
-keinen Wert. Ihr Agent liest dieselben Bänder über `…/performance/bands` und
+Band als Anteil an den positiven Bändern des Tages, und die Legende behält
+Anteil und Veränderung, aber keinen Wert; ihr Anteil folgt derselben Basis,
+so liest ein Band, das den Stapel bei überzogenem Konto füllt, 100 % (der
+`share` der API ist der Nettoanteil). Ihr Agent liest dieselben Bänder über `…/performance/bands` und
 die MCP-Tools `portfolixir.portfolios.bands` und `portfolixir.views.bands`
 ([API und MCP](/de/integration/api-and-mcp.html)).
 

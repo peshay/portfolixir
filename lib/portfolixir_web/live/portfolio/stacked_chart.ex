@@ -28,6 +28,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   each day's bands over the sum of that day's positive bands, so the axis
   reads 0 % to 100 %; the legend keeps share and change and drops the
   value, the bands' tooltips name no amount, and no attribute carries one.
+  The legend's share is taken on the picture's own basis, the last day's
+  value over that day's positive bands, so a band that fills the stack
+  reads 100 % beside it where the API's net share reads more when a band is
+  negative (the closing act's money lens, M3).
 
   The geometry is computed here on the server from the `Decimal` values;
   floats exist only as coordinates and are never stored.
@@ -159,12 +163,13 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   def figure(assigns) do
     privacy? = PrivacyMode.on?()
     geometry = geometry(assigns.result, privacy?)
+    bands = shown_shares(assigns.result.bands, privacy?)
 
     assigns =
       assign(assigns,
         privacy?: privacy?,
         geometry: geometry,
-        legend: Enum.reverse(assigns.result.bands),
+        legend: Enum.reverse(bands),
         width: @width,
         height: @height,
         plot_left: @padding_left,
@@ -204,7 +209,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
                 />
               </g>
               <path
-                :for={band <- @result.bands}
+                :for={band <- Enum.reverse(@legend)}
                 class={["stack-band", band_class(band), Map.get(@colors, band.key) == :other && "stack-band--other"]}
                 d={Map.fetch!(@geometry.paths, band.key)}
                 fill={fill(Map.get(@colors, band.key))}
@@ -294,6 +299,24 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   end
 
   # -- names, figures and words ----------------------------------------------------
+
+  # The share the legend shows: the API's net share, or in the privacy mode
+  # the share the 100 % stack draws, the last day's value over that day's
+  # positive bands (M3), so legend and picture agree when a band is negative.
+  defp shown_shares(bands, false), do: bands
+
+  defp shown_shares(bands, true) do
+    positive =
+      bands
+      |> Enum.map(& &1.end_value)
+      |> Enum.filter(&Decimal.gt?(&1, 0))
+      |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+
+    Enum.map(bands, fn band ->
+      share = if Decimal.gt?(positive, 0), do: Decimal.div(band.end_value, positive)
+      %{band | share: share}
+    end)
+  end
 
   @doc "A band's name in the page's language: the fixed bands translated."
   def band_name(%{kind: :cash}), do: gettext("Cash")

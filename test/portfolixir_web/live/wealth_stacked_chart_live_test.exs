@@ -581,6 +581,47 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     end
   end
 
+  # User story (I23, FR-53; I22's privacy mode; the closing act's money
+  # lens, M3):
+  # As the operator sharing the screen with an overdrawn cash account,
+  # I want the legend's shares in the privacy mode to read like the 100 %
+  # stack drawn beside them,
+  # so that a band that fills the picture does not read 300 %.
+  #
+  # Acceptance criteria:
+  # - Deposit 100, buy 300: on the last day the security is 300 and the
+  #   cash −200. With the privacy mode on, the stack fills 0 to 100 % with
+  #   the security, and its legend share reads 100.0 %; the cash reads
+  #   −66.7 %, its value over the day's positive bands, as it is drawn.
+  # - The API's share keeps its net definition (the security "3", the cash
+  #   "-2"), and its basis says a share can exceed 100 % or be negative when
+  #   a band is negative.
+  test "in the privacy mode the legend's share is taken on the stack's own basis", %{conn: conn} do
+    world = base_world(name: "Overdrawn World", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "100", days_ago(30))
+    security = create_security!(name: "Alpha Synthetic AG")
+    buy!(world, security, quantity: "3", price: "100", date: days_ago(30))
+    put_quotes!(security, [{days_ago(30), "100"}])
+
+    data = api(conn, %{"level" => "security", "period" => "1y"})
+    shares = Map.new(data["bands"], &{&1["key"], &1["share"]})
+    assert shares == %{"security:#{security.id}" => "3", "cash" => "-2"}
+    assert data["computation_basis"]["assumptions"] =~ "can exceed 1 or be negative"
+
+    masked = put_preference_cookie(conn, "portfolixir_privacy", "on")
+    {:ok, view, _html} = live(masked, "/portfolio?level=security")
+    settle(view)
+
+    share = fn key ->
+      text_of(view, "#stack-legend tr[data-band='#{key}'] td[data-role='stack-share']")
+    end
+
+    assert share.("security:#{security.id}") == Format.percent(Decimal.new(1)) <> "%"
+
+    assert share.("cash") ==
+             Format.percent(Decimal.div(Decimal.new(-200), Decimal.new(300))) <> "%"
+  end
+
   # Polish: Wealth (#1366), the line of 2026-11-06: "/portfolio?tab=allocation
   # crashes in default_classification_id/1 on a database without any
   # classification".
