@@ -28,8 +28,10 @@ defmodule Portfolixir.News.FeedDay do
     * the day's dropped and blocked counts of the health read (§6) —
       today's row.
 
-  `items_stored` keeps each day's count after retention has removed the
-  items, so a feed's history reads beyond 90 days; nothing rolling reads it.
+  `items_stored` keeps each day's count after the items it counted are
+  gone; nothing rolling reads it. The retention run
+  (`Portfolixir.News.Retention`) keeps a feed's rows of the last 30 server
+  days before today and deletes older ones: the health read needs two.
   """
   use Ecto.Schema
   import Ecto.Changeset

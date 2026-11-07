@@ -7,7 +7,9 @@ defmodule Portfolixir.News.SchedulerProcessTest do
   import Portfolixir.NewsFixtures
 
   alias Portfolixir.Catalog.QuoteSync
+  alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Parser.Item, as: Parsed
   alias Portfolixir.News.Scheduler
   alias Portfolixir.Repo
 
@@ -82,6 +84,51 @@ defmodule Portfolixir.News.SchedulerProcessTest do
 
     refute_receive :requested, 200
   end
+
+  # User story:
+  # As the operator whose news layer must stay a staging area,
+  # I want the retention to run by itself once a day where the fetcher runs,
+  # so that nothing older than 90 days piles up and nobody has to start it.
+  #
+  # Acceptance criteria (§12, B6, B7):
+  # - An enabled scheduler's tick runs the retention after its fetches, in
+  #   the same task, once per server day: a second tick the same day does
+  #   not run it again.
+  test "an enabled scheduler runs the retention once a server day" do
+    feed = feed!(%{class: "issuer", security_id: security!().id})
+    old = DateTime.add(DateTime.utc_now(), -91, :day)
+
+    stale = fn n ->
+      {:ok, %{stored: 1}} =
+        Ingest.ingest(
+          feed,
+          [%Parsed{title: "Old item #{n}", link: "https://newsroom.example.com/old/#{n}"}],
+          old
+        )
+    end
+
+    stale.(1)
+
+    scheduler =
+      start_supervised!(
+        {Scheduler,
+         name: nil,
+         enabled?: true,
+         tick_ms: :timer.hours(1),
+         fetch_opts: [req: [plug: &no_feed/1]]}
+      )
+
+    send(scheduler, :tick)
+    wait_until(fn -> :sys.get_state(scheduler).running == nil end)
+    assert Repo.aggregate(from(i in Item, where: i.feed_id == ^feed.id), :count) == 0
+
+    stale.(2)
+    send(scheduler, :tick)
+    wait_until(fn -> :sys.get_state(scheduler).running == nil end)
+    assert Repo.aggregate(from(i in Item, where: i.feed_id == ^feed.id), :count) == 1
+  end
+
+  defp no_feed(conn), do: Plug.Conn.send_resp(conn, 200, rss([]))
 
   defp wait_until(check, tries \\ 100) do
     cond do
