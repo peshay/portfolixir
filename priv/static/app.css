@@ -6278,6 +6278,32 @@ details[open] > .disclosure-summary .disclosure-chevron {
   background: var(--color-chart-surface);
   border-radius: 6px;
 }
+/* The stack's axis labels are the shared chart's (the closing act's design
+   critic, D1): the muted colour and the mono font, 9 CSS px at every chart
+   width through --chart-upx, which the ChartScale hook writes with
+   ChartCrosshair's own measurement. Without a rule they were the SVG's
+   default black, unreadable on the dark plot, and 6 px at 390 px. On a
+   narrow chart the hook flags data-axis-inside, and the values move inside
+   the plot as the shared chart's do, over a halo in the colour the stack's
+   plot is painted, --color-chart-surface. */
+.stack-chart .chart-axis-labels text {
+  fill: var(--color-text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: calc(9px * var(--chart-upx, 1));
+}
+.stack-figure__chart[data-axis-inside] .stack-chart .chart-axis-y {
+  text-anchor: start;
+  dominant-baseline: alphabetic;
+  transform: translate(calc(6px + 4px * var(--chart-upx, 1)), calc(-3px * var(--chart-upx, 1)));
+  paint-order: stroke;
+  stroke: var(--color-chart-surface);
+  stroke-width: calc(3px * var(--chart-upx, 1));
+  stroke-linejoin: round;
+}
+.stack-figure__chart[data-axis-inside] .stack-chart .chart-axis-y.is-top {
+  dominant-baseline: central;
+  transform: translate(calc(6px + 4px * var(--chart-upx, 1)), 0);
+}
 .stack-band {
   stroke: var(--color-chart-surface);
   stroke-width: 0.6;

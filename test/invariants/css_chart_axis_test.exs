@@ -211,6 +211,66 @@ defmodule Portfolixir.Invariants.CssChartAxisTest do
     assert export =~ "ctx.fillStyle = ground;"
   end
 
+  # User story (I23; the closing act's design critic, D1):
+  # As a portfolio maintainer reading the stacked value chart, in the dark
+  # theme or on a phone,
+  # I want its axis labels drawn like every other chart's,
+  # so that they are not black on a dark plot, nor 6 px tall at 390 px.
+  #
+  # Acceptance criteria:
+  # - The stack's labels take the shared chart's rule: the muted text
+  #   colour, the mono font and 9 CSS px times `--chart-upx`.
+  # - The stack's chart carries the `ChartScale` hook, which writes
+  #   `--chart-upx` and the `data-axis-inside` flag with `ChartCrosshair`'s
+  #   own `writeScale` and `placeAxis` (no second measurement), puts them
+  #   back after every patch, follows a resize and stops when the chart goes;
+  #   it binds no crosshair, tooltip or zoom.
+  # - Under the flag the stack's values move inside the plot as the shared
+  #   chart's do, their halo the colour the stack's plot is painted,
+  #   `--color-chart-surface`.
+  test "the stacked chart's axis labels are the shared chart's" do
+    labels = block(".stack-chart .chart-axis-labels text")
+    assert labels =~ ~r/fill:\s*var\(--color-text-muted\);/
+    assert labels =~ ~r/font-family:\s*var\(--font-mono, ui-monospace, monospace\);/
+    assert labels =~ ~r/font-size:\s*calc\(9px \* var\(--chart-upx, 1\)\);/
+
+    stack = File.read!("lib/portfolixir_web/live/portfolio/stacked_chart.ex")
+    assert stack =~ ~s(class="stack-figure__chart")
+    assert stack =~ ~s(phx-hook="ChartScale")
+
+    hook = hook_source("ChartScale")
+    assert hook =~ "Hooks.ChartCrosshair.writeScale.call(this)"
+    assert hook =~ "Hooks.ChartCrosshair.placeAxis.call(this, rect, upx)"
+    assert hook =~ "ResizeObserver"
+    assert hook =~ ".disconnect()"
+    refute hook =~ "pushEvent"
+    refute hook =~ "pointer"
+
+    [_, updated] =
+      Regex.run(~r/updated: function \(\) \{(.*?)\n              \},/s, hook) ||
+        flunk("no updated callback")
+
+    assert updated =~ "this.writeScale();"
+
+    y = block(".stack-figure__chart[data-axis-inside] .stack-chart .chart-axis-y")
+    assert y =~ ~r/text-anchor:\s*start;/
+    assert y =~ ~r/paint-order:\s*stroke;/
+    assert y =~ ~r/stroke:\s*var\(--color-chart-surface\);/
+    assert y =~ ~r/stroke-width:\s*calc\(3px \* var\(--chart-upx, 1\)\);/
+
+    assert y =~
+             ~r/transform:\s*translate\(calc\(6px \+ 4px \* var\(--chart-upx, 1\)\), calc\(-3px \* var\(--chart-upx, 1\)\)\);/
+
+    top = block(".stack-figure__chart[data-axis-inside] .stack-chart .chart-axis-y.is-top")
+    assert top =~ ~r/dominant-baseline:\s*central;/
+
+    [_, surface] =
+      Regex.run(~r/background:\s*(var\(--color-[a-z-]+\));/, block(".stack-chart")) ||
+        flunk("the stack's plot names no background token")
+
+    assert surface == "var(--color-chart-surface)"
+  end
+
   defp export_props do
     case Regex.run(~r/window\.Portfolixir\._CHART_EXPORT_PROPS = \[(.*?)\];/s, @layout) do
       [_, list] -> Regex.scan(~r/"([a-z-]+)"/, list) |> Enum.map(fn [_, name] -> name end)
