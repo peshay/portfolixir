@@ -66,7 +66,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "it): PUT /api/v1/news/feeds registers or changes a feed, its URL checked " <>
               "with name resolution at once (B2); DELETE /api/v1/news/feeds/:id removes " <>
               "one and keeps its items, detached; PUT /api/v1/news/sources rates a domain " <>
-              "by hand."
+              "by hand; the tools portfolixir.news.feeds_put, portfolixir.news.feeds_delete " <>
+              "and portfolixir.news.sources_put reach them, and portfolixir.securities.update " <>
+              "takes news_identity and news_watch."
             # --- Sprint 27 N8 end ---
           ],
           " "
@@ -86,8 +88,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       tools: [
         # --- Sprint 27 S2 begin ---
         "portfolixir.portfolios.bands",
-        "portfolixir.views.bands"
+        "portfolixir.views.bands",
         # --- Sprint 27 S2 end ---
+        # --- Sprint 27 N8 begin ---
+        "portfolixir.news.feeds_put",
+        "portfolixir.news.feeds_delete",
+        "portfolixir.news.sources_put"
+        # --- Sprint 27 N8 end ---
       ],
       parameters: [
         # --- Sprint 27 N8 begin ---

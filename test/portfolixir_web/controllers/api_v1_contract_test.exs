@@ -87,6 +87,12 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
       assert newest["summary"] =~ endpoint, endpoint
     end
 
+    for tool <- ~w(portfolixir.news.feeds_put portfolixir.news.feeds_delete
+                   portfolixir.news.sources_put) do
+      assert tool in newest["tools"], tool
+      assert newest["summary"] =~ tool, tool
+    end
+
     assert newest["summary"] =~ "unknown field answers 422 naming it"
     assert newest["summary"] =~ "name resolution at once (B2)"
 

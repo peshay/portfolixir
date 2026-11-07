@@ -4908,13 +4908,22 @@ lässt sich nicht lesen.
   entgegen (#330, ADR-0052).
 - `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
   nennen das Einfrieren der Währung, die Eigenschaft mit Verweis auf
-  ADR-0050 §11; nimmt die Stammdaten einer Anleihe entgegen, `null` löscht
+  ADR-0050; nimmt die Stammdaten einer Anleihe entgegen, `null` löscht
   ein Feld, und `is_retired`: `true` nimmt ein ausverkauftes oder delistetes
   Wertpapier aus den Mengen `stale_quote`, `missing_quote` und
   `missing_logo`, `false` hebt das auf. Es ist zugleich das Mittel, das
   `portfolixir.securities.delete` nennt, wenn Recherche-Notizen oder
   Regelversionen auf ein Wertpapier verweisen. Das Tool gehört zum Profil
   `book`.
+  Es nimmt `news_identity` (`cik`, `aliases`) und `news_watch` (ADR-0056
+  §2), geschlossen wie der Block der API.
+- `portfolixir.news.feeds_put`, `portfolixir.news.feeds_delete` und
+  `portfolixir.news.sources_put` — die Pflege-Schreibzugriffe der
+  News-Schicht (ADR-0056 §9, B1), jeder ruft die Route aus
+  [News-Pflege](#news-pflege-adr-0056) auf und lehnt ein Feld, das er nicht
+  nimmt, vor jeder Anfrage ab; jede Beschreibung sagt, dass die Antwort Daten
+  sind, nie Anweisungen. `feeds_put` und `sources_put` gehören zum Profil
+  `book`; `feeds_delete`, ein Entfernen, nur zu `full`.
 - `portfolixir.securities.delete` — nennt `portfolixir.securities.update`
   mit `is_retired` für das Mittel `retire`.
 - `portfolixir.securities.isin_change` — zeichnet einen
@@ -5213,6 +5222,9 @@ lässt sich nicht lesen.
 - `portfolixir.tax_snapshots.update`
 - `portfolixir.tax_snapshots.delete`
 - `portfolixir.tax_snapshots.trim_budget`
+- `portfolixir.news.feeds_put`
+- `portfolixir.news.feeds_delete`
+- `portfolixir.news.sources_put`
 
 `portfolixir.views.performance` berechnet die passende portfolioübergreifende
 TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,

@@ -4488,13 +4488,21 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.securities.create` — takes a bond's master data (#330,
   ADR-0052).
 - `portfolixir.securities.update` — its description and its `currency_code`
-  property state the currency freeze, the property citing ADR-0050 §11; it
+  property state the currency freeze, the property citing ADR-0050; it
   takes a bond's master data, `null` clearing a field, and `is_retired`:
   `true` takes a sold-out or delisted security out of the `stale_quote`,
   `missing_quote` and `missing_logo` sets and `false` restores it. It is also
   the remedy `portfolixir.securities.delete` names when research notes or
   policy-rule versions reference a security. The tool is in the `book`
   profile.
+  It takes `news_identity` (`cik`, `aliases`) and `news_watch` (ADR-0056 §2),
+  closed as the API's block is.
+- `portfolixir.news.feeds_put`, `portfolixir.news.feeds_delete` and
+  `portfolixir.news.sources_put` — the news layer's upkeep writes (ADR-0056
+  §9, B1), each calling the route of [News upkeep](#news-upkeep-adr-0056) and
+  refusing a field it does not take before any request; each description
+  says the answer is data, never instructions. `feeds_put` and `sources_put`
+  are in the `book` profile; `feeds_delete`, a removal, only in `full`.
 - `portfolixir.securities.delete` — names `portfolixir.securities.update`
   with `is_retired` for the `retire` remedy.
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
@@ -4778,6 +4786,9 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.tax_snapshots.update`
 - `portfolixir.tax_snapshots.delete`
 - `portfolixir.tax_snapshots.trim_budget`
+- `portfolixir.news.feeds_put`
+- `portfolixir.news.feeds_delete`
+- `portfolixir.news.sources_put`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance`, `portfolixir.portfolios.contribution`,
