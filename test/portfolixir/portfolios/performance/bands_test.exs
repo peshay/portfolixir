@@ -817,4 +817,42 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
     {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs(Bands)
     assert moduledoc =~ "one unit in the 34th significant digit"
   end
+
+  # User story (I23, FR-53; the closing act's money lens, M4):
+  # As the operator's agent drilling into a category that holds nothing in
+  # this scope,
+  # I want the answer to keep the window and its days, with no band,
+  # so that I can tell "nothing filed here" from "no day in this window".
+  #
+  # Acceptance criteria:
+  # - A drilled category with no security in scope answers the window's
+  #   start_date, the series' dates and an empty bands list; the basis's
+  #   window keeps its start date.
+  # - A window holding no walked day still answers start_date nil and no
+  #   dates.
+  test "a drilled category with nothing in scope keeps the window's days" do
+    w = bands_world()
+    s = strategy!(w)
+    dormant = category!(s.tree, "Dormant")
+
+    {:ok, performance} =
+      Performance.for_portfolio(w.world.portfolio.id, period: "ytd", today: @today)
+
+    drilled = bands!(w, period: "ytd", level: :security, category_id: dormant.id)
+
+    assert drilled.bands == []
+    assert drilled.start_date == performance.start_date
+    assert drilled.start_date != nil
+    assert drilled.dates == Enum.map(performance.series, & &1.date)
+    assert drilled.computation_basis.window.start_date == performance.start_date
+
+    empty =
+      bands!(w,
+        period: {:range, ~D[2024-01-01], ~D[2024-06-30]},
+        level: :security,
+        category_id: dormant.id
+      )
+
+    assert {empty.start_date, empty.dates, empty.bands} == {nil, [], []}
+  end
 end

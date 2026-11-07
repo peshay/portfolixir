@@ -294,22 +294,28 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
         kept -> bands(summary, kept, request, grouping)
       end
 
+    # A window with no walked day is empty; a drilled category holding
+    # nothing in scope keeps the window and its days, with no band (the
+    # closing act's money lens, M4).
+    walked? = analysis.contribution != nil and summary.series != []
+    start_date = if walked?, do: summary.start_date
+
     %{
       period: summary.period,
       base_currency: summary.base_currency,
-      start_date: if(bands == [], do: nil, else: summary.start_date),
+      start_date: start_date,
       end_date: summary.end_date,
       level: request.level,
       sort: request.sort,
       classification: classification_field(grouping),
       category: category_field(grouping.category),
-      dates: if(bands == [], do: [], else: Enum.map(summary.series, & &1.date)),
+      dates: if(walked?, do: Enum.map(summary.series, & &1.date), else: []),
       bands: bands,
       as_of: summary.as_of,
       stale: false,
       computation_basis:
         computation_basis(
-          if(bands == [], do: nil, else: summary.start_date),
+          start_date,
           summary.end_date,
           request,
           grouping
@@ -622,7 +628,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "contribution read of the same window names the affected positions and their " <>
           "days. A foreign-currency cash balance counts zero in the cash band on a day its " <>
           "currency has no rate path. A window holding no walked day is empty: start_date " <>
-          "null, no dates and no bands",
+          "null, no dates and no bands; a drilled category holding nothing in the scope " <>
+          "keeps the window's start_date and dates, with no bands",
       category_change:
         "a classification is stored as it is today, without a history: a security is " <>
           "drawn in its category of today on every day of the window, also when it was " <>
