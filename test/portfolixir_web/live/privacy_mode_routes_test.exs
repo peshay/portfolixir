@@ -103,6 +103,16 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     {:ok, tree} =
       Classifications.create_classification(Actor.owner_ui(), %{name: "Synthetic Strategy"})
 
+    # A category holding one fund, so Wealth's stacked chart (I23) has a
+    # category to drill into; the other fund stays unclassified.
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: tree.id,
+        name: "Synthetic Core"
+      })
+
+    {:ok, _} = Classifications.assign_security(Actor.owner_ui(), next.id, tree.id, core.id)
+
     made = DateTime.new!(~D[2025-01-15], ~T[12:00:00.000000], "Etc/UTC")
 
     {:ok, _resolved} =
@@ -128,7 +138,7 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
         "resolves_on" => Date.to_iso8601(Date.add(Clock.today(), 60))
       })
 
-    %{sold: sold, next: next, tree: tree}
+    %{sold: sold, next: next, tree: tree, core: core}
   end
 
   defp masked_conn do
@@ -149,7 +159,10 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   #   render answers below 400 and its connected render does not crash.
   # - From each page, its in-place views are opened the same way: Cash
   #   flow's facets, "After the sale"'s four comparison modes, a security's
-  #   detail tabs, any link to the same path that names a tab.
+  #   detail tabs, any link to the same path that names a tab, and Wealth's
+  #   stacked chart (I23; Sprint 27 plan D-8, carry-forward 2): its bar's
+  #   levels and sorts and a category drilled into, opened from the value
+  #   series' category stack.
   # - No page's text names an amount or a quantity, and none draws a hidden
   #   figure as its stand-in text instead of the bar.
   test "every page and every in-place view renders with the privacy mode on and names no amount",
@@ -164,7 +177,11 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           "/securities/#{ctx.sold.id}?tab=trades&hindsight=rate",
           "/securities/#{ctx.sold.id}?tab=predictions",
           "/predictions",
-          "/journal"
+          "/journal",
+          "/portfolio?level=category",
+          "/portfolio?level=security",
+          "/portfolio?level=security&category=#{ctx.core.id}",
+          "/portfolio?level=category&sort=change"
         ] do
       assert expected in visited, "the walk never opened #{expected}"
     end
@@ -178,6 +195,9 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     |> Enum.flat_map(fn
       "/securities/:id" -> ["/securities/#{ctx.sold.id}", "/securities/#{ctx.next.id}"]
       "/classifications/:id" -> ["/classifications/#{ctx.tree.id}"]
+      # The value series' category stack, from which the walk follows the
+      # bar's links: the stack shows only in the value series.
+      "/portfolio" -> ["/portfolio", "/portfolio?level=category"]
       path -> if String.contains?(path, ":"), do: flunk("no address for #{path}"), else: [path]
     end)
   end
@@ -235,8 +255,9 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   end
 
   # The addresses of the views a page links in place: a link to the same
-  # path naming a tab or a hindsight mode, the facets, the comparison
-  # modes, and a detail tab's button as the address that opens it.
+  # path naming a tab, a hindsight mode or a stack level (I23), the facets,
+  # the comparison modes, and a detail tab's button as the address that
+  # opens it.
   defp views(html, path) do
     doc = LazyHTML.from_document(html)
     %URI{path: own} = URI.parse(path)
@@ -260,7 +281,7 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   end
 
   defp in_place?(nil), do: false
-  defp in_place?(query), do: query =~ ~r/(^|&)(tab|hindsight)=/
+  defp in_place?(query), do: query =~ ~r/(^|&)(tab|hindsight|level)=/
 
   # The walk's text scan (test/browser/privacy_leak.js), on the server's
   # markup, text node by text node: an amount in German form outside a

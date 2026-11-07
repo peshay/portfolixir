@@ -288,9 +288,10 @@ function address(href, current) {
 }
 
 // The in-page links a page offers to another view of itself: Cash flow's
-// facets, "After the sale"'s comparison modes, and any link to the same
-// path that names a tab. Each is followed by a click (a patch) and later
-// opened as an address of its own.
+// facets, "After the sale"'s comparison modes, Wealth's stacked chart (its
+// levels and one drilled category, I23), and any link to the same path that
+// names a tab. Each is followed by a click (a patch) and later opened as an
+// address of its own.
 async function inPageLinks(page) {
   return page.$$eval(
     "main a[href]",
@@ -300,6 +301,12 @@ async function inPageLinks(page) {
           const url = new URL(a.getAttribute("href"), location.href);
           if (url.origin !== location.origin || url.pathname !== location.pathname) return false;
           if (a.closest("[data-role='cashflow-facets'], [data-role='hindsight-compare']")) return true;
+          // Wealth's stack (I23): its levels, the breadcrumb and one drilled
+          // category, each state once; every band and sort is the same
+          // markup, and each click runs a walk of its own.
+          if (/(^|[?&])level=/.test(url.search.slice(1))) {
+            return !!a.closest("[data-role='stack-level'], [data-role='stack-crumbs']") || a === document.querySelector("#stack-legend a");
+          }
           return /(^|[?&])(tab|hindsight)=/.test(url.search.slice(1));
         })
         .map((a) => a.getAttribute("href"))
