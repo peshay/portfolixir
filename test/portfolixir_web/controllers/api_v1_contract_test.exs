@@ -68,6 +68,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
       assert endpoint in newest["endpoints"], endpoint
     end
 
+    assert "portfolixir.portfolios.bands" in newest["tools"]
+    assert "portfolixir.views.bands" in newest["tools"]
+    assert newest["summary"] =~ "portfolixir.portfolios.bands and portfolixir.views.bands"
     # --- Sprint 27 S2 end ---
 
     # Sprint 26's sprint PR (version 26), found by version from Sprint 27 on.

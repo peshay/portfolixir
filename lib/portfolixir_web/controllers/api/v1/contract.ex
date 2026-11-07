@@ -57,7 +57,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 27, S2 (I23, FR-53): GET .../performance/bands, new in the performance " <>
               "family's three forms, splits the value series into bands by level (total, " <>
               "category, security) that sum to it exactly on every day, each with its daily " <>
-              "values, its share on the last day and its change without flows."
+              "values, its share on the last day and its change without flows; the read " <>
+              "tools portfolixir.portfolios.bands and portfolixir.views.bands reach it."
             # --- Sprint 27 S2 end ---
           ],
           " "
@@ -69,7 +70,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/performance/bands"
         # --- Sprint 27 S2 end ---
       ],
-      tools: [],
+      tools: [
+        # --- Sprint 27 S2 begin ---
+        "portfolixir.portfolios.bands",
+        "portfolixir.views.bands"
+        # --- Sprint 27 S2 end ---
+      ],
       parameters: [],
       removed_endpoints: [],
       removed_tools: [],

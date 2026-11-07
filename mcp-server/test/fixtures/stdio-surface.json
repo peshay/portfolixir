@@ -76,6 +76,7 @@
         "portfolixir.portfolios.performance",
         "portfolixir.portfolios.benchmark",
         "portfolixir.portfolios.contribution",
+        "portfolixir.portfolios.bands",
         "portfolixir.journal.list",
         "portfolixir.merges.list",
         "portfolixir.buckets.list",
@@ -86,6 +87,7 @@
         "portfolixir.views.performance",
         "portfolixir.views.benchmark",
         "portfolixir.views.contribution",
+        "portfolixir.views.bands",
         "portfolixir.settings.get_default_view",
         "portfolixir.plans.list",
         "portfolixir.snapshots.list",
@@ -226,6 +228,7 @@
         "portfolixir.portfolios.performance",
         "portfolixir.portfolios.benchmark",
         "portfolixir.portfolios.contribution",
+        "portfolixir.portfolios.bands",
         "portfolixir.journal.list",
         "portfolixir.merges.list",
         "portfolixir.buckets.list",
@@ -241,6 +244,7 @@
         "portfolixir.views.performance",
         "portfolixir.views.benchmark",
         "portfolixir.views.contribution",
+        "portfolixir.views.bands",
         "portfolixir.securities_accounts.set_buckets",
         "portfolixir.cash_accounts.set_buckets",
         "portfolixir.securities_accounts.set_position_buckets",
@@ -417,6 +421,7 @@
         "portfolixir.portfolios.performance",
         "portfolixir.portfolios.benchmark",
         "portfolixir.portfolios.contribution",
+        "portfolixir.portfolios.bands",
         "portfolixir.journal.list",
         "portfolixir.merges.list",
         "portfolixir.buckets.list",
@@ -434,6 +439,7 @@
         "portfolixir.views.performance",
         "portfolixir.views.benchmark",
         "portfolixir.views.contribution",
+        "portfolixir.views.bands",
         "portfolixir.securities_accounts.set_buckets",
         "portfolixir.cash_accounts.set_buckets",
         "portfolixir.securities_accounts.set_position_buckets",
@@ -4933,6 +4939,79 @@
               }
             },
             {
+              "name": "portfolixir.portfolios.bands",
+              "title": "Portfolio value bands",
+              "description": "The value chart split into bands (I23, FR-53): dates, the performance series' days, and bands that sum to it exactly on every date. level: total (one band, the series), category (default: one band per root category of classification_id, else of the tree the scope's targets use, else the first custom tree; plus cash and unclassified) or security (one per security plus cash; with category_id, that category's securities, summing to its band). A band: key, kind, id, name, color (the category's own or null), values (aligned with dates), start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without a start value. Over 8 bands the smallest merge into other (members listed), ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to and view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule. Scope twin: portfolixir.views.bands — this tool answers ONE portfolio record in its base currency, its view narrowing within that portfolio; the twin answers a view across EVERY portfolio, each account counted once, in EUR or, with no id, every account in EUR. For every account, read that, not a sum of portfolios.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "portfolio_id"
+                ],
+                "properties": {
+                  "portfolio_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "view": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": [
+                      "ytd",
+                      "1y",
+                      "3y",
+                      "5y",
+                      "max"
+                    ]
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 1970
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "total",
+                      "category",
+                      "security"
+                    ]
+                  },
+                  "classification_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "category_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "sort": {
+                    "type": "string",
+                    "enum": [
+                      "size",
+                      "change"
+                    ]
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
               "name": "portfolixir.journal.list",
               "title": "List audit journal",
               "description": "Append-only audit journal, newest first: who (actor_type; actor_label: a token's name or null), what (operation, resource_type/resource_id) and before/after of each financial write and delete. before is the row under the write's lock, an update's after what it stored: two writes from one read chain (second's before = first's after). A delete's after is null (release 2026.11.8 or earlier: the deleted record or emptied set). Real writes unless include_scenarios. Echoes filters, order, limit, truncated. since reaches past the newest 1000: entries after it, oldest first, has_more; page by as_of (the top-level as_of is the cursor, not meta.as_of; with no ~id, poll later: a write is in flight). A later read may re-deliver an entry, never skip one.",
@@ -5485,6 +5564,72 @@
                   "to": {
                     "type": "string",
                     "format": "date"
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.views.bands",
+              "title": "View value bands (cross-portfolio)",
+              "description": "Value bands of a bucket view (id is the view id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to the series of portfolixir.views.performance; the default tree is the one this view's target plans use. level, classification_id, category_id, sort, period, year and from/to as there. Scope twin: portfolixir.portfolios.bands — this tool answers a view across EVERY portfolio, each account counted once, in EUR or, with no id, every account in EUR; the twin answers ONE portfolio record in its base currency, its view narrowing within that portfolio.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": [
+                      "ytd",
+                      "1y",
+                      "3y",
+                      "5y",
+                      "max"
+                    ]
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 1970
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "total",
+                      "category",
+                      "security"
+                    ]
+                  },
+                  "classification_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "category_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "sort": {
+                    "type": "string",
+                    "enum": [
+                      "size",
+                      "change"
+                    ]
                   }
                 }
               },

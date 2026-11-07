@@ -5117,6 +5117,9 @@ lässt sich nicht lesen.
 - `portfolixir.portfolios.contribution` — Bereichs-Zwilling von `portfolixir.views.contribution`;
   welche Position wie viel zum Geldergebnis eines Zeitraums beigetragen hat
   (FR-41).
+- `portfolixir.portfolios.bands` — Bereichs-Zwilling von `portfolixir.views.bands`;
+  die Wertreihe in Bänder geteilt, nach Gesamt, Kategorie oder Wertpapier,
+  für den gestapelten Chart (I23, FR-53).
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — die Zusammenführungsprotokolle, das neueste
   zuerst, jedes mit dem, was wohin ging, wer es tat, wann, und dem
@@ -5143,6 +5146,7 @@ lässt sich nicht lesen.
 - `portfolixir.views.performance` — Bereichs-Zwilling von `portfolixir.portfolios.performance`.
 - `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`.
 - `portfolixir.views.contribution` — Bereichs-Zwilling von `portfolixir.portfolios.contribution`.
+- `portfolixir.views.bands` — Bereichs-Zwilling von `portfolixir.portfolios.bands`.
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`

@@ -15,7 +15,10 @@ const PAIRS = [
   ["portfolixir.portfolios.valuation", "portfolixir.views.valuation"],
   ["portfolixir.portfolios.performance", "portfolixir.views.performance"],
   ["portfolixir.portfolios.benchmark", "portfolixir.views.benchmark"],
-  ["portfolixir.portfolios.contribution", "portfolixir.views.contribution"]
+  ["portfolixir.portfolios.contribution", "portfolixir.views.contribution"],
+  // I23, FR-53 (Sprint 27 S2): the stacked chart's bands, money like the
+  // contribution, steered the same way.
+  ["portfolixir.portfolios.bands", "portfolixir.views.bands"]
 ] as const;
 
 describe("the twin scope tools", () => {
@@ -89,6 +92,10 @@ describe("the twin scope tools", () => {
       /For every account, read that, not a sum of portfolios\./
     );
     assert.doesNotMatch(description("portfolixir.portfolios.contribution"), /returns of several/);
+    assert.match(
+      description("portfolixir.portfolios.bands"),
+      /For every account, read that, not a sum of portfolios\./
+    );
 
     for (const [portfolioTool] of PAIRS) {
       assert.doesNotMatch(description(portfolioTool), /Without a view/);

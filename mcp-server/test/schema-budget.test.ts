@@ -345,7 +345,28 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
       book: 7_299,
       full: 7_299
     }
+  },
+  // --- Sprint 27 S2 begin ---
+  {
+    since: "2026-11-08",
+    why:
+      "Sprint 27, S2 (I23, FR-53): the stacked chart's bands, portfolixir.portfolios.bands " +
+      "and portfolixir.views.bands, reads in every profile, whose own schemas the rule of " +
+      "Sprint 24's D-2 lets the ceilings grow by and no more: their tools/list entries " +
+      "measure 2,076 + 1,281 = 3,357 bytes in each profile, so read 110,953 + 3,357 = " +
+      "114,310, book 182,982 + 3,357 = 186,339 and full 217,537 + 3,357 = 220,894; no other " +
+      "tool's bytes are added",
+    read: 114_310,
+    book: 186_339,
+    full: 220_894,
+    raisedBy: {
+      tools: ["portfolixir.portfolios.bands", "portfolixir.views.bands"],
+      read: 3_357,
+      book: 3_357,
+      full: 3_357
+    }
   }
+  // --- Sprint 27 S2 end ---
 ];
 
 describe("the schema budget", () => {
@@ -582,5 +603,10 @@ describe("the schema budget", () => {
       assert.equal(debuts.get(name), "2026-11-06", name);
     }
     assert.equal(debuts.get("portfolixir.transactions.cash_mismatch"), "2026-11-04");
+    // --- Sprint 27 S2 begin ---
+    for (const name of ["portfolixir.portfolios.bands", "portfolixir.views.bands"]) {
+      assert.equal(debuts.get(name), "2026-11-08", name);
+    }
+    // --- Sprint 27 S2 end ---
   });
 });
