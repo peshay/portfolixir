@@ -42,6 +42,7 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Feed
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Fetcher
+  alias Portfolixir.News.Health
   alias Portfolixir.News.Item
   alias Portfolixir.News.Matcher
   alias Portfolixir.News.Scheduler
@@ -528,4 +529,16 @@ defmodule Portfolixir.News do
   end
 
   # --- end N8 -----------------------------------------------------------------
+
+  # --- N6 ---------------------------------------------------------------------
+
+  @doc """
+  The news layer's health at the server's clock `now` (ADR-0056 §6, A3):
+  each feed's freshness and yield, and the day's unassigned, ambiguous,
+  dropped and blocked counts. See `Portfolixir.News.Health`.
+  """
+  @spec health(DateTime.t()) :: Health.t()
+  def health(%DateTime{} = now), do: Health.report(now)
+
+  # --- end N6 -----------------------------------------------------------------
 end
