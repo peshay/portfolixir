@@ -13,6 +13,12 @@ description: 'Design decision for issue #572 (FR-9), written for the Sprint 11 d
 - **Amended:** 2026-11-04, the comparison reports the fees and taxes the
   real portfolio paid in its window (idea I17; see "Amendment (2026-11-04)"
   below). Adopted by the merge of the Sprint 24 planning PR.
+- **Amended:** 2026-11-07, `benchmark=security:<id>` accepts any security
+  with stored quotes, so a held security can be the benchmark without the
+  flag (see "Amendment (2026-11-07)" below). The owner's answer to OQ-3 of
+  the triage of 2026-11-07
+  (`_bmad-output/planning-artifacts/feedback-triage-2026-11-07.md`);
+  signed by the merge of the PR that carries it.
 - **Answers:** FR-9 (PRD 2026-06-12, released from the advanced-reports gate
   on 2026-08-12 as scope-ladder level (b)), OQ-3 (the quote source), and the
   three design questions on
@@ -192,6 +198,51 @@ rate on its day is excluded and named, and the totals leave it out.
 *To flip by comment:* "I17 B": the payload and the screen then also carry
 the residual, labelled as what is left after the booked costs, never as
 selection and timing.
+
+## Amendment (2026-11-07): any security with quotes can be the benchmark
+
+**Status:** the owner answered OQ-3 of the
+triage of 2026-11-07
+(`_bmad-output/planning-artifacts/feedback-triage-2026-11-07.md`)
+with its recommendation on 2026-11-07; signed by the merge of the PR that
+carries this text. Not risk tier: no figure's arithmetic changes, only which
+series may enter it.
+
+**Why.** §1 says a benchmark security "may also be held … then it is simply
+both". The rest of §1 makes that impossible in practice. A flagged security
+is never offered in booking forms, so a held fund that gets the flag can no
+longer be bought or sold on the screen. It also leaves every data-quality
+set (`Catalog.DataQuality.list_opts/1`), so its stale or implausible quotes
+are no longer named. An operator who wants the fund they hold as their
+benchmark has two choices today: a fixed rate, or a second security with
+the same quote series.
+
+**What changes.**
+
+1. **`benchmark=security:<id>` accepts any security with at least one
+   stored quote**, flagged or not, on every read that takes it: the
+   portfolio and view comparisons (§4), sale hindsight (FR-50) and
+   predictions (ADR-0055). A security with no stored quote is refused with
+   422 as before, and so is a merged-away one, named by `merged_into`
+   (#959). A prediction's protection of its benchmark security from merge
+   and delete applies to the security it names, flagged or not.
+2. **`is_benchmark` keeps its meaning and nothing else changes with it.** It
+   marks a reference-only instrument: never offered in booking forms, out
+   of the data-quality sets, listed by `is_benchmark=true`, and the
+   default content of the screen's benchmark picker. A held security used
+   as a benchmark stays bookable and stays in every check, because it is
+   not flagged.
+3. **The picker** offers the flagged securities first and the held ones
+   after them. That is a UI change, so it gets a board before it is built.
+   The API and MCP half does not wait for it.
+4. **The basis says which kind it read.** Each comparison's
+   `computation_basis` names the benchmark security and whether it is
+   flagged or a held or unheld catalog security. The arithmetic is §2's,
+   unchanged.
+
+*To flip by comment:* "OQ-3 B" keeps the flag as the gate and makes the
+booking form and the data-quality sets exclude only *unheld* flagged
+securities instead.
 
 ## Consequences
 
