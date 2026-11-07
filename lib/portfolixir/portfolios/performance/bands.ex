@@ -45,6 +45,15 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   answered bands' values that day (the category's value when drilled into
   one), `nil` when that sum is zero.
 
+  **Exactness** (the closing act's money lens, M2): the security and total
+  levels add up to the series exactly, every day. At the category level a
+  band first sums its members, so the day's terms are added in another
+  grouping than the walk adds them; when a conversion quotient does not
+  terminate (a USD value over EUR/USD 1.0832), each partial sum rounds at
+  Decimal's 34 significant digits, and the bands' sum may differ from the
+  series by at most one unit in the 34th significant digit per day. When
+  every quotient terminates, it is exact at every level.
+
   Nothing is stored: each read runs its own walk from the window's baseline
   day (ADR-0051, note of 2026-10-28).
   """
@@ -590,7 +599,11 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "this scope and period answers: recorded transactions, stored quotes and stored " <>
           "EUR-hub exchange rates; each window day's terms kept apart, every held " <>
           "security's value and the cash, exactly the terms the day's value adds up, so " <>
-          "the bands sum to the series on every day",
+          "the bands sum to the series on every day: exactly at the security and total " <>
+          "levels; at the category level, the bands' sum may differ from the series by at " <>
+          "most one unit in the 34th significant digit per day, and only when a conversion " <>
+          "quotient does not terminate (a band sums its members first, and Decimal rounds " <>
+          "each partial sum at 34 significant digits)",
       window: %{start_date: start_date, end_date: end_date},
       reference: nil,
       level: level_text(request.level, grouping),

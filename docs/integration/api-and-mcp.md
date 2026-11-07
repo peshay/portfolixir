@@ -2772,8 +2772,10 @@ Example account payloads:
   `GET /api/v1/performance/bands` return the **stacked value chart's bands**
   (I23, FR-53) beside the contribution read, in its three forms and with its
   period parameters (and `view=` on the portfolio form): the performance
-  read's value series split into bands that sum to it exactly on every day.
-  The view and view-less forms answer in EUR, or in `base_currency=` (a
+  read's value series split into bands that sum to it exactly on every day
+  (at the category level within one unit in the 34th significant digit per
+  day when a conversion quotient does not terminate, as
+  `computation_basis.input_series` states). The view and view-less forms answer in EUR, or in `base_currency=` (a
   supported currency code, echoed as `base_currency`): the Wealth screen
   asks in its page's base currency, so the two agree when asked alike; the
   portfolio form answers in the portfolio's base currency. `level` is `total` (one band, the series), `category` (the default: one
