@@ -23,6 +23,13 @@ defmodule Portfolixir.Settings do
       piece of instance state that must survive a restart; this is the
       smallest keyed store the instance has, so it lives here
       (`Portfolixir.Fx.HistoryGaps` reads it).
+    * `news_cluster_window_hours/0` / `news_cluster_similarity/0` and their
+      setters — the two starting values of the news clustering (ADR-0056
+      §4, B3: 72 hours and a Jaccard similarity of 0.8), "set by a setting
+      and reviewed against a sample after two weeks of use". Unset or
+      unreadable, each reads its default; set, each is journaled under its
+      setter's actor like the default view. The similarity is stored as a
+      decimal string and read as a `Decimal`, never a float.
   """
 
   import Ecto.Query
@@ -37,6 +44,11 @@ defmodule Portfolixir.Settings do
   @default_view_key "default_view_id"
   @migration_notice_key "portfolio_migration_notice_dismissed"
   @fx_history_sought_key "fx_history_backfill_sought"
+  @news_window_key "news_cluster_window_hours"
+  @news_similarity_key "news_cluster_similarity"
+  @news_window_default 72
+  @news_window_max 720
+  @news_similarity_default "0.8"
 
   @doc "Reads the preference under `key`; `nil` when unset."
   @spec get(String.t()) :: String.t() | nil
@@ -114,6 +126,91 @@ defmodule Portfolixir.Settings do
 
     Multi.new()
     |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, @default_view_key)} end)
+    |> Multi.insert(:setting, changeset,
+      on_conflict: {:replace, [:value, :updated_at]},
+      conflict_target: :key,
+      returning: true
+    )
+    |> Journal.record(actor,
+      resource_type: "setting",
+      operation: :upsert,
+      source: :setting,
+      before_step: :prior
+    )
+    |> commit_setting()
+  end
+
+  # --- the news clustering's two values (ADR-0056 §4, B3; Sprint 27 N5) ---
+
+  @doc """
+  The news clustering's window in hours (ADR-0056 B3): two items can be one
+  story only when their publication times lie within it. 72 unless set.
+  """
+  @spec news_cluster_window_hours() :: pos_integer()
+  def news_cluster_window_hours do
+    with raw when is_binary(raw) <- get(@news_window_key),
+         {hours, ""} <- Integer.parse(raw),
+         true <- valid_window?(hours) do
+      hours
+    else
+      _unset_or_unreadable -> @news_window_default
+    end
+  end
+
+  @doc """
+  The news clustering's title similarity (ADR-0056 B3): the Jaccard
+  similarity of two titles' words from which they are one story, a
+  `Decimal` in (0, 1]. 0.8 unless set.
+  """
+  @spec news_cluster_similarity() :: Decimal.t()
+  def news_cluster_similarity do
+    with raw when is_binary(raw) <- get(@news_similarity_key),
+         {:ok, similarity} <- Decimal.cast(raw),
+         true <- valid_similarity?(similarity) do
+      similarity
+    else
+      _unset_or_unreadable -> Decimal.new(@news_similarity_default)
+    end
+  end
+
+  @doc """
+  Sets the news clustering's window to `hours` (1 to 720) on behalf of
+  `actor`, journaled as a `"setting"` upsert. Stories already stored keep
+  their members until their scope is reclustered in full
+  (`Portfolixir.News.Stories.recluster/4` with `full: true`).
+  """
+  @spec set_news_cluster_window_hours(Actor.t(), integer()) :: :ok | {:error, :invalid}
+  def set_news_cluster_window_hours(%Actor{} = actor, hours) when is_integer(hours) do
+    if valid_window?(hours),
+      do: put_journaled(actor, @news_window_key, Integer.to_string(hours)),
+      else: {:error, :invalid}
+  end
+
+  @doc """
+  Sets the news clustering's title similarity to `similarity`, a `Decimal`
+  above 0 and at most 1 with at most four decimal places, on behalf of
+  `actor`, journaled as a `"setting"` upsert.
+  """
+  @spec set_news_cluster_similarity(Actor.t(), Decimal.t()) :: :ok | {:error, :invalid}
+  def set_news_cluster_similarity(%Actor{} = actor, %Decimal{} = similarity) do
+    if valid_similarity?(similarity),
+      do: put_journaled(actor, @news_similarity_key, Decimal.to_string(similarity, :normal)),
+      else: {:error, :invalid}
+  end
+
+  defp valid_window?(hours), do: hours >= 1 and hours <= @news_window_max
+
+  defp valid_similarity?(%Decimal{} = similarity) do
+    not Decimal.nan?(similarity) and not Decimal.inf?(similarity) and
+      Decimal.compare(similarity, 0) == :gt and Decimal.compare(similarity, 1) != :gt and
+      Decimal.normalize(similarity).exp >= -4
+  end
+
+  defp put_journaled(actor, key, value) do
+    changeset = Setting.changeset(%Setting{}, %{key: key, value: value})
+
+    Multi.new()
+    |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, key)} end)
     |> Multi.insert(:setting, changeset,
       on_conflict: {:replace, [:value, :updated_at]},
       conflict_target: :key,
