@@ -13,9 +13,12 @@ counts from the instance and gave performance figures before and after its
 corrections. None of that is reproduced here. Only the product shape of each
 point is kept.
 
-Status: triaged. Two S1 defects are filed (#1410, #1411). Two items are new
-rows in the idea list (I25, I26). Four points are open questions for the
-owner (Part 3).
+Status: **answered.** On 2026-11-07 the owner accepted every recommendation
+of this document ("ja alles was du empfiehlst"). Every item now has an issue
+(Part 5). The four questions of Part 3 are answered with their
+recommendations, and OQ-3 is written into ADR-0046 as its amendment of
+2026-11-07. Two items stay rows in the idea list (I25, I26), because they
+are not worked out.
 
 ---
 
@@ -82,7 +85,7 @@ instance's side.
 
 ---
 
-## Part 3 — Open, for the owner
+## Part 3 — The owner's questions (all answered 2026-11-07 with the recommendation)
 
 - **OQ-1 — `implausible_quote` beyond held securities (B5).** The Sprint 20
   answer limited the guard to held securities. Widening it adds sold
@@ -110,3 +113,26 @@ instance's side.
 - No reload from a stored URL (none is stored; B2).
 - `is_retired` keeps its #610 side effect; I25 is the exit for a held
   security, not a change to retiring.
+
+---
+
+## Part 5 — Where each item went (2026-11-07)
+
+| Item | Record | Label |
+|---|---|---|
+| B1, the logo tools | #1413 (under #419) | `agentic` |
+| B1, the 401 wording | a line on #1356 ("Polish: API and MCP") | — |
+| B3, logo discovery by ISIN | idea I26 (`triaged`) | — |
+| B4, the sync behind a "Manual" feed and retired securities | #1410, answer recorded on the issue | `agentic` |
+| B5 / OQ-1, `implausible_quote` beyond held securities | #1414 (under #416) | `agentic` |
+| B6, the currency refusal | #1411 (under #416) | `agentic` |
+| B6 / OQ-2, the `currency_mismatch` set | #1415 (under #416), after #1411 | `agentic` |
+| B7 and B9's acknowledgement | idea I25 (`triaged`) | — |
+| B8 / OQ-3, any security with quotes as the benchmark | ADR-0046 amendment of 2026-11-07; #1416 (under #418), after its merge | `agentic` |
+| B9 / OQ-4, the Overview counts held first | #1417 (under #418), board first | `agentic` |
+
+The ADR amendment is signed by the merge of the PR that carries it
+(ADR-0026 step 1); #1416 waits for that merge. #1417 and the picker half of
+#1416 are UI changes and get a board before they are built. The next
+planning session takes these as candidates. Nothing here is built in this
+session.
