@@ -2373,6 +2373,72 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  The stacked value chart's bands (I23, FR-53,
+  `Portfolixir.Portfolios.Performance.Bands`): every financial value a
+  string, `dates` ISO, each band's `values` aligned with `dates`, and the
+  computation basis with its level, classification, merge rule and category
+  change in the payload. With both ids null, the Everything read, the basis
+  names that scope and its currency.
+  """
+  def bands(result) do
+    %{
+      portfolio_id: result.portfolio_id,
+      view_id: result.view_id,
+      period: period_field(result.period),
+      base_currency: result.base_currency,
+      start_date: date(result.start_date),
+      end_date: date(result.end_date),
+      level: Atom.to_string(result.level),
+      sort: Atom.to_string(result.sort),
+      classification: bands_classification(result.classification),
+      category: result.category,
+      dates: Enum.map(result.dates, &date/1),
+      bands: Enum.map(result.bands, &band/1),
+      as_of: datetime(result.as_of),
+      stale: result.stale,
+      computation_basis:
+        result.computation_basis
+        |> computation_basis()
+        |> Map.merge(
+          Map.take(result.computation_basis, [
+            :level,
+            :classification,
+            :merge_rule,
+            :category_change,
+            :assumptions
+          ])
+        )
+    }
+    |> everything_basis(result)
+  end
+
+  defp bands_classification(nil), do: nil
+
+  defp bands_classification(classification),
+    do: %{classification | chosen_by: Atom.to_string(classification.chosen_by)}
+
+  defp band(band) do
+    %{
+      key: band.key,
+      kind: Atom.to_string(band.kind),
+      id: band.id,
+      name: band.name,
+      color: band.color,
+      tree_index: band.tree_index,
+      values: Enum.map(band.values, &decimal/1),
+      start_value: decimal(band.start_value),
+      end_value: decimal(band.end_value),
+      net_flows: decimal(band.net_flows),
+      share: decimal(band.share),
+      change: decimal(band.change),
+      members:
+        Enum.map(band.members, fn member ->
+          %{key: member.key, kind: Atom.to_string(member.kind), id: member.id, name: member.name}
+        end)
+    }
+  end
+
   # One cash account the walk counted zero on some window day (#1055): its
   # native balance a Decimal string in its own currency, never converted; the
   # first rate's date ISO, or null when it did not arrive inside the window.

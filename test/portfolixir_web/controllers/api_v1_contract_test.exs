@@ -49,9 +49,32 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 26's sprint PR (version 26). Dated strictly after entry 25, so
-    # since=2026-11-06 still returns it. Each story appends its own items
-    # between its own markers, each found by its decision.
+    # Sprint 27's sprint PR (version 27). Dated strictly after entry 26, so
+    # since=2026-11-07 still returns it. Each story appends its own items
+    # between its own markers.
+    assert newest["version"] == 27
+    assert newest["date"] == "2026-11-08"
+
+    # --- Sprint 27 S2 begin ---
+    # S2 (I23, FR-53): the bands read in the performance family's three
+    # forms, and its two tools.
+    assert newest["summary"] =~ "Sprint 27, S2 (I23, FR-53): "
+
+    for endpoint <- [
+          "GET /api/v1/portfolios/:portfolio_id/performance/bands",
+          "GET /api/v1/views/:view_id/performance/bands",
+          "GET /api/v1/performance/bands"
+        ] do
+      assert endpoint in newest["endpoints"], endpoint
+    end
+
+    # --- Sprint 27 S2 end ---
+
+    # Sprint 26's sprint PR (version 26), found by version from Sprint 27 on.
+    # Dated strictly after entry 25, so since=2026-11-06 still returns it.
+    # Each story appends its own items between its own markers, each found
+    # by its decision.
+    newest = Enum.find(data["entries"], &(&1["version"] == 26))
     assert newest["version"] == 26
     assert newest["date"] == "2026-11-07"
 

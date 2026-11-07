@@ -369,4 +369,61 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
                "decomposes a result that happened; it ranks and recommends nothing (ADR-0051 I8)."
     end
   end
+
+  # User story (I23, FR-53; Sprint 27 S2):
+  # As the maintainer holding the scope ladder,
+  # I want the stacked chart's bands checked the same way,
+  # so that a decomposition of the value series stays a decomposition and
+  # never ranks or recommends a band.
+  #
+  # Acceptance criteria:
+  # - No key of the bands read, in its three forms and at every level,
+  #   merged into other or not, over a window with bands and over an empty
+  #   one, contains a forbidden word.
+  test "the bands reads carry no verdict key", %{conn: conn} do
+    world = base_world()
+    deposit!(world, "5000", ~D[2025-01-02])
+
+    for index <- 1..9 do
+      security = create_security!(name: "Verdict Band #{index}", ticker: "VB#{index}")
+      buy!(world, security, quantity: "1", price: "#{index * 10}", date: ~D[2025-01-02])
+    end
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Verdict Bands"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Verdict Bands", include_all: false})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    payloads =
+      for form <- [
+            "/api/v1/portfolios/#{world.portfolio.id}/performance/bands",
+            "/api/v1/views/#{view.id}/performance/bands",
+            "/api/v1/performance/bands"
+          ],
+          query <- [
+            "year=2025&level=total",
+            "year=2025&level=category",
+            "year=2025&level=security&sort=change",
+            "from=2001-01-01&to=2001-12-31"
+          ] do
+        path = "#{form}?#{query}"
+        %{"data" => data} = conn |> get(path) |> json_response(200)
+        {path, data}
+      end
+
+    assert Enum.any?(payloads, fn {_path, data} ->
+             Enum.any?(data["bands"], &(&1["key"] == "other"))
+           end)
+
+    assert Enum.any?(payloads, fn {_path, data} -> data["bands"] == [] end)
+
+    for {path, data} <- payloads do
+      assert offenders(data) == [],
+             "#{path} carries verdict keys #{inspect(offenders(data))}: the bands decompose " <>
+               "a series that happened; they rank and recommend nothing."
+    end
+  end
 end

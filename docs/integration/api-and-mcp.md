@@ -2679,6 +2679,36 @@ Example account payloads:
   strings. A window holding no walked day — a future year, a range before the
   history — answers `start_date: null`, no positions and `"0"` lines and
   totals, as the performance read answers it. Nothing is persisted.
+- `GET /api/v1/portfolios/:portfolio_id/performance/bands`,
+  `GET /api/v1/views/:view_id/performance/bands` and
+  `GET /api/v1/performance/bands` return the **stacked value chart's bands**
+  (I23, FR-53) beside the contribution read, in its three forms and with its
+  period parameters (and `view=` on the portfolio form): the performance
+  read's value series split into bands that sum to it exactly on every day.
+  `level` is `total` (one band, the series), `category` (the default: one
+  band per root category of the classification, plus `cash` and
+  `unclassified`) or `security` (one band per security plus `cash`, or with
+  `category_id=` the securities of that category's subtree, which add up to
+  its band). `classification_id=` picks the tree; without it the category
+  level stacks by the tree the scope's allocation targets use, else the
+  first custom classification, else the built-in asset classes, and
+  `classification.chosen_by` says which (`requested`, `targets`, `default`,
+  `category`). `sort` is `size` (the last day's value, largest first, the
+  default) or `change`. The response carries `level`, `sort`,
+  `classification`, `category`, `dates` and `bands`; each band has `key`,
+  `kind`, `id`, `name`, `color` (the category's own colour, else `null`),
+  `tree_index`, `values` (Decimal strings aligned with `dates`),
+  `start_value`, `end_value`, `net_flows`, `share` (of the last day) and
+  `change` (`(end_value − start_value − net_flows) / start_value`, `null`
+  without a positive start value; a security's net flows are ADR-0051's).
+  More than eight bands merge the smallest into `other` (with its
+  `members`), ties by name, never by id; `cash` and `unclassified` keep
+  their own. An unpriced day counts zero, as in the series, and a security
+  is drawn in its category of today for the whole window;
+  `computation_basis` states each rule. An unknown `level` or `sort`, a
+  malformed or unknown `classification_id` or `category_id`, a category of
+  another tree, or `category_id` without `level=security` answers `422`
+  naming the parameter. Nothing is persisted.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate

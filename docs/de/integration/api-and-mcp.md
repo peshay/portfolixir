@@ -2914,6 +2914,37 @@ Beispiel-Payloads für Konten:
   Zeitraum vor der Historie — liefert `start_date: null`, keine Positionen
   und `"0"` als Zeilen und Summen, wie der Performance-Endpunkt es liefert.
   Nichts wird gespeichert.
+- `GET /api/v1/portfolios/:portfolio_id/performance/bands`,
+  `GET /api/v1/views/:view_id/performance/bands` und
+  `GET /api/v1/performance/bands` liefern die **Bänder des gestapelten
+  Wertcharts** (I23, FR-53) neben der Beitragsabfrage, in ihren drei Formen
+  und mit ihren Zeitraumparametern (und `view=` in der Portfolio-Form): die
+  Wertreihe der Performance-Abfrage, in Bänder geteilt, die sich an jedem Tag
+  exakt zu ihr summieren. `level` ist `total` (ein Band, die Reihe),
+  `category` (Standard: ein Band je Wurzelkategorie der Klassifikation, dazu
+  `cash` und `unclassified`) oder `security` (ein Band je Wertpapier plus
+  `cash`, oder mit `category_id=` die Wertpapiere des Teilbaums dieser
+  Kategorie, die sich zu ihrem Band summieren). `classification_id=` wählt
+  den Baum; ohne ihn stapelt die Kategorie-Ebene nach dem Baum der
+  Zielgewichte des Bereichs, sonst nach der ersten eigenen Klassifikation,
+  sonst nach den eingebauten Anlageklassen, und `classification.chosen_by`
+  sagt, welcher (`requested`, `targets`, `default`, `category`). `sort` ist
+  `size` (Wert des letzten Tages, größter zuerst, Standard) oder `change`.
+  Die Antwort trägt `level`, `sort`, `classification`, `category`, `dates`
+  und `bands`; jedes Band hat `key`, `kind`, `id`, `name`, `color` (die
+  eigene Farbe der Kategorie, sonst `null`), `tree_index`, `values`
+  (Decimal-Strings passend zu `dates`), `start_value`, `end_value`,
+  `net_flows`, `share` (am letzten Tag) und `change` (`(end_value −
+  start_value − net_flows) / start_value`, `null` ohne positiven Startwert;
+  die Nettoflüsse eines Wertpapiers sind die aus ADR-0051). Mehr als acht
+  Bänder fassen die kleinsten zu `other` (mit `members`) zusammen, bei
+  Gleichstand nach Name, nie nach ID; `cash` und `unclassified` bleiben
+  eigene Bänder. Ein Tag ohne Kurs zählt null, wie in der Reihe, und ein
+  Wertpapier steht das ganze Fenster in seiner heutigen Kategorie;
+  `computation_basis` nennt jede Regel. Ein unbekanntes `level` oder `sort`,
+  eine fehlerhafte oder unbekannte `classification_id` oder `category_id`,
+  eine Kategorie eines anderen Baums oder `category_id` ohne
+  `level=security` liefert `422` mit dem Parameter. Nichts wird gespeichert.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate
