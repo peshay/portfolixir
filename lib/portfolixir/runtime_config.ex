@@ -955,6 +955,36 @@ defmodule Portfolixir.RuntimeConfig do
   def logo_dir(_value), do: nil
 
   @doc """
+  The news fetcher's user agent, from `PORTFOLIXIR_NEWS_USER_AGENT`
+  (ADR-0056 §5, B8): the operator's own, with the contact the SEC's
+  fair-access policy asks for. Unset or blank is none (`nil`): a feed on
+  `sec.gov` then makes no request (`user_agent_missing`), and every other
+  feed is sent the app's own. A value is taken trimmed; one with a control
+  character is refused, naming the variable and not the value, because it
+  becomes a request header.
+  """
+  @spec news_user_agent(String.t() | nil) :: String.t() | nil
+  def news_user_agent(value \\ System.get_env("PORTFOLIXIR_NEWS_USER_AGENT"))
+
+  def news_user_agent(value) when is_binary(value) do
+    case String.trim(value) do
+      "" ->
+        nil
+
+      agent ->
+        if String.match?(agent, ~r/[\x00-\x1f\x7f]/) do
+          raise ArgumentError,
+                "PORTFOLIXIR_NEWS_USER_AGENT must not contain control characters " <>
+                  "(it is sent as a request header)"
+        else
+          agent
+        end
+    end
+  end
+
+  def news_user_agent(_value), do: nil
+
+  @doc """
   Whether the release fetches from public hosts by itself, from
   `PORTFOLIXIR_BACKGROUND_FETCH` (#1026): logo discovery and the scheduled
   quote and FX sync. The words development reads turn it off (`0`, `false`,

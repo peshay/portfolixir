@@ -496,6 +496,50 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert File.read!("config/runtime.exs") =~ "Portfolixir.RuntimeConfig.logo_dir()"
   end
 
+  # User story (Sprint 27 N3, ADR-0056 §5):
+  # As an operator whose regulatory feeds read the SEC's filings,
+  # I want the news fetcher's user agent to be my configuration,
+  # so that the contact the SEC asks for is mine and the repository carries none.
+  #
+  # Acceptance criteria:
+  # - PORTFOLIXIR_NEWS_USER_AGENT unset or blank is no user agent (nil).
+  # - A value is taken trimmed; one with a control character is refused,
+  #   naming the variable and not the value, since it becomes a header.
+  # - config/runtime.exs reads the variable through this function for
+  #   development and the release, never for the test suite.
+  test "reads the news fetcher's user agent from PORTFOLIXIR_NEWS_USER_AGENT" do
+    assert RuntimeConfig.news_user_agent(nil) == nil
+    assert RuntimeConfig.news_user_agent("") == nil
+    assert RuntimeConfig.news_user_agent("   ") == nil
+
+    assert RuntimeConfig.news_user_agent(" Example Operator ops@example.com ") ==
+             "Example Operator ops@example.com"
+
+    error =
+      assert_raise ArgumentError, ~r/PORTFOLIXIR_NEWS_USER_AGENT/, fn ->
+        RuntimeConfig.news_user_agent("Example\r\nX-Injected: 1")
+      end
+
+    refute Exception.message(error) =~ "Injected"
+
+    runtime = File.read!("config/runtime.exs")
+    assert runtime =~ "Portfolixir.RuntimeConfig.news_user_agent()"
+    assert runtime =~ "if config_env() in [:dev, :prod] do"
+
+    # Development reads it; the suite's configuration never does. (The
+    # variable is this test's alone: nothing else in the suite reads it.)
+    System.put_env("PORTFOLIXIR_NEWS_USER_AGENT", "Example Operator ops@example.com")
+
+    try do
+      for {env, expected} <- [dev: "Example Operator ops@example.com", test: nil] do
+        config = Config.Reader.read!("config/runtime.exs", env: env, target: :host)
+        assert get_in(config, [:portfolixir, Portfolixir.News.Fetcher, :user_agent]) == expected
+      end
+    after
+      System.delete_env("PORTFOLIXIR_NEWS_USER_AGENT")
+    end
+  end
+
   # User story (security review 2026-10-12, H72):
   # As an operator whose database password holds a character a URL reserves,
   # I want the release to refuse DATABASE_URL at boot naming the variable and

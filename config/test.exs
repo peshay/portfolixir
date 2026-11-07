@@ -109,3 +109,8 @@ config :portfolixir, :logo_discovery_refresh_ms, 0
 # disconnect (issue 653), and the warning flood made CI failures scroll out
 # of the retrievable log window. Raise so the next one fails the build.
 config :phoenix_live_view, :test_warnings, missing_form_id: :raise
+
+# The news fetcher's adapter in tests (ADR-0056 §5): a plug that answers
+# every request no test stubbed as a refused connection, so no fetch in the
+# suite opens a socket; a test passes its own `req: [plug: ...]`.
+config :portfolixir, Portfolixir.News.Fetcher, req: [plug: Portfolixir.News.NoNetwork]

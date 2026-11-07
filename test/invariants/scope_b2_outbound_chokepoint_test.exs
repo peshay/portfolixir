@@ -2,6 +2,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   use ExUnit.Case, async: true
 
   alias Portfolixir.Net.Http
+  alias Portfolixir.News.Feed
+  alias Portfolixir.News.Fetcher
 
   # NFR-9 backstop B2 (Sprint 16 Lane N, #885). The gates it backs, as
   # registered in scope_b7_gate_registry_test.exs:
@@ -110,7 +112,22 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       any:
         "the operator's own logo URL for one security (`manual: :any`): typed by the " <>
           "operator, and still https-only, public-address-only and redirect-guarded"
+    },
+    # --- Sprint 27 N3: the news fetcher (ADR-0056 §5, B2) -----------------
+    "Portfolixir.News.Fetcher" => %{
+      purpose:
+        "fetches one registered news feed, RSS 2.0 or Atom 1.0, GET-only, under the " <>
+          "parser's 8 MiB cap and a deadline (ADR-0056 §5, opening B3.3 for news feeds)",
+      hosts_from: :stored_feed,
+      hosts: [],
+      any:
+        "ADR-0056 B2: a feed's URL is data the operator or the agent registered, so no " <>
+          "host is written in the source; the allow-list is the one feed's own host, and " <>
+          "its URL passes the URL policy with name resolution before every fetch (https " <>
+          "only, no userinfo, public addresses only), so a redirect to another host is " <>
+          "refused and makes no request"
     }
+    # --- end Sprint 27 N3 ---------------------------------------------------
   }
 
   # `name => {:config | :credential, reason}`: every environment variable the
@@ -138,6 +155,12 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
          "seed run sends nothing out (#963) and in a release so it calls out only when asked " <>
          "(#1026); it can only turn fetching off"},
     "PORTFOLIXIR_SESSION_DAYS" => {:config, "how long a UI login stays valid (ADR-0045)"},
+    # Sprint 27 N3 (ADR-0056 §5, B8).
+    "PORTFOLIXIR_NEWS_USER_AGENT" =>
+      {:config,
+       "the user agent the news fetcher sends, with the operator's contact the SEC's " <>
+         "fair-access policy asks for; without it a feed on sec.gov makes no request " <>
+         "(ADR-0056 §5, B8); a label sent to the feed's own host, never a host or a credential"},
     "TZ" =>
       {:config,
        "the host clock's zone: what \"today\" is, and the zone each database session takes " <>
@@ -747,6 +770,62 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
              }
     end
 
+    # --- Sprint 27 N3: the news fetcher's stored-feed allow-list (B2) ------
+    # Sprint 26's carry-forward 3: the self-test includes a broken input — a
+    # feed URL whose name resolves privately, and one that redirects away.
+    test "a stored feed's allow-list is its own host: a private name or a redirect makes no request" do
+      assert hosts_for(
+               "Portfolixir.SyntheticFeeds",
+               %{"Portfolixir.SyntheticFeeds" => :computed},
+               %{
+                 hosts: [],
+                 hosts_from: :stored_feed
+               }
+             ) == [:any]
+
+      assert hosts_for(
+               "Portfolixir.SyntheticFeeds",
+               %{"Portfolixir.SyntheticFeeds" => :computed},
+               %{
+                 hosts: []
+               }
+             ) == :computed
+
+      test_pid = self()
+
+      plug = fn conn ->
+        send(test_pid, {:requested, conn.host, conn.request_path})
+
+        case conn.request_path do
+          "/start.xml" ->
+            conn
+            |> Plug.Conn.put_resp_header("location", "https://elsewhere.example.com/feed.xml")
+            |> Plug.Conn.send_resp(302, "")
+
+          _other ->
+            Plug.Conn.send_resp(conn, 200, "")
+        end
+      end
+
+      feed = fn url -> %Feed{class: :issuer, url: url, interval_minutes: 15} end
+
+      for url <- ["https://internal.test/feed.xml", "https://v6local.test/feed.xml"] do
+        assert {:error, "url_not_allowed:private_address"} =
+                 Fetcher.get(feed.(url), req: [plug: plug]),
+               url
+
+        refute_received {:requested, _, _}
+      end
+
+      assert {:error, "url_not_allowed:host_not_allowed"} =
+               Fetcher.get(feed.("https://news.example.com/start.xml"), req: [plug: plug])
+
+      assert_received {:requested, "news.example.com", "/start.xml"}
+      refute_received {:requested, _, _}
+    end
+
+    # --- end Sprint 27 N3 ---------------------------------------------------
+
     test "synthetic environment reads are named, computed ones are caught" do
       elixir = """
       defmodule Portfolixir.SyntheticEnv do
@@ -1291,9 +1370,13 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     attributes
   end
 
+  # `hosts_from: :stored_feed` (ADR-0056 B2): the allow-list is the one
+  # stored feed's own host, so the source names none; it reads as `:any`
+  # and therefore needs the entry's own `any:` reason.
   defp hosts_for(module, declared, entry) do
     case {Map.get(declared, module, []), Map.get(entry, :hosts_from)} do
       {:computed, :config} -> configured_hosts(module)
+      {:computed, :stored_feed} -> [:any]
       {hosts, _} -> hosts
     end
   end

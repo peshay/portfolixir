@@ -68,6 +68,9 @@ defmodule Portfolixir.Application do
       {Portfolixir.Catalog.QuoteSync,
        Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},
       {Portfolixir.Fx.RateSync, Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},
+      # The news fetcher's per-host pace (ADR-0056 §5: sec.gov at most 10
+      # requests a second, whichever feed's task asks).
+      Portfolixir.News.Pace,
       Portfolixir.Imports.PreviewStore,
       Portfolixir.Derived.Memo,
       {Warmup, Application.get_env(:portfolixir, Warmup, [])},

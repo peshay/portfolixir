@@ -15,6 +15,14 @@ if config_env() == :dev do
   end
 end
 
+# The news fetcher's user agent (ADR-0056 §5, B8): the operator's own, with
+# the contact sec.gov asks for; without it a feed on sec.gov makes no request.
+# Development and the release read it; the test suite never does.
+if config_env() in [:dev, :prod] do
+  config :portfolixir, Portfolixir.News.Fetcher,
+    user_agent: Portfolixir.RuntimeConfig.news_user_agent()
+end
+
 if config_env() == :prod do
   # Checked at boot (E25 S1, F67): length, no placeholder, no committed
   # literal, with the variable named in the failure.
