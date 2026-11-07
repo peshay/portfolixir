@@ -57,7 +57,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             "Sprint 27, S2 (I23, FR-53): GET .../performance/bands, new in the performance " <>
               "family's three forms, splits the value series into bands by level (total, " <>
               "category, security) that sum to it exactly on every day, each with its daily " <>
-              "values, its share on the last day and its change without flows; the read " <>
+              "values, its share on the last day and its change without flows; the view " <>
+              "and view-less forms take base_currency= (a supported code, default EUR, " <>
+              "echoed), the currency the screen asks in; the read " <>
               "tools portfolixir.portfolios.bands and portfolixir.views.bands reach it.",
             # --- Sprint 27 S2 end ---
             # --- Sprint 27 N8 begin ---

@@ -450,8 +450,22 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
       book: 3_424,
       full: 3_424
     }
-  }
+  },
   // --- Sprint 27 N7 end ---
+  // --- Sprint 27 closing act S begin ---
+  {
+    since: "2026-11-08",
+    why:
+      "Sprint 27 closing act on S2 (the money lens, M1): portfolixir.views.bands takes " +
+      "base_currency, paid for by tightening the two bands tools' own wording, which now " +
+      "measure 2,025 + 1,329 = 3,354 bytes in each profile, 3 fewer than S2's row credited " +
+      "them, so each ceiling is lowered by those 3 bytes: read 117,731, book 191,719 and " +
+      "full 226,768",
+    read: 117_731,
+    book: 191_719,
+    full: 226_768
+  }
+  // --- Sprint 27 closing act S end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

@@ -1834,12 +1834,23 @@ const portfolioBandsSchema = {
 
 const portfolioBandsZ = contributionZ.extend(bandsZ);
 
+// The view forms answer in base_currency (closing act, M1), the screen's.
 const viewBandsSchema = {
   ...viewContributionSchema,
-  properties: { ...viewContributionSchema.properties, ...bandsProperties }
+  properties: {
+    ...viewContributionSchema.properties,
+    ...bandsProperties,
+    base_currency: { type: "string", pattern: "^[A-Z]{3}$" }
+  }
 };
 
-const viewBandsZ = viewContributionZ.extend(bandsZ);
+const viewBandsZ = viewContributionZ.extend({
+  ...bandsZ,
+  base_currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional()
+});
 // --- Sprint 27 S2 end ---
 
 // -- buckets & views (ADR-0018) --------------------------------------------
@@ -4150,7 +4161,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.bands",
     "Portfolio value bands",
-    "The value chart split into bands (I23, FR-53): dates, the performance series' days, and bands that sum to it exactly on every date. level: total (one band, the series), category (default: one band per root category of classification_id, else of the tree the scope's targets use, else the first custom tree; plus cash and unclassified) or security (one per security plus cash; with category_id, that category's securities, summing to its band). A band: key, kind, id, name, color (the category's own or null), values (aligned with dates), start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without a start value. Over 8 bands the smallest merge into other (members listed), ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to and view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
+    "The value series split into bands that sum to it exactly on every date of dates. level: total (one band, the series), category (default: one band per root category of classification_id, else of the tree the scope's targets use, else the first custom tree; plus cash and unclassified) or security (one per security plus cash; with category_id, that category's securities, summing to its band). A band: key, kind, id, name, color (the category's own or null), values (aligned with dates), start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without a start value. Over 8 bands the smallest merge into other (members listed), ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to and view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
       portfolioScopeTwin("portfolixir.views.bands", "contributions"),
     portfolioBandsSchema,
     portfolioBandsZ
@@ -4299,7 +4310,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.bands",
     "View value bands (cross-portfolio)",
-    "Value bands of a bucket view (id is the view id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to the series of portfolixir.views.performance; the default tree is the one this view's target plans use. level, classification_id, category_id, sort, period, year and from/to as there." +
+    "Value bands of a bucket view (id is the view id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to the series of portfolixir.views.performance; the default tree is this view's target plans'. Other parameters as there; base_currency (default EUR): the screen uses its base." +
       viewScopeTwin("portfolixir.portfolios.bands", "contributions"),
     viewBandsSchema,
     viewBandsZ
@@ -5384,7 +5395,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "level",
           "classification_id",
           "category_id",
-          "sort"
+          "sort",
+          "base_currency"
         ])
       );
     // --- Sprint 27 S2 end ---

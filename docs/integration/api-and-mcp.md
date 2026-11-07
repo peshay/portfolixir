@@ -2773,7 +2773,10 @@ Example account payloads:
   (I23, FR-53) beside the contribution read, in its three forms and with its
   period parameters (and `view=` on the portfolio form): the performance
   read's value series split into bands that sum to it exactly on every day.
-  `level` is `total` (one band, the series), `category` (the default: one
+  The view and view-less forms answer in EUR, or in `base_currency=` (a
+  supported currency code, echoed as `base_currency`): the Wealth screen
+  asks in its page's base currency, so the two agree when asked alike; the
+  portfolio form answers in the portfolio's base currency. `level` is `total` (one band, the series), `category` (the default: one
   band per root category of the classification, plus `cash` and
   `unclassified`) or `security` (one band per security plus `cash`, or with
   `category_id=` the securities of that category's subtree, which add up to
@@ -2796,7 +2799,8 @@ Example account payloads:
   `computation_basis` states each rule. An unknown `level` or `sort`, a
   malformed or unknown `classification_id` or `category_id`, a category of
   another tree, or `category_id` without `level=security` answers `422`
-  naming the parameter. Nothing is persisted.
+  naming the parameter, and so does an unsupported `base_currency`. Nothing
+  is persisted.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate

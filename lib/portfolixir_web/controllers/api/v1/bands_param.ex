@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
   (AGENTS.md).
   """
 
+  alias Portfolixir.Catalog.Currencies
   alias PortfolixirWeb.Api.V1.IdParam
 
   @levels %{"total" => :total, "category" => :category, "security" => :security}
@@ -28,6 +29,29 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
        |> put_present(:sort, sort)
        |> put_present(:classification_id, classification_id)
        |> put_present(:category_id, category_id)}
+    end
+  end
+
+  @doc """
+  The view forms' `base_currency` (the closing act's money lens, M1): a code
+  of `Portfolixir.Catalog.Currencies`, exactly as listed, kept a string;
+  absent, the EUR hub. The portfolio form answers in its portfolio's base
+  currency and takes no such parameter.
+  """
+  @spec base_currency(map()) :: {:ok, String.t()} | {:error, map()}
+  def base_currency(params) do
+    case Map.get(params, "base_currency") do
+      nil ->
+        {:ok, "EUR"}
+
+      raw ->
+        if Currencies.supported?(raw),
+          do: {:ok, raw},
+          else:
+            {:error,
+             %{
+               "base_currency" => ["is invalid: must be a supported currency code, e.g. EUR, USD"]
+             }}
     end
   end
 

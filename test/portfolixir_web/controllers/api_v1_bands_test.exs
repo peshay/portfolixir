@@ -231,6 +231,65 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
     assert basis["assumptions"] =~ "change = (end_value − start_value − net_flows) / start_value"
   end
 
+  # User story (I23, FR-53; the closing act's money lens, M1):
+  # As the operator's agent reading the bands of a view whose screen is
+  # computed in a base currency other than EUR,
+  # I want to ask the view and the view-less bands read for that currency,
+  # so that I read the figures the stacked chart shows for the same request.
+  #
+  # Acceptance criteria:
+  # - `base_currency=` on the view and the view-less form takes a code the
+  #   app supports, echoes it as `base_currency`, and converts every band's
+  #   values through the stored EUR-hub rate: at EUR/USD 1.25 each value is
+  #   exactly 1.25 times the EUR one.
+  # - Without it both forms answer in EUR, as before; the basis names the
+  #   currency answered and the parameter.
+  # - A code outside the supported list (lower case included) answers 422
+  #   on base_currency and creates no atom.
+  test "the view forms answer in a requested base currency", %{conn: conn} do
+    w = world()
+
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: Date.new!(w.year, 1, 1),
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    for path <- [
+          "/api/v1/views/#{w.view.id}/performance/bands",
+          "/api/v1/performance/bands"
+        ] do
+      query = "?year=#{w.year}&classification_id=#{w.tree.id}"
+      eur = get_json(conn, path <> query)["data"]
+      usd = get_json(conn, path <> query <> "&base_currency=USD")["data"]
+
+      assert eur["base_currency"] == "EUR"
+      assert usd["base_currency"] == "USD"
+      assert usd["computation_basis"]["input_series"] =~ "in USD"
+      assert eur["computation_basis"]["input_series"] =~ "base_currency"
+      assert Enum.map(usd["bands"], & &1["key"]) == Enum.map(eur["bands"], & &1["key"])
+
+      for {e, u} <- Enum.zip(eur["bands"], usd["bands"]),
+          {ev, uv} <- Enum.zip(e["values"], u["values"]) do
+        assert Decimal.equal?(
+                 Decimal.mult(Decimal.new(ev), Decimal.new("1.25")),
+                 Decimal.new(uv)
+               ),
+               "#{path} #{e["key"]}"
+      end
+
+      for bad <- ["usd", "XYZ", "EURO", ""] do
+        errors = get_json(conn, path <> query <> "&base_currency=#{bad}", 422)["errors"]
+        assert Map.keys(errors) == ["base_currency"], "#{path} #{inspect(bad)}"
+      end
+    end
+  end
+
   # User story (I23, FR-53):
   # As the operator's agent,
   # I want a wrong parameter refused by name,
