@@ -18,35 +18,47 @@ defmodule Portfolixir.News.Ingest do
     4. **keys the item by its canonical URL** (`canonical_url/1`): a URL the
        feed already stored, or one repeated in the same answer, is `known`
        and neither stored nor counted again;
-    5. **caps the feed at 200 items in 24 hours** (A3): the rolling count of
+    5. **rates each item by the tier table** (§3, B5;
+       `Portfolixir.News.Sources`, read once for the batch): an `issuer`
+       or `regulatory` item is `primary` by construction, any other is its
+       domain's tier (or a parent domain's), at most `secondary`, and
+       `awareness` when unrated; an item of a `blocked` domain is dropped
+       and counted `dropped_blocked`, before the cap, so it takes no room;
+    6. **caps the feed at 200 items in 24 hours** (A3): the rolling count of
        the feed's items by `first_seen_at`, read under the feed's row lock,
        leaves room for the first items in the feed's order; the rest are
        counted `dropped_cap`. This is the one order that decides (B3), and
        it belongs to the feed that floods;
-    6. **stores** each item with `first_seen_at` the clock and
-       `published_at` the claim clamped to it (`News.Item.changeset/2`, B4):
-       an `issuer` or `regulatory` item `assigned` to its feed's security and
-       `primary` by construction, a `thematic` one `assigned` to its feed's
-       category, an `aggregator` one `unassigned` with no candidates; every
-       item but those two classes' is `awareness` until the tier table rates
-       it (the extension point below).
+    7. **stores** each item with `first_seen_at` the clock and
+       `published_at` the claim clamped to it (`News.Item.changeset/2`, B4),
+       and the title keys the clustering reads (`title_words`,
+       `title_norm_hash`: `Portfolixir.News.Stories.title_keys/1`, the one
+       source of both): an `issuer` or `regulatory` item `assigned` to its
+       feed's security, a `thematic` one `assigned` to its feed's category,
+       an `aggregator` one `unassigned` with no candidates.
 
   The day's counters go to `news_feed_days` (the server's day of the
   clock). Items and day rows are a staging area, not journaled (B7,
   `Portfolixir.Journal.Allowlist`); the fetcher that calls this is the
   registered system job.
 
-  **After the insert commits**, the stored `aggregator` items are matched
-  against the universe (`Portfolixir.News.assign_aggregator_items/2`, §2):
-  one security named `assigned`, none `unassigned`, several `ambiguous`
-  with the candidates.
+  **After the insert commits:**
 
-  **Extension points**, no-ops here, filled by a later story: before the
-  insert, `tier_and_block/2` (the source tier table and its `blocked`
-  drops, N5); after it, `cluster/1` (the stories, N5).
+    * the stored `aggregator` items are matched against the universe
+      (`Portfolixir.News.assign_aggregator_items/2`, §2): one security named
+      `assigned`, none `unassigned`, several `ambiguous` with the
+      candidates; the matcher folds the items it assigns into their stories;
+    * the items bound by construction are folded into the stories of their
+      security (or category) and language
+      (`Portfolixir.News.Stories.recluster/4`, B3), each scope once.
+
+  Either step failing leaves the items stored and in no story; the next
+  recluster of their scope reads them as seeds.
   """
 
   import Ecto.Query
+
+  require Logger
 
   alias Portfolixir.Clock
   alias Portfolixir.News
@@ -54,6 +66,8 @@ defmodule Portfolixir.News.Ingest do
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Item
   alias Portfolixir.News.Parser.Item, as: Parsed
+  alias Portfolixir.News.Sources
+  alias Portfolixir.News.Stories
   alias Portfolixir.Repo
 
   @cap 200
@@ -104,33 +118,66 @@ defmodule Portfolixir.News.Ingest do
       end)
 
     stored = summary.items
-    assign_aggregator(stored)
-    cluster(stored)
+    assign_aggregator(stored, now)
+    cluster(stored, now)
 
     {:ok, summary}
   end
 
-  # Extension point (N5): rate each candidate by the source tier table and
-  # drop a `blocked` domain's items, counting them `dropped_blocked`. B5: an
-  # aggregator item is at most `secondary`. A no-op until N5 fills it.
-  defp tier_and_block(candidates, summary), do: {candidates, summary}
+  # §3, B5: each candidate's tier from the tier table, read once for the
+  # batch; a `blocked` domain's candidates are dropped and counted
+  # `dropped_blocked`, before the cap, so a blocked item takes no room.
+  defp tier_and_block([], summary), do: {[], summary}
+
+  defp tier_and_block(candidates, summary) do
+    rated = candidates |> Enum.map(& &1.domain) |> Enum.uniq() |> Sources.lookup()
+
+    {kept, blocked} =
+      candidates
+      |> Enum.map(&%{&1 | tier: Sources.tier(&1.class, Map.get(rated, &1.domain))})
+      |> Enum.split_with(&(&1.tier != :blocked))
+
+    {kept, %{summary | dropped_blocked: summary.dropped_blocked + length(blocked)}}
+  end
 
   # §2: the stored `aggregator` items are matched against the universe by
   # the alias grammar, after the insert's commit (the matcher locks the
   # items and the securities it names in a transaction of its own). Every
   # other class is bound by construction and skipped by the matcher.
-  defp assign_aggregator(items) do
+  # The matcher folds the items it assigns into their stories itself.
+  defp assign_aggregator(items, now) do
     case for(%Item{class: :aggregator} = item <- items, do: item) do
       [] -> :ok
-      aggregator -> {:ok, _counts} = News.assign_aggregator_items(aggregator)
+      aggregator -> {:ok, _counts} = News.assign_aggregator_items(aggregator, now: now)
     end
 
     :ok
   end
 
-  # Extension point (N5): fold the stored items into stories (B3). A no-op
-  # until N5 fills it.
-  defp cluster(_items), do: :ok
+  # B3: the items bound by construction are folded into the stories of their
+  # security (or category) and language; an aggregator's are the matcher's
+  # (above). A failed recluster leaves the items in no story, and the next
+  # recluster of their scope reads them as seeds.
+  defp cluster(items, now) do
+    items
+    |> Enum.filter(&(&1.class != :aggregator and &1.assignment == :assigned))
+    |> Enum.map(&{Stories.scope(&1), &1.language})
+    |> Enum.uniq()
+    |> Enum.each(fn {scope, language} -> recluster(scope, language, now) end)
+  end
+
+  defp recluster(scope, language, now) do
+    case Stories.recluster(scope, language, now) do
+      {:ok, _summary} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning(
+          "news stories of #{inspect(scope)} (#{language}) not written: " <>
+            inspect(changeset.errors)
+        )
+    end
+  end
 
   # -- preparing ---------------------------------------------------------------
 
@@ -200,7 +247,6 @@ defmodule Portfolixir.News.Ingest do
   end
 
   defp attrs(feed, item, domain, url) do
-    words = title_words(item.title)
     excerpt = item.excerpt
 
     %{
@@ -212,16 +258,16 @@ defmodule Portfolixir.News.Ingest do
       title: item.title,
       excerpt: excerpt,
       published_at_claimed: item.published_at,
-      title_words: words,
-      title_norm_hash: sha256(Enum.join(words, " ")),
       content_hash: sha256(item.title <> "\n" <> (excerpt || "")),
       candidates: []
     }
+    |> Map.merge(Stories.title_keys(item.title))
     |> Map.merge(bound_to(feed))
   end
 
-  # §2: the class decides the binding; issuer and regulatory are primary by
-  # construction (B5), everything else awareness until rated.
+  # §2: the class decides the binding; the tier here is a placeholder that
+  # `tier_and_block/2` replaces from the tier table (issuer and regulatory
+  # are primary by construction, B5).
   defp bound_to(%Feed{class: class, security_id: security_id})
        when class in [:issuer, :regulatory],
        do: %{assignment: :assigned, security_id: security_id, tier: :primary}
@@ -356,21 +402,6 @@ defmodule Portfolixir.News.Ingest do
       [] -> nil
       pairs -> Enum.join(pairs, "&")
     end
-  end
-
-  @doc """
-  A title's normalized words, the input of the stories' similarity (B3):
-  compatibility-normalized (NFKC), lower-cased, split at every character
-  that is not a letter or a digit, each word once in its first position.
-  `title_norm_hash` is the SHA-256 of these words joined by single spaces.
-  """
-  @spec title_words(String.t()) :: [String.t()]
-  def title_words(title) when is_binary(title) do
-    title
-    |> :unicode.characters_to_nfkc_binary()
-    |> String.downcase()
-    |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true)
-    |> Enum.uniq()
   end
 
   defp sha256(text), do: :sha256 |> :crypto.hash(text) |> Base.encode16(case: :lower)

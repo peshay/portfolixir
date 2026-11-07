@@ -32,6 +32,8 @@ defmodule Portfolixir.News do
   """
   import Ecto.Query
 
+  require Logger
+
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
@@ -43,6 +45,7 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Item
   alias Portfolixir.News.Matcher
   alias Portfolixir.News.Scheduler
+  alias Portfolixir.News.Stories
   alias Portfolixir.News.Universe
   alias Portfolixir.Repo
 
@@ -189,6 +192,14 @@ defmodule Portfolixir.News do
   are dropped before the outcome is decided; an item is never assigned to,
   or listed with, a security that is gone.
 
+  **Stories follow** (B3): once the outcomes are written, every item this
+  call assigned is folded into the stories of its security and language
+  (`Portfolixir.News.Stories.recluster/4` at `now:`, the server's clock,
+  default now), each scope and language once. An item it leaves
+  `unassigned` or `ambiguous` sits in no story. A failed recluster is
+  logged and leaves the item in no story; the next recluster of its scope
+  reads it as a seed.
+
   Items are a staging area written by a system job (B7), so nothing here is
   journaled. Pass `universe:` (a `Portfolixir.News.Matcher` index) to reuse
   one already compiled.
@@ -202,7 +213,23 @@ defmodule Portfolixir.News do
       {:ok, %{assigned: 0, unassigned: 0, ambiguous: 0}}
     else
       index = Keyword.get_lazy(opts, :universe, &Universe.aggregator_index/0)
-      Repo.transaction(fn -> assign_locked(ids, index) end)
+      {:ok, {counts, scopes}} = Repo.transaction(fn -> assign_locked(ids, index) end)
+      now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+      Enum.each(scopes, fn {scope, language} -> recluster(scope, language, now) end)
+      {:ok, counts}
+    end
+  end
+
+  defp recluster(scope, language, now) do
+    case Stories.recluster(scope, language, now) do
+      {:ok, _summary} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning(
+          "news stories of #{inspect(scope)} (#{language}) not written: " <>
+            inspect(changeset.errors)
+        )
     end
   end
 
@@ -224,7 +251,7 @@ defmodule Portfolixir.News do
       select: i.id
     )
     |> Repo.all()
-    |> assign_aggregator_items()
+    |> assign_aggregator_items(now: now)
   end
 
   defp item_id(%Item{id: id}), do: id
@@ -245,12 +272,20 @@ defmodule Portfolixir.News do
     matched = Enum.map(items, &{&1, Matcher.matches(&1.title, index)})
     existing = existing_securities(matched)
 
-    Enum.reduce(matched, %{assigned: 0, unassigned: 0, ambiguous: 0}, fn {item, hits}, counts ->
+    initial = {%{assigned: 0, unassigned: 0, ambiguous: 0}, MapSet.new()}
+
+    Enum.reduce(matched, initial, fn {item, hits}, {counts, scopes} ->
       outcome = hits |> Enum.filter(&MapSet.member?(existing, &1)) |> Matcher.outcome()
       write_outcome(item, outcome)
-      Map.update!(counts, outcome_name(outcome), &(&1 + 1))
+      {Map.update!(counts, outcome_name(outcome), &(&1 + 1)), scope_of(outcome, item, scopes)}
     end)
   end
+
+  # The scope and language whose stories an assignment changes.
+  defp scope_of({:assigned, id}, item, scopes),
+    do: MapSet.put(scopes, {{:security, id}, item.language})
+
+  defp scope_of(_outcome, _item, scopes), do: scopes
 
   defp existing_securities(matched) do
     case matched |> Enum.flat_map(&elem(&1, 1)) |> Enum.uniq() do

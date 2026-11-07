@@ -9,10 +9,13 @@ defmodule Portfolixir.News.IngestTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Clock
+  alias Portfolixir.News.Cluster
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
   alias Portfolixir.News.Parser.Item, as: Parsed
+  alias Portfolixir.News.Sources
+  alias Portfolixir.News.Stories
   alias Portfolixir.Repo
 
   @now ~U[2026-11-07 10:00:00.000000Z]
@@ -62,7 +65,11 @@ defmodule Portfolixir.News.IngestTest do
       future = parsed(2, %{published_at: ~U[2026-11-09 00:00:00Z]})
 
       assert {:ok, %{stored: 2}} =
-               Ingest.ingest(feed, [parsed(1, %{title: "Northwind: Q3, record!"}), future], @now)
+               Ingest.ingest(
+                 feed,
+                 [parsed(1, %{title: "Record Q3 for Northwind: record!"}), future],
+                 @now
+               )
 
       assert [first, second] = items(feed)
 
@@ -74,12 +81,20 @@ defmodule Portfolixir.News.IngestTest do
       assert first.language == "en"
       assert first.first_seen_at == @now
       assert first.published_at == ~U[2026-11-07 09:00:00.000000Z]
-      assert first.title == "Northwind: Q3, record!"
+      assert first.title == "Record Q3 for Northwind: record!"
       assert first.excerpt == "Revenue rose."
-      assert first.title_words == ~w(northwind q3 record)
+
+      # The clustering's own keys (`Stories.title_keys/1`), one source: the
+      # distinct words sorted, the hash over the whole normalized title.
+      assert first.title_words == ~w(for northwind q3 record)
 
       assert first.title_norm_hash ==
-               :sha256 |> :crypto.hash("northwind q3 record") |> Base.encode16(case: :lower)
+               :sha256
+               |> :crypto.hash("record q3 for northwind record")
+               |> Base.encode16(case: :lower)
+
+      assert Map.take(first, [:title_words, :title_norm_hash]) ==
+               Stories.title_keys(first.title)
 
       assert first.content_hash =~ ~r/\A[0-9a-f]{64}\z/
 
@@ -285,6 +300,209 @@ defmodule Portfolixir.News.IngestTest do
         assert {item.assignment, item.security_id, item.candidates, item.tier} ==
                  {:assigned, northwind.id, [], :primary}
       end
+    end
+  end
+
+  defp agg(n, title, domain) do
+    parsed(n, %{
+      title: title,
+      link: "https://search.example.com/r?u=#{n}",
+      source_domain: domain
+    })
+  end
+
+  defp rate!(domain, tier), do: {:ok, _} = Sources.put_source(Actor.owner_ui(), domain, tier)
+
+  defp stories(security_id, language) do
+    Repo.all(
+      from(c in Cluster,
+        where: c.security_id == ^security_id and c.language == ^language,
+        order_by: [desc: c.member_count, asc: c.earliest_url],
+        preload: [:items]
+      )
+    )
+  end
+
+  # User story:
+  # As the operator whose agent weighs a story by where it came from,
+  # I want each stored item rated by the tier table, a blocked domain's
+  # items never stored but counted, and an aggregator never able to claim a
+  # primary source,
+  # so that a hand-kept rating decides what a story stands for and a block
+  # is visible in the feed's health.
+  #
+  # Acceptance criteria (§3, B5):
+  # - A domain rated `blocked`, or a subdomain of one, is dropped at ingest
+  #   and counted `dropped_blocked` in the summary and the day row.
+  # - An aggregator item naming a domain rated `primary` is `secondary`; a
+  #   `secondary` domain gives `secondary`; an unrated one `awareness`.
+  # - An issuer item is `primary` whatever its domain's row says, unless
+  #   the domain is blocked.
+  describe "tiers and blocks (§3, B5)" do
+    test "a blocked domain's items are dropped and counted, the rest rated" do
+      rate!("spam.example.net", :blocked)
+      rate!("newsroom.example.com", :primary)
+      rate!("wire.example.com", :secondary)
+      feed = feed!(%{class: "aggregator", url: "https://search.example.com/rss?q=t"})
+
+      batch = [
+        agg(1, "Item from a blocked domain", "spam.example.net"),
+        agg(2, "Item from a blocked subdomain", "eu.spam.example.net"),
+        agg(3, "Item naming a primary domain", "newsroom.example.com"),
+        agg(4, "Item from a secondary domain", "wire.example.com"),
+        agg(5, "Item from an unrated domain", "blog.example.org")
+      ]
+
+      assert {:ok, %{stored: 3, dropped_blocked: 2}} = Ingest.ingest(feed, batch, @now)
+
+      assert Enum.map(items(feed), &{&1.domain, &1.tier}) == [
+               {"newsroom.example.com", :secondary},
+               {"wire.example.com", :secondary},
+               {"blog.example.org", :awareness}
+             ]
+
+      assert %{dropped_blocked: 2, items_stored: 3} = day(feed)
+    end
+
+    test "an issuer item is primary on any unblocked domain, and dropped on a blocked one" do
+      rate!("newsroom.example.com", :awareness)
+      rate!("mirror.example.net", :blocked)
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+
+      batch = [parsed(1), parsed(2, %{link: "https://mirror.example.net/news/2"})]
+
+      assert {:ok, %{stored: 1, dropped_blocked: 1}} = Ingest.ingest(feed, batch, @now)
+      assert [%{tier: :primary, domain: "newsroom.example.com"}] = items(feed)
+    end
+  end
+
+  # User story:
+  # As the operator's agent reading one row per event,
+  # I want the same release, fetched from the issuer and from several
+  # publishers with reworded titles, folded into one story per language as
+  # it is stored, and an item the matcher files later folded in as well,
+  # so that eleven items about one event read as one story.
+  #
+  # Acceptance criteria (§4, B3, §14 item 3, through `Ingest.ingest/3`):
+  # - Constructed duplicates (the issuer's release and the same release
+  #   from two domains, reworded) are one story in English, represented by
+  #   the issuer's primary item; the German release is a story of its own;
+  #   an unrelated item is its own story.
+  # - An item the re-match of an identity change assigns is folded into the
+  #   security's stories at once; an assigned item is never unassigned by it.
+  describe "stories at ingest (§4, B3, §14 item 3)" do
+    test "the same release from several domains is one story per language" do
+      northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
+      search = feed!(%{class: "aggregator", url: "https://search.example.com/rss?q=s"})
+      issuer = feed!(%{class: "issuer", security_id: northwind.id})
+      german = feed!(%{class: "issuer", security_id: northwind.id, language: "de"})
+
+      release = "Northwind Harbour Logistics reports record third quarter revenue"
+
+      {:ok, %{stored: 3}} =
+        Ingest.ingest(
+          search,
+          [
+            agg(
+              1,
+              "Northwind Harbour Logistics reports record third-quarter revenue",
+              "wire.example.com"
+            ),
+            agg(2, release <> " growth", "markets.example.org"),
+            agg(3, "Northwind Harbour opens a terminal in the north", "wire.example.com")
+          ],
+          @now
+        )
+
+      later = DateTime.add(@now, 30, :minute)
+      {:ok, %{stored: 1}} = Ingest.ingest(issuer, [parsed(10, %{title: release})], later)
+
+      {:ok, %{stored: 1}} =
+        Ingest.ingest(
+          german,
+          [
+            parsed(11, %{
+              title: "Northwind Harbour Logistics meldet Rekordumsatz im dritten Quartal"
+            })
+          ],
+          later
+        )
+
+      assert [release_story, terminal] = stories(northwind.id, "en")
+
+      assert release_story.member_count == 3
+      assert release_story.best_tier == :primary
+      assert Repo.get!(Item, release_story.representative_item_id).feed_id == issuer.id
+
+      assert release_story.items |> Enum.map(& &1.domain) |> Enum.sort() ==
+               ~w(markets.example.org newsroom.example.com wire.example.com)
+
+      assert terminal.member_count == 1
+
+      assert [%{member_count: 1, best_tier: :primary}] = stories(northwind.id, "de")
+
+      assert Repo.aggregate(from(i in Item, where: is_nil(i.cluster_id)), :count) == 0
+    end
+
+    test "an item the re-match assigns joins its story; an assigned one stays" do
+      northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
+      search = feed!(%{class: "aggregator", url: "https://search.example.com/rss?q=r"})
+      now = DateTime.utc_now()
+
+      {:ok, %{stored: 3}} =
+        Ingest.ingest(
+          search,
+          [
+            agg(1, "Northwind Harbour and Quillfeather sign a supply deal", "wire.example.com"),
+            agg(
+              2,
+              "Quillfeather and Northwind Harbour sign a supply deal",
+              "markets.example.org"
+            ),
+            agg(
+              3,
+              "Quillfeather and Northwind Harbour sign a supply deal today",
+              "blog.example.org"
+            )
+          ],
+          now
+        )
+
+      # Nothing matched Quillfeather yet: each is Northwind's, one story.
+      assert [%{member_count: 3}] = stories(northwind.id, "en")
+
+      quillfeather = watched!("Quillfeather Paper SE", "Quillfeather")
+
+      # The re-match reads only unassigned and ambiguous items: the three
+      # assigned ones stay on Northwind, in their story.
+      assert [%{member_count: 3}] = stories(northwind.id, "en")
+
+      {:ok, %{stored: 2}} =
+        Ingest.ingest(
+          search,
+          [
+            agg(4, "Quillfeather opens a paper mill", "wire.example.com"),
+            agg(5, "Quillfeather opens a new paper mill", "markets.example.org")
+          ],
+          now
+        )
+
+      assert [%{member_count: 2}] = stories(quillfeather.id, "en")
+
+      # An unassigned item the identity change assigns joins a story at once.
+      {:ok, %{stored: 1}} =
+        Ingest.ingest(search, [agg(6, "Larkspur opens a paper mill", "wire.example.com")], now)
+
+      assert [%{assignment: :unassigned}] =
+               Repo.all(
+                 from(i in Item, where: i.canonical_url == "https://search.example.com/r?u=6")
+               )
+
+      larkspur = watched!("Larkspur Robotics Inc", "Larkspur")
+
+      assert [story] = stories(larkspur.id, "en")
+      assert story.member_count == 1
+      assert [%{canonical_url: "https://search.example.com/r?u=6"}] = story.items
     end
   end
 end
