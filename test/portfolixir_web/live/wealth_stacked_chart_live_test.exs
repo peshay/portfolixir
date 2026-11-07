@@ -622,6 +622,32 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
              Format.percent(Decimal.div(Decimal.new(-200), Decimal.new(300))) <> "%"
   end
 
+  # User story (I23, board 01 A; the closing act's design critic, D3):
+  # As the operator reading the stack in German,
+  # I want the sort and the legend's column to say „Veränderung“ as the
+  # board and the basis line do,
+  # so that one word names one figure.
+  #
+  # Acceptance criteria:
+  # - In German the sort control reads „Veränderung“ and the legend's
+  #   column header „Veränd.“; the basis line keeps its „Veränderung“.
+  # - In English both read "Change".
+  test "the sort and the change column say Veränderung in German", %{conn: conn} do
+    stack_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+    assert text_of(view, "[data-role='stack-sort'] a[data-sort='change']") == "Change"
+    assert text_of(view, "#stack-legend th:last-child") == "Change"
+
+    german = put_preference_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(german, "/portfolio?level=category")
+    settle(view)
+    assert text_of(view, "[data-role='stack-sort'] a[data-sort='change']") == "Veränderung"
+    assert text_of(view, "#stack-legend th:last-child") == "Veränd."
+    assert text_of(view, "[data-role='stack-basis']") =~ "Veränderung"
+  end
+
   # Polish: Wealth (#1366), the line of 2026-11-06: "/portfolio?tab=allocation
   # crashes in default_classification_id/1 on a database without any
   # classification".

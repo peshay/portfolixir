@@ -147,7 +147,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       security: gettext("Securities")
     ]
 
-  defp sort_options, do: [size: gettext("Size"), change: gettext("Change")]
+  # "Veränderung" in German, as the board and the basis line say it, where
+  # the shared "Change" reads "Änderung" (the closing act's design critic,
+  # D3).
+  defp sort_options, do: [size: gettext("Size"), change: pgettext("stack", "Change")]
 
   # -- the figure ------------------------------------------------------------------
 
@@ -255,7 +258,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
                 </th>
                 <th :if={not @privacy?} scope="col" class="num"><%= gettext("Value") %></th>
                 <th scope="col" class="num"><%= gettext("Share") %></th>
-                <th scope="col" class="num"><%= gettext("Change") %></th>
+                <th scope="col" class="num"><%= pgettext("stack column", "Change") %></th>
               </tr>
             </thead>
             <tbody>
