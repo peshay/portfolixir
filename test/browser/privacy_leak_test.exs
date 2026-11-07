@@ -71,7 +71,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
 
   # Data attributes whose value is an amount when it is a number; a chart's
   # coordinates and heights are ratios and stay (board 02).
-  @amount_data "^(data|phx-value)-(count-to|total|amount|value|price|quantity|close|balance|sum|cost|net|gain|income|cash)$"
+  # The stacked chart's legend rows carry `data-end-value` (I23).
+  @amount_data "^(data|phx-value)-(count-to|total|amount|value|end-value|price|quantity|close|balance|sum|cost|net|gain|income|cash)$"
 
   # An input whose name or id says it holds an amount or a quantity.
   @amount_name "amount|price|quantity|balance|cost|fees|taxes|allowance|nominal|close|gross"
@@ -124,7 +125,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # - The walk turns the mode on through the switch in the top bar, and the
   #   address keeps no choice.
   # - Every live route of the router is walked, each area tab a page links,
-  #   each detail tab it offers and each view it links in place, in the
+  #   each detail tab it offers and each view it links in place (Wealth's
+  #   stacked chart's levels and a drilled category too), in the
   #   light and the dark theme, at 1200 and 390 px, on the review seed and
   #   three synthetic predictions.
   # - Any step that answers an error status, crashes its LiveView or does
@@ -319,6 +321,12 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # bookings, with their prices, quantities and fees, are walked by kind
   # (closing act of Sprint 26: the journal leaked them unseen).
   defp extra_addresses("/journal"), do: ["/journal?resource_type=transaction"]
+
+  # Wealth's stacked chart (I23; Sprint 27 plan D-8, carry-forward 2): the
+  # value series' category stack, from which the walker follows the bar's
+  # levels, the breadcrumb and one category drilled into (`inPageLinks` in
+  # privacy_leak.js).
+  defp extra_addresses("/portfolio"), do: ["/portfolio?level=category"]
   defp extra_addresses(_path), do: []
 
   # A held security with trades, a bond and the one with the most quotes;
