@@ -2791,7 +2791,8 @@ Example account payloads:
   `classification`, `category`, `dates` and `bands`; each band has `key`,
   `kind`, `id`, `name`, `color` (the category's own colour, else `null`),
   `tree_index`, `values` (Decimal strings aligned with `dates`),
-  `start_value`, `end_value`, `net_flows`, `share` (of the last day) and
+  `start_value`, `end_value`, `net_flows`, `share` (of the last day, a net
+  share: above 1 or negative when a band is negative) and
   `change` (`(end_value − start_value − net_flows) / start_value`, `null`
   without a positive start value; a security's net flows are ADR-0051's).
   More than eight bands merge the smallest into `other` (with its

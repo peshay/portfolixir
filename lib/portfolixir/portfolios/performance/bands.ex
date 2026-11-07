@@ -43,7 +43,11 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
 
   **Share**: a band's value on the window's last day over the sum of the
   answered bands' values that day (the category's value when drilled into
-  one), `nil` when that sum is zero.
+  one), `nil` when that sum is zero. It is a net share: when a band is
+  negative (an overdrawn cash account), a share can exceed 1 or be negative.
+  The screen's privacy mode, which draws a 100 % stack of the positive
+  bands, takes its legend's share on that basis instead (the closing act's
+  money lens, M3).
 
   **Exactness** (the closing act's money lens, M2): the security and total
   levels add up to the series exactly, every day. At the category level a
@@ -647,7 +651,9 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "less every position's net flows, and the total band's the net external flows, " <>
           "so the bands' end_value − start_value − net_flows add up to the period's money " <>
           "result. share = the band's value on the window's last day over the sum of the " <>
-          "answered bands' values that day, null when that sum is 0. Exact in Decimal " <>
+          "answered bands' values that day, null when that sum is 0; a net share, so when " <>
+          "a band is negative (an overdrawn cash account) a share can exceed 1 or be " <>
+          "negative. Exact in Decimal " <>
           "whenever every conversion quotient terminates; otherwise the walk's sums round " <>
           "at Decimal's 34 significant digits. sort size orders by the last day's value, " <>
           "largest first; sort change by change, largest first, bands without one last; " <>

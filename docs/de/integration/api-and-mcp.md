@@ -3035,7 +3035,8 @@ Beispiel-Payloads für Konten:
   und `bands`; jedes Band hat `key`, `kind`, `id`, `name`, `color` (die
   eigene Farbe der Kategorie, sonst `null`), `tree_index`, `values`
   (Decimal-Strings passend zu `dates`), `start_value`, `end_value`,
-  `net_flows`, `share` (am letzten Tag) und `change` (`(end_value −
+  `net_flows`, `share` (am letzten Tag, ein Nettoanteil: über 1 oder
+  negativ, wenn ein Band negativ ist) und `change` (`(end_value −
   start_value − net_flows) / start_value`, `null` ohne positiven Startwert;
   die Nettoflüsse eines Wertpapiers sind die aus ADR-0051). Mehr als acht
   Bänder fassen die kleinsten zu `other` (mit `members`) zusammen, bei
