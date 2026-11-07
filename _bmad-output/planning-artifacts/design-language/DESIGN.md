@@ -9540,3 +9540,84 @@ the bar is green or red where the figure was.
   verbergen“ (the edit entries then close while the mode is on).
 - **The bar in a table can read as a loading state** (board 01's known
   weakness of C); the pressed switch in the top bar says the mode is on.
+
+## Amendment 2026-11-07 — Vermögen → Bestände: the stacked value chart *(Sprint 27 S3, idea I23, FR-53; idea board `mockups/ux-design-2026-11-06-ideas-i23-i24/01-stacked-chart`, variant A; plan D-4, D-5)*
+
+The performance section's **Value** series splits into bands by what the
+value is made of. `PortfolixirWeb.Portfolio.StackedChart` draws it from
+`Portfolixir.Portfolios.Performance.Bands`, the read the API (`…/performance/bands`)
+and the MCP tools answer, for the section's period and the page's view.
+
+### Placement and URL
+
+- The **bar** stands between the period badge and the chart, in the Value
+  series only; the TTWROR series shows none.
+- Every choice is a link that patches the address: `level=category|security`,
+  `tree=<classification id>`, `category=<id>` (with `level=security`),
+  `sort=change`, each only when not the default, in that order. A link to a
+  stacked level opens the Value series, so a link handed over reopens the
+  same stack. The period is not on the address (as before: it is page state).
+
+### Anatomy, top to bottom
+
+1. **The bar** (`.stack-bar`, flex, wraps): the breadcrumb on the left
+   (`.stack-crumbs`: "All categories", "All securities", or a link "All
+   categories" › the drilled category's name), then the controls on the
+   right: **Level** (Total · Categories · Securities) as the app's segmented
+   control, **Classification** as a select (at the category level and in a
+   drilled category), **Sort** (Size · Change). At *Total* the bar holds the
+   level alone, and the chart under it is today's value chart, byte for byte.
+2. **The bands** (`svg.stack-chart`, 960 × 320 like the shared chart, the
+   same axes and padding): one filled area per band, the first band of the
+   sort at the bottom (the largest value on the window's last day, or the
+   largest change without flows). A negative band (an overdrawn account)
+   stacks downwards from zero, so the bands always add up to the day's
+   value. A category's band is clickable and opens the category stacked by
+   its securities; its `<title>` names the band, value and share.
+3. **The legend as a table** (`#stack-legend`), beside the chart from
+   900 px of the section's width (a container query), under it below:
+   swatch and name, **Value** on the window's last day, **Share**,
+   **Change** in its sign colour. It reads like the stack, the top band
+   first. A category's name is the drill link, followed by an accent "›".
+4. **The basis line**: what a band is (market value
+   per category of the named tree, in the base currency; cash and the
+   unassigned rest as bands of their own; or per security), "change
+   without deposits and withdrawals", the order, and, when it happened, the
+   merge of more than eight bands into „Sonstige“. The window's dates are
+   the section's own basis line under the figure, as for the line chart.
+
+### Colours *(the owner, 2026-11-07)*
+
+- A category: the colour the **allocation sunburst** draws it in for the
+  same tree and view: its own colour, else the palette in the order the
+  allocation lists its rows. One module (`PortfolixirWeb.Portfolio.CategoryColors`)
+  serves both. The bands read's `tree_index` (the position in the stored
+  tree) is **not** that order (the sunburst skips categories with no value
+  and no target), so the chart takes the sunburst's colour and uses
+  `tree_index` only for a category the sunburst does not draw.
+- A drilled category's securities (and the securities level): the palette's
+  hues in order of size, the largest first, whatever the sort; never shades
+  of the category's colour.
+- Cash: the cash colour `#0ea5e9`; the unassigned rest: the sunburst's grey
+  `#9ca3af`, named "Unassigned" as on the sunburst.
+- „Sonstige“ ("Other"): the token `--color-chart-other`, `--color-text-muted`
+  in the light theme and `--color-text-subtle` in the dark one, the neutral
+  slate that stays apart from the unassigned grey in both themes.
+
+### The privacy mode *(I22)*
+
+The stack is drawn as a **100 % stack** by itself, with no control: each
+day's bands over the sum of that day's positive bands, the axis 0 % to
+100 %. The legend drops the Value column and keeps Share and Change; the
+rows carry no `data-end-value`, the bands' titles name no amount. The route
+backstop (`privacy_mode_routes_test.exs`) and the browser leak walk open the
+category stack and follow the bar's links and a drilled category with the
+mode on (plan D-8, carry-forward 2).
+
+### The `app.css` rules
+
+`.stack-bar` (with `__group`: a label stays beside its control when the
+bar wraps), `.stack-crumbs`, `.stack-figure` (the container),
+`.stack-figure__body`, `.stack-chart`, `.stack-band` (and `--other`),
+`.stack-legend`, `.stack-swatch` (and `--other`); the token
+`--color-chart-other` in the four theme blocks.

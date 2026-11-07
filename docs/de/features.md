@@ -184,6 +184,21 @@ Die Tabelle beschreibt das
 die Methode
 [ADR-0051](/decisions/0051-contribution-analysis.html) (englisch).
 
+## Das Wertdiagramm nach Kategorien
+
+Das Wertdiagramm unter **Vermögen → Bestände** teilt sich auf Wunsch in
+Bänder: eine Leiste darüber wählt die Ebene (die Gesamtlinie, die Kategorien
+einer Klassifizierung oder die Wertpapiere), die Klassifizierung und die
+Reihenfolge (Größe oder Veränderung). Die Bänder ergeben an jedem Tag die
+Linie, Cash und der nicht zugeordnete Rest eingeschlossen; ein Klick auf
+eine Kategorie öffnet sie gestapelt nach ihren Wertpapieren, und jede Wahl
+steht in der Adresse, ein Link öffnet sie also wieder. Eine Kategorie trägt
+auf beiden Reitern ihre Allokationsfarbe. Im Privatsphäre-Modus ist der
+Stapel ein 100-%-Stapel und zeigt keinen Betrag. Ihr Agent liest dieselben
+Bänder mit ihrer Berechnungsbasis über `…/performance/bands` und die
+MCP-Tools `portfolixir.portfolios.bands` und `portfolixir.views.bands`
+([Handbuch](/de/product-documentation.html#das-wertdiagramm-nach-kategorien)).
+
 ## Was Portfolixir nicht ist
 
 Portfolixir ist bewusst schmal, und es sagt das dort, wo Neulinge und

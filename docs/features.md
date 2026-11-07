@@ -159,6 +159,20 @@ in [API and MCP](integration/api-and-mcp.html#transactions-and-holdings)
 and the method in
 [ADR-0051](decisions/0051-contribution-analysis.html).
 
+## The value chart by category
+
+The value chart on **Wealth → Holdings** splits into bands on request: one
+bar above it chooses the level (the total line, the categories of a
+classification, or the securities), the classification and the order (size
+or change). The bands add up to the line on every day, cash and the
+unassigned rest included; a click on a category opens it stacked by its
+securities, and every choice is on the address, so a link reopens it. A
+category wears its allocation colour on both tabs. In the privacy mode the
+stack is a 100 % stack and shows no amount. Your agent reads the same bands,
+with their computation basis, over `…/performance/bands` and the MCP tools
+`portfolixir.portfolios.bands` and `portfolixir.views.bands`
+([App Handbook](product-documentation.html#the-value-chart-by-category)).
+
 ## What Portfolixir is not
 
 Portfolixir is deliberately narrow, and it says so where a newcomer and an
