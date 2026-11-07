@@ -393,8 +393,37 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
       book: 3_357,
       full: 3_357
     }
-  }
+  },
   // --- Sprint 27 S2 end ---
+  // --- Sprint 27 N8 begin ---
+  {
+    since: "2026-11-08",
+    why:
+      "Sprint 27, N8 (ADR-0056 §9, B1): the news layer's upkeep writes, " +
+      "portfolixir.news.feeds_put and portfolixir.news.sources_put in book and full and " +
+      "portfolixir.news.feeds_delete in full (admin), whose own schemas the rule of Sprint " +
+      "24's D-2 lets the ceilings grow by and no more: their tools/list entries measure " +
+      "1,221 + 738 = 1,959 bytes in book and 1,221 + 494 + 738 = 2,453 in full and none in " +
+      "read, so read stays 114,310, book 186,339 + 1,959 = 188,298 and full 220,894 + 2,453 " +
+      "= 223,347; securities.update's news_identity and news_watch and the two fields in " +
+      "securities.list's fields enum are paid for by tightening securities.update's, " +
+      "securities.create's and securities.list's own wording, and no other tool's bytes " +
+      "are added",
+    read: 114_310,
+    book: 188_298,
+    full: 223_347,
+    raisedBy: {
+      tools: [
+        "portfolixir.news.feeds_put",
+        "portfolixir.news.feeds_delete",
+        "portfolixir.news.sources_put"
+      ],
+      read: 0,
+      book: 1_959,
+      full: 2_453
+    }
+  }
+  // --- Sprint 27 N8 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

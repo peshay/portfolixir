@@ -201,7 +201,13 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.tax_snapshots.delete",
     "Removes a recorded tax statement; a removal, held with the others."
+  ],
+  // --- Sprint 27 N8 begin ---
+  [
+    "portfolixir.news.feeds_delete",
+    "Removes a feed; putting it back registers a new feed, and its old items stay detached from it."
   ]
+  // --- Sprint 27 N8 end ---
 ]);
 
 // THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry
@@ -280,7 +286,14 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
     "portfolixir.allowance_orders.put",
     "Records or replaces an allowance order; putting the previous amount restores it."
   ],
-  ["portfolixir.tax_snapshots.update", "A recorded statement's fields; an update sets them back."]
+  ["portfolixir.tax_snapshots.update", "A recorded statement's fields; an update sets them back."],
+  // --- Sprint 27 N8 begin ---
+  [
+    "portfolixir.news.feeds_put",
+    "A feed's registration; putting the previous fields restores it (a new feed's removal is feeds_delete, admin)."
+  ],
+  ["portfolixir.news.sources_put", "A domain's tier; putting the previous tier restores it."]
+  // --- Sprint 27 N8 end ---
 ]);
 
 interface ProfiledTool {

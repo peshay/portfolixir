@@ -164,7 +164,12 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.tax_snapshots.create",
       "portfolixir.tax_snapshots.update",
       "portfolixir.tax_snapshots.delete",
-      "portfolixir.tax_snapshots.trim_budget"
+      "portfolixir.tax_snapshots.trim_budget",
+      // --- Sprint 27 N8 begin ---
+      "portfolixir.news.feeds_put",
+      "portfolixir.news.feeds_delete",
+      "portfolixir.news.sources_put"
+      // --- Sprint 27 N8 end ---
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");
