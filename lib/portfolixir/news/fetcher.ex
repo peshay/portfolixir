@@ -68,7 +68,7 @@ defmodule Portfolixir.News.Fetcher do
   """
   @spec fetch(Feed.t(), keyword()) :: {:ok, Ingest.summary()} | {:error, code()}
   def fetch(%Feed{} = feed, opts \\ []) do
-    actor = Actor.system_job("news_fetch")
+    actor = actor()
     now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
 
     with {:ok, body} <- get(feed, opts),
@@ -203,6 +203,17 @@ defmodule Portfolixir.News.Fetcher do
   defp error_code(_other), do: "fetch_failed"
 
   # -- the record --------------------------------------------------------------
+
+  @doc """
+  Records a failure the fetch could not record itself (its task raised or
+  was killed, `Portfolixir.News.Scheduler`): `last_fetch_at`, `last_error`
+  and one more error in the day's row, as `fetch/2` records one.
+  """
+  @spec record_failure(Feed.t(), DateTime.t(), code()) :: :ok
+  def record_failure(%Feed{} = feed, %DateTime{} = now, code) when is_binary(code),
+    do: record(actor(), feed, now, {:error, code})
+
+  defp actor, do: Actor.system_job("news_fetch")
 
   defp record(%Actor{label: job}, %Feed{id: id}, now, outcome) do
     case Repo.get(Feed, id) do

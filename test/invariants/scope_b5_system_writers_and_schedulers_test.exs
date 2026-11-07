@@ -102,7 +102,12 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     # --- Sprint 27 N3 (ADR-0056 §5, B7) ----------------------------------
     "Portfolixir.News.Fetcher" =>
       "waits for its slot on sec.gov's pace (at most 10 requests a second, ADR-0056 §5) " <>
-        "inside the one feed's fetch task; it sends nothing on a schedule of its own"
+        "inside the one feed's fetch task; it sends nothing on a schedule of its own",
+    "Portfolixir.News.Scheduler" =>
+      "the news scheduler (ADR-0056 §5, B6): ticks every minute and fetches the enabled " <>
+        "feeds that are due, each in its own task; it runs exactly where the quote sync runs " <>
+        "(production, development with PORTFOLIXIR_BACKGROUND_FETCH, never in tests), and " <>
+        "with no enabled feed it requests nothing"
     # --- end Sprint 27 N3 ------------------------------------------------
   }
 
