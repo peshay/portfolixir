@@ -68,6 +68,10 @@ defmodule Portfolixir.Portfolios.Performance do
   of summing them away. They ride in one extra key of the walk's state that
   no output reads, so every existing output is byte-identical with or without
   a window (ADR-0051 I9), and the stored walk analytics never carry them.
+  With `bands: true` the same key also keeps every window day's terms apart,
+  each held security's value and the cash, for the stacked value chart
+  (I23, FR-53, `Portfolixir.Portfolios.Performance.Bands`); they sum to the
+  day's `value`, which they leave untouched.
 
   All quote, FX-rate and transaction data is preloaded up front; the walk
   itself issues no queries.
