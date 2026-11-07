@@ -188,11 +188,16 @@ identity (`user.name`/`user.email`, ideally the `…@users.noreply.github.com`
 address listed in `.github/commit-authorship-allowlist.txt`), even when an
 agent wrote it. Never a bot or agent identity, never a `Co-authored-by:` that
 credits an AI, never `Model:`, `Thinking level:`, `Claude-Session:` or
-session-URL footers; put the model in the PR description. A `commit-msg` hook
-and the "Commit authorship" CI workflow enforce it; do not work around them.
-*Why:* a person owns the result and answers for it; the rule was re-examined
-and kept (Sprint 17 plan D-10; `scripts/check-commit-authorship.sh`), and CI
-re-checks because a local hook can be skipped.
+session-URL footers. A `commit-msg` hook and the "Commit authorship" CI
+workflow enforce it; do not work around them. The PR description names the
+agent that wrote it, and its model where the agent's environment allows (Claude
+Code on the web forbids a model name in a PR body). *Why:* a person owns the result
+and answers for it; the rule was re-examined and kept (Sprint 17 plan D-10;
+`scripts/check-commit-authorship.sh`), and CI re-checks because a local hook
+can be skipped. Honesty about how the code is written rests on the
+README's line and the PR's (Sprint 17 plan D-10); the model is optional, as
+`CONTRIBUTING.md` already said ("if useful"), because a mandatory one
+contradicted an environment the owner runs (owner, 2026-11-07).
 
 ## Security Boundaries
 
@@ -258,7 +263,7 @@ re-checks because a local hook can be skipped.
   retrospective); the gates stand in for the human read (ADR-0026,
   "Compensating controls"; ADR-0036), and the merge is the owner's acceptance
   (ADR-0026 step 4).
-- **On your own `agent/<provider>/…` branch and its PR, rebase onto `main`
+- **On your own branch and its PR, rebase onto `main`
   and push with `git push --force-with-lease` without asking**, for the
   rebase and for the history cleanup before promotion; never on `main` or on
   a branch someone else pushed to. *Why:* `main` requires a linear, current
@@ -272,8 +277,12 @@ re-checks because a local hook can be skipped.
   owner's attention is the scarcest resource (ADR-0038; ADR-0026, amendment of
   2026-10-08).
 - **Branches** are `agent/<provider>/<topic>`, a sprint
-  `agent/<provider>/sprint-<N>`; `codex/<topic>` is legacy. *Why (inferred):*
-  the name shows which agent made a branch.
+  `agent/<provider>/sprint-<N>`; `codex/<topic>` is legacy. A branch the
+  agent's environment assigns to the session (Claude Code on the web:
+  `claude/<name>`) is used as assigned and is the agent's own branch. *Why
+  (inferred):* the name shows which agent made a branch; *why the
+  exception:* an environment that pushes only to its assigned branch would
+  otherwise break the rule on every session (owner, 2026-11-07).
 - **Stop the moment the owner says stop.**
 
 ## Required Local Checks
