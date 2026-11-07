@@ -162,6 +162,14 @@ defmodule Portfolixir.News.Stories do
     }
   end
 
+  @doc """
+  The scope an assigned item's stories are kept in: `{:security, id}` or
+  `{:category, id}`.
+  """
+  @spec scope(Item.t() | map()) :: scope()
+  def scope(%{security_id: id}) when is_integer(id), do: {:security, id}
+  def scope(%{category_id: id}) when is_integer(id), do: {:category, id}
+
   # --- the pure rule ------------------------------------------------------
 
   @doc """
