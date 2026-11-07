@@ -177,10 +177,53 @@ async function topbarTitles(browser) {
   check(errors.length === 0, "at 390 px: " + errors.join("; "));
 }
 
+// Sprint 27's closing act on the stacked chart (I23), the design critic's
+// D1 and D2: at 390 px, the category stack and a drilled category keep
+// every legend figure inside the legend's box and the page, and the axis
+// labels are 9 CSS px.
+async function stackPhone(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors = [];
+  for (const path of args.paths) {
+    await ready(page, path);
+    await page.waitForSelector("#stack-legend tbody tr");
+    await nextFrame(page);
+    const m = await page.evaluate(() => {
+      const legend = document.querySelector("#stack-legend");
+      const box = legend.getBoundingClientRect();
+      const width = document.documentElement.clientWidth;
+      const cells = Array.from(legend.querySelectorAll("td.num")).map((cell) => {
+        const r = cell.getBoundingClientRect();
+        return { text: cell.textContent.trim(), left: r.left, right: r.right };
+      });
+      // The label's size in viewBox units, drawn at the svg's scale: CSS px.
+      const label = document.querySelector("#performance-figure-stack .chart-axis-labels text");
+      const svg = label.ownerSVGElement.getBoundingClientRect();
+      const scale = Math.min(svg.width / 960, svg.height / 320);
+      return {
+        scroll: legend.scrollWidth - legend.clientWidth,
+        page: document.documentElement.scrollWidth - width,
+        outside: cells.filter((c) => c.right > Math.min(box.right, width) + 0.5 || c.left < box.left - 0.5),
+        axis: parseFloat(window.getComputedStyle(label).fontSize) * scale
+      };
+    });
+    if (m.scroll > 0) errors.push(path + ": the legend scrolls " + JSON.stringify(m.scroll));
+    if (m.page > 0) errors.push(path + ": the page scrolls sideways by " + m.page);
+    if (m.outside.length > 0) {
+      errors.push(path + ": figures outside the legend " + JSON.stringify(m.outside));
+    }
+    if (Math.abs(m.axis - 9) > 0.25) errors.push(path + ": the axis label is " + m.axis + " px");
+  }
+  await context.close();
+  check(errors.length === 0, "at 390 px: " + errors.join("; "));
+}
+
 const CASES = {
   delete_dialogs: deleteDialogs,
   trades_tab: tradesTab,
-  topbar_titles: topbarTitles
+  topbar_titles: topbarTitles,
+  stack_phone: stackPhone
 };
 
 (async () => {

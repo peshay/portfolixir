@@ -18,7 +18,7 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
   use PortfolixirWeb.ConnCase, async: false
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, put_quotes!: 2, sell!: 3]
+    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
@@ -152,6 +152,48 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
       run!("topbar_titles", base_url, %{
         cookies: cookies,
         paths: ["/securities", "/transactions", "/portfolios", "/journal"]
+      })
+
+    assert result == %{"ok" => true}
+  end
+
+  # User story (I23; Sprint 27's closing act, design critic D1 and D2):
+  # As the operator reading the stacked chart on a phone,
+  # I want each legend row's figures beside its name and the axis readable,
+  # so that the value, share and change do not scroll out of the legend.
+  #
+  # Acceptance criteria:
+  # - At 390 px, on /portfolio?level=category and on a drilled category
+  #   (/portfolio?level=security&category=…) whose securities carry long
+  #   names, the legend does not scroll on its own, every figure cell lies
+  #   inside the legend's box and the viewport, and the page does not scroll
+  #   sideways.
+  # - The stack's axis labels are 9 CSS px.
+  test "the stacked chart's legend keeps its figures in view at 390 px", %{base_url: base_url} do
+    world = base_world(name: "Phone Stack", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "100000", ~D[2025-01-02])
+    owner = Actor.owner_ui()
+    {:ok, tree} = Classifications.create_classification(owner, %{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(owner, %{classification_id: tree.id, name: "Growth"})
+
+    for {name, price} <- [
+          {"Northwind Harbour Logistics International Holdings AG", "1234.56"},
+          {"Synthetic Global Infrastructure Opportunities Fund", "987.65"}
+        ] do
+      security = create_security!(name: name)
+      buy!(world, security, quantity: "12", price: price, date: ~D[2025-01-02])
+      put_quotes!(security, [{~D[2025-01-02], price}])
+      {:ok, _} = Classifications.assign_security(owner, security.id, tree.id, category.id)
+    end
+
+    result =
+      run!("stack_phone", base_url, %{
+        paths: [
+          "/portfolio?level=category&tree=#{tree.id}",
+          "/portfolio?level=security&tree=#{tree.id}&category=#{category.id}"
+        ]
       })
 
     assert result == %{"ok" => true}

@@ -205,6 +205,40 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
              ~r/@media \(max-width: 560px\) \{.*?\n  table \{\s*display: block;\s*overflow-x: auto;\s*white-space: nowrap;\s*\}/s
   end
 
+  # User story (I23; the closing act's design critic, D2):
+  # As the operator reading the stacked chart's legend on a phone,
+  # I want each band's value, share and change in view beside its name,
+  # so that the figures do not scroll out of the legend's box.
+  #
+  # Acceptance criteria:
+  # - In the phone block, after its `table { display: block; overflow-x:
+  #   auto; white-space: nowrap }`, `.stack-legend` is a table again
+  #   (`display: table`) whose text wraps (`white-space: normal`), so the
+  #   name cell wraps and the figure columns stay inside the box.
+  # - The phone table rule itself is unchanged.
+  test "the stacked chart's legend stays a wrapping table at phone width" do
+    phone =
+      ~r/@media \(max-width: 560px\) \{(.*?)\n\}/s
+      |> Regex.scan(@css)
+      |> Enum.map(fn [_, body] -> body end)
+      |> Enum.find(&(&1 =~ "\n  table {")) ||
+        flunk("no phone block with the table rule")
+
+    assert phone =~
+             ~r/\n  table \{\s*display: block;\s*overflow-x: auto;\s*white-space: nowrap;\s*\}/
+
+    [_, legend] =
+      Regex.run(~r/\n  \.stack-legend \{([^}]*)\}/, phone) ||
+        flunk("the phone block has no .stack-legend rule")
+
+    assert legend =~ ~r/display:\s*table;/
+    assert legend =~ ~r/white-space:\s*normal;/
+
+    {table_at, _} = :binary.match(phone, "\n  table {")
+    {legend_at, _} = :binary.match(phone, "\n  .stack-legend {")
+    assert table_at < legend_at
+  end
+
   defp position(selector) do
     case :binary.match(@css, "\n" <> selector <> " {") do
       {at, _} -> at

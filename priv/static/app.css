@@ -1842,6 +1842,14 @@ li + li {
     overflow-x: auto;
     white-space: nowrap;
   }
+
+  /* The stacked chart's legend stays a table whose name cell wraps, so its
+     value, share and change stay in view beside the name instead of
+     scrolling out of the box (I23; the closing act's design critic, D2). */
+  .stack-legend {
+    display: table;
+    white-space: normal;
+  }
 }
 
 /* A phone's top bar holds four controls since the privacy switch (Sprint
