@@ -498,6 +498,7 @@ defmodule Portfolixir.Classifications do
         category
         |> Ecto.Changeset.change()
         |> rule_reference_backstop(:policy_rule_versions_category_id_fkey)
+        |> news_reference_backstop()
       )
       |> Journal.record(actor,
         resource_type: "category",
@@ -807,6 +808,22 @@ defmodule Portfolixir.Classifications do
       name: constraint,
       message: "is read by a policy rule"
     )
+  end
+
+  # ADR-0056 §2, §4: a thematic feed, its items and its stories name their
+  # category and restrict its delete; the delete answers with a changeset
+  # error naming them, never an `Ecto.ConstraintError`. The feed is removed
+  # first (its items age out by retention, §12).
+  @news_category_keys ~w(news_feeds_category_id_fkey news_items_category_id_fkey
+                         news_clusters_category_id_fkey)a
+
+  defp news_reference_backstop(changeset) do
+    Enum.reduce(@news_category_keys, changeset, fn constraint, acc ->
+      Ecto.Changeset.foreign_key_constraint(acc, :id,
+        name: constraint,
+        message: "is bound to a news feed or story"
+      )
+    end)
   end
 
   @doc """

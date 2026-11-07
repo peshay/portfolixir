@@ -23,7 +23,13 @@ defmodule Portfolixir.Input.TextSweepTest do
     {Portfolixir.Fx.ExchangeRate, :base_currency} => "a supported-currency check",
     {Portfolixir.Fx.ExchangeRate, :quote_currency} => "a supported-currency check",
     {Portfolixir.Catalog.Security, :feed} => "a supported-feed check",
-    {Portfolixir.Catalog.Security, :latest_feed} => "a supported-feed check"
+    {Portfolixir.Catalog.Security, :latest_feed} => "a supported-feed check",
+    # ADR-0056 §9, plan D-6: a feed's title and excerpt are foreign text kept
+    # as received — invisible characters are evidence, spelled [U+XXXX] by
+    # the companion — so `Portfolixir.News.Shapes.feed_text/3` bounds them
+    # (length, encoding, control characters) without refusing those.
+    {Portfolixir.News.Item, :title} => "foreign text, Shapes.feed_text/3 (plan D-6)",
+    {Portfolixir.News.Item, :excerpt} => "foreign text, Shapes.feed_text/3 (plan D-6)"
   }
 
   # Structured fields whose text never comes from a caller as such.
@@ -32,7 +38,11 @@ defmodule Portfolixir.Input.TextSweepTest do
       "the account's own previous names, each already met the text rule",
     {Portfolixir.Portfolios.SecuritiesAccount, :former_names} =>
       "the account's own previous names, each already met the text rule",
-    {Portfolixir.Tax.Parameters, :church_tax_rates} => "a list of decimals"
+    {Portfolixir.Tax.Parameters, :church_tax_rates} => "a list of decimals",
+    {Portfolixir.News.Item, :title_words} =>
+      "the words of the item's own stored title, normalized for the Jaccard similarity",
+    {Portfolixir.News.Item, :candidates} => "a list of security ids",
+    {Portfolixir.News.Item, :note_ids} => "a list of research-log entry ids"
   }
 
   defp varchar_columns do

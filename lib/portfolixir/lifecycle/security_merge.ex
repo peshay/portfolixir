@@ -101,6 +101,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       category); position bucket overrides follow §7's membership rule per
       depot (above); security events move, and a same-kind, same-day pair is
       listed as a possible duplicate.
+    * **News** (ADR-0056): the source's feeds are re-bound to the target,
+      journaled; its stories and items move, and an ambiguous item's
+      candidates follow (`Portfolixir.News.reassign_security/3`). Each feed's
+      move is a journal entry; the stories and items, a staging area B7
+      leaves unjournaled, are not in the manifest, whose every key the merge
+      records list has words for.
     * **Identifiers**, under the ISIN write lock: the source's identifier
       aliases are reassigned to the target; the source's ISIN is cleared
       first, then written by the operator's **identity choice** when both
@@ -236,6 +242,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Lifecycle.MergeWriter
   alias Portfolixir.Lifecycle.PlanDigest
   alias Portfolixir.Lifecycle.PositionMembership
+  alias Portfolixir.News
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
@@ -2256,6 +2263,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
          :ok <- move_quotes(plan),
          :ok <- apply_configuration(actor, plan),
          {:ok, identifiers} <- apply_identifiers(actor, plan, choices),
+         {:ok, _news} <- News.reassign_security(actor, plan.source.id, plan.target.id),
          {:ok, _deleted} <- delete_source(actor, plan.source),
          :ok <- resolvability_check(plan) do
       Lifecycle.record_merge(

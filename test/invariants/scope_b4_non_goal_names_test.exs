@@ -107,6 +107,25 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
       adr: "ADR-0007",
       reason: "ECB exchange-rate acquisition, inside the line B3.3 draws ('beyond quotes and FX')"
     },
+    # --- ADR-0056 news layer (N2) ----------------------------------------
+    %{
+      phrases: [
+        ~w(news sources),
+        ~w(news feeds),
+        ~w(news feed),
+        ~w(news items),
+        ~w(news clusters)
+      ],
+      kinds: [:table],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "ADR-0056 opened B3.3 for news feeds; retention §12 and the 600-char cap keep it " <>
+          "from being an archive. Exactly the news layer's tables (feeds, sources, items, " <>
+          "stories, day counters); another news name (news_articles, news_archives) is " <>
+          "still caught"
+    },
+    # --- end ADR-0056 news layer (N2) ------------------------------------
     # Sprint 27 N1: the news context's modules. Modules only: a table, a route
     # or a tool named for news takes its own entry in the story that adds it.
     %{
@@ -157,6 +176,8 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
     {:event, "place_order"},
     {:event, "execute_rebalance"},
     {:table, "news_articles"},
+    {:table, "news_archives"},
+    {:module, "Portfolixir.Knowledge.NewsArchive"},
     {:table, "money_transfers"},
     {:table, "simulations"},
     {:table, "scrapers"},
@@ -224,7 +245,9 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
             {:module, "PortfolixirWeb.SessionHTML"},
             {:module, "Portfolixir.Portfolios.Performance.IRR"},
             {:module, "Portfolixir.News.Parser"},
-            {:table, "status_checks"}
+            {:table, "status_checks"},
+            {:table, "news_items"},
+            {:module, "Portfolixir.News.FeedDay"}
           ] do
         assert violations(name) == [], "#{inspect(name)} should not be caught"
       end

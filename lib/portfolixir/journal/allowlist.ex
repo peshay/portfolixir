@@ -22,7 +22,11 @@ defmodule Portfolixir.Journal.Allowlist do
   governs only writers of *journaled* tables that are intentionally exempted.
   """
 
-  @non_journaled_tables ~w(security_quotes exchange_rates)
+  # ADR-0056 B7: news items, stories and the per-feed day counters are a
+  # staging area the fetcher, a registered system job, writes at up to 200
+  # items per feed and day and retention empties after 90 days; the feeds
+  # and sources they hang off are journaled master data.
+  @non_journaled_tables ~w(security_quotes exchange_rates news_items news_clusters news_feed_days)
 
   # ADR-0018 §5: view definitions, bucket assignments and the snapshot markers
   # (ADR-0027) are *scope* — which accounts and positions a view reads — not

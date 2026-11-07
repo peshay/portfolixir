@@ -17,7 +17,8 @@ defmodule Portfolixir.Lifecycle.ForeignKeys do
     * `:repoint` — every referencing row is re-pointed onto the target, per
       row and journaled, after the removals the kind declares (void internal
       transfers, §5; key-equal pairs by explicit choice, §8; folded anchors,
-      §7; collapsed same-day splits, §9).
+      §7; collapsed same-day splits, §9). News items and stories, a staging
+      area ADR-0056 B7 leaves unjournaled, move in bulk.
     * `:follows_repoint` — a composite `(id, portfolio_id)` key: it follows its
       single-column twin, and the same-portfolio guard (§7) keeps it
       satisfied.
@@ -209,6 +210,43 @@ defmodule Portfolixir.Lifecycle.ForeignKeys do
         "§9 guard and ADR-0055 §2: the benchmark a prediction is scored against can " <>
           "neither move nor vanish"
     },
+    # --- ADR-0056 news layer (N2) ----------------------------------------------
+    %{
+      constraint: "news_feeds_security_id_fkey",
+      table: "news_feeds",
+      columns: ["security_id"],
+      references: "securities",
+      merge: :repoint,
+      delete: :restrict,
+      basis:
+        "ADR-0056 §2, B7: an issuer or regulatory feed is re-bound to the target, one " <>
+          "journaled update each (Portfolixir.News.reassign_security/3); a security a feed " <>
+          "names is not deletable until the feed is removed"
+    },
+    %{
+      constraint: "news_items_security_id_fkey",
+      table: "news_items",
+      columns: ["security_id"],
+      references: "securities",
+      merge: :repoint,
+      delete: :restrict,
+      basis:
+        "ADR-0056 §4, B7: items move onto the target unjournaled (a staging area), and " <>
+          "ambiguous candidates follow; a security with items is not deletable until " <>
+          "retention has removed them (§12)"
+    },
+    %{
+      constraint: "news_clusters_security_id_fkey",
+      table: "news_clusters",
+      columns: ["security_id"],
+      references: "securities",
+      merge: :repoint,
+      delete: :restrict,
+      basis:
+        "ADR-0056 §4, B3: stories move onto the target with their items; they follow " <>
+          "their items under retention (§12), so they restrict as the items do"
+    },
+    # --- end ADR-0056 news layer (N2) ------------------------------------------
     # --- cash accounts ------------------------------------------------------
     %{
       constraint: "securities_accounts_cash_account_id_fkey",
