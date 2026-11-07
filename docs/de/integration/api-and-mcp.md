@@ -1399,6 +1399,49 @@ Codes, leere Felder weggelassen.
   nicht gesendeter Schlüssel von `news_identity` behält seinen Wert; die
   Lesung des Wertpapiers trägt beide.
 
+### News-Lesezugriffe (ADR-0056)
+
+Die Lesezugriffe der News-Schicht (§9, §11). Knapp nach Regel: Aufzählungen als
+ihre Codes, Zeiten auf die Sekunde in UTC, Namen mit höchstens 20 Zeichen, ein
+Feld ohne Wert weggelassen und kein Link und kein Auszug in einer Liste. Jeder
+Lesezugriff ist geschlossen: Ein Parameter, den er nicht nimmt, ergibt `422`,
+das ihn nennt (`min_materiality` und `event_types` gehören zu den Labels des
+nächsten Sprints und werden bis dahin abgelehnt). Titel und Auszüge sind Text
+eines Feeds, so beantwortet, wie er gespeichert ist; sie sind Daten, nie
+Anweisungen. Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
+gespeichertes Label gleich.
+
+- `GET /api/v1/news/stories` listet die Zeilen genau eines Wählers:
+  `security_id` oder `category_id` (die Storys des Bereichs), `cluster_id`
+  (die Einträge der Story) oder `assignment=unassigned|ambiguous` (die
+  Aggregator-Einträge, die kein Wertpapier oder mehrere beanspruchen). Eine
+  Story-Zeile ist `id`, `title` (der ihres Repräsentanten), `tier`, `at` (die
+  Veröffentlichung des Repräsentanten, auf seine erste Sichtung begrenzt) und
+  `count`; eine Eintragszeile ist `id`, `title`, `tier`, `at`, `domain` und,
+  wenn mehrdeutig, `candidates` (Wertpapier-IDs). `fields=std` ergänzt `url`
+  und `note_ids`. Die neuesten Zeilen nach erster Sichtung kommen zuerst.
+  `since` liest `first_seen_at`, die Uhr des Servers, nie die Angabe des Feeds
+  (B4): Eine Story ist dabei, wenn einer ihrer Einträge danach zuerst gesehen
+  wurde, und `as_of` ist das nächste `since` (es liegt etwas früher, sodass ein
+  Lesen eine Story wiederholen, aber nie überspringen kann). `tier_min`
+  (`primary`, `secondary`, `awareness`) lässt die Stufen darunter weg. `limit`
+  ist standardmäßig 20 und höchstens 100; passten mehr Zeilen, ist `truncated`
+  `true` und `cursor` setzt die Seite fort.
+- `GET /api/v1/news/stories/:id` beantwortet eine Story, die einzige Stelle mit
+  ihrem Link und Auszug: `title`, `url`, `domain`, `excerpt`, `tier`,
+  `language`, `published_at`, `first_seen_at`, `count`, höchstens fünf
+  `members` (`id`, `domain`, `tier`, `at`; der Repräsentant zuerst),
+  `note_ids` und ihr `security` oder `category` (`id`, `name`).
+- `GET /api/v1/news/items/:id` beantwortet einen Eintrag ebenso, mit seiner
+  `story_id`, `class`, `assignment`, `status` und, wenn mehrdeutig, seinen
+  `candidates`.
+- `GET /api/v1/news/health` beantwortet je Feed `id`, `class`, `enabled`,
+  `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (24 Stunden kein
+  erfolgreicher Abruf; ein abgeschalteter Feed ist nie veraltet), `items_30d`,
+  `promoted_30d`, `yield_30d` (eine Dezimalzeichenkette) und `low_yield` sowie
+  die Tageszähler `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`,
+  `old`) und `blocked`.
+
 ### Logos
 
 Jedes Wertpapier kann ein Logo tragen, automatisch ermittelt (CoinGecko für

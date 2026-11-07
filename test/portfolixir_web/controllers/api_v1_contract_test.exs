@@ -112,6 +112,24 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert identity =~ "a key of news_identity not sent keeps its value"
     # --- Sprint 27 N8 end ---
 
+    # --- Sprint 27 N7 begin ---
+    # N7 (ADR-0056 §9, §11): the news layer's reads, closed and compact.
+    assert newest["summary"] =~ "Sprint 27, N7 (ADR-0056 §9, §11): "
+
+    for endpoint <- [
+          "GET /api/v1/news/stories",
+          "GET /api/v1/news/stories/:id",
+          "GET /api/v1/news/items/:id",
+          "GET /api/v1/news/health"
+        ] do
+      assert endpoint in newest["endpoints"], endpoint
+      assert newest["summary"] =~ endpoint, endpoint
+    end
+
+    assert newest["summary"] =~ "an unknown parameter answers 422 naming it"
+    assert newest["summary"] =~ "since by first sight"
+    # --- Sprint 27 N7 end ---
+
     # Sprint 26's sprint PR (version 26), found by version from Sprint 27 on.
     # Dated strictly after entry 25, so since=2026-11-06 still returns it.
     # Each story appends its own items between its own markers, each found

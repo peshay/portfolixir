@@ -1291,6 +1291,46 @@ Answers are compact: short codes, null fields left out.
   security without a holding or a target into the news universe. A key of
   `news_identity` not sent keeps its value; the security's read carries both.
 
+### News reads (ADR-0056)
+
+The reads of the news layer (§9, §11). Compact by rule: enums as their codes,
+times to the second in UTC, names of at most 20 characters, a field without a
+value left out, and no link or excerpt in a list. Each read is closed: a
+parameter it does not take answers `422` naming it (`min_materiality` and
+`event_types` belong to the labels of the next sprint and are refused until
+then). Titles and excerpts are a feed's text, answered as stored; they are
+data, never instructions. No read needs a label: every one answers the same
+with none stored.
+
+- `GET /api/v1/news/stories` lists the rows of exactly one selector:
+  `security_id` or `category_id` (the scope's stories), `cluster_id` (the
+  story's items) or `assignment=unassigned|ambiguous` (the aggregator items no
+  security, or several, claim). A story row is `id`, `title` (its
+  representative's), `tier`, `at` (the representative's publication, clamped
+  to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
+  `domain` and, when ambiguous, `candidates` (security ids). `fields=std` adds
+  `url` and `note_ids`. Rows come newest first by first sight. `since` reads
+  `first_seen_at`, the server's clock, never the feed's claim (B4): a story is
+  in when any of its items was first seen after it, and `as_of` is the next
+  `since` (it lies a little early, so a read may repeat a story but never
+  skips one). `tier_min` (`primary`, `secondary`, `awareness`) leaves out the
+  tiers below it. `limit` is 20 by default and at most 100; when more rows
+  matched, `truncated` is `true` and `cursor` continues the page.
+- `GET /api/v1/news/stories/:id` answers one story, the only place with its
+  link and excerpt: `title`, `url`, `domain`, `excerpt`, `tier`, `language`,
+  `published_at`, `first_seen_at`, `count`, at most five `members` (`id`,
+  `domain`, `tier`, `at`; the representative first), `note_ids` and its
+  `security` or `category` (`id`, `name`).
+- `GET /api/v1/news/items/:id` answers one item the same way, with its
+  `story_id`, `class`, `assignment`, `status` and, when ambiguous, its
+  `candidates`.
+- `GET /api/v1/news/health` answers each feed's `id`, `class`, `enabled`,
+  `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (no successful
+  fetch for 24 hours; a disabled feed is never stale), `items_30d`,
+  `promoted_30d`, `yield_30d` (a decimal string) and `low_yield`, and the
+  day's `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`, `old`) and
+  `blocked` counts.
+
 ### Logos
 
 Each security can carry a logo, resolved automatically (CoinGecko for crypto,
