@@ -40,6 +40,7 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Item
   alias Portfolixir.News.Matcher
+  alias Portfolixir.News.Scheduler
   alias Portfolixir.News.Universe
   alias Portfolixir.Repo
 
@@ -285,4 +286,28 @@ defmodule Portfolixir.News do
   defp outcome_name({:assigned, _id}), do: :assigned
   defp outcome_name(:unassigned), do: :unassigned
   defp outcome_name({:ambiguous, _ids}), do: :ambiguous
+
+  # --- N3 ---------------------------------------------------------------------
+  # The fetcher's on-demand entries (ADR-0056 §5): the scheduler's run, for the
+  # API and the agent. See `Portfolixir.News.Scheduler`.
+
+  @doc """
+  Fetches every enabled feed due at the server's clock `now`, each in its
+  own task; `[{feed_id, {:ok, summary} | {:error, code}}]`. Options go to
+  `Portfolixir.News.Scheduler.run_due/2`.
+  """
+  @spec fetch_due(DateTime.t(), keyword()) :: [{pos_integer(), Scheduler.result()}]
+  def fetch_due(%DateTime{} = now, opts \\ []), do: Scheduler.run_due(now, opts)
+
+  @doc """
+  Fetches the enabled feed `feed_id` now, due or not: `{:ok, summary}`,
+  `{:error, code}` as the fetch recorded it, or `{:error, :not_found}` /
+  `{:error, :disabled}`.
+  """
+  @spec fetch_now(integer(), keyword()) ::
+          Scheduler.result() | {:error, :not_found | :disabled}
+  def fetch_now(feed_id, opts \\ []) when is_integer(feed_id),
+    do: Scheduler.run_one(feed_id, opts)
+
+  # --- end N3 -----------------------------------------------------------------
 end

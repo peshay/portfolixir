@@ -71,6 +71,17 @@ defmodule Portfolixir.Application do
       # The news fetcher's per-host pace (ADR-0056 §5: sec.gov at most 10
       # requests a second, whichever feed's task asks).
       Portfolixir.News.Pace,
+      # Each feed's fetch runs in its own task here, so one never stops another.
+      {Task.Supervisor, name: Portfolixir.News.Tasks},
+      # B6: the news scheduler runs exactly where the quote sync runs, with no
+      # switch of its own; an enabled feed is the opt-in.
+      {Portfolixir.News.Scheduler,
+       enabled?:
+         Keyword.get(
+           Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, []),
+           :enabled?,
+           false
+         )},
       Portfolixir.Imports.PreviewStore,
       Portfolixir.Derived.Memo,
       {Warmup, Application.get_env(:portfolixir, Warmup, [])},
