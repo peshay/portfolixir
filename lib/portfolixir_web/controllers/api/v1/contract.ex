@@ -68,8 +68,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "one and keeps its items, detached; PUT /api/v1/news/sources rates a domain " <>
               "by hand; the tools portfolixir.news.feeds_put, portfolixir.news.feeds_delete " <>
               "and portfolixir.news.sources_put reach them, and portfolixir.securities.update " <>
-              "takes news_identity and news_watch."
+              "takes news_identity and news_watch.",
             # --- Sprint 27 N8 end ---
+            # --- Sprint 27 N7 begin ---
+            "Sprint 27, N7 (ADR-0056 §9, §11): the news layer's reads, compact and closed " <>
+              "(an unknown parameter answers 422 naming it): GET /api/v1/news/stories lists " <>
+              "one selector's rows (a security's or a category's stories, a story's items, or " <>
+              "the unassigned or ambiguous remainder with candidates) with since by first " <>
+              "sight, tier_min, limit, fields=slim|std and a cursor; GET " <>
+              "/api/v1/news/stories/:id and GET /api/v1/news/items/:id answer one story or " <>
+              "item, the only reads with its excerpt and link; GET /api/v1/news/health " <>
+              "answers each feed's freshness and yield and the day's counts."
+            # --- Sprint 27 N7 end ---
           ],
           " "
         ),
@@ -82,8 +92,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- Sprint 27 N8 begin ---
         "PUT /api/v1/news/feeds",
         "DELETE /api/v1/news/feeds/:id",
-        "PUT /api/v1/news/sources"
+        "PUT /api/v1/news/sources",
         # --- Sprint 27 N8 end ---
+        # --- Sprint 27 N7 begin ---
+        "GET /api/v1/news/stories",
+        "GET /api/v1/news/stories/:id",
+        "GET /api/v1/news/items/:id",
+        "GET /api/v1/news/health"
+        # --- Sprint 27 N7 end ---
       ],
       tools: [
         # --- Sprint 27 S2 begin ---

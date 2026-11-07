@@ -152,6 +152,21 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "and kept 90 days (§12), not the raw news archive the non-goal names"
     },
     # --- Sprint 27 N8 end ---
+    # --- Sprint 27 N7 begin ---
+    # The news layer's reads (ADR-0056 §9, §11): their routes, tools and web
+    # module. Exactly a scope's stories, a story's items, the health and the
+    # digest; a route or tool for news archives is still caught.
+    %{
+      phrases: [~w(news stories), ~w(news items), ~w(news health), ~w(news read)],
+      kinds: [:route, :tool, :module],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "reading the stories, items and health the news layer of ADR-0056 §9 and §11 keeps: " <>
+          "compact rows, one excerpt of at most 600 characters per story or item read, " <>
+          "items kept 90 days (§12), not the raw news archive the non-goal names"
+    },
+    # --- Sprint 27 N7 end ---
     %{
       phrases: [~w(sync now)],
       kinds: [:event],
