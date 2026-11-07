@@ -3015,7 +3015,9 @@ Beispiel-Payloads für Konten:
   Wertcharts** (I23, FR-53) neben der Beitragsabfrage, in ihren drei Formen
   und mit ihren Zeitraumparametern (und `view=` in der Portfolio-Form): die
   Wertreihe der Performance-Abfrage, in Bänder geteilt, die sich an jedem Tag
-  exakt zu ihr summieren. Die View- und die View-lose Form antworten in EUR
+  exakt zu ihr summieren (auf der Kategorie-Ebene bis auf eine Einheit der
+  34. signifikanten Stelle je Tag, wenn ein Umrechnungsquotient nicht
+  abbricht, wie `computation_basis.input_series` sagt). Die View- und die View-lose Form antworten in EUR
   oder in `base_currency=` (ein unterstützter Währungscode, als
   `base_currency` zurückgegeben): die Vermögen-Seite fragt in der
   Basiswährung ihrer Seite, so stimmen beide überein, wenn gleich gefragt;

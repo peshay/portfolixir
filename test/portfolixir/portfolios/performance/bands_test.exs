@@ -703,4 +703,118 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
     assert {:error, :view_not_found} = Bands.for_view(-1, [])
   end
+
+  # -- the bound when a quotient does not terminate (closing act, M2) ------------
+
+  # Four USD securities and one EUR one in three categories, at EUR/USD
+  # 1.0832, then 1.0917 from 2026-03-10: a USD value over these rates does
+  # not terminate, so the walk rounds at Decimal's 34 significant digits.
+  defp fx_world do
+    world = base_world(name: "Dollar Bands", cash_name: "Cash EUR", depot_name: "Depot EUR")
+
+    usd =
+      world.portfolio
+      |> add_depot(cash_currency: "USD", cash_name: "Cash USD", depot_name: "Depot USD")
+      |> Map.put(:portfolio, world.portfolio)
+
+    rate!("USD", ~D[2025-12-01], "1.0832")
+    rate!("USD", ~D[2026-03-10], "1.0917")
+    deposit!(world, "10000", ~D[2025-12-01])
+    deposit!(usd, "5000", ~D[2025-12-01], currency: "USD")
+
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Regions"})
+    [a, b, c] = Enum.map(~w(Alpha Beta Gamma), &category!(tree, &1))
+
+    for {name, price, quantity, category, currency} <- [
+          {"U1", "123.45", "7", a, "USD"},
+          {"U2", "77.13", "11", b, "USD"},
+          {"U3", "41.97", "3", c, "USD"},
+          {"E1", "99.99", "13", a, "EUR"},
+          {"U4", "250.01", "2", b, "USD"}
+        ] do
+      security = create_security!(name: name, currency: currency)
+      into = if currency == "USD", do: usd, else: world
+
+      WorldFixtures.buy!(into, security,
+        quantity: quantity,
+        price: price,
+        date: ~D[2025-12-02],
+        currency: currency
+      )
+
+      later = price |> Decimal.new() |> Decimal.add(Decimal.new("1.11")) |> Decimal.to_string()
+      WorldFixtures.put_quotes!(security, [{~D[2025-12-02], price}, {~D[2026-02-02], later}])
+      assign!(security, tree, category)
+    end
+
+    %{world: world, tree: tree}
+  end
+
+  # One unit in the 34th significant digit of `value`.
+  defp last_unit(value) do
+    value = Decimal.normalize(value)
+    digits = value.coef |> Integer.digits() |> length()
+    Decimal.new(1, 1, value.exp + digits - 1 - 33)
+  end
+
+  # User story (I23, FR-53; the closing act's money lens, M2):
+  # As the operator's agent adding up the bands of a category stack in a
+  # foreign currency,
+  # I want the payload to say how far the sum may sit from the series, and
+  # the sum to keep to it,
+  # so that I do not mistake Decimal's rounding for a missing amount.
+  #
+  # Acceptance criteria:
+  # - At the security and total levels the bands sum exactly to the series
+  #   on every day, also when a USD value over 1.0832 or 1.0917 does not
+  #   terminate.
+  # - At the category level the sum is within one unit in the 34th
+  #   significant digit of the day's value, per day.
+  # - `computation_basis.input_series` and the module's documentation state
+  #   that bound, and that it applies only at the category level and only
+  #   when a quotient does not terminate.
+  test "a category stack sums to the series within one unit in the 34th digit when FX does not terminate" do
+    w = fx_world()
+    pid = w.world.portfolio.id
+
+    reads = [
+      {"portfolio", &Bands.for_portfolio(pid, &1), &Performance.for_portfolio(pid, &1)},
+      {"Everything", &Bands.for_view(nil, &1), &Performance.for_view(nil, &1)}
+    ]
+
+    for {scope, bands_read, performance_read} <- reads,
+        level <- [:total, :category, :security] do
+      opts = [period: "ytd", today: @today]
+      {:ok, performance} = performance_read.(opts)
+      {:ok, result} = bands_read.(opts ++ [level: level, classification_id: w.tree.id])
+      assert performance.series != []
+
+      for {point, index} <- Enum.with_index(performance.series) do
+        day_sum = sum(Enum.map(result.bands, &Enum.at(&1.values, index)))
+        label = "#{scope} #{level} #{point.date}"
+
+        if level == :category do
+          gap = day_sum |> Decimal.sub(point.value) |> Decimal.abs()
+          assert Decimal.compare(gap, last_unit(point.value)) != :gt, label
+        else
+          assert Decimal.equal?(day_sum, point.value), label
+        end
+      end
+
+      # The case is real: on some day the category sum is not exact.
+      if level == :category do
+        assert Enum.any?(Enum.with_index(performance.series), fn {point, index} ->
+                 day_sum = sum(Enum.map(result.bands, &Enum.at(&1.values, index)))
+                 not Decimal.equal?(day_sum, point.value)
+               end)
+      end
+
+      assert result.computation_basis.input_series =~
+               "at the category level, the bands' sum may differ from the series by at most " <>
+                 "one unit in the 34th significant digit per day"
+    end
+
+    {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs(Bands)
+    assert moduledoc =~ "one unit in the 34th significant digit"
+  end
 end
