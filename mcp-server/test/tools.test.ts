@@ -3655,6 +3655,10 @@ describe("Portfolixir MCP tools", () => {
   //   companion.
   // - The descriptions name the levels, the band fields, the merge into
   //   other, the change, Decimal strings and computation_basis.
+  // - portfolixir.views.bands passes base_currency (three capital letters,
+  //   the closing act's money lens, M1), so the agent reads the figures the
+  //   screen draws in its base currency; a malformed code never leaves the
+  //   companion.
   it("issues a GET to /performance/bands for the two bands tools", async () => {
     const { client, requests } = createRecordingClient({
       data: { portfolio_id: 3, level: "category", bands: [] }
@@ -3682,9 +3686,13 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[1].path, "/api/v1/views/2/performance/bands?year=2025&classification_id=4");
     assert.equal(requests[2].path, "/api/v1/performance/bands?from=2025-01-01&to=2025-06-30");
 
+    await callTool(client, "portfolixir.views.bands", { period: "1y", base_currency: "USD" });
+    assert.equal(requests[3].path, "/api/v1/performance/bands?period=1y&base_currency=USD");
+
     await assert.rejects(callTool(client, "portfolixir.portfolios.bands", { portfolio_id: 3, level: "sector" }));
     await assert.rejects(callTool(client, "portfolixir.views.bands", { sort: "name" }));
-    assert.equal(requests.length, 3);
+    await assert.rejects(callTool(client, "portfolixir.views.bands", { base_currency: "usd" }));
+    assert.equal(requests.length, 4);
 
     const tools = listTools();
     const portfolioTool = tools.find((tool) => tool.name === "portfolixir.portfolios.bands");
@@ -3705,6 +3713,7 @@ describe("Portfolixir MCP tools", () => {
       "year"
     ]);
     assert.deepEqual(Object.keys(viewTool?.inputSchema.properties ?? {}).sort(), [
+      "base_currency",
       "category_id",
       "classification_id",
       "from",

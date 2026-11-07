@@ -3015,7 +3015,11 @@ Beispiel-Payloads für Konten:
   Wertcharts** (I23, FR-53) neben der Beitragsabfrage, in ihren drei Formen
   und mit ihren Zeitraumparametern (und `view=` in der Portfolio-Form): die
   Wertreihe der Performance-Abfrage, in Bänder geteilt, die sich an jedem Tag
-  exakt zu ihr summieren. `level` ist `total` (ein Band, die Reihe),
+  exakt zu ihr summieren. Die View- und die View-lose Form antworten in EUR
+  oder in `base_currency=` (ein unterstützter Währungscode, als
+  `base_currency` zurückgegeben): die Vermögen-Seite fragt in der
+  Basiswährung ihrer Seite, so stimmen beide überein, wenn gleich gefragt;
+  die Portfolio-Form antwortet in der Basiswährung des Portfolios. `level` ist `total` (ein Band, die Reihe),
   `category` (Standard: ein Band je Wurzelkategorie der Klassifikation, dazu
   `cash` und `unclassified`) oder `security` (ein Band je Wertpapier plus
   `cash`, oder mit `category_id=` die Wertpapiere des Teilbaums dieser
@@ -3039,7 +3043,8 @@ Beispiel-Payloads für Konten:
   `computation_basis` nennt jede Regel. Ein unbekanntes `level` oder `sort`,
   eine fehlerhafte oder unbekannte `classification_id` oder `category_id`,
   eine Kategorie eines anderen Baums oder `category_id` ohne
-  `level=security` liefert `422` mit dem Parameter. Nichts wird gespeichert.
+  `level=security` liefert `422` mit dem Parameter, ebenso eine nicht
+  unterstützte `base_currency`. Nichts wird gespeichert.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate

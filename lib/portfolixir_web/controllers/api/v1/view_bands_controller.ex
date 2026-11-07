@@ -2,12 +2,15 @@ defmodule PortfolixirWeb.Api.V1.ViewBandsController do
   @moduledoc """
   JSON API for the stacked value chart's bands of a bucket view across all
   portfolios (I23, FR-53): the deduplicated account scope the view
-  performance walks, in EUR, so the bands add up to that read's series.
+  performance walks, so the bands add up to that read's series.
   `?period=`/`?year=`/`?from=`/`?to=` and the bands parameters behave like
-  the portfolio bands read.
+  the portfolio bands read. `?base_currency=` (a supported code, default
+  EUR) is the currency the walk converts into through the EUR hub, so an
+  agent reads the figures the screen shows in its own base currency (the
+  closing act's money lens, M1).
 
   `total/2` serves the same read with no view: `GET
-  /api/v1/performance/bands`, every account of every portfolio in EUR, with
+  /api/v1/performance/bands`, every account of every portfolio, with
   `portfolio_id` and `view_id` null and no view echo (as #1056 serves the
   rest of the family).
   """
@@ -37,7 +40,12 @@ defmodule PortfolixirWeb.Api.V1.ViewBandsController do
   defp read(conn, view, params) do
     with {:ok, period} <- PeriodParam.resolve(params),
          {:ok, bands_opts} <- BandsParam.resolve(params),
-         {:ok, result} <- Bands.for_view(ViewParam.id(view), [period: period] ++ bands_opts) do
+         {:ok, base} <- BandsParam.base_currency(params),
+         {:ok, result} <-
+           Bands.for_view(
+             ViewParam.id(view),
+             [period: period, base_currency: base] ++ bands_opts
+           ) do
       data = result |> JSON.bands() |> ViewParam.put_active(view)
       json(conn, %{data: data})
     else

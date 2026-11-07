@@ -230,6 +230,58 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     assert text_of(view, "[data-role='stack-basis']") =~ "Strategy"
   end
 
+  # User story (I23, FR-53; the closing act's money lens, M1):
+  # As a local portfolio maintainer whose portfolio is kept in US dollars,
+  # I want the stack and the bands read to answer the same figures for the
+  # same request,
+  # so that my agent and I talk about the same numbers.
+  #
+  # Acceptance criteria:
+  # - With a USD base portfolio, the stack's basis line names USD, and each
+  #   legend row's value, share and change are the view-less bands read's
+  #   asked with `base_currency=USD`, the screen's currency.
+  # - The same read without it answers in EUR, so the figures differ: the
+  #   screen's currency is the one to ask for.
+  test "a USD base portfolio's stack shows the API's bands asked in USD", %{conn: conn} do
+    world =
+      base_world(name: "Dollar World", currency: "USD", cash_currency: "EUR", depot_name: "Depot")
+
+    d0 = days_ago(500)
+
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{base_currency: "EUR", quote_currency: "USD", date: d0, rate: "1.0832", source: "manual"}
+      ])
+
+    deposit!(world, "10000", d0)
+    security = create_security!(name: "Alpha Synthetic AG")
+    buy!(world, security, quantity: "10", price: "100", date: d0)
+    put_quotes!(security, [{d0, "100"}, {today(), "120"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+
+    usd = api(conn, %{"level" => "category", "period" => "1y", "base_currency" => "USD"})
+    eur = api(conn, %{"level" => "category", "period" => "1y"})
+
+    assert usd["base_currency"] == "USD"
+    assert text_of(view, "[data-role='stack-basis']") =~ "in USD"
+    assert legend_keys(view) == usd["bands"] |> Enum.map(& &1["key"]) |> Enum.reverse()
+
+    for band <- usd["bands"] do
+      row = "#stack-legend tr[data-band='#{band["key"]}']"
+      assert attrs(view, row, "data-end-value") == [band["end_value"]]
+
+      assert text_of(view, row <> " td[data-role='stack-share']") ==
+               Format.percent(Decimal.new(band["share"])) <> "%"
+
+      assert text_of(view, row <> " td[data-role='stack-change']") == signed_pct(band["change"])
+    end
+
+    refute Enum.map(eur["bands"], & &1["end_value"]) ==
+             Enum.map(usd["bands"], & &1["end_value"])
+  end
+
   # User story (I23, FR-53; board 01 A):
   # As a local portfolio maintainer,
   # I want a click on a category's band or on its legend row to show that

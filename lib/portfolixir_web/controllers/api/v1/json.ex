@@ -2424,8 +2424,28 @@ defmodule PortfolixirWeb.Api.V1.JSON do
           ])
         )
     }
-    |> everything_basis(result)
+    |> bands_scope_basis(result)
   end
+
+  # The view forms of the bands read answer in the currency asked for
+  # (`base_currency=`, default EUR; the closing act's money lens, M1), so
+  # their basis names it rather than the family's fixed EUR sentence.
+  defp bands_scope_basis(payload, %{portfolio_id: nil} = result) do
+    scope =
+      if result.view_id == nil,
+        do: "every account in every portfolio, each counted once, with no view",
+        else: "the view's accounts across all portfolios, each counted once"
+
+    update_in(payload, [:computation_basis, :input_series], fn input_series ->
+      input_series <>
+        ". Scope: #{scope}, in #{result.base_currency}, converted through the EUR hub; " <>
+        "base_currency= names the currency (a supported code, default EUR), and the " <>
+        "screen asks for its page's base currency, so both answer the same figures " <>
+        "when asked alike"
+    end)
+  end
+
+  defp bands_scope_basis(payload, _portfolio), do: payload
 
   defp bands_classification(nil), do: nil
 

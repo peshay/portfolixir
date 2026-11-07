@@ -71,6 +71,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert "portfolixir.portfolios.bands" in newest["tools"]
     assert "portfolixir.views.bands" in newest["tools"]
     assert newest["summary"] =~ "portfolixir.portfolios.bands and portfolixir.views.bands"
+    assert newest["summary"] =~ "take base_currency= (a supported code, default EUR"
     # --- Sprint 27 S2 end ---
 
     # --- Sprint 27 N8 begin ---
