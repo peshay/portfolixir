@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic attack fixture (ADR-0056 A1): an external entity naming a
+     local file. A parser that resolves it reads the file into the item's
+     title. The parser must refuse it at the document type declaration,
+     opening nothing. -->
+<!DOCTYPE rss [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic feed</title>
+    <link>https://feed.example/</link>
+    <description>Synthetic</description>
+    <item>
+      <title>&xxe;</title>
+      <link>https://feed.example/items/1</link>
+      <guid>synthetic-1</guid>
+    </item>
+  </channel>
+</rss>

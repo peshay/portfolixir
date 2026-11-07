@@ -107,6 +107,17 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
       adr: "ADR-0007",
       reason: "ECB exchange-rate acquisition, inside the line B3.3 draws ('beyond quotes and FX')"
     },
+    # Sprint 27 N1: the news context's modules. Modules only: a table, a route
+    # or a tool named for news takes its own entry in the story that adds it.
+    %{
+      phrases: [~w(portfolixir news)],
+      kinds: [:module],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "the news layer ADR-0056 opened (gate B3.3, for news feeds only): excerpts of " <>
+          "at most 600 characters kept 90 days, so not the raw news archive the non-goal names"
+    },
     %{
       phrases: [~w(sync now)],
       kinds: [:event],
@@ -162,6 +173,9 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
     {:module, "Portfolixir.Imports.OCRPipeline"},
     {:module, "Portfolixir.Notifications.WebhookDelivery"},
     {:module, "Portfolixir.Acquisition.Scraper"},
+    {:module, "Portfolixir.Catalog.NewsArchive"},
+    {:module, "PortfolixirWeb.NewsArchiveLive"},
+    {:table, "portfolixir_news"},
     {:module, "PortfolixirWeb.Api.V1.PaymentController"}
   ]
 
@@ -209,6 +223,7 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
             {:module, "PortfolixirWeb.Api.V1.PolicyJSON"},
             {:module, "PortfolixirWeb.SessionHTML"},
             {:module, "Portfolixir.Portfolios.Performance.IRR"},
+            {:module, "Portfolixir.News.Parser"},
             {:table, "status_checks"}
           ] do
         assert violations(name) == [], "#{inspect(name)} should not be caught"

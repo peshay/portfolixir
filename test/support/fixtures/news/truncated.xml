@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic broken fixture (Sprint 26 carry-forward 3): a well-formed
+     start whose transfer ended inside the second item. The parser must
+     refuse it as malformed, not hand over the first item as if the feed
+     were whole. -->
+<rss version="2.0">
+  <channel>
+    <title>Synthetic feed</title>
+    <link>https://feed.example/</link>
+    <description>Synthetic</description>
+    <item>
+      <title>First synthetic item</title>
+      <link>https://feed.example/items/1</link>
+      <guid>synthetic-1</guid>
+    </item>
+    <item>
+      <title>Second synthetic it
