@@ -405,6 +405,7 @@ defmodule Portfolixir.Portfolios.Performance do
       period
       |> contribution_window(today, walk_start(transactions, today))
       |> from_baseline(opts)
+      |> with_bands(opts)
 
     portfolio_id
     |> walk_portfolio(transactions, scope, base_currency(portfolio_id), today, window)
@@ -430,7 +431,11 @@ defmodule Portfolixir.Portfolios.Performance do
       |> Enum.reject(&is_nil/1)
       |> Enum.min(Date, fn -> nil end)
 
-    window = period |> contribution_window(today, first) |> from_baseline(opts)
+    window =
+      period
+      |> contribution_window(today, first)
+      |> from_baseline(opts)
+      |> with_bands(opts)
 
     analyses =
       Enum.map(ledgers, fn {portfolio_id, txs} ->
@@ -1885,10 +1890,20 @@ defmodule Portfolixir.Portfolios.Performance do
       end)
 
     Enum.reduce(state.cash, securities, fn {account_id, balance}, acc ->
-      currency = Map.get(context.currencies, account_id)
-      Decimal.add(acc, to_base(balance, currency, context))
+      Decimal.add(acc, cash_term(account_id, balance, context))
     end)
   end
+
+  # The cash `portfolio_value/2` adds, summed alone (the stacked chart's cash
+  # band, I23).
+  defp cash_value(cash, context) do
+    Enum.reduce(cash, @zero, fn {account_id, balance}, acc ->
+      Decimal.add(acc, cash_term(account_id, balance, context))
+    end)
+  end
+
+  defp cash_term(account_id, balance, context),
+    do: to_base(balance, Map.get(context.currencies, account_id), context)
 
   defp security_value(security_id, qty, context) do
     case Map.get(context.pricing, security_id) do
@@ -2111,20 +2126,43 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp from_baseline(nil, _opts), do: nil
 
+  # `bands: true` (I23, FR-53, the stacked chart) also keeps every window
+  # day's values apart: each held security's value and the cash, the terms
+  # `portfolio_value/2` adds up (`observe_bands/3`).
+  defp with_bands(%{} = window, opts),
+    do:
+      if(Keyword.get(opts, :bands, false),
+        do: Map.put(window, :bands, true),
+        else: window
+      )
+
+  defp with_bands(nil, _opts), do: nil
+
   defp open_kept(state, nil, _transactions), do: state
 
   defp open_kept(state, window, transactions) do
-    Map.put(state, :kept, %{
-      window: window,
-      # The walk's baseline rule (ADR-0051 §4): the start value is the close
-      # of the last walked day before the window. A walk that starts inside
-      # the window never sees this day, so its positions start at 0.
-      baseline: Date.add(window.start, -1),
-      positions: %{},
-      lines: @no_lines,
-      securities: security_labels(transactions)
-    })
+    kept =
+      %{
+        window: window,
+        # The walk's baseline rule (ADR-0051 §4): the start value is the close
+        # of the last walked day before the window. A walk that starts inside
+        # the window never sees this day, so its positions start at 0.
+        baseline: Date.add(window.start, -1),
+        positions: %{},
+        lines: @no_lines,
+        securities: security_labels(transactions)
+      }
+      |> open_bands(window)
+
+    Map.put(state, :kept, kept)
   end
+
+  # The stacked chart's days (I23): `date => %{securities: %{id => value},
+  # cash: value}` for each window day, and the cash at the baseline day's
+  # close, the cash band's start value (0 when the walk starts inside the
+  # window, as a position's is).
+  defp open_bands(kept, %{bands: true}), do: Map.merge(kept, %{days: %{}, cash_start: @zero})
+  defp open_bands(kept, _window), do: kept
 
   # Name, ISIN and WKN of every security the ledger names, from the
   # preloaded rows. The WKN tells twins without an ISIN apart on the
@@ -2141,6 +2179,7 @@ defmodule Portfolixir.Portfolios.Performance do
     kept =
       kept
       |> observe_day(closing.qty, context)
+      |> observe_bands(closing, context)
       |> revalue_cash(opening.cash, context, carried_fx)
 
     %{closing | kept: kept}
@@ -2172,6 +2211,32 @@ defmodule Portfolixir.Portfolios.Performance do
       kept
     end
   end
+
+  # The stacked chart's terms (I23): on each window day every held
+  # security's value and the cash, each exactly the term `portfolio_value/2`
+  # adds for the day, so the day's terms sum to its `value`; on the baseline
+  # day the cash alone, the cash band's start value. A walk without bands
+  # keeps nothing here.
+  defp observe_bands(%{days: days, baseline: baseline} = kept, closing, context) do
+    cond do
+      context.day == baseline ->
+        %{kept | cash_start: cash_value(closing.cash, context)}
+
+      in_window?(kept.window, context.day) ->
+        securities =
+          Map.new(closing.qty, fn {security_id, qty} ->
+            {security_id, security_value(security_id, qty, context)}
+          end)
+
+        day = %{securities: securities, cash: cash_value(closing.cash, context)}
+        %{kept | days: Map.put(days, context.day, day)}
+
+      true ->
+        kept
+    end
+  end
+
+  defp observe_bands(kept, _closing, _context), do: kept
 
   defp observe_day(%{baseline: day} = kept, held, %{day: day} = context),
     do: record_values(kept, held, context, :start_value, :held_at_start)
@@ -2396,7 +2461,7 @@ defmodule Portfolixir.Portfolios.Performance do
     analyses
     |> Enum.map(&Map.get(&1, :contribution))
     |> Enum.reject(&is_nil/1)
-    |> Enum.reduce(merged, fn kept, acc ->
+    |> Enum.reduce(open_bands(merged, window), fn kept, acc ->
       %{
         acc
         | positions:
@@ -2404,8 +2469,27 @@ defmodule Portfolixir.Portfolios.Performance do
           lines: Map.merge(acc.lines, kept.lines, fn _line, a, b -> Decimal.add(a, b) end),
           securities: Map.merge(acc.securities, kept.securities)
       }
+      |> merge_bands(kept)
     end)
   end
+
+  # The stacked chart's days across portfolios (I23): per day, a security's
+  # values and the cash add up, exactly as `merged_daily/3` adds the values;
+  # a portfolio whose walk has no point on a day adds nothing to it.
+  defp merge_bands(%{days: days} = acc, %{days: more} = kept) do
+    merged_days =
+      Map.merge(days, more, fn _day, a, b ->
+        %{
+          securities:
+            Map.merge(a.securities, b.securities, fn _id, x, y -> Decimal.add(x, y) end),
+          cash: Decimal.add(a.cash, b.cash)
+        }
+      end)
+
+    %{acc | days: merged_days, cash_start: Decimal.add(acc.cash_start, kept.cash_start)}
+  end
+
+  defp merge_bands(acc, _kept), do: acc
 
   # Amounts add up; a position is held at an end when any portfolio holds it;
   # a day is unvalued when any portfolio counted it zero, and a missing price
