@@ -9,8 +9,9 @@ defmodule Portfolixir.Net.ParseGuard do
   after, in the caller, where it may hold a single-flight key or a
   discovery queue. The parses that run here are the ECB rate feeds'
   (`Portfolixir.Fx.RateSync.Ecb`, daily and history), the companieslogo
-  page's (`Portfolixir.Catalog.LogoLookup.CompaniesLogo`) and the Wikipedia
-  search candidates' (`Portfolixir.Catalog.LogoLookup.Wikipedia`); the
+  page's (`Portfolixir.Catalog.LogoLookup.CompaniesLogo`), the Wikipedia
+  search candidates' (`Portfolixir.Catalog.LogoLookup.Wikipedia`) and the
+  news feeds' (`Portfolixir.News.Parser`, ADR-0056 A1); the
   Yahoo, CoinGecko and Portfolio Performance search adapters read JSON the
   bounded client already decoded inside its deadline, and do not use it.
   Each guarded parse is also linear in the body; this bound is the defence
