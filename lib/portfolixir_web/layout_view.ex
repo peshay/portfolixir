@@ -1037,6 +1037,40 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // The stacked value chart (I23; the closing act's design critic,
+            // D1): the shared chart's axis scale and placement, measured by
+            // ChartCrosshair's own writeScale and placeAxis, without its
+            // crosshair, tooltip or zoom. The stack's viewBox is the shared
+            // 960 x 320, the measurement's default without a payload.
+            Hooks.ChartScale = {
+              mounted: function () {
+                var self = this;
+                this.svg = this.el.querySelector("svg");
+                this.payload = null;
+                this.writeScale();
+                if (window.ResizeObserver) {
+                  this.resizeObserver = new ResizeObserver(function () { self.writeScale(); });
+                  this.resizeObserver.observe(this.el);
+                }
+                if (document.fonts && document.fonts.ready) {
+                  document.fonts.ready.then(function () { self.writeScale(); });
+                }
+              },
+              updated: function () {
+                this.svg = this.el.querySelector("svg");
+                this.writeScale();
+              },
+              writeScale: function () {
+                Hooks.ChartCrosshair.writeScale.call(this);
+              },
+              placeAxis: function (rect, upx) {
+                Hooks.ChartCrosshair.placeAxis.call(this, rect, upx);
+              },
+              destroyed: function () {
+                if (this.resizeObserver) this.resizeObserver.disconnect();
+              }
+            };
+
             // Hover/touch crosshair for the portfolio performance chart
             // (#336/#411). Deliberately minimal — a vertical line plus a
             // date/%/€ tooltip, no zoom and no pushEvents — so it never fires

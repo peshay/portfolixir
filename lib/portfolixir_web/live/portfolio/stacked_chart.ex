@@ -188,7 +188,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         <p class="hint" data-role="stack-empty"><%= gettext("No values in this period.") %></p>
       <% else %>
         <div class="stack-figure__body">
-          <div class="stack-figure__chart">
+          <div class="stack-figure__chart" id="stack-figure-chart" phx-hook="ChartScale">
             <svg
               class="stack-chart"
               role="img"
