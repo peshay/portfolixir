@@ -59,7 +59,13 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
       "an operator-run seed turning portfolios into scope buckets and views (ADR-0024)",
     {"Mix.Tasks.Portfolixir.Derived.Measure", "derived_measure"} =>
       "a developer-run synthetic ledger for timing the derived values (ADR-0039 §2), " <>
-        "refused beside an existing portfolio unless asked for (K04)"
+        "refused beside an existing portfolio unless asked for (K04)",
+    # --- Sprint 27 N3 (ADR-0056 B7) --------------------------------------
+    {"Portfolixir.News.Fetcher", "news_fetch"} =>
+      "the news fetcher (ADR-0056 §5, B7): writes a fetched feed's items, its day " <>
+        "counters and its health columns, a staging area retention empties, unjournaled " <>
+        "(Journal.Allowlist); it books nothing and changes no feed's registration"
+    # --- end Sprint 27 N3 ------------------------------------------------
   }
 
   # `module => reason`.
@@ -92,7 +98,12 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
         "writes nothing, dies with the page",
     "PortfolixirWeb.LiveUiAuth" =>
       "re-checks an open page's UI login when its lifetime runs out (H19) and sends the " <>
-        "page to the login; writes nothing, dies with the page"
+        "page to the login; writes nothing, dies with the page",
+    # --- Sprint 27 N3 (ADR-0056 §5, B7) ----------------------------------
+    "Portfolixir.News.Fetcher" =>
+      "waits for its slot on sec.gov's pace (at most 10 requests a second, ADR-0056 §5) " <>
+        "inside the one feed's fetch task; it sends nothing on a schedule of its own"
+    # --- end Sprint 27 N3 ------------------------------------------------
   }
 
   # Modules allowed to name the journal's `scenario_id` at all: the writer
