@@ -128,6 +128,22 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
   # locked package belongs to any class today.
   @allowlist %{}
 
+  # Packages taken for a capability an accepted ADR opened behind a gate,
+  # that no class's vocabulary names (the vocabulary names categories, and a
+  # general XML reader is none): each names the gate it serves, the ADR that
+  # opened it, its reason, and is pinned to one exact version in mix.exs, so
+  # the dependencies that carry an opened gate stay listed and move only
+  # through the maintenance lane's audit (Sprint 27 plan D-7, N1).
+  @capability_packages %{
+    "saxy" => %{
+      gate: "gated.b3_3_data_acquisition",
+      adr: "ADR-0056",
+      reason:
+        "the news feed parser's XML reader (ADR-0056 A1): SAX mode, no atom from a " <>
+          "name, no document type declaration processed"
+    }
+  }
+
   describe "the locked dependency trees" do
     test "no Hex package, direct or transitive, belongs to a non-goal or gated class" do
       hex = hex_packages(File.read!("mix.lock"))
@@ -285,6 +301,59 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
     end
   end
 
+  # User story (Sprint 27 N1; the plan's D-7):
+  # As the operator who reads decisions rather than code,
+  # I want every package taken for a gated capability an ADR opened listed
+  # here with its gate, its ADR and its reason, and pinned to one version,
+  # so that a dependency carrying an opened gate never moves unaudited.
+  #
+  # Acceptance criteria:
+  # - Each entry names a locked package, a gate a class backs, an accepted
+  #   ADR and a reason, and its package is a direct dependency pinned with
+  #   `==` in mix.exs.
+  # - The check refuses a synthetic entry that is unlocked, unpinned, names
+  #   no accepted ADR or an unknown gate (self-test).
+  describe "the packages taken for an opened gate" do
+    test "each is locked, pinned exactly and names its gate, ADR and reason" do
+      locked = hex_packages(File.read!("mix.lock"))
+
+      assert capability_problems(@capability_packages, locked, direct_requirements()) == []
+    end
+
+    test "the check refuses an unlocked, unpinned or unjustified entry" do
+      entry = %{
+        gate: "gated.b3_3_data_acquisition",
+        adr: "ADR-0056",
+        reason: String.duplicate("r", 30)
+      }
+
+      locked = ["pinned_pkg", "loose_pkg", "no_adr_pkg", "bad_gate_pkg"]
+
+      requirements = %{
+        "pinned_pkg" => "== 1.0.0",
+        "loose_pkg" => "~> 1.0",
+        "no_adr_pkg" => "== 1.0.0",
+        "bad_gate_pkg" => "== 1.0.0"
+      }
+
+      entries = %{
+        "pinned_pkg" => entry,
+        "unlocked_pkg" => entry,
+        "loose_pkg" => entry,
+        "no_adr_pkg" => %{entry | adr: "ADR-9999"},
+        "bad_gate_pkg" => %{entry | gate: "gated.nothing"}
+      }
+
+      problems = capability_problems(entries, locked, requirements)
+
+      for package <- ~w(unlocked_pkg loose_pkg no_adr_pkg bad_gate_pkg) do
+        assert Enum.any?(problems, &String.starts_with?(&1, package <> ":")), package
+      end
+
+      refute Enum.any?(problems, &String.starts_with?(&1, "pinned_pkg:"))
+    end
+  end
+
   # User story (#926; the Sprint 20 plan's D-4):
   # As the maintainer re-pinning the vendored agent tooling,
   # I want this file to say which Python manifests B3 does not read, and
@@ -395,6 +464,44 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
     end)
     |> Enum.uniq()
   end
+
+  # `["package: problem"]` for every capability entry that is not locked, not
+  # a direct dependency pinned with `==`, names no gate a class backs, no
+  # accepted ADR or no reason.
+  defp capability_problems(entries, locked, requirements) do
+    class_gates = @classes |> Enum.flat_map(&gates/1) |> MapSet.new()
+
+    for {package, entry} <- entries,
+        {failed?, problem} <- [
+          {package not in locked, "not locked"},
+          {not String.starts_with?(requirements[package] || "", "== "),
+           "not a direct dependency pinned with ==, got #{inspect(requirements[package])}"},
+          {not MapSet.member?(class_gates, entry[:gate]), "names no gate a class backs"},
+          {not accepted_adr?(entry[:adr]), "names no accepted ADR"},
+          {not (is_binary(entry[:reason]) and String.length(entry[:reason]) > 20),
+           "has no reason"}
+        ],
+        failed? do
+      "#{package}: #{problem}"
+    end
+  end
+
+  # `%{"package" => requirement}` for every direct Hex dependency of mix.exs.
+  defp direct_requirements do
+    for dep <- Keyword.fetch!(Mix.Project.config(), :deps),
+        {name, requirement} <- [requirement(dep)],
+        into: %{} do
+      {Atom.to_string(name), requirement}
+    end
+  end
+
+  defp requirement({name, requirement}) when is_binary(requirement), do: {name, requirement}
+
+  defp requirement({name, requirement, _opts}) when is_binary(requirement),
+    do: {name, requirement}
+
+  defp requirement({name, _opts}), do: {name, nil}
+  defp requirement({name, _requirement, _opts}), do: {name, nil}
 
   defp reject_allowlisted(offenders),
     do: Enum.reject(offenders, fn {package, _} -> Map.has_key?(@allowlist, package) end)

@@ -31,7 +31,10 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
   #   document, and a list that mixes in any other format fails.
   # - No module takes a raw multipart upload (`Plug.Upload`), the endpoint
   #   parses no XML body, and nothing in lib/ calls an XML, zip or protobuf
-  #   decoder.
+  #   decoder — except the news feed parser (ADR-0056 A1, Sprint 27 N1),
+  #   which may name `Saxy` and nothing else, in its one file: a feed is
+  #   fetched from a registered URL, never uploaded, and the parser is not
+  #   reachable from the import.
   # - No route, MCP tool, LiveView event or module is named for XML.
   # - Each static matcher catches a synthetic violation.
 
@@ -94,6 +97,17 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
     erl_tar: ~w(extract open table)a
   }
   @decoder_aliases ~w(SweetXml Saxy XmlBuilder Protobuf Protox Unzip)a
+
+  # The one file that may name a decoder, the decoder it may name, and why.
+  @decoder_exemptions %{
+    "lib/portfolixir/news/parser.ex" => %{
+      aliases: [:Saxy],
+      adr: "ADR-0056",
+      reason:
+        "the news feed parser reads RSS 2.0 and Atom 1.0 from a registered feed URL " <>
+          "(ADR-0056 A1); it is not a document intake and the import never reaches it"
+    }
+  }
 
   describe "the importer" do
     test "rejects PP XML and binary workspaces by content, whatever the filename" do
@@ -288,6 +302,25 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
       refute Enum.any?(offenders, &(&1 =~ ":zip.create"))
     end
 
+    test "the news parser's exemption covers Saxy in its one file, nothing more" do
+      saxy =
+        "defmodule Synthetic do\n  def go(b), do: Saxy.parse_string(b, __MODULE__, nil)\nend\n"
+
+      sweet = "defmodule Synthetic do\n  def go(b), do: SweetXml.parse(b)\nend\n"
+      xmerl = "defmodule Synthetic do\n  def go(b), do: :xmerl_scan.string(b)\nend\n"
+
+      assert intake_violations(saxy, "lib/portfolixir/news/parser.ex") == []
+      assert [_saxy_elsewhere] = intake_violations(saxy, "lib/portfolixir/imports/synthetic.ex")
+      assert [_sweet_in_news] = intake_violations(sweet, "lib/portfolixir/news/parser.ex")
+      assert [_xmerl_in_news] = intake_violations(xmerl, "lib/portfolixir/news/parser.ex")
+
+      for {path, exemption} <- @decoder_exemptions do
+        assert File.exists?(path), "stale decoder exemption: #{path}"
+        assert File.read!(path) =~ "Saxy", "stale decoder exemption: #{path} names no decoder"
+        assert exemption.adr =~ ~r/^ADR-\d{4}$/ and String.length(exemption.reason) > 20
+      end
+    end
+
     test "a synthetic XML body parser is caught" do
       source = """
       defmodule PortfolixirWeb.SyntheticEndpoint do
@@ -383,7 +416,7 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
       Enum.take(segments, -2) == [:Plug, :Upload] ->
         ["#{path}:#{meta[:line]}: Plug.Upload takes a raw multipart file"]
 
-      List.last(segments) in @decoder_aliases ->
+      List.last(segments) in @decoder_aliases and not exempt?(path, List.last(segments)) ->
         ["#{path}:#{meta[:line]}: #{Enum.join(segments, ".")} decodes XML or a workspace"]
 
       true ->
@@ -399,6 +432,13 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
   end
 
   defp intake_hit(_node, _path), do: []
+
+  defp exempt?(path, alias_segment) do
+    case Map.get(@decoder_exemptions, path) do
+      %{aliases: aliases} -> alias_segment in aliases
+      nil -> false
+    end
+  end
 
   defp decoder_hit(funs, module, fun, meta, path) do
     if funs == :all or fun in funs,

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic RSS 2.0 feed: invented issuers, hosts under .example. -->
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Synthetic Wire</title>
+    <link>https://wire.example/</link>
+    <description>A synthetic feed for the parser's tests</description>
+    <item>
+      <title>Example Industries &amp; Partners report &lt;b&gt;record&lt;/b&gt; quarter</title>
+      <link>https://wire.example/news/1</link>
+      <guid isPermaLink="false">wire-0001</guid>
+      <pubDate>Tue, 03 Nov 2026 14:30:00 +0100</pubDate>
+      <description>&lt;p&gt;Revenue rose.&lt;/p&gt;&lt;p&gt;Margins held &amp;amp; costs fell.&lt;/p&gt;</description>
+      <source url="https://origin.example/feed.xml">Origin Example</source>
+    </item>
+    <item>
+      <title><![CDATA[Sample Corp names a new <i>chair</i>]]></title>
+      <link>  https://wire.example/news/2  </link>
+      <guid>https://wire.example/news/2</guid>
+      <pubDate>Wed, 4 Nov 26 08:00 GMT</pubDate>
+      <content:encoded><![CDATA[<div><script>alert(1)</script>The board met.</div>]]></content:encoded>
+    </item>
+    <item>
+      <title>An item with an unreadable date and a script link</title>
+      <link>javascript:alert(1)</link>
+      <pubDate>sometime last week</pubDate>
+      <dc:date>2026-11-05T09:15:00Z</dc:date>
+    </item>
+  </channel>
+</rss>

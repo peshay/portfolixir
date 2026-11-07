@@ -78,6 +78,11 @@ defmodule Portfolixir.MixProject do
       # out of the tree.
       {:bandit, "~> 1.12"},
       {:req, "~> 0.5"},
+      # The news feed parser's XML reader (ADR-0056 A1, Sprint 27 plan D-7):
+      # SAX mode, no atom from a name, no DTD processed, and a handler that
+      # stops at the first breach. Pinned exactly: a hostile-input surface
+      # moves only through the maintenance lane's audit.
+      {:saxy, "== 1.7.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"}
     ]

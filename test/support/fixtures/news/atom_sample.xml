@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Synthetic Atom 1.0 feed: invented issuers, hosts under .example. -->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Synthetic Filings</title>
+  <id>urn:uuid:00000000-0000-4000-8000-000000000000</id>
+  <updated>2026-11-05T10:00:00Z</updated>
+  <link rel="self" href="https://filings.example/atom.xml"/>
+  <entry>
+    <title type="html">Example Industries files an &lt;em&gt;annual&lt;/em&gt; report</title>
+    <link rel="alternate" href="https://filings.example/doc/1"/>
+    <link rel="enclosure" href="https://filings.example/doc/1.pdf"/>
+    <id>urn:synthetic:filing:1</id>
+    <published>2026-11-04T16:05:00-05:00</published>
+    <updated>2026-11-04T17:00:00-05:00</updated>
+    <summary>The annual report is available.</summary>
+    <source>
+      <id>urn:synthetic:origin</id>
+      <link rel="alternate" href="https://origin.example/"/>
+      <title>Origin Example</title>
+    </source>
+  </entry>
+  <entry>
+    <title>Sample Corp: update</title>
+    <link href="https://filings.example/doc/2"/>
+    <id>urn:synthetic:filing:2</id>
+    <updated>2026-11-05T09:00:00.250+01:00</updated>
+    <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><p>First paragraph.</p><p>Second paragraph.</p></div></content>
+  </entry>
+</feed>
