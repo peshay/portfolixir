@@ -74,6 +74,10 @@ defmodule PortfolixirWeb.FieldLabel do
   def label(:issue_date), do: gettext("Issue date")
   def label(:face_value), do: gettext("Denomination (face value)")
   def label(:face_value_currency_code), do: gettext("Face value currency")
+  # ADR-0056 §2: the news identity and the watch flag.
+  def label(:news_cik), do: gettext("CIK")
+  def label(:news_aliases), do: gettext("News aliases")
+  def label(:news_watch), do: gettext("Watched for news")
 
   # A cash account, a depot, a portfolio or a bucket the import creates.
   def label(:base_currency_code), do: gettext("Base currency")

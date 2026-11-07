@@ -11,6 +11,7 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
   alias Portfolixir.Lifecycle.Freeze
+  alias Portfolixir.News.Alias, as: NewsAlias
 
   @providers ~w(portfolio_performance coingecko manual)
 
@@ -62,6 +63,13 @@ defmodule Portfolixir.Catalog.Security do
     field(:face_value, :decimal)
     field(:face_value_currency_code, :string)
 
+    # ADR-0056 §2: the news identity — the SEC's CIK (10 digits) and the
+    # aliases the matcher looks up — and whether the security is in the
+    # news universe without a holding or a target.
+    field(:news_cik, :string)
+    embeds_many(:news_aliases, NewsAlias, on_replace: :delete)
+    field(:news_watch, :boolean, default: false)
+
     has_many(:identifier_aliases, Portfolixir.Catalog.IdentifierAlias)
 
     # ADR-0044 §1 (#749): the current thesis state, a projection over the
@@ -84,6 +92,7 @@ defmodule Portfolixir.Catalog.Security do
     note feed feed_url latest_feed latest_feed_url is_retired is_benchmark
     treat_quotes_as_raw online_id provider attributes coupon_rate
     coupon_frequency maturity_date issue_date face_value face_value_currency_code
+    news_cik news_watch
   )a
 
   @logo_keys ~w(logo_path logo_source logo_source_host logo_locked logo_file_missing)
@@ -168,7 +177,8 @@ defmodule Portfolixir.Catalog.Security do
         :exchange_code,
         :feed_url,
         :latest_feed_url,
-        :online_id
+        :online_id,
+        :news_cik
       ],
       max: 255
     )
@@ -190,6 +200,7 @@ defmodule Portfolixir.Catalog.Security do
     |> validate_feed(:feed)
     |> validate_feed(:latest_feed)
     |> validate_bond_terms()
+    |> validate_news_identity()
     |> unique_constraint([:provider, :online_id],
       name: :securities_provider_online_id_unique_index
     )
@@ -267,6 +278,54 @@ defmodule Portfolixir.Catalog.Security do
 
   @doc "The coupon payment frequencies a bond's master data may name (ADR-0052 §1)."
   def coupon_frequencies, do: @coupon_frequencies
+
+  # ADR-0056 §2: the CIK as its 10 digits, zero-padded; each alias checked by
+  # `Portfolixir.News.Alias`; at most 50, no token twice.
+  @cik_shape ~r/\A[0-9]{1,10}\z/
+
+  defp validate_news_identity(changeset) do
+    changeset
+    |> update_change(:news_cik, &normalize_cik/1)
+    |> validate_change(:news_cik, fn :news_cik, cik ->
+      if Regex.match?(~r/\A[0-9]{10}\z/, cik),
+        do: [],
+        else: [news_cik: "is not a CIK (1 to 10 digits)"]
+    end)
+    |> validate_required([:news_watch])
+    |> cast_embed(:news_aliases, with: &NewsAlias.changeset/2)
+    |> validate_length(:news_aliases, max: NewsAlias.max_aliases())
+    |> validate_distinct_tokens()
+    |> check_constraint(:news_cik, name: :securities_news_cik_check)
+    |> check_constraint(:news_aliases, name: :securities_news_aliases_check)
+  end
+
+  defp normalize_cik(cik) when is_binary(cik) do
+    cik = String.trim(cik)
+
+    cond do
+      cik == "" -> nil
+      Regex.match?(@cik_shape, cik) -> String.pad_leading(cik, 10, "0")
+      true -> cik
+    end
+  end
+
+  defp normalize_cik(cik), do: cik
+
+  defp validate_distinct_tokens(changeset) do
+    tokens =
+      changeset
+      |> get_field(:news_aliases, [])
+      |> Enum.map(& &1.token)
+      |> Enum.reject(&is_nil/1)
+
+    case tokens -- Enum.uniq(tokens) do
+      [] ->
+        changeset
+
+      [twice | _] ->
+        add_error(changeset, :news_aliases, "lists the token \"%{token}\" twice", token: twice)
+    end
+  end
 
   # #330 (ADR-0052 §1): each value a bond can carry, refused on its own field.
   # Nothing is required: a cell whose input is missing says so on the screen.
