@@ -157,7 +157,13 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
     # module. Exactly a scope's stories, a story's items, the health and the
     # digest; a route or tool for news archives is still caught.
     %{
-      phrases: [~w(news stories), ~w(news items), ~w(news health), ~w(news read)],
+      phrases: [
+        ~w(news stories),
+        ~w(news items),
+        ~w(news health),
+        ~w(news digest),
+        ~w(news read)
+      ],
       kinds: [:route, :tool, :module],
       class: :permanent,
       adr: "ADR-0056",

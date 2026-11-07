@@ -15,6 +15,11 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       and the link.
     * `GET /api/v1/news/health` (`news.health`) — `Portfolixir.News.health/1`
       at the server's clock.
+    * `GET /api/v1/news/digest` (`news.digest`) — one row per security with
+      something new since `since` (default 24 hours before now), without
+      labels and without a consumer cursor (§11): `view_id` (else the news
+      universe), `include_unlabeled` (`false`), `max_rows` (40, at most 100).
+      See `Portfolixir.News.Reads.digest/4`.
 
   **Compact by §9's rule:** enums as their codes, times to the second in
   UTC, names at most 20 characters, a field without a value left out, and
@@ -40,6 +45,11 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   @tiers %{"primary" => :primary, "secondary" => :secondary, "awareness" => :awareness}
   @assignments %{"unassigned" => :unassigned, "ambiguous" => :ambiguous}
   @fields ~w(slim std)
+
+  @digest_params ~w(view_id since include_unlabeled max_rows)
+  @digest_rows 40
+  @digest_rows_max 100
+  @day_seconds 24 * 60 * 60
 
   def index(conn, params) do
     with :ok <- closed(conn, @list_params),
@@ -84,6 +94,37 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
 
       {:error, errors} ->
         refuse(conn, errors)
+    end
+  end
+
+  def digest(conn, params) do
+    with :ok <- closed(conn, @digest_params),
+         {:ok, view_id} <- view_id(params["view_id"]),
+         {:ok, since} <- digest_since(params),
+         {:ok, include_unlabeled} <- include_unlabeled(params["include_unlabeled"]),
+         {:ok, max_rows} <- max_rows(params["max_rows"]),
+         as_of = Reads.as_of(),
+         {:ok, security_ids} <- Reads.digest_securities(view_id) do
+      digest = Reads.digest(security_ids, since, include_unlabeled, max_rows)
+
+      data =
+        compact(%{
+          since: time(since),
+          as_of: time(as_of),
+          view_id: view_id,
+          rows: Enum.map(digest.rows, &digest_row/1),
+          categories: digest.categories && Enum.map(digest.categories, &digest_row/1),
+          quiet: digest.quiet,
+          unassigned: digest.unassigned,
+          ambiguous: digest.ambiguous,
+          truncated: digest.truncated,
+          more: digest.more
+        })
+
+      json(conn, %{data: data})
+    else
+      {:error, :not_found} -> not_found(conn)
+      {:error, errors} -> refuse(conn, errors)
     end
   end
 
@@ -212,6 +253,37 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   defp encode_cursor(nil), do: nil
   defp encode_cursor({at, id}), do: DateTime.to_iso8601(at) <> "~" <> Integer.to_string(id)
 
+  defp view_id(value) when value in [nil, ""], do: {:ok, nil}
+
+  defp view_id(value) do
+    case IdParam.parse(value) do
+      {:ok, id} -> {:ok, id}
+      :error -> {:error, %{"view_id" => ["is invalid"]}}
+    end
+  end
+
+  defp digest_since(params) do
+    case since(params) do
+      {:ok, nil} -> {:ok, DateTime.add(DateTime.utc_now(), -@day_seconds, :second)}
+      other -> other
+    end
+  end
+
+  defp include_unlabeled(value) when value in [nil, "", "false", false], do: {:ok, false}
+  defp include_unlabeled(value) when value in ["true", true], do: {:ok, true}
+
+  defp include_unlabeled(_value),
+    do: {:error, %{"include_unlabeled" => ["must be true or false"]}}
+
+  defp max_rows(value) when value in [nil, ""], do: {:ok, @digest_rows}
+
+  defp max_rows(value) do
+    case Integer.parse(to_string(value)) do
+      {rows, ""} when rows > 0 -> {:ok, min(rows, @digest_rows_max)}
+      _other -> {:error, %{"max_rows" => ["must be a positive integer (at most 100 is used)"]}}
+    end
+  end
+
   defp present?(value), do: value not in [nil, ""]
 
   defp id_or_not_found(id) do
@@ -248,6 +320,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
 
     if std?, do: Map.merge(slim, %{url: item.url, note_ids: item.note_ids}), else: slim
   end
+
+  defp digest_row(row), do: %{row | top: %{row.top | at: time(row.top.at)}}
 
   defp story_json(story) do
     story

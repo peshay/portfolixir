@@ -78,7 +78,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "sight, tier_min, limit, fields=slim|std and a cursor; GET " <>
               "/api/v1/news/stories/:id and GET /api/v1/news/items/:id answer one story or " <>
               "item, the only reads with its excerpt and link; GET /api/v1/news/health " <>
-              "answers each feed's freshness and yield and the day's counts."
+              "answers each feed's freshness and yield and the day's counts; GET " <>
+              "/api/v1/news/digest answers one row per security with a story new since " <>
+              "since (a view's securities, else the news universe): its short name, count " <>
+              "and top story, the quiet securities and the unassigned and ambiguous items " <>
+              "as counts, without labels and without a consumer cursor (issuer and " <>
+              "regulatory stories always, aggregator and thematic ones with " <>
+              "include_unlabeled)."
             # --- Sprint 27 N7 end ---
           ],
           " "
@@ -98,7 +104,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/news/stories",
         "GET /api/v1/news/stories/:id",
         "GET /api/v1/news/items/:id",
-        "GET /api/v1/news/health"
+        "GET /api/v1/news/health",
+        "GET /api/v1/news/digest"
         # --- Sprint 27 N7 end ---
       ],
       tools: [

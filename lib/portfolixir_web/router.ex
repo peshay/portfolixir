@@ -440,12 +440,14 @@ defmodule PortfolixirWeb.Router do
     # --- Sprint 27 N8 end ---
     # --- Sprint 27 N7 begin ---
     # ADR-0056 §9, §11 (Sprint 27, N7): the news layer's reads — a scope's
-    # stories, a story's items and the remainder, one story or item, and the
-    # health. Compact by §9's rule; closed (an unknown parameter answers 422).
+    # stories, a story's items and the remainder, one story or item, the
+    # health and the digest. Compact by §9's rule; closed (an unknown
+    # parameter answers 422).
     get("/news/stories", NewsReadController, :index)
     get("/news/stories/:id", NewsReadController, :show_story)
     get("/news/items/:id", NewsReadController, :show_item)
     get("/news/health", NewsReadController, :health)
+    get("/news/digest", NewsReadController, :digest)
     # --- Sprint 27 N7 end ---
 
     get("/settings/default_view", SettingsController, :show_default_view)
