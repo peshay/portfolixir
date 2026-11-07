@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Bands
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.PricingContext
@@ -43,7 +44,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.Portfolio.CategoryColors
   alias PortfolixirWeb.Portfolio.ContributionTable
+  alias PortfolixirWeb.Portfolio.StackedChart
   alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
@@ -53,24 +56,11 @@ defmodule PortfolixirWeb.PortfolioLive do
   require CappedAsync
   import PortfolixirWeb.ViewSwitcher
 
-  @unassigned_color "#9ca3af"
+  # The colours live in one module with the stacked chart's (I23): a
+  # category looks the same on the sunburst and on the stack.
+  @unassigned_color CategoryColors.unassigned()
   @fallback_color "#6b7280"
-  # Categories without a chosen colour cycle through this palette (in tree
-  # order), so an unstyled tree still renders a readable sunburst/legend
-  # instead of uniform grey (Steve UAT, reconsolidation).
-  @category_palette [
-    "#2563eb",
-    "#0d9488",
-    "#d97706",
-    "#db2777",
-    "#65a30d",
-    "#7c3aed",
-    "#0891b2",
-    "#c2410c"
-  ]
-  # Neutral cash colour, distinct from the category palette and the grey
-  # unassigned/excluded shades, for the cash segment in the basis (issue #335).
-  @cash_color "#0ea5e9"
+  @cash_color CategoryColors.cash()
   @chart_max_points 400
   # The drift-threshold steps the allocation table offers, in percentage
   # points. 5 pp is the dashboard's own attention threshold, so the alert list
@@ -165,7 +155,12 @@ defmodule PortfolixirWeb.PortfolioLive do
           # Overview's total), read on arrival and stored nowhere.
           |> assign(:period, param_period(params))
           |> assign(:range_error, nil)
-          |> assign(:chart_mode, "ttwror")
+          # I23 (FR-53): the stacked chart's level, tree, sort and drilled
+          # category ride the address, so a link handed over reopens them;
+          # a stacked level opens the value series it belongs to.
+          |> assign(:stack, param_stack(params, classifications))
+          |> then(&assign(&1, :chart_mode, stack_chart_mode(&1.assigns.stack)))
+          |> assign(bands: nil, bands_colors: %{}, bands_for: nil, bands_failed: false)
           # The classification tree and the tree/positions mode round-trip
           # through the URL (mobile-reconnect fix): a socket reconnect remounts
           # at the current URL, so reading them from the mount params here
@@ -292,9 +287,13 @@ defmodule PortfolixirWeb.PortfolioLive do
             min_drift_pp
           )
 
-        # Other tabs have no allocation controls; keep mount's tab+view path.
-        _other ->
-          socket.assigns.current_path
+        # Holdings carries the stacked chart's choices (I23), so a locale
+        # or privacy switch keeps them.
+        _holdings ->
+          stack_path(
+            socket.assigns.carried_view,
+            param_stack(params, socket.assigns.classifications)
+          )
       end
 
     socket =
@@ -302,6 +301,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:allocation_mode, allocation_mode)
       |> assign(:min_drift_pp, min_drift_pp)
       |> assign(:current_path, current_path)
+      |> apply_stack(param_stack(params, socket.assigns.classifications))
 
     socket =
       if classification_id == socket.assigns.classification_id do
@@ -329,7 +329,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     stale? =
       present_but_stale?(
         params["classification"],
-        Integer.to_string(socket.assigns.classification_id)
+        socket.assigns.classification_id && Integer.to_string(socket.assigns.classification_id)
       ) or
         present_but_stale?(params["alloc"], allocation_mode_param(socket.assigns.allocation_mode)) or
         present_but_stale?(params["drift"], socket.assigns.min_drift_pp)
@@ -375,6 +375,129 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp param_min_drift_pp(_params), do: nil
 
   defp drift_steps, do: @drift_steps
+
+  # -- the stacked chart's address (I23, FR-53) ----------------------------------
+
+  # The stack the address names: the level (`total` unless `level=category`
+  # or `level=security`), the tree (`tree=`, a loaded classification, else
+  # the bands' own default), the drilled category (`category=`, at the
+  # securities level only) and the sort (`sort=change`, else size). Every
+  # value is matched against a whitelist or parsed as an id, never made an
+  # atom (AGENTS.md); an unknown one falls back to its default.
+  defp param_stack(params, classifications) do
+    level =
+      case params["level"] do
+        "category" -> :category
+        "security" -> :security
+        _other -> :total
+      end
+
+    tree =
+      with true <- level != :total,
+           raw when is_binary(raw) <- params["tree"],
+           {:ok, id} <- LiveParam.fetch_id(raw),
+           true <- Enum.any?(classifications, &(&1.id == id)) do
+        id
+      else
+        _none -> nil
+      end
+
+    category =
+      with :security <- level,
+           raw when is_binary(raw) <- params["category"],
+           {:ok, id} <- LiveParam.fetch_id(raw) do
+        id
+      else
+        _none -> nil
+      end
+
+    sort = if level != :total and params["sort"] == "change", do: :change, else: :size
+
+    %{level: level, tree: tree, category: category, sort: sort}
+  end
+
+  # A stacked level belongs to the value series: a link to one opens it.
+  defp stack_chart_mode(%{level: :total}), do: "ttwror"
+  defp stack_chart_mode(_stack), do: "value"
+
+  # The address of a stack on Holdings: the carried view, then the level,
+  # the tree, the category and the sort, each only when it is not the
+  # default, in this order so the links compare equal.
+  defp stack_path(view, stack) do
+    pairs =
+      view_pairs(view) ++
+        if(stack.level == :total, do: [], else: [{"level", Atom.to_string(stack.level)}]) ++
+        if(stack.tree && stack.level != :total,
+          do: [{"tree", Integer.to_string(stack.tree)}],
+          else: []
+        ) ++
+        if(stack.category, do: [{"category", Integer.to_string(stack.category)}], else: []) ++
+        if(stack.sort == :change and stack.level != :total, do: [{"sort", "change"}], else: [])
+
+    case pairs do
+      [] -> "/portfolio"
+      pairs -> "/portfolio?" <> URI.encode_query(pairs)
+    end
+  end
+
+  # The address with one choice of the bar made.
+  defp stack_choice(stack, :total), do: %{stack | level: :total, category: nil}
+  defp stack_choice(stack, :category), do: %{stack | level: :category, category: nil}
+  defp stack_choice(stack, :security), do: %{stack | level: :security, category: nil}
+  defp stack_choice(stack, sort) when sort in [:size, :change], do: %{stack | sort: sort}
+
+  defp stack_paths(view, stack) do
+    Map.new([:total, :category, :security, :size, :change], fn choice ->
+      {choice, stack_path(view, stack_choice(stack, choice))}
+    end)
+  end
+
+  # The breadcrumb: where the stack is, a drilled category behind a link
+  # back to all categories.
+  defp stack_crumbs(view, %{category: category} = stack, bands) when is_integer(category) do
+    name =
+      case bands do
+        %{category: %{id: ^category, name: name}} -> name
+        _loading -> "…"
+      end
+
+    [{gettext("All categories"), stack_path(view, stack_choice(stack, :category))}, {name, nil}]
+  end
+
+  defp stack_crumbs(_view, %{level: :category}, _bands), do: [{gettext("All categories"), nil}]
+  defp stack_crumbs(_view, %{level: :security}, _bands), do: [{gettext("All securities"), nil}]
+  defp stack_crumbs(_view, _stack, _bands), do: []
+
+  # The tree the bar's chooser shows: the one the stack answered with, else
+  # the address's.
+  defp stack_classification_id(_stack, %{classification: %{id: id}}), do: id
+  defp stack_classification_id(stack, _bands), do: stack.tree
+
+  # The addresses a category's band and legend row open: the category
+  # stacked by its securities, the tree and the sort kept.
+  defp drill_paths(view, stack, %{level: :category, bands: bands}) do
+    for %{kind: :category, id: id, key: key} <- bands, into: %{} do
+      {key, stack_path(view, %{stack | level: :security, category: id})}
+    end
+  end
+
+  defp drill_paths(_view, _stack, _bands), do: %{}
+
+  # A new stack from the address: the value series it belongs to, and its
+  # bands loaded. The same stack again (the initial mount, a patch of
+  # another choice) changes nothing.
+  defp apply_stack(%{assigns: %{stack: stack}} = socket, stack), do: socket
+
+  defp apply_stack(socket, stack) do
+    socket = assign(socket, :stack, stack)
+
+    socket =
+      if stack.level == :total,
+        do: socket,
+        else: assign(socket, :chart_mode, "value")
+
+    load_bands(socket)
+  end
 
   # The rows a threshold keeps, for the summary line's count. Same predicate
   # as the table itself, so the number can never disagree with the rows.
@@ -425,13 +548,17 @@ defmodule PortfolixirWeb.PortfolioLive do
     pairs =
       [{"tab", "allocation"}] ++
         view_pairs(view) ++
-        [
-          {"classification", Integer.to_string(classification_id)},
-          {"alloc", allocation_mode_param(allocation_mode)}
-        ] ++ drift_pairs(min_drift_pp)
+        classification_pairs(classification_id) ++
+        [{"alloc", allocation_mode_param(allocation_mode)}] ++ drift_pairs(min_drift_pp)
 
     "/portfolio?" <> URI.encode_query(pairs)
   end
+
+  # #1366: without any classification there is no tree to name.
+  defp classification_pairs(id) when is_integer(id),
+    do: [{"classification", Integer.to_string(id)}]
+
+  defp classification_pairs(_id), do: []
 
   # Only a chosen threshold rides the URL: the unfiltered table is the default,
   # and a default in the address bar is noise a shared link carries forever.
@@ -476,6 +603,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> load_overview()
       |> load_performance()
       |> load_contribution()
+      |> load_bands()
     else
       socket
     end
@@ -507,7 +635,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       with %{} = valuation <-
              Valuation.for_view(view_id, base_currency: base_currency, pricing_context: context),
            {:ok, allocation} <-
-             Allocation.for_portfolio(portfolio_id, classification_id,
+             allocation_for(portfolio_id, classification_id,
                view: view_id,
                pricing_context: context
              ) do
@@ -529,6 +657,12 @@ defmodule PortfolixirWeb.PortfolioLive do
     end)
   end
 
+  # #1366: no classification, no allocation; the tab says so.
+  defp allocation_for(_portfolio_id, nil, _opts), do: {:ok, nil}
+
+  defp allocation_for(portfolio_id, classification_id, opts),
+    do: Allocation.for_portfolio(portfolio_id, classification_id, opts)
+
   defp load_allocation(socket) do
     socket = ensure_live_view_scope(socket)
     portfolio_id = socket.assigns.portfolio.id
@@ -536,7 +670,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     view_id = socket.assigns[:active_view_id]
 
     CappedAsync.start_async(socket, :allocation, fn ->
-      case Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
+      case allocation_for(portfolio_id, classification_id, view: view_id) do
         {:ok, allocation} -> allocation
         {:error, :view_not_found} -> :view_not_found
         # The tree was deleted in another tab between selection and this read
@@ -593,6 +727,108 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp load_contribution(socket), do: socket
+
+  # I23 (FR-53): the stacked chart's bands, read when the value series shows
+  # a stacked level on Holdings, for the section's period and the page's
+  # view over the walk's own scope, as the bands read answers it
+  # (`GET /api/v1/performance/bands`, `…/views/:id/performance/bands`). Each
+  # read runs its own windowed walk, so it loads one at a time as the
+  # contribution table does; a result for another request is dropped.
+  defp load_bands(
+         %{assigns: %{wealth_tab: :holdings, chart_mode: "value", stack: %{level: level}}} =
+           socket
+       )
+       when level != :total do
+    socket = ensure_live_view_scope(socket)
+    request = bands_request(socket)
+
+    if socket.assigns.bands_for == request and not socket.assigns.bands_failed do
+      socket
+    else
+      %{stack: stack, period: period} = socket.assigns
+      view_id = socket.assigns[:active_view_id]
+      portfolio_id = socket.assigns.portfolio.id
+      base_currency = socket.assigns.portfolio.base_currency_code
+      known = socket.assigns.allocation
+
+      opts =
+        [period: period, base_currency: base_currency, level: stack.level, sort: stack.sort] ++
+          if(stack.category, do: [category_id: stack.category], else: []) ++
+          if(stack.tree && is_nil(stack.category), do: [classification_id: stack.tree], else: [])
+
+      socket
+      |> assign(bands: nil, bands_colors: %{}, bands_for: request, bands_failed: false)
+      |> CappedAsync.start_latest(:bands, fn ->
+        {request,
+         case Bands.for_view(view_id, opts) do
+           {:ok, result} -> {:ok, result, band_colors(result, portfolio_id, view_id, known)}
+           error -> error
+         end}
+      end)
+    end
+  end
+
+  defp load_bands(socket), do: socket
+
+  defp bands_request(socket),
+    do: {socket.assigns.stack, socket.assigns.period, socket.assigns[:active_view_id]}
+
+  # Each band's colour (the owner, 2026-11-07): a category the colour the
+  # allocation sunburst draws it in for the same tree and view, so it looks
+  # the same on both tabs; a category the sunburst does not draw (nothing
+  # held today, no target) its own colour, else the palette at its place in
+  # the tree. Securities take the palette's hues in order of size, the
+  # largest first, whatever the sort; cash the cash colour, the unclassified
+  # rest grey, "Other" the neutral token (`:other`, drawn by CSS).
+  defp band_colors(result, portfolio_id, view_id, known) do
+    sunburst =
+      case result do
+        %{level: :category, classification: %{id: id}} ->
+          sunburst_colors(id, portfolio_id, view_id, known)
+
+        _other ->
+          %{}
+      end
+
+    ranks =
+      result.bands
+      |> Enum.filter(&(&1.kind == :security))
+      |> Enum.sort_by(&{Decimal.negate(&1.end_value), &1.name}, fn {a, an}, {b, bn} ->
+        case Decimal.compare(a, b) do
+          :lt -> true
+          :gt -> false
+          :eq -> an <= bn
+        end
+      end)
+      |> Enum.with_index()
+      |> Map.new(fn {band, index} -> {band.key, index} end)
+
+    Map.new(result.bands, fn band -> {band.key, band_color(band, sunburst, ranks)} end)
+  end
+
+  defp band_color(%{kind: :cash}, _sunburst, _ranks), do: @cash_color
+  defp band_color(%{kind: :unclassified}, _sunburst, _ranks), do: @unassigned_color
+  defp band_color(%{kind: :other}, _sunburst, _ranks), do: :other
+
+  defp band_color(%{kind: :security, key: key}, _sunburst, ranks),
+    do: CategoryColors.at(Map.fetch!(ranks, key))
+
+  defp band_color(%{kind: :category} = band, sunburst, _ranks),
+    do: Map.get(sunburst, band.id) || band.color || CategoryColors.at(band.tree_index || 0)
+
+  defp band_color(_band, _sunburst, _ranks), do: nil
+
+  # The sunburst's colours for one tree: the page's loaded allocation when
+  # it is that tree's, else the same allocation read the sunburst makes.
+  defp sunburst_colors(id, _portfolio_id, _view_id, %{classification_id: id} = known),
+    do: Map.new(known.categories, &{&1.category_id, &1.color})
+
+  defp sunburst_colors(id, portfolio_id, view_id, _known) do
+    case Allocation.for_portfolio(portfolio_id, id, view: view_id) do
+      {:ok, allocation} -> CategoryColors.by_category(allocation.categories)
+      {:error, _reason} -> %{}
+    end
+  end
 
   # Which data a read answered from (FR-41 review round): its view, and the
   # day and the global data version (`Performance.data_state/0`) taken before
@@ -737,6 +973,14 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # #1058: a walk an ask waited for is dropped, and the waiting walk, just
   # started, is the one whose result lands.
+  # I23: the stack lands only for the request the page still shows.
+  def handle_async(:bands, result, socket) do
+    case CappedAsync.landed(socket, :bands) do
+      {:superseded, socket} -> {:noreply, socket}
+      {:current, socket} -> bands_landed(result, socket)
+    end
+  end
+
   def handle_async(:contribution, result, socket) do
     case CappedAsync.landed(socket, :contribution) do
       {:superseded, socket} -> {:noreply, socket}
@@ -834,7 +1078,9 @@ defmodule PortfolixirWeb.PortfolioLive do
      )
      |> load_overview()
      |> load_performance()
-     |> load_contribution()}
+     |> load_contribution()
+     |> assign(:bands_for, nil)
+     |> load_bands()}
   end
 
   def handle_async(:sync_rates, {:ok, {:error, _reason}}, socket) do
@@ -854,6 +1100,39 @@ defmodule PortfolixirWeb.PortfolioLive do
   def handle_async(_name, {:exit, _reason}, socket) do
     {:noreply, assign(socket, error: gettext("Couldn't load the wealth figures."))}
   end
+
+  defp bands_landed({:ok, {request, answer}}, socket) do
+    if request == bands_request(socket),
+      do: bands_answer(answer, socket),
+      else: {:noreply, socket}
+  end
+
+  defp bands_landed({:exit, _reason}, socket), do: {:noreply, assign(socket, :bands_failed, true)}
+
+  defp bands_answer({:ok, result, colors}, socket),
+    do: {:noreply, assign(socket, bands: result, bands_colors: colors, bands_failed: false)}
+
+  defp bands_answer({:error, :view_not_found}, socket),
+    do: {:noreply, socket |> degrade_to_everything() |> assign(:bands_for, nil) |> load_bands()}
+
+  # A drilled category or a tree that is gone (deleted in another tab, a
+  # stale link) falls back to the category stack: the address is replaced
+  # once, so it never advertises a stack the page does not show.
+  defp bands_answer({:error, reason}, socket)
+       when reason in [
+              :category_not_found,
+              :category_outside_classification,
+              :classification_not_found
+            ] do
+    stack = %{socket.assigns.stack | level: :category, category: nil}
+    stack = if reason == :classification_not_found, do: %{stack | tree: nil}, else: stack
+
+    {:noreply,
+     push_patch(socket, to: stack_path(socket.assigns.carried_view, stack), replace: true)}
+  end
+
+  defp bands_answer({:error, _reason}, socket),
+    do: {:noreply, assign(socket, :bands_failed, true)}
 
   defp contribution_landed({:ok, {_period, {{:error, :view_not_found}, _read}}}, socket) do
     {:noreply, socket |> degrade_to_everything() |> load_contribution()}
@@ -890,6 +1169,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   # One landing spot for a loaded allocation: resolved display colours plus
   # the two lookups the collapsible tree needs (parent chain per category and
   # which categories have child categories).
+  defp assign_allocation(socket, nil), do: assign(socket, :allocation, nil)
+
   defp assign_allocation(socket, allocation) do
     allocation = allocation |> with_display_colors() |> with_twin_ids()
 
@@ -961,19 +1242,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   # wins, everything else cycles through the palette in tree order. Downstream
   # consumers (sunburst, legend, drift table) can then rely on `color` being
   # set.
-  defp with_display_colors(allocation) do
-    categories =
-      allocation.categories
-      |> Enum.with_index()
-      |> Enum.map(fn {row, index} ->
-        %{
-          row
-          | color: row.color || Enum.at(@category_palette, rem(index, length(@category_palette)))
-        }
-      end)
-
-    %{allocation | categories: categories}
-  end
+  defp with_display_colors(allocation),
+    do: %{allocation | categories: CategoryColors.resolve(allocation.categories)}
 
   @impl true
   def render(%{portfolio: nil} = assigns) do
@@ -1765,13 +2035,44 @@ defmodule PortfolixirWeb.PortfolioLive do
               ><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
               <span class="perf-badge-period">(<%= period_label(@period) %>)</span>
             </p>
-            <.performance_chart
-              series={downsample(@performance.series)}
-              summary={table_summary(@performance.series)}
-              mode={@chart_mode}
-              currency={@performance.base_currency}
-              overlays={benchmark_overlays(@chart_mode, @comparisons, @performance.series)}
+            <%!-- I23 (FR-53, board 01 A): the bar above the value chart;
+                 at the level Total the chart under it is today's, unchanged. --%>
+            <StackedChart.bar
+              :if={@chart_mode == "value"}
+              stack={@stack}
+              paths={stack_paths(@carried_view, @stack)}
+              crumbs={stack_crumbs(@carried_view, @stack, @bands)}
+              classifications={@classifications}
+              classification_id={stack_classification_id(@stack, @bands)}
             />
+            <%= if @chart_mode == "value" and @stack.level != :total do %>
+              <%= cond do %>
+                <% @bands -> %>
+                  <StackedChart.figure
+                    result={@bands}
+                    colors={@bands_colors}
+                    drill_paths={drill_paths(@carried_view, @stack, @bands)}
+                  />
+                <% @bands_failed -> %>
+                  <p class="alert-error" role="alert" data-role="stack-failed">
+                    <%= gettext("Computation failed. Reload retries.") %>
+                  </p>
+                <% true -> %>
+                  <div class="section-skeleton" data-role="stack-skeleton" role="status">
+                    <span class="recomputing-cue">
+                      <span class="spinner"></span> <%= gettext("computing") %>
+                    </span>
+                  </div>
+              <% end %>
+            <% else %>
+              <.performance_chart
+                series={downsample(@performance.series)}
+                summary={table_summary(@performance.series)}
+                mode={@chart_mode}
+                currency={@performance.base_currency}
+                overlays={benchmark_overlays(@chart_mode, @comparisons, @performance.series)}
+              />
+            <% end %>
             <%!-- UX-DR26: a deliberate limit is stated where the overlay is
                  missing — a rebased return has no € axis. --%>
             <p
@@ -2522,9 +2823,17 @@ defmodule PortfolixirWeb.PortfolioLive do
               </div>
             <% end %>
           <% else %>
+            <%!-- #1366: a database without any classification has no
+                 allocation to wait for: it says so instead of a skeleton
+                 that never fills. --%>
+            <p :if={is_nil(@classification_id)} class="empty-state" data-role="allocation-no-tree">
+              <%= gettext("No classification yet.") %>
+              <.link navigate="/classifications"><%= gettext("Create one on the Classifications page") %></.link>
+            </p>
             <%!-- #723: allocation is a sub-second figure — the block
                  skeleton (UX-DR20) carries the wait without the cue. --%>
             <div
+              :if={@classification_id}
               class="section-skeleton section-skeleton--allocation"
               data-role="allocation-skeleton"
               aria-busy="true"
@@ -4029,8 +4338,37 @@ defmodule PortfolixirWeb.PortfolioLive do
   # survives period switches (select_period leaves :chart_mode untouched).
   def handle_event("set_chart_mode", %{"mode" => mode}, socket)
       when mode in ["ttwror", "value"] do
-    {:noreply, assign(socket, :chart_mode, mode)}
+    {:noreply, socket |> assign(:chart_mode, mode) |> load_bands()}
   end
+
+  # I23: a click on a category's band opens it stacked by its securities,
+  # as its legend row's link does; only a category the stack shows.
+  def handle_event("drill_stack", %{"category" => raw}, socket) do
+    with {:ok, id} <- LiveParam.fetch_id(raw),
+         %{bands: bands} <- socket.assigns.bands,
+         true <- Enum.any?(bands, &(&1.kind == :category and &1.id == id)) do
+      stack = %{socket.assigns.stack | level: :security, category: id}
+      {:noreply, push_patch(socket, to: stack_path(socket.assigns.carried_view, stack))}
+    else
+      _other -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("drill_stack", _params, socket), do: {:noreply, socket}
+
+  # The bar's classification: the category stack of the chosen tree, the
+  # sort kept. Only a loaded tree.
+  def handle_event("select_stack_classification", %{"tree" => raw}, socket) do
+    with {:ok, id} <- LiveParam.fetch_id(raw),
+         true <- Enum.any?(socket.assigns.classifications, &(&1.id == id)) do
+      stack = %{socket.assigns.stack | level: :category, category: nil, tree: id}
+      {:noreply, push_patch(socket, to: stack_path(socket.assigns.carried_view, stack))}
+    else
+      _other -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_stack_classification", _params, socket), do: {:noreply, socket}
 
   def handle_event("set_chart_mode", _params, socket), do: {:noreply, socket}
 
@@ -4767,7 +5105,8 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     planned =
       Enum.filter(candidate_ids, fn view_id ->
-        Targets.plan_exists?(portfolio_id, classification_id, view: view_id) or
+        (not is_nil(classification_id) and
+           Targets.plan_exists?(portfolio_id, classification_id, view: view_id)) or
           not is_nil(Targets.get_cash_target(portfolio_id, view: view_id))
       end)
 
@@ -4778,8 +5117,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   # to the built-in asset-class tree, which always exists after seeding.
   # The default steering tree rule lives in the context so the dashboard's
   # drift alerts and this page never disagree (review finding, ADR-0022).
+  #
+  # #1366: a database without any classification (only a test meets it; the
+  # seed creates the built-in trees) has no default tree, so no id.
   defp default_classification_id(classifications) do
-    Classifications.default_classification(classifications).id
+    case Classifications.default_classification(classifications) do
+      nil -> nil
+      classification -> classification.id
+    end
   end
 
   # -- sunburst geometry -------------------------------------------------------
@@ -5211,6 +5556,7 @@ defmodule PortfolixirWeb.PortfolioLive do
            |> assign(period: period, performance: performance)
            |> assign_comparisons()
            |> load_contribution()
+           |> load_bands()
            |> push_event("close-popover", %{id: "period-custom"})}
 
         {:error, _reason} ->
@@ -5224,6 +5570,7 @@ defmodule PortfolixirWeb.PortfolioLive do
        socket
        |> assign(:period, period)
        |> load_contribution()
+       |> load_bands()
        |> push_event("close-popover", %{id: "period-custom"})}
     end
   end
