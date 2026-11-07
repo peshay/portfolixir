@@ -1441,6 +1441,22 @@ gespeichertes Label gleich.
   `promoted_30d`, `yield_30d` (eine Dezimalzeichenkette) und `low_yield` sowie
   die Tageszähler `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`,
   `old`) und `blocked`.
+- `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
+  Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie das
+  News-Universum (gehalten, mit einem Zielgewicht oder beobachtet). `since`
+  (standardmäßig 24 Stunden vor jetzt) liest die erste Sichtung wie die Liste,
+  und `as_of` ist das nächste `since`. Eine Zeile ist `id`, `name`, `count`
+  (ihre neuen Storys) und `top` (`id`, `title` auf 100 Zeichen gekürzt, `tier`,
+  `at`): die beste Stufe, dann die neueste. Eine Story mit einem Eintrag eines
+  Emittenten- oder Regulierungs-Feeds zählt immer; eine Story nur aus
+  Aggregator-Einträgen und eine thematische Story zählen nur mit
+  `include_unlabeled=true`, die thematischen je Kategorie unter `categories`.
+  `quiet` zählt die Wertpapiere ohne Zeile, `unassigned` und `ambiguous` die
+  seitdem zuerst gesehenen Aggregator-Einträge, die kein Wertpapier oder
+  mehrere beanspruchen. `max_rows` (standardmäßig 40, höchstens 100) begrenzt
+  die Zeilen; `truncated` und `more` sagen, wie viele weggelassen wurden. Der
+  Digest dieses Sprints hat keine Labels und keinen Verbraucher-Cursor:
+  `consumer`, `ack_cursor`, `min_materiality` und `tier_min` ergeben `422`.
 
 ### Logos
 

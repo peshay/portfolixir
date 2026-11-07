@@ -1330,6 +1330,21 @@ with none stored.
   `promoted_30d`, `yield_30d` (a decimal string) and `low_yield`, and the
   day's `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`, `old`) and
   `blocked` counts.
+- `GET /api/v1/news/digest` answers what is new, one row per security: with
+  `view_id` the securities that view holds, without it the news universe
+  (held, carrying a target weight, or watched). `since` (default 24 hours
+  before now) reads first sight as the list does, and `as_of` is the next
+  `since`. A row is `id`, `name`, `count` (its new stories) and `top` (`id`,
+  `title` cut to 100 characters, `tier`, `at`): the best tier, then the
+  newest. A story with an issuer or regulatory item always counts; a story of
+  aggregator items only, and a thematic story, counts only with
+  `include_unlabeled=true`, the thematic ones per category under
+  `categories`. `quiet` counts the securities without a row, `unassigned` and
+  `ambiguous` the aggregator items first seen since then that no security, or
+  several, claim. `max_rows` (default 40, at most 100) caps the rows;
+  `truncated` and `more` say how many were left out. This sprint's digest has
+  no labels and no consumer cursor: `consumer`, `ack_cursor`,
+  `min_materiality` and `tier_min` answer `422`.
 
 ### Logos
 

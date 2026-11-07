@@ -120,7 +120,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
           "GET /api/v1/news/stories",
           "GET /api/v1/news/stories/:id",
           "GET /api/v1/news/items/:id",
-          "GET /api/v1/news/health"
+          "GET /api/v1/news/health",
+          "GET /api/v1/news/digest"
         ] do
       assert endpoint in newest["endpoints"], endpoint
       assert newest["summary"] =~ endpoint, endpoint
@@ -128,6 +129,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert newest["summary"] =~ "an unknown parameter answers 422 naming it"
     assert newest["summary"] =~ "since by first sight"
+    assert newest["summary"] =~ "without labels and without a consumer cursor"
     # --- Sprint 27 N7 end ---
 
     # Sprint 26's sprint PR (version 26), found by version from Sprint 27 on.
