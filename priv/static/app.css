@@ -52,6 +52,7 @@
   --color-text-soft: #8b7f9f;
   --color-text-subtle: #94a0b4;
   --color-chart-surface: #ffffff;
+  --color-chart-other: var(--color-text-muted);
   /* The plate behind real image logos stays white in every theme by design
      (issue 449). Text on the accent fill does not: white fails 1.86-2.72:1 on
      the dark accent fills, so on-accent is theme-dependent (issue 642). */
@@ -119,6 +120,7 @@
     --color-text-soft: #c4b5fd;
     --color-text-subtle: #5c667a;
     --color-chart-surface: #131a23;
+    --color-chart-other: var(--color-text-subtle);
     --color-on-accent: #0b0f14;
     --color-warning-soft: rgb(251 191 36 / 0.16);
     --color-danger-soft: rgb(225 29 72 / 0.16);
@@ -153,6 +155,7 @@
   --color-text-soft: #8b7f9f;
   --color-text-subtle: #94a0b4;
   --color-chart-surface: #ffffff;
+  --color-chart-other: var(--color-text-muted);
   --color-on-accent: #ffffff;
   --color-warning-soft: #fffbeb;
   --color-danger-soft: #ffe4e6;
@@ -186,6 +189,7 @@
   --color-text-soft: #c4b5fd;
   --color-text-subtle: #5c667a;
   --color-chart-surface: #131a23;
+  --color-chart-other: var(--color-text-subtle);
   --color-on-accent: #0b0f14;
   --color-warning-soft: rgb(251 191 36 / 0.16);
   --color-danger-soft: rgb(225 29 72 / 0.16);
@@ -6192,6 +6196,150 @@ details[open] > .disclosure-summary .disclosure-chevron {
   flex-direction: column;
   gap: var(--space-2);
 }
+/* I23 (FR-53, board 01 A): the stacked value chart. The bar above the
+   chart wraps under the section's head; its options are links (each choice
+   patches the address), drawn as the app's one segmented control. The
+   legend sits beside the chart from 900 px of the section, under it below. */
+.stack-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.stack-bar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+/* A label stays on the line of its control when the bar wraps. */
+.stack-bar__group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.stack-bar__label,
+.stack-bar__tree label {
+  font-weight: 600;
+  margin-right: 2px;
+}
+.stack-bar__tree {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.stack-bar__tree select {
+  min-height: 30px;
+  max-width: 14rem;
+  font-size: 12.5px;
+}
+.stack-bar a.segmented-control__option {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.stack-crumbs {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.stack-crumbs a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.stack-crumbs a:hover {
+  text-decoration: underline;
+}
+.stack-crumbs__sep {
+  margin: 0 6px;
+  color: var(--color-text-muted);
+}
+.stack-figure {
+  container-type: inline-size;
+}
+.stack-figure__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+@container (min-width: 900px) {
+  .stack-figure__body {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  }
+}
+.stack-chart {
+  display: block;
+  background: var(--color-chart-surface);
+  border-radius: 6px;
+}
+.stack-band {
+  stroke: var(--color-chart-surface);
+  stroke-width: 0.6;
+}
+.stack-band[phx-click] {
+  cursor: pointer;
+}
+.stack-band[phx-click]:hover {
+  opacity: 0.85;
+}
+.stack-band--other {
+  fill: var(--color-chart-other);
+}
+.stack-legend {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.stack-legend th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+.stack-legend td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+.stack-legend .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.stack-legend__name {
+  overflow-wrap: anywhere;
+}
+.stack-legend__drill {
+  color: var(--color-text);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.stack-legend__chevron {
+  margin-left: 4px;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+.stack-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 7px;
+  vertical-align: -1px;
+}
+.stack-swatch--other {
+  background: var(--color-chart-other);
+}
+
 .perf-table-disclosure > summary {
   cursor: pointer;
   font-size: 12px;
