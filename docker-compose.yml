@@ -90,6 +90,9 @@ services:
       # "off" leaves logo discovery and the scheduled quote and FX downloads
       # off from boot, for a host that must not call out (#1026).
       PORTFOLIXIR_BACKGROUND_FETCH: ${PORTFOLIXIR_BACKGROUND_FETCH:-}
+      # The news fetcher's user agent, with the operator's contact; a feed on
+      # sec.gov makes no request without it (ADR-0056 §5).
+      PORTFOLIXIR_NEWS_USER_AGENT: ${PORTFOLIXIR_NEWS_USER_AGENT:-}
     # Descriptors above the listener's connection cap (500, config/config.exs),
     # so a flood of connections meets the cap, not the descriptor table.
     ulimits:

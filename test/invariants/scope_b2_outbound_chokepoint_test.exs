@@ -151,7 +151,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "PORTFOLIXIR_LOGO_DIR" => {:config, "the directory stored logos are written to (E25 S2)"},
     "PORTFOLIXIR_BACKGROUND_FETCH" =>
       {:config,
-       "off leaves logo discovery and the quote and FX sync off, in development so a demo " <>
+       "off leaves logo discovery, the quote and FX sync and the news scheduler off, in " <>
+         "development so a demo " <>
          "seed run sends nothing out (#963) and in a release so it calls out only when asked " <>
          "(#1026); it can only turn fetching off"},
     "PORTFOLIXIR_SESSION_DAYS" => {:config, "how long a UI login stays valid (ADR-0045)"},

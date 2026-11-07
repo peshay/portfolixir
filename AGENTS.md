@@ -123,11 +123,13 @@ verification, not code, is the bottleneck (ADR-0026).
   decision. *Why:* partial weights change the data model, not a report, and no
   decision has opened them (PRD §4).
 - Gated, and none of them openable by citing the ladder: rule backtesting
-  (level (d)); data acquisition beyond quotes and FX (B3.3); push delivery to
-  external endpoints (B3.7); a local model beyond ADR-0021's PDF-intake path
-  (B3.8). *Why:* B3.3 needs a design for sources, failures and retention, B3.7
-  brings request forgery and stored secrets, and B3.8 should stay rare because
-  deterministic code comes first (brief addendum, "Parked, with reasons").
+  (level (d)); data acquisition beyond quotes, FX and ADR-0056's news feeds
+  (B3.3); push delivery to external endpoints (B3.7); a local model beyond
+  ADR-0021's PDF-intake path (B3.8). *Why:* B3.3 needs a design for sources,
+  failures and retention, which ADR-0056 gave news feeds alone (ADR-0056
+  B8), B3.7 brings request forgery and stored secrets, and B3.8 should stay
+  rare because deterministic code comes first (brief addendum, "Parked, with
+  reasons").
 - **Permanent non-goals — identity, not backlog**, and no capacity argument
   reopens them: no **order-placing** broker connection, no order creation or
   transmission, no automated trading or payment, no advice, no raw news

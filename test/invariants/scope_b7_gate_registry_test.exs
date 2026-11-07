@@ -91,7 +91,8 @@ defmodule Portfolixir.Invariants.ScopeB7GateRegistryTest do
     },
     %{
       id: "gated.b3_3_data_acquisition",
-      sentence: {:gated, "data acquisition beyond quotes and FX (B3.3)"},
+      # ADR-0056 B8 (Sprint 27 N3): B3.3 opened for news feeds only.
+      sentence: {:gated, "data acquisition beyond quotes, FX and ADR-0056's news feeds (B3.3)"},
       backstops: [@b2, @b3, @b4, @b5]
     },
     %{
