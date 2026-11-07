@@ -36,15 +36,20 @@ defmodule Portfolixir.News.Ingest do
   `Portfolixir.Journal.Allowlist`); the fetcher that calls this is the
   registered system job.
 
-  **Extension points**, no-ops here, filled by later stories: before the
+  **After the insert commits**, the stored `aggregator` items are matched
+  against the universe (`Portfolixir.News.assign_aggregator_items/2`, §2):
+  one security named `assigned`, none `unassigned`, several `ambiguous`
+  with the candidates.
+
+  **Extension points**, no-ops here, filled by a later story: before the
   insert, `tier_and_block/2` (the source tier table and its `blocked`
-  drops, N5); after it, `assign_aggregator/1` (the alias matcher, N4) and
-  `cluster/1` (the stories, N5).
+  drops, N5); after it, `cluster/1` (the stories, N5).
   """
 
   import Ecto.Query
 
   alias Portfolixir.Clock
+  alias Portfolixir.News
   alias Portfolixir.News.Feed
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Item
@@ -110,9 +115,18 @@ defmodule Portfolixir.News.Ingest do
   # aggregator item is at most `secondary`. A no-op until N5 fills it.
   defp tier_and_block(candidates, summary), do: {candidates, summary}
 
-  # Extension point (N4): match the stored `aggregator` items against the
-  # universe by the alias grammar (§2). A no-op until N4 fills it.
-  defp assign_aggregator(_items), do: :ok
+  # §2: the stored `aggregator` items are matched against the universe by
+  # the alias grammar, after the insert's commit (the matcher locks the
+  # items and the securities it names in a transaction of its own). Every
+  # other class is bound by construction and skipped by the matcher.
+  defp assign_aggregator(items) do
+    case for(%Item{class: :aggregator} = item <- items, do: item) do
+      [] -> :ok
+      aggregator -> {:ok, _counts} = News.assign_aggregator_items(aggregator)
+    end
+
+    :ok
+  end
 
   # Extension point (N5): fold the stored items into stories (B3). A no-op
   # until N5 fills it.
