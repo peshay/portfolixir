@@ -2667,6 +2667,45 @@ Zeitraum und je View, und stehen über die API (`…/performance/benchmark`)
 und die MCP-Tools `portfolixir.portfolios.benchmark` und
 `portfolixir.views.benchmark` bereit.
 
+### Das Wertdiagramm nach Kategorien
+
+In der Ansicht **Wert** des Performance-Diagramms unter **Vermögen →
+Bestände** stapelt eine Leiste über dem Diagramm den Wert nach dem, woraus
+er besteht (I23, FR-53):
+
+- **Ebene**: *Gesamt* ist die eine Wertlinie, unverändert; *Kategorien*
+  stapelt ein Band je oberster Kategorie der Klassifizierung, dazu Cash und
+  den nicht zugeordneten Rest als eigene Bänder; *Wertpapiere* ein Band je
+  Wertpapier, dazu Cash.
+- **Klassifizierung**: der Baum, aus dem die Kategorien kommen. Vorgabe ist
+  der Baum Ihrer Sollgewichte, sonst Ihr erster eigener Baum, sonst die
+  Anlageklassen.
+- **Sortieren**: *Größe* legt das am letzten Tag des Zeitraums größte Band
+  nach unten; *Veränderung* das Band mit der größten Veränderung ohne Ein-
+  und Auszahlungen.
+
+Die Legende neben dem Diagramm ist eine Tabelle, die sich wie der Stapel
+liest, oberstes Band zuerst: Wert jedes Bands am letzten Tag des Zeitraums,
+Anteil und Veränderung. Ein Klick auf das Band einer Kategorie oder auf
+ihren Namen in der Legende zeigt nur diese Kategorie, gestapelt nach ihren
+Wertpapieren; der Pfad darüber („Alle Kategorien › …“) führt zurück. Mehr
+als acht Bänder fasst das Diagramm zu „Sonstige“ zusammen. Eine Kategorie
+trägt die Farbe, die ihr das Allokations-Sunburst gibt; die Wertpapiere
+einer geöffneten Kategorie nehmen die Farben der Palette der Größe nach,
+Cash sein eigenes Blau, der nicht zugeordnete Rest Grau, „Sonstige“ ein
+neutrales Grau.
+
+Jede Wahl steht in der Adresse, ein Link öffnet also denselben Stapel. Die
+Bänder ergeben an jedem Tag die Wertlinie, und ein Kauf erscheint als Stufe
+in seinem Band, denn die Bänder sind Marktwerte. Ein Wertpapier, das die
+Kategorie gewechselt hat, steht für den ganzen Zeitraum in seiner heutigen
+Kategorie: eine Klassifizierung ist so gespeichert, wie sie jetzt ist. Im
+**Privatsphäre-Modus** wird der Stapel als 100-%-Stapel gezeichnet, jedes
+Band als Anteil am Tag, und die Legende behält Anteil und Veränderung, aber
+keinen Wert. Ihr Agent liest dieselben Bänder über `…/performance/bands` und
+die MCP-Tools `portfolixir.portfolios.bands` und `portfolixir.views.bands`
+([API und MCP](/de/integration/api-and-mcp.html)).
+
 ### Beitrag je Position
 
 Direkt unter dem Performance-Diagramm unter **Vermögen → Bestände**

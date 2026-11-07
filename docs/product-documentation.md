@@ -2421,6 +2421,41 @@ period and per view, and available over the API
 (`…/performance/benchmark`) and the MCP tools
 `portfolixir.portfolios.benchmark` and `portfolixir.views.benchmark`.
 
+### The value chart by category
+
+In the **Value** series of the performance chart on **Wealth → Holdings**, a
+bar above the chart stacks the value by what it is made of (I23, FR-53):
+
+- **Level**: *Total* is the one value line, unchanged; *Categories* stacks
+  one band per top-level category of the classification, plus cash and the
+  unassigned rest as bands of their own; *Securities* one band per security,
+  plus cash.
+- **Classification**: the tree the categories come from. By default the
+  one your allocation targets use, else the first tree of your own, else
+  the asset classes.
+- **Sort**: *Size* puts the largest band on the window's last day at the
+  bottom; *Change* the band with the largest change without deposits and
+  withdrawals.
+
+The legend beside the chart is a table that reads like the stack, the top
+band first: each band's value on the window's last day, its share and its
+change. A click on a category's band, or on its name in the legend, shows
+that category alone, stacked by its securities; the breadcrumb above
+("All categories › …") leads back. More than eight bands merge the smallest
+into "Other". A category wears the colour the allocation sunburst gives it;
+a drilled category's securities take the palette's colours in order of
+size, cash its own blue, the unassigned rest grey, "Other" a neutral grey.
+
+Every choice is on the address, so a link reopens the same stack. The bands
+add up to the value line on every day, and a buy shows as a step in its
+band, because the bands are market values. A security that moved between
+categories is drawn in its category of today for the whole window: a
+classification is stored as it is now. In the **privacy mode** the stack is
+drawn as a 100 % stack, each band's share of the day, and the legend keeps
+share and change but no value. Your agent reads the same bands over
+`…/performance/bands` and the MCP tools `portfolixir.portfolios.bands` and
+`portfolixir.views.bands` ([API and MCP](integration/api-and-mcp.html)).
+
 ### Contribution by position
 
 Directly under the performance chart on **Wealth → Holdings**, a table
