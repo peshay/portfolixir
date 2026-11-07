@@ -64,8 +64,15 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     {"Portfolixir.News.Fetcher", "news_fetch"} =>
       "the news fetcher (ADR-0056 §5, B7): writes a fetched feed's items, its day " <>
         "counters and its health columns, a staging area retention empties, unjournaled " <>
-        "(Journal.Allowlist); it books nothing and changes no feed's registration"
+        "(Journal.Allowlist); it books nothing and changes no feed's registration",
     # --- end Sprint 27 N3 ------------------------------------------------
+    # --- Sprint 27 N6 (ADR-0056 §12, B7) ---------------------------------
+    {"Portfolixir.News.Retention", "news_retention"} =>
+      "the news retention run (ADR-0056 §12, B7): deletes items first seen more than 90 " <>
+        "days ago unless promoted or linked to a note, the stories they leave empty, and " <>
+        "day counters older than 30 days, and recomputes the stories that lost members; a " <>
+        "staging area, unjournaled (Journal.Allowlist); it books nothing"
+    # --- end Sprint 27 N6 ------------------------------------------------
   }
 
   # `module => reason`.
@@ -107,7 +114,8 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
       "the news scheduler (ADR-0056 §5, B6): ticks every minute and fetches the enabled " <>
         "feeds that are due, each in its own task; it runs exactly where the quote sync runs " <>
         "(production, development with PORTFOLIXIR_BACKGROUND_FETCH, never in tests), and " <>
-        "with no enabled feed it requests nothing"
+        "with no enabled feed it requests nothing; the first tick of each server day also " <>
+        "runs the news retention (News.Retention, N6) after its fetches, in the same task"
     # --- end Sprint 27 N3 ------------------------------------------------
   }
 

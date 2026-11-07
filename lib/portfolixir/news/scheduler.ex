@@ -28,6 +28,13 @@ defmodule Portfolixir.News.Scheduler do
   feed's fetch. One run at a time: a tick that finds the last run still
   going skips.
 
+  **Retention** (§12, N6). The first tick of each server day
+  (`Portfolixir.Clock.local_date/1`) also runs the retention
+  (`Portfolixir.News.Retention.run/1`), after that tick's fetches and in
+  the same task, so it runs exactly where the fetcher runs and never beside
+  one of this scheduler's runs. A retention that raises is logged and
+  stops nothing; the next server day runs it again.
+
   `run_due/2` and `run_one/2` are the on-demand entries
   (`Portfolixir.News.fetch_due/2`, `fetch_now/2`).
   """
@@ -37,8 +44,10 @@ defmodule Portfolixir.News.Scheduler do
 
   import Ecto.Query
 
+  alias Portfolixir.Clock
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Fetcher
+  alias Portfolixir.News.Retention
   alias Portfolixir.Repo
 
   @default_tick_ms 60_000
@@ -156,7 +165,8 @@ defmodule Portfolixir.News.Scheduler do
       enabled?: Keyword.get(opts, :enabled?, false),
       tick_ms: Keyword.get(opts, :tick_ms, @default_tick_ms),
       fetch_opts: Keyword.get(opts, :fetch_opts, []),
-      running: nil
+      running: nil,
+      retained_on: nil
     }
 
     if state.enabled?, do: schedule_tick(state.tick_ms)
@@ -166,14 +176,19 @@ defmodule Portfolixir.News.Scheduler do
   @impl true
   def handle_info(:tick, %{running: nil} = state) do
     fetch_opts = state.fetch_opts
+    now = DateTime.utc_now()
+    today = Clock.local_date(now)
+    retain? = state.retained_on != today
 
     task =
       Task.Supervisor.async_nolink(Portfolixir.News.Tasks, fn ->
-        run_due(DateTime.utc_now(), fetch_opts)
+        results = run_due(now, fetch_opts)
+        if retain?, do: retain(now)
+        results
       end)
 
     schedule_tick(state.tick_ms)
-    {:noreply, %{state | running: task.ref}}
+    {:noreply, %{state | running: task.ref, retained_on: today}}
   end
 
   # The last run is still going: this tick skips.
@@ -193,6 +208,12 @@ defmodule Portfolixir.News.Scheduler do
   end
 
   def handle_info(_message, state), do: {:noreply, state}
+
+  defp retain(now) do
+    Retention.run(now)
+  rescue
+    exception -> Logger.warning("news retention failed: #{Exception.message(exception)}")
+  end
 
   defp schedule_tick(tick_ms), do: Process.send_after(self(), :tick, tick_ms)
 end

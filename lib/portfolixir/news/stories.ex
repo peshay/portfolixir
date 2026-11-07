@@ -322,44 +322,130 @@ defmodule Portfolixir.News.Stories do
           {:ok, summary()} | {:error, Ecto.Changeset.t()}
   def recluster({kind, id} = scope, language, %DateTime{} = now, opts \\ [])
       when kind in [:security, :category] and is_integer(id) and is_binary(language) do
+    Repo.transaction(fn ->
+      lock_scope(scope, language)
+
+      case recluster_locked(scope, language, now, opts) do
+        {:ok, summary} -> summary
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp lock_scope({kind, id}, language) do
+    Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [
+      @lock_key,
+      :erlang.phash2({kind, id, language})
+    ])
+  end
+
+  defp recluster_locked(scope, language, now, opts) do
     options = [
       window_hours: Keyword.get_lazy(opts, :window_hours, &Settings.news_cluster_window_hours/0),
       similarity: Keyword.get_lazy(opts, :similarity, &Settings.news_cluster_similarity/0)
     ]
 
     window = options[:window_hours] * 3_600_000_000
+    base = scope_items(scope, language)
 
+    case read_items(base, now, window, opts[:full] == true) do
+      {[], []} -> {:ok, %{stories: 0, created: 0, merged: 0, moved: 0}}
+      {items, old} -> write(cluster(items, options), old, scope, language)
+    end
+  end
+
+  # --- removing items -----------------------------------------------------
+
+  @doc """
+  Deletes the items of `doomed` (an `Item` query; the retention run's
+  rule) that belong to one scope and language, and keeps the scope's
+  stories whole (ADR-0056 §12: stories follow their items). In one
+  transaction under the scope and language's advisory lock, the one
+  `recluster/4` takes, so the two never interleave:
+
+    1. the doomed items of the scope and language are read and locked in
+       one statement (`FOR UPDATE`): an item promoted or linked to a note
+       meanwhile is checked again, no longer matches and stays;
+    2. they leave their stories; a story left without a member is deleted;
+       a story whose representative is doomed points at the best remaining
+       member by the representative rule (N2's restrict keys: an item named
+       as a representative cannot be deleted);
+    3. the doomed items are deleted;
+    4. the scope and language are reclustered in full (`full: true`), so a
+       story that lost a member is recounted and its earliest fields and
+       representative recomputed, and one an expired item held together
+       splits into its components, each old story going with its earliest
+       remaining member (B3).
+
+  Answers `{:ok, %{items: deleted, stories_deleted: emptied}}`.
+  """
+  @spec remove(scope(), String.t(), Ecto.Query.t(), DateTime.t(), keyword()) ::
+          {:ok, %{items: non_neg_integer(), stories_deleted: non_neg_integer()}}
+          | {:error, Ecto.Changeset.t()}
+  def remove(scope, language, doomed, %DateTime{} = now, opts \\ []) do
     Repo.transaction(fn ->
-      Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [
-        @lock_key,
-        :erlang.phash2({kind, id, language})
-      ])
+      lock_scope(scope, language)
 
-      base = scope_items(scope, language)
+      # Read and locked in one statement: a row changed meanwhile (promoted,
+      # linked to a note) is checked again and, no longer doomed, skipped.
+      items =
+        Repo.all(
+          from(i in doomed,
+            where: ^scope_filter(scope, language),
+            lock: "FOR UPDATE",
+            select: %{id: i.id, cluster_id: i.cluster_id}
+          )
+        )
 
-      case read_items(base, now, window, opts[:full] == true) do
-        {[], []} ->
-          %{stories: 0, created: 0, merged: 0, moved: 0}
-
-        {items, old} ->
-          case write(cluster(items, options), old, scope, language) do
-            {:ok, summary} -> summary
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
+      case Enum.map(items, & &1.id) do
+        [] -> %{items: 0, stories_deleted: 0}
+        ids -> remove_locked(scope, language, ids, story_ids(items), now, opts)
       end
     end)
   end
 
-  defp scope_items({:security, id}, language),
+  defp remove_locked(scope, language, ids, affected, now, opts) do
+    Repo.update_all(from(i in Item, where: i.id in ^ids), set: [cluster_id: nil])
+
+    remaining =
+      Repo.all(from(i in Item, where: i.cluster_id in ^affected))
+      |> Enum.group_by(& &1.cluster_id)
+
+    emptied = Enum.reject(affected, &Map.has_key?(remaining, &1))
+    {stories_deleted, _} = Repo.delete_all(from(c in Cluster, where: c.id in ^emptied))
+
+    from(c in Cluster, where: c.id in ^Map.keys(remaining) and c.representative_item_id in ^ids)
+    |> Repo.all()
+    |> Enum.each(fn story ->
+      best = remaining |> Map.fetch!(story.id) |> Enum.min_by(&entry(&1).rank)
+
+      Repo.update_all(from(c in Cluster, where: c.id == ^story.id),
+        set: [representative_item_id: best.id]
+      )
+    end)
+
+    {deleted, _} = Repo.delete_all(from(i in Item, where: i.id in ^ids))
+
+    case recluster_locked(scope, language, now, Keyword.put(opts, :full, true)) do
+      {:ok, _summary} -> %{items: deleted, stories_deleted: stories_deleted}
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp scope_items(scope, language), do: from(i in Item, where: ^scope_filter(scope, language))
+
+  defp scope_filter({:security, id}, language),
     do:
-      from(i in Item,
-        where: i.security_id == ^id and i.language == ^language and i.assignment == :assigned
+      dynamic(
+        [i],
+        i.security_id == ^id and i.language == ^language and i.assignment == :assigned
       )
 
-  defp scope_items({:category, id}, language),
+  defp scope_filter({:category, id}, language),
     do:
-      from(i in Item,
-        where: i.category_id == ^id and i.language == ^language and i.assignment == :assigned
+      dynamic(
+        [i],
+        i.category_id == ^id and i.language == ^language and i.assignment == :assigned
       )
 
   # The seeds, their neighbours and every member of the stories they touch;
