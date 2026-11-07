@@ -10,7 +10,9 @@ description: "Decision for gate B3.3, narrowed to news (idea F12, idea I21; exte
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature),
   and confirmed with its amendment of 2026-11-06 by the merge of the
   Sprint 26 planning PR, after the owner's doubts and his answer the same
-  day (see "Amendment of 2026-11-06" at the end). The merge opens gate B3.3
+  day (see "Amendment of 2026-11-06"), and amended on 2026-11-07 by the
+  merge of the Sprint 27 planning PR (see "Amendment of 2026-11-07" at the
+  end). The merge opens gate B3.3
   **for news feeds only**; every other kind of acquisition (bank, broker
   and wallet sync, F13; CPI and other series) stays behind it.
 - **Date:** 2026-11-05
@@ -494,3 +496,116 @@ a number by comment.
 Not in Sprint 26, which owes three screens and the privacy mode. §11's
 first sprint is Sprint 27, its second, with §10's view and A2's markers,
 Sprint 28. **To flip:** "News in 26".
+
+## Amendment of 2026-11-07: what the first sprint needs, and nothing decided by order
+
+**Adopted by the merge of the Sprint 27 planning PR.** The planning pass
+for Sprint 27 read this record against the code on `main` (`d6df259`) and
+ran Sprint 26's carry-forward 1 on it: for a rule that reads several
+records, ask whether an id, an insertion order or a tie-break decides the
+outcome, and whether a party can change it with a true record. Seven
+answers were missing or would have been settled by whoever built them. None
+of them books or corrects a stored money figure, so each is decided here
+with its reason and flips by a comment naming its flip.
+
+### B1. The first sprint can register what it fetches
+
+§11 put `news.feeds_put`, `news.feeds_delete`, `news.sources_put` and the
+`news_identity` and `news_watch` keys of `securities.update` in the second
+sprint. Without them the first sprint ships a fetcher with no way to give it
+a feed, an alias or a tier through the API, so its agent-first surface
+could not be used or checked on an instance until Sprint 28. **They move
+into the first sprint.** `news.assign` stays in the second, beside the
+label's `suggested_security_id` it acts on. The tool count of §9 is
+unchanged; four of its tools arrive one sprint earlier. **To flip:**
+"news upkeep in 28".
+
+### B2. A feed's URL is checked with name resolution, every time
+
+`Portfolixir.Net.Http` checks a client's first request without resolving
+the name, because every caller so far compiled its endpoint in. A feed's
+URL is data, so **the fetcher checks it through `UrlPolicy` with name
+resolution when the feed is registered and again before every fetch**:
+https only, no userinfo, public addresses only; the request's allow-list is
+the feed's own host, so a redirect to another host is refused (§5). The
+policy's stated limit stays stated: the check and the connection resolve
+the name separately, so a rebinding name with a very short lifetime can
+pass between them. **To flip:** none offered; a weaker check would be a
+request-forgery surface.
+
+### B3. The same items give the same stories, in any order
+
+§4 promises determinism and names no rule. Taken literally ("an item joins
+a cluster"), the result would depend on the order items are fetched: with
+A like B and B like C but A unlike C, the first-fetched decides. **The
+rule:** within one security (or category) and one language, two items are
+the same story when their `published_at` lie within 72 hours of each other
+and their normalized titles are equal or their title tokens reach a Jaccard
+similarity of 0.8; **a story is a connected component of that relation**.
+An item that links two stories merges them; the surviving story is the one
+whose earliest member is earliest by (`first_seen_at`, canonical URL),
+**never by id**. The representative is the member of the best tier, then
+the earliest clamped `published_at` (B4), then the smallest canonical URL.
+A test books the same fixture items in shuffled orders and compares the
+stories. **The one order that still decides** is the daily cap of A3: a
+feed past 200 items in 24 hours keeps its first 200 in the feed's own
+order. That order belongs to the one feed that floods, and touches no other
+feed's items. **To flip:** "news first match" (an item joins the first
+story it matches, with the order stated).
+
+### B4. The server's clock decides what is new and what expires
+
+`published_at` is what the feed claims. **A claim later than
+`first_seen_at` is clamped to it**, so a future date cannot make an item
+the newest. **`since` (the digest and `news.list`) and the retention of
+§12 read `first_seen_at`**, the server's clock, never the claim: an item
+published at 09:00 and fetched at 10:00 is not lost to a `since=09:30`
+call, by `Portfolixir.DeltaCursor`'s rule (overlap, never loss). **An item
+whose claim is older than the retention window is not stored**
+(`dropped_old`, counted), so a feed that keeps listing old items does not
+refill what retention removed. **To flip:** none offered; the claim is the
+feed's, the clock is the operator's.
+
+### B5. An aggregator's item is never primary
+
+An `aggregator` item takes its domain from its own `<source>` element (§2),
+which is a claim inside the item: a sloppy or hostile aggregator could name
+a primary domain and make its item the story's representative, and later a
+note's `primary` `source_quality` (§3). **An `aggregator` item's tier is at
+most `secondary`**, whatever its domain's tier; `primary` comes only by
+construction, from an `issuer` or `regulatory` feed. A `blocked` domain is
+still dropped. **To flip:** "news trusts source".
+
+### B6. Where the scheduler runs
+
+§5 says "opt-in in production". **The scheduler runs where the quote sync
+runs** (production; development with `PORTFOLIXIR_BACKGROUND_FETCH`; never
+in tests), and **an enabled feed is the opt-in**: with no feed registered
+it makes no request. *Why:* a second switch beside the feed's own `enabled`
+is one more setting to forget, and a feed nobody registered reaches no
+host. **To flip:** "news switch" (its own environment variable, off by
+default).
+
+### B7. What the journal records
+
+Feeds, sources, a security's `news_identity` and `news_watch` are master
+data and journaled, as §12 says, with the token that wrote them. **Items
+and stories are not journaled**: they are a staging area that retention
+empties, written by a registered system job, at up to 200 per feed and day.
+The fetcher and the retention run are registered as system jobs and
+self-scheduling processes in the backstop that lists them
+(`scope_b5_system_writers_and_schedulers_test.exs`).
+
+### B8. The gate's sentence and its backstops
+
+`AGENTS.md` lists "data acquisition beyond quotes and FX (B3.3)" as gated,
+and the gate registry pins that sentence. This record opened B3.3 for news
+feeds only. **The sentence becomes "data acquisition beyond quotes, FX and
+ADR-0056's news feeds (B3.3)"**, changed in the sprint PR in the same commit
+as the registry, never ahead of the code. **The outbound backstop
+(`scope_b2_outbound_chokepoint_test.exs`) registers the fetcher** with its
+purpose and, since its hosts come from stored feeds and not from the
+source, an `any:` reason naming this record and B2; the environment
+variable `PORTFOLIXIR_NEWS_USER_AGENT` is listed with its reason. These
+are registrations a reviewer reads, not a weakened gate: every other caller
+keeps its literal allow-list.
