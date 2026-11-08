@@ -178,9 +178,9 @@ async function topbarTitles(browser) {
 }
 
 // Sprint 27's closing act on the stacked chart (I23), the design critic's
-// D1 and D2: at 390 px, the category stack and a drilled category keep
-// every legend figure inside the legend's box and the page, and the axis
-// labels are 9 CSS px.
+// D1, D2 and D5: at 390 px, the category stack and a drilled category keep
+// every legend figure inside the legend's box and the page, the axis
+// labels are 9 CSS px, and a drill leaves the focus on the breadcrumb.
 async function stackPhone(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -214,6 +214,21 @@ async function stackPhone(browser) {
       errors.push(path + ": figures outside the legend " + JSON.stringify(m.outside));
     }
     if (Math.abs(m.axis - 9) > 0.25) errors.push(path + ": the axis label is " + m.axis + " px");
+  }
+  // D5: a drill by keyboard leaves the focus on the breadcrumb's current
+  // item, not on <body>.
+  await ready(page, args.paths[0]);
+  await page.waitForSelector(".stack-legend__drill");
+  await page.focus(".stack-legend__drill");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(
+    () => document.activeElement && document.activeElement.id === "stack-crumbs-current",
+    null,
+    { timeout: 5000 }
+  ).catch(() => {});
+  const focused = await page.evaluate(() => document.activeElement && document.activeElement.id);
+  if (focused !== "stack-crumbs-current") {
+    errors.push("after a drill the focus is on " + JSON.stringify(focused));
   }
   await context.close();
   check(errors.length === 0, "at 390 px: " + errors.join("; "));
