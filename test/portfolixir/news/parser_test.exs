@@ -112,6 +112,32 @@ defmodule Portfolixir.News.ParserTest do
       end
     end
 
+    # Closing act, SEC2/EDGE1: a Unicode space inside a link made the
+    # database's `[^[:space:]]` refuse what the parser kept.
+    test "a link with a Unicode space is nil, like one with an ASCII space" do
+      for space <- [
+            "\u3000",
+            "\u2028",
+            "\u2029",
+            "\u2000",
+            "\u2005",
+            "\u200A",
+            "\u1680",
+            "\u00A0",
+            "\u0085",
+            "\u202F",
+            "\u205F"
+          ] do
+        raw = "https://wire.example/n/2" <> space <> "x"
+
+        assert only_item(rss_item("<title>L</title><link>#{raw}</link>")).link == nil,
+               inspect(raw)
+
+        assert only_item(rss_item(~s(<title>L</title><source url="#{raw}">S</source>))).source_domain ==
+                 nil
+      end
+    end
+
     test "the source domain is the lower-cased host of an http or https source URL" do
       assert only_item(
                rss_item(

@@ -29,7 +29,8 @@ defmodule Portfolixir.News.Ingest do
        leaves room for the first items in the feed's order; the rest are
        counted `dropped_cap`. This is the one order that decides (B3), and
        it belongs to the feed that floods;
-    7. **stores** each item with `first_seen_at` the clock and
+    7. **stores** each item, in its own savepoint (a row the database
+       refuses is counted `invalid` and costs no other item), with `first_seen_at` the clock and
        `published_at` the claim clamped to it (`News.Item.changeset/2`, B4),
        and the title keys the clustering reads (`title_words`,
        `title_norm_hash`: `Portfolixir.News.Stories.title_keys/1`, the one
@@ -298,16 +299,30 @@ defmodule Portfolixir.News.Ingest do
     Enum.reduce(admitted, {[], summary}, fn attrs, {stored, summary} ->
       changeset = Item.changeset(%Item{}, Map.put(attrs, :first_seen_at, now))
 
-      case Repo.insert(changeset,
-             on_conflict: :nothing,
-             conflict_target: [:feed_id, :canonical_url]
-           ) do
+      case insert_item(changeset) do
         {:ok, %Item{id: nil}} -> {stored, %{summary | known: summary.known + 1}}
         {:ok, item} -> {[item | stored], %{summary | stored: summary.stored + 1}}
-        {:error, _changeset} -> {stored, %{summary | invalid: summary.invalid + 1}}
+        {:error, _reason} -> {stored, %{summary | invalid: summary.invalid + 1}}
       end
     end)
     |> then(fn {stored, summary} -> {Enum.reverse(stored), summary} end)
+  end
+
+  # Each item in its own savepoint (closing act, SEC2/EDGE1): a row the
+  # database refuses rolls back to it, so the batch's transaction is never
+  # aborted and the feed's other items are stored.
+  defp insert_item(%Ecto.Changeset{valid?: false} = changeset), do: {:error, changeset}
+
+  defp insert_item(changeset) do
+    Repo.insert(changeset,
+      on_conflict: :nothing,
+      conflict_target: [:feed_id, :canonical_url],
+      mode: :savepoint
+    )
+  rescue
+    error in [Ecto.ConstraintError, Postgrex.Error] ->
+      Logger.warning("news item refused by the database: #{Exception.message(error)}")
+      {:error, :refused}
   end
 
   defp stored_in_window(feed, now) do
