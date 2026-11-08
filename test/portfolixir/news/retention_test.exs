@@ -255,6 +255,80 @@ defmodule Portfolixir.News.RetentionTest do
   #   most 600 characters, through the parser and the ingest.
   # - The database refuses an excerpt of 601 characters written past the
   #   changeset.
+  # --- closing act, Fix-1 ---------------------------------------------------
+
+  # User story (closing act, COR2):
+  # As the agent that reads what is new,
+  # I want a dateless item that retention removed to stay removed while its
+  # feed keeps listing it,
+  # so that an old item never comes back as new (B4: no refill).
+  #
+  # Acceptance criteria:
+  # - Retention leaves a tombstone of each removed item that had a feed: the
+  #   feed and a SHA-256 of its canonical URL, never the URL.
+  # - The feed listing the same dateless item again after removal drops it
+  #   as `dropped_old`; a dateless item never stored is stored.
+  # - A tombstone is kept 90 days after its item's removal, then pruned.
+  describe "tombstones (closing act, COR2)" do
+    test "a removed dateless item is not stored again while its tombstone lasts" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      ingest!(feed, [parsed(1, "Northwind lists an undated release")], days_ago(91))
+
+      assert {:ok, %{items: 1}} = Retention.run(@now)
+      assert item(1) == nil
+
+      assert [%{feed_id: feed_id, url_hash: hash}] =
+               Repo.all(
+                 from(t in "news_item_tombstones",
+                   select: %{feed_id: t.feed_id, url_hash: t.url_hash}
+                 )
+               )
+
+      assert feed_id == feed.id
+
+      assert hash ==
+               :sha256
+               |> :crypto.hash("https://newsroom.example.com/news/1")
+               |> Base.encode16(case: :lower)
+
+      later = DateTime.add(@now, 1, :hour)
+
+      assert {:ok, %{stored: 1, dropped_old: 1}} =
+               Ingest.ingest(
+                 feed,
+                 [
+                   parsed(1, "Northwind lists an undated release"),
+                   parsed(2, "Northwind lists another undated release")
+                 ],
+                 later
+               )
+
+      assert item(1) == nil
+      assert item(2)
+
+      # 90 days after the removal the tombstone goes (item 2's own removal
+      # in the same run leaves its own).
+      Retention.run(DateTime.add(@now, 91, :day))
+      refute hash in Repo.all(from(t in "news_item_tombstones", select: t.url_hash))
+
+      # A feed's removal takes its tombstones with it.
+      assert Repo.aggregate(
+               from(t in "news_item_tombstones", where: t.feed_id == ^feed.id),
+               :count
+             ) >
+               0
+
+      assert {:ok, _removed} = Portfolixir.News.delete_feed(Portfolixir.Actor.owner_ui(), feed.id)
+
+      assert Repo.aggregate(
+               from(t in "news_item_tombstones", where: t.feed_id == ^feed.id),
+               :count
+             ) == 0
+    end
+  end
+
+  # --- end closing act, Fix-1 -----------------------------------------------
+
   describe "no archive (§14 item 9)" do
     test "a long description is stored capped at 600 characters", ctx do
       body = """

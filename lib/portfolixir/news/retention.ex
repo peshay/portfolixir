@@ -22,6 +22,13 @@ defmodule Portfolixir.News.Retention do
   story and is deleted directly; one that a re-match assigned meanwhile no
   longer matches the delete and waits for the next run.
 
+  **Tombstones** (closing act, COR2). Each removed item that has a feed
+  leaves a row in `news_item_tombstones`: the feed and a SHA-256 of its
+  canonical URL, never the URL. The ingest drops an item a tombstone of its
+  feed names (`dropped_old`), so a feed that keeps listing a dateless item
+  does not refill it as new (B4). A tombstone is kept 90 days after the
+  removal, then pruned here.
+
   **Day rows** (`news_feed_days`) older than 30 days before the server's
   day of `now` are deleted: the health read (§6, A3) reads at most the
   last two days of them, and 30 days keep a month of drop and error counts
@@ -50,6 +57,7 @@ defmodule Portfolixir.News.Retention do
   alias Portfolixir.Repo
 
   @feed_days_kept 30
+  @tombstone_days 90
 
   @type summary :: %{
           items: non_neg_integer(),
@@ -74,6 +82,8 @@ defmodule Portfolixir.News.Retention do
   def run(%DateTime{} = now) do
     %Actor{label: job} = Actor.system_job("news_retention")
     expired = expired(now)
+    prune_tombstones(now)
+    tombstone(expired, now)
     scoped = remove_scoped(job, expired, now)
 
     {open, _} =
@@ -133,6 +143,33 @@ defmodule Portfolixir.News.Retention do
         end
     end)
   end
+
+  # --- closing act, Fix-1 (COR2) ----------------------------------------------
+
+  # A tombstone of each expiring item that has a feed: the feed and a hash of
+  # its canonical URL, so the ingest does not store it again (B4). Written
+  # before the removal; an item a failed scope keeps is still `known`.
+  defp tombstone(expired, now) do
+    from(i in expired, where: not is_nil(i.feed_id), select: {i.feed_id, i.canonical_url})
+    |> Repo.all()
+    |> Enum.map(fn {feed_id, url} ->
+      %{feed_id: feed_id, url_hash: Ingest.url_hash(url), removed_at: now}
+    end)
+    |> Enum.chunk_every(1_000)
+    |> Enum.each(fn rows ->
+      Repo.insert_all("news_item_tombstones", rows,
+        on_conflict: {:replace, [:removed_at]},
+        conflict_target: [:feed_id, :url_hash]
+      )
+    end)
+  end
+
+  defp prune_tombstones(now) do
+    cutoff = DateTime.add(now, -@tombstone_days, :day)
+    Repo.delete_all(from(t in "news_item_tombstones", where: t.removed_at < ^cutoff))
+  end
+
+  # --- end closing act, Fix-1 (COR2) ------------------------------------------
 
   defp prune_days(now) do
     oldest = now |> Clock.local_date() |> Date.add(-@feed_days_kept)

@@ -375,7 +375,7 @@ defmodule Portfolixir.News.Parser do
       title: Text.title(raw["title"]),
       link: http_url(raw["link"]),
       guid: Text.token(raw["guid"], @guid_max),
-      published_at: rfc822(raw["pubDate"]) || rfc3339(raw["dc:date"]),
+      published_at: rfc822(raw["pubDate"]) || rfc3339(raw["pubDate"]) || rfc3339(raw["dc:date"]),
       excerpt: Text.excerpt(raw["description"]) || Text.excerpt(raw["content:encoded"]),
       source_domain: host(raw[:source_url])
     }
@@ -458,7 +458,11 @@ defmodule Portfolixir.News.Parser do
     "dec" => 12
   }
 
-  # RFC 822 / 2822 zones in hours east of UTC.
+  # RFC 822 / 2822 zones in hours east of UTC: RFC 822's names and nothing
+  # else (closing act, COR2). A name outside them (CET, IST, ...) is not
+  # guessed: IST alone names three offsets. RFC 822's single-letter
+  # military zones read as UTC (`military?/1`), as RFC 5322 §4.3 says,
+  # because RFC 822 gave their signs backwards.
   @zones %{
     "ut" => 0,
     "utc" => 0,
@@ -474,8 +478,9 @@ defmodule Portfolixir.News.Parser do
     "pdt" => -7
   }
 
-  # RFC 822 (`pubDate`): `[Day,] DD Mon YY[YY] HH:MM[:SS] Zone`, any letter
-  # case; anything else is nil.
+  # RFC 822 (`pubDate`): `[Day,] DD Mon YY[YY] H[H]:MM[:SS] Zone`, any letter
+  # case; anything else is nil (and then read as RFC 3339, which some feeds
+  # write in `pubDate`).
   defp rfc822(nil), do: nil
 
   defp rfc822(raw) when byte_size(raw) > @date_max_bytes, do: nil
@@ -532,8 +537,9 @@ defmodule Portfolixir.News.Parser do
     end
   end
 
+  # A one-digit hour is read too (`9:05:00`), as feeds write it.
   defp clock_parts([hour, minute, second]) do
-    with {:ok, hour} <- digits(hour, [2]),
+    with {:ok, hour} <- digits(hour, [1, 2]),
          {:ok, minute} <- digits(minute, [2]),
          {:ok, second} <- digits(second, [2]) do
       {:ok, {hour, minute, second}}
@@ -554,9 +560,13 @@ defmodule Portfolixir.News.Parser do
   defp zone(name) do
     case Map.fetch(@zones, name) do
       {:ok, hours} -> {:ok, hours * 3_600}
-      :error -> :error
+      :error -> if military?(name), do: {:ok, 0}, else: :error
     end
   end
+
+  # A to I, K to Z (lower-cased here); J names no zone.
+  defp military?(<<letter>>) when letter in ?a..?z and letter != ?j, do: true
+  defp military?(_name), do: false
 
   # A number of only ASCII digits, of one of the given lengths.
   defp digits(text, sizes) do
