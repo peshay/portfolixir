@@ -244,6 +244,103 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert text(view, ~s([data-role="bond-nominal"])) =~ "1.000.000,00 EUR"
   end
 
+  # An amount in German form outside a percentage, percentage points, a
+  # ratio or a term in years, and a quantity its unit names, as the privacy
+  # walk reads them (test/browser/privacy_leak.js).
+  @amount ~r/(?<![\d.,])(?<!×)(?<!× )[+\-−]?\d{1,3}(?:\.\d{3})*,\d+(?![\d,])(?!\s*(?:%|pp\b|Jahre|years))/u
+  @quantity ~r/(?<![\d.,])\d[\d.,]*\s*(Stück|shares?|units?)(?![\p{L}])/u
+
+  # User story (Sprint 27 closing act, browser job; I22, FR-51):
+  # As the operator sharing my screen with the privacy mode on,
+  # I want a bond's Overview to hide every price, quantity and amount —
+  # in both two-scales notes, the nominal's sub-line, the current yield's
+  # ratio and the reason a yield cannot be computed — each drawn as the bar,
+  # so that a bond priced on two scales or on the unit scale shows no figure
+  # and no stand-in text „••••“ where the bar belongs.
+  #
+  # Acceptance criteria:
+  # - The forward note (quotes near 100, a booking near 1) and the reverse
+  #   note (quotes near 1, a booking near 100) draw the quote and the
+  #   booked price as the bar; their dates stay.
+  # - The nominal's sub-line "[bar] Stück × 100 EUR" draws the quantity as
+  #   the bar; the ratio line "2,5 ÷ [bar]" keeps the coupon, a rate, marked
+  #   as one (`data-figure="ratio"`), and draws the price as the bar.
+  # - A trade price on the unit scale is named "Handelspreis [bar] je Stück".
+  # - No Overview names an amount or a quantity, or holds the stand-in text.
+  test "with the privacy mode on, a bond's Overview draws every figure as the bar", %{
+    conn: conn
+  } do
+    world = base_world()
+
+    forward = bond!()
+    buy!(world, forward, quantity: "10000", price: "0.985", date: ~D[2026-03-12])
+    put_quote!(forward, ~D[2026-09-30], "97.25")
+
+    reverse = bond!(%{name: "Musterland Anleihe 2029", isin: "XSLIVEBD0292"})
+    buy!(world, reverse, quantity: "100", price: "98.4", date: ~D[2026-03-12])
+    put_quote!(reverse, ~D[2026-03-12], "0.98")
+    put_quote!(reverse, ~D[2026-09-30], "0.981")
+
+    unit_scale = bond!(%{name: "Musterland Anleihe 2033", isin: "XSLIVEBD0334"})
+    buy!(world, unit_scale, quantity: "10000", price: "0.984", date: ~D[2026-03-12])
+
+    masked =
+      conn
+      |> german()
+      |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        "portfolixir_privacy",
+        "on"
+      )
+
+    readings =
+      for {bond, note} <- [
+            {forward, "two-scales-note"},
+            {reverse, "two-scales-reverse-note"},
+            {unit_scale, nil}
+          ] do
+        {:ok, view, _html} = live(masked, "/securities/#{bond.id}")
+        panel = view |> element("#detail-tab-panel-overview") |> render()
+
+        if note do
+          assert text(view, ~s([data-role="#{note}"])) =~ "Auf zwei Skalen bepreist"
+          assert has_element?(view, ~s([data-role="#{note}"] .pf-mask))
+        end
+
+        # The coupon in the ratio stays, marked as the rate it is.
+        shown =
+          panel
+          |> Floki.parse_fragment!()
+          |> Floki.filter_out("[data-figure='ratio']")
+          |> Floki.text(sep: " ")
+          |> String.replace(~r/\s+/u, " ")
+
+        refute shown =~ PortfolixirWeb.PrivacyMode.text(),
+               "#{bond.name} draws a hidden figure as its text, not as the bar: #{shown}"
+
+        assert Regex.scan(@amount, shown) == [], "#{bond.name} names an amount: #{shown}"
+        assert Regex.scan(@quantity, shown) == [], "#{bond.name} names a quantity: #{shown}"
+        {view, shown}
+      end
+
+    [{forward_view, forward_text}, _reverse, {_unit_view, unit_text}] = readings
+
+    assert forward_text =~ "× 100 EUR"
+
+    assert forward_view
+           |> element(~s([data-role="bond-current-yield"] [data-figure="ratio"]))
+           |> render() =~ "2,5"
+
+    assert has_element?(forward_view, ~s([data-role="bond-current-yield"] .pf-mask))
+
+    assert has_element?(
+             forward_view,
+             ~s([data-role="bond-nominal"] .overview-metric__sub .pf-mask)
+           )
+
+    assert unit_text =~ "Handelspreis"
+    assert unit_text =~ "je Stück, keine Prozentnotiz"
+  end
+
   # User story (#330, the two-scales guard W1 and W2; bond discovery,
   # point 5):
   # As the operator whose export booked a bond's nominal as its quantity,

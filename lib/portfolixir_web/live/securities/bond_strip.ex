@@ -139,10 +139,10 @@ defmodule PortfolixirWeb.Securities.BondStrip do
           <small class="overview-metric__unit"><%= @bond.nominal_held.currency_code %></small>
           <small class="overview-metric__sub">
             <span class="nowrap">
-              <%= gettext("%{quantity} units × 100 %{currency}",
+              <%= PrivacyMode.html(gettext("%{quantity} units × 100 %{currency}",
                 quantity: Format.exact(@bond.quantity),
                 currency: @bond.nominal_held.currency_code
-              ) %>
+              )) %>
             </span>
             <%= if @security.face_value do %>
               · <%= gettext("Denomination") %>
@@ -199,10 +199,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   defp current_yield_cell(assigns) do
     yield = assigns.bond.current_yield
 
-    assigns =
-      assigns
-      |> assign(:yield, yield)
-      |> assign(:ratio, ratio_text(assigns.security.coupon_rate, yield.price.value))
+    assigns = assign(assigns, :yield, yield)
 
     ~H"""
     <div class="overview-metric" data-role="bond-current-yield">
@@ -211,7 +208,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
         <%= if @yield.value do %>
           <%= percent(@yield.value) %> %
           <small class="overview-metric__sub">
-            <span class="nowrap"><%= @ratio %></span><.price_source price={@yield.price} />
+            <span class="nowrap"><.ratio coupon_rate={@security.coupon_rate} price={@yield.price.value} /></span><.price_source price={@yield.price} />
           </small>
         <% else %>
           <.unavailable metric={@yield} />
@@ -249,7 +246,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   defp unavailable(assigns) do
     ~H"""
     <span data-role="metric-na"><%= gettext("not computable") %></span>
-    <small class="overview-metric__sub"><%= unavailable_reason(@metric) %></small>
+    <small class="overview-metric__sub"><%= PrivacyMode.html(unavailable_reason(@metric)) %></small>
     """
   end
 
@@ -298,17 +295,17 @@ defmodule PortfolixirWeb.Securities.BondStrip do
     ~H"""
     <AppShell.data_note severity={:problem} id="two-scales-note" clamp data-role="two-scales-note">
       <strong><%= gettext("Priced on two scales:") %></strong>
-      <%= gettext("quotes around 100 (latest %{close} on %{date}),",
+      <%= PrivacyMode.html(gettext("quotes around 100 (latest %{close} on %{date}),",
         close: Format.exact(@finding.latest_quote.close),
         date: Format.date(@finding.latest_quote.date)
-      ) %>
-      <%= ngettext(
+      )) %>
+      <%= PrivacyMode.html(ngettext(
         "booked price per unit around 1 (1 booking: %{price} on %{date}).",
         "booked price per unit around 1 (%{count} bookings, the last %{price} on %{date}).",
         @finding.unit_scale_bookings,
         price: Format.exact(@finding.last_unit_scale_booking.price),
         date: Format.date(@finding.last_unit_scale_booking.date)
-      ) %>
+      )) %>
       <%= gettext(
         "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"
       ) %>
@@ -327,17 +324,17 @@ defmodule PortfolixirWeb.Securities.BondStrip do
     ~H"""
     <AppShell.data_note severity={:problem} id="two-scales-reverse-note" clamp data-role="two-scales-reverse-note">
       <strong><%= gettext("Priced on two scales:") %></strong>
-      <%= gettext("quotes around 1 (latest %{close} on %{date}),",
+      <%= PrivacyMode.html(gettext("quotes around 1 (latest %{close} on %{date}),",
         close: Format.exact(@finding.latest_quote.close),
         date: Format.date(@finding.latest_quote.date)
-      ) %>
-      <%= ngettext(
+      )) %>
+      <%= PrivacyMode.html(ngettext(
         "booked price per unit around 100 (1 booking: %{price} on %{date}).",
         "booked price per unit around 100 (%{count} bookings, the last %{price} on %{date}).",
         @finding.unit_scale_bookings,
         price: Format.exact(@finding.last_unit_scale_booking.price),
         date: Format.date(@finding.last_unit_scale_booking.date)
-      ) %>
+      )) %>
       <%= gettext(
         "That means value, gain and weight count a hundred times too low. Check the stored quotes — a quote around 1 is not a percent of face:"
       ) %>
@@ -375,13 +372,20 @@ defmodule PortfolixirWeb.Securities.BondStrip do
 
   defp percent(ratio), do: ratio |> Decimal.mult(100) |> Format.plain_decimal(2)
 
+  attr(:coupon_rate, :any, required: true)
+  attr(:price, :any, required: true)
+
   # "2,5 ÷ 97,25": the coupon over the price the valuation uses, both as
   # stored (the closing act on U7: a 4,125 % coupon read 4,13, beside a yield
-  # computed from 4,125). Only the computed figures are rounded.
-  defp ratio_text(%Decimal{} = coupon_rate, %Decimal{} = price),
-    do: "#{Format.plain_exact(coupon_rate)} ÷ #{Format.exact(price)}"
+  # computed from 4,125). Only the computed figures are rounded. The coupon
+  # is a rate and stays in the privacy mode, marked as one for its leak
+  # test (`data-figure="ratio"`); the price is hidden, drawn as the bar.
+  # Written on one line, so the text reads "2,5 ÷ 97,25".
+  defp ratio(%{coupon_rate: %Decimal{}, price: %Decimal{}} = assigns),
+    do:
+      ~H|<span data-figure="ratio"><%= Format.plain_exact(@coupon_rate) %></span> ÷ <%= Format.exact(@price) %>|
 
-  defp ratio_text(_coupon_rate, _price), do: ""
+  defp ratio(assigns), do: ~H""
 
   attr(:price, :map, required: true)
 
