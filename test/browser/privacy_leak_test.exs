@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Predictions
@@ -329,23 +330,35 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   defp extra_addresses("/portfolio"), do: ["/portfolio?level=category"]
   defp extra_addresses(_path), do: []
 
-  # A held security with trades, a bond and the one with the most quotes;
-  # a classification.
+  # The two most traded securities, the first bond and a bond priced on two
+  # scales each way; a classification.
   defp address("/securities/:id") do
     traded =
       Repo.all(
         from(t in Transaction,
           where: not is_nil(t.security_id) and t.type in ["buy", "sell"],
           group_by: t.security_id,
-          order_by: [desc: count(t.id)],
+          order_by: [desc: count(t.id), asc: t.security_id],
           limit: 2,
           select: t.security_id
         )
       )
 
-    bond = Repo.one(from(s in Security, where: s.asset_class == "bond", limit: 1, select: s.id))
+    # By id: a pick without an order is whichever row the table's storage
+    # returns first, so the walk once read a different bond from run to
+    # run, and saw the reverse two-scales note leak only when it read that
+    # one (Sprint 27 closing act, browser job). Both directions' notes are
+    # walked every time.
+    bonds =
+      Repo.all(from(s in Security, where: s.asset_class == "bond", order_by: s.id, select: s.id))
 
-    (traded ++ List.wrap(bond))
+    two_scales =
+      bonds
+      |> Bonds.two_scales_findings()
+      |> Enum.uniq_by(& &1.direction)
+      |> Enum.map(& &1.security_id)
+
+    (traded ++ Enum.take(bonds, 1) ++ two_scales)
     |> Enum.uniq()
     |> Enum.map(&"/securities/#{&1}")
   end
@@ -371,7 +384,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
         from(t in Transaction,
           where: not is_nil(t.security_id) and t.type in ["buy", "sell"],
           group_by: t.security_id,
-          order_by: [desc: count(t.id)],
+          order_by: [desc: count(t.id), asc: t.security_id],
           limit: 1,
           select: t.security_id
         )
