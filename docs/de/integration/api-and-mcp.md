@@ -1383,8 +1383,9 @@ Codes, leere Felder weggelassen.
   den Feed neue URL wird sofort mit Namensauflösung geprüft (B2): Eine, die
   nicht https ist, einen Benutzernamen trägt, nicht auflöst oder auf eine
   private, Loopback-, Link-Local- oder reservierte Adresse auflöst, ergibt
-  `422` auf `url` mit ihrem Code, etwa `url_not_allowed:private_address`. Die
-  Klasse eines Feeds mit gespeicherten Einträgen ändert sich nicht.
+  `422` auf `url` mit ihrem Code, etwa `url_not_allowed:private_address`.
+  Klasse, Bindung (`security_id`, `category_id`) und Sprache eines Feeds mit
+  gespeicherten Einträgen ändern sich nicht: `422` auf dem Feld.
 - `DELETE /api/v1/news/feeds/:id` entfernt einen Feed und seine
   Tageszähler; seine Einträge bleiben, abgehängt, bis zur Aufbewahrungsfrist.
   Antwortet `id` und `items_detached`.

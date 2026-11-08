@@ -375,7 +375,10 @@ defmodule Portfolixir.News do
   Options go to the check (a test's `:resolver`).
 
   **The class of a feed with stored items does not change** (their class is
-  the feed's, a key of the database): an error on `class`.
+  the feed's, a key of the database): an error on `class`. **Nor do its
+  binding and its language** (closing act, COR1: the items carry them): an
+  error on `security_id`, `category_id` or `language`, checked under the
+  feed's row lock, which an ingest takes too.
 
   Answers `{:ok, :created | :updated, feed}`; an update that changes nothing
   records no entry.
@@ -465,7 +468,7 @@ defmodule Portfolixir.News do
 
   defp update_feed(actor, prior, attrs) do
     Multi.new()
-    |> Multi.update(:feed, &feed_changeset(Journal.locked_row(&1), attrs))
+    |> Multi.update(:feed, &(&1 |> Journal.locked_row() |> feed_changeset(attrs) |> keep_fed()))
     |> Journal.record(actor,
       resource_type: "news_feed",
       operation: :update,
@@ -529,6 +532,24 @@ defmodule Portfolixir.News do
   end
 
   # --- end N8 -----------------------------------------------------------------
+
+  # --- closing act, Fix-1 -----------------------------------------------------
+
+  @feed_fed_kept "cannot change while the feed has stored items: they carry it"
+
+  # COR1: a feed's items carry its security, category and language; while it
+  # has any, none of them changes. Read under the feed's row lock
+  # (`Journal.locked_row/1`), which an ingest takes before it inserts.
+  defp keep_fed(%Ecto.Changeset{data: %Feed{id: id}} = changeset) do
+    changed =
+      Enum.filter([:security_id, :category_id, :language], &Map.has_key?(changeset.changes, &1))
+
+    if changed != [] and Repo.exists?(from(i in Item, where: i.feed_id == ^id)) do
+      Enum.reduce(changed, changeset, &Ecto.Changeset.add_error(&2, &1, @feed_fed_kept))
+    else
+      changeset
+    end
+  end
 
   # --- N6 ---------------------------------------------------------------------
 
