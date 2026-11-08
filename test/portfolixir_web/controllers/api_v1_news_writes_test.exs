@@ -699,6 +699,64 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
     end
   end
 
+  # User story (closing act, EDGE3 and POLISH):
+  # As the agent that keeps a security's aliases,
+  # I want an alias's context read as I sent it — null as none, a blank word
+  # refused — and a token that names nothing refused,
+  # so that a gated alias never turns unconditional in silence and no alias
+  # matches nearly everything.
+  #
+  # Acceptance criteria:
+  # - `context: null` stores no context words (200), never a 500.
+  # - A blank context word (`""`, `"  "`) answers 422 on the alias's
+  #   context; nothing is stored.
+  # - A token without a letter or a digit (".", "--", "&") answers 422 on
+  #   the token; a single letter stays allowed (one-letter tickers exist).
+  describe "PATCH /api/v1/securities/:id aliases (closing act, EDGE3, POLISH)" do
+    test "a null context is none, a blank word and an empty token are refused", %{conn: conn} do
+      security = security!()
+
+      patch_aliases = fn aliases, status ->
+        conn
+        |> patch(
+          "/api/v1/securities/#{security.id}",
+          Jason.encode!(%{security: %{news_identity: %{aliases: aliases}}})
+        )
+        |> json_response(status)
+      end
+
+      %{"data" => data} =
+        patch_aliases.([%{token: "Northwind", case: "insensitive", context: nil}], 200)
+
+      assert [%{"token" => "Northwind", "context" => []}] = data["news_identity"]["aliases"]
+
+      for context <- [[""], ["  "], ["shares", ""]] do
+        %{"errors" => errors} =
+          patch_aliases.([%{token: "NWH", case: "sensitive", context: context}], 422)
+
+        assert %{"news_identity" => %{"aliases" => aliases}} = errors
+        assert Enum.any?(aliases, &match?(%{"context" => [_]}, &1)), inspect(context)
+      end
+
+      for token <- [".", "--", "&", " - "] do
+        %{"errors" => errors} = patch_aliases.([%{token: token, case: "sensitive"}], 422)
+
+        assert %{"news_identity" => %{"aliases" => aliases}} = errors
+
+        assert Enum.any?(aliases, fn entry ->
+                 match?(%{"token" => [message]} when is_binary(message), entry) and
+                   hd(entry["token"]) =~ "letter or a digit"
+               end),
+               inspect(token)
+      end
+
+      %{"data" => data} = patch_aliases.([%{token: "X", case: "sensitive"}], 200)
+      assert [%{"token" => "X"}] = data["news_identity"]["aliases"]
+
+      assert [%{token: "X"}] = Repo.get!(Portfolixir.Catalog.Security, security.id).news_aliases
+    end
+  end
+
   # --- end closing act, Fix-1 -----------------------------------------------
 
   defp item!(feed) do
