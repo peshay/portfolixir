@@ -33,6 +33,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   #   client: Req only to merge options into a request the chokepoint built
   #   and to read a response; Finch, Mint, :httpc, :gen_tcp, :ssl and their
   #   kin not at all. Name resolution is registered to the URL policy alone.
+  # - No module in lib/ names a module in a form the scan cannot read: an
+  #   atom literal (`:"Elixir.Req"`), an alias from the root (`Elixir.Req`),
+  #   a name built at run time (`Module.concat/1`, a string beginning
+  #   "Elixir.") or code evaluated from a string (closing act, #1423).
   # - `Portfolixir.Net.Http` issues only GET: its one issuing call pins the
   #   method and, next to it, an empty body with every body-encoding option
   #   dropped (#938); it makes no other Req call that issues a request, its
@@ -147,6 +151,21 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         "a crashed or killed task's failure on the feed (ADR-0056 §5, B6)"
   }
   # --- end closing act, Fix-1 (SEC1) -----------------------------------------
+
+  # --- closing act, #1423 ------------------------------------------------------
+  # Every matcher here, and every invariant that reads module references from
+  # the AST (the web layer's Repo boundary, the writer and scheduler
+  # registries), sees a module only where the source names it: an alias,
+  # `Req` or `Portfolixir.Net.Http`. A module written as an atom
+  # (`:"Elixir.Req"`), from the root (`Elixir.Req`) or built at run time
+  # (`Module.concat/1`, a string beginning "Elixir." handed to an atom maker,
+  # a string evaluated as code) is a call none of them can read, so lib/
+  # writes none. `{module, form} => reason` for a use that must stay; none
+  # does today.
+  @module_name_forms %{}
+  @code_evaluators ~w(eval_string eval_quoted eval_quoted_with_env eval_file compile_string
+                      compile_quoted compile_file require_file)a
+  # --- end closing act, #1423 --------------------------------------------------
 
   # `name => {:config | :credential, reason}`: every environment variable the
   # app (lib/, config/, priv/, mix.exs) and the MCP companion (mcp-server/src)
@@ -385,6 +404,38 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       assert MapSet.size(found) > 0, "the resolver scan found nothing"
 
       assert_registry(found, @resolvers, "name-resolution call sites")
+    end
+
+    # User story (closing act, #1423):
+    # As the operator whose instance may call out only through the one
+    # GET-only client,
+    # I want the backstop to refuse a module named in a form its scan cannot
+    # read — an atom literal, a root alias, a name built at run time,
+    # code evaluated from a string —
+    # so that a POST to an LLM vendor cannot arrive as `:"Elixir.Req".post/2`
+    # and leave every invariant green.
+    test "no module in lib/ is named by an atom, from the root, or built at run time" do
+      found =
+        "lib/**/*.ex"
+        |> Path.wildcard()
+        |> Enum.sort()
+        |> Enum.flat_map(&module_name_violations(File.read!(&1), &1))
+
+      registered = Enum.filter(found, &Map.has_key?(@module_name_forms, {&1.module, &1.form}))
+      unregistered = found -- registered
+
+      for {entry, reason} <- @module_name_forms do
+        assert is_binary(reason) and String.length(reason) > 20,
+               "#{inspect(entry)} needs a written reason"
+      end
+
+      assert unregistered == [],
+             "Modules named in a form the outbound scan cannot read (NFR-9 B2, #1423); " <>
+               "name the module as an alias:\n" <> Enum.map_join(unregistered, "\n", & &1.where)
+
+      stale = Map.keys(@module_name_forms) -- Enum.map(registered, &{&1.module, &1.form})
+
+      assert stale == [], "Stale module-name registry entries — remove them: #{inspect(stale)}"
     end
   end
 
@@ -686,6 +737,59 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       assert length(offenders) == 14, Enum.join(offenders, "\n")
       refute Enum.any?(offenders, &(&1 =~ ~r/Req\.merge|Req\.Response|parse_strict_address/))
     end
+
+    # --- closing act, #1423 ----------------------------------------------------
+    test "a module written as an atom, from the root or built at run time is caught" do
+      source = ~S'''
+      defmodule Portfolixir.SyntheticSmuggler do
+        def a(u),
+          do: :"Elixir.Req".post(u, headers: [{"authorization", "Bearer x"}], json: %{q: "holdings"})
+
+        def b, do: :"Elixir.Portfolixir.Net.Http".new(allowed_hosts: :any)
+        def c(id), do: :"Elixir.Portfolixir.News.Fetcher".fetch(id)
+        def d(u), do: Elixir.Req.post(u, json: %{q: "holdings"})
+        def e, do: Module.concat([Portfolixir.Net, Http])
+        def f, do: Module.safe_concat(["Req"])
+        def g(n), do: String.to_existing_atom("Elixir." <> n)
+        def h(n), do: String.to_atom("Elixir.#{n}")
+        def i, do: Enum.join(["Elixir", "Req"], ".")
+        def j, do: :erlang.binary_to_atom("Elixir.Req", :utf8)
+        def k, do: List.to_existing_atom(~c"Elixir.Req")
+        def l(n), do: :"Elixir.#{n}"
+        def m(u), do: Code.eval_string("Req.post(u)", u: u)
+        def n, do: apply(:"Elixir.Req", :put, ["https://example.test"])
+        def o, do: apply(Module, :concat, [["Req"]])
+
+        def ok(value), do: String.to_existing_atom(value)
+        def ok_doc, do: "Elixir's own fold"
+        def ok_quoted, do: :"quoted-atom"
+        def ok_split, do: Module.split(__MODULE__)
+      end
+      '''
+
+      found = module_name_violations(source, "lib/synthetic.ex")
+      lines = found |> Enum.map(&(&1.where |> String.split(":") |> Enum.at(1))) |> Enum.uniq()
+
+      # One probe a line, on 3 and 5 to 18; the innocent ones on 20 to 23 are not.
+      assert Enum.sort_by(lines, &String.to_integer/1) ==
+               Enum.map([3 | Enum.to_list(5..18)], &to_string/1),
+             Enum.map_join(found, "\n", & &1.where)
+
+      assert Enum.all?(found, &(&1.module == "Portfolixir.SyntheticSmuggler"))
+
+      # The forms the outbound matchers read once the atom is resolved: the
+      # POST, the chokepoint's caller and its `:any`, the fetcher's caller.
+      refs = refs(source, "lib/synthetic.ex")
+      outbound = outbound_violations(refs)
+
+      assert Enum.count(outbound, &(&1 =~ "Req.post/2")) == 2, Enum.join(outbound, "\n")
+      assert Enum.any?(outbound, &(&1 =~ "Req referenced")), Enum.join(outbound, "\n")
+      assert chokepoint_callers(refs) == ["Portfolixir.SyntheticSmuggler"]
+      assert declared_hosts(source, refs) == %{"Portfolixir.SyntheticSmuggler" => [:any]}
+      assert fetcher_callers(refs) == ["Portfolixir.SyntheticSmuggler"]
+    end
+
+    # --- end closing act, #1423 ------------------------------------------------
 
     test "a synthetic resolver outside the policy is caught" do
       source = """
@@ -1065,6 +1169,111 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     end
   end
 
+  # --- closing act, #1423: module names the scan cannot read -----------------
+
+  # `[%{module, form, where}]`: every place a source names a module in a form
+  # the alias-reading matchers cannot see. Read from the raw AST, before
+  # `refs/2` resolves an atom into an alias: an atom naming a module, an
+  # alias written from the root (`Elixir.Req`), a string or charlist
+  # fragment "Elixir" or "Elixir.<Module>" (the prefix every module name
+  # built from a string needs), and the calls that build or evaluate one,
+  # however they are reached (`apply(Module, ...)` names `Module` bare).
+  defp module_name_violations(source, path) do
+    source |> Code.string_to_quoted!() |> name_walk([], 0, path)
+  end
+
+  defp name_walk({:defmodule, _, [{:__aliases__, _, segments}, body]}, outer, _line, path)
+       when is_list(segments),
+       do: name_walk(body, outer ++ segments, 0, path)
+
+  defp name_walk({:__aliases__, meta, segments}, module, line, path) do
+    line = meta[:line] || line
+
+    case segments do
+      [root] when root in [:Module, :Code] -> [name_hit(module, "#{root} named bare", line, path)]
+      _other -> alias_root(segments, module, line, path)
+    end
+  end
+
+  defp name_walk({{:., _, [target, fun]}, meta, args}, module, line, path)
+       when is_atom(fun) and is_list(args) do
+    line = meta[:line] || line
+
+    case {name_builder(target, fun), target} do
+      # The parser's own atoms: `"#{x}"` calls `Kernel.to_string/1`, `map[key]`
+      # calls `Access.get/2`; neither was written as an atom.
+      {nil, target} when target in [Kernel, Access] and is_list(meta) ->
+        if meta[:from_interpolation] || meta[:from_brackets],
+          do: name_walk(args, module, line, path),
+          else: name_walk([target | args], module, line, path)
+
+      {nil, {:__aliases__, _, segments}} ->
+        alias_root(segments, module, line, path) ++ name_walk(args, module, line, path)
+
+      {nil, _target} ->
+        name_walk([target | args], module, line, path)
+
+      {form, _target} ->
+        [name_hit(module, form <> "/#{length(args)}", line, path)]
+    end
+  end
+
+  defp name_walk({form, meta, args}, module, line, path) when is_list(meta),
+    do: name_walk([form, args], module, meta[:line] || line, path)
+
+  defp name_walk({left, right}, module, line, path),
+    do: name_walk([left, right], module, line, path)
+
+  defp name_walk(list, module, line, path) when is_list(list) do
+    if list != [] and List.ascii_printable?(list),
+      do: name_walk(List.to_string(list), module, line, path),
+      else: Enum.flat_map(list, &name_walk(&1, module, line, path))
+  end
+
+  defp name_walk(atom, module, line, path) when is_atom(atom) do
+    if module_atom?(atom),
+      do: [name_hit(module, "a module written as an atom", line, path)],
+      else: []
+  end
+
+  defp name_walk(string, module, line, path) when is_binary(string) do
+    if string == "Elixir" or String.starts_with?(string, "Elixir."),
+      do: [name_hit(module, ~s(a string that builds a module name from "Elixir"), line, path)],
+      else: []
+  end
+
+  defp name_walk(_leaf, _module, _line, _path), do: []
+
+  # `Elixir.Req` parses as the alias `[Elixir, :Req]`: the root, which no
+  # alias table expands and no matcher's `[:Req | _]` reads.
+  defp alias_root([root | _], module, line, path) when is_atom(root) do
+    if module_atom?(root),
+      do: [name_hit(module, "an alias written from the root", line, path)],
+      else: []
+  end
+
+  defp alias_root(_segments, _module, _line, _path), do: []
+
+  # `:"Elixir.Req"` is the atom `Req`; `Elixir` alone is the root.
+  defp module_atom?(atom),
+    do: atom == Elixir or String.starts_with?(Atom.to_string(atom), "Elixir.")
+
+  defp name_builder({:__aliases__, _, [:Module]}, fun) when fun in [:concat, :safe_concat],
+    do: "Module.#{fun}"
+
+  defp name_builder({:__aliases__, _, [:Code]}, fun) when fun in @code_evaluators,
+    do: "Code.#{fun}"
+
+  defp name_builder(:elixir_aliases, fun), do: ":elixir_aliases.#{fun}"
+  defp name_builder(_target, _fun), do: nil
+
+  defp name_hit(module, form, line, path) do
+    module = module_name(module, path)
+    %{module: module, form: form, where: "#{path}:#{line}: #{form} in #{module}"}
+  end
+
+  # --- end closing act, #1423 --------------------------------------------------
+
   # --- registry assertion --------------------------------------------------
 
   defp assert_registry(found, registry, label) do
@@ -1099,9 +1308,15 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   # `[{path, module, ref}]` for every call with a module target and every
   # bare alias in a source, aliases expanded, pipes unfolded, each attributed
   # to the innermost `defmodule` around it (the path, in a script). A call's
-  # target is not also reported as a bare alias.
+  # target is not also reported as a bare alias. A module written as an atom
+  # (`:"Elixir.Req"`) or from the root (`Elixir.Req`) reads as the alias it
+  # names (closing act, #1423), so every matcher sees it by name too.
   defp refs(source, path) do
-    ast = source |> Code.string_to_quoted!() |> Macro.prewalk(&unpipe/1)
+    ast =
+      source
+      |> Code.string_to_quoted!()
+      |> Macro.prewalk(&(&1 |> unpipe() |> module_atom_alias()))
+
     aliases = alias_table(ast)
 
     ast
@@ -1195,10 +1410,15 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   end
 
   defp put_alias(table, short, segments) when is_atom(short) do
-    if Enum.all?(segments, &is_atom/1), do: Map.put(table, short, segments), else: table
+    if Enum.all?(segments, &is_atom/1),
+      do: Map.put(table, short, from_root(segments)),
+      else: table
   end
 
   defp put_alias(table, _short, _segments), do: table
+
+  # `Elixir.Http` is the top-level `Http`, which no alias expands.
+  defp expand([Elixir | rest], _aliases), do: rest
 
   defp expand([first | rest] = segments, aliases) when is_atom(first) do
     case Map.fetch(aliases, first) do
@@ -1216,6 +1436,21 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   end
 
   defp unpipe(node), do: node
+
+  defp from_root([Elixir | rest]), do: rest
+  defp from_root(segments), do: segments
+
+  # `:"Elixir.Req"` is the atom `Req`: read as the alias `Elixir.Req`.
+  defp module_atom_alias(atom) when is_atom(atom) and atom != Elixir do
+    with "Elixir." <> name <- Atom.to_string(atom),
+         {:ok, {:__aliases__, meta, segments}} <- Code.string_to_quoted(name) do
+      {:__aliases__, meta, [Elixir | segments]}
+    else
+      _other -> atom
+    end
+  end
+
+  defp module_atom_alias(node), do: node
 
   defp inside_chokepoint?(module),
     do: module == @chokepoint or String.starts_with?(module, @chokepoint <> ".")
