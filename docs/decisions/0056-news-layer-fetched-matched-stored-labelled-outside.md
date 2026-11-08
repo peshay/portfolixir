@@ -11,8 +11,10 @@ description: "Decision for gate B3.3, narrowed to news (idea F12, idea I21; exte
   and confirmed with its amendment of 2026-11-06 by the merge of the
   Sprint 26 planning PR, after the owner's doubts and his answer the same
   day (see "Amendment of 2026-11-06"), and amended on 2026-11-07 by the
-  merge of the Sprint 27 planning PR (see "Amendment of 2026-11-07" at the
-  end). The merge opens gate B3.3
+  merge of the Sprint 27 planning PR (see "Amendment of 2026-11-07"), and
+  amended on 2026-11-08 by the Sprint 27 closing act, adopted by the merge
+  of the sprint PR (see "Amendment of 2026-11-08" at the end). The merge
+  opens gate B3.3
   **for news feeds only**; every other kind of acquisition (bank, broker
   and wallet sync, F13; CPI and other series) stays behind it.
 - **Date:** 2026-11-05
@@ -609,3 +611,100 @@ source, an `any:` reason naming this record and B2; the environment
 variable `PORTFOLIXIR_NEWS_USER_AGENT` is listed with its reason. These
 are registrations a reviewer reads, not a weakened gate: every other caller
 keeps its literal allow-list.
+
+## Amendment of 2026-11-08: what the closing act found
+
+**Adopted by the merge of the Sprint 27 sprint PR**, as the closing act of
+Sprint 26 amended ADR-0057 inside its own sprint PR. The closing act's five
+lenses (correctness, edge cases, a hostile feed host, order, the agent)
+read the built layer against this record and found six places where the
+record, built as written, lets a true item or an honest gap mislead. None
+books or corrects a stored money figure, so each is decided here with its
+reason and flips by a comment naming its flip.
+
+### C1. A primary story is anchored: lower-tier items cannot chain two primary stories together
+
+**Found by the order lens:** with B3 as written, ten true items from one
+aggregator, each one word away from the last, link an issuer's quarterly
+results (published at 0 h) and its chief executive's resignation (24 h)
+into one story whose representative is the older one. The newer primary
+headline disappears from the digest and the list, and the story id the
+agent held for it answers "not found". §7 already says a label never hides
+an issuer or regulatory story; a chain of lower-tier items must not either.
+**The rule:** within a scope and language, the B3 relation first builds the
+components of the `primary` items alone. A lower-tier item that the
+relation links to one or more primary components joins exactly one of
+them: the one whose survivor key (C2) is smallest. The remaining
+lower-tier items form components among themselves by B3. The result is
+still a function of the set of items, so no order decides it.
+**To flip:** "news primary chains" (B3 as written).
+
+### C2. A story's survivor is chosen by tier first
+
+**Found by the order lens:** within one scheduler tick every item shares
+`first_seen_at`, so B3's survivor key fell to the canonical URL, which an
+attacker chooses: a story of the attacker's items at `https://a.example/…`
+survived a merge with a primary story, and the id the agent held for the
+primary story was deleted. **The survivor key becomes (best tier present,
+earliest `first_seen_at`, smallest canonical URL)**, never an id. The
+representative's rule (B3) is unchanged. **To flip:** "news survivor by
+time".
+
+### C3. `since` reads the moment an item entered its scope
+
+**Found by the correctness lens:** an aggregator item that the 7-day
+re-match (§2) assigns after its first sight kept its old `first_seen_at`,
+so every `since` read after that sight skipped it, against B4's "overlap,
+never loss". **Each item carries `scope_at`, the server's time it entered
+its security's or category's scope** (its first sight for an item bound by
+construction or matched at ingest; the time of the assignment for one
+matched later, re-matched, merged or left the only candidate). `since` (the
+digest and `news.list`) reads `scope_at`; retention keeps reading
+`first_seen_at` (B4), and the 90 days do not restart. **To flip:** none
+offered; the alternative loses items.
+
+### C4. Yield is not answered before promotion exists
+
+**Found by the agent's lens:** A3's `yield_30d` and `low_yield` count
+promoted stories, and promotion (§8) arrives with the second sprint. Until
+then every feed with 50 items reads `low_yield: true` on its first day, in
+A3's words "a feed nobody reads", beside a delete tool. **Until §8 is
+built, `news.health` leaves `yield_30d` and `low_yield` out and says why
+in one field** (`yield: "not_measured_until_promotion"`); `items_30d` and
+`promoted_30d` stay. The second sprint answers them as A3 says. **To
+flip:** "news yield now".
+
+### C5. The digest says what it left out, and its default fits its budget
+
+**Found by the agent's lens:** with news only from an aggregator feed, the
+default digest answered every security as quiet, the false calm §6 exists
+to prevent; and at the default `max_rows=40` the 800-token budget holds
+only while about 13 securities have news. **The digest carries `hidden`,
+the count of aggregator and thematic stories it left out by
+`include_unlabeled`, and a security with only hidden stories is not counted
+quiet. Its `max_rows` defaults to 12**, with `truncated` beyond, so the
+budget of §9 holds at the default; a caller may still ask for up to 40.
+The budgets of §9 and §14 are measured on the text the companion returns,
+with invisible characters spelled as ADR-0054 §4 spells them, and the
+server clips titles and excerpts in lists and the digest by that spelled
+width. **To flip:** a number by comment.
+
+### C6. The operator's contact goes to the SEC only
+
+**Found by the security lens:** §5 sets the user agent from
+`PORTFOLIXIR_NEWS_USER_AGENT` because the SEC asks for a contact address in
+it; sent to every feed host, it tells each aggregator and newsroom the
+operator registers who the operator is. **The variable is sent to
+`sec.gov` and its subdomains only; every other host receives the app's own
+user agent.** A host name with a trailing dot is read without it, so
+`www.sec.gov.` cannot skip the requirement or the pace. **To flip:** "news
+agent everywhere".
+
+### C7. What `err_24h` counts
+
+**Found by the correctness lens:** errors are counted per feed and server
+day, so `err_24h` sums today's and yesterday's rows and can include up to
+48 hours. It stays so, and the health read and its tool description say
+"errors of the server's current and previous day". Counting per hour would
+add rows for a figure that only needs to read "not zero". **To flip:**
+"news errors hourly".
