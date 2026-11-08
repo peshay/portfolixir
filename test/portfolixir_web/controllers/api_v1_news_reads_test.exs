@@ -233,6 +233,66 @@ defmodule PortfolixirWeb.ApiV1NewsReadsTest do
       capped = conn |> list(security_id: security.id, limit: 500) |> json_response(200)
       assert capped["data"]["limit"] == 100
     end
+
+    # User story (Sprint 27 closing act, ORD4; ADR-0056 B3):
+    # As the agent reading the first page of a security's stories,
+    # I want stories that entered their scope in the same tick ordered by
+    # tier, then publication, then link — never by id —
+    # so that an aggregator's flood stored after an issuer's release in the
+    # same tick cannot push the release off the first page.
+    #
+    # Acceptance criteria:
+    # - One issuer story and four aggregator stories of one tick: the
+    #   issuer's is the first row of a page of two.
+    # - Paged one row at a time by the cursor, the pages are the same rows
+    #   in the same order as one page of all, each once.
+    test "within one tick stories come by tier, publication and link, and the cursor follows",
+         %{conn: conn, now: now} do
+      security = watched!("Northwind Harbour Logistics AG", "Northwind")
+
+      ingest!(
+        issuer_feed!(security),
+        [item("Northwind annual report", "https://ir.example.com/a")],
+        now
+      )
+
+      ingest!(
+        aggregator_feed!(),
+        for n <- 1..4 do
+          item(
+            "Northwind flood #{n} item#{n}x item#{n}y",
+            "https://flood-#{n}.example.com/#{n}",
+            %{
+              published_at: if(n <= 2, do: hours_ago(now, 1)),
+              source_domain: "wire.example.com"
+            }
+          )
+        end,
+        now
+      )
+
+      first = conn |> list(security_id: security.id, limit: 2) |> json_response(200)
+      assert [%{"tier" => "primary"}, _second] = first["data"]["rows"]
+
+      all = conn |> list(security_id: security.id) |> json_response(200)
+      assert length(all["data"]["rows"]) == 5
+
+      paged =
+        Stream.unfold(nil, fn
+          :done ->
+            nil
+
+          cursor ->
+            query =
+              [security_id: security.id, limit: 1] ++ if(cursor, do: [cursor: cursor], else: [])
+
+            data = conn |> list(query) |> json_response(200) |> Map.fetch!("data")
+            {data["rows"], Map.get(data, "cursor", :done)}
+        end)
+        |> Enum.concat()
+
+      assert Enum.map(paged, & &1["id"]) == Enum.map(all["data"]["rows"], & &1["id"])
+    end
   end
 
   # User story (ADR-0056 §2, §9):
