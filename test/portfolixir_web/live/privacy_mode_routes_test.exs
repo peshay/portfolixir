@@ -85,6 +85,18 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     deliver_untraded!(world, gift, "6", date: ~D[2025-03-01])
     sell!(world, gift, quantity: "6", price: "50.00", date: ~D[2025-03-03])
 
+    # Two bonds priced on two scales, one each way, so a bond's Overview
+    # shows its block and its two-scales note (Sprint 27 closing act,
+    # browser job: the walk saw both draw a hidden figure as its text, on a
+    # bond this world did not hold).
+    forward = bond!("Synthetic Forward Bond 2031", "2.5")
+    buy!(world, forward, quantity: "1000", price: "0.985", date: ~D[2025-01-20])
+    put_quotes!(forward, [{~D[2025-01-20], "98.50"}, {~D[2026-01-15], "97.25"}])
+
+    reverse = bond!("Synthetic Reverse Bond 2029", "1.5")
+    buy!(world, reverse, quantity: "10", price: "98.50", date: ~D[2025-01-20])
+    put_quotes!(reverse, [{~D[2025-01-20], "0.9820"}, {~D[2026-01-15], "0.9850"}])
+
     {:ok, bench} =
       Catalog.create_security(Actor.owner_ui(), %{
         name: "Synthetic Masked Index",
@@ -138,7 +150,22 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
         "resolves_on" => Date.to_iso8601(Date.add(Clock.today(), 60))
       })
 
-    %{sold: sold, next: next, tree: tree, core: core}
+    %{sold: sold, next: next, tree: tree, core: core, bonds: [forward, reverse]}
+  end
+
+  defp bond!(name, coupon) do
+    {:ok, bond} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: name,
+        currency_code: "EUR",
+        asset_class: "bond",
+        coupon_rate: coupon,
+        coupon_frequency: "annual",
+        maturity_date: ~D[2031-06-15],
+        face_value: "1000"
+      })
+
+    bond
   end
 
   defp masked_conn do
@@ -193,12 +220,19 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     |> Enum.map(& &1.path)
     |> Enum.uniq()
     |> Enum.flat_map(fn
-      "/securities/:id" -> ["/securities/#{ctx.sold.id}", "/securities/#{ctx.next.id}"]
-      "/classifications/:id" -> ["/classifications/#{ctx.tree.id}"]
+      "/securities/:id" ->
+        Enum.map([ctx.sold, ctx.next | ctx.bonds], &"/securities/#{&1.id}")
+
+      "/classifications/:id" ->
+        ["/classifications/#{ctx.tree.id}"]
+
       # The value series' category stack, from which the walk follows the
       # bar's links: the stack shows only in the value series.
-      "/portfolio" -> ["/portfolio", "/portfolio?level=category"]
-      path -> if String.contains?(path, ":"), do: flunk("no address for #{path}"), else: [path]
+      "/portfolio" ->
+        ["/portfolio", "/portfolio?level=category"]
+
+      path ->
+        if String.contains?(path, ":"), do: flunk("no address for #{path}"), else: [path]
     end)
   end
 
