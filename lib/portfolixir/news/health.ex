@@ -33,12 +33,14 @@ defmodule Portfolixir.News.Health do
       own, and each story counts once. A story counts for every feed with
       an item in it, so a feed that carried a story someone kept gets the
       credit whichever member was promoted.
-    * `yield_30d` — `promoted_30d / items_30d` as a `Decimal` rounded half
-      up to four places (`0.0200`), a decimal string in the API and MCP
-      (ADR-0003); nil for a feed without items in 30 days (no ratio).
-      Each counted story holds one of the feed's items, so it is at most 1.
-    * `low_yield` — true at 50 items or more in 30 days with none promoted
-      (A3). Nothing disables a feed by itself: the operator decides.
+    * `yield` — `:not_measured_until_promotion` (C4, ADR-0056 amendment
+      of 2026-11-08). A3's `yield_30d` (promoted stories over items) and
+      `low_yield` (50 items or more in 30 days, none promoted) count
+      promotions, and promotion (§8) arrives with the second sprint: until
+      then every busy feed would read `low_yield` on its first day, "a feed
+      nobody reads", beside a delete tool. So both are left out until §8
+      is built, and this field says why. Nothing disables a feed by itself:
+      the operator decides.
 
   ## The day (`day`)
 
@@ -65,8 +67,6 @@ defmodule Portfolixir.News.Health do
 
   @day_seconds 24 * 60 * 60
   @month_days 30
-  @low_yield_items 50
-  @yield_places 4
 
   @type feed_health :: %{
           id: pos_integer(),
@@ -79,8 +79,7 @@ defmodule Portfolixir.News.Health do
           stale: boolean(),
           items_30d: non_neg_integer(),
           promoted_30d: non_neg_integer(),
-          yield_30d: Decimal.t() | nil,
-          low_yield: boolean()
+          yield: :not_measured_until_promotion
         }
 
   @type day :: %{
@@ -109,9 +108,6 @@ defmodule Portfolixir.News.Health do
       from(f in Feed, order_by: f.id)
       |> Repo.all()
       |> Enum.map(fn feed ->
-        items = Map.get(items_30d, feed.id, 0)
-        promoted = Map.get(promoted_30d, feed.id, 0)
-
         %{
           id: feed.id,
           class: feed.class,
@@ -121,10 +117,9 @@ defmodule Portfolixir.News.Health do
           items_24h: Map.get(items_24h, feed.id, 0),
           err_24h: Map.get(errors, feed.id, 0),
           stale: stale?(feed, day_ago),
-          items_30d: items,
-          promoted_30d: promoted,
-          yield_30d: yield(promoted, items),
-          low_yield: items >= @low_yield_items and promoted == 0
+          items_30d: Map.get(items_30d, feed.id, 0),
+          promoted_30d: Map.get(promoted_30d, feed.id, 0),
+          yield: :not_measured_until_promotion
         }
       end)
 
@@ -140,11 +135,6 @@ defmodule Portfolixir.News.Health do
 
   defp stale?(%Feed{last_ok_at: last_ok_at}, day_ago),
     do: DateTime.compare(last_ok_at, day_ago) != :gt
-
-  defp yield(_promoted, 0), do: nil
-
-  defp yield(promoted, items),
-    do: promoted |> Decimal.new() |> Decimal.div(items) |> Decimal.round(@yield_places, :half_up)
 
   defp item_counts(since) do
     from(i in Item,

@@ -129,36 +129,35 @@ defmodule Portfolixir.News.HealthTest do
     end
   end
 
-  # User story:
+  # User story (A3; ADR-0056 amendment of 2026-11-08, C4):
   # As the operator whose agent may register feeds nobody reads,
-  # I want each feed's items and promoted stories of 30 days, their ratio,
-  # and a flag on a feed of at least 50 items with nothing promoted,
-  # so that I can decide which feed to drop (A3).
+  # I want each feed's items and promoted stories of 30 days, and no yield
+  # or low-yield flag until stories can be promoted,
+  # so that a feed is not called "a feed nobody reads" on its first day,
+  # beside a delete tool, for a promotion no tool can make yet.
   #
   # Acceptance criteria:
   # - `items_30d` counts the feed's items first seen within 30 days.
   # - `promoted_30d` counts the promoted stories those items are in (§8: a
   #   story is promoted once a member is; an item outside a story is its
   #   own), each story once.
-  # - `yield_30d` is promoted stories over items as a Decimal rounded to
-  #   four places, nil for a feed without items.
-  # - `low_yield` is true at 50 items and none promoted, false at 49, and
-  #   false once one story is promoted.
-  describe "yield (A3)" do
-    test "low_yield at 50 items without a promotion, not at 49" do
+  # - No feed carries `yield_30d` or `low_yield`; each says
+  #   `yield: :not_measured_until_promotion`, at 50 items without a
+  #   promotion too.
+  describe "yield (A3, C4)" do
+    test "yield is not measured until promotion, at 50 items without one too" do
       feed = issuer_feed!()
       at = DateTime.add(@now, -2, :day)
-      ingest!(feed, Enum.map(1..49, &parsed/1), at)
+      ingest!(feed, Enum.map(1..50, &parsed/1), at)
 
-      assert %{items_30d: 49, promoted_30d: 0, low_yield: false} = health(feed, @now)
+      assert %{items_30d: 50, promoted_30d: 0, yield: :not_measured_until_promotion} =
+               reported = health(feed, @now)
 
-      ingest!(feed, [parsed(50)], at)
-      assert %{items_30d: 50, promoted_30d: 0, low_yield: true} = yielded = health(feed, @now)
-      assert Decimal.to_string(yielded.yield_30d) == "0.0000"
+      refute Map.has_key?(reported, :yield_30d)
+      refute Map.has_key?(reported, :low_yield)
 
       promote!("https://newsroom.example.com/h/7", 9001)
-      assert %{promoted_30d: 1, low_yield: false} = yielded = health(feed, @now)
-      assert Decimal.to_string(yielded.yield_30d) == "0.0200"
+      assert %{promoted_30d: 1, yield: :not_measured_until_promotion} = health(feed, @now)
     end
 
     test "a promoted story counts once, for every feed with an item in it" do
@@ -206,18 +205,14 @@ defmodule Portfolixir.News.HealthTest do
       promote!("https://newsroom.example.com/h/1", 9002)
       promote!("https://newsroom.example.com/h/2", 9003)
 
-      assert %{items_30d: 4, promoted_30d: 1} = issued = health(issuer, @now)
-      assert Decimal.to_string(issued.yield_30d) == "0.2500"
+      assert %{items_30d: 4, promoted_30d: 1} = health(issuer, @now)
 
       # The aggregator's item sits in the promoted story.
-      assert %{items_30d: 2, promoted_30d: 1} = searched = health(search, @now)
-      assert Decimal.to_string(searched.yield_30d) == "0.5000"
+      assert %{items_30d: 2, promoted_30d: 1} = health(search, @now)
 
-      # Beyond 30 days nothing counts, and no items is no ratio.
+      # Beyond 30 days nothing counts.
       later = DateTime.add(at, 30, :day)
-
-      assert %{items_30d: 0, promoted_30d: 0, yield_30d: nil, low_yield: false} =
-               health(issuer, later)
+      assert %{items_30d: 0, promoted_30d: 0} = health(issuer, later)
     end
   end
 

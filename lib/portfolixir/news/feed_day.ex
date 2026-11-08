@@ -17,9 +17,9 @@ defmodule Portfolixir.News.FeedDay do
     * `items_24h`, `items_30d` — the feed's rows in `news_items` with
       `first_seen_at` within the last 24 hours or 30 days: exact rolling
       windows. (`news_items` keeps 90 days, so both windows are complete.)
-    * `promoted_30d` and so `yield_30d` — the promoted stories those rows
-      are in, each once (A3: "promoted stories over items";
-      `Portfolixir.News.Health`).
+    * `promoted_30d` — the promoted stories those rows are in, each once
+      (A3; `Portfolixir.News.Health`, which answers no yield until
+      promotion exists, C4).
     * the cap of A3 (at most 200 items in 24 hours) — the same rolling
       count, read before each store.
     * `err_24h` — the `errors` of the feed's rows for today and yesterday.
