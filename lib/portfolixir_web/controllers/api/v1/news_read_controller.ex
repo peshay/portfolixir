@@ -5,7 +5,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     * `GET /api/v1/news/stories` (`news.list`) — one page of rows of exactly
       one selector: `security_id` or `category_id` (the scope's stories),
       `cluster_id` (the story's items) or `assignment=unassigned|ambiguous`
-      (the remainder, with candidates). `since` (by `first_seen_at`, B4),
+      (the remainder, with candidates). `since` (by `scope_at`, B4, C3),
       `tier_min` (`primary`, `secondary`, `awareness`), `limit` (default 20,
       at most 100), `fields=slim|std` (`std` adds `url` and `note_ids`) and
       `cursor` (the `cursor` of a truncated page). See

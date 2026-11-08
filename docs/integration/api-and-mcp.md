@@ -1312,9 +1312,11 @@ with none stored.
   representative's), `tier`, `at` (the representative's publication, clamped
   to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
   `domain` and, when ambiguous, `candidates` (security ids). `fields=std` adds
-  `url` and `note_ids`. Rows come newest first by first sight. `since` reads
-  `first_seen_at`, the server's clock, never the feed's claim (B4): a story is
-  in when any of its items was first seen after it, and `as_of` is the next
+  `url` and `note_ids`. Rows come newest first by the time they entered their
+  scope. `since` reads that time, `scope_at`, the server's clock, never the
+  feed's claim (B4, C3): an item's first sight, or the time a later
+  re-match, a security merge or a candidate left alone assigned it. A story
+  is in when any of its items entered its scope after it, and `as_of` is the next
   `since` (it lies a little early, so a read may repeat a story but never
   skips one). `tier_min` (`primary`, `secondary`, `awareness`) leaves out the
   tiers below it. `limit` is 20 by default and at most 100; when more rows
@@ -1336,15 +1338,15 @@ with none stored.
 - `GET /api/v1/news/digest` answers what is new, one row per security: with
   `view_id` the securities that view holds, without it the news universe
   (held, carrying a target weight, or watched). `since` (default 24 hours
-  before now) reads first sight as the list does, and `as_of` is the next
+  before now) reads `scope_at` as the list does, and `as_of` is the next
   `since`. A row is `id`, `name`, `count` (its new stories) and `top` (`id`,
   `title` cut to 100 characters, `tier`, `at`): the best tier, then the
   newest. A story with an issuer or regulatory item always counts; a story of
   aggregator items only, and a thematic story, counts only with
   `include_unlabeled=true`, the thematic ones per category under
   `categories`. `quiet` counts the securities without a row, `unassigned` and
-  `ambiguous` the aggregator items first seen since then that no security, or
-  several, claim. `max_rows` (default 40, at most 100) caps the rows;
+  `ambiguous` the aggregator items that became so since then that no security,
+  or several, claim. `max_rows` (default 40, at most 100) caps the rows;
   `truncated` and `more` say how many were left out. This sprint's digest has
   no labels and no consumer cursor: `consumer`, `ack_cursor`,
   `min_materiality` and `tier_min` answer `422`.

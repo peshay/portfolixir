@@ -69,6 +69,7 @@ defmodule Portfolixir.News do
     feeds = Repo.all(from(f in Feed, where: f.security_id == ^source_id, order_by: f.id))
 
     with :ok <- reassign_feeds(actor, feeds, target_id) do
+      enter_target_scope(source_id, target_id, now())
       # Counted first: a story's items follow it through their composite key,
       # so the items' own update below reaches only those outside a story.
       items = Repo.aggregate(from(i in Item, where: i.security_id == ^source_id), :count)
@@ -214,8 +215,8 @@ defmodule Portfolixir.News do
       {:ok, %{assigned: 0, unassigned: 0, ambiguous: 0}}
     else
       index = Keyword.get_lazy(opts, :universe, &Universe.aggregator_index/0)
-      {:ok, {counts, scopes}} = Repo.transaction(fn -> assign_locked(ids, index) end)
       now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+      {:ok, {counts, scopes}} = Repo.transaction(fn -> assign_locked(ids, index, now) end)
       Enum.each(scopes, fn {scope, language} -> recluster(scope, language, now) end)
       {:ok, counts}
     end
@@ -258,7 +259,7 @@ defmodule Portfolixir.News do
   defp item_id(%Item{id: id}), do: id
   defp item_id(id) when is_integer(id), do: id
 
-  defp assign_locked(ids, index) do
+  defp assign_locked(ids, index, now) do
     items =
       Repo.all(
         from(i in Item,
@@ -277,7 +278,7 @@ defmodule Portfolixir.News do
 
     Enum.reduce(matched, initial, fn {item, hits}, {counts, scopes} ->
       outcome = hits |> Enum.filter(&MapSet.member?(existing, &1)) |> Matcher.outcome()
-      write_outcome(item, outcome)
+      write_outcome(item, outcome, now)
       {Map.update!(counts, outcome_name(outcome), &(&1 + 1)), scope_of(outcome, item, scopes)}
     end)
   end
@@ -300,7 +301,7 @@ defmodule Portfolixir.News do
     end
   end
 
-  defp write_outcome(item, outcome) do
+  defp write_outcome(item, outcome, now) do
     {assignment, security_id, candidates} =
       case outcome do
         {:assigned, id} -> {:assigned, id, []}
@@ -315,11 +316,21 @@ defmodule Portfolixir.News do
           assignment: assignment,
           security_id: security_id,
           candidates: candidates,
+          scope_at: scope_at(item, {assignment, security_id}, now),
           updated_at: now()
         ]
       )
     end
   end
+
+  # C3: an item that enters another scope (assigned to a security, or moved
+  # between the unassigned and ambiguous remainders) enters it now, never
+  # before its first sight; one whose scope stays keeps its time.
+  defp scope_at(%Item{assignment: assignment, security_id: id} = item, {assignment, id}, _now),
+    do: item.scope_at
+
+  defp scope_at(%Item{first_seen_at: first_seen_at}, _scope, now),
+    do: Enum.max([first_seen_at, now], DateTime)
 
   defp outcome_name({:assigned, _id}), do: :assigned
   defp outcome_name(:unassigned), do: :unassigned
@@ -555,9 +566,8 @@ defmodule Portfolixir.News do
       when is_integer(security_id) do
     listing = from(i in Item, where: ^security_id in i.candidates)
 
-    # C3: when `news_items.scope_at` exists (Fix-2), an item assigned here
-    # enters its security's scope now: set `scope_at: now` with the
-    # assignment below.
+    # C3: an item assigned here enters its security's scope now, never
+    # before its first sight (`scope_at`).
     {assigned, collapsed} =
       Repo.update_all(
         from(i in listing,
@@ -569,6 +579,7 @@ defmodule Portfolixir.News do
               security_id: fragment("(array_remove(?, ?))[1]", i.candidates, ^security_id),
               candidates: ^[],
               cluster_id: nil,
+              scope_at: fragment("GREATEST(?, ?)", i.first_seen_at, ^now),
               updated_at: ^now
             ]
           ]
@@ -622,6 +633,28 @@ defmodule Portfolixir.News do
       changeset
     end
   end
+
+  # --- closing act, Fix-2 -----------------------------------------------------
+
+  # C3 (ADR-0056 amendment of 2026-11-08): a merge moves the source's items
+  # into the target's scope, and an item ambiguous between the two is left
+  # with one candidate: each enters the target's scope now (`scope_at`),
+  # never before its first sight. Called before the moves, while the items
+  # still name the source.
+  defp enter_target_scope(source_id, target_id, now) do
+    Repo.update_all(
+      from(i in Item,
+        where:
+          i.security_id == ^source_id or
+            (i.assignment == :ambiguous and ^source_id in i.candidates and
+               ^target_id in i.candidates and fragment("cardinality(?) = 2", i.candidates)),
+        update: [set: [scope_at: fragment("GREATEST(?, ?)", i.first_seen_at, ^now)]]
+      ),
+      []
+    )
+  end
+
+  # --- end closing act, Fix-2 -------------------------------------------------
 
   # --- N6 ---------------------------------------------------------------------
 

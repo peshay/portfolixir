@@ -1422,10 +1422,13 @@ gespeichertes Label gleich.
   Veröffentlichung des Repräsentanten, auf seine erste Sichtung begrenzt) und
   `count`; eine Eintragszeile ist `id`, `title`, `tier`, `at`, `domain` und,
   wenn mehrdeutig, `candidates` (Wertpapier-IDs). `fields=std` ergänzt `url`
-  und `note_ids`. Die neuesten Zeilen nach erster Sichtung kommen zuerst.
-  `since` liest `first_seen_at`, die Uhr des Servers, nie die Angabe des Feeds
-  (B4): Eine Story ist dabei, wenn einer ihrer Einträge danach zuerst gesehen
-  wurde, und `as_of` ist das nächste `since` (es liegt etwas früher, sodass ein
+  und `note_ids`. Die Zeilen kommen neueste zuerst nach dem Zeitpunkt, zu dem
+  sie in ihren Bereich kamen. `since` liest diesen Zeitpunkt, `scope_at`, die
+  Uhr des Servers, nie die Angabe des Feeds (B4, C3): die erste Sichtung eines
+  Eintrags oder den Zeitpunkt, zu dem ihn ein späterer Neuabgleich, eine
+  Zusammenführung von Wertpapieren oder ein allein verbliebener Kandidat
+  zuordnete. Eine Story ist dabei, wenn einer ihrer Einträge danach in ihren
+  Bereich kam, und `as_of` ist das nächste `since` (es liegt etwas früher, sodass ein
   Lesen eine Story wiederholen, aber nie überspringen kann). `tier_min`
   (`primary`, `secondary`, `awareness`) lässt die Stufen darunter weg. `limit`
   ist standardmäßig 20 und höchstens 100; passten mehr Zeilen, ist `truncated`
@@ -1447,7 +1450,7 @@ gespeichertes Label gleich.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
   Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie das
   News-Universum (gehalten, mit einem Zielgewicht oder beobachtet). `since`
-  (standardmäßig 24 Stunden vor jetzt) liest die erste Sichtung wie die Liste,
+  (standardmäßig 24 Stunden vor jetzt) liest `scope_at` wie die Liste,
   und `as_of` ist das nächste `since`. Eine Zeile ist `id`, `name`, `count`
   (ihre neuen Storys) und `top` (`id`, `title` auf 100 Zeichen gekürzt, `tier`,
   `at`): die beste Stufe, dann die neueste. Eine Story mit einem Eintrag eines
@@ -1455,8 +1458,8 @@ gespeichertes Label gleich.
   Aggregator-Einträgen und eine thematische Story zählen nur mit
   `include_unlabeled=true`, die thematischen je Kategorie unter `categories`.
   `quiet` zählt die Wertpapiere ohne Zeile, `unassigned` und `ambiguous` die
-  seitdem zuerst gesehenen Aggregator-Einträge, die kein Wertpapier oder
-  mehrere beanspruchen. `max_rows` (standardmäßig 40, höchstens 100) begrenzt
+  seitdem so gewordenen Aggregator-Einträge, die kein Wertpapier oder mehrere
+  beanspruchen. `max_rows` (standardmäßig 40, höchstens 100) begrenzt
   die Zeilen; `truncated` und `more` sagen, wie viele weggelassen wurden. Der
   Digest dieses Sprints hat keine Labels und keinen Verbraucher-Cursor:
   `consumer`, `ack_cursor`, `min_materiality` und `tier_min` ergeben `422`.

@@ -158,6 +158,7 @@ defmodule Portfolixir.News.TablesTest do
     feed
     |> item_attrs(%{published_at: ~U[2026-11-07 09:00:00.000000Z]})
     |> Map.merge(%{
+      scope_at: @seen,
       candidates: [],
       note_ids: [],
       status: "new",

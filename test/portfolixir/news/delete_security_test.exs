@@ -42,6 +42,8 @@ defmodule Portfolixir.News.DeleteSecurityTest do
   #   ambiguous queue, and folded into that security's stories, as a
   #   merge's collapse assigns it.
   # - An item left with two or more stays ambiguous between them.
+  # - The assigned item enters its security's scope at the delete
+  #   (`scope_at`, ADR-0056 amendment of 2026-11-08, C3).
   test "a deleted security leaves every item's candidates" do
     alpha = watched!("Alphaport Holdings AG", "Alphaport")
     beta = watched!("Betaline Shipping AG", "Betaline")
@@ -62,7 +64,7 @@ defmodule Portfolixir.News.DeleteSecurityTest do
       }
     ]
 
-    assert {:ok, %{stored: 2}} = Ingest.ingest(feed, items, now)
+    assert {:ok, %{stored: 2}} = Ingest.ingest(feed, items, DateTime.add(now, -3600))
     assert %{assignment: :ambiguous} = item(1)
     assert Enum.sort(item(2).candidates) == Enum.sort([alpha.id, beta.id, gamma.id])
 
@@ -73,6 +75,8 @@ defmodule Portfolixir.News.DeleteSecurityTest do
     assert one.security_id == alpha.id
     assert one.candidates == []
     assert one.cluster_id, "the assigned item is folded into a story"
+    # C3: it enters its security's scope at the delete, after its first sight.
+    assert DateTime.compare(one.scope_at, one.first_seen_at) == :gt
 
     two = item(2)
     assert two.assignment == :ambiguous
