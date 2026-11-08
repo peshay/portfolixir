@@ -9,7 +9,9 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
   # companion passes that body through and answers it as compact JSON (pinned
   # in mcp-server/test/news-reads.test.ts), so for this fixture's text, which
   # holds no character the companion spells as [U+XXXX], the figure is what
-  # the MCP tool returns.
+  # the MCP tool returns. Text with such characters is measured as the tool
+  # returns it in api_v1_news_budget_test.exs and the companion's
+  # news-budget.test.ts (closing act, C5).
   use PortfolixirWeb.ConnCase
 
   import Portfolixir.NewsFixtures, only: [category!: 0, feed!: 1]

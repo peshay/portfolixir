@@ -5,7 +5,11 @@ defmodule Portfolixir.News.Reads do
   story or item, and the digest. Compact by §9's rule: a list carries no
   link and no excerpt (only `story/1` and `item/1` do), names are short
   (`short_name/1`), and a page is capped with a `truncated` flag and a
-  cursor. No label is read: labels are Sprint 28's, and every read here
+  cursor. Titles and excerpts are cut by the width the companion spells
+  them in (`clip_spelled/2`, C5): 160 for a title in a list and in a story
+  or item, 100 in the digest, 600 for an excerpt; a story's or an item's
+  link is cut at 300 characters, outside §9's 400-token budget (a link cut
+  shorter would be a wrong source for the research log). No label is read: labels are Sprint 28's, and every read here
   answers without one (§7, fail-open).
 
   ## What is new: `since` and `as_of` (B4)
@@ -42,6 +46,7 @@ defmodule Portfolixir.News.Reads do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Category
   alias Portfolixir.DeltaCursor
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
@@ -105,6 +110,50 @@ defmodule Portfolixir.News.Reads do
   defp clip(text, max) do
     if String.length(text) <= max, do: text, else: String.slice(text, 0, max - 1) <> "…"
   end
+
+  # --- closing act, Fix-2: the spelled width (AG1, C5) ----------------------
+
+  @list_title_max 160
+  @get_title_max 160
+  @get_excerpt_max 600
+  @get_url_max 300
+
+  @doc """
+  `text` cut to at most `max` characters **as the companion spells it**
+  (ADR-0056 amendment of 2026-11-08, C5; ADR-0054 §4): every code point
+  counts one, and an invisible one (`Portfolixir.Input.Text`) counts the
+  length of its `[U+XXXX]` spelling. A cut ends in an ellipsis, inside the
+  width. A grapheme count would read a run of tag characters as one
+  character and a soft hyphen as none, and the agent would pay eight
+  characters for each. Each code point is measured on its own, which
+  spells a joiner or a selector that its neighbours would leave as it is:
+  never less than the companion spells, so the width is a bound.
+  """
+  @spec clip_spelled(String.t() | nil, pos_integer()) :: String.t() | nil
+  def clip_spelled(nil, _max), do: nil
+
+  def clip_spelled(text, max) when is_binary(text) do
+    widths = Enum.map(String.codepoints(text), &{&1, spelled_width(&1)})
+
+    if Enum.sum_by(widths, &elem(&1, 1)) <= max do
+      text
+    else
+      widths
+      |> Enum.reduce_while({[], 0}, fn {point, width}, {kept, used} ->
+        if used + width <= max - 1,
+          do: {:cont, {[point | kept], used + width}},
+          else: {:halt, {kept, used}}
+      end)
+      |> elem(0)
+      |> Enum.reverse()
+      |> Enum.join()
+      |> Kernel.<>("…")
+    end
+  end
+
+  defp spelled_width(point), do: point |> Text.escape_invisible() |> String.length()
+
+  # --- end closing act, Fix-2 -------------------------------------------------
 
   @doc "The tiers at or above `tier` (every stored tier for nil)."
   @spec tiers_from(tier() | nil) :: [tier()]
@@ -189,7 +238,7 @@ defmodule Portfolixir.News.Reads do
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
-    rows = put_story_notes(rows)
+    rows = rows |> clip_titles() |> put_story_notes()
 
     %{kind: :stories, rows: rows, truncated: truncated != [], cursor: cursor(rows, truncated)}
   end
@@ -233,9 +282,17 @@ defmodule Portfolixir.News.Reads do
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
+    rows = clip_titles(rows)
 
     %{kind: :items, rows: rows, truncated: truncated != [], cursor: cursor(rows, truncated)}
   end
+
+  defp clip_titles(rows),
+    do:
+      Enum.map(
+        rows,
+        &Map.update!(&1, :title, fn title -> clip_spelled(title, @list_title_max) end)
+      )
 
   defp scope_field(:security), do: :security_id
   defp scope_field(:category), do: :category_id
@@ -347,14 +404,14 @@ defmodule Portfolixir.News.Reads do
 
     %{
       id: cluster.id,
-      title: representative.title,
-      url: representative.canonical_url,
+      title: clip_spelled(representative.title, @get_title_max),
+      url: clip(representative.canonical_url, @get_url_max),
       domain: representative.domain,
       tier: cluster.best_tier,
       language: cluster.language,
       published_at: representative.published_at,
       first_seen_at: cluster.earliest_first_seen_at,
-      excerpt: representative.excerpt,
+      excerpt: clip_spelled(representative.excerpt, @get_excerpt_max),
       count: cluster.member_count,
       members: members,
       note_ids: Map.get(story_notes([cluster.id]), cluster.id, []),
@@ -379,15 +436,15 @@ defmodule Portfolixir.News.Reads do
          %{
            id: item.id,
            story_id: item.cluster_id,
-           title: item.title,
-           url: item.canonical_url,
+           title: clip_spelled(item.title, @get_title_max),
+           url: clip(item.canonical_url, @get_url_max),
            domain: item.domain,
            tier: item.tier,
            class: item.class,
            language: item.language,
            published_at: item.published_at,
            first_seen_at: item.first_seen_at,
-           excerpt: item.excerpt,
+           excerpt: clip_spelled(item.excerpt, @get_excerpt_max),
            assignment: item.assignment,
            candidates: item.candidates,
            status: item.status,
@@ -573,7 +630,12 @@ defmodule Portfolixir.News.Reads do
         id: id,
         name: short_name(Map.get(names, id, "")),
         count: length(group),
-        top: %{id: top.id, title: clip(top.title, @digest_title_max), tier: top.tier, at: top.at},
+        top: %{
+          id: top.id,
+          title: clip_spelled(top.title, @digest_title_max),
+          tier: top.tier,
+          at: top.at
+        },
         key: {top_key(top), id}
       }
     end)
