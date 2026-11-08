@@ -7,7 +7,9 @@ defmodule Portfolixir.News.Ingest do
   clock, and, in the feed's own order:
 
     1. **skips an item without a title or a link** (`incomplete`, returned,
-       not stored, not counted in a day row: it has nothing to show or key);
+       not stored, not counted in a day row: it has nothing to show or key),
+       a title of only invisible characters and whitespace counting as none
+       (closing act, EDGE5);
     2. **takes the domain**: for an `aggregator` item the `<source>` domain,
        else the item is dropped and counted `dropped_no_source` and no
        redirect is followed (§2); for every other class the link's host,
@@ -267,11 +269,21 @@ defmodule Portfolixir.News.Ingest do
        do: {:drop, :incomplete}
 
   defp candidate(feed, feed_host, %Parsed{} = item, oldest) do
-    with {:ok, domain} <- domain(feed, feed_host, item),
+    with :ok <- visible(item.title),
+         {:ok, domain} <- domain(feed, feed_host, item),
          :ok <- recent(item.published_at, oldest),
          {:ok, url} <- canonical(item.link) do
       {:ok, attrs(feed, item, domain, url)}
     end
+  end
+
+  # Closing act, EDGE5: a title of only format characters (`\\p{Cf}`) and
+  # whitespace shows nothing, so the item is `incomplete` like one without a
+  # title. A visible title keeps its invisible characters as received.
+  defp visible(title) do
+    if String.replace(title, ~r/[\p{Cf}\s]/u, "") == "",
+      do: {:drop, :incomplete},
+      else: :ok
   end
 
   defp domain(%Feed{class: :aggregator}, _feed_host, %Parsed{source_domain: nil}),

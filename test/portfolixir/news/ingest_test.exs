@@ -311,6 +311,33 @@ defmodule Portfolixir.News.IngestTest do
     end
   end
 
+  # User story (closing act, EDGE5):
+  # As the agent reading the news,
+  # I want an item whose title is only invisible characters skipped like
+  # one without a title,
+  # so that no story reads as blank.
+  #
+  # Acceptance criteria:
+  # - A title of only format characters (`\\p{Cf}`: zero-width space, soft
+  #   hyphen, a direction override) and whitespace is `incomplete`, not
+  #   stored; a title with visible text and an invisible character is
+  #   stored, the character kept as received (plan D-6).
+  describe "invisible titles (closing act, EDGE5)" do
+    test "a title of only invisible characters is incomplete" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+
+      blank =
+        for {title, n} <- Enum.with_index(["\u200B\u200B", "\u00AD", "\u202E", "\u200B \uFEFF"]) do
+          parsed(n, %{title: title})
+        end
+
+      shown = parsed(10, %{title: "Northwind\u200B ships"})
+
+      assert {:ok, %{stored: 1, incomplete: 4}} = Ingest.ingest(feed, blank ++ [shown], @now)
+      assert [%{title: "Northwind\u200B ships"}] = items(feed)
+    end
+  end
+
   # --- end closing act, Fix-1 -----------------------------------------------
 
   describe "matching at ingest (§2, §14 item 1)" do
