@@ -22,8 +22,7 @@ defmodule Portfolixir.News.FetcherNoNetworkTest do
     test "an unstubbed fetch opens no socket" do
       feed = feed!(%{class: "issuer", security_id: security!().id})
 
-      assert {:ok, req} = Fetcher.request(feed, [])
-      assert req.options[:plug] == Portfolixir.News.NoNetwork
+      assert Application.get_env(:portfolixir, Fetcher) == [plug: Portfolixir.News.NoNetwork]
 
       before = tcp_ports()
       assert {:error, "transport_error"} = Fetcher.fetch(feed, now: @now)

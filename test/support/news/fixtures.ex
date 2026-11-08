@@ -51,6 +51,14 @@ defmodule Portfolixir.NewsFixtures do
     %Feed{} |> Feed.changeset(attrs) |> Repo.insert!()
   end
 
+  @doc """
+  Answers the news fetcher's requests with `plug` for this test and the
+  processes it starts (`Portfolixir.News.NoNetwork`). A process the test
+  did not start, such as a supervised scheduler, needs
+  `Req.Test.allow(Portfolixir.News.Fetcher, self(), pid)`.
+  """
+  def serve(plug), do: Req.Test.stub(Portfolixir.News.Fetcher, plug)
+
   @doc "An RSS 2.0 body with one `<item>` per map (`:title`, `:link`, `:pub`, `:source`)."
   def rss(items) do
     """
@@ -81,15 +89,34 @@ end
 
 defmodule Portfolixir.News.NoNetwork do
   @moduledoc """
-  The news fetcher's default adapter in the test configuration: every
-  request a test did not stub answers as a refused connection, through
-  Req's plug path, so no fetch in the suite opens a socket.
+  The news fetcher's adapter in the test configuration, the one plug the
+  fetcher merges (closing act, SEC1: no caller hands it request options).
+  A test answers its fetches with `Portfolixir.NewsFixtures.serve/1`, a
+  `Req.Test` stub owned by the test and seen by the tasks it starts; every
+  request no test stubbed answers as a refused connection, through Req's
+  plug path, so no fetch in the suite opens a socket.
   """
   @behaviour Plug
+
+  @stub Portfolixir.News.Fetcher
 
   @impl true
   def init(opts), do: opts
 
   @impl true
-  def call(conn, _opts), do: Req.Test.transport_error(conn, :econnrefused)
+  def call(conn, _opts) do
+    case stub() do
+      nil -> Req.Test.transport_error(conn, :econnrefused)
+      fun when is_function(fun, 1) -> fun.(conn)
+      fun when is_function(fun, 2) -> fun.(conn, [])
+      module when is_atom(module) -> module.call(conn, module.init([]))
+      {module, opts} -> module.call(conn, module.init(opts))
+    end
+  end
+
+  defp stub do
+    Req.Test.__fetch_plug__(@stub)
+  rescue
+    RuntimeError -> nil
+  end
 end

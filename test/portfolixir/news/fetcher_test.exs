@@ -8,6 +8,7 @@ defmodule Portfolixir.News.FetcherTest do
   import Portfolixir.NewsFixtures
 
   alias Portfolixir.Clock
+  alias Portfolixir.Net.Http
   alias Portfolixir.News.Feed
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Fetcher
@@ -43,8 +44,10 @@ defmodule Portfolixir.News.FetcherTest do
     end
   end
 
-  defp fetch(feed, plug, opts \\ []),
-    do: Fetcher.fetch(feed, Keyword.merge([now: @now, req: [plug: plug]], opts))
+  defp fetch(feed, plug, opts \\ []) do
+    serve(plug)
+    Fetcher.fetch(feed, Keyword.merge([now: @now], opts))
+  end
 
   defp reload(feed), do: Repo.get!(Feed, feed.id)
 
@@ -278,15 +281,18 @@ defmodule Portfolixir.News.FetcherTest do
       assert {"user-agent", "Example Operator ops@example.com"} in headers
     end
 
+    # The request is private (closing act, SEC1), so this reads what builds
+    # it: the bounded client sets no `inet6` by default, and the fetcher's
+    # source names none.
     test "the request does not ask for IPv6" do
-      feed = %Feed{class: :regulatory, url: sec_url(), interval_minutes: 10}
-
-      assert {:ok, req} = Fetcher.request(feed, user_agent: "Example Operator ops@example.com")
+      req = Http.new(max_bytes: 1_000, allowed_hosts: ["www.sec.gov"])
 
       transport = get_in(req.options, [:finch, :conn_opts, :transport_opts]) || []
       refute Keyword.get(transport, :inet6)
       refute get_in(req.options, [:connect_options, :inet6])
       refute Map.has_key?(req.options, :inet6)
+
+      refute File.read!("lib/portfolixir/news/fetcher.ex") =~ ~r/[^`]inet6\s*:/
     end
 
     test "every sec.gov request goes through the pace, other hosts do not" do
@@ -314,6 +320,77 @@ defmodule Portfolixir.News.FetcherTest do
       assert Pace.reserve(pace, "sec.gov", 3_050) == 50
     end
   end
+
+  # --- closing act, Fix-1 ---------------------------------------------------
+
+  # User story (closing act, SEC1):
+  # As the operator whose instance may reach only the feeds registered in it,
+  # I want the fetcher to fetch a stored feed's row and nothing a caller
+  # hands it,
+  # so that no module can point it at a host nobody registered or add a
+  # header to its request (ADR-0056 B2).
+  #
+  # Acceptance criteria:
+  # - A feed struct that is not stored makes no request and answers
+  #   `feed_not_found`, whatever URL it carries.
+  # - A stored feed is fetched at the URL stored for it, not the struct's.
+  # - Request options from a caller (`req:`) are refused before anything is
+  #   sent; the one plug merged is the test configuration's.
+  # - The request path is private: no `get/2`, no `request/2`.
+  describe "only a stored feed is fetched (closing act, SEC1)" do
+    test "an unstored feed, whatever its URL, reaches nothing" do
+      serve(serving(rss([])))
+
+      for feed <- [
+            %Feed{url: "https://api.llm-vendor.example/v1/complete?q=holdings"},
+            %Feed{id: -1, class: :aggregator, url: "https://api.llm-vendor.example/v1/x"}
+          ] do
+        assert {:error, "feed_not_found"} = Fetcher.fetch(feed, now: @now)
+      end
+
+      refute_received {:requested, _, _, _}
+    end
+
+    test "a stored feed is fetched at its stored URL, not the struct's" do
+      feed = issuer_feed!(%{url: "https://newsroom.example.com/stored.xml"})
+      serve(serving(rss([])))
+
+      assert {:ok, _summary} =
+               Fetcher.fetch(%{feed | url: "https://api.llm-vendor.example/v1/complete"},
+                 now: @now
+               )
+
+      assert {:ok, _summary} = Fetcher.fetch(feed.id, now: @now)
+
+      assert_received {:requested, "newsroom.example.com", "/stored.xml", _}
+      assert_received {:requested, "newsroom.example.com", "/stored.xml", _}
+      refute_received {:requested, _, _, _}
+    end
+
+    test "request options from a caller are refused before a request" do
+      feed = issuer_feed!()
+      serve(serving(rss([])))
+
+      for opts <- [
+            [req: [headers: [{"authorization", "Bearer synthetic"}]]],
+            [req: [plug: serving(rss([]))]],
+            [headers: [{"authorization", "Bearer synthetic"}]]
+          ] do
+        assert_raise ArgumentError, fn -> Fetcher.fetch(feed, [now: @now] ++ opts) end
+      end
+
+      refute_received {:requested, _, _, _}
+    end
+
+    test "the request path is private" do
+      Code.ensure_loaded!(Fetcher)
+      refute function_exported?(Fetcher, :get, 1)
+      refute function_exported?(Fetcher, :get, 2)
+      refute function_exported?(Fetcher, :request, 2)
+    end
+  end
+
+  # --- end closing act, Fix-1 -----------------------------------------------
 
   defp sec_url,
     do: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=0000000001&output=atom"

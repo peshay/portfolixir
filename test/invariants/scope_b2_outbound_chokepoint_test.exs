@@ -1,9 +1,11 @@
 defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   use ExUnit.Case, async: true
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Portfolixir.Net.Http
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Fetcher
+  alias Portfolixir.NewsFixtures
 
   # NFR-9 backstop B2 (Sprint 16 Lane N, #885). The gates it backs, as
   # registered in scope_b7_gate_registry_test.exs:
@@ -129,6 +131,22 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     }
     # --- end Sprint 27 N3 ---------------------------------------------------
   }
+
+  # --- closing act, Fix-1 (SEC1) ---------------------------------------------
+  # The news fetcher is a second chokepoint: its allow-list is whatever feed
+  # it is handed, so the one module that may declare `hosts_from:
+  # :stored_feed` is the fetcher itself, and every module that names it is
+  # registered here. `module => reason`.
+  @stored_feed_module "Portfolixir.News.Fetcher"
+  @fetcher_callers %{
+    "Portfolixir.News" =>
+      "the context: fetch_due/fetch_now through the scheduler, and check_url/2 for the " <>
+        "registering writer (ADR-0056 §5, B2); hands the fetcher no URL and no request option",
+    "Portfolixir.News.Scheduler" =>
+      "the supervised scheduler: fetches each stored, enabled feed by its id and records " <>
+        "a crashed or killed task's failure on the feed (ADR-0056 §5, B6)"
+  }
+  # --- end closing act, Fix-1 (SEC1) -----------------------------------------
 
   # `name => {:config | :credential, reason}`: every environment variable the
   # app (lib/, config/, priv/, mix.exs) and the MCP companion (mcp-server/src)
@@ -517,6 +535,25 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       end
     end
 
+    # User story (closing act, SEC1):
+    # As the operator whose instance may reach only the feeds registered in it,
+    # I want the news fetcher's callers registered as the bounded client's are,
+    # and its stored-feed allow-list pinned to the fetcher,
+    # so that no module can hand the fetcher a host nobody registered and
+    # leave this gate green.
+    test "every module that names the news fetcher is registered, and only it reads stored feeds" do
+      found = elixir_refs() |> fetcher_callers() |> MapSet.new()
+
+      assert MapSet.size(found) > 0, "the fetcher caller scan found nothing"
+      assert_registry(found, @fetcher_callers, "news fetcher callers")
+
+      for {module, entry} <- @adapters, Map.get(entry, :hosts_from) == :stored_feed do
+        assert module == @stored_feed_module,
+               "#{module} declares `hosts_from: :stored_feed`, which only " <>
+                 "#{@stored_feed_module} may (closing act, SEC1)"
+      end
+    end
+
     test "a client without an allow-list is refused, and a first request outside it makes none" do
       assert_raise KeyError, fn -> Http.new(max_bytes: 1_000) end
 
@@ -774,27 +811,32 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     # --- Sprint 27 N3: the news fetcher's stored-feed allow-list (B2) ------
     # Sprint 26's carry-forward 3: the self-test includes a broken input — a
     # feed URL whose name resolves privately, and one that redirects away.
+    # Closing act, SEC1: `hosts_from: :stored_feed` reads as `:any` for the
+    # fetcher alone, and the fetcher fetches stored feeds only.
     test "a stored feed's allow-list is its own host: a private name or a redirect makes no request" do
       assert hosts_for(
+               @stored_feed_module,
+               %{@stored_feed_module => :computed},
+               %{hosts: [], hosts_from: :stored_feed}
+             ) == [:any]
+
+      # Another module declaring the fetcher's allow-list gains nothing.
+      assert hosts_for(
                "Portfolixir.SyntheticFeeds",
                %{"Portfolixir.SyntheticFeeds" => :computed},
-               %{
-                 hosts: [],
-                 hosts_from: :stored_feed
-               }
-             ) == [:any]
+               %{hosts: [], hosts_from: :stored_feed}
+             ) == :computed
 
       assert hosts_for(
                "Portfolixir.SyntheticFeeds",
                %{"Portfolixir.SyntheticFeeds" => :computed},
-               %{
-                 hosts: []
-               }
+               %{hosts: []}
              ) == :computed
 
+      :ok = Sandbox.checkout(Portfolixir.Repo)
       test_pid = self()
 
-      plug = fn conn ->
+      NewsFixtures.serve(fn conn ->
         send(test_pid, {:requested, conn.host, conn.request_path})
 
         case conn.request_path do
@@ -806,23 +848,65 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
           _other ->
             Plug.Conn.send_resp(conn, 200, "")
         end
-      end
+      end)
 
-      feed = fn url -> %Feed{class: :issuer, url: url, interval_minutes: 15} end
+      feed = fn url -> NewsFixtures.feed!(%{class: "aggregator", url: url}) end
 
       for url <- ["https://internal.test/feed.xml", "https://v6local.test/feed.xml"] do
-        assert {:error, "url_not_allowed:private_address"} =
-                 Fetcher.get(feed.(url), req: [plug: plug]),
-               url
-
+        assert {:error, "url_not_allowed:private_address"} = Fetcher.fetch(feed.(url)), url
         refute_received {:requested, _, _}
       end
 
       assert {:error, "url_not_allowed:host_not_allowed"} =
-               Fetcher.get(feed.("https://news.example.com/start.xml"), req: [plug: plug])
+               Fetcher.fetch(feed.("https://news.example.com/start.xml"))
 
       assert_received {:requested, "news.example.com", "/start.xml"}
       refute_received {:requested, _, _}
+
+      # The SEC1 attack: an unstored feed and a caller's header reach nothing.
+      assert {:error, "feed_not_found"} =
+               Fetcher.fetch(%Feed{url: "https://api.llm-vendor.example/v1/complete?q=holdings"})
+
+      assert_raise ArgumentError, fn ->
+        Fetcher.fetch(feed.("https://news.example.com/other.xml"),
+          req: [headers: [{"authorization", "Bearer synthetic"}]]
+        )
+      end
+
+      refute_received {:requested, _, _}
+    end
+
+    test "a synthetic caller of the news fetcher outside its registry is caught" do
+      source = """
+      defmodule Portfolixir.SyntheticExfil do
+        alias Portfolixir.News.Fetcher
+        def a(feed), do: Fetcher.fetch(feed, [])
+      end
+
+      defmodule Portfolixir.SyntheticExfilAliased do
+        alias Portfolixir.News, as: N
+        def b(id), do: N.Fetcher.fetch(id)
+      end
+
+      defmodule Portfolixir.SyntheticExfilApply do
+        def c(id), do: apply(Portfolixir.News.Fetcher, :fetch, [id, []])
+      end
+
+      defmodule Portfolixir.SyntheticBystander do
+        alias Portfolixir.News.Feed
+        def d(feed), do: %Feed{} = feed
+      end
+      """
+
+      found = source |> refs("lib/synthetic.ex") |> fetcher_callers() |> MapSet.new()
+
+      assert Enum.sort(found) == [
+               "Portfolixir.SyntheticExfil",
+               "Portfolixir.SyntheticExfilAliased",
+               "Portfolixir.SyntheticExfilApply"
+             ]
+
+      assert MapSet.reject(found, &Map.has_key?(@fetcher_callers, &1)) == found
     end
 
     # --- end Sprint 27 N3 ---------------------------------------------------
@@ -1294,6 +1378,20 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         do: module
   end
 
+  # Every module in lib/ that names the news fetcher, by a call or a bare
+  # alias (an `apply/3` on it, a module held in a variable), outside the
+  # fetcher itself. Config scripts only key its configuration.
+  defp fetcher_callers(refs) do
+    fetcher = String.split(@stored_feed_module, ".") |> Enum.map(&String.to_existing_atom/1)
+
+    for {path, module, ref} <- refs,
+        String.starts_with?(path, "lib/"),
+        module != @stored_feed_module,
+        ref_segments(ref) == fetcher,
+        uniq: true,
+        do: module
+  end
+
   defp ref_segments({:call, {:elixir, segments}, _fun, _args, _line}), do: segments
   defp ref_segments({:alias, segments, _line}), do: segments
   defp ref_segments(_ref), do: []
@@ -1374,10 +1472,12 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   # `hosts_from: :stored_feed` (ADR-0056 B2): the allow-list is the one
   # stored feed's own host, so the source names none; it reads as `:any`
   # and therefore needs the entry's own `any:` reason.
+  # Closing act, SEC1: only the fetcher's own entry reads so.
   defp hosts_for(module, declared, entry) do
     case {Map.get(declared, module, []), Map.get(entry, :hosts_from)} do
       {:computed, :config} -> configured_hosts(module)
-      {:computed, :stored_feed} -> [:any]
+      {:computed, :stored_feed} when module == @stored_feed_module -> [:any]
+      {:computed, :stored_feed} -> :computed
       {hosts, _} -> hosts
     end
   end

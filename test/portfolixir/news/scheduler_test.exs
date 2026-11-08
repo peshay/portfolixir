@@ -23,7 +23,10 @@ defmodule Portfolixir.News.SchedulerTest do
 
   defp reload(feed), do: Repo.get!(Feed, feed.id)
 
-  defp static(body), do: [req: [plug: fn conn -> Plug.Conn.send_resp(conn, 200, body) end]]
+  defp static(body) do
+    serve(fn conn -> Plug.Conn.send_resp(conn, 200, body) end)
+    []
+  end
 
   # User story:
   # As the operator,
@@ -78,7 +81,8 @@ defmodule Portfolixir.News.SchedulerTest do
         Plug.Conn.send_resp(conn, 200, rss([]))
       end
 
-      assert News.fetch_due(@t0, req: [plug: plug]) == []
+      serve(plug)
+      assert News.fetch_due(@t0) == []
       refute_received :requested
     end
   end
@@ -135,7 +139,8 @@ defmodule Portfolixir.News.SchedulerTest do
           Stream.iterate(@t0, &DateTime.add(&1, tick_minutes, :minute))
           |> Enum.find(fn now ->
             Agent.update(clock, fn _ -> now end)
-            News.fetch_due(now, req: [plug: plug])
+            serve(plug)
+            News.fetch_due(now)
             items(feed) != [] or DateTime.compare(now, deadline) == :gt
           end)
 
@@ -220,9 +225,8 @@ defmodule Portfolixir.News.SchedulerTest do
         end
       end
 
-      results =
-        News.fetch_due(@t0, req: [plug: plug], deadline_ms: 2_000)
-        |> Map.new()
+      serve(plug)
+      results = @t0 |> News.fetch_due(deadline_ms: 2_000) |> Map.new()
 
       assert {:ok, %{stored: 1}} = results[healthy.id]
       assert {:error, "fetch_failed"} = results[raising.id]
