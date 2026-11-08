@@ -381,6 +381,88 @@ defmodule Portfolixir.News.StoriesTest do
     end
   end
 
+  # --- closing act, Fix-2 (ADR-0056 amendment of 2026-11-08, C1 and C2) -------
+
+  @results "Northwind Harbour reports third quarter 2026 results"
+  @resigns "Northwind Harbour chief executive resigns with immediate effect"
+
+  # Titles stepping from `a` to `b` one word at a time, each with a Jaccard
+  # similarity of at least 0.8 to the one before: true items an aggregator
+  # can publish, which B3 as written lets link any two headlines.
+  defp chain(a, b) do
+    wa = Stories.title_keys(a).title_words
+    wb = Stories.title_keys(b).title_words
+    grown = Enum.scan(wb -- wa, wa, fn word, acc -> acc ++ [word] end)
+    shrunk = (wa -- wb) |> Enum.scan(List.last(grown), fn word, acc -> acc -- [word] end)
+    Enum.map(grown ++ Enum.drop(shrunk, -1), &Enum.join(&1, " "))
+  end
+
+  describe "the closing act's order rules (C1, C2)" do
+    # User story (ADR-0056 amendment of 2026-11-08, C2):
+    # As the agent that holds a primary story's id,
+    # I want a merge to keep the id of the story with the best tier, then
+    # the earliest first sight, then the smallest link,
+    # so that an attacker's link at "https://a.example" cannot make its own
+    # story survive a merge with an issuer's and delete the id I hold.
+    #
+    # Acceptance criteria:
+    # - An issuer's story and an aggregator's story first seen in the same
+    #   tick, merged by bridging items inserted in any order, keep the
+    #   issuer story's id, whether the aggregator's link sorts before or
+    #   after the issuer's.
+    setup do
+      security = WorldFixtures.create_security!(name: "Northwind Harbour", ticker: nil)
+
+      feeds = %{
+        {:issuer, "en"} => feed!(%{class: "issuer", security_id: security.id, language: "en"}),
+        {:aggregator, "en"} => feed!(%{class: "aggregator", language: "en"})
+      }
+
+      %{security: security, feeds: feeds}
+    end
+
+    test "C2: a merge keeps the primary story's id, whatever link the other has", %{
+      security: security,
+      feeds: feeds
+    } do
+      scope = {:security, security.id}
+
+      for attacker <- ["a.example", "zz.example"], _round <- 1..5 do
+        Repo.transaction(fn ->
+          primary =
+            insert!(
+              {:q3, :issuer, "newsroom.northwind.example", @results, 0, 0, "en"},
+              security,
+              feeds
+            )
+
+          attack = insert!({:x, :aggregator, attacker, @resigns, 0, 0, "en"}, security, feeds)
+          {:ok, _} = Stories.recluster(scope, "en", at(0))
+          held = Repo.reload!(primary).cluster_id
+          assert held != Repo.reload!(attack).cluster_id
+
+          chain(@results, @resigns)
+          |> Enum.with_index()
+          |> Enum.shuffle()
+          |> Enum.each(fn {title, i} ->
+            insert!(
+              {:"bridge_#{i}", :aggregator, "bridge.example", title, 1, 2, "en"},
+              security,
+              feeds
+            )
+          end)
+
+          {:ok, _} = Stories.recluster(scope, "en", at(2))
+
+          assert Repo.reload!(primary).cluster_id == held, attacker
+          assert %Cluster{representative_item_id: rep} = Repo.get(Cluster, held)
+          assert rep == primary.id
+          Repo.rollback(:round_done)
+        end)
+      end
+    end
+  end
+
   # --- helpers ---------------------------------------------------------------
 
   defp pure_item({key, feed, domain, title, claimed, seen, language}) do
