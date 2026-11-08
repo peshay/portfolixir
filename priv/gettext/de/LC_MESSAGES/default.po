@@ -1458,7 +1458,7 @@ msgstr "Bis"
 #: lib/portfolixir_web/live/income_live.ex:1028
 #: lib/portfolixir_web/live/income_live.ex:1263
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:145
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:328
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:332
 #: lib/portfolixir_web/live/securities_live.ex:3080
 #: lib/portfolixir_web/live/transaction_management_live.ex:3253
 #, elixir-autogen, elixir-format
@@ -1875,7 +1875,7 @@ msgstr "Gesamt inkl. Cash"
 
 #: lib/portfolixir_web/live/classifications_live.ex:1501
 #: lib/portfolixir_web/live/dashboard_live.ex:1172
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:325
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:329
 #: lib/portfolixir_web/live/portfolio_live.ex:1385
 #: lib/portfolixir_web/live/portfolio_live.ex:2593
 #: lib/portfolixir_web/live/portfolio_live.ex:4697
@@ -1956,7 +1956,7 @@ msgstr "Soll"
 msgid "Drift"
 msgstr "Drift"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:326
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:330
 #: lib/portfolixir_web/live/portfolio_live.ex:2643
 #: lib/portfolixir_web/live/portfolio_live.ex:2794
 #: lib/portfolixir_web/live/portfolio_live.ex:5230
@@ -2764,7 +2764,7 @@ msgstr "vom Depot geerbt"
 msgid "no buckets (excluded)"
 msgstr "keine Buckets (ausgeschlossen)"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:408
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:412
 #: lib/portfolixir_web/live/securities_live.ex:6903
 #: lib/portfolixir_web/live/securities_live.ex:6911
 #, elixir-autogen, elixir-format
@@ -15704,11 +15704,6 @@ msgstr "News-Aliasse"
 msgid "Watched for news"
 msgstr "Für News beobachtet"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:297
-#, elixir-autogen, elixir-format
-msgid "Above eight bands the smallest merge into “Other”."
-msgstr "Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen."
-
 #: lib/portfolixir_web/live/portfolio_live.ex:464
 #: lib/portfolixir_web/live/portfolio_live.ex:467
 #, elixir-autogen, elixir-format
@@ -15730,17 +15725,17 @@ msgstr "Veränderung ohne Ein- und Auszahlungen."
 msgid "Create one on the Classifications page"
 msgstr "Im Bereich Klassifizierungen anlegen"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:375
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:379
 #, elixir-autogen, elixir-format
 msgid "Each category's share of the day's value, classification “%{tree}”; cash and the unclassified rest are bands of their own."
 msgstr "Anteil jeder Kategorie am Wert des Tages, Klassifizierung „%{tree}“; Cash und der nicht zugeordnete Rest sind eigene Bänder."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:400
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:404
 #, elixir-autogen, elixir-format
 msgid "Each security's share of the day's value, and the cash's."
 msgstr "Anteil jedes Wertpapiers und des Cash am Wert des Tages."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:389
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:393
 #, elixir-autogen, elixir-format
 msgid "Each security's share of the value of “%{category}” per day."
 msgstr "Anteil jedes Wertpapiers am Wert von „%{category}“ je Tag."
@@ -15750,17 +15745,17 @@ msgstr "Anteil jedes Wertpapiers am Wert von „%{category}“ je Tag."
 msgid "Level"
 msgstr "Ebene"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:380
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:384
 #, elixir-autogen, elixir-format
 msgid "Market value per category of “%{tree}” at each day's close, in %{currency}; cash and the unclassified rest are bands of their own."
 msgstr "Marktwert je Kategorie von „%{tree}“ am Tagesende in %{currency}; Cash und der nicht zugeordnete Rest sind eigene Bänder."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:402
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:406
 #, elixir-autogen, elixir-format
 msgid "Market value per security at each day's close, in %{currency}, and the cash."
 msgstr "Marktwert je Wertpapier am Tagesende in %{currency}, dazu das Cash."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:391
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:395
 #, elixir-autogen, elixir-format
 msgid "Market value per security of “%{category}” at each day's close, in %{currency}; the share is of the category."
 msgstr "Marktwert je Wertpapier von „%{category}“ am Tagesende in %{currency}; der Anteil ist der an der Kategorie."
@@ -15795,7 +15790,7 @@ msgstr "Sortieren"
 msgid "Stack"
 msgstr "Stapel"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:412
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:416
 #, elixir-autogen, elixir-format
 msgid "The band with the largest change at the bottom; the legend reads like the stack, top band first."
 msgstr "Das Band mit der größten Veränderung unten; die Legende liest sich wie der Stapel, oberstes Band zuerst."
@@ -15805,22 +15800,22 @@ msgstr "Das Band mit der größten Veränderung unten; die Legende liest sich wi
 msgid "The bands on %{date}, the top band first"
 msgstr "Die Bänder am %{date}, oberstes Band zuerst"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:418
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:422
 #, elixir-autogen, elixir-format
 msgid "The largest band at the bottom; the legend reads like the stack, top band first."
 msgstr "Größtes Band unten; die Legende liest sich wie der Stapel, oberstes Band zuerst."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:367
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:371
 #, elixir-autogen, elixir-format
 msgid "Value by category over time"
 msgstr "Wert je Kategorie im Zeitverlauf"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:368
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:372
 #, elixir-autogen, elixir-format
 msgid "Value by security over time"
 msgstr "Wert je Wertpapier im Zeitverlauf"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:327
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:331
 #, elixir-autogen, elixir-format
 msgctxt "stack band"
 msgid "Other"
@@ -15837,3 +15832,8 @@ msgstr "Veränderung"
 msgctxt "stack column"
 msgid "Change"
 msgstr "Veränd."
+
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:299
+#, elixir-autogen, elixir-format
+msgid "Above eight bands the smallest merge into “Other”, which always sits on top."
+msgstr "Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen; dieses Band liegt immer oben."

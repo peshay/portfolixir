@@ -3041,7 +3041,8 @@ Beispiel-Payloads für Konten:
   die Nettoflüsse eines Wertpapiers sind die aus ADR-0051). Mehr als acht
   Bänder fassen die kleinsten zu `other` (mit `members`) zusammen, bei
   Gleichstand nach Name, nie nach ID; `cash` und `unclassified` bleiben
-  eigene Bänder. Ein Tag ohne Kurs zählt null, wie in der Reihe, und ein
+  eigene Bänder, und `other` ist immer das letzte Band, oben im Stapel,
+  welche Sortierung auch gilt. Ein Tag ohne Kurs zählt null, wie in der Reihe, und ein
   Wertpapier steht das ganze Fenster in seiner heutigen Kategorie;
   `computation_basis` nennt jede Regel. Ein unbekanntes `level` oder `sort`,
   eine fehlerhafte oder unbekannte `classification_id` oder `category_id`,

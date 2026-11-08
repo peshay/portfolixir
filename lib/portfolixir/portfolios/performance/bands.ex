@@ -30,7 +30,9 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   own band; with more than eight bands, the smallest of the others by value
   on the window's last day (ties by name, never by id) merge into `other`, so
   that eight remain. When the cut falls between two bands of equal value and
-  equal name, both merge: nothing but an id would tell them apart.
+  equal name, both merge: nothing but an id would tell them apart. `other`
+  is always the last band, on top of the stack, whatever the sort and its
+  size (the closing act's design critic, D4).
 
   **Change without flows**, per band: `(end − start − net flows) / start`.
   A security's start value and net flows are ADR-0051's (§1, §5): its value
@@ -350,7 +352,16 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
         |> merge_small()
         |> finish()
         |> sort(request.sort)
+        |> other_on_top()
     end
+  end
+
+  # "Other" is the rest, never a peer of the bands it summarises: it is the
+  # last band, on top of the stack, whatever the sort and its size (the
+  # closing act's design critic, D4).
+  defp other_on_top(bands) do
+    {other, rest} = Enum.split_with(bands, &(&1.kind == :other))
+    rest ++ other
   end
 
   # The series itself: its values, the period's start and end values and its
@@ -623,7 +634,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "with more than #{@max_bands} bands, the smallest of the others by value on the " <>
           "window's last day, equal values by name and never by id, merge into other so " <>
           "that #{@max_bands} remain, and other lists its members; bands equal in value and " <>
-          "name at the cut merge together",
+          "name at the cut merge together; other is always the last band, on top of the " <>
+          "stack, whatever the sort and its size",
       gaps:
         "a day on which a held security has no price, or no rate path to the base " <>
           "currency, counts zero in its band, as it counts zero in the series; prices and " <>

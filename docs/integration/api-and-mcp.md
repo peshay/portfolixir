@@ -2797,7 +2797,8 @@ Example account payloads:
   without a positive start value; a security's net flows are ADR-0051's).
   More than eight bands merge the smallest into `other` (with its
   `members`), ties by name, never by id; `cash` and `unclassified` keep
-  their own. An unpriced day counts zero, as in the series, and a security
+  their own, and `other` is always the last band, on top of the stack,
+  whatever the sort. An unpriced day counts zero, as in the series, and a security
   is drawn in its category of today for the whole window;
   `computation_basis` states each rule. An unknown `level` or `sort`, a
   malformed or unknown `classification_id` or `category_id`, a category of

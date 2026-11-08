@@ -2689,7 +2689,8 @@ liest, oberstes Band zuerst: Wert jedes Bands am letzten Tag des Zeitraums,
 Anteil und Veränderung. Ein Klick auf das Band einer Kategorie oder auf
 ihren Namen in der Legende zeigt nur diese Kategorie, gestapelt nach ihren
 Wertpapieren; der Pfad darüber („Alle Kategorien › …“) führt zurück. Mehr
-als acht Bänder fasst das Diagramm zu „Sonstige“ zusammen. Eine Kategorie
+als acht Bänder fasst das Diagramm zu „Sonstige“ zusammen; dieses Band liegt
+immer oben im Stapel. Eine Kategorie
 trägt die Farbe, die ihr das Allokations-Sunburst gibt; die Wertpapiere
 einer geöffneten Kategorie nehmen die Farben der Palette der Größe nach,
 Cash sein eigenes Blau, der nicht zugeordnete Rest Grau, „Sonstige“ ein

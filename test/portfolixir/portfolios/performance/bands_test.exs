@@ -598,9 +598,10 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
     assert Enum.map(other.members, & &1.name) == ["Zulu", "Tiny 2", "Tiny 1"]
     assert Enum.all?(other.values, &Decimal.equal?(&1, d("130")))
 
-    # Size: cash 6270, then 900 down to Able's 100, and other's 130 between.
+    # Size: cash 6270, then 900 down to Able's 100; other (130) on top of
+    # the stack whatever its size (the closing act, D4).
     assert Enum.map(r.bands, & &1.name) ==
-             ["Cash", "Big 1", "Big 2", "Big 3", "Big 4", "Big 5", "Other", "Able"]
+             ["Cash", "Big 1", "Big 2", "Big 3", "Big 4", "Big 5", "Able", "Other"]
 
     # A tie in value and name alike is no reason to look at an id: both merge.
     twin = create_security!(name: "Able", ticker: nil)
@@ -854,5 +855,53 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
       )
 
     assert {empty.start_date, empty.dates, empty.bands} == {nil, [], []}
+  end
+
+  # User story (I23, board 01 A; the closing act's design critic, D4):
+  # As the operator reading a stack whose small positions add up to more
+  # than any one band,
+  # I want "Other" always on top of the stack, the last band of the answer,
+  # so that the rest never sits at the base where the largest band belongs.
+  #
+  # Acceptance criteria:
+  # - Fourteen positions of 100 and six of 150, with 1000 of cash: "Other"
+  #   holds the fourteen, 1400, the largest band; by size it is still the
+  #   last band, the others largest first; by change too.
+  # - The basis's merge rule says so.
+  test "other is always the last band, on top of the stack, whatever the sort" do
+    world = base_world(name: "Crowd", cash_name: "Cash", depot_name: "Depot")
+    deposit!(world, "3300", ~D[2025-12-01])
+
+    holdings =
+      for(k <- 1..6, do: {"Large #{k}", "150"}) ++
+        for(k <- 1..14, do: {"Small #{String.pad_leading("#{k}", 2, "0")}", "100"})
+
+    for {name, price} <- holdings do
+      security = create_security!(name: name, ticker: nil)
+      WorldFixtures.buy!(world, security, quantity: "1", price: price, date: ~D[2025-12-01])
+      WorldFixtures.put_quote!(security, ~D[2025-12-01], price)
+    end
+
+    for sort <- [:size, :change] do
+      {:ok, r} =
+        Bands.for_portfolio(world.portfolio.id,
+          period: "ytd",
+          today: @today,
+          level: :security,
+          sort: sort
+        )
+
+      assert length(r.bands) == 8
+      assert List.last(r.bands).key == "other", inspect(sort)
+      assert Decimal.equal?(List.last(r.bands).end_value, d("1400"))
+
+      assert r.computation_basis.merge_rule =~
+               "other is always the last band, on top of the stack"
+
+      if sort == :size do
+        assert Enum.map(r.bands, & &1.name) ==
+                 ["Cash"] ++ Enum.map(1..6, &"Large #{&1}") ++ ["Other"]
+      end
+    end
   end
 end
