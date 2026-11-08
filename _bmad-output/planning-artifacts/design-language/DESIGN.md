@@ -9570,20 +9570,28 @@ and the MCP tools answer, for the section's period and the page's view.
 2. **The bands** (`svg.stack-chart`, 960 × 320 like the shared chart, the
    same axes and padding): one filled area per band, the first band of the
    sort at the bottom (the largest value on the window's last day, or the
-   largest change without flows). A negative band (an overdrawn account)
+   largest change without flows). „Sonstige“ is always the last band, on
+   top of the stack, whatever the sort and its size: it is the rest, never
+   a peer of the bands it summarises, so it never takes the base where the
+   largest band belongs (closing act, design critic D4). A negative band (an overdrawn account)
    stacks downwards from zero, so the bands always add up to the day's
    value. A category's band is clickable and opens the category stacked by
    its securities; its `<title>` names the band, value and share.
 3. **The legend as a table** (`#stack-legend`), beside the chart from
    900 px of the section's width (a container query), under it below:
    swatch and name, **Value** on the window's last day, **Share**,
-   **Change** in its sign colour. It reads like the stack, the top band
-   first. A category's name is the drill link, followed by an accent "›".
+   **Change** („Veränd.“, `pgettext("stack column", …)`; the sort reads
+   „Veränderung“, D3) in its sign colour. It reads like the stack, the top
+   band first, so „Sonstige“ is its first row. A category's name is the
+   drill link, followed by an accent "›". Under 560 px it stays a table
+   whose name cell wraps (`display: table; white-space: normal` in the
+   phone block), so the figures stay beside the name (D2).
 4. **The basis line**: what a band is (market value
    per category of the named tree, in the base currency; cash and the
    unassigned rest as bands of their own; or per security), "change
    without deposits and withdrawals", the order, and, when it happened, the
-   merge of more than eight bands into „Sonstige“. The window's dates are
+   merge of more than eight bands into „Sonstige“, which always sits on
+   top. The window's dates are
    the section's own basis line under the figure, as for the line chart.
 
 ### Colours *(the owner, 2026-11-07)*
@@ -9608,7 +9616,9 @@ and the MCP tools answer, for the section's period and the page's view.
 
 The stack is drawn as a **100 % stack** by itself, with no control: each
 day's bands over the sum of that day's positive bands, the axis 0 % to
-100 %. The legend drops the Value column and keeps Share and Change; the
+100 %. The legend drops the Value column and keeps Share and Change, its
+share on the picture's basis (the last day over its positive bands), so a
+band that fills the stack reads 100 % beside it (M3); the
 rows carry no `data-end-value`, the bands' titles name no amount. The route
 backstop (`privacy_mode_routes_test.exs`) and the browser leak walk open the
 category stack and follow the bar's links and a drilled category with the
@@ -9620,4 +9630,8 @@ mode on (plan D-8, carry-forward 2).
 bar wraps), `.stack-crumbs`, `.stack-figure` (the container),
 `.stack-figure__body`, `.stack-chart`, `.stack-band` (and `--other`),
 `.stack-legend`, `.stack-swatch` (and `--other`); the token
-`--color-chart-other` in the four theme blocks.
+`--color-chart-other` in the four theme blocks. The axis labels take the
+shared chart's rule (`.stack-chart .chart-axis-labels text`: muted, mono,
+`calc(9px * var(--chart-upx, 1))`), the `ChartScale` hook writes
+`--chart-upx` and `data-axis-inside` on `.stack-figure__chart` with
+`ChartCrosshair`'s measurement (D1).

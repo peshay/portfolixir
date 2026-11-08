@@ -2442,7 +2442,7 @@ band first: each band's value on the window's last day, its share and its
 change. A click on a category's band, or on its name in the legend, shows
 that category alone, stacked by its securities; the breadcrumb above
 ("All categories › …") leads back. More than eight bands merge the smallest
-into "Other". A category wears the colour the allocation sunburst gives it;
+into "Other", which always sits on top of the stack. A category wears the colour the allocation sunburst gives it;
 a drilled category's securities take the palette's colours in order of
 size, cash its own blue, the unassigned rest grey, "Other" a neutral grey.
 

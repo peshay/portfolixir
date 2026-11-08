@@ -648,6 +648,38 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     assert text_of(view, "[data-role='stack-basis']") =~ "Veränderung"
   end
 
+  # User story (I23, board 01 A; the closing act's design critic, D4):
+  # As the operator reading a stack of many positions,
+  # I want "Other" always on top of the stack, the legend's first row,
+  # so that the rest never sits at the base where the largest band belongs.
+  #
+  # Acceptance criteria:
+  # - With ten bands the two smallest merge into "Other", which the legend
+  #   lists first (the top band) and the stack draws last, by size and by
+  #   change alike; the order is the API's.
+  # - The basis line says that "Other" always sits on top.
+  test "Other sits on top of the stack whatever the sort", %{conn: conn} do
+    nine_world()
+
+    for {address, sort} <- [
+          {"/portfolio?level=security", "size"},
+          {"/portfolio?level=security&sort=change", "change"}
+        ] do
+      {:ok, view, _html} = live(conn, address)
+      settle(view)
+
+      data = api(conn, %{"level" => "security", "period" => "1y", "sort" => sort})
+      assert List.last(data["bands"])["key"] == "other"
+      assert legend_keys(view) == data["bands"] |> Enum.map(& &1["key"]) |> Enum.reverse()
+      assert hd(legend_keys(view)) == "other"
+
+      assert view |> attrs("#performance-figure-stack path", "data-band") |> List.last() ==
+               "other"
+
+      assert text_of(view, "[data-role='stack-basis']") =~ "“Other”, which always sits on top"
+    end
+  end
+
   # Polish: Wealth (#1366), the line of 2026-11-06: "/portfolio?tab=allocation
   # crashes in default_classification_id/1 on a database without any
   # classification".

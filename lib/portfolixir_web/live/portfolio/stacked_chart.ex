@@ -294,7 +294,11 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
           <%= basis(@result, @privacy?) %>
           <%= gettext("Change without deposits and withdrawals.") %>
           <%= order_text(@result.sort) %>
-          <%= if @other?, do: gettext("Above eight bands the smallest merge into “Other”.") %>
+          <%= if @other?,
+            do:
+              gettext(
+                "Above eight bands the smallest merge into “Other”, which always sits on top."
+              ) %>
         </p>
       <% end %>
     </figure>
