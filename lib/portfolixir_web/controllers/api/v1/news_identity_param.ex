@@ -1,7 +1,8 @@
 defmodule PortfolixirWeb.Api.V1.NewsIdentityParam do
   @moduledoc """
-  A security's news identity on `PATCH /api/v1/securities/:id` (ADR-0056 §2,
-  §9, B1; Sprint 27, N8): `news_identity` {`cik`, `aliases`} and `news_watch`.
+  A security's news identity on `PATCH /api/v1/securities/:id` and, since
+  the closing act (SEC4), on `POST /api/v1/securities` (ADR-0056 §2, §9, B1;
+  Sprint 27, N8): `news_identity` {`cik`, `aliases`} and `news_watch`.
 
   The API spells the identity as one block; the security stores it as
   `news_cik` and `news_aliases` (`Portfolixir.Catalog.Security`). `parse/1`

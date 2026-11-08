@@ -1290,6 +1290,8 @@ Answers are compact: short codes, null fields left out.
   and `case` (`sensitive`, `insensitive`) — and `news_watch`, which puts a
   security without a holding or a target into the news universe. A key of
   `news_identity` not sent keeps its value; the security's read carries both.
+  `POST /api/v1/securities` takes the same block with the same refusals: an
+  unknown key, and `news_cik` or `news_aliases` sent raw, answer 422.
 
 ### News reads (ADR-0056)
 

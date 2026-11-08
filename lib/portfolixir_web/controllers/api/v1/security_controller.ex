@@ -163,17 +163,24 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     end
   end
 
+  # Closing act, SEC4: the create reads the news identity as the update does,
+  # through the same closed block.
   def create(conn, params) do
-    attrs = Map.get(params, "security", %{})
-
-    case Catalog.create_security(conn.assigns.actor, attrs) do
-      {:ok, security} ->
+    with {:ok, attrs} <- NewsIdentityParam.parse(Map.get(params, "security", %{})),
+         {:ok, security} <- Catalog.create_security(conn.assigns.actor, attrs) do
+      conn
+      |> put_status(:created)
+      |> json(%{data: JSON.security(security)})
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
         conn
-        |> put_status(:created)
-        |> json(%{data: JSON.security(security)})
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: changeset |> JSON.errors() |> NewsIdentityParam.errors()})
 
-      {:error, changeset} ->
-        validation_error(conn, changeset)
+      {:error, errors} when is_map(errors) ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: errors})
     end
   end
 

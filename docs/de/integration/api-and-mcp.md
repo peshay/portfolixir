@@ -1397,7 +1397,9 @@ Codes, leere Felder weggelassen.
   muss, und `case` (`sensitive`, `insensitive`) — sowie `news_watch`, das ein
   Wertpapier ohne Bestand und ohne Ziel in das News-Universum aufnimmt. Ein
   nicht gesendeter Schlüssel von `news_identity` behält seinen Wert; die
-  Lesung des Wertpapiers trägt beide.
+  Lesung des Wertpapiers trägt beide. `POST /api/v1/securities` nimmt
+  denselben Block mit denselben Ablehnungen: Ein unbekannter Schlüssel und
+  roh gesendete `news_cik` oder `news_aliases` antworten mit 422.
 
 ### News-Lesezugriffe (ADR-0056)
 
