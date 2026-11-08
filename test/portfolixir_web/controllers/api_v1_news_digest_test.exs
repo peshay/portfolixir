@@ -91,9 +91,11 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
   #   items only, and a thematic story, only with include_unlabeled=true
   #   (§7: include_unlabeled acts on aggregator and thematic stories); the
   #   thematic ones then appear per category under categories.
-  # - quiet counts the view's securities without a row; unassigned and
-  #   ambiguous count the aggregator items first seen after since that no
-  #   security, or several, claim.
+  # - quiet counts the view's securities without a row and without a story
+  #   the flag left out; hidden counts the aggregator and thematic stories
+  #   include_unlabeled left out (C5), so news only from an aggregator never
+  #   reads as quiet; unassigned and ambiguous count the aggregator items
+  #   that became so after since that no security, or several, claim.
   # - since defaults to 24 hours before now and is echoed; as_of is the next
   #   since; a security the view does not hold has no row.
   # - max_rows caps the rows: truncated is true and more counts the rows
@@ -177,8 +179,11 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
              ]
 
       # Without a view: the news universe (held, targeted or watched), so
-      # Outside Holdings, held by no one, is not in it either.
-      assert data["quiet"] == 2
+      # Outside Holdings, held by no one, is not in it either. Southwind's
+      # only story is an aggregator's: hidden, so Southwind is not quiet;
+      # the thematic story is hidden too.
+      assert data["quiet"] == 1
+      assert data["hidden"] == 2
       assert data["unassigned"] == 1
       assert data["ambiguous"] == 1
       assert data["truncated"] == false
@@ -196,6 +201,7 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       assert [south_row] = Enum.filter(unlabeled["rows"], &(&1["id"] == south.id))
       assert south_row["top"]["tier"] == "awareness"
       assert unlabeled["quiet"] == 1
+      assert unlabeled["hidden"] == 0
 
       assert [%{"id" => category_id, "count" => 1, "top" => %{"title" => title}}] =
                unlabeled["categories"]

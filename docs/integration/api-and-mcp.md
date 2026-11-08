@@ -1348,9 +1348,11 @@ with none stored.
   newest. A story with an issuer or regulatory item always counts; a story of
   aggregator items only, and a thematic story, counts only with
   `include_unlabeled=true`, the thematic ones per category under
-  `categories`. `quiet` counts the securities without a row, `unassigned` and
-  `ambiguous` the aggregator items that became so since then that no security,
-  or several, claim. `max_rows` (default 40, at most 100) caps the rows;
+  `categories`. `hidden` counts the aggregator and thematic stories new since
+  then that `include_unlabeled=false` left out (C5), and a security whose only
+  news is such a story is not counted `quiet`, which counts the securities
+  without a row and without one; `unassigned` and `ambiguous` the aggregator
+  items that became so since then that no security, or several, claim. `max_rows` (default 40, at most 100) caps the rows;
   `truncated` and `more` say how many were left out. This sprint's digest has
   no labels and no consumer cursor: `consumer`, `ack_cursor`,
   `min_materiality` and `tier_min` answer `422`.

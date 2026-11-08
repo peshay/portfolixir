@@ -464,7 +464,13 @@ defmodule Portfolixir.News.Reads do
       two classes and never hides a primary story.
     * `categories` — with `include_unlabeled`, the thematic stories per
       category, rows of the same shape (a category is no security).
-    * `quiet` — the securities without a row; `unassigned` and `ambiguous`
+    * `hidden` (C5, ADR-0056 amendment of 2026-11-08) — the aggregator
+      and thematic stories new since `since` that `include_unlabeled:
+      false` left out (0 with the flag). A security whose only new stories
+      are hidden is not quiet: news only from an aggregator must not read as
+      the false calm §6 exists to prevent.
+    * `quiet` — the securities without a row and without a hidden story;
+      `unassigned` and `ambiguous`
       — the aggregator items that became so after `since` (`scope_at`) that
       no security, or several, claim.
     * `max_rows` caps `rows` and `categories` each; `truncated` and `more`
@@ -473,11 +479,21 @@ defmodule Portfolixir.News.Reads do
   @spec digest([pos_integer()], DateTime.t(), boolean(), pos_integer()) :: map()
   def digest(security_ids, %DateTime{} = since, include_unlabeled, max_rows)
       when is_list(security_ids) and is_boolean(include_unlabeled) and is_integer(max_rows) do
-    stories = new_stories(security_ids, since, include_unlabeled)
+    {stories, hidden} =
+      security_ids
+      |> new_stories(since)
+      |> Enum.split_with(&(&1.certain or include_unlabeled))
 
     {by_security, by_category} = Enum.split_with(stories, &(not is_nil(&1.security_id)))
 
     rows = digest_rows(by_security, :security_id, Security)
+
+    # C5: a security with only hidden stories has news; it is not quiet.
+    with_news =
+      (by_security ++ hidden)
+      |> Enum.map(& &1.security_id)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
 
     categories =
       if include_unlabeled, do: digest_rows(by_category, :category_id, Category), else: []
@@ -490,7 +506,8 @@ defmodule Portfolixir.News.Reads do
     %{
       rows: shown_rows,
       categories: if(include_unlabeled, do: shown_categories),
-      quiet: length(security_ids) - length(rows),
+      quiet: length(security_ids) - length(with_news),
+      hidden: length(hidden),
       unassigned: Map.get(open, :unassigned, 0),
       ambiguous: Map.get(open, :ambiguous, 0),
       truncated: more > 0,
@@ -498,12 +515,14 @@ defmodule Portfolixir.News.Reads do
     }
   end
 
-  defp new_stories(security_ids, since, include_unlabeled) do
+  # Every story of the securities and every category's story with a member
+  # new since `since`, each marked `certain` when it has an issuer or
+  # regulatory member.
+  defp new_stories(security_ids, since) do
     news =
       from(i in Item,
         where: not is_nil(i.cluster_id),
-        where:
-          i.security_id in ^security_ids or (^include_unlabeled and not is_nil(i.category_id)),
+        where: i.security_id in ^security_ids or not is_nil(i.category_id),
         group_by: i.cluster_id,
         having: max(i.scope_at) > type(^since, :utc_datetime_usec),
         select: %{
@@ -518,8 +537,8 @@ defmodule Portfolixir.News.Reads do
       on: n.cluster_id == c.id,
       join: r in Item,
       on: r.id == c.representative_item_id,
-      where: n.certain or ^include_unlabeled,
       select: %{
+        certain: n.certain,
         security_id: c.security_id,
         category_id: c.category_id,
         id: c.id,
