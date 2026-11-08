@@ -140,7 +140,7 @@ defmodule Portfolixir.News.SchedulerTest do
           |> Enum.find(fn now ->
             Agent.update(clock, fn _ -> now end)
             serve(plug)
-            News.fetch_due(now)
+            News.fetch_due(now, clock: fn -> now end)
             items(feed) != [] or DateTime.compare(now, deadline) == :gt
           end)
 
@@ -186,7 +186,11 @@ defmodule Portfolixir.News.SchedulerTest do
 
       {results, log} =
         with_log(fn ->
-          News.fetch_due(@t0, static(body) ++ [fetch: fetch, timeout_ms: 300]) |> Map.new()
+          News.fetch_due(
+            @t0,
+            static(body) ++ [fetch: fetch, timeout_ms: 300, clock: fn -> @t0 end]
+          )
+          |> Map.new()
         end)
 
       assert log =~ "news feed #{crashing.id}: fetch_failed (synthetic crash)"

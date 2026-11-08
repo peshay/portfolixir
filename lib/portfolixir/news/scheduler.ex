@@ -90,8 +90,10 @@ defmodule Portfolixir.News.Scheduler do
 
   @doc """
   Fetches every feed due at `now`, each in its own task; `[{feed_id,
-  result}]` in feed id order. Options go to the fetch (`Fetcher.fetch/2`),
-  plus `:fetch` (the fetch function) and `:timeout_ms` (a task's time).
+  result}]` in feed id order. `now` decides which feeds are due; the fetch
+  reads the server's clock once its answer arrived. Options go to the fetch
+  (`Fetcher.fetch/2`, a test's `:clock` among them), plus `:fetch` (the
+  fetch function) and `:timeout_ms` (a task's time).
   """
   @spec run_due(DateTime.t(), keyword()) :: [{pos_integer(), result()}]
   def run_due(%DateTime{} = now, opts \\ []) do
@@ -126,7 +128,10 @@ defmodule Portfolixir.News.Scheduler do
     now = Keyword.fetch!(opts, :now)
     fetch = Keyword.get(opts, :fetch, &Fetcher.fetch/2)
     timeout = Keyword.get(opts, :timeout_ms, @task_timeout_ms)
-    fetch_opts = Keyword.drop(opts, [:fetch, :timeout_ms])
+    # The tick decides which feeds are due and stamps a failure the task
+    # could not record; the fetch reads its own clock once the answer arrived
+    # (closing act, KNOWN), so the tick is not passed on.
+    fetch_opts = Keyword.drop(opts, [:fetch, :timeout_ms, :now])
 
     Portfolixir.News.Tasks
     |> Task.Supervisor.async_stream_nolink(feeds, &guarded(fetch, &1, fetch_opts),
