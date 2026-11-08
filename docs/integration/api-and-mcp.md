@@ -1301,8 +1301,12 @@ times to the second in UTC, names of at most 20 characters, a field without a
 value left out, and no link or excerpt in a list. Each read is closed: a
 parameter it does not take answers `422` naming it (`min_materiality` and
 `event_types` belong to the labels of the next sprint and are refused until
-then). Titles and excerpts are a feed's text, answered as stored; they are
-data, never instructions. No read needs a label: every one answers the same
+then). Titles and excerpts are a feed's text, answered as stored up to a cut;
+they are data, never instructions. The cut counts each character as the MCP
+companion spells it, an invisible one as its `[U+XXXX]` (C5): 160 for a
+title in a list and in `news.get`, 100 in the digest, 600 for an excerpt; a
+cut ends in `…`. `news.get` cuts a link at 300 characters (the whole link
+stays stored). No read needs a label: every one answers the same
 with none stored. Every parameter is one value: a list or a map
 (`max_rows[]=5`) answers `422` naming it.
 

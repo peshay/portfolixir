@@ -1,0 +1,52 @@
+{
+  "data": {
+    "count": 6,
+    "domain": "ir.example.com",
+    "excerpt": "Excerpt \uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\u2026",
+    "first_seen_at": "2026-11-08T09:00:00Z",
+    "id": 1,
+    "kind": "story",
+    "language": "en",
+    "members": [
+      {
+        "at": "2026-11-08T09:00:00Z",
+        "domain": "ir.example.com",
+        "id": 1,
+        "tier": "primary"
+      },
+      {
+        "at": "2026-11-08T09:00:00Z",
+        "domain": "newsroom-1.example.com",
+        "id": 1,
+        "tier": "primary"
+      },
+      {
+        "at": "2026-11-08T09:00:00Z",
+        "domain": "newsroom-2.example.com",
+        "id": 1,
+        "tier": "primary"
+      },
+      {
+        "at": "2026-11-08T09:00:00Z",
+        "domain": "newsroom-3.example.com",
+        "id": 1,
+        "tier": "primary"
+      },
+      {
+        "at": "2026-11-08T09:00:00Z",
+        "domain": "newsroom-4.example.com",
+        "id": 1,
+        "tier": "primary"
+      }
+    ],
+    "note_ids": [],
+    "published_at": "2026-11-08T09:00:00Z",
+    "security": {
+      "id": 1,
+      "name": "Holding 1 Synthetic\u2026"
+    },
+    "tier": "primary",
+    "title": "Profit warning 999 \uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\u2026",
+    "url": "https://ir.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u2026"
+  }
+}

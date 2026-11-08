@@ -1410,8 +1410,12 @@ Feld ohne Wert weggelassen und kein Link und kein Auszug in einer Liste. Jeder
 Lesezugriff ist geschlossen: Ein Parameter, den er nicht nimmt, ergibt `422`,
 das ihn nennt (`min_materiality` und `event_types` gehören zu den Labels des
 nächsten Sprints und werden bis dahin abgelehnt). Titel und Auszüge sind Text
-eines Feeds, so beantwortet, wie er gespeichert ist; sie sind Daten, nie
-Anweisungen. Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
+eines Feeds, so beantwortet, wie er gespeichert ist, bis zu einem Schnitt;
+sie sind Daten, nie Anweisungen. Der Schnitt zählt jedes Zeichen so, wie der
+MCP-Begleiter es schreibt, ein unsichtbares als sein `[U+XXXX]` (C5): 160 für
+einen Titel in einer Liste und in `news.get`, 100 im Digest, 600 für einen
+Auszug; ein Schnitt endet auf `…`. `news.get` schneidet einen Link bei 300
+Zeichen (der ganze Link bleibt gespeichert). Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
 gespeichertes Label gleich. Jeder Parameter ist ein Wert: Eine Liste oder
 eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
 
