@@ -10,23 +10,25 @@ defmodule Portfolixir.News.Reads do
 
   ## What is new: `since` and `as_of` (B4)
 
-  `since` compares an item's `first_seen_at`, the server's clock, never the
-  feed's claim: a story is new when any of its members was first seen
-  strictly after `since`. `as_of/0` is the `since` a reader passes next, by
+  `since` compares an item's `scope_at` (C3, ADR-0056 amendment of
+  2026-11-08), the server's time it entered its scope — its first sight,
+  or the time of a later assignment by the re-match, a merge or a
+  candidate left alone — never the feed's claim: a story is new when any
+  of its members entered its scope strictly after `since`. `as_of/0` is the `since` a reader passes next, by
   `Portfolixir.DeltaCursor`'s rule (overlap, never loss): no later than the
   start of the oldest write still in flight, and earlier again by
   `fetch_lag_seconds/0`, because the fetcher stamps an item's
-  `first_seen_at` with the clock it read **before** its request (up to the
+  `first_seen_at` and `scope_at` with the clock it read **before** its request (up to the
   fetch's 30-second deadline and the per-host pace wait before the write
   begins). A story re-delivered is the price; a story lost is not paid.
 
   ## Ordering and pages
 
-  Stories come newest first by their newest member's first sight, then by
-  id; items by their first sight, then by id. A page is `limit` rows; when
-  more matched, `truncated` is true and `cursor` (`<first sight>~<id>` of
+  Stories come newest first by their newest member's `scope_at`, then by
+  id; items by their `scope_at`, then by id. A page is `limit` rows; when
+  more matched, `truncated` is true and `cursor` (`<scope_at>~<id>` of
   the page's last row) continues it. The ids only break ties between rows
-  first seen in the same microsecond; they decide no story and no
+  entering their scope in the same microsecond; they decide no story and no
   representative (B3).
   """
 
@@ -134,7 +136,7 @@ defmodule Portfolixir.News.Reads do
       from(i in Item,
         where: not is_nil(i.cluster_id),
         group_by: i.cluster_id,
-        select: %{cluster_id: i.cluster_id, seen: max(i.first_seen_at)}
+        select: %{cluster_id: i.cluster_id, seen: max(i.scope_at)}
       )
       |> where_scope(selector)
 
@@ -174,7 +176,7 @@ defmodule Portfolixir.News.Reads do
     rows =
       from(i in Item,
         where: i.tier in ^tiers_from(opts[:tier_min]),
-        order_by: [desc: i.first_seen_at, desc: i.id],
+        order_by: [desc: i.scope_at, desc: i.id],
         limit: ^(limit + 1),
         select: %{
           id: i.id,
@@ -185,12 +187,12 @@ defmodule Portfolixir.News.Reads do
           candidates: i.candidates,
           url: i.canonical_url,
           note_ids: i.note_ids,
-          seen: i.first_seen_at
+          seen: i.scope_at
         }
       )
       |> where_items(selector)
-      |> since(opts[:since], dynamic([i], i.first_seen_at))
-      |> after_cursor(opts[:cursor], dynamic([i], i.first_seen_at), dynamic([i], i.id))
+      |> since(opts[:since], dynamic([i], i.scope_at))
+      |> after_cursor(opts[:cursor], dynamic([i], i.scope_at), dynamic([i], i.id))
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
@@ -395,7 +397,7 @@ defmodule Portfolixir.News.Reads do
   without labels and without a consumer cursor:
 
     * `rows` — one per security with a story new since `since` (a member
-      first seen strictly after it, B4): `id`, short `name`, `count` (its new
+      that entered its scope strictly after it, B4, C3): `id`, short `name`, `count` (its new
       stories) and `top` (`id`, `title`, `tier`, `at`): the best tier, then
       the newest publication, then the smallest link — never an id. Rows are
       ordered by their top story the same way, then by security id. The top
@@ -409,8 +411,8 @@ defmodule Portfolixir.News.Reads do
     * `categories` — with `include_unlabeled`, the thematic stories per
       category, rows of the same shape (a category is no security).
     * `quiet` — the securities without a row; `unassigned` and `ambiguous`
-      — the aggregator items first seen after `since` that no security, or
-      several, claim.
+      — the aggregator items that became so after `since` (`scope_at`) that
+      no security, or several, claim.
     * `max_rows` caps `rows` and `categories` each; `truncated` and `more`
       (the rows left out) say so.
   """
@@ -449,7 +451,7 @@ defmodule Portfolixir.News.Reads do
         where:
           i.security_id in ^security_ids or (^include_unlabeled and not is_nil(i.category_id)),
         group_by: i.cluster_id,
-        having: max(i.first_seen_at) > type(^since, :utc_datetime_usec),
+        having: max(i.scope_at) > type(^since, :utc_datetime_usec),
         select: %{
           cluster_id: i.cluster_id,
           certain:
@@ -506,7 +508,7 @@ defmodule Portfolixir.News.Reads do
   defp open_counts(since) do
     from(i in Item,
       where: i.class == :aggregator and i.assignment in [:unassigned, :ambiguous],
-      where: i.first_seen_at > type(^since, :utc_datetime_usec),
+      where: i.scope_at > type(^since, :utc_datetime_usec),
       group_by: i.assignment,
       select: {i.assignment, count(i.id)}
     )

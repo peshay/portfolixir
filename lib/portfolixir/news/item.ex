@@ -8,7 +8,11 @@ defmodule Portfolixir.News.Item do
   stated it, kept as stated; `published_at` is that claim **clamped to
   `first_seen_at`** — `changeset/2` derives it and never casts it, and the
   database refuses any other value — so a future date cannot make an item
-  the newest. Without a claim it is `first_seen_at`.
+  the newest. Without a claim it is `first_seen_at`. `scope_at` (C3,
+  ADR-0056 amendment of 2026-11-08) is the server's time the item entered
+  its scope: `first_seen_at` unless given later — the matcher, the
+  re-match and a security merge write the time of the assignment. `since`
+  reads it; retention reads `first_seen_at`.
 
   **Binding by class** (§2): an `issuer` or `regulatory` item is `assigned`
   to its feed's security, a `thematic` item to its feed's category; an
@@ -49,7 +53,7 @@ defmodule Portfolixir.News.Item do
   @words_max 160
 
   @fields ~w(feed_id class security_id category_id cluster_id published_at_claimed
-             first_seen_at title canonical_url domain tier language excerpt content_hash
+             first_seen_at scope_at title canonical_url domain tier language excerpt content_hash
              title_norm_hash title_words assignment candidates status note_ids)a
 
   @type t :: %__MODULE__{}
@@ -63,6 +67,7 @@ defmodule Portfolixir.News.Item do
     field(:published_at, :utc_datetime_usec)
     field(:published_at_claimed, :utc_datetime_usec)
     field(:first_seen_at, :utc_datetime_usec)
+    field(:scope_at, :utc_datetime_usec)
     field(:title, :string)
     field(:canonical_url, :string)
     field(:domain, :string)
@@ -110,6 +115,7 @@ defmodule Portfolixir.News.Item do
       :status
     ])
     |> clamp_published_at()
+    |> default_scope_at()
     |> Shapes.feed_text(:title, max: @title_max)
     |> validate_not_blank(:title)
     |> Shapes.feed_text(:excerpt, max: @excerpt_max, multiline: true)
@@ -156,6 +162,7 @@ defmodule Portfolixir.News.Item do
     security_id: :news_items_binding_check,
     candidates: :news_items_candidates_check,
     published_at: :news_items_published_at_check,
+    scope_at: :news_items_scope_at_check,
     title: :news_items_title_check,
     excerpt: :news_items_excerpt_check,
     canonical_url: :news_items_canonical_url_check,
@@ -175,6 +182,15 @@ defmodule Portfolixir.News.Item do
   end
 
   # B4: the claim, clamped to the server's first sight; never cast.
+  # C3: an item enters its scope at its first sight unless it is given a
+  # later time (an assignment after that sight).
+  defp default_scope_at(changeset) do
+    case get_field(changeset, :scope_at) do
+      nil -> put_change(changeset, :scope_at, get_field(changeset, :first_seen_at))
+      _given -> changeset
+    end
+  end
+
   defp clamp_published_at(changeset) do
     first_seen_at = get_field(changeset, :first_seen_at)
     claimed = get_field(changeset, :published_at_claimed)
