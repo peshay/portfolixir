@@ -436,8 +436,24 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 117_731,
     book: 191_719,
     full: 226_768
-  }
+  },
   // --- Sprint 27 closing act S end ---
+  // --- Sprint 27 closing act, Fix-2 begin ---
+  {
+    since: "2026-11-08",
+    why:
+      "Sprint 27 closing act, Fix-2 (ADR-0056 amendment of 2026-11-08, C3 to C5): the news " +
+      "reads say what changed (scope_at, tier order, the cut link, hidden, max_rows 12 of " +
+      "40, yield not measured), feeds_put says what a new feed needs and how to register " +
+      "an SEC filing feed, news_identity what cik and aliases do, and notes.append where a " +
+      "news note's as_of, source_url and source_quality come from; paid for by tightening " +
+      "the same tools' wording and notes.append's, and lowered to the figure measured with " +
+      "them",
+    read: 117_722,
+    book: 191_718,
+    full: 226_748
+  }
+  // --- Sprint 27 closing act, Fix-2 end ---
 ];
 
 describe("the schema budget", () => {
