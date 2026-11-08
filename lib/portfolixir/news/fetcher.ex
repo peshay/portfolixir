@@ -28,17 +28,19 @@ defmodule Portfolixir.News.Fetcher do
   app's own, except **for a feed on `sec.gov`** or a subdomain (a trailing
   dot or capitals in the name change nothing), which is sent
   `PORTFOLIXIR_NEWS_USER_AGENT` (read in `config/runtime.exs`) and no
-  other host is (ADR-0056 C6): without the operator's user agent it makes no request and records
-  `user_agent_missing` (the SEC asks for a contact; the repository carries
-  none); its requests are paced to at most 10 a second across every feed
-  (`Portfolixir.News.Pace`); and they go over IPv4, which Mint uses unless
-  a caller sets `inet6: true`, as nothing here does.
+  other host is (ADR-0056 C6): without the operator's user agent it makes
+  no request and records `user_agent_missing` (the SEC asks for a contact;
+  the repository carries none); its requests are paced to at most 10 a
+  second across every feed (`Portfolixir.News.Pace`); and they go over
+  IPv4, which Mint uses unless a caller sets `inet6: true`, as nothing here
+  does.
 
   **The record** on the feed (`News.Feed.health_changeset/2`, not
-  journaled, B7): `last_fetch_at` the clock; on success `last_ok_at` the
-  clock, `last_error` cleared and the backoff reset. On failure
-  `last_error` is a short code — `url_not_allowed:<reason>`, `http_<status>`,
-  `timeout`, `transport_error`, `body_too_large`, `too_many_redirects`,
+  journaled, B7): `last_fetch_at` the clock, read after the answer; on
+  success `last_ok_at` the clock, `last_error` cleared and the backoff
+  reset. On failure `last_error` is a short code —
+  `url_not_allowed:<reason>`, `http_<status>`, `timeout`,
+  `transport_error`, `body_too_large`, `too_many_redirects`,
   `parse_refused:<reason>` (A1), `user_agent_missing`, `fetch_failed` — and
   the day's `errors` count one more (§6's `err_24h`). A 429 or a 5xx also
   backs off: `failures` counts one more and `retry_at` is the clock plus
@@ -66,7 +68,7 @@ defmodule Portfolixir.News.Fetcher do
 
   @type code :: String.t()
 
-  @fetch_options [:now, :user_agent, :deadline_ms, :pace]
+  @fetch_options [:now, :clock, :user_agent, :deadline_ms, :pace]
 
   @doc """
   Fetches the **stored** feed — given as its id or as a loaded `Feed` whose
@@ -75,7 +77,10 @@ defmodule Portfolixir.News.Fetcher do
   struct points (closing act, SEC1); a feed that is not stored answers
   `{:error, "feed_not_found"}` and makes no request.
 
-  Options: `:now` (the server's clock, default now), `:user_agent`
+  Options: `:clock` (a function answering the server's time, default
+  `DateTime.utc_now/0`), read **once the answer arrived**, for the items'
+  `first_seen_at` and the feed's record; `:now` (a fixed time, a test's
+  clock); `:user_agent`
   (overrides the configured one; nil is none), `:deadline_ms`, `:pace` (a
   function of the paced host returning the milliseconds to wait, default
   `Portfolixir.News.Pace.reserve/1`). Any other option, request options
@@ -100,19 +105,41 @@ defmodule Portfolixir.News.Fetcher do
   defp stored(id) when is_integer(id), do: Repo.get(Feed, id)
   defp stored(_id), do: nil
 
+  # The clock is read once the answer arrived (or failed), after the pace
+  # and the request (closing act, KNOWN): an item's `first_seen_at` is never
+  # earlier than the moment the server could have stored it.
   defp run(feed, opts) do
     actor = actor()
-    now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+    clock = clock(opts)
 
-    with {:ok, body} <- get(feed, opts),
-         {:ok, items} <- parse(body) do
-      {:ok, summary} = Ingest.ingest(feed, items, now)
-      record(actor, feed, now, :ok)
-      {:ok, summary}
-    else
+    case get(feed, opts) do
+      {:ok, body} ->
+        now = clock.()
+
+        case parse(body) do
+          {:ok, items} ->
+            {:ok, summary} = Ingest.ingest(feed, items, now)
+            record(actor, feed, now, :ok)
+            {:ok, summary}
+
+          {:error, code} ->
+            failed(actor, feed, now, code)
+        end
+
       {:error, code} ->
-        record(actor, feed, now, {:error, code})
-        {:error, code}
+        failed(actor, feed, clock.(), code)
+    end
+  end
+
+  defp failed(actor, feed, now, code) do
+    record(actor, feed, now, {:error, code})
+    {:error, code}
+  end
+
+  defp clock(opts) do
+    case Keyword.get(opts, :now) do
+      %DateTime{} = now -> fn -> now end
+      nil -> Keyword.get(opts, :clock, &DateTime.utc_now/0)
     end
   end
 

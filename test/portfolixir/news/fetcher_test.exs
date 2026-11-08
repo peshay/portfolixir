@@ -450,6 +450,56 @@ defmodule Portfolixir.News.FetcherTest do
     end
   end
 
+  # User story (closing act, KNOWN first_seen_at):
+  # As the agent that reads what is new since my last read,
+  # I want an item's `first_seen_at` to be the moment its answer arrived,
+  # not the moment its fetch began,
+  # so that a fetch that waited for the pace or a slow host cannot stamp an
+  # item before a `since` I already read past.
+  #
+  # Acceptance criteria:
+  # - With a clock that moves while the request runs, the stored item's
+  #   `first_seen_at`, the feed's `last_fetch_at` and `last_ok_at` are the
+  #   clock read after the body arrived.
+  # - The scheduler's tick decides only which feeds are due: a feed it
+  #   fetches stamps the server's clock read after the answer, not the tick.
+  describe "the clock is read after the answer (closing act, KNOWN)" do
+    test "first_seen_at is the time the body arrived" do
+      feed = issuer_feed!()
+      later = DateTime.add(@now, 40, :second)
+      {:ok, clock} = Agent.start_link(fn -> @now end)
+
+      serve(fn conn ->
+        Agent.update(clock, fn _ -> later end)
+
+        Plug.Conn.send_resp(
+          conn,
+          200,
+          rss([%{title: "Northwind opens a terminal", link: "https://newsroom.example.com/n/1"}])
+        )
+      end)
+
+      assert {:ok, %{stored: 1}} = Fetcher.fetch(feed, clock: fn -> Agent.get(clock, & &1) end)
+
+      assert [%{first_seen_at: ^later}] = Repo.all(from(i in Item, where: i.feed_id == ^feed.id))
+      assert %{last_fetch_at: ^later, last_ok_at: ^later} = reload(feed)
+    end
+
+    test "the scheduler's tick is not the items' first sight" do
+      feed = issuer_feed!()
+      tick = ~U[2026-01-05 10:00:00.000000Z]
+      started = DateTime.utc_now()
+
+      serve(serving(rss([%{title: "Northwind ships", link: "https://newsroom.example.com/s/1"}])))
+
+      assert [{_id, {:ok, %{stored: 1}}}] = Portfolixir.News.fetch_due(tick)
+
+      [item] = Repo.all(from(i in Item, where: i.feed_id == ^feed.id))
+      assert DateTime.compare(item.first_seen_at, started) != :lt
+      assert DateTime.compare(reload(feed).last_fetch_at, started) != :lt
+    end
+  end
+
   # --- end closing act, Fix-1 -----------------------------------------------
 
   defp sec_url,
