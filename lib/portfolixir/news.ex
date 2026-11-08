@@ -541,6 +541,72 @@ defmodule Portfolixir.News do
 
   # --- closing act, Fix-1 -----------------------------------------------------
 
+  @doc """
+  Drops the security `security_id`, being deleted, from every item's
+  candidates, inside the delete's transaction (closing act, EDGE2;
+  `Portfolixir.Lifecycle.Delete`). An item left with one candidate is
+  `assigned` to it, out of any story, as a merge's collapse assigns it
+  (§2: exactly one hit assigns), and folded into that security's stories
+  of its language (B3); one left with more stays `ambiguous` between them.
+  Answers the number of items changed.
+  """
+  @spec forget_security(pos_integer(), DateTime.t()) :: {:ok, non_neg_integer()}
+  def forget_security(security_id, %DateTime{} = now \\ DateTime.utc_now())
+      when is_integer(security_id) do
+    listing = from(i in Item, where: ^security_id in i.candidates)
+
+    # C3: when `news_items.scope_at` exists (Fix-2), an item assigned here
+    # enters its security's scope now: set `scope_at: now` with the
+    # assignment below.
+    {assigned, collapsed} =
+      Repo.update_all(
+        from(i in listing,
+          where: i.assignment == :ambiguous and fragment("cardinality(?) = 2", i.candidates),
+          select: {i.security_id, i.language},
+          update: [
+            set: [
+              assignment: :assigned,
+              security_id: fragment("(array_remove(?, ?))[1]", i.candidates, ^security_id),
+              candidates: ^[],
+              cluster_id: nil,
+              updated_at: ^now
+            ]
+          ]
+        ),
+        []
+      )
+
+    {listed, _} =
+      Repo.update_all(
+        from(i in listing,
+          update: [
+            set: [
+              candidates: fragment("array_remove(?, ?)", i.candidates, ^security_id),
+              updated_at: ^now
+            ]
+          ]
+        ),
+        []
+      )
+
+    collapsed
+    |> Enum.uniq()
+    |> Enum.each(fn {target_id, language} ->
+      case Stories.recluster({:security, target_id}, language, now) do
+        {:ok, _summary} ->
+          :ok
+
+        {:error, changeset} ->
+          Logger.warning(
+            "news stories of security #{target_id} (#{language}) not written after a " <>
+              "candidate's delete: #{inspect(changeset.errors)}"
+          )
+      end
+    end)
+
+    {:ok, assigned + listed}
+  end
+
   @feed_fed_kept "cannot change while the feed has stored items: they carry it"
 
   # COR1: a feed's items carry its security, category and language; while it

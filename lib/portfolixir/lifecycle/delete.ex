@@ -24,7 +24,9 @@ defmodule Portfolixir.Lifecycle.Delete do
        function, one entry per account or position as that function already
        writes — the rows removed one by one are locked `FOR UPDATE` first, so
        a concurrent removal waits instead of making a per-row delete stale;
-       then the row is deleted and its delete journaled with the full
+       a security leaves the candidates of the news items that listed it
+       (`Portfolixir.News.forget_security/2`, ADR-0056 §2); then the row is
+       deleted and its delete journaled with the full
        before-image.
 
   No cascade removes a membership: the database refuses the delete of a row
@@ -61,6 +63,7 @@ defmodule Portfolixir.Lifecycle.Delete do
   alias Portfolixir.Journal
   alias Portfolixir.Lifecycle.ForeignKeys
   alias Portfolixir.Lifecycle.MergeFlow
+  alias Portfolixir.News
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Portfolios.Targets
@@ -271,10 +274,21 @@ defmodule Portfolixir.Lifecycle.Delete do
   end
 
   defp remove_locked(actor, record) do
-    with :ok <- remove_memberships(actor, record) do
+    with :ok <- remove_memberships(actor, record),
+         :ok <- forget_news_candidate(record) do
       delete_row(actor, record)
     end
   end
+
+  # ADR-0056 §2 (closing act, EDGE2): a deleted security leaves the
+  # candidates of every ambiguous news item that listed it, and one left with
+  # a single candidate is assigned to it (`Portfolixir.News.forget_security/2`).
+  defp forget_news_candidate(%Security{id: id}) do
+    {:ok, _changed} = News.forget_security(id)
+    :ok
+  end
+
+  defp forget_news_candidate(_record), do: :ok
 
   defp remove_memberships(actor, %schema{} = record) do
     table = Map.fetch!(@tables, schema)
