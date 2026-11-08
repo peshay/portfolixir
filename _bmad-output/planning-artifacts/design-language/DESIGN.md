@@ -9638,3 +9638,40 @@ shared chart's rule (`.stack-chart .chart-axis-labels text`: muted, mono,
 `.stack-crumbs a` and the breadcrumb's current item draw the house focus
 ring, and after a drill, or the way back, the focus moves to the current
 item (`#stack-crumbs-current`, `tabindex="-1"`), never to `<body>` (D5).
+
+## Amendment 2026-11-08 — Labelled controls start on one edge *(the owner's report of 2026-11-08; Sprint 28 plan amendment D-A5; board `mockups/ux-design-2026-11-08-sprint28/07-basis-and-bar` ④, pick A; issue 1435)*
+
+**The rule, for every page:** a bar of **labelled controls** (a label beside
+a segmented control, a select or a chip family) is one component, and
+**when its groups wrap onto several rows, every control starts on the same
+edge**. A wrapping flex row of `label + control` pairs is never the layout:
+it puts each control right after its own label, so controls under one
+another sit offset by the difference of their labels (the stacked chart's
+bar at 390 px: 66, 118 and 84 px).
+
+- **One line while it fits.** Where every group fits on one line, the bar
+  stays one row, as today.
+- **A label column when it wraps (A).** Where the groups do not fit, the bar
+  becomes a two-column grid: the labels in one column as wide as the
+  longest label, the controls in the second, each control at its natural
+  width from the column's start. The switch is a container query on the
+  bar, not a viewport breakpoint, so the sidebar's width never decides it.
+- **Label above as the floor (B).** Where the label column and the widest
+  control together do not fit the bar's own width, every label moves above
+  its control, all at the bar's left edge. Never a control cut or scrolled
+  sideways.
+- **The label is the control's label**: `<label for>` for a select,
+  `aria-labelledby` for a segmented control's group, as today.
+
+*Why a rule and not a fix:* the defect is a layout habit, not one bar's
+CSS; every bar built as a wrapping row of pairs repeats it at some width.
+The stacked chart's bar is the component's first user (Sprint 28 S2); the
+other bars move to it, and a browser walk at 390 and 1200 px asserts the
+shared edge on every page (issue 1435, Sprint 29). Until then, a new bar of
+labelled controls is built as this component and its story names the rule.
+
+**The same day, for I1:** the stacked chart's basis broke UX-DR11 as
+amended by I1 (#1351; method sentences behind the section ⓘ, the short
+basis visible), five sentences open under the chart. Issue 1435 gives
+that rule its backstop too: no visible free paragraph past one sentence
+outside an ⓘ, a data note or a registered basis line.
