@@ -18,7 +18,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     * `GET /api/v1/news/digest` (`news.digest`) — one row per security with
       something new since `since` (default 24 hours before now), without
       labels and without a consumer cursor (§11): `view_id` (else the news
-      universe), `include_unlabeled` (`false`), `max_rows` (40, at most 100).
+      universe), `include_unlabeled` (`false`), `max_rows` (12, at most 40, C5).
       See `Portfolixir.News.Reads.digest/4`.
 
   **Compact by §9's rule:** enums as their codes, times to the second in
@@ -47,8 +47,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   @fields ~w(slim std)
 
   @digest_params ~w(view_id since include_unlabeled max_rows)
-  @digest_rows 40
-  @digest_rows_max 100
+  @digest_rows 12
+  @digest_rows_max 40
   @day_seconds 24 * 60 * 60
 
   def index(conn, params) do
@@ -287,7 +287,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   defp max_rows(value) do
     case Integer.parse(to_string(value)) do
       {rows, ""} when rows > 0 -> {:ok, min(rows, @digest_rows_max)}
-      _other -> {:error, %{"max_rows" => ["must be a positive integer (at most 100 is used)"]}}
+      _other -> {:error, %{"max_rows" => ["must be a positive integer (at most 40 is used)"]}}
     end
   end
 

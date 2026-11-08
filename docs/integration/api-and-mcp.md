@@ -1352,7 +1352,8 @@ with none stored.
   then that `include_unlabeled=false` left out (C5), and a security whose only
   news is such a story is not counted `quiet`, which counts the securities
   without a row and without one; `unassigned` and `ambiguous` the aggregator
-  items that became so since then that no security, or several, claim. `max_rows` (default 40, at most 100) caps the rows;
+  items that became so since then that no security, or several, claim. `max_rows` (default 12, which keeps the digest within its
+  budget; at most 40) caps the rows;
   `truncated` and `more` say how many were left out. This sprint's digest has
   no labels and no consumer cursor: `consumer`, `ack_cursor`,
   `min_materiality` and `tier_min` answer `422`.
