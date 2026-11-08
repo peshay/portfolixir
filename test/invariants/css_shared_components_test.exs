@@ -147,14 +147,16 @@ defmodule Portfolixir.Invariants.CssSharedComponentsTest do
   #
   # Acceptance criteria:
   # - One top-level rule names `.link-button:focus-visible`,
-  #   `.data-note a:focus-visible` and `.search-field:focus-within` and
-  #   draws the 2 px accent outline at a 2 px offset.
+  #   `.data-note a:focus-visible` and `.search-field:focus-within` (the
+  #   stacked chart's drill links and breadcrumb between them since the
+  #   Sprint 27 closing act, D5) and draws the 2 px accent outline at a 2 px
+  #   offset.
   # - The search field's input keeps `outline: none`: the field, which holds
   #   the glyph and the input, draws the ring around both.
   test "link-buttons, links in a note and the search fields draw the house ring" do
     [_, body] =
       Regex.run(
-        ~r/\n\.link-button:focus-visible,\n\.data-note a:focus-visible,\n\.search-field:focus-within \{([^}]*)\}/,
+        ~r/\n\.link-button:focus-visible,\n\.data-note a:focus-visible,\n(?:\.stack-[^{}\n]+,\n)*\.search-field:focus-within \{([^}]*)\}/,
         @css
       ) || flunk("no shared focus rule for link-buttons, note links and search fields")
 

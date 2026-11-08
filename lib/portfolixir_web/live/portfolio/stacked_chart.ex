@@ -73,7 +73,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
           <%= if path do %>
             <.link patch={path}><%= label %></.link>
           <% else %>
-            <span aria-current="location"><%= label %></span>
+            <span id="stack-crumbs-current" aria-current="location" tabindex="-1"><%= label %></span>
           <% end %>
         <% end %>
       </nav>
