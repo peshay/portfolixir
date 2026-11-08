@@ -36,8 +36,10 @@ defmodule Portfolixir.News.Fetcher do
   does.
 
   **The record** on the feed (`News.Feed.health_changeset/2`, not
-  journaled, B7): `last_fetch_at` the clock, read after the answer; on
-  success `last_ok_at` the clock, `last_error` cleared and the backoff
+  journaled, B7): `last_fetch_at` the clock, read after the answer, never
+  moved back by a fetch of the same feed that overlapped and finished later
+  (closing act, EDGE4); on success `last_ok_at` the clock (never moved
+  back), `last_error` cleared and the backoff
   reset. On failure `last_error` is a short code —
   `url_not_allowed:<reason>`, `http_<status>`, `timeout`,
   `transport_error`, `body_too_large`, `too_many_redirects`,
@@ -299,18 +301,34 @@ defmodule Portfolixir.News.Fetcher do
     end
   end
 
-  defp health(_feed, now, :ok),
-    do: %{last_fetch_at: now, last_ok_at: now, last_error: nil, failures: 0, retry_at: nil}
+  # Closing act, EDGE4: two fetches of one feed can overlap and finish out of
+  # their clocks' order, so the times recorded only move forward and the
+  # outcome that finishes last is recorded whatever its clock: a failure is
+  # never lost to `last_ok_at` running ahead of it.
+  defp health(feed, now, :ok) do
+    %{
+      last_fetch_at: later(feed.last_fetch_at, now),
+      last_ok_at: later(feed.last_ok_at, now),
+      last_error: nil,
+      failures: 0,
+      retry_at: nil
+    }
+  end
 
   defp health(feed, now, {:error, code}) do
+    recorded = %{last_fetch_at: later(feed.last_fetch_at, now), last_error: code}
+
     if backoff?(code) do
       failures = feed.failures + 1
       retry_at = DateTime.add(now, backoff_minutes(feed.interval_minutes, failures), :minute)
-      %{last_fetch_at: now, last_error: code, failures: failures, retry_at: retry_at}
+      Map.merge(recorded, %{failures: failures, retry_at: retry_at})
     else
-      %{last_fetch_at: now, last_error: code}
+      recorded
     end
   end
+
+  defp later(nil, now), do: now
+  defp later(stored, now), do: if(DateTime.compare(stored, now) == :gt, do: stored, else: now)
 
   # §5: the host asked for less (429) or is failing (5xx).
   defp backoff?("http_" <> status) do

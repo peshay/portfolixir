@@ -500,6 +500,41 @@ defmodule Portfolixir.News.FetcherTest do
     end
   end
 
+  # User story (closing act, EDGE4):
+  # As the operator reading a feed's health,
+  # I want a failed fetch recorded on the feed even when a later fetch of
+  # the same feed finished first,
+  # so that `last_error` never reads nil while the day counts the error.
+  #
+  # Acceptance criteria:
+  # - A failure whose clock is earlier than the feed's recorded fetch sets
+  #   `last_error`, keeps the later `last_fetch_at` and `last_ok_at`, and
+  #   counts in the day's errors.
+  # - A success whose clock is earlier never moves `last_fetch_at` or
+  #   `last_ok_at` back.
+  describe "overlapping fetches (closing act, EDGE4)" do
+    test "an earlier failure is recorded after a later success" do
+      feed = issuer_feed!()
+      later = DateTime.add(@now, 2, :minute)
+
+      assert {:ok, _} = fetch(feed, serving(rss([])), now: later)
+      assert {:error, "http_404"} = fetch(feed, serving("", 404), now: @now)
+
+      assert %{last_error: "http_404", last_fetch_at: ^later, last_ok_at: ^later} = reload(feed)
+      assert errors(feed) == 1
+    end
+
+    test "an earlier success never moves the record back" do
+      feed = issuer_feed!()
+      later = DateTime.add(@now, 2, :minute)
+
+      assert {:error, "http_404"} = fetch(feed, serving("", 404), now: later)
+      assert {:ok, _} = fetch(feed, serving(rss([])), now: @now)
+
+      assert %{last_error: nil, last_fetch_at: ^later, last_ok_at: @now} = reload(feed)
+    end
+  end
+
   # --- end closing act, Fix-1 -----------------------------------------------
 
   defp sec_url,
