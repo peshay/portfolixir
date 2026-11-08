@@ -42,8 +42,13 @@ defmodule Portfolixir.News.Stories do
       a story that has a true primary; a future claim is clamped (B4), so it
       cannot make an item the earliest.
     * **The earliest member** is the member earliest by
-      `(first_seen_at, canonical URL)`: the story's survivor key (B3),
-      stored on the story as `earliest_first_seen_at` and `earliest_url`.
+      `(first_seen_at, canonical URL)`, stored on the story as
+      `earliest_first_seen_at` and `earliest_url`.
+    * **The survivor member** (C2, ADR-0056 amendment of 2026-11-08) is
+      the member of the best tier, then the earliest `first_seen_at`, then
+      the smallest canonical URL: the story's survivor key. Within one
+      scheduler tick every item shares `first_seen_at`, so without the tier
+      first an attacker's URL would decide which story id survives.
     * Where two members agree on all of that, the comparison continues over
       their other stored fields (the other times, the tier, the hashes, the
       title); two items equal on all of them are indistinguishable to every
@@ -81,12 +86,13 @@ defmodule Portfolixir.News.Stories do
   threshold, or after a retention run removed an item that held a story
   together.
 
-  **Identity** (B3): each old story goes with its earliest member to the
-  new story that member is in. A new story that receives several keeps the
-  one whose earliest member is earliest by the survivor key, and the others
-  are deleted, merged into it; a new story that receives none is created.
-  So a story's id keeps pointing at the story that holds its earliest
-  member, as long as it lives. The writes keep N2's restrict keys: stories
+  **Identity** (B3, C2): each old story goes with its survivor member to
+  the new story that member is in. A new story that receives several keeps
+  the one whose survivor member is smallest by the survivor key, and the
+  others are deleted, merged into it; a new story that receives none is
+  created. So a story's id keeps pointing at the story that holds its
+  survivor member, as long as it lives, and a primary story's id is never
+  given up for a lower tier's. The writes keep N2's restrict keys: stories
   are inserted or updated first (a representative is an existing item),
   then members move, then the merged stories, by then empty, are deleted.
 
@@ -221,6 +227,10 @@ defmodule Portfolixir.News.Stories do
      DateTime.to_unix(item.published_at, :microsecond), Map.fetch!(@tier_rank, item.tier),
      item.title_norm_hash, Map.get(item, :content_hash) || "", Map.get(item, :title) || ""}
   end
+
+  # C2 (ADR-0056 amendment of 2026-11-08): the survivor key is the tier
+  # first, then the earliest first sight and the smallest URL.
+  defp survivor_key(item), do: {Map.fetch!(@tier_rank, item.tier), item_key(item)}
 
   # A threshold n / d as two integers, exact.
   defp ratio(%Decimal{} = similarity) do
@@ -547,8 +557,9 @@ defmodule Portfolixir.News.Stories do
     end
   end
 
-  # B3: each old story goes with its earliest member; a new story keeps the
-  # one whose earliest member is earliest by the survivor key. Answers
+  # B3 and C2: each old story goes with its survivor member (best tier, then
+  # earliest first sight, then smallest URL); a new story keeps the old one
+  # whose survivor member is smallest by that key. Answers
   # %{story index => old story id}.
   defp survivors(stories) do
     story_of =
@@ -561,8 +572,8 @@ defmodule Portfolixir.News.Stories do
     |> Enum.reject(&is_nil(&1.cluster_id))
     |> Enum.group_by(& &1.cluster_id)
     |> Enum.map(fn {id, members} ->
-      earliest = Enum.min_by(members, &item_key/1)
-      {Map.fetch!(story_of, earliest.id), {item_key(earliest), id}}
+      survivor = Enum.min_by(members, &survivor_key/1)
+      {Map.fetch!(story_of, survivor.id), {survivor_key(survivor), id}}
     end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
     |> Map.new(fn {index, claims} -> {index, claims |> Enum.min() |> elem(1)} end)
