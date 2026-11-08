@@ -14,7 +14,10 @@ defmodule Portfolixir.News.Ingest do
        else the feed's host;
     3. **drops a claim older than the retention window** (90 days before
        the clock), counted `dropped_old` (B4), so a feed that keeps listing
-       old items does not refill what retention removed;
+       old items does not refill what retention removed; an item retention
+       removed from this feed in the last 90 days (a tombstone of its
+       canonical URL, `Portfolixir.News.Retention`) is dropped the same way,
+       dated or not (closing act, COR2);
     4. **keys the item by its canonical URL** (`canonical_url/1`): a URL the
        feed already stored, or one repeated in the same answer, is `known`
        and neither stored nor counted again;
@@ -198,8 +201,35 @@ defmodule Portfolixir.News.Ingest do
     known = known_urls(feed, Enum.map(kept, & &1.canonical_url))
     {fresh, seen} = Enum.split_with(kept, &(not MapSet.member?(known, &1.canonical_url)))
 
-    {fresh, %{summary | known: length(seen)}}
+    removed = removed_urls(feed, Enum.map(fresh, & &1.canonical_url))
+    {fresh, gone} = Enum.split_with(fresh, &(not MapSet.member?(removed, &1.canonical_url)))
+
+    {fresh, %{summary | known: length(seen), dropped_old: summary.dropped_old + length(gone)}}
   end
+
+  # COR2: the URLs of `urls` that retention removed from this feed in the
+  # last 90 days (`news_item_tombstones`), so a dateless item is not stored
+  # again as new.
+  defp removed_urls(_feed, []), do: MapSet.new()
+
+  defp removed_urls(feed, urls) do
+    by_hash = Map.new(urls, &{url_hash(&1), &1})
+    hashes = Map.keys(by_hash)
+
+    from(t in "news_item_tombstones",
+      where: t.feed_id == ^feed.id and t.url_hash in ^hashes,
+      select: t.url_hash
+    )
+    |> Repo.all()
+    |> MapSet.new(&Map.fetch!(by_hash, &1))
+  end
+
+  @doc """
+  The SHA-256 of a canonical URL in lower-case hex, the key of a
+  tombstone (`news_item_tombstones`, closing act COR2).
+  """
+  @spec url_hash(String.t()) :: String.t()
+  def url_hash(url) when is_binary(url), do: sha256(url)
 
   defp empty_summary do
     %{

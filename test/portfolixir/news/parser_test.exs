@@ -88,8 +88,36 @@ defmodule Portfolixir.News.ParserTest do
             {"Tue, 03 Nov 2026 25:00:00 GMT", nil},
             {"Tue, 03 Foo 2026 10:00:00 GMT", nil},
             {"Tue, 03 Nov 2026 10:00:00 XYZ", nil},
-            {"2026-11-03T14:30:00Z", nil},
             {String.duplicate("1", 200), nil}
+          ] do
+        item = only_item(rss_item("<title>D</title><pubDate>#{raw}</pubDate>"))
+        assert item.published_at == expected, inspect(raw)
+      end
+    end
+
+    # Closing act, COR2: a date the parser could not read left the item
+    # dateless, and a dateless item came back after retention as new.
+    test "pubDate also reads ISO 8601, a one-digit hour and RFC 822's zone names" do
+      for {raw, expected} <- [
+            {"2026-11-03T14:30:00Z", ~U[2026-11-03 14:30:00Z]},
+            {"2026-11-03T14:30:00+01:00", ~U[2026-11-03 13:30:00Z]},
+            {"Tue, 03 Nov 2026 9:05:00 GMT", ~U[2026-11-03 09:05:00Z]},
+            {"Tue, 03 Nov 2026 9:05 +0100", ~U[2026-11-03 08:05:00Z]},
+            {"Tue, 03 Nov 2026 14:30:00 CDT", ~U[2026-11-03 19:30:00Z]},
+            {"Tue, 03 Nov 2026 14:30:00 MST", ~U[2026-11-03 21:30:00Z]},
+            {"Tue, 03 Nov 2026 14:30:00 UTC", ~U[2026-11-03 14:30:00Z]},
+            # RFC 822's military zones read as UTC, as RFC 5322 §4.3 says:
+            # RFC 822 gave their signs backwards, so the offset is unknown.
+            {"Tue, 03 Nov 2026 14:30:00 A", ~U[2026-11-03 14:30:00Z]},
+            {"Tue, 03 Nov 2026 14:30:00 m", ~U[2026-11-03 14:30:00Z]},
+            {"Tue, 03 Nov 2026 14:30:00 Y", ~U[2026-11-03 14:30:00Z]},
+            # Not RFC 822 names, and not guessed: CET, IST (India, Ireland or
+            # Israel), J (no military zone).
+            {"Tue, 03 Nov 2026 14:30:00 CET", nil},
+            {"Tue, 03 Nov 2026 14:30:00 IST", nil},
+            {"Tue, 03 Nov 2026 14:30:00 J", nil},
+            {"Tue, 03 Nov 2026 123:05:00 GMT", nil},
+            {"2026-11-03", nil}
           ] do
         item = only_item(rss_item("<title>D</title><pubDate>#{raw}</pubDate>"))
         assert item.published_at == expected, inspect(raw)

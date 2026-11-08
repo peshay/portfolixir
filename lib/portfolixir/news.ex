@@ -492,7 +492,7 @@ defmodule Portfolixir.News do
 
   Its items stay (§12): each is detached (`feed_id` null, nothing else
   changed), so it ages out by retention and a promoted one stays for good.
-  Its day counters go with it. Neither is journaled (B7). Answers
+  Its day counters and retention's tombstones of its items go with it. Neither is journaled (B7). Answers
   `{:ok, %{feed: feed, items_detached: n}}` or `{:error, :not_found}`.
   """
   @spec delete_feed(Actor.t(), pos_integer()) ::
@@ -513,6 +513,10 @@ defmodule Portfolixir.News do
           {:ok, detached}
         end)
         |> Multi.delete_all(:days, from(d in FeedDay, where: d.feed_id == ^feed.id))
+        |> Multi.delete_all(
+          :tombstones,
+          from(t in "news_item_tombstones", where: t.feed_id == ^feed.id)
+        )
         |> Multi.delete(:feed, &Journal.locked_row/1)
         |> Journal.record(actor,
           resource_type: "news_feed",
