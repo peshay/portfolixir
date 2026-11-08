@@ -9634,4 +9634,7 @@ bar wraps), `.stack-crumbs`, `.stack-figure` (the container),
 shared chart's rule (`.stack-chart .chart-axis-labels text`: muted, mono,
 `calc(9px * var(--chart-upx, 1))`), the `ChartScale` hook writes
 `--chart-upx` and `data-axis-inside` on `.stack-figure__chart` with
-`ChartCrosshair`'s measurement (D1).
+`ChartCrosshair`'s measurement (D1). `.stack-legend__drill`,
+`.stack-crumbs a` and the breadcrumb's current item draw the house focus
+ring, and after a drill, or the way back, the focus moves to the current
+item (`#stack-crumbs-current`, `tabindex="-1"`), never to `<body>` (D5).

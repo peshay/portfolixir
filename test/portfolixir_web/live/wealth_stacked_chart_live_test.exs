@@ -680,6 +680,50 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     end
   end
 
+  # User story (I23; the closing act's design critic, D5):
+  # As the operator drilling into a category by keyboard,
+  # I want the focus on the breadcrumb's current item after the drill,
+  # so that it does not fall back to the top of the page.
+  #
+  # Acceptance criteria:
+  # - The breadcrumb's current item is focusable by script
+  #   (`#stack-crumbs-current`, `tabindex="-1"`).
+  # - A drill by the legend's link or by the band, and the breadcrumb's way
+  #   back, ask the page to move the focus there (`focus-into-view`).
+  # - Opening a drilled address, and a change of sort, move no focus.
+  test "after a drill the focus moves to the breadcrumb's current item", %{conn: conn} do
+    w = stack_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+    assert has_element?(view, "#stack-crumbs-current[tabindex='-1'][aria-current='location']")
+
+    view
+    |> element("#stack-legend tr[data-band='category:#{w.income.id}'] a", "Income")
+    |> render_click()
+
+    settle(view)
+    assert_push_event(view, "focus-into-view", %{id: "stack-crumbs-current"})
+    assert text_of(view, "#stack-crumbs-current") == "Income"
+
+    view |> element("[data-role='stack-crumbs'] a", "All categories") |> render_click()
+    settle(view)
+    assert_push_event(view, "focus-into-view", %{id: "stack-crumbs-current"})
+
+    view
+    |> element("#performance-figure-stack path[data-band='category:#{w.income.id}']")
+    |> render_click()
+
+    settle(view)
+    assert_push_event(view, "focus-into-view", %{id: "stack-crumbs-current"})
+
+    {:ok, fresh, _html} = live(conn, "/portfolio?level=security&category=#{w.income.id}")
+    settle(fresh)
+    fresh |> element("[data-role='stack-sort'] a[data-sort='change']") |> render_click()
+    settle(fresh)
+    refute_push_event(fresh, "focus-into-view", %{id: "stack-crumbs-current"})
+  end
+
   # Polish: Wealth (#1366), the line of 2026-11-06: "/portfolio?tab=allocation
   # crashes in default_classification_id/1 on a database without any
   # classification".

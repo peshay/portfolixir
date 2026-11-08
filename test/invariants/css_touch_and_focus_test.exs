@@ -151,6 +151,42 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     assert ring =~ ~r/outline-offset:\s*2px;/
   end
 
+  # User story (I23; the closing act's design critic, D5):
+  # As the operator moving through the stacked chart by keyboard,
+  # I want a legend row's drill link and the breadcrumb's links to show the
+  # house focus ring,
+  # so that I see where I am, as on every other control.
+  #
+  # Acceptance criteria:
+  # - `.stack-legend__drill:focus-visible`, `.stack-crumbs a:focus-visible`
+  #   and the breadcrumb's current item, which takes the focus after a
+  #   drill (`.stack-crumbs [aria-current]:focus-visible`), are in the
+  #   shared text-like controls' rule: `outline: 2px solid` in the accent,
+  #   at a 2 px offset.
+  test "the stack's drill links and breadcrumb draw the 2 px accent focus ring" do
+    rule =
+      ~r/\n((?:[^{}\n]+,\n)*[^{}\n]+) \{([^}]*)\}/
+      |> Regex.scan(@css)
+      |> Enum.find(fn [_, selectors, _body] ->
+        selectors =~ ".stack-legend__drill:focus-visible"
+      end) ||
+        flunk("no focus rule for the stack's drill links")
+
+    [_, selectors, body] = rule
+
+    for selector <- [
+          ".stack-legend__drill:focus-visible",
+          ".stack-crumbs a:focus-visible",
+          ".stack-crumbs [aria-current]:focus-visible",
+          ".link-button:focus-visible"
+        ] do
+      assert selectors =~ selector
+    end
+
+    assert body =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert body =~ ~r/outline-offset:\s*2px;/
+  end
+
   # User story (#1033; board 06, H6.3, rule ③):
   # As the operator moving through the Overview by keyboard,
   # I want a row of "Abgeschlossene Trades", "Ziel-Abweichungen" or "Fällig"

@@ -489,7 +489,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp apply_stack(%{assigns: %{stack: stack}} = socket, stack), do: socket
 
   defp apply_stack(socket, stack) do
-    socket = assign(socket, :stack, stack)
+    socket =
+      socket
+      |> focus_crumb_after_drill(socket.assigns.stack, stack)
+      |> assign(:stack, stack)
 
     socket =
       if stack.level == :total,
@@ -769,6 +772,15 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   defp load_bands(socket), do: socket
+
+  # A drill into a category, or the breadcrumb's way back, removes the link
+  # that had the focus; the focus moves to the breadcrumb's current item,
+  # never to <body> (the closing act's design critic, D5; WCAG 2.4.3).
+  defp focus_crumb_after_drill(socket, %{category: before}, %{category: now})
+       when before != now,
+       do: push_event(socket, "focus-into-view", %{id: "stack-crumbs-current"})
+
+  defp focus_crumb_after_drill(socket, _before, _now), do: socket
 
   defp bands_request(socket),
     do: {socket.assigns.stack, socket.assigns.period, socket.assigns[:active_view_id]}

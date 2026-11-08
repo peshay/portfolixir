@@ -9270,9 +9270,15 @@ select:disabled {
    archived note's "Aktivieren"), every link inside a data note (the bond
    links of the two-scales notes) and the search field, whose input sets
    `outline: none` and so showed no focus at all; the field draws the ring
-   around its glyph and its input. The house's 2 px accent at 2 px. */
+   around its glyph and its input. The house's 2 px accent at 2 px. The
+   stacked chart's drill links and breadcrumb join it, the current item
+   too, which takes the focus after a drill (I23; the closing act's design
+   critic, D5). */
 .link-button:focus-visible,
 .data-note a:focus-visible,
+.stack-legend__drill:focus-visible,
+.stack-crumbs a:focus-visible,
+.stack-crumbs [aria-current]:focus-visible,
 .search-field:focus-within {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
