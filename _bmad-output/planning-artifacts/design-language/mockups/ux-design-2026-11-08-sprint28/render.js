@@ -9,9 +9,9 @@ const fs = require('fs');
 const path = require('path');
 
 const QUANTIZE = 'import sys\nfrom PIL import Image\nfor f in sys.argv[1:]:\n    Image.open(f).convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(f, optimize=True)\n';
-const BOARDS = ['01-news-view', '02-stack-filter', '03-ttwror-levels', '04-version', '05-currency-mismatch'];
+const BOARDS = ['01-news-view', '02-stack-filter', '03-ttwror-levels', '04-version', '05-currency-mismatch', '06-privacy-stack'];
 const FRAMES = path.join(__dirname, 'frames');
-const WIDTH = { '01-news-view': 1310, '02-stack-filter': 1090, '03-ttwror-levels': 1090, '04-version': 1960, '05-currency-mismatch': 1090 };
+const WIDTH = { '01-news-view': 1310, '02-stack-filter': 1090, '03-ttwror-levels': 1090, '04-version': 1960, '05-currency-mismatch': 1090, '06-privacy-stack': 1090 };
 
 (async () => {
   const launch = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {};
