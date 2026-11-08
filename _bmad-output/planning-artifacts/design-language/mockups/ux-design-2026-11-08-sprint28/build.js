@@ -7,7 +7,9 @@
 //   03 the stacked chart's levels in the TTWROR mode (FR-57, idea I28);
 //   04 the running instance's version at the foot of the menu (FR-55, I27);
 //   05 the currency_mismatch data-quality set on the Overview and as a
-//      filter on Wertpapiere (#1415).
+//      filter on Wertpapiere (#1415);
+//   06 the stacked chart in the privacy mode, the shape kept (the Sprint 28
+//      amendment of 2026-11-08).
 //
 // The chrome (sidebar, top bar, tabs, segmented controls, tables, the
 // stacked chart's bar and legend) is the app's own markup: the shell is
@@ -206,7 +208,7 @@ function stackSvg(bands, opts = {}) {
   }
   const step = max / 4;
   const ticks = lo < 0 ? [lo, 0, max / 2, max] : [0, step, 2 * step, 3 * step, max];
-  const ax = axes(ticks, y, (t) => nf0.format(t));
+  const ax = axes(ticks, y, opts.axis || ((t) => nf0.format(t)));
   const zero = lo < 0 ? `<line class="chart-zeroline" x1="${L}" x2="${R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity="0.5"></line>` : '';
   return `<svg class="stack-chart" role="img" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%">${ax.grid}${paths.join('')}${zero}${ax.labels}</svg>`;
 }
@@ -247,8 +249,8 @@ function bar({ crumbs, level, sort = 'Größe', tree = true }) {
   return `<div class="stack-bar"><nav class="stack-crumbs">${cr}</nav><div class="stack-bar__controls">${seg('Ebene', ['Gesamt', 'Kategorien', 'Wertpapiere'], level)}${treeSel}${sortSeg}</div></div>`;
 }
 function legend(head, rows, opts = {}) {
-  const body = rows.map((r) => `<tr><td class="stack-legend__name"><span class="stack-swatch" style="background: ${r.color}" aria-hidden="true"></span>${r.drill ? `<a class="stack-legend__drill">${esc(r.name)}</a><span class="stack-legend__chevron" aria-hidden="true">›</span>` : esc(r.name)}</td>${opts.ttwror ? '' : `<td class="num">${money(r.end)}</td><td class="num">${pct(r.share)}</td>`}<td class="num">${r.change === null ? '—' : pct(r.change)}</td></tr>`).join('');
-  const cols = opts.ttwror ? '<th scope="col" class="num">TTWROR</th>' : '<th scope="col" class="num">Wert</th><th scope="col" class="num">Anteil</th><th scope="col" class="num">Veränd.</th>';
+  const body = rows.map((r) => `<tr><td class="stack-legend__name"><span class="stack-swatch" style="background: ${r.color}" aria-hidden="true"></span>${r.drill ? `<a class="stack-legend__drill">${esc(r.name)}</a><span class="stack-legend__chevron" aria-hidden="true">›</span>` : esc(r.name)}</td>${opts.ttwror ? '' : `${opts.privacy ? '' : `<td class="num">${money(r.end)}</td>`}<td class="num">${pct(r.share)}</td>`}<td class="num">${r.change === null ? '—' : pct(r.change)}</td></tr>`).join('');
+  const cols = opts.ttwror ? '<th scope="col" class="num">TTWROR</th>' : `${opts.privacy ? '' : '<th scope="col" class="num">Wert</th>'}<th scope="col" class="num">Anteil</th><th scope="col" class="num">Veränd.</th>`;
   return `<table class="stack-legend"><thead><tr><th scope="col">${head}</th>${cols}</tr></thead><tbody>${body}</tbody></table>`;
 }
 function figure(svg, leg, basis) {
@@ -652,4 +654,28 @@ board('05-currency-mismatch.html', 'Sprint 28 — Board 05: die Menge „Währun
     { title: '③ Wertpapiere, der Filter-Chip', note: 'Wie die anderen Mengen ein Chip; aktiv zeigt er nur die abweichenden Wertpapiere.', frames: [B5.chips], recommended: true },
   ]);
 
-console.log('wrote frames/ and boards 01 to 05');
+// ===========================================================================
+// Board 06 — the stacked chart in the privacy mode (amends FR-53 / I22's 100 %)
+
+const PRIV_CSS = '.mock-privacy-on { display: inline-flex; gap: 6px; align-items: center; margin: 0 0 10px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; color: var(--color-accent); background: var(--color-accent-soft); border: 1px solid var(--color-accent); }';
+const privBands = withShares([...roots, cashBand, unclBand]).sort(bySize);
+// Today: each day's positive bands scaled to 100 %.
+const pctBands = privBands.map((b) => ({ ...b, values: b.values.map((v, i) => {
+  const pos = privBands.reduce((a, x) => a + Math.max(0, x.values[i]), 0);
+  return pos > 0 ? Math.max(0, v) / pos : 0;
+}) }));
+const start = privBands.reduce((a, x) => a + x.values[0], 0);
+const indexed = privBands.map((b) => ({ ...b, values: b.values.map((v) => v / start) }));
+const pctAxis = (t) => nf0.format(Math.round(t * 100)) + ' %';
+const privacyLine = '<span class="mock-privacy-on">Privatsphäre-Modus an</span>';
+const B6 = {};
+B6.today = sized(writeFrame('06a-privat-heute', `<div class="mock-pad">${privacyLine}${modeSeg('Wert (EUR)')}${bar({ crumbs: ['Alle Kategorien'], level: 'Kategorien' })}${figure(stackSvg(pctBands, { axis: pctAxis }), legend('Kategorie', privBands, { privacy: true }), 'Heute: im Privatsphäre-Modus ein 100-%-Stapel; jeder Tag auf 100 % gestreckt, so dass Einzahlungen, Kursverluste und das Wachstum des Ganzen aus dem Bild verschwinden.')}</div>`, { css: PRIV_CSS, width: 1000 }), 'heute — 100-%-Stapel');
+B6.after = sized(writeFrame('06b-privat-neu', `<div class="mock-pad">${privacyLine}${modeSeg('Wert (EUR)')}${bar({ crumbs: ['Alle Kategorien'], level: 'Kategorien' })}${figure(stackSvg(indexed, { axis: pctAxis }), legend('Kategorie', privBands, { privacy: true }), 'Neu: dieselbe Form wie ohne den Modus. Die Achse zeigt den Wert in Prozent des Gesamtwerts am ersten Tag des Zeitraums (100 %), wie die Linie „Wert (%)“ des Modus schon heute; kein Betrag in Achse, Legende oder Tooltip.')}</div>`, { css: PRIV_CSS, width: 1000 }), 'neu — Form wie ohne Modus');
+board('06-privacy-stack.html', 'Sprint 28 — Board 06: der gestapelte Chart im Privatsphäre-Modus', 1040,
+  `<div class="mock-pickbar"><p><strong>Was du am 2026-11-08 gesagt hast:</strong> im Wert-Modus mit Kategorien soll der Chart im Privatsphäre-Modus genauso aussehen wie ohne, nur ohne Euro-Beträge; aus der Form allein kann niemand schätzen, ob es 10.000 oder 10 Millionen sind. Das ändert FR-53 und D-4 von Sprint 27 („die Privatsphäre zeichnet einen 100-%-Stapel“).</p><p><strong>Was dieses Board festlegt (Amendment D-A2):</strong> die Achse in Prozent des Gesamtwerts am ersten Tag, wie die Regel aus Sprint 26 für jede Euro-Achse („indexiert auf den Start des Zeitraums“) und die Linie „Wert (%)“; die Legende ohne die Spalte Wert, mit Anteil und Veränderung; der Tooltip ohne Betrag. Gilt für jede Ebene und jeden Filter.</p></div>`,
+  [
+    { title: '① Heute', note: 'Der 100-%-Stapel: jeder Tag gleich hoch, die Bänder als Anteile.', frames: [B6.today] },
+    { title: '② Neu', note: 'Die Form des Wert-Charts bleibt; nur die Beträge verschwinden.', frames: [B6.after], recommended: true },
+  ]);
+
+console.log('wrote frames/ and boards 01 to 06');

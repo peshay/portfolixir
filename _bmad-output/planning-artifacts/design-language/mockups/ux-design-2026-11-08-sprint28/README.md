@@ -14,9 +14,10 @@ names each proposal with the phrase that flips it.
 | `03-ttwror-levels.html` → `03-ttwror-levels--light.png`, `--dark.png` | FR-57 (#1428): one line per band in the TTWROR mode, the view's line bold, at the category level and with the filter, a late band starting at 0 %. |
 | `04-version.html` → `04-version--light.png`, `--dark.png` | FR-55 (#1429): the version at the foot of the sidebar in its three states (a release, a development build, unknown) and at the bottom of the phone's menu. |
 | `05-currency-mismatch.html` → `05-currency-mismatch--light.png`, `--dark.png` | #1415: the Overview's data-quality line today and with the new clause for the `currency_mismatch` set, and its filter chip on Wertpapiere; captured from the review instance (`dq-line.html`, `dq-chips.html`) and changed in place. |
+| `06-privacy-stack.html` → `06-privacy-stack--light.png`, `--dark.png` | #1433, the Sprint 28 amendment's D-A2: the stacked chart in the privacy mode today (a 100 % stack) and as you asked on 2026-11-08 (the value chart's shape, the axis in percent of the window's first day, no amount). |
 | `capture.js` | Captures the shell (sidebar, top bar, the main element emptied) from the review instance into `shell.html`. |
 | `capture-dq.js` | Captures the Overview's data-quality block and the Wertpapiere filter chips into `dq-line.html` and `dq-chips.html`. |
-| `build.js` | Generates the synthetic series and writes `frames/` and the five boards. |
+| `build.js` | Generates the synthetic series and writes `frames/` and the six boards. |
 | `render.js` | Measures the frames, rebuilds, and renders each board to PNG at 1x, light and dark, reduced to 256 colours. |
 
 ## Synthetic data only
