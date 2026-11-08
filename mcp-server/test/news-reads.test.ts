@@ -156,4 +156,14 @@ describe("the news read tools", () => {
     const other = await callTool(createRecordingClient({ data: { id: 1 } }).client, "portfolixir.securities.get", { id: 1 });
     assert.ok(other.content[0].text.includes("\n"), "other tools keep their indented text");
   });
+
+  // --- closing act, Fix-1 (C7) ---------------------------------------------
+  // User story (ADR-0056 C7):
+  // As the operator's agent reading a feed's errors,
+  // I want news.health to say what err_24h counts,
+  // so that I do not read up to 48 hours of errors as the last 24.
+  it("says err_24h counts the errors of the server's current and previous day", () => {
+    assert.match(tool(HEALTH)?.description ?? "", /err_24h \(errors of the server's current and previous day\)/);
+  });
+  // --- end closing act, Fix-1 (C7) -----------------------------------------
 });
