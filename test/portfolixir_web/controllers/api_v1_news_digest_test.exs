@@ -302,9 +302,9 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
         "release-#{story_n}-quarterly-update-and-outlook.html"
 
   # 40 securities held in one portfolio, each with an issuer feed, names up
-  # to 31 characters. Over the 24 hours before now, 12 of them publish three
+  # to 31 characters. Over the 24 hours before now, 14 of them publish three
   # stories each (one story fetched from two links, so it counts two items),
-  # every title 160 characters and every excerpt 600; the other 28 are quiet
+  # every title 160 characters and every excerpt 600; the other 26 are quiet
   # (each with a story two days old). An aggregator adds items that name a
   # held security (assigned: shown only with include_unlabeled) and items no
   # security claims (unassigned).
@@ -321,7 +321,7 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
     |> Enum.each(fn {security, n} ->
       feed = issuer_feed!(security)
 
-      if n <= 12 do
+      if n <= 14 do
         for story <- 1..3 do
           copies = if story == 1, do: [1, 2], else: [1]
 
@@ -364,8 +364,9 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
   # so that reading the news costs the agent a known, small context.
   #
   # Acceptance criteria (characters / 4 of the JSON the tool returns):
-  # - the digest over the last 24 hours: at most 800 tokens; with nothing
-  #   new: at most 100;
+  # - the digest over the last 24 hours, at its default max_rows (12, C5)
+  #   with 14 securities active: 12 rows, truncated, at most 800 tokens;
+  #   with nothing new: at most 100;
   # - 20 rows of news.list: at most 1,500;
   # - news.get of a story with a 160-character title and a 600-character
   #   excerpt (the worst case the ingest stores): at most 400.
@@ -375,8 +376,17 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       securities = forty!(now)
 
       day = digest(conn)
-      assert %{"rows" => rows, "quiet" => 28, "unassigned" => 4} = json_response(day, 200)["data"]
+      # The default max_rows (12, C5) holds the budget: 14 securities have
+      # news, 12 rows are shown and the other two said.
+      assert %{"rows" => rows, "quiet" => 26, "unassigned" => 4} =
+               data = json_response(day, 200)["data"]
+
       assert length(rows) == 12
+      assert %{"truncated" => true, "more" => 2} = data
+
+      # A caller may still ask for up to 40.
+      wide = conn |> digest(max_rows: 40) |> json_response(200) |> Map.fetch!("data")
+      assert length(wide["rows"]) == 14 and wide["truncated"] == false
       assert Enum.all?(rows, &(&1["count"] == 3 and String.length(&1["top"]["title"]) == 100))
       assert Enum.all?(rows, &String.ends_with?(&1["top"]["title"], "…"))
       assert tokens(day) <= 800, "digest: #{tokens(day)} tokens"

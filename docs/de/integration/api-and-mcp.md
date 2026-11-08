@@ -1466,7 +1466,8 @@ gespeichertes Label gleich.
   Nachricht eine solche Story ist, zählt nicht als `quiet`, das die
   Wertpapiere ohne Zeile und ohne eine solche zählt; `unassigned` und
   `ambiguous` die seitdem so gewordenen Aggregator-Einträge, die kein
-  Wertpapier oder mehrere beanspruchen. `max_rows` (standardmäßig 40, höchstens 100) begrenzt
+  Wertpapier oder mehrere beanspruchen. `max_rows` (standardmäßig 12, womit der Digest in seinem Budget
+  bleibt; höchstens 40) begrenzt
   die Zeilen; `truncated` und `more` sagen, wie viele weggelassen wurden. Der
   Digest dieses Sprints hat keine Labels und keinen Verbraucher-Cursor:
   `consumer`, `ack_cursor`, `min_materiality` und `tier_min` ergeben `422`.
