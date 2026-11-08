@@ -637,6 +637,68 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
     end
   end
 
+  # User story (closing act, COR1):
+  # As the operator whose feed already stored items,
+  # I want its binding and its language kept while it has items, as its
+  # class is,
+  # so that a feed re-bound to another security does not leave its stored
+  # items on the old one for good.
+  #
+  # Acceptance criteria:
+  # - An issuer feed with items answers 422 on `security_id` for another
+  #   security and on `language` for another language; a thematic one on
+  #   `category_id`; nothing is written.
+  # - Without items, the same changes are written; with items, a change of
+  #   interval or enabled is.
+  describe "PUT /api/v1/news/feeds keeps a fed feed's binding (closing act, COR1)" do
+    test "the binding and the language do not change while the feed has items", %{conn: conn} do
+      security = security!()
+      other = security!("Southwind Shipping AG")
+      category = category!()
+      other_category = category!()
+
+      fed = feed!(%{class: "issuer", security_id: security.id})
+      item!(fed)
+
+      for {change, field} <- [
+            {%{security_id: other.id}, "security_id"},
+            {%{language: "de"}, "language"}
+          ] do
+        %{"errors" => errors} =
+          conn |> put_feed(Map.put(change, :id, fed.id)) |> json_response(422)
+
+        assert [message] = errors[field], inspect(errors)
+        assert message =~ "stored items"
+      end
+
+      thematic = feed!(%{class: "thematic", category_id: category.id})
+      item!(thematic)
+
+      %{"errors" => errors} =
+        conn
+        |> put_feed(%{id: thematic.id, category_id: other_category.id})
+        |> json_response(422)
+
+      assert [_message] = errors["category_id"]
+
+      assert %{security_id: security_id, language: "en"} = Repo.get!(Feed, fed.id)
+      assert security_id == security.id
+      assert Repo.get!(Feed, thematic.id).category_id == category.id
+
+      assert %{"data" => %{"interval_minutes" => 30}} =
+               conn |> put_feed(%{id: fed.id, interval_minutes: 30}) |> json_response(200)
+
+      empty = feed!(%{class: "issuer", security_id: security.id})
+
+      assert %{"data" => %{"security_id" => other_id, "language" => "de"}} =
+               conn
+               |> put_feed(%{id: empty.id, security_id: other.id, language: "de"})
+               |> json_response(200)
+
+      assert other_id == other.id
+    end
+  end
+
   # --- end closing act, Fix-1 -----------------------------------------------
 
   defp item!(feed) do

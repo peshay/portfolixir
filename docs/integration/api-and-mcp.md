@@ -1277,8 +1277,9 @@ Answers are compact: short codes, null fields left out.
   name resolution at once (B2): one that is not https, carries a user name,
   does not resolve or resolves to a private, loopback, link-local or reserved
   address answers `422` on `url` naming its code, e.g.
-  `url_not_allowed:private_address`. The class of a feed with stored items
-  does not change.
+  `url_not_allowed:private_address`. The class, the binding (`security_id`,
+  `category_id`) and the language of a feed with stored items do not
+  change: `422` on the field.
 - `DELETE /api/v1/news/feeds/:id` removes a feed and its day counters; its
   items stay, detached, until retention. Answers `id` and `items_detached`.
 - `PUT /api/v1/news/sources` rates a domain by hand from a `source` object,
