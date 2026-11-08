@@ -13,9 +13,10 @@ defmodule Portfolixir.News.Health do
     * `items_24h` — the feed's items first seen within the 24 hours before
       `now` (an item first seen exactly 24 hours ago is out, as the cap of
       A3 counts).
-    * `err_24h` — the errors of the feed's day rows of today and yesterday
-      (server days): every error of the last 24 hours and possibly older
-      ones, never fewer.
+    * `err_24h` — the errors of the server's current and previous day (the
+      feed's day rows of today and yesterday, server days; ADR-0056 C7):
+      every error of the last 24 hours and possibly older ones, up to 48
+      hours, never fewer.
     * `stale` — **true when the feed has had no successful fetch for 24
       hours** (§6): `now` is 24 hours or more after `last_ok_at`, so it
       flips at exactly 24 hours. A feed never fetched successfully counts
