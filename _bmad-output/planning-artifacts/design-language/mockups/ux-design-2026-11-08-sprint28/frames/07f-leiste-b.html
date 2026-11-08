@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07f-leiste-b</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-mode { display: flex; gap: 12px; margin: 0 0 12px; }
+.mock-pad { padding: 16px 20px; }
+</style>
+<style id="proposal">@media (max-width: 720px) {
+  .stack-bar__controls { display: grid; gap: 10px; width: 100%; }
+  .stack-bar__group, .stack-bar__tree { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+}</style>
+</head>
+<body><div class="mock-pad">
+<div class="stack-bar">
+<nav class="stack-crumbs"><span aria-current="location">Alle Kategorien</span>
+</nav>
+<div class="stack-bar__controls">
+<span class="stack-bar__group"><span class="stack-bar__label">Ebene</span>
+<div class="segmented-control" role="group">
+<a class="segmented-control__option">Gesamt</a>
+<a class="segmented-control__option is-active">Kategorien</a>
+<a class="segmented-control__option">Wertpapiere</a>
+</div></span>
+<form class="stack-bar__tree">
+<label>Klassifizierung</label>
+<select><option>Strategie</option>
+</select>
+</form>
+<span class="stack-bar__group"><span class="stack-bar__label">Sortieren</span>
+<div class="segmented-control" role="group">
+<a class="segmented-control__option is-active">Größe</a>
+<a class="segmented-control__option">Veränderung</a>
+</div></span>
+</div>
+</div>
+</div></body>
+</html>

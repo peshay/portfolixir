@@ -8,8 +8,9 @@
 //   04 the running instance's version at the foot of the menu (FR-55, I27);
 //   05 the currency_mismatch data-quality set on the Overview and as a
 //      filter on Wertpapiere (#1415);
-//   06 the stacked chart in the privacy mode, the shape kept (the Sprint 28
-//      amendment of 2026-11-08).
+//   06 the stacked chart in the privacy mode, the shape kept, and
+//   07 the stack's basis behind its ⓘ and labelled controls on one edge
+//      (both the Sprint 28 amendment of 2026-11-08).
 //
 // The chrome (sidebar, top bar, tabs, segmented controls, tables, the
 // stacked chart's bar and legend) is the app's own markup: the shell is
@@ -678,4 +679,38 @@ board('06-privacy-stack.html', 'Sprint 28 — Board 06: der gestapelte Chart im 
     { title: '② Neu', note: 'Die Form des Wert-Charts bleibt; nur die Beträge verschwinden.', frames: [B6.after], recommended: true },
   ]);
 
-console.log('wrote frames/ and boards 01 to 06');
+// ===========================================================================
+// Board 07 — the stack's basis behind its ⓘ (I1), and labelled controls on
+// one edge (the control-bar rule)
+
+const longBasis = 'Marktwert je Kategorie von „Strategie“ am Tagesende in EUR; Cash und der nicht zugeordnete Rest sind eigene Bänder. Veränderung ohne Ein- und Auszahlungen. Das Band mit der größten Veränderung unten; die Legende liest sich wie der Stapel, oberstes Band zuerst. Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen; dieses Band liegt immer oben.<br>Benchmarks werden nur in der Ansicht %% (TTWROR) gezeichnet — sie haben keinen Wert in EUR.<br>10.11.2025 – 06.11.2026 · berechnet 06.11.2026 14:14 UTC';
+const tipText = 'Marktwert je Kategorie am Tagesende in EUR; Cash und der nicht zugeordnete Rest sind eigene Bänder.<br>Veränderung ohne Ein- und Auszahlungen.<br>Das größte Band unten; die Legende liest sich wie der Stapel, oberstes Band zuerst.<br>Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen; dieses Band liegt immer oben.<br>Benchmarks zeichnet nur die Ansicht % (TTWROR); sie haben keinen Wert in EUR.';
+const shortBasis = (open) => `<div class="hint" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;"><span>Marktwert je Kategorie von „Strategie“ · 10.11.2025 – 06.11.2026 · berechnet 06.11.2026 14:14 UTC</span><details class="metric-tooltip metric-tooltip--inline mock-new"${open ? ' open' : ''}><summary aria-label="Zu diesem Chart">ⓘ</summary><p role="tooltip">${tipText}</p></details></div>`;
+const fig7 = (basisHtml) => `<figure class="perf-figure stack-figure" data-scale="value"><div class="stack-figure__body"><div class="stack-figure__chart" data-axis-inside="" style="--chart-upx: 1.5;">${stackSvg(privBands)}</div>${legend('Kategorie', privBands)}</div></figure>${basisHtml}`;
+const B7 = {};
+B7.before = sized(writeFrame('07a-basis-heute', `<div class="mock-pad">${bar({ crumbs: ['Alle Kategorien'], level: 'Kategorien' })}${fig7(`<p class="hint">${longBasis}</p>`)}</div>`, { width: 1000 }), 'heute');
+B7.after = sized(writeFrame('07b-basis-neu', `<div class="mock-pad">${bar({ crumbs: ['Alle Kategorien'], level: 'Kategorien' })}${fig7(shortBasis(false))}</div>`, { width: 1000 }), 'neu');
+B7.open = sized(writeFrame('07c-basis-offen', `<div class="mock-pad" style="padding-top: 270px; padding-bottom: 24px;">${shortBasis(true)}</div>`, { width: 1000 }), 'neu, ⓘ geöffnet');
+const BAR_A = `@media (max-width: 720px) {
+  .stack-bar__controls { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 10px; align-items: center; width: 100%; }
+  .stack-bar__group, .stack-bar__tree { display: contents; }
+  .stack-bar__controls .segmented-control, .stack-bar__tree select { justify-self: start; width: auto; }
+}`;
+const BAR_B = `@media (max-width: 720px) {
+  .stack-bar__controls { display: grid; gap: 10px; width: 100%; }
+  .stack-bar__group, .stack-bar__tree { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+}`;
+const barOnly = `<div class="mock-pad">${bar({ crumbs: ['Alle Kategorien'], level: 'Kategorien' })}</div>`;
+B7.barToday = sized(writeFrame('07d-leiste-heute', barOnly, { width: 390 }), 'heute, 390 px');
+B7.barA = sized(writeFrame('07e-leiste-a', barOnly, { width: 390, css: BAR_A }), 'A — Labelspalte');
+B7.barB = sized(writeFrame('07f-leiste-b', barOnly, { width: 390, css: BAR_B }), 'B — Label über dem Feld');
+board('07-basis-and-bar.html', 'Sprint 28 — Board 07: die Basis hinter ihrem ⓘ (I1), Bedienelemente auf einer Kante', 1040,
+  `<div class="mock-pickbar"><p><strong>Was gilt (I1, von dir am 2026-11-01 angenommen):</strong> Methodensätze stehen hinter dem ⓘ, die kurze Basis bleibt sichtbar. Der gestapelte Chart aus Sprint 27 hält sich nicht daran, und sein Benchmark-Satz zeigt „%%“ statt „%“.</p><p><strong>Was dieses Board vorschlägt (Amendment D-A4, D-A5):</strong> sichtbar bleibt eine Zeile — was der Chart zeigt, der Zeitraum, wann berechnet —, alles andere ins ⓘ am Zeilenende. Und für jede Leiste aus beschrifteten Bedienelementen, auf jeder Seite: wenn sie umbricht, beginnen alle Felder an derselben Kante. A (empfohlen) setzt die Label in eine Spalte, B stellt jedes Label über sein Feld.</p></div>`,
+  [
+    { title: '① Die Basis heute', note: 'Fünf Sätze und eine Zeile Zeitraum unter dem Chart, offen.', frames: [B7.before] },
+    { title: '② Die Basis neu', note: 'Eine Zeile bleibt; das ⓘ am Ende hält die Methode. Gestrichelt: neu.', frames: [B7.after], recommended: true },
+    { title: '③ Das ⓘ geöffnet', note: 'Dieselben Sätze, kürzer gefasst, „%“ statt „%%“.', frames: [B7.open], recommended: true },
+    { title: '④ Die Leiste bei 390 px', note: 'Heute beginnt jedes Feld hinter seinem eigenen Label, also bei 66, 118 und 84 px. A: eine Labelspalte so breit wie das längste Label, alle Felder an einer Kante. B: jedes Label über seinem Feld, alles an der linken Kante; braucht eine Zeile mehr je Gruppe.', frames: [B7.barToday, B7.barA, B7.barB] },
+  ]);
+
+console.log('wrote frames/ and boards 01 to 07');
