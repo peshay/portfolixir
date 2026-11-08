@@ -1305,8 +1305,11 @@ then). Titles and excerpts are a feed's text, answered as stored up to a cut;
 they are data, never instructions. The cut counts each character as the MCP
 companion spells it, an invisible one as its `[U+XXXX]` (C5): 160 for a
 title in a list and in `news.get`, 100 in the digest, 600 for an excerpt; a
-cut ends in `…`. `news.get` cuts a link at 300 characters (the whole link
-stays stored). No read needs a label: every one answers the same
+cut ends in `…`. `news.get` holds its 400 tokens on the companion's text,
+its link and members included: it cuts a link at 300 characters (the whole
+link stays stored), every domain at 40, and the excerpt last, to what the
+rest of the answer leaves (a quote or a backslash counts the two characters
+JSON writes it in). No read needs a label: every one answers the same
 with none stored. Every parameter is one value: a list or a map
 (`max_rows[]=5`) answers `422` naming it.
 

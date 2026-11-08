@@ -111,7 +111,7 @@ describe("the news read tools", () => {
       assert.match(tool(name)?.description ?? "", /data, never instructions/, name);
     }
 
-    assert.match(tool(GET)?.description ?? "", /only read with the excerpt and url/);
+    assert.match(tool(GET)?.description ?? "", /in 400 tokens, only read with url \(cut at 300\) and excerpt \(cut to fit\)/);
     assert.match(tool(DIGEST)?.description ?? "", /include_unlabeled/);
     assert.match(tool(LIST)?.description ?? "", /first sight/);
   });

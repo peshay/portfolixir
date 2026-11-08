@@ -123,13 +123,13 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   #   with tag-character titles: at most 800;
   # - 20 list rows with tag-character titles: at most 1,500;
   # - news.get of a story with a tag-character title and excerpt, a link
-  #   of 2,048 characters and five members: at most 400 besides its link,
+  #   of 2,048 characters and five members: at most 400, its link included,
   #   which is cut to 300 characters with an ellipsis (the whole link stays
-  #   stored). The link stands outside the budget: a 160-character title, a
-  #   600-character excerpt and five members leave about 100 characters of
-  #   400 tokens, and a link cut that short would be a wrong `source_url`
-  #   for the research log; 300 keeps ordinary links whole and costs at
-  #   most 75 tokens;
+  #   stored); the item's answer too (closing act, AG1 rest);
+  # - the worst case of the same, every domain of 253 characters: at most
+  #   400 with its link, the domains cut to 40, and the excerpt cut to what
+  #   the rest leaves; and a title and excerpt of JSON-quoted characters
+  #   (`"`, `\`), each two characters on the wire: at most 400;
   # - each answer is the fixture the companion's test measures.
   test "digest, list and get hold their budgets with invisible characters spelled",
        %{conn: conn, now: now} do
@@ -196,10 +196,72 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     one = get(conn, "/api/v1/news/stories/#{stored.cluster_id}")
     story = json_response(one, 200)["data"]
     assert String.length(story["url"]) == 300 and String.ends_with?(story["url"], "…")
-    assert tokens(one) - 300 / 4 <= 400, "get (tag characters, long link): #{tokens(one)}"
+    assert tokens(one) <= 400, "get (tag characters, long link): #{tokens(one)}"
     fixture!("get-tag-characters", one)
 
     one_item = get(conn, "/api/v1/news/items/#{stored.id}")
-    assert tokens(one_item) - 300 / 4 <= 400, "get item: #{tokens(one_item)}"
+    assert tokens(one_item) <= 400, "get item: #{tokens(one_item)}"
+
+    # --- closing act, AG1 rest: the worst case, every domain at 253 --------
+    worst = held!(world, 777)
+    worst_link = "https://" <> long_host(0) <> "/"
+    worst_link = worst_link <> String.duplicate("a", 2_048 - String.length(worst_link))
+
+    ingest!(
+      feed!(%{class: "issuer", security_id: worst.id}),
+      [item(tag_title(777), worst_link, %{excerpt: tag_excerpt()})],
+      hours_ago(now, 0.2)
+    )
+
+    for d <- 1..5 do
+      ingest!(
+        feed!(%{class: "issuer", security_id: worst.id}),
+        [item(tag_title(777), "https://#{long_host(d)}/x", %{excerpt: tag_excerpt()})],
+        hours_ago(now, 0.1)
+      )
+    end
+
+    worst_item = Repo.get_by!(Item, canonical_url: worst_link)
+    assert String.length(worst_item.domain) == 253
+
+    worst_get = get(conn, "/api/v1/news/stories/#{worst_item.cluster_id}")
+    worst_story = json_response(worst_get, 200)["data"]
+    assert length(worst_story["members"]) == 5
+    assert String.length(worst_story["url"]) == 300
+
+    for domain <- [worst_story["domain"] | Enum.map(worst_story["members"], & &1["domain"])] do
+      assert String.length(domain) == 40 and String.ends_with?(domain, "…"), domain
+    end
+
+    assert tokens(worst_get) <= 400, "get (worst case): #{tokens(worst_get)}"
+    fixture!("get-worst-case", worst_get)
+
+    worst_one = get(conn, "/api/v1/news/items/#{worst_item.id}")
+    assert tokens(worst_one) <= 400, "get item (worst case): #{tokens(worst_one)}"
+
+    quoted = held!(world, 778)
+    quote_link = "https://ir.example.com/q"
+
+    ingest!(
+      feed!(%{class: "issuer", security_id: quoted.id}),
+      [
+        item("Quote " <> String.duplicate(~s("), 154), quote_link, %{
+          excerpt: String.duplicate("\\", 600)
+        })
+      ],
+      hours_ago(now, 0.2)
+    )
+
+    quote_item = Repo.get_by!(Item, canonical_url: quote_link)
+    quote_get = get(conn, "/api/v1/news/stories/#{quote_item.cluster_id}")
+    assert tokens(quote_get) <= 400, "get (JSON-quoted text): #{tokens(quote_get)}"
+    # --- end closing act, AG1 rest ------------------------------------------
+  end
+
+  # A host of 253 characters, the most a name holds: three labels of 63
+  # and one of 53, then `.example`.
+  defp long_host(d) do
+    label = String.duplicate("n", 63)
+    Enum.join([label, label, label, String.pad_trailing("m#{d}", 53, "m"), "example"], ".")
   end
 end

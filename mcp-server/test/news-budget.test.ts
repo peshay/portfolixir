@@ -42,7 +42,8 @@ describe("the news reads' budgets, as the tool returns them", () => {
   //   characters spelled [U+E0041].
   // - news.get with a tag-character title and excerpt and a link of 2,048
   //   characters: the link cut to 300 characters, and at most 400 tokens
-  //   besides it.
+  //   with it (closing act, AG1 rest); so in the worst case, every domain
+  //   of 253 characters, cut to 40.
   it("holds the digest, list and get budgets with invisible characters spelled", async () => {
     const digest = await returned("portfolixir.news.digest", {}, "digest-soft-hyphens");
     assert.match(digest, /\[U\+00AD\]/);
@@ -59,6 +60,17 @@ describe("the news reads' budgets, as the tool returns them", () => {
     assert.match(get, /\[U\+E0041\]/);
     assert.equal(Array.from(url).length, 300);
     assert.ok(url.endsWith("…"));
-    assert.ok(tokens(get) - tokens(url) <= 400, `get: ${tokens(get)} tokens, ${tokens(url)} of them the link`);
+    assert.ok(tokens(get) <= 400, `get: ${tokens(get)} tokens, ${tokens(url)} of them the link`);
+
+    const worst = await returned("portfolixir.news.get", { cluster_id: 1 }, "get-worst-case");
+    const story = (JSON.parse(worst) as { data: { url: string; domain: string; members: { domain: string }[] } })
+      .data;
+    assert.match(worst, /\[U\+E0041\]/);
+    assert.equal(Array.from(story.url).length, 300);
+    assert.equal(story.members.length, 5);
+    for (const domain of [story.domain, ...story.members.map((member) => member.domain)]) {
+      assert.equal(Array.from(domain).length, 40, domain);
+    }
+    assert.ok(tokens(worst) <= 400, `get (worst case): ${tokens(worst)} tokens`);
   });
 });
