@@ -24,10 +24,11 @@ defmodule Portfolixir.News.Fetcher do
 
   **The request.** GET only, the parser's byte cap
   (`Portfolixir.News.Parser.max_bytes/0`, 8 MiB), a deadline on the whole
-  request (30 s) and a receive timeout (10 s). The user agent is
-  `PORTFOLIXIR_NEWS_USER_AGENT` (read in `config/runtime.exs`), else the
-  app's own. **A feed on `sec.gov`** or a subdomain: without the
-  operator's user agent it makes no request and records
+  request (30 s) and a receive timeout (10 s). The user agent is the
+  app's own, except **for a feed on `sec.gov`** or a subdomain (a trailing
+  dot or capitals in the name change nothing), which is sent
+  `PORTFOLIXIR_NEWS_USER_AGENT` (read in `config/runtime.exs`) and no
+  other host is (ADR-0056 C6): without the operator's user agent it makes no request and records
   `user_agent_missing` (the SEC asks for a contact; the repository carries
   none); its requests are paced to at most 10 a second across every feed
   (`Portfolixir.News.Pace`); and they go over IPv4, which Mint uses unless
@@ -153,9 +154,11 @@ defmodule Portfolixir.News.Fetcher do
   # operator's user agent. Only the configuration's test plug is merged.
   defp request(%Feed{url: url}, opts) do
     host = host(url)
-    user_agent = user_agent(opts)
+    paced? = paced?(host)
+    # C6: the operator's contact goes to sec.gov and its subdomains only.
+    user_agent = if paced?, do: user_agent(opts)
 
-    if paced?(host) and is_nil(user_agent) do
+    if paced? and is_nil(user_agent) do
       {:error, "user_agent_missing"}
     else
       req =
@@ -305,8 +308,12 @@ defmodule Portfolixir.News.Fetcher do
     if is_binary(value) and String.trim(value) != "", do: value
   end
 
-  defp paced?(host) when is_binary(host),
-    do: host == @paced_host or String.ends_with?(host, "." <> @paced_host)
+  # A name with a trailing dot is the same name (C6), so `www.sec.gov.`
+  # cannot skip the user agent or the pace.
+  defp paced?(host) when is_binary(host) do
+    host = String.trim_trailing(host, ".")
+    host == @paced_host or String.ends_with?(host, "." <> @paced_host)
+  end
 
   defp paced?(_host), do: false
 

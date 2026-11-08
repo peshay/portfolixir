@@ -16,7 +16,8 @@ if config_env() == :dev do
 end
 
 # The news fetcher's user agent (ADR-0056 §5, B8): the operator's own, with
-# the contact sec.gov asks for; without it a feed on sec.gov makes no request.
+# the contact sec.gov asks for, sent to sec.gov and its subdomains only (C6);
+# without it a feed on sec.gov makes no request.
 # Development and the release read it; the test suite never does.
 if config_env() in [:dev, :prod] do
   config :portfolixir, Portfolixir.News.Fetcher,
