@@ -257,6 +257,62 @@ defmodule Portfolixir.News.IngestTest do
   #   sorted candidates.
   # - Issuer and regulatory items land on their feed's security even when
   #   their title names another security of the universe.
+  # --- closing act, Fix-1 ---------------------------------------------------
+
+  # User story (closing act, COR4):
+  # As the operator reading a feed's health,
+  # I want an item a feed keeps listing and the ingest keeps dropping
+  # counted once a day, not once a fetch,
+  # so that one old filing reads as one drop, not 144.
+  #
+  # Acceptance criteria:
+  # - The same dropped item (old, no source, blocked or over the cap) is
+  #   counted once per feed, canonical URL, reason and server day, however
+  #   often it is fetched; the next server day counts it once again.
+  # - A fetch's own summary still reports what it dropped.
+  describe "drop counters (closing act, COR4)" do
+    test "a dropped item counts once per server day" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      old = parsed(1, %{published_at: DateTime.add(@now, -91, :day)})
+
+      for minutes <- [0, 10, 20] do
+        assert {:ok, %{dropped_old: 1}} =
+                 Ingest.ingest(feed, [old], DateTime.add(@now, minutes, :minute))
+      end
+
+      assert %{dropped_old: 1} = day(feed)
+
+      tomorrow = DateTime.add(@now, 1, :day)
+      assert {:ok, %{dropped_old: 1}} = Ingest.ingest(feed, [old], tomorrow)
+      assert {:ok, %{dropped_old: 1}} = Ingest.ingest(feed, [old], tomorrow)
+      assert total(feed, :dropped_old) == 2
+    end
+
+    test "a capped and a sourceless item count once a day too" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      flood = Enum.map(1..202, &parsed/1)
+
+      assert {:ok, %{dropped_cap: 2}} = Ingest.ingest(feed, flood, @now)
+
+      assert {:ok, %{dropped_cap: 2}} =
+               Ingest.ingest(feed, flood, DateTime.add(@now, 5, :minute))
+
+      assert %{dropped_cap: 2} = day(feed)
+
+      aggregator = feed!(%{class: "aggregator"})
+      sourceless = parsed(9, %{link: "https://wire.example.com/n/9"})
+
+      for minutes <- [0, 30] do
+        assert {:ok, %{dropped_no_source: 1}} =
+                 Ingest.ingest(aggregator, [sourceless], DateTime.add(@now, minutes, :minute))
+      end
+
+      assert %{dropped_no_source: 1} = day(aggregator)
+    end
+  end
+
+  # --- end closing act, Fix-1 -----------------------------------------------
+
   describe "matching at ingest (§2, §14 item 1)" do
     test "an aggregator item with one, none and several hits" do
       northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")

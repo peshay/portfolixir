@@ -12,9 +12,10 @@ defmodule Portfolixir.Journal.AllowlistTest do
   # Market-data ingestion only: quote sync and FX-rate sync. Shrinking this set
   # is fine; growing it is a deliberate ADR amendment, not a silent change.
   # ADR-0056 B7 adds the news layer's staging area: items, stories and the
-  # per-feed day counters; its closing act (COR2) retention's tombstones.
+  # per-feed day counters; its closing act retention's tombstones (COR2) and
+  # the day's record of dropped items (COR4).
   @expected_non_journaled MapSet.new(~w(security_quotes exchange_rates news_items news_clusters
-                               news_feed_days news_item_tombstones))
+                               news_feed_days news_item_tombstones news_feed_drops))
 
   test "the non-journaled allowlist is exactly the closed market-data set" do
     assert MapSet.new(Allowlist.non_journaled_tables()) == @expected_non_journaled

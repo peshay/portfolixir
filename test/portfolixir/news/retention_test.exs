@@ -327,6 +327,33 @@ defmodule Portfolixir.News.RetentionTest do
     end
   end
 
+  # User story (closing act, COR4):
+  # As the operator,
+  # I want the record of which items a day dropped pruned with that day's
+  # counters,
+  # so that it never outlives the figure it keeps honest.
+  describe "drop records (closing act, COR4)" do
+    test "go with the day rows they count" do
+      feed = feed!(%{class: "issuer", security_id: security!().id})
+      old = parsed(1, "Northwind lists an old release", %{published_at: days_ago(200)})
+
+      for days <- [31, 0] do
+        assert {:ok, %{dropped_old: 1}} = Ingest.ingest(feed, [old], days_ago(days))
+      end
+
+      count = fn ->
+        Repo.aggregate(from(d in "news_feed_drops", where: d.feed_id == ^feed.id), :count)
+      end
+
+      assert count.() == 2
+      Retention.run(@now)
+      assert count.() == 1
+
+      assert {:ok, _removed} = Portfolixir.News.delete_feed(Portfolixir.Actor.owner_ui(), feed.id)
+      assert count.() == 0
+    end
+  end
+
   # --- end closing act, Fix-1 -----------------------------------------------
 
   describe "no archive (§14 item 9)" do

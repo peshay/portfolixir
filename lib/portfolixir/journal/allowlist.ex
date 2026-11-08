@@ -26,10 +26,10 @@ defmodule Portfolixir.Journal.Allowlist do
   # staging area the fetcher, a registered system job, writes at up to 200
   # items per feed and day and retention empties after 90 days; the feeds
   # and sources they hang off are journaled master data. The closing act
-  # (COR2) adds retention's tombstones of removed items, a hash per feed and
-  # URL kept 90 days.
+  # (COR2, COR4) adds retention's tombstones of removed items, a hash per
+  # feed and URL kept 90 days, and the day's record of dropped items.
   @non_journaled_tables ~w(security_quotes exchange_rates news_items news_clusters news_feed_days
-                           news_item_tombstones)
+                           news_item_tombstones news_feed_drops)
 
   # ADR-0018 §5: view definitions, bucket assignments and the snapshot markers
   # (ADR-0027) are *scope* — which accounts and positions a view reads — not

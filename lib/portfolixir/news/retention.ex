@@ -32,7 +32,9 @@ defmodule Portfolixir.News.Retention do
   **Day rows** (`news_feed_days`) older than 30 days before the server's
   day of `now` are deleted: the health read (§6, A3) reads at most the
   last two days of them, and 30 days keep a month of drop and error counts
-  for a look back. The 30-day figures of a feed come from its items.
+  for a look back. The 30-day figures of a feed come from its items. The
+  record of which items each day dropped (`news_feed_drops`, closing act
+  COR4) is pruned with them.
 
   **When.** Once a server day, from the news scheduler's tick
   (`Portfolixir.News.Scheduler`), after that tick's fetches, in the same
@@ -174,6 +176,8 @@ defmodule Portfolixir.News.Retention do
   defp prune_days(now) do
     oldest = now |> Clock.local_date() |> Date.add(-@feed_days_kept)
     {count, _} = Repo.delete_all(from(d in FeedDay, where: d.day < ^oldest))
+    # COR4: the record of which items a day dropped goes with the day's row.
+    Repo.delete_all(from(d in "news_feed_drops", where: d.day < ^oldest))
     count
   end
 end
