@@ -42,7 +42,9 @@ defmodule Portfolixir.News.Ingest do
        an `aggregator` one `unassigned` with no candidates.
 
   The day's counters go to `news_feed_days` (the server's day of the
-  clock). Items and day rows are a staging area, not journaled (B7,
+  clock); a dropped item counts there once per feed, canonical URL, reason
+  and server day, however often it is fetched (`news_feed_drops`, closing
+  act COR4), while the fetch's summary reports every drop of its answer. Items and day rows are a staging area, not journaled (B7,
   `Portfolixir.Journal.Allowlist`); the fetcher that calls this is the
   registered system job.
 
@@ -118,7 +120,7 @@ defmodule Portfolixir.News.Ingest do
         {stored, summary} = store(feed, candidates, now, summary)
 
         count_day(feed, now, summary)
-        %{summary | items: stored}
+        summary |> Map.delete(:drops) |> Map.put(:items, stored)
       end)
 
     stored = summary.items
@@ -141,7 +143,8 @@ defmodule Portfolixir.News.Ingest do
       |> Enum.map(&%{&1 | tier: Sources.tier(&1.class, Map.get(rated, &1.domain))})
       |> Enum.split_with(&(&1.tier != :blocked))
 
-    {kept, %{summary | dropped_blocked: summary.dropped_blocked + length(blocked)}}
+    summary = drop(summary, :dropped_blocked, Enum.map(blocked, & &1.canonical_url))
+    {kept, summary}
   end
 
   # §2: the stored `aggregator` items are matched against the universe by
@@ -193,7 +196,8 @@ defmodule Portfolixir.News.Ingest do
       Enum.reduce(items, {[], empty_summary()}, fn item, {kept, summary} ->
         case candidate(feed, feed_host, item, oldest) do
           {:ok, attrs} -> {[attrs | kept], summary}
-          {:drop, counter} -> {kept, Map.update!(summary, counter, &(&1 + 1))}
+          {:drop, :incomplete} -> {kept, Map.update!(summary, :incomplete, &(&1 + 1))}
+          {:drop, counter} -> {kept, drop(summary, counter, [canonical_url(item.link)])}
         end
       end)
 
@@ -204,7 +208,19 @@ defmodule Portfolixir.News.Ingest do
     removed = removed_urls(feed, Enum.map(fresh, & &1.canonical_url))
     {fresh, gone} = Enum.split_with(fresh, &(not MapSet.member?(removed, &1.canonical_url)))
 
-    {fresh, %{summary | known: length(seen), dropped_old: summary.dropped_old + length(gone)}}
+    summary =
+      drop(%{summary | known: length(seen)}, :dropped_old, Enum.map(gone, & &1.canonical_url))
+
+    {fresh, summary}
+  end
+
+  # COR4: a drop counts in the fetch's summary at once, and in the day's row
+  # only once per feed, canonical URL, reason and server day
+  # (`count_day/3`, `news_feed_drops`).
+  defp drop(summary, counter, urls) do
+    summary
+    |> Map.update!(counter, &(&1 + length(urls)))
+    |> Map.update!(:drops, &(Enum.map(urls, fn url -> {counter, url} end) ++ &1))
   end
 
   # COR2: the URLs of `urls` that retention removed from this feed in the
@@ -241,7 +257,8 @@ defmodule Portfolixir.News.Ingest do
       dropped_old: 0,
       dropped_blocked: 0,
       invalid: 0,
-      items: []
+      items: [],
+      drops: []
     }
   end
 
@@ -324,7 +341,7 @@ defmodule Portfolixir.News.Ingest do
   defp store(feed, candidates, now, summary) do
     room = max(@cap - stored_in_window(feed, now), 0)
     {admitted, capped} = Enum.split(candidates, room)
-    summary = %{summary | dropped_cap: summary.dropped_cap + length(capped)}
+    summary = drop(summary, :dropped_cap, Enum.map(capped, & &1.canonical_url))
 
     Enum.reduce(admitted, {[], summary}, fn attrs, {stored, summary} ->
       changeset = Item.changeset(%Item{}, Map.put(attrs, :first_seen_at, now))
@@ -365,15 +382,56 @@ defmodule Portfolixir.News.Ingest do
   end
 
   defp count_day(feed, now, summary) do
+    new_drops = new_drops(feed, now, summary.drops)
+
     counts = [
       items_stored: summary.stored,
-      dropped_cap: summary.dropped_cap,
-      dropped_no_source: summary.dropped_no_source,
-      dropped_old: summary.dropped_old,
-      dropped_blocked: summary.dropped_blocked
+      dropped_cap: Map.get(new_drops, :dropped_cap, 0),
+      dropped_no_source: Map.get(new_drops, :dropped_no_source, 0),
+      dropped_old: Map.get(new_drops, :dropped_old, 0),
+      dropped_blocked: Map.get(new_drops, :dropped_blocked, 0)
     ]
 
     add_to_day(feed.id, now, counts)
+  end
+
+  @drop_reasons %{
+    dropped_cap: "cap",
+    dropped_no_source: "no_source",
+    dropped_old: "old",
+    dropped_blocked: "blocked"
+  }
+  @drop_counters Map.new(@drop_reasons, fn {counter, reason} -> {reason, counter} end)
+
+  # COR4: records this fetch's drops for the server day and answers, per
+  # counter, how many were not recorded yet: only those reach the day row.
+  defp new_drops(_feed, _now, []), do: %{}
+
+  defp new_drops(feed, now, drops) do
+    day = Clock.local_date(now)
+
+    drops
+    |> Enum.map(fn {counter, url} ->
+      %{
+        feed_id: feed.id,
+        url_hash: url_hash(url || ""),
+        reason: Map.fetch!(@drop_reasons, counter),
+        day: day
+      }
+    end)
+    |> Enum.uniq()
+    |> Enum.chunk_every(1_000)
+    |> Enum.flat_map(fn rows ->
+      {_count, inserted} =
+        Repo.insert_all("news_feed_drops", rows,
+          on_conflict: :nothing,
+          conflict_target: [:feed_id, :url_hash, :reason, :day],
+          returning: [:reason]
+        )
+
+      inserted
+    end)
+    |> Enum.frequencies_by(&Map.fetch!(@drop_counters, &1.reason))
   end
 
   @doc """

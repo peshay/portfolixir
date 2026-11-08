@@ -115,7 +115,8 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
         ~w(news feed),
         ~w(news items),
         ~w(news clusters),
-        ~w(news item tombstones)
+        ~w(news item tombstones),
+        ~w(news feed drops)
       ],
       kinds: [:table],
       class: :permanent,
@@ -123,7 +124,8 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
       reason:
         "ADR-0056 opened B3.3 for news feeds; retention §12 and the 600-char cap keep it " <>
           "from being an archive. Exactly the news layer's tables (feeds, sources, items, " <>
-          "stories, day counters, retention's URL-hash tombstones: closing act COR2); " <>
+          "stories, day counters, retention's URL-hash tombstones and the day's drop " <>
+          "record: closing act COR2, COR4); " <>
           "another news name (news_articles, news_archives) is " <>
           "still caught"
     },
@@ -288,7 +290,8 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
             {:table, "status_checks"},
             {:table, "news_items"},
             {:module, "Portfolixir.News.FeedDay"},
-            {:table, "news_item_tombstones"}
+            {:table, "news_item_tombstones"},
+            {:table, "news_feed_drops"}
           ] do
         assert violations(name) == [], "#{inspect(name)} should not be caught"
       end
