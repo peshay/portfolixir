@@ -254,6 +254,98 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       assert conn |> digest(view_id: 999_999_999) |> json_response(404)
     end
 
+    # User story (Sprint 27 closing act, polish):
+    # As the agent reading a view's digest with include_unlabeled,
+    # I want its counts to be the view's, not the whole instance's,
+    # so that a view without holdings does not report every category's
+    # stories and every unclaimed item as its own.
+    #
+    # Acceptance criteria:
+    # - With a view_id, categories and unassigned are left out (a view
+    #   holds securities, neither categories nor unclaimed items), and
+    #   ambiguous counts only the items naming one of the view's securities
+    #   among their candidates; without a view they stay instance-wide.
+    test "a view's digest leaves out categories and unassigned, and scopes ambiguous",
+         %{conn: conn, now: now} do
+      kept = base_world(name: "Kept", cash_name: "Kept cash", depot_name: "Kept depot")
+      held = held!(kept, "Northwind Harbour Logistics AG", ["Northwind"])
+      _other = held!(kept, "Southwind Shipping SE", ["Southwind"])
+      _third = held!(kept, "Eastwind Rail AG", ["Eastwind"])
+
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Empty bucket"})
+      {:ok, empty} = Buckets.create_view(Actor.owner_ui(), %{name: "Empty", include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), empty, [bucket.id], [])
+
+      ingest!(
+        feed!(%{class: "aggregator"}),
+        [
+          item("Northwind and Southwind share a berth", "https://agg.example.com/ns", %{
+            source_domain: "wire.example.com"
+          }),
+          item("Southwind and Eastwind share a line", "https://agg.example.com/se", %{
+            source_domain: "wire.example.com"
+          }),
+          item("Unrelated market chatter", "https://agg.example.com/u", %{
+            source_domain: "wire.example.com"
+          })
+        ],
+        hours_ago(now, 3)
+      )
+
+      ingest!(
+        feed!(%{class: "thematic", category_id: category!().id}),
+        [item("Water tariffs rise across the region", "https://theme.example.com/w")],
+        hours_ago(now, 4)
+      )
+
+      everything =
+        conn |> digest(include_unlabeled: true) |> json_response(200) |> Map.fetch!("data")
+
+      assert %{"unassigned" => 1, "ambiguous" => 2, "categories" => [_one]} = everything
+
+      none =
+        conn
+        |> digest(view_id: empty.id, include_unlabeled: true)
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert %{"rows" => [], "quiet" => 0, "ambiguous" => 0, "hidden" => 0} = none
+      refute Map.has_key?(none, "categories")
+      refute Map.has_key?(none, "unassigned")
+
+      {:ok, all_view} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+
+      viewed =
+        conn |> digest(view_id: all_view.id) |> json_response(200) |> Map.fetch!("data")
+
+      assert viewed["ambiguous"] == 2
+      assert viewed["hidden"] == 0
+      refute Map.has_key?(viewed, "unassigned")
+      assert held.id
+    end
+
+    # User story (Sprint 27 closing act, polish):
+    # As the agent whose client may send a parameter twice or as a list,
+    # I want a scalar parameter given as a list refused,
+    # so that `max_rows[]=5` is not read as a number it never was.
+    #
+    # Acceptance criteria:
+    # - A list or a map for any parameter of news.list or news.digest
+    #   answers 422 naming it.
+    test "a list for a scalar parameter answers 422 naming it", %{conn: conn} do
+      security = create_security!(name: "Listed Holdings", ticker: nil, asset_class: "equity")
+
+      for {path, key} <- [
+            {"/api/v1/news/digest?max_rows[]=5", "max_rows"},
+            {"/api/v1/news/digest?since[a]=2026-11-01", "since"},
+            {"/api/v1/news/stories?security_id=#{security.id}&limit[]=5", "limit"},
+            {"/api/v1/news/stories?security_id[]=#{security.id}", "security_id"}
+          ] do
+        errors = conn |> get(path) |> json_response(422) |> Map.fetch!("errors")
+        assert Map.has_key?(errors, key), "#{path}: #{inspect(errors)}"
+      end
+    end
+
     # The consumer cursor and the labels are Sprint 28's (§11): their
     # parameters are refused, never taken for a filter that ran.
     test "an unknown or malformed parameter answers 422 naming it", %{conn: conn} do

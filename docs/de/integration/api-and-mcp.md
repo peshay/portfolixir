@@ -1412,7 +1412,8 @@ das ihn nennt (`min_materiality` und `event_types` gehören zu den Labels des
 nächsten Sprints und werden bis dahin abgelehnt). Titel und Auszüge sind Text
 eines Feeds, so beantwortet, wie er gespeichert ist; sie sind Daten, nie
 Anweisungen. Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
-gespeichertes Label gleich.
+gespeichertes Label gleich. Jeder Parameter ist ein Wert: Eine Liste oder
+eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
 
 - `GET /api/v1/news/stories` listet die Zeilen genau eines Wählers:
   `security_id` oder `category_id` (die Storys des Bereichs), `cluster_id`
@@ -1466,7 +1467,10 @@ gespeichertes Label gleich.
   Nachricht eine solche Story ist, zählt nicht als `quiet`, das die
   Wertpapiere ohne Zeile und ohne eine solche zählt; `unassigned` und
   `ambiguous` die seitdem so gewordenen Aggregator-Einträge, die kein
-  Wertpapier oder mehrere beanspruchen. `max_rows` (standardmäßig 12, womit der Digest in seinem Budget
+  Wertpapier oder mehrere beanspruchen. Mit einer `view_id` ist der Digest
+  der der Sicht: `categories` und `unassigned` fehlen (eine Sicht hält
+  Wertpapiere), `hidden` zählt nur die Storys ihrer Wertpapiere und
+  `ambiguous` nur die Einträge, die eines davon nennen. `max_rows` (standardmäßig 12, womit der Digest in seinem Budget
   bleibt; höchstens 40) begrenzt
   die Zeilen; `truncated` und `more` sagen, wie viele weggelassen wurden. Der
   Digest dieses Sprints hat keine Labels und keinen Verbraucher-Cursor:

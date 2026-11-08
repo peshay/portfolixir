@@ -473,15 +473,22 @@ defmodule Portfolixir.News.Reads do
       `unassigned` and `ambiguous`
       — the aggregator items that became so after `since` (`scope_at`) that
       no security, or several, claim.
+    * **For a view** (`view: true`, closing act): a view holds securities,
+      so `categories` and `unassigned` are left out (nil), `hidden` counts
+      only the securities' stories, and `ambiguous` only the items naming
+      one of them among their candidates.
     * `max_rows` caps `rows` and `categories` each; `truncated` and `more`
       (the rows left out) say so.
   """
-  @spec digest([pos_integer()], DateTime.t(), boolean(), pos_integer()) :: map()
-  def digest(security_ids, %DateTime{} = since, include_unlabeled, max_rows)
+  @spec digest([pos_integer()], DateTime.t(), boolean(), pos_integer(), keyword()) :: map()
+  def digest(security_ids, %DateTime{} = since, include_unlabeled, max_rows, opts \\ [])
       when is_list(security_ids) and is_boolean(include_unlabeled) and is_integer(max_rows) do
+    view? = Keyword.get(opts, :view, false)
+
     {stories, hidden} =
       security_ids
       |> new_stories(since)
+      |> Enum.reject(&(view? and is_nil(&1.security_id)))
       |> Enum.split_with(&(&1.certain or include_unlabeled))
 
     {by_security, by_category} = Enum.split_with(stories, &(not is_nil(&1.security_id)))
@@ -501,14 +508,14 @@ defmodule Portfolixir.News.Reads do
     {shown_rows, left_rows} = Enum.split(rows, max_rows)
     {shown_categories, left_categories} = Enum.split(categories, max_rows)
     more = length(left_rows) + length(left_categories)
-    open = open_counts(since)
+    open = open_counts(since, if(view?, do: security_ids))
 
     %{
       rows: shown_rows,
-      categories: if(include_unlabeled, do: shown_categories),
+      categories: if(include_unlabeled and not view?, do: shown_categories),
       quiet: length(security_ids) - length(with_news),
       hidden: length(hidden),
-      unassigned: Map.get(open, :unassigned, 0),
+      unassigned: if(not view?, do: Map.get(open, :unassigned, 0)),
       ambiguous: Map.get(open, :ambiguous, 0),
       truncated: more > 0,
       more: if(more > 0, do: more)
@@ -578,7 +585,9 @@ defmodule Portfolixir.News.Reads do
   defp top_key(story),
     do: {-@tier_rank[story.tier], -DateTime.to_unix(story.at, :microsecond), story.url}
 
-  defp open_counts(since) do
+  # Without a view, every unassigned and ambiguous aggregator item; for a
+  # view, the ambiguous ones naming one of its securities.
+  defp open_counts(since, nil) do
     from(i in Item,
       where: i.class == :aggregator and i.assignment in [:unassigned, :ambiguous],
       where: i.scope_at > type(^since, :utc_datetime_usec),
@@ -587,5 +596,17 @@ defmodule Portfolixir.News.Reads do
     )
     |> Repo.all()
     |> Map.new()
+  end
+
+  defp open_counts(since, security_ids) do
+    ambiguous =
+      from(i in Item,
+        where: i.class == :aggregator and i.assignment == :ambiguous,
+        where: i.scope_at > type(^since, :utc_datetime_usec),
+        where: fragment("? && ?", i.candidates, type(^security_ids, {:array, :integer}))
+      )
+      |> Repo.aggregate(:count)
+
+    %{ambiguous: ambiguous}
   end
 end

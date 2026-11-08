@@ -105,7 +105,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
          {:ok, max_rows} <- max_rows(params["max_rows"]),
          as_of = Reads.as_of(),
          {:ok, security_ids} <- Reads.digest_securities(view_id) do
-      digest = Reads.digest(security_ids, since, include_unlabeled, max_rows)
+      digest =
+        Reads.digest(security_ids, since, include_unlabeled, max_rows, view: not is_nil(view_id))
 
       data =
         compact(%{
@@ -144,10 +145,12 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
 
   # A read's closed query: every key not taken is named (path parameters are
   # the route's, not the query's).
+  # Every parameter a news read takes is one value: a list or a map
+  # (`max_rows[]=5`) is refused naming it, never read as a string.
   defp closed(conn, allowed) do
     case Map.keys(conn.query_params) -- allowed do
       [] ->
-        :ok
+        scalars(conn.query_params)
 
       unknown ->
         message =
@@ -156,6 +159,13 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
             else: "is unknown: this read takes only #{Enum.join(allowed, ", ")}"
 
         {:error, Map.new(unknown, &{&1, [message]})}
+    end
+  end
+
+  defp scalars(params) do
+    case for({key, value} <- params, not is_binary(value), do: key) do
+      [] -> :ok
+      keys -> {:error, Map.new(keys, &{&1, ["must be a single value, not a list or a map"]})}
     end
   end
 
