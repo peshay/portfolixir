@@ -212,9 +212,16 @@ defmodule Portfolixir.News do
   logged and leaves the item in no story; the next recluster of its scope
   reads it as a seed.
 
+  **One at a time, with the aliases of the moment** (closing act, ORD5):
+  every call — the ingest's match and an identity change's re-match — runs
+  under one advisory lock, and compiles the universe only after it has
+  locked its items. An alias change committed before that point is matched
+  with; its re-match, waiting on the lock, reads what this call wrote. No
+  call writes an outcome read from aliases older than a re-match that
+  already ran, so no index is passed in.
+
   Items are a staging area written by a system job (B7), so nothing here is
-  journaled. Pass `universe:` (a `Portfolixir.News.Matcher` index) to reuse
-  one already compiled.
+  journaled.
   """
   @spec assign_aggregator_items([Item.t() | pos_integer()], keyword()) ::
           {:ok, assigned_counts()}
@@ -224,9 +231,8 @@ defmodule Portfolixir.News do
     if ids == [] do
       {:ok, %{assigned: 0, unassigned: 0, ambiguous: 0}}
     else
-      index = Keyword.get_lazy(opts, :universe, &Universe.aggregator_index/0)
       now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
-      {:ok, {counts, scopes}} = Repo.transaction(fn -> assign_locked(ids, index, now) end)
+      {:ok, {counts, scopes}} = Repo.transaction(fn -> assign_locked(ids, now) end)
       Enum.each(scopes, fn {scope, language} -> recluster(scope, language, now) end)
       {:ok, counts}
     end
@@ -269,7 +275,13 @@ defmodule Portfolixir.News do
   defp item_id(%Item{id: id}), do: id
   defp item_id(id) when is_integer(id), do: id
 
-  defp assign_locked(ids, index, now) do
+  # The matcher's advisory lock (ORD5), distinct from the app's others: every
+  # match and re-match runs under it, one at a time.
+  @matcher_lock 727_227_006
+
+  defp assign_locked(ids, now) do
+    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+
     items =
       Repo.all(
         from(i in Item,
@@ -281,6 +293,10 @@ defmodule Portfolixir.News do
         )
       )
 
+    # ORD5: compiled after the items are locked, so the aliases read are
+    # those committed by then; an identity change committed earlier has had
+    # its re-match, which this match can no longer overwrite.
+    index = Universe.aggregator_index()
     matched = Enum.map(items, &{&1, Matcher.matches(&1.title, index)})
     existing = existing_securities(matched)
 
