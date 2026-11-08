@@ -16,6 +16,12 @@ defmodule Portfolixir.News.Fetcher do
   pass between them; the byte cap, the deadline and the redirect check
   bound what such a fetch can do.
 
+  **Only a stored feed (closing act, SEC1).** `fetch/2` loads the feed's
+  row and fetches the URL stored for it; no caller hands it a URL, a
+  header or request options, and the request path is private. B2 pins
+  this module's stored-feed allow-list to it and registers its callers
+  (`Portfolixir.News` and `Portfolixir.News.Scheduler`).
+
   **The request.** GET only, the parser's byte cap
   (`Portfolixir.News.Parser.max_bytes/0`, 8 MiB), a deadline on the whole
   request (30 s) and a receive timeout (10 s). The user agent is
@@ -59,15 +65,41 @@ defmodule Portfolixir.News.Fetcher do
 
   @type code :: String.t()
 
+  @fetch_options [:now, :user_agent, :deadline_ms, :pace]
+
   @doc """
-  Fetches `feed` and records the outcome on it. Options: `:now` (the
-  server's clock, default now), `:user_agent` (overrides the configured
-  one; nil is none), `:req` (options merged into the request, as a test's
-  `plug:`), `:deadline_ms`, `:pace` (a function of the paced host returning
-  the milliseconds to wait, default `Portfolixir.News.Pace.reserve/1`).
+  Fetches the **stored** feed — given as its id or as a loaded `Feed` whose
+  id is read — and records the outcome on it. The row is loaded here, so
+  the request goes to the URL stored for the feed and nowhere a caller's
+  struct points (closing act, SEC1); a feed that is not stored answers
+  `{:error, "feed_not_found"}` and makes no request.
+
+  Options: `:now` (the server's clock, default now), `:user_agent`
+  (overrides the configured one; nil is none), `:deadline_ms`, `:pace` (a
+  function of the paced host returning the milliseconds to wait, default
+  `Portfolixir.News.Pace.reserve/1`). Any other option, request options
+  among them, raises `ArgumentError`: no caller adds a header, a plug or a
+  host to the request. The one plug merged is the test configuration's
+  (`config :portfolixir, Portfolixir.News.Fetcher, plug: ...`).
   """
-  @spec fetch(Feed.t(), keyword()) :: {:ok, Ingest.summary()} | {:error, code()}
-  def fetch(%Feed{} = feed, opts \\ []) do
+  @spec fetch(Feed.t() | integer(), keyword()) :: {:ok, Ingest.summary()} | {:error, code()}
+  def fetch(feed_or_id, opts \\ [])
+
+  def fetch(%Feed{id: id}, opts), do: fetch(id, opts)
+
+  def fetch(id, opts) do
+    opts = Keyword.validate!(opts, @fetch_options)
+
+    case stored(id) do
+      nil -> {:error, "feed_not_found"}
+      %Feed{} = feed -> run(feed, opts)
+    end
+  end
+
+  defp stored(id) when is_integer(id), do: Repo.get(Feed, id)
+  defp stored(_id), do: nil
+
+  defp run(feed, opts) do
     actor = actor()
     now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
 
@@ -83,13 +115,10 @@ defmodule Portfolixir.News.Fetcher do
     end
   end
 
-  @doc """
-  The request part of `fetch/2` without any write: checks the URL, builds
-  the request, waits for the pace and runs it. `{:ok, body}` for a 2xx
-  answer, else `{:error, code}`.
-  """
-  @spec get(Feed.t(), keyword()) :: {:ok, binary()} | {:error, code()}
-  def get(%Feed{url: url} = feed, opts \\ []) do
+  # The request part of `fetch/2` without any write: checks the URL, builds
+  # the request, waits for the pace and runs it. `{:ok, body}` for a 2xx
+  # answer, else `{:error, code}`.
+  defp get(%Feed{url: url} = feed, opts) do
     with :ok <- check(url),
          {:ok, req} <- request(feed, opts) do
       pace(host(url), opts)
@@ -119,13 +148,10 @@ defmodule Portfolixir.News.Fetcher do
     UrlPolicy.check(url, Keyword.merge(opts, resolve: true, allowed_hosts: allowed))
   end
 
-  @doc """
-  The bounded request for `feed` (see the moduledoc), or
-  `{:error, "user_agent_missing"}` for a `sec.gov` feed without the
-  operator's user agent. Options as `fetch/2`.
-  """
-  @spec request(Feed.t(), keyword()) :: {:ok, struct()} | {:error, code()}
-  def request(%Feed{url: url}, opts) do
+  # The bounded request for `feed` (see the moduledoc), or
+  # `{:error, "user_agent_missing"}` for a `sec.gov` feed without the
+  # operator's user agent. Only the configuration's test plug is merged.
+  defp request(%Feed{url: url}, opts) do
     host = host(url)
     user_agent = user_agent(opts)
 
@@ -141,10 +167,15 @@ defmodule Portfolixir.News.Fetcher do
           decode_body: false,
           headers: [{"user-agent", user_agent || @default_user_agent}, {"accept", @accept}]
         )
-        |> Req.merge(Keyword.get(config(), :req, []))
-        |> Req.merge(Keyword.get(opts, :req, []))
 
-      {:ok, req}
+      {:ok, merge_test_plug(req)}
+    end
+  end
+
+  defp merge_test_plug(req) do
+    case Keyword.get(config(), :plug) do
+      nil -> req
+      plug -> Req.merge(req, plug: plug)
     end
   end
 

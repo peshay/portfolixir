@@ -56,11 +56,12 @@ defmodule Portfolixir.News.SchedulerProcessTest do
 
     # A tick an hour away, sent by hand: the run is the test's to wait for,
     # so no fetch outlives the test's sandbox.
+    serve(plug)
+
     scheduler =
-      start_supervised!(
-        {Scheduler,
-         name: nil, enabled?: true, tick_ms: :timer.hours(1), fetch_opts: [req: [plug: plug]]}
-      )
+      start_supervised!({Scheduler, name: nil, enabled?: true, tick_ms: :timer.hours(1)})
+
+    Req.Test.allow(Portfolixir.News.Fetcher, self(), scheduler)
 
     send(scheduler, :tick)
     assert_receive :requested, 2_000
@@ -78,9 +79,9 @@ defmodule Portfolixir.News.SchedulerProcessTest do
       Plug.Conn.send_resp(conn, 200, rss([]))
     end
 
-    start_supervised!(
-      {Scheduler, name: nil, enabled?: false, tick_ms: 20, fetch_opts: [req: [plug: plug]]}
-    )
+    serve(plug)
+    scheduler = start_supervised!({Scheduler, name: nil, enabled?: false, tick_ms: 20})
+    Req.Test.allow(Portfolixir.News.Fetcher, self(), scheduler)
 
     refute_receive :requested, 200
   end
@@ -109,14 +110,12 @@ defmodule Portfolixir.News.SchedulerProcessTest do
 
     stale.(1)
 
+    serve(&no_feed/1)
+
     scheduler =
-      start_supervised!(
-        {Scheduler,
-         name: nil,
-         enabled?: true,
-         tick_ms: :timer.hours(1),
-         fetch_opts: [req: [plug: &no_feed/1]]}
-      )
+      start_supervised!({Scheduler, name: nil, enabled?: true, tick_ms: :timer.hours(1)})
+
+    Req.Test.allow(Portfolixir.News.Fetcher, self(), scheduler)
 
     send(scheduler, :tick)
     wait_until(fn -> :sys.get_state(scheduler).running == nil end)
