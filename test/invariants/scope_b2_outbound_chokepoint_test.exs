@@ -179,7 +179,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       {:config,
        "the user agent the news fetcher sends, with the operator's contact the SEC's " <>
          "fair-access policy asks for; without it a feed on sec.gov makes no request " <>
-         "(ADR-0056 §5, B8); a label sent to the feed's own host, never a host or a credential"},
+         "(ADR-0056 §5, B8); a label sent to sec.gov and its subdomains only (C6), never a " <>
+         "host or a credential"},
     "TZ" =>
       {:config,
        "the host clock's zone: what \"today\" is, and the zone each database session takes " <>

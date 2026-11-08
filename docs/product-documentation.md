@@ -3180,7 +3180,9 @@ the queue of unassigned and ambiguous items get their screen in Sprint 28.
 A filing feed on `sec.gov` needs your contact in the user agent the fetcher
 sends, as the SEC asks: set `PORTFOLIXIR_NEWS_USER_AGENT` as
 [Home Deployment](home-deployment.html#secrets-and-settings) describes. Until
-it is set, such a feed makes no request and reads `user_agent_missing`.
+it is set, such a feed makes no request and reads `user_agent_missing`. It is
+sent to `sec.gov` and its subdomains only; every other feed's host receives
+the application's own user agent.
 
 ## Imports
 

@@ -3505,7 +3505,9 @@ den der Abruf sendet, wie die SEC es verlangt: Setzen Sie
 `PORTFOLIXIR_NEWS_USER_AGENT`, wie es
 [Home-Deployment](home-deployment.html#geheimnisse-und-einstellungen) beschreibt.
 Bis dahin stellt ein solcher Feed keine Anfrage und zeigt
-`user_agent_missing`.
+`user_agent_missing`. Gesendet wird er nur an `sec.gov` und seine
+Subdomains; jeder andere Feed-Host erhält den eigenen User-Agent der
+Anwendung.
 
 ## Imports
 

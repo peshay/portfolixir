@@ -96,12 +96,15 @@ defmodule Portfolixir.News.FetcherTest do
       assert Repo.aggregate(from(i in Item, where: i.feed_id == ^feed.id), :count) == 2
     end
 
-    test "the operator's user agent is sent when set" do
+    # Closing act, C6: the operator's contact goes to sec.gov only.
+    test "the operator's user agent is not sent to a host other than sec.gov" do
       feed = issuer_feed!()
       fetch(feed, serving(rss([])), user_agent: "Example Operator ops@example.com")
 
       assert_received {:requested, _host, _path, headers}
-      assert {"user-agent", "Example Operator ops@example.com"} in headers
+      assert {"user-agent", agent} = List.keyfind(headers, "user-agent", 0)
+      assert agent =~ "portfolixir"
+      refute agent =~ "ops@example.com"
     end
   end
 
@@ -284,6 +287,63 @@ defmodule Portfolixir.News.FetcherTest do
     # The request is private (closing act, SEC1), so this reads what builds
     # it: the bounded client sets no `inet6` by default, and the fetcher's
     # source names none.
+    # User story (closing act, SEC3 and C6):
+    # As the operator,
+    # I want sec.gov recognised however its name is spelled, and my contact
+    # sent to it and its subdomains only,
+    # so that a trailing dot cannot skip the SEC's rules and no other host
+    # learns who I am.
+    #
+    # Acceptance criteria:
+    # - `www.sec.gov.` (a trailing dot) and `WWW.SEC.GOV` without the
+    #   operator's user agent make no request and record
+    #   `user_agent_missing`; with it, they are paced and sent it.
+    # - Every host but sec.gov and its subdomains receives the app's own
+    #   user agent, the operator's set or not.
+    test "a trailing dot or capitals do not skip the user agent or the pace" do
+      test_pid = self()
+      pace = fn key -> send(test_pid, {:paced, key}) && :ok end
+
+      for url <- [
+            "https://www.sec.gov./cgi-bin/browse-edgar?action=getcurrent",
+            "https://WWW.SEC.GOV/cgi-bin/browse-edgar?action=getcurrent",
+            "https://sec.gov./x"
+          ] do
+        feed = feed!(%{class: "regulatory", security_id: security!().id, url: url})
+
+        assert {:error, "user_agent_missing"} =
+                 fetch(feed, serving(rss([])), user_agent: nil, pace: pace),
+               url
+
+        refute_received {:requested, _, _, _}
+        refute_received {:paced, _}
+
+        assert {:ok, _} =
+                 fetch(feed, serving(rss([])),
+                   user_agent: "Example Operator ops@example.com",
+                   pace: pace
+                 )
+
+        assert_received {:paced, "sec.gov"}
+        assert_received {:requested, _host, _path, headers}
+        assert {"user-agent", "Example Operator ops@example.com"} in headers
+      end
+    end
+
+    test "a look-alike of sec.gov is neither paced nor sent the operator's user agent" do
+      test_pid = self()
+      pace = fn key -> send(test_pid, {:paced, key}) && :ok end
+
+      for url <- ["https://notsec.gov/x", "https://sec.gov.example.com/x"] do
+        feed = issuer_feed!(%{url: url})
+        fetch(feed, serving(rss([])), user_agent: "Example Operator ops@example.com", pace: pace)
+
+        refute_received {:paced, _}
+        assert_received {:requested, _host, _path, headers}
+        refute {"user-agent", "Example Operator ops@example.com"} in headers
+      end
+    end
+
     test "the request does not ask for IPv6" do
       req = Http.new(max_bytes: 1_000, allowed_hosts: ["www.sec.gov"])
 

@@ -958,8 +958,9 @@ defmodule Portfolixir.RuntimeConfig do
   The news fetcher's user agent, from `PORTFOLIXIR_NEWS_USER_AGENT`
   (ADR-0056 §5, B8): the operator's own, with the contact the SEC's
   fair-access policy asks for. Unset or blank is none (`nil`): a feed on
-  `sec.gov` then makes no request (`user_agent_missing`), and every other
-  feed is sent the app's own. A value is taken trimmed; one with a control
+  `sec.gov` then makes no request (`user_agent_missing`). Set or not, it
+  is sent to `sec.gov` and its subdomains only; every other feed is sent
+  the app's own (ADR-0056 C6). A value is taken trimmed; one with a control
   character is refused, naming the variable and not the value, because it
   becomes a request header.
   """
