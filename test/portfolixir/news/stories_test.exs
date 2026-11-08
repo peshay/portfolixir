@@ -9,6 +9,7 @@ defmodule Portfolixir.News.StoriesTest do
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Reads
   alias Portfolixir.News.Sources
   alias Portfolixir.News.Stories
   alias Portfolixir.Repo
@@ -419,6 +420,122 @@ defmodule Portfolixir.News.StoriesTest do
       }
 
       %{security: security, feeds: feeds}
+    end
+
+    # User story (ADR-0056 amendment of 2026-11-08, C1):
+    # As the operator and the agent reading an issuer's headlines,
+    # I want a chain of lower-tier items never to join two primary stories,
+    # so that ten true aggregator items, each a word away from the last,
+    # cannot fold a chief executive's resignation into last quarter's
+    # results and hide it from the digest and the list.
+    #
+    # Acceptance criteria:
+    # - The pure rule, in 50 shuffled orders, keeps the two issuer items in
+    #   two stories; the chain joins the one whose survivor key is smaller
+    #   (the earlier results), and the resignation stands alone.
+    # - Stored in 30 random orders with reclusters at random points, the
+    #   stored stories are those of the pure rule; the resignation's story
+    #   keeps its id once the chain arrives, and the digest and the list
+    #   show its headline.
+    # - A lower-tier item linked only through other lower-tier items to a
+    #   primary story joins it with them (the N5 fixture's cfo story).
+    test "C1: a lower-tier chain cannot join two primary stories", %{
+      security: security,
+      feeds: feeds
+    } do
+      scope = {:security, security.id}
+      results = {:results, :issuer, "newsroom.northwind.example", @results, 0, 0, "en"}
+      resigns = {:resigns, :issuer, "newsroom.northwind.example", @resigns, 24, 24, "en"}
+
+      links =
+        for {title, i} <- Enum.with_index(chain(@results, @resigns)),
+            do: {:"chain_#{i}", :aggregator, "attacker.example", title, 1 + i, 25, "en"}
+
+      rows = [results, resigns | links]
+      pure = Enum.map(rows, &pure_item/1)
+
+      for _round <- 1..50 do
+        stories = pure |> Enum.shuffle() |> Stories.cluster()
+        assert length(stories) == 2
+        [first, second] = stories
+        assert first.representative.key == :results
+        assert length(first.members) == length(rows) - 1
+        assert [%{key: :resigns}] = second.members
+      end
+
+      expected = MapSet.new(Stories.cluster(pure), &{urls(&1), &1.representative.canonical_url})
+      clocks = Enum.map(rows, &at(elem(&1, 5) + 1))
+
+      for _round <- 1..30 do
+        Repo.transaction(fn ->
+          rows
+          |> Enum.shuffle()
+          |> Enum.chunk_by(fn _row -> :rand.uniform(3) == 1 end)
+          |> Enum.each(fn batch ->
+            Enum.each(batch, &insert!(&1, security, feeds))
+            {:ok, _} = Stories.recluster(scope, "en", Enum.random(clocks))
+          end)
+
+          {:ok, _} = Stories.recluster(scope, "en", at(30))
+          assert stored(security, "en") == expected
+          Repo.rollback(:round_done)
+        end)
+      end
+
+      # In the order of the finding: the resignation's id survives the chain.
+      Repo.transaction(fn ->
+        insert!(results, security, feeds)
+        {:ok, _} = Stories.recluster(scope, "en", at(0))
+        resignation = insert!(resigns, security, feeds)
+        {:ok, _} = Stories.recluster(scope, "en", at(24))
+        held = Repo.reload!(resignation).cluster_id
+        Enum.each(links, &insert!(&1, security, feeds))
+        {:ok, _} = Stories.recluster(scope, "en", at(25))
+
+        assert Repo.reload!(resignation).cluster_id == held
+        assert {:ok, %{title: @resigns}} = Reads.story(held)
+
+        digest = Reads.digest([security.id], at(23), false, 10)
+        assert [%{top: %{title: @resigns}, count: 2}] = digest.rows
+
+        {:ok, page} = Reads.list(scope, limit: 20)
+        assert Enum.any?(page.rows, &(&1.title == @resigns))
+        Repo.rollback(:done)
+      end)
+    end
+
+    # The incremental recluster reads every story the relation links to
+    # the stories it rewrites, so C1's choice of a primary story is made
+    # with all of them: a lower-tier item whose nearest primary stories
+    # merge moves to the merged one even when it lies more than a window
+    # from the new item.
+    test "C1: a recluster after a merge of primary stories equals the full one", %{
+      security: security,
+      feeds: feeds
+    } do
+      scope = {:security, security.id}
+      base = "Northwind Harbour board approves new container terminal at Baltic port"
+
+      rows = [
+        {:q2, :issuer, "newsroom.northwind.example", base <> " alpha", -50, 300, "en"},
+        {:t, :issuer, "newsroom.northwind.example", base <> " beta gamma", 200, 301, "en"},
+        {:q1, :issuer, "newsroom.northwind.example", base <> " beta", 70, 302, "en"},
+        {:l, :aggregator, "attacker.example", base <> " beta", 140, 303, "en"}
+      ]
+
+      Enum.each(rows, &insert!(&1, security, feeds))
+      {:ok, _} = Stories.recluster(scope, "en", at(303))
+      seed = {:seed, :issuer, "newsroom.northwind.example", base, 0, 500, "en"}
+      insert!(seed, security, feeds)
+      {:ok, _} = Stories.recluster(scope, "en", at(500))
+
+      expected =
+        MapSet.new(
+          Stories.cluster(Enum.map([seed | rows], &pure_item/1)),
+          &{urls(&1), &1.representative.canonical_url}
+        )
+
+      assert stored(security, "en") == expected
     end
 
     test "C2: a merge keeps the primary story's id, whatever link the other has", %{

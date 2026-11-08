@@ -19,6 +19,14 @@ defmodule Portfolixir.News.Stories do
   A title without a word (`***`) links to nothing, not even to an equal
   title: there is nothing to compare.
 
+  **A primary story is anchored** (C1, ADR-0056 amendment of 2026-11-08):
+  the components are taken of the `primary` items alone and of the
+  lower-tier items alone; a lower-tier component the relation links to one
+  or more primary components joins, whole, the one whose survivor key
+  (below) is smallest, and any other lower-tier component is a story of
+  its own. So a chain of aggregator items, each a word away from the last,
+  never joins two primary stories into one and hides the newer headline.
+
   ## The title keys (`title_keys/1`)
 
   A title is normalized by: Unicode NFKC (full-width and compatibility
@@ -79,9 +87,13 @@ defmodule Portfolixir.News.Stories do
        seed can link to;
     3. **every member of every story a seed or a neighbour belongs to.**
 
-  The stored stories are the components of the stored items, so no link
-  runs between an item read and one not read: the components of what is
-  read are exact, and every other story stays as it is. With `full: true`
+  A stored story is a component of the stored items, or (C1) part of one:
+  a lower-tier component that joined one primary story may also be linked
+  to another. So the read is closed over the relation: every story with an
+  item linked to an item read is read whole, until no link runs between an
+  item read and one not read. The components of what is read are then
+  whole, C1 chooses with every primary story there is, and every other
+  story stays as it is. With `full: true`
   every item of the scope and language is read, for a changed window or
   threshold, or after a retention run removed an item that held a story
   together.
@@ -202,7 +214,7 @@ defmodule Portfolixir.News.Stories do
 
     entries
     |> adjacency(window, ratio)
-    |> components(tuple_size(entries))
+    |> anchored_components(entries)
     |> Enum.map(fn indices -> story(Enum.map(indices, &elem(entries, &1))) end)
     |> Enum.sort_by(& &1.earliest_key)
     |> Enum.map(&Map.delete(&1, :earliest_key))
@@ -285,10 +297,67 @@ defmodule Portfolixir.News.Stories do
     end
   end
 
-  # Connected components by a depth-first walk, each a list of indices.
-  defp components(adjacency, count) do
+  # C1 (ADR-0056 amendment of 2026-11-08): the components of the primary
+  # items alone, and of the lower-tier items alone; a lower-tier component
+  # the relation links to primary components joins the one whose survivor
+  # key is smallest, so no chain of lower-tier items joins two primary
+  # stories. Each list of indices is one story.
+  defp anchored_components(adjacency, entries) do
+    {primary, lower} =
+      0..(tuple_size(entries) - 1)//1
+      |> Enum.split_with(&(elem(entries, &1).item.tier == :primary))
+
+    anchors = components(restrict(adjacency, primary), primary)
+    anchor_of = for {members, n} <- Enum.with_index(anchors), i <- members, into: %{}, do: {i, n}
+
+    anchor_keys =
+      anchors
+      |> Enum.with_index()
+      |> Map.new(fn {members, n} ->
+        {n, members |> Enum.map(&survivor_key(elem(entries, &1).item)) |> Enum.min()}
+      end)
+
+    {joined, alone} =
+      adjacency
+      |> restrict(lower)
+      |> components(lower)
+      |> Enum.reduce({%{}, []}, fn members, {joined, alone} ->
+        linked =
+          members
+          |> Enum.flat_map(&Map.get(adjacency, &1, []))
+          |> Enum.flat_map(&List.wrap(Map.get(anchor_of, &1)))
+          |> Enum.uniq()
+
+        case linked do
+          [] ->
+            {joined, [members | alone]}
+
+          anchors ->
+            n = Enum.min_by(anchors, &Map.fetch!(anchor_keys, &1))
+            {Map.update(joined, n, members, &(members ++ &1)), alone}
+        end
+      end)
+
+    anchors
+    |> Enum.with_index()
+    |> Enum.map(fn {members, n} -> members ++ Map.get(joined, n, []) end)
+    |> Kernel.++(alone)
+  end
+
+  # The adjacency between `indices` only.
+  defp restrict(adjacency, indices) do
+    keep = MapSet.new(indices)
+
+    Map.new(Map.take(adjacency, indices), fn {i, links} ->
+      {i, Enum.filter(links, &MapSet.member?(keep, &1))}
+    end)
+  end
+
+  # Connected components of `indices` by a depth-first walk, each a list of
+  # indices.
+  defp components(adjacency, indices) do
     {components, _seen} =
-      Enum.reduce(0..(count - 1)//1, {[], MapSet.new()}, fn start, {acc, seen} ->
+      Enum.reduce(indices, {[], MapSet.new()}, fn start, {acc, seen} ->
         if MapSet.member?(seen, start) do
           {acc, seen}
         else
@@ -358,7 +427,7 @@ defmodule Portfolixir.News.Stories do
     window = options[:window_hours] * 3_600_000_000
     base = scope_items(scope, language)
 
-    case read_items(base, now, window, opts[:full] == true) do
+    case read_items(base, now, {window, ratio(options[:similarity])}, opts[:full] == true) do
       {[], []} -> {:ok, %{stories: 0, created: 0, merged: 0, moved: 0}}
       {items, old} -> write(cluster(items, options), old, scope, language)
     end
@@ -460,12 +529,12 @@ defmodule Portfolixir.News.Stories do
 
   # The seeds, their neighbours and every member of the stories they touch;
   # with `full`, every item of the scope. Answers {items, old stories}.
-  defp read_items(base, _now, _window, true = _full) do
+  defp read_items(base, _now, _relation, true = _full) do
     items = Repo.all(base)
     {items, old_stories(items)}
   end
 
-  defp read_items(base, now, window, false) do
+  defp read_items(base, now, {window, _ratio} = relation, false) do
     since = DateTime.add(now, -window, :microsecond)
 
     seeds =
@@ -480,7 +549,48 @@ defmodule Portfolixir.News.Stories do
       touched = story_ids(seeds ++ neighbours)
       members = Repo.all(from(i in base, where: i.cluster_id in ^touched))
       items = Enum.uniq_by(seeds ++ neighbours ++ members, & &1.id)
+      items = linked_stories(base, items, items, relation)
       {items, old_stories(items)}
+    end
+  end
+
+  # C1: a stored story may be linked to another (a lower-tier component
+  # joins only the primary story with the smallest survivor key), so the
+  # read is closed over the relation: every story linked to an item read is
+  # read whole, until none is left. The components read are then whole,
+  # and C1's choice is made with every primary story it could join.
+  defp linked_stories(_base, items, [], _relation), do: items
+
+  defp linked_stories(base, items, frontier, {window, ratio} = relation) do
+    read = MapSet.new(items, & &1.id)
+    frontier_entries = Enum.map(frontier, &entry/1)
+
+    linked =
+      from(i in base,
+        where: not is_nil(i.cluster_id) and i.id not in ^MapSet.to_list(read),
+        where: ^within(frontier, window)
+      )
+      |> Repo.all()
+      |> Enum.filter(fn candidate ->
+        candidate = entry(candidate)
+
+        Enum.any?(frontier_entries, fn item ->
+          abs(item.published - candidate.published) <= window and
+            linked?(item, candidate, ratio)
+        end)
+      end)
+
+    case story_ids(linked) do
+      [] ->
+        items
+
+      ids ->
+        added =
+          from(i in base, where: i.cluster_id in ^ids)
+          |> Repo.all()
+          |> Enum.reject(&MapSet.member?(read, &1.id))
+
+        linked_stories(base, items ++ added, added, relation)
     end
   end
 
