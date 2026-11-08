@@ -409,7 +409,7 @@ msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:351
 #: lib/portfolixir_web/live/dashboard_live.ex:1498
-#: lib/portfolixir_web/live/securities/bond_strip.ex:317
+#: lib/portfolixir_web/live/securities/bond_strip.ex:314
 #: lib/portfolixir_web/live/securities_live.ex:1697
 #: lib/portfolixir_web/live/securities_live.ex:4281
 #: lib/portfolixir_web/live/transaction_management_live.ex:133
@@ -1397,7 +1397,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:432
 #: lib/portfolixir_web/live/journal/row.ex:83
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:127
-#: lib/portfolixir_web/live/securities/bond_strip.ex:346
+#: lib/portfolixir_web/live/securities/bond_strip.ex:343
 #: lib/portfolixir_web/live/securities_live.ex:1695
 #: lib/portfolixir_web/live/securities_live.ex:3724
 #: lib/portfolixir_web/live/securities_live.ex:4283
@@ -6593,7 +6593,7 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:270
+#: lib/portfolixir_web/live/securities/bond_strip.ex:267
 #: lib/portfolixir_web/live/securities_live.ex:4981
 #, elixir-autogen, elixir-format
 msgid "no price"
@@ -7024,7 +7024,7 @@ msgstr ""
 #: lib/portfolixir_web/live/risk_live.ex:464
 #: lib/portfolixir_web/live/risk_live.ex:714
 #: lib/portfolixir_web/live/risk_live.ex:755
-#: lib/portfolixir_web/live/securities/bond_strip.ex:251
+#: lib/portfolixir_web/live/securities/bond_strip.ex:248
 #: lib/portfolixir_web/live/securities_live.ex:4169
 #: lib/portfolixir_web/live/securities_live.ex:4200
 #, elixir-autogen, elixir-format
@@ -10932,7 +10932,7 @@ msgstr ""
 msgid "%{years} years from"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:392
+#: lib/portfolixir_web/live/securities/bond_strip.ex:396
 #, elixir-autogen, elixir-format
 msgid ", last own trade price"
 msgstr ""
@@ -10963,7 +10963,7 @@ msgstr ""
 msgid "Coupon, maturity and denomination are not entered; without them there is no remaining term and no yield."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:209
+#: lib/portfolixir_web/live/securities/bond_strip.ex:206
 #, elixir-autogen, elixir-format
 msgid "Current yield"
 msgstr ""
@@ -11028,8 +11028,8 @@ msgstr ""
 msgid "Nominal held: %{amount} %{currency}, %{quantity} units × 100 %{currency} (one unit is a hundredth of the nominal)."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:300
-#: lib/portfolixir_web/live/securities/bond_strip.ex:329
+#: lib/portfolixir_web/live/securities/bond_strip.ex:297
+#: lib/portfolixir_web/live/securities/bond_strip.ex:326
 #, elixir-autogen, elixir-format
 msgid "Priced on two scales:"
 msgstr ""
@@ -11039,44 +11039,44 @@ msgstr ""
 msgid "Remaining term"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:312
+#: lib/portfolixir_web/live/securities/bond_strip.ex:309
 #, elixir-autogen, elixir-format
 msgid "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:231
+#: lib/portfolixir_web/live/securities/bond_strip.ex:228
 #, elixir-autogen, elixir-format
 msgid "Yield to maturity"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:368
+#: lib/portfolixir_web/live/securities/bond_strip.ex:365
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:563
 #, elixir-autogen, elixir-format
 msgid "annual"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:235
+#: lib/portfolixir_web/live/securities/bond_strip.ex:232
 #, elixir-autogen, elixir-format
 msgid "linear approximation"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:172
-#: lib/portfolixir_web/live/securities/bond_strip.ex:256
+#: lib/portfolixir_web/live/securities/bond_strip.ex:253
 #, elixir-autogen, elixir-format
 msgid "matured"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:268
+#: lib/portfolixir_web/live/securities/bond_strip.ex:265
 #, elixir-autogen, elixir-format
 msgid "no coupon entered"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:367
+#: lib/portfolixir_web/live/securities/bond_strip.ex:364
 #, elixir-autogen, elixir-format
 msgid "no interest payment"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:269
+#: lib/portfolixir_web/live/securities/bond_strip.ex:266
 #, elixir-autogen, elixir-format
 msgid "no maturity entered"
 msgstr ""
@@ -11093,12 +11093,12 @@ msgstr ""
 msgid "quote %{close} · price per unit %{price}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:301
+#: lib/portfolixir_web/live/securities/bond_strip.ex:298
 #, elixir-autogen, elixir-format
 msgid "quotes around 100 (latest %{close} on %{date}),"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:369
+#: lib/portfolixir_web/live/securities/bond_strip.ex:366
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:563
 #, elixir-autogen, elixir-format
 msgid "semi-annual"
@@ -11114,7 +11114,7 @@ msgstr ""
 msgid "Stock split for “%{security}”, the ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:262
+#: lib/portfolixir_web/live/securities/bond_strip.ex:259
 #, elixir-autogen, elixir-format
 msgid "trade price %{price} per unit, not percent of face"
 msgstr ""
@@ -11126,7 +11126,7 @@ msgid_plural "%{count} bonds are priced on two scales (quotes around 100, booked
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:305
+#: lib/portfolixir_web/live/securities/bond_strip.ex:302
 #, elixir-autogen, elixir-format
 msgid "booked price per unit around 1 (1 booking: %{price} on %{date})."
 msgid_plural "booked price per unit around 1 (%{count} bookings, the last %{price} on %{date})."
@@ -13155,19 +13155,19 @@ msgstr ""
 msgid "Quote does not match the bookings:"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:341
+#: lib/portfolixir_web/live/securities/bond_strip.ex:338
 #, elixir-autogen, elixir-format
 msgid "That means value, gain and weight count a hundred times too low. Check the stored quotes — a quote around 1 is not a percent of face:"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:334
+#: lib/portfolixir_web/live/securities/bond_strip.ex:331
 #, elixir-autogen, elixir-format
 msgid "booked price per unit around 100 (1 booking: %{price} on %{date})."
 msgid_plural "booked price per unit around 100 (%{count} bookings, the last %{price} on %{date})."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:330
+#: lib/portfolixir_web/live/securities/bond_strip.ex:327
 #, elixir-autogen, elixir-format
 msgid "quotes around 1 (latest %{close} on %{date}),"
 msgstr ""
