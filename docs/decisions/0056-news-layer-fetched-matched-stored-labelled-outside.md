@@ -632,11 +632,15 @@ headline disappears from the digest and the list, and the story id the
 agent held for it answers "not found". §7 already says a label never hides
 an issuer or regulatory story; a chain of lower-tier items must not either.
 **The rule:** within a scope and language, the B3 relation first builds the
-components of the `primary` items alone. A lower-tier item that the
+components of the `primary` items alone, and the lower-tier items form
+components among themselves by B3. A lower-tier component that the
 relation links to one or more primary components joins exactly one of
-them: the one whose survivor key (C2) is smallest. The remaining
-lower-tier items form components among themselves by B3. The result is
-still a function of the set of items, so no order decides it.
+them, whole: the one whose survivor key (C2) is smallest; the other
+lower-tier components are stories of their own. (So a secondary item
+linked to a primary one and an awareness item linked only to that
+secondary one stay one story, as §4's fixture expects; a chain linked to
+two primary stories joins one of them.) The result is still a function of
+the set of items, so no order decides it.
 **To flip:** "news primary chains" (B3 as written).
 
 ### C2. A story's survivor is chosen by tier first
