@@ -24,12 +24,16 @@ defmodule Portfolixir.News.Reads do
 
   ## Ordering and pages
 
-  Stories come newest first by their newest member's `scope_at`, then by
-  id; items by their `scope_at`, then by id. A page is `limit` rows; when
-  more matched, `truncated` is true and `cursor` (`<scope_at>~<id>` of
-  the page's last row) continues it. The ids only break ties between rows
-  entering their scope in the same microsecond; they decide no story and no
-  representative (B3).
+  Stories come newest first by their newest member's `scope_at`; items by
+  their `scope_at`. Rows that entered their scope in the same microsecond —
+  one scheduler tick stamps every item it stores alike — come by tier
+  (primary first), then by publication (the representative's, clamped;
+  newest first), then by link (the MD5 of the canonical URL), and only then
+  by id (closing act, ORD4): an aggregator's flood stored after an issuer's
+  release in one tick cannot push it off the first page. A page is `limit`
+  rows; when more matched, `truncated` is true and `cursor` (those five
+  keys of the page's last row) continues it in the same order, without
+  loss or repeat. The ids decide no story and no representative (B3).
   """
 
   import Ecto.Query
@@ -52,13 +56,20 @@ defmodule Portfolixir.News.Reads do
   @certain_classes ["issuer", "regulatory"]
   @tier_rank %{primary: 3, secondary: 2, awareness: 1}
 
+  # ORD4: a page's order within one `scope_at` is the tier first (0 for
+  # primary), then the publication, newest first, then the link's key (its
+  # MD5, so a cursor stays short however long the link), and the id last.
+  @tier_order %{primary: 0, secondary: 1, awareness: 2}
+  @rank_sql "CASE ? WHEN 'primary' THEN 0 WHEN 'secondary' THEN 1 ELSE 2 END"
+
   @type tier :: :primary | :secondary | :awareness
   @type selector ::
           {:security, pos_integer()}
           | {:category, pos_integer()}
           | {:cluster, pos_integer()}
           | {:assignment, :unassigned | :ambiguous}
-  @type cursor :: {DateTime.t(), pos_integer()}
+  @type cursor ::
+          {DateTime.t(), 0..2, DateTime.t(), String.t(), pos_integer()}
   @type list_opts :: [
           since: DateTime.t() | nil,
           tier_min: tier() | nil,
@@ -148,7 +159,13 @@ defmodule Portfolixir.News.Reads do
         on: r.id == c.representative_item_id,
         where: field(c, ^scope_field(scope)) == ^id,
         where: c.best_tier in ^tiers_from(opts[:tier_min]),
-        order_by: [desc: s.seen, desc: c.id],
+        order_by: [
+          desc: s.seen,
+          asc: fragment(@rank_sql, c.best_tier),
+          desc: r.published_at,
+          asc: fragment("md5(?)", r.canonical_url),
+          desc: c.id
+        ],
         limit: ^(limit + 1),
         select: %{
           id: c.id,
@@ -157,11 +174,18 @@ defmodule Portfolixir.News.Reads do
           at: r.published_at,
           count: c.member_count,
           url: r.canonical_url,
-          seen: s.seen
+          seen: s.seen,
+          link_key: fragment("md5(?)", r.canonical_url)
         }
       )
       |> since(opts[:since], dynamic([_c, s], s.seen))
-      |> after_cursor(opts[:cursor], dynamic([_c, s], s.seen), dynamic([c], c.id))
+      |> after_cursor(opts[:cursor], [
+        dynamic([_c, s], s.seen),
+        dynamic([c], fragment(@rank_sql, c.best_tier)),
+        dynamic([_c, _s, r], r.published_at),
+        dynamic([_c, _s, r], fragment("md5(?)", r.canonical_url)),
+        dynamic([c], c.id)
+      ])
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
@@ -176,7 +200,13 @@ defmodule Portfolixir.News.Reads do
     rows =
       from(i in Item,
         where: i.tier in ^tiers_from(opts[:tier_min]),
-        order_by: [desc: i.scope_at, desc: i.id],
+        order_by: [
+          desc: i.scope_at,
+          asc: fragment(@rank_sql, i.tier),
+          desc: i.published_at,
+          asc: fragment("md5(?)", i.canonical_url),
+          desc: i.id
+        ],
         limit: ^(limit + 1),
         select: %{
           id: i.id,
@@ -187,12 +217,19 @@ defmodule Portfolixir.News.Reads do
           candidates: i.candidates,
           url: i.canonical_url,
           note_ids: i.note_ids,
-          seen: i.scope_at
+          seen: i.scope_at,
+          link_key: fragment("md5(?)", i.canonical_url)
         }
       )
       |> where_items(selector)
       |> since(opts[:since], dynamic([i], i.scope_at))
-      |> after_cursor(opts[:cursor], dynamic([i], i.scope_at), dynamic([i], i.id))
+      |> after_cursor(opts[:cursor], [
+        dynamic([i], i.scope_at),
+        dynamic([i], fragment(@rank_sql, i.tier)),
+        dynamic([i], i.published_at),
+        dynamic([i], fragment("md5(?)", i.canonical_url)),
+        dynamic([i], i.id)
+      ])
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
@@ -218,20 +255,37 @@ defmodule Portfolixir.News.Reads do
   defp since(query, %DateTime{} = since, stamp),
     do: where(query, ^dynamic(^stamp > type(^since, :utc_datetime_usec)))
 
-  defp after_cursor(query, nil, _stamp, _id), do: query
+  # The rows after the cursor in the order (scope_at desc, tier, publication
+  # desc, link's key, id desc): `keys` are those five expressions.
+  defp after_cursor(query, nil, _keys), do: query
 
-  defp after_cursor(query, {%DateTime{} = cut, after_id}, stamp, id),
-    do:
-      where(
-        query,
-        ^dynamic(
-          ^stamp < type(^cut, :utc_datetime_usec) or
-            (^stamp == type(^cut, :utc_datetime_usec) and ^id < ^after_id)
-        )
+  defp after_cursor(query, {seen, rank, at, link_key, after_id}, [s, t, p, l, i]) do
+    last = dynamic(^i < ^after_id)
+    by_link = dynamic(^l > ^link_key or (^l == ^link_key and ^last))
+
+    by_at =
+      dynamic(
+        ^p < type(^at, :utc_datetime_usec) or
+          (^p == type(^at, :utc_datetime_usec) and ^by_link)
       )
 
+    by_rank = dynamic(^t > ^rank or (^t == ^rank and ^by_at))
+
+    where(
+      query,
+      ^dynamic(
+        ^s < type(^seen, :utc_datetime_usec) or
+          (^s == type(^seen, :utc_datetime_usec) and ^by_rank)
+      )
+    )
+  end
+
   defp cursor(_rows, []), do: nil
-  defp cursor(rows, _more), do: rows |> List.last() |> then(&{&1.seen, &1.id})
+
+  defp cursor(rows, _more) do
+    last = List.last(rows)
+    {last.seen, @tier_order[last.tier], last.at, last.link_key, last.id}
+  end
 
   defp put_story_notes([]), do: []
 

@@ -1423,7 +1423,9 @@ gespeichertes Label gleich.
   `count`; eine Eintragszeile ist `id`, `title`, `tier`, `at`, `domain` und,
   wenn mehrdeutig, `candidates` (Wertpapier-IDs). `fields=std` ergänzt `url`
   und `note_ids`. Die Zeilen kommen neueste zuerst nach dem Zeitpunkt, zu dem
-  sie in ihren Bereich kamen. `since` liest diesen Zeitpunkt, `scope_at`, die
+  sie in ihren Bereich kamen; Zeilen desselben Zeitpunkts (ein Abruf stempelt
+  seine Einträge gleich) nach Stufe, primäre zuerst, dann nach neuester
+  Veröffentlichung, dann nach Link, nie nach ID. `since` liest diesen Zeitpunkt, `scope_at`, die
   Uhr des Servers, nie die Angabe des Feeds (B4, C3): die erste Sichtung eines
   Eintrags oder den Zeitpunkt, zu dem ihn ein späterer Neuabgleich, eine
   Zusammenführung von Wertpapieren oder ein allein verbliebener Kandidat

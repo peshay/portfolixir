@@ -238,11 +238,15 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
 
   defp decode_cursor(value) when value in [nil, ""], do: {:ok, nil}
 
+  # `<scope_at>~<tier 0..2>~<publication>~<link key>~<id>` (Reads' order).
   defp decode_cursor(value) when is_binary(value) do
-    with [instant, id] <- String.split(value, "~"),
-         {:ok, at, 0} <- DateTime.from_iso8601(instant),
+    with [instant, rank, published, link_key, id] <- String.split(value, "~"),
+         {:ok, seen, 0} <- DateTime.from_iso8601(instant),
+         {rank, ""} when rank in 0..2 <- Integer.parse(rank),
+         {:ok, at, 0} <- DateTime.from_iso8601(published),
+         true <- link_key =~ ~r/\A[0-9a-f]{32}\z/,
          {:ok, id} <- IdParam.parse(id) do
-      {:ok, {at, id}}
+      {:ok, {seen, rank, at, link_key, id}}
     else
       _malformed -> {:error, %{"cursor" => ["is not a cursor this read answered"]}}
     end
@@ -251,7 +255,9 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   defp decode_cursor(_value), do: {:error, %{"cursor" => ["is not a cursor this read answered"]}}
 
   defp encode_cursor(nil), do: nil
-  defp encode_cursor({at, id}), do: DateTime.to_iso8601(at) <> "~" <> Integer.to_string(id)
+
+  defp encode_cursor({seen, rank, at, link_key, id}),
+    do: Enum.join([DateTime.to_iso8601(seen), rank, DateTime.to_iso8601(at), link_key, id], "~")
 
   defp view_id(value) when value in [nil, ""], do: {:ok, nil}
 

@@ -1313,7 +1313,9 @@ with none stored.
   to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
   `domain` and, when ambiguous, `candidates` (security ids). `fields=std` adds
   `url` and `note_ids`. Rows come newest first by the time they entered their
-  scope. `since` reads that time, `scope_at`, the server's clock, never the
+  scope; rows of the same instant (one fetch stamps its items alike) by
+  tier, primary first, then the newest publication, then the link, never by
+  id. `since` reads that time, `scope_at`, the server's clock, never the
   feed's claim (B4, C3): an item's first sight, or the time a later
   re-match, a security merge or a candidate left alone assigned it. A story
   is in when any of its items entered its scope after it, and `as_of` is the next
