@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01e-marker-a</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-mode { display: flex; gap: 12px; margin: 0 0 12px; }
+.mock-pad { padding: 16px 20px; }
+</style>
+<style id="proposal">
+.news-health { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.news-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; background: var(--color-bg-muted); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.news-chip.is-warn { color: var(--color-warning); background: var(--color-warning-soft); border-color: var(--color-warning); }
+.news-chip.is-bad { color: var(--color-danger); background: var(--color-danger-soft); border-color: var(--color-danger); }
+.news-tier { display: inline-block; padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; background: var(--color-bg-muted); color: var(--color-text-muted); }
+.news-tier--primary { background: var(--color-accent-soft); color: var(--color-accent); }
+.news-tier--blocked { text-decoration: line-through; }
+.news-label { display: inline-flex; gap: 4px; align-items: center; font-size: 11.5px; color: var(--color-text-muted); }
+.news-machine { font-size: 10px; font-weight: 700; padding: 0 5px; border: 1px dashed var(--color-border-strong); border-radius: 5px; color: var(--color-text-muted); }
+.news-tone { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--color-text-muted); }
+.news-tone--pos { background: #16a34a; } .news-tone--neg { background: #dc2626; }
+.news-title { font-weight: 600; }
+.news-sub { display: block; font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.news-assign { display: flex; gap: 6px; align-items: center; }
+.news-assign select { font-size: 12.5px; padding: 3px 6px; max-width: 150px; }
+.news-assign .button-ghost { white-space: nowrap; }
+.news-section { margin: 0 0 22px; }
+.news-section h3 { margin: 0 0 8px; font-size: 15px; }
+.area-tab-new { outline: 2px dashed var(--color-accent); outline-offset: -2px; border-radius: 6px; }
+.note-pin line { stroke-width: 1.2; stroke-dasharray: 2 3; }
+.note-pin circle { stroke: var(--color-bg); stroke-width: 1.5; }
+.note-pin--pos circle { fill: #16a34a; } .note-pin--pos line { stroke: #16a34a; }
+.note-pin--neg circle { fill: #dc2626; } .note-pin--neg line { stroke: #dc2626; }
+.note-pin--neu circle { fill: #6b7280; } .note-pin--neu line { stroke: #6b7280; }
+.note-dot { stroke: var(--color-bg); stroke-width: 1.5; }
+.chart-toggles { display: flex; gap: 14px; font-size: 12.5px; color: var(--color-text-muted); margin: 6px 0 0; }
+.chart-tip { position: absolute; padding: 8px 10px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-strong); border-radius: 8px; box-shadow: var(--shadow-panel); font-size: 12px; max-width: 260px; line-height: 1.4; }
+</style>
+</head>
+<body><aside class="detail-pane" style="position: static; max-height: none;">
+<header class="detail-pane-head">
+<div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">T</span>
+<div>
+<h2>Tech-Einzelwert A</h2>
+<p class="detail-pane-sub">XS0000000001 · TEA · EUR · Letzter 142,18 (06.11.2026)</p>
+</div>
+</div>
+</header>
+<nav class="detail-pane-tabs" role="tablist">
+<button type="button" role="tab" class="detail-pane-tab">Übersicht</button>
+<button type="button" role="tab" class="detail-pane-tab is-active">Diagramm</button>
+<button type="button" role="tab" class="detail-pane-tab">Transaktionen</button>
+<button type="button" role="tab" class="detail-pane-tab">Trades</button>
+<button type="button" role="tab" class="detail-pane-tab">Kurse</button>
+<button type="button" role="tab" class="detail-pane-tab">Bestände</button>
+<button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button>
+<button type="button" role="tab" class="detail-pane-tab">Research</button>
+<button type="button" role="tab" class="detail-pane-tab area-tab-new">Nachrichten</button>
+<button type="button" role="tab" class="detail-pane-tab">Prognosen</button>
+<button type="button" role="tab" class="detail-pane-tab">Termine</button>
+</nav>
+<section class="detail-tab-panel mock-pad">
+<div class="chart-frame" data-axis-inside="" style="--chart-upx: 1.6; position: relative;">
+<svg class="security-chart" role="img" viewBox="0 0 960 320" preserveAspectRatio="xMidYMid meet" width="100%">
+<g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+<line x1="56" y1="292.00" x2="936" y2="292.00">
+</line>
+<line x1="56" y1="200.00" x2="936" y2="200.00">
+</line>
+<line x1="56" y1="108.00" x2="936" y2="108.00">
+</line>
+<line x1="56" y1="16.00" x2="936" y2="16.00">
+</line>
+</g>
+<path class="quote-area" d="M56.0,219.1L59.4,202.8L62.8,203.2L66.2,218.8L69.6,193.0L73.0,217.2L76.4,228.4L79.8,221.7L83.2,229.6L86.6,231.8L90.0,241.1L93.4,236.5L96.8,225.1L100.2,240.4L103.6,247.2L107.0,274.1L110.4,254.7L113.8,245.3L117.2,255.2L120.6,266.0L124.0,266.3L127.4,257.1L130.7,268.9L134.1,270.4L137.5,269.8L140.9,266.2L144.3,266.5L147.7,260.6L151.1,235.5L154.5,233.5L157.9,236.4L161.3,245.8L164.7,240.1L168.1,237.3L171.5,240.1L174.9,234.4L178.3,233.2L181.7,219.1L185.1,212.2L188.5,189.7L191.9,173.2L195.3,177.6L198.7,160.6L202.1,148.5L205.5,145.0L208.9,133.7L212.3,118.0L215.7,104.5L219.1,136.0L222.5,124.5L225.9,131.5L229.3,109.3L232.7,111.9L236.1,135.3L239.5,156.8L242.9,145.6L246.3,113.6L249.7,129.1L253.1,149.3L256.5,159.7L259.9,160.3L263.3,158.5L266.7,152.6L270.1,136.4L273.5,156.3L276.8,166.5L280.2,171.9L283.6,163.2L287.0,151.6L290.4,136.6L293.8,137.5L297.2,145.3L300.6,150.4L304.0,153.6L307.4,128.8L310.8,147.8L314.2,140.6L317.6,122.6L321.0,116.9L324.4,120.8L327.8,98.9L331.2,102.7L334.6,99.1L338.0,112.6L341.4,115.6L344.8,139.5L348.2,162.2L351.6,157.3L355.0,171.5L358.4,185.4L361.8,183.1L365.2,184.9L368.6,187.0L372.0,167.0L375.4,156.1L378.8,172.9L382.2,158.9L385.6,166.4L389.0,191.0L392.4,215.6L395.8,221.3L399.2,229.0L402.6,221.0L406.0,199.5L409.4,184.7L412.8,186.3L416.2,182.7L419.6,179.8L422.9,178.0L426.3,175.7L429.7,167.2L433.1,177.4L436.5,170.5L439.9,172.3L443.3,171.0L446.7,170.1L450.1,165.7L453.5,183.4L456.9,192.0L460.3,167.9L463.7,178.3L467.1,206.3L470.5,199.9L473.9,189.1L477.3,193.5L480.7,182.0L484.1,180.3L487.5,185.6L490.9,182.1L494.3,193.8L497.7,181.3L501.1,158.2L504.5,162.0L507.9,136.3L511.3,122.9L514.7,144.4L518.1,137.6L521.5,132.2L524.9,136.9L528.3,146.1L531.7,141.3L535.1,148.7L538.5,167.6L541.9,178.8L545.3,182.8L548.7,156.4L552.1,132.0L555.5,144.9L558.9,148.2L562.3,154.2L565.7,141.7L569.1,148.0L572.4,162.5L575.8,158.9L579.2,154.3L582.6,166.1L586.0,144.2L589.4,151.6L592.8,150.1L596.2,132.4L599.6,163.1L603.0,159.6L606.4,156.7L609.8,174.1L613.2,184.1L616.6,181.3L620.0,176.9L623.4,185.2L626.8,164.2L630.2,185.8L633.6,172.7L637.0,190.2L640.4,196.1L643.8,190.3L647.2,173.3L650.6,173.7L654.0,192.0L657.4,180.1L660.8,202.1L664.2,202.0L667.6,193.0L671.0,176.5L674.4,158.9L677.8,147.0L681.2,122.3L684.6,125.5L688.0,122.4L691.4,97.7L694.8,102.1L698.2,99.4L701.6,115.5L705.0,120.5L708.4,105.8L711.8,85.8L715.2,97.7L718.5,86.1L721.9,67.6L725.3,53.4L728.7,40.9L732.1,60.6L735.5,95.2L738.9,93.3L742.3,103.8L745.7,118.1L749.1,157.7L752.5,160.1L755.9,154.3L759.3,182.8L762.7,180.4L766.1,208.9L769.5,205.2L772.9,194.1L776.3,178.1L779.7,162.9L783.1,151.9L786.5,121.6L789.9,111.7L793.3,105.7L796.7,111.3L800.1,122.2L803.5,120.6L806.9,134.6L810.3,118.9L813.7,111.6L817.1,115.5L820.5,119.3L823.9,135.4L827.3,150.8L830.7,161.1L834.1,158.6L837.5,143.7L840.9,151.0L844.3,132.3L847.7,152.8L851.1,142.7L854.5,131.2L857.9,136.2L861.3,127.3L864.6,126.5L868.0,116.3L871.4,140.7L874.8,135.5L878.2,157.2L881.6,143.7L885.0,133.3L888.4,142.7L891.8,144.4L895.2,121.2L898.6,103.8L902.0,98.7L905.4,90.2L908.8,85.8L912.2,71.7L915.6,64.4L919.0,63.3L922.4,64.4L925.8,47.6L929.2,46.5L932.6,66.7L936.0,67.8L936,292L56,292Z">
+</path>
+<path class="quote-line" d="M56.0,219.1L59.4,202.8L62.8,203.2L66.2,218.8L69.6,193.0L73.0,217.2L76.4,228.4L79.8,221.7L83.2,229.6L86.6,231.8L90.0,241.1L93.4,236.5L96.8,225.1L100.2,240.4L103.6,247.2L107.0,274.1L110.4,254.7L113.8,245.3L117.2,255.2L120.6,266.0L124.0,266.3L127.4,257.1L130.7,268.9L134.1,270.4L137.5,269.8L140.9,266.2L144.3,266.5L147.7,260.6L151.1,235.5L154.5,233.5L157.9,236.4L161.3,245.8L164.7,240.1L168.1,237.3L171.5,240.1L174.9,234.4L178.3,233.2L181.7,219.1L185.1,212.2L188.5,189.7L191.9,173.2L195.3,177.6L198.7,160.6L202.1,148.5L205.5,145.0L208.9,133.7L212.3,118.0L215.7,104.5L219.1,136.0L222.5,124.5L225.9,131.5L229.3,109.3L232.7,111.9L236.1,135.3L239.5,156.8L242.9,145.6L246.3,113.6L249.7,129.1L253.1,149.3L256.5,159.7L259.9,160.3L263.3,158.5L266.7,152.6L270.1,136.4L273.5,156.3L276.8,166.5L280.2,171.9L283.6,163.2L287.0,151.6L290.4,136.6L293.8,137.5L297.2,145.3L300.6,150.4L304.0,153.6L307.4,128.8L310.8,147.8L314.2,140.6L317.6,122.6L321.0,116.9L324.4,120.8L327.8,98.9L331.2,102.7L334.6,99.1L338.0,112.6L341.4,115.6L344.8,139.5L348.2,162.2L351.6,157.3L355.0,171.5L358.4,185.4L361.8,183.1L365.2,184.9L368.6,187.0L372.0,167.0L375.4,156.1L378.8,172.9L382.2,158.9L385.6,166.4L389.0,191.0L392.4,215.6L395.8,221.3L399.2,229.0L402.6,221.0L406.0,199.5L409.4,184.7L412.8,186.3L416.2,182.7L419.6,179.8L422.9,178.0L426.3,175.7L429.7,167.2L433.1,177.4L436.5,170.5L439.9,172.3L443.3,171.0L446.7,170.1L450.1,165.7L453.5,183.4L456.9,192.0L460.3,167.9L463.7,178.3L467.1,206.3L470.5,199.9L473.9,189.1L477.3,193.5L480.7,182.0L484.1,180.3L487.5,185.6L490.9,182.1L494.3,193.8L497.7,181.3L501.1,158.2L504.5,162.0L507.9,136.3L511.3,122.9L514.7,144.4L518.1,137.6L521.5,132.2L524.9,136.9L528.3,146.1L531.7,141.3L535.1,148.7L538.5,167.6L541.9,178.8L545.3,182.8L548.7,156.4L552.1,132.0L555.5,144.9L558.9,148.2L562.3,154.2L565.7,141.7L569.1,148.0L572.4,162.5L575.8,158.9L579.2,154.3L582.6,166.1L586.0,144.2L589.4,151.6L592.8,150.1L596.2,132.4L599.6,163.1L603.0,159.6L606.4,156.7L609.8,174.1L613.2,184.1L616.6,181.3L620.0,176.9L623.4,185.2L626.8,164.2L630.2,185.8L633.6,172.7L637.0,190.2L640.4,196.1L643.8,190.3L647.2,173.3L650.6,173.7L654.0,192.0L657.4,180.1L660.8,202.1L664.2,202.0L667.6,193.0L671.0,176.5L674.4,158.9L677.8,147.0L681.2,122.3L684.6,125.5L688.0,122.4L691.4,97.7L694.8,102.1L698.2,99.4L701.6,115.5L705.0,120.5L708.4,105.8L711.8,85.8L715.2,97.7L718.5,86.1L721.9,67.6L725.3,53.4L728.7,40.9L732.1,60.6L735.5,95.2L738.9,93.3L742.3,103.8L745.7,118.1L749.1,157.7L752.5,160.1L755.9,154.3L759.3,182.8L762.7,180.4L766.1,208.9L769.5,205.2L772.9,194.1L776.3,178.1L779.7,162.9L783.1,151.9L786.5,121.6L789.9,111.7L793.3,105.7L796.7,111.3L800.1,122.2L803.5,120.6L806.9,134.6L810.3,118.9L813.7,111.6L817.1,115.5L820.5,119.3L823.9,135.4L827.3,150.8L830.7,161.1L834.1,158.6L837.5,143.7L840.9,151.0L844.3,132.3L847.7,152.8L851.1,142.7L854.5,131.2L857.9,136.2L861.3,127.3L864.6,126.5L868.0,116.3L871.4,140.7L874.8,135.5L878.2,157.2L881.6,143.7L885.0,133.3L888.4,142.7L891.8,144.4L895.2,121.2L898.6,103.8L902.0,98.7L905.4,90.2L908.8,85.8L912.2,71.7L915.6,64.4L919.0,63.3L922.4,64.4L925.8,47.6L929.2,46.5L932.6,66.7L936.0,67.8">
+</path>
+<path class="tx-marker tx-buy" d="M254.86100386100384,171.25292426948016L264.86100386100384,171.25292426948016L259.86100386100384,163.25292426948016Z">
+</path>
+<path class="tx-marker tx-sell" d="M645.5945945945946,162.70056419111825L655.5945945945946,162.70056419111825L650.5945945945946,170.70056419111825Z">
+</path>
+<g class="note-pin note-pin--pos">
+<line x1="191.9" x2="191.9" y1="25" y2="173.2">
+</line>
+<circle cx="191.9" cy="21" r="5.5">
+</circle><title>Produktstart</title>
+</g>
+<g class="note-pin note-pin--neg">
+<line x1="456.9" x2="456.9" y1="25" y2="192.0">
+</line>
+<circle cx="456.9" cy="21" r="5.5">
+</circle><title>Klage eingereicht</title>
+</g>
+<g class="note-pin note-pin--neu">
+<line x1="752.5" x2="752.5" y1="25" y2="160.1">
+</line>
+<circle cx="752.5" cy="21" r="5.5">
+</circle><title>Ausblick bestätigt</title>
+</g>
+<g class="note-pin note-pin--pos">
+<line x1="891.8" x2="891.8" y1="25" y2="144.4">
+</line>
+<circle cx="891.8" cy="21" r="5.5">
+</circle><title>Umsatz über Plan</title>
+</g>
+<g class="chart-axis-labels">
+<text class="chart-axis-y" x="50" y="292.00" text-anchor="end" dominant-baseline="central">88,84</text>
+<text class="chart-axis-y" x="50" y="200.00" text-anchor="end" dominant-baseline="central">102,92</text>
+<text class="chart-axis-y" x="50" y="108.00" text-anchor="end" dominant-baseline="central">117,00</text>
+<text class="chart-axis-y is-top" x="50" y="16.00" text-anchor="end" dominant-baseline="central">131,09</text>
+<text class="chart-axis-x" x="56" y="314" text-anchor="start">10.11.2025</text>
+<text class="chart-axis-x" x="936" y="314" text-anchor="end">06.11.2026</text>
+</g>
+</svg>
+<div class="chart-tip" style="left: 690px; top: 40px;"><strong>Umsatz über Plan</strong><br>earnings · positiv · 08.11.2026<br><span class="hint">Research-Log · Quelle ir.example</span>
+</div>
+</div>
+<div class="chart-toggles">
+<label><input type="checkbox" checked> Transaktionen</label>
+<label class="mock-new"><input type="checkbox" checked> Notizen</label>
+</div>
+</section>
+</aside></body>
+</html>

@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01b-nachrichten-feeds</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-mode { display: flex; gap: 12px; margin: 0 0 12px; }
+.mock-pad { padding: 16px 20px; }
+</style>
+<style id="proposal">
+.news-health { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.news-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; background: var(--color-bg-muted); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.news-chip.is-warn { color: var(--color-warning); background: var(--color-warning-soft); border-color: var(--color-warning); }
+.news-chip.is-bad { color: var(--color-danger); background: var(--color-danger-soft); border-color: var(--color-danger); }
+.news-tier { display: inline-block; padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; background: var(--color-bg-muted); color: var(--color-text-muted); }
+.news-tier--primary { background: var(--color-accent-soft); color: var(--color-accent); }
+.news-tier--blocked { text-decoration: line-through; }
+.news-label { display: inline-flex; gap: 4px; align-items: center; font-size: 11.5px; color: var(--color-text-muted); }
+.news-machine { font-size: 10px; font-weight: 700; padding: 0 5px; border: 1px dashed var(--color-border-strong); border-radius: 5px; color: var(--color-text-muted); }
+.news-tone { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--color-text-muted); }
+.news-tone--pos { background: #16a34a; } .news-tone--neg { background: #dc2626; }
+.news-title { font-weight: 600; }
+.news-sub { display: block; font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.news-assign { display: flex; gap: 6px; align-items: center; }
+.news-assign select { font-size: 12.5px; padding: 3px 6px; max-width: 150px; }
+.news-assign .button-ghost { white-space: nowrap; }
+.news-section { margin: 0 0 22px; }
+.news-section h3 { margin: 0 0 8px; font-size: 15px; }
+.area-tab-new { outline: 2px dashed var(--color-accent); outline-offset: -2px; border-radius: 6px; }
+.note-pin line { stroke-width: 1.2; stroke-dasharray: 2 3; }
+.note-pin circle { stroke: var(--color-bg); stroke-width: 1.5; }
+.note-pin--pos circle { fill: #16a34a; } .note-pin--pos line { stroke: #16a34a; }
+.note-pin--neg circle { fill: #dc2626; } .note-pin--neg line { stroke: #dc2626; }
+.note-pin--neu circle { fill: #6b7280; } .note-pin--neu line { stroke: #6b7280; }
+.note-dot { stroke: var(--color-bg); stroke-width: 1.5; }
+.chart-toggles { display: flex; gap: 14px; font-size: 12.5px; color: var(--color-text-muted); margin: 6px 0 0; }
+.chart-tip { position: absolute; padding: 8px 10px; background: var(--color-bg-elevated); border: 1px solid var(--color-border-strong); border-radius: 8px; box-shadow: var(--shadow-panel); font-size: 12px; max-width: 260px; line-height: 1.4; }
+</style>
+</head>
+<body>
+    <div class="phx-connected"><div id="app-shell" class="app-shell">
+  <input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox" aria-label="Navigation umschalten">
+
+  <aside id="app-sidebar" class="app-sidebar" aria-label="App-Navigation">
+    <a class="brand" href="/" aria-label="Portfolixir">
+      <span class="brand-logo" aria-hidden="true">
+        <img class="brand-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+        <img class="brand-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+      </span>
+      <span class="brand-wordmark">Portfolixir</span>
+    </a>
+
+    <nav class="primary-nav" aria-label="Hauptnavigation">
+
+        <div class="nav-group nav-group-unlabeled">
+
+
+
+            <a id="nav-dashboard" class="nav-link " href="/">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"></rect><rect x="13" y="3" width="8" height="5" rx="1.5"></rect><rect x="13" y="10" width="8" height="11" rx="1.5"></rect><rect x="3" y="13" width="8" height="8" rx="1.5"></rect></svg></span>
+              <span class="nav-label">Übersicht</span>
+            </a>
+
+            <a id="nav-portfolio" class="nav-link " href="/portfolio">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path></svg></span>
+              <span class="nav-label">Vermögen</span>
+            </a>
+
+            <a id="nav-securities" class="nav-link " href="/securities" aria-current="page">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 6-10 6L2 8Z"></path><path d="m2 16 10 6 10-6"></path><path d="m2 12 10 6 10-6"></path></svg></span>
+              <span class="nav-label">Wertpapiere</span>
+            </a>
+
+            <a id="nav-news" class="nav-link mock-new" href="#"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 8h10M7 12h10M7 16h6"></path></svg></span><span class="nav-label">Nachrichten</span></a><a id="nav-transactions" class="nav-link " href="/transactions">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16M4 12h16M4 20h16"></path></svg></span>
+              <span class="nav-label">Transaktionen</span>
+            </a>
+
+        </div>
+
+        <div class="nav-group ">
+
+            <div class="nav-group-head"><span>Verwaltung</span></div>
+
+
+
+            <a id="nav-portfolios" class="nav-link " href="/portfolios">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></span>
+              <span class="nav-label">Konten &amp; Depots</span>
+            </a>
+
+            <a id="nav-buckets" class="nav-link " href="/buckets">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 9v6l-4-2v-4Z"></path></svg></span>
+              <span class="nav-label">Ansichten</span>
+            </a>
+
+            <a id="nav-classifications" class="nav-link " href="/classifications">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 11.4 12 2H4v8l9.4 9.4a2 2 0 0 0 2.8 0l4.4-4.4a2 2 0 0 0 0-2.8Z"></path><circle cx="7.5" cy="7.5" r="1.2"></circle></svg></span>
+              <span class="nav-label">Klassifizierungen</span>
+            </a>
+
+            <a id="nav-journal" class="nav-link " href="/journal">
+              <span class="nav-marker" aria-hidden="true"></span>
+              <span class="nav-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span>
+              <span class="nav-label">Audit-Journal</span>
+            </a>
+
+        </div>
+
+    </nav>
+
+
+  </aside>
+
+  <label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>
+
+  <div class="app-frame">
+    <header class="topbar">
+      <label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen">
+        <span class="burger-bars" aria-hidden="true"></span>
+      </label>
+
+      <div class="topbar-primary">
+        <a class="topbar-brand" href="/" aria-label="Portfolixir">
+          <span class="brand-logo" aria-hidden="true">
+            <img class="topbar-mark brand-mark-light" src="../../../../../../priv/static/images/logo-mark-light.svg" alt="">
+            <img class="topbar-mark brand-mark-dark" src="../../../../../../priv/static/images/logo-mark-dark.svg" alt="">
+          </span>
+          <span>Portfolixir</span>
+        </a>
+
+        <div class="topbar-page" aria-live="polite">
+
+            <h1 id="app-topbar-title">Nachrichten</h1>
+
+
+            <p id="app-topbar-subtitle">Was die Feeds liefern, wie der Agent es sieht</p>
+
+        </div>
+      </div>
+
+      <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+        <a id="privacy-mode" class="privacy-toggle " href="/securities/1?privacy=on" role="button" aria-pressed="false" title="Beträge verbergen" data-privacy-mode="off">
+
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span class="visually-hidden">Beträge verbergen</span>
+        </a>
+
+        <details id="theme-mode" class="theme-menu" aria-label="Erscheinungsbild" data-theme-control="" data-current-theme="system">
+          <summary class="theme-menu-trigger" title="Erscheinungsbild">
+            <span class="theme-current-icon theme-current-icon-system" data-current-theme-icon="system" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-light" data-current-theme-icon="light" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+            </span>
+            <span class="theme-current-icon theme-current-icon-dark" data-current-theme-icon="dark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+            </span>
+            <span class="visually-hidden">Erscheinungsbild</span>
+          </summary>
+
+          <div class="theme-menu-list" role="group" aria-label="Erscheinungsbild">
+
+              <button type="button" class="theme-choice is-active" data-theme-choice="system" data-theme-icon="monitor" aria-label="System" aria-pressed="true" title="System">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                <span class="visually-hidden">System</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="light" data-theme-icon="sun" aria-label="Hell" aria-pressed="false" title="Hell">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+                <span class="visually-hidden">Hell</span>
+              </button>
+
+              <button type="button" class="theme-choice " data-theme-choice="dark" data-theme-icon="moon" aria-label="Dunkel" aria-pressed="false" title="Dunkel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><path d="M20 14.3A7.4 7.4 0 0 1 9.7 4a7.4 7.4 0 1 0 10.3 10.3Z"></path></svg>
+                <span class="visually-hidden">Dunkel</span>
+              </button>
+
+          </div>
+        </details>
+
+        <details id="accent-color" class="accent-menu" aria-label="Akzentfarbe" data-accent-control="" data-current-accent="violet">
+          <summary class="accent-menu-trigger" title="Akzentfarbe">
+            <span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-teal" aria-hidden="true"></span>
+            <span class="accent-current-dot accent-current-dot-coral" aria-hidden="true"></span>
+            <span class="visually-hidden">Akzentfarbe</span>
+          </summary>
+
+          <div class="accent-menu-list" role="group" aria-label="Akzentfarbe">
+
+              <button type="button" class="accent-choice is-active" data-accent-choice="violet" aria-label="Violett" aria-pressed="true" title="Violett">
+                <span class="accent-dot accent-dot-violet" aria-hidden="true"></span>
+                <span class="visually-hidden">Violett</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="teal" aria-label="Petrol" aria-pressed="false" title="Petrol">
+                <span class="accent-dot accent-dot-teal" aria-hidden="true"></span>
+                <span class="visually-hidden">Petrol</span>
+              </button>
+
+              <button type="button" class="accent-choice " data-accent-choice="coral" aria-label="Koralle" aria-pressed="false" title="Koralle">
+                <span class="accent-dot accent-dot-coral" aria-hidden="true"></span>
+                <span class="visually-hidden">Koralle</span>
+              </button>
+
+          </div>
+        </details>
+
+        <nav class="locale-switcher" aria-label="Sprache">
+
+            <a id="locale-en" class="locale-link " href="/securities/1?locale=en" hreflang="en" aria-label="Englisch">
+              EN
+            </a>
+
+            <a id="locale-de" class="locale-link is-active" href="/securities/1?locale=de" hreflang="de" aria-label="Deutsch" aria-current="true">
+              DE
+            </a>
+
+        </nav>
+      </div>
+    </header>
+
+    <main class="app-main app-main--workspace"><div class="workspace-page">
+<nav class="area-tabs" id="area-tabs" role="tablist">
+<a class="area-tab" role="tab" aria-selected="false">Meldungen</a>
+<a class="area-tab is-active" role="tab" aria-selected="true">Feeds</a>
+<a class="area-tab" role="tab" aria-selected="false">Quellen</a>
+</nav>
+<div class="mock-pad">
+<div class="news-health">
+<span class="news-chip">5 Feeds</span>
+<span class="news-chip is-warn">1 veraltet (kein Abruf seit 26 h)</span>
+<span class="news-chip is-bad">3 Fehler (heute und gestern)</span>
+<span class="news-chip">41 Meldungen in 24 h</span>
+<span class="news-chip">2 nicht zugeordnet · 1 mehrdeutig</span>
+</div>
+<section class="news-section">
+<h3>Feeds</h3>
+<div class="data-table-wrapper">
+<table class="data-table">
+<thead>
+<tr>
+<th>Feed</th>
+<th>Klasse</th>
+<th>Bindung</th>
+<th>Letzter Abruf</th>
+<th class="num">24 h</th>
+<th class="num">Fehler</th>
+<th class="num">30 T</th>
+<th class="num">übernommen</th>
+<th>Zustand</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ir.example/feed</td>
+<td>issuer</td>
+<td>Tech-Einzelwert A</td>
+<td>08.11. 10:55</td>
+<td class="num">3</td>
+<td class="num">0</td>
+<td class="num">38</td>
+<td class="num">4</td>
+<td>
+<span class="news-chip">ok</span>
+</td>
+</tr>
+<tr>
+<td>regulator.example/filings</td>
+<td>regulatory</td>
+<td>Industrie-Einzelwert B</td>
+<td>08.11. 10:50</td>
+<td class="num">1</td>
+<td class="num">0</td>
+<td class="num">12</td>
+<td class="num">2</td>
+<td>
+<span class="news-chip">ok</span>
+</td>
+</tr>
+<tr>
+<td>wire.example/markets</td>
+<td>aggregator</td>
+<td>Universum</td>
+<td>08.11. 10:40</td>
+<td class="num">31</td>
+<td class="num">3</td>
+<td class="num">812</td>
+<td class="num">0</td>
+<td>
+<span class="news-chip is-warn">wenig Ertrag</span>
+</td>
+</tr>
+<tr>
+<td>themen.example/rohstoffe</td>
+<td>thematic</td>
+<td>Rohstoffe</td>
+<td>07.11. 08:30</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">40</td>
+<td class="num">1</td>
+<td>
+<span class="news-chip is-warn">veraltet</span>
+</td>
+</tr>
+<tr>
+<td>sec.example/company</td>
+<td>regulatory</td>
+<td>USA-Aktien ETF</td>
+<td>—</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td>
+<span class="news-chip is-bad">Kontakt fehlt</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="hint">Fehler: heutiger und gestriger Servertag. „wenig Ertrag“: mindestens 50 Meldungen und keine übernommen in 30 Tagen; nichts schaltet einen Feed von selbst ab. Feeds anlegen und löschen bleibt in diesem Sprint beim Agenten und der API (Plan D-5).</p>
+</section>
+<section class="news-section">
+<h3>Quellen</h3>
+<div class="data-table-wrapper">
+<table class="data-table">
+<thead>
+<tr>
+<th>Domain</th>
+<th>Stufe</th>
+<th>gesetzt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ir.example</td>
+<td>
+<span class="news-tier news-tier--primary">primary</span>
+</td>
+<td>von Hand</td>
+</tr>
+<tr>
+<td>wire.example</td>
+<td>
+<span class="news-tier">secondary</span>
+</td>
+<td>Voreinstellung</td>
+</tr>
+<tr>
+<td>spam.example</td>
+<td>
+<span class="news-tier news-tier--blocked">blocked</span>
+</td>
+<td>von Hand · 14 verworfen heute</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</div></main>
+  </div>
+</div></div>
+</body>
+</html>
