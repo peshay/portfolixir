@@ -157,7 +157,7 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
     assert result == %{"ok" => true}
   end
 
-  # User story (I23; Sprint 27's closing act, design critic D1 and D2):
+  # User story (I23; Sprint 27's closing act, design critic D1, D2 and D5):
   # As the operator reading the stacked chart on a phone,
   # I want each legend row's figures beside its name and the axis readable,
   # so that the value, share and change do not scroll out of the legend.
@@ -169,6 +169,8 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
   #   inside the legend's box and the viewport, and the page does not scroll
   #   sideways.
   # - The stack's axis labels are 9 CSS px.
+  # - A drill from the legend by keyboard leaves the focus on the
+  #   breadcrumb's current item (D5).
   test "the stacked chart's legend keeps its figures in view at 390 px", %{base_url: base_url} do
     world = base_world(name: "Phone Stack", cash_name: "Giro", depot_name: "Depot")
     deposit!(world, "100000", ~D[2025-01-02])
