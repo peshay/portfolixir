@@ -353,10 +353,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
 
   defp feed_health_json(feed) do
     feed
-    |> Map.merge(%{
-      last_ok_at: time(feed.last_ok_at),
-      yield_30d: feed.yield_30d && Decimal.to_string(feed.yield_30d, :normal)
-    })
+    |> Map.put(:last_ok_at, time(feed.last_ok_at))
     |> compact()
   end
 

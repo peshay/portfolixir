@@ -1334,9 +1334,11 @@ with none stored.
 - `GET /api/v1/news/health` answers each feed's `id`, `class`, `enabled`,
   `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (no successful
   fetch for 24 hours; a disabled feed is never stale), `items_30d`,
-  `promoted_30d`, `yield_30d` (a decimal string) and `low_yield`, and the
-  day's `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`, `old`) and
-  `blocked` counts.
+  `promoted_30d` and `yield`, which reads `not_measured_until_promotion`:
+  ADR-0056's `yield_30d` and `low_yield` count promoted stories, and nothing
+  promotes a story before the second news sprint, so both are left out until
+  then (C4). Then the day's `unassigned`, `ambiguous`, `dropped` (`cap`,
+  `no_source`, `old`) and `blocked` counts.
 - `GET /api/v1/news/digest` answers what is new, one row per security: with
   `view_id` the securities that view holds, without it the news universe
   (held, carrying a target weight, or watched). `since` (default 24 hours

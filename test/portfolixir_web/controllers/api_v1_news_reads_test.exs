@@ -560,15 +560,19 @@ defmodule PortfolixirWeb.ApiV1NewsReadsTest do
   # Acceptance criteria:
   # - GET /api/v1/news/health answers as_of, feeds (id, class, enabled,
   #   last_ok_at, last_error, items_24h, err_24h, stale, items_30d,
-  #   promoted_30d, yield_30d as a decimal string, low_yield) and day
+  #   promoted_30d, and yield "not_measured_until_promotion" in place of
+  #   yield_30d and low_yield until promotion exists, C4) and day
   #   (date, unassigned, ambiguous, dropped {cap, no_source, old},
   #   blocked).
   # - A feed whose last successful fetch was 25 hours ago reads stale; one
   #   fetched an hour ago does not.
-  # - A field without a value (last_error, a yield without items) is left
-  #   out; an unknown parameter answers 422.
+  # - A field without a value (last_error) is left out; an unknown
+  #   parameter answers 422.
   describe "GET /api/v1/news/health" do
-    test "stale after 24 hours, the yield as a decimal string", %{conn: conn, now: now} do
+    test "stale after 24 hours, the yield not measured until promotion", %{
+      conn: conn,
+      now: now
+    } do
       fresh = issuer_feed!(security!("Northwind Harbour Logistics AG"))
       dead = issuer_feed!(security!("Southwind Harbour Shipping SE"))
 
@@ -601,15 +605,16 @@ defmodule PortfolixirWeb.ApiV1NewsReadsTest do
                "items_24h" => 1,
                "items_30d" => 1,
                "promoted_30d" => 0,
-               "yield_30d" => "0.0000",
-               "low_yield" => false
+               "yield" => "not_measured_until_promotion"
              } = by_id[fresh.id]
+
+      refute Map.has_key?(by_id[fresh.id], "yield_30d")
+      refute Map.has_key?(by_id[fresh.id], "low_yield")
 
       assert by_id[fresh.id]["last_ok_at"] == iso(hours_ago(now, 1))
       refute Map.has_key?(by_id[fresh.id], "last_error")
 
       assert %{"stale" => true, "last_error" => "http_503", "items_30d" => 0} = by_id[dead.id]
-      refute Map.has_key?(by_id[dead.id], "yield_30d")
 
       assert %{"errors" => %{"verbose" => _}} =
                conn |> get("/api/v1/news/health?verbose=1") |> json_response(422)

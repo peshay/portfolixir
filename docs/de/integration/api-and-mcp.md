@@ -1446,9 +1446,11 @@ gespeichertes Label gleich.
 - `GET /api/v1/news/health` beantwortet je Feed `id`, `class`, `enabled`,
   `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (24 Stunden kein
   erfolgreicher Abruf; ein abgeschalteter Feed ist nie veraltet), `items_30d`,
-  `promoted_30d`, `yield_30d` (eine Dezimalzeichenkette) und `low_yield` sowie
-  die Tageszähler `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`,
-  `old`) und `blocked`.
+  `promoted_30d` und `yield`, das `not_measured_until_promotion` lautet:
+  `yield_30d` und `low_yield` aus ADR-0056 zählen beförderte Storys, und vor
+  dem zweiten News-Sprint befördert nichts eine Story, also fehlen beide bis
+  dahin (C4). Dazu die Tageszähler `unassigned`, `ambiguous`, `dropped`
+  (`cap`, `no_source`, `old`) und `blocked`.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
   Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie das
   News-Universum (gehalten, mit einem Zielgewicht oder beobachtet). `since`
