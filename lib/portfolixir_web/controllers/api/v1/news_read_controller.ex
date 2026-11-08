@@ -115,6 +115,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
           rows: Enum.map(digest.rows, &digest_row/1),
           categories: digest.categories && Enum.map(digest.categories, &digest_row/1),
           quiet: digest.quiet,
+          hidden: digest.hidden,
           unassigned: digest.unassigned,
           ambiguous: digest.ambiguous,
           truncated: digest.truncated,

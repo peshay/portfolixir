@@ -1461,9 +1461,12 @@ gespeichertes Label gleich.
   Emittenten- oder Regulierungs-Feeds zählt immer; eine Story nur aus
   Aggregator-Einträgen und eine thematische Story zählen nur mit
   `include_unlabeled=true`, die thematischen je Kategorie unter `categories`.
-  `quiet` zählt die Wertpapiere ohne Zeile, `unassigned` und `ambiguous` die
-  seitdem so gewordenen Aggregator-Einträge, die kein Wertpapier oder mehrere
-  beanspruchen. `max_rows` (standardmäßig 40, höchstens 100) begrenzt
+  `hidden` zählt die seitdem neuen Aggregator- und thematischen Storys, die
+  `include_unlabeled=false` wegließ (C5), und ein Wertpapier, dessen einzige
+  Nachricht eine solche Story ist, zählt nicht als `quiet`, das die
+  Wertpapiere ohne Zeile und ohne eine solche zählt; `unassigned` und
+  `ambiguous` die seitdem so gewordenen Aggregator-Einträge, die kein
+  Wertpapier oder mehrere beanspruchen. `max_rows` (standardmäßig 40, höchstens 100) begrenzt
   die Zeilen; `truncated` und `more` sagen, wie viele weggelassen wurden. Der
   Digest dieses Sprints hat keine Labels und keinen Verbraucher-Cursor:
   `consumer`, `ack_cursor`, `min_materiality` und `tier_min` ergeben `422`.
