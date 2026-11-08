@@ -27,8 +27,11 @@ defmodule Portfolixir.News do
       one that listed both now has one candidate, so it is `assigned` to
       the target, out of any story — exactly one hit assigns (§2).
 
-  Stories of the source and the target that are one event stay two stories
-  until the clustering runs over the target's items again.
+  Then the target's stories are reclustered in full for every language
+  moved, in the same transaction (closing act, ORD2): stories of the source
+  and the target that are one event are one story when the merge commits,
+  and each moved item enters the target's scope at the merge (`scope_at`,
+  C3), its first sight unchanged.
   """
   import Ecto.Query
 
@@ -69,7 +72,7 @@ defmodule Portfolixir.News do
     feeds = Repo.all(from(f in Feed, where: f.security_id == ^source_id, order_by: f.id))
 
     with :ok <- reassign_feeds(actor, feeds, target_id) do
-      enter_target_scope(source_id, target_id, now())
+      languages = enter_target_scope(source_id, target_id, now())
       # Counted first: a story's items follow it through their composite key,
       # so the items' own update below reaches only those outside a story.
       items = Repo.aggregate(from(i in Item, where: i.security_id == ^source_id), :count)
@@ -85,8 +88,15 @@ defmodule Portfolixir.News do
 
       candidates = collapse_candidates(source_id, target_id)
 
-      {:ok,
-       %{feeds: Enum.map(feeds, & &1.id), stories: stories, items: items, candidates: candidates}}
+      with :ok <- recluster_merged(target_id, languages, now()) do
+        {:ok,
+         %{
+           feeds: Enum.map(feeds, & &1.id),
+           stories: stories,
+           items: items,
+           candidates: candidates
+         }}
+      end
     end
   end
 
@@ -641,17 +651,40 @@ defmodule Portfolixir.News do
   # with one candidate: each enters the target's scope now (`scope_at`),
   # never before its first sight. Called before the moves, while the items
   # still name the source.
+  # Answers the languages of the items moved.
   defp enter_target_scope(source_id, target_id, now) do
-    Repo.update_all(
-      from(i in Item,
-        where:
-          i.security_id == ^source_id or
-            (i.assignment == :ambiguous and ^source_id in i.candidates and
-               ^target_id in i.candidates and fragment("cardinality(?) = 2", i.candidates)),
-        update: [set: [scope_at: fragment("GREATEST(?, ?)", i.first_seen_at, ^now)]]
-      ),
-      []
-    )
+    {_count, languages} =
+      Repo.update_all(
+        from(i in Item,
+          where:
+            i.security_id == ^source_id or
+              (i.assignment == :ambiguous and ^source_id in i.candidates and
+                 ^target_id in i.candidates and fragment("cardinality(?) = 2", i.candidates)),
+          select: i.language,
+          update: [set: [scope_at: fragment("GREATEST(?, ?)", i.first_seen_at, ^now)]]
+        ),
+        []
+      )
+
+    languages |> Enum.uniq() |> Enum.sort()
+  end
+
+  # ORD2 (B3): the source's stories and items moved onto the target keep
+  # their stories; one event reported for both securities would stay two
+  # stories until a full recluster. So the target is reclustered in full
+  # for each language moved, inside the merge's transaction and under the
+  # scope's lock (`Portfolixir.News.Stories.recluster/4` takes it and holds
+  # it to the merge's commit); a refusal fails the merge.
+  defp recluster_merged(target_id, languages, now) do
+    Enum.reduce_while(languages, :ok, fn language, :ok ->
+      case Stories.recluster({:security, target_id}, language, now, full: true) do
+        {:ok, _summary} ->
+          {:cont, :ok}
+
+        {:error, changeset} ->
+          {:halt, {:error, {:write_refused, "news_cluster", target_id, changeset}}}
+      end
+    end)
   end
 
   # --- end closing act, Fix-2 -------------------------------------------------
