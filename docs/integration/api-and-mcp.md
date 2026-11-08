@@ -1352,19 +1352,19 @@ with none stored. Every parameter is one value: a list or a map
   `title` cut to 100 characters, `tier`, `at`): the best tier, then the
   newest. A story with an issuer or regulatory item always counts; a story of
   aggregator items only, and a thematic story, counts only with
-  `include_unlabeled=true`, the thematic ones per category under
-  `categories`. `hidden` counts the aggregator and thematic stories new since
-  then that `include_unlabeled=false` left out (C5), and a security whose only
-  news is such a story is not counted `quiet`, which counts the securities
-  without a row and without one; `unassigned` and `ambiguous` the aggregator
-  items that became so since then that no security, or several, claim. With a
-  `view_id` the digest is the view's: `categories` and `unassigned` are left
-  out (a view holds securities), `hidden` counts only its securities' stories
-  and `ambiguous` only the items naming one of them. `max_rows` (default 12, which keeps the digest within its
-  budget; at most 40) caps the rows;
-  `truncated` and `more` say how many were left out. This sprint's digest has
-  no labels and no consumer cursor: `consumer`, `ack_cursor`,
-  `min_materiality` and `tier_min` answer `422`.
+  `include_unlabeled=true`, the thematic ones per category under `categories`.
+  `hidden` counts the aggregator and thematic stories new since then that
+  `include_unlabeled=false` left out (C5), and a security whose only news is
+  such a story is not counted `quiet`, which counts the securities without a
+  row and without one; `unassigned` and `ambiguous` the aggregator items that
+  became so since then that no security, or several, claim. With a `view_id`
+  the digest is the view's: `categories` and `unassigned` are left out (a view
+  holds securities), `hidden` counts only its securities' stories and
+  `ambiguous` only the items naming one of them. `max_rows` (default 12, which
+  keeps the digest within its budget; at most 40) caps the rows; `truncated`
+  and `more` say how many were left out. This sprint's digest has no labels
+  and no consumer cursor: `consumer`, `ack_cursor`, `min_materiality` and
+  `tier_min` answer `422`.
 
 ### Logos
 

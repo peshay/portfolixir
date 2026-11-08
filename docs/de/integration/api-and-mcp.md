@@ -1457,28 +1457,29 @@ eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
   dahin (C4). Dazu die Tageszähler `unassigned`, `ambiguous`, `dropped`
   (`cap`, `no_source`, `old`) und `blocked`.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
-  Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie das
-  News-Universum (gehalten, mit einem Zielgewicht oder beobachtet). `since`
-  (standardmäßig 24 Stunden vor jetzt) liest `scope_at` wie die Liste,
+  Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie
+  das News-Universum (gehalten, mit einem Zielgewicht oder beobachtet).
+  `since` (standardmäßig 24 Stunden vor jetzt) liest `scope_at` wie die Liste,
   und `as_of` ist das nächste `since`. Eine Zeile ist `id`, `name`, `count`
-  (ihre neuen Storys) und `top` (`id`, `title` auf 100 Zeichen gekürzt, `tier`,
-  `at`): die beste Stufe, dann die neueste. Eine Story mit einem Eintrag eines
-  Emittenten- oder Regulierungs-Feeds zählt immer; eine Story nur aus
-  Aggregator-Einträgen und eine thematische Story zählen nur mit
+  (ihre neuen Storys) und `top` (`id`, `title` auf 100 Zeichen gekürzt,
+  `tier`, `at`): die beste Stufe, dann die neueste. Eine Story mit einem
+  Eintrag eines Emittenten- oder Regulierungs-Feeds zählt immer; eine Story
+  nur aus Aggregator-Einträgen und eine thematische Story zählen nur mit
   `include_unlabeled=true`, die thematischen je Kategorie unter `categories`.
   `hidden` zählt die seitdem neuen Aggregator- und thematischen Storys, die
   `include_unlabeled=false` wegließ (C5), und ein Wertpapier, dessen einzige
   Nachricht eine solche Story ist, zählt nicht als `quiet`, das die
   Wertpapiere ohne Zeile und ohne eine solche zählt; `unassigned` und
   `ambiguous` die seitdem so gewordenen Aggregator-Einträge, die kein
-  Wertpapier oder mehrere beanspruchen. Mit einer `view_id` ist der Digest
-  der der Sicht: `categories` und `unassigned` fehlen (eine Sicht hält
+  Wertpapier oder mehrere beanspruchen. Mit einer `view_id` ist der Digest der
+  der Sicht: `categories` und `unassigned` fehlen (eine Sicht hält
   Wertpapiere), `hidden` zählt nur die Storys ihrer Wertpapiere und
-  `ambiguous` nur die Einträge, die eines davon nennen. `max_rows` (standardmäßig 12, womit der Digest in seinem Budget
-  bleibt; höchstens 40) begrenzt
-  die Zeilen; `truncated` und `more` sagen, wie viele weggelassen wurden. Der
-  Digest dieses Sprints hat keine Labels und keinen Verbraucher-Cursor:
-  `consumer`, `ack_cursor`, `min_materiality` und `tier_min` ergeben `422`.
+  `ambiguous` nur die Einträge, die eines davon nennen. `max_rows`
+  (standardmäßig 12, womit der Digest in seinem Budget bleibt; höchstens 40)
+  begrenzt die Zeilen; `truncated` und `more` sagen, wie viele weggelassen
+  wurden. Der Digest dieses Sprints hat keine Labels und keinen
+  Verbraucher-Cursor: `consumer`, `ack_cursor`, `min_materiality` und
+  `tier_min` ergeben `422`.
 
 ### Logos
 

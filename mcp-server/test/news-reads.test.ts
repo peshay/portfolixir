@@ -89,7 +89,7 @@ describe("the news read tools", () => {
       [DIGEST, { consumer: "agent" }],
       [DIGEST, { min_materiality: 2 }],
       [DIGEST, { max_rows: 0 }],
-      [DIGEST, { max_rows: 101 }]
+      [DIGEST, { max_rows: 41 }]
     ] as const) {
       const before = requests.length;
       await assert.rejects(callTool(client, name, { ...args }), `${name} ${JSON.stringify(args)}`);
@@ -114,6 +114,37 @@ describe("the news read tools", () => {
     assert.match(tool(GET)?.description ?? "", /only read with the excerpt and url/);
     assert.match(tool(DIGEST)?.description ?? "", /include_unlabeled/);
     assert.match(tool(LIST)?.description ?? "", /first sight/);
+  });
+
+  // User story (ADR-0056 amendment of 2026-11-08, C3 to C5; Sprint 27
+  // closing act, AG2 to AG4):
+  // As the operator's agent reading the news tools once at connect time,
+  // I want each read's description to say what the closing act changed,
+  // so that I read since, hidden, the digest's default and the yield as
+  // the server answers them.
+  //
+  // Acceptance criteria:
+  // - news.list says since reads the time a row entered its scope.
+  // - news.get says its link is cut at 300.
+  // - news.health names yield not_measured_until_promotion, and no longer
+  //   yield_30d or low_yield.
+  // - news.digest names hidden, a quiet security as one with nothing
+  //   hidden, max_rows 12 (max 40), and that a view omits categories and
+  //   unassigned; its schema refuses max_rows above 40.
+  it("say what the closing act changed", () => {
+    assert.match(tool(LIST)?.description ?? "", /entered its scope/);
+    assert.match(tool(GET)?.description ?? "", /cut at 300/);
+
+    const health = tool(HEALTH)?.description ?? "";
+    assert.match(health, /yield \(not_measured_until_promotion\)/);
+    assert.doesNotMatch(health, /low_yield|yield_30d/);
+
+    const digest = tool(DIGEST)?.description ?? "";
+    assert.match(digest, /counted as hidden/);
+    assert.match(digest, /quiet \(no row, none hidden\)/);
+    assert.match(digest, /max_rows 12 \(max 40\)/);
+    assert.match(digest, /a view omits categories and unassigned/);
+    assert.equal((tool(DIGEST)?.inputSchema as any).properties.max_rows.maximum, 40);
   });
 
   // User story (ADR-0054 §4, ADR-0056 §9 and §14 item 2):

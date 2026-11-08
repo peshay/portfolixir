@@ -101,6 +101,14 @@ describe("the news upkeep tools", () => {
     assert.match(put, /name resolution at once/);
     assert.match(put, /url_not_allowed:private_address/);
     assert.match(put, /unknown field answers 422 naming it/);
+    // Sprint 27 closing act, AG5: what a new feed needs, how an SEC filing
+    // feed is registered, and a binding that can be cleared.
+    assert.match(put, /New: class, url, language; security_id for issuer\/regulatory, category_id for thematic/);
+    assert.match(put, /SEC filings: regulatory, security_id, your EDGAR feed URL/);
+    assert.match(put, /PORTFOLIXIR_NEWS_USER_AGENT/);
+    const putSchema = tool(FEEDS_PUT)?.inputSchema as any;
+    assert.deepEqual(putSchema.properties.security_id.type, ["integer", "null"]);
+    assert.deepEqual(putSchema.properties.category_id.type, ["integer", "null"]);
     assert.match(tool(SOURCES_PUT)?.description ?? "", /unknown field answers 422 naming it/);
     assert.match(tool(FEEDS_DELETE)?.description ?? "", /items stay, detached/);
   });
@@ -153,6 +161,12 @@ describe("the news upkeep tools", () => {
     assert.deepEqual(properties.news_identity.properties.aliases.items.properties.case.enum, ["sensitive", "insensitive"]);
     assert.equal(properties.news_watch.type, "boolean");
     assert.match(properties.news_identity.description, /no pattern/);
+
+    // Sprint 27 closing act, AG5: what cik and aliases do, said where the
+    // agent writes them.
+    for (const said of [/unused yet/, /aggregator items \(no ETF\)/, /token or phrase/, /Re-matches 7 days/]) {
+      assert.match(properties.news_identity.description, said);
+    }
 
     const fields = (tool("portfolixir.securities.list")?.inputSchema as any).properties.fields.items.enum;
     assert.ok(fields.includes("news_identity") && fields.includes("news_watch"));
