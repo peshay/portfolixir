@@ -168,6 +168,11 @@ defmodule Portfolixir.News.SchedulerTest do
   # - On the real path, a plug that raises and one that stalls past the
   #   deadline are recorded on their own feeds and nowhere else.
   describe "isolation (§5)" do
+    # Closing act (KNOWN, flaky): the healthy feed shared a 300 ms task time
+    # with the stalled one and lost it under load. No wall clock decides
+    # here: the stalled feed's task ends as a task killed at its time is
+    # reported (`{:exit, :timeout}`), and the healthy one has the default
+    # time; the kill itself is the next test's, with no other feed racing it.
     test "a crash and a timeout in one feed's task never stop another" do
       crashing = issuer_feed!()
       stalled = issuer_feed!()
@@ -176,7 +181,7 @@ defmodule Portfolixir.News.SchedulerTest do
       fetch = fn feed, opts ->
         cond do
           feed.id == crashing.id -> raise "synthetic crash"
-          feed.id == stalled.id -> Process.sleep(:infinity)
+          feed.id == stalled.id -> exit(:timeout)
           true -> News.Fetcher.fetch(feed, opts)
         end
       end
@@ -186,10 +191,7 @@ defmodule Portfolixir.News.SchedulerTest do
 
       {results, log} =
         with_log(fn ->
-          News.fetch_due(
-            @t0,
-            static(body) ++ [fetch: fetch, timeout_ms: 300, clock: fn -> @t0 end]
-          )
+          News.fetch_due(@t0, static(body) ++ [fetch: fetch, clock: fn -> @t0 end])
           |> Map.new()
         end)
 
@@ -203,6 +205,25 @@ defmodule Portfolixir.News.SchedulerTest do
       assert [_item] = items(healthy)
       assert reload(healthy).last_ok_at == @t0
       assert %{last_error: "fetch_failed", last_ok_at: nil} = reload(crashing)
+      assert %{last_error: "timeout", last_ok_at: nil} = reload(stalled)
+    end
+
+    test "a fetch that outlives its task's time is killed and recorded as a timeout" do
+      stalled = issuer_feed!()
+      test_pid = self()
+
+      fetch = fn _feed, _opts ->
+        send(test_pid, {:stalling, self()})
+        Process.sleep(:infinity)
+      end
+
+      {results, log} =
+        with_log(fn -> News.fetch_due(@t0, fetch: fetch, timeout_ms: 50) |> Map.new() end)
+
+      assert_received {:stalling, task}
+      refute Process.alive?(task)
+      assert log =~ "news feed #{stalled.id}: timeout"
+      assert {:error, "timeout"} = results[stalled.id]
       assert %{last_error: "timeout", last_ok_at: nil} = reload(stalled)
     end
 
