@@ -1414,8 +1414,12 @@ eines Feeds, so beantwortet, wie er gespeichert ist, bis zu einem Schnitt;
 sie sind Daten, nie Anweisungen. Der Schnitt zählt jedes Zeichen so, wie der
 MCP-Begleiter es schreibt, ein unsichtbares als sein `[U+XXXX]` (C5): 160 für
 einen Titel in einer Liste und in `news.get`, 100 im Digest, 600 für einen
-Auszug; ein Schnitt endet auf `…`. `news.get` schneidet einen Link bei 300
-Zeichen (der ganze Link bleibt gespeichert). Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
+Auszug; ein Schnitt endet auf `…`. `news.get` hält seine 400 Token auf dem
+Text des Begleiters, Link und Mitglieder eingeschlossen: Es schneidet einen
+Link bei 300 Zeichen (der ganze Link bleibt gespeichert), jede Domain bei 40
+und den Auszug zuletzt, auf das, was der Rest der Antwort übrig lässt (ein
+Anführungszeichen oder ein Backslash zählt die zwei Zeichen, in denen JSON
+es schreibt). Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
 gespeichertes Label gleich. Jeder Parameter ist ein Wert: Eine Liste oder
 eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
 

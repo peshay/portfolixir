@@ -7,10 +7,14 @@ defmodule Portfolixir.News.Reads do
   (`short_name/1`), and a page is capped with a `truncated` flag and a
   cursor. Titles and excerpts are cut by the width the companion spells
   them in (`clip_spelled/2`, C5): 160 for a title in a list and in a story
-  or item, 100 in the digest, 600 for an excerpt; a story's or an item's
-  link is cut at 300 characters, outside §9's 400-token budget (a link cut
-  shorter would be a wrong source for the research log). No label is read: labels are Sprint 28's, and every read here
-  answers without one (§7, fail-open).
+  or item, 100 in the digest, 600 for an excerpt. `news.get` holds §9's
+  400 tokens on the companion's text, its link and members included: the
+  link is cut at 300 characters (the whole link stays stored), every domain
+  at 40, and the excerpt last, to what the rest of the answer leaves of the
+  400 (`story/1`, `item/1`), every id counted at its widest so the cut does
+  not move with the ids: a long answer gives up excerpt, never its source. No label is read:
+  labels are Sprint 28's, and every read here answers without one (§7,
+  fail-open).
 
   ## What is new: `since` and `as_of` (B4)
 
@@ -118,12 +122,23 @@ defmodule Portfolixir.News.Reads do
   @get_excerpt_max 600
   @get_url_max 300
 
+  # --- closing act, AG1 rest: news.get's 400 tokens, link included ----------
+  # §9's 400 tokens as characters of the companion's text (C5: four a
+  # token), less what the controller adds around the answer Reads builds:
+  # `{"data":…}`, `"kind":"story"` and the excerpt's quotes over its `null`.
+  @get_chars 400 * 4
+  @get_envelope 40
+  @domain_max 40
+  @widest_integer 9_223_372_036_854_775_807
+  # --- end closing act, AG1 rest ---------------------------------------------
+
   @doc """
   `text` cut to at most `max` characters **as the companion spells it**
   (ADR-0056 amendment of 2026-11-08, C5; ADR-0054 §4): every code point
-  counts one, and an invisible one (`Portfolixir.Input.Text`) counts the
-  length of its `[U+XXXX]` spelling. A cut ends in an ellipsis, inside the
-  width. A grapheme count would read a run of tag characters as one
+  counts one, an invisible one (`Portfolixir.Input.Text`) counts the
+  length of its `[U+XXXX]` spelling, and one the JSON text escapes (`"`,
+  `\\`, a control) the length of its escape. A cut ends in an ellipsis,
+  inside the width. A grapheme count would read a run of tag characters as one
   character and a soft hyphen as none, and the agent would pay eight
   characters for each. Each code point is measured on its own, which
   spells a joiner or a selector that its neighbours would leave as it is:
@@ -151,7 +166,32 @@ defmodule Portfolixir.News.Reads do
     end
   end
 
-  defp spelled_width(point), do: point |> Text.escape_invisible() |> String.length()
+  defp spelled_width(point), do: point |> Text.escape_invisible() |> json_width()
+
+  # The characters `text` takes inside a JSON string: `"` and `\\` two, a
+  # control its escape (closing act, AG1 rest).
+  defp json_width(text), do: String.length(Jason.encode!(text)) - 2
+
+  # The excerpt last (closing act, AG1 rest): cut to what the answer without
+  # it leaves of `@get_chars`, measured as the companion spells the JSON,
+  # and never past `@get_excerpt_max`. Every integer counts as the widest
+  # id (a bigint's 19 digits), so the cut does not move with the ids, and
+  # times encoded with microseconds and the excerpt's own `null` count more
+  # than the controller sends: the measure is a bound.
+  defp fit_excerpt(answer, excerpt) do
+    used = answer |> Map.put(:excerpt, nil) |> widest() |> spelled_json()
+    room = @get_chars - @get_envelope - used
+    Map.put(answer, :excerpt, clip_spelled(excerpt, room |> min(@get_excerpt_max) |> max(1)))
+  end
+
+  defp spelled_json(answer),
+    do: answer |> Jason.encode!() |> Text.escape_invisible() |> String.length()
+
+  defp widest(%DateTime{} = at), do: at
+  defp widest(%{} = map), do: Map.new(map, fn {key, value} -> {key, widest(value)} end)
+  defp widest(list) when is_list(list), do: Enum.map(list, &widest/1)
+  defp widest(integer) when is_integer(integer), do: @widest_integer
+  defp widest(other), do: other
 
   # --- end closing act, Fix-2 -------------------------------------------------
 
@@ -400,24 +440,28 @@ defmodule Portfolixir.News.Reads do
          &1.url}
       )
       |> Enum.take(@members_max)
-      |> Enum.map(&Map.delete(&1, :url))
+      |> Enum.map(
+        &(&1
+          |> Map.delete(:url)
+          |> Map.update!(:domain, fn d -> clip_spelled(d, @domain_max) end))
+      )
 
     %{
       id: cluster.id,
       title: clip_spelled(representative.title, @get_title_max),
       url: clip(representative.canonical_url, @get_url_max),
-      domain: representative.domain,
+      domain: clip_spelled(representative.domain, @domain_max),
       tier: cluster.best_tier,
       language: cluster.language,
       published_at: representative.published_at,
       first_seen_at: cluster.earliest_first_seen_at,
-      excerpt: clip_spelled(representative.excerpt, @get_excerpt_max),
       count: cluster.member_count,
       members: members,
       note_ids: Map.get(story_notes([cluster.id]), cluster.id, []),
       security: named(Security, cluster.security_id),
       category: named(Category, cluster.category_id)
     }
+    |> fit_excerpt(representative.excerpt)
   end
 
   @doc """
@@ -438,20 +482,20 @@ defmodule Portfolixir.News.Reads do
            story_id: item.cluster_id,
            title: clip_spelled(item.title, @get_title_max),
            url: clip(item.canonical_url, @get_url_max),
-           domain: item.domain,
+           domain: clip_spelled(item.domain, @domain_max),
            tier: item.tier,
            class: item.class,
            language: item.language,
            published_at: item.published_at,
            first_seen_at: item.first_seen_at,
-           excerpt: clip_spelled(item.excerpt, @get_excerpt_max),
            assignment: item.assignment,
            candidates: item.candidates,
            status: item.status,
            note_ids: item.note_ids,
            security: named(Security, item.security_id),
            category: named(Category, item.category_id)
-         }}
+         }
+         |> fit_excerpt(item.excerpt)}
     end
   end
 
