@@ -569,6 +569,76 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
     end
   end
 
+  # --- closing act, Fix-1 ---------------------------------------------------
+
+  # User story (closing act, SEC4):
+  # As the agent that registers a security with its news identity,
+  # I want the create to read `news_identity` as the update does,
+  # so that a security is never stored with a pattern or a raw column the
+  # update would have refused.
+  #
+  # Acceptance criteria:
+  # - `POST /api/v1/securities` with `news_identity` {cik, aliases} stores
+  #   the identity; an unknown key in it, a key of an alias other than
+  #   token, context and case, and `news_cik` / `news_aliases` sent raw
+  #   answer 422 naming them, and nothing is created.
+  describe "POST /api/v1/securities with news_identity (closing act, SEC4)" do
+    test "stores the identity and refuses what the update refuses", %{conn: conn} do
+      create = fn attrs, status ->
+        conn
+        |> post("/api/v1/securities", Jason.encode!(%{security: attrs}))
+        |> json_response(status)
+      end
+
+      base = %{name: "Probe Harbour AG", currency_code: "EUR"}
+
+      %{"data" => data} =
+        create.(
+          Map.put(base, :news_identity, %{
+            cik: "320193",
+            aliases: [%{token: "Probe Harbour", case: "insensitive"}]
+          }),
+          201
+        )
+
+      assert data["news_identity"] == %{
+               "cik" => "0000320193",
+               "aliases" => [
+                 %{"token" => "Probe Harbour", "context" => [], "case" => "insensitive"}
+               ]
+             }
+
+      count = Repo.aggregate(Portfolixir.Catalog.Security, :count)
+
+      assert %{"errors" => %{"news_identity" => %{"regex" => [_]}}} =
+               create.(Map.put(base, :news_identity, %{cik: "320193", regex: "x"}), 422)
+
+      assert %{"errors" => %{"news_identity" => %{"aliases" => [%{"regex" => [_]}]}}} =
+               create.(
+                 Map.put(base, :news_identity, %{
+                   aliases: [%{token: "Probe", case: "sensitive", regex: "P.*"}]
+                 }),
+                 422
+               )
+
+      assert %{"errors" => %{"news_cik" => [_], "news_aliases" => [_]}} =
+               create.(
+                 Map.merge(base, %{
+                   news_cik: "320193",
+                   news_aliases: [%{token: "Probe", case: "sensitive", regex: "P.*"}]
+                 }),
+                 422
+               )
+
+      assert %{"errors" => %{"news_identity" => %{"cik" => [_]}}} =
+               create.(Map.put(base, :news_identity, %{cik: "CIK12"}), 422)
+
+      assert Repo.aggregate(Portfolixir.Catalog.Security, :count) == count
+    end
+  end
+
+  # --- end closing act, Fix-1 -----------------------------------------------
+
   defp item!(feed) do
     attrs = %{
       feed_id: feed.id,
