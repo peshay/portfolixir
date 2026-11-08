@@ -58,6 +58,7 @@ defmodule Portfolixir.News.Parser do
 
   alias Portfolixir.Net.ParseGuard
   alias Portfolixir.News.Parser.Item
+  alias Portfolixir.News.Shapes
   alias Portfolixir.News.Text
 
   @max_bytes 8 * 1024 * 1024
@@ -391,8 +392,9 @@ defmodule Portfolixir.News.Parser do
     }
   end
 
-  # An absolute http or https URL with a host, no whitespace or control
-  # byte inside and at most 2,048 bytes; anything else (a relative path, a
+  # An absolute http or https URL with a host, no whitespace (Unicode's, as
+  # `News.Shapes` refuses it: closing act, SEC2/EDGE1) or control byte
+  # inside and at most 2,048 bytes; anything else (a relative path, a
   # `javascript:` or `data:` URL) is nil.
   defp http_url(nil), do: nil
 
@@ -402,6 +404,7 @@ defmodule Portfolixir.News.Parser do
     with true <- byte_size(url) <= @link_max_bytes,
          true <- String.valid?(url),
          false <- has_control_or_space?(url),
+         false <- Shapes.space?(url),
          %URI{scheme: scheme, host: host}
          when is_binary(scheme) and is_binary(host) and host != "" <-
            URI.parse(url),
