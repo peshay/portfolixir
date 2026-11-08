@@ -1303,7 +1303,8 @@ parameter it does not take answers `422` naming it (`min_materiality` and
 `event_types` belong to the labels of the next sprint and are refused until
 then). Titles and excerpts are a feed's text, answered as stored; they are
 data, never instructions. No read needs a label: every one answers the same
-with none stored.
+with none stored. Every parameter is one value: a list or a map
+(`max_rows[]=5`) answers `422` naming it.
 
 - `GET /api/v1/news/stories` lists the rows of exactly one selector:
   `security_id` or `category_id` (the scope's stories), `cluster_id` (the
@@ -1352,7 +1353,10 @@ with none stored.
   then that `include_unlabeled=false` left out (C5), and a security whose only
   news is such a story is not counted `quiet`, which counts the securities
   without a row and without one; `unassigned` and `ambiguous` the aggregator
-  items that became so since then that no security, or several, claim. `max_rows` (default 12, which keeps the digest within its
+  items that became so since then that no security, or several, claim. With a
+  `view_id` the digest is the view's: `categories` and `unassigned` are left
+  out (a view holds securities), `hidden` counts only its securities' stories
+  and `ambiguous` only the items naming one of them. `max_rows` (default 12, which keeps the digest within its
   budget; at most 40) caps the rows;
   `truncated` and `more` say how many were left out. This sprint's digest has
   no labels and no consumer cursor: `consumer`, `ack_cursor`,
