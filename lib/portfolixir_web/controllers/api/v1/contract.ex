@@ -120,8 +120,27 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "item 404. The tool portfolixir.news.assign reaches it in the book and full " <>
               "profiles. A label's suggested_security_id assigns nothing, and an unassigned " <>
               "or ambiguous item, in no story, carries none. PUT /api/v1/news/sources no " <>
-              "longer fails with \"has already been taken\" when two puts of a new domain race."
+              "longer fails with \"has already been taken\" when two puts of a new domain race.",
             # --- S28 N4 end ---
+            # --- S28 N5 begin ---
+            "Sprint 28, N5 (ADR-0056 §8, A2; ADR-0044's amendment of 2026-11-06): a story " <>
+              "becomes knowledge only by a confirmed write. A research-log entry of kind " <>
+              "evidence or event_result takes headline (at most 80 characters), event_type " <>
+              "(earnings, guidance, capital_measure, legal, m_and_a, product, regulatory, " <>
+              "macro) and tone (-1, 0, 1), set once; on another kind each answers 422 naming " <>
+              "it, and every entry read answers them and news_label_id (null when absent). POST " <>
+              "/api/v1/securities/:security_id/notes takes note.cluster_id: the server pre-fills " <>
+              "kind evidence, as_of, source_url, source_quality, the headline and the active " <>
+              "label's event_type and tone, the caller writes the body and may replace kind, " <>
+              "headline, event_type or tone (null leaves one out); as_of, source_url or " <>
+              "source_quality beside cluster_id answers 422 naming it, as does a story of another " <>
+              "security naming cluster_id. Every member of the story is promoted and names the " <>
+              "entry; a second promotion appends another. POST " <>
+              "/api/v1/securities/:security_id/events takes event.news_id, the item's link and " <>
+              "source quality as the event's source. portfolixir.notes.append no longer " <>
+              "requires kind, source_quality and as_of beside cluster_id, and " <>
+              "portfolixir.events.create no longer requires source_quality beside news_id."
+            # --- S28 N5 end ---
           ],
           " "
         ),
@@ -190,8 +209,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/news/digest (portfolixir.news.digest) takes consumer and ack_cursor: " <>
           "with consumer the answer's since is the consumer's confirmed position and it " <>
           "carries cursor, <unix seconds>~<tag>, in place of as_of; ack_cursor confirms it " <>
-          "on the next call (ADR-0056 §9; S28 N3)"
+          "on the next call (ADR-0056 §9; S28 N3)",
         # --- S28 N3 end ---
+        # --- S28 N5 begin ---
+        "POST /api/v1/securities/:security_id/notes (portfolixir.notes.append) takes " <>
+          "note.cluster_id, headline, event_type and tone, and every entry read answers " <>
+          "headline, event_type, tone and news_label_id (ADR-0056 §8; S28 N5)",
+        "POST /api/v1/securities/:security_id/events (portfolixir.events.create) takes " <>
+          "event.news_id (ADR-0056 §8; S28 N5)"
+        # --- S28 N5 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

@@ -154,6 +154,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "suggested_security_id assigns nothing"
     # --- S28 N4 end ---
 
+    # --- S28 N5 begin ---
+    # N5 (ADR-0056 §8, A2): from story to knowledge.
+    assert newest["summary"] =~ "Sprint 28, N5 (ADR-0056 §8, A2; ADR-0044's amendment of "
+    assert newest["summary"] =~ "a story becomes knowledge only by a confirmed write"
+    assert newest["summary"] =~ "takes note.cluster_id"
+    assert newest["summary"] =~ "beside cluster_id answers 422 naming it"
+    assert newest["summary"] =~ "takes event.news_id"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.notes.append" and &1 =~ "note.cluster_id, headline")
+           )
+
+    assert Enum.any?(newest["parameters"], &(&1 =~ "event.news_id"))
+    # --- S28 N5 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

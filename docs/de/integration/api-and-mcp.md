@@ -961,9 +961,37 @@ Beispiel-Payload zum Anhängen:
 }
 ```
 
+**Eine Story wird nur durch einen bestätigten Schreibvorgang zum Eintrag**
+(ADR-0056 §8, A2; Sprint 28, N5): `POST /api/v1/securities/:security_id/notes`
+mit `note.cluster_id` (eine Story dieses Wertpapiers) und einem `body`
+schreibt einen Eintrag, den der Server aus der Story vorbelegt: `kind`
+`evidence` (`event_result` darf stattdessen gesendet werden; eine andere Art
+liefert `422` mit `kind`); `as_of` der Tag, an dem die Story veröffentlicht
+wurde (die Veröffentlichung ihres Repräsentanten, wie `news.get` sie
+antwortet); `source_url` der Link ihres Mitglieds der besten Stufe, der erste,
+der in 255 Zeichen passt; `source_quality` nach der Regel von ADR-0056 §3 (ein
+`primary`-Mitglied ergibt `primary`, zwei oder mehr verschiedene
+`secondary`-Domains `secondary_multi`, eine `unverified`, sonst
+`awareness`); `headline` ihr Titel, an einer Wortgrenze auf 80 Zeichen
+gekürzt; `event_type` und `tone` aus ihrem aktiven Label der neuesten
+Prompt-Version (ein `noise`-Label ergibt keinen Ereignistyp), und der Eintrag
+behält die Id dieses Labels als `news_label_id`. Die Vorbelegung ist ein
+Vorschlag: `kind`, `headline`, `event_type` und `tone` neben `cluster_id`
+ersetzen sie, und `null` lässt eines weg; `as_of`, `source_url` und
+`source_quality` gehören der Story, und eines davon neben `cluster_id`
+liefert `422` mit dem Feldnamen. Ein Titel mit einem unsichtbaren Zeichen
+wird als Schlagzeile abgelehnt, mit `headline`; dann eine eigene senden.
+Danach ist jedes Mitglied der Story `promoted` und nennt den Eintrag in
+`note_ids` (`news.get`, `news.list` mit `fields=std`), sodass es die
+Aufbewahrungsfrist überdauert; eine zweite Übernahme hängt einen weiteren
+Eintrag an, und die Story nennt beide. Eine Story eines anderen Wertpapiers,
+die Story einer Kategorie oder eine Id ohne Story liefert `422` mit
+`cluster_id`. Nichts in der News-Schicht schreibt von sich aus einen Eintrag,
+einen Termin oder eine Prognose.
+
 **Eine Nachricht von einem externen Aggregator** (Idee I13; Sprint-25-Plan
-D-5) wird als gewöhnlicher Eintrag festgehalten, und dafür kommt kein Feld
-hinzu: `kind` `evidence`; `as_of` das Datum, an dem die Nachricht öffentlich
+D-5), die die News-Schicht nicht hält, wird als gewöhnlicher Eintrag
+festgehalten: `kind` `evidence`; `as_of` das Datum, an dem die Nachricht öffentlich
 wurde, also das Stichdatum der Aussage, sodass sie neben dem Schlusskurs
 dieses Tages steht; `source_url` der Artikel; `source_quality`, wie der
 Aggregator sie beurteilt hat; `body` eine Zusammenfassung und der Link, **nie der Artikel** —
@@ -1176,8 +1204,16 @@ Die Reads:
 Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 `PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
 (`204`). Beim Anlegen gilt: `security_id` kommt aus dem Pfad, nie aus dem
-Body; `machine_generated` ist reserviert und wird im Body ignoriert. Das
-Wertpapier, zu dem ein Termin gehört, lässt sich nicht ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
+Body; `machine_generated` ist reserviert und wird im Body ignoriert.
+`event.news_id` (ADR-0056 §8; Sprint 28, N5) nennt einen Nachrichten-Eintrag
+dieses Wertpapiers als Quelle des Termins: Sein Link wird `source_url`, seine
+Stufe `source_quality` (`primary`, `secondary` als `unverified`,
+`awareness`); `source_url` oder `source_quality` daneben liefert `422` mit
+dem Feldnamen, und ein Eintrag eines anderen Wertpapiers, einer, den es nicht
+gibt, oder einer mit einem Link über 255 Zeichen liefert `422` mit `news_id`.
+Der Eintrag wird nicht übernommen: Was von Nachrichten bleibt, ist ein
+Research-Eintrag. Das Wertpapier, zu dem ein Termin gehört, lässt sich nicht
+ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
 (Kalendertag der Instanz plus ein Tag für Zeitzonen) `422` auf `checked_at`,
 und nichts wird geschrieben. Die `note` eines Termins fasst höchstens 10000
 Zeichen (Unicode-Codepoints); eine längere liefert `422` auf `note`. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
@@ -5221,7 +5257,11 @@ lässt sich nicht lesen.
 - `portfolixir.securities.search_online`
 - `portfolixir.events.list`, `portfolixir.events.create`,
   `portfolixir.events.update`, `portfolixir.events.delete` — der Kalender
-  eines Wertpapiers und seine drei Schreibzugriffe (ADR-0048).
+  eines Wertpapiers und seine drei Schreibzugriffe (ADR-0048). Das `event`
+  von `events.create` nimmt `news_id`, einen Nachrichten-Eintrag des
+  Wertpapiers als Quelle (S28 N5): Der Begleiter lehnt `source_url` oder
+  `source_quality` daneben ab, ebenso einen Termin ohne `news_id` und ohne
+  `source_quality`, vor jeder Anfrage.
 - `portfolixir.events.upcoming` — was in den nächsten N Tagen im **gesamten
   Katalog** ansteht; `held_only` grenzt ein und ist nie die Voreinstellung.
 - `portfolixir.events.unconfirmed` — vergangene Termine, die niemand bestätigt
@@ -5241,11 +5281,15 @@ lässt sich nicht lesen.
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).
 - `portfolixir.notes.append` — der einzige Schreibzugriff auf das Log; ein
-  Widerruf mit `supersedes_id` zieht einen Befund zurück. Seine Beschreibung
-  sagt, wie ein externer Aggregator eine Nachricht festhält: `kind`
-  `evidence`, `as_of` der Tag, an dem sie öffentlich wurde, eine
-  Zusammenfassung und der Link, nie der Artikel, und eine daraus gelesene
-  Richtung als Prognose mit `note_id` auf den Eintrag.
+  Widerruf mit `supersedes_id` zieht einen Befund zurück. Es nimmt
+  `headline`, `event_type` und `tone` bei einem evidence- oder
+  event_result-Eintrag, und `cluster_id`: eine Story, mit dem `body` des
+  Agenten festgehalten, den Rest setzt der Server, wie
+  [Research-Log](#research-log-adr-0044) sagt (S28 N5); der Begleiter lehnt
+  `as_of`, `source_url` oder `source_quality` neben `cluster_id` ab, ebenso
+  einen Eintrag ohne `cluster_id`, dem `kind`, `source_quality` oder `as_of`
+  fehlt, vor jeder Anfrage. Eine Zusammenfassung, nie der Artikel, und eine
+  Richtung zum Bewerten als Prognose mit `note_id`.
 - `portfolixir.notes.unreviewed` — gehaltene Positionen ohne Eintrag seit N
   Tagen.
 - `portfolixir.notes.uncorroborated` — Einträge, deren Quellenqualität nicht

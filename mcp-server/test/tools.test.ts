@@ -5072,11 +5072,11 @@ describe("Portfolixir MCP tools", () => {
   // is scored as a prediction.
   //
   // Acceptance criteria:
-  // - The description names kind evidence, as_of and source_url from
-  //   news.get's published_at and url, source_quality from the item's tier
-  //   by ADR-0056 §3 (Sprint 27 closing act, AG5), a summary and never the
-  //   article, and portfolixir.predictions.create with note_id for a
-  //   direction read from it.
+  // - The description names how a news story is kept: its cluster_id with
+  //   the body, the server setting kind evidence, as_of, source_url and
+  //   source_quality (S28 N5, ADR-0056 §8; it was the aggregator convention
+  //   of the Sprint 27 closing act, AG5), a summary and never the article,
+  //   and portfolixir.predictions.create with note_id for a direction.
   // - The rules it stated before still hold, each where the agent reads the
   //   tool: the permanence, the retraction, source quality set and not
   //   guessed, as_of the cut-off date, the dated block, the thesis fields on
@@ -5086,11 +5086,13 @@ describe("Portfolixir MCP tools", () => {
     const append = listTools().find((tool) => tool.name === "portfolixir.notes.append");
     const description = append?.description ?? "";
 
-    assert.match(description, /A news item: kind evidence/);
-    assert.match(description, /as_of, source_url = news\.get's published_at, url/);
-    assert.match(description, /source_quality from its tier \(ADR-0056 §3\)/);
-    assert.match(description, /a summary and the link, never the article/);
-    assert.match(description, /portfolixir\.predictions\.create with note_id on this entry/);
+    // S28 N5 (ADR-0056 §8): a news story is kept with its cluster_id, and
+    // the server sets what the aggregator convention asked the agent for.
+    assert.match(description, /A news story: cluster_id and body/);
+    assert.match(description, /the server sets kind evidence/);
+    assert.match(description, /as_of, source_url, source_quality \(send none\)/);
+    assert.match(description, /A summary, never the article/);
+    assert.match(description, /portfolixir\.predictions\.create with note_id/);
 
     for (const rule of [
       /PERMANENT/,

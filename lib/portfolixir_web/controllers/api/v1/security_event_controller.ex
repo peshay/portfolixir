@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   alias Portfolixir.Clock
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
+  alias Portfolixir.News
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
@@ -101,12 +102,12 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
       %Security{} = security ->
         attrs = event_attrs(Map.get(params, "event", %{}), security)
 
-        case Events.create_event(conn.assigns.actor, attrs) do
-          {:ok, event} ->
-            conn |> put_status(:created) |> json(%{data: JSON.security_event(event)})
-
-          {:error, changeset} ->
-            unprocessable(conn, JSON.errors(changeset))
+        with {:ok, attrs} <- news_source(attrs, security),
+             {:ok, event} <- Events.create_event(conn.assigns.actor, attrs) do
+          conn |> put_status(:created) |> json(%{data: JSON.security_event(event)})
+        else
+          {:refused, errors} -> unprocessable(conn, errors)
+          {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
         end
 
       nil ->
@@ -274,6 +275,32 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   end
 
   defp event_attrs(_attrs, security), do: event_attrs(%{}, security)
+
+  # --- S28 N5 begin ---
+  # ADR-0056 §8: `news_id` names the item an event takes its source from —
+  # its link and its tier's source quality (`Portfolixir.News.event_source/2`).
+  # Those two are the item's, so one sent beside it answers 422 naming it.
+  @news_source_fields ~w(source_url source_quality)
+
+  defp news_source(%{"news_id" => news_id} = attrs, %Security{id: security_id}) do
+    with [] <- Enum.filter(@news_source_fields, &Map.has_key?(attrs, &1)),
+         {:ok, id} <- IdParam.parse(news_id),
+         {:ok, source} <- News.event_source(security_id, id) do
+      {:ok, attrs |> Map.delete("news_id") |> Map.merge(source)}
+    else
+      [_ | _] = fields ->
+        {:refused, Map.new(fields, &{&1, ["is the item's beside news_id: leave it out"]})}
+
+      :error ->
+        {:refused, %{"news_id" => ["is invalid"]}}
+
+      {:error, errors} ->
+        {:refused, errors}
+    end
+  end
+
+  defp news_source(attrs, _security), do: {:ok, attrs}
+  # --- S28 N5 end ---
 
   defp drop_reserved(attrs) when is_map(attrs),
     do: Map.drop(attrs, ["security_id", "machine_generated", :security_id, :machine_generated])
