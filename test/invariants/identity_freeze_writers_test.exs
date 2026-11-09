@@ -246,6 +246,89 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     assert Enum.count(offenders, &(&1 =~ "replace_all")) == 2
   end
 
+  # --- Sprint 28 Q begin ---
+  # The quote provider's stated currency (#1415): `provider_currency` and
+  # `provider_currency_at`, written only through
+  # `Security.provider_currency_changeset/3`, inside
+  # `Catalog.put_provider_currency/4`. Every caller of that function, and
+  # why it may set what a provider stated (closing act, QA2):
+  #   :quote_sync — the quote sync's record of what its provider stated, as
+  #                 the system job `quote_sync` (B5), a refused answer's too;
+  #   :merge_carry — a security merge carrying the source's stored value and
+  #                 its time onto a target that has none, under the merge's
+  #                 actor, because the source's quotes move with it (QA1).
+  @provider_currency_callers %{
+    {"lib/portfolixir/catalog/quote_sync.ex", :keep_provider_currency} => :quote_sync,
+    {"lib/portfolixir/lifecycle/security_merge.ex", :carry_provider_currency} => :merge_carry
+  }
+
+  # The one function that may name either column in a write.
+  @provider_currency_builders [
+    {"lib/portfolixir/catalog/security.ex", :provider_currency_changeset}
+  ]
+
+  @provider_currency_columns ~w(provider_currency provider_currency_at)
+
+  # User story (closing act, QA2):
+  # As the maintainer of the provider-currency column,
+  # I want every caller of `Catalog.put_provider_currency/4` and every write
+  # naming `provider_currency` or `provider_currency_at` known by name,
+  # so that no API controller, import or second job can set what a provider
+  # stated under another actor without a reviewer reading it.
+  #
+  # Acceptance criteria:
+  # - The functions calling `put_provider_currency` are exactly the
+  #   classified callers.
+  # - The functions whose change, put_change, force_change, cast, update_all
+  #   or insert_all names either column (a module attribute's list
+  #   included) are exactly the registered builder, and no raw SQL UPDATE of
+  #   securities sets either.
+  test "the provider currency's callers and writers are exactly the classified set" do
+    callers = @lib_sources |> Enum.flat_map(&provider_currency_callers_in/1) |> MapSet.new()
+    expected = @provider_currency_callers |> Map.keys() |> MapSet.new()
+
+    assert MapSet.difference(callers, expected) |> Enum.sort() == [],
+           "new callers of Catalog.put_provider_currency/4 — classify each in " <>
+             "@provider_currency_callers with the reason it may set what a provider stated"
+
+    assert MapSet.difference(expected, callers) |> Enum.sort() == [],
+           "classified callers of put_provider_currency no longer found — did they move?"
+
+    writers = Enum.flat_map(@lib_sources, &provider_currency_writes_in/1)
+
+    assert Enum.sort(writers) == Enum.sort(@provider_currency_builders),
+           "provider_currency written outside Security.provider_currency_changeset/3 " <>
+             "(#1415):\n" <> Enum.map_join(writers, "\n", &inspect/1)
+  end
+
+  test "the provider-currency sweep finds each kind of offender in a sample" do
+    sample = """
+    defmodule Sample do
+      @fields [:name, :provider_currency]
+      def a(actor, s), do: Catalog.put_provider_currency(actor, s, "USD", DateTime.utc_now())
+      def b(s), do: s |> Ecto.Changeset.change(provider_currency: "USD") |> Repo.update()
+      def c(cs), do: Changeset.put_change(cs, :provider_currency_at, nil)
+      def d(cs), do: force_change(cs, :provider_currency, "USD")
+      def e(s, p), do: Ecto.Changeset.cast(s, p, [:name, :provider_currency])
+      def f(s, p), do: cast(s, p, @fields)
+      def g(id), do: from(s in Security, where: s.id == ^id) |> Repo.update_all(set: [provider_currency_at: nil])
+      def h(rows), do: Repo.insert_all(Security, rows, on_conflict: {:replace, [:provider_currency]})
+      def i, do: Repo.query!("UPDATE securities SET provider_currency = 'USD'")
+      def j(s), do: Ecto.Changeset.change(s, name: "provider_currency")
+      def k(s), do: s.provider_currency
+    end
+    """
+
+    assert provider_currency_callers_in_source("sample.ex", sample) == [{"sample.ex", :a}]
+
+    # b to i write a column (i as raw SQL); j writes a name whose value only
+    # spells it, k reads it.
+    assert provider_currency_writes_in_source("sample.ex", sample) ==
+             Enum.map(~w(b c d e f g h)a, &{"sample.ex", &1}) ++ [{"sample.ex", :raw_sql}]
+  end
+
+  # --- Sprint 28 Q end ---
+
   # User story:
   # As the maintainer of the name guard (ADR-0050 §4),
   # I want every code path that can write an account's name or its former
@@ -471,6 +554,63 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
       end)
 
     strings
+  end
+
+  # --- the provider currency (Sprint 28 Q, closing act QA2) ---------------------
+
+  defp provider_currency_callers_in(path),
+    do: provider_currency_callers_in_source(path, File.read!(path))
+
+  defp provider_currency_callers_in_source(path, source) do
+    for {name, body} <- source |> Code.string_to_quoted!() |> defs(),
+        calls_put_provider_currency?(body),
+        uniq: true,
+        do: {path, name}
+  end
+
+  defp calls_put_provider_currency?(body) do
+    found?(body, fn
+      {{:., _, [_module, :put_provider_currency]}, _, _args} -> true
+      {:put_provider_currency, _, args} when is_list(args) -> true
+      _other -> false
+    end)
+  end
+
+  defp provider_currency_writes_in(path),
+    do: provider_currency_writes_in_source(path, File.read!(path))
+
+  # A function whose change, put_change, force_change, cast, update_all or
+  # insert_all names either column as an atom, a word list or a module
+  # attribute holding one; and a raw SQL UPDATE of securities setting one.
+  defp provider_currency_writes_in_source(path, source) do
+    ast = Code.string_to_quoted!(source)
+    attributes = module_attributes(ast)
+
+    in_defs =
+      for {name, body} <- defs(ast),
+          writes_provider_currency?(body, attributes),
+          uniq: true,
+          do: {path, name}
+
+    raw_sql =
+      for string <- strings(ast),
+          string =~ ~r/\bUPDATE\s+securities\s+SET\b[^;]*\bprovider_currency/i,
+          do: {path, :raw_sql}
+
+    in_defs ++ Enum.uniq(raw_sql)
+  end
+
+  defp writes_provider_currency?(body, attributes) do
+    found?(body, fn
+      {fun, _, args} when fun in @field_writes and is_list(args) ->
+        names_field?(args, @provider_currency_columns, attributes)
+
+      {{:., _, [_mod, fun]}, _, args} when fun in @field_writes ->
+        names_field?(args, @provider_currency_columns, attributes)
+
+      _other ->
+        false
+    end)
   end
 
   # --- the schema side ---------------------------------------------------------

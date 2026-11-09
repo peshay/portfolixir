@@ -5344,7 +5344,7 @@ msgstr ""
 msgid "Filter the list"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7382
+#: lib/portfolixir_web/live/securities_live.ex:7379
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr ""
@@ -5355,12 +5355,12 @@ msgstr ""
 msgid "Missing FX rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7381
+#: lib/portfolixir_web/live/securities_live.ex:7378
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7380
+#: lib/portfolixir_web/live/securities_live.ex:7377
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr ""
@@ -15829,8 +15829,7 @@ msgid "Above eight bands the smallest merge into “Other”, which always sits 
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:266
-#: lib/portfolixir_web/live/securities_live.ex:7371
-#: lib/portfolixir_web/live/securities_live.ex:7384
+#: lib/portfolixir_web/live/securities_live.ex:7381
 #, elixir-autogen, elixir-format
 msgid "Currency mismatch"
 msgstr ""

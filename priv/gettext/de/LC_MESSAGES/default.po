@@ -5345,7 +5345,7 @@ msgstr "Heute"
 msgid "Filter the list"
 msgstr "Liste filtern"
 
-#: lib/portfolixir_web/live/securities_live.ex:7382
+#: lib/portfolixir_web/live/securities_live.ex:7379
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr "Kein Wechselkurs"
@@ -5356,12 +5356,12 @@ msgstr "Kein Wechselkurs"
 msgid "Missing FX rate"
 msgstr "Kein Wechselkurs hinterlegt"
 
-#: lib/portfolixir_web/live/securities_live.ex:7381
+#: lib/portfolixir_web/live/securities_live.ex:7378
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr "Kein Kurs"
 
-#: lib/portfolixir_web/live/securities_live.ex:7380
+#: lib/portfolixir_web/live/securities_live.ex:7377
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr "Kurs veraltet"
@@ -15839,8 +15839,7 @@ msgid "Above eight bands the smallest merge into “Other”, which always sits 
 msgstr "Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen; dieses Band liegt immer oben."
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:266
-#: lib/portfolixir_web/live/securities_live.ex:7371
-#: lib/portfolixir_web/live/securities_live.ex:7384
+#: lib/portfolixir_web/live/securities_live.ex:7381
 #, elixir-autogen, elixir-format
 msgid "Currency mismatch"
 msgstr "Währung abweichend"

@@ -5,8 +5,9 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
   # sweep's `:provider_currency_only` — with callers and fields they did not
   # name, before integration.
   #
-  # A test tagged `:q_attack_red` shows a defect and fails until it is
-  # fixed; every other test pins a hole found closed, so it stays closed.
+  # The four tests once tagged `:q_attack_red` showed defects the closing
+  # act fixed (QA1, QA3, QA4, QA5, each to its decided answer); every test
+  # now pins a hole found closed, so it stays closed.
   # Every name, amount and identifier is synthetic.
   #
   # group: :builtin_classifications -- the security merge below may seed the
@@ -124,59 +125,11 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
     assert entry.actor_label == "quote_sync"
   end
 
-  # User story:
-  # As the maintainer of the two registrations,
-  # I want every caller of `Catalog.put_provider_currency/4`, and every write
-  # naming either column outside the schema, known by name,
-  # so that a second writer — an API controller, an import, a merge — cannot
-  # set the column under another actor without a reviewer reading it. B5
-  # names a system_job label per module and the identity-freeze sweep a
-  # changeset builder per function; neither names the callers of the context
-  # function, and the freeze sweep's side-write scan looks for the frozen
-  # fields only.
-  #
-  # Acceptance criteria:
-  # - In lib/, the only caller of `put_provider_currency` outside its own
-  #   module is `Portfolixir.Catalog.QuoteSync`.
-  # - No module in lib/ but the schema names `provider_currency` or
-  #   `provider_currency_at` inside a change, cast, bulk write or raw SQL
-  #   UPDATE.
-  # - Both scans find a synthetic second writer (self-test).
-  test "the writer's callers and the column's writes are exactly the registered ones" do
-    sources = Map.new(Path.wildcard("lib/**/*.ex"), &{&1, File.read!(&1)})
-
-    callers =
-      for {path, source} <- sources,
-          path != "lib/portfolixir/catalog.ex",
-          module <- put_callers(source),
-          uniq: true,
-          do: module
-
-    assert Enum.sort(callers) ==
-             ["Portfolixir.Catalog.QuoteSync", "Portfolixir.Lifecycle.SecurityMerge"]
-
-    writes =
-      for {path, source} <- sources,
-          path != "lib/portfolixir/catalog/security.ex",
-          hit <- column_writes(source),
-          do: "#{path}:#{hit}"
-
-    assert writes == [], Enum.join(writes, "\n")
-
-    synthetic = """
-    defmodule Portfolixir.SyntheticCurrencyWriter do
-      alias Portfolixir.Catalog
-      def a(actor, s), do: Catalog.put_provider_currency(actor, s, "USD", DateTime.utc_now())
-      def b(s), do: s |> Ecto.Changeset.change(provider_currency: "USD") |> Repo.update()
-      def c(id), do: from(s in Security, where: s.id == ^id) |> Repo.update_all(set: [provider_currency_at: nil])
-      def d, do: Repo.query!("UPDATE securities SET provider_currency = 'USD'")
-      def e(s, p), do: Ecto.Changeset.cast(s, p, [:name, :provider_currency])
-    end
-    """
-
-    assert put_callers(synthetic) == ["Portfolixir.SyntheticCurrencyWriter"]
-    assert length(column_writes(synthetic)) == 4
-  end
+  # The writer's callers and every write naming either column are held by
+  # the gate itself since the closing act (QA2):
+  # test/invariants/identity_freeze_writers_test.exs, "the provider
+  # currency's callers and writers are exactly the classified set", with its
+  # self-test; this lens's scan was folded into it.
 
   # --- hostile provider values -------------------------------------------------
 
@@ -308,6 +261,29 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
 
     assert length(journaled.()) == before
     assert %{provider_currency: "USD", provider_currency_at: @later} = stored(security)
+  end
+
+  # User story (Sprint 28 Q, coverage):
+  # As the maintainer of the writer,
+  # I want a write for a security deleted since its caller read it to answer
+  # not_found and write nothing,
+  # so that a sync or a merge racing a delete is named, not crashed or
+  # journaled.
+  #
+  # Acceptance criteria:
+  # - `put_provider_currency/4` on a deleted security answers
+  #   `{:error, :not_found}`; no journal entry is written for it.
+  test "the writer answers not_found for a security deleted since it was read" do
+    security = security!("Gone Line", "EUR")
+    {:ok, _} = Catalog.delete_security(Actor.owner_ui(), security)
+
+    assert {:error, :not_found} =
+             Catalog.put_provider_currency(sync_actor(), security, "USD", @read_at)
+
+    refute Enum.any?(
+             Journal.list_entries(resource_type: "security", resource_id: to_string(security.id)),
+             &(&1.operation == :update)
+           )
   end
 
   # --- the set after other writers' changes -----------------------------------
@@ -525,77 +501,4 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
       |> Plug.Conn.send_resp(200, Jason.encode!(body))
     end
   end
-
-  # The modules whose code calls `put_provider_currency` on any alias.
-  defp put_callers(source) do
-    source
-    |> module_hits(fn
-      {{:., _, [_module, :put_provider_currency]}, _, _args} -> true
-      {:put_provider_currency, _, args} when is_list(args) -> true
-      _node -> false
-    end)
-    |> Enum.uniq()
-  end
-
-  @columns [:provider_currency, :provider_currency_at]
-  @writes ~w(change put_change force_change cast cast_embed update_all insert_all)a
-
-  # "line what" for each write naming either column, and each raw SQL UPDATE.
-  defp column_writes(source) do
-    ast = Code.string_to_quoted!(source)
-
-    {_ast, hits} =
-      Macro.prewalk(ast, [], fn
-        {{:., _, [_module, fun]}, meta, args} = node, acc when fun in @writes ->
-          {node, hit(acc, names_column?(args), meta, fun)}
-
-        {fun, meta, args} = node, acc when fun in @writes and is_list(args) ->
-          {node, hit(acc, names_column?(args), meta, fun)}
-
-        binary, acc when is_binary(binary) ->
-          sql? = binary =~ ~r/\bUPDATE\s+securities\s+SET\b[^;]*\bprovider_currency/i
-          {binary, if(sql?, do: ["? raw_sql" | acc], else: acc)}
-
-        node, acc ->
-          {node, acc}
-      end)
-
-    Enum.reverse(hits)
-  end
-
-  defp hit(acc, false, _meta, _fun), do: acc
-  defp hit(acc, true, meta, fun), do: ["#{Keyword.get(meta, :line, "?")} #{fun}" | acc]
-
-  defp names_column?(ast) do
-    {_ast, found} =
-      Macro.prewalk(ast, false, fn
-        node, true -> {node, true}
-        atom, false when atom in @columns -> {atom, true}
-        node, false -> {node, false}
-      end)
-
-    found
-  end
-
-  defp module_hits(source, matcher) do
-    source
-    |> Code.string_to_quoted!()
-    |> walk([], matcher)
-  end
-
-  defp walk({:defmodule, _, [{:__aliases__, _, segments}, body]}, outer, matcher),
-    do: walk(body, outer ++ segments, matcher)
-
-  defp walk({form, _meta, args} = node, module, matcher) do
-    own = if matcher.(node), do: [Enum.join(module, ".")], else: []
-    own ++ walk(form, module, matcher) ++ walk(args, module, matcher)
-  end
-
-  defp walk({left, right}, module, matcher),
-    do: walk(left, module, matcher) ++ walk(right, module, matcher)
-
-  defp walk(list, module, matcher) when is_list(list),
-    do: Enum.flat_map(list, &walk(&1, module, matcher))
-
-  defp walk(_leaf, _module, _matcher), do: []
 end

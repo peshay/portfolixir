@@ -134,11 +134,9 @@ defmodule Portfolixir.Catalog.Security do
   ASCII letters, as written. The quote adapters refuse a stated currency
   of any other shape before they compare it (closing act, QA3).
   """
-  @spec provider_currency_shape?(term()) :: boolean()
+  @spec provider_currency_shape?(String.t()) :: boolean()
   def provider_currency_shape?(value) when is_binary(value),
     do: value =~ @provider_currency_shape
-
-  def provider_currency_shape?(_value), do: false
 
   @doc """
   The quote sync's record of the currency its provider stated (#1415):
