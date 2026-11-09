@@ -1517,6 +1517,19 @@ only the digest's `unlabeled` grows.
   `restarted: true`. Rows tie, after their materiality and their top
   story's tier and publication, by security id. With `since` a truncated
   answer keeps `truncated` and `more` as before.
+- `GET /api/v1/news/registry` (`news.registry`, Sprint 28 N7) lists what
+  the news page's Feeds and Quellen tabs show, read through the same
+  function: every registered feed by id (`id`, `url` cut at 300 characters
+  as the companion spells it, `class`, `security_id` or `category_id` (none
+  for an aggregator), `language`, `enabled`), then every rated source by
+  domain (`domain`, `tier`, `set_by` `hand` or `seed`; a domain without a
+  row reads as `awareness`). `limit` (default 40, at most 100) counts feeds
+  and sources together; a page with more behind it answers `truncated:
+  true` and a `cursor` to pass back. A page at the default limit holds
+  about 4,500 tokens at most, however long the links and domains. Each
+  feed's health is `news.health`'s. Registering, changing and removing
+  stay with [News upkeep](#news-upkeep-adr-0056); an unknown parameter
+  answers `422` naming it.
 
 ### News labels (ADR-0056 §7)
 
@@ -5184,6 +5197,7 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.news.health`
 - `portfolixir.news.digest`
 - `portfolixir.news.assign`
+- `portfolixir.news.registry`
 - `portfolixir.news.unlabeled` (`label` profile only)
 - `portfolixir.news.label_put` (`label` profile only)
 

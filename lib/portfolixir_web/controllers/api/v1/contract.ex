@@ -168,6 +168,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "consumer whose last confirmation, or creation, is more than 90 days old, so " <>
               "the cap of 32 frees itself.",
             # --- S28 N3 OQ2 end ---
+            # --- S28 N7 begin ---
+            "Sprint 28, N7 (ADR-0056 §10, the coverage rule): GET /api/v1/news/registry " <>
+              "(portfolixir.news.registry, every profile but label) lists what the news " <>
+              "page's Feeds and Quellen tabs show: every registered feed by id (id, url cut " <>
+              "at 300 characters as the companion spells it, class, security_id or " <>
+              "category_id, language, enabled), then every rated source by domain (domain, " <>
+              "tier, set_by hand or seed); limit (default 40, at most 100) counts both, and a " <>
+              "truncated page carries cursor; an unknown parameter answers 422 naming it.",
+            # --- S28 N7 end ---
             # --- Sprint 28 V1 begin ---
             "Sprint 28, V1 (FR-55): GET /api/v1/version, new, answers the version this " <>
               "instance was built from, read once at compile time (the build arguments " <>
@@ -193,6 +202,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S28 N4 begin ---
         "PUT /api/v1/news/items/:id/assignment",
         # --- S28 N4 end ---
+        # --- S28 N7 begin ---
+        "GET /api/v1/news/registry",
+        # --- S28 N7 end ---
         # --- Sprint 28 V1 begin ---
         "GET /api/v1/version"
         # --- Sprint 28 V1 end ---
@@ -205,6 +217,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S28 N4 begin ---
         "portfolixir.news.assign",
         # --- S28 N4 end ---
+        # --- S28 N7 begin ---
+        "portfolixir.news.registry",
+        # --- S28 N7 end ---
         # --- Sprint 28 V1 begin ---
         "portfolixir.version"
         # --- Sprint 28 V1 end ---

@@ -180,8 +180,11 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.news.digest",
       // --- Sprint 27 N7 end ---
       // --- S28 N4 begin ---
-      "portfolixir.news.assign"
+      "portfolixir.news.assign",
       // --- S28 N4 end ---
+      // --- S28 N7 begin ---
+      "portfolixir.news.registry"
+      // --- S28 N7 end ---
     ]);
 
     const transactionCreate = tools.find((tool) => tool.name === "portfolixir.transactions.create");

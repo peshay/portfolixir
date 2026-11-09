@@ -17,9 +17,10 @@ defmodule PortfolixirWeb.NewsLive do
       `since` mode (`news.digest` without `consumer`: the screen keeps no
       consumer and never moves an agent's cursor), `since` the URL's (the
       API's parser) or the API's default of 24 hours;
-    * „Feeds“: `health/1`'s feeds beside each feed's registration
-      (`Portfolixir.News.feed_registrations/0`: URL, class, binding);
-    * „Quellen“: the rated domains (`Portfolixir.News.Sources.list/0`).
+    * „Feeds“: each registered feed (`Portfolixir.News.registry/1`, the
+      read `GET /api/v1/news/registry` pages: URL, class, binding,
+      language, paused) beside its `health/1` fields;
+    * „Quellen“: the rated domains, from the same `registry/1`.
 
   **One write**, the view's only action (§10): „Zuordnen“ assigns a queue
   item through `Portfolixir.News.assign_item/4`, the function
@@ -39,7 +40,6 @@ defmodule PortfolixirWeb.NewsLive do
   alias Portfolixir.Input.Text
   alias Portfolixir.News
   alias Portfolixir.News.Reads
-  alias Portfolixir.News.Sources
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
@@ -79,7 +79,7 @@ defmodule PortfolixirWeb.NewsLive do
     case socket.assigns.tab do
       :reports -> load_reports(socket)
       :feeds -> assign(socket, :feeds, feed_rows(health))
-      :sources -> assign(socket, :sources, Sources.list())
+      :sources -> assign(socket, :sources, News.registry().sources)
     end
   end
 
@@ -164,10 +164,14 @@ defmodule PortfolixirWeb.NewsLive do
 
   defp digest_since(%DateTime{} = since), do: since
 
-  # Each feed's health, in health's order, with its registration.
+  # Each registered feed, as news.registry lists it, with its health (a
+  # feed registered between the two reads shows from the next load).
   defp feed_rows(health) do
-    registrations = Map.new(News.feed_registrations(), &{&1.id, &1})
-    Enum.map(health.feeds, &Map.put(&1, :registration, Map.get(registrations, &1.id)))
+    health_by_id = Map.new(health.feeds, &{&1.id, &1})
+
+    for registration <- News.registry().feeds,
+        feed = Map.get(health_by_id, registration.id),
+        do: Map.put(feed, :registration, registration)
   end
 
   # --- the one write ----------------------------------------------------------
@@ -596,13 +600,16 @@ defmodule PortfolixirWeb.NewsLive do
             <tbody>
               <tr :for={feed <- @feeds} data-feed={feed.id}>
                 <td class="news-cell-title">
-                  <span class="news-url"><%= feed_url(feed) %></span>
+                  <span class="news-url" data-role="feed-url"><%= feed_url(feed) %></span>
                   <span :if={feed.last_error} class="news-sub" data-role="feed-last-error">
                     <%= gettext("last error:") %> <%= foreign(feed.last_error) %>
                   </span>
                 </td>
                 <td data-role="feed-class"><%= feed.class %></td>
-                <td data-role="feed-binding"><.feed_binding feed={feed} /></td>
+                <td>
+                  <span data-role="feed-binding"><.feed_binding feed={feed} /></span>
+                  · <span data-role="feed-language"><%= feed.registration.language %></span>
+                </td>
                 <td data-role="feed-last-ok" class="news-cell-time"><%= time(feed.last_ok_at) %></td>
                 <td class="num" data-role="feed-items-24h"><%= feed.items_24h %></td>
                 <td class="num" data-role="feed-errors"><%= feed.err_24h %></td>
@@ -619,7 +626,7 @@ defmodule PortfolixirWeb.NewsLive do
             <div class="phone-row__body">
               <span class="phone-row__name news-url"><%= feed_url(feed) %></span>
               <span class="phone-row__ids">
-                <%= feed.class %> · <.feed_binding feed={feed} /> · <%= time(feed.last_ok_at) %>
+                <%= feed.class %> · <.feed_binding feed={feed} /> · <%= feed.registration.language %> · <%= time(feed.last_ok_at) %>
               </span>
               <span class="phone-row__ids">
                 <%= gettext("%{items} in 30 d · %{kept} kept · yield %{yield}",
@@ -724,7 +731,7 @@ defmodule PortfolixirWeb.NewsLive do
               </tr>
             </thead>
             <tbody>
-              <tr :for={source <- @sources} data-source={source.id}>
+              <tr :for={source <- @sources} data-source={source.domain}>
                 <td data-role="source-domain"><%= foreign(source.domain) %></td>
                 <td data-role="source-tier"><.tier tier={source.tier} /></td>
                 <td data-role="source-set-by"><%= set_by(source.set_by) %></td>
@@ -733,7 +740,7 @@ defmodule PortfolixirWeb.NewsLive do
           </table>
         </div>
         <ul id="news-sources-phone-rows" class="phone-rows news-rows" aria-label={gettext("Sources")}>
-          <li :for={source <- @sources} class="phone-row" data-source={source.id}>
+          <li :for={source <- @sources} class="phone-row" data-source={source.domain}>
             <div class="phone-row__body">
               <span class="phone-row__name"><%= foreign(source.domain) %></span>
               <span class="phone-row__ids"><%= set_by(source.set_by) %></span>
@@ -765,12 +772,7 @@ defmodule PortfolixirWeb.NewsLive do
   defp foreign(nil), do: ""
   defp foreign(text), do: StoredText.bdi(Text.escape_invisible(text))
 
-  defp feed_url(feed) do
-    case feed.registration do
-      %{url: url} -> foreign(url)
-      nil -> "##{feed.id}"
-    end
-  end
+  defp feed_url(feed), do: foreign(feed.registration.url)
 
   defp queue_state(:ambiguous, row, names) do
     candidates = Enum.map_join(row.candidates, " · ", &Map.get(names, &1, "##{&1}"))

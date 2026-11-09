@@ -194,6 +194,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert Enum.any?(newest["parameters"], &(&1 =~ "answers the part news and parts.news"))
     # --- S28 N6 end ---
 
+    # --- S28 N7 begin ---
+    # N7's coverage (ADR-0056 §10): the registry the news page shows.
+    assert newest["summary"] =~ "Sprint 28, N7 (ADR-0056 §10, the coverage rule): "
+    assert "GET /api/v1/news/registry" in newest["endpoints"]
+    assert "portfolixir.news.registry" in newest["tools"]
+    assert newest["summary"] =~ "portfolixir.news.registry, every profile but label"
+    assert newest["summary"] =~ "url cut at 300 characters"
+    assert newest["summary"] =~ "a truncated page carries cursor"
+    # --- S28 N7 end ---
+
     # --- S28 N3 OQ2 begin ---
     assert newest["summary"] =~ "deletes a digest consumer whose last confirmation, or creation"
     # --- S28 N3 OQ2 end ---

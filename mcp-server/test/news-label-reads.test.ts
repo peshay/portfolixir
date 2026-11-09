@@ -86,7 +86,7 @@ describe("the labels in the news read tools", () => {
     const digest = description(DIGEST);
     assert.match(digest, /most material first/);
     assert.match(digest, /Issuer and regulatory stories always/);
-    assert.match(digest, /labelled min_materiality \(2\) or more/);
+    assert.match(digest, /labeled min_materiality \(2\) or more/);
     assert.match(digest, /unlabeled, unassigned, ambiguous/);
     assert.match(digest, /title \(50 chars\)/);
     assert.match(digest, /prompt_version's, default newest/);
