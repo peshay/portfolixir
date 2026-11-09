@@ -6207,8 +6207,15 @@ details[open] > .disclosure-summary .disclosure-chevron {
 /* I23 (FR-53, board 01 A): the stacked value chart. The bar above the
    chart wraps under the section's head; its options are links (each choice
    patches the address), drawn as the app's one segmented control. The
-   legend sits beside the chart from 900 px of the section, under it below. */
+   legend sits beside the chart from 900 px of the section, under it below.
+   The bar is the first user of "labelled controls start on one edge"
+   (DESIGN.md, amendment of 2026-11-08; issue 1366, plan amendment D-A5): one
+   line while its groups fit; when they wrap, a label column as wide as the
+   longest label with every control from one edge (A); where that does not
+   fit, every label above its control (B). A container query on the bar
+   switches, so the sidebar's width never decides it. */
 .stack-bar {
+  container: stack-bar / inline-size;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
@@ -6223,7 +6230,7 @@ details[open] > .disclosure-summary .disclosure-chevron {
   gap: var(--space-2);
   align-items: center;
 }
-/* A label stays on the line of its control when the bar wraps. */
+/* A label stays on the line of its control while the bar is one line. */
 .stack-bar__group {
   display: inline-flex;
   gap: 6px;
@@ -6238,6 +6245,41 @@ details[open] > .disclosure-summary .disclosure-chevron {
   display: inline-flex;
   gap: 6px;
   align-items: center;
+}
+@container stack-bar (max-width: 760px) {
+  /* A: the label column. The groups dissolve into the grid's rows, each
+     label in the first column, each control from the second one's edge. */
+  .stack-bar__controls {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--space-2) 10px;
+    align-items: center;
+    width: 100%;
+  }
+  .stack-bar__group,
+  .stack-bar__tree {
+    display: contents;
+  }
+  .stack-bar__controls .segmented-control,
+  .stack-bar__tree select {
+    justify-self: start;
+    width: auto;
+  }
+  .stack-bar__label,
+  .stack-bar__tree label {
+    margin-right: 0;
+  }
+}
+@container stack-bar (max-width: 330px) {
+  /* B, the floor: every label above its control, all on the left edge. */
+  .stack-bar__controls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+  .stack-bar__controls .segmented-control,
+  .stack-bar__tree select {
+    margin-bottom: 6px;
+  }
 }
 .stack-bar__tree select {
   min-height: 30px;

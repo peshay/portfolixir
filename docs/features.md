@@ -165,8 +165,10 @@ The value chart on **Wealth → Holdings** splits into bands on request: one
 bar above it chooses the level (the total line, the categories of a
 classification, or the securities), the classification and the order (size
 or change). The bands add up to the line on every day, cash and the
-unassigned rest included; a click on a category opens it stacked by its
-securities, and every choice is on the address, so a link reopens it. A
+unassigned rest included; a click on a category filters the stack to it at
+the same level, its sub-categories and securities as bands, a path above
+leads back one level at a time, and every choice is on the address, so a
+link reopens it. A
 category wears its allocation colour on both tabs. In the privacy mode the
 stack is a 100 % stack and shows no amount. Your agent reads the same bands,
 with their computation basis, over `…/performance/bands` and the MCP tools

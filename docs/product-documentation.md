@@ -2458,14 +2458,28 @@ bar above the chart stacks the value by what it is made of (I23, FR-53):
 
 The legend beside the chart is a table that reads like the stack, the top
 band first: each band's value on the window's last day, its share and its
-change. A click on a category's band, or on its name in the legend, shows
-that category alone, stacked by its securities; the breadcrumb above
-("All categories › …") leads back. More than eight bands merge the smallest
+change. A click on a category's band, or on its name in the legend,
+**filters** the stack to that category and keeps the level (FR-56): at
+*Categories* its direct sub-categories become the bands, each over its
+whole subtree, plus "‹name› (direct)" for the securities filed in the
+category itself; at *Securities* the securities of its whole subtree; at
+*Total* its own line. Cash and the unassigned rest leave the chart, and the
+bands add up to the category's band one level up. "Unassigned" is a filter
+too, so you see which securities still miss a category; cash and "Other"
+are not. The path above the chart ("All categories › Equities › World")
+leads up one level at a time, and a level chosen with a filter keeps it.
+More than eight bands merge the smallest
 into "Other", which always sits on top of the stack. A category wears the colour the allocation sunburst gives it;
-a drilled category's securities take the palette's colours in order of
-size, cash its own blue, the unassigned rest grey, "Other" a neutral grey.
+under a filter the sub-categories and the securities take the palette's
+colours in order of size, "‹name› (direct)" the next one after them, cash
+its own blue, the unassigned rest grey, "Other" a neutral grey. A band that
+is negative on some days, such as a cash account overdrawn for a day or
+two, is drawn as two areas, above and below the zero line, the lower one a
+little lighter; a band that changes sign sits next to the zero line, so it
+never crosses the other bands. One line under the chart says what it shows,
+the window and when it was computed; its ⓘ holds how it is computed.
 
-Every choice is on the address, so a link reopens the same stack. The bands
+Every choice is on the address, the filter included, so a link reopens the same stack. The bands
 add up to the value line on every day, and a buy shows as a step in its
 band, because the bands are market values. A security that moved between
 categories is drawn in its category of today for the whole window: a

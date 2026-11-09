@@ -234,11 +234,72 @@ async function stackPhone(browser) {
   check(errors.length === 0, "at 390 px: " + errors.join("; "));
 }
 
+// Issue 1366, the line of 2026-11-08 (Sprint 28 plan amendment D-A5,
+// board 07 ④; DESIGN.md "Labelled controls start on one edge"): the stacked
+// chart's bar is one line while its groups fit, and every control starts on
+// one edge when it wraps, the labels in a column beside them (A) or above
+// them (B). Measured in English and in German, whose „Klassifizierung“ is
+// the longest label.
+async function stackBarEdge(browser) {
+  const errors = [];
+  const host = new URL(base).hostname;
+  for (const [locale, width] of [["en", 1200], ["de", 1200], ["en", 390], ["de", 390]]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    await context.addCookies([
+      { name: "portfolixir_locale", value: args.locales[locale], domain: host, path: "/" }
+    ]);
+    const page = await context.newPage();
+    await ready(page, args.path);
+    await page.waitForSelector("#stack-legend tbody tr");
+    await nextFrame(page);
+    const m = await page.evaluate(() => {
+      const box = (selector) => {
+        const r = document.querySelector(selector).getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, mid: (r.top + r.bottom) / 2 };
+      };
+      return {
+        labels: ["#stack-level-label", "label[for='stack-classification']", "#stack-sort-label"].map(box),
+        controls: ["[data-role='stack-level']", "#stack-classification", "[data-role='stack-sort']"].map(box),
+        bar: box("[data-role='stack-bar']"),
+        page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+      };
+    });
+    const label = locale + " at " + width + " px: ";
+    if (m.page > 0) errors.push(label + "the page scrolls sideways by " + m.page);
+    if (m.controls.some((c) => c.right > m.bar.right + 0.5)) {
+      errors.push(label + "a control leaves the bar " + JSON.stringify(m.controls));
+    }
+    if (width === 1200) {
+      const mids = m.labels.concat(m.controls).map((r) => r.mid);
+      if (Math.max(...mids) - Math.min(...mids) > 3) {
+        errors.push(label + "the bar is not one line " + JSON.stringify(mids));
+      }
+    } else {
+      const lefts = m.controls.map((c) => c.left);
+      if (Math.max(...lefts) - Math.min(...lefts) > 1) {
+        errors.push(label + "the controls start at " + JSON.stringify(lefts));
+      }
+      // Each label beside its control in one column (A), or above it (B).
+      const placed = m.labels.every((l, i) => {
+        const c = m.controls[i];
+        const beside = l.right <= c.left + 0.5 && l.bottom > c.top && l.top < c.bottom;
+        const above = l.bottom <= c.top + 0.5 && Math.abs(l.left - c.left) <= 1;
+        return beside || above;
+      });
+      if (!placed) errors.push(label + "a label is not beside or above its control " + JSON.stringify(m));
+      console.error(label + JSON.stringify({ lefts, labels: m.labels.map((l) => [l.left, l.right]) }));
+    }
+    await context.close();
+  }
+  if (errors.length > 0) throw new Error(errors.join("; "));
+}
+
 const CASES = {
   delete_dialogs: deleteDialogs,
   trades_tab: tradesTab,
   topbar_titles: topbarTitles,
-  stack_phone: stackPhone
+  stack_phone: stackPhone,
+  stack_bar_edge: stackBarEdge
 };
 
 (async () => {
