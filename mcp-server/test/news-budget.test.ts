@@ -50,6 +50,17 @@ describe("the news reads' budgets, as the tool returns them", () => {
     assert.equal((JSON.parse(digest) as { data: { truncated: boolean } }).data.truncated, true);
     assert.ok(tokens(digest) <= 800, `digest: ${tokens(digest)} tokens`);
 
+    // --- S28 N3 begin ---
+    // The digest with a consumer: the same rows, its cursor in place of as_of.
+    const cursorDigest = await returned(
+      "portfolixir.news.digest",
+      { consumer: "budget-run-with-a-long-name-0001" },
+      "digest-cursor-soft-hyphens"
+    );
+    assert.match(cursorDigest, /"cursor":"\d+~/);
+    assert.ok(tokens(cursorDigest) <= 800, `digest with a cursor: ${tokens(cursorDigest)} tokens`);
+    // --- S28 N3 end ---
+
     const list = await returned("portfolixir.news.list", { security_id: 1 }, "list-tag-characters");
     assert.match(list, /\[U\+E0041\]/);
     assert.equal((JSON.parse(list) as { data: { rows: unknown[] } }).data.rows.length, 20);

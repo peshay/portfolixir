@@ -93,8 +93,21 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "remainder it answers 422) and its story rows add materiality and event_type; GET " <>
               "/api/v1/news/stories/:id adds label {event_type, materiality, tone, confidence, " <>
               "thesis_note_id, clause_idx, machine_generated true}. No read takes tone: it " <>
-              "answers 422 naming it. With no label every read answers as before."
+              "answers 422 naming it. With no label every read answers as before.",
             # --- S28 N2 end ---
+            # --- S28 N3 begin ---
+            "Sprint 28, N3 (ADR-0056 §9): the digest's consumer cursor, at least once. GET " <>
+              "/api/v1/news/digest takes consumer (an identifier as a label's model) and " <>
+              "ack_cursor: the server keeps each consumer's confirmed position, a new one " <>
+              "starting 24 hours back, answers it as since and carries a cursor; ack_cursor " <>
+              "confirms the cursor of an answer handled before the read, a call without " <>
+              "ack_cursor reads again from the confirmed position, so a run that breaks off " <>
+              "loses nothing, a cursor older than the stored position changes nothing, and a " <>
+              "cursor not issued to that consumer answers 422 naming ack_cursor; since beside " <>
+              "consumer, and ack_cursor without it, answer 422. The server keeps at most 32 " <>
+              "consumers; a new one beyond answers 422 naming the cap. Without consumer the " <>
+              "digest keeps no state and answers as_of as before."
+            # --- S28 N3 end ---
           ],
           " "
         ),
@@ -151,8 +164,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/news/stories (portfolixir.news.list) and GET /api/v1/news/digest " <>
           "(portfolixir.news.digest) take min_materiality and prompt_version, GET " <>
           "/api/v1/news/stories/:id (portfolixir.news.get with cluster_id) prompt_version " <>
-          "(ADR-0056 §7, §9; S28 N2)"
+          "(ADR-0056 §7, §9; S28 N2)",
         # --- S28 N2 end ---
+        # --- S28 N3 begin ---
+        "GET /api/v1/news/digest (portfolixir.news.digest) takes consumer and ack_cursor: " <>
+          "with consumer the answer's since is the consumer's confirmed position and it " <>
+          "carries cursor, <unix seconds>~<tag>, in place of as_of; ack_cursor confirms it " <>
+          "on the next call (ADR-0056 §9; S28 N3)"
+        # --- S28 N3 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

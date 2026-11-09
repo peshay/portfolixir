@@ -125,6 +125,23 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S28 N2 end ---
 
+    # --- S28 N3 begin ---
+    # N3 (ADR-0056 §9): the digest's consumer cursor, at least once.
+    assert newest["summary"] =~ "Sprint 28, N3 (ADR-0056 §9): "
+    assert newest["summary"] =~ "a call without ack_cursor reads again"
+    assert newest["summary"] =~ "a cursor older than the stored position changes nothing"
+    assert newest["summary"] =~ "not issued to that consumer answers 422 naming ack_cursor"
+    assert newest["summary"] =~ "at most 32 consumers"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~
+                 "GET /api/v1/news/digest (portfolixir.news.digest) takes consumer and " <>
+                   "ack_cursor")
+           )
+
+    # --- S28 N3 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

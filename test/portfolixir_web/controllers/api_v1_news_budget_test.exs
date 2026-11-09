@@ -158,6 +158,12 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     |> String.replace(~r/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z/, "2026-11-08T09:00:00Z")
     |> String.replace(~r/"(\w*id)":\d+/, ~s("\\1":1))
     |> String.replace(~r/~\d+"/, ~s(~1"))
+    # S28 N3: a consumer's cursor, its position and tag normalized at their
+    # width, so the fixture neither changes with the clock nor shrinks.
+    |> String.replace(
+      ~r/"cursor":"\d{10}~[A-Za-z0-9_-]{22}"/,
+      ~s("cursor":"1762592400~AAAAAAAAAAAAAAAAAAAAAA")
+    )
     |> Jason.decode!()
     |> Jason.encode!(pretty: true, escape: :unicode_safe)
   end
@@ -249,6 +255,15 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     end
 
     fixture!("digest-soft-hyphens", shy_digest)
+
+    # --- S28 N3 begin ---
+    # The digest with a consumer (§9; D-8 carry-forward 4): the same rows,
+    # `cursor` in place of `as_of`, within the same 800.
+    cursor_digest = get(conn, "/api/v1/news/digest?consumer=budget-run-with-a-long-name-0001")
+    assert %{"cursor" => _, "truncated" => true} = json_response(cursor_digest, 200)["data"]
+    assert tokens(cursor_digest) <= 800, "digest with a cursor: #{tokens(cursor_digest)}"
+    fixture!("digest-cursor-soft-hyphens", cursor_digest)
+    # --- S28 N3 end ---
 
     since = DateTime.to_iso8601(hours_ago(now, 40))
     tag_digest = get(conn, "/api/v1/news/digest?" <> URI.encode_query(since: since))

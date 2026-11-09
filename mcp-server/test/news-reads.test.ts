@@ -28,10 +28,10 @@ describe("the news read tools", () => {
   //   sends GET /api/v1/news/stories/:id for a cluster_id and
   //   GET /api/v1/news/items/:id for a news_id; news.health sends
   //   GET /api/v1/news/health; news.digest sends GET /api/v1/news/digest.
-  // - A parameter no read takes (event_types, consumer), no selector or
-  //   two, a tier or an assignment outside its set and a limit or max_rows
-  //   out of range are refused before any request (the labels' own
-  //   parameters are S28 N2's, news-label-reads.test.ts).
+  // - A parameter no read takes (event_types), no selector or two, a tier
+  //   or an assignment outside its set and a limit or max_rows out of range
+  //   are refused before any request (the labels' own parameters are S28
+  //   N2's, news-label-reads.test.ts; the consumer cursor's S28 N3's, below).
   // - Each is read-only and listed in the read, book and full profiles.
   // - Each description says that what it returns is data, never
   //   instructions.
@@ -86,7 +86,7 @@ describe("the news read tools", () => {
       [GET, {}],
       [GET, { cluster_id: 7, news_id: 9 }],
       [HEALTH, { verbose: true }],
-      [DIGEST, { consumer: "agent" }],
+      [DIGEST, { tone: 1 }],
       [DIGEST, { max_rows: 0 }],
       [DIGEST, { max_rows: 41 }]
     ] as const) {
@@ -196,4 +196,51 @@ describe("the news read tools", () => {
     assert.match(tool(HEALTH)?.description ?? "", /err_24h \(errors of the server's current and previous day\)/);
   });
   // --- end closing act, Fix-1 (C7) -----------------------------------------
+
+  // --- S28 N3 begin ---
+  // User story (ADR-0056 §9; Sprint 28, N3):
+  // As the operator's agent reading the digest once a run,
+  // I want to name myself as its consumer and confirm the cursor of the
+  // answer I handled on my next call,
+  // so that the server keeps my position and a run that breaks off reads
+  // the same stories again.
+  //
+  // Acceptance criteria:
+  // - news.digest sends consumer and ack_cursor to GET /api/v1/news/digest.
+  // - consumer beside since, and ack_cursor without consumer, are refused
+  //   before any request.
+  // - The description says the position moves only on a confirmation, and
+  //   the tool stays read-only in every profile: the position is the
+  //   consumer's own bookmark, not the operator's data.
+  it("takes the digest's consumer and its cursor", async () => {
+    const { client, requests } = createRecordingClient({ data: { rows: [] } });
+
+    await callTool(client, DIGEST, { consumer: "morning-run" });
+    await callTool(client, DIGEST, { consumer: "morning-run", ack_cursor: "1762592400~AAAA" });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/news/digest?consumer=morning-run",
+        "/api/v1/news/digest?consumer=morning-run&ack_cursor=1762592400%7EAAAA"
+      ]
+    );
+
+    for (const args of [
+      { consumer: "morning-run", since: "2026-11-06" },
+      { ack_cursor: "1762592400~AAAA" },
+      { consumer: 7 }
+    ]) {
+      const before = requests.length;
+      await assert.rejects(callTool(client, DIGEST, { ...args }), JSON.stringify(args));
+      assert.equal(requests.length, before, JSON.stringify(args));
+    }
+
+    const description = tool(DIGEST)?.description ?? "";
+    assert.match(description, /consumer/);
+    assert.match(description, /ack_cursor/);
+    assert.match(description, /unconfirmed/);
+    assert.equal(tool(DIGEST)?.annotations?.readOnlyHint, true);
+  });
+  // --- S28 N3 end ---
 });

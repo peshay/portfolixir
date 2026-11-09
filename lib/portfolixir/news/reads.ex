@@ -627,8 +627,9 @@ defmodule Portfolixir.News.Reads do
   end
 
   @doc """
-  The digest (`news.digest`, §9, §11) of `security_ids` since `since`,
-  without a consumer cursor:
+  The digest (`news.digest`, §9, §11) of `security_ids` since `since` (a
+  consumer's confirmed position is passed as `since`, S28 N3,
+  `Portfolixir.News.DigestCursor`):
 
     * `rows` — one per security with a story new since `since` (a member
       that entered its scope strictly after it, B4, C3): `id`, short `name`, `count` (its new

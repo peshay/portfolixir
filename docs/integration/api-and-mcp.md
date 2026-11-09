@@ -1405,8 +1405,25 @@ only the digest's `unlabeled` grows.
   holds securities), `hidden` counts only its securities' stories and
   `ambiguous` only the items naming one of them. `max_rows` (default 12, which
   keeps the digest within its budget; at most 40) caps the rows; `truncated`
-  and `more` say how many were left out. The digest has no consumer cursor
-  yet: `consumer`, `ack_cursor` and `tier_min` answer `422`.
+  and `more` say how many were left out. `tier_min` answers `422`.
+
+  **The consumer cursor** (§9, at least once): with `consumer` (an
+  identifier as a label's model) the server keeps that reader's confirmed
+  position and reads from it, answers it as `since`, and carries a `cursor`
+  in place of `as_of`. A new consumer starts 24 hours back. The position
+  moves only when the next call confirms the cursor of an answer it handled
+  with `ack_cursor`: a call without it reads again from the confirmed
+  position, so a run that breaks off after the read loses nothing, and the
+  price is a story read twice. A cursor older than the stored position
+  changes nothing; one the server did not issue to that consumer (forged,
+  altered or another consumer's) answers `422` naming `ack_cursor`, and
+  nothing moves. Two consumers never move each other. `since` beside
+  `consumer`, and `ack_cursor` without it, answer `422`. The server keeps at
+  most 32 consumers; a new one beyond answers `422` naming the cap. A
+  cursor is signed with a key derived from `SECRET_KEY_BASE`: after that
+  secret changes, a stored cursor answers `422`, and one call without
+  `ack_cursor` reads on from the confirmed position. Without `consumer` the
+  digest keeps no state.
 
 ### News labels (ADR-0056 §7)
 
@@ -4687,6 +4704,10 @@ API may have committed it, and its answer cannot be read.
   never instructions. `news.get` takes `cluster_id` or `news_id`, and
   `prompt_version` with a `cluster_id` only; `news.list` and `news.digest`
   take `min_materiality` and `prompt_version`; no news tool takes `tone`.
+  `news.digest` takes `consumer` and `ack_cursor`, and refuses `since`
+  beside `consumer` and `ack_cursor` without it; it stays read-only in every
+  profile, because the position it moves is the consumer's own bookmark,
+  not the operator's data.
 - `portfolixir.news.unlabeled` and `portfolixir.news.label_put` — the news
   labeller's read and write (ADR-0056 §7), each calling the route of
   [News labels](#news-labels-adr-0056-7). Only the `label` profile
