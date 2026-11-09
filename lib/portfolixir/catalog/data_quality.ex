@@ -306,7 +306,8 @@ defmodule Portfolixir.Catalog.DataQuality do
       window:
         "the read that stored the current value: a later sync that reads the same currency " <>
           "changes neither, one that reads another replaces both, one that reads none " <>
-          "leaves both as they are",
+          "leaves both as they are, and one refused as invalid_currency (a stated value " <>
+          "that is no currency code, unstorable) leaves the earlier read standing",
       gaps:
         "provider_currency null (no sync has read a currency since the column exists, or " <>
           "the provider states none) is not yet known and never a mismatch",

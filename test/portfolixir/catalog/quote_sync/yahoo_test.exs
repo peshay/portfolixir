@@ -172,6 +172,38 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
     end
   end
 
+  # User story (closing act, QA3):
+  # As the operator whose provider now states something that is no currency,
+  # I want the adapter to refuse that answer under its own reason,
+  # so that the sync names it per security instead of storing closes under
+  # an unreadable currency, and no raw provider text becomes an atom.
+  #
+  # Acceptance criteria:
+  # - A stated currency that is not three ASCII letters (a symbol, a space,
+  #   an invisible character, a newline, four letters, full-width letters)
+  #   answers `{:error, {:invalid_currency, value}}` and no rows, `value`
+  #   a string of at most 16 characters.
+  test "a stated currency of the wrong shape is refused as invalid_currency" do
+    security = %Security{id: 1, ticker_symbol: "ARBL", currency_code: "EUR"}
+
+    for stated <- [
+          "€€€",
+          "USDX",
+          "US D",
+          "USD\n",
+          "U$D",
+          "US" <> <<0x200B::utf8>> <> "D",
+          "ＵＳＤ",
+          String.duplicate("X", 5000)
+        ] do
+      assert {:error, {:invalid_currency, value}} =
+               Yahoo.fetch(security, req: req_stub(chart(stated))),
+             inspect(stated)
+
+      assert is_binary(value) and String.length(value) <= 16
+    end
+  end
+
   # #1415 (Sprint 28 Q3): the answer carries the currency it stated, for
   # the sync to keep on the security.
   test "an answer in the security's own currency returns its rows" do

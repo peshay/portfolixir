@@ -1640,7 +1640,10 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   speichert keinen Kurs und liefert `status` `error` mit `reason`
   `currency_mismatch` (#1411): verglichen wie geschrieben, Yahoos `GBp`
   (Pence) ist also nicht `GBP`; eine Antwort ohne Währung wird gespeichert
-  wie bisher.
+  wie bisher. Ein genannter Wert, der nicht aus drei Buchstaben besteht, ist
+  kein Währungscode: Er speichert keinen Kurs und liefert `reason`
+  `invalid_currency`, und die von einer früheren Synchronisierung
+  festgehaltene Anbieterwährung bleibt stehen.
   Eine Historie beliebiger Länge wird in einer Synchronisierung gespeichert,
   und in der geplanten Synchronisierung ist ein scheiterndes Wertpapier der
   Fehler dieses Wertpapiers, während die übrigen weiter synchronisiert werden.

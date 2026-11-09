@@ -799,6 +799,49 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert Quotes.latest(security.id) == nil
   end
 
+  # User story (closing act, QA3):
+  # As an agent syncing one security's quotes,
+  # I want an answer whose stated currency is no currency code to read as
+  # its own reason,
+  # so that I can tell a garbled answer from another listing.
+  #
+  # Acceptance criteria:
+  # - An adapter answering `{:error, {:invalid_currency, "€€€"}}` gives
+  #   `status: "error"`, `reason: "invalid_currency"`; the provider's text
+  #   is not echoed and no quote is stored.
+  test "quote sync API names a malformed stated currency as its reason", %{conn: conn} do
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Garbled Listing Security",
+        currency_code: "EUR",
+        provider: "manual"
+      })
+
+    QuoteSyncFake.put_response(security.id, {:error, {:invalid_currency, "€€€"}})
+    prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+    Application.put_env(
+      :portfolixir,
+      Portfolixir.Catalog.QuoteSync,
+      Keyword.put(prior_cfg, :adapter_for, %{"manual" => QuoteSyncFake})
+    )
+
+    try do
+      {response, _log} =
+        ExUnit.CaptureLog.with_log(fn ->
+          conn
+          |> post_json("/api/v1/securities/#{security.id}/sync_quotes", %{})
+          |> json_response(200)
+        end)
+
+      assert response == %{"data" => %{"status" => "error", "reason" => "invalid_currency"}}
+    after
+      Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+    end
+
+    assert Quotes.latest(security.id) == nil
+  end
+
   # User story:
   # As a local portfolio maintainer preserving auditable price history,
   # I want quote history to block security deletion through the API,

@@ -262,6 +262,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   # #1411 (Sprint 28 Q2): the adapter refused an answer in another currency
   # than the security's; the reason is ours, the provider's word stays out.
   defp reason_to_string({:currency_mismatch, _provider_currency}), do: "currency_mismatch"
+  # Closing act, QA3: a stated value that is no currency code; not echoed.
+  defp reason_to_string({:invalid_currency, _stated}), do: "invalid_currency"
   # A fixed word (#770): the adapter's error term is not echoed to the caller.
   defp reason_to_string(_reason), do: "provider_error"
 end

@@ -30,8 +30,11 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   compared as written, letter case included, so Yahoo's minor units (`GBp`
   pence, `ZAc` cents, `ILA` agorot) are another currency than `GBP`, `ZAR`
   and `ILS` and are refused the same way; a scale mapping would be its own
-  decision. An answer that states no currency (no `meta`, no key, `null`, an
-  empty string, or not a string) passes as before. An answer in the
+  decision. A stated value that is not three ASCII letters
+  (`Security.provider_currency_shape?/1`) is no currency code: it answers
+  `{:error, {:invalid_currency, value}}`, `value` its first 16 characters,
+  and no rows (closing act, QA3). An answer that states no currency (no
+  `meta`, no key, `null`, an empty string, or not a string) passes as before. An answer in the
   security's own currency carries it beside its rows,
   `{:ok, rows, %{currency: currency}}`, for the sync to keep (#1415).
   """
@@ -105,11 +108,20 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   # own currency, or states none.
   # #1415 (Q3): a stated currency travels with the rows, for the sync to keep
   # on the security.
+  # Closing act, QA3: a stated value that is no currency code is refused
+  # under its own reason, its first 16 characters kept for the log only.
   defp in_own_currency(%Security{currency_code: own}, body) do
     case stated_currency(body) do
-      nil -> {:ok, decode(body)}
-      ^own -> {:ok, decode(body), %{currency: own}}
-      stated -> {:error, {:currency_mismatch, stated}}
+      nil ->
+        {:ok, decode(body)}
+
+      ^own ->
+        {:ok, decode(body), %{currency: own}}
+
+      stated ->
+        if Security.provider_currency_shape?(stated),
+          do: {:error, {:currency_mismatch, stated}},
+          else: {:error, {:invalid_currency, String.slice(stated, 0, 16)}}
     end
   end
 

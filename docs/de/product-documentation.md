@@ -4436,7 +4436,10 @@ werden. Verglichen wird wie geschrieben: Eine Londoner Notierung in Pence
 (`GBp`) wird für ein Wertpapier in Pfund (`GBP`) abgelehnt, ebenso die
 anderen Untereinheiten, die Yahoo nutzt (`ZAc`, `ILA`). Eine Antwort ohne
 Währung wird gespeichert wie bisher. Ticker (oder Börse) korrigieren und neu
-synchronisieren.
+synchronisieren. Ein genannter Wert, der gar kein Währungscode ist (nicht
+drei Buchstaben), wird ebenso abgelehnt, als `invalid_currency`, und die
+Anbieterwährung, die eine frühere Synchronisierung festgehalten hat, bleibt
+stehen.
 
 Jede Synchronisierung, die die Währung des Anbieters liest, hält sie am
 Wertpapier fest, auch eine abgelehnte (#1415), zusammen mit der Zeit des

@@ -3607,7 +3607,7 @@ const declaredTools: DeclaredTool[] = [
     predictionsCalibrationSchema,
     predictionsCalibrationZ
   ),
-  tool("portfolixir.quotes.sync", "Sync quotes", "Sync one security's quote history: status ok, skipped or error, and when not ok a reason, e.g. missing_ticker, no_provider_adapter, manual_feed (feed MANUAL or NONE: every sync stops), currency_mismatch (another currency stated: nothing stored) or persist_failed. A retired security syncs here; the scheduled and full runs skip it. All history in one call. One sync per security at a time: while one runs (also a new security's backfill) a second answers 409, calling no provider; wait, do not loop.", {
+  tool("portfolixir.quotes.sync", "Sync quotes", "Sync one security's quote history: status ok, or skipped or error with a reason, e.g. missing_ticker, no_provider_adapter, manual_feed (feed MANUAL or NONE: every sync stops), currency_mismatch or invalid_currency (another or no currency code stated: nothing stored) or persist_failed. A retired security syncs here; the scheduled and full runs skip it. All history in one call. While another sync of it runs (a new security's backfill too) it answers 409, calling no provider; wait, do not loop.", {
     type: "object",
     additionalProperties: false,
     required: ["security_id"],
