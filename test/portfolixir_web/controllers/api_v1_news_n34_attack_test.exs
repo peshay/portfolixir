@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
   # is fixed. Synthetic names and hosts only, no socket.
   use PortfolixirWeb.ConnCase
 
+  import Ecto.Query
   import Portfolixir.NewsFixtures, only: [feed!: 1, label!: 2]
   import Portfolixir.WorldFixtures, only: [create_security!: 1]
 
@@ -15,6 +16,7 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
   alias Portfolixir.News.DigestConsumer
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Label
   alias Portfolixir.News.Parser.Item, as: Parsed
   alias Portfolixir.Repo
 
@@ -113,8 +115,9 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
   #   consumer confirms, then labelled materiality 3, reads in the
   #   consumer's next digest; the stateless digest over the same window
   #   shows it.
-  @tag :n34_attack_red
-  test "a story hidden as unlabelled and labelled after the confirmation is lost to the consumer",
+  # - Once that answer's cursor is confirmed, it does not read again
+  #   (closing act, AT6: the label's time counts once, as a member's does).
+  test "a story hidden as unlabelled and labelled after the confirmation reaches the consumer once",
        %{conn: conn, now: now} do
     northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
     item = aggregator_item!("Northwind Harbour issues a profit warning", hours_ago(now, 2))
@@ -136,6 +139,24 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
     assert northwind.id in row_ids(next),
            "the material story was confirmed past while unlabelled: " <>
              inspect(Map.take(next, ["rows", "hidden", "since"]))
+
+    # The label was written between the two reads; a test's two cursors
+    # fall within one second, so its time is set where the wall clock
+    # would have put it, before the second cursor's position.
+    [seconds, _tag] = String.split(next["cursor"], "~")
+    before_next = DateTime.add(DateTime.from_unix!(String.to_integer(seconds)), -1, :second)
+
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'synthetic-clock', true)")
+
+        Repo.update_all(from(l in Label, where: l.cluster_id == ^story),
+          set: [created_at: before_next, updated_at: before_next]
+        )
+      end)
+
+    after_next = data(digest(conn, consumer: "label-lag-run", ack_cursor: next["cursor"]))
+    refute northwind.id in row_ids(after_next)
   end
 
   # User story (plan D-8 carry-forward 5, the order lens; C3):

@@ -5,7 +5,9 @@ defmodule Portfolixir.News.DigestCursor do
   A **consumer** is a named reader of the digest (an agent's scheduled run).
   The server keeps its **confirmed position** (`Portfolixir.News.DigestConsumer`),
   and the digest of a consumer reads the stories that entered their scope
-  after it. Every answer carries a **cursor**, the position the next read
+  after it, or whose label of the read's prompt version was written after
+  it (closing act, AT6: a story hidden as unlabelled when the consumer
+  confirmed is not lost once a label shows it; `Portfolixir.News.Reads.digest/5`). Every answer carries a **cursor**, the position the next read
   may start from; the consumer confirms it with `ack_cursor` on its next
   call, and only then does the position move. *Why not on read:* a run that
   fails after the read would never see those stories again. So:
