@@ -359,6 +359,29 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     quote_get = get(conn, "/api/v1/news/stories/#{quote_item.cluster_id}")
     assert tokens(quote_get) <= 400, "get (JSON-quoted text): #{tokens(quote_get)}"
     # --- end closing act, AG1 rest ------------------------------------------
+
+    # --- S28 N2 finding: a link of combining marks --------------------------
+    # One letter and 2,000 combining marks is one grapheme and 2,001 code
+    # points on the wire: the link is cut by the width the companion spells,
+    # as AT1 cut the names, never by graphemes.
+    marked = held!(world, 779)
+    marked_link = "https://ir.example.com/H" <> String.duplicate("́", 2_000)
+
+    ingest!(
+      feed!(%{class: "issuer", security_id: marked.id}),
+      [item("Marked link", marked_link)],
+      hours_ago(now, 0.2)
+    )
+
+    marked_item = Repo.get_by!(Item, canonical_url: marked_link)
+    marked_story = get(conn, "/api/v1/news/stories/#{marked_item.cluster_id}")
+    marked_one = get(conn, "/api/v1/news/items/#{marked_item.id}")
+
+    for answer <- [marked_story, marked_one] do
+      url = json_response(answer, 200)["data"]["url"]
+      assert length(String.codepoints(url)) <= 300 and String.ends_with?(url, "…")
+      assert tokens(answer) <= 400, "get (a link of combining marks): #{tokens(answer)}"
+    end
   end
 
   # A host of 253 characters, the most a name holds: three labels of 63
