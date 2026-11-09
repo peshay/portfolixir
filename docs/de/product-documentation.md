@@ -2777,7 +2777,11 @@ Marktwerts ihres Bandes. Die **fette** Linie ist die TTWROR der Ansicht
 selbst, die Zahl über dem Diagramm, oder mit Filter die Linie der
 gefilterten Kategorie. Ein Band, das erst im Zeitraum Wert bekommt, etwa
 durch den ersten Kauf in einer neuen Kategorie, beginnt an diesem Tag bei
-0 %, markiert durch einen Punkt, und seine Legendenzeile sagt, ab wann. Es
+0 %, markiert durch einen Punkt, und seine Legendenzeile sagt, ab wann. Ein
+Tag, an dem ein Band bei null oder darunter beginnt, etwa ein im Zeitraum
+eröffneter Leerverkauf, trägt keine Rendite bei: seine Linie wartet, bis das
+Band wieder über null liegt, sodass das Eindecken nie auslöscht, was das
+Band zuvor verdient hat. Es
 stehen höchstens acht Linien da, die größten nach Wert am Ende des
 Zeitraums; Cash und der nicht zugeordnete Rest haben keine. Die Legende
 nennt die fette Linie zuerst, dann die TTWROR jeder Linie und keinen

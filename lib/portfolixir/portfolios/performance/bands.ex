@@ -88,7 +88,11 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   an inflow, `1 + r = V / (V_prev + F + B)`, and at its end when an
   outflow, `1 + r = (V − F) / (V_prev + B)`, `B` the day's trade-price
   basis step of its securities (#545) and a day without a positive base no
-  return, as in the walk. A band with a value at the baseline's close
+  return, as in the walk. A day whose opening value `V_prev + B` is not
+  positive (a short, a band at zero) contributes no return either, so an
+  inflow that nets against a negative opening value never chains a factor
+  of 0: the line waits until the band opens above zero again (the closing
+  act's money lens, ML1). A band with a value at the baseline's close
   chains from it; else its line starts at 0 % on its first day with a
   value. After its start a day on which it holds nothing and moved nothing
   has no point, so a band sold out inside the window ends at the sale day.
@@ -839,14 +843,18 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   # `(V − F) / (V_prev + B)`, so a sale's proceeds are measured against the
   # value they left. `B` is the day's trade-price basis step (#545), as in
   # `Performance.day_factor/2`; a day whose base is not positive contributes
-  # no return, the walk's rule.
+  # no return, the walk's rule. Nor does a day whose opening value
+  # `V_prev + B` is not positive (ML1): a cover's inflow netting against a
+  # short's negative value would make the base positive and the factor 0,
+  # wiping out the band's whole chain.
   defp day_factor(value, flow, basis, prev) do
     {inflow, outflow} =
       if Decimal.negative?(flow), do: {@zero, Decimal.negate(flow)}, else: {flow, @zero}
 
-    base = prev |> Decimal.add(inflow) |> Decimal.add(basis)
+    opening = Decimal.add(prev, basis)
+    base = Decimal.add(opening, inflow)
 
-    if Decimal.gt?(base, @zero),
+    if Decimal.gt?(opening, @zero) and Decimal.gt?(base, @zero),
       do: Decimal.div(Decimal.add(value, outflow), base),
       else: @one
   end
@@ -952,7 +960,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "close is not in the line), the days before have no point. After its start a " <>
           "day on which it holds nothing and moved nothing has no point: a band sold out " <>
           "inside the window ends at the sale day, its ttwror the return through the " <>
-          "sale; one that holds a value again later continues its chain",
+          "sale; one that holds a value again later continues its chain from the first " <>
+          "day it opens above zero (a day opening at or below zero adds no return)",
       selection_rule:
         "at most #{@max_bands} lines, none merged into other; without category_id no " <>
           "line for cash or unclassified (with it, the filter's own band stays): the " <>
@@ -968,7 +977,10 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "zero only before its securities' first price or rate, and its line starts on " <>
           "its first day with a value; a security's first quote after trade prices is a " <>
           "basis step, not return. A day whose base (V_prev + inflow + B) is not " <>
-          "positive contributes no return, the walk's rule. A window holding no walked " <>
+          "positive contributes no return, the walk's rule; nor does a day whose opening " <>
+          "value (V_prev + B) is not positive, so an inflow netting against a negative " <>
+          "opening value (a short covered) is no return and the line waits until the band " <>
+          "opens above zero again. A window holding no walked " <>
           "day is empty: start_date null, no dates, no lines and parent null",
       category_change:
         "a classification is stored as it is today, without a history: a security is " <>

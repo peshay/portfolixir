@@ -2518,7 +2518,10 @@ of the band's market value. The **bold** line is the view's own TTWROR, the
 figure above the chart, or under a filter the filtered category's line. A
 band that gains its first value inside the period, a first buy into a new
 category, starts at 0 % on that day, marked by a dot, and its legend row
-says from when. At most eight lines are drawn, the largest by value at the
+says from when. A day on which a band opens at or below zero, a short sold
+inside the period, adds no return: its line waits until the band is above
+zero again, so covering the short never wipes out what the band earned
+before. At most eight lines are drawn, the largest by value at the
 period's end; cash and the unassigned rest have none. The legend lists the
 bold line first, then each line's TTWROR, and no amount, so the privacy
 mode leaves it as it is. A click on a line or a legend row filters as in
