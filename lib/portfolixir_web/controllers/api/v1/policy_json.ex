@@ -11,10 +11,15 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
   """
 
   alias Portfolixir.Portfolios.PolicyRule
+  alias Portfolixir.Portfolios.PolicyRuleStatus
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias PortfolixirWeb.Api.V1.JSON
 
-  @doc "One rule, annotated relative to the read's `as_of` (list read)."
+  @doc """
+  One rule, annotated relative to the read's `as_of` (list read), with the
+  writes it `permits` today — `add_version`, `rename`, `retire`, `delete`
+  — from the same module the writes refuse by (ADR-0059).
+  """
   def rule(%PolicyRule{} = rule) do
     %{
       id: rule.id,
@@ -23,6 +28,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
       name: rule.name,
       name_author: author(rule.name_author),
       status: rule.status && to_string(rule.status),
+      permits: rule.permits && Enum.map(rule.permits, &to_string/1),
       version_in_force: version(rule.version_in_force),
       next_version: version(rule.next_version),
       inserted_at: JSON.timestamp(rule.inserted_at),
@@ -36,6 +42,13 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
     |> rule()
     |> Map.put(:versions, Enum.map(rule.versions, &version/1))
   end
+
+  @doc """
+  The one sentence that says how `status` and `permits` derive
+  (`Portfolixir.Portfolios.PolicyRuleStatus.basis/0`), carried once per
+  payload as `status_basis` (ADR-0059 §2).
+  """
+  def status_basis, do: PolicyRuleStatus.basis()
 
   @doc """
   One finding (ADR-0049 §5): the rule's identity and words, who last named

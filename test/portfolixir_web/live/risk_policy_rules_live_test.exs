@@ -576,6 +576,67 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     refute PolicyRules.get_rule(scheduled.id)
   end
 
+  # User story (ADR-0059 §3; ADR-0049 §4):
+  # As the operator looking at a retired rule that is scheduled to start
+  # again,
+  # I want the dialog's buttons to follow what the rule permits, and the
+  # confirmation to say what the retire does here — cancel the restart,
+  # so that the screen and the API never disagree about what I can do, and
+  # I am not told a rule "is no longer evaluated" that is not evaluated now.
+  #
+  # Acceptance criteria:
+  # - A retired rule scheduled to restart offers "Retire rule" (never
+  #   "Delete rule": a version has been in force), confirmed as cancelling
+  #   the restart; confirming leaves the rule retired with one version.
+  # - A rule retired for good offers neither button: it is edited (taken up
+  #   again) or renamed only.
+  test "the dialog's buttons follow the rule's permits", %{conn: conn} do
+    world = rules_world()
+
+    rule =
+      rule!(
+        world,
+        "Wieder ab nächster Woche",
+        single_cap(world, %{valid_from: Date.add(today(), -20)}),
+        today: Date.add(today(), -20)
+      )
+
+    {:ok, _} = PolicyRules.retire_rule(Actor.owner_ui(), rule, %{})
+
+    {:ok, _} =
+      PolicyRules.add_version(
+        Actor.owner_ui(),
+        rule,
+        single_cap(world, %{threshold: "12", valid_from: Date.add(today(), 5)})
+      )
+
+    assert %{status: :scheduled, permits: [:add_version, :rename, :retire]} =
+             PolicyRules.get_rule(rule.id)
+
+    {:ok, view, _html} = live(conn, "/risk")
+    view |> element("#policy-rules-scheduled button[phx-value-id='#{rule.id}']") |> render_click()
+
+    refute has_element?(view, "dialog#policy-rule-dialog button", "Delete rule")
+    assert has_element?(view, "dialog#policy-rule-dialog button[data-confirm]", "Retire rule")
+
+    assert has_element?(
+             view,
+             "dialog#policy-rule-dialog button[data-confirm*='Cancel the scheduled restart']"
+           )
+
+    view |> element("dialog#policy-rule-dialog button", "Retire rule") |> render_click()
+
+    assert %{status: :retired, permits: [:add_version, :rename], versions: [_one]} =
+             PolicyRules.get_rule(rule.id)
+
+    # Retired for good: neither button.
+    assert has_element?(view, "#policy-rules-retired", "Wieder ab nächster Woche")
+    view |> element("#policy-rules-retired button[phx-value-id='#{rule.id}']") |> render_click()
+    assert has_element?(view, "dialog#policy-rule-dialog")
+    refute has_element?(view, "dialog#policy-rule-dialog button", "Retire rule")
+    refute has_element?(view, "dialog#policy-rule-dialog button", "Delete rule")
+  end
+
   # Acceptance criteria (UX-DR26, ADR-0049 §1):
   # - The section is scoped by the active view: a rule of another context is
   #   not shown, and the section says which view it evaluates.

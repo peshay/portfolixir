@@ -3573,13 +3573,26 @@ The reads:
 
 - `GET /api/v1/portfolios/:portfolio_id/policy_rules` — the portfolio's rules,
   each with `status` (`in_force`, `scheduled` or `retired`, relative to
-  `as_of`), `version_in_force` and `next_version`. `as_of` (ISO date, default
-  today) reads the standard in force on a date; `include_retired=true` adds the
-  retired rules; `view` narrows to one evaluation context (absent: every
-  context); `since` is the row delta (a rule counts as changed when its row or
-  any of its versions did); `limit` (default 1000, max 10000).
+  `as_of`), `permits`, `version_in_force` and `next_version`. `as_of` (ISO
+  date, default today) reads the standard in force on a date;
+  `include_retired=true` adds the retired rules; `view` narrows to one
+  evaluation context (absent: every context); `since` is the row delta (a
+  rule counts as changed when its row or any of its versions did); `limit`
+  (default 1000, max 10000).
 - `GET /api/v1/policy_rules/:id` — one rule with its **whole version
-  history**, oldest first.
+  history**, oldest first, and the same `status` and `permits`.
+
+**`permits` names the writes the rule accepts today** (ADR-0059), as the
+API's own verbs, so an agent reads what it may do instead of learning it
+from a `409`: `add_version` and `rename` always; `retire` while a version
+is in force or a restart is scheduled (on a retired rule taken up again
+from a later date, retiring it cancels that restart); `delete` only while
+no version has ever been in force. `status` is relative to `as_of`,
+`permits` to today, the day a write would run. Both payloads carry
+`status_basis`, the one sentence that says how `status` and `permits`
+derive; nothing is stored, and the writes refuse by the same rule the
+payload states, so the two cannot disagree. The Risk page's buttons read
+the same `permits`.
 
 The writes:
 
@@ -3603,9 +3616,11 @@ The writes:
   since it was read is a `404`.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; ends the
   version in force yesterday by default (tonight when it only started today)
-  and drops any version scheduled after it. The rule stays readable with
-  `include_retired=true`. A rule none of whose versions has been in force, or
-  one already retired, is a `409`.
+  and drops any version scheduled after it. On a rule already retired but
+  scheduled to start again, it cancels that restart. The rule stays readable
+  with `include_retired=true`. A rule none of whose versions has been in
+  force, or one retired with nothing scheduled, is a `409` — the two cases
+  `permits` leaves `retire` out of.
 - `DELETE /api/v1/policy_rules/:id` — only while **no** version has ever been
   in force (`204`); otherwise `409`, and the remedy is retiring it.
 

@@ -91,7 +91,8 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
           limit: limit,
           truncated: truncated,
           rules: Enum.map(rules, &PolicyJSON.rule/1),
-          rules_note: @rules_note
+          rules_note: @rules_note,
+          status_basis: PolicyJSON.status_basis()
         }
       }
 
@@ -109,9 +110,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
   def show(conn, %{"id" => id}) do
     with {:ok, rule_id} <- IdParam.parse(id),
          %PolicyRule{} = rule <- PolicyRules.get_rule(rule_id) do
-      json(conn, %{
-        data: rule |> PolicyJSON.rule_with_versions() |> Map.put(:rules_note, @rules_note)
-      })
+      json(conn, %{data: rule_payload(rule)})
     else
       _missing -> not_found(conn)
     end
@@ -131,7 +130,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
 
       case PolicyRules.create_rule(conn.assigns.actor, attrs) do
         {:ok, rule} ->
-          conn |> put_status(:created) |> json(%{data: PolicyJSON.rule_with_versions(rule)})
+          conn |> put_status(:created) |> json(%{data: rule_payload(rule)})
 
         {:error, {:version, changeset}} ->
           unprocessable(conn, %{version: JSON.errors(changeset)})
@@ -192,7 +191,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
 
         _none ->
           case PolicyRules.rename_rule(conn.assigns.actor, rule, Map.take(params, ["name"])) do
-            {:ok, renamed} -> json(conn, %{data: PolicyJSON.rule_with_versions(renamed)})
+            {:ok, renamed} -> json(conn, %{data: rule_payload(renamed)})
             {:error, :not_found} -> not_found(conn)
             {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
           end
@@ -234,7 +233,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
          %PolicyRule{} = rule <- PolicyRules.get_rule(rule_id) do
       case PolicyRules.retire_rule(conn.assigns.actor, rule, Map.take(params, ["valid_until"])) do
         {:ok, _closed} ->
-          json(conn, %{data: rule_id |> PolicyRules.get_rule() |> PolicyJSON.rule_with_versions()})
+          json(conn, %{data: rule_id |> PolicyRules.get_rule() |> rule_payload()})
 
         {:error, :never_in_force} ->
           conflict(
@@ -277,6 +276,15 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
     else
       _missing -> not_found(conn)
     end
+  end
+
+  # One rule with its versions, the rules note and the status basis
+  # (ADR-0059 §2): the show read and every write that answers the rule.
+  defp rule_payload(%PolicyRule{} = rule) do
+    rule
+    |> PolicyJSON.rule_with_versions()
+    |> Map.put(:rules_note, @rules_note)
+    |> Map.put(:status_basis, PolicyJSON.status_basis())
   end
 
   # -- params ------------------------------------------------------------------

@@ -480,8 +480,21 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 117_722,
     book: 191_718,
     full: 226_748
-  }
+  },
   // --- Sprint 27 closing act, Fix-2 end ---
+  // --- ADR-0059 pilot begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "ADR-0059 (lifecycles named once), the policy-rule pilot: the list read names permits " +
+      "(the writes a rule accepts today) and status_basis, and the get read points at them; " +
+      "paid for by tightening the list's wording and the two shared policy snippets, and " +
+      "lowered to the figure measured with them",
+    read: 117_644,
+    book: 191_588,
+    full: 226_633
+  }
+  // --- ADR-0059 pilot end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

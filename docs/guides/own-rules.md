@@ -194,7 +194,9 @@ one save writes both or neither. A retired rule is renamed the same way.
   tonight. A change that was scheduled is dropped with it. The rule and all
   its versions stay readable under **Show the retired rules**, and a retired
   rule opens the same dialog. Saving a new version there takes the rule up
-  again from that version's date.
+  again from that version's date; until that date the rule is listed as
+  scheduled, and **Retire rule** then cancels the restart — the confirmation
+  says so — and the rule stays retired.
 - **Delete rule** appears instead of **Retire rule** while none of the rule's
   versions has been in force — a rule scheduled for a later date, say.
   Nothing was ever measured against it, so nothing of it needs to be kept.

@@ -256,6 +256,72 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     assert again =~ "already retired"
   end
 
+  # User story (ADR-0059 §2):
+  # As the agent deciding what to do with a stored rule,
+  # I want the list and the show read to carry `permits` — the writes the
+  # rule accepts today, named as the API's own verbs — and `status_basis`,
+  # so that I read "retire" or "delete" off the payload instead of learning
+  # it from a 409.
+  #
+  # Acceptance criteria:
+  # - A rule in force permits add_version, rename and retire; a scheduled
+  #   one that never started permits add_version, rename and delete; a
+  #   retired one add_version and rename.
+  # - The permits agree with the writes: a write the payload does not permit
+  #   answers 409, one it permits succeeds.
+  # - Both reads carry status_basis, the module's one sentence.
+  test "reads carry permits that agree with the writes", %{
+    conn: conn,
+    world: world,
+    security: security
+  } do
+    {:ok, in_force} =
+      PolicyRules.create_rule(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world.portfolio.id,
+          name: "In force",
+          version: Map.put(weight_cap(security), "valid_from", Date.add(today(), -30))
+        },
+        today: Date.add(today(), -30)
+      )
+
+    {:ok, scheduled} =
+      PolicyRules.create_rule(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Scheduled",
+        version: Map.put(weight_cap(security), "valid_from", Date.add(today(), 5))
+      })
+
+    %{"data" => data} =
+      conn |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_rules") |> json_response(200)
+
+    assert data["status_basis"] =~ "never stored"
+    by_id = Map.new(data["rules"], &{&1["id"], &1})
+
+    assert %{"status" => "in_force", "permits" => ["add_version", "rename", "retire"]} =
+             by_id[in_force.id]
+
+    assert %{"status" => "scheduled", "permits" => ["add_version", "rename", "delete"]} =
+             by_id[scheduled.id]
+
+    # What the payload does not permit is refused; what it permits succeeds.
+    conn |> delete("/api/v1/policy_rules/#{in_force.id}") |> json_response(409)
+    conn |> post("/api/v1/policy_rules/#{scheduled.id}/retire", %{}) |> json_response(409)
+
+    %{"data" => retired} =
+      conn |> post("/api/v1/policy_rules/#{in_force.id}/retire", %{}) |> json_response(200)
+
+    assert retired["status"] == "retired"
+    assert retired["permits"] == ["add_version", "rename"]
+
+    %{"data" => shown} = conn |> get("/api/v1/policy_rules/#{in_force.id}") |> json_response(200)
+    assert shown["permits"] == ["add_version", "rename"]
+    assert shown["status_basis"] == data["status_basis"]
+
+    conn |> delete("/api/v1/policy_rules/#{scheduled.id}") |> response(204)
+  end
+
   # Acceptance criteria (ADR-0049 §4, §9):
   # - as_of= reads the standard in force on a past date.
   # - view= narrows the list to one evaluation context.

@@ -3889,14 +3889,29 @@ Die Lesezugriffe:
 
 - `GET /api/v1/portfolios/:portfolio_id/policy_rules` — die Regeln des
   Portfolios, jede mit `status` (`in_force`, `scheduled` oder `retired`,
-  bezogen auf `as_of`), `version_in_force` und `next_version`. `as_of`
-  (ISO-Datum, standardmäßig heute) liest den Maßstab eines Tages;
+  bezogen auf `as_of`), `permits`, `version_in_force` und `next_version`.
+  `as_of` (ISO-Datum, standardmäßig heute) liest den Maßstab eines Tages;
   `include_retired=true` nimmt beendete Regeln dazu; `view` beschränkt auf
   einen Auswertungskontext (ohne: alle Kontexte); `since` ist die Zeilen-Delta
   (eine Regel gilt als geändert, wenn ihre Zeile oder eine ihrer Versionen
   geändert wurde); `limit` (Standard 1000, höchstens 10000).
 - `GET /api/v1/policy_rules/:id` — eine Regel mit ihrer **ganzen
-  Versionsgeschichte**, älteste zuerst.
+  Versionsgeschichte**, älteste zuerst, und mit denselben `status` und
+  `permits`.
+
+**`permits` nennt die Schreibzugriffe, die die Regel heute annimmt**
+(ADR-0059), mit den Verben der API selbst, sodass ein Agent liest, was er
+tun darf, statt es aus einem `409` zu lernen: `add_version` und `rename`
+immer; `retire`, solange eine Version gilt oder ein Neustart geplant ist
+(bei einer beendeten Regel, die ab einem späteren Datum wieder aufgenommen
+wird, bricht das Beenden diesen Neustart ab); `delete` nur, solange keine
+Version je gegolten hat. `status` bezieht sich auf `as_of`, `permits` auf
+heute, den Tag, an dem ein Schreibzugriff liefe. Beide Antworten tragen
+`status_basis`, den einen Satz, der sagt, wie `status` und `permits`
+hergeleitet werden; nichts wird gespeichert, und die Schreibzugriffe lehnen
+nach derselben Regel ab, die die Antwort nennt, sodass beide nicht
+auseinanderlaufen können. Die Schaltflächen der Risiko-Seite lesen dieselben
+`permits`.
 
 Die Schreibzugriffe:
 
@@ -3922,9 +3937,11 @@ Die Schreibzugriffe:
   Eine Regel, die seit dem Lesen gelöscht wurde, ist ein `404`.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; beendet
   die geltende Version standardmäßig gestern (heute Abend, wenn sie erst heute
-  begann) und verwirft danach geplante Versionen. Die Regel bleibt mit
-  `include_retired=true` lesbar. Eine Regel, deren keine Version je gegolten
-  hat, oder eine schon beendete, ist ein `409`.
+  begann) und verwirft danach geplante Versionen. Bei einer schon beendeten
+  Regel, die wieder aufgenommen werden soll, bricht es diesen Neustart ab.
+  Die Regel bleibt mit `include_retired=true` lesbar. Eine Regel, deren keine
+  Version je gegolten hat, oder eine beendete ohne geplanten Neustart, ist
+  ein `409` — die beiden Fälle, in denen `permits` `retire` nicht nennt.
 - `DELETE /api/v1/policy_rules/:id` — nur, solange **keine** Version je
   gegolten hat (`204`); sonst `409`, und der Ausweg ist, sie zu beenden.
 

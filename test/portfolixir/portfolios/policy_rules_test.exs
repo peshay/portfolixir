@@ -388,6 +388,65 @@ defmodule Portfolixir.Portfolios.PolicyRulesTest do
     assert PolicyRules.get_rule(scheduled.id) == nil
   end
 
+  # User story (ADR-0059 §1, §2):
+  # As the agent reading a rule,
+  # I want each read to carry the writes the rule accepts today, from the
+  # same module the write guards consult,
+  # so that the permits and the refusals can never disagree.
+  #
+  # Acceptance criteria:
+  # - get_rule and list_rules annotate `permits` beside `status`.
+  # - A rule in force permits add_version, rename and retire; one that never
+  #   started permits add_version, rename and delete; a retired one
+  #   add_version and rename; a retired one scheduled to restart retire too.
+  # - Each refused write answers the reason the status module names.
+  test "reads carry the permits the write guards enforce", %{world: world, security: security} do
+    in_force =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), -20)}),
+        today: Date.add(today(), -20)
+      )
+
+    assert %{status: :in_force, permits: [:add_version, :rename, :retire]} =
+             PolicyRules.get_rule(in_force.id)
+
+    assert {:error, :in_force} =
+             PolicyRules.delete_rule(Actor.owner_ui(), in_force, today: today())
+
+    scheduled =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), 5)}),
+        name: "Scheduled"
+      )
+
+    assert %{status: :scheduled, permits: [:add_version, :rename, :delete]} =
+             PolicyRules.get_rule(scheduled.id)
+
+    assert {:error, :never_in_force} =
+             PolicyRules.retire_rule(Actor.owner_ui(), scheduled, %{}, today: today())
+
+    {:ok, _} = PolicyRules.retire_rule(Actor.owner_ui(), in_force, %{}, today: today())
+
+    assert %{status: :retired, permits: [:add_version, :rename]} =
+             PolicyRules.get_rule(in_force.id)
+
+    assert {:error, :already_retired} =
+             PolicyRules.retire_rule(Actor.owner_ui(), in_force, %{}, today: today())
+
+    {:ok, _} =
+      PolicyRules.add_version(
+        Actor.owner_ui(),
+        in_force,
+        weight_cap(security, %{threshold: "12", valid_from: Date.add(today(), 5)}),
+        today: today()
+      )
+
+    assert [%{id: id, status: :scheduled, permits: [:add_version, :rename, :retire]}] =
+             world.portfolio.id
+             |> PolicyRules.list_rules(as_of: today())
+             |> Enum.filter(&(&1.id == in_force.id))
+
+    assert id == in_force.id
+  end
+
   # User story (ADR-0049 §2, §8):
   # As the agent writing a rule,
   # I want a predicate that does not fit its measure refused with the field

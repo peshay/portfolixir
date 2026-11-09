@@ -207,7 +207,9 @@ Eine beendete Regel wird genauso umbenannt.
   endet heute Abend. Eine geplante Änderung entfällt mit. Die Regel und alle
   ihre Versionen bleiben unter **Beendete Regeln anzeigen** lesbar, und eine
   beendete Regel öffnet denselben Dialog. Eine dort gespeicherte neue Version
-  nimmt die Regel ab dem Datum dieser Version wieder auf.
+  nimmt die Regel ab dem Datum dieser Version wieder auf; bis zu diesem Datum
+  steht die Regel als geplant in der Liste, und **Regel beenden** bricht dann
+  den Neustart ab — die Rückfrage sagt es —, und die Regel bleibt beendet.
 - **Regel löschen** steht statt **Regel beenden** da, solange keine Version der
   Regel gegolten hat — etwa bei einer Regel, die erst später beginnt. An ihr
   wurde nie gemessen, also muss von ihr nichts bleiben.

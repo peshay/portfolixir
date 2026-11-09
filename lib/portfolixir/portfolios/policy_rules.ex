@@ -42,6 +42,13 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   tests); the database refuses a write that bypasses this module, and refuses
   two overlapping versions of one rule outright.
 
+  **The status and the permits are named once** (ADR-0059):
+  `Portfolixir.Portfolios.PolicyRuleStatus` derives a rule's `status`
+  relative to a date and the writes it `permits` today, and `retire_rule/4`
+  and `delete_rule/3` refuse by its `refusal/3` under the rule's lock — so
+  the reads' `permits`, the API's 409s and the Risk page's buttons cannot
+  disagree.
+
   Every write is journaled (ADR-0017; both tables are guard-armed from their
   first migration) and bumps the portfolio's **rules counter**
   (`Portfolixir.Derived.DataVersion.rules_basis/1`, through
@@ -64,10 +71,11 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRule
+  alias Portfolixir.Portfolios.PolicyRuleStatus
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Repo
 
-  @type status :: :in_force | :scheduled | :retired
+  @type status :: PolicyRuleStatus.status()
   @type write_error ::
           Ecto.Changeset.t()
           | {:version, Ecto.Changeset.t()}
@@ -191,9 +199,13 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     transaction(fn ->
       with :ok <- lock_rule(rule.id),
            versions = versions_of(rule.id),
-           {:ok, current} <- latest_started(versions, today) do
+           :ok <- permitted(versions, today, :retire) do
+        current = latest_started(versions, today)
+
         case retirement_date(current, attr(attrs, :valid_until), today) do
           {:ok, until} -> retire_current(actor, rule, versions, current, until, today)
+          # Retired for good already, so the permit was the scheduled
+          # restart: cancel it.
           {:error, :already_retired} -> cancel_restart(actor, rule, versions, current, today)
           error -> error
         end
@@ -210,13 +222,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   end
 
   defp cancel_restart(actor, rule, versions, current, today) do
-    if Enum.any?(versions, &(not started?(&1, today))) do
-      with :ok <- replace_scheduled(actor, versions, Date.add(current.valid_from, 1), today) do
-        Invalidation.after_rule_write(rule.portfolio_id, Repo)
-        current
-      end
-    else
-      {:error, :already_retired}
+    with :ok <- replace_scheduled(actor, versions, Date.add(current.valid_from, 1), today) do
+      Invalidation.after_rule_write(rule.portfolio_id, Repo)
+      current
     end
   end
 
@@ -311,13 +319,15 @@ defmodule Portfolixir.Portfolios.PolicyRules do
       with :ok <- lock_rule(rule.id) do
         versions = versions_of(rule.id)
 
-        if Enum.any?(versions, &started?(&1, today)) do
-          Repo.rollback(:in_force)
-        else
-          Enum.each(versions, &ok!(journaled_delete(actor, &1, "policy_rule_version")))
-          deleted = ok!(journaled_delete(actor, %{rule | versions: []}, "policy_rule"))
-          Invalidation.after_rule_write(rule.portfolio_id, Repo)
-          deleted
+        case PolicyRuleStatus.refusal(versions, today, :delete) do
+          nil ->
+            Enum.each(versions, &ok!(journaled_delete(actor, &1, "policy_rule_version")))
+            deleted = ok!(journaled_delete(actor, %{rule | versions: []}, "policy_rule"))
+            Invalidation.after_rule_write(rule.portfolio_id, Repo)
+            deleted
+
+          reason ->
+            Repo.rollback(reason)
         end
       end
     end)
@@ -349,7 +359,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   @doc """
   The rules of one portfolio, each annotated relative to `as_of` (default
   today) with its `status` (`in_force` · `scheduled` · `retired`), its
-  `version_in_force` and its `next_version`.
+  `version_in_force` and its `next_version`, and with the writes it
+  `permits` today (`Portfolixir.Portfolios.PolicyRuleStatus`).
 
   Options:
 
@@ -387,7 +398,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   # rule history is not loaded to answer a short list. A rule is not retired
   # on `as_of` exactly when one of its versions has not ended by then: such a
   # version is in force if it has started, scheduled if it has not — the same
-  # status `annotate/2` gives.
+  # status `PolicyRuleStatus.read/2` gives, mirrored in SQL (ADR-0059).
   defp maybe_not_retired(query, true, _as_of), do: query
 
   defp maybe_not_retired(query, false, as_of) do
@@ -465,8 +476,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   @doc "Whether `version` has been in force by `today` (its start is reached)."
   @spec started?(PolicyRuleVersion.t(), Date.t()) :: boolean()
-  def started?(%PolicyRuleVersion{valid_from: from}, %Date{} = today),
-    do: Date.compare(from, today) != :gt
+  defdelegate started?(version, today), to: PolicyRuleStatus
 
   # -- write internals ---------------------------------------------------------
 
@@ -602,13 +612,20 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     end
   end
 
-  defp latest_started(versions, today) do
-    case versions
-         |> Enum.filter(&started?(&1, today))
-         |> Enum.max_by(& &1.valid_from, Date, fn -> nil end) do
-      nil -> {:error, :never_in_force}
-      version -> {:ok, version}
+  # The write guard of ADR-0059: `{:error, reason}` with the status module's
+  # reason when `action` is not permitted today.
+  defp permitted(versions, today, action) do
+    case PolicyRuleStatus.refusal(versions, today, action) do
+      nil -> :ok
+      reason -> {:error, reason}
     end
+  end
+
+  # The latest version that has started; the retire permit guarantees one.
+  defp latest_started(versions, today) do
+    versions
+    |> Enum.filter(&started?(&1, today))
+    |> Enum.max_by(& &1.valid_from, Date)
   end
 
   # Yesterday by default; never before yesterday (that would shorten a period
@@ -813,25 +830,22 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     where(query, [r], r.updated_at > ^cut or r.id in subquery(changed_versions))
   end
 
+  # The status relative to `as_of` (§9) and the permits relative to the
+  # host's day, the day a write would run (ADR-0059), both from
+  # `PolicyRuleStatus`. The reads take no `today:` option: only a write's
+  # clock may be set (NFR-9 B5, `scope_b5_system_writers_and_schedulers_test`).
   defp annotate(%PolicyRule{versions: versions} = rule, as_of) do
-    in_force = Enum.find(versions, &in_force_on?(&1, as_of))
+    today = Clock.today()
 
-    next =
-      versions
-      |> Enum.filter(&(Date.compare(&1.valid_from, as_of) == :gt))
-      |> Enum.min_by(& &1.valid_from, Date, fn -> nil end)
+    %{status: status, version_in_force: in_force, next_version: next} =
+      PolicyRuleStatus.read(versions, as_of)
 
-    status =
-      cond do
-        in_force -> :in_force
-        next -> :scheduled
-        true -> :retired
-      end
-
-    %{rule | status: status, version_in_force: in_force, next_version: next}
-  end
-
-  defp in_force_on?(%PolicyRuleVersion{valid_from: from, valid_until: until}, date) do
-    Date.compare(from, date) != :gt and (is_nil(until) or Date.compare(until, date) != :lt)
+    %{
+      rule
+      | status: status,
+        version_in_force: in_force,
+        next_version: next,
+        permits: PolicyRuleStatus.permits(versions, today)
+    }
   end
 end

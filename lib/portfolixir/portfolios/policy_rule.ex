@@ -29,6 +29,7 @@ defmodule Portfolixir.Portfolios.PolicyRule do
   import Ecto.Changeset
 
   alias Portfolixir.Input.Text
+  alias Portfolixir.Portfolios.PolicyRuleStatus
   alias Portfolixir.Portfolios.PolicyRuleVersion
 
   # Mirrors the `policy_rules.name` column width.
@@ -48,9 +49,12 @@ defmodule Portfolixir.Portfolios.PolicyRule do
 
     # Read-side annotations of the rule list (ADR-0049 §9), relative to the
     # list's `as_of`; virtual, so they never reach the DB or the journal.
-    field(:status, Ecto.Enum, values: [:in_force, :scheduled, :retired], virtual: true)
+    # `permits` is the writes the rule accepts today, from the same module
+    # the write guards consult (ADR-0059; `PolicyRuleStatus`).
+    field(:status, Ecto.Enum, values: PolicyRuleStatus.statuses(), virtual: true)
     field(:version_in_force, :map, virtual: true)
     field(:next_version, :map, virtual: true)
+    field(:permits, {:array, Ecto.Enum}, values: PolicyRuleStatus.actions(), virtual: true)
 
     has_many(:versions, PolicyRuleVersion, preload_order: [asc: :valid_from, asc: :id])
 

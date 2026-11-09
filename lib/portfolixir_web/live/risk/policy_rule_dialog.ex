@@ -22,6 +22,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   Retire is a confirmed action; a rule none of whose versions has been in
   force is deleted instead, because nothing was ever measured against it.
+  Which button the footer offers follows the rule's `permits`, read from the
+  same module the writes refuse by (ADR-0059), so the dialog and the API
+  never disagree; on a retired rule scheduled to start again, Retire
+  cancels the restart and the confirmation says so.
   """
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -414,29 +418,29 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           <% end %>
 
         <div class="modal-footer">
+          <%!-- The buttons follow what the rule permits today, from the same
+               module the writes refuse by (ADR-0059; PolicyRuleStatus). --%>
           <%= if @rule do %>
-            <%= if never_in_force?(@rule) do %>
-              <button
-                type="button"
-                class="button-ghost"
-                phx-click="delete"
-                phx-target={@myself}
-                data-confirm={gettext("Delete this rule? None of its versions has been in force, so nothing was ever measured against it.")}
-              >
-                <%= gettext("Delete rule") %>
-              </button>
-            <% else %>
-              <button
-                :if={@rule.status != :retired}
-                type="button"
-                class="button-ghost"
-                phx-click="retire"
-                phx-target={@myself}
-                data-confirm={retire_confirmation(@rule)}
-              >
-                <%= gettext("Retire rule") %>
-              </button>
-            <% end %>
+            <button
+              :if={:delete in @rule.permits}
+              type="button"
+              class="button-ghost"
+              phx-click="delete"
+              phx-target={@myself}
+              data-confirm={gettext("Delete this rule? None of its versions has been in force, so nothing was ever measured against it.")}
+            >
+              <%= gettext("Delete rule") %>
+            </button>
+            <button
+              :if={:retire in @rule.permits}
+              type="button"
+              class="button-ghost"
+              phx-click="retire"
+              phx-target={@myself}
+              data-confirm={retire_confirmation(@rule)}
+            >
+              <%= gettext("Retire rule") %>
+            </button>
           <% end %>
           <span class="modal-footer__spacer"></span>
           <button type="button" class="button-ghost" phx-click="close_policy_rule_dialog">
@@ -535,9 +539,17 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     end
   end
 
-  defp retire_confirmation(rule) do
-    if rule.version_in_force &&
-         Date.compare(rule.version_in_force.valid_from, Clock.today()) == :eq do
+  # What the retire does here: ends the version in force (tonight when it
+  # only started today), or, on a retired rule scheduled to start again,
+  # cancels that restart (ADR-0049 §4; the permit says which).
+  defp retire_confirmation(%{version_in_force: nil}) do
+    gettext(
+      "Cancel the scheduled restart? The rule stays retired, and the rule and its versions stay readable."
+    )
+  end
+
+  defp retire_confirmation(%{version_in_force: in_force}) do
+    if Date.compare(in_force.valid_from, Clock.today()) == :eq do
       gettext(
         "Retire this rule? Its version in force started today, so it ends tonight. The rule and its versions stay readable."
       )
@@ -546,11 +558,6 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         "Retire this rule? It is no longer evaluated from today; the rule and its versions stay readable."
       )
     end
-  end
-
-  defp never_in_force?(rule) do
-    today = Clock.today()
-    not Enum.any?(rule.versions, &PolicyRules.started?(&1, today))
   end
 
   # -- the subject control ----------------------------------------------------
