@@ -150,11 +150,13 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:portfolio, portfolio)
           |> assign(:classifications, classifications)
           # 1y default (UAT fix round): "max" grows unreadable as history
-          # accumulates; the period buttons still offer it. #1122 (board 01
-          # ④, option 3): a link may name its period (`?period=ytd` from the
-          # Overview's total), read on arrival and stored nowhere.
-          |> assign(:period, param_period(params))
-          |> assign(:range_error, nil)
+          # accumulates; the period buttons still offer it. #1122 let a link
+          # name a token (`?period=ytd` from the Overview's total), read on
+          # arrival and stored nowhere; #1432 (plan amendment D-A1) reverses
+          # the second half, because a period kept nowhere fell back to 1
+          # year at every privacy, language, view or tab switch and reload:
+          # every pick now rides the address (`address_period/1`).
+          |> assign_arrival_period(params)
           # I23 (FR-53): the stacked chart's level, tree, sort and drilled
           # category ride the address, so a link handed over reopens them;
           # a stacked level opens the value series it belongs to.
@@ -215,13 +217,135 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
-  # The arrival period (#1122): one of the period tokens, else 1y. A range or
-  # a year is a choice made on the page, never one a link makes.
-  defp param_period(%{"period" => period}) when is_binary(period) do
-    if period in Performance.periods(), do: period, else: "1y"
+  # -- the period on the address (#1432, plan amendment D-A1) -------------------
+
+  # The keys a period takes on the address: `period=` a token, `year=` a
+  # calendar year, `from=` and `to=` a custom range.
+  @period_keys ["period", "year", "from", "to"]
+
+  # The period an address names: `{:ok, period}`, `:none` when it names
+  # none, or `:invalid` for one that is no period at all (an unknown token,
+  # a year out of range, an unparsable or backwards range). A range takes
+  # the same date rule as the popover's form. Whether a year or a range
+  # lies inside the analysis is asked once the analysis is there
+  # (`period_within?/2`).
+  defp address_period(params) do
+    cond do
+      Map.has_key?(params, "from") or Map.has_key?(params, "to") ->
+        case parse_range(params["from"], params["to"]) do
+          {:ok, from, to} -> {:ok, {:range, from, to}}
+          {:error, _field} -> :invalid
+        end
+
+      Map.has_key?(params, "year") ->
+        case LiveParam.year(params["year"]) do
+          year when is_integer(year) -> {:ok, {:year, year}}
+          _invalid -> :invalid
+        end
+
+      Map.has_key?(params, "period") ->
+        if params["period"] in Performance.periods(), do: {:ok, params["period"]}, else: :invalid
+
+      true ->
+        :none
+    end
   end
 
-  defp param_period(_params), do: "1y"
+  # The arrival: the address's period (an invalid one is 1 year with the
+  # line saying so), else 1 year; a year or a range is checked against the
+  # analysis when it lands.
+  defp assign_arrival_period(socket, params) do
+    {period, error} =
+      case address_period(params) do
+        {:ok, period} -> {period, nil}
+        :none -> {"1y", nil}
+        :invalid -> {"1y", :arrival}
+      end
+
+    assign(socket,
+      period: period,
+      range_error: error,
+      period_unchecked: not is_binary(period)
+    )
+  end
+
+  # The address pairs of a period, in this order; 1 year, the default,
+  # names none.
+  defp period_pairs("1y"), do: []
+  defp period_pairs(token) when is_binary(token), do: [{"period", token}]
+  defp period_pairs({:year, year}), do: [{"year", Integer.to_string(year)}]
+
+  defp period_pairs({:range, from, to}),
+    do: [{"from", Date.to_iso8601(from)}, {"to", Date.to_iso8601(to)}]
+
+  # `path` with its period replaced by `period`'s pairs, appended after the
+  # path's own pairs, which keep their order.
+  defp with_period(path, period) do
+    uri = URI.parse(path)
+
+    kept =
+      (uri.query || "")
+      |> URI.query_decoder()
+      |> Enum.reject(fn {key, _value} -> key in @period_keys end)
+
+    case kept ++ period_pairs(period) do
+      [] -> uri.path
+      pairs -> uri.path <> "?" <> URI.encode_query(pairs)
+    end
+  end
+
+  # Whether a year or a range lies inside the analysis' range: a year with
+  # walked data, a range that meets the walked history. A token always does.
+  defp period_within?(token, _analysis) when is_binary(token), do: true
+
+  defp period_within?({:year, year}, analysis), do: year in available_years(analysis)
+
+  defp period_within?({:range, from, to}, %{first_date: %Date{} = first, today: %Date{} = today}),
+    do: Date.compare(from, today) != :gt and Date.compare(to, first) != :lt
+
+  defp period_within?(_period, _analysis), do: false
+
+  # The address's period applied after a patch (a reload, a link, the
+  # back and forward): an invalid one is 1 year with the
+  # line; one the page already shows changes nothing.
+  defp sync_period(socket, params) do
+    case address_period(params) do
+      :invalid ->
+        socket = if socket.assigns.period == "1y", do: socket, else: put_period(socket, "1y")
+        assign(socket, :range_error, :arrival)
+
+      found ->
+        period = with {:ok, period} <- found, do: period, else: (_none -> "1y")
+
+        if period == socket.assigns.period do
+          socket
+        else
+          socket |> assign(:period_unchecked, not is_binary(period)) |> put_period(period)
+        end
+    end
+  end
+
+  # An arrival's year or range outside the analysis (a link to a year
+  # without bookings, a range before the history) is 1 year with one line
+  # saying so; the address is replaced.
+  defp check_period(socket, analysis \\ nil)
+
+  defp check_period(%{assigns: %{period_unchecked: true}} = socket, analysis)
+       when is_map(analysis) or is_map(socket.assigns.analysis) do
+    analysis = analysis || socket.assigns.analysis
+    socket = assign(socket, :period_unchecked, false)
+
+    if period_within?(socket.assigns.period, analysis) do
+      socket
+    else
+      socket
+      |> put_period("1y")
+      |> assign(:range_error, :arrival)
+      |> push_patch(to: with_period(socket.assigns.current_path, "1y"), replace: true)
+    end
+  end
+
+  defp check_period(socket, _analysis), do: socket
 
   # The Wealth area's active tab (ADR-0022): the tab bar navigates with plain
   # links, so the choice arrives as a query param on mount.
@@ -230,6 +354,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp wealth_tab_path(:allocation), do: "/portfolio?tab=allocation"
   defp wealth_tab_path(_tab), do: "/portfolio"
+
+  # The Wealth tabs (#1432): Holdings and Allocation & targets are this
+  # page, so their links keep the period; the other tabs are pages of
+  # their own.
+  defp wealth_tabs(current, period) do
+    for tab <- AppShell.wealth_tabs(current) do
+      if String.starts_with?(tab.href, "/portfolio"),
+        do: %{tab | href: with_period(tab.href, period)},
+        else: tab
+    end
+  end
 
   # The explicit ?view= the page's links may carry: the one in the address
   # when it is the remembered choice the session holds. A view that arrived
@@ -290,7 +425,8 @@ defmodule PortfolixirWeb.PortfolioLive do
             socket.assigns.carried_view,
             classification_id,
             allocation_mode,
-            min_drift_pp
+            min_drift_pp,
+            "1y"
           )
 
         # Holdings carries the stacked chart's choices (I23), so a locale
@@ -304,12 +440,16 @@ defmodule PortfolixirWeb.PortfolioLive do
           )
       end
 
+    socket = sync_period(socket, params)
+
     socket =
       socket
       |> assign(:allocation_mode, allocation_mode)
       |> assign(:min_drift_pp, min_drift_pp)
-      |> assign(:current_path, current_path)
+      # #1432: the period rides every link the page builds from here.
+      |> assign(:current_path, with_period(current_path, socket.assigns.period))
       |> apply_stack(param_stack(params, socket.assigns.classifications))
+      |> check_period()
 
     socket =
       if classification_id == socket.assigns.classification_id do
@@ -340,7 +480,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         socket.assigns.classification_id && Integer.to_string(socket.assigns.classification_id)
       ) or
         present_but_stale?(params["alloc"], allocation_mode_param(socket.assigns.allocation_mode)) or
-        present_but_stale?(params["drift"], socket.assigns.min_drift_pp)
+        present_but_stale?(params["drift"], socket.assigns.min_drift_pp) or
+        address_period(params) == :invalid
 
     if connected?(socket) and stale? do
       # current_path IS the canonical allocation path (assigned above).
@@ -350,7 +491,15 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
-  defp maybe_canonicalize_patch(socket, _params), do: socket
+  # An invalid period on the address (#1432) is replaced by the page's own
+  # address, which names 1 year by naming none.
+  defp maybe_canonicalize_patch(socket, params) do
+    if connected?(socket) and address_period(params) == :invalid do
+      push_patch(socket, to: socket.assigns.current_path, replace: true)
+    else
+      socket
+    end
+  end
 
   defp present_but_stale?(nil, _canonical), do: false
   defp present_but_stale?(requested, canonical), do: requested != canonical
@@ -461,14 +610,16 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The page's own address on Holdings: the stack's when the address names
   # a level, else the carried view alone.
   defp holdings_path(view, params, stack) do
-    if stack_addressed?(params), do: stack_path(view, stack), else: pairs_path(view_pairs(view))
+    if stack_addressed?(params),
+      do: stack_path(view, stack, "1y"),
+      else: pairs_path(view_pairs(view))
   end
 
   # The address of a stack on Holdings: the carried view, then the level
   # (always, so the link opens the value series), the tree, the category
   # and the sort, each only when it is not the default, in this order so
-  # the links compare equal.
-  defp stack_path(view, stack) do
+  # the links compare equal; the period last (#1432).
+  defp stack_path(view, stack, period) do
     pairs =
       view_pairs(view) ++
         [{"level", Atom.to_string(stack.level)}] ++
@@ -477,7 +628,8 @@ defmodule PortfolixirWeb.PortfolioLive do
           else: []
         ) ++
         if(stack.category, do: [{"category", category_param(stack.category)}], else: []) ++
-        if(stack.sort == :change and stack.level != :total, do: [{"sort", "change"}], else: [])
+        if(stack.sort == :change and stack.level != :total, do: [{"sort", "change"}], else: []) ++
+        period_pairs(period)
 
     pairs_path(pairs)
   end
@@ -495,18 +647,18 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp stack_choice(stack, sort) when sort in [:size, :change], do: %{stack | sort: sort}
 
-  defp stack_paths(view, stack) do
+  defp stack_paths(view, stack, period) do
     Map.new([:total, :category, :security, :size, :change], fn choice ->
-      {choice, stack_path(view, stack_choice(stack, choice))}
+      {choice, stack_path(view, stack_choice(stack, choice), period)}
     end)
   end
 
   # The breadcrumb: where the filter is in its tree, each step up a link
   # that keeps the level (FR-56: one level at a time), „All categories“ the
   # stack without a filter. The plain total has none.
-  defp stack_crumbs(view, %{category: category} = stack, bands, ancestors)
+  defp stack_crumbs(view, %{category: category} = stack, bands, ancestors, period)
        when not is_nil(category) do
-    up = fn id -> stack_path(view, %{stack | category: id}) end
+    up = fn id -> stack_path(view, %{stack | category: id}, period) end
 
     name =
       case {category, bands} do
@@ -520,7 +672,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       [{name, nil}]
   end
 
-  defp stack_crumbs(_view, stack, _bands, _ancestors) do
+  defp stack_crumbs(_view, stack, _bands, _ancestors, _period) do
     if stacked?(stack), do: [{gettext("All categories"), nil}], else: []
   end
 
@@ -533,13 +685,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   # (FR-56): a category, or the unassigned rest, as the filter, the level,
   # the tree and the sort kept. Cash, „Other“, „(direct)“ and the filter's
   # own band open nothing.
-  defp drill_paths(view, stack, %{level: :category, bands: bands} = result) do
+  defp drill_paths(view, stack, %{level: :category, bands: bands} = result, period) do
     for band <- bands, filter = band_filter(band, result), into: %{} do
-      {band.key, stack_path(view, %{stack | category: filter})}
+      {band.key, stack_path(view, %{stack | category: filter}, period)}
     end
   end
 
-  defp drill_paths(_view, _stack, _bands), do: %{}
+  defp drill_paths(_view, _stack, _bands, _period), do: %{}
 
   defp band_filter(%{kind: :category, id: id}, %{category_id: filter}) when id != filter, do: id
   defp band_filter(%{kind: :unclassified}, %{category_id: nil}), do: :unclassified
@@ -621,12 +773,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The allocation tab's canonical path: tab, the active view (only when
   # explicitly chosen), the classification and the mode, in a deterministic
   # order so the switchers merge cleanly and a reconnect reconstructs the state.
-  defp allocation_current_path(view, classification_id, allocation_mode, min_drift_pp) do
+  defp allocation_current_path(view, classification_id, allocation_mode, min_drift_pp, period) do
     pairs =
       [{"tab", "allocation"}] ++
         view_pairs(view) ++
         classification_pairs(classification_id) ++
-        [{"alloc", allocation_mode_param(allocation_mode)}] ++ drift_pairs(min_drift_pp)
+        [{"alloc", allocation_mode_param(allocation_mode)}] ++
+        drift_pairs(min_drift_pp) ++ period_pairs(period)
 
     "/portfolio?" <> URI.encode_query(pairs)
   end
@@ -1177,6 +1330,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # A summary the walk cannot give is the failed-performance state, the same
   # one a dead recomputation lands in, never a crash (E25 S4, G12).
   def handle_async(:performance, {:ok, {analysis, read}}, socket) do
+    # #1432: an arrival's year or range is checked against the analysis
+    # first, so the summary below is the period the page will show.
+    socket = check_period(socket, analysis)
+
     case Performance.summarise(analysis, socket.assigns.period) do
       {:ok, performance} ->
         {:noreply,
@@ -1272,7 +1429,10 @@ defmodule PortfolixirWeb.PortfolioLive do
     stack = if reason == :classification_not_found, do: %{stack | tree: nil}, else: stack
 
     {:noreply,
-     push_patch(socket, to: stack_path(socket.assigns.carried_view, stack), replace: true)}
+     push_patch(socket,
+       to: stack_path(socket.assigns.carried_view, stack, socket.assigns.period),
+       replace: true
+     )}
   end
 
   defp bands_answer({:error, _reason}, socket),
@@ -1421,7 +1581,8 @@ defmodule PortfolixirWeb.PortfolioLive do
           <% end %>
         </div>
 
-        <AppShell.area_tabs tabs={AppShell.wealth_tabs(@wealth_tab)} />
+        <AppShell.area_tabs tabs={wealth_tabs(@wealth_tab, @period)} />
+
 
         <%!-- Issue 790: a control row sits inside the content grid, with the
              section's horizontal padding and none of its band. --%>
@@ -1853,7 +2014,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             </span>
             <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
           </span>
-          <a class="kpi-summary__link" href={holdings_path(@current_path)}>
+          <a class="kpi-summary__link" href={holdings_path(@current_path, @period)}>
             <%= gettext("All key figures → Holdings") %>
           </a>
         </section>
@@ -1992,7 +2153,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </div>
                     </div>
                       <p
-                      :if={@range_error}
+                      :if={@range_error in [:from, :to, :order]}
                       id="performance-range-error"
                       class="hint"
                       data-role="range-error"
@@ -2104,6 +2265,14 @@ defmodule PortfolixirWeb.PortfolioLive do
               </details>
             </div>
           </header>
+          <%!-- #1432 (D-A1): a period the address asked for that is no
+               period, or lies outside the analysis, opens at 1 year, and
+               one line says so until the next pick. --%>
+          <div :if={@range_error == :arrival} class="inline-result" role="status">
+            <AppShell.data_note severity={:note} data-role="period-fallback">
+              <%= gettext("The period asked for does not fit the data, so 1 year is shown.") %>
+            </AppShell.data_note>
+          </div>
           <%!-- #563: a backwards or unparsable range is refused with a terse
                note; the shown period keeps. --%>
           <%!-- ADR-0032 §6: a superseded series never renders unlabelled. The
@@ -2184,8 +2353,8 @@ defmodule PortfolixirWeb.PortfolioLive do
             <StackedChart.bar
               :if={@chart_mode == "value"}
               stack={@stack}
-              paths={stack_paths(@carried_view, @stack)}
-              crumbs={stack_crumbs(@carried_view, @stack, @bands, @bands_ancestors)}
+              paths={stack_paths(@carried_view, @stack, @period)}
+              crumbs={stack_crumbs(@carried_view, @stack, @bands, @bands_ancestors, @period)}
               classifications={@classifications}
               classification_id={stack_classification_id(@stack, @bands)}
             />
@@ -2195,7 +2364,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <StackedChart.figure
                     result={@bands}
                     colors={@bands_colors}
-                    drill_paths={drill_paths(@carried_view, @stack, @bands)}
+                    drill_paths={drill_paths(@carried_view, @stack, @bands, @period)}
                     benchmark_note={
                       if @benchmarks != [],
                         do: benchmark_value_note(@performance.base_currency)
@@ -4499,7 +4668,11 @@ defmodule PortfolixirWeb.PortfolioLive do
     with %{} = result <- socket.assigns.bands,
          filter when not is_nil(filter) <- clicked_filter(raw, result) do
       stack = %{socket.assigns.stack | category: filter}
-      {:noreply, push_patch(socket, to: stack_path(socket.assigns.carried_view, stack))}
+
+      {:noreply,
+       push_patch(socket,
+         to: stack_path(socket.assigns.carried_view, stack, socket.assigns.period)
+       )}
     else
       _other -> {:noreply, socket}
     end
@@ -4513,7 +4686,11 @@ defmodule PortfolixirWeb.PortfolioLive do
     with {:ok, id} <- LiveParam.fetch_id(raw),
          true <- Enum.any?(socket.assigns.classifications, &(&1.id == id)) do
       stack = %{socket.assigns.stack | level: :category, category: nil, tree: id}
-      {:noreply, push_patch(socket, to: stack_path(socket.assigns.carried_view, stack))}
+
+      {:noreply,
+       push_patch(socket,
+         to: stack_path(socket.assigns.carried_view, stack, socket.assigns.period)
+       )}
     else
       _other -> {:noreply, socket}
     end
@@ -4549,7 +4726,8 @@ defmodule PortfolixirWeb.PortfolioLive do
              current_view_param(socket.assigns.current_path),
              classification_id,
              socket.assigns.allocation_mode,
-             socket.assigns.min_drift_pp
+             socket.assigns.min_drift_pp,
+             socket.assigns.period
            )
        )}
     else
@@ -4706,7 +4884,8 @@ defmodule PortfolixirWeb.PortfolioLive do
              current_view_param(socket.assigns.current_path),
              socket.assigns.classification_id,
              requested,
-             socket.assigns.min_drift_pp
+             socket.assigns.min_drift_pp,
+             socket.assigns.period
            )
        )}
     end
@@ -4730,7 +4909,8 @@ defmodule PortfolixirWeb.PortfolioLive do
            current_view_param(socket.assigns.current_path),
            socket.assigns.classification_id,
            socket.assigns.allocation_mode,
-           requested
+           requested,
+           socket.assigns.period
          )
      )}
   end
@@ -5691,38 +5871,45 @@ defmodule PortfolixirWeb.PortfolioLive do
     })
   end
 
+  # A pick on the page (#1432, D-A1): applied at once, as before, then the
+  # address follows it, so every link built from the address keeps it.
+  defp apply_period(socket, period) do
+    socket = socket |> assign(:period_unchecked, false) |> put_period(period)
+
+    {:noreply,
+     socket
+     |> push_patch(to: with_period(socket.assigns.current_path, period))}
+  end
+
   # One landing spot for a validated period term (a button string, a year or a
   # range): re-chain the cached analysis instantly, or — while the walk is
   # still computing — remember the choice for the async completion. The
   # contribution table (FR-41) recomputes for the new period either way.
-  defp apply_period(socket, period) do
+  defp put_period(socket, period) do
     socket = assign(socket, :range_error, nil)
 
     if socket.assigns.analysis do
       # The analysis is cached — re-chaining a period is pure and instant.
       case Performance.summarise(socket.assigns.analysis, period) do
         {:ok, performance} ->
-          {:noreply,
-           socket
-           |> assign(period: period, performance: performance)
-           |> assign_comparisons()
-           |> load_contribution()
-           |> load_bands()
-           |> push_event("close-popover", %{id: "period-custom"})}
+          socket
+          |> assign(period: period, performance: performance)
+          |> assign_comparisons()
+          |> load_contribution()
+          |> load_bands()
+          |> push_event("close-popover", %{id: "period-custom"})
 
         {:error, _reason} ->
-          {:noreply,
-           socket
-           |> assign(period: period, performance: nil, performance_failed: true)
-           |> push_event("close-popover", %{id: "period-custom"})}
+          socket
+          |> assign(period: period, performance: nil, performance_failed: true)
+          |> push_event("close-popover", %{id: "period-custom"})
       end
     else
-      {:noreply,
-       socket
-       |> assign(:period, period)
-       |> load_contribution()
-       |> load_bands()
-       |> push_event("close-popover", %{id: "period-custom"})}
+      socket
+      |> assign(:period, period)
+      |> load_contribution()
+      |> load_bands()
+      |> push_event("close-popover", %{id: "period-custom"})
     end
   end
 
@@ -5777,12 +5964,14 @@ defmodule PortfolixirWeb.PortfolioLive do
       else: nil
   end
 
-  # The summary line's way back to Holdings keeps the picked view (#797).
-  defp holdings_path(current_path) do
+  # The summary line's way back to Holdings keeps the picked view (#797)
+  # and the period (#1432).
+  defp holdings_path(current_path, period) do
     case current_view_param(current_path) do
       nil -> "/portfolio"
       view -> "/portfolio?" <> URI.encode_query(%{"view" => view})
     end
+    |> with_period(period)
   end
 
   defp period_label("ytd"), do: gettext("YTD")
