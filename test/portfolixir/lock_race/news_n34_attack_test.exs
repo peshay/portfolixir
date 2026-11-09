@@ -5,11 +5,13 @@ defmodule Portfolixir.LockRace.NewsN34AttackTest do
   # race. Cases tagged `:n34_attack_red` show a lock cycle the attack found
   # and fail until it is fixed.
   #
-  # news.assign takes the matcher's advisory lock, the scope lock of the
+  # news.assign took the matcher's advisory lock, the scope lock of the
   # item's security, the item's row FOR UPDATE, and then the target security
   # FOR KEY SHARE. A security merge takes both securities FOR UPDATE first
   # and the source's items' rows later (`Portfolixir.News.reassign_security/3`).
-  # So each holds what the other waits for.
+  # So each held what the other waited for. Since the closing act (AT4)
+  # news.assign holds the securities first, in id order
+  # (`Portfolixir.LockTable`, row 21).
   #
   # async: false -- the races share a scratch database and the barrier's
   # limits.
@@ -113,7 +115,6 @@ defmodule Portfolixir.LockRace.NewsN34AttackTest do
   #   no deadlock, both answer.
   # - The merge holding the securities' locks while the assignment starts:
   #   no deadlock, both answer.
-  @tag :n34_attack_red
   test "an assignment holding the item's lock, then a merge of its security", %{db: db} do
     w = world("Assign First Harbour")
 
@@ -125,10 +126,10 @@ defmodule Portfolixir.LockRace.NewsN34AttackTest do
       )
 
     assert {:ok, _item} = assigned
-    assert {:ok, _record} = merged
+    assert {:ok, _record, :applied} = merged
+    assert Repo.get!(Item, w.item.id).security_id == w.target.id
   end
 
-  @tag :n34_attack_red
   test "a merge holding the securities' locks, then an assignment of the source's item",
        %{db: db} do
     w = world("Merge First Harbour")
@@ -140,8 +141,9 @@ defmodule Portfolixir.LockRace.NewsN34AttackTest do
         fn -> News.assign_item(agent(), w.item.id, w.target.id) end
       )
 
-    assert {:ok, _record} = merged
+    assert {:ok, _record, :applied} = merged
     assert match?({:ok, _item}, assigned) or match?({:error, %{"security_id" => _}}, assigned)
+    assert Repo.get!(Item, w.item.id).security_id == w.target.id
   end
 
   # User story (ADR-0056 §9, the cap; plan D-8 security lens):

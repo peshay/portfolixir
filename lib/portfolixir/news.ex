@@ -795,6 +795,11 @@ defmodule Portfolixir.News do
   # news.assign (§9): an aggregator item assigned by hand, or given back to
   # the matcher.
 
+  # AT4: a security the first step did not hold (the item moved between the
+  # unlocked read and its lock) rolls the attempt back, releasing every
+  # lock, and the next attempt holds it in order.
+  @assign_attempts 3
+
   @doc """
   Assigns the aggregator item `item_id` to the security `security_id` by
   hand, or with `nil` gives it back to the matcher, on behalf of `actor`
@@ -824,14 +829,23 @@ defmodule Portfolixir.News do
   until the write commits, so it cannot be deleted beneath it).
 
   **One at a time with the matcher, and on the item as it is** (plan D-8,
-  the order lens): the write takes the matcher's advisory lock (ORD5), so a
-  match or a re-match never interleaves with it; then the lock of the
-  scope the item is in, then the item's row lock, and acts on the item as
-  read under that lock. An item a merge or a candidate's delete moved
-  meanwhile is acted on where it now is (its scope locked too); one
-  retention removed answers `{:error, :not_found}`. The scopes are locked
-  before the item, as retention locks them (`Portfolixir.News.Stories.remove/5`),
-  so the two never wait on each other in a cycle.
+  the order lens; closing act, AT4): the write first holds `FOR KEY SHARE`,
+  in id order, every security it may touch — the item's own, its
+  candidates, and the target (or, for `nil`, the securities the matcher
+  names now) — **before** any other lock, as a security merge takes both
+  securities `FOR UPDATE` before its news rows and may re-match under the
+  matcher's lock while it holds them (`Portfolixir.LockTable`, row 21).
+  Then the matcher's advisory lock (ORD5), so a match or a re-match never
+  interleaves with it; then the lock of the scope the item is in, then the
+  item's row lock, and it acts on the item as read under that lock. An
+  item a merge or a candidate's delete moved meanwhile is acted on where it
+  now is (its scope locked too); should it now name a security the first
+  step did not hold, the transaction is rolled back and run again (at most
+  three times, then an error on `news_id`), never a security locked out of
+  order. One retention removed answers `{:error, :not_found}`. The scopes
+  are locked before the item, as retention locks them
+  (`Portfolixir.News.Stories.remove/5`), so the two never wait on each
+  other in a cycle.
 
   **Journaled** (B7's exception for a hand write): one `news_item` update
   under `actor`, with the item before and after; an assignment the item
@@ -846,11 +860,23 @@ defmodule Portfolixir.News do
           | {:error, {:write_refused, Ecto.Changeset.t()}}
   def assign_item(%Actor{} = actor, item_id, security_id, opts \\ [])
       when is_integer(item_id) and (is_integer(security_id) or is_nil(security_id)) do
+    assign_attempt(actor, item_id, security_id, opts, @assign_attempts)
+  end
+
+  defp assign_attempt(_actor, _item_id, _security_id, _opts, 0) do
+    {:error,
+     %{"news_id" => ["moved while it was being assigned, three times running: try again"]}}
+  end
+
+  defp assign_attempt(actor, item_id, security_id, opts, attempts) do
     now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
 
     Multi.new()
-    |> Multi.run(:prior, fn _repo, _changes -> lock_for_assign(item_id) end)
-    |> Multi.run(:item, fn _repo, %{prior: prior} -> assign_locked(prior, security_id, now) end)
+    |> Multi.run(:held, fn _repo, _changes -> hold_for_assign(item_id, security_id) end)
+    |> Multi.run(:prior, fn _repo, %{held: {read, held}} -> lock_for_assign(read, held) end)
+    |> Multi.run(:item, fn _repo, %{prior: prior, held: {_read, held}} ->
+      assign_locked(prior, security_id, held, now)
+    end)
     |> Journal.record(actor,
       resource_type: "news_item",
       operation: :update,
@@ -862,8 +888,11 @@ defmodule Portfolixir.News do
       {:ok, %{item: item}} ->
         {:ok, item}
 
-      {:error, :prior, :not_found, _changes} ->
+      {:error, step, :not_found, _changes} when step in [:held, :prior] ->
         {:error, :not_found}
+
+      {:error, step, :moved, _changes} when step in [:prior, :item] ->
+        assign_attempt(actor, item_id, security_id, opts, attempts - 1)
 
       {:error, :item, {:refused, errors}, _changes} ->
         {:error, errors}
@@ -873,20 +902,59 @@ defmodule Portfolixir.News do
     end
   end
 
-  defp lock_for_assign(item_id) do
-    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
-
-    with %Item{} = read <- Repo.get(Item, item_id),
-         :ok <- lock_scope_of(read),
-         %Item{} = locked <- lock_item(item_id) do
-      # A merge or a candidate's delete may have moved it between the read
-      # and the lock (neither takes the matcher's lock): its scope now is
-      # locked too, before anything is written.
-      if story_scope(locked) != story_scope(read), do: lock_scope_of(locked)
-      {:ok, locked}
-    else
+  # AT4 (Portfolixir.LockTable, row 21): the securities first, in id order,
+  # off an unlocked read of the item; then the matcher's lock, the scope and
+  # the item, as the moduledoc says.
+  defp hold_for_assign(item_id, security_id) do
+    case Repo.get(Item, item_id) do
       nil -> {:error, :not_found}
+      read -> {:ok, {read, hold_securities(securities_touched(read, security_id))}}
     end
+  end
+
+  defp lock_for_assign(read, held) do
+    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+    :ok = lock_scope_of(read)
+
+    case lock_item(read.id) do
+      nil ->
+        {:error, :not_found}
+
+      %Item{} = locked ->
+        # A merge or a candidate's delete may have moved it between the
+        # read and the lock (neither takes the matcher's lock): its scope
+        # now is locked too, before anything is written.
+        if story_scope(locked) != story_scope(read), do: lock_scope_of(locked)
+        if held?(securities_of(locked), held), do: {:ok, locked}, else: {:error, :moved}
+    end
+  end
+
+  defp held?(ids, held), do: MapSet.subset?(MapSet.new(ids), held)
+
+  # The securities an assignment may touch: the item's own and its
+  # candidates, and the target, or for `nil` the matcher's names now.
+  defp securities_touched(item, security_id) when is_integer(security_id),
+    do: [security_id | securities_of(item)]
+
+  defp securities_touched(item, nil),
+    do: Matcher.matches(item.title, Universe.aggregator_index()) ++ securities_of(item)
+
+  defp securities_of(%Item{security_id: id, candidates: candidates}),
+    do: Enum.reject([id | candidates || []], &is_nil/1)
+
+  # FOR KEY SHARE, in id order (one statement, rows locked as returned):
+  # the ids that exist, held to commit.
+  defp hold_securities(ids) do
+    ids = ids |> Enum.uniq() |> Enum.sort()
+
+    from(s in Security,
+      where: s.id in ^ids,
+      order_by: s.id,
+      lock: "FOR KEY SHARE",
+      select: s.id
+    )
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   defp lock_item(item_id),
@@ -903,8 +971,8 @@ defmodule Portfolixir.News do
   defp story_scope(%Item{assignment: :assigned} = item), do: Stories.scope(item)
   defp story_scope(_item), do: nil
 
-  defp assign_locked(%Item{class: :aggregator} = prior, security_id, now) do
-    with {:ok, outcome} <- assign_outcome(prior, security_id) do
+  defp assign_locked(%Item{class: :aggregator} = prior, security_id, held, now) do
+    with {:ok, outcome} <- assign_outcome(prior, security_id, held) do
       {assignment, target_id, candidates} = assignment_of(outcome)
 
       if {prior.assignment, prior.security_id, prior.candidates} ==
@@ -916,7 +984,7 @@ defmodule Portfolixir.News do
     end
   end
 
-  defp assign_locked(%Item{class: class}, _security_id, _now) do
+  defp assign_locked(%Item{class: class}, _security_id, _held, _now) do
     {:error,
      {:refused,
       %{
@@ -930,18 +998,22 @@ defmodule Portfolixir.News do
   defp bound_to(:thematic), do: "category"
   defp bound_to(_class), do: "security"
 
-  defp assign_outcome(_prior, security_id) when is_integer(security_id) do
-    if Repo.exists?(from(s in Security, where: s.id == ^security_id, lock: "FOR KEY SHARE")),
+  # The target is held FOR KEY SHARE since the first step (AT4): one that
+  # did not exist then is not held.
+  defp assign_outcome(_prior, security_id, held) when is_integer(security_id) do
+    if MapSet.member?(held, security_id),
       do: {:ok, {:assigned, security_id}},
       else: {:error, {:refused, %{"security_id" => ["does not exist"]}}}
   end
 
   # §2 and ORD5: the matcher's answer, from the aliases committed by now
-  # (read under the matcher's lock), its securities held FOR KEY SHARE.
-  defp assign_outcome(prior, nil) do
+  # (read under the matcher's lock), its securities held FOR KEY SHARE
+  # since the first step (AT4); a security it names now that the first
+  # step's match did not (an alias committed in between) runs the attempt
+  # again.
+  defp assign_outcome(prior, nil, held) do
     hits = Matcher.matches(prior.title, Universe.aggregator_index())
-    existing = existing_securities([{prior, hits}])
-    {:ok, hits |> Enum.filter(&MapSet.member?(existing, &1)) |> Matcher.outcome()}
+    if held?(hits, held), do: {:ok, Matcher.outcome(hits)}, else: {:error, :moved}
   end
 
   defp assignment_of({:assigned, id}), do: {:assigned, id, []}
