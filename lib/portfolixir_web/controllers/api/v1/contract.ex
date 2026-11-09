@@ -146,8 +146,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "answers each feed's yield_30d, its promoted stories over its items in 30 days " <>
               "as a decimal string rounded to 4 places (left out without items), and " <>
               "low_yield, true at 50 items or more with none promoted; the placeholder yield " <>
-              "not_measured_until_promotion is gone."
+              "not_measured_until_promotion is gone.",
             # --- S28 N2 yield end ---
+            # --- S28 N6 begin ---
+            "Sprint 28, N6 (ADR-0056 §9): GET /api/v1/securities/:id/dossier " <>
+              "(portfolixir.securities.dossier) adds the part news: count_7d, the security's " <>
+              "stories with a member that entered their scope in the last 7 days, " <>
+              "primary_7d, max_materiality of their active labels, and newest_primary, its " <>
+              "newest primary story at any age (id, title cut at 50, at), in about 50 tokens; " <>
+              "the companion now answers the dossier as compact JSON."
+            # --- S28 N6 end ---
           ],
           " "
         ),
@@ -227,8 +235,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S28 N5 end ---
         # --- S28 N2 yield begin ---
         "GET /api/v1/news/health (portfolixir.news.health) answers yield_30d and low_yield " <>
-          "per feed in place of yield (ADR-0056 A3, C4; S28 N2)"
+          "per feed in place of yield (ADR-0056 A3, C4; S28 N2)",
         # --- S28 N2 yield end ---
+        # --- S28 N6 begin ---
+        "GET /api/v1/securities/:id/dossier (portfolixir.securities.dossier) answers the part " <>
+          "news and parts.news (ADR-0056 §9; S28 N6)"
+        # --- S28 N6 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

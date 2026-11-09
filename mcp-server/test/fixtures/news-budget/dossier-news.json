@@ -1,0 +1,15 @@
+{
+  "data": {
+    "news": {
+      "count_7d": 3,
+      "max_materiality": 3,
+      "newest_primary": {
+        "at": "2026-11-09T09:00:00Z",
+        "id": 1,
+        "title": "Profit warning \uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\u2026"
+      },
+      "primary_7d": 1
+    },
+    "security_id": 1
+  }
+}
