@@ -312,6 +312,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       conviction: enum_string(note.conviction),
       invalidation_condition: note.invalidation_condition,
       time_stop: date(note.time_stop),
+      # S28 N5 (ADR-0044's amendment of 2026-11-06): a headline, an event
+      # type and a tone on an evidence or event_result entry, and the news
+      # label an entry written from a story took them from.
+      headline: note.headline,
+      event_type: enum_string(note.event_type),
+      tone: note.tone,
+      news_label_id: note.news_label_id,
       inserted_at: timestamp(note.inserted_at)
     }
   end

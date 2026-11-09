@@ -786,8 +786,18 @@ confirmed, carrying its `source_url`); both are ignored in a body, so a body
 can claim neither —, `supersedes_id` (the earlier
 entry of the same security this one replaces; required for a retraction),
 `valid_until` (a dated block such as a lockup or a self-imposed buying block),
-and — on `thesis` entries only — `conviction` (`low`, `medium`, `high`),
-`invalidation_condition` and `time_stop`. Every entry in a response also
+— on `thesis` entries only — `conviction` (`low`, `medium`, `high`),
+`invalidation_condition` and `time_stop`, and — on `evidence` and
+`event_result` entries only (ADR-0044's amendment of 2026-11-06) —
+`headline` (plain text of at most 80 characters, one line, no invisible
+character), `event_type` (`earnings`, `guidance`, `capital_measure`, `legal`,
+`m_and_a`, `product`, `regulatory`, `macro`) and `tone` (`-1`, `0`, `1`, the
+writer's reading for the security: it colours a chart marker and is never a
+filter, a sort key or a signal); on another kind each answers `422` naming
+it. Like every field they are set once: the log is append-only. An entry
+without them reads them as `null`, and `news_label_id` names the news label
+an entry written from a story took its event type or tone from (the
+server's provenance, never taken from a body). Every entry in a response also
 carries `superseded_by_ids` and a `superseded` flag, so a superseded entry is
 shown as superseded rather than hidden. All closed sets are validated; an
 unknown value is a `422` naming the field, and no atom is ever created from
