@@ -197,7 +197,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         privacy?: privacy?,
         index: if(privacy?, do: index_basis(assigns.result)),
         geometry: geometry,
-        legend: Enum.reverse(bands),
+        legend: legend(bands, geometry),
         by_key: Map.new(bands, &{&1.key, &1}),
         width: @width,
         height: @height,
@@ -1019,7 +1019,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       end)
 
     kinds = Map.new(result.bands, &{&1.key, &1.kind})
-    stacked = series |> zero_first(kinds) |> stack()
+    drawn = zero_first(series, kinds)
+    stacked = stack(drawn)
 
     {lo, hi} = range(stacked)
     plot_top = @padding_top * 1.0
@@ -1056,12 +1057,23 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     %{
       points: n,
       plot_top: plot_top,
+      order: Enum.map(drawn, &elem(&1, 0)),
       parts: parts,
       zero_y: if(lo < 0, do: y.(0.0)),
       ticks: ticks,
       first_date: List.first(dates),
       last_date: List.last(dates)
     }
+  end
+
+  # The legend reads like the stack, the top band first: the drawn order
+  # reversed, so a band that changes sign, drawn first at the zero line, is
+  # its last row (the closing act's design critic, D1).
+  defp legend(_bands, nil), do: []
+
+  defp legend(bands, %{order: order}) do
+    by_key = Map.new(bands, &{&1.key, &1})
+    order |> Enum.reverse() |> Enum.map(&Map.fetch!(by_key, &1))
   end
 
   # The bands that change sign inside the window first, in their order,
