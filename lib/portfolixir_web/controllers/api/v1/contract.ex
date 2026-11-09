@@ -54,9 +54,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         Enum.join(
           [
             # --- Sprint 28 Q begin ---
-            "Sprint 28, Q (#1410): the quote sync stops at a feed of MANUAL or NONE on " <>
-              "every path, and its scheduled and full runs leave a retired security alone; " <>
-              "portfolixir.quotes.sync and portfolixir.securities.update say so."
+            "Sprint 28, Q (#1410, #1411): the quote sync stops at a feed of MANUAL or NONE " <>
+              "on every path, and its scheduled and full runs leave a retired security " <>
+              "alone; portfolixir.quotes.sync and portfolixir.securities.update say so. A " <>
+              "provider answer in another currency than the security's is stored nowhere " <>
+              "and answers currency_mismatch."
             # --- Sprint 28 Q end ---
           ],
           " "
@@ -72,7 +74,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "here as before, while the scheduled run and the page's sync of every security " <>
           ~s(skip it as "retired" and the manual feed as "manual_feed", counted as skipped. ) <>
           "GET /api/v1/securities/:security_id/quotes/manual (portfolixir.quotes.manual) " <>
-          "answers sync_adapter false for a security whose feed is MANUAL or NONE (#1410)."
+          "answers sync_adapter false for a security whose feed is MANUAL or NONE (#1410).",
+        "POST /api/v1/securities/:security_id/sync_quotes (portfolixir.quotes.sync, whose " <>
+          "description lists the reason): a provider answer that states another currency " <>
+          "than the security's currency_code, compared as written (GBp is not GBP), stores " <>
+          ~s(no quote and answers status "error" with reason "currency_mismatch", where it ) <>
+          "stored the closes under the security's currency; an answer that states none is " <>
+          "stored as before; the provider's own word is not echoed (#1411)."
         # --- Sprint 28 Q end ---
       ],
       removed_endpoints: [],

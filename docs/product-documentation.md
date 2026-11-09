@@ -4002,6 +4002,16 @@ Yahoo is queried with `period1=0` and `period2=<now>` so it returns the
 full available daily history — `range=max` silently downsamples to
 monthly for long-history tickers.
 
+**An answer in another currency is refused** (#1411). Yahoo states the
+currency of the listing it answered for; when that is not the security's
+own currency — a ticker that resolves to a dollar line of a euro share, or
+to its ADR — the sync stores none of its closes and reports that security
+as failed (`currency_mismatch` over the API), while the others sync. The
+currencies are compared as written, so a London listing quoted in pence
+(`GBp`) is refused for a security in pounds (`GBP`), and so are the other
+minor units Yahoo uses (`ZAc`, `ILA`). An answer that states no currency is
+stored as before. Fix the ticker (or the exchange) and sync again.
+
 Securities whose provider has no quote adapter, or whose adapter cannot run
 because required fields such as ticker are missing, are reported as skipped
 with a reason. Failed adapter calls are reported separately from successful

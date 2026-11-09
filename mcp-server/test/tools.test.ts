@@ -1796,9 +1796,11 @@ describe("Portfolixir MCP tools", () => {
     const sync = tools.find((tool) => tool.name === "portfolixir.quotes.sync");
     const update = tools.find((tool) => tool.name === "portfolixir.securities.update");
 
-    assert.match(sync?.description ?? "", /manual_feed: its feed is MANUAL or NONE/);
+    assert.match(sync?.description ?? "", /manual_feed \(feed MANUAL or NONE: every sync stops\)/);
     assert.match(sync?.description ?? "", /retired security syncs here; the scheduled and full runs skip it/);
     assert.match(update?.description ?? "", /feed MANUAL or NONE stops its quote sync/);
+    // #1411 (Sprint 28 Q2): an answer in another currency stores nothing.
+    assert.match(sync?.description ?? "", /currency_mismatch \(another currency stated: nothing stored\)/);
 
     const retired = update?.inputSchema.properties.security.properties.is_retired.description ?? "";
     assert.match(retired, /scheduled quote sync/);

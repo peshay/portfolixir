@@ -1618,7 +1618,12 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   Anbieterkurse eines Wertpapiers anzuhalten, dessen Kurse du von Hand
   pflegst. Ein ausgemustertes Wertpapier synchronisiert dieser Aufruf; die
   geplante Synchronisierung und die aller Wertpapiere überspringen es mit
-  `retired` (#1410). Beides zählt als übersprungen.
+  `retired` (#1410). Beides zählt als übersprungen. Eine Anbieterantwort,
+  die eine andere Währung nennt als den `currency_code` des Wertpapiers,
+  speichert keinen Kurs und liefert `status` `error` mit `reason`
+  `currency_mismatch` (#1411): verglichen wie geschrieben, Yahoos `GBp`
+  (Pence) ist also nicht `GBP`; eine Antwort ohne Währung wird gespeichert
+  wie bisher.
   Eine Historie beliebiger Länge wird in einer Synchronisierung gespeichert,
   und in der geplanten Synchronisierung ist ein scheiterndes Wertpapier der
   Fehler dieses Wertpapiers, während die übrigen weiter synchronisiert werden.

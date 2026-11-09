@@ -4413,6 +4413,18 @@ Yahoo wird mit `period1=0` und `period2=<now>` abgefragt, sodass es die volle
 verfügbare tägliche Historie liefert — `range=max` rechnet bei Tickern mit langer
 Historie still auf monatlich herunter.
 
+**Eine Antwort in einer anderen Währung wird abgelehnt** (#1411). Yahoo nennt
+die Währung der Notierung, für die es antwortet; ist das nicht die eigene
+Währung des Wertpapiers — ein Ticker, der auf eine Dollar-Notierung einer
+Euro-Aktie oder auf ihr ADR zeigt —, speichert die Synchronisierung keinen
+ihrer Schlusskurse und meldet dieses Wertpapier als fehlgeschlagen
+(`currency_mismatch` über die API), während die übrigen synchronisiert
+werden. Verglichen wird wie geschrieben: Eine Londoner Notierung in Pence
+(`GBp`) wird für ein Wertpapier in Pfund (`GBP`) abgelehnt, ebenso die
+anderen Untereinheiten, die Yahoo nutzt (`ZAc`, `ILA`). Eine Antwort ohne
+Währung wird gespeichert wie bisher. Ticker (oder Börse) korrigieren und neu
+synchronisieren.
+
 Wertpapiere, deren Anbieter keinen Kurs-Adapter hat oder deren Adapter nicht
 laufen kann, weil Pflichtfelder wie der Ticker fehlen, werden mit einem Grund als
 übersprungen gemeldet. Fehlgeschlagene Adapter-Aufrufe werden getrennt von
