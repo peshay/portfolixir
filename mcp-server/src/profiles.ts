@@ -1,6 +1,6 @@
 /**
  * The companion's tool profiles (Sprint 17, A1, #992; plan D-5): one server,
- * one switch, three levels.
+ * one switch, three levels for the agent.
  *
  * - `read` lists and calls only the tools that change nothing (readOnlyHint).
  * - `book` lists and calls every tool except the admin set below: the reads,
@@ -8,14 +8,43 @@
  *   the former value undoes (two leave a residue, named below).
  * - `full` (the default) lists and calls every tool.
  *
+ * None of the three lists the news labeller's two tools (LABEL_TOOLS below),
+ * and the fourth profile, `label`, lists those two and nothing else
+ * (ADR-0056 §7, Sprint 28 N1).
+ *
  * A profile narrows the companion, not the API token: whoever holds
  * PORTFOLIXIR_API_TOKEN can still call every route directly. It keeps an
  * unattended agent run from deleting or merging through the companion; it is
  * not a security boundary.
  */
-export type McpProfile = "read" | "book" | "full";
+export type AgentProfile = "read" | "book" | "full";
 
-export const MCP_PROFILES: readonly McpProfile[] = ["read", "book", "full"];
+// --- S28 N1 begin ---
+export type McpProfile = AgentProfile | "label";
+// --- S28 N1 end ---
+
+/** The agent's profiles; `label` is the news labeller's (LABEL_TOOLS). */
+export const MCP_PROFILES: readonly AgentProfile[] = ["read", "book", "full"];
+
+// --- S28 N1 begin ---
+// THE LABELLER'S TOOLS — ADR-0056 §7: "A companion profile `label` lists
+// only news.unlabeled and news.label_put, and the agent's profiles do not
+// list them." The labeller is a script that hands an outside model's JSON
+// to label_put with its own named token; the profile keeps that companion
+// from reaching anything else, and the agent's from writing labels. As every
+// profile, it narrows the tools, not the token (ADR-0054 §1). A test
+// (test/news-labels.test.ts) holds both directions.
+export const LABEL_TOOLS: ReadonlyMap<string, string> = new Map([
+  [
+    "portfolixir.news.unlabeled",
+    "The labeller's one read: the stories without a label of its prompt version."
+  ],
+  [
+    "portfolixir.news.label_put",
+    "The labeller's one write: a label, closed to every field outside ADR-0056 §7."
+  ]
+]);
+// --- S28 N1 end ---
 
 /**
  * The opt-in read-only switch, `PORTFOLIXIR_MCP_READ_ONLY` (E25 S7, G26,
@@ -65,8 +94,11 @@ export function profileSwitch(
     return readOnlyOn ? "read" : "full";
   }
 
-  if (!(MCP_PROFILES as readonly string[]).includes(normalized)) {
-    throw new Error("PORTFOLIXIR_MCP_PROFILE must be read, book or full, or unset (full)");
+  if (!([...MCP_PROFILES, "label"] as readonly string[]).includes(normalized)) {
+    throw new Error(
+      "PORTFOLIXIR_MCP_PROFILE must be read, book or full, label for the news labeller, or " +
+        "unset (full)"
+    );
   }
 
   if (readOnlyOn && normalized !== "read") {
@@ -303,7 +335,17 @@ interface ProfiledTool {
 
 /** Whether `profile` lists and calls `tool`. */
 export function profileAdmits(profile: McpProfile, tool: ProfiledTool): boolean {
+  // --- S28 N1 begin ---
+  if (LABEL_TOOLS.has(tool.name)) {
+    return profile === "label";
+  }
+  // --- S28 N1 end ---
+
   switch (profile) {
+    // --- S28 N1 begin ---
+    case "label":
+      return false;
+    // --- S28 N1 end ---
     case "read":
       return tool.annotations.readOnlyHint;
     case "book":
@@ -318,6 +360,24 @@ export function profileAdmits(profile: McpProfile, tool: ProfiledTool): boolean 
  * the variable that chose it, before any request is made.
  */
 export function profileRefusal(profile: McpProfile, name: string): string {
+  // --- S28 N1 begin ---
+  if (profile === "label") {
+    return (
+      `${name} is not available: this companion runs the label profile ` +
+      "(PORTFOLIXIR_MCP_PROFILE=label), which lists only portfolixir.news.unlabeled and " +
+      "portfolixir.news.label_put, the news labeller's two tools."
+    );
+  }
+
+  if (LABEL_TOOLS.has(name)) {
+    return (
+      `${name} is the news labeller's tool: only the label profile ` +
+      "(PORTFOLIXIR_MCP_PROFILE=label), run by the labeller's script under its own token, lists " +
+      `it; this companion runs the ${profile} profile.`
+    );
+  }
+  // --- S28 N1 end ---
+
   if (profile === "read") {
     return (
       `${name} is not available: this companion runs the read profile, read-only ` +
@@ -347,7 +407,12 @@ export function profileClause(profile: McpProfile): string {
       "it lists the reads, the creates and the replace-shaped writes (updates, upserts, " +
       "sets), and leaves out the admin tools (every removal, the merges, the ISIN change, a " +
       "rule's new version or retirement, the release of manual quotes)",
-    full: "it lists every tool"
+    full: "it lists every tool",
+    // --- S28 N1 begin ---
+    label:
+      "it lists only portfolixir.news.unlabeled and portfolixir.news.label_put, the news " +
+      "labeller's two tools"
+    // --- S28 N1 end ---
   }[profile];
 
   return (

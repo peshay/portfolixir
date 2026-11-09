@@ -192,17 +192,19 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "event type, a materiality, a tone and a confidence per story, no text of the " <>
           "story's own, so not the raw news archive the non-goal names"
     },
-    # The labeller's route and web module (ADR-0056 §7). Exactly the labels'
-    # write; a route or tool for news archives is still caught.
+    # The labeller's routes, tools and web module (ADR-0056 §7). Exactly the
+    # labels' write and the unlabeled stories' read; a route or tool for news
+    # archives is still caught.
     %{
-      phrases: [~w(news labels), ~w(news label)],
+      phrases: [~w(news labels), ~w(news label), ~w(news unlabeled)],
       kinds: [:route, :tool, :module],
       class: :permanent,
       adr: "ADR-0056",
       reason:
-        "the outside labeller's one write of ADR-0056 §7, a label per story (event type, " <>
-          "materiality, tone, confidence), closed to every other field: it stores no " <>
-          "story text, so not the raw news archive the non-goal names"
+        "the outside labeller's one write and one read of ADR-0056 §7: a label per story " <>
+          "(event type, materiality, tone, confidence), closed to every other field, and " <>
+          "the stories still without one, each excerpt at most 600 characters kept 90 days " <>
+          "(§12), so not the raw news archive the non-goal names"
     },
     # --- S28 N1 end ---
     %{

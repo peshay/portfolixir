@@ -8,13 +8,19 @@ defmodule PortfolixirWeb.ApiV1NewsLabelsTest do
   # field and writes nothing. Synthetic names and hosts only, no socket.
   use PortfolixirWeb.ConnCase
 
-  import Portfolixir.NewsFixtures, only: [security!: 0, security!: 1, story!: 1]
+  import Portfolixir.NewsFixtures,
+    only: [category!: 0, feed!: 1, security!: 0, security!: 1, story!: 1]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge
+  alias Portfolixir.News.Ingest
   alias Portfolixir.News.Label
+  alias Portfolixir.News.Parser.Item, as: Parsed
   alias Portfolixir.Repo
+  alias Portfolixir.WorldFixtures
 
   @labeller_token String.duplicate("l", 40)
   @agent_token String.duplicate("a", 40)
@@ -491,6 +497,223 @@ defmodule PortfolixirWeb.ApiV1NewsLabelsTest do
       end
 
       assert :erlang.system_info(:atom_count) == before
+    end
+  end
+
+  # --- news.unlabeled -------------------------------------------------------
+
+  defp unlabeled(conn, query, token \\ @labeller_token),
+    do: conn |> as(token) |> get("/api/v1/news/unlabeled?" <> URI.encode_query(query))
+
+  defp isin!(n) do
+    body = "XS" <> String.pad_leading(Integer.to_string(n), 9, "0")
+    Enum.find_value(0..9, &(Isin.valid?(body <> "#{&1}") && body <> "#{&1}"))
+  end
+
+  defp watched!(name, opts) do
+    security =
+      WorldFixtures.create_security!(
+        name: name,
+        ticker: nil,
+        asset_class: "equity",
+        isin: opts[:isin]
+      )
+
+    {:ok, security} =
+      Catalog.update_security(Actor.owner_ui(), security, %{news_watch: true})
+
+    security
+  end
+
+  # User story (ADR-0056 §7, the labeller's one read):
+  # As the labeller (a script and an outside model),
+  # I want the stories that have no label of my prompt version, with what a
+  # label needs — the title, the excerpt, the domain, the tier and the time
+  # — and once per answer the securities I may name and each story's
+  # security's thesis split into numbered clauses,
+  # so that one read gives me everything to label a batch, and a story I
+  # labelled does not come back.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/news/unlabeled?prompt_version= answers rows without a
+  #   label of that version from any model: id, security_id (or
+  #   category_id), title, excerpt, domain, tier, at; newest first. A story
+  #   labelled under another version is listed.
+  # - universe: once per answer, every security of the news universe and
+  #   of the rows, each id, a name of at most 20 characters and its ISIN
+  #   when it has one; categories once for the category rows.
+  # - theses: per security of the rows with an intact thesis that states an
+  #   invalidation condition, the note id and the condition's clauses split
+  #   at line breaks and semicolons, numbered from 1 (idx), the numbering
+  #   the label write checks clause_idx against. A retracted thesis, or a
+  #   security with no story in the answer, is not listed.
+  # - limit 10 by default, at most 25; truncated when more stories match.
+  describe "GET /api/v1/news/unlabeled" do
+    test "lists the stories without a label of the version, with the universe and clauses", %{
+      conn: conn,
+      story: story,
+      security: security
+    } do
+      watched = watched!("Harbourline Freight Holdings International AG", isin: isin!(1))
+      labelled = story!(watched)
+      later = story!(security)
+
+      note = thesis!(security, "Margin falls below 20 %;\nThe CEO leaves; \n\nNet debt doubles")
+      retracted = thesis!(watched, "Order book shrinks")
+
+      {:ok, _retraction} =
+        Knowledge.append_note(Actor.owner_ui(), %{
+          security_id: watched.id,
+          author: :operator,
+          kind: :retraction,
+          body: "Synthetic retraction",
+          source_quality: :primary,
+          as_of: Date.utc_today(),
+          supersedes_id: retracted.id
+        })
+
+      conn
+      |> put_label(label(labelled, %{"prompt_version" => "v1", "model" => "another-model"}))
+      |> json_response(201)
+
+      data =
+        conn |> unlabeled(prompt_version: "v1") |> json_response(200) |> Map.fetch!("data")
+
+      assert %{"prompt_version" => "v1", "limit" => 10, "truncated" => false} = data
+      assert Enum.map(data["rows"], & &1["id"]) == [later.id, story.id]
+
+      [row | _] = data["rows"]
+      assert row["security_id"] == security.id
+      assert Map.keys(row) |> Enum.sort() == ~w(at domain id security_id tier title)
+      assert row["tier"] == "primary"
+      assert row["domain"] == "ir.example.com"
+
+      universe = Map.new(data["universe"], &{&1["id"], &1})
+      assert Map.keys(universe) |> Enum.sort() == Enum.sort([security.id, watched.id])
+      assert universe[watched.id]["name"] == "Harbourline Freight…"
+      assert String.length(universe[watched.id]["name"]) == 20
+      assert universe[watched.id]["isin"] == watched.isin
+      refute Map.has_key?(universe[security.id], "isin")
+
+      assert data["theses"] == [
+               %{
+                 "security_id" => security.id,
+                 "note_id" => note.id,
+                 "clauses" => [
+                   %{"idx" => 1, "text" => "Margin falls below 20 %"},
+                   %{"idx" => 2, "text" => "The CEO leaves"},
+                   %{"idx" => 3, "text" => "Net debt doubles"}
+                 ]
+               }
+             ]
+
+      refute Map.has_key?(data, "categories")
+
+      v2 = conn |> unlabeled(prompt_version: "v2") |> json_response(200) |> Map.fetch!("data")
+      assert Enum.map(v2["rows"], & &1["id"]) == [later.id, labelled.id, story.id]
+
+      conn
+      |> put_label(label(story, %{"thesis_note_id" => note.id, "clause_idx" => 3}))
+      |> json_response(201)
+
+      conn
+      |> put_label(
+        label(later, %{"thesis_note_id" => note.id, "clause_idx" => 4, "prompt_version" => "v9"})
+      )
+      |> json_response(422)
+
+      after_label =
+        conn |> unlabeled(prompt_version: "v1") |> json_response(200) |> Map.fetch!("data")
+
+      assert Enum.map(after_label["rows"], & &1["id"]) == [later.id]
+    end
+
+    test "pages by limit, and a category's story names its category", %{
+      conn: conn,
+      security: security
+    } do
+      for _n <- 1..11, do: story!(security)
+
+      data = conn |> unlabeled(prompt_version: "v1") |> json_response(200) |> Map.fetch!("data")
+      assert {length(data["rows"]), data["truncated"]} == {10, true}
+
+      data =
+        conn
+        |> unlabeled(prompt_version: "v1", limit: 100)
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert {length(data["rows"]), data["limit"], data["truncated"]} == {12, 25, false}
+
+      category = category!()
+      feed = feed!(%{class: "thematic", category_id: category.id})
+
+      {:ok, %{stored: 1}} =
+        Ingest.ingest(
+          feed,
+          [
+            %Parsed{
+              title: "Water utilities face new rules",
+              link: "https://wire.example.com/w",
+              excerpt: "Regulators propose a new tariff rule."
+            }
+          ],
+          DateTime.utc_now()
+        )
+
+      data =
+        conn
+        |> unlabeled(prompt_version: "v1", limit: 1)
+        |> json_response(200)
+        |> Map.fetch!("data")
+
+      assert [%{"category_id" => category_id} = row] = data["rows"]
+      assert category_id == category.id
+      refute Map.has_key?(row, "security_id")
+      assert row["excerpt"] == "Regulators propose a new tariff rule."
+      assert data["categories"] == [%{"id" => category.id, "name" => "Water"}]
+      assert data["theses"] == []
+    end
+
+    # User story (the closed read; ADR-0054 §4 for the version it filters by):
+    # As the operator,
+    # I want the labeller's read closed like every news read,
+    # so that a misspelt parameter is never taken for a filter that ran.
+    #
+    # Acceptance criteria:
+    # - No prompt_version, an empty one, one with an invisible character, a
+    #   space or 65 characters: 422 naming prompt_version.
+    # - An unknown parameter, a list or a map: 422 naming it; a limit of 0
+    #   or text: 422 naming limit.
+    test "an unknown, missing or malformed parameter answers 422 naming it", %{conn: conn} do
+      for query <- [
+            [],
+            [prompt_version: ""],
+            [prompt_version: "v1\u200B"],
+            [prompt_version: "v 1"],
+            [prompt_version: String.duplicate("v", 65)]
+          ] do
+        %{"errors" => errors} = conn |> unlabeled(query) |> json_response(422)
+        assert Map.keys(errors) == ["prompt_version"], inspect(query)
+      end
+
+      for {query, key} <- [
+            {[prompt_version: "v1", security_id: 1], "security_id"},
+            {[prompt_version: "v1", limit: 0], "limit"},
+            {[prompt_version: "v1", limit: "ten"], "limit"},
+            {[prompt_version: "v1", model: "m"], "model"}
+          ] do
+        %{"errors" => errors} = conn |> unlabeled(query) |> json_response(422)
+        assert Map.keys(errors) == [key], inspect(query)
+      end
+
+      %{"errors" => errors} =
+        conn
+        |> as(@labeller_token)
+        |> get("/api/v1/news/unlabeled?prompt_version[]=v1")
+        |> json_response(422)
+
+      assert Map.keys(errors) == ["prompt_version"]
     end
   end
 end

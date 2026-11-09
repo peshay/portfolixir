@@ -340,7 +340,13 @@ describe("the companion's published tool surface", () => {
   //   closes and replaces versions, is destructive and not idempotent (H13).
   it("publishes every tool's hints, derived from the method it routes to", async () => {
     const routes = routedMethodsFromSource();
-    const published = await publishedTools();
+    const published = [
+      ...(await publishedTools()),
+      // --- S28 N1 begin ---
+      // The news labeller's two tools, published under its profile only.
+      ...(await publishedTools({ profile: "label" }))
+      // --- S28 N1 end ---
+    ];
 
     assert.equal(routes.size, published.length, "every tool routes to one API request");
 

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import type { McpProfile } from "../../src/profiles.js";
+import type { AgentProfile, McpProfile } from "../../src/profiles.js";
 import { publishedToolList, serverInstructions } from "../../src/server.js";
 
 // THE SCHEMA BUDGET (Sprint 17 A3, #994). The ceilings were set at the
@@ -512,11 +512,23 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];
 
-export const SCHEMA_CEILINGS: Record<McpProfile, number> = {
+export const SCHEMA_CEILINGS: Record<AgentProfile, number> = {
   read: inForce.read,
   book: inForce.book,
   full: inForce.full
 };
+
+// --- S28 N1 begin ---
+/**
+ * The news labeller's profile (ADR-0056 §7, Sprint 28 N1): it lists
+ * portfolixir.news.unlabeled and portfolixir.news.label_put and nothing
+ * else, so its ceiling is those two tools' own bytes as measured the day
+ * the profile landed, 905 + 1,640 and the list's three characters, and
+ * like every ceiling it only ever moves down. The two tools add no byte to
+ * read, book or full, which do not list them, so their ceilings stay.
+ */
+export const LABEL_CEILING = 2_548;
+// --- S28 N1 end ---
 
 /**
  * The context a host pays for the companion's tool list (Sprint 17 A3,
@@ -565,9 +577,9 @@ export function ceilingViolations(
   debut: (name: string) => string | undefined
 ): string[] {
   const violations: string[] = [];
-  const profiles: readonly McpProfile[] = ["read", "book", "full"];
+  const profiles: readonly AgentProfile[] = ["read", "book", "full"];
   const paidFor = new Set<string>();
-  const allowed: Partial<Record<McpProfile, number>> = {};
+  const allowed: Partial<Record<AgentProfile, number>> = {};
 
   history.forEach((row, i) => {
     const before = history[i - 1];

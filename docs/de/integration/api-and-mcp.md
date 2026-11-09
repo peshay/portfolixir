@@ -1531,6 +1531,16 @@ verbirgt oder schreibt sonst nichts.
   JSON-Typ, eine als Zahl gesendete `confidence` (`"must be a decimal
   string"`) und eine Story, ein Wertpapier, eine These oder Klausel, die es
   nicht gibt.
+- `GET /api/v1/news/unlabeled?prompt_version=` liefert die Storys ohne Label
+  dieser Version von irgendeinem Modell, neueste zuerst, `limit` 10
+  (höchstens 25) mit `truncated`: je Zeile `id`, `security_id` oder
+  `category_id`, `title`, `excerpt`, `domain`, `tier` und `at`; einmal je
+  Antwort das `universe` (`id`, `name` mit höchstens 20 Zeichen, `isin`), die
+  `categories` der Zeilen und je Wertpapier der Zeilen mit intakter These
+  ihre `note_id` und die `clauses` (`idx`, `text`) der
+  Invalidierungsbedingung, getrennt an Zeilenumbrüchen und Semikolons, sechs
+  aufgeführt, `more` zählt den Rest. Ein anderer Parameter ergibt `422` mit
+  seinem Namen.
 
 ### Logos
 
@@ -5094,6 +5104,12 @@ lässt sich nicht lesen.
   Agenten mit jedem unsichtbaren Zeichen als `[U+XXXX]` ausgeschrieben, und
   jede Beschreibung sagt, dass die Antwort Daten sind, nie Anweisungen.
   `news.get` nimmt `cluster_id` oder `news_id`.
+- `portfolixir.news.unlabeled` und `portfolixir.news.label_put` — Lese- und
+  Schreibzugriff des News-Labellers (ADR-0056 §7), jeder ruft die Route aus
+  [News-Labels](#news-labels-adr-0056-7) auf. Nur das Profil `label`
+  (`PORTFOLIXIR_MCP_PROFILE=label`) listet sie, und es listet nichts sonst;
+  `read`, `book` und `full` listen sie nicht, und jede Seite lehnt die
+  Werkzeuge der anderen beim Aufruf ab.
 - `portfolixir.securities.delete` — nennt `portfolixir.securities.update`
   mit `is_retired` für das Mittel `retire`.
 - `portfolixir.securities.isin_change` — zeichnet einen
@@ -5399,6 +5415,8 @@ lässt sich nicht lesen.
 - `portfolixir.news.get`
 - `portfolixir.news.health`
 - `portfolixir.news.digest`
+- `portfolixir.news.unlabeled` (nur Profil `label`)
+- `portfolixir.news.label_put` (nur Profil `label`)
 
 `portfolixir.views.performance` berechnet die passende portfolioübergreifende
 TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,

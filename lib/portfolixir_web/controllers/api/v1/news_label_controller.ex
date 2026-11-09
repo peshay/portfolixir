@@ -9,6 +9,15 @@ defmodule PortfolixirWeb.Api.V1.NewsLabelController do
       201, a put of a stored `(cluster_id, model, prompt_version)` replaces
       it in place and answers 200 (an equal put writes nothing and answers
       200 too). See `Portfolixir.News.Labels`.
+    * `GET /api/v1/news/unlabeled` (`news.unlabeled`) answers the stories
+      without a label of `prompt_version` (required), at most `limit` (10,
+      at most 25), newest first: `rows` (id, security_id or category_id,
+      title, excerpt, domain, tier, at), `truncated`, and once per answer
+      the `universe` (id, name of at most 20 characters, isin), the rows'
+      `categories` and per security of the rows its intact thesis's
+      invalidation condition as numbered `clauses` with its `note_id`. See
+      `Portfolixir.News.Labels.unlabeled/2`. Closed: any other parameter
+      answers 422 naming it.
 
   **Closed** (§7): a key outside those fields, inside `label` or beside it,
   answers 422 naming it (`PortfolixirWeb.Api.V1.ClosedBody`), and so does a
@@ -25,8 +34,13 @@ defmodule PortfolixirWeb.Api.V1.NewsLabelController do
   alias Portfolixir.News.Label
   alias PortfolixirWeb.Api.V1.ClosedBody
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
 
   plug(PortfolixirWeb.Api.V1.BodyObject, "label" when action in [:put_label])
+
+  @unlabeled_params ~w(prompt_version limit)
+  @unlabeled_default 10
+  @unlabeled_max 25
 
   def put_label(conn, _params) do
     with :ok <- ClosedBody.check(conn, "label", Label.fields()),
@@ -40,6 +54,73 @@ defmodule PortfolixirWeb.Api.V1.NewsLabelController do
       {:error, errors} -> ClosedBody.refuse(conn, errors)
     end
   end
+
+  def unlabeled(conn, params) do
+    with :ok <- closed(conn.query_params),
+         {:ok, version} <- prompt_version(params["prompt_version"]),
+         {:ok, limit} <- limit(params) do
+      answer = News.unlabeled(version, limit)
+
+      data =
+        compact(%{
+          prompt_version: version,
+          limit: limit,
+          truncated: answer.truncated,
+          rows:
+            Enum.map(answer.rows, &(&1 |> Map.update!(:at, fn at -> time(at) end) |> compact())),
+          universe: Enum.map(answer.universe, &compact/1),
+          categories: if(answer.categories == [], do: nil, else: answer.categories),
+          theses: Enum.map(answer.theses, &compact/1)
+        })
+
+      json(conn, %{data: data})
+    else
+      {:error, errors} -> ClosedBody.refuse(conn, errors)
+    end
+  end
+
+  # A closed query of single values: a key not taken, or a list or a map
+  # (`prompt_version[]=v1`), is named.
+  defp closed(query) do
+    unknown =
+      for key <- Map.keys(query), key not in @unlabeled_params, into: %{} do
+        {key, ["is unknown: this read takes only #{Enum.join(@unlabeled_params, ", ")}"]}
+      end
+
+    not_single =
+      for {key, value} <- query, key in @unlabeled_params, not is_binary(value), into: %{} do
+        {key, ["must be a single value, not a list or a map"]}
+      end
+
+    case Map.merge(not_single, unknown) do
+      empty when empty == %{} -> :ok
+      errors -> {:error, errors}
+    end
+  end
+
+  defp prompt_version(value) when value in [nil, ""],
+    do: {:error, %{"prompt_version" => ["can't be blank"]}}
+
+  defp prompt_version(value) do
+    if Label.identifier?(value),
+      do: {:ok, value},
+      else:
+        {:error,
+         %{
+           "prompt_version" => [
+             "must be 1 to 64 letters, digits or . _ : / @ + -, starting with a letter or a digit"
+           ]
+         }}
+  end
+
+  defp limit(params) do
+    case ListLimit.parse(params, @unlabeled_default, @unlabeled_max) do
+      {:ok, limit} -> {:ok, limit}
+      {:error, :limit} -> {:error, %{"limit" => ["must be a positive integer"]}}
+    end
+  end
+
+  defp compact(map), do: map |> Enum.reject(fn {_key, value} -> is_nil(value) end) |> Map.new()
 
   # BodyObject has answered a `label` that is not an object; one that is
   # absent is named here.
@@ -63,8 +144,7 @@ defmodule PortfolixirWeb.Api.V1.NewsLabelController do
       created_at: time(label.created_at),
       updated_at: time(label.updated_at)
     }
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Map.new()
+    |> compact()
   end
 
   defp time(%DateTime{} = at), do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601()

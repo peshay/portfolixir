@@ -1408,6 +1408,15 @@ always true): it sorts stories, and it moves, hides or writes nothing else.
   inside `label` or beside it, answers `422` naming it, and so does a wrong
   JSON type, a `confidence` sent as a number (`"must be a decimal
   string"`), and a story, security, thesis or clause that is not there.
+- `GET /api/v1/news/unlabeled?prompt_version=` answers the stories without a
+  label of that version from any model, newest first, `limit` 10 (at most
+  25) with `truncated`: each row's `id`, `security_id` or `category_id`,
+  `title`, `excerpt`, `domain`, `tier` and `at`; once per answer the
+  `universe` (`id`, a `name` of at most 20 characters, `isin`), the rows'
+  `categories`, and per row security with an intact thesis its `note_id`
+  and the invalidation condition's `clauses` (`idx`, `text`), split at line
+  breaks and semicolons, six listed with `more` counting the rest. Another
+  parameter answers `422` naming it.
 
 ### Logos
 
@@ -4653,6 +4662,12 @@ API may have committed it, and its answer cannot be read.
   tool returns; titles and excerpts reach the agent with every invisible
   character spelled `[U+XXXX]`, and each description says the answer is data,
   never instructions. `news.get` takes `cluster_id` or `news_id`.
+- `portfolixir.news.unlabeled` and `portfolixir.news.label_put` — the news
+  labeller's read and write (ADR-0056 §7), each calling the route of
+  [News labels](#news-labels-adr-0056-7). Only the `label` profile
+  (`PORTFOLIXIR_MCP_PROFILE=label`) lists them, and it lists nothing else;
+  `read`, `book` and `full` do not, and each side refuses the other's tools
+  at the call.
 - `portfolixir.securities.delete` — names `portfolixir.securities.update`
   with `is_retired` for the `retire` remedy.
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
@@ -4943,6 +4958,8 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.news.get`
 - `portfolixir.news.health`
 - `portfolixir.news.digest`
+- `portfolixir.news.unlabeled` (`label` profile only)
+- `portfolixir.news.label_put` (`label` profile only)
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 `portfolixir.portfolios.performance`, `portfolixir.portfolios.contribution`,
