@@ -182,6 +182,22 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   end
 
   @doc """
+  One `currency_mismatch` finding (#1415, Sprint 28 Q3) as the securities
+  listing's envelope serves it under `data_quality=currency_mismatch`: the
+  security's `currency_code`, the `provider_currency` the quote sync stored
+  and `provider_currency_at`, the time of the sync that read it (ISO 8601,
+  UTC). The envelope's `computation_basis` states the rule.
+  """
+  def currency_mismatch_finding(finding) do
+    %{
+      security_id: finding.security_id,
+      currency_code: finding.currency_code,
+      provider_currency: finding.provider_currency,
+      provider_currency_at: datetime(finding.provider_currency_at)
+    }
+  end
+
+  @doc """
   A bond's reading (#330, ADR-0052): the nominal held under the hundredth
   convention, the remaining term, the current yield and the linear yield to
   maturity, each with its `computation_basis`, and the two-scales finding

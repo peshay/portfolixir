@@ -77,6 +77,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
       assert mismatch =~ part, part
     end
 
+    # Q3 (#1415): the data-quality set over the stored provider currency.
+    assert [set] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET /api/v1/securities (portfolixir.securities.list")
+             )
+
+    for part <- ["data_quality=currency_mismatch", "provider_currency_at", "computation_basis"] do
+      assert set =~ part, part
+    end
+
     # --- Sprint 28 Q end ---
 
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.

@@ -3350,7 +3350,7 @@ const declaredTools: DeclaredTool[] = [
     contractGetSchema,
     contractGetZ
   ),
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows are slim by default (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, bond and news fields, timestamps. fields (a sparse fieldset of the full projection) supersedes projection. Page with limit/offset; limit and truncated are echoed. since (ISO8601 UTC) is a delta read: rows changed strictly after it, oldest change first, with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. data_quality narrows to a set: stale_quote (no quote newer than 7 days, INCLUDING never-priced), missing_quote (no quote at all), missing_logo (none and unlocked, or file gone) — none of these three holds a benchmark or a retired security — missing_fx (priced, no stored rate to the EUR hub), two_scales (see bond.two_scales) and implausible_quote (held; a booking's quote that week under 1/2 or over 2x its price; findings and computation_basis in the envelope). The dashboard counts the same sets. is_benchmark=true lists only the benchmarks (ADR-0046), false leaves them out; is_retired=true lists only the retired securities, false leaves them out.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows are slim by default (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds the rest of the fields enum; fields (a sparse fieldset of it) supersedes projection. Page with limit/offset; limit and truncated are echoed. since (ISO8601 UTC) is a delta read: rows changed strictly after it, oldest change first, with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT listed; a full read shows them. data_quality narrows to a set: stale_quote (no quote newer than 7 days, INCLUDING never-priced), missing_quote (no quote at all), missing_logo (none and unlocked, or file gone) — none of these three holds a benchmark or a retired security — missing_fx (priced, no stored rate to the EUR hub), two_scales (see bond.two_scales), implausible_quote (held; a booking's quote that week under 1/2 or over 2x its price) and currency_mismatch (the provider's stated currency differs; no benchmark, not retired); these two add findings and computation_basis to the envelope. The dashboard counts them. is_benchmark=true lists only benchmarks (ADR-0046), false leaves them out; is_retired=true lists only the retired securities, false leaves them out.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -3360,7 +3360,7 @@ const declaredTools: DeclaredTool[] = [
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
       is_benchmark: { type: "boolean" },
       is_retired: { type: "boolean" },
-      data_quality: { type: "string", enum: ["stale_quote", "missing_quote", "missing_logo", "missing_fx", "two_scales", "implausible_quote"] },
+      data_quality: { type: "string", enum: ["stale_quote", "missing_quote", "missing_logo", "missing_fx", "two_scales", "implausible_quote", "currency_mismatch"] },
       projection: { type: "string", enum: ["slim", "full"] },
       fields: { type: "array", items: { type: "string", enum: [...securityFieldNames] } },
       limit: { type: "integer", minimum: 1 },
@@ -3374,7 +3374,7 @@ const declaredTools: DeclaredTool[] = [
     holding_status: z.enum(["held", "not_held", "all"]).optional(),
     is_benchmark: z.boolean().optional(),
     is_retired: z.boolean().optional(),
-    data_quality: z.enum(["stale_quote", "missing_quote", "missing_logo", "missing_fx", "two_scales", "implausible_quote"]).optional(),
+    data_quality: z.enum(["stale_quote", "missing_quote", "missing_logo", "missing_fx", "two_scales", "implausible_quote", "currency_mismatch"]).optional(),
     projection: z.enum(["slim", "full"]).optional(),
     fields: z.array(z.enum(securityFieldNames)).optional(),
     limit: z.number().int().min(1).optional(),
@@ -3613,7 +3613,7 @@ const declaredTools: DeclaredTool[] = [
     required: ["security_id"],
     properties: { security_id: { type: "integer", minimum: 1 } }
   }, z.object({ security_id: z.number().int().positive() })),
-  tool("portfolixir.quotes.list", "List quotes", "One security's quote history. Rows state splits (ADR-0028): close is the STORED value, adjusted_close is the split-adjusted display value (Decimal string), basis states the row's storage basis (raw = as-traded manual rows, provider_mirror = back-adjusted sync rows) and adjusted whether a split factor applied. Chart or value with adjusted_close; audit with close. limit keeps the newest rows, echoed with truncated.", {
+  tool("portfolixir.quotes.list", "List quotes", "One security's quote history. Rows state splits (ADR-0028): close is the STORED value, adjusted_close is the split-adjusted display value, basis states the row's storage basis (raw = as-traded manual rows, provider_mirror = back-adjusted sync rows) and adjusted whether a split factor applied. Chart or value with adjusted_close; audit with close. limit keeps the newest rows, echoed with truncated.", {
     type: "object",
     additionalProperties: false,
     required: ["security_id"],
@@ -3629,8 +3629,8 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.quotes.manual",
     "Manual quotes",
-    "Read one security's MANUAL quotes over its whole history (written through portfolixir.quotes.upsert; " +
-      "they win over the provider's until portfolixir.quotes.release). Answers count, first, last, " +
+    "Read one security's MANUAL quotes over its whole history (they win over the provider's until " +
+      "portfolixir.quotes.release). Answers count, first, last, " +
       "stored_count, the newest limit stretches (runs of manual quotes, {from, to, count}, ascending; default " +
       "100, max 1000) with stretch_count and truncated, and sync_adapter: whether the sync refills a released date. " +
       "from/to (inclusive) add range {from, to, count}: what releasing that range removes; to before from is a 422.",

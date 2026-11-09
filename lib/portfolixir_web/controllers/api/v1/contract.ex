@@ -58,7 +58,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "on every path, and its scheduled and full runs leave a retired security " <>
               "alone; portfolixir.quotes.sync and portfolixir.securities.update say so. A " <>
               "provider answer in another currency than the security's is stored nowhere " <>
-              "and answers currency_mismatch."
+              "and answers currency_mismatch (#1411), and the currency each sync reads is " <>
+              "kept on the security for the data-quality set currency_mismatch (#1415)."
             # --- Sprint 28 Q end ---
           ],
           " "
@@ -80,7 +81,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "than the security's currency_code, compared as written (GBp is not GBP), stores " <>
           ~s(no quote and answers status "error" with reason "currency_mismatch", where it ) <>
           "stored the closes under the security's currency; an answer that states none is " <>
-          "stored as before; the provider's own word is not echoed (#1411)."
+          "stored as before; the provider's own word is not echoed (#1411).",
+        "GET /api/v1/securities (portfolixir.securities.list, whose data_quality enum and " <>
+          "description now carry it) takes data_quality=currency_mismatch: every security " <>
+          "whose provider_currency, the currency its quote provider stated at the sync that " <>
+          "stored it, is present and differs from its currency_code as written, benchmarks " <>
+          "and retired securities left out; null is not yet known, never in the set. The " <>
+          "Overview's data-quality line counts it. Under it the envelope adds findings, one " <>
+          "per listed security (security_id, currency_code, provider_currency, " <>
+          "provider_currency_at in ISO 8601 UTC), and computation_basis (input_series, " <>
+          "reference, window, gaps, threshold, assumptions). Paid for by trimming the quote " <>
+          "tools' descriptions, and the schema budget's ceilings move down (#1415)."
         # --- Sprint 28 Q end ---
       ],
       removed_endpoints: [],

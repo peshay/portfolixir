@@ -405,8 +405,17 @@ describe("Portfolixir MCP tools", () => {
       "missing_logo",
       "missing_fx",
       "two_scales",
-      "implausible_quote"
+      "implausible_quote",
+      "currency_mismatch"
     ]);
+
+    // --- Sprint 28 Q3 begin ---
+    // #1415: the set of securities whose provider stated another currency.
+    assert.match(securitiesList?.description ?? "", /currency_mismatch \(the provider's stated currency differs/);
+    const mismatch = createRecordingClient({ data: [] });
+    await callTool(mismatch.client, "portfolixir.securities.list", { data_quality: "currency_mismatch" });
+    assert.equal(mismatch.requests[0].path, "/api/v1/securities?data_quality=currency_mismatch");
+    // --- Sprint 28 Q3 end ---
 
     // The threshold and the stale/missing distinction travel with the tool.
     assert.match(securitiesList?.description ?? "", /7 days/);

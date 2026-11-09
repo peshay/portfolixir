@@ -751,32 +751,32 @@ msgstr "Wert"
 msgid "WKN"
 msgstr "WKN"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:267
+#: lib/portfolixir_web/live/securities/filter_popover.ex:270
 #, elixir-autogen, elixir-format
 msgid "contains"
 msgstr "enthält"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:265
+#: lib/portfolixir_web/live/securities/filter_popover.ex:268
 #, elixir-autogen, elixir-format
 msgid "equals"
 msgstr "gleich"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:269
+#: lib/portfolixir_web/live/securities/filter_popover.ex:272
 #, elixir-autogen, elixir-format
 msgid "greater than"
 msgstr "größer als"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:270
+#: lib/portfolixir_web/live/securities/filter_popover.ex:273
 #, elixir-autogen, elixir-format
 msgid "less than"
 msgstr "kleiner als"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:266
+#: lib/portfolixir_web/live/securities/filter_popover.ex:269
 #, elixir-autogen, elixir-format
 msgid "not equal"
 msgstr "ungleich"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:268
+#: lib/portfolixir_web/live/securities/filter_popover.ex:271
 #, elixir-autogen, elixir-format
 msgid "starts with"
 msgstr "beginnt mit"
@@ -2468,7 +2468,7 @@ msgstr "Logo konnte nicht entfernt werden"
 msgid "Logo removed"
 msgstr "Logo entfernt"
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:272
+#: lib/portfolixir_web/live/securities/filter_popover.ex:275
 #: lib/portfolixir_web/live/securities_live.ex:5187
 #, elixir-autogen, elixir-format
 msgid "is unclassified"
@@ -5345,7 +5345,7 @@ msgstr "Heute"
 msgid "Filter the list"
 msgstr "Liste filtern"
 
-#: lib/portfolixir_web/live/securities_live.ex:7379
+#: lib/portfolixir_web/live/securities_live.ex:7382
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr "Kein Wechselkurs"
@@ -5356,12 +5356,12 @@ msgstr "Kein Wechselkurs"
 msgid "Missing FX rate"
 msgstr "Kein Wechselkurs hinterlegt"
 
-#: lib/portfolixir_web/live/securities_live.ex:7378
+#: lib/portfolixir_web/live/securities_live.ex:7381
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr "Kein Kurs"
 
-#: lib/portfolixir_web/live/securities_live.ex:7377
+#: lib/portfolixir_web/live/securities_live.ex:7380
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr "Kurs veraltet"
@@ -15837,3 +15837,9 @@ msgstr "Veränd."
 #, elixir-autogen, elixir-format
 msgid "Above eight bands the smallest merge into “Other”, which always sits on top."
 msgstr "Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen; dieses Band liegt immer oben."
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:266
+#: lib/portfolixir_web/live/securities_live.ex:7371
+#, elixir-autogen, elixir-format
+msgid "Currency mismatch"
+msgstr "Währung abweichend"

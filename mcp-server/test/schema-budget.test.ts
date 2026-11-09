@@ -452,8 +452,22 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 117_722,
     book: 191_718,
     full: 226_748
-  }
+  },
   // --- Sprint 27 closing act, Fix-2 end ---
+  // --- Sprint 28 Q begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, Q (#1410, #1411, #1415): quotes.sync names manual_feed and " +
+      "currency_mismatch and the retired security's full-run skip, securities.update and its " +
+      "is_retired the sync's stop, and securities.list the currency_mismatch set; paid for by " +
+      "tightening the same tools' wording and quotes.upsert's, quotes.manual's, " +
+      "quotes.list's and quotes.release's, and lowered to the figure measured with them",
+    read: 117_711,
+    book: 191_704,
+    full: 226_726
+  }
+  // --- Sprint 28 Q end ---
 ];
 
 describe("the schema budget", () => {

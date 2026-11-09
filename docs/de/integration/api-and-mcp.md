@@ -455,7 +455,24 @@ verengen, was der Betreiber sieht.
   `ratio` (Kurs ÷ Preis, kaufmännisch auf 6 Stellen gerundet) und
   `bookings_outside`, wobei die letzte Buchung außerhalb des Bandes die
   genannte ist — und `computation_basis`, das `input_series`, `reference`,
-  `window`, `gaps`, `threshold` und `assumptions` nennt), `projection`
+  `window`, `gaps`, `threshold` und `assumptions` nennt; `currency_mismatch`
+  — Issue #1415: jedes Wertpapier, dessen gespeicherte `provider_currency`,
+  die Währung, die sein Kursanbieter bei der Synchronisierung nannte, die
+  sie gespeichert hat, vorhanden ist und von seinem `currency_code`
+  abweicht, verglichen wie geschrieben (`GBp`, Pence, weicht von `GBP` ab).
+  Die Kurssynchronisierung speichert sie bei jeder Synchronisierung, die
+  eine liest, auch bei einer abgelehnten Antwort (Issue #1411), und nur,
+  wenn sie sich ändert; `provider_currency_at` ist also die Zeit des Lesens,
+  das sie gespeichert hat. Ein Wertpapier, für das noch keine
+  Synchronisierung eine Währung gelesen hat, ist noch unbekannt und nie in
+  der Menge. Wie die ersten drei lässt sie eine Benchmark und ein
+  stillgelegtes Wertpapier aus, und die Datenqualitätszeile der Übersicht
+  zählt sie. Darunter ergänzt der Umschlag `findings`, je gelistetem
+  Wertpapier eines — `security_id`, `currency_code`, `provider_currency` und
+  `provider_currency_at` (ISO 8601, UTC) — und `computation_basis` mit
+  denselben sechs Schlüsseln. Nichts wird umgerechnet: Die Abhilfe (der
+  Ticker, eine Synchronisierung, die gespeicherten Kurse) liegt bei dir),
+  `projection`
   (`slim`/`full`) und `limit`/`offset` zur
   Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
   #771; `offset` nichtnegativ). Nutze diese, um große

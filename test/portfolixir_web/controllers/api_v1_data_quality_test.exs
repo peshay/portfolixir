@@ -500,4 +500,65 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
              |> json_response(422) == %{"errors" => %{"is_retired" => ["is invalid"]}}
     end
   end
+
+  # --- Sprint 28 Q3 begin ---
+  # User story (#1415, Sprint 28 Q3; the AGENTS.md metric rule):
+  # As the agent working the catalog,
+  # I want `data_quality=currency_mismatch` to list the securities whose
+  # provider stated another currency, each with what was stated and when,
+  # and the rule beside them,
+  # so that I read the same set the Overview counts and can check it.
+  #
+  # Acceptance criteria:
+  # - The listing holds the security whose stored provider currency differs
+  #   from its own, not the one whose provider stated its own currency.
+  # - The envelope adds findings (security_id, currency_code,
+  #   provider_currency, provider_currency_at as ISO 8601 UTC) and
+  #   computation_basis naming provider_currency and provider_currency_at.
+  test "data_quality=currency_mismatch lists the set with its findings and basis",
+       %{conn: conn} do
+    read_at = ~U[2026-11-09 08:15:00Z]
+    dollar = create_security!(name: "Dollar Line", ticker: "DLN")
+    own = create_security!(name: "Own Line", ticker: "OWN")
+
+    {:ok, _} =
+      Catalog.put_provider_currency(
+        Portfolixir.Actor.system_job("quote_sync"),
+        dollar,
+        "USD",
+        read_at
+      )
+
+    {:ok, _} =
+      Catalog.put_provider_currency(
+        Portfolixir.Actor.system_job("quote_sync"),
+        own,
+        own.currency_code,
+        read_at
+      )
+
+    response =
+      get_json(conn, "/api/v1/securities?data_quality=currency_mismatch") |> json_response(200)
+
+    assert names(response) == ["Dollar Line"]
+
+    assert response["findings"] == [
+             %{
+               "security_id" => dollar.id,
+               "currency_code" => dollar.currency_code,
+               "provider_currency" => "USD",
+               "provider_currency_at" => "2026-11-09T08:15:00Z"
+             }
+           ]
+
+    basis = response["computation_basis"]
+    assert basis["input_series"] =~ "provider_currency_at"
+    assert basis["reference"] =~ "currency_code"
+    assert basis["gaps"] =~ "not yet known"
+
+    assert Map.keys(basis) |> Enum.sort() ==
+             ~w(assumptions gaps input_series reference threshold window)
+  end
+
+  # --- Sprint 28 Q3 end ---
 end
