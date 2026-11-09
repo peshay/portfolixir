@@ -1,7 +1,8 @@
 defmodule Portfolixir.LockTable do
   @moduledoc """
   The lock-order table: every writer of `cash_accounts` and `transactions`
-  rows, with the locks it takes in the order it takes them (Sprint 21's D-7;
+  rows, and since Sprint 28 news.assign against the security merge, with
+  the locks it takes in the order it takes them (Sprint 21's D-7;
   Sprint 20's retrospective). The lock-race harness (`Portfolixir.LockRace`)
   pins the pairs that meet; this table is what a new lock is checked
   against. **A new lock is reviewed against every row here that locks the
@@ -59,7 +60,7 @@ defmodule Portfolixir.LockTable do
   | 10 | **Import correction** (`Imports.Correction.apply/3`, and `apply_listed/4` for the page's confirm) | One transaction: `adv(account identity, portfolio)` → when a row without a hash hit reads otherwise under A4's old reading, the economic keys from the apply's simulated run, made inside this transaction under the lock it holds (`Applier.economic_keys_in_transaction/2`: row 20's reads and in-memory creations, with no lock of its own and no write) → the bookings holding the file's hashes `NKU` (`detect(lock: true)`) → when a row without a hash hit has keys, every booking of the portfolio `NKU` → each refused row's hash rows `NKU` (the portfolio's own bookings, already held when the scan ran) → per confirmable booking, row 3 (amounts only, no cash lock; its booking already held). Several rows are taken by id. The page's listing before the confirm takes no lock: its keys come from row 20's run. |
   | 11 | **Bucket writers** (`Buckets.set_cash_account_buckets/3`, `set_depot_default_buckets/3`, `set_position_override/4`, `delete_bucket/2`) | the owner (depot or cash) `NKU` → an override's security `KS` → buckets `S`, id order. `delete_bucket/2`: views, depots, cash `NKU`, each in id order → the bucket `U`. Locks no booking. |
   | 12 | **Depot merge** (`Lifecycle.DepotMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, portfolio)` → both depots `U`, id order → every booking either names `U`, id order → the portfolio's split rows of their securities `U` → its writes on rows it holds (rows deleted with their hashes retired: `adv(import hash)` `X`, held to commit; override writes: security `KS`, buckets `S`; the source deleted; the target `U` for its names). Locks no cash: a moved booking keeps its cash account. |
-  | 13 | **Security merge** (`Lifecycle.SecurityMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, every portfolio)` → `adv(ISIN writes, both securities' ISINs)`, ascending key order → the depots either security names `NKU`, id order → both securities `U`, id order → their bookings `U` → its writes on rows it holds (a collapsed row deleted with its hash retired: `adv(import hash)` `X`, held to commit). Locks no cash. |
+  | 13 | **Security merge** (`Lifecycle.SecurityMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, every portfolio)` → `adv(ISIN writes, both securities' ISINs)`, ascending key order → the depots either security names `NKU`, id order → both securities `U`, id order → their bookings `U` → its writes on rows it holds (a collapsed row deleted with its hash retired: `adv(import hash)` `X`, held to commit; a news identity change of the target re-matches under `adv(matcher)`; `News.reassign_security/3`: the source's feeds `NKU`, its news items and those ambiguous between the two `U` by UPDATE, its stories, then `adv(story scope)` of the target per language). Locks no cash. |
   | 14 | **Split booking** (`Ledger.Splits.book_split/2`) | `adv(split event, security)` → the security `KS` (H60) → the fan-out read (plain reads) → INSERT one booking per portfolio (`FK` on portfolio; the security's `KS` already held). |
   | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the security `KS` (H60); a security merged away meanwhile: the anchor read again by id, then `adv(split event, its new security)` → that security `KS`, once → the event's rows `U`, id order → DELETE each (row 4, held). |
   | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. An edit answered `:raced` keeps the drawer open and says to try again. |
@@ -67,6 +68,7 @@ defmodule Portfolixir.LockTable do
   | 18 | **Depot create and relink** (`Portfolios.create_securities_account/2`, `update_securities_account/3`) | A create: `adv(account identity, portfolio)` (the name guard) → INSERT (`FK` on the portfolio and on the linked cash: cash `KS`). A relink to another cash account: depot `NKU` (the journal's lock step) → UPDATE (`FK`: the new cash `KS`); with a rename, `adv(account identity, portfolio)` → depot `U` first (`Lifecycle.AccountNames.with_stored/3`). Locks no booking. |
   | 19 | **Former-names backfill** (`Lifecycle.FormerNamesBackfill`, run by a migration) | per account, in id order: cash (or depot) `U` → UPDATE of its former names, journaled. Locks no booking. |
   | 20 | **The import preview's dry run** (`Imports.Applier.reimport_counts/3`, run by the Imports page, and `Imports.Applier.economic_keys/2`, the same simulation, run by the import correction) | None: a read-only transaction that writes nothing (security review 2026-10-12, H53). It takes neither the account-identity lock (a holder of it stops the dry run at once) nor an ISIN write lock, inserts nothing, and reads the cash currencies without `KS`; a read that would wait for a lock stops it after a short wait. Locks no row. |
+  | 21 | **news.assign** (`News.assign_item/4`: API, MCP; closing act, AT4) | every security it may touch `KS`, id order, off an unlocked read of the item: its own, its candidates, and the target or, for `null`, the securities the matcher names then → `adv(matcher)` (ORD5) → `adv(story scope)` of the item's security (`Stories.lock/2`) → the item `U` → the target's `adv(story scope)` → its UPDATE and the reclusters (the stories of both scopes, under the scope locks it holds). Should the item, read again under its lock, or the matcher's answer then name a security the first step did not hold, the transaction rolls back, releasing all of it, and runs again (at most three times, then `422` on `news_id`): no security is locked out of order. |
 
   ## Where two rows meet
 
@@ -139,6 +141,19 @@ defmodule Portfolixir.LockTable do
       or the merge reads the split's rows. Neither holds a lock the other
       takes before that one: the split flow locks no depot and no booking
       before the security.
+    * Row 21 against row 13: the security merge holds both securities `U`
+      and then writes the source's news items, and may re-match under
+      `adv(matcher)` (`Catalog`'s identity change inside its transaction);
+      news.assign takes its securities `KS` before `adv(matcher)` and any
+      news row, so whichever reaches the securities first goes through and
+      the other waits there holding nothing the first asks for (S28 N3/N4
+      attack, AT4: before, the assignment held the item and then asked the
+      target, and both orders deadlocked).
+    * Row 21 against the matcher (`News.assign_aggregator_items/2`:
+      `adv(matcher)` → items `U` → matched securities `KS`) and retention
+      (`Stories.remove/5`: `adv(story scope)` → items): `KS` does not
+      conflict with `KS`, and both take their advisory lock before any news
+      row, as row 21 does.
     * Rows 14 and 15 against row 12: the depot merge takes the securities'
       split rows `U` after its depots and bookings and the security only
       `KS`; the split's `KS` does not conflict with it.
