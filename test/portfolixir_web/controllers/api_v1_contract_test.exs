@@ -59,10 +59,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # Q (#1410): the quote sync's stop at a MANUAL or NONE feed and, in the
     # full run, at a retired security, on the sync's answer and the two
     # tools' descriptions.
-    assert newest["summary"] =~ "Sprint 28, Q (#1410): "
+    assert newest["summary"] =~ "Sprint 28, Q (#1410, #1411): "
     assert newest["summary"] =~ "portfolixir.quotes.sync and portfolixir.securities.update"
 
-    assert [sync] =
+    assert [sync, mismatch] =
              Enum.filter(
                newest["parameters"],
                &String.starts_with?(&1, "POST /api/v1/securities/:security_id/sync_quotes")
@@ -70,6 +70,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     for part <- ["MANUAL or NONE", ~s("manual_feed"), ~s("retired"), "sync_adapter false"] do
       assert sync =~ part, part
+    end
+
+    # Q2 (#1411): an answer in another currency stores nothing.
+    for part <- [~s("currency_mismatch"), "GBp is not GBP", "(#1411)"] do
+      assert mismatch =~ part, part
     end
 
     # --- Sprint 28 Q end ---

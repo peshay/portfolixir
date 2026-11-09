@@ -309,4 +309,75 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
     refute QuoteSync.adapter?(none, adapter_for: %{"manual" => Fake})
     assert QuoteSync.adapter?(retired, adapter_for: %{"manual" => Fake})
   end
+
+  # User story (#1411, Sprint 28 Q2):
+  # As a local portfolio maintainer,
+  # I want the sync to store nothing for a security whose provider answers
+  # in another currency, and to name it in the sync's result,
+  # so that a wrong listing never writes a series every figure then reads,
+  # and the one security it concerns is named while the others sync.
+  #
+  # Acceptance criteria:
+  # - Through the shipped Yahoo adapter, a USD answer for a EUR security and
+  #   a GBp answer for a GBP security are each that security's error,
+  #   `{:currency_mismatch, provider_currency}`, with no quote stored.
+  # - An answer in the security's own currency, and one that states none,
+  #   are stored as before; the run counts them ok and the two above errors.
+  test "the sync stores nothing for an answer in another currency and names it per security" do
+    usd_for_eur =
+      security_fixture(name: "Listing USD", currency_code: "EUR", ticker_symbol: "ALSD")
+
+    pence = security_fixture(name: "Listing GBp", currency_code: "GBP", ticker_symbol: "ALGB")
+    own = security_fixture(name: "Listing EUR", currency_code: "EUR", ticker_symbol: "ALEU")
+    unstated = security_fixture(name: "Listing none", currency_code: "EUR", ticker_symbol: "ALNO")
+
+    stated = %{"ALSD" => "USD", "ALGB" => "GBp", "ALEU" => "EUR", "ALNO" => nil}
+
+    plug = fn conn ->
+      ticker = conn.path_info |> List.last()
+
+      meta =
+        case Map.fetch!(stated, ticker) do
+          nil -> %{}
+          currency -> %{"currency" => currency}
+        end
+
+      body = %{
+        "chart" => %{
+          "result" => [
+            %{
+              "meta" => meta,
+              "timestamp" => [1_715_001_600],
+              "indicators" => %{"quote" => [%{"close" => [100.10]}]}
+            }
+          ]
+        }
+      }
+
+      conn
+      |> Plug.Conn.put_resp_content_type("application/json")
+      |> Plug.Conn.send_resp(200, Jason.encode!(body))
+    end
+
+    {result, _log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        QuoteSync.sync_all(
+          adapter_for: %{"manual" => Portfolixir.Catalog.QuoteSync.Yahoo},
+          req: [plug: plug]
+        )
+      end)
+
+    assert {:ok, %{ok: 2, skipped: 0, error: 2, results: results}} = result
+    by_id = Map.new(results, &{&1.security_id, &1})
+
+    assert %{status: :error, reason: {:currency_mismatch, "USD"}} = by_id[usd_for_eur.id]
+    assert %{status: :error, reason: {:currency_mismatch, "GBp"}} = by_id[pence.id]
+    assert %{status: :ok, upserted: 1} = by_id[own.id]
+    assert %{status: :ok, upserted: 1} = by_id[unstated.id]
+
+    assert Quotes.latest(usd_for_eur.id) == nil
+    assert Quotes.latest(pence.id) == nil
+    assert Decimal.equal?(Quotes.latest(own.id).close, Decimal.new("100.1"))
+    assert Decimal.equal?(Quotes.latest(unstated.id).close, Decimal.new("100.1"))
+  end
 end

@@ -1494,7 +1494,12 @@ Example create payload:
   (`portfolixir.securities.update`) setting it is the way to stop provider
   quotes for a security whose quotes you keep by hand. A retired security
   is synced by this call; the scheduled sync and the page's sync of every
-  security skip it with `retired` (#1410). Both count as skipped. A history
+  security skip it with `retired` (#1410). Both count as skipped. A
+  provider answer that states another currency than the security's
+  `currency_code` stores no quote and answers `status` `error` with
+  `reason` `currency_mismatch` (#1411): compared as written, so Yahoo's
+  `GBp` (pence) is not `GBP`; an answer that states no currency is stored
+  as before. A history
   of any length is stored in one sync, and in the scheduled sync one
   security that fails is that security's error while the others are still
   synced. One sync of a security
