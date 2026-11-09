@@ -106,7 +106,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "cursor not issued to that consumer answers 422 naming ack_cursor; since beside " <>
               "consumer, and ack_cursor without it, answer 422. The server keeps at most 32 " <>
               "consumers; a new one beyond answers 422 naming the cap. Without consumer the " <>
-              "digest keeps no state and answers as_of as before.",
+              "digest keeps no state and answers as_of as before. For a consumer a story is " <>
+              "also new when its label of the read's prompt version was written after the " <>
+              "position (closing act, AT6).",
             # --- S28 N3 end ---
             # --- S28 N4 begin ---
             "Sprint 28, N4 (ADR-0056 §9, #1424): news.assign. PUT " <>

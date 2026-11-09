@@ -132,6 +132,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "a cursor older than the stored position changes nothing"
     assert newest["summary"] =~ "not issued to that consumer answers 422 naming ack_cursor"
     assert newest["summary"] =~ "at most 32 consumers"
+    assert newest["summary"] =~ "its label of the read's prompt version was written after the"
 
     assert Enum.any?(
              newest["parameters"],

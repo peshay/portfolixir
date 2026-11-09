@@ -155,7 +155,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
         Reads.digest(security_ids, since, include_unlabeled, max_rows,
           view: not is_nil(view_id),
           min_materiality: min,
-          prompt_version: version
+          prompt_version: version,
+          labelled_since: consumer && consumer.position
         )
 
       data =

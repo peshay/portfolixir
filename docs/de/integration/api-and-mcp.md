@@ -1617,7 +1617,11 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   Cursor einer verarbeiteten Antwort mit `ack_cursor` bestätigt: ein Aufruf
   ohne ihn liest erneut ab der bestätigten Position, sodass ein Lauf, der
   nach dem Lesen abbricht, nichts verliert; der Preis ist eine doppelt
-  gelesene Story. Ein Cursor, der älter ist als die gespeicherte Position,
+  gelesene Story. Für einen Verbraucher ist eine Story auch dann neu, wenn
+  ihr Label der Prompt-Version des Lesens nach der Position geschrieben
+  oder ersetzt wurde, sodass eine Story, die beim Bestätigen als
+  unbeschriftet verborgen war, gelesen wird, sobald ihr Label sie zeigt.
+  Ein Cursor, der älter ist als die gespeicherte Position,
   ändert nichts; einer, den der Server nicht diesem Verbraucher ausgegeben
   hat (gefälscht, verändert oder der eines anderen Verbrauchers), ergibt
   `422` mit `ack_cursor`, und nichts rückt vor. Zwei Verbraucher verschieben

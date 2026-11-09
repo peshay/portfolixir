@@ -66,6 +66,7 @@ defmodule Portfolixir.News.Reads do
   alias Portfolixir.Ledger
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Label
   alias Portfolixir.News.Labels
   alias Portfolixir.News.Shapes
   alias Portfolixir.News.Universe
@@ -679,7 +680,7 @@ defmodule Portfolixir.News.Reads do
   @doc """
   The digest (`news.digest`, §9, §11) of `security_ids` since `since` (a
   consumer's confirmed position is passed as `since`, S28 N3,
-  `Portfolixir.News.DigestCursor`):
+  `Portfolixir.News.DigestCursor`, and as `:labelled_since`):
 
     * `rows` — one per security with a story new since `since` (a member
       that entered its scope strictly after it, B4, C3): `id`, short `name`, `count` (its new
@@ -693,6 +694,14 @@ defmodule Portfolixir.News.Reads do
       story's title is cut to 50 characters (an ellipsis marks the cut), so
       a row with its labels fits §9's budget whatever the feed wrote; the
       whole title is in `list/2` and `story/2`.
+    * **A label's time counts for a consumer** (closing act, AT6): with
+      `:labelled_since` a story whose label of `:prompt_version` was
+      written or replaced after it is new as well, so a story hidden as
+      unlabelled when the consumer confirmed reads once its label shows it
+      (at least once, §9). *Why the write's time, not the creation's:* a
+      label replaced in place from noise to material shows a hidden story
+      just as a first label does. A stateless `since` keeps reading
+      `scope_at` alone: its caller chooses the window.
     * **Which stories count** (§7): a story with an `issuer` or `regulatory`
       member always; a story of `aggregator` items only, and a `thematic`
       story, when its active label's materiality reaches `:min_materiality`
@@ -725,7 +734,11 @@ defmodule Portfolixir.News.Reads do
 
     new =
       security_ids
-      |> new_stories(since, Keyword.get(opts, :prompt_version))
+      |> new_stories(
+        since,
+        Keyword.get(opts, :prompt_version),
+        Keyword.get(opts, :labelled_since)
+      )
       |> Enum.reject(&(view? and is_nil(&1.security_id)))
 
     {stories, hidden} = Enum.split_with(new, &shown?(&1, min, include_unlabeled))
@@ -799,14 +812,16 @@ defmodule Portfolixir.News.Reads do
   # Every story of the securities and every category's story with a member
   # new since `since`, each marked `certain` when it has an issuer or
   # regulatory member, with its active label's materiality and event type
-  # under `prompt_version` (S28 N2).
-  defp new_stories(security_ids, since, prompt_version) do
+  # under `prompt_version` (S28 N2). With `labelled_since` (a consumer's
+  # position, closing act AT6) a story whose label of `prompt_version` was
+  # written or replaced after it is new too.
+  defp new_stories(security_ids, since, prompt_version, labelled_since) do
     news =
       from(i in Item,
         where: not is_nil(i.cluster_id),
         where: i.security_id in ^security_ids or not is_nil(i.category_id),
         group_by: i.cluster_id,
-        having: max(i.scope_at) > type(^since, :utc_datetime_usec),
+        having: ^new_since(since, prompt_version, labelled_since),
         select: %{
           cluster_id: i.cluster_id,
           certain:
@@ -835,6 +850,29 @@ defmodule Portfolixir.News.Reads do
       }
     )
     |> Repo.all()
+  end
+
+  defp new_since(since, prompt_version, labelled_since)
+       when is_nil(prompt_version) or is_nil(labelled_since),
+       do: dynamic([i], max(i.scope_at) > type(^since, :utc_datetime_usec))
+
+  # The stories labelled since are read first (a HAVING takes no
+  # subquery): the label writes since a consumer's last confirmation.
+  defp new_since(since, prompt_version, %DateTime{} = labelled_since) do
+    labelled =
+      from(l in Label,
+        where: l.prompt_version == ^prompt_version,
+        where: l.updated_at > type(^labelled_since, :utc_datetime_usec),
+        distinct: true,
+        select: l.cluster_id
+      )
+      |> Repo.all()
+
+    dynamic(
+      [i],
+      max(i.scope_at) > type(^since, :utc_datetime_usec) or
+        i.cluster_id in type(^labelled, {:array, :integer})
+    )
   end
 
   defp digest_rows([], _key, _schema), do: []

@@ -1484,7 +1484,10 @@ only the digest's `unlabeled` grows.
   moves only when the next call confirms the cursor of an answer it handled
   with `ack_cursor`: a call without it reads again from the confirmed
   position, so a run that breaks off after the read loses nothing, and the
-  price is a story read twice. A cursor older than the stored position
+  price is a story read twice. For a consumer a story is also new when its
+  label of the read's prompt version was written or replaced after the
+  position, so a story hidden as unlabelled when the consumer confirmed
+  reads once its label shows it. A cursor older than the stored position
   changes nothing; one the server did not issue to that consumer (forged,
   altered or another consumer's) answers `422` naming `ack_cursor`, and
   nothing moves. Two consumers never move each other. `since` beside
