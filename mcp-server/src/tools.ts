@@ -2557,6 +2557,9 @@ const noteKinds = [
 const noteSourceQualities = ["primary", "secondary_multi", "awareness", "unverified"] as const;
 const noteAuthors = ["operator", "agent", "local_model"] as const;
 const noteConvictions = ["low", "medium", "high"] as const;
+// --- S28 N5 begin ---
+const noteEventTypes = ["earnings", "guidance", "capital_measure", "legal", "m_and_a", "product", "regulatory", "macro"] as const;
+// --- S28 N5 end ---
 
 const EVENT_KINDS = [
   "earnings",
@@ -2622,6 +2625,9 @@ const eventsListZ = z.object({
   since: optionalString()
 });
 
+// --- S28 N5 begin ---
+// events.create takes news_id (ADR-0056 §8): the item gives source_url and
+// source_quality, so source_quality is required only without it.
 const eventCreateSchema = {
   type: "object",
   additionalProperties: false,
@@ -2630,21 +2636,31 @@ const eventCreateSchema = {
     security_id: { type: "integer", minimum: 1 },
     event: {
       ...eventBodySchema,
-      required: ["kind", "date", "timing", "source_quality"]
+      properties: {
+        ...eventBodySchema.properties,
+        news_id: { type: "integer", minimum: 1, description: "a news item of this security: sets source_url, source_quality" }
+      },
+      required: ["kind", "date", "timing"]
     }
   }
 } as const;
+// --- S28 N5 end ---
 
 // The four the create route requires. The JSON schema said so from the
 // first commit; the zod validator did not, so `{event: {}}` passed the
 // tool and failed at the API instead — the round trip an agent pays for.
 // The update body stays wholly optional: a PATCH is partial by definition.
-const eventCreateBodyZ = eventBodyZ.required({
-  kind: true,
-  date: true,
-  timing: true,
-  source_quality: true
-});
+// --- S28 N5 begin ---
+const eventCreateBodyZ = eventBodyZ
+  .extend({ news_id: z.number().int().positive().optional() })
+  .required({ kind: true, date: true, timing: true })
+  .refine((event) => event.news_id !== undefined || event.source_quality !== undefined, {
+    message: "source_quality is required without news_id"
+  })
+  .refine((event) => event.news_id === undefined || (event.source_url === undefined && event.source_quality === undefined), {
+    message: "news_id sets source_url and source_quality: send neither beside it"
+  });
+// --- S28 N5 end ---
 
 const eventCreateZ = z.object({
   security_id: z.number().int().positive(),
@@ -2936,11 +2952,12 @@ const securityMergeZ = z.object({
 // #831: the re-import guarantee, stated where the consumer reads — in the
 // description of every read it protects — rather than only on a documentation
 // page. Pinned by test/portfolixir/imports/reimport_preservation_test.exs.
+// S28 N5: tightened to pay for notes.append's cluster_id and events.create's
+// news_id (no new tool, so no ceiling moves).
 const REIMPORT_GUARANTEE =
   " A Portfolio Performance re-import does not destroy the research log or the security events: " +
-  "re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves " +
-  "every entry and event in place with the same id: no backup before an import, no re-creating " +
-  "after it.";
+  "every entry and event keeps its id, renamed or re-ISINed securities too; no backup or " +
+  "re-creating.";
 
 // ADR-0049 §8, #831's lesson: the rules' re-import guarantee, in the
 // description of every read it protects. Pinned by
@@ -2991,8 +3008,16 @@ const noteAppendSchema = {
     note: {
       type: "object",
       additionalProperties: false,
-      required: ["kind", "body", "source_quality", "as_of"],
+      // S28 N5: with cluster_id the server fills kind, as_of and
+      // source_quality, so only body is required by the schema.
+      required: ["body"],
       properties: {
+        // --- S28 N5 begin ---
+        cluster_id: { type: "integer", minimum: 1 },
+        headline: { type: ["string", "null"], maxLength: 80 },
+        event_type: { type: ["string", "null"], enum: [...noteEventTypes, null] },
+        tone: { type: ["integer", "null"], minimum: -1, maximum: 1 },
+        // --- S28 N5 end ---
         kind: { type: "string", enum: [...noteKinds] },
         body: {
           type: "string",
@@ -3027,18 +3052,39 @@ const noteAppendSchema = {
 
 const noteAppendZ = z.object({
   security_id: z.number().int().positive(),
-  note: z.object({
-    kind: z.enum(noteKinds),
-    body: cappedText(ENTRY_BODY_MAX).pipe(z.string().min(1)),
-    source_quality: z.enum(noteSourceQualities),
-    source_url: optionalString(),
-    as_of: z.string(),
-    supersedes_id: z.number().int().positive().optional(),
-    valid_until: optionalString(),
-    conviction: z.enum(noteConvictions).optional(),
-    invalidation_condition: cappedText(FREE_TEXT_MAX).optional(),
-    time_stop: optionalString()
-  })
+  note: z
+    .object({
+      // --- S28 N5 begin ---
+      cluster_id: z.number().int().positive().optional(),
+      headline: z.string().max(80).nullable().optional(),
+      event_type: z.enum(noteEventTypes).nullable().optional(),
+      tone: z.number().int().min(-1).max(1).nullable().optional(),
+      // --- S28 N5 end ---
+      kind: z.enum(noteKinds).optional(),
+      body: cappedText(ENTRY_BODY_MAX).pipe(z.string().min(1)),
+      source_quality: z.enum(noteSourceQualities).optional(),
+      source_url: optionalString(),
+      as_of: z.string().optional(),
+      supersedes_id: z.number().int().positive().optional(),
+      valid_until: optionalString(),
+      conviction: z.enum(noteConvictions).optional(),
+      invalidation_condition: cappedText(FREE_TEXT_MAX).optional(),
+      time_stop: optionalString()
+    })
+    // --- S28 N5 begin ---
+    .refine(
+      (note) =>
+        note.cluster_id !== undefined ||
+        (note.kind !== undefined && note.source_quality !== undefined && note.as_of !== undefined),
+      { message: "kind, source_quality and as_of are required without cluster_id" }
+    )
+    .refine(
+      (note) =>
+        note.cluster_id === undefined ||
+        (note.as_of === undefined && note.source_url === undefined && note.source_quality === undefined),
+      { message: "cluster_id sets as_of, source_url and source_quality: send none beside it" }
+    )
+  // --- S28 N5 end ---
 });
 
 const notesUnreviewedSchema = {
@@ -3655,14 +3701,14 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.create",
     "Record a calendar date for a security",
-    "Record one dated calendar fact against a security (ADR-0048). kind is one of earnings | ex_dividend | dividend_payment | lockup_expiry | index_review | shareholder_meeting | regulatory_decision | guidance_update. timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at is the day you last re-read the fact against its source; set it when you check, and portfolixir.events.stale will tell you what has gone unread. Works for ANY security in the catalog, held or not — a purchase candidate's reporting date is exactly the one worth recording. The write is journaled under the API token.",
+    "Record one dated calendar fact against a security (ADR-0048). timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at: the day you last re-read its source (portfolixir.events.stale lists the unread). ANY catalog security, held or not: a candidate's date is worth recording. The write is journaled under the API token.",
     eventCreateSchema,
     eventCreateZ
   ),
   tool(
     "portfolixir.events.update",
     "Correct or confirm a calendar date",
-    "Update one event in place (ADR-0048 §4). An event is MUTABLE by design, unlike a research-log entry: a rescheduled earnings call does not make the old date a second fact, it makes it wrong, and two rows for one reporting date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The change history is kept in the append-only audit journal, so nothing is lost. The security an event belongs to cannot be changed.",
+    "Update one event in place (ADR-0048 §4). An event is MUTABLE, unlike a research-log entry: a rescheduled date makes the old one wrong, not a second fact, and two rows for one date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The journal keeps the history. The security an event belongs to cannot be changed.",
     eventUpdateSchema,
     eventUpdateZ
   ),
@@ -3704,7 +3750,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.notes.append",
     "Append a research-log entry",
-    "Append one entry to a security's research log (ADR-0044) — the log's ONLY write, and a PERMANENT one: an entry is never updated or deleted, by anyone; a mistaken one stays, withdrawn by a retraction, itself permanent. source_quality is SET, not guessed (primary = the source itself, secondary_multi = several independent secondary ones, awareness = heard of, unverified); as_of is the statement's cut-off date, not the write date. To withdraw a finding append kind=retraction with supersedes_id on it and the reason in body. To replace a thesis append one with supersedes_id on the old. valid_until carries a dated block (lockup, own buying block) and feeds portfolixir.notes.expiring. A news item: kind evidence, as_of, source_url = news.get's published_at, url, source_quality from its tier (ADR-0056 §3); a summary and the link, never the article; a direction read from it is a prediction, portfolixir.predictions.create with note_id on this entry. Any entry counts for portfolixir.notes.unreviewed; a thesis's review is its last_reviewed_at (thesis and invalidation_check entries). The author is derived from the credential (over MCP, the agent) and machine_generated is reserved for a local-model path; the body takes neither. The write is journaled under the API token.",
+    "Append one entry to a security's research log (ADR-0044) — the log's ONLY write, and a PERMANENT one: an entry is never updated or deleted, by anyone; a mistaken one stays, withdrawn by a retraction, itself permanent. source_quality is SET, not guessed (primary = the source itself, secondary_multi = several independent secondary ones, awareness = heard of, unverified); as_of is the statement's cut-off date, not the write date. To withdraw a finding append kind=retraction with supersedes_id on it and the reason in body. To replace a thesis append one with supersedes_id on the old. valid_until carries a dated block (lockup, own buying block) and feeds portfolixir.notes.expiring. headline (80), event_type, tone (-1|0|1, your reading, no signal): evidence and event_result only. A news story: cluster_id and body; the server sets kind evidence (or send event_result), as_of, source_url, source_quality (send none), headline, event_type, tone from the story and its label (yours override, null drops), and promotes it. A summary, never the article; a direction to score is portfolixir.predictions.create with note_id. Any entry counts for portfolixir.notes.unreviewed; a thesis's review is its last_reviewed_at (thesis and invalidation_check entries). The author is derived from the credential; machine_generated is reserved for a local-model path. The write is journaled under the API token.",
     noteAppendSchema,
     noteAppendZ
   ),

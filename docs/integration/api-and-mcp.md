@@ -861,8 +861,32 @@ Example append payload:
 }
 ```
 
-**A news item from an outside aggregator** (idea I13; Sprint 25 plan D-5) is
-recorded as an ordinary entry, and no field is added for it: `kind`
+**A news story becomes an entry only by a confirmed write** (ADR-0056 §8,
+A2; Sprint 28, N5): `POST /api/v1/securities/:security_id/notes` with
+`note.cluster_id` (a story of that security) and a `body` writes an entry
+the server pre-fills from the story: `kind` `evidence` (`event_result` may be
+sent instead; another kind answers `422` naming `kind`); `as_of` the day the
+story was published (its representative's publication, as `news.get`
+answers it); `source_url` the link of its best-tier member, the first that
+fits 255 characters; `source_quality` by ADR-0056 §3's rule (a `primary`
+member gives `primary`, two or more distinct `secondary` domains
+`secondary_multi`, one `unverified`, else `awareness`); `headline` its title
+cut at 80 characters on a word boundary; `event_type` and `tone` from its
+active label of the newest prompt version (a `noise` label gives no event
+type), the entry keeping that label's id as `news_label_id`. The pre-fill is
+a proposal: `kind`, `headline`, `event_type` and `tone` sent beside
+`cluster_id` replace it, and `null` leaves one out; `as_of`, `source_url` and
+`source_quality` are the story's, and one sent beside `cluster_id` answers
+`422` naming it. A title holding an invisible character is refused as a
+headline, naming `headline`; send your own. Every member of the story is then
+`promoted` and names the entry in `note_ids` (`news.get`, `news.list` with
+`fields=std`), so it outlives retention; a second promotion appends another
+entry, and the story names both. A story of another security, a category's
+story or an id naming none answers `422` naming `cluster_id`. Nothing in the
+news layer writes an entry, an event or a prediction by itself.
+
+**A news item from an outside aggregator** (idea I13; Sprint 25 plan D-5),
+which the news layer does not hold, is recorded as an ordinary entry: `kind`
 `evidence`; `as_of` the date the item became public, which is the
 statement's cut-off date, so it sits beside the close of that day; `source_url`
 the article; `source_quality` as the aggregator judged it; `body` a summary and the link, **never the
@@ -1069,7 +1093,14 @@ The writes:
 
 - `POST /api/v1/securities/:security_id/events` — records one event (`201`).
   `security_id` comes from the path, never the body; `machine_generated` is
-  reserved and is ignored in the body.
+  reserved and is ignored in the body. `event.news_id` (ADR-0056 §8; Sprint
+  28, N5) names a news item of that security as the event's source: its
+  link becomes `source_url` and its tier `source_quality` (`primary`,
+  `secondary` as `unverified`, `awareness`); `source_url` or
+  `source_quality` sent beside it answers `422` naming it, and an item of
+  another security, one that does not exist or whose link is longer than
+  255 characters answers `422` naming `news_id`. The item is not promoted:
+  what lasts from news is a research entry.
 - `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
   security it belongs to cannot be changed.
 - On both writes a `checked_at` later than tomorrow (the instance's calendar
@@ -4772,7 +4803,10 @@ API may have committed it, and its answer cannot be read.
   description states that an event books nothing and is never converted into a
   transaction.
 - `portfolixir.events.create` — records a dated fact; the description spells
-  out that `timing` says how well the date is known.
+  out that `timing` says how well the date is known. Its `event` takes
+  `news_id`, a news item of the security as the source (S28 N5): the
+  companion refuses `source_url` or `source_quality` beside it, and an event
+  with neither `news_id` nor `source_quality`, before any request.
 - `portfolixir.events.update` — corrects or confirms one in place, because an
   event is mutable by design.
 - `portfolixir.events.delete` — removes a duplicate, journaled.
@@ -4794,10 +4828,14 @@ API may have committed it, and its answer cannot be read.
   derived thesis state; the description states that entries never vanish
   (ADR-0044).
 - `portfolixir.notes.append` — the only write the log admits; a retraction
-  with `supersedes_id` is how a finding is withdrawn. Its description says how
-  an outside aggregator records a news item: `kind` `evidence`, `as_of` the
-  day it became public, a summary and the link, never the article, and a
-  direction read from it as a prediction with `note_id` on the entry.
+  with `supersedes_id` is how a finding is withdrawn. It takes `headline`,
+  `event_type` and `tone` on an evidence or event_result entry, and
+  `cluster_id`: a news story kept with the agent's body, the server setting
+  the rest as [Research log](#research-log-adr-0044) says (S28 N5); the
+  companion refuses `as_of`, `source_url` or `source_quality` beside
+  `cluster_id`, and a note without `cluster_id` missing `kind`,
+  `source_quality` or `as_of`, before any request. A summary, never the
+  article, and a direction to score as a prediction with `note_id`.
 - `portfolixir.notes.unreviewed` — held positions with no entry for N days.
 - `portfolixir.notes.uncorroborated` — entries whose source quality is not
   primary.

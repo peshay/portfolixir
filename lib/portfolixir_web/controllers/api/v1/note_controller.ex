@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.HeldSecurities
+  alias Portfolixir.News
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -94,20 +95,38 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
           |> Map.get("note", %{})
           |> note_attrs(security, conn.assigns.actor)
 
-        case Knowledge.append_note(conn.assigns.actor, attrs) do
+        case append(conn.assigns.actor, attrs) do
           {:ok, note} ->
             conn
             |> put_status(:created)
             |> json(%{data: JSON.security_note(note)})
 
-          {:error, changeset} ->
+          {:error, %Ecto.Changeset{} = changeset} ->
             unprocessable(conn, JSON.errors(changeset))
+
+          {:error, errors} ->
+            unprocessable(conn, errors)
         end
 
       nil ->
         MergedAway.not_found(conn, :security, security_id)
     end
   end
+
+  # --- S28 N5 begin ---
+  # ADR-0056 §8: with `cluster_id` the entry is written from that story
+  # (`Portfolixir.News.append_note_from_story/3`, the one place a story
+  # becomes a note): the server pre-fills what the story knows, and the
+  # story is promoted and links the note.
+  defp append(actor, %{"cluster_id" => cluster_id} = attrs) do
+    case IdParam.parse(cluster_id) do
+      {:ok, id} -> News.append_note_from_story(actor, Map.delete(attrs, "cluster_id"), id)
+      :error -> {:error, %{"cluster_id" => ["is invalid"]}}
+    end
+  end
+
+  defp append(actor, attrs), do: Knowledge.append_note(actor, attrs)
+  # --- S28 N5 end ---
 
   # Provenance is the system's to state (#766, a precision of ADR-0044 §4):
   # the author is derived from the authenticated actor, never taken from the

@@ -1207,7 +1207,7 @@
             {
               "name": "portfolixir.events.list",
               "title": "Calendar of one security",
-              "description": "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (FR-38, ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (FR-38, ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1239,7 +1239,7 @@
             {
               "name": "portfolixir.events.create",
               "title": "Record a calendar date for a security",
-              "description": "Record one dated calendar fact against a security (ADR-0048). kind is one of earnings | ex_dividend | dividend_payment | lockup_expiry | index_review | shareholder_meeting | regulatory_decision | guidance_update. timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at is the day you last re-read the fact against its source; set it when you check, and portfolixir.events.stale will tell you what has gone unread. Works for ANY security in the catalog, held or not — a purchase candidate's reporting date is exactly the one worth recording. The write is journaled under the API token. A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
+              "description": "Record one dated calendar fact against a security (ADR-0048). timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at: the day you last re-read its source (portfolixir.events.stale lists the unread). ANY catalog security, held or not: a candidate's date is worth recording. The write is journaled under the API token. A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1309,13 +1309,17 @@
                         "type": "string",
                         "maxLength": 10000,
                         "description": "At most 10000 characters (Unicode code points), else 422."
+                      },
+                      "news_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "a news item of this security: sets source_url, source_quality"
                       }
                     },
                     "required": [
                       "kind",
                       "date",
-                      "timing",
-                      "source_quality"
+                      "timing"
                     ]
                   }
                 }
@@ -1330,7 +1334,7 @@
             {
               "name": "portfolixir.events.update",
               "title": "Correct or confirm a calendar date",
-              "description": "Update one event in place (ADR-0048 §4). An event is MUTABLE by design, unlike a research-log entry: a rescheduled earnings call does not make the old date a second fact, it makes it wrong, and two rows for one reporting date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The change history is kept in the append-only audit journal, so nothing is lost. The security an event belongs to cannot be changed.",
+              "description": "Update one event in place (ADR-0048 §4). An event is MUTABLE, unlike a research-log entry: a rescheduled date makes the old one wrong, not a second fact, and two rows for one date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The journal keeps the history. The security an event belongs to cannot be changed.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1439,7 +1443,7 @@
             {
               "name": "portfolixir.events.upcoming",
               "title": "Dates due across the whole catalog within N days",
-              "description": "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. Poll this, not a calendar of the holdings, which misses a candidate's dates. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon (conservative on purpose: a missed date is the failure). kind narrows to one kind. It echoes days, as_of, held_only, its scope, limit and truncated. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. Poll this, not a calendar of the holdings, which misses a candidate's dates. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon (conservative on purpose: a missed date is the failure). kind narrows to one kind. It echoes days, as_of, held_only, its scope, limit and truncated. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1482,7 +1486,7 @@
             {
               "name": "portfolixir.events.unconfirmed",
               "title": "Dates that passed and nobody confirmed",
-              "description": "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue that keeps the calendar from rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit (echoed with truncated); no days here, because every unconfirmed past date belongs in the queue however old it is. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue that keeps the calendar from rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit (echoed with truncated); no days here, because every unconfirmed past date belongs in the queue however old it is. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1523,7 +1527,7 @@
             {
               "name": "portfolixir.events.stale",
               "title": "Dates nobody has re-read in N days",
-              "description": "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit, echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit, echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1568,7 +1572,7 @@
             {
               "name": "portfolixir.notes.list",
               "title": "Research log of a security",
-              "description": "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). Start a research run here: one call, not a re-read of old conversations. Optional limit keeps the newest entries (in a delta read, the oldest after since; default 1000, at most 10000), echoed with truncated; thesis_state always derives from the whole log. Optional since (FR-38, ISO8601 UTC) is a delta read: entries appended strictly after it (by inserted_at; the log is append-only), oldest first, with as_of (this read's next since; on has_more=true a cursor at the page's last entry, or, with no ~id, poll later: a write is in flight); page by as_of. A later read may re-deliver an entry, never skip one. superseded_by_ids on an older entry is complete only on a full read. The unreviewed, expiring and uncorroborated queues take no since: time, not a row, changes them. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). Start a research run here: one call, not a re-read of old conversations. Optional limit keeps the newest entries (in a delta read, the oldest after since; default 1000, at most 10000), echoed with truncated; thesis_state always derives from the whole log. Optional since (FR-38, ISO8601 UTC) is a delta read: entries appended strictly after it (by inserted_at; the log is append-only), oldest first, with as_of (this read's next since; on has_more=true a cursor at the page's last entry, or, with no ~id, poll later: a write is in flight); page by as_of. A later read may re-deliver an entry, never skip one. superseded_by_ids on an older entry is complete only on a full read. The unreviewed, expiring and uncorroborated queues take no since: time, not a row, changes them. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1601,7 +1605,7 @@
             {
               "name": "portfolixir.notes.append",
               "title": "Append a research-log entry",
-              "description": "Append one entry to a security's research log (ADR-0044) — the log's ONLY write, and a PERMANENT one: an entry is never updated or deleted, by anyone; a mistaken one stays, withdrawn by a retraction, itself permanent. source_quality is SET, not guessed (primary = the source itself, secondary_multi = several independent secondary ones, awareness = heard of, unverified); as_of is the statement's cut-off date, not the write date. To withdraw a finding append kind=retraction with supersedes_id on it and the reason in body. To replace a thesis append one with supersedes_id on the old. valid_until carries a dated block (lockup, own buying block) and feeds portfolixir.notes.expiring. A news item: kind evidence, as_of, source_url = news.get's published_at, url, source_quality from its tier (ADR-0056 §3); a summary and the link, never the article; a direction read from it is a prediction, portfolixir.predictions.create with note_id on this entry. Any entry counts for portfolixir.notes.unreviewed; a thesis's review is its last_reviewed_at (thesis and invalidation_check entries). The author is derived from the credential (over MCP, the agent) and machine_generated is reserved for a local-model path; the body takes neither. The write is journaled under the API token. A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
+              "description": "Append one entry to a security's research log (ADR-0044) — the log's ONLY write, and a PERMANENT one: an entry is never updated or deleted, by anyone; a mistaken one stays, withdrawn by a retraction, itself permanent. source_quality is SET, not guessed (primary = the source itself, secondary_multi = several independent secondary ones, awareness = heard of, unverified); as_of is the statement's cut-off date, not the write date. To withdraw a finding append kind=retraction with supersedes_id on it and the reason in body. To replace a thesis append one with supersedes_id on the old. valid_until carries a dated block (lockup, own buying block) and feeds portfolixir.notes.expiring. headline (80), event_type, tone (-1|0|1, your reading, no signal): evidence and event_result only. A news story: cluster_id and body; the server sets kind evidence (or send event_result), as_of, source_url, source_quality (send none), headline, event_type, tone from the story and its label (yours override, null drops), and promotes it. A summary, never the article; a direction to score is portfolixir.predictions.create with note_id. Any entry counts for portfolixir.notes.unreviewed; a thesis's review is its last_reviewed_at (thesis and invalidation_check entries). The author is derived from the credential; machine_generated is reserved for a local-model path. The write is journaled under the API token. A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write may have committed, so re-read before retrying; a blind retry can store a duplicate.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1618,12 +1622,45 @@
                     "type": "object",
                     "additionalProperties": false,
                     "required": [
-                      "kind",
-                      "body",
-                      "source_quality",
-                      "as_of"
+                      "body"
                     ],
                     "properties": {
+                      "cluster_id": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "headline": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "maxLength": 80
+                      },
+                      "event_type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "earnings",
+                          "guidance",
+                          "capital_measure",
+                          "legal",
+                          "m_and_a",
+                          "product",
+                          "regulatory",
+                          "macro",
+                          null
+                        ]
+                      },
+                      "tone": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": -1,
+                        "maximum": 1
+                      },
                       "kind": {
                         "type": "string",
                         "enum": [
@@ -1699,7 +1736,7 @@
             {
               "name": "portfolixir.notes.unreviewed",
               "title": "Held positions with no research-log entry for N days",
-              "description": "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; it echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue (default 1000, max 10000), echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; it echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue (default 1000, max 10000), echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1726,7 +1763,7 @@
             {
               "name": "portfolixir.notes.uncorroborated",
               "title": "Research-log entries that still need corroboration",
-              "description": "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour a later entry confirmed or retracted) are skipped unless include_superseded=true. Confirm one by appending a primary entry with supersedes_id on it, never an edit. Optional limit keeps the newest (default 1000, max 10000), echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour a later entry confirmed or retracted) are skipped unless include_superseded=true. Confirm one by appending a primary entry with supersedes_id on it, never an edit. Optional limit keeps the newest (default 1000, max 10000), echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1755,7 +1792,7 @@
             {
               "name": "portfolixir.notes.expiring",
               "title": "Dated blocks expiring within N days",
-              "description": "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; it echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest (default 1000, max 10000), echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves every entry and event in place with the same id: no backup before an import, no re-creating after it.",
+              "description": "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; it echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest (default 1000, max 10000), echoed with truncated. A Portfolio Performance re-import does not destroy the research log or the security events: every entry and event keeps its id, renamed or re-ISINed securities too; no backup or re-creating.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,

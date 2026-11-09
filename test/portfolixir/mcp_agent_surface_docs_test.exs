@@ -577,7 +577,8 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   #   the item became public, source_url the article, source_quality as
   #   judged, a summary and the link and never the article, that no news
   #   archive is kept, and a direction recorded as a prediction with note_id
-  #   pointing at the note; the MCP tool list says notes.append states it.
+  #   pointing at the note; the MCP tool list says notes.append takes a
+  #   story's cluster_id (S28 N5, which replaced the convention there).
   test "the research-log reference states the news convention" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
@@ -587,7 +588,8 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "`source_url` the article; `source_quality` as the aggregator judged it",
          "`body` a summary and the link, **never the article** — Portfolixir keeps no news archive",
          "`portfolixir.predictions.create`) with `note_id` pointing at the note",
-         "Its description says how an outside aggregator records a news item"
+         # S28 N5: the tool's description now says how a news story is kept.
+         "and `cluster_id`: a news story kept with the agent's body"
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
@@ -596,7 +598,7 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "`source_url` der Artikel; `source_quality`, wie der Aggregator sie beurteilt hat",
          "`body` eine Zusammenfassung und der Link, **nie der Artikel** — Portfolixir führt kein Nachrichtenarchiv",
          "`portfolixir.predictions.create`) mit `note_id` auf den Eintrag",
-         "Seine Beschreibung sagt, wie ein externer Aggregator eine Nachricht festhält"
+         "und `cluster_id`: eine Story, mit dem `body` des Agenten festgehalten"
        ]}
     ])
   end
