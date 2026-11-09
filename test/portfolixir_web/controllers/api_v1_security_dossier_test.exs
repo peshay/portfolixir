@@ -167,8 +167,10 @@ defmodule PortfolixirWeb.ApiV1SecurityDossierTest do
     assert dossier["security_id"] == id
     assert dossier["as_of"] == Date.to_iso8601(Clock.today())
 
+    # S28 N6 (ADR-0056 §9) adds the news block, pinned in
+    # api_v1_dossier_news_test.exs.
     assert Map.keys(dossier["parts"]) ==
-             ~w(categories events holdings metrics research security targets)
+             ~w(categories events holdings metrics news research security targets)
 
     for {part, note} <- dossier["parts"] do
       assert is_binary(note) and note =~ "/api/v1/", part

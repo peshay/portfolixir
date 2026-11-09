@@ -1,7 +1,8 @@
 defmodule PortfolixirWeb.Api.V1.SecurityDossier do
   @moduledoc """
   The position dossier (FR-49; idea I7; Sprint 24 plan D-2): one read of one
-  security carrying the parts an agent otherwise assembles from seven reads.
+  security carrying the parts an agent otherwise assembles from eight reads
+  (seven before the news block of S28 N6).
 
   **No part computes anything of its own.** Each is built by the context
   function and the serializer its own read uses, and carries the
@@ -24,7 +25,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
     * `targets` — the position-target read's rows naming the security, per
       portfolio, in the active plan of the unscoped (Gesamt) view, as that
       read answers without parameters; the parts note says so and names the
-      same read with `view=`, which answers a view's plan.
+      same read with `view=`, which answers a view's plan;
+    * `news` (S28 N6, ADR-0056 §9) — `Portfolixir.News.dossier_block/2`:
+      the stories of the last 7 days as `news.list` with `since` reads them,
+      how many are primary, their highest label materiality, and the newest
+      primary story, in about 50 tokens.
 
   Drift is left out on purpose (D-2): it needs a classification and a
   valuation per portfolio, and the `targets` part names the read that states
@@ -40,6 +45,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Ledger
+  alias Portfolixir.News
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Targets
@@ -74,7 +80,12 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
       "GET /api/v1/portfolios/:portfolio_id/position_targets (portfolixir.targets.list_positions), " <>
         "its rows naming the security in each portfolio's active plan of the unscoped view; " <>
         "a view's plan: GET /api/v1/portfolios/:portfolio_id/position_targets?view=:view_id; " <>
-        "targets.drift names the read that states drift"
+        "targets.drift names the read that states drift",
+    # --- S28 N6 begin ---
+    news:
+      "GET /api/v1/news/stories?security_id=:id&since=<7 days back> (portfolixir.news.list); " <>
+        "newest_primary at any age"
+    # --- S28 N6 end ---
   }
 
   @doc """
@@ -103,9 +114,27 @@ defmodule PortfolixirWeb.Api.V1.SecurityDossier do
       research: research_part(id),
       events: events_part(id, today),
       categories: categories_part(id),
-      targets: targets_part(id, portfolio_ids)
+      targets: targets_part(id, portfolio_ids),
+      # --- S28 N6 begin ---
+      news: news_part(id)
+      # --- S28 N6 end ---
     }
   end
+
+  # --- S28 N6 begin ---
+  # ADR-0056 §9: the news block, its times to the second as the news reads
+  # answer them.
+  defp news_part(id) do
+    block = News.dossier_block(id, DateTime.utc_now())
+
+    case block.newest_primary do
+      nil -> block
+      story -> %{block | newest_primary: %{story | at: news_time(story.at)}}
+    end
+  end
+
+  defp news_time(at), do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+  # --- S28 N6 end ---
 
   # The detail `GET /api/v1/securities/:id` answers.
   defp security_part(security) do

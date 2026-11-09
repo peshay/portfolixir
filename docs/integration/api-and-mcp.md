@@ -1186,14 +1186,14 @@ key set so the boundary holds mechanically.
 ### The position dossier (FR-49)
 
 One read per security that carries what an agent preparing a decision about
-a position otherwise assembles from seven reads. Nothing is computed here:
+a position otherwise assembles from eight reads. Nothing is computed here:
 each part is built by the function its own read uses and carries that read's
 computation basis or note, so a part always equals what its read answers.
 
 - `GET /api/v1/securities/:id/dossier` (`portfolixir.securities.dossier`, in
   every profile) — read-only, no parameter. It answers
   `security_id`, `as_of` (today), `parts` (for each part, the read it
-  mirrors) and seven parts:
+  mirrors) and eight parts:
   - `security` — the record `GET /api/v1/securities/:id` answers, former
     ISINs, `thesis_state` and `bond` with its basis included;
   - `holdings` — `rows`, one per depot (securities account) holding the
@@ -1222,7 +1222,16 @@ computation basis or note, so a part always equals what its read answers.
     security, per portfolio, in the active plan of the unscoped view (a
     view's plan is the same read with `view=`; `parts.targets` says so), and
     `drift`, naming the read that states each row's drift: the dossier
-    computes none.
+    computes none;
+  - `news` (ADR-0056 §9; Sprint 28, N6) — `count_7d`, the security's
+    stories with a member that entered their scope in the last 7 days (as
+    `GET /api/v1/news/stories?security_id=:id&since=` 7 days back lists
+    them), `primary_7d`, those whose best tier is `primary`,
+    `max_materiality`, the highest materiality of their active labels of the
+    newest prompt version (`null` without one), and `newest_primary`, the
+    security's newest primary story at any age (`id`, `title` cut at 50
+    characters, `at`; `null` without one). About 50 tokens; the companion
+    answers the dossier as compact JSON, as it answers the news reads.
 
 Left out on purpose: quotes, trades, lots and transactions, each a long series
 with its own paged read, and drift, which needs a classification and a
@@ -4825,8 +4834,10 @@ API may have committed it, and its answer cannot be read.
   description says so.
 - `portfolixir.securities.dossier` — one security's position dossier (FR-49):
   its record, holdings, metrics, newest research-log entries, upcoming and
-  recent events, categories and position targets in one read, each part as
-  its own read answers it and naming that read.
+  recent events, categories, position targets and its news of the week (S28
+  N6) in one read, each part as its own read answers it and naming that
+  read. It answers compact JSON (no indentation), so the news block's
+  budget of about 50 tokens holds on the text the agent receives.
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
   (ADR-0044).

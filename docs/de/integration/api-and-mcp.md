@@ -1285,7 +1285,7 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
 ### Das Positionsdossier (FR-49)
 
 Ein Lesezugriff je Wertpapier, der trägt, was ein Agent für eine Entscheidung
-über eine Position sonst aus sieben Lesezugriffen zusammensetzt. Hier wird
+über eine Position sonst aus acht Lesezugriffen zusammensetzt. Hier wird
 nichts berechnet: Jeder Teil entsteht aus der Funktion, die sein eigener
 Lesezugriff nutzt, und trägt dessen Berechnungsgrundlage oder Hinweis, sodass
 ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
@@ -1293,7 +1293,7 @@ ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
 - `GET /api/v1/securities/:id/dossier` (`portfolixir.securities.dossier`, in
   jedem Profil) — nur lesend, ohne Parameter. Die
   Antwort trägt `security_id`, `as_of` (heute), `parts` (je Teil der
-  Lesezugriff, den er spiegelt) und sieben Teile:
+  Lesezugriff, den er spiegelt) und acht Teile:
   - `security` — der Datensatz, den `GET /api/v1/securities/:id` antwortet,
     samt früheren ISINs, `thesis_state` und `bond` mit seiner Grundlage;
   - `holdings` — `rows`, eine Zeile je Depot, das das Wertpapier hält, über
@@ -1325,7 +1325,17 @@ ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
     Wertpapier nennen, je Portfolio, im aktiven Plan der View-losen Sicht
     (den Plan einer View liest derselbe Lesezugriff mit `view=`; das sagt
     auch `parts.targets`), und `drift`, das den Lesezugriff nennt, der die Abweichung jeder Zeile
-    angibt: Das Dossier berechnet keine.
+    angibt: Das Dossier berechnet keine;
+  - `news` (ADR-0056 §9; Sprint 28, N6) — `count_7d`, die Storys des
+    Wertpapiers, bei denen ein Mitglied in den letzten 7 Tagen in ihren
+    Bereich kam (wie `GET /api/v1/news/stories?security_id=:id&since=` 7
+    Tage zurück sie listet), `primary_7d`, die davon mit der besten Stufe
+    `primary`, `max_materiality`, die höchste Materialität ihrer aktiven
+    Labels der neuesten Prompt-Version (`null` ohne eines), und
+    `newest_primary`, die neueste primäre Story des Wertpapiers, gleich wie
+    alt (`id`, `title` auf 50 Zeichen gekürzt, `at`; `null` ohne eine). Etwa
+    50 Token; der Begleiter antwortet das Dossier als kompaktes JSON, wie
+    die News-Lesezugriffe.
 
 Bewusst ausgelassen: Kurse, Trades, Lots und Transaktionen, jeweils eine lange
 Reihe mit eigenem geblättertem Lesezugriff, und die Abweichung, die je
@@ -5278,9 +5288,11 @@ lässt sich nicht lesen.
   Abstand zu den 52-Wochen-Extremen, jede mit Fenster und Beobachtungszahl.
 - `portfolixir.securities.dossier` — das Positionsdossier eines Wertpapiers
   (FR-49): Datensatz, Bestände, Kennzahlen, neueste Research-Log-Einträge,
-  anstehende und jüngste Termine, Kategorien und Positionsziele in einem
-  Lesezugriff, jeder Teil so, wie sein eigener Lesezugriff ihn antwortet, und
-  mit dessen Namen.
+  anstehende und jüngste Termine, Kategorien, Positionsziele und seine
+  Nachrichten der Woche (S28 N6) in einem Lesezugriff, jeder Teil so, wie
+  sein eigener Lesezugriff ihn antwortet, und mit dessen Namen. Es antwortet
+  kompaktes JSON (ohne Einrückung), sodass das Budget des News-Blocks von
+  etwa 50 Token für den Text gilt, den der Agent erhält.
 - `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).

@@ -44,6 +44,7 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.DigestConsumer
   alias Portfolixir.News.DigestCursor
+  alias Portfolixir.News.Dossier
   alias Portfolixir.News.Feed
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Fetcher
@@ -1007,5 +1008,14 @@ defmodule Portfolixir.News do
   # --- S28 N5 end ---
 
   # --- S28 N6 begin ---
+
+  @doc """
+  The news block of `securities.dossier` for the security `security_id` at
+  the server's clock `now` (ADR-0056 §9's extension); see
+  `Portfolixir.News.Dossier`.
+  """
+  @spec dossier_block(pos_integer(), DateTime.t()) :: Dossier.t()
+  def dossier_block(security_id, %DateTime{} = now), do: Dossier.block(security_id, now)
+
   # --- S28 N6 end ---
 end

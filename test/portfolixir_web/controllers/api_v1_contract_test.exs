@@ -178,6 +178,14 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert Enum.any?(newest["parameters"], &(&1 =~ "answers yield_30d and low_yield"))
     # --- S28 N2 yield end ---
 
+    # --- S28 N6 begin ---
+    # N6 (ADR-0056 §9): the dossier's news block.
+    assert newest["summary"] =~ "Sprint 28, N6 (ADR-0056 §9): "
+    assert newest["summary"] =~ "adds the part news: count_7d"
+    assert newest["summary"] =~ "the companion now answers the dossier as compact JSON"
+    assert Enum.any?(newest["parameters"], &(&1 =~ "answers the part news and parts.news"))
+    # --- S28 N6 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.
