@@ -224,6 +224,21 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     end
 
     assert filter =~ "without level answers category, as before"
+
+    # S3 (FR-57): scale=ttwror on the bands read, each band's own TTWROR as
+    # a line; no new endpoint or tool.
+    assert newest["summary"] =~ "Sprint 28, S3 (FR-57): "
+
+    assert [scale] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET .../performance/bands,")
+             )
+
+    for part <- ~w(scale=ttwror value returns ttwror parent portfolixir.views.bands 422) do
+      assert scale =~ part, part
+    end
+
     # --- Sprint 28 S end ---
 
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.

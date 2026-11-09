@@ -424,13 +424,92 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
     end
   end
 
+  # --- Sprint 28 S3 begin ---
+  # User story (FR-57, I28; coverage rule):
+  # As the operator's agent comparing how the parts of a view did,
+  # I want the bands read to answer each band's own TTWROR as a line, with
+  # the line one level up and its basis,
+  # so that I tell the operator what the TTWROR mode shows, from the same
+  # figures.
+  #
+  # Acceptance criteria:
+  # - `scale=ttwror` in all three forms answers `scale: "ttwror"`, one line
+  #   per band with `returns` aligned with `dates` (Decimal strings, null
+  #   before a band's first point) and `ttwror`, its last point: Alpha Fund
+  #   starts at 0 % on 01-02, the window's first day (the walk starts
+  #   there, so there is no baseline value; V 1000) and ends at 1300 / 1000 − 1 = 0.3; Beta Share,
+  #   bought on 03-02 and priced by its trade, is null before and 0 from
+  #   03-02 on.
+  # - No line for cash; at the category level none for unclassified.
+  # - `parent` is the view's own line: its returns are the performance
+  #   read's `cumulative_ttwror` series, exactly.
+  # - The basis names the flows, the start rule, the selection rule and
+  #   the gaps; `scale=value` answers what a call without scale answers.
+  test "scale=ttwror answers each band's own TTWROR as a line", %{conn: conn} do
+    w = world()
+    year = w.year
+    # The window starts on the first walked day, 01-02.
+    first = Date.new!(year, 1, 2)
+
+    for path <- [
+          "/api/v1/portfolios/#{w.portfolio.id}/performance/bands",
+          "/api/v1/views/#{w.view.id}/performance/bands",
+          "/api/v1/performance/bands"
+        ] do
+      query = "?year=#{year}&classification_id=#{w.tree.id}"
+      data = get_json(conn, path <> query <> "&level=security&scale=ttwror")["data"]
+      assert data["scale"] == "ttwror", path
+      assert data["dates"] |> hd() == Date.to_iso8601(first), path
+
+      [alpha, beta] = data["bands"]
+      assert alpha["key"] == "security:#{w.alpha.id}"
+      assert alpha["end_value"] == "1300"
+      assert alpha["ttwror"] == "0.3"
+      assert hd(alpha["returns"]) == "0"
+      assert List.last(alpha["returns"]) == "0.3"
+
+      march = Enum.find_index(data["dates"], &(&1 == Date.to_iso8601(Date.new!(year, 3, 2))))
+      assert beta["key"] == "security:#{w.beta.id}"
+      assert Enum.all?(Enum.take(beta["returns"], march), &is_nil/1)
+      assert Enum.all?(Enum.drop(beta["returns"], march), &(&1 == "0"))
+      refute Map.has_key?(alpha, "values")
+
+      performance_path = String.replace(path, "/bands", "")
+
+      series =
+        get_json(conn, performance_path <> "?year=#{year}&series=true")["data"]["series"]
+
+      assert data["parent"]["returns"] == Enum.map(series, & &1["cumulative_ttwror"]), path
+
+      categories = get_json(conn, path <> query <> "&level=category&scale=ttwror")["data"]
+      assert Enum.map(categories["bands"], & &1["key"]) == ["category:#{w.growth.id}"], path
+
+      basis = data["computation_basis"]
+
+      for key <- ["flows", "start_rule", "selection_rule", "gaps", "reference"] do
+        assert is_binary(basis[key]), "#{path} #{key}"
+      end
+
+      refute Map.has_key?(basis, "merge_rule")
+
+      plain = get_json(conn, path <> query)["data"]
+      assert plain["scale"] == "value"
+      assert plain["parent"] == nil
+
+      assert Map.delete(plain, "as_of") ==
+               Map.delete(get_json(conn, path <> query <> "&scale=value")["data"], "as_of")
+    end
+  end
+
+  # --- Sprint 28 S3 end ---
+
   # User story (I23, FR-53):
   # As the operator's agent,
   # I want a wrong parameter refused by name,
   # so that I never read a stack I did not ask for.
   #
   # Acceptance criteria:
-  # - An unknown level or sort, a malformed or unknown classification_id or
+  # - An unknown level, sort or scale, a malformed or unknown classification_id or
   #   category_id (anything but an id or `unclassified`, exactly), and a
   #   category of another tree at any level each answer 422 naming the
   #   parameter; a bad period answers the family's 422; an unknown portfolio
@@ -452,6 +531,10 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
           {"level=total&category_id=#{w.growth.id}&classification_id=#{other.id}", "category_id"},
           {"category_id=none", "category_id"},
           {"category_id=Unclassified", "category_id"},
+          # --- Sprint 28 S3 begin ---
+          {"scale=percent", "scale"},
+          {"scale=TTWROR", "scale"},
+          # --- Sprint 28 S3 end ---
           {"period=2y", "period"}
         ],
         path <- [
@@ -465,6 +548,10 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
 
     assert get_json(conn, "#{base}?level=sector", 422)["errors"]["level"] == [
              "is invalid: must be one of total, category, security"
+           ]
+
+    assert get_json(conn, "#{base}?scale=percent", 422)["errors"]["scale"] == [
+             "is invalid: must be one of value, ttwror"
            ]
 
     assert get_json(conn, "#{base}?category_id=none", 422)["errors"]["category_id"] == [

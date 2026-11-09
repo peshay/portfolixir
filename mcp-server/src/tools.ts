@@ -1821,7 +1821,11 @@ const bandsProperties = {
   // remainder.
   category_id: { anyOf: [{ type: "integer", minimum: 1 }, { type: "string", const: "unclassified" }] },
   // --- Sprint 28 S1 end ---
-  sort: { type: "string", enum: ["size", "change"] }
+  sort: { type: "string", enum: ["size", "change"] },
+  // --- Sprint 28 S3 begin ---
+  // FR-57: the values, or each band's own TTWROR as a line.
+  scale: { type: "string", enum: ["value", "ttwror"] }
+  // --- Sprint 28 S3 end ---
 };
 
 const bandsZ = {
@@ -1830,7 +1834,10 @@ const bandsZ = {
   // --- Sprint 28 S1 begin ---
   category_id: z.union([z.number().int().positive(), z.literal("unclassified")]).optional(),
   // --- Sprint 28 S1 end ---
-  sort: z.enum(["size", "change"]).optional()
+  sort: z.enum(["size", "change"]).optional(),
+  // --- Sprint 28 S3 begin ---
+  scale: z.enum(["value", "ttwror"]).optional()
+  // --- Sprint 28 S3 end ---
 };
 
 const portfolioBandsSchema = {
@@ -4371,7 +4378,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
-    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max; year=YYYY for one calendar year; from/to ISO dates for a custom range, clamped to the history). TTWROR neutralises external cash flows the Portfolio Performance way; irr is the annualised money-weighted return of the same dated flows, a Decimal string or null when no rate exists (no sign change, no convergence). Also invested_capital (start_value plus net_external_flows), wealth_multiple (end_value / invested_capital; null unless net invested is positive, never negative) and mwr, the non-annualized period rate: read it instead of irr under a year (ADR-0034). series=true adds the daily valuation series; an optional view (a view id) scopes to that bucket view's holdings and is echoed. Freshness (ADR-0039): as_of is the walk's compute instant (older than the request when nothing changed since; any write that can affect it invalidates it), stale marks a superseded value served while a fresh one computes, and computation_basis states input series, window, reference and gaps." +
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (default max; year=YYYY for one calendar year; from/to ISO dates, clamped to the history). TTWROR neutralises external cash flows the Portfolio Performance way; irr is the annualised money-weighted return of the same dated flows, a Decimal string or null when no rate exists (no sign change, no convergence). Also invested_capital (start_value plus net_external_flows), wealth_multiple (end_value / invested_capital; null unless net invested is positive, never negative) and mwr, the non-annualized period rate: read it instead of irr under a year (ADR-0034). series=true adds the daily valuation series; an optional view (a view id) scopes to that bucket view's holdings and is echoed. Freshness (ADR-0039): as_of is the walk's compute instant (older than the request when nothing changed since; any write that can affect it invalidates it), stale marks a superseded value served while a fresh one computes, and computation_basis states input series, window, reference and gaps." +
       portfolioScopeTwin("portfolixir.views.performance", "returns"),
     performanceSchema,
     performanceZ
@@ -4396,7 +4403,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.bands",
     "Portfolio value bands",
-    "The value series in bands that sum to it exactly on every date. level: total (the series), category (default: root categories of classification_id, else the targets' tree, else the first custom tree; plus cash and unclassified) or security (plus cash). category_id filters every level to a category's subtree, no cash, summing to its band; at category its direct sub-categories plus kind direct (own securities); unclassified: those filed nowhere. A band: color, values, start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without start_value. Over 8 bands the smallest merge into other, ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to, view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
+    "The value series in bands that sum to it exactly on every date. level: total, category (default: root categories, cash, unclassified) or security (plus cash). category_id filters every level to a category's subtree, no cash; at category: sub-categories plus kind direct (own securities); unclassified: those filed nowhere. A band: color, values, share (last day), change = (end_value - start_value - net_flows) / start_value. Over 8 bands the smallest merge into other, ties by name; sort size or change. An unpriced day counts zero; a security sits in its category of today. scale=ttwror: per band its own TTWROR line (returns; buys, sells, deliveries as flows; 0 % on its first valued day), top 8 by value, no cash, unclassified, other; parent: the line above. period, year, from/to, view: as portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
       portfolioScopeTwin("portfolixir.views.bands", "contributions"),
     portfolioBandsSchema,
     portfolioBandsZ
@@ -4520,7 +4527,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.performance",
     "View performance (cross-portfolio TTWROR + IRR)",
-    "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id is the view id), over the same accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. All financial values are Decimal strings." +
+    "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id), over the same accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. Decimal strings." +
       viewScopeTwin("portfolixir.portfolios.performance", "returns"),
     viewPerformanceSchema,
     viewPerformanceZ
@@ -4545,7 +4552,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.bands",
     "View value bands (cross-portfolio)",
-    "Value bands of a bucket view (id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to portfolixir.views.performance's series; default tree: its target plans'. Rest as there; base_currency (default EUR)." +
+    "Value bands of a bucket view (id): the portfolixir.portfolios.bands shape, portfolio_id null, summing to portfolixir.views.performance's series; default tree: its plans'. Rest as there; base_currency (default EUR)." +
       viewScopeTwin("portfolixir.portfolios.bands", "contributions"),
     viewBandsSchema,
     viewBandsZ
@@ -5583,7 +5590,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "level",
           "classification_id",
           "category_id",
-          "sort"
+          "sort",
+          // --- Sprint 28 S3 begin ---
+          "scale"
+          // --- Sprint 28 S3 end ---
         ])
       );
     // --- Sprint 27 S2 end ---
@@ -5680,7 +5690,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "classification_id",
           "category_id",
           "sort",
-          "base_currency"
+          "base_currency",
+          // --- Sprint 28 S3 begin ---
+          "scale"
+          // --- Sprint 28 S3 end ---
         ])
       );
     // --- Sprint 27 S2 end ---

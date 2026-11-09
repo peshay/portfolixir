@@ -3313,8 +3313,37 @@ Beispiel-Payloads für Konten:
   eigene Bänder, und `other` ist immer das letzte Band, oben im Stapel,
   welche Sortierung auch gilt. Ein Tag ohne Kurs zählt null, wie in der Reihe, und ein
   Wertpapier steht das ganze Fenster in seiner heutigen Kategorie;
-  `computation_basis` nennt jede Regel. Ein unbekanntes `level` oder `sort`,
-  eine fehlerhafte oder unbekannte `classification_id` oder `category_id`
+  `computation_basis` nennt jede Regel. **`scale=ttwror`** (FR-57; `scale`
+  ist `value`, der Standard und die Antwort oben, oder `ttwror`, als
+  `scale` zurückgegeben) liefert jedes Band stattdessen als Linie: seine
+  eigene zeitgewichtete Rendite im Fenster, nicht gestapelt, denn Renditen
+  addieren sich nicht. Seine Flüsse sind die Nettoflüsse seiner Wertpapiere
+  aus ADR-0051 je Tag (Käufe, Verkäufe, Ein- und Auslieferungen,
+  Grenzflüsse; die einer Gruppe die Summe ihrer Mitglieder); der
+  Nettofluss des Tages zählt zu Tagesbeginn, wenn er ein Zufluss ist,
+  `1 + r = V / (V_vor + F + B)`, und zu Tagesende, wenn ein Abfluss,
+  `1 + r = (V − F) / (V_vor + B)`, `B` der Basissprung des Tages aus
+  Handelspreisen wie im Walk, und ein Tag ohne positive Basis trägt keine
+  Rendite bei. Ein Band mit Wert zum Schluss des Tages vor dem Fenster
+  verkettet ab dort, wie die Linie der Ansicht; sonst beginnt seine Linie
+  bei 0 % an seinem ersten Tag mit Wert. Nach dem Start hat ein Tag, an dem
+  es nichts hält und nichts bewegt, keinen Punkt, also endet ein im
+  Fenster ausverkauftes Band am Verkaufstag. Dividenden, Zinsen und
+  Handelskosten sind kein Fluss: sie bewegen Cash, das keine Linie hat.
+  Höchstens acht Linien, die größten nach Wert am letzten Tag des
+  Fensters, bei Gleichstand nach Name, nie nach ID (Bänder gleich in Wert
+  und Name am Schnitt fallen beide weg); nie `other`, und ohne
+  `category_id` kein `cash` und kein `unclassified`. Jede Linie hat `key`,
+  `kind`, `id`, `name`, `color`, `tree_index`, `start_value`, `end_value`,
+  `net_flows`, `returns` (die kumulierte Rendite bis zu jedem Tag aus
+  `dates`, ein Decimal-String, `null`, wo die Linie keinen Punkt hat) und
+  `ttwror` (ihr letzter Punkt); `sort=change` ordnet die Linien nach
+  `ttwror`. `parent` ist die Linie eine Ebene darüber: ohne `category_id`
+  die TTWROR der Ansicht selbst (genau die Reihe `cumulative_ttwror` der
+  Performance-Abfrage), mit ihr das Band des Filters; `null` bei
+  `scale=value`. `computation_basis` nennt `flows`, `start_rule` und
+  `selection_rule` statt `merge_rule`. Ein unbekanntes `level`, `sort`
+  oder `scale`, eine fehlerhafte oder unbekannte `classification_id` oder `category_id`
   (alles außer einer ID oder genau `unclassified`) oder eine Kategorie eines
   anderen Baums liefert `422` mit dem Parameter, ebenso eine nicht
   unterstützte `base_currency`. Nichts wird gespeichert.
@@ -5561,7 +5590,8 @@ lässt sich nicht lesen.
   (FR-41).
 - `portfolixir.portfolios.bands` — Bereichs-Zwilling von `portfolixir.views.bands`;
   die Wertreihe in Bänder geteilt, nach Gesamt, Kategorie oder Wertpapier,
-  für den gestapelten Chart (I23, FR-53).
+  für den gestapelten Chart (I23, FR-53); mit `scale: "ttwror"` die eigene
+  TTWROR jedes Bandes als Linie (FR-57).
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — die Zusammenführungsprotokolle, das neueste
   zuerst, jedes mit dem, was wohin ging, wer es tat, wann, und dem

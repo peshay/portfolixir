@@ -3723,6 +3723,51 @@ describe("Portfolixir MCP tools", () => {
   });
   // --- Sprint 28 S1 end ---
 
+  // --- Sprint 28 S3 begin ---
+  // User story (FR-57, Sprint 28 S3; coverage rule):
+  // As the operator's agent comparing how the parts of a view did,
+  // I want both bands tools to take scale=ttwror,
+  // so that I read each band's own TTWROR line the chart's TTWROR mode draws.
+  //
+  // Acceptance criteria:
+  // - scale "ttwror" and "value" pass through as the query parameter, in
+  //   both tools; any other value never leaves the companion.
+  // - The schema lists scale as the enum value, ttwror; the descriptions
+  //   name the line's returns, its flows, its 0 % start and parent.
+  it("passes scale=ttwror through both bands tools", async () => {
+    const { client, requests } = createRecordingClient({ data: { bands: [] } });
+
+    await callTool(client, "portfolixir.portfolios.bands", { portfolio_id: 3, scale: "ttwror" });
+    await callTool(client, "portfolixir.views.bands", { id: 2, level: "security", scale: "value" });
+    await callTool(client, "portfolixir.views.bands", { scale: "ttwror", category_id: 7 });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/portfolios/3/performance/bands?scale=ttwror",
+        "/api/v1/views/2/performance/bands?level=security&scale=value",
+        "/api/v1/performance/bands?category_id=7&scale=ttwror"
+      ]
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.views.bands", { scale: "percent" }));
+    await assert.rejects(callTool(client, "portfolixir.portfolios.bands", { portfolio_id: 3, scale: "TTWROR" }));
+    assert.equal(requests.length, 3);
+
+    for (const name of ["portfolixir.portfolios.bands", "portfolixir.views.bands"]) {
+      const tool = listTools().find((candidate) => candidate.name === name);
+      const scale = (tool?.inputSchema as { properties: Record<string, { enum?: string[] }> }).properties
+        .scale;
+      assert.deepEqual(scale?.enum, ["value", "ttwror"], name);
+    }
+
+    const text = listTools().find((tool) => tool.name === "portfolixir.portfolios.bands")?.description ?? "";
+    for (const fragment of [/scale=ttwror/, /returns/, /buys, sells, deliveries/, /0 %/, /parent/]) {
+      assert.match(text, fragment);
+    }
+  });
+  // --- Sprint 28 S3 end ---
+
   // User story (I23, FR-53; coverage rule):
   // As the operator's agent asking what a scope's wealth is made of,
   // I want one read-only tool per scope, twins of each other, that answers
@@ -3792,6 +3837,7 @@ describe("Portfolixir MCP tools", () => {
       "level",
       "period",
       "portfolio_id",
+      "scale",
       "sort",
       "to",
       "view",
@@ -3805,6 +3851,7 @@ describe("Portfolixir MCP tools", () => {
       "id",
       "level",
       "period",
+      "scale",
       "sort",
       "to",
       "year"

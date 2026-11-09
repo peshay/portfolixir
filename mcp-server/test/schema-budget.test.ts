@@ -540,6 +540,21 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     full: 227_687
   },
   // --- Sprint 28 S1 end ---
+  // --- Sprint 28 S3 begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, S3 (FR-57): the two bands tools take scale (value or ttwror), each " +
+      "band's own TTWROR as a line, which brings them to 2,081 + 1,351 = 3,432 bytes in " +
+      "each profile, 82 more than S1's row; paid for by tightening the same tools' wording " +
+      "and portfolixir.portfolios.performance's and portfolixir.views.performance's, 84 " +
+      "bytes, so each ceiling is lowered by the 2 bytes left over: read 117,783, book " +
+      "192,663 and full 227,685",
+    read: 117_783,
+    book: 192_663,
+    full: 227_685
+  },
+  // --- Sprint 28 S3 end ---
 ];
 
 describe("the schema budget", () => {
