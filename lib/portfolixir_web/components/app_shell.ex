@@ -68,6 +68,8 @@ defmodule PortfolixirWeb.AppShell do
           <span class="nav-ico" aria-hidden="true"><%= nav_icon(:logout) %></span>
           <span class="nav-label"><%= gettext("Log out") %></span>
         </a>
+
+        <.version_foot version={Portfolixir.BuildVersion.current()} />
       </aside>
 
       <label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>
@@ -210,6 +212,53 @@ defmodule PortfolixirWeb.AppShell do
     </div>
     """
   end
+
+  # --- Sprint 28 V2 begin ---
+  attr(:version, Portfolixir.BuildVersion, required: true)
+
+  @doc """
+  The sidebar's foot (FR-55, board `ux-design-2026-11-08-sprint28/04-version`):
+  a small label "Version" over the value in monospace, a hairline above. A
+  release links its release notes, a build (branch · short hash · the commit
+  date in the page's language) its commit, both in a new tab with no
+  referrer; unknown is italic and links nothing. The link is one the operator
+  follows: the page loads nothing from GitHub. On a phone the sidebar is the
+  menu sheet, so the foot sits at its bottom.
+  """
+  def version_foot(assigns) do
+    ~H"""
+    <div id="sidebar-version" class="sidebar-version">
+      <span class="sidebar-version__label"><%= gettext("Version") %></span>
+      <a
+        :if={@version.url}
+        class="sidebar-version__text"
+        href={@version.url}
+        title={version_link_title(@version)}
+        rel="noopener noreferrer"
+        target="_blank"
+      ><%= version_text(@version) %><span class="sidebar-version__ext" aria-hidden="true">↗</span></a>
+      <span :if={!@version.url} class="sidebar-version__text sidebar-version__unknown">
+        <%= gettext("unknown") %>
+      </span>
+    </div>
+    """
+  end
+
+  defp version_link_title(%{kind: :release}), do: gettext("Release notes on GitHub")
+  defp version_link_title(_version), do: gettext("Commit on GitHub")
+
+  defp version_text(%{kind: :build} = version) do
+    [
+      version.branch,
+      Portfolixir.BuildVersion.short(version.commit),
+      PortfolixirWeb.Format.date(version.date)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp version_text(version), do: version.value
+  # --- Sprint 28 V2 end ---
 
   @doc """
   The area tab bar (ADR-0022): sub-navigation inside a task area, e.g. the

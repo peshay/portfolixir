@@ -9414,6 +9414,74 @@ select:disabled {
   margin-top: auto;
 }
 
+/* ===== The version at the sidebar's foot (FR-55, Sprint 28 V2) ===== */
+/* Board ux-design-2026-11-08-sprint28/04-version (plan D-6): a small label
+   over the value, the value in monospace, a hairline above; under „Abmelden“
+   when the login is on, else at the foot by itself. A release or a build is
+   a link the operator follows; „unbekannt“ is italic and links nothing. On a
+   phone the sidebar is the menu sheet, so the foot is at its bottom; the
+   collapsed rail leaves it out (below). */
+.sidebar-version {
+  display: grid;
+  gap: 1px;
+  margin: auto 12px 4px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--color-border);
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.sidebar-logout ~ .sidebar-version {
+  margin-top: 0;
+}
+
+.sidebar-version__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-version__text {
+  justify-self: start;
+  color: inherit;
+  font-family: var(--font-mono);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+a.sidebar-version__text:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.sidebar-version__ext {
+  margin-left: 3px;
+  opacity: 0.7;
+}
+
+.sidebar-version__unknown {
+  font-family: var(--font-sans);
+  font-style: italic;
+}
+
+/* The touch floor (DESIGN.md, the remedy's touch target): the link's hit
+   area is 44 px tall under a coarse pointer, its line unchanged. */
+@media (pointer: coarse) {
+  a.sidebar-version__text {
+    padding-block: 13px;
+    margin-block: -13px;
+  }
+}
+
+@media (width > 900px) {
+  html:not([data-rail="collapsed"]) #app-sidebar-toggle:checked ~ .app-sidebar .sidebar-version,
+  html[data-rail="collapsed"] #app-sidebar-toggle:not(:checked) ~ .app-sidebar .sidebar-version {
+    display: none;
+  }
+}
+
 /* ===== Wealth KPI band — two tiers (issue 797, review C1 variant A) ===== */
 /* Three lead figures at full size over four supporting figures at half
    height; the currency is a small suffix so a value never wraps, and a

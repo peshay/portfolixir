@@ -77,7 +77,7 @@ defmodule PortfolixirWeb.ApiV1VersionTest do
 
   defp outbound_calls(module) do
     {:ok, {^module, [imports: imports]}} =
-      module |> :code.which() |> :beam_lib.chunks([:imports])
+      module |> beam_file() |> :beam_lib.chunks([:imports])
 
     Enum.filter(imports, fn {target, function, _arity} ->
       name = Atom.to_string(target)
@@ -92,4 +92,9 @@ defmodule PortfolixirWeb.ApiV1VersionTest do
         ]
     end)
   end
+
+  # The compiled .beam on disk: under `mix test --cover` (CI's coveralls run)
+  # `:code.which/1` answers `:cover_compiled`, not a path, so the file is
+  # looked up in the code path by its name.
+  defp beam_file(module), do: :code.where_is_file(~c"#{module}.beam")
 end

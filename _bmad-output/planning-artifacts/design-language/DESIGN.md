@@ -9677,3 +9677,39 @@ amended by I1 (#1351; method sentences behind the section ⓘ, the short
 basis visible), five sentences open under the chart. Issue 1435 gives
 that rule its backstop too: no visible free paragraph past one sentence
 outside an ⓘ, a data note or a registered basis line.
+
+## Amendment 2026-11-09 — The version at the menu's foot *(Sprint 28 V2, idea I27, FR-55; board `mockups/ux-design-2026-11-08-sprint28/04-version`; plan D-6, D-7; issue 1429)*
+
+**Placement.** The last element of the sidebar (`#sidebar-version`, after
+the navigation and after „Abmelden“ when the login is on), pushed to its
+foot. On a phone the sidebar is the menu sheet, so the version sits at the
+sheet's bottom; the top bar carries nothing new. The collapsed rail leaves
+it out: it has no room for a label and a value, and the open sidebar and
+the phone's sheet show it.
+
+**Anatomy, top to bottom:**
+
+- **A hairline above** (`border-top: 1px solid var(--color-border)`), inset
+  12 px from the sidebar's sides, 10 px above the label.
+- **The label** „Version“, small (10.5 px, weight 700, `0.06em` tracking,
+  upper case), in the muted text colour.
+- **The value** (11.5 px), in monospace (`--font-mono`), muted, by kind:
+  - **release** — the calendar tag (`2026.11.12`), a link to its release
+    notes on GitHub, titled „Versionshinweise auf GitHub“;
+  - **build** — `branch · short hash · date` (`main · 3cba116 ·
+    08.11.2026`), the date in the page's language, the branch left out for
+    a detached checkout; a link to the commit on GitHub, titled „Commit auf
+    GitHub“;
+  - **unknown** — „unbekannt“ in italics, in the sans face, and no link.
+- A link ends in a small `↗` (aria-hidden, at 70 % opacity) and turns
+  accent and underlined on hover; under a coarse pointer its hit area is
+  44 px tall without moving its line (the remedy's touch target).
+
+**What it does not do.** The link opens in a new tab with
+`rel="noopener noreferrer"`: the operator follows it, and the page loads
+nothing from GitHub, so GitHub learns of the instance only when the
+operator clicks. The value is never a guess: it is what the code was
+compiled from (`Portfolixir.BuildVersion`), and a build without its build
+arguments reads „unbekannt“ (plan D-7). The same value answers
+`GET /api/v1/version` and `portfolixir.version`. It is no figure, so the
+privacy mode leaves it as it is.
