@@ -1489,7 +1489,10 @@ only the digest's `unlabeled` grows.
   altered or another consumer's) answers `422` naming `ack_cursor`, and
   nothing moves. Two consumers never move each other. `since` beside
   `consumer`, and `ack_cursor` without it, answer `422`. The server keeps at
-  most 32 consumers; a new one beyond answers `422` naming the cap. A
+  most 32 consumers; a new one beyond answers `422` naming the cap. The daily
+  retention deletes a consumer whose last confirmation (or, never
+  confirmed, its creation) is more than 90 days old, so a name no run uses
+  frees its place; named again, it starts as a new one, 24 hours back. A
   cursor is signed with a key derived from `SECRET_KEY_BASE`: after that
   secret changes, a stored cursor answers `422`, and one call without
   `ack_cursor` reads on from the confirmed position. Without `consumer` the
