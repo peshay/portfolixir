@@ -179,6 +179,20 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "items kept 90 days (§12), not the raw news archive the non-goal names"
     },
     # --- Sprint 27 N7 end ---
+    # --- S28 N1 begin ---
+    # The labels of ADR-0056 §7: the table. Exactly news_labels; a news
+    # table for articles or archives is still caught.
+    %{
+      phrases: [~w(news labels)],
+      kinds: [:table],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "an outside model's labels on the stories the news layer keeps (ADR-0056 §7): an " <>
+          "event type, a materiality, a tone and a confidence per story, no text of the " <>
+          "story's own, so not the raw news archive the non-goal names"
+    },
+    # --- S28 N1 end ---
     %{
       phrases: [~w(sync now)],
       kinds: [:event],

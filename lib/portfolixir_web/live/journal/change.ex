@@ -54,9 +54,11 @@ defmodule PortfolixirWeb.Journal.Change do
   # The stored decimal fields that are ratios, rates or weights: they stay
   # in the mode, as `Format.plain_*` keeps them on the other pages (an
   # exchange rate as on a ledger check, a coupon rate as on the bond strip).
+  # S28 N1: a news label's `confidence` (ADR-0056 §7) is a fraction from 0
+  # to 1, a model's certainty, like a prediction's probability.
   @shown ~w(probability benchmark_rate target_weight cash_target_weight lower threshold upper
             rate settlement_fx_rate coupon_rate capital_gains_tax_rate solidarity_surcharge_rate
-            church_tax_rate church_tax_rates)
+            church_tax_rate church_tax_rates confidence)
 
   @typedoc "A stored value as the page shows it."
   @type value :: String.t() | PrivacyMode.Hidden.t() | Phoenix.HTML.safe()

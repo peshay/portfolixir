@@ -47,6 +47,8 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Fetcher
   alias Portfolixir.News.Health
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Label
+  alias Portfolixir.News.Labels
   alias Portfolixir.News.Matcher
   alias Portfolixir.News.Scheduler
   alias Portfolixir.News.Stories
@@ -716,4 +718,41 @@ defmodule Portfolixir.News do
   def health(%DateTime{} = now), do: Health.report(now)
 
   # --- end N6 -----------------------------------------------------------------
+
+  # Sprint 28, Lane N (ADR-0056 §7 to §10): each story adds its public
+  # functions between its own markers, so stories built side by side merge
+  # without touching each other's lines (plan D-8).
+
+  # --- S28 N1 begin ---
+  # The labels of §7, written from outside by a model through its own named
+  # token (`Portfolixir.News.Labels`).
+
+  @doc """
+  Stores a label on behalf of `actor` (`news.label_put`, ADR-0056 §7): a
+  closed write of exactly §7's fields, idempotent per `(cluster_id, model,
+  prompt_version)` — a second put of the triple replaces the label in place
+  — and journaled under the actor. See `Portfolixir.News.Labels.put/2`.
+  """
+  @spec put_label(Actor.t(), map()) ::
+          {:ok, Labels.written(), Label.t()}
+          | {:error, %{String.t() => [String.t()]}}
+          | {:error, Ecto.Changeset.t()}
+  def put_label(%Actor{} = actor, attrs) when is_map(attrs), do: Labels.put(actor, attrs)
+
+  # --- S28 N1 end ---
+
+  # --- S28 N2 begin ---
+  # --- S28 N2 end ---
+
+  # --- S28 N3 begin ---
+  # --- S28 N3 end ---
+
+  # --- S28 N4 begin ---
+  # --- S28 N4 end ---
+
+  # --- S28 N5 begin ---
+  # --- S28 N5 end ---
+
+  # --- S28 N6 begin ---
+  # --- S28 N6 end ---
 end

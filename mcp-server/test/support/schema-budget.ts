@@ -494,8 +494,20 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 117_711,
     book: 191_704,
     full: 226_726
-  }
+  },
   // --- Sprint 28 Q end ---
+  // --- S28 N1 begin ---
+  // --- S28 N1 end ---
+  // --- S28 N2 begin ---
+  // --- S28 N2 end ---
+  // --- S28 N3 begin ---
+  // --- S28 N3 end ---
+  // --- S28 N4 begin ---
+  // --- S28 N4 end ---
+  // --- S28 N5 begin ---
+  // --- S28 N5 end ---
+  // --- S28 N6 begin ---
+  // --- S28 N6 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

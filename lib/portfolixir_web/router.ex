@@ -449,6 +449,18 @@ defmodule PortfolixirWeb.Router do
     get("/news/health", NewsReadController, :health)
     get("/news/digest", NewsReadController, :digest)
     # --- Sprint 27 N7 end ---
+    # --- S28 N1 begin ---
+    # --- S28 N1 end ---
+    # --- S28 N2 begin ---
+    # --- S28 N2 end ---
+    # --- S28 N3 begin ---
+    # --- S28 N3 end ---
+    # --- S28 N4 begin ---
+    # --- S28 N4 end ---
+    # --- S28 N5 begin ---
+    # --- S28 N5 end ---
+    # --- S28 N6 begin ---
+    # --- S28 N6 end ---
 
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)
