@@ -9,8 +9,10 @@ defmodule Portfolixir.News.Reads do
   them in (`clip_spelled/2`, C5): 160 for a title in a list and in a story
   or item, 50 in the digest (100 before S28 N2), 600 for an excerpt. `news.get` holds §9's
   400 tokens on the companion's text, its link and members included: the
-  link is cut at 300 characters (the whole link stays stored), every domain
-  at 40, and the excerpt last, to what the rest of the answer leaves of the
+  link is cut at 300 characters as the companion spells them (the whole
+  link stays stored; S28 N2 finding: a link of one letter and combining
+  marks is one grapheme, so a grapheme cut handed it back whole), every
+  domain at 40, and the excerpt last, to what the rest of the answer leaves of the
   400 (`story/2`, `item/1`), every id counted at its widest so the cut does
   not move with the ids: a long answer gives up excerpt, never its source.
 
@@ -134,10 +136,6 @@ defmodule Portfolixir.News.Reads do
   """
   @spec short_name(String.t()) :: String.t()
   def short_name(name) when is_binary(name), do: clip_spelled(name, @short_name_max)
-
-  defp clip(text, max) do
-    if String.length(text) <= max, do: text, else: String.slice(text, 0, max - 1) <> "…"
-  end
 
   # --- closing act, Fix-2: the spelled width (AG1, C5) ----------------------
 
@@ -505,7 +503,7 @@ defmodule Portfolixir.News.Reads do
     %{
       id: cluster.id,
       title: clip_spelled(representative.title, @get_title_max),
-      url: clip(representative.canonical_url, @get_url_max),
+      url: clip_spelled(representative.canonical_url, @get_url_max),
       domain: clip_spelled(representative.domain, @domain_max),
       tier: cluster.best_tier,
       language: cluster.language,
@@ -562,7 +560,7 @@ defmodule Portfolixir.News.Reads do
            id: item.id,
            story_id: item.cluster_id,
            title: clip_spelled(item.title, @get_title_max),
-           url: clip(item.canonical_url, @get_url_max),
+           url: clip_spelled(item.canonical_url, @get_url_max),
            domain: clip_spelled(item.domain, @domain_max),
            tier: item.tier,
            class: item.class,
