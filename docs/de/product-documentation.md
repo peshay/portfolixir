@@ -441,7 +441,13 @@ Kennzeichen. Was die Zusammenführung tut:
   fehlen, übernimmt es — außer sie verletzen die Regel, die ein geändertes
   Kennzeichen erfüllen muss (eine WKN aus sechs Buchstaben oder Ziffern, ein
   Ticker aus einfachen ASCII-Zeichen); die Stammdaten zeigen sie dann als
-  nicht übernommen. Name, Anlageklasse und Logo bleiben seine.
+  nicht übernommen. Name, Anlageklasse und Logo bleiben seine. Die Währung,
+  die der Kursanbieter des Duplikats nannte (siehe *Eine Antwort in einer
+  anderen Währung wird abgelehnt*), geht mit seinen Kursen auf ein
+  bleibendes Wertpapier über, das keine hat, sodass eine abweichende Währung
+  beim Zusammenführen nicht verloren geht; die Stammdaten zeigen sie, wann
+  immer sie von der Währung des bleibenden Wertpapiers abweicht oder von
+  der, die sein eigener Anbieter nannte, die es behält.
 
 **Im Dialog** sucht der erste Schritt das Wertpapier, das bleibt, nach Name,
 ISIN, WKN oder Ticker. Ein Treffer, der die Historie des Duplikats nicht

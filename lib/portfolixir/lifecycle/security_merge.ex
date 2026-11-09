@@ -118,7 +118,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       merge date. An ISIN only the source carries is adopted without a
       choice. WKN, ticker and feed are adopted only where the target lacks
       them; name, asset class and logo follow the target, and every
-      difference is listed. Every identifier the target takes meets the
+      difference is listed. The currency the source's quote provider stated
+      (`provider_currency`, #1415) is carried, with the time it was read,
+      onto a target that has none, through `Catalog.put_provider_currency/4`
+      under the merge's actor; it is listed as a difference wherever it
+      differs from the target's currency or the target's own stored one
+      (closing act, QA1). Every identifier the target takes meets the
       catalog's rules for a changed identifier (E25 G23,
       `Security.identifier_valid?/2`): a WKN or ticker that fails them is not
       adopted and is listed as a difference, and a source ISIN that fails its
@@ -1525,7 +1530,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       choice_required: both?,
       outcomes: outcomes,
       adopted: adopted,
-      differences: differences(source, target, adopted),
+      differences: differences(source, target, adopted) ++ provider_currency(source, target),
       aliases: Map.get(data.aliases, source.id, [])
     }
   end
@@ -1602,6 +1607,20 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         from != field_value(target, field),
         do: %{field: field, source: from, target: field_value(target, field)}
   end
+
+  # Closing act, QA1 (#1415): the currency the source's quote provider
+  # stated, where it differs from the target's currency or from the one the
+  # target's provider stated. The source's quotes move onto the target, so
+  # the merge carries it onto a target that has none
+  # (`carry_provider_currency/2`); a target's own stays.
+  defp provider_currency(%Security{provider_currency: stated}, target) when is_binary(stated) do
+    if stated != target.currency_code or
+         (is_binary(target.provider_currency) and stated != target.provider_currency),
+       do: [%{field: :provider_currency, source: stated, target: target.provider_currency}],
+       else: []
+  end
+
+  defp provider_currency(_source, _target), do: []
 
   # A logo whose file the reconciliation marked missing (#933) is no logo.
   defp field_value(security, :logo) do
@@ -2512,7 +2531,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
            end),
          :ok <- clear_source_isin(actor, plan.source),
          {:ok, created} <- isin_write(actor, plan, choices.choice, changed_on),
-         :ok <- adopt(actor, target, plan.identifiers.adopted) do
+         :ok <- adopt(actor, target, plan.identifiers.adopted),
+         :ok <- carry_provider_currency(actor, plan) do
       {:ok, %{created_alias: created, changed_on: created && changed_on}}
     end
   end
@@ -2555,6 +2575,25 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     |> Catalog.update_security(target, Map.new(adopted, &{&1.field, &1.value}))
     |> written("security", target.id)
   end
+
+  # Closing act, QA1 (#1415): the source's stored provider currency and the
+  # time it was read, onto a target that has none, through the quote sync's
+  # own writer under the merge's actor, journaled; the source's quotes the
+  # merge moved were stated in it. A target with its own keeps it.
+  defp carry_provider_currency(
+         actor,
+         %{
+           source: %Security{provider_currency: stated, provider_currency_at: %DateTime{} = at},
+           target: %Security{provider_currency: nil} = target
+         }
+       )
+       when is_binary(stated) do
+    actor
+    |> Catalog.put_provider_currency(target, stated, at)
+    |> written("security", target.id)
+  end
+
+  defp carry_provider_currency(_actor, _plan), do: :ok
 
   # §9: the resolvability precondition again, over the catalog as the merge
   # left it — the database, read inside the merge's transaction. Every

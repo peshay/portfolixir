@@ -3408,16 +3408,17 @@ const declaredTools: DeclaredTool[] = [
     "Preview merging a security (id, the source — a duplicate) into another of the same currency (target_id, the " +
       "one to keep) — a read that writes nothing (ADR-0050 §9, §10). Answers the plan_digest " +
       "portfolixir.securities.merge takes; both securities (identifiers, split events, booking count); the guards; " +
-      "the key_equal_pairs (a source booking equal to a target booking in day, kind, depot, cash account and " +
-      "amounts); the splits that collapse or move and the split events after; position_buckets per depot; quotes " +
+      "key_equal_pairs (a source booking equal to a target one in day, kind, depot, cash account and " +
+      "amounts); splits that collapse or move, and split events after; position_buckets per depot; quotes " +
       "(source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the " +
-      "target's wins; manual_collisions, those typed by hand, with both closes); " +
-      "configuration (category_assignments and position_targets, each with its action: move, or drop with the " +
+      "target's wins; manual_collisions, typed by hand, with both closes); " +
+      "configuration (category_assignments and position_targets, each to move, or drop with " +
       "reason collides or stale); events (moved; possible_duplicates, same kind and " +
       "day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
       "adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset " +
       "class and former ISINs; adopted, what the target takes from the source; differences, every source value " +
-      "that follows the target instead, a WKN or ticker the catalog refuses among them); reverse, whether merging the other way would pass; and " +
+      "that follows the target instead (a WKN or ticker the catalog refuses, and provider_currency if it " +
+      "differs, carried to a target with none)); reverse, whether the other way would pass; and " +
       "outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, " +
       "cost_basis, avg_cost and realized_result (moving-average) of both before and of the target after " +
       "(positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues " +
@@ -3425,13 +3426,13 @@ const declaredTools: DeclaredTool[] = [
       "may), fifo_basis; " +
       "rounding_differences; the cash accounts a collapsed booking changes; flow_changes as in the depot " +
       "preview (removed, boundary_removed, absorbed; flow_basis). Show both outcomes; the " +
-      "choices are the operator's. Decimals: strings. A pair that " +
+      "operator chooses. Decimals: strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
       "retired_target, quote_basis_mismatch, research_notes, predictions, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
-      "legacy_hashed_split (a split to move still carries an import hash; errors.splits names it — change " +
-      "its kind back or delete it), invalid_source_isin (errors.source_isin " +
-      "fails its check digit: fix or clear it first), or " +
+      "legacy_hashed_split (a split to move still carries an import hash; errors.splits names it: " +
+      "change its kind back or delete it), invalid_source_isin (errors.source_isin " +
+      "fails its check digit: fix or clear it), or " +
       "identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or " +
       "with a former ISIN, or of one merged into either before, that would no longer find the target) " +
       "and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",

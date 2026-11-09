@@ -762,7 +762,11 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     stattdessen dem Ziel folgt (Name, Anlageklasse, Logo, eine WKN, ein Ticker
     oder Feed, den das Ziel schon hat, und eine WKN oder ein Ticker, den die
     Regeln des Katalogs bei einer Änderung ablehnen — nie übernommen, mit
-    `null` für das Ziel); `aliases_reassigned`, die früheren ISINs der Quelle;
+    `null` für das Ziel; und `provider_currency`, die Währung, die der
+    Kursanbieter der Quelle nannte, wann immer sie vom `currency_code` des
+    Ziels oder von dessen eigener gespeicherter abweicht — mit ihrer Zeit
+    auf ein Ziel übernommen, dessen `target` `null` ist, sonst bleibt die
+    des Ziels); `aliases_reassigned`, die früheren ISINs der Quelle;
   - `outcome_by_collapse_key_equal` mit `"false"` und `"true"`: die
     `transaction_count` des Ziels danach, `moved_transaction_ids`,
     `deleted` (`collapsed_duplicate` oder `collapsed_split`), `positions`

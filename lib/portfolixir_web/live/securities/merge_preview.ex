@@ -990,7 +990,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
             field: field,
             source: source,
             target: target,
-            after: target,
+            after: difference_after(field, source, target),
             why: difference_why(field, target)
           }
         end)
@@ -1037,7 +1037,18 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp difference_why(:ticker_symbol, nil),
     do: gettext("not adopted: a ticker is printable ASCII characters.")
 
+  # Closing act, QA1: the provider's stated currency is carried onto a
+  # target that has none, so the source's moved quotes keep their finding.
+  defp difference_why(:provider_currency, nil),
+    do:
+      gettext(
+        "carried: the target had none; the provider stated another currency than the security's."
+      )
+
   defp difference_why(_field, _target), do: gettext("The target's value applies.")
+
+  defp difference_after(:provider_currency, source, nil), do: source
+  defp difference_after(_field, _source, target), do: target
 
   defp field_label(:isin), do: gettext("ISIN")
   defp field_label(:wkn), do: gettext("WKN")
@@ -1047,6 +1058,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp field_label(:name), do: gettext("Name")
   defp field_label(:asset_class), do: gettext("Asset class")
   defp field_label(:logo), do: gettext("Logo")
+  defp field_label(:provider_currency), do: gettext("Provider currency")
 
   defp field_value(_field, nil), do: "—"
   defp field_value(:asset_class, code), do: AssetClasses.label(code)

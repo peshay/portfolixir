@@ -678,7 +678,11 @@ confirms with the same `plan_digest`, so both see the same plan.
     carries); `differences`, every source value that follows the target
     instead (name, asset class, logo, a WKN, ticker or feed the target has
     already, and a WKN or ticker the catalog's rules refuse on a change,
-    which is never adopted and lists the target's `null`);
+    which is never adopted and lists the target's `null`; and
+    `provider_currency`, the currency the source's quote provider stated,
+    wherever it differs from the target's `currency_code` or the target's
+    own stored one — carried with its time onto a target whose `target` is
+    `null`, the target's kept otherwise);
     `aliases_reassigned`, the source's former ISINs;
   - `outcome_by_collapse_key_equal` with `"false"` and `"true"`: the
     target's `transaction_count` after, `moved_transaction_ids`, `deleted`

@@ -727,6 +727,11 @@ describe("Portfolixir MCP tools", () => {
     assert.match(update, /and the trade's currency/);
 
     assert.match(describe("portfolixir.securities.merge_preview"), /unavailable_trades/);
+    // Sprint 28 closing act, QA1: the provider's stated currency is a difference the merge carries.
+    assert.match(
+      describe("portfolixir.securities.merge_preview"),
+      /provider_currency if it differs, carried to a target with none/
+    );
 
     // #1310 (Sprint 22 R5): a third currency is a reason of its own, on the
     // trade and on each lot, and a third-currency sale states no proceeds.

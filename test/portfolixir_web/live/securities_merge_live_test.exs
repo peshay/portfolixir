@@ -742,6 +742,41 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert master =~ "not adopted: a WKN is six letters or digits."
   end
 
+  # User story (closing act, QA1):
+  # As the operator merging a duplicate whose quote provider stated another
+  # currency than its own,
+  # I want the preview's master data to show that currency and what the
+  # kept security carries afterwards,
+  # so that its quotes moving onto the kept security do not leave the
+  # currency mismatch unnamed.
+  #
+  # Acceptance criteria:
+  # - With the source's provider currency USD (its own EUR) and none stored
+  #   on the target, the master data list the provider currency with USD,
+  #   the target's —, USD afterwards and why: carried, as the target had
+  #   none.
+  test "a source's provider currency that differs is listed in the master data", ctx do
+    buy!(ctx, ctx.source, "2", "10.00", ~D[2025-01-10])
+
+    {:ok, _} =
+      Catalog.put_provider_currency(
+        Actor.system_job("quote_sync"),
+        ctx.source,
+        "USD",
+        ~U[2026-11-09 08:15:00Z]
+      )
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    master = view |> element("#security-merge-dialog [data-role='merge-master-data']") |> render()
+    assert master =~ "Provider currency"
+    assert master =~ "USD"
+
+    assert master =~
+             "carried: the target had none; the provider stated another currency than the security&#39;s."
+  end
+
   # User story:
   # As the operator whose duplicate carries a split its twin never booked,
   # I want the refusal to name the split, its ratio and the side lacking it,
