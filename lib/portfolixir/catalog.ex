@@ -722,15 +722,6 @@ defmodule Portfolixir.Catalog do
   @spec put_provider_currency(Actor.t(), Security.t(), String.t(), DateTime.t()) ::
           {:ok, Security.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def put_provider_currency(
-        %Actor{},
-        %Security{provider_currency: currency} = security,
-        currency,
-        _read_at
-      )
-      when is_binary(currency),
-      do: {:ok, security}
-
-  def put_provider_currency(
         %Actor{} = actor,
         %Security{} = security,
         currency,

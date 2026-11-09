@@ -278,7 +278,8 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
   # Acceptance criteria:
   # - With `GBp` stored after the caller loaded its struct (which read
   #   `USD`), a later read of `USD` replaces it and moves the time.
-  @tag :q_attack_red
+  # - A read equal to the stored row writes nothing and journals nothing,
+  #   whatever the caller's struct holds (closing act, QA5).
   test "a stale struct equal to the read skips the write although the row differs" do
     security = security!("Stale Line", "GBP")
     loaded = stated!(security, "USD", @read_at)
@@ -291,6 +292,19 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
     assert answered.provider_currency == stored(security).provider_currency,
            "answered #{answered.provider_currency}, stored #{stored(security).provider_currency}"
 
+    assert %{provider_currency: "USD", provider_currency_at: @later} = stored(security)
+
+    journaled = fn ->
+      Journal.list_entries(resource_type: "security", resource_id: to_string(security.id))
+    end
+
+    before = length(journaled.())
+    stale = %{stored(security) | provider_currency: nil, provider_currency_at: nil}
+
+    assert {:ok, %{provider_currency: "USD", provider_currency_at: @later}} =
+             Catalog.put_provider_currency(sync_actor(), stale, "USD", ~U[2026-11-09 18:00:00Z])
+
+    assert length(journaled.()) == before
     assert %{provider_currency: "USD", provider_currency_at: @later} = stored(security)
   end
 
