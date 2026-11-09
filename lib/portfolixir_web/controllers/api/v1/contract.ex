@@ -59,13 +59,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "alone; portfolixir.quotes.sync and portfolixir.securities.update say so. A " <>
               "provider answer in another currency than the security's is stored nowhere " <>
               "and answers currency_mismatch (#1411), and the currency each sync reads is " <>
-              "kept on the security for the data-quality set currency_mismatch (#1415)."
+              "kept on the security for the data-quality set currency_mismatch (#1415).",
             # --- Sprint 28 Q end ---
+            # --- S28 N1 begin ---
+            "Sprint 28, N1 (ADR-0056 §7): the labels an outside model writes, closed and " <>
+              "journaled under its token: PUT /api/v1/news/labels stores one label of a " <>
+              "story (cluster_id, model, prompt_version, event_type, materiality 0 to 3, " <>
+              "tone -1 to 1, confidence a decimal string from 0 to 1, and optionally " <>
+              "thesis_note_id, clause_idx and suggested_security_id; machine_generated is " <>
+              "always true); a field outside them, inside label or beside it, answers 422 " <>
+              "naming it, as does a wrong type, a confidence sent as a number, and a story, " <>
+              "security, thesis or clause that is not there; a second put of the same " <>
+              "cluster_id, model and prompt_version replaces the label in place."
+            # --- S28 N1 end ---
           ],
           " "
         ),
-      endpoints: [],
-      tools: [],
+      endpoints: [
+        # --- S28 N1 begin ---
+        "PUT /api/v1/news/labels"
+        # --- S28 N1 end ---
+      ],
+      tools: [
+        # --- S28 N1 begin ---
+        # --- S28 N1 end ---
+      ],
       parameters: [
         # --- Sprint 28 Q begin ---
         "POST /api/v1/securities/:security_id/sync_quotes (portfolixir.quotes.sync, whose " <>

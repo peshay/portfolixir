@@ -1507,6 +1507,31 @@ eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
   Verbraucher-Cursor: `consumer`, `ack_cursor`, `min_materiality` und
   `tier_min` ergeben `422`.
 
+### News-Labels (ADR-0056 §7)
+
+Ein Modell außerhalb der App vergibt Labels über ein Skript mit eigenem
+benannten Token (`PORTFOLIXIR_API_TOKENS`, z. B. `labeller=<token>`), sodass
+jedes Label unter diesem Namen im Journal steht. Ein Label ist ein Vorschlag
+(`machine_generated` ist immer wahr): Es sortiert Storys und verschiebt,
+verbirgt oder schreibt sonst nichts.
+
+- `PUT /api/v1/news/labels` speichert ein Label aus einem `label`-Objekt:
+  `cluster_id` (eine Story), `model` und `prompt_version` (1 bis 64
+  Buchstaben, Ziffern oder `. _ : / @ + -`, beginnend mit Buchstabe oder
+  Ziffer), `event_type` (`earnings`, `guidance`, `capital_measure`, `legal`,
+  `m_and_a`, `product`, `regulatory`, `macro`, `noise`), `materiality` 0 bis
+  3, `tone` -1, 0 oder 1, `confidence` als Dezimal-String von 0 bis 1 mit
+  höchstens vier Nachkommastellen, und optional `thesis_note_id` (eine These
+  des Wertpapiers der Story), `clause_idx` (eine ihrer Klauseln, nummeriert
+  wie der Lesezugriff auf unbeschriftete Storys sie nummeriert) und
+  `suggested_security_id`. Ein neues Label ergibt `201`; ein Put mit
+  denselben `cluster_id`, `model` und `prompt_version` ersetzt es an Ort und
+  Stelle und ergibt `200`. Das Schema ist geschlossen: Ein Feld außerhalb, in
+  `label` oder daneben, ergibt `422` mit seinem Namen, ebenso ein falscher
+  JSON-Typ, eine als Zahl gesendete `confidence` (`"must be a decimal
+  string"`) und eine Story, ein Wertpapier, eine These oder Klausel, die es
+  nicht gibt.
+
 ### Logos
 
 Jedes Wertpapier kann ein Logo tragen, automatisch ermittelt (CoinGecko für
