@@ -739,6 +739,15 @@ defmodule Portfolixir.News do
           | {:error, Ecto.Changeset.t()}
   def put_label(%Actor{} = actor, attrs) when is_map(attrs), do: Labels.put(actor, attrs)
 
+  @doc """
+  The labeller's read (`news.unlabeled`, ADR-0056 §7): at most `limit`
+  stories without a label of `prompt_version`, with the universe and the
+  rows' theses split into numbered clauses. See
+  `Portfolixir.News.Labels.unlabeled/2`.
+  """
+  @spec unlabeled(String.t(), pos_integer()) :: Labels.unlabeled()
+  def unlabeled(prompt_version, limit), do: Labels.unlabeled(prompt_version, limit)
+
   # --- S28 N1 end ---
 
   # --- S28 N2 begin ---

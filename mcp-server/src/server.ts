@@ -10,7 +10,7 @@ import { ZodError } from "zod";
 import type { ApiClient } from "./api-client.js";
 import { profileClause } from "./profiles.js";
 import { getPrompt, listPrompts } from "./prompts.js";
-import { callTool, listTools, type ToolPolicy } from "./tools.js";
+import { allTools, callTool, listTools, type ToolPolicy } from "./tools.js";
 
 // The read-only switch lives with the profiles since A1 (#992), as a synonym
 // for PORTFOLIXIR_MCP_PROFILE=read; it is re-exported where it always was.
@@ -59,8 +59,8 @@ export function serverInstructions(policy: ToolPolicy = {}): string {
  * published schema names. Under a profile (A1, #992) it lists only that
  * profile's tools, and `callTool` refuses any other tool again at the call.
  * It offers three prompts (A4, #983; position_review, Sprint 25 F5), the
- * same under every profile; the first-setup and position-review prompts
- * embed the profile that runs.
+ * same under every agent profile and none under the news labeller's; the
+ * first-setup and position-review prompts embed the profile that runs.
  */
 export function createPortfolixirMcpServer(
   client: ApiClient,
@@ -85,7 +85,9 @@ export function createPortfolixirMcpServer(
     )
   );
 
-  server.server.setRequestHandler("prompts/list", () => ({ prompts: listPrompts() }));
+  server.server.setRequestHandler("prompts/list", () => ({
+    prompts: listPrompts(policy.profile ?? "full")
+  }));
 
   server.server.setRequestHandler("prompts/get", (request) => {
     const prompt = getPrompt(request.params.name, request.params.arguments, policy.profile ?? "full");
@@ -130,7 +132,7 @@ async function answer(
   args: Record<string, unknown>,
   policy: ToolPolicy
 ): Promise<CallToolResult> {
-  if (!listTools().some((tool) => tool.name === name)) {
+  if (!allTools().some((tool) => tool.name === name)) {
     return toolError(`Tool ${name} not found`);
   }
 

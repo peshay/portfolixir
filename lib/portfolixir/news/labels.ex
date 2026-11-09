@@ -1,6 +1,7 @@
 defmodule Portfolixir.News.Labels do
   @moduledoc """
-  The labels of ADR-0056 §7: the one write (`put/2`, `news.label_put`).
+  The labels of ADR-0056 §7: the one write (`put/2`, `news.label_put`) and
+  the labeller's one read (`unlabeled/2`, `news.unlabeled`).
 
   ## A closed write
 
@@ -45,6 +46,27 @@ defmodule Portfolixir.News.Labels do
   Every write is journaled as `news_label` under the actor that made it,
   the API token's name (§7, §14 item 6; ADR-0054 §3), and the table is armed
   with the journal-actor guard.
+
+  ## The labeller's read (`unlabeled/2`)
+
+  The stories without a label of one prompt version, from any model, newest
+  first by their first sight (then the best tier, then the id: a work
+  queue, so a story labelled leaves it and the next call reads the next
+  ones). Each row is what a label needs: the story's id, its security or
+  category, its representative's title, excerpt, domain and publication
+  time, and its best tier. Once per answer, the **universe** a label may
+  name in `suggested_security_id` — the news universe
+  (`Portfolixir.News.Universe`) and the rows' own securities, each with a
+  name of at most 20 characters and its ISIN — and the rows' categories;
+  and per security of the rows whose current thesis is intact and states an
+  invalidation condition, the thesis's note id and the condition's
+  **clauses** as `clauses/1` numbers them (the numbering `clause_idx` is
+  checked against), at most six of them, with `more` counting the rest.
+
+  **Its size** (§9; the amendment of 2026-11-08, C5): a title is cut at
+  160, an excerpt at 600, a domain at 40 and a clause at 160 characters as
+  the companion spells them (`Portfolixir.News.Reads.clip_spelled/2`); at
+  most 25 rows, 10 by default.
   """
   import Ecto.Query
 
@@ -52,10 +74,15 @@ defmodule Portfolixir.News.Labels do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Classifications.Category
   alias Portfolixir.Journal
+  alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.News.Cluster
+  alias Portfolixir.News.Item
   alias Portfolixir.News.Label
+  alias Portfolixir.News.Reads
+  alias Portfolixir.News.Universe
   alias Portfolixir.Repo
 
   @integers ~w(cluster_id materiality tone thesis_note_id clause_idx suggested_security_id)
@@ -67,7 +94,22 @@ defmodule Portfolixir.News.Labels do
   # end a clause (§7).
   @clause_break ~r/\r\n|[\r\n;\x{2028}\x{2029}]/u
 
+  @title_max 160
+  @excerpt_max 600
+  @domain_max 40
+  @clause_max 160
+  @clauses_listed 6
+  @rank_sql "CASE ? WHEN 'primary' THEN 0 WHEN 'secondary' THEN 1 ELSE 2 END"
+
   @type written :: :created | :updated | :unchanged
+
+  @type unlabeled :: %{
+          rows: [map()],
+          truncated: boolean(),
+          universe: [%{id: pos_integer(), name: String.t(), isin: String.t() | nil}],
+          categories: [%{id: pos_integer(), name: String.t()}],
+          theses: [map()]
+        }
 
   @doc """
   Stores the label `attrs` (string keys, as the JSON names them) on behalf
@@ -106,6 +148,133 @@ defmodule Portfolixir.News.Labels do
     |> String.split(@clause_break)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
+  end
+
+  @doc """
+  The stories without a label of `prompt_version`, at most `limit` of them,
+  with the universe, the rows' categories and their securities' thesis
+  clauses; see the moduledoc.
+  """
+  @spec unlabeled(String.t(), pos_integer()) :: unlabeled()
+  def unlabeled(prompt_version, limit)
+      when is_binary(prompt_version) and is_integer(limit) and limit > 0 do
+    labelled =
+      from(l in Label,
+        where: l.cluster_id == parent_as(:story).id and l.prompt_version == ^prompt_version,
+        select: 1
+      )
+
+    rows =
+      from(c in Cluster,
+        as: :story,
+        join: i in Item,
+        on: i.id == c.representative_item_id,
+        where: not exists(subquery(labelled)),
+        order_by: [
+          desc: c.earliest_first_seen_at,
+          asc: fragment(@rank_sql, c.best_tier),
+          desc: c.id
+        ],
+        limit: ^(limit + 1),
+        select: %{
+          id: c.id,
+          security_id: c.security_id,
+          category_id: c.category_id,
+          title: i.title,
+          excerpt: i.excerpt,
+          domain: i.domain,
+          tier: c.best_tier,
+          at: i.published_at
+        }
+      )
+      |> Repo.all()
+
+    {rows, more} = Enum.split(rows, limit)
+    security_ids = rows |> Enum.map(& &1.security_id) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+    %{
+      rows: Enum.map(rows, &clip_row/1),
+      truncated: more != [],
+      universe: universe(security_ids),
+      categories: categories(rows),
+      theses: security_ids |> Enum.sort() |> Enum.flat_map(&thesis/1)
+    }
+  end
+
+  defp clip_row(row) do
+    %{
+      row
+      | title: Reads.clip_spelled(row.title, @title_max),
+        excerpt: Reads.clip_spelled(row.excerpt, @excerpt_max),
+        domain: Reads.clip_spelled(row.domain, @domain_max)
+    }
+  end
+
+  # The news universe and the rows' own securities (an issuer feed's
+  # security need not be held, targeted or watched), by id.
+  defp universe(security_ids) do
+    members = Universe.members()
+    known = MapSet.new(members, & &1.id)
+
+    others =
+      case Enum.reject(security_ids, &MapSet.member?(known, &1)) do
+        [] ->
+          []
+
+        ids ->
+          Repo.all(
+            from(s in Security,
+              where: s.id in ^ids,
+              select: %{id: s.id, name: s.name, isin: s.isin}
+            )
+          )
+      end
+
+    (members ++ others)
+    |> Enum.map(&%{id: &1.id, name: Reads.short_name(&1.name), isin: &1.isin})
+    |> Enum.sort_by(& &1.id)
+  end
+
+  defp categories(rows) do
+    case rows |> Enum.map(& &1.category_id) |> Enum.reject(&is_nil/1) |> Enum.uniq() do
+      [] ->
+        []
+
+      ids ->
+        from(c in Category,
+          where: c.id in ^ids,
+          order_by: c.id,
+          select: %{id: c.id, name: c.name}
+        )
+        |> Repo.all()
+        |> Enum.map(&%{&1 | name: Reads.short_name(&1.name)})
+    end
+  end
+
+  # The current thesis, when intact and stating a condition: its clauses as
+  # `clauses/1` numbers them, the first six listed, each cut at 160.
+  defp thesis(security_id) do
+    with %{status: :intact, derived_from_entry_id: note_id, invalidation_condition: condition}
+         when is_integer(note_id) <- Knowledge.thesis_state(security_id),
+         [_ | _] = clauses <- clauses(condition) do
+      {listed, rest} = Enum.split(clauses, @clauses_listed)
+
+      [
+        %{
+          security_id: security_id,
+          note_id: note_id,
+          clauses:
+            listed
+            |> Enum.with_index(1)
+            |> Enum.map(fn {text, idx} ->
+              %{idx: idx, text: Reads.clip_spelled(text, @clause_max)}
+            end),
+          more: if(rest == [], do: nil, else: length(rest))
+        }
+      ]
+    else
+      _none -> []
+    end
   end
 
   # -- the shape: keys and JSON types ------------------------------------------

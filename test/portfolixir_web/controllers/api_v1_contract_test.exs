@@ -98,6 +98,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "answers 422 naming it"
     assert newest["summary"] =~ "a confidence sent as a number"
     assert newest["summary"] =~ "replaces the label in place"
+    assert "GET /api/v1/news/unlabeled" in newest["endpoints"]
+    assert newest["summary"] =~ "GET /api/v1/news/unlabeled"
+
+    for tool <- ~w(portfolixir.news.label_put portfolixir.news.unlabeled) do
+      assert tool in newest["tools"], tool
+      assert newest["summary"] =~ tool, tool
+    end
+
+    assert newest["summary"] =~ "label profile (PORTFOLIXIR_MCP_PROFILE=label) only"
     # --- S28 N1 end ---
 
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.

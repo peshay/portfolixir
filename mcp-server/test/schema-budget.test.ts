@@ -3,11 +3,12 @@ import { describe, it } from "node:test";
 
 import { MCP_PROFILES } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
-import { listTools } from "../src/tools.js";
+import { allTools } from "../src/tools.js";
 import { publishedTools } from "./support/companion.js";
 import {
   CEILING_HISTORY,
   ceilingViolations,
+  LABEL_CEILING,
   type CeilingRow,
   contractToolDebuts,
   SCHEMA_CEILINGS as CEILINGS,
@@ -700,7 +701,9 @@ describe("the schema budget", () => {
 
     assert.deepEqual(
       [...debuts.keys()].sort(),
-      listTools()
+      // Every declared tool, the news labeller's included (S28 N1): the
+      // manifest names the surface, whichever profile lists a tool.
+      allTools()
         .map((tool) => tool.name)
         .sort(),
       "the manifest's tools, removals applied, are the companion's"
@@ -741,6 +744,9 @@ describe("the schema budget", () => {
     }
     // --- Sprint 27 N7 end ---
     // --- S28 N1 begin ---
+    for (const name of ["portfolixir.news.label_put", "portfolixir.news.unlabeled"]) {
+      assert.equal(debuts.get(name), "2026-11-09", name);
+    }
     // --- S28 N1 end ---
     // --- S28 N2 begin ---
     // --- S28 N2 end ---
@@ -753,4 +759,52 @@ describe("the schema budget", () => {
     // --- S28 N6 begin ---
     // --- S28 N6 end ---
   });
+
+  // --- S28 N1 begin ---
+  // User story (ADR-0056 §7; Sprint 24 plan D-2's rule, applied to a new
+  // profile):
+  // As the operator whose agent and labeller each pay for their tool list,
+  // I want the labeller's two tools to cost the agent's profiles nothing
+  // and the labeller's profile no more than those two tools,
+  // so that adding a labeller grows no agent's context and its own list
+  // cannot grow unnoticed.
+  //
+  // Acceptance criteria:
+  // - news.label_put and news.unlabeled measure 0 bytes in read, book and
+  //   full, whose ceilings therefore stay where they were.
+  // - The label profile lists exactly the two, and its list measures their
+  //   own bytes and the list's three characters, at or under LABEL_CEILING.
+  it("charges the labeller's tools to the label profile alone", () => {
+    const names = ["portfolixir.news.label_put", "portfolixir.news.unlabeled"];
+
+    for (const profile of MCP_PROFILES) {
+      for (const name of names) {
+        assert.equal(toolBytes(name, profile), 0, `${profile}: ${name}`);
+      }
+    }
+
+    assert.deepEqual(
+      publishedToolList({ profile: "label" })
+        .map((tool) => tool.name)
+        .sort(),
+      names
+    );
+
+    const own = names.reduce(
+      (sum, name) =>
+        sum +
+        Buffer.byteLength(
+          JSON.stringify(publishedToolList({ profile: "label" }).find((tool) => tool.name === name)),
+          "utf8"
+        ),
+      0
+    );
+
+    assert.equal(schemaBytes("label"), own + 3, "the list is the two tools and nothing else");
+    assert.ok(
+      schemaBytes("label") <= LABEL_CEILING,
+      `label: ${schemaBytes("label")} bytes is over its ceiling of ${LABEL_CEILING}`
+    );
+  });
+  // --- S28 N1 end ---
 });

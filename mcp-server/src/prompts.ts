@@ -1,6 +1,6 @@
 import type { GetPromptResult, Prompt } from "@modelcontextprotocol/server";
 
-import type { McpProfile } from "./profiles.js";
+import type { AgentProfile, McpProfile } from "./profiles.js";
 
 /**
  * The companion's MCP prompts (Sprint 17 A4, #983): instructions the
@@ -95,7 +95,7 @@ export const PROMPTS: Prompt[] = [
   }
 ];
 
-const PROFILE_LINE: Record<McpProfile, string> = {
+const PROFILE_LINE: Record<AgentProfile, string> = {
   read:
     "It lists only the tools that change nothing, so this setup can read and propose but not " +
     "create: the operator carries out what you propose on the instance's own pages, or " +
@@ -110,7 +110,7 @@ const PROFILE_LINE: Record<McpProfile, string> = {
     "only reads and creates, and if a step seems to need a delete or a merge, stop and ask."
 };
 
-function firstSetup(profile: McpProfile): string {
+function firstSetup(profile: AgentProfile): string {
   return `# First setup of Portfolixir
 
 You are helping the operator set up Portfolixir, a self-hosted portfolio record that runs on their own machine. You reach it through this MCP companion, which calls the instance's local JSON API and nothing else.
@@ -240,7 +240,7 @@ The operator opens the Imports page (Transactions → Import in the UI, /imports
 // Sprint 25, F5 (ADR-0055 §5; idea F32): the recording workflow. Without a
 // prompt that asks for predictions the table stays empty; the judgement
 // stays with the agent, and the result is a recorded call, never a trade.
-const RECORD_LINE: Record<McpProfile, string> = {
+const RECORD_LINE: Record<AgentProfile, string> = {
   read:
     "This companion runs the read profile (PORTFOLIXIR_MCP_PROFILE), which cannot record a " +
     "prediction: do steps 1 to 3, give the operator the list, and leave the recording to a " +
@@ -253,7 +253,7 @@ const RECORD_LINE: Record<McpProfile, string> = {
     "with portfolixir.predictions.create. This review needs no other write."
 };
 
-function positionReview(securityId: string | undefined, profile: McpProfile): string {
+function positionReview(securityId: string | undefined, profile: AgentProfile): string {
   const given = (securityId ?? "").trim();
   const target = /^[1-9][0-9]{0,18}$/.test(given)
     ? `security ${given}, which the operator named`
@@ -301,8 +301,18 @@ End with a short summary: the calls recorded, or none and why, and when the firs
 `;
 }
 
-/** The prompts this companion offers, the same under every profile. */
-export function listPrompts(): Prompt[] {
+/**
+ * The prompts this companion offers, the same under every agent profile;
+ * the news labeller's `label` profile offers none (ADR-0056 §7: it lists
+ * its two tools and nothing else).
+ */
+export function listPrompts(profile: McpProfile = "full"): Prompt[] {
+  // --- S28 N1 begin ---
+  if (profile === "label") {
+    return [];
+  }
+  // --- S28 N1 end ---
+
   return PROMPTS;
 }
 
@@ -318,9 +328,11 @@ export function getPrompt(
 ): GetPromptResult | undefined {
   const prompt = PROMPTS.find((candidate) => candidate.name === name);
 
-  if (prompt === undefined) {
+  // --- S28 N1 begin ---
+  if (prompt === undefined || profile === "label") {
     return undefined;
   }
+  // --- S28 N1 end ---
 
   const text =
     name === "first_setup"

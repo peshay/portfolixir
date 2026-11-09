@@ -70,18 +70,28 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "always true); a field outside them, inside label or beside it, answers 422 " <>
               "naming it, as does a wrong type, a confidence sent as a number, and a story, " <>
               "security, thesis or clause that is not there; a second put of the same " <>
-              "cluster_id, model and prompt_version replaces the label in place."
+              "cluster_id, model and prompt_version replaces the label in place. GET " <>
+              "/api/v1/news/unlabeled answers the stories without a label of prompt_version " <>
+              "(limit 10, at most 25), with once per answer the universe a label may suggest " <>
+              "and each row security's thesis split into numbered clauses; an unknown " <>
+              "parameter answers 422 naming it. The tools portfolixir.news.label_put and " <>
+              "portfolixir.news.unlabeled reach them under the companion's label profile " <>
+              "(PORTFOLIXIR_MCP_PROFILE=label) only, which lists nothing else; the read, book " <>
+              "and full profiles do not list them."
             # --- S28 N1 end ---
           ],
           " "
         ),
       endpoints: [
         # --- S28 N1 begin ---
-        "PUT /api/v1/news/labels"
+        "PUT /api/v1/news/labels",
+        "GET /api/v1/news/unlabeled"
         # --- S28 N1 end ---
       ],
       tools: [
         # --- S28 N1 begin ---
+        "portfolixir.news.label_put",
+        "portfolixir.news.unlabeled"
         # --- S28 N1 end ---
       ],
       parameters: [
