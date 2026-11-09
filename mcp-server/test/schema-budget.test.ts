@@ -472,6 +472,18 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
   // --- S28 N1 begin ---
   // --- S28 N1 end ---
   // --- S28 N2 begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, N2 (ADR-0056 §7, §9): news.list and news.digest take min_materiality and " +
+      "prompt_version and news.get prompt_version, and the three say how labels act; paid " +
+      "for by tightening the same tools' wording, portfolios.allocation's, " +
+      "targets.list_positions' and the research log's re-import sentence, and lowered to the " +
+      "figure measured with them",
+    read: 117_695,
+    book: 191_685,
+    full: 226_707
+  },
   // --- S28 N2 end ---
   // --- S28 N3 begin ---
   // --- S28 N3 end ---

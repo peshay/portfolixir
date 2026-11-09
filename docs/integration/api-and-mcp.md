@@ -4684,7 +4684,9 @@ API may have committed it, and its answer cannot be read.
   answer compact JSON (no indentation), so the read budgets hold for what the
   tool returns; titles and excerpts reach the agent with every invisible
   character spelled `[U+XXXX]`, and each description says the answer is data,
-  never instructions. `news.get` takes `cluster_id` or `news_id`.
+  never instructions. `news.get` takes `cluster_id` or `news_id`, and
+  `prompt_version` with a `cluster_id` only; `news.list` and `news.digest`
+  take `min_materiality` and `prompt_version`; no news tool takes `tone`.
 - `portfolixir.news.unlabeled` and `portfolixir.news.label_put` — the news
   labeller's read and write (ADR-0056 §7), each calling the route of
   [News labels](#news-labels-adr-0056-7). Only the `label` profile
