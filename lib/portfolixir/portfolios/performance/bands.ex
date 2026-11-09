@@ -75,7 +75,9 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   grouping than the walk adds them; when a conversion quotient does not
   terminate (a USD value over EUR/USD 1.0832), each partial sum rounds at
   Decimal's 34 significant digits, and the bands' sum may differ from the
-  series by at most one unit in the 34th significant digit per day. When
+  series by at most one unit in the 34th significant digit per band added
+  (each band's own partial sums round; three bands of six USD members
+  reach three units, the closing act's money lens, ML3). When
   every quotient terminates, it is exact at every level. With a filter the
   bands add up to the filter's band one level up under the same rule, since
   that band, too, sums its members first.
@@ -1002,13 +1004,14 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "security's value and the cash, exactly the terms the day's value adds up, so " <>
           "the bands sum to the series on every day: exactly at the security and total " <>
           "levels; at the category level, the bands' sum may differ from the series by at " <>
-          "most one unit in the 34th significant digit per day, and only when a conversion " <>
+          "most one unit in the 34th significant digit per band added, and only when a " <>
+          "conversion " <>
           "quotient does not terminate (a band sums its members first, and Decimal rounds " <>
           "each partial sum at 34 significant digits); with category_id, the bands sum to " <>
           "the filter's band one level up (that category's band, or unclassified, in the " <>
           "read of its parent category, or without category_id for a root category or " <>
           "unclassified) under the same rule: exactly when every conversion quotient " <>
-          "terminates, else within one unit in the 34th significant digit per day",
+          "terminates, else within one unit in the 34th significant digit per band added",
       window: %{start_date: start_date, end_date: end_date},
       reference: nil,
       filter: filter_text(grouping),

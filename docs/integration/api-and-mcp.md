@@ -2995,7 +2995,7 @@ Example account payloads:
   period parameters (and `view=` on the portfolio form): the performance
   read's value series split into bands that sum to it exactly on every day
   (at the category level within one unit in the 34th significant digit per
-  day when a conversion quotient does not terminate, as
+  band added when a conversion quotient does not terminate, as
   `computation_basis.input_series` states). The view and view-less forms answer in EUR, or in `base_currency=` (a
   supported currency code, echoed as `base_currency`): the Wealth screen
   asks in its page's base currency, so the two agree when asked alike; the
