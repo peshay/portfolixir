@@ -19,8 +19,9 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     * `GET /api/v1/news/health` (`news.health`) — `Portfolixir.News.health/1`
       at the server's clock.
     * `GET /api/v1/news/digest` (`news.digest`) — one row per security with
-      something new since `since` (default 24 hours before now), without
-      a consumer cursor (§11): `view_id` (else the news universe),
+      something new since `since` (default 24 hours before now), or since
+      a `consumer`'s confirmed position, which `ack_cursor` moves (S28 N3,
+      §9; `Portfolixir.News.DigestCursor`): `view_id` (else the news universe),
       `min_materiality` (2) and `include_unlabeled` (`false`), acting on
       aggregator and thematic stories only (§7, S28 N2), `max_rows` (12, at
       most 40, C5). See `Portfolixir.News.Reads.digest/5`.
@@ -43,8 +44,10 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.News
+  alias Portfolixir.News.DigestCursor
   alias Portfolixir.News.Label
   alias Portfolixir.News.Reads
+  alias PortfolixirWeb.Api.V1.DigestCursorKey
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -63,7 +66,11 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   @assignments %{"unassigned" => :unassigned, "ambiguous" => :ambiguous}
   @fields ~w(slim std)
 
-  @digest_params ~w(view_id since include_unlabeled max_rows) ++ @label_params
+  # --- S28 N3 begin ---
+  # The digest's consumer cursor (§9).
+  @cursor_params ~w(consumer ack_cursor)
+  # --- S28 N3 end ---
+  @digest_params ~w(view_id since include_unlabeled max_rows) ++ @label_params ++ @cursor_params
   @digest_rows 12
   @digest_rows_max 40
   @day_seconds 24 * 60 * 60
@@ -132,13 +139,17 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   def digest(conn, params) do
     with :ok <- closed(conn, @digest_params),
          {:ok, view_id} <- view_id(params["view_id"]),
+         {:ok, consumer_name} <- consumer_params(params),
          {:ok, since} <- digest_since(params),
          {:ok, include_unlabeled} <- include_unlabeled(params["include_unlabeled"]),
          {:ok, max_rows} <- max_rows(params["max_rows"]),
          {:ok, min} <- min_materiality(params["min_materiality"], @digest_min_materiality),
          {:ok, version} <- prompt_version(params["prompt_version"]),
          as_of = Reads.as_of(),
-         {:ok, security_ids} <- Reads.digest_securities(view_id) do
+         {:ok, security_ids} <- Reads.digest_securities(view_id),
+         {:ok, consumer} <- consumer(consumer_name, params["ack_cursor"]) do
+      since = if consumer, do: consumer.position, else: since
+
       digest =
         Reads.digest(security_ids, since, include_unlabeled, max_rows,
           view: not is_nil(view_id),
@@ -149,7 +160,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       data =
         compact(%{
           since: time(since),
-          as_of: time(as_of),
+          as_of: if(is_nil(consumer), do: time(as_of)),
+          cursor: consumer && News.issue_digest_cursor(consumer, as_of, DigestCursorKey.key()),
           view_id: view_id,
           rows: Enum.map(digest.rows, &digest_row/1),
           categories: digest.categories && Enum.map(digest.categories, &digest_row/1),
@@ -372,6 +384,65 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       other -> other
     end
   end
+
+  # --- S28 N3 begin ---
+  # §9: `consumer or since`. With a consumer the server keeps its position,
+  # so a `since` beside it would be a second start: refused, never read
+  # past. `ack_cursor` confirms a consumer's cursor, so it needs one.
+  defp consumer_params(%{"consumer" => name} = params) when name not in [nil, ""] do
+    cond do
+      not DigestCursor.name?(name) ->
+        {:error,
+         %{
+           "consumer" => [
+             "must be 1 to 64 letters, digits or . _ : / @ + -, starting with a letter or digit"
+           ]
+         }}
+
+      present?(params["since"]) ->
+        {:error,
+         %{
+           "since" => [
+             "is not taken with consumer: the server reads from the consumer's position"
+           ]
+         }}
+
+      true ->
+        {:ok, name}
+    end
+  end
+
+  defp consumer_params(params) do
+    if present?(params["ack_cursor"]),
+      do: {:error, %{"ack_cursor" => ["confirms a consumer's cursor: pass it with consumer"]}},
+      else: {:ok, nil}
+  end
+
+  # Last of the digest's steps, so a refused parameter neither creates a
+  # consumer nor confirms its cursor.
+  defp consumer(nil, _ack_cursor), do: {:ok, nil}
+
+  defp consumer(name, ack_cursor) do
+    ack_cursor = if present?(ack_cursor), do: ack_cursor
+
+    case News.digest_consumer(name, ack_cursor, DateTime.utc_now(), DigestCursorKey.key()) do
+      {:ok, consumer} ->
+        {:ok, consumer}
+
+      {:error, :not_issued} ->
+        {:error, %{"ack_cursor" => ["is not a cursor this server issued to consumer #{name}"]}}
+
+      {:error, {:cap, cap}} ->
+        {:error,
+         %{
+           "consumer" => [
+             "is a new consumer, and the server keeps at most #{cap}: use one already stored"
+           ]
+         }}
+    end
+  end
+
+  # --- S28 N3 end ---
 
   defp include_unlabeled(value) when value in [nil, "", "false", false], do: {:ok, false}
   defp include_unlabeled(value) when value in ["true", true], do: {:ok, true}

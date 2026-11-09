@@ -349,12 +349,12 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       end
     end
 
-    # The consumer cursor is Sprint 28's N3 (§11): its parameters are
-    # refused, never taken for a filter that ran; the labels' (N2) take
-    # only their own shapes.
+    # The consumer cursor's parameters (S28 N3) and the labels' (N2) take
+    # only their own shapes; a consumer outside the identifier shape and a
+    # cursor without its consumer are refused, never read past.
     test "an unknown or malformed parameter answers 422 naming it", %{conn: conn} do
       for {query, key} <- [
-            {[consumer: "agent"], "consumer"},
+            {[consumer: "an agent"], "consumer"},
             {[ack_cursor: "c"], "ack_cursor"},
             {[min_materiality: 4], "min_materiality"},
             {[min_materiality: "high"], "min_materiality"},

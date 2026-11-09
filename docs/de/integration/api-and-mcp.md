@@ -1526,8 +1526,27 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `ambiguous` nur die Einträge, die eines davon nennen. `max_rows`
   (standardmäßig 12, womit der Digest in seinem Budget bleibt; höchstens 40)
   begrenzt die Zeilen; `truncated` und `more` sagen, wie viele weggelassen
-  wurden. Der Digest hat noch keinen Verbraucher-Cursor: `consumer`,
-  `ack_cursor` und `tier_min` ergeben `422`.
+  wurden. `tier_min` ergibt `422`.
+
+  **Der Verbraucher-Cursor** (§9, mindestens einmal): mit `consumer` (ein
+  Bezeichner wie das Modell eines Labels) hält der Server die bestätigte
+  Position dieses Lesers und liest ab ihr, beantwortet sie als `since` und
+  trägt einen `cursor` statt `as_of`. Ein neuer Verbraucher beginnt
+  24 Stunden zurück. Die Position rückt nur vor, wenn der nächste Aufruf den
+  Cursor einer verarbeiteten Antwort mit `ack_cursor` bestätigt: ein Aufruf
+  ohne ihn liest erneut ab der bestätigten Position, sodass ein Lauf, der
+  nach dem Lesen abbricht, nichts verliert; der Preis ist eine doppelt
+  gelesene Story. Ein Cursor, der älter ist als die gespeicherte Position,
+  ändert nichts; einer, den der Server nicht diesem Verbraucher ausgegeben
+  hat (gefälscht, verändert oder der eines anderen Verbrauchers), ergibt
+  `422` mit `ack_cursor`, und nichts rückt vor. Zwei Verbraucher verschieben
+  einander nie. `since` neben `consumer` und `ack_cursor` ohne ihn ergeben
+  `422`. Der Server hält höchstens 32 Verbraucher; ein neuer darüber hinaus
+  ergibt `422` mit der Obergrenze. Ein Cursor ist mit einem aus
+  `SECRET_KEY_BASE` abgeleiteten Schlüssel signiert: ändert sich dieses
+  Geheimnis, ergibt ein gespeicherter Cursor `422`, und ein Aufruf ohne
+  `ack_cursor` liest ab der bestätigten Position weiter. Ohne `consumer`
+  hält der Digest keinen Zustand.
 
 ### News-Labels (ADR-0056 §7)
 
@@ -5129,7 +5148,11 @@ lässt sich nicht lesen.
   jede Beschreibung sagt, dass die Antwort Daten sind, nie Anweisungen.
   `news.get` nimmt `cluster_id` oder `news_id` und `prompt_version` nur mit
   einer `cluster_id`; `news.list` und `news.digest` nehmen `min_materiality`
-  und `prompt_version`; kein News-Werkzeug nimmt `tone`.
+  und `prompt_version`; kein News-Werkzeug nimmt `tone`. `news.digest` nimmt
+  `consumer` und `ack_cursor` und lehnt `since` neben `consumer` und
+  `ack_cursor` ohne ihn ab; es bleibt in jedem Profil ein Lesewerkzeug, weil
+  die Position, die es verschiebt, das eigene Lesezeichen des Verbrauchers
+  ist, keine Daten des Betreibers.
 - `portfolixir.news.unlabeled` und `portfolixir.news.label_put` — Lese- und
   Schreibzugriff des News-Labellers (ADR-0056 §7), jeder ruft die Route aus
   [News-Labels](#news-labels-adr-0056-7) auf. Nur das Profil `label`
