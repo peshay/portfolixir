@@ -422,17 +422,21 @@ defmodule Portfolixir.News.IngestTest do
   # - An issuer item is `primary` whatever its domain's row says, unless
   #   the domain is blocked.
   describe "tiers and blocks (§3, B5)" do
+    # #1424: the domains this test rates are its own. A rating is a row
+    # under a unique domain, held uncommitted until a test's sandbox rolls
+    # back, so an async test rating the same domain waited for this one to
+    # end (and this one for it), and failed under load.
     test "a blocked domain's items are dropped and counted, the rest rated" do
-      rate!("spam.example.net", :blocked)
+      rate!("spam.ingest.example.net", :blocked)
       rate!("newsroom.example.com", :primary)
-      rate!("wire.example.com", :secondary)
+      rate!("wire.ingest.example.com", :secondary)
       feed = feed!(%{class: "aggregator", url: "https://search.example.com/rss?q=t"})
 
       batch = [
-        agg(1, "Item from a blocked domain", "spam.example.net"),
-        agg(2, "Item from a blocked subdomain", "eu.spam.example.net"),
+        agg(1, "Item from a blocked domain", "spam.ingest.example.net"),
+        agg(2, "Item from a blocked subdomain", "eu.spam.ingest.example.net"),
         agg(3, "Item naming a primary domain", "newsroom.example.com"),
-        agg(4, "Item from a secondary domain", "wire.example.com"),
+        agg(4, "Item from a secondary domain", "wire.ingest.example.com"),
         agg(5, "Item from an unrated domain", "blog.example.org")
       ]
 
@@ -440,7 +444,7 @@ defmodule Portfolixir.News.IngestTest do
 
       assert Enum.map(items(feed), &{&1.domain, &1.tier}) == [
                {"newsroom.example.com", :secondary},
-               {"wire.example.com", :secondary},
+               {"wire.ingest.example.com", :secondary},
                {"blog.example.org", :awareness}
              ]
 

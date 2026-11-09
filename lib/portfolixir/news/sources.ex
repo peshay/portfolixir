@@ -158,10 +158,9 @@ defmodule Portfolixir.News.Sources do
       domain = Ecto.Changeset.get_field(changeset, :domain)
 
       Multi.new()
-      |> Multi.run(:prior, fn repo, _changes ->
-        {:ok, repo.one(from(s in Source, where: s.domain == ^domain, lock: "FOR UPDATE"))}
-      end)
-      |> Multi.run(:source, fn repo, %{prior: prior} -> write(repo, prior, attrs) end)
+      |> Multi.run(:claim, fn repo, _changes -> claim(repo, domain, attrs) end)
+      |> Multi.run(:prior, fn _repo, %{claim: claim} -> {:ok, prior(claim)} end)
+      |> Multi.run(:source, fn repo, %{claim: claim} -> written(repo, claim, attrs) end)
       |> Journal.record(actor,
         resource_type: "news_source",
         operation: :upsert,
@@ -174,9 +173,46 @@ defmodule Portfolixir.News.Sources do
         {:error, :source, {:kept, prior}, _changes} -> {:kept, prior}
         {:error, :source, {:unchanged, prior}, _changes} -> {:ok, prior}
         {:error, :source, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+        {:error, :claim, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
       end
     end
   end
+
+  # --- S28 N4 begin ---
+  # #1424: the domain's row, read under its lock, or this put's insert. A
+  # read that finds no row does not decide the insert: another put may
+  # insert the domain between the two (the flaky IngestTest's "has already
+  # been taken"). So the insert yields to a row that exists by then (ON
+  # CONFLICT DO NOTHING waits for the other put's transaction), and that
+  # row, read again under the lock, is this put's prior: the later put
+  # lands on the earlier's row, and the journal chains the two.
+  defp claim(repo, domain, attrs) do
+    case locked(repo, domain) do
+      %Source{} = row ->
+        {:ok, {:existing, row}}
+
+      nil ->
+        case repo.insert(Source.changeset(%Source{}, attrs),
+               on_conflict: :nothing,
+               conflict_target: :domain
+             ) do
+          {:ok, %Source{id: nil}} -> {:ok, {:existing, locked(repo, domain)}}
+          {:ok, %Source{} = inserted} -> {:ok, {:inserted, inserted}}
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  defp locked(repo, domain),
+    do: repo.one(from(s in Source, where: s.domain == ^domain, lock: "FOR UPDATE"))
+
+  defp prior({:existing, row}), do: row
+  defp prior({:inserted, _row}), do: nil
+
+  defp written(_repo, {:inserted, row}, _attrs), do: {:ok, row}
+  defp written(repo, {:existing, row}, attrs), do: write(repo, row, attrs)
+
+  # --- S28 N4 end ---
 
   # §3: a seed leaves a hand row as it is. A write equal to the stored row
   # writes nothing, so it records no entry either. Both end the transaction
@@ -191,6 +227,4 @@ defmodule Portfolixir.News.Sources do
       do: {:error, {:unchanged, prior}},
       else: repo.update(changeset)
   end
-
-  defp write(repo, nil, attrs), do: repo.insert(Source.changeset(%Source{}, attrs))
 end
