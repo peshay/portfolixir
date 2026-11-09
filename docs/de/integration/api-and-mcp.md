@@ -465,9 +465,10 @@ verengen, was der Betreiber sieht.
   wenn sie sich ändert; `provider_currency_at` ist also die Zeit des Lesens,
   das sie gespeichert hat. Ein Wertpapier, für das noch keine
   Synchronisierung eine Währung gelesen hat, ist noch unbekannt und nie in
-  der Menge. Wie die ersten drei lässt sie eine Benchmark und ein
-  stillgelegtes Wertpapier aus, und die Datenqualitätszeile der Übersicht
-  zählt sie. Darunter ergänzt der Umschlag `findings`, je gelistetem
+  der Menge. Wie die ersten drei lässt sie eine Benchmark aus, und ein
+  stillgelegtes Wertpapier, solange es nicht gehalten ist: Der Wert eines
+  gehaltenen ist so falsch wie zuvor, wie `implausible_quote` es behält. Die
+  Datenqualitätszeile der Übersicht zählt sie. Darunter ergänzt der Umschlag `findings`, je gelistetem
   Wertpapier eines — `security_id`, `currency_code`, `provider_currency` und
   `provider_currency_at` (ISO 8601, UTC) — und `computation_basis` mit
   denselben sechs Schlüsseln. Nichts wird umgerechnet: Die Abhilfe (der

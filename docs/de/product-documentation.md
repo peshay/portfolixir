@@ -268,6 +268,9 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   stillgelegtes Wertpapier in Ruhe: Ein ausverkauftes oder delistetes
   Wertpapier, das Sie stilllegen, verlässt sie, und die Zahlen der Übersicht
   sinken mit ihm; reaktiviert, steht es wieder in denen, auf die es passt.
+  *Währung abweichend* behält ein stillgelegtes Wertpapier, das Sie noch
+  halten, wie *Kurs passt nicht zu Buchungen*: Sein Wert in der Summe ist so
+  falsch wie zuvor.
   Dieselben Bedingungen sind im Filter-Bedienelement unter **Datenqualität**
   direkt wählbar — der Link von der Übersicht ist eine Abkürzung dorthin,
   nicht der einzige Weg. Der Agent fragt genau dieselben Mengen über
@@ -2188,7 +2191,8 @@ eigene („2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre
 eigene — ihre Kurse sind womöglich in der falschen Währung gespeichert;
 gehalten ist ihr Wert in der Summe oben daher falsch"), mit Link auf
 `?dq=currency_mismatch`; wie der Zähler veralteter Kurse lässt er Benchmarks
-und stillgelegte Wertpapiere aus, und ein Wertpapier, für das noch keine
+und stillgelegte Wertpapiere aus, außer einem noch gehaltenen stillgelegten,
+und ein Wertpapier, für das noch keine
 Synchronisierung eine Währung gelesen hat, ist noch unbekannt und wird nie
 gezählt. Drei Befunde aus dem Hauptbuch
 schließen die Zeile (Sprint 23), jeder nur, wenn sein Zähler größer als null

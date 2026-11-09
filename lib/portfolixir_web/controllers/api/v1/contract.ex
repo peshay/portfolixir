@@ -88,7 +88,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "description now carry it) takes data_quality=currency_mismatch: every security " <>
           "whose provider_currency, the currency its quote provider stated at the sync that " <>
           "stored it, is present and differs from its currency_code as written, benchmarks " <>
-          "and retired securities left out; null is not yet known, never in the set. The " <>
+          "left out and retired securities unless held (closing act), as implausible_quote " <>
+          "keeps them; null is not yet known, never in the set. The " <>
           "Overview's data-quality line counts it. Under it the envelope adds findings, one " <>
           "per listed security (security_id, currency_code, provider_currency, " <>
           "provider_currency_at in ISO 8601 UTC), and computation_basis (input_series, " <>

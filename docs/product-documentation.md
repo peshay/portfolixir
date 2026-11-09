@@ -236,7 +236,9 @@ be bookmarked or linked to:
   three, and *Currency mismatch*, leave a benchmark and a retired security
   alone: a sold-out or delisted security you retire leaves them, and the
   Overview's counts drop with it; reactivated, it is back in those it
-  matches. The same
+  matches. *Currency mismatch* keeps a retired security you still hold, as
+  *Quote does not match bookings* does: its value in the total is as wrong
+  as before. The same
   conditions can be picked in the filter control under **Data quality** —
   the dashboard link is a shortcut to them, not the only way in. The agent
   asks for the identical sets over
@@ -1985,8 +1987,8 @@ securities whose quote provider reports another currency than their own
 ("2 securities whose provider reports another currency than their own —
 their quotes may be stored in the wrong currency; if held, their value in
 the total above is wrong"), linking to `?dq=currency_mismatch`; like the
-stale-quote count it leaves out benchmarks and retired securities, and a
-security no sync has read a currency for is not yet known, never counted. Three findings from the ledger close the line
+stale-quote count it leaves out benchmarks and retired securities, except a
+retired one still held, and a security no sync has read a currency for is not yet known, never counted. Three findings from the ledger close the line
 (Sprint 23), each only when its count is above zero and each linking to the
 transaction history filtered to exactly its rows (`?dq=`, described under
 the history): "one booking whose cash misses its quantity × price, fees and

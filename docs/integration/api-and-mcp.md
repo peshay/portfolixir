@@ -426,8 +426,10 @@ full list.
   every sync that reads one, a refused answer's too (issue #1411), and only
   when it changes, so `provider_currency_at` is the time of the read that
   stored it; a security no sync has read a currency for is not yet known,
-  never in the set. Like the first three it leaves out a benchmark and a
-  retired security, and the Overview's data-quality line counts it. Under it
+  never in the set. Like the first three it leaves out a benchmark, and a
+  retired security unless it is held: a held one's value is as wrong as
+  before, as `implausible_quote` keeps it. The Overview's data-quality line
+  counts it. Under it
   the envelope adds `findings`, one per listed security — `security_id`,
   `currency_code`, `provider_currency` and `provider_currency_at` (ISO 8601,
   UTC) — and `computation_basis` with the same six keys. Nothing is

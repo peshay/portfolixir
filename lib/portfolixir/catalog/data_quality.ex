@@ -64,9 +64,11 @@ defmodule Portfolixir.Catalog.DataQuality do
   its value is as wrong as before.
 
   `currency_mismatch` (#1415, Sprint 28 Q3) is catalog hygiene of the same
-  kind as the first three, and leaves benchmarks and retired securities out
-  as they do: every security whose quote provider stated another currency
-  than its own at the sync that stored `provider_currency` — a series stored
+  kind as the first three, and leaves benchmarks out as they do, and a
+  retired security while it is not held (closing act, QA4): a held one's
+  value is as wrong as before, as `implausible_quote` keeps it. It is every
+  security whose quote provider stated another currency than its own at the
+  sync that stored `provider_currency` — a series stored
   before the sync refused such an answer (#1411), or a ticker that has moved
   to another listing since. Compared as written, so `GBp` (pence) differs
   from `GBP`. A security no sync has read a currency for has
@@ -162,6 +164,9 @@ defmodule Portfolixir.Catalog.DataQuality do
   # #1101 (D-7): the held securities, whatever their flags, as two_scales
   # keeps its rows.
   def list_opts("implausible_quote"), do: [holding_status: :held]
+  # Closing act, QA4: a retired security stays in currency_mismatch while it
+  # is held, as in implausible_quote; `refine/3` leaves the others out.
+  def list_opts("currency_mismatch"), do: [is_benchmark: false]
   def list_opts(id) when id in @ids, do: [is_benchmark: false, is_retired: false]
 
   @doc """
@@ -264,7 +269,9 @@ defmodule Portfolixir.Catalog.DataQuality do
       opts
       |> Keyword.merge(list_opts("currency_mismatch"))
       |> Catalog.list_securities()
-      |> Enum.count(&currency_mismatch?/1)
+      |> Enum.filter(&currency_mismatch?/1)
+      |> held_unless_retired()
+      |> length()
     end
   end
 
@@ -315,9 +322,11 @@ defmodule Portfolixir.Catalog.DataQuality do
         "a security is named when provider_currency differs from currency_code as " <>
           "written, letter case included: GBp (pence) differs from GBP",
       assumptions:
-        "benchmark and retired securities are left out, as from stale_quote, " <>
-          "missing_quote and missing_logo; the stored quotes are not read, converted or " <>
-          "changed: the remedy (the ticker, a sync, the stored rows) stays the operator's"
+        "benchmark securities are left out, as from stale_quote, missing_quote and " <>
+          "missing_logo, and a retired security unless it is held: a held one's value is " <>
+          "as wrong as before, as implausible_quote keeps it; the stored quotes are not " <>
+          "read, converted or changed: the remedy (the ticker, a sync, the stored rows) " <>
+          "stays the operator's"
     }
   end
 
@@ -408,6 +417,18 @@ defmodule Portfolixir.Catalog.DataQuality do
     end)
   end
 
+  # #1415, closing act QA4: the rule over the row's security; a retired one
+  # only while it is held, as implausible_quote keeps it, also on rows loaded
+  # without the query half. A row without a security is no finding.
+  def refine(rows, "currency_mismatch", _today) do
+    rows
+    |> Enum.filter(fn
+      %{security: %Security{} = security} -> currency_mismatch?(security)
+      _row -> false
+    end)
+    |> held_unless_retired(& &1.security)
+  end
+
   def refine(rows, id, today) when id in @ids do
     today = today || Clock.today()
     Enum.filter(rows, &(not retired?(&1) and matches?(&1, id, today)))
@@ -422,17 +443,28 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   defp matches?(row, "missing_quote", _today), do: is_nil(latest_price_date(row))
 
-  defp matches?(%{security: %Security{} = security}, "currency_mismatch", _today),
-    do: currency_mismatch?(security)
-
-  defp matches?(_row, "currency_mismatch", _today), do: false
-
   # #1415: present and different, as written; null is not yet known.
   defp currency_mismatch?(%Security{provider_currency: stated, currency_code: own})
        when is_binary(stated),
        do: stated != own
 
   defp currency_mismatch?(%Security{}), do: false
+
+  # A retired security only while it is held (closing act, QA4): its value
+  # still enters the total the Overview's clause is about. The held set is
+  # read only when a retired one is among them.
+  defp held_unless_retired(items, security_of \\ & &1) do
+    if Enum.any?(items, &(security_of.(&1).is_retired == true)) do
+      held = MapSet.new(HeldSecurities.held_ids())
+
+      Enum.filter(items, fn item ->
+        security = security_of.(item)
+        security.is_retired != true or MapSet.member?(held, security.id)
+      end)
+    else
+      items
+    end
+  end
 
   # A retired security's stopped feed is expected (PR #1102). The query half
   # already leaves it out; this keeps it out of the metric-derived sets on

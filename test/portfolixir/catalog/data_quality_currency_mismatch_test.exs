@@ -49,8 +49,10 @@ defmodule Portfolixir.Catalog.DataQualityCurrencyMismatchTest do
   #   written.
   # - A security whose provider stated its own currency is not in it, nor
   #   one no sync has read a currency for (null: not yet known).
-  # - Benchmarks and retired securities are left out, as from the other
-  #   catalog-hygiene sets, in the query half and on rows loaded without it.
+  # - Benchmarks are left out, as from the other catalog-hygiene sets; a
+  #   retired security is left out unless it is held (closing act, QA4, as
+  #   implausible_quote keeps a held one), on rows loaded without the query
+  #   half too.
   # - Its count is its list's length, with and without a caller's narrowing.
   test "currency_mismatch holds the securities whose provider stated another currency" do
     stated!(security!("Dollar Line", "EUR"), "USD")
@@ -66,15 +68,16 @@ defmodule Portfolixir.Catalog.DataQualityCurrencyMismatchTest do
     assert names(DataQuality.list("currency_mismatch")) == ["Dollar Line", "Pence Line"]
     assert DataQuality.count("currency_mismatch") == 2
 
-    assert DataQuality.list_opts("currency_mismatch") == [is_benchmark: false, is_retired: false]
+    assert DataQuality.list_opts("currency_mismatch") == [is_benchmark: false]
 
-    # Rows loaded without the query half: the retired one stays out.
+    # Rows loaded without the query half: the retired one, not held, stays
+    # out.
     rows = Catalog.list_securities_with_metrics()
 
     refute "Retired Line" in names(DataQuality.refine(rows, "currency_mismatch"))
 
-    # A caller's narrowing that contradicts the set matches nothing, by list
-    # and by count alike.
+    # A caller's narrowing to the retired securities finds no held one here,
+    # by list and by count alike.
     assert DataQuality.list("currency_mismatch", is_retired: true) == []
     assert DataQuality.count("currency_mismatch", is_retired: true) == 0
   end
@@ -116,5 +119,6 @@ defmodule Portfolixir.Catalog.DataQualityCurrencyMismatchTest do
     assert basis.gaps =~ "not yet known"
     assert basis.threshold =~ "GBp"
     assert basis.assumptions =~ "benchmark"
+    assert basis.assumptions =~ "unless it is held"
   end
 end
