@@ -1521,8 +1521,10 @@ verbirgt oder schreibt sonst nichts.
   Ziffer), `event_type` (`earnings`, `guidance`, `capital_measure`, `legal`,
   `m_and_a`, `product`, `regulatory`, `macro`, `noise`), `materiality` 0 bis
   3, `tone` -1, 0 oder 1, `confidence` als Dezimal-String von 0 bis 1 mit
-  höchstens vier Nachkommastellen, und optional `thesis_note_id` (eine These
-  des Wertpapiers der Story), `clause_idx` (eine ihrer Klauseln, nummeriert
+  höchstens vier Nachkommastellen, und optional `thesis_note_id` (die
+  aktuelle intakte These des Wertpapiers der Story, die der Lesezugriff auf
+  unbeschriftete Storys anbietet; eine abgelöste oder zurückgezogene
+  ergibt `422`), `clause_idx` (eine ihrer Klauseln, nummeriert
   wie der Lesezugriff auf unbeschriftete Storys sie nummeriert) und
   `suggested_security_id`. Ein neues Label ergibt `201`; ein Put mit
   denselben `cluster_id`, `model` und `prompt_version` ersetzt es an Ort und

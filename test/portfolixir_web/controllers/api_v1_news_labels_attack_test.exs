@@ -380,7 +380,6 @@ defmodule PortfolixirWeb.ApiV1NewsLabelsAttackTest do
   #   naming thesis_note_id.
   # - With the current thesis retracted, news.unlabeled offers none; a
   #   label naming it is refused naming thesis_note_id.
-  @tag :n1_attack_red
   test "a label names only the thesis the labeller's read offers", %{
     conn: conn,
     security: security,
