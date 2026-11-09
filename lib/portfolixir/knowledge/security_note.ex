@@ -17,6 +17,18 @@ defmodule Portfolixir.Knowledge.SecurityNote do
   `as_of` is the statement's cut-off date, distinct from `inserted_at` — an
   entry written today about last quarter is not fresh information, and only
   that separation makes the review-hygiene reads mean anything.
+
+  **A headline, an event type and a tone** (ADR-0044's amendment of
+  2026-11-06; Sprint 28, N5): an `evidence` or `event_result` entry may
+  carry `headline` (plain text, at most 80 code points, one line, no
+  invisible character: ADR-0054 §4), `event_type` (the eight types of
+  `event_types/0`, ADR-0056 §7's set without `noise`) and `tone` (-1, 0 or
+  +1, the writer's reading, never a computed figure, a filter or a sort
+  key). On any other kind each is refused naming the field. Like every
+  field they are set once: the log is append-only. `news_label_id` is
+  provenance only, never cast from input: the id of the news label an entry
+  written from a story took its event type or tone from
+  (`Portfolixir.News.Promotion`).
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -29,6 +41,12 @@ defmodule Portfolixir.Knowledge.SecurityNote do
   @source_qualities ~w(primary secondary_multi awareness unverified)a
   @authors ~w(operator agent local_model)a
   @convictions ~w(low medium high)a
+  # S28 N5 (ADR-0044's amendment of 2026-11-06): the event types an entry
+  # may carry, ADR-0056 §7's without `noise`, and the kinds that carry them.
+  @event_types ~w(earnings guidance capital_measure legal m_and_a product regulatory macro)a
+  @marker_kinds [:evidence, :event_result]
+  @marker_fields [:headline, :event_type, :tone]
+  @headline_max 80
 
   # The width of `security_notes.source_url` (character varying(255)).
   @max_source_url 255
@@ -51,6 +69,13 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     field(:conviction, Ecto.Enum, values: @convictions)
     field(:invalidation_condition, :string)
     field(:time_stop, :date)
+
+    # A headline, an event type and a tone (S28 N5), and the news label an
+    # entry written from a story took them from (provenance, never cast).
+    field(:headline, :string)
+    field(:event_type, Ecto.Enum, values: @event_types)
+    field(:tone, :integer)
+    field(:news_label_id, :integer)
 
     # Read-side annotation: the ids of the entries superseding this one
     # (newest first). Populated by `Portfolixir.Knowledge.list_notes/2`;
@@ -75,16 +100,26 @@ defmodule Portfolixir.Knowledge.SecurityNote do
   @doc "The closed conviction-tier set, as strings."
   def convictions, do: Enum.map(@convictions, &Atom.to_string/1)
 
+  @doc "The event types an entry may carry, as strings (S28 N5)."
+  def event_types, do: Enum.map(@event_types, &Atom.to_string/1)
+
+  @doc "The kinds that carry a headline, an event type and a tone, as strings."
+  def marker_kinds, do: Enum.map(@marker_kinds, &Atom.to_string/1)
+
+  @doc "The longest headline an entry stores, in code points."
+  def headline_max, do: @headline_max
+
   @castable ~w(
     security_id machine_generated body source_url
-    as_of supersedes_id valid_until invalidation_condition time_stop
+    as_of supersedes_id valid_until invalidation_condition time_stop headline tone
   )a
 
   @closed_sets [
     author: @authors,
     kind: @kinds,
     source_quality: @source_qualities,
-    conviction: @convictions
+    conviction: @convictions,
+    event_type: @event_types
   ]
 
   @doc """
@@ -101,6 +136,7 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> update_change(:body, &trim/1)
     |> update_change(:source_url, &blank_to_nil/1)
     |> update_change(:invalidation_condition, &blank_to_nil/1)
+    |> update_change(:headline, &blank_to_nil/1)
     |> validate_required([:security_id, :author, :kind, :body, :source_quality, :as_of])
     |> BoundedDate.validate([:as_of, :valid_until, :time_stop])
     |> validate_not_future(today)
@@ -115,9 +151,12 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     # the same number behind each.
     |> Text.validate(:body, multiline: true, max: Text.entry_body_max())
     |> Text.validate(:invalidation_condition, multiline: true, max: Text.free_text_max())
+    |> Text.validate(:headline, max: @headline_max)
+    |> validate_inclusion(:tone, [-1, 0, 1], message: "must be -1, 0 or 1")
     |> validate_machine_generated_source()
     |> validate_retraction_supersedes()
     |> validate_thesis_fields()
+    |> validate_marker_fields()
     |> foreign_key_constraint(:security_id)
     |> foreign_key_constraint(:supersedes_id)
     |> check_constraint(:kind, name: :security_notes_kind_check)
@@ -130,7 +169,22 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> check_constraint(:invalidation_condition,
       name: :security_notes_invalidation_condition_length_check
     )
+    |> check_constraint(:headline, name: :security_notes_headline_length_check)
+    |> check_constraint(:headline, name: :security_notes_marker_kind_check)
+    |> check_constraint(:event_type, name: :security_notes_event_type_check)
+    |> check_constraint(:tone, name: :security_notes_tone_check)
   end
+
+  @doc """
+  Puts the provenance id of the news label an entry written from a story
+  took its event type or tone from (S28 N5); `nil` leaves it absent. Never
+  cast from input: the server states where a proposal came from.
+  """
+  @spec put_news_label(Ecto.Changeset.t(), pos_integer() | nil) :: Ecto.Changeset.t()
+  def put_news_label(changeset, nil), do: changeset
+
+  def put_news_label(changeset, id) when is_integer(id),
+    do: put_change(changeset, :news_label_id, id)
 
   # A closed-set value is accepted as the atom itself or as its string form;
   # a string becomes an atom only when it is already in the declared list
@@ -228,6 +282,21 @@ defmodule Portfolixir.Knowledge.SecurityNote do
         if is_nil(get_field(acc, field)),
           do: acc,
           else: add_error(acc, field, "is only recorded on a thesis entry")
+      end)
+    end
+  end
+
+  # S28 N5: a headline, an event type and a tone say what a kept finding or
+  # result was; on a thesis, a risk or a decision they would draw a marker
+  # for something that is not an event.
+  defp validate_marker_fields(changeset) do
+    if get_field(changeset, :kind) in [nil | @marker_kinds] do
+      changeset
+    else
+      Enum.reduce(@marker_fields, changeset, fn field, acc ->
+        if is_nil(get_field(acc, field)),
+          do: acc,
+          else: add_error(acc, field, "is only recorded on an evidence or event_result entry")
       end)
     end
   end

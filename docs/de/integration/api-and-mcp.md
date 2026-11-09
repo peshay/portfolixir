@@ -880,10 +880,21 @@ Eintrag wäre ein Vorschlag bis zur Bestätigung und trüge seine
 `source_url`); beide werden in einem Body ignoriert, ein Body kann also
 keines von beiden beanspruchen —, `supersedes_id` (der frühere Eintrag desselben Wertpapiers, den
 dieser ersetzt; Pflicht bei einem Widerruf), `valid_until` (eine datierte
-Sperre wie ein Lock-up oder eine selbst auferlegte Kaufsperre) und — nur
+Sperre wie ein Lock-up oder eine selbst auferlegte Kaufsperre), — nur
 bei `thesis`-Einträgen — `conviction` (`low`, `medium`, `high`),
-`invalidation_condition` und `time_stop`. Jeder Eintrag in einer Antwort
-trägt zudem `superseded_by_ids` und ein `superseded`-Flag, sodass ein
+`invalidation_condition` und `time_stop` und — nur bei `evidence`- und
+`event_result`-Einträgen (Änderung von ADR-0044 vom 2026-11-06) —
+`headline` (Klartext mit höchstens 80 Zeichen, eine Zeile, kein unsichtbares
+Zeichen), `event_type` (`earnings`, `guidance`, `capital_measure`, `legal`,
+`m_and_a`, `product`, `regulatory`, `macro`) und `tone` (`-1`, `0`, `1`, die
+Lesart des Schreibenden für das Wertpapier: Sie färbt eine Markierung im
+Chart und ist nie Filter, Sortierschlüssel oder Signal); bei einer anderen
+Art liefert jedes davon `422` mit dem Feldnamen. Wie jedes Feld werden sie
+einmal gesetzt: Das Log hängt nur an. Ein Eintrag ohne sie liest sie als
+`null`, und `news_label_id` nennt das Nachrichten-Label, aus dem ein aus
+einer Story geschriebener Eintrag seinen Ereignistyp oder seinen Ton nahm
+(die Herkunftsangabe des Servers, nie aus einem Body übernommen). Jeder
+Eintrag in einer Antwort trägt zudem `superseded_by_ids` und ein `superseded`-Flag, sodass ein
 ersetzter Eintrag als ersetzt gezeigt statt verborgen wird. Alle festen
 Wertemengen werden geprüft; ein unbekannter Wert ist ein `422` mit dem
 Feldnamen, und aus Eingaben entsteht nie ein Atom.
