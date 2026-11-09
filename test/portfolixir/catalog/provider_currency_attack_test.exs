@@ -347,9 +347,8 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
   #
   # Acceptance criteria:
   # - A held, retired security with a mismatching provider currency is in
-  #   the set.
-  @tag :q_attack_red
-  test "a held retired security with a mismatching provider currency is left out" do
+  #   the set, by list and by count (closing act, QA4); the basis says so.
+  test "a held retired security with a mismatching provider currency stays in the set" do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Main", base_currency_code: "EUR"})
 
@@ -374,6 +373,9 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
 
     assert held.id in mismatched_ids(),
            "a held retired security's value still enters the total the clause warns about"
+
+    assert DataQuality.count("currency_mismatch") == length(mismatched_ids())
+    assert DataQuality.computation_basis("currency_mismatch").assumptions =~ "unless it is held"
   end
 
   # User story:
