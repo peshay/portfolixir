@@ -324,8 +324,14 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
     "portfolixir.news.feeds_put",
     "A feed's registration; putting the previous fields restores it (a new feed's removal is feeds_delete, admin)."
   ],
-  ["portfolixir.news.sources_put", "A domain's tier; putting the previous tier restores it."]
+  ["portfolixir.news.sources_put", "A domain's tier; putting the previous tier restores it."],
   // --- Sprint 27 N8 end ---
+  // --- S28 N4 begin ---
+  [
+    "portfolixir.news.assign",
+    "An item's assignment; assigning the previous security restores it, null the matcher's answer."
+  ]
+  // --- S28 N4 end ---
 ]);
 
 interface ProfiledTool {

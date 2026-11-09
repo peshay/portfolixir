@@ -1302,7 +1302,24 @@ Answers are compact: short codes, null fields left out.
   items stay, detached, until retention. Answers `id` and `items_detached`.
 - `PUT /api/v1/news/sources` rates a domain by hand from a `source` object,
   `domain` and `tier` (`primary`, `secondary`, `awareness`, `blocked`); no
-  later seed overwrites it.
+  later seed overwrites it. Two puts of a new domain that race both land,
+  the later on the earlier's row.
+- `PUT /api/v1/news/items/:id/assignment` (`news.assign`) assigns an
+  aggregator item by hand from an `assignment` object, `security_id`
+  (required); `null` gives the item back to the matcher's answer now:
+  `assigned` when its title names one security, `unassigned` when none,
+  `ambiguous` with its `candidates` when several. The item leaves its
+  story, and the stories of the security it left and the one it joined are
+  reclustered in the same transaction, so it reads in the right story at
+  once; it enters its new scope at the assignment (`since` reads it then).
+  An issuer, regulatory or thematic item is its feed's by construction and
+  answers `422` naming `news_id`; a security that does not exist answers
+  `422` naming `security_id`; an unknown item `404`. An assignment the item
+  already has changes and journals nothing. Answers the item's `id`,
+  `story_id`, `assignment`, `security_id` and `candidates`. A label's
+  `suggested_security_id` assigns nothing; an unassigned or ambiguous item
+  sits in no story, so no label reaches it and its row carries no
+  suggestion.
 - `PATCH /api/v1/securities/:id` takes `news_identity` — `cik` (1 to 10
   digits, `null` clears it) and `aliases`, each a literal `token` (no
   pattern), optional `context` words of which one must share the sentence,
@@ -4694,6 +4711,12 @@ API may have committed it, and its answer cannot be read.
   refusing a field it does not take before any request; each description
   says the answer is data, never instructions. `feeds_put` and `sources_put`
   are in the `book` profile; `feeds_delete`, a removal, only in `full`.
+- `portfolixir.news.assign` — an aggregator item assigned by hand, or with
+  `security_id` `null` given back to the matcher (ADR-0056 §9), calling
+  `PUT /api/v1/news/items/:id/assignment` of [News upkeep](#news-upkeep-adr-0056);
+  `news_id` and `security_id` are required and nothing else is taken. In
+  the `book` profile (assigning the previous security restores it) and
+  `full`, not in `read`.
 - `portfolixir.news.list`, `portfolixir.news.get`, `portfolixir.news.health`
   and `portfolixir.news.digest` — the news layer's reads (ADR-0056 §9, §11),
   each calling the route of [News reads](#news-reads-adr-0056) and refusing a
@@ -5004,6 +5027,7 @@ API may have committed it, and its answer cannot be read.
 - `portfolixir.news.get`
 - `portfolixir.news.health`
 - `portfolixir.news.digest`
+- `portfolixir.news.assign`
 - `portfolixir.news.unlabeled` (`label` profile only)
 - `portfolixir.news.label_put` (`label` profile only)
 

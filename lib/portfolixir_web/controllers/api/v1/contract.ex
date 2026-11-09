@@ -106,22 +106,42 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "cursor not issued to that consumer answers 422 naming ack_cursor; since beside " <>
               "consumer, and ack_cursor without it, answer 422. The server keeps at most 32 " <>
               "consumers; a new one beyond answers 422 naming the cap. Without consumer the " <>
-              "digest keeps no state and answers as_of as before."
+              "digest keeps no state and answers as_of as before.",
             # --- S28 N3 end ---
+            # --- S28 N4 begin ---
+            "Sprint 28, N4 (ADR-0056 §9, #1424): news.assign. PUT " <>
+              ~s(/api/v1/news/items/:id/assignment takes {"assignment": {"security_id": id}} ) <>
+              "and assigns an aggregator item by hand, or with security_id null gives it back " <>
+              "to the matcher's answer now (assigned, unassigned or ambiguous); the item leaves " <>
+              "its story and the stories of both securities are reclustered in the write's " <>
+              "transaction; journaled under the token as a news_item update. An issuer, " <>
+              "regulatory or thematic item answers 422 naming news_id, a security that does not " <>
+              "exist 422 naming security_id, a key it does not take 422 naming it, an unknown " <>
+              "item 404. The tool portfolixir.news.assign reaches it in the book and full " <>
+              "profiles. A label's suggested_security_id assigns nothing, and an unassigned " <>
+              "or ambiguous item, in no story, carries none. PUT /api/v1/news/sources no " <>
+              "longer fails with \"has already been taken\" when two puts of a new domain race."
+            # --- S28 N4 end ---
           ],
           " "
         ),
       endpoints: [
         # --- S28 N1 begin ---
         "PUT /api/v1/news/labels",
-        "GET /api/v1/news/unlabeled"
+        "GET /api/v1/news/unlabeled",
         # --- S28 N1 end ---
+        # --- S28 N4 begin ---
+        "PUT /api/v1/news/items/:id/assignment"
+        # --- S28 N4 end ---
       ],
       tools: [
         # --- S28 N1 begin ---
         "portfolixir.news.label_put",
-        "portfolixir.news.unlabeled"
+        "portfolixir.news.unlabeled",
         # --- S28 N1 end ---
+        # --- S28 N4 begin ---
+        "portfolixir.news.assign"
+        # --- S28 N4 end ---
       ],
       parameters: [
         # --- Sprint 28 Q begin ---

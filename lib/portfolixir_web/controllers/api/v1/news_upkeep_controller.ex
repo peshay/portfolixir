@@ -14,6 +14,12 @@ defmodule PortfolixirWeb.Api.V1.NewsUpkeepController do
     * `PUT /api/v1/news/sources` (`news.sources_put`) rates a domain by hand:
       `{"source": {domain, tier}}` (`Portfolixir.News.Sources.put_source/4`
       with `set_by: :hand`, which no later seed overwrites).
+    * `PUT /api/v1/news/items/:id/assignment` (`news.assign`, S28 N4)
+      assigns an aggregator item by hand, `{"assignment": {"security_id":
+      id}}`, or with `null` gives it back to the matcher; its stories are
+      reclustered in the write's transaction
+      (`Portfolixir.News.assign_item/4`). Answers the item's `id`,
+      `story_id`, `assignment`, `security_id` and `candidates`.
 
   Every write is journaled under the token that made it (B7, ADR-0054), and
   every one is closed: a key it does not take is refused with 422 naming it
@@ -30,6 +36,9 @@ defmodule PortfolixirWeb.Api.V1.NewsUpkeepController do
 
   plug(PortfolixirWeb.Api.V1.BodyObject, "feed" when action in [:put_feed])
   plug(PortfolixirWeb.Api.V1.BodyObject, "source" when action in [:put_source])
+  # --- S28 N4 begin ---
+  plug(PortfolixirWeb.Api.V1.BodyObject, "assignment" when action in [:assign_item])
+  # --- S28 N4 end ---
 
   @feed_fields ~w(id class url security_id category_id interval_minutes language enabled)
   @source_fields ~w(domain tier)
@@ -75,6 +84,56 @@ defmodule PortfolixirWeb.Api.V1.NewsUpkeepController do
       {:error, errors} -> ClosedBody.refuse(conn, errors)
     end
   end
+
+  # --- S28 N4 begin ---
+  # news.assign (§9): `{"assignment": {"security_id": id | null}}`, closed;
+  # null gives the item back to the matcher (`Portfolixir.News.assign_item/4`).
+  @assignment_fields ~w(security_id)
+
+  def assign_item(conn, %{"id" => id} = params) do
+    with :ok <- ClosedBody.check(conn, "assignment", @assignment_fields),
+         {:ok, item_id} <- parse_id(id),
+         {:ok, security_id} <- assignment_target(params),
+         {:ok, item} <- News.assign_item(conn.assigns.actor, item_id, security_id) do
+      json(conn, %{data: assignment_json(item)})
+    else
+      {:error, :not_found} ->
+        not_found(conn)
+
+      {:error, {:write_refused, changeset}} ->
+        ClosedBody.refuse(conn, JSON.errors(changeset))
+
+      {:error, errors} ->
+        ClosedBody.refuse(conn, errors)
+    end
+  end
+
+  # security_id is required, and null is a value: the undo.
+  defp assignment_target(%{"assignment" => %{"security_id" => nil}}), do: {:ok, nil}
+
+  defp assignment_target(%{"assignment" => %{"security_id" => id}})
+       when is_integer(id) and id > 0,
+       do: {:ok, id}
+
+  defp assignment_target(%{"assignment" => %{"security_id" => _other}}),
+    do: {:error, %{"security_id" => ["must be a security id or null"]}}
+
+  defp assignment_target(%{"assignment" => %{}}),
+    do: {:error, %{"security_id" => ["can't be blank: a security id, or null to undo"]}}
+
+  defp assignment_target(_params), do: {:error, %{"assignment" => ["can't be blank"]}}
+
+  defp assignment_json(item) do
+    compact(%{
+      id: item.id,
+      story_id: item.cluster_id,
+      assignment: item.assignment,
+      security_id: item.security_id,
+      candidates: if(item.candidates != [], do: item.candidates)
+    })
+  end
+
+  # --- S28 N4 end ---
 
   defp feed_id(attrs) do
     case Map.fetch(attrs, "id") do

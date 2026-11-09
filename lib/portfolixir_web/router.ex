@@ -461,6 +461,9 @@ defmodule PortfolixirWeb.Router do
     # --- S28 N3 begin ---
     # --- S28 N3 end ---
     # --- S28 N4 begin ---
+    # ADR-0056 §9 (Sprint 28, N4): news.assign, an aggregator item assigned
+    # by hand or given back to the matcher, closed and journaled.
+    put("/news/items/:id/assignment", NewsUpkeepController, :assign_item)
     # --- S28 N4 end ---
     # --- S28 N5 begin ---
     # --- S28 N5 end ---
