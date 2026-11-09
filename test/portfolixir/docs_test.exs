@@ -2890,11 +2890,71 @@ defmodule Portfolixir.DocsTest do
   # - The API references name data_quality implausible_quote with its
   #   envelope's findings and computation_basis.
   # - ADR-0052 carries a note dated 2026-10-09 citing D-7 on §4's sibling.
+  # --- Sprint 28 Q begin ---
+  # User story (#1410, #1411, #1415; Sprint 28 Lane Q):
+  # As the operator and the agent reading the handbooks,
+  # I want the quote sync's stop at a Manual feed, its refusal of another
+  # currency and the currency_mismatch set described where the sync and the
+  # sets are,
+  # so that the docs and the code say the same thing.
+  #
+  # Acceptance criteria:
+  # - The handbooks name the Manual/None stop, the refusal (GBp against
+  #   GBP), the stored provider currency, the set's chip and the Overview's
+  #   clause, in English and German; the API references name manual_feed,
+  #   currency_mismatch as a sync reason and as a data_quality set with its
+  #   findings; the upgrade notes carry the release note.
+  test "the docs describe the quote sync's stops and the currency_mismatch set (Lane Q)" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "|implausible_quote|currency_mismatch`",
+             "A quote feed of *Manual* or *None* stops the sync",
+             "An answer in another currency is refused",
+             "(`GBp`) is refused for a security in pounds (`GBP`)",
+             "Missing FX · Currency mismatch",
+             "2 securities whose provider reports another currency than their own"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "|implausible_quote|currency_mismatch`",
+             "Eine Kursquelle *Manuell* oder *Keine* hält die Synchronisierung an",
+             "Eine Antwort in einer anderen Währung wird abgelehnt",
+             "Kein Wechselkurs · Währung abweichend",
+             "2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "skipped with `manual_feed`",
+             "`reason` `currency_mismatch`",
+             "`currency_mismatch` — issue #1415",
+             "`provider_currency_at` (ISO 8601"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "mit `manual_feed` übersprungen",
+             "`reason` `currency_mismatch`",
+             "`currency_mismatch` — Issue #1415"
+           ]},
+          {"docs/home-deployment.md", ["**The quote sync stops at a Manual feed** (#1410"]},
+          {"docs/de/home-deployment.md",
+           ["**Die Kurssynchronisierung hält bei einer manuellen Kursquelle an** (#1410"]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # --- Sprint 28 Q end ---
+
   test "the docs and ADR-0052 describe implausible_quote (#1101)" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",
            [
-             "`?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`",
+             "`?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote",
              "#### A quote that does not match the bookings (issue #1101)",
              "or the latest within 7 days before it",
              "below half or above twice the booking's price per unit",
@@ -2908,7 +2968,7 @@ defmodule Portfolixir.DocsTest do
            ]},
           {"docs/de/product-documentation.md",
            [
-             "`?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`",
+             "`?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote",
              "#### Ein Kurs, der nicht zu den Buchungen passt (Issue #1101)",
              "oder der letzte innerhalb von 7 Tagen davor",
              "unter der Hälfte oder über dem Doppelten des Preises je Stück der Buchung",

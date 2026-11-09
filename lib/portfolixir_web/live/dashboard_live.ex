@@ -1282,6 +1282,7 @@ defmodule PortfolixirWeb.DashboardLive do
       dq.without_logo > 0 && {:logo, dq.without_logo},
       dq.two_scales > 0 && {:two_scales, dq.two_scales},
       dq.implausible_quote > 0 && {:implausible_quote, dq.implausible_quote},
+      dq.currency_mismatch > 0 && {:currency_mismatch, dq.currency_mismatch},
       dq.cash_mismatch > 0 && {:cash_mismatch, dq.cash_mismatch},
       dq.rate_only > 0 && {:rate_only, dq.rate_only},
       dq.incomplete_split > 0 && {:incomplete_split, dq.incomplete_split}
@@ -1378,6 +1379,30 @@ defmodule PortfolixirWeb.DashboardLive do
     }
   end
 
+  # #1415 (Sprint 28 Q3; board ux-design-2026-11-08-sprint28/05 ②, plan
+  # D-6): the securities whose provider stated another currency than their
+  # own, right after the implausible series, always with their noun, and
+  # what a series stored in the wrong currency does to the total above.
+  # Conditional ("if held"), as two scales' is: the set counts the catalog.
+  defp dq_finding(:currency_mismatch, count, _first?) do
+    %{
+      role: "dq-currency-mismatch",
+      href: "/securities?dq=currency_mismatch",
+      text:
+        ngettext(
+          "one security whose provider reports another currency than its own",
+          "%{count} securities whose provider reports another currency than their own",
+          count
+        ),
+      effect:
+        ngettext(
+          "— its quotes may be stored in the wrong currency; if held, its value in the total above is wrong",
+          "— their quotes may be stored in the wrong currency; if held, their value in the total above is wrong",
+          count
+        )
+    }
+  end
+
   # Sprint 23 V1 (board ux-design-2026-11-02-sprint23/01 ①a, pick Q1 A):
   # the ledger's read-only checks, each the agent's read over the API and
   # one finding here. Its link opens the history filtered to exactly the
@@ -1444,13 +1469,17 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dq_severity(%{incomplete_split: n}) when n > 0, do: :problem
   defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
   defp dq_severity(%{implausible_quote: n}) when n > 0, do: :problem
+  # #1415: a series stored in another currency is a value in the total that
+  # is wrong, as an implausible one is.
+  defp dq_severity(%{currency_mismatch: n}) when n > 0, do: :problem
   defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
   defp dq_severity(_dq), do: :note
 
   # Securities needing attention (#337 data-quality card): no recent quote
   # (none at all, or older than 7 days), no persisted asset class, no logo,
-  # since #1068 a bond priced on two scales, and since #1101 a held security
-  # whose quotes contradict its own bookings.
+  # since #1068 a bond priced on two scales, since #1101 a held security
+  # whose quotes contradict its own bookings, and since #1415 a security whose
+  # provider stated another currency than its own.
   defp data_quality_report do
     # The counts come from the shared predicates (#705), so each finding's
     # number is produced by the same rule as the list its link opens. The
@@ -1470,6 +1499,7 @@ defmodule PortfolixirWeb.DashboardLive do
       without_logo: DataQuality.count("missing_logo"),
       two_scales: DataQuality.count("two_scales"),
       implausible_quote: DataQuality.count("implausible_quote"),
+      currency_mismatch: DataQuality.count("currency_mismatch"),
       cash_mismatch: LedgerChecks.count("cash_mismatch"),
       rate_only: LedgerChecks.count("rate_only"),
       incomplete_split: LedgerChecks.count("incomplete_split")

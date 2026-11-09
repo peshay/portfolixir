@@ -19,7 +19,7 @@ msgstr ""
 msgid "Cash account created"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1490
+#: lib/portfolixir_web/live/dashboard_live.ex:1520
 #: lib/portfolixir_web/live/journal/row.ex:180
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:343
 #: lib/portfolixir_web/live/portfolio_live.ex:2981
@@ -123,7 +123,7 @@ msgstr ""
 msgid "Depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1494
+#: lib/portfolixir_web/live/dashboard_live.ex:1524
 #: lib/portfolixir_web/live/imports_live.ex:376
 #: lib/portfolixir_web/live/imports_live.ex:1291
 #: lib/portfolixir_web/live/journal/row.ex:181
@@ -318,7 +318,7 @@ msgid "Review current holdings"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:344
-#: lib/portfolixir_web/live/dashboard_live.ex:1486
+#: lib/portfolixir_web/live/dashboard_live.ex:1516
 #: lib/portfolixir_web/live/imports_live.ex:366
 #: lib/portfolixir_web/live/imports_live.ex:1283
 #: lib/portfolixir_web/live/journal/row.ex:182
@@ -408,7 +408,7 @@ msgid "Transaction recorded"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:351
-#: lib/portfolixir_web/live/dashboard_live.ex:1498
+#: lib/portfolixir_web/live/dashboard_live.ex:1528
 #: lib/portfolixir_web/live/securities/bond_strip.ex:314
 #: lib/portfolixir_web/live/securities_live.ex:1697
 #: lib/portfolixir_web/live/securities_live.ex:4281
@@ -3329,7 +3329,7 @@ msgstr ""
 msgid "Seeded"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1484
+#: lib/portfolixir_web/live/dashboard_live.ex:1514
 #, elixir-autogen, elixir-format
 msgid "Setup counts"
 msgstr ""
@@ -4964,14 +4964,14 @@ msgstr ""
 msgid "Retry logo lookup for all"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1336
+#: lib/portfolixir_web/live/dashboard_live.ex:1337
 #, elixir-autogen, elixir-format
 msgid "one without a logo"
 msgid_plural "%{count} without a logo"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1323
+#: lib/portfolixir_web/live/dashboard_live.ex:1324
 #, elixir-autogen, elixir-format
 msgid "one without an asset class"
 msgid_plural "%{count} without an asset class"
@@ -11399,21 +11399,21 @@ msgstr ""
 msgid "Not in the total: %{groups}."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1301
+#: lib/portfolixir_web/live/dashboard_live.ex:1302
 #, elixir-autogen, elixir-format
 msgid "one security in the catalog without a quote in 7 days"
 msgid_plural "%{count} securities in the catalog without a quote in 7 days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1335
+#: lib/portfolixir_web/live/dashboard_live.ex:1336
 #, elixir-autogen, elixir-format
 msgid "one security without a logo"
 msgid_plural "%{count} securities without a logo"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1318
+#: lib/portfolixir_web/live/dashboard_live.ex:1319
 #, elixir-autogen, elixir-format
 msgid "one security without an asset class"
 msgid_plural "%{count} securities without an asset class"
@@ -11425,7 +11425,7 @@ msgstr[1] ""
 msgid "Not in the total: %{groups}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1346
+#: lib/portfolixir_web/live/dashboard_live.ex:1347
 #, elixir-autogen, elixir-format
 msgid "one bond priced on two scales"
 msgid_plural "%{count} bonds priced on two scales"
@@ -12164,7 +12164,7 @@ msgid_plural "%{count} held positions are valued at quotes that do not match the
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1367
+#: lib/portfolixir_web/live/dashboard_live.ex:1368
 #, elixir-autogen, elixir-format
 msgid "one held security whose quotes do not match its bookings"
 msgid_plural "%{count} held securities whose quotes do not match their bookings"
@@ -13010,14 +13010,14 @@ msgstr[1] ""
 msgid "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1354
+#: lib/portfolixir_web/live/dashboard_live.ex:1355
 #, elixir-autogen, elixir-format
 msgid "— if held, it counts a hundredfold too high or too low in the total above"
 msgid_plural "— each one held counts a hundredfold too high or too low in the total above"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1373
+#: lib/portfolixir_web/live/dashboard_live.ex:1374
 #, elixir-autogen, elixir-format
 msgid "— so its value in the total above, or its cost, is wrong"
 msgid_plural "— so their value in the total above, or their cost, is wrong"
@@ -14054,7 +14054,7 @@ msgstr ""
 msgid "from its figures: %{amount}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1390
+#: lib/portfolixir_web/live/dashboard_live.ex:1415
 #, elixir-autogen, elixir-format
 msgid "one booking whose cash misses its quantity × price, fees and taxes"
 msgid_plural "%{count} bookings whose cash misses their quantity × price, fees and taxes"
@@ -14066,7 +14066,7 @@ msgstr[1] ""
 msgid "so the cash balance and the cost read different amounts. State the cash in the booking form (Edit): the amount settled, or the one the figures give. Nothing is changed automatically."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1395
+#: lib/portfolixir_web/live/dashboard_live.ex:1420
 #, elixir-autogen, elixir-format
 msgid "— so the cash balance and the cost read different amounts"
 msgstr ""
@@ -14083,7 +14083,7 @@ msgstr[1] ""
 msgid "settlement amount at its own rate %{rate}: %{amount}"
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1404
+#: lib/portfolixir_web/live/dashboard_live.ex:1429
 #, elixir-autogen, elixir-format
 msgid "one cross-currency buy or sell with a rate and no cash amount"
 msgid_plural "%{count} cross-currency buys or sells with a rate and no cash amount"
@@ -14095,7 +14095,7 @@ msgstr[1] ""
 msgid "the ledger books quantity × price with fees and taxes, in the security's currency, as the account's cash, and never applies the rate. Enter the settlement amount in the booking form (Edit): the amount before fees and taxes, from which the form books the cash; backfilling rates does not change these bookings. Nothing is changed automatically."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1410
+#: lib/portfolixir_web/live/dashboard_live.ex:1435
 #, elixir-autogen, elixir-format
 msgid "— it books quantity × price to the account unconverted"
 msgid_plural "— they book quantity × price to the account unconverted"
@@ -14119,14 +14119,14 @@ msgstr[1] ""
 msgid "There the FIFO lots are split and the holding is not. Record the split again with the same date and ratio (“Record split” on the security): it adds only the missing rows. If the split is wrong, delete the whole split. Nothing is changed automatically."
 msgstr ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1423
+#: lib/portfolixir_web/live/dashboard_live.ex:1448
 #, elixir-autogen, elixir-format
 msgid "one split missing a portfolio that held the security"
 msgid_plural "%{count} splits each missing a portfolio that held the security"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1428
+#: lib/portfolixir_web/live/dashboard_live.ex:1453
 #, elixir-autogen, elixir-format
 msgid "— there the lots are split and the holding is not"
 msgstr ""
@@ -15830,6 +15830,21 @@ msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:266
 #: lib/portfolixir_web/live/securities_live.ex:7371
+#: lib/portfolixir_web/live/securities_live.ex:7384
 #, elixir-autogen, elixir-format
 msgid "Currency mismatch"
 msgstr ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex:1392
+#, elixir-autogen, elixir-format
+msgid "one security whose provider reports another currency than its own"
+msgid_plural "%{count} securities whose provider reports another currency than their own"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/dashboard_live.ex:1398
+#, elixir-autogen, elixir-format
+msgid "— its quotes may be stored in the wrong currency; if held, its value in the total above is wrong"
+msgid_plural "— their quotes may be stored in the wrong currency; if held, their value in the total above is wrong"
+msgstr[0] ""
+msgstr[1] ""
