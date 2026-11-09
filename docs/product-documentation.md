@@ -2494,11 +2494,15 @@ Every choice is on the address, the filter included, so a link reopens the same 
 add up to the value line on every day, and a buy shows as a step in its
 band, because the bands are market values. A security that moved between
 categories is drawn in its category of today for the whole window: a
-classification is stored as it is now. In the **privacy mode** the stack is
-drawn as a 100 % stack, each band's share of the day's positive bands, and
-the legend keeps share and change but no value; its share is taken on the
-same basis, so with an overdrawn cash account a band that fills the stack
-reads 100 % (the API's `share` is the net one). Your agent reads the same bands over
+classification is stored as it is now. In the **privacy mode** the stack
+keeps its shape, the same picture as without the mode (issue #1433): the
+axis reads in percent of the bands' total on the window's first day (100 %;
+with a filter, the filtered bands' total), as every axis in a currency does
+in the mode. Where that total is not above zero (a buy booked before the
+money that pays it), the axis reads in percent of the first day it is, and
+the ⓘ names that day; where no day's total is above zero, the axis has no
+labels. The legend keeps share (the API's net share) and change but no
+value, and no tooltip names an amount. Your agent reads the same bands over
 `…/performance/bands` and the MCP tools `portfolixir.portfolios.bands` and
 `portfolixir.views.bands` ([API and MCP](integration/api-and-mcp.html)).
 
@@ -4435,10 +4439,11 @@ multiplier.
 - **Charts:** an axis in a currency switches to percent of the window's
   start. Wealth's value series reads "Value (%)", and a line under it says
   that deposits and withdrawals count in it, so it is no return (the return
-  is TTWROR). A security's chart is held in its "Percent" view, pressed and
-  locked; a trade's tooltip keeps its kind and hides its quantity and price.
-  Cash flow's bars keep their heights and lose their amounts; their tooltips
-  keep the year and the series.
+  is TTWROR). Its stacked chart keeps its shape, its axis in percent of the
+  bands' total on the window's first day. A security's chart is held in its
+  "Percent" view, pressed and locked; a trade's tooltip keeps its kind and
+  hides its quantity and price. Cash flow's bars keep their heights and lose
+  their amounts; their tooltips keep the year and the series.
 - **Per browser.** The choice is kept in a cookie of this browser and
   survives a reload; another browser or device has its own. Nothing about it
   is stored on the server, and a link from another site can hide figures on

@@ -9606,7 +9606,7 @@ and the MCP tools answer, for the section's period and the page's view.
    largest band belongs (closing act, design critic D4). A negative band (an overdrawn account)
    stacks downwards from zero, so the bands always add up to the day's
    value. A filterable band is clickable (above); its `<title>` names the
-   band, value and share. *Amended 2026-11-09 (Sprint 28 S2, #1426; board
+   band, value and share (in the privacy mode the band and share). *Amended 2026-11-09 (Sprint 28 S2, #1426; board
    02 ⑤ and ⑥):* **a band that changes sign** inside the window no longer
    sweeps diagonally through the bands between. Every band draws its part
    above zero and its part below zero as separate areas (the second
@@ -9638,8 +9638,8 @@ and the MCP tools answer, for the section's period and the page's view.
    filter's sub-categories over their subtrees and „‹Name› (direkt)“);
    change without deposits and withdrawals; the order; the merge into
    „Sonstige“ when it happened; the parts below zero when there are any;
-   what a click does when a band is filterable; the privacy mode's picture
-   when it is on; and, with a benchmark chosen, that benchmarks are drawn in
+   what a click does when a band is filterable; what the privacy mode's
+   axis reads when it is on; and, with a benchmark chosen, that benchmarks are drawn in
    the % (TTWROR) series only (UX-DR26; one „%“, the string printed „%%“
    before). The section's own window line under the figure
    (`performance-basis`) is not repeated under a stack.
@@ -9669,15 +9669,30 @@ and the MCP tools answer, for the section's period and the page's view.
 
 ### The privacy mode *(I22)*
 
-The stack is drawn as a **100 % stack** by itself, with no control: each
-day's bands over the sum of that day's positive bands, the axis 0 % to
-100 %. The legend drops the Value column and keeps Share and Change, its
-share on the picture's basis (the last day over its positive bands), so a
-band that fills the stack reads 100 % beside it (M3); the
-rows carry no `data-end-value`, the bands' titles name no amount. The route
-backstop (`privacy_mode_routes_test.exs`) and the browser leak walk open the
-category stack and follow the bar's links and a drilled category with the
-mode on (plan D-8, carry-forward 2).
+*Amended 2026-11-09 (Sprint 28 S6, #1433, plan amendment D-A2, signed by
+the owner; board `mockups/ux-design-2026-11-08-sprint28/06-privacy-stack`
+②):* **the stack keeps its shape.** The picture is the value mode's,
+coordinate for coordinate: the same bands, the same areas below zero, the
+same axis lines (`StackedChart.geometry/1` takes no privacy argument). Only the labels
+change: each axis tick reads as a whole percent of **the bands' total on
+the window's first day** (100 %), with a filter the filtered bands' total,
+as Sprint 26's rule reads every axis in a currency (board 02; the „Wert
+(%)“ line). Where that total is not above zero (a buy booked before the
+money that pays it, an empty start), the ticks read in percent of the first
+day whose total is, and the ⓘ names that day; where no day's total is
+above zero, the ticks carry no label (the lines stay) and the ⓘ says so.
+The ⓘ's privacy sentence says what the axis reads. The legend drops the
+Value column and keeps Share, the API's net share, and Change; the rows
+carry no `data-end-value`, the bands' titles name the band and its share,
+no amount. The same at every level, with a filter, and for a band that
+changes sign. *What the mode still guards:* no amount, tick or tooltip
+reaches the page; the shape shows ratios over time (a deposit as a step
+of some percent), as every percentage the mode keeps does. The 100 %
+stack of Sprint 27 (each day over its positive bands, the axis 0 % to
+100 %, M3's share on that basis) is retired. The route backstop
+(`privacy_mode_routes_test.exs`) and the browser leak walk open every level,
+a filter and a band that changes sign with the mode on (plan D-8,
+carry-forward 2; D-A2).
 
 ### The `app.css` rules
 

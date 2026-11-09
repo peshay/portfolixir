@@ -125,6 +125,17 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
 
     {:ok, _} = Classifications.assign_security(Actor.owner_ui(), next.id, tree.id, core.id)
 
+    # --- Sprint 28 S6 begin ---
+    # A band that changes sign inside the 1Y window (#1426; #1433, D-A2): a
+    # buy booked two days before the money that pays it overdraws the cash,
+    # so every stacked level draws the cash's part below zero.
+    overdraw = create_security!(name: "Synthetic Overdraw Fund", ticker: "SOF")
+    overdrawn_on = Date.add(Clock.today(), -50)
+    put_quotes!(overdraw, [{overdrawn_on, "100"}])
+    buy!(world, overdraw, quantity: "200", price: "100", date: overdrawn_on)
+    deposit!(world, "5000", Date.add(overdrawn_on, 2))
+    # --- Sprint 28 S6 end ---
+
     made = DateTime.new!(~D[2025-01-15], ~T[12:00:00.000000], "Etc/UTC")
 
     {:ok, _resolved} =
@@ -189,7 +200,9 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   #   detail tabs, any link to the same path that names a tab, and Wealth's
   #   stacked chart (I23; Sprint 27 plan D-8, carry-forward 2): its bar's
   #   levels and sorts and a category drilled into, opened from the value
-  #   series' category stack.
+  #   series' category stack. Since #1433 (D-A2) the stack keeps its shape
+  #   in the mode, so each level is walked, the filter (a category, the
+  #   unassigned rest) at each level, and a band that changes sign.
   # - No page's text names an amount or a quantity, and none draws a hidden
   #   figure as its stand-in text instead of the bar.
   test "every page and every in-place view renders with the privacy mode on and names no amount",
@@ -208,10 +221,28 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           "/portfolio?level=category",
           "/portfolio?level=security",
           "/portfolio?level=security&category=#{ctx.core.id}",
-          "/portfolio?level=category&sort=change"
+          "/portfolio?level=category&sort=change",
+          # --- Sprint 28 S6 begin ---
+          "/portfolio?level=total",
+          "/portfolio?level=category&category=#{ctx.core.id}",
+          "/portfolio?level=total&category=#{ctx.core.id}",
+          "/portfolio?level=category&category=unclassified"
+          # --- Sprint 28 S6 end ---
         ] do
       assert expected in visited, "the walk never opened #{expected}"
     end
+
+    # --- Sprint 28 S6 begin ---
+    # The cash band changes sign in the window, so the walk read its part
+    # below zero at the stacked levels.
+    for address <- ["/portfolio?level=category", "/portfolio?level=security"] do
+      {:ok, view, _html} = live(masked_conn(), address)
+      render_async(view, 5_000)
+      assert has_element?(view, "path.stack-band--negative[data-band='cash']"), address
+      assert has_element?(view, "path.stack-band[data-band='cash']:not([data-part])"), address
+    end
+
+    # --- Sprint 28 S6 end ---
   end
 
   defp shell_paths(ctx) do

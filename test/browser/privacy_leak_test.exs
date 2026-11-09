@@ -39,9 +39,11 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.Performance.Bands
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Predictions
   alias Portfolixir.Repo
+  alias Portfolixir.WorldFixtures
 
   @moduletag :browser
   @moduletag timeout: 1_800_000
@@ -110,6 +112,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     {:ok, {_ip, port}} = ThousandIsland.listener_info(server)
     seed!()
     predict!()
+    overdraw!()
     # "localhost", the endpoint's configured host, so the LiveView socket's
     # origin check passes.
     %{base_url: "http://localhost:#{port}"}
@@ -127,7 +130,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   #   address keeps no choice.
   # - Every live route of the router is walked, each area tab a page links,
   #   each detail tab it offers and each view it links in place (Wealth's
-  #   stacked chart's levels and a drilled category too), in the
+  #   stacked chart's levels and a filtered category too, with a band that
+  #   changes sign, #1433), in the
   #   light and the dark theme, at 1200 and 390 px, on the review seed and
   #   three synthetic predictions.
   # - Any step that answers an error status, crashes its LiveView or does
@@ -418,6 +422,65 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
       {:ok, _prediction} = Predictions.create_prediction(actor, attrs, opts)
     end
   end
+
+  # --- Sprint 28 S6 begin ---
+  # A band that changes sign inside the 1Y window (#1426; #1433, D-A2): a
+  # synthetic buy forty days ago for more than the cash ever held in the
+  # window, paid by a deposit two days later, so the stacked chart's cash
+  # band dips below zero and the walk reads its part below the zero line at
+  # every stacked level. Checked on the bands read, so a seed that changes
+  # cannot leave the state unwalked unnoticed.
+  defp overdraw! do
+    base = Portfolixir.Portfolios.first_portfolio().base_currency_code
+
+    {depot, cash} =
+      Repo.one(
+        from(d in SecuritiesAccount,
+          join: c in CashAccount,
+          on: c.id == d.cash_account_id,
+          where: c.currency_code == ^base,
+          order_by: d.id,
+          limit: 1,
+          select: {d, c}
+        )
+      )
+
+    cash_values = fn ->
+      {:ok, bands} = Bands.for_view(nil, period: "1y", base_currency: base, level: :security)
+      bands.bands |> Enum.find(%{values: []}, &(&1.kind == :cash)) |> Map.fetch!(:values)
+    end
+
+    most = Enum.max([Decimal.new(0) | cash_values.()], Decimal)
+    amount = most |> Decimal.add(1000) |> Decimal.round(0, :up)
+    on = Date.add(Portfolixir.Clock.today(), -40)
+
+    security =
+      WorldFixtures.create_security!(
+        name: "Synthetic Overdraw Fund",
+        ticker: "SOVF",
+        currency: base
+      )
+
+    WorldFixtures.put_quotes!(security, [{on, "100"}])
+    world = %{portfolio: %{id: depot.portfolio_id}, depot: depot, cash: cash}
+
+    WorldFixtures.buy!(world, security,
+      quantity: amount |> Decimal.div(100) |> Decimal.round(0, :up) |> Decimal.to_string(),
+      price: "100",
+      date: on
+    )
+
+    WorldFixtures.deposit!(
+      %{portfolio: %{id: cash.portfolio_id}, cash: cash},
+      amount |> Decimal.mult(2) |> Decimal.to_string(),
+      Date.add(on, 2)
+    )
+
+    assert Enum.any?(cash_values.(), &Decimal.negative?/1),
+           "the overdraft did not take the stack's cash band below zero"
+  end
+
+  # --- Sprint 28 S6 end ---
 
   defp seed! do
     conflicts = Code.get_compiler_option(:ignore_module_conflict)

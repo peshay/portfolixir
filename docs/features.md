@@ -170,7 +170,8 @@ the same level, its sub-categories and securities as bands, a path above
 leads back one level at a time, and every choice is on the address, so a
 link reopens it. A
 category wears its allocation colour on both tabs. In the privacy mode the
-stack is a 100 % stack and shows no amount. Your agent reads the same bands,
+stack keeps its shape, its axis in percent of the first day's total, and
+shows no amount. Your agent reads the same bands,
 with their computation basis, over `…/performance/bands` and the MCP tools
 `portfolixir.portfolios.bands` and `portfolixir.views.bands`
 ([App Handbook](product-documentation.html#the-value-chart-by-category)).

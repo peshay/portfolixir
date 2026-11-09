@@ -33,14 +33,16 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       when it was computed, ending in the section's ⓘ that holds the method
       (I1; #1366).
 
-  **The privacy mode** (I22): the stack is drawn as a 100 % stack by itself,
-  each day's bands over the sum of that day's positive bands, so the axis
-  reads 0 % to 100 %; the legend keeps share and change and drops the
-  value, the bands' tooltips name no amount, and no attribute carries one.
-  The legend's share is taken on the picture's own basis, the last day's
-  value over that day's positive bands, so a band that fills the stack
-  reads 100 % beside it where the API's net share reads more when a band is
-  negative (the closing act's money lens, M3).
+  **The privacy mode** (I22; #1433, plan amendment D-A2, board 06): the
+  stack keeps its shape, the same picture as without the mode, and only
+  its labels change: each axis tick reads in percent of the bands' total
+  on the window's first day (100 %), the filtered stack's total under a
+  filter, as Sprint 26's rule reads every axis in a currency. Where that
+  total is not above zero (a buy booked before its money), the axis indexes
+  to the first day it is, and says so behind the ⓘ; where no day is, the
+  ticks carry no label. The legend keeps share (the API's net share) and
+  change and drops the value, the bands' tooltips name no amount, and no
+  attribute carries one. Sprint 27's 100 % stack retired with D-A2.
 
   The geometry is computed here on the server from the `Decimal` values;
   floats exist only as coordinates and are never stored.
@@ -180,12 +182,13 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   """
   def figure(assigns) do
     privacy? = PrivacyMode.on?()
-    geometry = geometry(assigns.result, privacy?)
-    bands = shown_shares(assigns.result.bands, privacy?)
+    geometry = geometry(assigns.result)
+    bands = assigns.result.bands
 
     assigns =
       assign(assigns,
         privacy?: privacy?,
+        index: if(privacy?, do: index_basis(assigns.result)),
         geometry: geometry,
         legend: Enum.reverse(bands),
         by_key: Map.new(bands, &{&1.key, &1}),
@@ -255,13 +258,14 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
               <g class="chart-axis-labels">
                 <text
                   :for={{{value, y}, index} <- Enum.with_index(@geometry.ticks)}
+                  :if={not @privacy? or @index != :none}
                   class={["chart-axis-y", index == length(@geometry.ticks) - 1 && "is-top"]}
                   x={@plot_left - 6}
                   y={coord(y)}
                   text-anchor="end"
                   dominant-baseline="central"
                 >
-                  <%= tick_label(value, @privacy?) %>
+                  <%= tick_label(value, @index) %>
                 </text>
                 <text class="chart-axis-x" x={@plot_left} y={@height - 6} text-anchor="start">
                   <%= Format.date(@geometry.first_date) %>
@@ -328,7 +332,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             <%= shows(@result) %> · <%= Format.date(@result.start_date) %> – <%= Format.date(@result.end_date) %><%= if @result.as_of do %> · <%= gettext("computed %{at}", at: Format.utc_instant(@result.as_of)) %><% end %>
           </span>
           <AppShell.section_info>
-            <:line :for={line <- method(@result, @privacy?, @drill_paths != %{}, @other?)}><%= line %></:line>
+            <:line :for={line <- method(@result, @index, @drill_paths != %{}, @other?)}><%= line %></:line>
             <:line :if={@benchmark_note}><span data-role="benchmark-value-hint"><%= @benchmark_note %></span></:line>
           </AppShell.section_info>
         </div>
@@ -339,21 +343,20 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   # -- names, figures and words ----------------------------------------------------
 
-  # The share the legend shows: the API's net share, or in the privacy mode
-  # the share the 100 % stack draws, the last day's value over that day's
-  # positive bands (M3), so legend and picture agree when a band is negative.
-  defp shown_shares(bands, false), do: bands
+  # The privacy mode's 100 % (#1433, D-A2): the bands' total on the
+  # window's first day, the filtered stack's under a filter, taken from the
+  # `Decimal` values; when it is not above zero, the first day whose total
+  # is. `{date, total, first?}`, or `:none` when no day's total is above
+  # zero, so no tick can be read in percent of it.
+  defp index_basis(%{dates: dates, bands: bands}) do
+    columns = bands |> Enum.map(& &1.values) |> Enum.zip_with(& &1)
 
-  defp shown_shares(bands, true) do
-    positive =
-      bands
-      |> Enum.map(& &1.end_value)
-      |> Enum.filter(&Decimal.gt?(&1, 0))
-      |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
-
-    Enum.map(bands, fn band ->
-      share = if Decimal.gt?(positive, 0), do: Decimal.div(band.end_value, positive)
-      %{band | share: share}
+    dates
+    |> Enum.zip(columns)
+    |> Enum.with_index()
+    |> Enum.find_value(:none, fn {{date, day}, i} ->
+      total = Enum.reduce(day, Decimal.new(0), &Decimal.add/2)
+      if Decimal.gt?(total, 0), do: {date, total, i == 0}
     end)
   end
 
@@ -434,8 +437,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   # The method behind the ⓘ, one sentence per line (I1): the currency and
   # what a band holds, the change, the order, the merge, the negative parts,
-  # what a click does, and the privacy mode's picture.
-  defp method(result, privacy?, filter_links?, other?) do
+  # what a click does, and what the privacy mode's axis reads.
+  defp method(result, index, filter_links?, other?) do
     [
       gettext("Market value at each day's close, in %{currency}.",
         currency: result.base_currency
@@ -453,13 +456,31 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         gettext(
           "A click on a category filters the stack to it and keeps the level; the path above leads back."
         ),
-      privacy? &&
-        gettext(
-          "In the privacy mode each day's bands are drawn over that day's positive bands, from 0 % to 100 %."
-        )
+      privacy_axis(index)
     ]
     |> Enum.filter(&is_binary/1)
   end
+
+  defp privacy_axis(nil), do: nil
+
+  defp privacy_axis({_date, _total, true}),
+    do:
+      gettext(
+        "In the privacy mode the axis reads in percent of the bands’ total on the window’s first day (100 %); the picture is the same."
+      )
+
+  defp privacy_axis({date, _total, false}),
+    do:
+      gettext(
+        "In the privacy mode the axis reads in percent of the bands’ total on %{date}, the first day it is above zero (100 %); the picture is the same.",
+        date: Format.date(date)
+      )
+
+  defp privacy_axis(:none),
+    do:
+      gettext(
+        "In the privacy mode the axis has no labels: the bands’ total is above zero on no day of the window."
+      )
 
   defp holds(%{category_id: nil, level: :category}),
     do: gettext("Cash and the unassigned rest are bands of their own.")
@@ -511,13 +532,17 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     do:
       gettext("The largest band at the bottom; the legend reads like the stack, top band first.")
 
-  # A tick of the 100 % stack reads as a whole percent; a tick in money as
-  # the shared chart's axis prints it.
-  defp tick_label(value, true), do: "#{round(value * 100)}%"
+  # A tick in the privacy mode reads as a whole percent of the index's
+  # total (a ratio, so the plain form); a tick in money as the shared
+  # chart's axis prints it.
+  defp tick_label(value, {_date, total, _first?}) do
+    percent = round(value / Decimal.to_float(total) * 100)
+    Format.plain_decimal(Decimal.new(percent), 0) <> "%"
+  end
 
-  defp tick_label(value, false) when value == 0, do: Format.decimal(Decimal.new(0), 0)
+  defp tick_label(value, nil) when value == 0, do: Format.decimal(Decimal.new(0), 0)
 
-  defp tick_label(value, false) do
+  defp tick_label(value, nil) do
     places =
       cond do
         abs(value) >= 1000 -> 0
@@ -536,9 +561,9 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   # the two never cross the bands between (#1426); a band that changes sign
   # inside the window is drawn first, next to the zero line, and its two
   # areas meet there. „Other“ stays on top whatever its sign (D4).
-  defp geometry(%{bands: []}, _privacy?), do: nil
+  defp geometry(%{bands: []}), do: nil
 
-  defp geometry(result, privacy?) do
+  defp geometry(result) do
     indices = sample(length(result.dates))
     dates = Enum.map(indices, &Enum.at(result.dates, &1))
 
@@ -548,11 +573,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         {band.key, Enum.map(indices, &to_float(elem(values, &1)))}
       end)
 
-    series = if privacy?, do: shares(series), else: series
     kinds = Map.new(result.bands, &{&1.key, &1.kind})
     stacked = series |> zero_first(kinds) |> stack()
 
-    {lo, hi} = range(stacked, privacy?)
+    {lo, hi} = range(stacked)
     plot_top = @padding_top * 1.0
     plot_bottom = (@height - @padding_bottom) * 1.0
     plot_left = @padding_left * 1.0
@@ -617,22 +641,6 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   defp to_float(%Decimal{} = value), do: Decimal.to_float(value)
 
-  # The 100 % stack: each day's value over the sum of that day's positive
-  # values, so the positive bands fill 0 to 1.
-  defp shares(series) do
-    totals =
-      series
-      |> Enum.map(fn {_key, values} -> values end)
-      |> Enum.zip_with(fn day -> day |> Enum.filter(&(&1 > 0)) |> Enum.sum() end)
-
-    Enum.map(series, fn {key, values} ->
-      {key,
-       Enum.zip_with(values, totals, fn value, total ->
-         if total > 0, do: value / total, else: 0.0
-       end)}
-    end)
-  end
-
   # Each band's areas with their lower and upper edge per day, the first
   # band at the bottom: its positive part stacks up from the positives
   # below it, its negative part down from the negatives (a diverging stack),
@@ -666,17 +674,12 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     stacked
   end
 
-  defp range(stacked, privacy?) do
+  defp range(stacked) do
     edges = Enum.flat_map(stacked, fn {_key, _part, edges} -> edges end)
     lo = edges |> Enum.map(&elem(&1, 0)) |> Enum.min(fn -> 0.0 end) |> min(0.0)
     top = edges |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 0.0 end) |> max(0.0)
 
-    hi =
-      cond do
-        privacy? -> 1.0
-        top == lo -> lo + 1.0
-        true -> top + (top - lo) * 0.05
-      end
+    hi = if top == lo, do: lo + 1.0, else: top + (top - lo) * 0.05
 
     {lo, hi}
   end

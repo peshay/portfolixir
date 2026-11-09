@@ -474,83 +474,168 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     assert has_element?(many, "#stack-legend tr[data-band='other'] .stack-swatch--other")
   end
 
-  # User story (I23, FR-53; I22's privacy mode; plan D-8 carry-forward 2):
-  # As the operator who shares the screen with the privacy mode on,
-  # I want the stack drawn as a 100 % stack by itself and the legend to keep
-  # share and change but no value,
-  # so that the bands show my mix and never its size.
-  #
-  # Acceptance criteria:
-  # - With the mode on, the category stack's axis reads 0 % to 100 % and
-  #   the top band's upper edge lies on the plot's top on every drawn day.
-  # - The legend has no value column and no value attribute; share and
-  #   change stay. No band's tooltip and no text of the section names an
-  #   amount, and no hidden figure is drawn as its stand-in text.
-  # - The drilled category reads the same way.
-  test "in the privacy mode the stack is a 100 % stack and names no amount", %{conn: conn} do
-    w = stack_world()
+  # --- Sprint 28 S6 begin ---
+  # The privacy mode keeps the stack's shape (#1433, plan amendment D-A2,
+  # board 06): the same picture as without the mode, the axis in percent of
+  # the bands' total on the window's first day, no amount anywhere.
 
-    masked =
-      conn
-      |> put_preference_cookie("portfolixir_privacy", "on")
+  defp masked(conn), do: put_preference_cookie(conn, "portfolixir_privacy", "on")
 
-    for address <- [
-          "/portfolio?level=category",
-          "/portfolio?level=security&category=#{w.income.id}"
-        ] do
-      {:ok, view, _html} = live(masked, address)
-      settle(view)
+  # The bands read's query for a stack address.
+  defp bands_query(address) do
+    params = address |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
 
-      assert has_element?(view, "#performance-figure-stack[data-scale='percent']")
-      assert text_of(view, "#performance-figure-stack .chart-axis-y.is-top") == "100%"
-      assert text_of(view, "#performance-figure-stack .chart-axis-y:not(.is-top)") =~ "0%"
+    query = %{"level" => params["level"], "period" => "1y"}
 
-      top = view |> legend_keys() |> hd()
-      [d] = attrs(view, "path[data-band='#{top}']", "d")
-      [points] = attrs(view, "#performance-figure-stack svg", "data-points")
-      [plot_top] = attrs(view, "#performance-figure-stack svg", "data-plot-top")
-
-      upper =
-        ~r/[ML]\s*([\d.]+),([\d.]+)/
-        |> Regex.scan(d)
-        |> Enum.take(String.to_integer(points))
-        |> Enum.map(fn [_, _x, y] -> y end)
-
-      assert Enum.uniq(upper) == [plot_top]
-
-      refute has_element?(view, "#stack-legend th", "Value")
-      refute has_element?(view, "#stack-legend td[data-role='stack-value']")
-      assert attrs(view, "[data-end-value]", "data-end-value") == []
-      assert text_of(view, "#stack-legend td[data-role='stack-share']") =~ "%"
-
-      section = text_of(view, "#portfolio-performance")
-      titles = view |> doc() |> Floki.find("#performance-figure-stack title") |> Floki.text()
-
-      for shown <- [section, titles] do
-        assert Regex.scan(~r/\d{1,3}(?:,\d{3})*\.\d{2}(?!\d|%)/u, shown) == [],
-               "#{address} names an amount: #{shown}"
-
-        refute shown =~ PortfolixirWeb.PrivacyMode.text()
-      end
+    case params["category"] do
+      nil -> query
+      filter -> Map.put(query, "category_id", filter)
     end
   end
 
-  # User story (I23, FR-53; I22's privacy mode; the closing act's money
-  # lens, M3):
+  # The bands' total on the window's first day whose total is above zero,
+  # as the API answers it, and that day.
+  defp index_basis(data) do
+    data["dates"]
+    |> Enum.with_index()
+    |> Enum.find_value(fn {date, i} ->
+      total =
+        data["bands"]
+        |> Enum.map(&Decimal.new(Enum.at(&1["values"], i)))
+        |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
+
+      if Decimal.gt?(total, 0), do: {date, Decimal.to_float(total)}
+    end)
+  end
+
+  defp tick_ys(view), do: attrs(view, "#performance-figure-stack .chart-axis-y", "y")
+
+  defp tick_texts(view) do
+    view
+    |> doc()
+    |> Floki.find("#performance-figure-stack .chart-axis-y")
+    |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+  end
+
+  # A value tick as the English page prints it ("10,700", "2,674.88").
+  defp tick_value(text), do: text |> String.replace(",", "") |> Float.parse() |> elem(0)
+
+  # A percent tick ("107%", "-8%").
+  defp tick_percent(text), do: text |> String.trim_trailing("%") |> tick_value()
+
+  # Each drawn area's height per drawn day, by key and part.
+  defp heights(view) do
+    for {key, part, days} <- polygons(view) do
+      {{key, part}, Enum.map(days, fn {upper, lower} -> lower - upper end)}
+    end
+  end
+
+  defp refute_amounts(view, address) do
+    section = text_of(view, "#portfolio-performance")
+    titles = view |> doc() |> Floki.find("#performance-figure-stack title") |> Floki.text()
+    ticks = Enum.join(tick_texts(view), " ")
+
+    for shown <- [section, titles, ticks] do
+      assert Regex.scan(~r/\d{1,3}(?:,\d{3})*\.\d{2}(?!\d|%)/u, shown) == [],
+             "#{address} names an amount: #{shown}"
+
+      refute shown =~ PortfolixirWeb.PrivacyMode.text()
+    end
+
+    for tick <- tick_texts(view), do: assert(tick =~ ~r/^-?[\d,]+%$/u, "#{address}: #{tick}")
+
+    refute has_element?(view, "#stack-legend th", "Value")
+    refute has_element?(view, "#stack-legend td[data-role='stack-value']")
+    assert attrs(view, "[data-end-value]", "data-end-value") == []
+  end
+
+  # User story (#1433, D-A2, board 06; FR-53 amended):
+  # As the operator sharing my screen with the privacy mode on,
+  # I want the stacked chart to look as it does without the mode, only
+  # without amounts,
+  # so that I still see how my wealth and each band grew, while nobody can
+  # tell 10,000 from 10 million.
+  #
+  # Acceptance criteria:
+  # - At every level, with a filter (a category, the unassigned rest) and
+  #   without, the picture is the value mode's: every band's height on
+  #   every drawn day is the value mode's times one factor, and the axis
+  #   lines sit where they sit without the mode.
+  # - Each axis tick reads in percent of the bands' total on the window's
+  #   first day (with a filter, the filtered stack's total): the value
+  #   mode's tick over that total, a whole percent.
+  # - No tick, legend cell or tooltip names an amount; the legend drops the
+  #   value column and its share is the API's net share; the ⓘ says what
+  #   the axis reads.
+  test "in the privacy mode the stack keeps its shape and its axis reads in percent of the first day",
+       %{conn: conn} do
+    w = stack_world()
+
+    for address <- [
+          "/portfolio?level=total&category=#{w.income.id}",
+          "/portfolio?level=category",
+          "/portfolio?level=category&category=#{w.income.id}",
+          "/portfolio?level=category&category=unclassified",
+          "/portfolio?level=security",
+          "/portfolio?level=security&category=#{w.income.id}"
+        ] do
+      {:ok, plain, _html} = live(conn, address)
+      settle(plain)
+      {:ok, view, _html} = live(masked(conn), address)
+      settle(view)
+
+      data = api(conn, bands_query(address))
+      {_date, base} = index_basis(data)
+
+      # One picture: each height the value mode's times one factor.
+      shown = heights(view)
+      value = heights(plain)
+      assert Enum.map(shown, &elem(&1, 0)) == Enum.map(value, &elem(&1, 0)), address
+
+      factors =
+        for {{_key, hs}, {_k, vs}} <- Enum.zip(shown, value),
+            {h, v} <- Enum.zip(hs, vs),
+            v > 0.5,
+            do: h / v
+
+      assert factors != [], address
+      assert Enum.max(factors) - Enum.min(factors) < 0.02, "#{address}: #{inspect(factors)}"
+      assert tick_ys(view) == tick_ys(plain), address
+
+      # Each tick in percent of the first day's total.
+      for {percent, amount} <- Enum.zip(tick_texts(view), tick_texts(plain)) do
+        assert abs(tick_percent(percent) - tick_value(amount) / base * 100) <= 0.51,
+               "#{address}: #{percent} is not #{amount} over #{base}"
+      end
+
+      refute_amounts(view, address)
+
+      for band <- data["bands"] do
+        assert text_of(
+                 view,
+                 "#stack-legend tr[data-band='#{band["key"]}'] td[data-role='stack-share']"
+               ) ==
+                 Format.percent(Decimal.new(band["share"])) <> "%",
+               "#{address}: #{band["key"]}"
+      end
+
+      assert text_of(view, "[data-role='stack-basis'] [data-role='section-info']") =~
+               "In the privacy mode the axis reads in percent of the bands’ total on the window’s first day"
+    end
+  end
+
+  # User story (#1433, D-A2; the closing act's money lens of Sprint 27, M3,
+  # retired):
   # As the operator sharing the screen with an overdrawn cash account,
-  # I want the legend's shares in the privacy mode to read like the 100 %
-  # stack drawn beside them,
-  # so that a band that fills the picture does not read 300 %.
+  # I want the legend's share in the privacy mode to be the share the API
+  # and the screen without the mode give,
+  # so that one band reads one share whatever the mode.
   #
   # Acceptance criteria:
   # - Deposit 100, buy 300: on the last day the security is 300 and the
-  #   cash −200. With the privacy mode on, the stack fills 0 to 100 % with
-  #   the security, and its legend share reads 100.0 %; the cash reads
-  #   −66.7 %, its value over the day's positive bands, as it is drawn.
-  # - The API's share keeps its net definition (the security "3", the cash
-  #   "-2"), and its basis says a share can exceed 100 % or be negative when
-  #   a band is negative.
-  test "in the privacy mode the legend's share is taken on the stack's own basis", %{conn: conn} do
+  #   cash −200; with the mode on, the legend reads the API's net shares,
+  #   300.0 % and −200.0 %, as without it.
+  test "in the privacy mode the legend's share is the API's net share", %{conn: conn} do
     world = base_world(name: "Overdrawn World", cash_name: "Giro", depot_name: "Depot")
     deposit!(world, "100", days_ago(30))
     security = create_security!(name: "Alpha Synthetic AG")
@@ -560,21 +645,123 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     data = api(conn, %{"level" => "security", "period" => "1y"})
     shares = Map.new(data["bands"], &{&1["key"], &1["share"]})
     assert shares == %{"security:#{security.id}" => "3", "cash" => "-2"}
-    assert data["computation_basis"]["assumptions"] =~ "can exceed 1 or be negative"
 
-    masked = put_preference_cookie(conn, "portfolixir_privacy", "on")
-    {:ok, view, _html} = live(masked, "/portfolio?level=security")
+    {:ok, view, _html} = live(masked(conn), "/portfolio?level=security")
     settle(view)
 
     share = fn key ->
       text_of(view, "#stack-legend tr[data-band='#{key}'] td[data-role='stack-share']")
     end
 
-    assert share.("security:#{security.id}") == Format.percent(Decimal.new(1)) <> "%"
-
-    assert share.("cash") ==
-             Format.percent(Decimal.div(Decimal.new(-200), Decimal.new(300))) <> "%"
+    assert share.("security:#{security.id}") == Format.percent(Decimal.new(3)) <> "%"
+    assert share.("cash") == Format.percent(Decimal.new(-2)) <> "%"
   end
+
+  # User story (#1433, D-A2; #1426's drawing):
+  # As the operator whose cash was overdrawn for two days, with the privacy
+  # mode on,
+  # I want the band that changes sign drawn as without the mode,
+  # so that the mode changes the labels, never the picture.
+  #
+  # Acceptance criteria:
+  # - At „Wertpapiere“ and „Kategorien“ the masked picture is the value
+  #   mode's, the cash's part below zero a separate area next to the zero
+  #   line, no two areas crossing; no tick, legend cell or tooltip names an
+  #   amount.
+  test "in the privacy mode a band that changes sign is drawn as without it", %{conn: conn} do
+    sign_world()
+
+    for address <- ["/portfolio?level=security", "/portfolio?level=category"] do
+      {:ok, plain, _html} = live(conn, address)
+      settle(plain)
+      {:ok, view, _html} = live(masked(conn), address)
+      settle(view)
+
+      assert polygons(view) == polygons(plain), address
+      assert crossings(polygons(view)) == []
+
+      assert has_element?(
+               view,
+               "path.stack-band--negative[data-band='cash'][data-part='negative']"
+             )
+
+      assert has_element?(view, "#performance-figure-stack line.chart-zeroline")
+      refute_amounts(view, address)
+    end
+  end
+
+  # User story (#1433, D-A2; the edge the amendment left open):
+  # As the operator whose window starts on a day the bands add up to zero
+  # (a buy booked before the money that pays it),
+  # I want the axis indexed to the first day whose total is above zero, and
+  # told so,
+  # so that no axis divides by zero or turns upside down.
+  #
+  # Acceptance criteria:
+  # - Buy 300 thirty days ago with no money (total 0), deposit 500 twenty
+  #   days ago (total 500): the ticks read in percent of 500, and the ⓘ
+  #   names that day as the first one above zero.
+  test "in the privacy mode a first day without a positive total indexes to the first that has one",
+       %{conn: conn} do
+    world = base_world(name: "Late World", cash_name: "Giro", depot_name: "Depot")
+    security = create_security!(name: "Alpha Synthetic AG")
+    buy!(world, security, quantity: "3", price: "100", date: days_ago(30))
+    put_quotes!(security, [{days_ago(30), "100"}])
+    deposit!(world, "500", days_ago(20))
+
+    data = api(conn, %{"level" => "category", "period" => "1y"})
+    assert hd(data["dates"]) == Date.to_iso8601(days_ago(30))
+    {date, base} = index_basis(data)
+    assert date == Date.to_iso8601(days_ago(20))
+    assert base == 500.0
+
+    {:ok, plain, _html} = live(conn, "/portfolio?level=category")
+    settle(plain)
+    {:ok, view, _html} = live(masked(conn), "/portfolio?level=category")
+    settle(view)
+
+    for {percent, amount} <- Enum.zip(tick_texts(view), tick_texts(plain)) do
+      assert abs(tick_percent(percent) - tick_value(amount) / base * 100) <= 0.51
+    end
+
+    assert text_of(view, "[data-role='stack-basis'] [data-role='section-info']") =~
+             "the bands’ total on #{Format.date(days_ago(20))}, the first day it is above zero"
+
+    refute_amounts(view, "/portfolio?level=category")
+  end
+
+  # User story (#1433, D-A2; the same edge, with no day to index to):
+  # As the operator whose bands add up to zero or less on every day of the
+  # window,
+  # I want an axis without labels rather than one in percent of nothing,
+  # so that the mode never invents a scale.
+  #
+  # Acceptance criteria:
+  # - Buy 300 with no money thirty days ago, the close falling to 90
+  #   today: the total is 0, then −30. The masked chart draws its bands and
+  #   axis lines but no tick label, and the ⓘ says why.
+  test "in the privacy mode a window without a positive total draws no tick labels", %{conn: conn} do
+    world = base_world(name: "Short World", cash_name: "Giro", depot_name: "Depot")
+    security = create_security!(name: "Alpha Synthetic AG")
+    buy!(world, security, quantity: "3", price: "100", date: days_ago(30))
+    put_quotes!(security, [{days_ago(30), "100"}, {today(), "90"}])
+
+    assert index_basis(api(conn, %{"level" => "category", "period" => "1y"})) == nil
+
+    {:ok, view, _html} = live(masked(conn), "/portfolio?level=category")
+    settle(view)
+
+    assert has_element?(view, "#performance-figure-stack path.stack-band")
+    assert has_element?(view, "#performance-figure-stack .chart-axes line")
+    assert tick_texts(view) == []
+
+    assert text_of(view, "[data-role='stack-basis'] [data-role='section-info']") =~
+             "the axis has no labels: the bands’ total is above zero on no day of the window"
+
+    refute_amounts(view, "/portfolio?level=category")
+  end
+
+  # --- Sprint 28 S6 end ---
 
   # User story (I23, board 01 A; the closing act's design critic, D3):
   # As the operator reading the stack in German,
