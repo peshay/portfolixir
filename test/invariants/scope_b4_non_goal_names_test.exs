@@ -207,6 +207,20 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "(§12), so not the raw news archive the non-goal names"
     },
     # --- S28 N1 end ---
+    # --- S28 N3 begin ---
+    # The digest's consumer cursor (ADR-0056 §9): the table of the readers'
+    # confirmed positions. Exactly news_digest_consumers; a news table for
+    # articles or archives is still caught.
+    %{
+      phrases: [~w(news digest consumers)],
+      kinds: [:table],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "each named reader's confirmed position in the digest of ADR-0056 §9 (a name and " <>
+          "an instant, no text of any story), so not the raw news archive the non-goal names"
+    },
+    # --- S28 N3 end ---
     %{
       phrases: [~w(sync now)],
       kinds: [:event],

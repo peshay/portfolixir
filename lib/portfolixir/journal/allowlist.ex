@@ -28,8 +28,11 @@ defmodule Portfolixir.Journal.Allowlist do
   # and sources they hang off are journaled master data. The closing act
   # (COR2, COR4) adds retention's tombstones of removed items, a hash per
   # feed and URL kept 90 days, and the day's record of dropped items.
+  # Sprint 28 N3 adds the digest's consumers (ADR-0056 §9): each named
+  # reader's confirmed position, a bookmark every confirmed digest call
+  # moves, not a record of the operator's data.
   @non_journaled_tables ~w(security_quotes exchange_rates news_items news_clusters news_feed_days
-                           news_item_tombstones news_feed_drops)
+                           news_item_tombstones news_feed_drops news_digest_consumers)
 
   # ADR-0018 §5: view definitions, bucket assignments and the snapshot markers
   # (ADR-0027) are *scope* — which accounts and positions a view reads — not
