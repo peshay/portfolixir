@@ -459,6 +459,12 @@ defmodule PortfolixirWeb.Router do
     get("/news/health", NewsReadController, :health)
     get("/news/digest", NewsReadController, :digest)
     # --- Sprint 27 N7 end ---
+    # --- S28 N7 begin ---
+    # ADR-0056 §10 and the coverage rule (Sprint 28, N7): the registered
+    # feeds and the rated sources the news page's Feeds and Quellen tabs
+    # show, as one paged read.
+    get("/news/registry", NewsReadController, :registry)
+    # --- S28 N7 end ---
     # --- S28 N1 begin ---
     # ADR-0056 §7 (Sprint 28, N1): the labeller's write — one label per
     # story, model and prompt version, closed and journaled — and its read,

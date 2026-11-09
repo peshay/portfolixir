@@ -55,6 +55,7 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Matcher
   alias Portfolixir.News.Promotion
   alias Portfolixir.News.Scheduler
+  alias Portfolixir.News.Source
   alias Portfolixir.News.Stories
   alias Portfolixir.News.Universe
   alias Portfolixir.Repo
@@ -1130,20 +1131,75 @@ defmodule Portfolixir.News do
           url: String.t(),
           class: atom(),
           enabled: boolean(),
+          language: String.t(),
           security_id: pos_integer() | nil,
           security_name: String.t() | nil,
           category_id: pos_integer() | nil,
           category_name: String.t() | nil
         }
 
+  @type registry_cursor :: {:feed, pos_integer()} | {:source, String.t()}
+
+  @type registry :: %{
+          feeds: [feed_registration()],
+          sources: [Source.t()],
+          truncated: boolean(),
+          cursor: registry_cursor() | nil
+        }
+
   @doc """
-  Each registered feed's URL, class and binding (its security's or
-  category's name), in id order, as `health/1` lists the feeds: what the
-  page's „Feeds“ tab shows beside each feed's health. The registration is
-  the API's and the agent's (`news.feeds_put`); the page only shows it.
+  The news registry (ADR-0056 §10; the coverage rule, N7): every
+  registered feed — URL, class, binding (its security's or category's id
+  and name), language, enabled — by id, then every rated source (§3) by
+  domain. What the page's „Feeds“ and „Quellen“ tabs show, and what `GET
+  /api/v1/news/registry` (`news.registry`) lists to the agent: one read
+  for both (plan D-1, criterion 6). Registration stays the API's and the
+  agent's (`news.feeds_put`, `news.sources_put`); the page only shows it.
+
+  Options: `limit` (rows per page, feeds and sources counted together;
+  `nil`, the default, answers all) and `after` (a page's `cursor`). A page
+  with rows behind it answers `truncated: true` and `cursor`, the last row's
+  key, `{:feed, id}` or `{:source, domain}`: the next page starts after it,
+  so a walk returns every row once (a feed or source written meanwhile
+  behind the cursor is read on the walk; one before it on the next walk).
   """
-  @spec feed_registrations() :: [feed_registration()]
-  def feed_registrations do
+  @spec registry(keyword()) :: registry()
+  def registry(opts \\ []) do
+    limit = Keyword.get(opts, :limit)
+    after_key = Keyword.get(opts, :after)
+
+    feeds = registry_feeds(after_key, limit && limit + 1)
+
+    if limit && length(feeds) > limit do
+      feeds = Enum.take(feeds, limit)
+      %{feeds: feeds, sources: [], truncated: true, cursor: {:feed, List.last(feeds).id}}
+    else
+      room = limit && limit - length(feeds)
+      sources = registry_sources(after_key, room && room + 1)
+
+      cond do
+        is_nil(limit) or length(sources) <= room ->
+          %{feeds: feeds, sources: sources, truncated: false, cursor: nil}
+
+        room == 0 ->
+          %{feeds: feeds, sources: [], truncated: true, cursor: {:feed, List.last(feeds).id}}
+
+        true ->
+          sources = Enum.take(sources, room)
+
+          %{
+            feeds: feeds,
+            sources: sources,
+            truncated: true,
+            cursor: {:source, List.last(sources).domain}
+          }
+      end
+    end
+  end
+
+  defp registry_feeds({:source, _domain}, _limit), do: []
+
+  defp registry_feeds(after_key, max) do
     from(f in Feed,
       left_join: s in assoc(f, :security),
       left_join: c in assoc(f, :category),
@@ -1153,12 +1209,32 @@ defmodule Portfolixir.News do
         url: f.url,
         class: f.class,
         enabled: f.enabled,
+        language: f.language,
         security_id: f.security_id,
         security_name: s.name,
         category_id: f.category_id,
         category_name: c.name
       }
     )
+    |> then(fn query ->
+      case after_key do
+        {:feed, id} -> where(query, [f], f.id > ^id)
+        nil -> query
+      end
+    end)
+    |> then(&if(max, do: limit(&1, ^max), else: &1))
+    |> Repo.all()
+  end
+
+  defp registry_sources(after_key, max) do
+    from(s in Source, order_by: s.domain)
+    |> then(fn query ->
+      case after_key do
+        {:source, domain} -> where(query, [s], s.domain > ^domain)
+        _feed_or_start -> query
+      end
+    end)
+    |> then(&if(max, do: limit(&1, ^max), else: &1))
     |> Repo.all()
   end
 

@@ -251,6 +251,19 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "the rated sources, nothing kept beyond the reads' 90 days (§12), so not the raw " <>
           "news archive the non-goal names"
     },
+    # N7's coverage (AGENTS.md "Coverage runs both ways"): the read that
+    # lists to the agent the feeds and sources the page shows. Exactly
+    # `news registry`, its route and its tool.
+    %{
+      phrases: [~w(news registry)],
+      kinds: [:route, :tool],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "listing the registered feeds and the rated sources the news page shows (ADR-0056 " <>
+          "§10): links, classes, bindings and tiers, no text of any story, so not the raw " <>
+          "news archive the non-goal names"
+    },
     # --- S28 N7 end ---
     %{
       phrases: [~w(sync now)],
@@ -367,7 +380,9 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
             {:table, "news_feed_drops"},
             # --- S28 N7 begin ---
             {:route, "GET /news"},
-            {:module, "PortfolixirWeb.NewsLive"}
+            {:module, "PortfolixirWeb.NewsLive"},
+            {:route, "GET /api/v1/news/registry"},
+            {:tool, "portfolixir.news.registry"}
             # --- S28 N7 end ---
           ] do
         assert violations(name) == [], "#{inspect(name)} should not be caught"

@@ -28,6 +28,15 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       `min_materiality` (2) and `include_unlabeled` (`false`), acting on
       aggregator and thematic stories only (§7, S28 N2), `max_rows` (12, at
       most 40, C5). See `Portfolixir.News.Reads.digest/5`.
+    * `GET /api/v1/news/registry` (`news.registry`, S28 N7's coverage) —
+      every registered feed (`id`, `url`, `class`, `security_id` or
+      `category_id`, `language`, `enabled`) by id, then every rated source
+      (`domain`, `tier`, `set_by`) by domain: what the news page's Feeds and
+      Quellen tabs show, read through the same
+      `Portfolixir.News.registry/1`. `limit` (default 40, at most 100)
+      counts feeds and sources together; a truncated page carries `cursor`.
+      A link is cut at 300 characters as the companion spells it, as
+      `news.get` cuts a story's.
 
   **Labels (S28 N2, §7):** the list, a story and the digest read one prompt
   version's active labels, `prompt_version` or else the newest
@@ -344,8 +353,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     end
   end
 
-  defp limit(params) do
-    case ListLimit.parse(params, @list_default, @list_max) do
+  defp limit(params, default \\ @list_default) do
+    case ListLimit.parse(params, default, @list_max) do
       {:ok, limit} -> {:ok, limit}
       {:error, :limit} -> {:error, %{"limit" => ["must be a positive integer"]}}
     end
@@ -535,6 +544,73 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       :error -> {:error, :not_found}
     end
   end
+
+  # --- S28 N7 begin ---
+  # The registry (ADR-0056 §10, the coverage rule): the feeds and sources
+  # the page's Feeds and Quellen tabs show, paged by limit and cursor.
+  @registry_default 40
+  @registry_url_max 300
+
+  def registry(conn, params) do
+    with :ok <- closed(conn, ~w(limit cursor)),
+         {:ok, limit} <- limit(params, @registry_default),
+         {:ok, after_key} <- registry_cursor(params["cursor"]) do
+      page = News.registry(limit: limit, after: after_key)
+
+      json(conn, %{
+        data:
+          compact(%{
+            feeds: Enum.map(page.feeds, &registry_feed/1),
+            sources: Enum.map(page.sources, &registry_source/1),
+            limit: limit,
+            truncated: page.truncated,
+            cursor: encode_registry_cursor(page.cursor)
+          })
+      })
+    else
+      {:error, errors} -> refuse(conn, errors)
+    end
+  end
+
+  # `feed~<id>` or `source~<domain>`, the last row's key.
+  defp registry_cursor(value) when value in [nil, ""], do: {:ok, nil}
+
+  defp registry_cursor("feed~" <> id) do
+    case IdParam.parse(id) do
+      {:ok, id} -> {:ok, {:feed, id}}
+      :error -> registry_cursor(:malformed)
+    end
+  end
+
+  defp registry_cursor("source~" <> domain) do
+    if domain =~ ~r/\A[a-z0-9][a-z0-9.-]{0,252}\z/,
+      do: {:ok, {:source, domain}},
+      else: registry_cursor(:malformed)
+  end
+
+  defp registry_cursor(_malformed),
+    do: {:error, %{"cursor" => ["is not a cursor this read answered"]}}
+
+  defp encode_registry_cursor(nil), do: nil
+  defp encode_registry_cursor({:feed, id}), do: "feed~#{id}"
+  defp encode_registry_cursor({:source, domain}), do: "source~" <> domain
+
+  defp registry_feed(feed) do
+    compact(%{
+      id: feed.id,
+      url: Reads.clip_spelled(feed.url, @registry_url_max),
+      class: feed.class,
+      security_id: feed.security_id,
+      category_id: feed.category_id,
+      language: feed.language,
+      enabled: feed.enabled
+    })
+  end
+
+  defp registry_source(source),
+    do: %{domain: source.domain, tier: source.tier, set_by: source.set_by}
+
+  # --- S28 N7 end ---
 
   # -- answers ----------------------------------------------------------------
 

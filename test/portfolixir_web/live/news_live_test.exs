@@ -321,12 +321,15 @@ defmodule PortfolixirWeb.NewsLiveTest do
   # - Each feed row carries news.health's items_24h, err_24h, items_30d,
   #   promoted_30d and yield_30d (as a percentage), its last good fetch and
   #   its state chips (stale, low yield, last fetch failed, paused, else
-  #   ok), beside its URL, class and binding.
+  #   ok), beside its URL, class, binding and language as news.registry
+  #   lists them to the agent (N7's coverage: the same rows, read through
+  #   `Portfolixir.News.registry/1`).
   # - Each source row carries its domain, its tier and "by hand" or
-  #   "default".
+  #   "default", as news.registry lists them.
   # - Neither tab offers a control that writes.
-  test "the Feeds and Quellen tabs answer as news.health and the stored sources", %{conn: conn} do
+  test "the Feeds and Quellen tabs answer as news.health and news.registry", %{conn: conn} do
     world = news_world()
+    feed!(%{class: "aggregator", url: "https://paused.example.com/rss-n7", enabled: false})
 
     {:ok, view, _html} = live(conn, "/news?tab=feeds")
 
@@ -354,14 +357,24 @@ defmodule PortfolixirWeb.NewsLiveTest do
                "#{feed["promoted_30d"]}"
              )
 
-      yield = Format.percent(Decimal.new(feed["yield_30d"])) <> " %"
+      yield =
+        if feed["yield_30d"],
+          do: Format.percent(Decimal.new(feed["yield_30d"])) <> " %",
+          else: "—"
+
       assert has_element?(view, selector <> " [data-role='feed-yield']", yield)
 
       last_ok = if feed["last_ok_at"], do: cell_time(feed["last_ok_at"]), else: "—"
       assert has_element?(view, selector <> " [data-role='feed-last-ok']", last_ok)
       assert has_element?(view, selector <> " [data-role='feed-class']", feed["class"])
 
-      state = if feed["stale"], do: "stale", else: "ok"
+      state =
+        cond do
+          not feed["enabled"] -> "paused"
+          feed["stale"] -> "stale"
+          true -> "ok"
+        end
+
       assert has_element?(view, selector <> " [data-role='feed-state']", state)
     end
 
@@ -377,31 +390,51 @@ defmodule PortfolixirWeb.NewsLiveTest do
              "Universe"
            )
 
+    # The registry (N7's coverage): each feed the API lists to the agent is
+    # the page's row, with its URL, class, binding, language and pause.
+    registry = api("/api/v1/news/registry")
+    assert length(registry["feeds"]) == 3
+
+    for feed <- registry["feeds"] do
+      selector = "#news-feeds-table tr[data-feed='#{feed["id"]}']"
+      assert has_element?(view, selector <> " [data-role='feed-url']", feed["url"])
+      assert has_element?(view, selector <> " [data-role='feed-class']", feed["class"])
+      assert has_element?(view, selector <> " [data-role='feed-language']", feed["language"])
+
+      cond do
+        feed["security_id"] ->
+          assert has_element?(
+                   view,
+                   selector <>
+                     " [data-role='feed-binding'] a[href='/securities/#{feed["security_id"]}']"
+                 )
+
+        feed["category_id"] ->
+          assert has_element?(view, selector <> " [data-role='feed-binding']")
+
+        true ->
+          assert has_element?(view, selector <> " [data-role='feed-binding']", "Universe")
+      end
+
+      assert has_element?(view, selector <> " [data-role='feed-state']", "paused") ==
+               not feed["enabled"]
+    end
+
     refute has_element?(view, "#news-feeds form")
     refute has_element?(view, "#news-feeds button[phx-click]")
 
     {:ok, sources, _html} = live(conn, "/news?tab=sources")
 
-    for source <- Sources.list() do
-      selector = "#news-sources-table tr[data-source='#{source.id}']"
-      assert has_element?(sources, selector <> " [data-role='source-domain']", source.domain)
+    assert length(registry["sources"]) == 2
 
-      assert has_element?(
-               sources,
-               selector <> " [data-role='source-tier']",
-               to_string(source.tier)
-             )
+    for source <- registry["sources"] do
+      selector = "#news-sources-table tr[data-source='#{source["domain"]}']"
+      assert has_element?(sources, selector <> " [data-role='source-domain']", source["domain"])
+      assert has_element?(sources, selector <> " [data-role='source-tier']", source["tier"])
+      set_by = if source["set_by"] == "hand", do: "by hand", else: "default"
+      assert has_element?(sources, selector <> " [data-role='source-set-by']", set_by)
     end
 
-    assert has_element?(sources, "#news-sources-table tr", "ir.example.com")
-
-    assert has_element?(
-             sources,
-             "#news-sources-table tr:has([data-role='source-domain'])",
-             "by hand"
-           )
-
-    assert has_element?(sources, "#news-sources-table tr", "default")
     refute has_element?(sources, "#news-sources form")
   end
 

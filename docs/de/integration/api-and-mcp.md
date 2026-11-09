@@ -1656,6 +1656,20 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   gleichem Rang und gleicher Veröffentlichung ihrer Top-Story entscheidet
   die Wertpapier-ID über die Reihenfolge der Zeilen. Mit `since` behält eine
   gekürzte Antwort `truncated` und `more` wie bisher.
+- `GET /api/v1/news/registry` (`news.registry`, Sprint 28 N7) listet, was
+  die Reiter Feeds und Quellen der Nachrichten-Seite zeigen, gelesen über
+  dieselbe Funktion: jeden registrierten Feed nach ID (`id`, `url`, gekürzt
+  auf 300 Zeichen, wie der Begleiter sie schreibt, `class`, `security_id`
+  oder `category_id` (keine bei einem Aggregator), `language`, `enabled`),
+  danach jede bewertete Quelle nach Domain (`domain`, `tier`, `set_by`
+  `hand` oder `seed`; eine Domain ohne Zeile gilt als `awareness`). `limit`
+  (Standard 40, höchstens 100) zählt Feeds und Quellen zusammen; eine Seite,
+  hinter der weitere Zeilen liegen, antwortet mit `truncated: true` und
+  einem `cursor` zum Zurückgeben. Eine Seite beim Standardlimit hält
+  höchstens etwa 4.500 Tokens, wie lang Links und Domains auch sind. Den
+  Zustand jedes Feeds liefert `news.health`. Anlegen, Ändern und Entfernen
+  bleiben bei der [News-Pflege](#news-pflege-adr-0056); ein
+  unbekannter Parameter ergibt `422` mit seinem Namen.
 
 ### News-Labels (ADR-0056 §7)
 
@@ -5657,6 +5671,7 @@ lässt sich nicht lesen.
 - `portfolixir.news.health`
 - `portfolixir.news.digest`
 - `portfolixir.news.assign`
+- `portfolixir.news.registry`
 - `portfolixir.news.unlabeled` (nur Profil `label`)
 - `portfolixir.news.label_put` (nur Profil `label`)
 

@@ -555,6 +555,23 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     full: 227_685
   },
   // --- Sprint 28 S3 end ---
+  // --- S28 N7 begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, N7's coverage (ADR-0056 §10; AGENTS.md \"Coverage runs both ways\"): " +
+      "portfolixir.news.registry, a read new in read, book and full, lists the feeds and " +
+      "sources the news page shows and raises each ceiling by its own bytes and no more: its " +
+      "tools/list entry measures 697 bytes in each, so read 117,783 + 697 = 118,480, book " +
+      "192,663 + 697 = 193,360 and full 227,685 + 697 = 228,382; the comma before it is paid " +
+      "for by tightening news.digest's wording by one byte (labeled for labelled), and no " +
+      "other tool's bytes are added",
+    read: 118_480,
+    book: 193_360,
+    full: 228_382,
+    raisedBy: { tools: ["portfolixir.news.registry"], read: 697, book: 697, full: 697 }
+  },
+  // --- S28 N7 end ---
 ];
 
 describe("the schema budget", () => {
@@ -835,6 +852,9 @@ describe("the schema budget", () => {
     // --- Sprint 28 V1 begin ---
     assert.equal(debuts.get("portfolixir.version"), "2026-11-09");
     // --- Sprint 28 V1 end ---
+    // --- S28 N7 begin ---
+    assert.equal(debuts.get("portfolixir.news.registry"), "2026-11-09");
+    // --- S28 N7 end ---
   });
 
   // --- S28 N1 begin ---

@@ -322,7 +322,7 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:366
 #: lib/portfolixir_web/live/imports_live.ex:1283
 #: lib/portfolixir_web/live/journal/row.ex:182
-#: lib/portfolixir_web/live/news_live.ex:419
+#: lib/portfolixir_web/live/news_live.ex:423
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:170
 #: lib/portfolixir_web/live/portfolio_live.ex:1744
 #: lib/portfolixir_web/live/portfolio_live.ex:1838
@@ -338,8 +338,8 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:1400
 #: lib/portfolixir_web/live/income_live.ex:1476
 #: lib/portfolixir_web/live/journal/row.ex:82
-#: lib/portfolixir_web/live/news_live.ex:413
-#: lib/portfolixir_web/live/news_live.ex:469
+#: lib/portfolixir_web/live/news_live.ex:417
+#: lib/portfolixir_web/live/news_live.ex:473
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:187
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:822
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:355
@@ -1433,7 +1433,7 @@ msgstr ""
 msgid "Sell"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:362
+#: lib/portfolixir_web/live/news_live.ex:366
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:341
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:278
 #: lib/portfolixir_web/live/securities_live.ex:1582
@@ -8241,7 +8241,7 @@ msgstr ""
 msgid "adjusted so the merged history holds"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:723
+#: lib/portfolixir_web/live/news_live.ex:730
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:245
 #, elixir-autogen, elixir-format
 msgid "Set"
@@ -14300,7 +14300,7 @@ msgid "Time (UTC)"
 msgstr ""
 
 #: lib/portfolixir_web/live/journal_live.ex:522
-#: lib/portfolixir_web/live/news_live.ex:796
+#: lib/portfolixir_web/live/news_live.ex:798
 #, elixir-autogen, elixir-format
 msgid "times in UTC"
 msgstr ""
@@ -16095,444 +16095,444 @@ msgstr ""
 msgid "Subcategory"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:638
+#: lib/portfolixir_web/live/news_live.ex:645
 #, elixir-autogen, elixir-format
 msgid "%{count} error"
 msgid_plural "%{count} errors"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:299
+#: lib/portfolixir_web/live/news_live.ex:303
 #, elixir-autogen, elixir-format
 msgid "%{count} error (today and yesterday)"
 msgid_plural "%{count} errors (today and yesterday)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:290
+#: lib/portfolixir_web/live/news_live.ex:294
 #, elixir-autogen, elixir-format
 msgid "%{count} feed"
 msgid_plural "%{count} feeds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:794
+#: lib/portfolixir_web/live/news_live.ex:796
 #, elixir-autogen, elixir-format
 msgid "%{count} item"
 msgid_plural "%{count} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:302
+#: lib/portfolixir_web/live/news_live.ex:306
 #, elixir-autogen, elixir-format
 msgid "%{count} item in 24 h"
 msgid_plural "%{count} items in 24 h"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:829
+#: lib/portfolixir_web/live/news_live.ex:831
 #, elixir-autogen, elixir-format
 msgid "%{count} more row not shown"
 msgid_plural "%{count} more rows not shown"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:818
+#: lib/portfolixir_web/live/news_live.ex:820
 #, elixir-autogen, elixir-format
 msgid "%{count} security without news"
 msgid_plural "%{count} securities without news"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:293
+#: lib/portfolixir_web/live/news_live.ex:297
 #, elixir-autogen, elixir-format
 msgid "%{count} stale"
 msgid_plural "%{count} stale"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:823
+#: lib/portfolixir_web/live/news_live.ex:825
 #, elixir-autogen, elixir-format
 msgid "%{count} story of aggregators or themes hidden (no label or materiality below 2)"
 msgid_plural "%{count} stories of aggregators or themes hidden (no label or materiality below 2)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:296
+#: lib/portfolixir_web/live/news_live.ex:300
 #, elixir-autogen, elixir-format
 msgid "%{count} with low yield"
 msgid_plural "%{count} with low yield"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:625
+#: lib/portfolixir_web/live/news_live.ex:632
 #, elixir-autogen, elixir-format
 msgid "%{items} in 30 d · %{kept} kept · yield %{yield}"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:588
+#: lib/portfolixir_web/live/news_live.ex:592
 #, elixir-autogen, elixir-format
 msgid "24 h"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:590
+#: lib/portfolixir_web/live/news_live.ex:594
 #, elixir-autogen, elixir-format
 msgid "30 d"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:694
+#: lib/portfolixir_web/live/news_live.ex:701
 #, elixir-autogen, elixir-format
 msgid "A domain without a row reads as awareness; a rating covers the domain's subdomains."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:450
+#: lib/portfolixir_web/live/news_live.ex:454
 #, elixir-autogen, elixir-format
 msgid "A label is an outside model's reading, marked „machine-made“; it sorts the rows and hides nothing an issuer or a regulator said."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:704
+#: lib/portfolixir_web/live/news_live.ex:711
 #, elixir-autogen, elixir-format
 msgid "A rating by hand is never overwritten by a default. Sources are rated through the API and the agent; this page shows them."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:445
+#: lib/portfolixir_web/live/news_live.ex:449
 #, elixir-autogen, elixir-format
 msgid "A story counts when one of its items came in after the cut. An issuer's or a regulator's story always shows; an aggregator's or a thematic one shows when its label's materiality is 2 or more, and is counted as hidden otherwise."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:336
+#: lib/portfolixir_web/live/news_live.ex:340
 #, elixir-autogen, elixir-format
 msgid "An aggregator's item is filed under the one security its title names; none named leaves it unassigned, several leave it ambiguous with them as candidates."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:699
+#: lib/portfolixir_web/live/news_live.ex:706
 #, elixir-autogen, elixir-format
 msgid "An item from a blocked domain is dropped when it is fetched and counted in the health line."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:364
-#: lib/portfolixir_web/live/news_live.ex:423
+#: lib/portfolixir_web/live/news_live.ex:368
+#: lib/portfolixir_web/live/news_live.ex:427
 #, elixir-autogen, elixir-format
 msgid "Assign"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:586
+#: lib/portfolixir_web/live/news_live.ex:590
 #, elixir-autogen, elixir-format
 msgid "Binding"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:416
+#: lib/portfolixir_web/live/news_live.ex:420
 #, elixir-autogen, elixir-format
 msgid "Candidates"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:188
+#: lib/portfolixir_web/live/news_live.ex:192
 #, elixir-autogen, elixir-format
 msgid "Choose a security first."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:585
+#: lib/portfolixir_web/live/news_live.ex:589
 #, elixir-autogen, elixir-format
 msgid "Class"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:288
+#: lib/portfolixir_web/live/news_live.ex:292
 #, elixir-autogen, elixir-format
 msgid "Collector health"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:721
+#: lib/portfolixir_web/live/news_live.ex:728
 #, elixir-autogen, elixir-format
 msgid "Domain"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:589
+#: lib/portfolixir_web/live/news_live.ex:593
 #, elixir-autogen, elixir-format
 msgid "Errors"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:554
+#: lib/portfolixir_web/live/news_live.ex:558
 #, elixir-autogen, elixir-format
 msgid "Errors are counted per server day, today's and yesterday's, so up to 48 hours."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:584
+#: lib/portfolixir_web/live/news_live.ex:588
 #, elixir-autogen, elixir-format
 msgid "Feed"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:255
-#: lib/portfolixir_web/live/news_live.ex:546
-#: lib/portfolixir_web/live/news_live.ex:617
+#: lib/portfolixir_web/live/news_live.ex:259
+#: lib/portfolixir_web/live/news_live.ex:550
+#: lib/portfolixir_web/live/news_live.ex:624
 #, elixir-autogen, elixir-format
 msgid "Feeds"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:564
+#: lib/portfolixir_web/live/news_live.ex:568
 #, elixir-autogen, elixir-format
 msgid "Feeds are registered, changed and removed through the API and the agent; this page shows them."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:578
+#: lib/portfolixir_web/live/news_live.ex:582
 #, elixir-autogen, elixir-format
 msgid "In order of registration · counts by first sight · times in UTC"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:361
+#: lib/portfolixir_web/live/news_live.ex:365
 #, elixir-autogen, elixir-format
 msgid "Item"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:591
+#: lib/portfolixir_web/live/news_live.ex:595
 #, elixir-autogen, elixir-format
 msgid "Kept"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:472
+#: lib/portfolixir_web/live/news_live.ex:476
 #, elixir-autogen, elixir-format
 msgid "Label"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:587
+#: lib/portfolixir_web/live/news_live.ex:591
 #, elixir-autogen, elixir-format
 msgid "Last good fetch"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:437
-#: lib/portfolixir_web/live/news_live.ex:493
+#: lib/portfolixir_web/live/news_live.ex:441
+#: lib/portfolixir_web/live/news_live.ex:497
 #, elixir-autogen, elixir-format
 msgid "New per security"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:411
-#: lib/portfolixir_web/live/news_live.ex:229
+#: lib/portfolixir_web/live/news_live.ex:233
 #, elixir-autogen, elixir-format
 msgid "News"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:574
+#: lib/portfolixir_web/live/news_live.ex:578
 #, elixir-autogen, elixir-format
 msgid "No feed is registered yet. Feeds are registered over the API or MCP."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:714
+#: lib/portfolixir_web/live/news_live.ex:721
 #, elixir-autogen, elixir-format
 msgid "No source is rated yet: every domain reads as awareness. Sources are rated over the API or MCP."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:462
+#: lib/portfolixir_web/live/news_live.ex:466
 #, elixir-autogen, elixir-format
 msgid "Nothing new since the cut."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:353
+#: lib/portfolixir_web/live/news_live.ex:357
 #, elixir-autogen, elixir-format
 msgid "Nothing to assign: every aggregator item names one security or none of the universe has come in."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:419
+#: lib/portfolixir_web/live/news_live.ex:423
 #, elixir-autogen, elixir-format
 msgid "Other securities"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:253
+#: lib/portfolixir_web/live/news_live.ex:257
 #, elixir-autogen, elixir-format
 msgid "Reports"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:261
-#: lib/portfolixir_web/live/news_live.ex:691
-#: lib/portfolixir_web/live/news_live.ex:735
+#: lib/portfolixir_web/live/news_live.ex:265
+#: lib/portfolixir_web/live/news_live.ex:698
+#: lib/portfolixir_web/live/news_live.ex:742
 #, elixir-autogen, elixir-format
 msgid "Sources"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:470
+#: lib/portfolixir_web/live/news_live.ex:474
 #, elixir-autogen, elixir-format
 msgid "Stories"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:440
+#: lib/portfolixir_web/live/news_live.ex:444
 #, elixir-autogen, elixir-format
 msgid "The agent's digest, read without a reader of its own: opening this page moves no agent's position."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:195
+#: lib/portfolixir_web/live/news_live.ex:199
 #, elixir-autogen, elixir-format
 msgid "The item could not be assigned; it may have moved meanwhile."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:217
+#: lib/portfolixir_web/live/news_live.ex:221
 #, elixir-autogen, elixir-format
 msgid "The item is assigned to %{security}."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:722
+#: lib/portfolixir_web/live/news_live.ex:729
 #, elixir-autogen, elixir-format
 msgid "Tier"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:363
+#: lib/portfolixir_web/live/news_live.ex:367
 #, elixir-autogen, elixir-format
 msgid "Time"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:333
-#: lib/portfolixir_web/live/news_live.ex:382
+#: lib/portfolixir_web/live/news_live.ex:337
+#: lib/portfolixir_web/live/news_live.ex:386
 #, elixir-autogen, elixir-format
 msgid "To assign"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:471
+#: lib/portfolixir_web/live/news_live.ex:475
 #, elixir-autogen, elixir-format
 msgid "Top story"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:657
+#: lib/portfolixir_web/live/news_live.ex:664
 #, elixir-autogen, elixir-format
 msgid "Universe"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:230
+#: lib/portfolixir_web/live/news_live.ex:234
 #, elixir-autogen, elixir-format
 msgid "What the feeds deliver, as the agent sees it"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:592
+#: lib/portfolixir_web/live/news_live.ex:596
 #, elixir-autogen, elixir-format
 msgid "Yield"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:559
+#: lib/portfolixir_web/live/news_live.ex:563
 #, elixir-autogen, elixir-format
 msgid "Yield: the stories kept in the research log over the items of 30 days; „low yield“ is at least 50 items and none kept. Nothing switches a feed off by itself."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:791
+#: lib/portfolixir_web/live/news_live.ex:793
 #, elixir-autogen, elixir-format
 msgid "ambiguous first, each newest first"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:779
+#: lib/portfolixir_web/live/news_live.ex:781
 #, elixir-autogen, elixir-format
 msgid "ambiguous · candidates: %{candidates}"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:808
+#: lib/portfolixir_web/live/news_live.ex:810
 #, elixir-autogen, elixir-format
 msgid "at most %{rows} rows"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:835
+#: lib/portfolixir_web/live/news_live.ex:837
 #, elixir-autogen, elixir-format
 msgid "by hand"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:601
-#: lib/portfolixir_web/live/news_live.ex:632
+#: lib/portfolixir_web/live/news_live.ex:605
+#: lib/portfolixir_web/live/news_live.ex:639
 #, elixir-autogen, elixir-format
 msgid "last error:"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:672
+#: lib/portfolixir_web/live/news_live.ex:679
 #, elixir-autogen, elixir-format
 msgid "last fetch failed"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:671
+#: lib/portfolixir_web/live/news_live.ex:678
 #, elixir-autogen, elixir-format
 msgid "low yield"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:530
+#: lib/portfolixir_web/live/news_live.ex:534
 #, elixir-autogen, elixir-format
 msgid "machine-made"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:529
+#: lib/portfolixir_web/live/news_live.ex:533
 #, elixir-autogen, elixir-format
 msgid "materiality %{value}"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:807
+#: lib/portfolixir_web/live/news_live.ex:809
 #, elixir-autogen, elixir-format
 msgid "materiality 2 or more, or an issuer's or regulator's"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:533
+#: lib/portfolixir_web/live/news_live.ex:537
 #, elixir-autogen, elixir-format
 msgid "no label"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:677
+#: lib/portfolixir_web/live/news_live.ex:684
 #, elixir-autogen, elixir-format
 msgid "ok"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:669
+#: lib/portfolixir_web/live/news_live.ex:676
 #, elixir-autogen, elixir-format
 msgid "paused"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:805
+#: lib/portfolixir_web/live/news_live.ex:807
 #, elixir-autogen, elixir-format
 msgid "since %{time} UTC"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:670
+#: lib/portfolixir_web/live/news_live.ex:677
 #, elixir-autogen, elixir-format
 msgid "stale"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:793
+#: lib/portfolixir_web/live/news_live.ex:795
 #, elixir-autogen, elixir-format
 msgid "the newest %{limit} of each"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:806
+#: lib/portfolixir_web/live/news_live.ex:808
 #, elixir-autogen, elixir-format
 msgid "the news universe"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:311
+#: lib/portfolixir_web/live/news_live.ex:315
 #, elixir-autogen, elixir-format
 msgid "today %{count} dropped, %{blocked} of them from blocked sources"
 msgid_plural "today %{count} dropped, %{blocked} of them from blocked sources"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/news_live.ex:305
+#: lib/portfolixir_web/live/news_live.ex:309
 #, elixir-autogen, elixir-format
 msgid "today %{unassigned} unassigned · %{ambiguous} ambiguous"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:785
+#: lib/portfolixir_web/live/news_live.ex:787
 #, elixir-autogen, elixir-format
 msgid "unassigned · no security of the universe named"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:415
+#: lib/portfolixir_web/live/news_live.ex:419
 #, elixir-autogen, elixir-format
 msgid "— choose a security —"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:341
+#: lib/portfolixir_web/live/news_live.ex:345
 #, elixir-autogen, elixir-format
 msgid "„Assign“ files it under the security chosen, as the agent's news.assign does, and its stories are regrouped at once; the journal records the operator as its author."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:549
+#: lib/portfolixir_web/live/news_live.ex:553
 #, elixir-autogen, elixir-format
 msgid "„Stale“: no successful fetch for 24 hours; a paused feed is never stale."
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:593
+#: lib/portfolixir_web/live/news_live.ex:597
 #, elixir-autogen, elixir-format
 msgctxt "news feed"
 msgid "State"
 msgstr ""
 
-#: lib/portfolixir_web/live/news_live.ex:836
+#: lib/portfolixir_web/live/news_live.ex:838
 #, elixir-autogen, elixir-format
 msgctxt "news source"
 msgid "default"
