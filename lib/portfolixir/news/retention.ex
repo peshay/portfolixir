@@ -36,6 +36,15 @@ defmodule Portfolixir.News.Retention do
   record of which items each day dropped (`news_feed_drops`, closing act
   COR4) is pruned with them.
 
+  **Digest consumers** (`news_digest_consumers`; Sprint 28, N3's open
+  question 2) whose last confirmation — or, never confirmed, creation:
+  the row's `updated_at`, which only a confirmation moves — is more than
+  90 days before `now` are deleted. *Why:* the server keeps at most 32
+  consumers (`Portfolixir.News.DigestCursor.cap/0`) and nothing else
+  removes one, so names an agent stopped using would hold the cap shut for
+  good. A consumer that has not confirmed for 90 days has read nothing it
+  kept; named again, it starts as a new one, 24 hours back.
+
   **When.** Once a server day, from the news scheduler's tick
   (`Portfolixir.News.Scheduler`), after that tick's fetches, in the same
   task: so it runs exactly where the fetcher runs (B6), never in tests, and
@@ -52,6 +61,7 @@ defmodule Portfolixir.News.Retention do
 
   alias Portfolixir.Actor
   alias Portfolixir.Clock
+  alias Portfolixir.News.DigestConsumer
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
@@ -60,11 +70,13 @@ defmodule Portfolixir.News.Retention do
 
   @feed_days_kept 30
   @tombstone_days 90
+  @consumer_days 90
 
   @type summary :: %{
           items: non_neg_integer(),
           stories_deleted: non_neg_integer(),
-          feed_days: non_neg_integer()
+          feed_days: non_neg_integer(),
+          consumers: non_neg_integer()
         }
 
   @doc "The retention window in days, the ingest's (§12, B4)."
@@ -92,11 +104,14 @@ defmodule Portfolixir.News.Retention do
       Repo.delete_all(from(i in expired, where: i.assignment in [:unassigned, :ambiguous]))
 
     days = prune_days(now)
-    summary = %{scoped | items: scoped.items + open, feed_days: days}
+    consumers = prune_consumers(now)
+
+    summary =
+      Map.merge(scoped, %{items: scoped.items + open, feed_days: days, consumers: consumers})
 
     Logger.info(
       "#{job}: #{summary.items} items, #{summary.stories_deleted} emptied stories, " <>
-        "#{days} day rows"
+        "#{days} day rows, #{consumers} digest consumers"
     )
 
     {:ok, summary}
@@ -172,6 +187,16 @@ defmodule Portfolixir.News.Retention do
   end
 
   # --- end closing act, Fix-1 (COR2) ------------------------------------------
+
+  # --- S28 N3 OQ2 begin ---
+  # A consumer nobody confirmed for 90 days frees its place under the cap.
+  defp prune_consumers(now) do
+    cutoff = DateTime.add(now, -@consumer_days, :day)
+    {count, _} = Repo.delete_all(from(c in DigestConsumer, where: c.updated_at < ^cutoff))
+    count
+  end
+
+  # --- S28 N3 OQ2 end ---
 
   defp prune_days(now) do
     oldest = now |> Clock.local_date() |> Date.add(-@feed_days_kept)

@@ -35,7 +35,9 @@ defmodule Portfolixir.News.DigestCursor do
     * **a new consumer starts 24 hours back**, the stateless digest's
       default window, and its start counts as confirmed;
     * **at most 32 consumers** (`cap/0`): each is a row kept until the
-      operator removes it, written by a read; an agent that names a fresh
+      daily retention removes it, 90 days after its last confirmation or,
+      never confirmed, its creation (`Portfolixir.News.Retention`; S28 N3's
+      open question 2), written by a read; an agent that names a fresh
       consumer each run would grow the table without bound and read the
       stateless 24 hours in disguise. A new consumer beyond the cap is
       refused (`{:error, {:cap, 32}}`), and a stored one keeps reading.

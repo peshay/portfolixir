@@ -1623,7 +1623,11 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `422` mit `ack_cursor`, und nichts rückt vor. Zwei Verbraucher verschieben
   einander nie. `since` neben `consumer` und `ack_cursor` ohne ihn ergeben
   `422`. Der Server hält höchstens 32 Verbraucher; ein neuer darüber hinaus
-  ergibt `422` mit der Obergrenze. Ein Cursor ist mit einem aus
+  ergibt `422` mit der Obergrenze. Die tägliche Aufbewahrung löscht einen
+  Verbraucher, dessen letzte Bestätigung (oder, nie bestätigt, seine
+  Anlage) mehr als 90 Tage zurückliegt, sodass ein Name, den kein Lauf mehr
+  nutzt, seinen Platz freigibt; erneut genannt, beginnt er als neuer, 24
+  Stunden zurück. Ein Cursor ist mit einem aus
   `SECRET_KEY_BASE` abgeleiteten Schlüssel signiert: ändert sich dieses
   Geheimnis, ergibt ein gespeicherter Cursor `422`, und ein Aufruf ohne
   `ack_cursor` liest ab der bestätigten Position weiter. Ohne `consumer`

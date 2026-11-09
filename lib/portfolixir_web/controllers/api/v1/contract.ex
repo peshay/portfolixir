@@ -154,8 +154,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "stories with a member that entered their scope in the last 7 days, " <>
               "primary_7d, max_materiality of their active labels, and newest_primary, its " <>
               "newest primary story at any age (id, title cut at 50, at), in about 50 tokens; " <>
-              "the companion now answers the dossier as compact JSON."
+              "the companion now answers the dossier as compact JSON.",
             # --- S28 N6 end ---
+            # --- S28 N3 OQ2 begin ---
+            "Sprint 28, N3's open question 2: the daily news retention deletes a digest " <>
+              "consumer whose last confirmation, or creation, is more than 90 days old, so " <>
+              "the cap of 32 frees itself."
+            # --- S28 N3 OQ2 end ---
           ],
           " "
         ),

@@ -186,6 +186,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert Enum.any?(newest["parameters"], &(&1 =~ "answers the part news and parts.news"))
     # --- S28 N6 end ---
 
+    # --- S28 N3 OQ2 begin ---
+    assert newest["summary"] =~ "deletes a digest consumer whose last confirmation, or creation"
+    # --- S28 N3 OQ2 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

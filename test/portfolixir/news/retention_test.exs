@@ -9,6 +9,8 @@ defmodule Portfolixir.News.RetentionTest do
 
   alias Portfolixir.Clock
   alias Portfolixir.News.Cluster
+  alias Portfolixir.News.DigestConsumer
+  alias Portfolixir.News.DigestCursor
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
@@ -243,6 +245,44 @@ defmodule Portfolixir.News.RetentionTest do
              |> Enum.sort(Date) == [Date.add(today, -30), today]
     end
   end
+
+  # --- S28 N3 OQ2 begin ---
+  # User story (ADR-0056 §9, §12; Sprint 28, N3's open question 2):
+  # As the operator whose agents name digest consumers,
+  # I want a consumer nobody confirmed for 90 days removed by the daily
+  # retention, as the items are,
+  # so that the 32-consumer cap frees itself and a run under a new name is
+  # not refused forever.
+  #
+  # Acceptance criteria:
+  # - A consumer whose last confirmation (or, never confirmed, creation)
+  #   is more than 90 days before the run's clock is deleted; one at 89
+  #   days stays, its position untouched.
+  # - The run's summary counts the consumers deleted.
+  describe "digest consumers" do
+    test "a consumer not confirmed for 90 days goes; one at 89 days stays" do
+      key = String.duplicate("k", 32)
+
+      for name <- ~w(oq2-stale-run oq2-fresh-run) do
+        {:ok, _consumer} = DigestCursor.consumer(name, nil, @now, key)
+      end
+
+      for {name, days} <- [{"oq2-stale-run", 91}, {"oq2-fresh-run", 89}] do
+        Repo.update_all(from(c in DigestConsumer, where: c.name == ^name),
+          set: [updated_at: days_ago(days)]
+        )
+      end
+
+      fresh = Repo.get_by!(DigestConsumer, name: "oq2-fresh-run")
+
+      assert {:ok, %{consumers: 1}} = Retention.run(@now)
+
+      assert Repo.get_by(DigestConsumer, name: "oq2-stale-run") == nil
+      assert Repo.get_by!(DigestConsumer, name: "oq2-fresh-run").position == fresh.position
+    end
+  end
+
+  # --- S28 N3 OQ2 end ---
 
   # User story:
   # As the operator whose news layer stores no article,
