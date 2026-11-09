@@ -735,14 +735,16 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
   # User story (#1122, Sprint 21 γ1; board 01 ④, option 3): As the operator
   # arriving on Wealth from the Overview's year-to-date total, I want Wealth
-  # to open on that period, read from the address and stored nowhere, so that
-  # the figures I land on are the card's period and my next visit opens at
-  # 1J as before.
+  # to open on that period, read from the address and stored nowhere on the
+  # server, so that the figures I land on are the card's period. (#1432,
+  # plan amendment D-A1, reverses "stored nowhere" for the browser: a pick
+  # is remembered there, test/browser/period_memory_test.exs; an arrival
+  # by link is not.)
   #
   # Acceptance criteria:
   # - `/portfolio?period=ytd` opens with the YTD token pressed and active.
   # - A token Wealth does not offer (`?period=bogus`, a range) opens at 1J.
-  # - A later `/portfolio` opens at 1J: the arrival stored nothing.
+  # - A later `/portfolio` opens at 1J: the server stored nothing.
   # - The view switcher's accessible name reads „Aktive Ansicht“ in German,
   #   the word the Overview's view sentence uses (board 01, found while
   #   drawing 4).

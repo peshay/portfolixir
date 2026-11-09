@@ -1931,7 +1931,8 @@ group names at most six, then "+N"; an account with a zero balance leaves
 nothing out and is not named; the link opens Wealth, whose data-quality
 section offers **Sync exchange rates**. The link and the card itself open
 Wealth on the card's period, year to date (`/portfolio?period=ytd`, read on
-arrival and stored nowhere, so a plain visit still opens at 1Y), and on the
+arrival; a plain visit opens at the period you last picked in this browser,
+else 1Y), and on the
 view you last picked there: where that view is not the one the card counts,
 the note says so before the link ("Wealth is currently scoped to the view
 “Nur Neuzugang”; this total counts “Everything”."), and nothing is chosen
@@ -2285,6 +2286,16 @@ and the popover stays open until it is corrected; an applied range or year
 closes it and shows itself as an active chip carrying the resolved dates (or
 the year) in the period control — the control always answers "what am I
 looking at". The security detail chart's custom range behaves the same way.
+The period you pick rides the page's address (issue #1432): `period=` for a
+token, `year=` for a calendar year, `from=` and `to=` for a custom range, so
+the privacy and language switches, a view chip, the Holdings and Allocation &
+targets tabs, the stacked chart's links and a reload keep it, and a link
+handed over opens it. A period in an address that is no period, or that lies
+outside the walked history (a year without data, a range before the first
+booking), opens at 1Y with one line saying so. Your last pick is also
+remembered in this browser, never on the server, so returning to Wealth
+through the sidebar reopens it; where the browser keeps nothing, Wealth opens
+at 1Y.
 The chart is
 downsampled to a bounded number of points, so a decade of daily history stays
 light in the browser. The chart's **Data as table** disclosure holds

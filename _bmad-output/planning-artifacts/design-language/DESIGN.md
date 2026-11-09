@@ -9559,8 +9559,12 @@ and the MCP tools answer, for the section's period and the page's view.
   `tree=<classification id>`, `category=<id>|unclassified` (the filter, at
   every level), `sort=change`, each only when not the default, in that
   order. A link to a stacked level opens the Value series, so a link handed
-  over reopens the same stack, filter and level. The period is not on the
-  address (as before: it is page state).
+  over reopens the same stack, filter and level. *Amended 2026-11-09
+  (Sprint 28 S5, #1432, plan amendment D-A1):* the period rides the
+  address too, last: `period=` for a token, `year=` for a calendar year,
+  `from=` and `to=` for a custom range (1 year names none), so every link
+  of the bar, the breadcrumb and the bands keeps it; the browser remembers
+  the last pick (the `PeriodMemory` hook), never the server.
 - *Amended 2026-11-09 (Sprint 28 S2, FR-56, I29; board
   `mockups/ux-design-2026-11-08-sprint28/02-stack-filter` ① to ④; plan D-6):*
   **a click sets a filter and keeps the level.** Before, a click on a

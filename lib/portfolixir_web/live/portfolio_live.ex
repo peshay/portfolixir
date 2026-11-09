@@ -155,7 +155,8 @@ defmodule PortfolixirWeb.PortfolioLive do
           # arrival and stored nowhere; #1432 (plan amendment D-A1) reverses
           # the second half, because a period kept nowhere fell back to 1
           # year at every privacy, language, view or tab switch and reload:
-          # every pick now rides the address (`address_period/1`).
+          # every pick now rides the address (`address_period/1`), and the
+          # browser, never the server, remembers the last one.
           |> assign_arrival_period(params)
           # I23 (FR-53): the stacked chart's level, tree, sort and drilled
           # category ride the address, so a link handed over reopens them;
@@ -253,7 +254,8 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The arrival: the address's period (an invalid one is 1 year with the
   # line saying so), else 1 year; a year or a range is checked against the
-  # analysis when it lands.
+  # analysis when it lands. Whether the address named one tells the
+  # browser's memory not to reopen another (`#period-memory`).
   defp assign_arrival_period(socket, params) do
     {period, error} =
       case address_period(params) do
@@ -265,7 +267,8 @@ defmodule PortfolixirWeb.PortfolioLive do
     assign(socket,
       period: period,
       range_error: error,
-      period_unchecked: not is_binary(period)
+      period_unchecked: not is_binary(period),
+      period_addressed: address_period(params) != :none
     )
   end
 
@@ -277,6 +280,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp period_pairs({:range, from, to}),
     do: [{"from", Date.to_iso8601(from)}, {"to", Date.to_iso8601(to)}]
+
+  # What the browser keeps of a pick: its address pairs, 1 year named too,
+  # so a pick of 1 year replaces an older one.
+  defp period_memory("1y"), do: %{"period" => "1y"}
+  defp period_memory(period), do: Map.new(period_pairs(period))
 
   # `path` with its period replaced by `period`'s pairs, appended after the
   # path's own pairs, which keep their order.
@@ -306,7 +314,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp period_within?(_period, _analysis), do: false
 
   # The address's period applied after a patch (a reload, a link, the
-  # back and forward): an invalid one is 1 year with the
+  # browser's memory, back and forward): an invalid one is 1 year with the
   # line; one the page already shows changes nothing.
   defp sync_period(socket, params) do
     case address_period(params) do
@@ -327,7 +335,8 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # An arrival's year or range outside the analysis (a link to a year
   # without bookings, a range before the history) is 1 year with one line
-  # saying so; the address is replaced.
+  # saying so; the address is replaced and the browser's memory told, so a
+  # return does not ask for it again.
   defp check_period(socket, analysis \\ nil)
 
   defp check_period(%{assigns: %{period_unchecked: true}} = socket, analysis)
@@ -341,6 +350,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       socket
       |> put_period("1y")
       |> assign(:range_error, :arrival)
+      |> push_event("period-memory", %{period: period_memory("1y")})
       |> push_patch(to: with_period(socket.assigns.current_path, "1y"), replace: true)
     end
   end
@@ -1583,6 +1593,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         <AppShell.area_tabs tabs={wealth_tabs(@wealth_tab, @period)} />
 
+        <%!-- #1432 (D-A1): the browser's memory of the last period
+             picked, read when the address names none and written at each
+             pick; nothing of it reaches the server's storage. --%>
+        <div
+          id="period-memory"
+          phx-hook="PeriodMemory"
+          data-storage-key="wealth.period"
+          data-addressed={to_string(@period_addressed)}
+          hidden
+        >
+        </div>
 
         <%!-- Issue 790: a control row sits inside the content grid, with the
              section's horizontal padding and none of its band. --%>
@@ -4654,6 +4675,23 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, :range_error, :from)}
   end
 
+  # #1432 (D-A1): the browser's memory (the PeriodMemory hook) asks for the
+  # period it kept, on an address that names none; the page patches to it
+  # in place and checks it as any arrival. An address that names a period
+  # wins, and a kept value that is no period changes nothing.
+  def handle_event("restore_period", params, %{assigns: %{period_addressed: false}} = socket) do
+    case address_period(Map.take(params, @period_keys)) do
+      {:ok, period} when period != socket.assigns.period ->
+        {:noreply,
+         push_patch(socket, to: with_period(socket.assigns.current_path, period), replace: true)}
+
+      _other ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("restore_period", _params, socket), do: {:noreply, socket}
+
   # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
   # same cached analysis feeds both lines, so it never recomputes and the choice
   # survives period switches (select_period leaves :chart_mode untouched).
@@ -5872,12 +5910,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   # A pick on the page (#1432, D-A1): applied at once, as before, then the
-  # address follows it, so every link built from the address keeps it.
+  # address follows it, so every link built from the address keeps it, and
+  # the browser's memory keeps it for a return through the sidebar.
   defp apply_period(socket, period) do
     socket = socket |> assign(:period_unchecked, false) |> put_period(period)
 
     {:noreply,
      socket
+     |> push_event("period-memory", %{period: period_memory(period)})
      |> push_patch(to: with_period(socket.assigns.current_path, period))}
   end
 
