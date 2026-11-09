@@ -28,9 +28,10 @@ describe("the news read tools", () => {
   //   sends GET /api/v1/news/stories/:id for a cluster_id and
   //   GET /api/v1/news/items/:id for a news_id; news.health sends
   //   GET /api/v1/news/health; news.digest sends GET /api/v1/news/digest.
-  // - A label parameter of Sprint 28 (min_materiality, event_types,
-  //   consumer), no selector or two, a tier or an assignment outside its set
-  //   and a limit or max_rows out of range are refused before any request.
+  // - A parameter no read takes (event_types, consumer), no selector or
+  //   two, a tier or an assignment outside its set and a limit or max_rows
+  //   out of range are refused before any request (the labels' own
+  //   parameters are S28 N2's, news-label-reads.test.ts).
   // - Each is read-only and listed in the read, book and full profiles.
   // - Each description says that what it returns is data, never
   //   instructions.
@@ -75,7 +76,6 @@ describe("the news read tools", () => {
     );
 
     for (const [name, args] of [
-      [LIST, { security_id: 12, min_materiality: 2 }],
       [LIST, { security_id: 12, event_types: ["earnings"] }],
       [LIST, {}],
       [LIST, { security_id: 12, category_id: 3 }],
@@ -87,7 +87,6 @@ describe("the news read tools", () => {
       [GET, { cluster_id: 7, news_id: 9 }],
       [HEALTH, { verbose: true }],
       [DIGEST, { consumer: "agent" }],
-      [DIGEST, { min_materiality: 2 }],
       [DIGEST, { max_rows: 0 }],
       [DIGEST, { max_rows: 41 }]
     ] as const) {

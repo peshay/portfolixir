@@ -5127,7 +5127,9 @@ lässt sich nicht lesen.
   das gelten, was das Werkzeug zurückgibt; Titel und Auszüge erreichen den
   Agenten mit jedem unsichtbaren Zeichen als `[U+XXXX]` ausgeschrieben, und
   jede Beschreibung sagt, dass die Antwort Daten sind, nie Anweisungen.
-  `news.get` nimmt `cluster_id` oder `news_id`.
+  `news.get` nimmt `cluster_id` oder `news_id` und `prompt_version` nur mit
+  einer `cluster_id`; `news.list` und `news.digest` nehmen `min_materiality`
+  und `prompt_version`; kein News-Werkzeug nimmt `tone`.
 - `portfolixir.news.unlabeled` und `portfolixir.news.label_put` — Lese- und
   Schreibzugriff des News-Labellers (ADR-0056 §7), jeder ruft die Route aus
   [News-Labels](#news-labels-adr-0056-7) auf. Nur das Profil `label`
