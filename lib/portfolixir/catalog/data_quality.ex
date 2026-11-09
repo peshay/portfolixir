@@ -21,6 +21,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
   | `two_scales` | a bond priced on two scales, in either direction: its latest stored quote is #{20} to #{500} times a booked price per unit, or 1/#{500} to 1/#{20} of one (`Portfolixir.Portfolios.Bonds`) |
   | `implausible_quote` | held, and a booking's quote — on its date, or the latest within #{7} days before — is below half or above twice its price per unit, unless `two_scales` names it (`Portfolixir.Portfolios.QuotePlausibility`) |
+  | `currency_mismatch` | the currency the quote provider stated at the last sync that read one (`provider_currency`) is present and differs from `currency_code`, as written (#1415) |
 
   `missing_quote` is a subset of `stale_quote`, and that is deliberate rather
   than an oversight: the dashboard's finding has always read "without a quote
@@ -62,6 +63,17 @@ defmodule Portfolixir.Catalog.DataQuality do
   alike; a retired or benchmark security that is held stays in the set, as
   its value is as wrong as before.
 
+  `currency_mismatch` (#1415, Sprint 28 Q3) is catalog hygiene of the same
+  kind as the first three, and leaves benchmarks and retired securities out
+  as they do: every security whose quote provider stated another currency
+  than its own at the sync that stored `provider_currency` — a series stored
+  before the sync refused such an answer (#1411), or a ticker that has moved
+  to another listing since. Compared as written, so `GBp` (pence) differs
+  from `GBP`. A security no sync has read a currency for has
+  `provider_currency` null: not yet known, never a finding. The remedy (fix
+  the ticker, sync again, release or correct the stored rows) stays the
+  operator's; nothing is converted or changed.
+
   ## Two halves, and why a caller must apply both
 
   A predicate narrows in the query where it can (`missing_logo` is a JSONB
@@ -85,7 +97,8 @@ defmodule Portfolixir.Catalog.DataQuality do
   alias Portfolixir.Portfolios.QuotePlausibility
 
   @stale_days 7
-  @ids ~w(stale_quote missing_quote missing_logo missing_fx two_scales implausible_quote)
+  @ids ~w(stale_quote missing_quote missing_logo missing_fx two_scales implausible_quote
+           currency_mismatch)
 
   @doc "Every predicate id."
   @spec ids() :: [String.t()]
@@ -241,7 +254,71 @@ defmodule Portfolixir.Catalog.DataQuality do
     |> length()
   end
 
+  # #1415: the currency rule reads two columns of the row and no metric, so
+  # its count is the query half's rows under the same rule; a caller's
+  # narrowing that contradicts the set counts nothing, as the list answers.
+  def count("currency_mismatch", opts) do
+    if contradicts?(opts, "currency_mismatch") do
+      0
+    else
+      opts
+      |> Keyword.merge(list_opts("currency_mismatch"))
+      |> Catalog.list_securities()
+      |> Enum.count(&currency_mismatch?/1)
+    end
+  end
+
   def count(id, opts) when is_binary(id), do: length(list(id, opts))
+
+  @doc """
+  The `currency_mismatch` finding of each of `securities` that the set's rule
+  names (#1415): its `currency_code`, the `provider_currency` the sync
+  stored and `provider_currency_at`, the time of the sync that read it. The
+  securities listing's envelope serves them under
+  `data_quality=currency_mismatch`, beside `computation_basis/1`.
+  """
+  @spec currency_mismatch_findings([Security.t()]) :: [map()]
+  def currency_mismatch_findings(securities) do
+    for %Security{} = security <- securities, currency_mismatch?(security) do
+      %{
+        security_id: security.id,
+        currency_code: security.currency_code,
+        provider_currency: security.provider_currency,
+        provider_currency_at: security.provider_currency_at
+      }
+    end
+  end
+
+  @doc """
+  The computation basis of a set that states one (the AGENTS.md metric
+  rule): for `currency_mismatch` (#1415) its input, reference, window, gaps,
+  threshold and assumptions, served beside the set's findings.
+  """
+  @spec computation_basis(String.t()) :: map()
+  def computation_basis("currency_mismatch") do
+    %{
+      input_series:
+        "provider_currency, the currency the quote provider stated for the security " <>
+          "(Yahoo's meta.currency), and provider_currency_at, the time (UTC) of the sync " <>
+          "that read and stored it; a sync stores it whether it then stores the closes or " <>
+          "refuses them as currency_mismatch",
+      reference: "the security's own currency_code",
+      window:
+        "the read that stored the current value: a later sync that reads the same currency " <>
+          "changes neither, one that reads another replaces both, one that reads none " <>
+          "leaves both as they are",
+      gaps:
+        "provider_currency null (no sync has read a currency since the column exists, or " <>
+          "the provider states none) is not yet known and never a mismatch",
+      threshold:
+        "a security is named when provider_currency differs from currency_code as " <>
+          "written, letter case included: GBp (pence) differs from GBP",
+      assumptions:
+        "benchmark and retired securities are left out, as from stale_quote, " <>
+          "missing_quote and missing_logo; the stored quotes are not read, converted or " <>
+          "changed: the remedy (the ticker, a sync, the stored rows) stays the operator's"
+    }
+  end
 
   @doc """
   The `implausible_quote` finding of one security, or `nil`: the
@@ -343,6 +420,18 @@ defmodule Portfolixir.Catalog.DataQuality do
   end
 
   defp matches?(row, "missing_quote", _today), do: is_nil(latest_price_date(row))
+
+  defp matches?(%{security: %Security{} = security}, "currency_mismatch", _today),
+    do: currency_mismatch?(security)
+
+  defp matches?(_row, "currency_mismatch", _today), do: false
+
+  # #1415: present and different, as written; null is not yet known.
+  defp currency_mismatch?(%Security{provider_currency: stated, currency_code: own})
+       when is_binary(stated),
+       do: stated != own
+
+  defp currency_mismatch?(%Security{}), do: false
 
   # A retired security's stopped feed is expected (PR #1102). The query half
   # already leaves it out; this keeps it out of the metric-derived sets on

@@ -118,6 +118,19 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     })
   end
 
+  # #1415 (Sprint 28 Q3): currency_mismatch names a stored statement of the
+  # provider, so each listed security's — what was stated and when — and the
+  # set's rule travel in the envelope, for the agent to check.
+  defp put_findings(envelope, "currency_mismatch", securities) do
+    Map.merge(envelope, %{
+      findings:
+        securities
+        |> DataQuality.currency_mismatch_findings()
+        |> Enum.map(&JSON.currency_mismatch_finding/1),
+      computation_basis: DataQuality.computation_basis("currency_mismatch")
+    })
+  end
+
   defp put_findings(envelope, _data_quality, _securities), do: envelope
 
   # String-keyed and whitelisted: a query param never mints an atom.

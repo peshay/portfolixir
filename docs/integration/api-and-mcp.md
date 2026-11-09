@@ -419,7 +419,19 @@ full list.
   half up at scale 6) and `bookings_outside`, the latest booking outside the
   band being the one named — and `computation_basis`, which states
   `input_series`, `reference`, `window`, `gaps`, `threshold` and
-  `assumptions`),
+  `assumptions`; `currency_mismatch` — issue #1415: every security whose
+  stored `provider_currency`, the currency its quote provider stated at the
+  sync that stored it, is present and differs from its `currency_code`, as
+  written (`GBp`, pence, differs from `GBP`). The quote sync stores it on
+  every sync that reads one, a refused answer's too (issue #1411), and only
+  when it changes, so `provider_currency_at` is the time of the read that
+  stored it; a security no sync has read a currency for is not yet known,
+  never in the set. Like the first three it leaves out a benchmark and a
+  retired security, and the Overview's data-quality line counts it. Under it
+  the envelope adds `findings`, one per listed security — `security_id`,
+  `currency_code`, `provider_currency` and `provider_currency_at` (ISO 8601,
+  UTC) — and `computation_basis` with the same six keys. Nothing is
+  converted: the remedy (the ticker, a sync, the stored quotes) is yours),
   `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (`limit` a positive integer, default 5000,
   max 20000; `offset` non-negative). Use these to

@@ -8,6 +8,8 @@ defmodule Portfolixir.SeededUpgrade.ProviderCurrencyTest do
   # async: false -- see Portfolixir.SeededUpgrade, "Where the cases run".
   use ExUnit.Case, async: false
 
+  alias Portfolixir.Catalog.DataQuality
+  alias Portfolixir.ScratchDatabase
   alias Portfolixir.SeededUpgrade
 
   @moduletag :seeded_upgrade
@@ -27,6 +29,7 @@ defmodule Portfolixir.SeededUpgrade.ProviderCurrencyTest do
   #   the database migrates to head and both securities and their quotes are
   #   kept.
   # - Both read `provider_currency` and `provider_currency_at` null.
+  # - The `currency_mismatch` set holds neither, by list and by count.
   @tag seeded_upgrade: 20_261_109_101_500
   test "a security synced before the column reads not yet known, never a mismatch",
        %{seeded_upgrade: migration} do
@@ -42,6 +45,11 @@ defmodule Portfolixir.SeededUpgrade.ProviderCurrencyTest do
              )
 
     assert %{rows: [[4]]} = SeededUpgrade.query!(upgrade, "SELECT count(*) FROM security_quotes")
+
+    ScratchDatabase.run(upgrade, fn ->
+      assert DataQuality.list("currency_mismatch") == []
+      assert DataQuality.count("currency_mismatch") == 0
+    end)
   end
 
   defp seed_synced(db) do
