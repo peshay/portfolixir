@@ -200,6 +200,22 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
          "fair-access policy asks for; without it a feed on sec.gov makes no request " <>
          "(ADR-0056 §5, B8); a label sent to sec.gov and its subdomains only (C6), never a " <>
          "host or a credential"},
+    # --- Sprint 28 V1 begin ---
+    # FR-55 (plan D-7): the build arguments Dockerfile.release sets for its
+    # compile step; read at compile time only, by Portfolixir.BuildVersion.
+    "PORTFOLIXIR_VERSION" =>
+      {:config,
+       "the calendar tag, or the branch, the release image was built from (FR-55, D-7); " <>
+         "a label shown and linked, never a host or a credential"},
+    "PORTFOLIXIR_COMMIT" =>
+      {:config,
+       "the commit hash the release image was built from (FR-55, D-7); a label shown and " <>
+         "linked, never a host or a credential"},
+    "PORTFOLIXIR_BUILD_DATE" =>
+      {:config,
+       "the date of the commit the release image was built from (FR-55, D-7); a label " <>
+         "shown, never a host or a credential"},
+    # --- Sprint 28 V1 end ---
     "TZ" =>
       {:config,
        "the host clock's zone: what \"today\" is, and the zone each database session takes " <>
@@ -329,6 +345,29 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     {{:erlang, :erlang}, :open_port}
   ]
 
+  # --- Sprint 28 V1 begin ---
+  # `{module, executable} => %{args, reason}`: the one subprocess a module in
+  # the scanned tree may start, with the literal argument lists it may pass.
+  # The executable and every argument list must be literals at the call;
+  # any other `System.cmd`, `System.shell`, `Port.open`, `:os.cmd` or
+  # `:erlang.open_port` anywhere fails, as before. A subprocess can open any
+  # connection, so each entry names one that opens none.
+  @subprocess_callers %{
+    {"Portfolixir.BuildVersion.Source", "git"} => %{
+      args: [
+        ["describe", "--tags", "--exact-match", "--match", "[0-9][0-9][0-9][0-9].*"],
+        ["rev-parse", "--abbrev-ref", "HEAD"],
+        ["rev-parse", "--short", "HEAD"],
+        ["log", "-1", "--format=%cs"]
+      ],
+      reason:
+        "compile-time version read for FR-55 (Sprint 28 D-7); runs git on the local " <>
+          "checkout, opens no connection"
+    }
+  }
+
+  # --- Sprint 28 V1 end ---
+
   @resolver_calls %{inet: ~w(getaddr getaddrs gethostbyname gethostbyaddr)a, inet_res: :all}
 
   # `specifier => {:all | [names], reason}`: what the MCP companion may import.
@@ -391,6 +430,25 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
                Enum.join(offenders, "\n")
     end
 
+    # --- Sprint 28 V1 begin ---
+    test "every registered subprocess call is still made, by its module, as registered" do
+      made =
+        for {_path, module, {:call, {:elixir, [:System]}, :cmd, [exe, argv | _], _line}} <-
+              elixir_refs(),
+            is_binary(exe),
+            do: {module, exe, argv}
+
+      for {{module, exe}, %{args: lists, reason: reason}} <- @subprocess_callers do
+        assert String.length(reason) > 20, "#{module}: no reason"
+
+        for argv <- lists do
+          assert {module, exe, argv} in made,
+                 "stale subprocess registration: #{module} no longer runs #{exe} #{inspect(argv)}"
+        end
+      end
+    end
+
+    # --- Sprint 28 V1 end ---
     test "Req is used outside the chokepoint only as registered" do
       used = refs_req_use(elixir_refs())
 
@@ -738,6 +796,38 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       refute Enum.any?(offenders, &(&1 =~ ~r/Req\.merge|Req\.Response|parse_strict_address/))
     end
 
+    # --- Sprint 28 V1 begin ---
+    test "a subprocess passes only as registered: its module, its executable, its literal arguments" do
+      source = """
+      defmodule Portfolixir.BuildVersion.Source do
+        @opts [cd: "/checkout"]
+        def ok_a, do: System.cmd("git", ["rev-parse", "--short", "HEAD"], @opts)
+        def ok_b, do: System.cmd("git", ["log", "-1", "--format=%cs"])
+        def a(url), do: System.cmd("curl", ["-X", "POST", url])
+        def b, do: System.cmd("git", ["push", "origin", "main"])
+        def c(args), do: System.cmd("git", args)
+        def d(exe), do: System.cmd(exe, ["rev-parse", "--short", "HEAD"])
+        def e, do: System.cmd("git", ["fetch"] ++ ["--all"])
+        def f, do: System.shell("git describe")
+        def g, do: Port.open({:spawn, "git describe"}, [])
+        def h, do: :os.cmd(~c"git describe")
+        def i, do: :erlang.open_port({:spawn, ~c"git"}, [])
+        def j, do: "git" |> System.cmd(["remote", "update"])
+      end
+
+      defmodule Portfolixir.SyntheticOther do
+        def k, do: System.cmd("git", ["rev-parse", "--short", "HEAD"])
+      end
+      """
+
+      offenders = outbound_violations(refs(source, "synthetic.ex"))
+
+      assert length(offenders) == 11, Enum.join(offenders, "\n")
+      refute Enum.any?(offenders, &(&1 =~ ~r/synthetic\.ex:3:|synthetic\.ex:4:/))
+      assert Enum.any?(offenders, &(&1 =~ "Portfolixir.SyntheticOther"))
+    end
+
+    # --- Sprint 28 V1 end ---
     # --- closing act, #1423 ----------------------------------------------------
     test "a module written as an atom, from the root or built at run time is caught" do
       source = ~S'''
@@ -1497,7 +1587,7 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       client?(target) ->
         ["#{path}:#{line}: #{target_name(target)}.#{fun}/#{length(args)} in #{module}"]
 
-      {target, fun} in @subprocess ->
+      {target, fun} in @subprocess and not registered_subprocess?(module, target, fun, args) ->
         ["#{path}:#{line}: #{target_name(target)}.#{fun} starts a subprocess in #{module}"]
 
       true ->
@@ -1510,6 +1600,20 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
        do: ["#{path}:#{line}: #{Enum.join(segments, ".")} referenced in #{module}"]
 
   defp outbound_violation(_ref), do: []
+
+  # --- Sprint 28 V1 begin ---
+  # A `System.cmd` whose module and literal executable are registered, with
+  # one of the literal argument lists registered for them; nothing else.
+  defp registered_subprocess?(module, {:elixir, [:System]}, :cmd, [exe, argv | _])
+       when is_binary(exe) and is_list(argv) do
+    case Map.get(@subprocess_callers, {module, exe}) do
+      %{args: lists} -> Enum.all?(argv, &is_binary/1) and argv in lists
+      nil -> false
+    end
+  end
+
+  defp registered_subprocess?(_module, _target, _fun, _args), do: false
+  # --- Sprint 28 V1 end ---
 
   defp client?({:elixir, [namespace | _]}), do: namespace in @client_namespaces
   defp client?({:erlang, module}), do: module in @client_erlang
