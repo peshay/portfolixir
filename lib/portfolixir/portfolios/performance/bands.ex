@@ -1060,7 +1060,11 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   end
 
   defp parent_text(%{filter: nil}),
-    do: "the view's own TTWROR, exactly the performance read's cumulative series"
+    do:
+      "the view's own TTWROR, exactly the performance read's cumulative series; the " <>
+        "view's line counts every flow at the day's start, 1 + r = V / (V_prev + F + B); " <>
+        "the bands count an outflow at the day's end, so a band that holds the whole " <>
+        "view can differ from it on a day with a sale"
 
   defp parent_text(%{filter: :unclassified}),
     do: "the unclassified band's line, the filter's"

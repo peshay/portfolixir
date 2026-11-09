@@ -2775,7 +2775,10 @@ zählt zu Tagesbeginn, ein Abfluss am Tagesende), und Dividenden und Zinsen
 sind kein Fluss und in keiner Linie, eine Linie ist also die Rendite des
 Marktwerts ihres Bandes. Die **fette** Linie ist die TTWROR der Ansicht
 selbst, die Zahl über dem Diagramm, oder mit Filter die Linie der
-gefilterten Kategorie. Ein Band, das erst im Zeitraum Wert bekommt, etwa
+gefilterten Kategorie. Die Linie der Ansicht zählt jeden Fluss zu
+Tagesbeginn, die Bänder einen Verkauf am Tagesende, sodass ein Band, das
+die ganze Ansicht hält, an einem Tag mit einem Verkauf von der fetten Linie
+abweichen kann. Ein Band, das erst im Zeitraum Wert bekommt, etwa
 durch den ersten Kauf in einer neuen Kategorie, beginnt an diesem Tag bei
 0 %, markiert durch einen Punkt, und seine Legendenzeile sagt, ab wann. Ein
 Tag, an dem ein Band bei null oder darunter beginnt, etwa ein im Zeitraum

@@ -501,6 +501,35 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
     end
   end
 
+  # The closing act's money lens (ML2): the view's own line and a band
+  # holding the whole view count a sale's outflow differently.
+  #
+  # User story: as the operator's agent comparing a band's line with the
+  # view's bold one, I want the basis to say that the view's line counts
+  # every flow at the day's start and the bands an outflow at its end, so
+  # that I do not report a difference between them on a sale day as an
+  # error.
+  #
+  # Acceptance criteria:
+  # - Without category_id, `computation_basis.reference` names the parent
+  #   and says how its flows differ from the bands'.
+  test "scale=ttwror's reference says the view's line counts every flow at the day's start",
+       %{conn: conn} do
+    w = world()
+
+    basis =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{w.portfolio.id}/performance/bands?year=#{w.year}&level=security&scale=ttwror"
+      )["data"]["computation_basis"]
+
+    assert basis["reference"] =~ "the view's line counts every flow at the day's start"
+
+    assert basis["reference"] =~
+             "the bands count an outflow at the day's end, so a band that holds the whole " <>
+               "view can differ from it on a day with a sale"
+  end
+
   # --- Sprint 28 S3 end ---
 
   # User story (I23, FR-53):

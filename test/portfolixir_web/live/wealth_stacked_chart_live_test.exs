@@ -1734,8 +1734,9 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   #   the day's start and an outflow at its end; a price return, dividends
   #   no flow; a late band starts at 0 % at a dot; a day opening at or
   #   below zero (a short) adds no return (ML1); at most eight lines by
-  #   value, no cash and no unassigned rest; which line is bold; a click
-  #   filters.
+  #   value, no cash and no unassigned rest; which line is bold, and that
+  #   the view's line counts every flow at the day's start while the bands
+  #   count an outflow at its end (ML2); a click filters.
   # - In German the legend's first row reads „Ansicht (fett)“ and the
   #   column „TTWROR“.
   test "the TTWROR lines' basis is one line, the method behind its ⓘ", %{conn: conn} do
@@ -1765,6 +1766,10 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     assert tip =~ "A day on which a band opens at or below zero, a short, adds no return"
     assert tip =~ "At most eight lines"
     assert tip =~ "The bold line is the view's own TTWROR"
+
+    assert tip =~
+             "The view's line counts every flow at the day's start; the bands count an outflow at the day's end, so a band that holds the whole view can differ from it on a day with a sale."
+
     assert tip =~ "A click on a category filters the lines to it"
 
     {:ok, filtered, _html} =

@@ -624,6 +624,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       lines_selection(result),
       lines_order(result.sort),
       lines_bold(result),
+      lines_view_flows(result),
       filter_links? &&
         gettext(
           "A click on a category filters the lines to it and keeps the level; the path above leads back."
@@ -649,6 +650,17 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       gettext(
         "The legend lists the bold line first, then the lines by value at the window's end."
       )
+
+  # The view's line is the walk's, which counts every flow at the day's
+  # start; a band's counts an outflow at its end (the closing act's money
+  # lens, ML2: the walk stays as it is, ADR-0010/0051).
+  defp lines_view_flows(%{parent: %{kind: :total}}),
+    do:
+      gettext(
+        "The view's line counts every flow at the day's start; the bands count an outflow at the day's end, so a band that holds the whole view can differ from it on a day with a sale."
+      )
+
+  defp lines_view_flows(_result), do: nil
 
   defp lines_bold(%{parent: nil}), do: nil
 
