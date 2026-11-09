@@ -21,6 +21,17 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   (a close that is not positive, or a date past
   `Portfolixir.Catalog.MarketDataBounds.latest_date/0`), so one bad point never
   fails the batch (E25 S3, F26).
+
+  The answer's `meta.currency` is compared with the security's
+  `currency_code` before any row is returned (#1411): a ticker that resolves
+  to another listing (a USD line, an ADR) would otherwise be stored as closes
+  in the security's currency. A different currency answers
+  `{:error, {:currency_mismatch, provider_currency}}` and no rows. It is
+  compared as written, letter case included, so Yahoo's minor units (`GBp`
+  pence, `ZAc` cents, `ILA` agorot) are another currency than `GBP`, `ZAR`
+  and `ILS` and are refused the same way; a scale mapping would be its own
+  decision. An answer that states no currency (no `meta`, no key, `null`, an
+  empty string, or not a string) passes as before.
   """
 
   @behaviour Portfolixir.Catalog.QuoteSync.Provider
@@ -64,7 +75,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
              ]
            ) do
         {:ok, %Req.Response{status: 200, body: body}} ->
-          {:ok, decode(body)}
+          in_own_currency(security, body)
 
         {:ok, %Req.Response{status: status}} ->
           {:error, {:http_status, status}}
@@ -87,6 +98,22 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   defp build_symbol(%Security{provider: "coingecko"}), do: {:error, :missing_currency}
 
   defp build_symbol(%Security{ticker_symbol: ticker}), do: {:ok, ticker}
+
+  # #1411 (Sprint 28 Q2): the rows only when the answer is in the security's
+  # own currency, or states none.
+  defp in_own_currency(%Security{currency_code: own}, body) do
+    case stated_currency(body) do
+      nil -> {:ok, decode(body)}
+      ^own -> {:ok, decode(body)}
+      stated -> {:error, {:currency_mismatch, stated}}
+    end
+  end
+
+  defp stated_currency(%{"chart" => %{"result" => [%{"meta" => %{"currency" => currency}} | _]}})
+       when is_binary(currency) and currency != "",
+       do: currency
+
+  defp stated_currency(_body), do: nil
 
   defp decode(%{"chart" => %{"result" => [result | _]}}) when is_map(result) do
     timestamps = result["timestamp"] || []
