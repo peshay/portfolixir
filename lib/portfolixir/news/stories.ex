@@ -484,6 +484,21 @@ defmodule Portfolixir.News.Stories do
   end
 
   defp remove_locked(scope, language, ids, affected, now, opts) do
+    stories_deleted = detach_locked(ids, affected)
+
+    {deleted, _} = Repo.delete_all(from(i in Item, where: i.id in ^ids))
+
+    case recluster_locked(scope, language, now, Keyword.put(opts, :full, true)) do
+      {:ok, _summary} -> %{items: deleted, stories_deleted: stories_deleted}
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  # Steps 2 of `remove/5`, and `detach/1`'s whole: the items `ids` leave
+  # their stories `affected`; a story left without a member is deleted, one
+  # whose representative left points at the best remaining member. Answers
+  # the number of stories deleted.
+  defp detach_locked(ids, affected) do
     Repo.update_all(from(i in Item, where: i.id in ^ids), set: [cluster_id: nil])
 
     remaining =
@@ -503,13 +518,43 @@ defmodule Portfolixir.News.Stories do
       )
     end)
 
-    {deleted, _} = Repo.delete_all(from(i in Item, where: i.id in ^ids))
-
-    case recluster_locked(scope, language, now, Keyword.put(opts, :full, true)) do
-      {:ok, _summary} -> %{items: deleted, stories_deleted: stories_deleted}
-      {:error, changeset} -> Repo.rollback(changeset)
-    end
+    stories_deleted
   end
+
+  # --- S28 N4 begin ---
+
+  @doc """
+  Takes the scope and language's advisory lock, the one `recluster/4` and
+  `remove/5` take, for the caller's open transaction: a write that moves an
+  item between scopes (`Portfolixir.News.assign_item/4`) holds both scopes'
+  locks before it locks the item, in the order `remove/5` takes them
+  (scope, then items), so the two never wait on each other in a cycle.
+  """
+  @spec lock(scope(), String.t()) :: :ok
+  def lock({kind, id} = scope, language)
+      when kind in [:security, :category] and is_integer(id) and is_binary(language) do
+    lock_scope(scope, language)
+    :ok
+  end
+
+  @doc """
+  Takes the item `item` out of its story, inside the caller's transaction
+  and under its scope's lock (`lock/2`): the item's `cluster_id` is cleared,
+  a story left without a member is deleted, and one whose representative
+  left points at the best remaining member (the representative rule).
+  The story's counts and earliest fields are the next full recluster's
+  (`recluster/4` with `full: true`), as after `remove/5`. An item in no
+  story is left as it is.
+  """
+  @spec detach(Item.t()) :: :ok
+  def detach(%Item{cluster_id: nil}), do: :ok
+
+  def detach(%Item{id: id, cluster_id: cluster_id}) do
+    detach_locked([id], [cluster_id])
+    :ok
+  end
+
+  # --- S28 N4 end ---
 
   defp scope_items(scope, language), do: from(i in Item, where: ^scope_filter(scope, language))
 

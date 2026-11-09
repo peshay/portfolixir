@@ -790,6 +790,195 @@ defmodule Portfolixir.News do
   # --- S28 N3 end ---
 
   # --- S28 N4 begin ---
+  # news.assign (§9): an aggregator item assigned by hand, or given back to
+  # the matcher.
+
+  @doc """
+  Assigns the aggregator item `item_id` to the security `security_id` by
+  hand, or with `nil` gives it back to the matcher, on behalf of `actor`
+  (`news.assign`, ADR-0056 §9). `now:` is the server's clock.
+
+  **What it moves.** The item leaves the story it is in and its scope; it
+  enters the target's scope at `now` (`scope_at`, C3, never before its
+  first sight), assigned with no candidates. **`nil` is the matcher's
+  answer now** (§2: the item's title against the universe and its aliases
+  of the moment): one security named assigns it there, none leaves it
+  `unassigned`, several `ambiguous` with them, out of any story. *Why not
+  "the assignment before the hand's":* nothing stores who assigned an item,
+  and the matcher's answer is a function of the title and the aliases, so
+  undoing needs no memory of it; the journal keeps every before-image.
+
+  **Stories follow in the same transaction** (ORD2's rule, as a merge
+  does): the scope the item left and the scope it entered are reclustered
+  in full, each under its advisory lock, so the story it left is recounted
+  (and splits if the item held it together) and the item joins the
+  target's story of the same event before the write commits. A refusal
+  of the recluster fails the assignment.
+
+  **Only an aggregator item.** An issuer or regulatory item is its feed's
+  security's, a thematic item its feed's category's, by construction
+  (§2); assigning one answers an error on `news_id`. A security that does
+  not exist answers an error on `security_id` (it is held `FOR KEY SHARE`
+  until the write commits, so it cannot be deleted beneath it).
+
+  **One at a time with the matcher, and on the item as it is** (plan D-8,
+  the order lens): the write takes the matcher's advisory lock (ORD5), so a
+  match or a re-match never interleaves with it; then the lock of the
+  scope the item is in, then the item's row lock, and acts on the item as
+  read under that lock. An item a merge or a candidate's delete moved
+  meanwhile is acted on where it now is (its scope locked too); one
+  retention removed answers `{:error, :not_found}`. The scopes are locked
+  before the item, as retention locks them (`Portfolixir.News.Stories.remove/5`),
+  so the two never wait on each other in a cycle.
+
+  **Journaled** (B7's exception for a hand write): one `news_item` update
+  under `actor`, with the item before and after; an assignment the item
+  already has writes and records nothing. Answers `{:ok, item}`,
+  `{:error, :not_found}`, `{:error, %{field => [message]}}` or
+  `{:error, {:write_refused, changeset}}`.
+  """
+  @spec assign_item(Actor.t(), pos_integer(), pos_integer() | nil, keyword()) ::
+          {:ok, Item.t()}
+          | {:error, :not_found}
+          | {:error, %{String.t() => [String.t()]}}
+          | {:error, {:write_refused, Ecto.Changeset.t()}}
+  def assign_item(%Actor{} = actor, item_id, security_id, opts \\ [])
+      when is_integer(item_id) and (is_integer(security_id) or is_nil(security_id)) do
+    now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+
+    Multi.new()
+    |> Multi.run(:prior, fn _repo, _changes -> lock_for_assign(item_id) end)
+    |> Multi.run(:item, fn _repo, %{prior: prior} -> assign_locked(prior, security_id, now) end)
+    |> Journal.record(actor,
+      resource_type: "news_item",
+      operation: :update,
+      source: :item,
+      before_step: :prior
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{item: item}} ->
+        {:ok, item}
+
+      {:error, :prior, :not_found, _changes} ->
+        {:error, :not_found}
+
+      {:error, :item, {:refused, errors}, _changes} ->
+        {:error, errors}
+
+      {:error, :item, %Ecto.Changeset{} = changeset, _changes} ->
+        {:error, {:write_refused, changeset}}
+    end
+  end
+
+  defp lock_for_assign(item_id) do
+    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+
+    with %Item{} = read <- Repo.get(Item, item_id),
+         :ok <- lock_scope_of(read),
+         %Item{} = locked <- lock_item(item_id) do
+      # A merge or a candidate's delete may have moved it between the read
+      # and the lock (neither takes the matcher's lock): its scope now is
+      # locked too, before anything is written.
+      if story_scope(locked) != story_scope(read), do: lock_scope_of(locked)
+      {:ok, locked}
+    else
+      nil -> {:error, :not_found}
+    end
+  end
+
+  defp lock_item(item_id),
+    do: Repo.one(from(i in Item, where: i.id == ^item_id, lock: "FOR UPDATE"))
+
+  defp lock_scope_of(item) do
+    case story_scope(item) do
+      nil -> :ok
+      scope -> Stories.lock(scope, item.language)
+    end
+  end
+
+  # The scope whose stories an item may sit in: an assigned item's.
+  defp story_scope(%Item{assignment: :assigned} = item), do: Stories.scope(item)
+  defp story_scope(_item), do: nil
+
+  defp assign_locked(%Item{class: :aggregator} = prior, security_id, now) do
+    with {:ok, outcome} <- assign_outcome(prior, security_id) do
+      {assignment, target_id, candidates} = assignment_of(outcome)
+
+      if {prior.assignment, prior.security_id, prior.candidates} ==
+           {assignment, target_id, candidates} do
+        {:ok, prior}
+      else
+        move_item(prior, {assignment, target_id, candidates}, now)
+      end
+    end
+  end
+
+  defp assign_locked(%Item{class: class}, _security_id, _now) do
+    {:error,
+     {:refused,
+      %{
+        "news_id" => [
+          "is an #{class} item: bound to its feed's #{bound_to(class)} by construction " <>
+            "(ADR-0056 §2); only an aggregator item is assigned"
+        ]
+      }}}
+  end
+
+  defp bound_to(:thematic), do: "category"
+  defp bound_to(_class), do: "security"
+
+  defp assign_outcome(_prior, security_id) when is_integer(security_id) do
+    if Repo.exists?(from(s in Security, where: s.id == ^security_id, lock: "FOR KEY SHARE")),
+      do: {:ok, {:assigned, security_id}},
+      else: {:error, {:refused, %{"security_id" => ["does not exist"]}}}
+  end
+
+  # §2 and ORD5: the matcher's answer, from the aliases committed by now
+  # (read under the matcher's lock), its securities held FOR KEY SHARE.
+  defp assign_outcome(prior, nil) do
+    hits = Matcher.matches(prior.title, Universe.aggregator_index())
+    existing = existing_securities([{prior, hits}])
+    {:ok, hits |> Enum.filter(&MapSet.member?(existing, &1)) |> Matcher.outcome()}
+  end
+
+  defp assignment_of({:assigned, id}), do: {:assigned, id, []}
+  defp assignment_of(:unassigned), do: {:unassigned, nil, []}
+  defp assignment_of({:ambiguous, ids}), do: {:ambiguous, nil, ids}
+
+  defp move_item(prior, {assignment, target_id, candidates}, now) do
+    target = if assignment == :assigned, do: {:security, target_id}
+    left = story_scope(prior)
+
+    if target, do: Stories.lock(target, prior.language)
+    Stories.detach(prior)
+
+    {1, _} =
+      Repo.update_all(from(i in Item, where: i.id == ^prior.id),
+        set: [
+          assignment: assignment,
+          security_id: target_id,
+          candidates: candidates,
+          scope_at: scope_at(prior, {assignment, target_id}, now),
+          updated_at: now()
+        ]
+      )
+
+    [left, target]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.reduce_while({:ok, Repo.get!(Item, prior.id)}, fn scope, acc ->
+      case Stories.recluster(scope, prior.language, now, full: true) do
+        {:ok, _summary} -> {:cont, acc}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+    |> case do
+      {:ok, _item} -> {:ok, Repo.get!(Item, prior.id)}
+      error -> error
+    end
+  end
+
   # --- S28 N4 end ---
 
   # --- S28 N5 begin ---
