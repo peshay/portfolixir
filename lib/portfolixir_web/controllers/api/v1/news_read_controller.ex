@@ -9,36 +9,53 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       `tier_min` (`primary`, `secondary`, `awareness`), `limit` (default 20,
       at most 100), `fields=slim|std` (`std` adds `url` and `note_ids`) and
       `cursor` (the `cursor` of a truncated page). See
-      `Portfolixir.News.Reads.list/2`.
+      `Portfolixir.News.Reads.list/2`. Story rows carry their active
+      label's `materiality` and `event_type`; `min_materiality` (0 to 3,
+      default 0) leaves out the aggregator and thematic stories below it
+      (S28 N2).
     * `GET /api/v1/news/stories/:id` and `GET /api/v1/news/items/:id`
       (`news.get`) — one story or one item: the only reads with the excerpt
-      and the link.
+      and the link; a story adds its active `label`.
     * `GET /api/v1/news/health` (`news.health`) — `Portfolixir.News.health/1`
       at the server's clock.
     * `GET /api/v1/news/digest` (`news.digest`) — one row per security with
       something new since `since` (default 24 hours before now), without
-      labels and without a consumer cursor (§11): `view_id` (else the news
-      universe), `include_unlabeled` (`false`), `max_rows` (12, at most 40, C5).
-      See `Portfolixir.News.Reads.digest/4`.
+      a consumer cursor (§11): `view_id` (else the news universe),
+      `min_materiality` (2) and `include_unlabeled` (`false`), acting on
+      aggregator and thematic stories only (§7, S28 N2), `max_rows` (12, at
+      most 40, C5). See `Portfolixir.News.Reads.digest/5`.
+
+  **Labels (S28 N2, §7):** the list, a story and the digest read one prompt
+  version's active labels, `prompt_version` or else the newest
+  (`Portfolixir.News.newest_prompt_version/0`), and name it; with no label
+  every read answers as before, the digest's `unlabeled` counting the
+  stories without one. `tone` is never a filter or a sort key: no read
+  takes it.
 
   **Compact by §9's rule:** enums as their codes, times to the second in
   UTC, names at most 20 characters, a field without a value left out, and
   no link or excerpt in a list. **Closed:** a parameter a read does not take
-  answers 422 naming it, never dropped in silence — `min_materiality` and
-  `event_types` are the labels' (Sprint 28) and are refused until then.
+  answers 422 naming it, never dropped in silence — `event_types` among
+  them, which no read takes yet.
   Stored text is answered as stored (ADR-0054 §4); the companion spells
   what an operator cannot see.
   """
   use PortfolixirWeb, :controller
 
   alias Portfolixir.News
+  alias Portfolixir.News.Label
   alias Portfolixir.News.Reads
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @selectors ~w(security_id category_id cluster_id assignment)
-  @list_params @selectors ++ ~w(since tier_min limit fields cursor)
+  # --- S28 N2 begin ---
+  # The labels' parameters (§7, §9) of the list and the digest.
+  @label_params ~w(min_materiality prompt_version)
+  @digest_min_materiality 2
+  # --- S28 N2 end ---
+  @list_params @selectors ++ ~w(since tier_min limit fields cursor) ++ @label_params
   @list_default 20
   @list_max 100
 
@@ -46,7 +63,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   @assignments %{"unassigned" => :unassigned, "ambiguous" => :ambiguous}
   @fields ~w(slim std)
 
-  @digest_params ~w(view_id since include_unlabeled max_rows)
+  @digest_params ~w(view_id since include_unlabeled max_rows) ++ @label_params
   @digest_rows 12
   @digest_rows_max 40
   @day_seconds 24 * 60 * 60
@@ -55,6 +72,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     with :ok <- closed(conn, @list_params),
          {:ok, selector} <- selector(params),
          {:ok, opts} <- list_opts(params),
+         :ok <- stories_only(selector, params),
          {:ok, page} <- Reads.list(selector, opts) do
       std? = Map.get(params, "fields") == "std"
 
@@ -66,7 +84,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
           truncated: page.truncated,
           cursor: encode_cursor(page.cursor),
           since: params["since"],
-          as_of: time(opts[:as_of])
+          as_of: time(opts[:as_of]),
+          prompt_version: if(page.kind == :stories, do: opts[:prompt_version])
         })
 
       json(conn, %{data: data})
@@ -76,8 +95,21 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     end
   end
 
-  def show_story(conn, %{"id" => id}), do: show(conn, id, &Reads.story/1, &story_json/1)
-  def show_item(conn, %{"id" => id}), do: show(conn, id, &Reads.item/1, &item_json/1)
+  def show_story(conn, %{"id" => id}) do
+    with :ok <- closed(conn, ["prompt_version"]),
+         {:ok, version} <- prompt_version(conn.query_params["prompt_version"]) do
+      show(conn, id, &Reads.story(&1, version), &story_json/1)
+    else
+      {:error, errors} -> refuse(conn, errors)
+    end
+  end
+
+  def show_item(conn, %{"id" => id}) do
+    case closed(conn, []) do
+      :ok -> show(conn, id, &Reads.item/1, &item_json/1)
+      {:error, errors} -> refuse(conn, errors)
+    end
+  end
 
   def health(conn, _params) do
     case closed(conn, []) do
@@ -103,10 +135,16 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
          {:ok, since} <- digest_since(params),
          {:ok, include_unlabeled} <- include_unlabeled(params["include_unlabeled"]),
          {:ok, max_rows} <- max_rows(params["max_rows"]),
+         {:ok, min} <- min_materiality(params["min_materiality"], @digest_min_materiality),
+         {:ok, version} <- prompt_version(params["prompt_version"]),
          as_of = Reads.as_of(),
          {:ok, security_ids} <- Reads.digest_securities(view_id) do
       digest =
-        Reads.digest(security_ids, since, include_unlabeled, max_rows, view: not is_nil(view_id))
+        Reads.digest(security_ids, since, include_unlabeled, max_rows,
+          view: not is_nil(view_id),
+          min_materiality: min,
+          prompt_version: version
+        )
 
       data =
         compact(%{
@@ -117,6 +155,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
           categories: digest.categories && Enum.map(digest.categories, &digest_row/1),
           quiet: digest.quiet,
           hidden: digest.hidden,
+          unlabeled: digest.unlabeled,
+          prompt_version: version,
           unassigned: digest.unassigned,
           ambiguous: digest.ambiguous,
           truncated: digest.truncated,
@@ -131,8 +171,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   end
 
   defp show(conn, id, read, render) do
-    with :ok <- closed(conn, []),
-         {:ok, id} <- id_or_not_found(id),
+    with {:ok, id} <- id_or_not_found(id),
          {:ok, record} <- read.(id) do
       json(conn, %{data: render.(record)})
     else
@@ -214,11 +253,59 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
          {:ok, tier_min} <- tier_min(params["tier_min"]),
          {:ok, limit} <- limit(params),
          :ok <- fields(params["fields"]),
-         {:ok, cursor} <- decode_cursor(params["cursor"]) do
+         {:ok, cursor} <- decode_cursor(params["cursor"]),
+         {:ok, min} <- min_materiality(params["min_materiality"], 0),
+         {:ok, version} <- prompt_version(params["prompt_version"]) do
       {:ok,
-       [since: since, tier_min: tier_min, limit: limit, cursor: cursor, as_of: Reads.as_of()]}
+       [
+         since: since,
+         tier_min: tier_min,
+         limit: limit,
+         cursor: cursor,
+         as_of: Reads.as_of(),
+         min_materiality: min,
+         prompt_version: version
+       ]}
     end
   end
+
+  # --- S28 N2 begin ---
+  # A label is a story's (§7), so min_materiality reads stories: on a
+  # story's items or the remainder it is refused, never ignored.
+  defp stories_only({scope, _id}, params) when scope in [:cluster, :assignment] do
+    if present?(params["min_materiality"]),
+      do: {:error, %{"min_materiality" => ["acts on stories: pass security_id or category_id"]}},
+      else: :ok
+  end
+
+  defp stories_only(_selector, _params), do: :ok
+
+  defp min_materiality(value, default) when value in [nil, ""], do: {:ok, default}
+
+  defp min_materiality(value, _default) do
+    case Integer.parse(value) do
+      {min, ""} when min in 0..3 -> {:ok, min}
+      _other -> {:error, %{"min_materiality" => ["must be 0, 1, 2 or 3"]}}
+    end
+  end
+
+  # The read's prompt version: the one named, else the newest
+  # (`Portfolixir.News.newest_prompt_version/0`), nil without labels.
+  defp prompt_version(value) when value in [nil, ""], do: {:ok, News.newest_prompt_version()}
+
+  defp prompt_version(value) do
+    if Label.identifier?(value),
+      do: {:ok, value},
+      else:
+        {:error,
+         %{
+           "prompt_version" => [
+             "must be 1 to 64 letters, digits or . _ : / @ + -, starting with a letter or digit"
+           ]
+         }}
+  end
+
+  # --- S28 N2 end ---
 
   defp since(params) do
     case SinceParam.parse(params) do
@@ -313,13 +400,16 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   # -- answers ----------------------------------------------------------------
 
   defp row(:stories, story, std?) do
-    slim = %{
-      id: story.id,
-      title: story.title,
-      tier: story.tier,
-      at: time(story.at),
-      count: story.count
-    }
+    slim =
+      compact(%{
+        id: story.id,
+        title: story.title,
+        tier: story.tier,
+        at: time(story.at),
+        count: story.count,
+        materiality: story.materiality,
+        event_type: story.event_type
+      })
 
     if std?, do: Map.merge(slim, %{url: story.url, note_ids: story.note_ids}), else: slim
   end
@@ -338,7 +428,7 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
     if std?, do: Map.merge(slim, %{url: item.url, note_ids: item.note_ids}), else: slim
   end
 
-  defp digest_row(row), do: %{row | top: %{row.top | at: time(row.top.at)}}
+  defp digest_row(row), do: compact(%{row | top: %{row.top | at: time(row.top.at)}})
 
   defp story_json(story) do
     story

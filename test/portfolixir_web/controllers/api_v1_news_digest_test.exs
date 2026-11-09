@@ -87,8 +87,9 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
   # - GET /api/v1/news/digest?view_id=&since= answers one row per security
   #   the view holds with a story first seen after since: id, name (at most
   #   20 characters), count and top {id, title, tier, at}; the top story is
-  #   the best tier, then the newest; its title is cut to 100 characters
-  #   with an ellipsis (the whole title is list's and get's).
+  #   the best tier, then the newest; its title is cut to 50 characters
+  #   (100 before S28 N2) with an ellipsis (the whole title is list's and
+  #   get's).
   # - Issuer and regulatory stories always count; a story of aggregator
   #   items only, and a thematic story, only with include_unlabeled=true
   #   (§7: include_unlabeled acts on aggregator and thematic stories); the
@@ -348,13 +349,17 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       end
     end
 
-    # The consumer cursor and the labels are Sprint 28's (§11): their
-    # parameters are refused, never taken for a filter that ran.
+    # The consumer cursor is Sprint 28's N3 (§11): its parameters are
+    # refused, never taken for a filter that ran; the labels' (N2) take
+    # only their own shapes.
     test "an unknown or malformed parameter answers 422 naming it", %{conn: conn} do
       for {query, key} <- [
             {[consumer: "agent"], "consumer"},
             {[ack_cursor: "c"], "ack_cursor"},
-            {[min_materiality: 2], "min_materiality"},
+            {[min_materiality: 4], "min_materiality"},
+            {[min_materiality: "high"], "min_materiality"},
+            {[prompt_version: "v 1"], "prompt_version"},
+            {[tone: 1], "tone"},
             {[tier_min: "secondary"], "tier_min"},
             {[include_unlabeled: "yes"], "include_unlabeled"},
             {[max_rows: 0], "max_rows"},
@@ -481,7 +486,7 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       # A caller may still ask for up to 40.
       wide = conn |> digest(max_rows: 40) |> json_response(200) |> Map.fetch!("data")
       assert length(wide["rows"]) == 14 and wide["truncated"] == false
-      assert Enum.all?(rows, &(&1["count"] == 3 and String.length(&1["top"]["title"]) == 100))
+      assert Enum.all?(rows, &(&1["count"] == 3 and String.length(&1["top"]["title"]) == 50))
       assert Enum.all?(rows, &String.ends_with?(&1["top"]["title"], "…"))
       assert tokens(day) <= 800, "digest: #{tokens(day)} tokens"
 
@@ -524,8 +529,9 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
     # so that nothing waits for the labeller.
     #
     # Acceptance criteria:
-    # - With no label (none exists before Sprint 28), digest, list and get
-    #   answer 200 with their rows, and no answer carries a label field.
+    # - With no label, digest, list and get answer 200 with their rows, and
+    #   no answer carries a label, a materiality or a prompt version; the
+    #   digest's unlabeled counts its new stories (S28 N2).
     test "fail-open: with no label at all, digest, list and get answer normally (§14 item 8)",
          %{conn: conn, now: now} do
       [first | _] = forty!(now)
@@ -537,9 +543,18 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
           ] do
         response = get(conn, path)
         assert json_response(response, 200)["data"] != %{}, path
-        refute response.resp_body =~ "label", path
+        refute response.resp_body =~ ~s("label"), path
         refute response.resp_body =~ "materiality", path
+        refute response.resp_body =~ "prompt_version", path
       end
+
+      # 14 securities with three new stories each, and the aggregator's
+      # four assigned reports: none labelled.
+      assert %{"unlabeled" => 46} =
+               conn
+               |> get("/api/v1/news/digest")
+               |> json_response(200)
+               |> Map.fetch!("data")
     end
   end
 end

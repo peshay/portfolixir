@@ -496,7 +496,9 @@ defmodule Portfolixir.News.StoriesTest do
         assert {:ok, %{title: @resigns}} = Reads.story(held)
 
         digest = Reads.digest([security.id], at(23), false, 10)
-        assert [%{top: %{title: @resigns}, count: 2}] = digest.rows
+        # The digest cuts a title at 50 (S28 N2): the resignation's is the top.
+        assert [%{top: %{title: top}, count: 2}] = digest.rows
+        assert top == Reads.clip_spelled(@resigns, 50)
 
         {:ok, page} = Reads.list(scope, limit: 20)
         assert Enum.any?(page.rows, &(&1.title == @resigns))

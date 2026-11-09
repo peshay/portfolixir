@@ -279,6 +279,55 @@ defmodule Portfolixir.News.Labels do
     end
   end
 
+  # --- S28 N2 begin ---
+  # The active label (§7: "the newest one per prompt_version"), read by the
+  # agent's reads (`Portfolixir.News.Reads`).
+
+  @doc """
+  The prompt version a read uses when it names none (Sprint 28, N2): the
+  version of the label created last, so a labeller that moves to a new
+  prompt moves the reads with it. `nil` when no label exists (the reads
+  then answer as without labels, §7 fail-open). *Why one version a read,
+  not each story's newest:* materialities from two prompts are not on one
+  scale, so one answer never compares them; a story the new prompt has not
+  labelled yet reads as unlabeled and comes back in `news.unlabeled`. *Why
+  creation, not update:* a correction to an old version's label (an update
+  in place) does not move the reads back to that version.
+  """
+  @spec newest_prompt_version() :: String.t() | nil
+  def newest_prompt_version do
+    from(l in Label,
+      order_by: [desc: l.created_at, desc: l.prompt_version],
+      limit: 1,
+      select: l.prompt_version
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  The active labels of `prompt_version`, one per story, as a query: of a
+  story's labels of that version (one per model), the one written last,
+  then the smallest model name (never an id). `nil` reads no label.
+  """
+  @spec active(String.t() | nil) :: Ecto.Query.t()
+  def active(nil), do: from(l in Label, where: fragment("false"))
+
+  def active(prompt_version) when is_binary(prompt_version) do
+    from(l in Label,
+      where: l.prompt_version == ^prompt_version,
+      distinct: l.cluster_id,
+      order_by: [desc: l.updated_at, asc: l.model]
+    )
+  end
+
+  @doc "The active label of `prompt_version` of the story `cluster_id`, or `nil`."
+  @spec active_label(pos_integer(), String.t() | nil) :: Label.t() | nil
+  def active_label(cluster_id, prompt_version) when is_integer(cluster_id) do
+    prompt_version |> active() |> where([l], l.cluster_id == ^cluster_id) |> Repo.one()
+  end
+
+  # --- S28 N2 end ---
+
   # -- the shape: keys and JSON types ------------------------------------------
 
   defp shape(attrs) do

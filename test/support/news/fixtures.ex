@@ -8,6 +8,7 @@ defmodule Portfolixir.NewsFixtures do
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias Portfolixir.News
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Ingest
@@ -119,6 +120,36 @@ defmodule Portfolixir.NewsFixtures do
   end
 
   # --- S28 N1 end ---
+
+  # --- S28 N2 begin ---
+
+  @doc """
+  A label of the story `cluster_id`, written through the one write
+  (`Portfolixir.News.put_label/2`) under a labeller's token: model
+  `synthetic-model-1`, prompt version `v1`, event type `earnings`,
+  materiality 2, tone 0 and confidence `"0.8"` unless `opts` names
+  others (as keyword keys of §7's fields). Answers the stored label.
+  """
+  def label!(cluster_id, opts \\ []) do
+    attrs =
+      Map.merge(
+        %{
+          "cluster_id" => cluster_id,
+          "model" => "synthetic-model-1",
+          "prompt_version" => "v1",
+          "event_type" => "earnings",
+          "materiality" => 2,
+          "tone" => 0,
+          "confidence" => "0.8"
+        },
+        Map.new(opts, fn {key, value} -> {Atom.to_string(key), value} end)
+      )
+
+    {:ok, _written, label} = News.put_label(Actor.api_token_rw("labeller"), attrs)
+    label
+  end
+
+  # --- S28 N2 end ---
 end
 
 defmodule Portfolixir.News.NoNetwork do

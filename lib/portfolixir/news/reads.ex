@@ -3,18 +3,28 @@ defmodule Portfolixir.News.Reads do
   The news layer's reads (ADR-0056 §9, §11, B4; Sprint 27, N7): a scope's
   stories, a story's items and the unassigned and ambiguous remainder, one
   story or item, and the digest. Compact by §9's rule: a list carries no
-  link and no excerpt (only `story/1` and `item/1` do), names are short
+  link and no excerpt (only `story/2` and `item/1` do), names are short
   (`short_name/1`), and a page is capped with a `truncated` flag and a
   cursor. Titles and excerpts are cut by the width the companion spells
   them in (`clip_spelled/2`, C5): 160 for a title in a list and in a story
-  or item, 100 in the digest, 600 for an excerpt. `news.get` holds §9's
+  or item, 50 in the digest (100 before S28 N2), 600 for an excerpt. `news.get` holds §9's
   400 tokens on the companion's text, its link and members included: the
   link is cut at 300 characters (the whole link stays stored), every domain
   at 40, and the excerpt last, to what the rest of the answer leaves of the
-  400 (`story/1`, `item/1`), every id counted at its widest so the cut does
-  not move with the ids: a long answer gives up excerpt, never its source. No label is read:
-  labels are Sprint 28's, and every read here answers without one (§7,
-  fail-open).
+  400 (`story/2`, `item/1`), every id counted at its widest so the cut does
+  not move with the ids: a long answer gives up excerpt, never its source.
+
+  ## Labels (S28 N2, §7)
+
+  The list, a story and the digest read one prompt version's labels (the
+  caller's `prompt_version`, which the controller defaults to
+  `Portfolixir.News.Labels.newest_prompt_version/0`), and of it each
+  story's active label (`Portfolixir.News.Labels.active/1`). A label sorts
+  and filters only stories without an issuer or regulatory member
+  (aggregator and thematic ones): `min_materiality` and `include_unlabeled`
+  never hide a certain story. `tone` is read by `story/2` only, never as a
+  filter or an order. Without labels every read answers as before
+  (fail-open); only the digest's `unlabeled` counts the stories.
 
   ## What is new: `since` and `as_of` (B4)
 
@@ -54,6 +64,7 @@ defmodule Portfolixir.News.Reads do
   alias Portfolixir.Ledger
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Labels
   alias Portfolixir.News.Universe
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
@@ -61,7 +72,14 @@ defmodule Portfolixir.News.Reads do
   @fetch_lag_seconds 120
   @short_name_max 20
   @members_max 5
-  @digest_title_max 100
+  # S28 N2: a digest row's title is cut at 50 (it was 100 in Sprint 27), so
+  # the row's materiality and event types fit §9's 800 tokens at the default
+  # max_rows; the whole title is list's and get's.
+  @digest_title_max 50
+  # S28 N2 (§9): the digest's default threshold, and how many event types a
+  # row names.
+  @digest_min_materiality 2
+  @digest_event_types 2
   @certain_classes ["issuer", "regulatory"]
   @tier_rank %{primary: 3, secondary: 2, awareness: 1}
 
@@ -83,7 +101,9 @@ defmodule Portfolixir.News.Reads do
           since: DateTime.t() | nil,
           tier_min: tier() | nil,
           limit: pos_integer(),
-          cursor: cursor() | nil
+          cursor: cursor() | nil,
+          prompt_version: String.t() | nil,
+          min_materiality: 0..3
         ]
   @type page :: %{
           kind: :stories | :items,
@@ -225,7 +245,11 @@ defmodule Portfolixir.News.Reads do
 
   An item row is `id`, `title`, `tier`, `at`, `domain`, `candidates`,
   `url` and `note_ids`. `{:error, :not_found}` when the security, category
-  or story does not exist. Options: `since`, `tier_min`, `limit`, `cursor`.
+  or story does not exist. Options: `since`, `tier_min`, `limit`, `cursor`,
+  and for a scope's stories `prompt_version` and `min_materiality` (S28 N2):
+  a story row adds its active label's `materiality` and `event_type`, and a
+  threshold above 0 keeps only the certain stories and those labelled at or
+  above it.
   """
   @spec list(selector(), list_opts()) :: {:ok, page()} | {:error, :not_found}
   def list(selector, opts) do
@@ -244,7 +268,12 @@ defmodule Portfolixir.News.Reads do
       from(i in Item,
         where: not is_nil(i.cluster_id),
         group_by: i.cluster_id,
-        select: %{cluster_id: i.cluster_id, seen: max(i.scope_at)}
+        select: %{
+          cluster_id: i.cluster_id,
+          seen: max(i.scope_at),
+          certain:
+            fragment("bool_or(? = ANY(?))", i.class, type(^@certain_classes, {:array, :string}))
+        }
       )
       |> where_scope(selector)
 
@@ -254,6 +283,9 @@ defmodule Portfolixir.News.Reads do
         on: s.cluster_id == c.id,
         join: r in Item,
         on: r.id == c.representative_item_id,
+        # S28 N2: the story's active label of the read's prompt version.
+        left_join: l in subquery(Labels.active(opts[:prompt_version])),
+        on: l.cluster_id == c.id,
         where: field(c, ^scope_field(scope)) == ^id,
         where: c.best_tier in ^tiers_from(opts[:tier_min]),
         order_by: [
@@ -272,9 +304,12 @@ defmodule Portfolixir.News.Reads do
           count: c.member_count,
           url: r.canonical_url,
           seen: s.seen,
-          link_key: fragment("md5(?)", r.canonical_url)
+          link_key: fragment("md5(?)", r.canonical_url),
+          materiality: l.materiality,
+          event_type: l.event_type
         }
       )
+      |> min_materiality(Keyword.get(opts, :min_materiality, 0))
       |> since(opts[:since], dynamic([_c, s], s.seen))
       |> after_cursor(opts[:cursor], [
         dynamic([_c, s], s.seen),
@@ -334,6 +369,18 @@ defmodule Portfolixir.News.Reads do
 
     %{kind: :items, rows: rows, truncated: truncated != [], cursor: cursor(rows, truncated)}
   end
+
+  # --- S28 N2 begin ---
+  # §7: a story with an issuer or regulatory member is certain, and no label
+  # hides it; min_materiality acts on the others, aggregator and thematic
+  # stories, and keeps those whose active label reaches it (an unlabeled one
+  # has no materiality, so any threshold above 0 leaves it out).
+  defp min_materiality(query, 0), do: query
+
+  defp min_materiality(query, min) when min in 1..3,
+    do: where(query, [_c, s, _r, l], s.certain or l.materiality >= ^min)
+
+  # --- S28 N2 end ---
 
   defp clip_titles(rows),
     do:
@@ -418,17 +465,18 @@ defmodule Portfolixir.News.Reads do
   language, its earliest first sight, its count, at most five members
   (`id`, `domain`, `tier`, `at`; the representative first, then by B3's
   order: best tier, earliest publication, smallest link), the notes of
-  every member, and its security or category (`id`, short `name`).
+  every member, its security or category (`id`, short `name`), and its
+  active `label` of `prompt_version` (S28 N2; none for `nil`).
   """
-  @spec story(pos_integer()) :: {:ok, map()} | {:error, :not_found}
-  def story(cluster_id) when is_integer(cluster_id) do
+  @spec story(pos_integer(), String.t() | nil) :: {:ok, map()} | {:error, :not_found}
+  def story(cluster_id, prompt_version \\ nil) when is_integer(cluster_id) do
     case Repo.get(Cluster, cluster_id) do
       nil -> {:error, :not_found}
-      cluster -> {:ok, story_of(cluster)}
+      cluster -> {:ok, story_of(cluster, prompt_version)}
     end
   end
 
-  defp story_of(%Cluster{} = cluster) do
+  defp story_of(%Cluster{} = cluster, prompt_version) do
     representative = Repo.get!(Item, cluster.representative_item_id)
 
     members =
@@ -467,10 +515,35 @@ defmodule Portfolixir.News.Reads do
       members: members,
       note_ids: Map.get(story_notes([cluster.id]), cluster.id, []),
       security: named(Security, cluster.security_id),
-      category: named(Category, cluster.category_id)
+      category: named(Category, cluster.category_id),
+      label: cluster.id |> Labels.active_label(prompt_version) |> label_json()
     }
     |> fit_excerpt(representative.excerpt)
   end
+
+  # --- S28 N2 begin ---
+  # §9: news.get answers the story's active label as the proposal it is
+  # (NFR-10: machine_generated, always true). The model and the prompt
+  # version are left out (the version is the read's; both are in the
+  # journal): news.get's 400 tokens hold the label, and the excerpt, cut
+  # last, gives way to it.
+  defp label_json(nil), do: nil
+
+  defp label_json(label) do
+    %{
+      event_type: label.event_type,
+      materiality: label.materiality,
+      tone: label.tone,
+      confidence: Decimal.to_string(label.confidence, :normal),
+      thesis_note_id: label.thesis_note_id,
+      clause_idx: label.clause_idx,
+      machine_generated: true
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  # --- S28 N2 end ---
 
   @doc """
   One item (`news.get` with a `news_id`): its story, title, link, domain,
@@ -557,25 +630,31 @@ defmodule Portfolixir.News.Reads do
 
   @doc """
   The digest (`news.digest`, §9, §11) of `security_ids` since `since`,
-  without labels and without a consumer cursor:
+  without a consumer cursor:
 
     * `rows` — one per security with a story new since `since` (a member
       that entered its scope strictly after it, B4, C3): `id`, short `name`, `count` (its new
-      stories) and `top` (`id`, `title`, `tier`, `at`): the best tier, then
+      stories), its labelled stories' highest `materiality` and
+      `event_types` (at most two, the most material first; S28 N2) and
+      `top` (`id`, `title`, `tier`, `at`): the best tier, then
       the newest publication, then the smallest link — never an id. Rows are
-      ordered by their top story the same way, then by security id. The top
-      story's title is cut to 100 characters (an ellipsis marks the cut), so
-      a row costs at most about 60 tokens whatever the feed wrote; the whole
-      title is in `list/2` and `story/1`.
+      ordered by their highest materiality from 3 down to 1 (a label orders
+      them, §7), then a row of noise or without a label, each by its top
+      story the same way, then by security id. The top
+      story's title is cut to 50 characters (an ellipsis marks the cut), so
+      a row with its labels fits §9's budget whatever the feed wrote; the
+      whole title is in `list/2` and `story/2`.
     * **Which stories count** (§7): a story with an `issuer` or `regulatory`
       member always; a story of `aggregator` items only, and a `thematic`
-      story, only with `include_unlabeled: true` — the flag acts on those
-      two classes and never hides a primary story.
+      story, when its active label's materiality reaches `:min_materiality`
+      (default 2), or without a label with `include_unlabeled: true` — both
+      act on those two classes and never hide a primary story.
     * `categories` — with `include_unlabeled`, the thematic stories per
       category, rows of the same shape (a category is no security).
     * `hidden` (C5, ADR-0056 amendment of 2026-11-08) — the aggregator
-      and thematic stories new since `since` that `include_unlabeled:
-      false` left out (0 with the flag). A security whose only new stories
+      and thematic stories new since `since` that `:min_materiality` or
+      `include_unlabeled: false` left out; `unlabeled` (S28 N2) — the new
+      stories without a label of `:prompt_version`. A security whose only new stories
       are hidden is not quiet: news only from an aggregator must not read as
       the false calm §6 exists to prevent.
     * `quiet` — the securities without a row and without a hidden story;
@@ -593,12 +672,14 @@ defmodule Portfolixir.News.Reads do
   def digest(security_ids, %DateTime{} = since, include_unlabeled, max_rows, opts \\ [])
       when is_list(security_ids) and is_boolean(include_unlabeled) and is_integer(max_rows) do
     view? = Keyword.get(opts, :view, false)
+    min = Keyword.get(opts, :min_materiality, @digest_min_materiality)
 
-    {stories, hidden} =
+    new =
       security_ids
-      |> new_stories(since)
+      |> new_stories(since, Keyword.get(opts, :prompt_version))
       |> Enum.reject(&(view? and is_nil(&1.security_id)))
-      |> Enum.split_with(&(&1.certain or include_unlabeled))
+
+    {stories, hidden} = Enum.split_with(new, &shown?(&1, min, include_unlabeled))
 
     {by_security, by_category} = Enum.split_with(stories, &(not is_nil(&1.security_id)))
 
@@ -611,8 +692,7 @@ defmodule Portfolixir.News.Reads do
       |> Enum.reject(&is_nil/1)
       |> Enum.uniq()
 
-    categories =
-      if include_unlabeled, do: digest_rows(by_category, :category_id, Category), else: []
+    categories = digest_rows(by_category, :category_id, Category)
 
     {shown_rows, left_rows} = Enum.split(rows, max_rows)
     {shown_categories, left_categories} = Enum.split(categories, max_rows)
@@ -621,9 +701,11 @@ defmodule Portfolixir.News.Reads do
 
     %{
       rows: shown_rows,
-      categories: if(include_unlabeled and not view?, do: shown_categories),
+      categories:
+        if(not view? and (include_unlabeled or shown_categories != []), do: shown_categories),
       quiet: length(security_ids) - length(with_news),
       hidden: length(hidden),
+      unlabeled: Enum.count(new, &is_nil(&1.materiality)),
       unassigned: if(not view?, do: Map.get(open, :unassigned, 0)),
       ambiguous: Map.get(open, :ambiguous, 0),
       truncated: more > 0,
@@ -631,10 +713,45 @@ defmodule Portfolixir.News.Reads do
     }
   end
 
+  # --- S28 N2 begin ---
+  # §7, §14 item 7: an issuer's or a regulator's story is shown whatever its
+  # label; an aggregator's or a thematic one when its active label reaches
+  # min_materiality, or, without a label, with include_unlabeled.
+  defp shown?(%{certain: true}, _min, _include_unlabeled), do: true
+  defp shown?(%{materiality: nil}, _min, include_unlabeled), do: include_unlabeled
+  defp shown?(%{materiality: materiality}, min, _include_unlabeled), do: materiality >= min
+
+  # A label orders the rows (§7): the highest materiality from 3 down to 1
+  # first; a row of noise (0) or without a label comes by its top story.
+  defp materiality_rank(nil), do: 0
+  defp materiality_rank(materiality), do: -materiality
+
+  # A row's highest materiality and the event types of its labelled
+  # stories, the most material first (then by name), at most
+  # @digest_event_types of them: every story's would not fit §9's budget.
+  defp row_labels(group) do
+    labelled =
+      group
+      |> Enum.reject(&is_nil(&1.materiality))
+      |> Enum.sort_by(&{-&1.materiality, Atom.to_string(&1.event_type)})
+
+    case labelled do
+      [] ->
+        {nil, nil}
+
+      [most | _] ->
+        {most.materiality,
+         labelled |> Enum.map(& &1.event_type) |> Enum.uniq() |> Enum.take(@digest_event_types)}
+    end
+  end
+
+  # --- S28 N2 end ---
+
   # Every story of the securities and every category's story with a member
   # new since `since`, each marked `certain` when it has an issuer or
-  # regulatory member.
-  defp new_stories(security_ids, since) do
+  # regulatory member, with its active label's materiality and event type
+  # under `prompt_version` (S28 N2).
+  defp new_stories(security_ids, since, prompt_version) do
     news =
       from(i in Item,
         where: not is_nil(i.cluster_id),
@@ -653,8 +770,12 @@ defmodule Portfolixir.News.Reads do
       on: n.cluster_id == c.id,
       join: r in Item,
       on: r.id == c.representative_item_id,
+      left_join: l in subquery(Labels.active(prompt_version)),
+      on: l.cluster_id == c.id,
       select: %{
         certain: n.certain,
+        materiality: l.materiality,
+        event_type: l.event_type,
         security_id: c.security_id,
         category_id: c.category_id,
         id: c.id,
@@ -677,18 +798,21 @@ defmodule Portfolixir.News.Reads do
     grouped
     |> Enum.map(fn {id, group} ->
       top = Enum.min_by(group, &top_key/1)
+      {materiality, event_types} = row_labels(group)
 
       %{
         id: id,
         name: short_name(Map.get(names, id, "")),
         count: length(group),
+        materiality: materiality,
+        event_types: event_types,
         top: %{
           id: top.id,
           title: clip_spelled(top.title, @digest_title_max),
           tier: top.tier,
           at: top.at
         },
-        key: {top_key(top), id}
+        key: {materiality_rank(materiality), top_key(top), id}
       }
     end)
     |> Enum.sort_by(& &1.key)

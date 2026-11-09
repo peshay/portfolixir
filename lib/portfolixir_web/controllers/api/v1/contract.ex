@@ -77,8 +77,24 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "parameter answers 422 naming it. The tools portfolixir.news.label_put and " <>
               "portfolixir.news.unlabeled reach them under the companion's label profile " <>
               "(PORTFOLIXIR_MCP_PROFILE=label) only, which lists nothing else; the read, book " <>
-              "and full profiles do not list them."
+              "and full profiles do not list them.",
             # --- S28 N1 end ---
+            # --- S28 N2 begin ---
+            "Sprint 28, N2 (ADR-0056 §7, §9, §14 items 7 and 8): the labels in the agent's " <>
+              "reads. Each read takes one prompt version's labels, prompt_version= or else the " <>
+              "version of the label created last, and of it each story's newest label; the " <>
+              "list and the digest name it. A label sorts aggregator and thematic stories and " <>
+              "never hides an issuer's or a regulator's: GET /api/v1/news/digest takes " <>
+              "min_materiality (0 to 3, default 2), and include_unlabeled now adds only the " <>
+              "unlabeled ones; its rows add materiality and event_types (at most two) and come " <>
+              "most material first, its top title is cut at 50 characters (was 100), and it " <>
+              "adds unlabeled, the count of its new stories without a label. GET " <>
+              "/api/v1/news/stories takes min_materiality (default 0; on a story's items or the " <>
+              "remainder it answers 422) and its story rows add materiality and event_type; GET " <>
+              "/api/v1/news/stories/:id adds label {event_type, materiality, tone, confidence, " <>
+              "thesis_note_id, clause_idx, machine_generated true}. No read takes tone: it " <>
+              "answers 422 naming it. With no label every read answers as before."
+            # --- S28 N2 end ---
           ],
           " "
         ),
@@ -129,8 +145,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "target's currency_code or the target's own stored one; POST " <>
           "/api/v1/securities/:id/merge (portfolixir.securities.merge) carries it with its " <>
           "time onto a target that has none, journaled, so a moved series keeps its " <>
-          "currency_mismatch finding (closing act)."
+          "currency_mismatch finding (closing act).",
         # --- Sprint 28 Q end ---
+        # --- S28 N2 begin ---
+        "GET /api/v1/news/stories (portfolixir.news.list) and GET /api/v1/news/digest " <>
+          "(portfolixir.news.digest) take min_materiality and prompt_version, GET " <>
+          "/api/v1/news/stories/:id (portfolixir.news.get with cluster_id) prompt_version " <>
+          "(ADR-0056 §7, §9; S28 N2)"
+        # --- S28 N2 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

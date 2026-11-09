@@ -109,6 +109,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "label profile (PORTFOLIXIR_MCP_PROFILE=label) only"
     # --- S28 N1 end ---
 
+    # --- S28 N2 begin ---
+    # N2 (ADR-0056 §7, §9): the labels in the agent's reads.
+    assert newest["summary"] =~ "Sprint 28, N2 (ADR-0056 §7, §9, §14 items 7 and 8): "
+    assert newest["summary"] =~ "never hides an issuer's or a regulator's"
+    assert newest["summary"] =~ "min_materiality (0 to 3, default 2)"
+    assert newest["summary"] =~ "cut at 50 characters (was 100)"
+    assert newest["summary"] =~ "No read takes tone: it answers 422 naming it"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.news.list" and &1 =~ "portfolixir.news.digest" and
+                 &1 =~ "min_materiality and prompt_version")
+           )
+
+    # --- S28 N2 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.
