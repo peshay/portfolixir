@@ -443,7 +443,6 @@ defmodule PortfolixirWeb.ApiV1NewsLabelsAttackTest do
   # - A security named "A" and 254 combining acute accents (255 code
   #   points, one grapheme) and a category named "W" and 254 combining
   #   marks: each answered with a name of at most 20 code points.
-  @tag :n1_attack_red
   test "the universe's and the categories' names are cut by spelled width", %{conn: conn} do
     hostile = "A" <> String.duplicate("\u0301", 254)
     wide = security!(hostile)

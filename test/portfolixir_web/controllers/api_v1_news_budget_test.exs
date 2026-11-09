@@ -70,16 +70,31 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   defp tokens(%Plug.Conn{resp_body: body}),
     do: (body |> Text.escape_invisible() |> String.length()) / 4
 
-  defp held!(world, n) do
+  # Sprint 28, N1 attack AT1: a name of one letter and 254 combining marks,
+  # one grapheme and 255 characters on the wire, is cut like any other.
+  @hostile_name "H" <> String.duplicate("\u0301", 254)
+
+  defp held!(world, n, name \\ nil) do
     security =
       create_security!(
-        name: "Holding #{n} Synthetic Group AG",
+        name: name || "Holding #{n} Synthetic Group AG",
         ticker: nil,
         asset_class: "equity"
       )
 
     buy!(world, security, quantity: "1", price: "10")
     security
+  end
+
+  # Every name a digest row carries is at most 20 code points, the hostile
+  # one among them (N1 attack AT1).
+  defp assert_short_names!(digest) do
+    names = Enum.map(json_response(digest, 200)["data"]["rows"], & &1["name"])
+    assert Enum.any?(names, &String.starts_with?(&1, "H\u0301"))
+    wide = Enum.filter(names, &(length(String.codepoints(&1)) > 20))
+
+    assert wide == [],
+           "names wider than 20 code points: #{inspect(Enum.map(wide, &length(String.codepoints(&1))), charlists: :as_lists)}"
   end
 
   # Normalized so the fixture does not change with ids and the clock, and
@@ -120,7 +135,8 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   # character spelled [U+XXXX], counted in code points):
   # - the digest at its default max_rows, 14 securities active, titles of
   #   160 code points with a soft hyphen after every letter: at most 800;
-  #   with tag-character titles: at most 800;
+  #   with tag-character titles: at most 800; one security named by one
+  #   letter and 254 combining marks, its name cut to 20 code points;
   # - 20 list rows with tag-character titles: at most 1,500;
   # - news.get of a story with a tag-character title and excerpt, a link
   #   of 2,048 characters and five members: at most 400, its link included,
@@ -134,7 +150,7 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   test "digest, list and get hold their budgets with invisible characters spelled",
        %{conn: conn, now: now} do
     world = base_world(name: "Budget", cash_name: "Cash", depot_name: "Depot")
-    securities = for n <- 1..28, do: held!(world, n)
+    securities = for n <- 1..28, do: held!(world, n, if(n == 1, do: @hostile_name))
 
     securities
     |> Enum.with_index(1)
@@ -152,11 +168,13 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     shy_digest = get(conn, "/api/v1/news/digest")
     assert %{"truncated" => true} = json_response(shy_digest, 200)["data"]
     assert tokens(shy_digest) <= 800, "digest (soft hyphens): #{tokens(shy_digest)}"
+    assert_short_names!(shy_digest)
     fixture!("digest-soft-hyphens", shy_digest)
 
     since = DateTime.to_iso8601(hours_ago(now, 40))
     tag_digest = get(conn, "/api/v1/news/digest?" <> URI.encode_query(since: since))
     assert tokens(tag_digest) <= 800, "digest (tag characters): #{tokens(tag_digest)}"
+    assert_short_names!(tag_digest)
 
     busy = hd(securities)
     busy_feed = feed!(%{class: "issuer", security_id: busy.id})
