@@ -4007,6 +4007,16 @@ because required fields such as ticker are missing, are reported as skipped
 with a reason. Failed adapter calls are reported separately from successful
 syncs.
 
+**A quote feed of *Manual* or *None* stops the sync** (#1410). Set in the
+security's master data (*Quote feed*), it keeps every sync away from the
+security: the six-hourly run, the toolbar's *Sync prices* and the row menu's
+*Sync prices* skip it and ask no provider, and the row menu's answer reads
+"No quote provider fetches this security." So the quotes you keep by hand
+are the only ones it gets. **A retired security** is skipped by the
+six-hourly run and the toolbar's *Sync prices* too; the row menu's *Sync
+prices* still fetches it, for when you want its history refilled. Both are
+counted as skipped in the sync's answer.
+
 Hand-entered quotes win over synced ones: the sync never overwrites a stored
 row whose source is `manual`, even when the provider history covers the same
 date. Each sync reports how many manual rows it left untouched and logs a

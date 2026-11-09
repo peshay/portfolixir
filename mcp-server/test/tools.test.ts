@@ -1787,6 +1787,24 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /missing_ticker/);
   });
 
+  // --- Sprint 28 Q1 begin ---
+  // #1410: a feed set to MANUAL or NONE stops every quote sync, and the
+  // scheduled and full runs leave a retired security alone; the two tools an
+  // agent reaches for say so.
+  it("names the quote sync's stop on quotes.sync and securities.update", () => {
+    const tools = listTools();
+    const sync = tools.find((tool) => tool.name === "portfolixir.quotes.sync");
+    const update = tools.find((tool) => tool.name === "portfolixir.securities.update");
+
+    assert.match(sync?.description ?? "", /manual_feed: its feed is MANUAL or NONE/);
+    assert.match(sync?.description ?? "", /retired security syncs here; the scheduled and full runs skip it/);
+    assert.match(update?.description ?? "", /feed MANUAL or NONE stops its quote sync/);
+
+    const retired = update?.inputSchema.properties.security.properties.is_retired.description ?? "";
+    assert.match(retired, /scheduled quote sync/);
+  });
+  // --- Sprint 28 Q1 end ---
+
   it("pages securities.list via limit/offset query params", async () => {
     const { client, requests } = createRecordingClient({ data: [] });
 

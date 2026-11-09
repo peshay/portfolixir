@@ -49,9 +49,34 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 27's sprint PR (version 27). Dated strictly after entry 26, so
-    # since=2026-11-07 still returns it. Each story appends its own items
+    # Sprint 28's sprint PR (version 28). Dated strictly after entry 27, so
+    # since=2026-11-08 still returns it. Each story appends its own items
     # between its own markers.
+    assert newest["version"] == 28
+    assert newest["date"] == "2026-11-09"
+
+    # --- Sprint 28 Q begin ---
+    # Q (#1410): the quote sync's stop at a MANUAL or NONE feed and, in the
+    # full run, at a retired security, on the sync's answer and the two
+    # tools' descriptions.
+    assert newest["summary"] =~ "Sprint 28, Q (#1410): "
+    assert newest["summary"] =~ "portfolixir.quotes.sync and portfolixir.securities.update"
+
+    assert [sync] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "POST /api/v1/securities/:security_id/sync_quotes")
+             )
+
+    for part <- ["MANUAL or NONE", ~s("manual_feed"), ~s("retired"), "sync_adapter false"] do
+      assert sync =~ part, part
+    end
+
+    # --- Sprint 28 Q end ---
+
+    # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
+    # Dated strictly after entry 26, so since=2026-11-07 still returns it.
+    newest = Enum.find(data["entries"], &(&1["version"] == 27))
     assert newest["version"] == 27
     assert newest["date"] == "2026-11-08"
 

@@ -835,4 +835,43 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     send(holder, :release)
   end
+
+  # User story (#1410, Sprint 28 Q1):
+  # As the operator who set a security's quote feed to Manual,
+  # I want "Sync prices" in its row menu to fetch nothing and say why in the
+  # words the single sync already uses,
+  # so that a manual feed stops the provider on every path and no reason
+  # reaches me as an atom.
+  #
+  # Acceptance criteria:
+  # - The answer reads "Kurssync übersprungen: Für dieses Wertpapier gibt es
+  #   keinen Kursanbieter." and never "manual_feed".
+  # - No provider close is stored: the provider row six days back keeps its
+  #   100.00.
+  test "a single sync of a security whose feed is Manual fetches nothing and says why", ctx do
+    config = Application.get_env(:portfolixir, QuoteSync, [])
+    on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+
+    Application.put_env(
+      :portfolixir,
+      QuoteSync,
+      Keyword.put(config, :adapter_for, %{"portfolio_performance" => ClosingAdapter})
+    )
+
+    {:ok, _manual} = Catalog.update_security(Actor.owner_ui(), ctx.security, %{feed: "MANUAL"})
+
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+    render_click(view, "row_action", %{"action" => "sync", "id" => to_string(ctx.security.id)})
+    await_sync(view)
+
+    assert text(view, "#securities-action-result") =~
+             "Kurssync übersprungen: Für dieses Wertpapier gibt es keinen Kursanbieter."
+
+    refute text(view, "#securities-action-result") =~ "manual_feed"
+
+    assert Decimal.equal?(
+             Repo.get_by!(SecurityQuote, security_id: ctx.security.id, date: ctx.day.(-6)).close,
+             Decimal.new("100.00")
+           )
+  end
 end

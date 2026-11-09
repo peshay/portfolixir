@@ -945,17 +945,17 @@ const securityUpdateSchema = {
         treat_quotes_as_raw: {
           type: "boolean",
           description:
-            "ADR-0028: the provider's closes are raw (as traded; it never back-adjusts after a split), so split factors apply to them."
+            "ADR-0028: the provider's closes are raw (as traded, never back-adjusted for a split), so split factors apply."
         },
         is_benchmark: {
           type: "boolean",
           description:
-            "ADR-0046: a price series portfolios are compared to (an index ETF), fed by the quote sync; never bookable, out of the hygiene checks, may still be held."
+            "ADR-0046: a price series portfolios are compared to (an index ETF), fed by the quote sync; never bookable, out of hygiene checks, may be held."
         },
         is_retired: {
           type: "boolean",
           description:
-            "Retire a sold-out or delisted security: it leaves the stale_quote, missing_quote and missing_logo checks (false restores it) and its stale quote stops counting in performance, which can restate its TTWROR history (#610)."
+            "Retire a sold-out or delisted security: it leaves the stale_quote, missing_quote and missing_logo checks and the scheduled quote sync (false restores it); its stale quote stops counting in performance, which can restate TTWROR (#610)."
         },
         attributes: { type: "object", additionalProperties: true },
         ...bondProperties(true),
@@ -3383,7 +3383,7 @@ const declaredTools: DeclaredTool[] = [
   })),
   tool("portfolixir.securities.get", "Get security", "Read one security's full record. identifier_aliases: former ISINs portfolixir.securities.isin_change recorded, which keep old exports matching. thesis_state (ADR-0044): the current thesis projected from portfolixir.notes.list entries, never stored (status none|intact|retracted, thesis, conviction, invalidation_condition, time_stop, as_of, last_reviewed_at/by, derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body gives the reason); read the log for the evidence. bond (ADR-0052), for asset class bond or government_bond, or no class, even inferred, plus a maturity or coupon (no certificate), else null: nominal_held (quantity × 100, a unit being a hundredth of the face amount), remaining_term, current_yield and yield_to_maturity (linear), ratios, each with computation_basis, and two_scales, set when quote and booked unit price sit 20-500× apart: direction forward (quotes near 100, figures 100× too high) or reverse (quotes ≤ 5, 100× too low). A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the live security its history lives on (ADR-0050 §12).", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value has a control character but tab or line break (else 422).", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. An ISIN change is portfolixir.securities.isin_change. The currency_code freezes once the security has a transaction or a quote (a change: 422). Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value has a control character but tab or line break (else 422). A changed identifier meets the catalog's rules or answers 422 naming the field: an isin whose check digit agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending it is no change. The name is stored without format characters.", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. ISIN changes: portfolixir.securities.isin_change. feed MANUAL or NONE stops its quote sync. The currency_code freezes once the security has a transaction or a quote. Every key of attributes, at any depth, is one-line text of at most 255 characters; no text value has a control character but tab or line break (else 422). A changed identifier meets the catalog's rules, else 422 naming the field: an isin whose check digit agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending it is no change. The name is stored without format characters.", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
     "Delete security",
@@ -3607,7 +3607,7 @@ const declaredTools: DeclaredTool[] = [
     predictionsCalibrationSchema,
     predictionsCalibrationZ
   ),
-  tool("portfolixir.quotes.sync", "Sync quotes", "Sync quote history for one security. Returns status (ok, skipped or error) and, when not ok, a reason such as missing_ticker, no_provider_adapter or persist_failed (the fetched quotes could not be stored). A history of any length is stored in one call. One sync of a security runs at a time: while one runs (including the background backfill a newly created security starts), a second call answers 409 and calls no provider — wait for it rather than retrying in a loop.", {
+  tool("portfolixir.quotes.sync", "Sync quotes", "Sync one security's quote history: status ok, skipped or error, and when not ok a reason, e.g. missing_ticker, no_provider_adapter, manual_feed: its feed is MANUAL or NONE, stopping every sync, or persist_failed (not stored). A retired security syncs here; the scheduled and full runs skip it. All history in one call. One sync per security at a time: while one runs (also a new security's backfill) a second call answers 409, calling no provider; wait, do not loop.", {
     type: "object",
     additionalProperties: false,
     required: ["security_id"],
@@ -3625,7 +3625,7 @@ const declaredTools: DeclaredTool[] = [
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
   tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every row is stored as manual whatever source it names: a manual close wins over provider data, so the quote sync leaves it alone until it is released (portfolixir.quotes.release). The write replaces any stored row of its dates, provider rows included, and is journaled under your token with the replaced rows' closes and sources as its before-image; the answer carries upserted (the rows now stored as given) and replaced (the dates whose stored row the write changed; a new date is not listed). A call that changes nothing writes no journal entry. Every close must be positive once rounded half up to the 6 decimal places a close is stored with (a finer close is stored rounded), have at most 14 digits before the decimal point, and every date must be no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written. Name each date once per call: a repeated date answers 422 on date naming it, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
-  tool("portfolixir.quotes.release", "Release manual quotes", "Release one security's MANUAL quotes dated from through to (both required, inclusive) back to provider data: the manual rows in the range are removed, journaled under your token with their closes as the before-image, and the answer lists the released dates. Provider rows in the range stay, and a range without manual rows changes nothing. Read portfolixir.quotes.manual first: it says which dates are manual, in which stretches, how many a range holds, and whether the sync can refill them. The next quote sync (portfolixir.quotes.sync) stores the provider's close for a released date; a security without a provider keeps no quote for it. A missing, malformed or out-of-range date, or to before from, answers 422 naming the field. The operator releases from the security's Quotes tab (Release…) through the same write.", quoteReleaseSchema, quoteReleaseZ),
+  tool("portfolixir.quotes.release", "Release manual quotes", "Release one security's MANUAL quotes dated from through to (both required, inclusive) back to provider data: the manual rows in the range are removed, journaled under your token with their closes as the before-image, and the answer lists the released dates. Provider rows in the range stay, and a range without manual rows changes nothing. Read portfolixir.quotes.manual first: it says which dates are manual, in which stretches, how many a range holds, and whether the sync can refill them. The next quote sync (portfolixir.quotes.sync) stores the provider's close for a released date where sync_adapter is true; else it stays without one. A missing, malformed or out-of-range date, or to before from, answers 422 naming the field. The operator releases on the security's Quotes tab (Release…), the same write.", quoteReleaseSchema, quoteReleaseZ),
   tool(
     "portfolixir.quotes.manual",
     "Manual quotes",

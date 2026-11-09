@@ -409,7 +409,7 @@ msgstr "Transaktion erfasst"
 
 #: lib/portfolixir_web/components/app_shell.ex:351
 #: lib/portfolixir_web/live/dashboard_live.ex:1498
-#: lib/portfolixir_web/live/securities/bond_strip.ex:317
+#: lib/portfolixir_web/live/securities/bond_strip.ex:314
 #: lib/portfolixir_web/live/securities_live.ex:1697
 #: lib/portfolixir_web/live/securities_live.ex:4281
 #: lib/portfolixir_web/live/transaction_management_live.ex:133
@@ -1397,7 +1397,7 @@ msgstr "Prozent"
 #: lib/portfolixir_web/live/dashboard_live.ex:432
 #: lib/portfolixir_web/live/journal/row.ex:83
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:127
-#: lib/portfolixir_web/live/securities/bond_strip.ex:346
+#: lib/portfolixir_web/live/securities/bond_strip.ex:343
 #: lib/portfolixir_web/live/securities_live.ex:1695
 #: lib/portfolixir_web/live/securities_live.ex:3724
 #: lib/portfolixir_web/live/securities_live.ex:4283
@@ -1479,7 +1479,7 @@ msgstr "Trades"
 msgid "Unrealised P&L"
 msgstr "Unrealisierter G/V"
 
-#: lib/portfolixir_web/live/securities_live.ex:7175
+#: lib/portfolixir_web/live/securities_live.ex:7177
 #, elixir-autogen, elixir-format
 msgid "default"
 msgstr "Standard"
@@ -1990,7 +1990,7 @@ msgid "Set balance"
 msgstr "Saldo setzen"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:5649
-#: lib/portfolixir_web/live/securities_live.ex:7170
+#: lib/portfolixir_web/live/securities_live.ex:7172
 #, elixir-autogen
 msgid "YTD"
 msgstr "YTD"
@@ -1999,25 +1999,25 @@ msgstr "YTD"
 #: lib/portfolixir_web/live/dashboard_live.ex:1036
 #: lib/portfolixir_web/live/dashboard_live.ex:1039
 #: lib/portfolixir_web/live/portfolio_live.ex:5650
-#: lib/portfolixir_web/live/securities_live.ex:7171
+#: lib/portfolixir_web/live/securities_live.ex:7173
 #, elixir-autogen
 msgid "1Y"
 msgstr "1J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:5651
-#: lib/portfolixir_web/live/securities_live.ex:7172
+#: lib/portfolixir_web/live/securities_live.ex:7174
 #, elixir-autogen
 msgid "3Y"
 msgstr "3J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:5652
-#: lib/portfolixir_web/live/securities_live.ex:7173
+#: lib/portfolixir_web/live/securities_live.ex:7175
 #, elixir-autogen
 msgid "5Y"
 msgstr "5J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:5653
-#: lib/portfolixir_web/live/securities_live.ex:7174
+#: lib/portfolixir_web/live/securities_live.ex:7176
 #, elixir-autogen
 msgid "Max"
 msgstr "Max"
@@ -3023,7 +3023,7 @@ msgid "Income per month in %{year}"
 msgstr "Erträge pro Monat in %{year}"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:257
-#: lib/portfolixir_web/live/securities_live.ex:7360
+#: lib/portfolixir_web/live/securities_live.ex:7362
 #, elixir-autogen, elixir-format
 msgid "No logo"
 msgstr "Kein Logo"
@@ -4950,7 +4950,7 @@ msgid "Last known value —"
 msgstr "Letzter bekannter Wert —"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:256
-#: lib/portfolixir_web/live/securities_live.ex:7359
+#: lib/portfolixir_web/live/securities_live.ex:7361
 #, elixir-autogen, elixir-format
 msgid "No quote at all"
 msgstr "Gar kein Kurs"
@@ -5224,7 +5224,7 @@ msgid "Any"
 msgstr "Alle"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:254
-#: lib/portfolixir_web/live/securities_live.ex:7357
+#: lib/portfolixir_web/live/securities_live.ex:7359
 #, elixir-autogen, elixir-format
 msgid "No quote in %{days} days"
 msgstr "Kein Kurs seit %{days} Tagen"
@@ -5345,23 +5345,23 @@ msgstr "Heute"
 msgid "Filter the list"
 msgstr "Liste filtern"
 
-#: lib/portfolixir_web/live/securities_live.ex:7377
+#: lib/portfolixir_web/live/securities_live.ex:7379
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr "Kein Wechselkurs"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:258
-#: lib/portfolixir_web/live/securities_live.ex:7361
+#: lib/portfolixir_web/live/securities_live.ex:7363
 #, elixir-autogen, elixir-format
 msgid "Missing FX rate"
 msgstr "Kein Wechselkurs hinterlegt"
 
-#: lib/portfolixir_web/live/securities_live.ex:7376
+#: lib/portfolixir_web/live/securities_live.ex:7378
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr "Kein Kurs"
 
-#: lib/portfolixir_web/live/securities_live.ex:7375
+#: lib/portfolixir_web/live/securities_live.ex:7377
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr "Kurs veraltet"
@@ -5384,14 +5384,14 @@ msgstr "Diese Ansicht trifft keine Konten — ihre eingeschlossenen Buckets sind
 
 #: lib/portfolixir_web/live/portfolio_live.ex:5699
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:405
-#: lib/portfolixir_web/live/securities_live.ex:7354
+#: lib/portfolixir_web/live/securities_live.ex:7356
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr "Kein Datum — Format JJJJ-MM-TT (ISO: YYYY-MM-DD)."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:5696
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:432
-#: lib/portfolixir_web/live/securities_live.ex:7351
+#: lib/portfolixir_web/live/securities_live.ex:7353
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr "Das Enddatum liegt vor dem Startdatum."
@@ -6594,7 +6594,7 @@ msgstr "Bestand"
 msgid "Reset"
 msgstr "Zurücksetzen"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:270
+#: lib/portfolixir_web/live/securities/bond_strip.ex:267
 #: lib/portfolixir_web/live/securities_live.ex:4981
 #, elixir-autogen, elixir-format
 msgid "no price"
@@ -7025,7 +7025,7 @@ msgstr "kein Fenster gemessen"
 #: lib/portfolixir_web/live/risk_live.ex:464
 #: lib/portfolixir_web/live/risk_live.ex:714
 #: lib/portfolixir_web/live/risk_live.ex:755
-#: lib/portfolixir_web/live/securities/bond_strip.ex:251
+#: lib/portfolixir_web/live/securities/bond_strip.ex:248
 #: lib/portfolixir_web/live/securities_live.ex:4169
 #: lib/portfolixir_web/live/securities_live.ex:4200
 #, elixir-autogen, elixir-format
@@ -10612,39 +10612,39 @@ msgid_plural "%{count} manual quotes were left standing where the provider retur
 msgstr[0] "Ein manueller Kurs blieb stehen, wo der Anbieter einen Schlusskurs lieferte."
 msgstr[1] "%{count} manuelle Kurse blieben stehen, wo der Anbieter einen Schlusskurs lieferte."
 
-#: lib/portfolixir_web/live/securities_live.ex:7146
+#: lib/portfolixir_web/live/securities_live.ex:7148
 #, elixir-autogen, elixir-format
 msgid "A sync of this security is already running."
 msgstr "Eine Kursaktualisierung dieses Wertpapiers läuft bereits."
 
-#: lib/portfolixir_web/live/securities_live.ex:7137
+#: lib/portfolixir_web/live/securities_live.ex:7139
 #, elixir-autogen, elixir-format
 msgid "No quote provider fetches this security."
 msgstr "Für dieses Wertpapier gibt es keinen Kursanbieter."
 
-#: lib/portfolixir_web/live/securities_live.ex:7140
+#: lib/portfolixir_web/live/securities_live.ex:7142
 #, elixir-autogen, elixir-format
 msgid "The quote provider needs the security's ticker."
 msgstr "Der Kursanbieter braucht den Ticker des Wertpapiers."
 
-#: lib/portfolixir_web/live/securities_live.ex:7143
+#: lib/portfolixir_web/live/securities_live.ex:7145
 #, elixir-autogen, elixir-format
 msgid "The security has no currency."
 msgstr "Das Wertpapier hat keine Währung."
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:919
-#: lib/portfolixir_web/live/securities_live.ex:7167
+#: lib/portfolixir_web/live/securities_live.ex:7169
 #, elixir-autogen, elixir-format
 msgid "1M"
 msgstr "1M"
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:920
-#: lib/portfolixir_web/live/securities_live.ex:7168
+#: lib/portfolixir_web/live/securities_live.ex:7170
 #, elixir-autogen, elixir-format
 msgid "3M"
 msgstr "3M"
 
-#: lib/portfolixir_web/live/securities_live.ex:7169
+#: lib/portfolixir_web/live/securities_live.ex:7171
 #, elixir-autogen, elixir-format
 msgid "6M"
 msgstr "6M"
@@ -10940,7 +10940,7 @@ msgstr "%{years} J. %{months} M."
 msgid "%{years} years from"
 msgstr "%{years} Jahre ab"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:392
+#: lib/portfolixir_web/live/securities/bond_strip.ex:396
 #, elixir-autogen, elixir-format
 msgid ", last own trade price"
 msgstr ", letzter eigener Handelspreis"
@@ -10971,7 +10971,7 @@ msgstr "Kupon p. a. (%)"
 msgid "Coupon, maturity and denomination are not entered; without them there is no remaining term and no yield."
 msgstr "Kupon, Fälligkeit und Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und keine Rendite."
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:209
+#: lib/portfolixir_web/live/securities/bond_strip.ex:206
 #, elixir-autogen, elixir-format
 msgid "Current yield"
 msgstr "Laufende Rendite"
@@ -11036,8 +11036,8 @@ msgstr "Nominal im Bestand"
 msgid "Nominal held: %{amount} %{currency}, %{quantity} units × 100 %{currency} (one unit is a hundredth of the nominal)."
 msgstr "Nominal im Bestand: %{amount} %{currency}, %{quantity} Stück × 100 %{currency} (ein Stück ist ein Hundertstel des Nominals)."
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:300
-#: lib/portfolixir_web/live/securities/bond_strip.ex:329
+#: lib/portfolixir_web/live/securities/bond_strip.ex:297
+#: lib/portfolixir_web/live/securities/bond_strip.ex:326
 #, elixir-autogen, elixir-format
 msgid "Priced on two scales:"
 msgstr "Auf zwei Skalen bepreist:"
@@ -11047,44 +11047,44 @@ msgstr "Auf zwei Skalen bepreist:"
 msgid "Remaining term"
 msgstr "Restlaufzeit"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:312
+#: lib/portfolixir_web/live/securities/bond_strip.ex:309
 #, elixir-autogen, elixir-format
 msgid "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"
 msgstr "Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl gegen das Nominal der Abrechnung prüfen:"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:231
+#: lib/portfolixir_web/live/securities/bond_strip.ex:228
 #, elixir-autogen, elixir-format
 msgid "Yield to maturity"
 msgstr "Rendite bis Fälligkeit"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:368
+#: lib/portfolixir_web/live/securities/bond_strip.ex:365
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:563
 #, elixir-autogen, elixir-format
 msgid "annual"
 msgstr "jährlich"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:235
+#: lib/portfolixir_web/live/securities/bond_strip.ex:232
 #, elixir-autogen, elixir-format
 msgid "linear approximation"
 msgstr "linear angenähert"
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:172
-#: lib/portfolixir_web/live/securities/bond_strip.ex:256
+#: lib/portfolixir_web/live/securities/bond_strip.ex:253
 #, elixir-autogen, elixir-format
 msgid "matured"
 msgstr "fällig"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:268
+#: lib/portfolixir_web/live/securities/bond_strip.ex:265
 #, elixir-autogen, elixir-format
 msgid "no coupon entered"
 msgstr "kein Kupon erfasst"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:367
+#: lib/portfolixir_web/live/securities/bond_strip.ex:364
 #, elixir-autogen, elixir-format
 msgid "no interest payment"
 msgstr "keine Zinszahlung"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:269
+#: lib/portfolixir_web/live/securities/bond_strip.ex:266
 #, elixir-autogen, elixir-format
 msgid "no maturity entered"
 msgstr "keine Fälligkeit erfasst"
@@ -11101,12 +11101,12 @@ msgstr "nicht erfasst"
 msgid "quote %{close} · price per unit %{price}"
 msgstr "Kurs %{close} · Preis je Stück %{price}"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:301
+#: lib/portfolixir_web/live/securities/bond_strip.ex:298
 #, elixir-autogen, elixir-format
 msgid "quotes around 100 (latest %{close} on %{date}),"
 msgstr "Kurse um 100 (zuletzt %{close} am %{date}),"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:369
+#: lib/portfolixir_web/live/securities/bond_strip.ex:366
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:563
 #, elixir-autogen, elixir-format
 msgid "semi-annual"
@@ -11122,7 +11122,7 @@ msgstr "seit"
 msgid "Stock split for “%{security}”, the ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split."
 msgstr "Aktiensplit für „%{security}“, das Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split."
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:262
+#: lib/portfolixir_web/live/securities/bond_strip.ex:259
 #, elixir-autogen, elixir-format
 msgid "trade price %{price} per unit, not percent of face"
 msgstr "Handelspreis %{price} je Stück, keine Prozentnotiz"
@@ -11134,7 +11134,7 @@ msgid_plural "%{count} bonds are priced on two scales (quotes around 100, booked
 msgstr[0] "Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählt hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen:"
 msgstr[1] "%{count} Anleihen sind auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählen hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen:"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:305
+#: lib/portfolixir_web/live/securities/bond_strip.ex:302
 #, elixir-autogen, elixir-format
 msgid "booked price per unit around 1 (1 booking: %{price} on %{date})."
 msgid_plural "booked price per unit around 1 (%{count} bookings, the last %{price} on %{date})."
@@ -11441,7 +11441,7 @@ msgstr[0] "eine Anleihe auf zwei Skalen bepreist"
 msgstr[1] "%{count} Anleihen auf zwei Skalen bepreist"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:260
-#: lib/portfolixir_web/live/securities_live.ex:7363
+#: lib/portfolixir_web/live/securities_live.ex:7365
 #, elixir-autogen, elixir-format
 msgid "Priced on two scales"
 msgstr "Auf zwei Skalen bepreist"
@@ -12156,7 +12156,7 @@ msgid "no return, no cost basis"
 msgstr "keine Rendite, keine Kostenbasis"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:263
-#: lib/portfolixir_web/live/securities_live.ex:7366
+#: lib/portfolixir_web/live/securities_live.ex:7368
 #, elixir-autogen, elixir-format
 msgid "Quote does not match bookings"
 msgstr "Kurs passt nicht zu Buchungen"
@@ -13165,19 +13165,19 @@ msgstr "(am Buchungstag unter der Hälfte oder über dem Doppelten des Preises j
 msgid "Quote does not match the bookings:"
 msgstr "Kurs passt nicht zu den Buchungen:"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:341
+#: lib/portfolixir_web/live/securities/bond_strip.ex:338
 #, elixir-autogen, elixir-format
 msgid "That means value, gain and weight count a hundred times too low. Check the stored quotes — a quote around 1 is not a percent of face:"
 msgstr "Dann zählen Wert, Gewinn und Gewicht hundertfach zu niedrig. Die gespeicherten Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert:"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:334
+#: lib/portfolixir_web/live/securities/bond_strip.ex:331
 #, elixir-autogen, elixir-format
 msgid "booked price per unit around 100 (1 booking: %{price} on %{date})."
 msgid_plural "booked price per unit around 100 (%{count} bookings, the last %{price} on %{date})."
 msgstr[0] "gebuchter Preis je Stück um 100 (1 Buchung: %{price} am %{date})."
 msgstr[1] "gebuchter Preis je Stück um 100 (%{count} Buchungen, zuletzt %{price} am %{date})."
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:330
+#: lib/portfolixir_web/live/securities/bond_strip.ex:327
 #, elixir-autogen, elixir-format
 msgid "quotes around 1 (latest %{close} on %{date}),"
 msgstr "Kurse um 1 (zuletzt %{close} am %{date}),"

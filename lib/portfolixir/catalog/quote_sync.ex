@@ -32,6 +32,12 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
   @skip_reasons [:missing_ticker, :missing_currency]
 
+  # #1410 (Sprint 28 Q1): a feed the operator set to "Manual" or "None" is a
+  # stop on every path, and the full run (the scheduled tick and "sync all")
+  # also leaves a retired security alone; an explicit sync of one security
+  # still fetches a retired one.
+  @stopped_feeds ~w(MANUAL NONE)
+
   # -- public API ------------------------------------------------------------
 
   def start_link(opts) do
@@ -59,6 +65,11 @@ defmodule Portfolixir.Catalog.QuoteSync do
   per-security result list:
   `{:ok, %{ok: integer, skipped: integer, error: integer, results: list}}`.
 
+  The full run, which the scheduled tick is too, asks no provider for a
+  security whose `feed` is `MANUAL` or `NONE` (skipped, `:manual_feed`) or
+  that is retired (skipped, `:retired`), as it asks none for one without a
+  ticker (#1410).
+
   One catalog sync runs at a time across the node, whoever starts it — a
   page, a second window, the scheduled tick (security review 2026-10-12,
   H39): while one runs, another answers `{:error, :sync_in_progress}` at
@@ -79,7 +90,7 @@ defmodule Portfolixir.Catalog.QuoteSync do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
     securities = Catalog.list_securities()
 
-    results = Enum.map(securities, &sync_one(&1, adapter_for, opts))
+    results = Enum.map(securities, &sync_one(&1, adapter_for, opts, :full))
     counts = Enum.reduce(results, %{ok: 0, skipped: 0, error: 0}, &update_counts/2)
 
     {:ok, Map.put(counts, :results, results)}
@@ -93,8 +104,10 @@ defmodule Portfolixir.Catalog.QuoteSync do
   needs a ticker). Public for the release of manual quotes (Sprint 17 V2,
   T-9): where it is false the sync skips the security (`:no_provider_adapter`,
   `:missing_ticker`), so a date whose manual quote is released keeps no quote
-  (closing act, γ D7). A security without a provider has none. `:adapter_for`
-  overrides the configured map, as for the syncs.
+  (closing act, γ D7). A security without a provider has none, and neither
+  has one whose `feed` is `MANUAL` or `NONE`, which every sync skips
+  (`:manual_feed`, #1410). `:adapter_for` overrides the configured map, as for
+  the syncs.
 
   It answers before any fetch: a fetch can still fail.
   """
@@ -102,7 +115,8 @@ defmodule Portfolixir.Catalog.QuoteSync do
   def adapter?(%Security{provider: provider} = security, opts \\ []) do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
 
-    with true <- is_binary(provider),
+    with false <- feed_stopped?(security),
+         true <- is_binary(provider),
          adapter when is_atom(adapter) and not is_nil(adapter) <- Map.get(adapter_for, provider) do
       fetchable?(adapter, security)
     else
@@ -116,10 +130,16 @@ defmodule Portfolixir.Catalog.QuoteSync do
       else: true
   end
 
-  @doc "Synchronously sync one security with the configured or provided adapter map."
+  @doc """
+  Synchronously sync one security with the configured or provided adapter map.
+
+  An explicit sync of one security: it fetches a retired security, which the
+  full run skips, and stops, as every path does, at a `feed` of `MANUAL` or
+  `NONE` (skipped, `:manual_feed`, #1410).
+  """
   def sync_security(%Security{} = security, opts \\ []) do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
-    sync_one(security, adapter_for, opts)
+    sync_one(security, adapter_for, opts, :single)
   end
 
   # -- GenServer callbacks --------------------------------------------------
@@ -162,7 +182,15 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
   # One sync of a security at a time, whichever path asks (E25, G04): while
   # one runs, another is skipped as sync_in_progress and calls no provider.
-  defp sync_one(%Security{} = security, adapter_for, opts) do
+  # A stopped security (#1410) is skipped before any of it: no lock, no call.
+  defp sync_one(%Security{} = security, adapter_for, opts, run) do
+    case stop_reason(security, run) do
+      nil -> sync_locked(security, adapter_for, opts)
+      reason -> result(security, :skipped, reason)
+    end
+  end
+
+  defp sync_locked(security, adapter_for, opts) do
     case SingleFlight.run({:quote_sync, security.id}, fn ->
            sync_unlocked(security, adapter_for, opts)
          end) do
@@ -170,6 +198,22 @@ defmodule Portfolixir.Catalog.QuoteSync do
       {:error, :in_progress} -> result(security, :skipped, :sync_in_progress)
     end
   end
+
+  # The feed first: it stops every path, the retirement only the full run.
+  defp stop_reason(security, run) do
+    cond do
+      feed_stopped?(security) -> :manual_feed
+      run == :full and security.is_retired == true -> :retired
+      true -> nil
+    end
+  end
+
+  # Compared as the closed set spells it; a value an import carried in another
+  # case or with spaces around it (`Feeds.label/1`'s case) is read the same.
+  defp feed_stopped?(%Security{feed: feed}) when is_binary(feed),
+    do: feed |> String.trim() |> String.upcase() |> then(&(&1 in @stopped_feeds))
+
+  defp feed_stopped?(%Security{}), do: false
 
   defp sync_unlocked(%Security{provider: provider} = security, adapter_for, opts) do
     case Map.get(adapter_for, provider) do
