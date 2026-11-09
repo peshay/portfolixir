@@ -129,35 +129,45 @@ defmodule Portfolixir.News.HealthTest do
     end
   end
 
-  # User story (A3; ADR-0056 amendment of 2026-11-08, C4):
+  # User story (A3; ADR-0056 amendment of 2026-11-08, C4, answered by
+  # Sprint 28's N2 now that §8's promotion exists, N5):
   # As the operator whose agent may register feeds nobody reads,
-  # I want each feed's items and promoted stories of 30 days, and no yield
-  # or low-yield flag until stories can be promoted,
-  # so that a feed is not called "a feed nobody reads" on its first day,
-  # beside a delete tool, for a promotion no tool can make yet.
+  # I want each feed's items and promoted stories of 30 days, its yield,
+  # and a flag on a busy feed none of whose stories was kept,
+  # so that I see which feed floods without being read, and decide.
   #
   # Acceptance criteria:
   # - `items_30d` counts the feed's items first seen within 30 days.
   # - `promoted_30d` counts the promoted stories those items are in (§8: a
   #   story is promoted once a member is; an item outside a story is its
   #   own), each story once.
-  # - No feed carries `yield_30d` or `low_yield`; each says
-  #   `yield: :not_measured_until_promotion`, at 50 items without a
-  #   promotion too.
+  # - `yield_30d` is promoted_30d over items_30d, an exact Decimal rounded
+  #   to 4 places (nil without items); `low_yield` is true at 50 items or
+  #   more with none promoted, false at 49 or with one promoted. C4's
+  #   `yield` placeholder is gone.
   describe "yield (A3, C4)" do
-    test "yield is not measured until promotion, at 50 items without one too" do
+    test "yield_30d is promoted stories over items, and low_yield flags 50 items none kept" do
       feed = issuer_feed!()
       at = DateTime.add(@now, -2, :day)
-      ingest!(feed, Enum.map(1..50, &parsed/1), at)
+      ingest!(feed, Enum.map(1..49, &parsed/1), at)
 
-      assert %{items_30d: 50, promoted_30d: 0, yield: :not_measured_until_promotion} =
-               reported = health(feed, @now)
+      assert %{items_30d: 49, promoted_30d: 0, low_yield: false} = reported = health(feed, @now)
+      assert Decimal.equal?(reported.yield_30d, Decimal.new("0.0000"))
+      refute Map.has_key?(reported, :yield)
 
-      refute Map.has_key?(reported, :yield_30d)
-      refute Map.has_key?(reported, :low_yield)
+      ingest!(feed, [parsed(50)], at)
+      assert %{items_30d: 50, promoted_30d: 0, low_yield: true} = health(feed, @now)
 
       promote!("https://newsroom.example.com/h/7", 9001)
-      assert %{promoted_30d: 1, yield: :not_measured_until_promotion} = health(feed, @now)
+      promote!("https://newsroom.example.com/h/8", 9002)
+      promote!("https://newsroom.example.com/h/9", 9003)
+
+      assert %{promoted_30d: 3, low_yield: false, yield_30d: yield} = health(feed, @now)
+      assert Decimal.equal?(yield, Decimal.new("0.06"))
+      assert yield == Decimal.new("0.0600")
+
+      quiet = issuer_feed!()
+      assert %{items_30d: 0, yield_30d: nil, low_yield: false} = health(quiet, @now)
     end
 
     test "a promoted story counts once, for every feed with an item in it" do

@@ -17,7 +17,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       (`news.get`) — one story or one item: the only reads with the excerpt
       and the link; a story adds its active `label`.
     * `GET /api/v1/news/health` (`news.health`) — `Portfolixir.News.health/1`
-      at the server's clock.
+      at the server's clock; a feed's `yield_30d` is a decimal string (S28
+      N2, A3).
     * `GET /api/v1/news/digest` (`news.digest`) — one row per security with
       something new since `since` (default 24 hours before now), or since
       a `consumer`'s confirmed position, which `ack_cursor` moves (S28 N3,
@@ -526,6 +527,10 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   defp feed_health_json(feed) do
     feed
     |> Map.put(:last_ok_at, time(feed.last_ok_at))
+    # --- S28 N2 begin ---
+    # A3: the yield is a decimal string (ADR-0003), left out without items.
+    |> Map.update!(:yield_30d, &(&1 && Decimal.to_string(&1, :normal)))
+    # --- S28 N2 end ---
     |> compact()
   end
 

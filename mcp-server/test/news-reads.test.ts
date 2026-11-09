@@ -125,8 +125,8 @@ describe("the news read tools", () => {
   // Acceptance criteria:
   // - news.list says since reads the time a row entered its scope.
   // - news.get says its link is cut at 300.
-  // - news.health names yield not_measured_until_promotion, and no longer
-  //   yield_30d or low_yield.
+  // - news.health names yield_30d and low_yield (S28 N2, now that
+  //   promotion exists), and no longer yield not_measured_until_promotion.
   // - news.digest names hidden, a quiet security as one with nothing
   //   hidden, max_rows 12 (max 40), and that a view omits categories and
   //   unassigned; its schema refuses max_rows above 40.
@@ -135,8 +135,8 @@ describe("the news read tools", () => {
     assert.match(tool(GET)?.description ?? "", /cut at 300/);
 
     const health = tool(HEALTH)?.description ?? "";
-    assert.match(health, /yield \(not_measured_until_promotion\)/);
-    assert.doesNotMatch(health, /low_yield|yield_30d/);
+    assert.match(health, /yield_30d \(decimal string\), low_yield \(50\+ items, none promoted\)/);
+    assert.doesNotMatch(health, /not_measured_until_promotion/);
 
     const digest = tool(DIGEST)?.description ?? "";
     assert.match(digest, /counted as hidden/);

@@ -1562,10 +1562,14 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
 - `GET /api/v1/news/health` beantwortet je Feed `id`, `class`, `enabled`,
   `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (24 Stunden kein
   erfolgreicher Abruf; ein abgeschalteter Feed ist nie veraltet), `items_30d`,
-  `promoted_30d` und `yield`, das `not_measured_until_promotion` lautet:
-  `yield_30d` und `low_yield` aus ADR-0056 zählen beförderte Storys, und vor
-  dem zweiten News-Sprint befördert nichts eine Story, also fehlen beide bis
-  dahin (C4). Dazu die Tageszähler `unassigned`, `ambiguous`, `dropped`
+  `promoted_30d` (die übernommenen Storys, in denen seine Einträge stehen,
+  jede einmal), `yield_30d` (`promoted_30d` geteilt durch `items_30d`, ein
+  Dezimal-String auf 4 Stellen gerundet, fehlt bei einem Feed ohne Einträge)
+  und `low_yield` (`true` für einen Feed mit mindestens 50 Einträgen in 30
+  Tagen, von dessen Storys keine übernommen wurde; A3). Nichts schaltet einen
+  Feed von selbst ab: Der Betreiber entscheidet. Solange es keine Übernahme
+  gab, fehlten beide zugunsten eines Platzhalters `yield` (C4); Sprint 28
+  beantwortet sie. Dazu die Tageszähler `unassigned`, `ambiguous`, `dropped`
   (`cap`, `no_source`, `old`) und `blocked`.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
   Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie

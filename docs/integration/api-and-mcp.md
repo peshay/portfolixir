@@ -1435,10 +1435,13 @@ only the digest's `unlabeled` grows.
 - `GET /api/v1/news/health` answers each feed's `id`, `class`, `enabled`,
   `last_ok_at`, `last_error`, `items_24h`, `err_24h`, `stale` (no successful
   fetch for 24 hours; a disabled feed is never stale), `items_30d`,
-  `promoted_30d` and `yield`, which reads `not_measured_until_promotion`:
-  ADR-0056's `yield_30d` and `low_yield` count promoted stories, and nothing
-  promotes a story before the second news sprint, so both are left out until
-  then (C4). Then the day's `unassigned`, `ambiguous`, `dropped` (`cap`,
+  `promoted_30d` (the promoted stories its items are in, each once),
+  `yield_30d` (`promoted_30d` over `items_30d`, a decimal string rounded to
+  4 places, left out for a feed without items) and `low_yield` (`true` for a
+  feed with at least 50 items in 30 days and none of its stories promoted;
+  A3). Nothing disables a feed by itself: the operator decides. Until
+  promotion existed the two were left out for a `yield` placeholder (C4);
+  Sprint 28 answers them. Then the day's `unassigned`, `ambiguous`, `dropped` (`cap`,
   `no_source`, `old`) and `blocked` counts.
 - `GET /api/v1/news/digest` answers what is new, one row per security: with
   `view_id` the securities that view holds, without it the news universe

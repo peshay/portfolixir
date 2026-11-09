@@ -33,14 +33,15 @@ defmodule Portfolixir.News.Health do
       own, and each story counts once. A story counts for every feed with
       an item in it, so a feed that carried a story someone kept gets the
       credit whichever member was promoted.
-    * `yield` — `:not_measured_until_promotion` (C4, ADR-0056 amendment
-      of 2026-11-08). A3's `yield_30d` (promoted stories over items) and
-      `low_yield` (50 items or more in 30 days, none promoted) count
-      promotions, and promotion (§8) arrives with the second sprint: until
-      then every busy feed would read `low_yield` on its first day, "a feed
-      nobody reads", beside a delete tool. So both are left out until §8
-      is built, and this field says why. Nothing disables a feed by itself:
-      the operator decides.
+    * `yield_30d` and `low_yield` (A3; S28 N2, answering C4 now that §8's
+      promotion exists, S28 N5) — `yield_30d` is `promoted_30d` over
+      `items_30d`, an exact `Decimal` rounded half-up to 4 places (`nil`
+      for a feed without items in 30 days: nothing to divide); `low_yield`
+      is true for a feed with at least 50 items in 30 days and none of its
+      stories promoted. Until promotion was built, C4 left both out and
+      answered `yield: :not_measured_until_promotion`, because every busy
+      feed would otherwise read "a feed nobody reads" on its first day.
+      Nothing disables a feed by itself: the operator decides.
 
   ## The day (`day`)
 
@@ -79,7 +80,8 @@ defmodule Portfolixir.News.Health do
           stale: boolean(),
           items_30d: non_neg_integer(),
           promoted_30d: non_neg_integer(),
-          yield: :not_measured_until_promotion
+          yield_30d: Decimal.t() | nil,
+          low_yield: boolean()
         }
 
   @type day :: %{
@@ -118,13 +120,30 @@ defmodule Portfolixir.News.Health do
           err_24h: Map.get(errors, feed.id, 0),
           stale: stale?(feed, day_ago),
           items_30d: Map.get(items_30d, feed.id, 0),
-          promoted_30d: Map.get(promoted_30d, feed.id, 0),
-          yield: :not_measured_until_promotion
+          promoted_30d: Map.get(promoted_30d, feed.id, 0)
         }
+        |> put_yield()
       end)
 
     %{as_of: now, feeds: feeds, day: day(today, now)}
   end
+
+  # --- S28 N2 begin ---
+  # A3: promoted stories over items, and a busy feed none of whose stories
+  # was kept.
+  @low_yield_items 50
+  @yield_places 4
+
+  defp put_yield(%{items_30d: 0} = feed), do: Map.merge(feed, %{yield_30d: nil, low_yield: false})
+
+  defp put_yield(%{items_30d: items, promoted_30d: promoted} = feed) do
+    Map.merge(feed, %{
+      yield_30d: promoted |> Decimal.new() |> Decimal.div(items) |> Decimal.round(@yield_places),
+      low_yield: items >= @low_yield_items and promoted == 0
+    })
+  end
+
+  # --- S28 N2 end ---
 
   # §6: no successful fetch for 24 hours; never fetched, counted from the
   # registration. A disabled feed is not asked to fetch.
