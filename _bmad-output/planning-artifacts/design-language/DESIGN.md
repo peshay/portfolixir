@@ -9553,7 +9553,10 @@ and the MCP tools answer, for the section's period and the page's view.
 ### Placement and URL
 
 - The **bar** stands between the period badge and the chart, in the Value
-  series only; the TTWROR series shows none.
+  series only; the TTWROR series shows none. *Amended 2026-11-09 (Sprint 28
+  S4, FR-57; board `mockups/ux-design-2026-11-08-sprint28/03-ttwror-levels`):*
+  the bar stands in both series, and the TTWROR series draws a level as
+  lines (below, "The TTWROR series").
 - Every choice is a link that patches the address: `level=total|category|security`
   (always named, since „Kategorien“ is the screen's default, FR-56),
   `tree=<classification id>`, `category=<id>|unclassified` (the filter, at
@@ -9693,6 +9696,75 @@ stack of Sprint 27 (each day over its positive bands, the axis 0 % to
 (`privacy_mode_routes_test.exs`) and the browser leak walk open every level,
 a filter and a band that changes sign with the mode on (plan D-8,
 carry-forward 2; D-A2).
+
+### The TTWROR series *(FR-57)*
+
+*Amended 2026-11-09 (Sprint 28 S4, FR-57, I28, worked out by the owner on
+2026-11-08; board `mockups/ux-design-2026-11-08-sprint28/03-ttwror-levels`
+① and ②; plan D-6).* **„% (TTWROR)“ keeps the bar, the level and the
+filter, and draws each band as a line**, not stacked, because returns do
+not add up. `StackedChart.lines/1` draws the bands read's `scale=ttwror`
+answer (S3): the same bands as the value series without cash, the
+unassigned rest and „Sonstige“, at most eight by value on the window's
+last day.
+
+- **The address.** The series rides it as before, by the level: a level
+  named opens the Value series, and `scale=ttwror` after the sort (before
+  the period) the TTWROR series at that level. An address naming no level
+  opens the TTWROR series at *Total*, today's line with its benchmarks, the
+  bar above it with *Total* pressed; „Wert“ from there opens *Categories*,
+  the Value series' default (FR-56). Once a level is named, a switch of the
+  series keeps it, the filter, the tree, the sort and the period, and
+  patches the address, so a reload and a link handed over reopen it.
+- **At *Total* without a filter** the chart is today's TTWROR chart, byte
+  for byte, the benchmarks over it. Every other state is the lines.
+- **The lines** (`svg.stack-chart.lines-chart` in
+  `figure#performance-figure-lines.stack-figure`, 960 × 320, the stack's
+  axes and padding): one `g.stack-line` per band, `data-band` its key, a
+  path of `stroke-width` 1.6 in the band's colour (the stack's colours, so a
+  category looks the same in both series) over a transparent 10-unit hit
+  stroke. **The bold line** (`.stack-line--bold`, 3 units, `currentColor`,
+  drawn last so it lies on top) is the bands read's `parent`: the view's own
+  TTWROR, exactly the series of today's chart, or under a filter the
+  filter's band; at *Total* with a filter it is the only line. A path
+  breaks where its line has no point: before a late start and after the band
+  is sold out. The axis is in percent, a round step (1, 2, 2.5 or 5 times a
+  power of ten), the zero line always drawn.
+- **A late band's start is a dot** (`circle.stack-line-start`, r 3.2, its
+  line's colour, a hairline in the chart's surface colour): a band whose
+  line starts after the window's first day starts at 0 % on its first day
+  with a value.
+- **The legend** (`#lines-legend`, the stack legend's table): the bold line
+  first, „Ansicht (fett)“ or „‹Filter› (fett)“, in bold type, then the lines
+  in the read's order (by value on the last day, or by TTWROR with the sort
+  „Veränderung“); two columns, the name and **TTWROR** in its sign colour,
+  no value, share or change: the amounts are the Value series'. A late
+  band's name is followed by „(ab ‹date›)“, muted. A category's name is the
+  filter link with its accent „›“.
+- **A click** on a category's line or legend row sets the filter and keeps
+  the level, exactly as a band does in the Value series (`drill_stack`);
+  the breadcrumb leads back. „Sonstige“ does not exist here; cash and the
+  unassigned rest have no line.
+- **The basis line and its ⓘ** follow the stack's (I1): „TTWROR je
+  Kategorie von „Strategie““ (or „… je Wertpapier von „Aktien““, „… von
+  „Aktien“ je Unterkategorie“), the window, „berechnet …“. The ⓘ holds the
+  method in short sentences: each band's own time-weighted return, not
+  stacked; its flows are its buys, sells, deliveries in and out, an inflow
+  at the day's start and an outflow at its end; dividends and interest are
+  no flow and in no line (a price return of the band's market value); a
+  late band starts at 0 % at a dot; at most eight lines by value, none for
+  the cash or the unassigned rest; the legend's order; which line is bold;
+  what a click does; and with a benchmark chosen, that benchmarks stand
+  over the view's own line at *Total* without a filter.
+- **The privacy mode** changes nothing here: every figure is a percentage
+  (the privacy mode's rule keeps returns), the tooltips (`<title>`) name
+  the band, its TTWROR and a late start's date, and no attribute carries an
+  amount. The route backstop and the leak walk open the lines at each level
+  and under a filter.
+
+`app.css`: `.stack-line__stroke`, `.stack-line--bold`, `.stack-line__hit`,
+`.stack-line[phx-click]` (pointer, a thicker stroke on hover),
+`.stack-line-start`, `.lines-legend__parent`, `.lines-legend__since`.
 
 ### The `app.css` rules
 

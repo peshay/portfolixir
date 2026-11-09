@@ -202,7 +202,9 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   #   levels and sorts and a category drilled into, opened from the value
   #   series' category stack. Since #1433 (D-A2) the stack keeps its shape
   #   in the mode, so each level is walked, the filter (a category, the
-  #   unassigned rest) at each level, and a band that changes sign.
+  #   unassigned rest) at each level, and a band that changes sign; since
+  #   FR-57 (Sprint 28 S4) the TTWROR series' lines at each level and under
+  #   a filter, reached from its own bar.
   # - No page's text names an amount or a quantity, and none draws a hidden
   #   figure as its stand-in text instead of the bar.
   test "every page and every in-place view renders with the privacy mode on and names no amount",
@@ -226,8 +228,14 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           "/portfolio?level=total",
           "/portfolio?level=category&category=#{ctx.core.id}",
           "/portfolio?level=total&category=#{ctx.core.id}",
-          "/portfolio?level=category&category=unclassified"
+          "/portfolio?level=category&category=unclassified",
           # --- Sprint 28 S6 end ---
+          # --- Sprint 28 S4 begin ---
+          # FR-57: the TTWROR series keeps the bar, each band a line.
+          "/portfolio?level=category&scale=ttwror",
+          "/portfolio?level=security&scale=ttwror",
+          "/portfolio?level=category&category=#{ctx.core.id}&scale=ttwror"
+          # --- Sprint 28 S4 end ---
         ] do
       assert expected in visited, "the walk never opened #{expected}"
     end

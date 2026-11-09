@@ -168,7 +168,9 @@ or change). The bands add up to the line on every day, cash and the
 unassigned rest included; a click on a category filters the stack to it at
 the same level, its sub-categories and securities as bands, a path above
 leads back one level at a time, and every choice is on the address, so a
-link reopens it. A
+link reopens it. In the TTWROR series the same bar draws each band as a
+line, its own time-weighted return, the view's line bold, a band bought
+into inside the period starting at 0 % with a dot. A
 category wears its allocation colour on both tabs. In the privacy mode the
 stack keeps its shape, its axis in percent of the first day's total, and
 shows no amount. Your agent reads the same bands,

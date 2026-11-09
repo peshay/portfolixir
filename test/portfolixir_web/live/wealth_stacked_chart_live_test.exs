@@ -303,7 +303,8 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     settle(view)
 
-    refute has_element?(view, "[data-role='stack-bar']")
+    # FR-57 (S4): the TTWROR series has the bar too, at „Gesamt“.
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='total']")
     view |> element("[data-role='chart-series'] button[phx-value-mode='value']") |> render_click()
     assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='category']")
 
@@ -375,7 +376,8 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   #   the bar stands above the chart with no classification or sort control.
   # - The figure under it is byte for byte the value chart without the bar's
   #   parameters, after a trip through the category stack and back too.
-  # - The TTWROR series shows no bar.
+  # - The TTWROR series keeps the bar and its level (FR-57, Sprint 28 S4):
+  #   at „Gesamt“ it is today's TTWROR line.
   test "Total is today's value chart, unchanged", %{conn: conn} do
     stack_world()
 
@@ -404,7 +406,9 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     |> element("[data-role='chart-series'] button[phx-value-mode='ttwror']")
     |> render_click()
 
-    refute has_element?(view, "[data-role='stack-bar']")
+    assert_patch(view, "/portfolio?level=total&scale=ttwror")
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='total']")
+    assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
   end
 
   # User story (I23, FR-53; board 01; the owner's colours of 2026-11-07):
@@ -928,8 +932,9 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # my agent's read without a level answers as it always has.
   #
   # Acceptance criteria:
-  # - `/portfolio` still opens the TTWROR series without the bar; switched
-  #   to the value series, the bar's level is „Kategorien“ and the stack
+  # - `/portfolio` still opens the TTWROR series (its bar at „Gesamt“ since
+  #   FR-57, S4); switched to the value series, the bar's level is
+  #   „Kategorien“ and the stack
   #   shows the API's bands of a read without `level` (period 1Y), the
   #   largest at the bottom.
   # - „Gesamt“ is a link to `level=total`, which opens the single value
@@ -944,7 +949,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     settle(view)
 
     assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
-    refute has_element?(view, "[data-role='stack-bar']")
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='total']")
     switches = attrs(view, "a[href*='locale=']", "href")
     assert switches != []
     refute Enum.any?(switches, &(&1 =~ "level"))
@@ -1413,4 +1418,409 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   end
 
   # --- Sprint 28 S2 end ---
+
+  # --- Sprint 28 S4 begin ---
+  # FR-57 (I28; board 03): the TTWROR series keeps the level bar and the
+  # filter and draws one line per band, each band's own TTWROR (S3's
+  # `scale=ttwror`), the view's or the filter's line bold.
+  #
+  # The synthetic world: the stack world's tree, but Gamma (Dividends,
+  # under Income) is bought 100 days ago, inside the 1Y window, so its band
+  # starts late; Alpha's quote moves inside the window.
+  defp lines_world do
+    world = base_world(name: "Lines World", cash_name: "Giro", depot_name: "Depot")
+    d0 = days_ago(500)
+    deposit!(world, "20000", d0)
+
+    held =
+      for {name, quantity, price, bought, quotes} <- [
+            {"Alpha Synthetic AG", "10", "100", d0,
+             [{d0, "100"}, {days_ago(200), "110"}, {today(), "120"}]},
+            {"Beta Synthetic SE", "20", "50", d0, [{d0, "50"}, {today(), "45"}]},
+            {"Gamma Synthetic NV", "5", "200", days_ago(100),
+             [{days_ago(100), "200"}, {days_ago(50), "190"}, {today(), "210"}]},
+            {"Delta Synthetic plc", "4", "100", d0, [{d0, "100"}, {today(), "110"}]}
+          ],
+          into: %{} do
+        security = create_security!(name: name)
+        buy!(world, security, quantity: quantity, price: price, date: bought)
+        put_quotes!(security, quotes)
+        {name |> String.split() |> hd() |> String.downcase() |> key(), security}
+      end
+
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+    growth = category!(tree, "Growth")
+    income = category!(tree, "Income")
+    dividends = category!(tree, "Dividends", parent_id: income.id)
+    assign!(held.alpha, tree, growth)
+    assign!(held.beta, tree, income)
+    assign!(held.gamma, tree, dividends)
+
+    Map.merge(held, %{tree: tree, growth: growth, income: income, dividends: dividends})
+  end
+
+  defp lines_api(conn, query), do: api(conn, Map.put(query, "scale", "ttwror"))
+
+  defp line_keys(view), do: attrs(view, "#lines-legend tbody tr", "data-band")
+
+  # The lines on the screen and in the API's answer for the same request:
+  # the legend's rows, the bold line (the API's parent) first, then the
+  # lines in the API's order; each row's TTWROR the API's, the line's last
+  # point; each line drawn, the parent's bold.
+  defp assert_same_lines(view, data) do
+    parent = data["parent"]
+    lines = Enum.reject(data["bands"], &(&1["key"] == parent["key"]))
+    assert line_keys(view) == [parent["key"] | Enum.map(lines, & &1["key"])]
+    assert attrs(view, "#lines-legend", "data-date") == [data["end_date"]]
+
+    for line <- [parent | lines] do
+      row = "#lines-legend tr[data-band='#{line["key"]}']"
+      assert text_of(view, row <> " td[data-role='line-ttwror']") == signed_pct(line["ttwror"])
+      assert line["ttwror"] == line["returns"] |> Enum.reject(&is_nil/1) |> List.last()
+
+      assert has_element?(
+               view,
+               "#performance-figure-lines g.stack-line[data-band='#{line["key"]}']"
+             )
+    end
+
+    assert attrs(view, "#performance-figure-lines g.stack-line--bold", "data-band") == [
+             parent["key"]
+           ]
+
+    assert has_element?(view, "#lines-legend tbody tr:first-child.lines-legend__parent")
+    refute has_element?(view, "#lines-legend [data-role='stack-value']")
+    assert attrs(view, "[data-end-value]", "data-end-value") == []
+  end
+
+  # The bands whose line starts after the window's first day, by the API.
+  defp late_keys(data) do
+    for line <- [data["parent"] | data["bands"]],
+        index = Enum.find_index(line["returns"], &(not is_nil(&1))),
+        index > 0,
+        uniq: true,
+        do: line["key"]
+  end
+
+  defp start_dots(view),
+    do:
+      view
+      |> attrs("#performance-figure-lines circle.stack-line-start", "data-band")
+      |> Enum.uniq()
+
+  # User story (FR-57, I28; board 03 ① and ②):
+  # As the operator comparing the parts of my wealth by their return,
+  # I want the „% (TTWROR)“ series to keep the level and the filter I chose
+  # and to draw one line per band, the view's line bold among them,
+  # so that I see which part earned what, not only how the whole did.
+  #
+  # Acceptance criteria:
+  # - From the value stack at „Kategorien“, „% (TTWROR)“ keeps the level
+  #   and patches `scale=ttwror`: one line per category (no cash, no
+  #   unassigned rest), the view's own line bold; the legend lists the bold
+  #   line first, „View (bold)“, then the lines, each with its TTWROR only,
+  #   the API's `scale=ttwror` answer for the same request and period on the
+  #   window's last day; no amount, no share.
+  # - A click on a line filters as in the value mode and keeps the level:
+  #   Income's sub-category and „Income (direct)“ as lines, „Income“ bold,
+  #   the breadcrumb „All categories › Income“; Dividends, bought inside
+  #   the window, starts at 0 % with a dot, the others do not.
+  # - A legend row's link filters too; „Wertpapiere“ keeps the filter
+  #   (Gamma's line starts with a dot); „Gesamt“ with the filter draws the
+  #   filter's line alone, bold.
+  # - „Wert“ keeps the level and the filter (`scale` leaves the address);
+  #   „Gesamt“ without a filter in TTWROR is today's single line.
+  # - Each address, opened fresh, shows the same lines.
+  test "the TTWROR series keeps the level and the filter and draws one line per band, the view's bold",
+       %{conn: conn} do
+    w = lines_world()
+    income = "/portfolio?level=category&category=#{w.income.id}&scale=ttwror"
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+
+    view
+    |> element("[data-role='chart-series'] button[phx-value-mode='ttwror']")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=category&scale=ttwror")
+    settle(view)
+
+    assert has_element?(
+             view,
+             "[data-role='chart-series'] button.is-active[phx-value-mode='ttwror']"
+           )
+
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='category']")
+    assert has_element?(view, "#performance-figure-lines[data-level='category']")
+    refute has_element?(view, "#performance-figure-stack")
+    refute has_element?(view, "#performance-figure")
+
+    data = lines_api(conn, %{"level" => "category", "period" => "1y"})
+    assert_same_lines(view, data)
+
+    assert line_keys(view) == [
+             "total",
+             "category:#{w.income.id}",
+             "category:#{w.growth.id}"
+           ]
+
+    assert text_of(view, "#lines-legend tr[data-band='total'] .lines-legend__name") ==
+             "View (bold)"
+
+    assert start_dots(view) == []
+
+    # A click on Income's line filters, the level kept.
+    view
+    |> element("#performance-figure-lines g.stack-line[data-band='category:#{w.income.id}']")
+    |> render_click()
+
+    assert_patch(view, income)
+    settle(view)
+
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='category']")
+    assert crumbs(view) == "All categories › Income"
+
+    data =
+      lines_api(conn, %{"level" => "category", "category_id" => w.income.id, "period" => "1y"})
+
+    assert_same_lines(view, data)
+
+    assert line_keys(view) == [
+             "category:#{w.income.id}",
+             "category:#{w.dividends.id}",
+             "direct:#{w.income.id}"
+           ]
+
+    assert text_of(view, "#lines-legend tr:first-child .lines-legend__name") == "Income (bold)"
+    assert late_keys(data) == ["category:#{w.dividends.id}"]
+    assert start_dots(view) == ["category:#{w.dividends.id}"]
+
+    {:ok, fresh, _html} = live(build_conn(), income)
+    settle(fresh)
+    assert_same_lines(fresh, data)
+    assert crumbs(fresh) == "All categories › Income"
+
+    # The legend row's link filters as the line does.
+    view
+    |> element("#lines-legend tr[data-band='category:#{w.dividends.id}'] a", "Dividends")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=category&category=#{w.dividends.id}&scale=ttwror")
+    settle(view)
+    assert crumbs(view) == "All categories › Income › Dividends"
+
+    data =
+      lines_api(conn, %{
+        "level" => "category",
+        "category_id" => w.dividends.id,
+        "period" => "1y"
+      })
+
+    assert_same_lines(view, data)
+    assert line_keys(view) == ["category:#{w.dividends.id}"]
+
+    view |> element("[data-role='stack-crumbs'] a", "Income") |> render_click()
+    assert_patch(view, income)
+    settle(view)
+
+    view |> element("[data-role='stack-level'] a[data-level='security']") |> render_click()
+    assert_patch(view, "/portfolio?level=security&category=#{w.income.id}&scale=ttwror")
+    settle(view)
+
+    data =
+      lines_api(conn, %{"level" => "security", "category_id" => w.income.id, "period" => "1y"})
+
+    assert_same_lines(view, data)
+    assert start_dots(view) == ["security:#{w.gamma.id}"]
+    refute has_element?(view, "#performance-figure-lines g.stack-line[phx-click]")
+
+    view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
+    assert_patch(view, "/portfolio?level=total&category=#{w.income.id}&scale=ttwror")
+    settle(view)
+
+    data =
+      lines_api(conn, %{"level" => "total", "category_id" => w.income.id, "period" => "1y"})
+
+    assert_same_lines(view, data)
+    assert line_keys(view) == ["category:#{w.income.id}"]
+
+    # „Wert“ keeps the level and the filter.
+    view
+    |> element("[data-role='chart-series'] button[phx-value-mode='value']")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=total&category=#{w.income.id}")
+    settle(view)
+    assert has_element?(view, "#performance-figure-stack[data-level='total']")
+    assert crumbs(view) == "All categories › Income"
+
+    view |> element("[data-role='stack-crumbs'] a", "All categories") |> render_click()
+    assert_patch(view, "/portfolio?level=total")
+    settle(view)
+
+    view
+    |> element("[data-role='chart-series'] button[phx-value-mode='ttwror']")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=total&scale=ttwror")
+    settle(view)
+    assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='total']")
+    refute has_element?(view, "#performance-figure-lines")
+  end
+
+  # User story (FR-57, I28; S1's default kept):
+  # As the operator opening Wealth,
+  # I want the page to open on the TTWROR line I know, with the level bar
+  # above it, and the value series still to open at „Kategorien“,
+  # so that the bar adds a choice and takes nothing away.
+  #
+  # Acceptance criteria:
+  # - `/portfolio` shows the bar in the TTWROR series at „Gesamt“, and the
+  #   figure under it is byte for byte the one at `level=total&scale=ttwror`.
+  # - From there „Wert“ opens the value series at „Kategorien“
+  #   (`level=category`), and „Kategorien“ in the TTWROR series links
+  #   `level=category&scale=ttwror`.
+  # - A period on the address is kept by every switch: from
+  #   `level=category&period=3y` „% (TTWROR)“ patches
+  #   `level=category&scale=ttwror&period=3y`, the API's lines for 3Y.
+  test "Wealth opens on the TTWROR line at Gesamt; a switch keeps the period", %{conn: conn} do
+    lines_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    settle(view)
+
+    assert has_element?(view, "[data-role='stack-bar']")
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='total']")
+
+    assert href(view, "[data-role='stack-level'] a[data-level='category']") ==
+             "/portfolio?level=category&scale=ttwror"
+
+    bare = figure(view)
+
+    {:ok, total, _html} = live(build_conn(), "/portfolio?level=total&scale=ttwror")
+    settle(total)
+    assert figure(total) == bare
+
+    view
+    |> element("[data-role='chart-series'] button[phx-value-mode='value']")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=category")
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category&period=3y")
+    settle(view)
+
+    view
+    |> element("[data-role='chart-series'] button[phx-value-mode='ttwror']")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=category&scale=ttwror&period=3y")
+    settle(view)
+    assert_same_lines(view, lines_api(conn, %{"level" => "category", "period" => "3y"}))
+  end
+
+  # User story (FR-57; #1366's pattern, amendment D-A4; I1):
+  # As the operator reading the TTWROR lines,
+  # I want one line saying what they show and the method behind its ⓘ,
+  # so that I know how a band's return is measured before I compare two.
+  #
+  # Acceptance criteria:
+  # - Under the lines one line reads „TTWROR per category of “Strategy” ·
+  #   ‹start› – ‹end› · computed ‹as of›“; filtered, it names the filter.
+  # - The ⓘ says, in short sentences: each band's own time-weighted
+  #   return; its flows are its buys, sells and deliveries, an inflow at
+  #   the day's start and an outflow at its end; a price return, dividends
+  #   no flow; a late band starts at 0 % at a dot; at most eight lines by
+  #   value, no cash and no unassigned rest; which line is bold; a click
+  #   filters.
+  # - In German the legend's first row reads „Ansicht (fett)“ and the
+  #   column „TTWROR“.
+  test "the TTWROR lines' basis is one line, the method behind its ⓘ", %{conn: conn} do
+    w = lines_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category&scale=ttwror")
+    settle(view)
+
+    data = lines_api(conn, %{"level" => "category", "period" => "1y"})
+    {:ok, as_of, _offset} = DateTime.from_iso8601(data["as_of"])
+
+    assert text_of(view, "[data-role='stack-basis'] [data-role='stack-basis-line']") ==
+             "TTWROR per category of “Strategy” · " <>
+               Format.date(Date.from_iso8601!(data["start_date"])) <>
+               " – " <>
+               Format.date(Date.from_iso8601!(data["end_date"])) <>
+               " · computed " <> Format.utc_instant(as_of)
+
+    refute has_element?(view, "[data-role='performance-basis']")
+
+    tip = text_of(view, "[data-role='stack-basis'] [data-role='section-info'] [role='tooltip']")
+    assert tip =~ "Each band's own time-weighted return over the window"
+    assert tip =~ "buys, sells and deliveries"
+    assert tip =~ "an inflow at the day's start, an outflow at its end"
+    assert tip =~ "Dividends and interest are no flow"
+    assert tip =~ "starts at 0 % on that day, at a dot"
+    assert tip =~ "At most eight lines"
+    assert tip =~ "The bold line is the view's own TTWROR"
+    assert tip =~ "A click on a category filters the lines to it"
+
+    {:ok, filtered, _html} =
+      live(conn, "/portfolio?level=security&category=#{w.income.id}&scale=ttwror")
+
+    settle(filtered)
+
+    assert text_of(filtered, "[data-role='stack-basis-line']") =~
+             "TTWROR per security of “Income”"
+
+    assert text_of(filtered, "[data-role='section-info'] [role='tooltip']") =~
+             "The bold line is “Income”, the filter's"
+
+    german = put_preference_cookie(conn, "portfolixir_locale", "de")
+    {:ok, de, _html} = live(german, "/portfolio?level=category&scale=ttwror")
+    settle(de)
+    assert text_of(de, "#lines-legend tr:first-child .lines-legend__name") == "Ansicht (fett)"
+    assert text_of(de, "#lines-legend th:last-child") == "TTWROR"
+  end
+
+  # User story (FR-57; I22, DESIGN.md's privacy rule: percentages stay):
+  # As the operator sharing my screen with the privacy mode on,
+  # I want the TTWROR lines exactly as without the mode,
+  # so that I can compare the parts' returns while no amount shows.
+  #
+  # Acceptance criteria:
+  # - At „Kategorien“, filtered and not, and at „Wertpapiere“, the lines,
+  #   the dots, the axis and the legend's percentages are the same with
+  #   the mode on as without it.
+  # - No amount in the section's text, a line's tooltip or an attribute.
+  test "in the privacy mode the TTWROR lines stay as they are and name no amount", %{conn: conn} do
+    w = lines_world()
+
+    for address <- [
+          "/portfolio?level=category&scale=ttwror",
+          "/portfolio?level=category&category=#{w.income.id}&scale=ttwror",
+          "/portfolio?level=security&scale=ttwror"
+        ] do
+      {:ok, plain, _html} = live(conn, address)
+      settle(plain)
+      {:ok, view, _html} = live(masked(conn), address)
+      settle(view)
+
+      picture = fn v -> v |> element("#performance-figure-lines svg") |> render() end
+      assert picture.(view) == picture.(plain), address
+      assert text_of(view, "#lines-legend") == text_of(plain, "#lines-legend"), address
+
+      section = text_of(view, "#portfolio-performance")
+      titles = view |> doc() |> Floki.find("#performance-figure-lines title") |> Floki.text()
+
+      for shown <- [section, titles] do
+        assert Regex.scan(~r/\d{1,3}(?:,\d{3})*\.\d{2}(?!\d|%)/u, shown) == [],
+               "#{address} names an amount: #{shown}"
+      end
+
+      assert attrs(view, "[data-end-value]", "data-end-value") == []
+    end
+  end
+
+  # --- Sprint 28 S4 end ---
 end
