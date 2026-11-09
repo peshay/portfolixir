@@ -49,6 +49,10 @@ defmodule PortfolixirWeb.ApiV1NewsUnlabeledBudgetTest do
 
   @tag_a <<0xE0041::utf8>>
 
+  # N1 attack AT1: a name of one letter and 254 combining marks, one
+  # grapheme and 255 characters on the wire, is cut like any other.
+  @hostile_name "H" <> String.duplicate("\u0301", 254)
+
   defp tag_title(n), do: String.pad_trailing("Profit warning #{n} ", 160, @tag_a)
   defp tag_excerpt, do: String.pad_trailing("Excerpt ", 600, @tag_a)
 
@@ -112,7 +116,8 @@ defmodule PortfolixirWeb.ApiV1NewsUnlabeledBudgetTest do
   #   160 tag characters, its excerpt 600 and its domain 253 characters,
   #   and each story's security with an intact thesis of eight clauses of
   #   200 double quotes: at most 6,000 tokens; the domain cut to 40, at
-  #   most six clauses listed with `more`, each cut;
+  #   most six clauses listed with `more`, each cut; one security named
+  #   by one letter and 254 combining marks, cut to 20 like every name;
   # - the answer is the fixture the companion's test measures.
   test "news.unlabeled holds its budget with invisible characters spelled", %{conn: conn} do
     world = base_world(name: "Budget", cash_name: "Cash", depot_name: "Depot")
@@ -122,7 +127,7 @@ defmodule PortfolixirWeb.ApiV1NewsUnlabeledBudgetTest do
       for n <- 1..40 do
         security =
           create_security!(
-            name: "Holding #{n} Synthetic Group AG",
+            name: if(n == 1, do: @hostile_name, else: "Holding #{n} Synthetic Group AG"),
             ticker: nil,
             asset_class: "equity",
             isin: isin(n)
@@ -166,6 +171,10 @@ defmodule PortfolixirWeb.ApiV1NewsUnlabeledBudgetTest do
 
     assert {length(data["rows"]), data["truncated"]} == {10, true}
     assert length(data["universe"]) == 40
+
+    names = Enum.map(data["universe"], & &1["name"])
+    assert Enum.any?(names, &String.starts_with?(&1, "H\u0301"))
+    assert Enum.all?(names, &(length(String.codepoints(&1)) <= 20)), inspect(names)
     assert length(data["theses"]) == 10
 
     for row <- data["rows"] do

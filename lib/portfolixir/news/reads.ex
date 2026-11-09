@@ -105,11 +105,15 @@ defmodule Portfolixir.News.Reads do
   def as_of, do: DateTime.add(DeltaCursor.as_of(), -@fetch_lag_seconds, :second)
 
   @doc """
-  A name of at most 20 characters (§9): the name itself when it fits, else
-  its first 19 characters and an ellipsis.
+  A name of at most 20 characters (§9) as the companion spells them
+  (`clip_spelled/2`): the name itself when it fits, else its first
+  characters and an ellipsis. *Why spelled, not graphemes (Sprint 28, N1
+  attack AT1):* a name of one letter and 254 combining marks is one
+  grapheme and 255 characters on the wire, so a grapheme count would hand
+  it whole to every read that names a security or a category.
   """
   @spec short_name(String.t()) :: String.t()
-  def short_name(name) when is_binary(name), do: clip(name, @short_name_max)
+  def short_name(name) when is_binary(name), do: clip_spelled(name, @short_name_max)
 
   defp clip(text, max) do
     if String.length(text) <= max, do: text, else: String.slice(text, 0, max - 1) <> "…"
@@ -169,8 +173,12 @@ defmodule Portfolixir.News.Reads do
   defp spelled_width(point), do: point |> Text.escape_invisible() |> json_width()
 
   # The characters `text` takes inside a JSON string: `"` and `\\` two, a
-  # control its escape (closing act, AG1 rest).
-  defp json_width(text), do: String.length(Jason.encode!(text)) - 2
+  # control its escape (closing act, AG1 rest). Counted in code points, as
+  # the companion counts (N1 attack AT1): a grapheme count would join a
+  # combining mark to the quote before it and count it as nothing.
+  defp json_width(text), do: code_points(Jason.encode!(text)) - 2
+
+  defp code_points(text), do: text |> String.codepoints() |> length()
 
   # The excerpt last (closing act, AG1 rest): cut to what the answer without
   # it leaves of `@get_chars`, measured as the companion spells the JSON,
@@ -185,7 +193,7 @@ defmodule Portfolixir.News.Reads do
   end
 
   defp spelled_json(answer),
-    do: answer |> Jason.encode!() |> Text.escape_invisible() |> String.length()
+    do: answer |> Jason.encode!() |> Text.escape_invisible() |> code_points()
 
   defp widest(%DateTime{} = at), do: at
   defp widest(%{} = map), do: Map.new(map, fn {key, value} -> {key, widest(value)} end)
