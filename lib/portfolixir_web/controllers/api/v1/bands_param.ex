@@ -1,7 +1,7 @@
 defmodule PortfolixirWeb.Api.V1.BandsParam do
   @moduledoc """
   Shared parsing for the bands reads (I23, FR-53): `level`, `sort`,
-  `classification_id` and `category_id`, read strictly. A value outside its
+  `scale` (FR-57), `classification_id` and `category_id`, read strictly. A value outside its
   set, or an id that is malformed, is refused naming the parameter; the
   values map onto atoms by an explicit whitelist, never `String.to_atom/1`
   (AGENTS.md). `category_id` is the filter at every level (FR-56): a
@@ -15,6 +15,8 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
   @levels %{"total" => :total, "category" => :category, "security" => :security}
   @filter_error "is invalid: must be a category id or unclassified"
   @sorts %{"size" => :size, "change" => :change}
+  # FR-57: the values (today's answer, the default) or each band's own TTWROR.
+  @scales %{"value" => :value, "ttwror" => :ttwror}
 
   @doc """
   The keyword options for `Portfolixir.Portfolios.Performance.Bands`, or
@@ -24,12 +26,14 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
   def resolve(params) do
     with {:ok, level} <- choice(params, "level", @levels, "total, category, security"),
          {:ok, sort} <- choice(params, "sort", @sorts, "size, change"),
+         {:ok, scale} <- choice(params, "scale", @scales, "value, ttwror"),
          {:ok, classification_id} <- id(params, "classification_id"),
          {:ok, category_id} <- filter(params) do
       {:ok,
        []
        |> put_present(:level, level)
        |> put_present(:sort, sort)
+       |> put_present(:scale, scale)
        |> put_present(:classification_id, classification_id)
        |> put_present(:category_id, category_id)}
     end

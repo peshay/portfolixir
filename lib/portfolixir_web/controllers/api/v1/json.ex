@@ -2428,11 +2428,13 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       end_date: date(result.end_date),
       level: Atom.to_string(result.level),
       sort: Atom.to_string(result.sort),
+      scale: Atom.to_string(result.scale),
       classification: bands_classification(result.classification),
       category_id: bands_filter(result.category_id),
       category: result.category,
       dates: Enum.map(result.dates, &date/1),
-      bands: Enum.map(result.bands, &band/1),
+      bands: bands_of(result),
+      parent: parent_line(result.parent),
       as_of: datetime(result.as_of),
       stale: result.stale,
       computation_basis:
@@ -2445,7 +2447,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
             :classification,
             :merge_rule,
             :category_change,
-            :assumptions
+            :assumptions,
+            # FR-57, scale=ttwror: in place of the merge rule.
+            :flows,
+            :start_rule,
+            :selection_rule
           ])
         )
     }
@@ -2480,6 +2486,30 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   # The filter echoed as the parameter names it (FR-56).
   defp bands_filter(:unclassified), do: "unclassified"
   defp bands_filter(id), do: id
+
+  defp bands_of(%{scale: :ttwror, bands: lines}), do: Enum.map(lines, &line/1)
+  defp bands_of(%{bands: bands}), do: Enum.map(bands, &band/1)
+
+  defp parent_line(nil), do: nil
+  defp parent_line(parent), do: line(parent)
+
+  # One band's own TTWROR (FR-57): its returns aligned with dates, null
+  # before its first point and after it holds nothing.
+  defp line(line) do
+    %{
+      key: line.key,
+      kind: Atom.to_string(line.kind),
+      id: line.id,
+      name: line.name,
+      color: line.color,
+      tree_index: line.tree_index,
+      start_value: decimal(line.start_value),
+      end_value: decimal(line.end_value),
+      net_flows: decimal(line.net_flows),
+      ttwror: decimal(line.ttwror),
+      returns: Enum.map(line.returns, &decimal/1)
+    }
+  end
 
   defp band(band) do
     %{

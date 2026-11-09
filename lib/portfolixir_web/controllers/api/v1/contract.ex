@@ -178,7 +178,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- Sprint 28 V1 end ---
             # --- Sprint 28 S begin ---
             "Sprint 28, S1 (FR-56): the bands read's category_id becomes a filter at every " <>
-              "level, the unclassified remainder included; no endpoint or tool is added."
+              "level, the unclassified remainder included; no endpoint or tool is added.",
+            "Sprint 28, S3 (FR-57): the bands read takes scale=ttwror, each band's own " <>
+              "time-weighted return as a line; no endpoint or tool is added."
             # --- Sprint 28 S end ---
           ],
           " "
@@ -286,7 +288,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "securities the tree files nowhere, one band unclassified above the security " <>
           "level. The answer echoes category_id and computation_basis.filter. A call " <>
           "without level answers category, as before; category_id without level=security " <>
-          "is no longer a 422, and any other value than an id or unclassified is."
+          "is no longer a 422, and any other value than an id or unclassified is.",
+        "GET .../performance/bands, all three forms, and portfolixir.portfolios.bands and " <>
+          "portfolixir.views.bands: scale is value (the default, the answer as before) or " <>
+          "ttwror, anything else a 422 naming it; the answer echoes scale. With " <>
+          "scale=ttwror each band is a line, its own TTWROR over the window, its buys, " <>
+          "sells and deliveries as its flows: returns aligned with dates (null before its " <>
+          "first point and after it holds nothing), ttwror its last point, start_value, " <>
+          "end_value and net_flows, no values, share, change or members; at most 8 lines " <>
+          "by value on the window's last day, no cash, unclassified or other; parent is " <>
+          "the view's own line (the performance read's cumulative_ttwror) or the filter's " <>
+          "band; computation_basis names flows, start_rule and selection_rule instead of " <>
+          "merge_rule. parent is null with scale=value."
         # --- Sprint 28 S end ---
       ],
       removed_endpoints: [],

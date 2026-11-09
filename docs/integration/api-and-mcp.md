@@ -3036,7 +3036,34 @@ Example account payloads:
   their own, and `other` is always the last band, on top of the stack,
   whatever the sort. An unpriced day counts zero, as in the series, and a security
   is drawn in its category of today for the whole window;
-  `computation_basis` states each rule. An unknown `level` or `sort`, a
+  `computation_basis` states each rule. **`scale=ttwror`** (FR-57; `scale`
+  is `value`, the default and the answer above, or `ttwror`, echoed as
+  `scale`) answers each band as a line instead: its own time-weighted
+  return over the window, not stacked, since returns do not add up. Its
+  flows are ADR-0051's net flows of its securities per day (buys, sells,
+  deliveries, boundary flows; a group's the sum of its members'); the
+  day's net flow counts at the day's start when it is an inflow,
+  `1 + r = V / (V_prev + F + B)`, and at its end when an outflow,
+  `1 + r = (V − F) / (V_prev + B)`, `B` the day's trade-price basis step as
+  in the walk, and a day without a positive base contributes no return. A
+  band holding a value at the close of the day before the window chains
+  from it, as the view's line does; else its line starts at 0 % on its
+  first day with a value. After its start a day on which it holds nothing
+  and moved nothing has no point, so a band sold out inside the window ends
+  at the sale day. Dividends, interest and trade costs are no flow: they
+  move cash, which has no line. At most eight lines, the largest by value
+  on the window's last day, ties by name and never by id (bands equal in
+  value and name at the cut are both left out); never `other`, and without
+  `category_id` no `cash` or `unclassified`. Each line has `key`, `kind`,
+  `id`, `name`, `color`, `tree_index`, `start_value`, `end_value`,
+  `net_flows`, `returns` (the cumulative return through each of `dates`, a
+  Decimal string, `null` where the line has no point) and `ttwror` (its
+  last point); `sort=change` orders the lines by `ttwror`. `parent` is the
+  line one level up: the view's own TTWROR (the performance read's
+  `cumulative_ttwror` series, exactly) without `category_id`, the filter's
+  band with it; `null` with `scale=value`. `computation_basis` names
+  `flows`, `start_rule` and `selection_rule` in place of `merge_rule`. An
+  unknown `level`, `sort` or `scale`, a
   malformed or unknown `classification_id` or `category_id` (anything but an
   id or exactly `unclassified`), or a category of another tree answers
   `422` naming the parameter, and so does an unsupported `base_currency`.
@@ -5086,7 +5113,8 @@ API may have committed it, and its answer cannot be read.
   which position made how much of a period's money result (FR-41).
 - `portfolixir.portfolios.bands` — scope twin of `portfolixir.views.bands`;
   the value series split into bands by total, category or security, for the
-  stacked chart (I23, FR-53).
+  stacked chart (I23, FR-53); with `scale: "ttwror"` each band's own TTWROR
+  as a line (FR-57).
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — the merge records, newest first, each with
   what went into what, who did it, when, and the manifest summarized

@@ -4,9 +4,10 @@ defmodule PortfolixirWeb.Api.V1.BandsController do
   FR-53): the performance read's value series split into bands by `level`
   (`total`, `category`, `security`), each band's daily values summing
   exactly to the series. `?period=`, `?year=`, `?from=`/`?to=` and `?view=`
-  behave like the performance read; `level`, `sort`, `classification_id`
-  and `category_id` are read strictly (`BandsParam`), a wrong one a 422
-  naming it. `category_id` (an id or `unclassified`) filters every level to
+  behave like the performance read; `level`, `sort`, `scale`,
+  `classification_id` and `category_id` are read strictly (`BandsParam`), a
+  wrong one a 422 naming it. `scale=ttwror` (FR-57) answers each band's own
+  TTWROR as a line instead of its values. `category_id` (an id or `unclassified`) filters every level to
   one category's subtree (FR-56); without `level` the read answers
   `category`, as it always has. Financial decimals are serialized as
   strings.
