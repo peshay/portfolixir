@@ -43,7 +43,8 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
     security = %Security{
       id: 1,
       provider: "portfolio_performance",
-      ticker_symbol: "ARBL"
+      ticker_symbol: "ARBL",
+      currency_code: "USD"
     }
 
     {:ok, rows} = Yahoo.fetch(security, req: req_stub(body))
@@ -136,6 +137,72 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
     }
 
     assert {:error, :missing_currency} = Yahoo.fetch(security, req: req_stub(%{}))
+  end
+
+  # User story (#1411, Sprint 28 Q2):
+  # As a local portfolio maintainer,
+  # I want the Yahoo adapter to refuse a chart answer whose stated currency is
+  # not the security's own,
+  # so that a ticker that resolves to another listing never stores USD
+  # closes as EUR closes, and every figure built on them stays right.
+  #
+  # Acceptance criteria:
+  # - `meta.currency` equal to `currency_code` answers the rows as before.
+  # - A different `meta.currency` answers `{:error, {:currency_mismatch,
+  #   provider_currency}}` and no rows.
+  # - Yahoo's minor-unit codes (`GBp` pence, `ZAc` cents, `ILA` agorot) are
+  #   another currency than `GBP`, `ZAR` and `ILS`: refused the same way,
+  #   compared as written, letter case included.
+  # - A missing `meta.currency` (no `meta`, no key, `null`, an empty string)
+  #   passes as today.
+  test "a USD answer for a EUR security is refused as a currency mismatch" do
+    security = %Security{id: 1, ticker_symbol: "ARBL", currency_code: "EUR"}
+
+    assert {:error, {:currency_mismatch, "USD"}} =
+             Yahoo.fetch(security, req: req_stub(chart("USD")))
+  end
+
+  test "a minor-unit answer is refused against its major currency" do
+    for {stated, own} <- [{"GBp", "GBP"}, {"ZAc", "ZAR"}, {"ILA", "ILS"}] do
+      security = %Security{id: 1, ticker_symbol: "ARBL", currency_code: own}
+
+      assert Yahoo.fetch(security, req: req_stub(chart(stated))) ==
+               {:error, {:currency_mismatch, stated}},
+             "#{stated} against #{own}"
+    end
+  end
+
+  test "an answer in the security's own currency returns its rows" do
+    security = %Security{id: 1, ticker_symbol: "ARBL", currency_code: "EUR"}
+
+    assert {:ok, [%{date: ~D[2024-05-06], close: close}]} =
+             Yahoo.fetch(security, req: req_stub(chart("EUR")))
+
+    assert Decimal.equal?(close, Decimal.new("100.10"))
+  end
+
+  test "an answer that states no currency passes as before" do
+    security = %Security{id: 1, ticker_symbol: "ARBL", currency_code: "EUR"}
+
+    for meta <- [:no_meta, %{}, %{"currency" => nil}, %{"currency" => ""}] do
+      assert match?(
+               {:ok, [%{date: ~D[2024-05-06]}]},
+               Yahoo.fetch(security, req: req_stub(chart_with_meta(meta)))
+             ),
+             inspect(meta)
+    end
+  end
+
+  defp chart(currency), do: chart_with_meta(%{"currency" => currency})
+
+  defp chart_with_meta(meta) do
+    result = %{
+      "timestamp" => [1_715_001_600],
+      "indicators" => %{"quote" => [%{"close" => [100.10]}]}
+    }
+
+    result = if meta == :no_meta, do: result, else: Map.put(result, "meta", meta)
+    %{"chart" => %{"result" => [result]}}
   end
 
   defp req_stub(body) do
