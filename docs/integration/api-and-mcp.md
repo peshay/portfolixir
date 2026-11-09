@@ -3045,7 +3045,10 @@ Example account payloads:
   day's net flow counts at the day's start when it is an inflow,
   `1 + r = V / (V_prev + F + B)`, and at its end when an outflow,
   `1 + r = (V − F) / (V_prev + B)`, `B` the day's trade-price basis step as
-  in the walk, and a day without a positive base contributes no return. A
+  in the walk, and a day without a positive base contributes no return,
+  nor does a day whose opening value `V_prev + B` is not positive (a
+  short covered inside the window adds no return; the line waits until
+  the band opens above zero again). A
   band holding a value at the close of the day before the window chains
   from it, as the view's line does; else its line starts at 0 % on its
   first day with a value. After its start a day on which it holds nothing

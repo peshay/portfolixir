@@ -1732,7 +1732,8 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # - The ⓘ says, in short sentences: each band's own time-weighted
   #   return; its flows are its buys, sells and deliveries, an inflow at
   #   the day's start and an outflow at its end; a price return, dividends
-  #   no flow; a late band starts at 0 % at a dot; at most eight lines by
+  #   no flow; a late band starts at 0 % at a dot; a day opening at or
+  #   below zero (a short) adds no return (ML1); at most eight lines by
   #   value, no cash and no unassigned rest; which line is bold; a click
   #   filters.
   # - In German the legend's first row reads „Ansicht (fett)“ and the
@@ -1761,6 +1762,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     assert tip =~ "an inflow at the day's start, an outflow at its end"
     assert tip =~ "Dividends and interest are no flow"
     assert tip =~ "starts at 0 % on that day, at a dot"
+    assert tip =~ "A day on which a band opens at or below zero, a short, adds no return"
     assert tip =~ "At most eight lines"
     assert tip =~ "The bold line is the view's own TTWROR"
     assert tip =~ "A click on a category filters the lines to it"

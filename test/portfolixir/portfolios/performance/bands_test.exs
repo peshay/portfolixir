@@ -1932,4 +1932,43 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
     assert Bands.for_view(nil, scale: "ttwror", today: @today) == {:error, :invalid_scale}
   end
+
+  # The closing act's money lens (Sprint 28, D-8, ML1): a band whose value
+  # is negative (a short) and is then covered by a buy.
+  #
+  # In the filter world Value holds Bank SE (1000 at the baseline, sold on
+  # 2026-03-02 for 1100: +10 %) and Short Ltd, sold short 2 @ 40 on
+  # 2026-05-11 (value −80) and covered 2 @ 45 on 2026-05-20 (value 0, an
+  # inflow of 90). On the cover day the base V_prev + F = −80 + 90 = 10 is
+  # positive only because the inflow nets against the negative opening
+  # value; counted, the day's factor 0 / 10 = 0 collapsed the whole chain to
+  # −100 %. A day whose opening value V_prev + B is not positive contributes
+  # no return: the chain waits until the band is above zero again.
+  #
+  # User story: as the operator reading a category's bands as lines, I want
+  # a short covered inside the window to leave the return its band earned
+  # before, so that one cover does not paint the band as wiped out.
+  #
+  # Acceptance criteria:
+  # - Value's line ends at +10 %, Bank SE's sale, exactly.
+  # - Short Ltd's line ends at 0 %: it never opened a day above zero.
+  # - The basis states the rule in gaps and start_rule.
+  test "a short covered inside the window does not wipe out its band's line" do
+    f = filter_world()
+
+    equity =
+      filtered!(f, level: :category, category_id: f.equity.id, scale: :ttwror)
+
+    value = band(equity, "category:#{f.value.id}")
+    assert Decimal.equal?(value.ttwror, d("0.1")), "Value ttwror #{value.ttwror}"
+    assert equity.computation_basis.gaps =~ "opening value (V_prev + B) is not positive"
+    assert equity.computation_basis.start_rule =~ "a day opening at or below zero adds no return"
+
+    securities =
+      filtered!(f, level: :security, category_id: f.value.id, scale: :ttwror)
+
+    short = band(securities, "security:#{f.short.id}")
+    assert Decimal.equal?(short.ttwror, d("0")), "Short Ltd ttwror #{short.ttwror}"
+    assert Enum.all?(Enum.reject(short.returns, &is_nil/1), &Decimal.equal?(&1, d("0")))
+  end
 end

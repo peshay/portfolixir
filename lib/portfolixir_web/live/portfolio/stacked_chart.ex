@@ -618,6 +618,9 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       gettext(
         "A band that gains its first value inside the window starts at 0 % on that day, at a dot."
       ),
+      gettext(
+        "A day on which a band opens at or below zero, a short, adds no return: its line waits until the band is above zero again."
+      ),
       lines_selection(result),
       lines_order(result.sort),
       lines_bold(result),

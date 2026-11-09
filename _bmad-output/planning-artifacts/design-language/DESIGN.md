@@ -9760,7 +9760,8 @@ last day.
   stacked; its flows are its buys, sells, deliveries in and out, an inflow
   at the day's start and an outflow at its end; dividends and interest are
   no flow and in no line (a price return of the band's market value); a
-  late band starts at 0 % at a dot; at most eight lines by value, none for
+  late band starts at 0 % at a dot; a day opening at or below zero (a
+  short) adds no return (closing act, ML1); at most eight lines by value, none for
   the cash or the unassigned rest; the legend's order; which line is bold;
   what a click does; and with a benchmark chosen, that benchmarks stand
   over the view's own line at *Total* without a filter.
