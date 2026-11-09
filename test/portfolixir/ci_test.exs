@@ -506,6 +506,62 @@ defmodule Portfolixir.CITest do
     assert report =~ "/releases/*/OTP_VERSION"
   end
 
+  # --- Sprint 28 V1 begin ---
+  # User story (FR-55, #1429; Sprint 28 plan D-7):
+  # As the operator who builds the release image with Docker Compose,
+  # I want the version the image is built from to enter as build arguments
+  # the upgrade command sets from my checkout,
+  # so that the instance names its release although the image never sees
+  # `.git`, and reads "unknown" rather than a guess when I build without them.
+  #
+  # Acceptance criteria:
+  # - Dockerfile.release's build stage declares PORTFOLIXIR_VERSION,
+  #   PORTFOLIXIR_COMMIT and PORTFOLIXIR_BUILD_DATE, each empty by default,
+  #   sets them as environment for its compile step, after the dependency
+  #   steps; the runtime stage names none of them.
+  # - docker-compose.yml passes each to the app's build from the environment,
+  #   empty when unset (`${NAME:-}`), so a missing one never stops a build.
+  # - .dockerignore still leaves `.git` out (D-7: the version does not need it).
+  # - The home deployment guide's upgrade command (EN, DE) sets all three
+  #   from the checkout on the line that builds.
+  test "the release image takes its version as build arguments the upgrade sets (FR-55)" do
+    assert [_header, build, runtime] =
+             "Dockerfile.release" |> File.read!() |> String.split(~r/^FROM /m)
+
+    names = ~w(PORTFOLIXIR_VERSION PORTFOLIXIR_COMMIT PORTFOLIXIR_BUILD_DATE)
+    {deps, compile} = build |> String.split("mix deps.compile", parts: 2) |> List.to_tuple()
+
+    for name <- names do
+      assert compile =~ ~s(ARG #{name}=""\n), name
+      assert compile =~ ~r/#{name}=\$\{#{name}\}/, name
+      refute deps =~ name, "#{name} is declared before the dependency steps"
+      refute runtime =~ name, "#{name} reaches the runtime stage"
+    end
+
+    [env_step, compile_step] = String.split(compile, "RUN mix compile", parts: 2)
+    assert env_step =~ ~r/^ENV PORTFOLIXIR_VERSION=/m
+    assert compile_step =~ "mix release"
+
+    compose = YamlElixir.read_from_file!("docker-compose.yml")
+    args = get_in(compose, ["services", "app", "build", "args"])
+    assert args == Map.new(names, &{&1, "${#{&1}:-}"})
+
+    assert ".git" in String.split(File.read!(".dockerignore"), "\n")
+
+    command = """
+    PORTFOLIXIR_VERSION="$(git describe --tags --exact-match --match '[0-9][0-9][0-9][0-9].*' 2>/dev/null || git rev-parse --abbrev-ref HEAD)" \\
+    PORTFOLIXIR_COMMIT="$(git rev-parse HEAD)" \\
+    PORTFOLIXIR_BUILD_DATE="$(git log -1 --format=%cs)" \\
+    docker compose build --pull
+    """
+
+    for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      assert File.read!(guide) =~ command, guide
+    end
+  end
+
+  # --- Sprint 28 V1 end ---
+
   # User story:
   # As a maintainer whose test suite is the mechanical guard behind money math,
   # I want async LiveView assertions to have a wall-clock budget that survives

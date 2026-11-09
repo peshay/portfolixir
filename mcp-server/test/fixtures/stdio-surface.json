@@ -22,6 +22,7 @@
       },
       "tools/list names": [
         "portfolixir.contract.get",
+        "portfolixir.version",
         "portfolixir.securities.list",
         "portfolixir.securities.get",
         "portfolixir.securities.merge_preview",
@@ -150,6 +151,7 @@
       },
       "tools/list names": [
         "portfolixir.contract.get",
+        "portfolixir.version",
         "portfolixir.securities.list",
         "portfolixir.securities.get",
         "portfolixir.securities.create",
@@ -328,6 +330,7 @@
       },
       "tools/list names": [
         "portfolixir.contract.get",
+        "portfolixir.version",
         "portfolixir.securities.list",
         "portfolixir.securities.get",
         "portfolixir.securities.create",
@@ -510,7 +513,7 @@
             {
               "name": "portfolixir.contract.get",
               "title": "Contract version of this surface",
-              "description": "What the API and MCP surface offers and when it last changed (ADR-0044 §8): version, last_changed_at, endpoints_total, tools_total and the manifest entries newest first — each naming the endpoints, tools and parameters a change touched. Tool descriptions are read once at connect time; this read is how you notice they moved. Poll it with since=<the last_changed_at you stored>: changed=true with the entries that moved means re-read the tool list and descriptions; changed=false means nothing on the surface changed. A meta-test ties the router and this tool inventory to the manifest, so a change without an entry cannot ship.",
+              "description": "What the API and MCP surface offers and when it last changed (ADR-0044 §8): version, last_changed_at, endpoints_total, tools_total and the manifest entries newest first — each naming the endpoints, tools and parameters a change touched. Tool descriptions are read once at connect time; this read is how you notice they moved. Poll it with since=<the last_changed_at you stored>: changed=true with the entries that moved means re-read the tool list and descriptions; changed=false means nothing on the surface changed. A meta-test ties the router and the tool inventory to the manifest, so a change without an entry cannot ship.",
               "inputSchema": {
                 "type": "object",
                 "additionalProperties": false,
@@ -520,6 +523,22 @@
                     "description": "ISO date; only entries dated strictly after it return"
                   }
                 }
+              },
+              "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+              }
+            },
+            {
+              "name": "portfolixir.version",
+              "title": "Version of this instance",
+              "description": "The version this instance was built from, read once at compile time, never a guess (FR-55): kind release (value the calendar tag, url its release notes), build (value branch · short hash · commit date, url the commit) or unknown (url null); with tag, branch, commit, date and source (build_arguments, git or none). The url is the operator's to follow; the app requests nothing.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
               },
               "annotations": {
                 "readOnlyHint": true,

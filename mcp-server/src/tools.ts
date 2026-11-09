@@ -3241,6 +3241,12 @@ const contractGetSchema = {
 
 const contractGetZ = z.object({ since: optionalString() });
 
+// --- Sprint 28 V1 begin ---
+// FR-55: the version read takes no argument.
+const versionSchema = { type: "object", additionalProperties: false, properties: {} };
+const versionZ = z.object({}).strict();
+// --- Sprint 28 V1 end ---
+
 // --- Sprint 27 N8 begin ---
 // The news layer's upkeep writes (ADR-0056 §9, B1): closed, as the API is.
 const newsFeedClasses = ["issuer", "regulatory", "aggregator", "thematic"] as const;
@@ -3559,10 +3565,19 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.contract.get",
     "Contract version of this surface",
-    "What the API and MCP surface offers and when it last changed (ADR-0044 §8): version, last_changed_at, endpoints_total, tools_total and the manifest entries newest first — each naming the endpoints, tools and parameters a change touched. Tool descriptions are read once at connect time; this read is how you notice they moved. Poll it with since=<the last_changed_at you stored>: changed=true with the entries that moved means re-read the tool list and descriptions; changed=false means nothing on the surface changed. A meta-test ties the router and this tool inventory to the manifest, so a change without an entry cannot ship.",
+    "What the API and MCP surface offers and when it last changed (ADR-0044 §8): version, last_changed_at, endpoints_total, tools_total and the manifest entries newest first — each naming the endpoints, tools and parameters a change touched. Tool descriptions are read once at connect time; this read is how you notice they moved. Poll it with since=<the last_changed_at you stored>: changed=true with the entries that moved means re-read the tool list and descriptions; changed=false means nothing on the surface changed. A meta-test ties the router and the tool inventory to the manifest, so a change without an entry cannot ship.",
     contractGetSchema,
     contractGetZ
   ),
+  // --- Sprint 28 V1 begin ---
+  tool(
+    "portfolixir.version",
+    "Version of this instance",
+    "The version this instance was built from, read once at compile time, never a guess (FR-55): kind release (value the calendar tag, url its release notes), build (value branch · short hash · commit date, url the commit) or unknown (url null); with tag, branch, commit, date and source (build_arguments, git or none). The url is the operator's to follow; the app requests nothing.",
+    versionSchema,
+    versionZ
+  ),
+  // --- Sprint 28 V1 end ---
   tool("portfolixir.securities.list", "List securities", "List local securities. Rows are slim by default (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds the rest of the fields enum; fields (a sparse fieldset of it) supersedes projection. Page with limit/offset; limit and truncated are echoed. since (ISO8601 UTC) is a delta read: rows changed strictly after it, oldest change first, with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT listed; a full read shows them. data_quality narrows to a set: stale_quote (no quote newer than 7 days, INCLUDING never-priced), missing_quote (never priced), missing_logo (none and unlocked, or file gone) — none of these three holds a benchmark or a retired security — missing_fx (priced, no stored rate to the EUR hub), two_scales (see bond.two_scales), implausible_quote (held; a booking's quote that week under 1/2 or over 2x its price) and currency_mismatch (the provider's stated currency differs; no benchmark, retired if held); these two add findings and computation_basis to the envelope. The Overview counts them. is_benchmark=true lists only benchmarks (ADR-0046), false leaves them out; is_retired=true lists only the retired securities, false leaves them out.", {
     type: "object",
     additionalProperties: false,
@@ -5015,6 +5030,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
   switch (name) {
     case "portfolixir.contract.get":
       return client.request("GET", withQuery("/api/v1/contract", args, ["since"]));
+    // --- Sprint 28 V1 begin ---
+    case "portfolixir.version":
+      return client.request("GET", "/api/v1/version");
+    // --- Sprint 28 V1 end ---
     case "portfolixir.securities.list":
       return client.request(
         "GET",

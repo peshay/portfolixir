@@ -198,6 +198,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "deletes a digest consumer whose last confirmation, or creation"
     # --- S28 N3 OQ2 end ---
 
+    # --- Sprint 28 V1 begin ---
+    # V1 (FR-55): the version read and its tool.
+    assert newest["summary"] =~ "Sprint 28, V1 (FR-55): "
+    assert "GET /api/v1/version" in newest["endpoints"]
+    assert "portfolixir.version" in newest["tools"]
+    assert newest["summary"] =~ "GET /api/v1/version"
+    assert newest["summary"] =~ "portfolixir.version"
+    assert newest["summary"] =~ "never a guess"
+    # --- Sprint 28 V1 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

@@ -4400,6 +4400,25 @@ how an agent learns that the list or the descriptions moved.
   scope and the position level (#740), the historical backfill scope (#737),
   and this read.
 
+## Instance Version
+
+The instance says which version it was built from (FR-55), so an agent knows
+which release it is talking to without asking the operator.
+
+- `GET /api/v1/version` returns `kind`, `value` and `url`: `release` (the
+  calendar tag `YYYY.M.N` the build is exactly at; `url` its release notes on
+  GitHub), `build` (`branch · short hash · commit date`, the branch left out
+  for a detached checkout; `url` the commit on GitHub) or `unknown` (`value`
+  `"unknown"`, `url` `null`). Beside them `tag`, `branch`, `commit` (the full
+  hash where it is known), `date` (the commit's own date, ISO), `source`
+  (`build_arguments`, `git` or `none`) and a `version_note`. The version is
+  read **once, when the code compiles**: from the build arguments
+  `PORTFOLIXIR_VERSION`, `PORTFOLIXIR_COMMIT` and `PORTFOLIXIR_BUILD_DATE`
+  when any is set (the release image's way, [Home
+  Deployment](../home-deployment.html), "Upgrade"), else from `git` in the
+  source checkout, else `unknown` — never a guess. The `url` is for
+  the operator to follow; the app requests nothing.
+
 ## Audit Journal
 
 Every financial write (create, update, delete) is recorded in an append-only
@@ -4762,6 +4781,8 @@ API may have committed it, and its answer cannot be read.
 
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
+- `portfolixir.version` — the version this instance was built from (FR-55):
+  `GET /api/v1/version`, no argument.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
   `identifier_aliases` (recorded former ISINs) and its derived

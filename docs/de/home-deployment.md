@@ -1004,9 +1004,21 @@ baue neu und starte:
 
 ```bash
 docker compose pull db
+PORTFOLIXIR_VERSION="$(git describe --tags --exact-match --match '[0-9][0-9][0-9][0-9].*' 2>/dev/null || git rev-parse --abbrev-ref HEAD)" \
+PORTFOLIXIR_COMMIT="$(git rev-parse HEAD)" \
+PORTFOLIXIR_BUILD_DATE="$(git log -1 --format=%cs)" \
 docker compose build --pull
 docker compose up -d
 ```
+
+Die drei Variablen vor dem Build-Befehl sagen dem Image, aus welcher Version
+es gebaut wird (FR-55): das Kalender-Tag, auf dem der Checkout genau steht,
+sonst sein Branch, dazu der Commit und dessen Datum. Das Image sieht `.git`
+nie, deshalb erreicht die Version es nur so. Die Instanz zeigt sie am Fuß des
+Menüs, verlinkt auf die Versionshinweise oder auf den Commit, und nennt sie in
+`GET /api/v1/version`. Ein Build ohne sie, etwa der erste
+`docker compose up --build` unter „Start“, zeigt „unbekannt“: Die Instanz rät
+nie. Aus dem Quellcode gestartet, liest die Anwendung den Checkout selbst.
 
 Jedes Image, auf dem der Stack läuft, ist im Repository per Tag und Digest
 gepinnt — die Erlang/OTP- und Debian-Basis-Images der Anwendung, die Node-Basis

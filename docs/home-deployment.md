@@ -944,9 +944,21 @@ start:
 
 ```bash
 docker compose pull db
+PORTFOLIXIR_VERSION="$(git describe --tags --exact-match --match '[0-9][0-9][0-9][0-9].*' 2>/dev/null || git rev-parse --abbrev-ref HEAD)" \
+PORTFOLIXIR_COMMIT="$(git rev-parse HEAD)" \
+PORTFOLIXIR_BUILD_DATE="$(git log -1 --format=%cs)" \
 docker compose build --pull
 docker compose up -d
 ```
+
+The three variables on the build command tell the image which version it is
+built from (FR-55): the calendar tag the checkout is exactly at, else its
+branch, with the commit and the commit's date. The image never sees `.git`,
+so this is the only way the version reaches it. The instance shows it at the
+foot of the menu, linked to the release notes or to the commit, and answers
+it in `GET /api/v1/version`. A build without them, such as the first
+`docker compose up --build` under "Start", reads "unknown": the instance never
+guesses. Run from source, the application reads the checkout itself.
 
 Every image the stack runs on is pinned by tag and digest in the repository —
 the application's Erlang/OTP and Debian base images, the MCP companion's Node
