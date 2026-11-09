@@ -1476,8 +1476,9 @@ Example create payload:
   ascending, the newest `limit` of them (the list family's: default 100,
   capped at 1000, echoed in `meta.limit`) — `stretch_count` (all of them), and
   `sync_adapter`: whether the quote sync can fetch the security — an adapter
-  for its provider that can ask for it (Yahoo needs a ticker), the checks the
-  sync makes before it fetches anything. Where it is `false` a released date
+  for its provider that can ask for it (Yahoo needs a ticker) and a `feed`
+  other than `MANUAL` or `NONE`, the checks the sync makes before it fetches
+  anything. Where it is `false` a released date
   keeps no quote; where it is `true` a fetch can still fail. `from` and/or `to` (inclusive; an absent bound is
   open) add `range` `{"from", "to", "count"}`: the manual quotes a release of
   exactly that range would remove. `to` before `from` answers `422` on `to`,
@@ -1486,9 +1487,17 @@ Example create payload:
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as
   `missing_ticker` or `no_provider_adapter`, and `persist_failed` when the
-  fetched quotes could not be stored. A history of any length is stored in
-  one sync, and in the scheduled sync one security that fails is that
-  security's error while the others are still synced. One sync of a security
+  fetched quotes could not be stored. A security whose `feed` is `MANUAL` or
+  `NONE` is skipped with `manual_feed` and no provider is asked: that feed
+  stops the quote sync on every path, this call, the scheduled sync and the
+  page's sync of every security, so `PATCH /api/v1/securities/:id`
+  (`portfolixir.securities.update`) setting it is the way to stop provider
+  quotes for a security whose quotes you keep by hand. A retired security
+  is synced by this call; the scheduled sync and the page's sync of every
+  security skip it with `retired` (#1410). Both count as skipped. A history
+  of any length is stored in one sync, and in the scheduled sync one
+  security that fails is that security's error while the others are still
+  synced. One sync of a security
   runs at a time: while one runs, from any path, a second answers
   `409 Conflict` and calls no provider. A newly created security's quote
   history is fetched in the background on one queue, one security at a time,

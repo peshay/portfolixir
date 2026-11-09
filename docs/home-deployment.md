@@ -968,6 +968,16 @@ file back removes the mark. When the logo directory is missing or unreadable,
 the application marks nothing and logs a warning instead; otherwise the log
 names how many logos were marked.
 
+**The quote sync stops at a Manual feed** (#1410, from the release that
+carries Sprint 28 on). A security whose quote feed is *Manual* or *None* is
+no longer synced at all, and a retired one no longer by the six-hourly run
+or by *Sync prices* in the toolbar (the row menu's *Sync prices* still
+fetches a retired one). A security whose quote feed reads *Manual* — for
+instance one carried over from Portfolio Performance, where its feed was
+*Manual* — and which you want to keep syncing needs its quote feed set to a
+synced one (*Portfolio Performance* or *CoinGecko*) in its master data, or
+`feed` set over the API; its stored quotes stay as they are either way.
+
 Upgrading from 0.15.x or earlier, four changes of the security pass reach an
 instance that already runs. Check them before the `up`:
 

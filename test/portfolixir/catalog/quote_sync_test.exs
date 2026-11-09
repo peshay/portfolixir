@@ -17,6 +17,25 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
     def fetch(_security, _opts), do: {:error, :missing_ticker}
   end
 
+  # Q1 (#1410): an adapter that must never be asked. It tells the test it was
+  # called (the sync runs it in the test's own process, under its
+  # single-flight key, and rescues what it raises, so a raise would only turn
+  # into an :error result) and hands back a close, so a call would also leave
+  # a stored row behind; the tests refute both.
+  defmodule TripwireAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :tripwire
+
+    @impl true
+    def fetch(security, _opts) do
+      send(self(), {:tripwire_fetched, security.id})
+      {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("999.00")}]}
+    end
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want quote history to keep itself up to date in the background and to
@@ -203,5 +222,91 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
              reason: :no_provider_adapter,
              security_id: ^no_adapter_id
            } = QuoteSync.sync_security(no_adapter, adapter_for: %{"manual" => Fake})
+  end
+
+  # User story:
+  # As a local portfolio maintainer who keeps a security's quotes by hand,
+  # I want the scheduled run and "sync all" to leave a security alone whose
+  # feed is Manual or None, and a retired one,
+  # so that no provider row lands behind a feed the screen says is manual,
+  # or on a sold-out or delisted security nobody prices any more (#1410).
+  #
+  # Acceptance criteria:
+  # - A security whose feed is MANUAL or NONE is skipped with reason
+  #   `:manual_feed`; its adapter is never called and no quote is stored.
+  # - A retired security is skipped with reason `:retired`, the same way.
+  # - Both are counted as skipped, as `:missing_ticker` is; the other
+  #   securities of the run are synced as before.
+  for feed <- ~w(MANUAL NONE) do
+    test "the full sync skips a security whose feed is #{feed} and calls no provider" do
+      stopped = security_fixture(name: "Stopped", provider: "manual", feed: unquote(feed))
+      synced = security_fixture(name: "Synced", provider: "manual", feed: "PORTFOLIO_PERFORMANCE")
+      stopped_id = stopped.id
+      synced_id = synced.id
+
+      assert {:ok, %{ok: 1, skipped: 1, error: 0, results: results}} =
+               QuoteSync.sync_all(adapter_for: %{"manual" => TripwireAdapter})
+
+      assert %{status: :skipped, reason: :manual_feed} =
+               Enum.find(results, &(&1.security_id == stopped_id))
+
+      refute_received {:tripwire_fetched, ^stopped_id}
+      assert_received {:tripwire_fetched, ^synced_id}
+      assert Quotes.latest(stopped_id) == nil
+      assert Decimal.equal?(Quotes.latest(synced_id).close, Decimal.new("999.00"))
+    end
+  end
+
+  test "the full sync skips a retired security and calls no provider" do
+    retired = security_fixture(name: "Retired", provider: "manual", is_retired: true)
+    retired_id = retired.id
+
+    assert {:ok, %{ok: 0, skipped: 1, error: 0, results: [result]}} =
+             QuoteSync.sync_all(adapter_for: %{"manual" => TripwireAdapter})
+
+    assert %{security_id: ^retired_id, status: :skipped, reason: :retired} = result
+    refute_received {:tripwire_fetched, _id}
+    assert Quotes.latest(retired_id) == nil
+  end
+
+  # User story:
+  # As a local portfolio maintainer,
+  # I want an explicit sync of one security to still fetch a retired one, and
+  # never one whose feed is Manual or None,
+  # so that I can refill a retired security's history on purpose while a
+  # manual feed stays a stop on every path (#1410).
+  #
+  # Acceptance criteria:
+  # - `sync_security/2` of a retired security calls its adapter and stores
+  #   the rows.
+  # - `sync_security/2` of a security whose feed is MANUAL skips it with
+  #   `:manual_feed` and calls no provider.
+  # - `adapter?/2` is false for a security whose feed is MANUAL or NONE, so
+  #   the release of manual quotes says no sync refills the days.
+  test "an explicit sync runs for a retired security and stops at a manual feed" do
+    retired = security_fixture(name: "Retired", provider: "manual", is_retired: true)
+    retired_id = retired.id
+
+    Fake.put_response(retired_id, {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("12.50")}]})
+
+    assert %{status: :ok, upserted: 1} =
+             QuoteSync.sync_security(retired, adapter_for: %{"manual" => Fake})
+
+    assert Decimal.equal?(Quotes.latest(retired_id).close, Decimal.new("12.50"))
+
+    manual = security_fixture(name: "Manual", provider: "manual", feed: "MANUAL")
+    manual_id = manual.id
+
+    assert %{security_id: ^manual_id, status: :skipped, reason: :manual_feed} =
+             QuoteSync.sync_security(manual, adapter_for: %{"manual" => TripwireAdapter})
+
+    refute_received {:tripwire_fetched, ^manual_id}
+    assert Quotes.latest(manual_id) == nil
+
+    refute QuoteSync.adapter?(manual, adapter_for: %{"manual" => Fake})
+
+    none = security_fixture(name: "None", provider: "manual", feed: "NONE")
+    refute QuoteSync.adapter?(none, adapter_for: %{"manual" => Fake})
+    assert QuoteSync.adapter?(retired, adapter_for: %{"manual" => Fake})
   end
 end

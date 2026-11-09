@@ -693,6 +693,70 @@ defmodule PortfolixirWeb.ApiV1Test do
     end
   end
 
+  # User story (#1410, Sprint 28 Q1):
+  # As an agent syncing one security's quotes,
+  # I want a security whose feed is Manual to answer skipped with its reason,
+  # and a retired one to sync,
+  # so that the operator's manual feed stops my call too, and a retired
+  # security's history can still be refilled on purpose.
+  #
+  # Acceptance criteria:
+  # - A security whose feed is MANUAL answers `status: "skipped"`,
+  #   `reason: "manual_feed"`, and no quote is stored.
+  # - A retired security answers `status: "ok"` and its rows are stored.
+  test "quote sync API skips a manual feed and syncs a retired security", %{conn: conn} do
+    {:ok, manual} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Manual Feed Security",
+        currency_code: "USD",
+        provider: "manual",
+        feed: "MANUAL"
+      })
+
+    {:ok, retired} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Retired Security",
+        currency_code: "USD",
+        provider: "manual",
+        is_retired: true
+      })
+
+    QuoteSyncFake.put_response(
+      manual.id,
+      {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("7.00")}]}
+    )
+
+    QuoteSyncFake.put_response(
+      retired.id,
+      {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("8.00")}]}
+    )
+
+    prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+    Application.put_env(
+      :portfolixir,
+      Portfolixir.Catalog.QuoteSync,
+      Keyword.put(prior_cfg, :adapter_for, %{"manual" => QuoteSyncFake})
+    )
+
+    try do
+      assert conn
+             |> post_json("/api/v1/securities/#{manual.id}/sync_quotes", %{})
+             |> json_response(200) == %{
+               "data" => %{"status" => "skipped", "reason" => "manual_feed"}
+             }
+
+      assert conn
+             |> post_json("/api/v1/securities/#{retired.id}/sync_quotes", %{})
+             |> json_response(200) == %{"data" => %{"status" => "ok"}}
+    after
+      Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+    end
+
+    assert Quotes.latest(manual.id) == nil
+    assert Decimal.equal?(Quotes.latest(retired.id).close, Decimal.new("8.00"))
+  end
+
   # User story:
   # As a local portfolio maintainer preserving auditable price history,
   # I want quote history to block security deletion through the API,

@@ -1030,6 +1030,18 @@ Markierung weg. Fehlt das Logo-Verzeichnis oder ist es nicht lesbar, markiert
 die Anwendung nichts und schreibt stattdessen eine Warnung ins Log; sonst
 nennt das Log, wie viele Logos markiert wurden.
 
+**Die Kurssynchronisierung hält bei einer manuellen Kursquelle an** (#1410,
+ab dem Release mit Sprint 28). Ein Wertpapier mit der Kursquelle *Manuell*
+oder *Keine* wird gar nicht mehr synchronisiert, ein stillgelegtes nicht mehr
+vom sechsstündlichen Lauf und nicht mehr von *Kurse aktualisieren* in der
+Werkzeugleiste (*Kurse aktualisieren* im Zeilenmenü holt ein stillgelegtes
+weiterhin). Ein Wertpapier mit der Kursquelle *Manuell* — etwa eines aus
+Portfolio Performance, wo seine Kursquelle *Manuell* war — das weiter
+synchronisiert werden soll, braucht in seinen Stammdaten eine
+synchronisierte Kursquelle (*Portfolio Performance* oder *CoinGecko*), oder
+über die API `feed`; seine gespeicherten Kurse bleiben in beiden Fällen, wie
+sie sind.
+
 Beim Upgrade von 0.15.x oder älter erreichen vier Änderungen des
 Sicherheitsdurchgangs eine Instanz, die schon läuft. Prüfe sie vor dem `up`:
 

@@ -45,6 +45,42 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 28,
+      # Sprint 28's sprint PR. Dated the day after entry 27, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
+      date: ~D[2026-11-09],
+      summary:
+        Enum.join(
+          [
+            # --- Sprint 28 Q begin ---
+            "Sprint 28, Q (#1410): the quote sync stops at a feed of MANUAL or NONE on " <>
+              "every path, and its scheduled and full runs leave a retired security alone; " <>
+              "portfolixir.quotes.sync and portfolixir.securities.update say so."
+            # --- Sprint 28 Q end ---
+          ],
+          " "
+        ),
+      endpoints: [],
+      tools: [],
+      parameters: [
+        # --- Sprint 28 Q begin ---
+        "POST /api/v1/securities/:security_id/sync_quotes (portfolixir.quotes.sync, whose " <>
+          "description and securities.update's now name the stop; no parameter added): a " <>
+          "security whose feed is MANUAL or NONE answers status \"skipped\" with reason " <>
+          "\"manual_feed\" and no provider is asked, where it synced; a retired security syncs " <>
+          "here as before, while the scheduled run and the page's sync of every security " <>
+          ~s(skip it as "retired" and the manual feed as "manual_feed", counted as skipped. ) <>
+          "GET /api/v1/securities/:security_id/quotes/manual (portfolixir.quotes.manual) " <>
+          "answers sync_adapter false for a security whose feed is MANUAL or NONE (#1410)."
+        # --- Sprint 28 Q end ---
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 27,
       # Sprint 27's sprint PR. Dated the day after entry 26, because since=
       # compares strictly after a date. Each story of the sprint appends its

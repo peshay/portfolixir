@@ -4418,6 +4418,18 @@ laufen kann, weil Pflichtfelder wie der Ticker fehlen, werden mit einem Grund al
 übersprungen gemeldet. Fehlgeschlagene Adapter-Aufrufe werden getrennt von
 erfolgreichen Synchronisierungen gemeldet.
 
+**Eine Kursquelle *Manuell* oder *Keine* hält die Synchronisierung an**
+(#1410). In den Stammdaten des Wertpapiers gesetzt (*Kursquelle*), hält sie
+jede Synchronisierung vom Wertpapier fern: der sechsstündliche Lauf, *Kurse
+aktualisieren* in der Werkzeugleiste und *Kurse aktualisieren* im Zeilenmenü
+überspringen es und fragen keinen Anbieter, und die Antwort des Zeilenmenüs
+lautet „Für dieses Wertpapier gibt es keinen Kursanbieter.“ So bekommt es nur
+die Kurse, die du von Hand pflegst. **Ein stillgelegtes Wertpapier**
+überspringen der sechsstündliche Lauf und *Kurse aktualisieren* in der
+Werkzeugleiste ebenfalls; *Kurse aktualisieren* im Zeilenmenü holt es
+weiterhin, wenn du seine Historie auffüllen willst. Beides zählt in der
+Antwort der Synchronisierung als übersprungen.
+
 Von Hand eingetragene Kurse gewinnen gegen synchronisierte: Die
 Synchronisierung überschreibt nie eine gespeicherte Zeile mit der Quelle
 `manual`, auch wenn die Anbieter-Historie dasselbe Datum abdeckt. Jede

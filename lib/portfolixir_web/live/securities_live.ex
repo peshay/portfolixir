@@ -7133,7 +7133,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # #1033 (H7.4): the reasons a single security's sync can reach before it
   # fetches anything (QuoteSync's skips and its single-flight lock) read as
   # words; a provider's own error stays as it answered.
-  defp sync_reason(:no_provider_adapter),
+  # #1410 (Sprint 28 Q1): a feed set to Manual or None stops every sync, so
+  # no provider fetches the security; the same words, no new sentence.
+  defp sync_reason(reason) when reason in [:no_provider_adapter, :manual_feed],
     do: gettext("No quote provider fetches this security.")
 
   defp sync_reason(:missing_ticker),

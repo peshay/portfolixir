@@ -1597,8 +1597,8 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   Listen-Familie: Standard 100, gedeckelt bei 1000, in `meta.limit` gespiegelt)
   —, `stretch_count` (alle) und `sync_adapter`: ob die Kurssynchronisierung
   das Wertpapier abfragen kann — ein Adapter für seinen Anbieter, der es
-  abfragen kann (Yahoo braucht einen Ticker), die Prüfungen, die sie vor jedem
-  Abruf macht. Bei `false` behält ein freigegebenes Datum keinen Kurs; bei
+  abfragen kann (Yahoo braucht einen Ticker), und ein `feed` außer `MANUAL`
+  oder `NONE`, die Prüfungen, die sie vor jedem Abruf macht. Bei `false` behält ein freigegebenes Datum keinen Kurs; bei
   `true` kann ein Abruf trotzdem scheitern. `from` und/oder `to` (einschließlich; eine fehlende Grenze ist
   offen) fügen `range` `{"from", "to", "count"}` hinzu: die manuellen Kurse,
   die eine Freigabe genau dieses Zeitraums entfernen würde. `to` vor `from`
@@ -1609,6 +1609,16 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   `skipped` oder `error`); übersprungene und Fehler-Antworten können einen
   `reason` wie `missing_ticker` oder `no_provider_adapter` enthalten, und
   `persist_failed`, wenn die geholten Kurse nicht gespeichert werden konnten.
+  Ein Wertpapier, dessen `feed` `MANUAL` oder `NONE` ist, wird mit
+  `manual_feed` übersprungen, und kein Anbieter wird gefragt: Dieser Feed
+  hält die Kurssynchronisierung auf jedem Weg an, bei diesem Aufruf, der
+  geplanten Synchronisierung und der Synchronisierung aller Wertpapiere auf
+  der Seite. `PATCH /api/v1/securities/:id`
+  (`portfolixir.securities.update`) mit diesem Feed ist also der Weg, die
+  Anbieterkurse eines Wertpapiers anzuhalten, dessen Kurse du von Hand
+  pflegst. Ein ausgemustertes Wertpapier synchronisiert dieser Aufruf; die
+  geplante Synchronisierung und die aller Wertpapiere überspringen es mit
+  `retired` (#1410). Beides zählt als übersprungen.
   Eine Historie beliebiger Länge wird in einer Synchronisierung gespeichert,
   und in der geplanten Synchronisierung ist ein scheiterndes Wertpapier der
   Fehler dieses Wertpapiers, während die übrigen weiter synchronisiert werden.
