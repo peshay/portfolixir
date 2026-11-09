@@ -2,10 +2,19 @@
   "data": {
     "count": 6,
     "domain": "ir.example.com",
-    "excerpt": "Excerpt \uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\uDB40\uDC41\u2026",
+    "excerpt": "\u2026",
     "first_seen_at": "2026-11-08T09:00:00Z",
     "id": 1,
     "kind": "story",
+    "label": {
+      "clause_idx": 6,
+      "confidence": "0.8125",
+      "event_type": "capital_measure",
+      "machine_generated": true,
+      "materiality": 3,
+      "thesis_note_id": 1,
+      "tone": -1
+    },
     "language": "en",
     "members": [
       {

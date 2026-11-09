@@ -378,12 +378,13 @@ defmodule PortfolixirWeb.ApiV1NewsReadsTest do
   # User story (ADR-0056 §9, §11):
   # As the operator's agent,
   # I want a read that refuses what it does not take,
-  # so that a parameter of the next sprint (min_materiality, event_types)
-  # or a misspelt one is never taken for a filter that ran.
+  # so that a parameter no read takes yet (event_types) or a misspelt one
+  # is never taken for a filter that ran.
   #
   # Acceptance criteria:
-  # - An unknown parameter answers 422 naming it; min_materiality and
-  #   event_types are unknown this sprint (labels are Sprint 28's).
+  # - An unknown parameter answers 422 naming it, event_types and tone
+  #   among them; min_materiality outside 0 to 3 and a prompt_version that
+  #   is not an identifier answer 422 naming them (S28 N2).
   # - No selector, or two, answers 422; a selector that names nothing
   #   answers 404; tier_min, assignment, fields, limit, since and cursor
   #   outside their shapes answer 422 naming them.
@@ -392,7 +393,9 @@ defmodule PortfolixirWeb.ApiV1NewsReadsTest do
       security = security!("Northwind Harbour Logistics AG")
 
       for {query, key} <- [
-            {[security_id: security.id, min_materiality: 2], "min_materiality"},
+            {[security_id: security.id, min_materiality: 4], "min_materiality"},
+            {[security_id: security.id, prompt_version: "v 1"], "prompt_version"},
+            {[security_id: security.id, tone: 1], "tone"},
             {[security_id: security.id, event_types: "earnings"], "event_types"},
             {[security_id: security.id, sort: "tier"], "sort"},
             {[], "security_id"},

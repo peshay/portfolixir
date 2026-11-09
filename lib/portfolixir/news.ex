@@ -751,6 +751,16 @@ defmodule Portfolixir.News do
   # --- S28 N1 end ---
 
   # --- S28 N2 begin ---
+  # The labels in the agent's reads (§7, §9): one prompt version a read.
+
+  @doc """
+  The prompt version the news reads use when the caller names none: the
+  version of the label created last, `nil` without labels. See
+  `Portfolixir.News.Labels.newest_prompt_version/0`.
+  """
+  @spec newest_prompt_version() :: String.t() | nil
+  def newest_prompt_version, do: Labels.newest_prompt_version()
+
   # --- S28 N2 end ---
 
   # --- S28 N3 begin ---

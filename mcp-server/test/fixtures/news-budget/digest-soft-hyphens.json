@@ -4,143 +4,205 @@
     "as_of": "2026-11-08T09:00:00Z",
     "hidden": 0,
     "more": 2,
+    "prompt_version": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
     "quiet": 14,
     "rows": [
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "H\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD1\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 2 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD2\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 3 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD3\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 4 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD4\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 5 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD5\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 6 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD6\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 7 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD7\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 8 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD8\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 9 Synthetic\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD9\u00AD \u00ADq\u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 10 Syntheti\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD1\u00AD0\u00AD \u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 11 Syntheti\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD1\u00AD1\u00AD \u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       },
       {
-        "count": 1,
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
         "id": 1,
+        "materiality": 3,
         "name": "Holding 12 Syntheti\u2026",
         "top": {
           "at": "2026-11-08T09:00:00Z",
           "id": 1,
           "tier": "primary",
-          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u00ADg\u00AD \u00AD1\u00AD2\u00AD \u00AD\u2026"
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
         }
       }
     ],
     "since": "2026-11-08T09:00:00Z",
     "truncated": true,
-    "unassigned": 0
+    "unassigned": 0,
+    "unlabeled": 0
   }
 }

@@ -12,10 +12,13 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   # them with PORTFOLIXIR_WRITE_NEWS_BUDGET=1.
   use PortfolixirWeb.ConnCase
 
-  import Portfolixir.NewsFixtures, only: [feed!: 1]
+  import Ecto.Query
+  import Portfolixir.NewsFixtures, only: [feed!: 1, label!: 2]
   import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1]
 
+  alias Portfolixir.Actor
   alias Portfolixir.Input.Text
+  alias Portfolixir.Knowledge
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
   alias Portfolixir.News.Parser.Item, as: Parsed
@@ -86,6 +89,56 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     security
   end
 
+  # --- S28 N2 begin ---
+  # The widest label a read answers (§7): the longest prompt version, the
+  # most material, the two longest event types, the thesis's sixth clause,
+  # a four-place confidence and a negative tone.
+  @wide_version String.duplicate("p", 64)
+
+  defp wide_label!(cluster_id, attrs \\ []) do
+    label!(
+      cluster_id,
+      Keyword.merge(
+        [
+          prompt_version: @wide_version,
+          materiality: 3,
+          event_type: "capital_measure",
+          tone: -1,
+          confidence: "0.8125"
+        ],
+        attrs
+      )
+    )
+  end
+
+  defp label_stories!(security, attrs \\ []) do
+    from(i in Item,
+      where: i.security_id == ^security.id and not is_nil(i.cluster_id),
+      distinct: true,
+      select: i.cluster_id
+    )
+    |> Repo.all()
+    |> Enum.each(&wide_label!(&1, attrs))
+  end
+
+  # An intact thesis of six clauses, so a label can name the sixth.
+  defp thesis!(security) do
+    {:ok, note} =
+      Knowledge.append_note(Actor.owner_ui(), %{
+        security_id: security.id,
+        author: :operator,
+        kind: :thesis,
+        body: "Synthetic thesis",
+        source_quality: :primary,
+        as_of: Date.utc_today(),
+        invalidation_condition: "a; b; c; d; e; f"
+      })
+
+    note
+  end
+
+  # --- S28 N2 end ---
+
   # Every name a digest row carries is at most 20 code points, the hostile
   # one among them (N1 attack AT1).
   defp assert_short_names!(digest) do
@@ -146,7 +199,11 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   #   400 with its link, the domains cut to 40, and the excerpt cut to what
   #   the rest leaves; and a title and excerpt of JSON-quoted characters
   #   (`"`, `\`), each two characters on the wire: at most 400;
-  # - each answer is the fixture the companion's test measures.
+  # - each answer is the fixture the companion's test measures;
+  # - every one with the widest label (S28 N2): a 64-character prompt
+  #   version, materiality 3, two stories a digest row of the longest
+  #   event types (capital_measure, regulatory), and in get a label naming a
+  #   thesis's sixth clause with a four-place confidence.
   test "digest, list and get hold their budgets with invisible characters spelled",
        %{conn: conn, now: now} do
     world = base_world(name: "Budget", cash_name: "Cash", depot_name: "Depot")
@@ -165,10 +222,32 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
       )
     end)
 
+    # --- S28 N2 begin ---
+    for {security, n} <- securities |> Enum.take(14) |> Enum.with_index(1) do
+      ingest!(
+        feed!(%{class: "issuer", security_id: security.id}),
+        [item("Capital measure #{n} filed", "https://ir#{n}.example.com/c/#{n}")],
+        hours_ago(now, 3 + n * 0.1)
+      )
+
+      label_stories!(security, event_type: "regulatory")
+
+      wide_label!(
+        Repo.get_by!(Item, canonical_url: "https://ir#{n}.example.com/c/#{n}").cluster_id
+      )
+    end
+
+    # --- S28 N2 end ---
+
     shy_digest = get(conn, "/api/v1/news/digest")
     assert %{"truncated" => true} = json_response(shy_digest, 200)["data"]
     assert tokens(shy_digest) <= 800, "digest (soft hyphens): #{tokens(shy_digest)}"
     assert_short_names!(shy_digest)
+
+    for row <- json_response(shy_digest, 200)["data"]["rows"] do
+      assert %{"materiality" => 3, "event_types" => ["capital_measure", "regulatory"]} = row
+    end
+
     fixture!("digest-soft-hyphens", shy_digest)
 
     since = DateTime.to_iso8601(hours_ago(now, 40))
@@ -187,7 +266,9 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
       )
     end
 
+    label_stories!(busy)
     page = get(conn, "/api/v1/news/stories?security_id=#{busy.id}")
+    assert Enum.all?(json_response(page, 200)["data"]["rows"], &(&1["materiality"] == 3))
     assert length(json_response(page, 200)["data"]["rows"]) == 20
     assert tokens(page) <= 1_500, "20 list rows (tag characters): #{tokens(page)}"
     fixture!("list-tag-characters", page)
@@ -210,9 +291,11 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
 
     stored = Repo.get_by!(Item, canonical_url: long)
     assert String.length(stored.canonical_url) == 2_048
+    wide_label!(stored.cluster_id, thesis_note_id: thesis!(busy).id, clause_idx: 6)
 
     one = get(conn, "/api/v1/news/stories/#{stored.cluster_id}")
     story = json_response(one, 200)["data"]
+    assert %{"clause_idx" => 6, "machine_generated" => true} = story["label"]
     assert String.length(story["url"]) == 300 and String.ends_with?(story["url"], "…")
     assert tokens(one) <= 400, "get (tag characters, long link): #{tokens(one)}"
     fixture!("get-tag-characters", one)
@@ -241,10 +324,12 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
 
     worst_item = Repo.get_by!(Item, canonical_url: worst_link)
     assert String.length(worst_item.domain) == 253
+    wide_label!(worst_item.cluster_id, thesis_note_id: thesis!(worst).id, clause_idx: 6)
 
     worst_get = get(conn, "/api/v1/news/stories/#{worst_item.cluster_id}")
     worst_story = json_response(worst_get, 200)["data"]
     assert length(worst_story["members"]) == 5
+    assert %{"clause_idx" => 6, "materiality" => 3} = worst_story["label"]
     assert String.length(worst_story["url"]) == 300
 
     for domain <- [worst_story["domain"] | Enum.map(worst_story["members"], & &1["domain"])] do

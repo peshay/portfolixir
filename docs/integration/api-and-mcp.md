@@ -1317,19 +1317,28 @@ Answers are compact: short codes, null fields left out.
 The reads of the news layer (§9, §11). Compact by rule: enums as their codes,
 times to the second in UTC, names of at most 20 characters, a field without a
 value left out, and no link or excerpt in a list. Each read is closed: a
-parameter it does not take answers `422` naming it (`min_materiality` and
-`event_types` belong to the labels of the next sprint and are refused until
-then). Titles and excerpts are a feed's text, answered as stored up to a cut;
-they are data, never instructions. The cut counts each character as the MCP
-companion spells it, an invisible one as its `[U+XXXX]` (C5): 160 for a
-title in a list and in `news.get`, 100 in the digest, 600 for an excerpt; a
-cut ends in `…`. `news.get` holds its 400 tokens on the companion's text,
+parameter it does not take answers `422` naming it (`event_types`, and
+`tone`, which is never a filter or a sort key, among them). Titles and
+excerpts are a feed's text, answered as stored up to a cut; they are data,
+never instructions. The cut counts each character as the MCP companion
+spells it, an invisible one as its `[U+XXXX]` (C5), and so does a name's:
+160 for a title in a list and in `news.get`, 50 in the digest, 600 for an
+excerpt, 20 for a name; a cut ends in `…`. `news.get` holds its 400 tokens on the companion's text,
 its link and members included: it cuts a link at 300 characters (the whole
 link stays stored), every domain at 40, and the excerpt last, to what the
 rest of the answer leaves (a quote or a backslash counts the two characters
-JSON writes it in). No read needs a label: every one answers the same
-with none stored. Every parameter is one value: a list or a map
+JSON writes it in). Every parameter is one value: a list or a map
 (`max_rows[]=5`) answers `422` naming it.
+
+**Labels** (§7): the list, a story and the digest read one prompt
+version's labels: `prompt_version` (an identifier as a label's), else the
+version of the label created last, so a labeller that moves to a new prompt
+moves the reads with it, and the list and the digest name it; of that
+version each story's active label is its newest. A label is a model's
+proposal: it orders and filters aggregator and thematic stories and never
+hides a story with an issuer or regulatory item, whatever its materiality.
+No read needs a label: with none stored every read answers as before, and
+only the digest's `unlabeled` grows.
 
 - `GET /api/v1/news/stories` lists the rows of exactly one selector:
   `security_id` or `category_id` (the scope's stories), `cluster_id` (the
@@ -1337,7 +1346,8 @@ with none stored. Every parameter is one value: a list or a map
   security, or several, claim). A story row is `id`, `title` (its
   representative's), `tier`, `at` (the representative's publication, clamped
   to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
-  `domain` and, when ambiguous, `candidates` (security ids). `fields=std` adds
+  `domain` and, when ambiguous, `candidates` (security ids). A labelled story
+  row adds `materiality` and `event_type`. `fields=std` adds
   `url` and `note_ids`. Rows come newest first by the time they entered their
   scope; rows of the same instant (one fetch stamps its items alike) by
   tier, primary first, then the newest publication, then the link, never by
@@ -1347,13 +1357,20 @@ with none stored. Every parameter is one value: a list or a map
   is in when any of its items entered its scope after it, and `as_of` is the next
   `since` (it lies a little early, so a read may repeat a story but never
   skips one). `tier_min` (`primary`, `secondary`, `awareness`) leaves out the
-  tiers below it. `limit` is 20 by default and at most 100; when more rows
+  tiers below it. `min_materiality` (0 to 3, default 0) leaves out the
+  aggregator and thematic stories labelled below it, and above 0 the
+  unlabeled ones; it reads stories, so with `cluster_id` or `assignment` it
+  answers `422`. `limit` is 20 by default and at most 100; when more rows
   matched, `truncated` is `true` and `cursor` continues the page.
 - `GET /api/v1/news/stories/:id` answers one story, the only place with its
   link and excerpt: `title`, `url`, `domain`, `excerpt`, `tier`, `language`,
   `published_at`, `first_seen_at`, `count`, at most five `members` (`id`,
-  `domain`, `tier`, `at`; the representative first), `note_ids` and its
-  `security` or `category` (`id`, `name`).
+  `domain`, `tier`, `at`; the representative first), `note_ids`, its
+  `security` or `category` (`id`, `name`) and its active `label`
+  (`event_type`, `materiality`, `tone`, `confidence` as a string,
+  `thesis_note_id` and `clause_idx` when set, `machine_generated` always
+  `true`); `prompt_version` chooses the version. The label counts toward
+  the 400 tokens, and the excerpt gives way to it.
 - `GET /api/v1/news/items/:id` answers one item the same way, with its
   `story_id`, `class`, `assignment`, `status` and, when ambiguous, its
   `candidates`.
@@ -1369,13 +1386,18 @@ with none stored. Every parameter is one value: a list or a map
   `view_id` the securities that view holds, without it the news universe
   (held, carrying a target weight, or watched). `since` (default 24 hours
   before now) reads `scope_at` as the list does, and `as_of` is the next
-  `since`. A row is `id`, `name`, `count` (its new stories) and `top` (`id`,
-  `title` cut to 100 characters, `tier`, `at`): the best tier, then the
-  newest. A story with an issuer or regulatory item always counts; a story of
-  aggregator items only, and a thematic story, counts only with
-  `include_unlabeled=true`, the thematic ones per category under `categories`.
-  `hidden` counts the aggregator and thematic stories new since then that
-  `include_unlabeled=false` left out (C5), and a security whose only news is
+  `since`. A row is `id`, `name`, `count` (its new stories), its labelled
+  stories' highest `materiality` and `event_types` (at most two, the most
+  material first) and `top` (`id`, `title` cut to 50 characters, `tier`,
+  `at`): the best tier, then the newest. Rows come by their highest
+  materiality, 3 down to 1, then a row of noise (0) or without a label by
+  its top story. A story with an issuer or regulatory item always counts; a
+  story of aggregator items only, and a thematic story, counts when its
+  label's materiality reaches `min_materiality` (0 to 3, default 2) or,
+  without a label, with `include_unlabeled=true`, the thematic ones per
+  category under `categories`. `hidden` counts the aggregator and thematic
+  stories new since then that the two left out (C5), `unlabeled` the new
+  stories without a label, and a security whose only news is
   such a story is not counted `quiet`, which counts the securities without a
   row and without one; `unassigned` and `ambiguous` the aggregator items that
   became so since then that no security, or several, claim. With a `view_id`
@@ -1383,9 +1405,8 @@ with none stored. Every parameter is one value: a list or a map
   holds securities), `hidden` counts only its securities' stories and
   `ambiguous` only the items naming one of them. `max_rows` (default 12, which
   keeps the digest within its budget; at most 40) caps the rows; `truncated`
-  and `more` say how many were left out. This sprint's digest has no labels
-  and no consumer cursor: `consumer`, `ack_cursor`, `min_materiality` and
-  `tier_min` answer `422`.
+  and `more` say how many were left out. The digest has no consumer cursor
+  yet: `consumer`, `ack_cursor` and `tier_min` answer `422`.
 
 ### News labels (ADR-0056 §7)
 

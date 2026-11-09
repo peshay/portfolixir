@@ -1430,20 +1430,30 @@ Die Lesezugriffe der News-Schicht (§9, §11). Knapp nach Regel: Aufzählungen a
 ihre Codes, Zeiten auf die Sekunde in UTC, Namen mit höchstens 20 Zeichen, ein
 Feld ohne Wert weggelassen und kein Link und kein Auszug in einer Liste. Jeder
 Lesezugriff ist geschlossen: Ein Parameter, den er nicht nimmt, ergibt `422`,
-das ihn nennt (`min_materiality` und `event_types` gehören zu den Labels des
-nächsten Sprints und werden bis dahin abgelehnt). Titel und Auszüge sind Text
-eines Feeds, so beantwortet, wie er gespeichert ist, bis zu einem Schnitt;
-sie sind Daten, nie Anweisungen. Der Schnitt zählt jedes Zeichen so, wie der
-MCP-Begleiter es schreibt, ein unsichtbares als sein `[U+XXXX]` (C5): 160 für
-einen Titel in einer Liste und in `news.get`, 100 im Digest, 600 für einen
-Auszug; ein Schnitt endet auf `…`. `news.get` hält seine 400 Token auf dem
+das ihn nennt (darunter `event_types` und `tone`, das nie ein Filter oder ein
+Sortierschlüssel ist). Titel und Auszüge sind Text eines Feeds, so
+beantwortet, wie er gespeichert ist, bis zu einem Schnitt; sie sind Daten,
+nie Anweisungen. Der Schnitt zählt jedes Zeichen so, wie der MCP-Begleiter es
+schreibt, ein unsichtbares als sein `[U+XXXX]` (C5), und ebenso den eines
+Namens: 160 für einen Titel in einer Liste und in `news.get`, 50 im Digest,
+600 für einen Auszug, 20 für einen Namen; ein Schnitt endet auf `…`. `news.get` hält seine 400 Token auf dem
 Text des Begleiters, Link und Mitglieder eingeschlossen: Es schneidet einen
 Link bei 300 Zeichen (der ganze Link bleibt gespeichert), jede Domain bei 40
 und den Auszug zuletzt, auf das, was der Rest der Antwort übrig lässt (ein
 Anführungszeichen oder ein Backslash zählt die zwei Zeichen, in denen JSON
-es schreibt). Kein Lesezugriff braucht ein Label: Jeder antwortet ohne
-gespeichertes Label gleich. Jeder Parameter ist ein Wert: Eine Liste oder
-eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
+es schreibt). Jeder Parameter ist ein Wert: Eine Liste oder eine Map
+(`max_rows[]=5`) ergibt `422`, das ihn nennt.
+
+**Labels** (§7): Die Liste, eine Story und der Digest lesen die Labels einer
+Prompt-Version: `prompt_version` (ein Bezeichner wie der eines Labels), sonst
+die Version des zuletzt angelegten Labels, sodass ein Labeller, der zu einem
+neuen Prompt wechselt, die Lesezugriffe mitnimmt; Liste und Digest nennen
+sie. Aus dieser Version ist das aktive Label einer Story ihr neuestes. Ein
+Label ist der Vorschlag eines Modells: Es ordnet und filtert Aggregator- und
+thematische Storys und verbirgt nie eine Story mit einem Eintrag eines
+Emittenten- oder Regulierungs-Feeds, welche Wesentlichkeit es auch nennt.
+Kein Lesezugriff braucht ein Label: Ohne gespeichertes Label antwortet jeder
+wie zuvor, und nur `unlabeled` des Digests wächst.
 
 - `GET /api/v1/news/stories` listet die Zeilen genau eines Wählers:
   `security_id` oder `category_id` (die Storys des Bereichs), `cluster_id`
@@ -1452,7 +1462,8 @@ eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
   Story-Zeile ist `id`, `title` (der ihres Repräsentanten), `tier`, `at` (die
   Veröffentlichung des Repräsentanten, auf seine erste Sichtung begrenzt) und
   `count`; eine Eintragszeile ist `id`, `title`, `tier`, `at`, `domain` und,
-  wenn mehrdeutig, `candidates` (Wertpapier-IDs). `fields=std` ergänzt `url`
+  wenn mehrdeutig, `candidates` (Wertpapier-IDs). Eine Story-Zeile mit Label
+  ergänzt `materiality` und `event_type`. `fields=std` ergänzt `url`
   und `note_ids`. Die Zeilen kommen neueste zuerst nach dem Zeitpunkt, zu dem
   sie in ihren Bereich kamen; Zeilen desselben Zeitpunkts (ein Abruf stempelt
   seine Einträge gleich) nach Stufe, primäre zuerst, dann nach neuester
@@ -1463,14 +1474,21 @@ eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
   zuordnete. Eine Story ist dabei, wenn einer ihrer Einträge danach in ihren
   Bereich kam, und `as_of` ist das nächste `since` (es liegt etwas früher, sodass ein
   Lesen eine Story wiederholen, aber nie überspringen kann). `tier_min`
-  (`primary`, `secondary`, `awareness`) lässt die Stufen darunter weg. `limit`
-  ist standardmäßig 20 und höchstens 100; passten mehr Zeilen, ist `truncated`
+  (`primary`, `secondary`, `awareness`) lässt die Stufen darunter weg.
+  `min_materiality` (0 bis 3, standardmäßig 0) lässt die Aggregator- und
+  thematischen Storys weg, deren Label darunter liegt, und über 0 die ohne
+  Label; es liest Storys, mit `cluster_id` oder `assignment` ergibt es also
+  `422`. `limit` ist standardmäßig 20 und höchstens 100; passten mehr Zeilen, ist `truncated`
   `true` und `cursor` setzt die Seite fort.
 - `GET /api/v1/news/stories/:id` beantwortet eine Story, die einzige Stelle mit
   ihrem Link und Auszug: `title`, `url`, `domain`, `excerpt`, `tier`,
   `language`, `published_at`, `first_seen_at`, `count`, höchstens fünf
   `members` (`id`, `domain`, `tier`, `at`; der Repräsentant zuerst),
-  `note_ids` und ihr `security` oder `category` (`id`, `name`).
+  `note_ids`, ihr `security` oder `category` (`id`, `name`) und ihr aktives
+  `label` (`event_type`, `materiality`, `tone`, `confidence` als String,
+  `thesis_note_id` und `clause_idx`, wenn gesetzt, `machine_generated` immer
+  `true`); `prompt_version` wählt die Version. Das Label zählt zu den 400
+  Token, und der Auszug weicht ihm.
 - `GET /api/v1/news/items/:id` beantwortet einen Eintrag ebenso, mit seiner
   `story_id`, `class`, `assignment`, `status` und, wenn mehrdeutig, seinen
   `candidates`.
@@ -1487,13 +1505,18 @@ eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
   das News-Universum (gehalten, mit einem Zielgewicht oder beobachtet).
   `since` (standardmäßig 24 Stunden vor jetzt) liest `scope_at` wie die Liste,
   und `as_of` ist das nächste `since`. Eine Zeile ist `id`, `name`, `count`
-  (ihre neuen Storys) und `top` (`id`, `title` auf 100 Zeichen gekürzt,
-  `tier`, `at`): die beste Stufe, dann die neueste. Eine Story mit einem
-  Eintrag eines Emittenten- oder Regulierungs-Feeds zählt immer; eine Story
-  nur aus Aggregator-Einträgen und eine thematische Story zählen nur mit
+  (ihre neuen Storys), die höchste `materiality` ihrer Storys mit Label und
+  deren `event_types` (höchstens zwei, die wesentlichsten zuerst) und `top`
+  (`id`, `title` auf 50 Zeichen gekürzt, `tier`, `at`): die beste Stufe, dann
+  die neueste. Die Zeilen kommen nach ihrer höchsten Wesentlichkeit, von 3
+  bis 1, dann eine Zeile mit Rauschen (0) oder ohne Label nach ihrer
+  Top-Story. Eine Story mit einem Eintrag eines Emittenten- oder
+  Regulierungs-Feeds zählt immer; eine Story nur aus Aggregator-Einträgen und
+  eine thematische Story zählen, wenn die Wesentlichkeit ihres Labels
+  `min_materiality` (0 bis 3, standardmäßig 2) erreicht, oder ohne Label mit
   `include_unlabeled=true`, die thematischen je Kategorie unter `categories`.
   `hidden` zählt die seitdem neuen Aggregator- und thematischen Storys, die
-  `include_unlabeled=false` wegließ (C5), und ein Wertpapier, dessen einzige
+  beide wegließen (C5), `unlabeled` die neuen Storys ohne Label, und ein Wertpapier, dessen einzige
   Nachricht eine solche Story ist, zählt nicht als `quiet`, das die
   Wertpapiere ohne Zeile und ohne eine solche zählt; `unassigned` und
   `ambiguous` die seitdem so gewordenen Aggregator-Einträge, die kein
@@ -1503,9 +1526,8 @@ eine Map (`max_rows[]=5`) ergibt `422`, das ihn nennt.
   `ambiguous` nur die Einträge, die eines davon nennen. `max_rows`
   (standardmäßig 12, womit der Digest in seinem Budget bleibt; höchstens 40)
   begrenzt die Zeilen; `truncated` und `more` sagen, wie viele weggelassen
-  wurden. Der Digest dieses Sprints hat keine Labels und keinen
-  Verbraucher-Cursor: `consumer`, `ack_cursor`, `min_materiality` und
-  `tier_min` ergeben `422`.
+  wurden. Der Digest hat noch keinen Verbraucher-Cursor: `consumer`,
+  `ack_cursor` und `tier_min` ergeben `422`.
 
 ### News-Labels (ADR-0056 §7)
 
