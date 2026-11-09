@@ -200,9 +200,21 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
   # - The walk without a window is the stored walk, unchanged.
   test "keeping each day's values moves no other output of the walk" do
     w = bands_world()
+    assert_walk_unmoved(w, @periods)
 
+    # The stored walk keeps no window, so it never carries the days.
+    refute Map.has_key?(Performance.analysis(w.world.portfolio.id, today: @today), :contribution)
+  end
+
+  # The pin of the walk's outputs (Sprint 27 S1, extended by Sprint 28 S3):
+  # with the per-day terms kept, every other output is byte-identical to the
+  # walk without them, and the per-day flows and basis steps the per-band
+  # return reads add up to what the walk itself holds: each security's flows
+  # over the window to its ADR-0051 net flows, each day's basis steps to the
+  # day's basis step in the series.
+  defp assert_walk_unmoved(w, periods) do
     for {scope, walk} <- kept_walks(w.world.portfolio.id, w.view.id),
-        period <- @periods,
+        period <- periods,
         from_baseline <- [false, true] do
       label = "#{scope} #{inspect(period)} from_baseline=#{from_baseline}"
       opts = [today: @today, from_baseline: from_baseline]
@@ -235,11 +247,27 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
           refute Map.has_key?(contribution, :days), label
           assert is_map(kept.contribution.days), label
+          assert_days_add_up(kept, label)
       end
     end
+  end
 
-    # The stored walk keeps no window, so it never carries the days.
-    refute Map.has_key?(Performance.analysis(w.world.portfolio.id, today: @today), :contribution)
+  defp assert_days_add_up(kept, label) do
+    days = kept.contribution.days
+    by_date = Map.new(kept.daily, &{&1.date, &1})
+
+    for {date, day} <- days do
+      assert Decimal.equal?(
+               sum(Map.values(day.basis)),
+               Map.get(Map.fetch!(by_date, date), :basis, Decimal.new("0"))
+             ),
+             "#{label} basis #{date}"
+    end
+
+    for {id, position} <- kept.contribution.positions do
+      flows = days |> Map.values() |> Enum.map(&Map.get(&1.flows, id, Decimal.new("0")))
+      assert Decimal.equal?(sum(flows), position.net_flows), "#{label} flows #{id}"
+    end
   end
 
   # User story (I23, FR-53):
@@ -1432,5 +1460,476 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
     # The total level sums the same members in the same order: exact.
     assert Enum.all?(gaps, fn {level, gap} -> level != :total or Decimal.equal?(gap, 0) end)
+  end
+
+  # -- the per-band return (FR-57, Sprint 28 S3) ----------------------------------
+
+  # Six window days, 2026-04-28 (D1) to 2026-05-03 (D6); the baseline is the
+  # close of 2026-04-27. EUR/USD 1.25, then 1.6 from 2026-04-30 (D3), as in
+  # the world above, so a USD value converts at 0.8, then 0.625: exact.
+  @window {:range, ~D[2026-04-28], ~D[2026-05-03]}
+
+  # Invented figures only. One EUR portfolio with a EUR and a USD depot.
+  #
+  #   2026-04-01  deposit 20000 EUR and 5000 USD; buy Alpha 10 @ 100, Bravo
+  #               20 @ 50, Delta 5 @ 200, Ucorp 10 @ 80 USD (quotes the same)
+  #   D1 04-28    inbound delivery Echo 10 @ 30 (priced)
+  #   D2 04-29    sell Alpha 2 @ 150; buy Bravo 4 @ 50; sell Delta 5 @ 275
+  #               (all of it); inbound delivery Ghost 5, no price
+  #   D3 04-30    buy Charlie 10 @ 40; outbound delivery Echo 4, no price
+  #   D4 05-01    buy Alpha 2 @ 120; buy Ucorp 2 @ 100 USD
+  #
+  # Closes (a trade day carries its own close):
+  #
+  #   Alpha   100 | 125 150 120 135  —  108
+  #   Bravo    50 | 62.5 50 70 93.75 —  90
+  #   Charlie   — |  —   —  44  55   —  49.5
+  #   Delta   200 | 250 275  (sold out on D2)
+  #   Echo      — |  30  36  45  —  40.5  —
+  #   Ucorp USD 80| 100  —   —  100 128   —
+  #   Ghost     — |  —   —   —  20   24   —
+  #
+  # The tree "Sleeves" files Alpha and Bravo under Core, Charlie under Late,
+  # Delta under Exit, Echo under Gift, Ucorp under Dollar, Ghost under
+  # Dormant.
+  defp lines_world do
+    world = base_world(name: "Lines", cash_name: "Cash EUR", depot_name: "Depot EUR")
+
+    usd =
+      world.portfolio
+      |> add_depot(cash_currency: "USD", cash_name: "Cash USD", depot_name: "Depot USD")
+      |> Map.put(:portfolio, world.portfolio)
+
+    rate!("USD", ~D[2025-12-01], "1.25")
+    rate!("USD", ~D[2026-04-30], "1.6")
+
+    [alpha, bravo, charlie, delta, echo, ghost] =
+      Enum.map(~w(Alpha Bravo Charlie Delta Echo Ghost), &create_security!(name: &1))
+
+    ucorp = create_security!(name: "Ucorp", currency: "USD")
+    start = ~D[2026-04-01]
+
+    deposit!(world, "20000", start)
+    deposit!(usd, "5000", start, currency: "USD")
+    WorldFixtures.buy!(world, alpha, quantity: "10", price: "100", date: start)
+    WorldFixtures.buy!(world, bravo, quantity: "20", price: "50", date: start)
+    WorldFixtures.buy!(world, delta, quantity: "5", price: "200", date: start)
+    WorldFixtures.buy!(usd, ucorp, quantity: "10", price: "80", date: start, currency: "USD")
+
+    delivery!(world, echo, "inbound_delivery", "10", ~D[2026-04-28], "30")
+    WorldFixtures.sell!(world, alpha, quantity: "2", price: "150", date: ~D[2026-04-29])
+    WorldFixtures.buy!(world, bravo, quantity: "4", price: "50", date: ~D[2026-04-29])
+    WorldFixtures.sell!(world, delta, quantity: "5", price: "275", date: ~D[2026-04-29])
+    delivery!(world, ghost, "inbound_delivery", "5", ~D[2026-04-29], nil)
+    WorldFixtures.buy!(world, charlie, quantity: "10", price: "40", date: ~D[2026-04-30])
+    delivery!(world, echo, "outbound_delivery", "4", ~D[2026-04-30], nil)
+    WorldFixtures.buy!(world, alpha, quantity: "2", price: "120", date: ~D[2026-05-01])
+
+    WorldFixtures.buy!(usd, ucorp,
+      quantity: "2",
+      price: "100",
+      date: ~D[2026-05-01],
+      currency: "USD"
+    )
+
+    closes = [
+      {alpha,
+       [
+         {start, "100"},
+         {~D[2026-04-28], "125"},
+         {~D[2026-04-29], "150"},
+         {~D[2026-04-30], "120"},
+         {~D[2026-05-01], "135"},
+         {~D[2026-05-03], "108"}
+       ]},
+      {bravo,
+       [
+         {start, "50"},
+         {~D[2026-04-28], "62.5"},
+         {~D[2026-04-29], "50"},
+         {~D[2026-04-30], "70"},
+         {~D[2026-05-01], "93.75"},
+         {~D[2026-05-03], "90"}
+       ]},
+      {charlie, [{~D[2026-04-30], "44"}, {~D[2026-05-01], "55"}, {~D[2026-05-03], "49.5"}]},
+      {delta, [{start, "200"}, {~D[2026-04-28], "250"}, {~D[2026-04-29], "275"}]},
+      {echo, [{~D[2026-04-28], "30"}, {~D[2026-04-29], "36"}, {~D[2026-04-30], "45"}]},
+      {ucorp,
+       [{start, "80"}, {~D[2026-04-28], "100"}, {~D[2026-05-01], "100"}, {~D[2026-05-02], "128"}]},
+      {ghost, [{~D[2026-05-01], "20"}, {~D[2026-05-02], "24"}]}
+    ]
+
+    for {security, points} <- closes, do: WorldFixtures.put_quotes!(security, points)
+    WorldFixtures.put_quote!(echo, ~D[2026-05-02], "40.5")
+
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Sleeves"})
+
+    categories =
+      for name <- ~w(Core Late Exit Gift Dollar Dormant), into: %{} do
+        {name, category!(tree, name)}
+      end
+
+    for {security, name} <- [
+          {alpha, "Core"},
+          {bravo, "Core"},
+          {charlie, "Late"},
+          {delta, "Exit"},
+          {echo, "Gift"},
+          {ucorp, "Dollar"},
+          {ghost, "Dormant"}
+        ],
+        do: assign!(security, tree, categories[name])
+
+    %{
+      world: world,
+      view: view!([world.depot], [world.cash]),
+      tree: tree,
+      categories: categories,
+      alpha: alpha,
+      bravo: bravo,
+      charlie: charlie,
+      delta: delta,
+      echo: echo,
+      ucorp: ucorp,
+      ghost: ghost
+    }
+  end
+
+  defp delivery!(world, security, type, quantity, date, price) do
+    book!(%{
+      portfolio_id: world.portfolio.id,
+      securities_account_id: world.depot.id,
+      security_id: security.id,
+      type: type,
+      date: date,
+      quantity: quantity,
+      price: price,
+      currency_code: "EUR"
+    })
+  end
+
+  defp lines!(w, opts) do
+    {:ok, result} =
+      Bands.for_portfolio(
+        w.world.portfolio.id,
+        Keyword.merge([period: @window, today: @today, scale: :ttwror], opts)
+      )
+
+    result
+  end
+
+  defp same_line?(a, b) do
+    length(a) == length(b) and
+      Enum.all?(Enum.zip(a, b), fn
+        {nil, nil} -> true
+        {%Decimal{} = x, %Decimal{} = y} -> Decimal.equal?(x, y)
+        _other -> false
+      end)
+  end
+
+  # Each expected point a Decimal string or nil, compared exactly.
+  defp assert_returns(line, expected, label) do
+    assert length(line.returns) == length(expected), label
+
+    for {{got, want}, index} <- Enum.with_index(Enum.zip(line.returns, expected)) do
+      case want do
+        nil -> assert got == nil, "#{label} D#{index + 1}: #{inspect(got)}"
+        _ -> assert got != nil and Decimal.equal?(got, d(want)), "#{label} D#{index + 1}"
+      end
+    end
+  end
+
+  # User story (FR-57, I28; Sprint 28 plan S3, D-1 criterion 7):
+  # As the operator's agent comparing how the parts of a view did,
+  # I want each band's own time-weighted return over the window, its buys,
+  # sells and deliveries as its flows,
+  # so that a band's line says how its holdings did, not how much was added
+  # to them or taken out.
+  #
+  # Acceptance criteria (each day's sub-period return r chained, by hand;
+  # V the band's value at the day's close, F its day's net flow, B the
+  # day's trade-price basis step; an inflow counts at the day's start,
+  # 1 + r = V_d / (V_d−1 + F + B), an outflow at its end,
+  # 1 + r = (V_d − F) / (V_d−1 + B)):
+  # - Alpha, a buy and a partial sale, held at the baseline (V_0 = 10 × 100
+  #   = 1000): D1 1250 / 1000 = 1.25; D2 sells 2 @ 150, F = −300:
+  #   (8 × 150 + 300) / 1250 = 1.2; D3 960 / 1200 = 0.8; D4 buys 2 @ 120,
+  #   F = +240: 10 × 135 / (960 + 240) = 1.125; D5 1; D6 1080 / 1350 = 0.8.
+  #   Chained: 1.25, 1.5, 1.2, 1.35, 1.35, 1.08, so the line is 0.25, 0.5,
+  #   0.2, 0.35, 0.35, 0.08 and its ttwror 0.08; its net flows −60.
+  # - Charlie, bought into on D3 (10 @ 40, close 44): no point on D1 and D2,
+  #   0 % on D3 (V 440), then 550 / 440 = 1.25, 1, 495 / 550 = 0.9: 0.25,
+  #   0.25, 0.125.
+  # - Delta, sold out on D2 (5 @ 275): 1250 / 1000 = 1.25, then
+  #   (0 + 1375) / 1250 = 1.1: 0.25, 0.375, and the line ends at the sale
+  #   day (no point on D3 to D6); ttwror 0.375, end value 0.
+  # - Echo, delivered in on D1 (10 @ 30, F = +300) and 4 out on D3 without a
+  #   price (F = −4 × 45 = −180): 0 % on D1 (V 300), 360 / 300 = 1.2,
+  #   (270 + 180) / 360 = 1.25, 1, 243 / 270 = 0.9, 1: 0, 0.2, 0.5, 0.5,
+  #   0.35, 0.35; net flows +120.
+  # - Ucorp in USD, the walk's way (values at each day's rate, flows at the
+  #   booking day's): V_0 = 800 × 0.8 = 640; D1 1000 × 0.8 = 800, 1.25; D2
+  #   1; D3 1000 × 0.625 = 625, 0.78125; D4 buys 2 @ 100 USD, F = 200 ×
+  #   0.625 = 125: 750 / (625 + 125) = 1; D5 1536 × 0.625 = 960, 1.28; D6 1.
+  #   Chained: 0.25, 0.25, −0.0234375, −0.0234375, 0.25, 0.25.
+  # - Ghost, delivered on D2 without a price and first quoted on D4: held
+  #   but valued zero on D2 and D3 (the walk counts it zero), so no point;
+  #   0 % on D4 (V 100), 120 / 100 = 1.2 on D5: nil, nil, nil, 0, 0.2, 0.2.
+  # - The Everything form answers the same lines.
+  # - Core, Alpha and Bravo, its flows the sum of theirs per day (D2
+  #   −300 + 200 = −100, an outflow; D4 +240): V_0 2000; D1 2500 / 2000 =
+  #   1.25; D2 (1200 + 1200 + 100) / 2500 = 1; D3 (960 + 1680) / 2400 = 1.1;
+  #   D4 (1350 + 2250) / (2640 + 240) = 1.25; D5 1; D6 3240 / 3600 = 0.9.
+  #   Chained: 0.25, 0.25, 0.375, 0.71875, 0.71875, 0.546875; net flows
+  #   +140.
+  test "each band's own TTWROR over the window, its trades and deliveries as its flows" do
+    w = lines_world()
+    r = lines!(w, level: :security)
+    line = &band(r, "security:#{&1.id}")
+
+    assert r.scale == :ttwror
+    assert r.dates == Enum.map(0..5, &Date.add(~D[2026-04-28], &1))
+
+    assert_returns(line.(w.alpha), ~w(0.25 0.5 0.2 0.35 0.35 0.08), "Alpha")
+    assert Decimal.equal?(line.(w.alpha).ttwror, d("0.08"))
+    assert Decimal.equal?(line.(w.alpha).net_flows, d("-60"))
+
+    assert_returns(line.(w.charlie), [nil, nil, "0", "0.25", "0.25", "0.125"], "Charlie")
+    assert Decimal.equal?(line.(w.charlie).ttwror, d("0.125"))
+
+    assert_returns(line.(w.delta), ["0.25", "0.375", nil, nil, nil, nil], "Delta")
+    assert Decimal.equal?(line.(w.delta).ttwror, d("0.375"))
+    assert Decimal.equal?(line.(w.delta).end_value, d("0"))
+
+    assert_returns(line.(w.echo), ~w(0 0.2 0.5 0.5 0.35 0.35), "Echo")
+    assert Decimal.equal?(line.(w.echo).net_flows, d("120"))
+
+    assert_returns(
+      line.(w.ucorp),
+      ~w(0.25 0.25 -0.0234375 -0.0234375 0.25 0.25),
+      "Ucorp"
+    )
+
+    assert_returns(line.(w.ghost), [nil, nil, nil, "0", "0.2", "0.2"], "Ghost")
+
+    c = lines!(w, level: :category, classification_id: w.tree.id)
+    core = band(c, "category:#{w.categories["Core"].id}")
+    assert_returns(core, ~w(0.25 0.25 0.375 0.71875 0.71875 0.546875), "Core")
+    assert Decimal.equal?(core.ttwror, d("0.546875"))
+    assert Decimal.equal?(core.net_flows, d("140"))
+
+    # A band of one security is that security's line.
+    assert band(c, "category:#{w.categories["Late"].id}").returns == line.(w.charlie).returns
+
+    # The Everything form merges the portfolio's days, flows and basis steps:
+    # the same lines.
+    {:ok, everything} =
+      Bands.for_view(nil, period: @window, today: @today, scale: :ttwror, level: :security)
+
+    for band <- r.bands do
+      assert same_line?(band(everything, band.key).returns, band.returns), band.name
+    end
+  end
+
+  # User story (FR-57; Sprint 28 plan S3: "the walk's other outputs
+  # byte-identical, pinned"):
+  # As a local portfolio maintainer,
+  # I want the per-band return to leave everything the walk already answers
+  # untouched,
+  # so that the line, the TTWROR, the IRR and the contribution stay exactly
+  # what they were.
+  #
+  # Acceptance criteria:
+  # - In a world with sales, a sell-out, deliveries in and out, a USD buy
+  #   and two trade-price basis steps (Charlie's first quote on D3, Ghost's
+  #   on D4), every walk output is byte-identical with and without the
+  #   per-day terms, in every scope and period; each security's kept flows
+  #   add up to its net flows, each day's kept basis steps to the series'.
+  # - The value read is unchanged by the new scale: without scale and with
+  #   scale value it answers the same.
+  test "the per-band flows and basis steps move no other output of the walk" do
+    w = lines_world()
+    assert_walk_unmoved(w, [@window, "ytd", "max", {:range, ~D[2026-04-30], ~D[2026-05-01]}])
+
+    kept =
+      Performance.contribution_analysis(w.world.portfolio.id, :unscoped, @window,
+        today: @today,
+        from_baseline: true,
+        bands: true
+      )
+
+    assert Decimal.equal?(kept.contribution.days[~D[2026-04-30]].basis[w.charlie.id], d("40"))
+    assert Decimal.equal?(kept.contribution.days[~D[2026-05-01]].basis[w.ghost.id], d("100"))
+
+    for level <- [:total, :category, :security] do
+      opts = [period: @window, today: @today, level: level, classification_id: w.tree.id]
+      {:ok, plain} = Bands.for_portfolio(w.world.portfolio.id, opts)
+      {:ok, value} = Bands.for_portfolio(w.world.portfolio.id, [scale: :value] ++ opts)
+      assert Map.delete(plain, :as_of) == Map.delete(value, :as_of), "#{level}"
+      assert plain.scale == :value
+    end
+  end
+
+  # User story (FR-57, I28):
+  # As a local portfolio maintainer looking at the TTWROR mode,
+  # I want at most eight lines, the largest bands at the window's end, and
+  # the line of the level above beside them,
+  # so that the chart stays readable and the view's own line is there to
+  # compare with.
+  #
+  # Acceptance criteria:
+  # - No band of kind cash, unclassified or other is a line, at any level
+  #   without a filter; at the total level the one line is the view's own
+  #   TTWROR, exactly the performance read's cumulative series.
+  # - `parent` is the view's line without a filter, the filter's band with
+  #   one (Core's line for category_id Core, at every level).
+  # - The basis names the flows, the start rule, the selection rule and the
+  #   gaps, and has no merge rule.
+  test "the lines leave out cash and unclassified, and parent is the line one level up" do
+    w = lines_world()
+    loose = create_security!(name: "Loose")
+    WorldFixtures.buy!(w.world, loose, quantity: "1", price: "50", date: ~D[2026-04-01])
+    WorldFixtures.put_quote!(loose, ~D[2026-04-01], "50")
+
+    {:ok, performance} =
+      Performance.for_portfolio(w.world.portfolio.id, period: @window, today: @today)
+
+    view_line = Enum.map(performance.series, & &1.cumulative_ttwror)
+
+    for level <- [:total, :category, :security] do
+      r = lines!(w, level: level, classification_id: w.tree.id)
+      refute Enum.any?(r.bands, &(&1.kind in [:cash, :unclassified, :other])), "#{level}"
+      assert same_line?(r.parent.returns, view_line), "#{level}"
+      assert Decimal.equal?(r.parent.ttwror, performance.ttwror), "#{level}"
+      refute Map.has_key?(r.computation_basis, :merge_rule)
+
+      for key <- [:flows, :start_rule, :selection_rule, :gaps] do
+        assert is_binary(Map.fetch!(r.computation_basis, key)), "#{level} #{key}"
+      end
+    end
+
+    [total] = lines!(w, level: :total).bands
+    assert same_line?(total.returns, view_line)
+
+    core = w.categories["Core"]
+    top = lines!(w, level: :category, classification_id: w.tree.id)
+
+    for level <- [:total, :category, :security] do
+      r = lines!(w, level: level, category_id: core.id)
+      assert r.parent.returns == band(top, "category:#{core.id}").returns, "#{level}"
+      assert r.parent.key == "category:#{core.id}"
+    end
+
+    assert lines!(w, level: :security, category_id: core.id).bands |> Enum.map(& &1.key) ==
+             ["security:#{w.bravo.id}", "security:#{w.alpha.id}"]
+
+    basis = top.computation_basis
+    assert basis.flows =~ "net flows"
+    assert basis.start_rule =~ "0 %"
+    assert basis.selection_rule =~ "never by id"
+    assert basis.gaps =~ "counts zero"
+  end
+
+  # User story (FR-57; Sprint 28 plan D-8 item 5, the order lens):
+  # As the operator's agent,
+  # I want the same lines whatever order the categories were created in,
+  # so that which bands are drawn never depends on an id.
+  #
+  # Acceptance criteria:
+  # - Ten categories, one security each, plus an unfiled security larger
+  #   than all: the eight largest by value on the window's last day are
+  #   drawn, equal values decided by name (Kilo 100 before Lima 100 and Mike
+  #   100); two bands equal in value and name at the cut (Lima, Lima) are
+  #   both left out, since only an id tells them apart; the unclassified
+  #   remainder is no line. Seven lines, the same for a tree created
+  #   forward and one created in reverse.
+  # - sort change orders the lines by ttwror, largest first, equal ones by
+  #   name: Charlie, Echo, Foxtrot and Kilo (25 %), Alfa and Delta (20 %),
+  #   Bravo (0 %).
+  test "which bands are lines depends on value and name, never on ids or order" do
+    world = base_world(name: "Order", cash_name: "Cash", depot_name: "Depot")
+    deposit!(world, "50000", ~D[2026-04-01])
+
+    # Name, the close at the baseline (its price), the close on the window's
+    # last day; the line's ttwror is their quotient less one.
+    holdings = [
+      {"Alfa", "750", "900"},
+      {"Bravo", "800", "800"},
+      {"Charlie", "560", "700"},
+      {"Delta", "500", "600"},
+      {"Echo", "400", "500"},
+      {"Foxtrot", "320", "400"},
+      {"Kilo", "80", "100"},
+      {"Lima", "50", "100"},
+      {"Lima", "40", "100"},
+      {"Mike", "25", "100"}
+    ]
+
+    securities =
+      for {{name, price, last}, index} <- Enum.with_index(holdings) do
+        security = create_security!(name: "#{name} #{index}")
+        WorldFixtures.buy!(world, security, quantity: "1", price: price, date: ~D[2026-04-01])
+        WorldFixtures.put_quotes!(security, [{~D[2026-04-01], price}, {~D[2026-05-03], last}])
+        {name, security}
+      end
+
+    zulu = create_security!(name: "Zulu")
+    WorldFixtures.buy!(world, zulu, quantity: "1", price: "5000", date: ~D[2026-04-01])
+    WorldFixtures.put_quote!(zulu, ~D[2026-04-01], "5000")
+
+    answers =
+      for {label, order} <- [{"Forward", securities}, {"Reverse", Enum.reverse(securities)}] do
+        {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: label})
+
+        for {name, security} <- order do
+          assign!(security, tree, category!(tree, name))
+        end
+
+        {:ok, r} =
+          Bands.for_portfolio(world.portfolio.id,
+            period: @window,
+            today: @today,
+            scale: :ttwror,
+            level: :category,
+            classification_id: tree.id
+          )
+
+        {:ok, by_change} =
+          Bands.for_portfolio(world.portfolio.id,
+            period: @window,
+            today: @today,
+            scale: :ttwror,
+            sort: :change,
+            level: :category,
+            classification_id: tree.id
+          )
+
+        refute Enum.any?(r.bands, &(&1.kind == :unclassified)), label
+        {label, Enum.map(r.bands, & &1.name), Enum.map(by_change.bands, & &1.name)}
+      end
+
+    [{_, forward, forward_change}, {_, reverse, reverse_change}] = answers
+    assert forward == reverse
+    assert forward_change == reverse_change
+    assert forward == ~w(Alfa Bravo Charlie Delta Echo Foxtrot Kilo)
+    # Charlie, Echo, Foxtrot and Kilo gain 25 %, Alfa and Delta 20 %, Bravo
+    # nothing; equal ones by name.
+    assert forward_change == ~w(Charlie Echo Foxtrot Kilo Alfa Delta Bravo)
+  end
+
+  # User story (FR-57):
+  # As the operator's agent,
+  # I want a scale outside value and ttwror refused,
+  # so that I never read lines I did not ask for.
+  #
+  # Acceptance criteria:
+  # - `scale: :percent` is `{:error, :invalid_scale}`.
+  test "a wrong scale is refused" do
+    w = lines_world()
+
+    assert Bands.for_portfolio(w.world.portfolio.id, scale: :percent, today: @today) ==
+             {:error, :invalid_scale}
+
+    assert Bands.for_view(nil, scale: "ttwror", today: @today) == {:error, :invalid_scale}
   end
 end

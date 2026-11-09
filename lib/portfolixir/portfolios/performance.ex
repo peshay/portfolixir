@@ -1061,7 +1061,7 @@ defmodule Portfolixir.Portfolios.Performance do
         context
       )
 
-    {[point | acc], keep_day(closing, state, context, carried_fx), context}
+    {[point | acc], keep_day(closing, state, context, carried_fx, {steps, legs}), context}
   end
 
   # The accounts `portfolio_value/2` just counted zero although they held
@@ -2162,10 +2162,15 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   # The stacked chart's days (I23): `date => %{securities: %{id => value},
-  # cash: value}` for each window day, and the cash at the baseline day's
-  # close, the cash band's start value (0 when the walk starts inside the
-  # window, as a position's is).
-  defp open_bands(kept, %{bands: true}), do: Map.merge(kept, %{days: %{}, cash_start: @zero})
+  # cash: value, flows: %{id => flow}, basis: %{id => step}}` for each window
+  # day, and the cash at the baseline day's close, the cash band's start
+  # value (0 when the walk starts inside the window, as a position's is).
+  # `day_flows` gathers the day's flows per position while its bookings are
+  # applied (FR-57, the per-band return); `observe_bands/3` moves them into
+  # the day.
+  defp open_bands(kept, %{bands: true}),
+    do: Map.merge(kept, %{days: %{}, cash_start: @zero, day_flows: %{}})
+
   defp open_bands(kept, _window), do: kept
 
   # Name, ISIN and WKN of every security the ledger names, from the
@@ -2179,17 +2184,17 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # The day's observations, made after its bookings: the close of the
   # baseline day gives the start values, the window's last day the end values.
-  defp keep_day(%{kept: kept} = closing, opening, context, carried_fx) do
+  defp keep_day(%{kept: kept} = closing, opening, context, carried_fx, basis_terms) do
     kept =
       kept
       |> observe_day(closing.qty, context)
-      |> observe_bands(closing, context)
+      |> observe_bands(closing, context, {basis_terms, opening.qty, carried_fx})
       |> revalue_cash(opening.cash, context, carried_fx)
 
     %{closing | kept: kept}
   end
 
-  defp keep_day(closing, _opening, _context, _carried_fx), do: closing
+  defp keep_day(closing, _opening, _context, _carried_fx, _basis_terms), do: closing
 
   # The currency effect on cash (ADR-0051 §3): each in-scope account's balance
   # carried in from yesterday, valued at today's rate minus at yesterday's --
@@ -2221,7 +2226,13 @@ defmodule Portfolixir.Portfolios.Performance do
   # adds for the day, so the day's terms sum to its `value`; on the baseline
   # day the cash alone, the cash band's start value. A walk without bands
   # keeps nothing here.
-  defp observe_bands(%{days: days, baseline: baseline} = kept, closing, context) do
+  #
+  # The per-band return (FR-57, Sprint 28 S3) reads two more terms per day:
+  # each position's flows of the day (ADR-0051's, gathered by `add_flows/2`)
+  # and its trade-price basis step (#545), the day's `basis` split by
+  # security. Both are read from what the walk already holds; neither is
+  # read by any walk output.
+  defp observe_bands(%{days: days, baseline: baseline} = kept, closing, context, basis_terms) do
     cond do
       context.day == baseline ->
         %{kept | cash_start: cash_value(closing.cash, context)}
@@ -2232,15 +2243,37 @@ defmodule Portfolixir.Portfolios.Performance do
             {security_id, security_value(security_id, qty, context)}
           end)
 
-        day = %{securities: securities, cash: cash_value(closing.cash, context)}
-        %{kept | days: Map.put(days, context.day, day)}
+        day = %{
+          securities: securities,
+          cash: cash_value(closing.cash, context),
+          flows: kept.day_flows,
+          basis: basis_by_security(basis_terms, context)
+        }
+
+        %{kept | days: Map.put(days, context.day, day), day_flows: %{}}
 
       true ->
         kept
     end
   end
 
-  defp observe_bands(kept, _closing, _context), do: kept
+  defp observe_bands(kept, _closing, _context, _basis_terms), do: kept
+
+  # The day's basis step per security: each term `basis_adjustment/5` adds,
+  # from the same inputs, so they sum to the day's `basis`.
+  defp basis_by_security({{steps, _legs}, _opening, _carried_fx}, _context)
+       when map_size(steps) == 0,
+       do: %{}
+
+  defp basis_by_security({{steps, legs}, opening, carried_fx}, context) do
+    context = carried_rates_context(context, carried_fx)
+
+    Map.new(steps, fn {security_id, {from, to}} ->
+      held = Map.get(opening, security_id, @zero)
+      booked = Map.get(legs, security_id, [])
+      {security_id, security_basis(held, from, to, booked, context)}
+    end)
+  end
 
   defp observe_day(%{baseline: day} = kept, held, %{day: day} = context),
     do: record_values(kept, held, context, :start_value, :held_at_start)
@@ -2310,9 +2343,17 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp add_flows(kept, leg_values) do
     Enum.reduce(leg_values, kept, fn {security_id, value}, acc ->
-      add_to_position(acc, security_id, :net_flows, value)
+      acc
+      |> add_to_position(security_id, :net_flows, value)
+      |> add_day_flow(security_id, value)
     end)
   end
+
+  # With bands (FR-57) the day's flows are gathered per position as well.
+  defp add_day_flow(%{day_flows: flows} = kept, security_id, value),
+    do: %{kept | day_flows: Map.update(flows, security_id, value, &Decimal.add(&1, value))}
+
+  defp add_day_flow(kept, _security_id, _value), do: kept
 
   # One booking inside the window, read from the legs the walk just applied:
   # in a scoped walk only the kept (in-view) legs, exactly as the walk keeps
@@ -2478,15 +2519,17 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   # The stacked chart's days across portfolios (I23): per day, a security's
-  # values and the cash add up, exactly as `merged_daily/3` adds the values;
-  # a portfolio whose walk has no point on a day adds nothing to it.
+  # values, flows and basis steps and the cash add up, exactly as
+  # `merged_daily/3` adds the values; a portfolio whose walk has no point on
+  # a day adds nothing to it.
   defp merge_bands(%{days: days} = acc, %{days: more} = kept) do
     merged_days =
       Map.merge(days, more, fn _day, a, b ->
         %{
-          securities:
-            Map.merge(a.securities, b.securities, fn _id, x, y -> Decimal.add(x, y) end),
-          cash: Decimal.add(a.cash, b.cash)
+          securities: add_terms(a.securities, b.securities),
+          cash: Decimal.add(a.cash, b.cash),
+          flows: add_terms(a.flows, b.flows),
+          basis: add_terms(a.basis, b.basis)
         }
       end)
 
@@ -2494,6 +2537,8 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   defp merge_bands(acc, _kept), do: acc
+
+  defp add_terms(a, b), do: Map.merge(a, b, fn _id, x, y -> Decimal.add(x, y) end)
 
   # Amounts add up; a position is held at an end when any portfolio holds it;
   # a day is unvalued when any portfolio counted it zero, and a missing price
