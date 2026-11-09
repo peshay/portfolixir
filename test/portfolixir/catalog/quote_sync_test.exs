@@ -380,4 +380,102 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
     assert Decimal.equal?(Quotes.latest(own.id).close, Decimal.new("100.1"))
     assert Decimal.equal?(Quotes.latest(unstated.id).close, Decimal.new("100.1"))
   end
+
+  # User story (#1415, Sprint 28 Q3):
+  # As a local portfolio maintainer,
+  # I want every sync that reads the provider's currency to keep it on the
+  # security, a refused one too,
+  # so that a series stored before the check, or a ticker that moved to
+  # another listing, can be named later without fetching anything.
+  #
+  # Acceptance criteria:
+  # - A refused answer (USD for a EUR security) stores no quote but stores
+  #   `provider_currency` "USD" and `provider_currency_at`, the time of the
+  #   sync that read it.
+  # - An answer in the security's own currency stores it too; an answer that
+  #   states none leaves `provider_currency` as it was (nil: not yet known).
+  # - A later sync that reads the same currency writes nothing (the time
+  #   stays the first read's, no journal entry); one that reads another
+  #   currency replaces both, journaled under the system job "quote_sync".
+  test "the sync stores the currency the provider stated, a refused answer's too" do
+    refused = security_fixture(name: "Listing USD", currency_code: "EUR", ticker_symbol: "PCUS")
+    own = security_fixture(name: "Listing EUR", currency_code: "EUR", ticker_symbol: "PCEU")
+    unstated = security_fixture(name: "Listing none", currency_code: "EUR", ticker_symbol: "PCNO")
+
+    stated = %{"PCUS" => "USD", "PCEU" => "EUR", "PCNO" => nil}
+    before_sync = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    sync = fn ->
+      ExUnit.CaptureLog.with_log(fn ->
+        QuoteSync.sync_all(
+          adapter_for: %{"manual" => Portfolixir.Catalog.QuoteSync.Yahoo},
+          req: [plug: chart_plug(stated)]
+        )
+      end)
+    end
+
+    {{:ok, %{ok: 2, error: 1}}, _log} = sync.()
+
+    first = Catalog.get_security(refused.id)
+    assert first.provider_currency == "USD"
+    assert %DateTime{} = first.provider_currency_at
+    assert DateTime.compare(first.provider_currency_at, before_sync) != :lt
+    assert Quotes.latest(refused.id) == nil
+
+    assert Catalog.get_security(own.id).provider_currency == "EUR"
+
+    assert %{provider_currency: nil, provider_currency_at: nil} =
+             Catalog.get_security(unstated.id)
+
+    journaled = fn id ->
+      Portfolixir.Journal.list_entries(resource_type: "security", resource_id: to_string(id))
+      |> Enum.filter(&(&1.actor_type == :system_job and &1.actor_label == "quote_sync"))
+    end
+
+    assert [%{operation: :update}] = journaled.(refused.id)
+
+    # The same answer again: nothing written.
+    {{:ok, %{ok: 2, error: 1}}, _log} = sync.()
+    again = Catalog.get_security(refused.id)
+    assert again.provider_currency_at == first.provider_currency_at
+    assert length(journaled.(refused.id)) == 1
+
+    # The ticker fixed: the provider now states the security's own currency.
+    {{:ok, %{ok: 3, error: 0}}, _log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        QuoteSync.sync_all(
+          adapter_for: %{"manual" => Portfolixir.Catalog.QuoteSync.Yahoo},
+          req: [plug: chart_plug(Map.put(stated, "PCUS", "EUR"))]
+        )
+      end)
+
+    assert Catalog.get_security(refused.id).provider_currency == "EUR"
+    assert length(journaled.(refused.id)) == 2
+  end
+
+  defp chart_plug(stated) do
+    fn conn ->
+      meta =
+        case Map.fetch!(stated, List.last(conn.path_info)) do
+          nil -> %{}
+          currency -> %{"currency" => currency}
+        end
+
+      body = %{
+        "chart" => %{
+          "result" => [
+            %{
+              "meta" => meta,
+              "timestamp" => [1_715_001_600],
+              "indicators" => %{"quote" => [%{"close" => [100.10]}]}
+            }
+          ]
+        }
+      }
+
+      conn
+      |> Plug.Conn.put_resp_content_type("application/json")
+      |> Plug.Conn.send_resp(200, Jason.encode!(body))
+    end
+  end
 end

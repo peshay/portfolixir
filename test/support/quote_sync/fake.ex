@@ -16,6 +16,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Fake do
   def fetch(%Security{id: id}, _opts) do
     case Process.get({__MODULE__, id}) do
       {:ok, _} = ok -> ok
+      {:ok, _rows, _meta} = ok -> ok
       {:error, _} = err -> err
       nil -> {:ok, []}
     end

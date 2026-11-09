@@ -21,7 +21,10 @@ defmodule PortfolixirWeb.FieldLabelTest do
     Bucket,
     IdentifierAlias
   ]
-  @unwritten [:id, :inserted_at, :updated_at]
+  # #1415 (Sprint 28 Q3): the quote sync alone writes the provider's
+  # currency, never an import, a booking or any caller, so no refusal of
+  # theirs can name it.
+  @unwritten [:id, :inserted_at, :updated_at, :provider_currency, :provider_currency_at]
 
   # The ISIN change refuses a field no schema stores: the ISIN it records.
   @virtual [:new_isin]

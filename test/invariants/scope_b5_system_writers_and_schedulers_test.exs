@@ -41,6 +41,13 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     {"Portfolixir.Catalog", "logo"} =>
       "logo bookkeeping on a security (#766): presentation metadata, journaled under " <>
         "the fixed logo actor; it books nothing",
+    # --- Sprint 28 Q3 (#1415) begin ---
+    {"Portfolixir.Catalog.QuoteSync", "quote_sync"} =>
+      "records on a security the currency its quote provider stated at a sync, a refused " <>
+        "answer's too (#1411, #1415): provider_currency and the time it was read, written " <>
+        "only when it differs from the stored one, journaled under its own label; it fetches " <>
+        "nothing itself, stores no quote and books nothing",
+    # --- Sprint 28 Q3 (#1415) end ---
     {"Portfolixir.Catalog", "logo_reconcile"} =>
       "marks a stored logo whose file is gone from the logo directory, and unmarks it " <>
         "when the file is back (#933): presentation metadata on a security, a compare-and-set " <>

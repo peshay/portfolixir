@@ -31,7 +31,9 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   pence, `ZAc` cents, `ILA` agorot) are another currency than `GBP`, `ZAR`
   and `ILS` and are refused the same way; a scale mapping would be its own
   decision. An answer that states no currency (no `meta`, no key, `null`, an
-  empty string, or not a string) passes as before.
+  empty string, or not a string) passes as before. An answer in the
+  security's own currency carries it beside its rows,
+  `{:ok, rows, %{currency: currency}}`, for the sync to keep (#1415).
   """
 
   @behaviour Portfolixir.Catalog.QuoteSync.Provider
@@ -101,10 +103,12 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
 
   # #1411 (Sprint 28 Q2): the rows only when the answer is in the security's
   # own currency, or states none.
+  # #1415 (Q3): a stated currency travels with the rows, for the sync to keep
+  # on the security.
   defp in_own_currency(%Security{currency_code: own}, body) do
     case stated_currency(body) do
       nil -> {:ok, decode(body)}
-      ^own -> {:ok, decode(body)}
+      ^own -> {:ok, decode(body), %{currency: own}}
       stated -> {:error, {:currency_mismatch, stated}}
     end
   end
