@@ -515,6 +515,18 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
   // --- S28 N3 begin ---
   // --- S28 N3 end ---
   // --- S28 N4 begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, N4 (ADR-0056 §9): portfolixir.news.assign, new in book and full (a write, so " +
+      "not in read), raises those ceilings by its own bytes and no more: its tools/list entry " +
+      "measures 763 bytes in each, so book 191,685 + 763 = 192,448 and full 226,707 + 763 = " +
+      "227,470; read stays; no other tool's bytes are added",
+    read: 117_695,
+    book: 192_448,
+    full: 227_470,
+    raisedBy: { tools: ["portfolixir.news.assign"], read: 0, book: 763, full: 763 }
+  },
   // --- S28 N4 end ---
   // --- S28 N5 begin ---
   // --- S28 N5 end ---

@@ -142,6 +142,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S28 N3 end ---
 
+    # --- S28 N4 begin ---
+    # N4 (ADR-0056 §9, #1424): news.assign, closed and journaled.
+    assert newest["summary"] =~ "Sprint 28, N4 (ADR-0056 §9, #1424): "
+    assert "PUT /api/v1/news/items/:id/assignment" in newest["endpoints"]
+    assert newest["summary"] =~ "PUT /api/v1/news/items/:id/assignment"
+    assert "portfolixir.news.assign" in newest["tools"]
+    assert newest["summary"] =~ "portfolixir.news.assign"
+    assert newest["summary"] =~ "security_id null gives it back to the matcher"
+    assert newest["summary"] =~ "reclustered in the write's transaction"
+    assert newest["summary"] =~ "suggested_security_id assigns nothing"
+    # --- S28 N4 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

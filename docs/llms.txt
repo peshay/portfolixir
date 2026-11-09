@@ -175,12 +175,12 @@ profile as the serialized `tools/list` answer, with tokens approximated as bytes
 / 4 to bytes / 3.5:
 
 - `read`: 81 tools, at most 117,695 bytes, about 29,000 to 34,000 tokens
-- `book`: 130 tools, at most 191,685 bytes, about 47,000 to 55,000 tokens
-- `full`: 161 tools, at most 226,707 bytes, about 56,000 to 65,000 tokens
+- `book`: 131 tools, at most 192,448 bytes, about 48,000 to 55,000 tokens
+- `full`: 162 tools, at most 227,470 bytes, about 56,000 to 65,000 tokens
 
 A test holds the companion under these byte figures, and they only ever move
 down, or up by a new tool's own schema and no more (the position dossier's,
-1,423 bytes, in Sprint 24; what a sale missed's, 2,302 bytes, and the four prediction tools', 7,299 bytes, in Sprint 25; the two value-band tools', 3,354 bytes, and the four news reads', 3,424 bytes, in Sprint 27). They count the tool list only: the server instructions a client also
+1,423 bytes, in Sprint 24; what a sale missed's, 2,302 bytes, and the four prediction tools', 7,299 bytes, in Sprint 25; the two value-band tools', 3,354 bytes, and the four news reads', 3,424 bytes, in Sprint 27; news.assign's, 763 bytes, in Sprint 28). They count the tool list only: the server instructions a client also
 receives when it connects add about 1.6 KB more (1,545 to 1,755 bytes,
 depending on the profile).
 

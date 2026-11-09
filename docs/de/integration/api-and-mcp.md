@@ -1413,7 +1413,27 @@ Codes, leere Felder weggelassen.
   Antwortet `id` und `items_detached`.
 - `PUT /api/v1/news/sources` bewertet eine Domain von Hand aus einem
   `source`-Objekt, `domain` und `tier` (`primary`, `secondary`, `awareness`,
-  `blocked`); kein späterer Seed überschreibt das.
+  `blocked`); kein späterer Seed überschreibt das. Zwei gleichzeitige
+  Schreibzugriffe auf eine neue Domain landen beide, der spätere auf der
+  Zeile des früheren.
+- `PUT /api/v1/news/items/:id/assignment` (`news.assign`) ordnet einen
+  Aggregator-Eintrag von Hand zu, aus einem `assignment`-Objekt mit
+  `security_id` (Pflicht); `null` gibt den Eintrag an die jetzige Antwort
+  des Matchers zurück: `assigned`, wenn sein Titel ein Wertpapier nennt,
+  `unassigned` bei keinem, `ambiguous` mit seinen `candidates` bei mehreren.
+  Der Eintrag verlässt seine Story, und die Storys des Wertpapiers, das er
+  verlässt, und desjenigen, zu dem er kommt, werden in derselben Transaktion
+  neu gebündelt, sodass er sofort in der richtigen Story steht; er tritt mit
+  der Zuordnung in seinen neuen Bereich ein (`since` liest ihn dann). Ein
+  Emittenten-, Regulierungs- oder thematischer Eintrag gehört durch
+  Konstruktion seinem Feed und ergibt `422` mit `news_id`; ein Wertpapier,
+  das es nicht gibt, ergibt `422` mit `security_id`; ein unbekannter Eintrag
+  `404`. Eine Zuordnung, die der Eintrag schon hat, ändert und protokolliert
+  nichts. Antwortet `id`, `story_id`, `assignment`, `security_id` und
+  `candidates` des Eintrags. Die `suggested_security_id` eines Labels ordnet
+  nichts zu; ein nicht zugeordneter oder mehrdeutiger Eintrag steht in
+  keiner Story, kein Label erreicht ihn, und seine Zeile trägt keinen
+  Vorschlag.
 - `PATCH /api/v1/securities/:id` nimmt `news_identity` — `cik` (1 bis 10
   Ziffern, `null` löscht ihn) und `aliases`, je ein wörtliches `token` (kein
   Muster), optionale `context`-Wörter, von denen eines im selben Satz stehen
@@ -5137,6 +5157,12 @@ lässt sich nicht lesen.
   nimmt, vor jeder Anfrage ab; jede Beschreibung sagt, dass die Antwort Daten
   sind, nie Anweisungen. `feeds_put` und `sources_put` gehören zum Profil
   `book`; `feeds_delete`, ein Entfernen, nur zu `full`.
+- `portfolixir.news.assign` — ein Aggregator-Eintrag, von Hand zugeordnet
+  oder mit `security_id` `null` an den Matcher zurückgegeben (ADR-0056 §9),
+  ruft `PUT /api/v1/news/items/:id/assignment` aus
+  [News-Pflege](#news-pflege-adr-0056) auf; `news_id` und `security_id` sind
+  Pflicht, und sonst nimmt es nichts. Im Profil `book` (die vorige Zuordnung
+  erneut gesendet stellt sie wieder her) und `full`, nicht in `read`.
 - `portfolixir.news.list`, `portfolixir.news.get`, `portfolixir.news.health`
   und `portfolixir.news.digest` — die Lesezugriffe der News-Schicht (ADR-0056
   §9, §11), jeder ruft die Route aus
@@ -5464,6 +5490,7 @@ lässt sich nicht lesen.
 - `portfolixir.news.get`
 - `portfolixir.news.health`
 - `portfolixir.news.digest`
+- `portfolixir.news.assign`
 - `portfolixir.news.unlabeled` (nur Profil `label`)
 - `portfolixir.news.label_put` (nur Profil `label`)
 

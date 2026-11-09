@@ -221,6 +221,20 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "an instant, no text of any story), so not the raw news archive the non-goal names"
     },
     # --- S28 N3 end ---
+    # --- S28 N4 begin ---
+    # news.assign (ADR-0056 §9): the tool. Exactly an item's assignment by
+    # hand; its route, under news/items, is the N7 entry's phrase.
+    %{
+      phrases: [~w(news assign)],
+      kinds: [:tool],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "filing one stored item under a security by hand, or back under the matcher's " <>
+          "answer (ADR-0056 §9): it moves an item between stories and keeps no text, so " <>
+          "not the raw news archive the non-goal names"
+    },
+    # --- S28 N4 end ---
     %{
       phrases: [~w(sync now)],
       kinds: [:event],
