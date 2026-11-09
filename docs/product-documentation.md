@@ -4457,7 +4457,10 @@ multiplier.
   screen reader's output (which reads "hidden"), and every bar has the same
   width, whatever the figure's length.
 - **Charts:** an axis in a currency switches to percent of the window's
-  start. Wealth's value series reads "Value (%)", and a line under it says
+  start; where the window opens at zero or below (a buy booked before its
+  money), of the first day it is above zero, and where no day is, the axis
+  has no labels, as the line under Wealth's value series then says.
+  Wealth's value series reads "Value (%)", and a line under it says
   that deposits and withdrawals count in it, so it is no return (the return
   is TTWROR). Its stacked chart keeps its shape, its axis in percent of the
   bands' total on the window's first day. A security's chart is held in its

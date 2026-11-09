@@ -4005,6 +4005,41 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp display_currency(%{performance: %{base_currency: currency}}), do: currency
   defp display_currency(_assigns), do: "EUR"
 
+  # The privacy mode's 100 % of the value series, as the shared chart takes
+  # it: the window's first value, or, when that is not above zero (a buy
+  # booked before its money), the first value that is. `{date, value,
+  # first?}`, or `:none` when no day's value is above zero and the axis
+  # carries no label (the S6 lens of the Sprint 28 closing act; the stacked
+  # chart's index, #1433).
+  defp value_base(series) do
+    series
+    |> Enum.with_index()
+    |> Enum.find_value(:none, fn {point, i} ->
+      if Decimal.gt?(point.value, 0), do: {point.date, point.value, i == 0}
+    end)
+  end
+
+  # Board 02 (Sprint 26 P2): the line under the value series says what its
+  # percent axis is a percent of, and that it is no return.
+  defp privacy_value_basis({_date, _value, true}),
+    do:
+      gettext(
+        "In privacy mode the axis shows the value in percent of the value at the window’s start, deposits and withdrawals included; the return is TTWROR."
+      )
+
+  defp privacy_value_basis({date, _value, false}),
+    do:
+      gettext(
+        "In privacy mode the axis shows the value in percent of the value on %{date}, the first day it is above zero, deposits and withdrawals included; the return is TTWROR.",
+        date: Format.date(date)
+      )
+
+  defp privacy_value_basis(:none),
+    do:
+      gettext(
+        "In privacy mode the axis has no labels: the value is above zero on no day of the window; the return is TTWROR."
+      )
+
   # Board 02 (Sprint 26 P2): in the privacy mode the value series is drawn
   # in percent of the window's first value, and its name says so.
   defp value_series_label(assigns) do
@@ -4068,9 +4103,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       <%!-- Board 02 (Sprint 26 P2): the value in percent is no return,
            since a deposit raises it; the line says so. --%>
       <p :if={@mode == "value" and PrivacyMode.on?()} class="hint" data-role="perf-privacy-basis">
-        <%= gettext(
-          "In privacy mode the axis shows the value in percent of the value at the window’s start, deposits and withdrawals included; the return is TTWROR."
-        ) %>
+        <%= privacy_value_basis(value_base(@series)) %>
       </p>
       <%!-- ADR-0046 §2: the bought-once overlays, named — a dashed line
            without a legend is a guess. --%>
@@ -4150,7 +4183,11 @@ defmodule PortfolixirWeb.PortfolioLive do
     lookups =
       Enum.map(overlays, &{&1.label, Map.new(&1.points, fn p -> {p.date, p.fraction} end)})
 
-    first_value = series |> List.first() |> then(&(&1 && &1.value))
+    base =
+      case value_base(series) do
+        {_date, value, _first?} -> value
+        :none -> nil
+      end
 
     Enum.map(series, fn point ->
       close =
@@ -4163,19 +4200,20 @@ defmodule PortfolixirWeb.PortfolioLive do
         date: point.date,
         close: close,
         label:
-          "#{signed_percent(point.cumulative_ttwror)}% · #{value_label(mode, point.value, first_value, currency)}" <>
+          "#{signed_percent(point.cumulative_ttwror)}% · #{value_label(mode, point.value, base, currency)}" <>
             overlay_labels(lookups, point.date)
       }
     end)
   end
 
   # The tooltip's second figure: the value in its currency, or, for the
-  # value series in the privacy mode, the value in percent of the window's
-  # first value, as the axis shows it ("Value +12.3%", board 02). In the
-  # TTWROR series the value stays an amount, hidden by the formatter.
-  defp value_label(:value, value, %Decimal{} = first, currency) do
-    if PrivacyMode.on?() and not Decimal.equal?(first, 0) do
-      change = value |> Decimal.sub(first) |> Decimal.div(first)
+  # value series in the privacy mode, the value in percent of its base, as
+  # the axis shows it ("Value +12.3%", board 02). In the TTWROR series, and
+  # where no day is above zero, the value stays an amount, hidden by the
+  # formatter.
+  defp value_label(:value, value, %Decimal{} = base, currency) do
+    if PrivacyMode.on?() do
+      change = value |> Decimal.sub(base) |> Decimal.div(base)
       gettext("Value %{percent}", percent: "#{signed_percent(change)}%")
     else
       "#{Format.money(value)} #{currency}"

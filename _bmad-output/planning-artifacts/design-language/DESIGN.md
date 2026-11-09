@@ -9422,13 +9422,21 @@ the bar is green or red where the figure was.
 - **An axis in a currency becomes percent of the window's start**, on the
   server: `SecurityChart` draws an `:absolute` series in its percent view
   (re-based on the first value, the 5 % padding of its span unchanged),
-  never a relabelling in the browser.
+  never a relabelling in the browser. A window that opens at zero or below
+  (a buy booked before its money) re-bases on the first value above zero,
+  as the stacked chart's index does, and one with no such day draws its
+  line without tick labels: a percent of zero would print the amounts
+  themselves as „%“, and one of a negative value turns the axis over
+  (Sprint 28, S6 lens of the closing act).
 - **Wealth → Performance, „Wert (%)“:** the series' button reads „Wert
   (%)“, a `.hint` line under the chart (`data-role="perf-privacy-basis"`)
   says „Im Privatsphäre-Modus zeigt die Achse den Wert in Prozent des
   Werts am Fensterbeginn, Ein- und Auszahlungen eingeschlossen; die Rendite
-  zeigt TTWROR.“, and the tooltip reads „+9,0% · Wert +12,3%“ (TTWROR
-  first). The TTWROR series keeps its axis; its tooltip and the badge keep
+  zeigt TTWROR.“ (on a later base it names that day, „… am [date], dem
+  ersten Tag, an dem er über null liegt, …“; with none, „… trägt die Achse
+  keine Beschriftung: Der Wert liegt an keinem Tag des Zeitraums über null
+  …“), and the tooltip reads „+9,0% · Wert +12,3%“ (TTWROR first), in
+  percent of the same base. The TTWROR series keeps its axis; its tooltip and the badge keep
   their shape with the amount as the bar.
 - **A security's chart:** its „Prozent“ toggle is pressed and disabled,
   titled „Im Privatsphäre-Modus immer an“, the log scale disabled with it;
