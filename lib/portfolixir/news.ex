@@ -52,6 +52,7 @@ defmodule Portfolixir.News do
   alias Portfolixir.News.Label
   alias Portfolixir.News.Labels
   alias Portfolixir.News.Matcher
+  alias Portfolixir.News.Promotion
   alias Portfolixir.News.Scheduler
   alias Portfolixir.News.Stories
   alias Portfolixir.News.Universe
@@ -982,6 +983,27 @@ defmodule Portfolixir.News do
   # --- S28 N4 end ---
 
   # --- S28 N5 begin ---
+
+  @doc """
+  Appends a research note written from the story `cluster_id`
+  (`notes.append` with a `cluster_id`, ADR-0056 §8): the server pre-fills
+  what the story knows, the story is promoted and links the note. See
+  `Portfolixir.News.Promotion`, the one place a story becomes a note.
+  """
+  @spec append_note_from_story(Actor.t(), map(), pos_integer()) ::
+          {:ok, Portfolixir.Knowledge.SecurityNote.t()}
+          | {:error, %{String.t() => [String.t()]} | Ecto.Changeset.t()}
+  def append_note_from_story(%Actor{} = actor, attrs, cluster_id),
+    do: Promotion.append_note(actor, attrs, cluster_id)
+
+  @doc """
+  The source an event of `security_id` takes from the item `news_id`
+  (`events.create` with a `news_id`); see `Portfolixir.News.Promotion`.
+  """
+  @spec event_source(pos_integer(), pos_integer()) ::
+          {:ok, map()} | {:error, %{String.t() => [String.t()]}}
+  def event_source(security_id, news_id), do: Promotion.event_source(security_id, news_id)
+
   # --- S28 N5 end ---
 
   # --- S28 N6 begin ---

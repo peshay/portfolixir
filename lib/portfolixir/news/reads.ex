@@ -67,6 +67,7 @@ defmodule Portfolixir.News.Reads do
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
   alias Portfolixir.News.Labels
+  alias Portfolixir.News.Shapes
   alias Portfolixir.News.Universe
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
@@ -188,7 +189,56 @@ defmodule Portfolixir.News.Reads do
     end
   end
 
-  defp spelled_width(point), do: point |> Text.escape_invisible() |> json_width()
+  # --- S28 N5 begin ---
+
+  @doc """
+  The width of `text` as the companion spells it, `clip_spelled/2`'s
+  measure: every code point counts one, an invisible one the length of its
+  `[U+XXXX]` spelling, one the JSON text escapes the length of its escape.
+  """
+  @spec spelled_width(String.t()) :: non_neg_integer()
+  def spelled_width(text) when is_binary(text),
+    do: text |> String.codepoints() |> Enum.sum_by(&point_width/1)
+
+  defp point_width(point), do: point |> Text.escape_invisible() |> json_width()
+
+  @doc """
+  `text` cut to at most `max` characters as the companion spells them
+  (`spelled_width/1`), **on a word boundary** (Sprint 28, N5: a headline
+  pre-filled from a story's title, ADR-0044's amendment of 2026-11-06):
+  the text itself when it fits; else its longest run of whole words, ended
+  by an ellipsis inside the width; a first word too long for that is cut
+  as `clip_spelled/2` cuts.
+  """
+  @spec clip_spelled_words(String.t(), pos_integer()) :: String.t()
+  def clip_spelled_words(text, max) when is_binary(text) and is_integer(max) and max > 1 do
+    if spelled_width(text) <= max do
+      text
+    else
+      text
+      |> String.codepoints()
+      |> Enum.reduce_while({[], 0, nil}, fn point, {kept, used, cut} ->
+        cut = if Shapes.space?(point) and kept != [], do: kept, else: cut
+        width = point_width(point)
+
+        if used + width <= max - 1,
+          do: {:cont, {[point | kept], used + width, cut}},
+          else: {:halt, {kept, used, cut}}
+      end)
+      |> word_cut(text, max)
+    end
+  end
+
+  defp word_cut({_kept, _used, nil}, text, max), do: clip_spelled(text, max)
+
+  defp word_cut({_kept, _used, cut}, text, max) do
+    case cut |> Enum.reverse() |> Enum.join() |> String.trim_trailing() do
+      "" -> clip_spelled(text, max)
+      words -> words <> "…"
+    end
+  end
+
+  # --- S28 N5 end ---
 
   # The characters `text` takes inside a JSON string: `"` and `\\` two, a
   # control its escape (closing act, AG1 rest). Counted in code points, as

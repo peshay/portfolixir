@@ -44,7 +44,9 @@ defmodule Portfolixir.Knowledge do
   of the same security; a `retraction` must supersede one.
 
   `opts[:today]` injects the clock (AR-2) and defaults to `Clock.today/0`;
-  an `as_of` after it is refused (E25 S6, F44).
+  an `as_of` after it is refused (E25 S6, F44). `opts[:news_label_id]` is
+  the provenance of an entry written from a news story (Sprint 28, N5;
+  `Portfolixir.News.Promotion`), never taken from `attrs`.
 
   Returns `{:ok, note}` or `{:error, changeset}`.
   """
@@ -52,7 +54,11 @@ defmodule Portfolixir.Knowledge do
           {:ok, SecurityNote.t()} | {:error, Ecto.Changeset.t()}
   def append_note(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     today = Keyword.get(opts, :today, Clock.today())
-    changeset = SecurityNote.changeset(%SecurityNote{}, attrs, today)
+
+    changeset =
+      %SecurityNote{}
+      |> SecurityNote.changeset(attrs, today)
+      |> SecurityNote.put_news_label(Keyword.get(opts, :news_label_id))
 
     multi =
       Multi.new()
