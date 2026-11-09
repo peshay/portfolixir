@@ -2127,8 +2127,9 @@ sechs Namen, dann „+N"; ein Konto mit Saldo null lässt nichts aus und wird
 nicht genannt; der Link öffnet das Vermögen, dessen Datenqualitäts-Abschnitt
 „Wechselkurse synchronisieren" anbietet. Der Link und die Karte selbst
 öffnen das Vermögen im Zeitraum der Karte, seit Jahresbeginn
-(`/portfolio?period=ytd`, beim Ankommen gelesen und nirgends gespeichert, so
-dass ein gewöhnlicher Besuch weiter bei 1J öffnet), und in der Ansicht, die
+(`/portfolio?period=ytd`, beim Ankommen gelesen; ein gewöhnlicher Besuch
+öffnet im Zeitraum, den Sie in diesem Browser zuletzt gewählt haben, sonst bei
+1J), und in der Ansicht, die
 Sie dort zuletzt gewählt haben: Ist sie nicht die, die die Karte zählt,
 sagt der Hinweis das vor dem Link („Vermögen ist gerade auf die Ansicht „Nur
 Neuzugang“ eingegrenzt; diese Summe zählt „Alles“."), und nichts wird für
@@ -2522,7 +2523,17 @@ Popover bleibt offen, bis sie korrigiert ist; ein angewendeter Zeitraum oder
 ein Jahr schließt es und zeigt sich als aktiver Chip mit den aufgelösten
 Daten (oder dem Jahr) in der Zeitraumauswahl — das Bedienelement beantwortet
 immer „was sehe ich gerade". Der Custom-Zeitraum des Wertpapier-Detailcharts
-verhält sich genauso. Der Chart wird auf
+verhält sich genauso. Der gewählte Zeitraum steht in der Adresse der Seite
+(Issue #1432): `period=` für ein Token, `year=` für ein Kalenderjahr, `from=`
+und `to=` für einen eigenen Zeitraum. So behalten ihn der Datenschutz- und der
+Sprachschalter, ein Ansichts-Chip, die Reiter Bestände und Allokation & Ziele,
+die Links des gestapelten Charts und ein Neuladen, und ein weitergegebener
+Link öffnet ihn. Ein Zeitraum in der Adresse, der keiner ist oder außerhalb
+der durchlaufenen Historie liegt (ein Jahr ohne Daten, ein Zeitraum vor der
+ersten Buchung), öffnet bei 1J, und eine Zeile sagt das. Ihre letzte Wahl
+merkt sich außerdem dieser Browser, nie der Server, sodass die Rückkehr zum
+Vermögen über die Seitenleiste sie wieder öffnet; wo der Browser nichts
+aufbewahrt, öffnet das Vermögen bei 1J. Der Chart wird auf
 eine begrenzte Punktzahl
 heruntergerechnet, sodass ein Jahrzehnt täglicher Historie im Browser leicht
 bleibt. Die Aufklappung **Daten als Tabelle** unter dem Chart enthält

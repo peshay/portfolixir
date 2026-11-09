@@ -279,6 +279,41 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Wealth's period, remembered per browser (#1432, plan
+            // amendment D-A1), with ColumnPrefs' storage rules: every read
+            // and write in try/catch, so blocked or absent storage leaves
+            // the page at 1 year and breaks nothing. On an address that
+            // names no period the kept one is asked for (the server
+            // validates it as any arrival); each pick is kept as its
+            // address pairs. Nothing of it is stored on the server.
+            Hooks.PeriodMemory = {
+              mounted: function () {
+                var key = this.el.dataset.storageKey || "wealth.period";
+
+                if (this.el.dataset.addressed !== "true") {
+                  var raw = null;
+                  try { raw = window.localStorage && window.localStorage.getItem(key); } catch (_) {}
+
+                  if (raw) {
+                    try {
+                      var stored = JSON.parse(raw);
+                      if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+                        this.pushEvent("restore_period", stored);
+                      }
+                    } catch (_) {}
+                  }
+                }
+
+                this.handleEvent("period-memory", function (payload) {
+                  try {
+                    if (window.localStorage && payload && payload.period && typeof payload.period === "object") {
+                      window.localStorage.setItem(key, JSON.stringify(payload.period));
+                    }
+                  } catch (_) {}
+                });
+              }
+            };
+
             Hooks.SecuritySplitPane = {
               mounted: function () {
                 this.workspace = this.el.closest("#securities-workspace");

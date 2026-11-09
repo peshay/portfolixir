@@ -2,7 +2,9 @@ defmodule PortfolixirWeb.WealthPeriodAddressLiveTest do
   # #1432 (Sprint 28 S5; plan amendment D-A1): the performance period on
   # Wealth rides the address, so the privacy and language switches, a view
   # chip, a Wealth tab and a reload keep it, and an arrival validates it
-  # against the analysis' range.
+  # against the analysis' range. Its per-browser memory is a hook, read in a
+  # real browser by test/browser/period_memory_test.exs; here the server
+  # half: what the hook may ask for and what a pick hands it to remember.
   use PortfolixirWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
@@ -208,5 +210,59 @@ defmodule PortfolixirWeb.WealthPeriodAddressLiveTest do
     settle(view)
     assert shown?(view, :range, w)
     refute has_element?(view, "[data-role='period-fallback']")
+  end
+
+  # User story (#1432, D-A1, the second half):
+  # As the operator returning to Wealth through the sidebar,
+  # I want the period I last picked in this browser,
+  # so that I do not pick it again on every visit, and nothing of it is
+  # kept on the server.
+  #
+  # Acceptance criteria:
+  # - The page carries the memory hook, told whether the address named a
+  #   period (then the address wins and nothing is restored).
+  # - Each pick hands the hook the period's address pairs to keep.
+  # - Asked to restore a remembered period on an address without one, the
+  #   page patches to it in place; on an address that names one it does
+  #   nothing; a remembered value that is no period changes nothing.
+  test "a pick is handed to the browser's memory, which restores it on a bare address", %{
+    conn: conn
+  } do
+    w = world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    settle(view)
+    assert has_element?(view, "#period-memory[phx-hook='PeriodMemory'][data-addressed='false']")
+
+    view |> element("button[phx-value-period='max']") |> render_click()
+    assert_push_event(view, "period-memory", %{period: %{"period" => "max"}})
+
+    view |> element("#period-custom button[phx-value-year='#{w.last_year}']") |> render_click()
+    assert_push_event(view, "period-memory", %{period: %{"year" => year}})
+    assert year == "#{w.last_year}"
+
+    {:ok, fresh, _html} = live(conn, "/portfolio")
+    settle(fresh)
+
+    render_hook(fresh, "restore_period", %{"from" => "#{w.last_year}-12-31", "to" => "#{w.today}"})
+
+    assert_patch(
+      fresh,
+      "/portfolio?" <> URI.encode_query([{"from", "#{w.last_year}-12-31"}, {"to", "#{w.today}"}])
+    )
+
+    settle(fresh)
+    assert shown?(fresh, :range, w)
+
+    {:ok, linked, _html} = live(conn, "/portfolio?period=ytd")
+    assert has_element?(linked, "#period-memory[data-addressed='true']")
+    render_hook(linked, "restore_period", %{"period" => "max"})
+    refute_patched(linked)
+    assert has_element?(linked, "button[phx-value-period='ytd'][aria-pressed='true']")
+
+    {:ok, garbled, _html} = live(conn, "/portfolio")
+    render_hook(garbled, "restore_period", %{"period" => "forever"})
+    refute_patched(garbled)
+    assert one_year?(garbled)
   end
 end
