@@ -170,6 +170,14 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert Enum.any?(newest["parameters"], &(&1 =~ "event.news_id"))
     # --- S28 N5 end ---
 
+    # --- S28 N2 yield begin ---
+    # N2's yield half (ADR-0056 A3, C4), built once promotion exists.
+    assert newest["summary"] =~ "Sprint 28, N2's yield (ADR-0056 A3, answering C4): "
+    assert newest["summary"] =~ "low_yield, true at 50 items or more with none promoted"
+    assert newest["summary"] =~ "not_measured_until_promotion is gone"
+    assert Enum.any?(newest["parameters"], &(&1 =~ "answers yield_30d and low_yield"))
+    # --- S28 N2 yield end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

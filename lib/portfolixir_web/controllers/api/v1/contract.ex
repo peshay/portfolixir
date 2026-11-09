@@ -139,8 +139,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "/api/v1/securities/:security_id/events takes event.news_id, the item's link and " <>
               "source quality as the event's source. portfolixir.notes.append no longer " <>
               "requires kind, source_quality and as_of beside cluster_id, and " <>
-              "portfolixir.events.create no longer requires source_quality beside news_id."
+              "portfolixir.events.create no longer requires source_quality beside news_id.",
             # --- S28 N5 end ---
+            # --- S28 N2 yield begin ---
+            "Sprint 28, N2's yield (ADR-0056 A3, answering C4): GET /api/v1/news/health " <>
+              "answers each feed's yield_30d, its promoted stories over its items in 30 days " <>
+              "as a decimal string rounded to 4 places (left out without items), and " <>
+              "low_yield, true at 50 items or more with none promoted; the placeholder yield " <>
+              "not_measured_until_promotion is gone."
+            # --- S28 N2 yield end ---
           ],
           " "
         ),
@@ -216,8 +223,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "note.cluster_id, headline, event_type and tone, and every entry read answers " <>
           "headline, event_type, tone and news_label_id (ADR-0056 §8; S28 N5)",
         "POST /api/v1/securities/:security_id/events (portfolixir.events.create) takes " <>
-          "event.news_id (ADR-0056 §8; S28 N5)"
+          "event.news_id (ADR-0056 §8; S28 N5)",
         # --- S28 N5 end ---
+        # --- S28 N2 yield begin ---
+        "GET /api/v1/news/health (portfolixir.news.health) answers yield_30d and low_yield " <>
+          "per feed in place of yield (ADR-0056 A3, C4; S28 N2)"
+        # --- S28 N2 yield end ---
       ],
       removed_endpoints: [],
       removed_tools: [],
