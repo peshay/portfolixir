@@ -90,8 +90,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- Sprint 28 Q end ---
 
+    # --- S28 N1 begin ---
+    # N1 (ADR-0056 §7): the labeller's write, closed and journaled.
+    assert newest["summary"] =~ "Sprint 28, N1 (ADR-0056 §7): "
+    assert "PUT /api/v1/news/labels" in newest["endpoints"]
+    assert newest["summary"] =~ "PUT /api/v1/news/labels"
+    assert newest["summary"] =~ "answers 422 naming it"
+    assert newest["summary"] =~ "a confidence sent as a number"
+    assert newest["summary"] =~ "replaces the label in place"
+    # --- S28 N1 end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
+    # Each story appends its own items between its own markers.
     newest = Enum.find(data["entries"], &(&1["version"] == 27))
     assert newest["version"] == 27
     assert newest["date"] == "2026-11-08"

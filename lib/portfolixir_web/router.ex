@@ -450,6 +450,9 @@ defmodule PortfolixirWeb.Router do
     get("/news/digest", NewsReadController, :digest)
     # --- Sprint 27 N7 end ---
     # --- S28 N1 begin ---
+    # ADR-0056 §7 (Sprint 28, N1): the labeller's write — one label per
+    # story, model and prompt version, closed and journaled.
+    put("/news/labels", NewsLabelController, :put_label)
     # --- S28 N1 end ---
     # --- S28 N2 begin ---
     # --- S28 N2 end ---

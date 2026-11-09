@@ -1387,6 +1387,28 @@ with none stored. Every parameter is one value: a list or a map
   and no consumer cursor: `consumer`, `ack_cursor`, `min_materiality` and
   `tier_min` answer `422`.
 
+### News labels (ADR-0056 §7)
+
+An outside model labels stories through a script with its own named token
+(`PORTFOLIXIR_API_TOKENS`, e.g. `labeller=<token>`), so every label is
+journaled under that name. A label is a proposal (`machine_generated` is
+always true): it sorts stories, and it moves, hides or writes nothing else.
+
+- `PUT /api/v1/news/labels` stores one label from a `label` object:
+  `cluster_id` (a story), `model` and `prompt_version` (1 to 64 letters,
+  digits or `. _ : / @ + -`, starting with a letter or a digit),
+  `event_type` (`earnings`, `guidance`, `capital_measure`, `legal`,
+  `m_and_a`, `product`, `regulatory`, `macro`, `noise`), `materiality` 0 to
+  3, `tone` -1, 0 or 1, `confidence` a decimal string from 0 to 1 with at
+  most four places, and optionally `thesis_note_id` (a thesis of the story's
+  security), `clause_idx` (one of its clauses, numbered as the unlabeled
+  read numbers them) and `suggested_security_id`. A new label answers `201`;
+  a put of the same `cluster_id`, `model` and `prompt_version` replaces it
+  in place and answers `200`. The schema is closed: a field outside it,
+  inside `label` or beside it, answers `422` naming it, and so does a wrong
+  JSON type, a `confidence` sent as a number (`"must be a decimal
+  string"`), and a story, security, thesis or clause that is not there.
+
 ### Logos
 
 Each security can carry a logo, resolved automatically (CoinGecko for crypto,
