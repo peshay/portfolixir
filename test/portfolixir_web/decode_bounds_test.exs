@@ -23,7 +23,7 @@ defmodule PortfolixirWeb.DecodeBoundsTest do
     on_exit(fn -> Application.put_env(:portfolixir, :ui_password, previous) end)
 
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit, plug: PortfolixirWeb.Endpoint, ip: :loopback, port: 0, startup_log: false}
       )
 

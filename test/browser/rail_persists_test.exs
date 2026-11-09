@@ -24,7 +24,7 @@ defmodule PortfolixirWeb.Browser.RailPersistsTest do
 
   setup do
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit,
          plug: PortfolixirWeb.Endpoint,
          scheme: :http,

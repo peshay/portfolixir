@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.NoUploadBeforeAuthTest do
 
   setup do
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit,
          plug: PortfolixirWeb.Endpoint,
          scheme: :http,
