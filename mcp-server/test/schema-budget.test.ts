@@ -466,8 +466,20 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 117_711,
     book: 191_704,
     full: 226_726
-  }
+  },
   // --- Sprint 28 Q end ---
+  // --- S28 N1 begin ---
+  // --- S28 N1 end ---
+  // --- S28 N2 begin ---
+  // --- S28 N2 end ---
+  // --- S28 N3 begin ---
+  // --- S28 N3 end ---
+  // --- S28 N4 begin ---
+  // --- S28 N4 end ---
+  // --- S28 N5 begin ---
+  // --- S28 N5 end ---
+  // --- S28 N6 begin ---
+  // --- S28 N6 end ---
 ];
 
 describe("the schema budget", () => {
@@ -728,5 +740,17 @@ describe("the schema budget", () => {
       assert.equal(debuts.get(name), "2026-11-08", name);
     }
     // --- Sprint 27 N7 end ---
+    // --- S28 N1 begin ---
+    // --- S28 N1 end ---
+    // --- S28 N2 begin ---
+    // --- S28 N2 end ---
+    // --- S28 N3 begin ---
+    // --- S28 N3 end ---
+    // --- S28 N4 begin ---
+    // --- S28 N4 end ---
+    // --- S28 N5 begin ---
+    // --- S28 N5 end ---
+    // --- S28 N6 begin ---
+    // --- S28 N6 end ---
   });
 });

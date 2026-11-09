@@ -43,6 +43,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
+  alias Portfolixir.News.Label
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
@@ -94,6 +95,14 @@ defmodule Portfolixir.Derived.BlastRadius do
   # values move. Resolved per struct, like the knowledge records above.
   def for_write("prediction", %{__struct__: Prediction}), do: []
 
+  # --- S28 N1 begin ---
+  # A news label (ADR-0056 §7) is an outside model's proposal about a story:
+  # no walk, quote, rate or rule reads it, so no portfolio's derived values
+  # move. Resolved per struct, like the knowledge records above; a labeller
+  # writes many a day, and a widening would recompute every figure each time.
+  def for_write("news_label", %{__struct__: Label}), do: []
+  # --- S28 N1 end ---
+
   # The default view (H61) is a preference: which scope a page opens on, read
   # by no walk, quote, rate or rule, so no portfolio's derived values move.
   # Resolved per struct, like the knowledge records above.
@@ -136,7 +145,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   # type is absent from it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification depot_bucket_assignment merge_record policy_rule policy_rule_version
+    classification depot_bucket_assignment merge_record news_label policy_rule policy_rule_version
     portfolio position_bucket_override prediction retired_import_hash securities_account
     security_category_assignment security_event security_identifier_alias security_note
     setting snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view

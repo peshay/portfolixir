@@ -8,7 +8,11 @@ defmodule Portfolixir.NewsFixtures do
 
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
+  alias Portfolixir.News.Ingest
+  alias Portfolixir.News.Item
+  alias Portfolixir.News.Parser.Item, as: Parsed
   alias Portfolixir.Repo
   alias Portfolixir.WorldFixtures
 
@@ -85,6 +89,36 @@ defmodule Portfolixir.NewsFixtures do
 
   defp tag(_name, nil), do: nil
   defp tag(name, value), do: "<#{name}>#{value}</#{name}>"
+
+  # --- S28 N1 begin ---
+
+  @doc """
+  A story of `security`: one item of a new issuer feed of it, stored through
+  the ingest at `at` (default now), answered as its
+  `Portfolixir.News.Cluster`. Options: `:title`, `:link`, `:excerpt`, `:at`,
+  `:feed` (an existing feed of the security instead of a new one).
+  """
+  def story!(security, opts \\ []) do
+    n = System.unique_integer([:positive])
+
+    feed =
+      Keyword.get_lazy(opts, :feed, fn -> feed!(%{class: "issuer", security_id: security.id}) end)
+
+    link = Keyword.get(opts, :link, "https://ir.example.com/release-#{n}")
+
+    item = %Parsed{
+      title: Keyword.get(opts, :title, "Northwind Harbour release #{n}"),
+      link: link,
+      excerpt: Keyword.get(opts, :excerpt)
+    }
+
+    at = Keyword.get_lazy(opts, :at, fn -> DateTime.utc_now() end)
+    {:ok, %{stored: 1}} = Ingest.ingest(feed, [item], at)
+    %Item{cluster_id: cluster_id} = Repo.get_by!(Item, canonical_url: link, feed_id: feed.id)
+    Repo.get!(Cluster, cluster_id)
+  end
+
+  # --- S28 N1 end ---
 end
 
 defmodule Portfolixir.News.NoNetwork do

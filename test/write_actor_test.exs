@@ -183,7 +183,13 @@ defmodule Portfolixir.WriteActorTest do
                   # armed in the migration that creates them (a feed's guard
                   # leaves the fetcher's health columns out).
                   "news_feeds",
-                  "news_sources"
+                  "news_sources",
+                  # --- S28 N1 begin ---
+                  # ADR-0056 §7, §14 item 6: an outside model's labels,
+                  # armed in the migration that creates them, so every label
+                  # is journaled under the token that wrote it.
+                  "news_labels"
+                  # --- S28 N1 end ---
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
