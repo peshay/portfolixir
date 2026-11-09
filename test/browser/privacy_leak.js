@@ -305,7 +305,8 @@ async function inPageLinks(page) {
           // category, each state once; every band and sort is the same
           // markup, and each click runs a walk of its own.
           if (/(^|[?&])level=/.test(url.search.slice(1))) {
-            return !!a.closest("[data-role='stack-level'], [data-role='stack-crumbs']") || a === document.querySelector("#stack-legend a");
+            // The TTWROR lines' legend (FR-57, Sprint 28 S4) as the stack's.
+            return !!a.closest("[data-role='stack-level'], [data-role='stack-crumbs']") || a === document.querySelector("#stack-legend a") || a === document.querySelector("#lines-legend a");
           }
           return /(^|[?&])(tab|hindsight)=/.test(url.search.slice(1));
         })

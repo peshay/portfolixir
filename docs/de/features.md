@@ -194,7 +194,9 @@ Linie, Cash und der nicht zugeordnete Rest eingeschlossen; ein Klick auf
 eine Kategorie filtert den Stapel auf sie, auf derselben Ebene, ihre
 Unterkategorien und Wertpapiere als Bänder, ein Pfad darüber führt Stufe für
 Stufe zurück, und jede Wahl steht in der Adresse, ein Link öffnet sie also
-wieder. Eine Kategorie trägt
+wieder. In der Ansicht TTWROR zeichnet dieselbe Leiste jedes Band als
+Linie, seine eigene zeitgewichtete Rendite, die Linie der Ansicht fett, ein
+erst im Zeitraum gekauftes Band ab 0 % mit einem Punkt. Eine Kategorie trägt
 auf beiden Reitern ihre Allokationsfarbe. Im Privatsphäre-Modus behält der
 Stapel seine Form, seine Achse in Prozent der Summe am ersten Tag, und zeigt
 keinen Betrag. Ihr Agent liest dieselben

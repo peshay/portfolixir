@@ -160,9 +160,10 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign_arrival_period(params)
           # I23 (FR-53): the stacked chart's level, tree, sort and drilled
           # category ride the address, so a link handed over reopens them;
-          # a stacked level opens the value series it belongs to.
+          # a named level opens the value series, or with `scale=ttwror` the
+          # TTWROR series' lines (FR-57).
           |> assign(:stack, param_stack(params, classifications))
-          |> assign(:chart_mode, stack_chart_mode(params))
+          |> then(&assign(&1, :chart_mode, chart_mode_of(&1.assigns.stack)))
           |> assign(
             bands: nil,
             bands_colors: %{},
@@ -441,12 +442,12 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         # Holdings carries the stacked chart's choices (I23), so a locale
         # or privacy switch keeps them; an address naming no level keeps
-        # naming none, so it reopens the TTWROR series (FR-56).
+        # naming none, so it reopens the TTWROR series (FR-56, FR-57).
         _holdings ->
-          holdings_path(
+          stack_path(
             socket.assigns.carried_view,
-            params,
-            param_stack(params, socket.assigns.classifications)
+            param_stack(params, socket.assigns.classifications),
+            "1y"
           )
       end
 
@@ -552,7 +553,23 @@ defmodule PortfolixirWeb.PortfolioLive do
   # `unclassified`, at every level, FR-56) and the sort (`sort=change`, else
   # size). Every value is matched against a whitelist or parsed as an id,
   # never made an atom (AGENTS.md); an unknown one falls back to its default.
+  #
+  # FR-57 (Sprint 28 S4): the series rides the address as it did, by the
+  # level: an address naming a level opens the value series, and with
+  # `scale=ttwror` the TTWROR series at that level, each band a line. An
+  # address naming none (`named: false`) opens the TTWROR series at „Gesamt“,
+  # today's line and its benchmarks; „Wert“ from there opens „Kategorien“,
+  # the value series' default (S1). Once a level is named, both series keep
+  # it, and the filter.
   defp param_stack(params, classifications) do
+    named = stack_addressed?(params)
+
+    if named,
+      do: named_stack(params, classifications),
+      else: %{level: :total, tree: nil, category: nil, sort: :size, scale: :ttwror, named: false}
+  end
+
+  defp named_stack(params, classifications) do
     level =
       case params["level"] do
         "total" -> :total
@@ -560,20 +577,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         _other -> :category
       end
 
-    category =
-      case params["category"] do
-        "unclassified" ->
-          :unclassified
-
-        raw when is_binary(raw) ->
-          case LiveParam.fetch_id(raw) do
-            {:ok, id} -> id
-            _invalid -> nil
-          end
-
-        _none ->
-          nil
-      end
+    category = param_filter(params["category"])
 
     tree =
       with true <- level != :total or not is_nil(category),
@@ -586,14 +590,28 @@ defmodule PortfolixirWeb.PortfolioLive do
       end
 
     sort = if level != :total and params["sort"] == "change", do: :change, else: :size
+    scale = if params["scale"] == "ttwror", do: :ttwror, else: :value
 
-    %{level: level, tree: tree, category: category, sort: sort}
+    %{level: level, tree: tree, category: category, sort: sort, scale: scale, named: true}
   end
 
+  # The filter on the address: a category's id or the unassigned rest.
+  defp param_filter("unclassified"), do: :unclassified
+
+  defp param_filter(raw) when is_binary(raw) do
+    case LiveParam.fetch_id(raw) do
+      {:ok, id} -> id
+      _invalid -> nil
+    end
+  end
+
+  defp param_filter(_none), do: nil
+
   # The stack's own basis line stands under its figure once its bands
-  # have landed with a window (#1366, board 07 ②).
-  defp stack_basis_shown?("value", stack, %{bands: [_ | _]}), do: stacked?(stack)
-  defp stack_basis_shown?(_mode, _stack, _bands), do: false
+  # have landed with a window (#1366, board 07 ②), or its lines (FR-57).
+  defp stack_basis_shown?(stack, %{bands: [_ | _]}), do: stacked?(stack)
+  defp stack_basis_shown?(stack, %{parent: %{}}), do: stacked?(stack)
+  defp stack_basis_shown?(_stack, _bands), do: false
 
   # UX-DR26: the deliberate limit stated where the overlay is missing — a
   # rebased return has no value axis. One „%“ (#1366: `%%` printed as is).
@@ -604,31 +622,35 @@ defmodule PortfolixirWeb.PortfolioLive do
         currency: currency
       )
 
+  # FR-57: the benchmarks are drawn over the view's own line, the TTWROR
+  # series at „Gesamt“ without a filter; the lines say so behind their ⓘ.
+  defp benchmark_lines_note,
+    do:
+      gettext(
+        "Benchmarks are drawn over the view's own line, at the level Total without a filter."
+      )
+
   # The stack draws bands: every level but the plain total, which is today's
   # value line; the total with a filter is the filter's own band (FR-56).
   defp stacked?(%{level: :total, category: nil}), do: false
   defp stacked?(_stack), do: true
 
-  # A level belongs to the value series: an address that names one opens
-  # it; one that names none opens the TTWROR series, as the page always has.
-  defp stack_chart_mode(params) do
-    if stack_addressed?(params), do: "value", else: "ttwror"
-  end
+  # The series a stack is drawn in (FR-57): the value series, or the
+  # TTWROR series, at its level.
+  defp chart_mode_of(%{scale: :value}), do: "value"
+  defp chart_mode_of(_stack), do: "ttwror"
 
   defp stack_addressed?(params), do: params["level"] in ["total", "category", "security"]
 
-  # The page's own address on Holdings: the stack's when the address names
-  # a level, else the carried view alone.
-  defp holdings_path(view, params, stack) do
-    if stack_addressed?(params),
-      do: stack_path(view, stack, "1y"),
-      else: pairs_path(view_pairs(view))
-  end
-
   # The address of a stack on Holdings: the carried view, then the level
-  # (always, so the link opens the value series), the tree, the category
-  # and the sort, each only when it is not the default, in this order so
-  # the links compare equal; the period last (#1432).
+  # (always, so the link opens the series it names), the tree, the category,
+  # the sort and the TTWROR series (FR-57), each only when it is not the
+  # default, in this order so the links compare equal; the period last
+  # (#1432). A stack whose level the address does not name is the carried
+  # view alone: the TTWROR series at „Gesamt“.
+  defp stack_path(view, %{named: false}, period),
+    do: pairs_path(view_pairs(view) ++ period_pairs(period))
+
   defp stack_path(view, stack, period) do
     pairs =
       view_pairs(view) ++
@@ -639,10 +661,20 @@ defmodule PortfolixirWeb.PortfolioLive do
         ) ++
         if(stack.category, do: [{"category", category_param(stack.category)}], else: []) ++
         if(stack.sort == :change and stack.level != :total, do: [{"sort", "change"}], else: []) ++
+        if(stack.scale == :ttwror, do: [{"scale", "ttwror"}], else: []) ++
         period_pairs(period)
 
     pairs_path(pairs)
   end
+
+  # The stack a series switch asks for (FR-57): the level and the filter
+  # kept; from an address naming no level, the value series opens at
+  # „Kategorien“, its default (FR-56).
+  defp series_stack(stack, "ttwror"), do: %{stack | scale: :ttwror}
+  defp series_stack(%{named: true} = stack, "value"), do: %{stack | scale: :value}
+
+  defp series_stack(stack, "value"),
+    do: %{stack | scale: :value, level: :category, named: true}
 
   defp category_param(:unclassified), do: "unclassified"
   defp category_param(id), do: Integer.to_string(id)
@@ -653,9 +685,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The address with one choice of the bar made: a level keeps the filter
   # (FR-56, board 02 ③).
   defp stack_choice(stack, level) when level in [:total, :category, :security],
-    do: %{stack | level: level}
+    do: %{stack | level: level, named: true}
 
-  defp stack_choice(stack, sort) when sort in [:size, :change], do: %{stack | sort: sort}
+  defp stack_choice(stack, sort) when sort in [:size, :change],
+    do: %{stack | sort: sort, named: true}
 
   defp stack_paths(view, stack, period) do
     Map.new([:total, :category, :security, :size, :change], fn choice ->
@@ -730,12 +763,9 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> focus_crumb_after_drill(socket.assigns.stack, stack)
       |> assign(:stack, stack)
 
-    socket =
-      if stacked?(stack),
-        do: assign(socket, :chart_mode, "value"),
-        else: socket
-
-    load_bands(socket)
+    socket
+    |> assign(:chart_mode, chart_mode_of(stack))
+    |> load_bands()
   end
 
   # The rows a threshold keeps, for the summary line's count. Same predicate
@@ -974,9 +1004,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # (`GET /api/v1/performance/bands`, `…/views/:id/performance/bands`). Each
   # read runs its own windowed walk, so it loads one at a time as the
   # contribution table does; a result for another request is dropped.
-  defp load_bands(
-         %{assigns: %{wealth_tab: :holdings, chart_mode: "value", stack: stack}} = socket
-       ) do
+  defp load_bands(%{assigns: %{wealth_tab: :holdings, stack: stack}} = socket) do
     if stacked?(stack), do: start_bands(socket), else: socket
   end
 
@@ -998,7 +1026,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       # A category names its own tree; the unassigned rest is the rest of
       # the tree the address names.
       opts =
-        [period: period, base_currency: base_currency, level: stack.level, sort: stack.sort] ++
+        [
+          period: period,
+          base_currency: base_currency,
+          level: stack.level,
+          sort: stack.sort,
+          scale: stack.scale
+        ] ++
           if(stack.category, do: [category_id: stack.category], else: []) ++
           if(stack.tree && not is_integer(stack.category),
             do: [classification_id: stack.tree],
@@ -2369,18 +2403,27 @@ defmodule PortfolixirWeb.PortfolioLive do
               ><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
               <span class="perf-badge-period">(<%= period_label(@period) %>)</span>
             </p>
-            <%!-- I23 (FR-53, board 01 A): the bar above the value chart;
-                 at the level Total the chart under it is today's, unchanged. --%>
+            <%!-- I23 (FR-53, board 01 A): the bar above the chart, in both
+                 series since FR-57 (board 03); at the level Total without a
+                 filter the chart under it is today's, unchanged. --%>
             <StackedChart.bar
-              :if={@chart_mode == "value"}
               stack={@stack}
               paths={stack_paths(@carried_view, @stack, @period)}
               crumbs={stack_crumbs(@carried_view, @stack, @bands, @bands_ancestors, @period)}
               classifications={@classifications}
               classification_id={stack_classification_id(@stack, @bands)}
             />
-            <%= if @chart_mode == "value" and stacked?(@stack) do %>
+            <%= if stacked?(@stack) do %>
               <%= cond do %>
+                <% @bands && @bands.scale == :ttwror -> %>
+                  <%!-- FR-57 (board 03): one line per band, the view's or
+                       the filter's bold. --%>
+                  <StackedChart.lines
+                    result={@bands}
+                    colors={@bands_colors}
+                    drill_paths={drill_paths(@carried_view, @stack, @bands, @period)}
+                    benchmark_note={if @benchmarks != [], do: benchmark_lines_note()}
+                  />
                 <% @bands -> %>
                   <StackedChart.figure
                     result={@bands}
@@ -2426,7 +2469,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             <%!-- The stack's own basis line carries the window and the
                  compute instant (board 07 ②), so it is not repeated. --%>
             <p
-              :if={@performance.start_date && not stack_basis_shown?(@chart_mode, @stack, @bands)}
+              :if={@performance.start_date && not stack_basis_shown?(@stack, @bands)}
               class="hint"
               data-role="performance-basis"
             >
@@ -4692,12 +4735,24 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("restore_period", _params, socket), do: {:noreply, socket}
 
-  # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
-  # same cached analysis feeds both lines, so it never recomputes and the choice
-  # survives period switches (select_period leaves :chart_mode untouched).
+  # Switching the chart series (% TTWROR ↔ € value) keeps the level and the
+  # filter (FR-57) and rides the address, so a reload, a link handed over and
+  # a period switch keep it; at „Gesamt“ without a filter the same cached
+  # analysis feeds both lines, at a level each series reads its own bands.
   def handle_event("set_chart_mode", %{"mode" => mode}, socket)
       when mode in ["ttwror", "value"] do
-    {:noreply, socket |> assign(:chart_mode, mode) |> load_bands()}
+    stack = socket.assigns.stack
+
+    case series_stack(stack, mode) do
+      ^stack ->
+        {:noreply, socket}
+
+      target ->
+        {:noreply,
+         push_patch(socket,
+           to: stack_path(socket.assigns.carried_view, target, socket.assigns.period)
+         )}
+    end
   end
 
   # FR-56: a click on a band sets its filter and keeps the level, as its

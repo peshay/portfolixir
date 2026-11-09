@@ -2764,6 +2764,28 @@ nennt einen Betrag. Ihr Agent liest dieselben Bänder über
 `portfolixir.views.bands`
 ([API und MCP](/de/integration/api-and-mcp.html)).
 
+In der Ansicht **% (TTWROR)** steht dieselbe Leiste über dem Diagramm und
+behält Ebene, Filter, Klassifizierung und Sortierung, wenn Sie die Ansicht
+wechseln (FR-57). Bei *Gesamt* ohne Filter ist das Diagramm die bekannte
+TTWROR-Linie mit ihren Benchmarks; dort öffnet Vermögen. Auf jeder anderen
+Ebene ist jedes Band eine **Linie**, seine eigene zeitgewichtete Rendite über
+den Zeitraum, nicht gestapelt, weil sich Renditen nicht addieren: Seine Zu-
+und Abflüsse sind seine Käufe, Verkäufe, Ein- und Auslieferungen (ein Zufluss
+zählt zu Tagesbeginn, ein Abfluss am Tagesende), und Dividenden und Zinsen
+sind kein Fluss und in keiner Linie, eine Linie ist also die Rendite des
+Marktwerts ihres Bandes. Die **fette** Linie ist die TTWROR der Ansicht
+selbst, die Zahl über dem Diagramm, oder mit Filter die Linie der
+gefilterten Kategorie. Ein Band, das erst im Zeitraum Wert bekommt, etwa
+durch den ersten Kauf in einer neuen Kategorie, beginnt an diesem Tag bei
+0 %, markiert durch einen Punkt, und seine Legendenzeile sagt, ab wann. Es
+stehen höchstens acht Linien da, die größten nach Wert am Ende des
+Zeitraums; Cash und der nicht zugeordnete Rest haben keine. Die Legende
+nennt die fette Linie zuerst, dann die TTWROR jeder Linie und keinen
+Betrag, der Privatsphäre-Modus lässt sie also, wie sie ist. Ein Klick auf
+eine Linie oder eine Legendenzeile filtert wie in der Ansicht Wert. Auch die
+Ansicht steht in der Adresse (`scale=ttwror`), und Ihr Agent liest dieselben
+Linien mit `scale=ttwror` über den Bänder-Abruf und die Tools.
+
 ### Beitrag je Position
 
 Direkt unter dem Performance-Diagramm unter **Vermögen → Bestände**

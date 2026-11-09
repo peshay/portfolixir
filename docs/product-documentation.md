@@ -2506,6 +2506,26 @@ value, and no tooltip names an amount. Your agent reads the same bands over
 `…/performance/bands` and the MCP tools `portfolixir.portfolios.bands` and
 `portfolixir.views.bands` ([API and MCP](integration/api-and-mcp.html)).
 
+In the **% (TTWROR)** series the same bar stands above the chart and keeps
+the level, the filter, the classification and the sort when you switch
+series (FR-57). At *Total* without a filter the chart is the TTWROR line you
+know, with its benchmarks; Wealth opens there. At every other level each
+band is a **line**, its own time-weighted return over the period, not
+stacked, because returns do not add up: its flows are its buys, sells and
+deliveries (an inflow counts at the day's start, an outflow at its end), and
+dividends and interest are no flow and in no line, so a line is the return
+of the band's market value. The **bold** line is the view's own TTWROR, the
+figure above the chart, or under a filter the filtered category's line. A
+band that gains its first value inside the period, a first buy into a new
+category, starts at 0 % on that day, marked by a dot, and its legend row
+says from when. At most eight lines are drawn, the largest by value at the
+period's end; cash and the unassigned rest have none. The legend lists the
+bold line first, then each line's TTWROR, and no amount, so the privacy
+mode leaves it as it is. A click on a line or a legend row filters as in
+the Value series. The series is on the address too (`scale=ttwror`), and
+your agent reads the same lines with `scale=ttwror` on the bands read and
+tools.
+
 ### Contribution by position
 
 Directly under the performance chart on **Wealth → Holdings**, a table

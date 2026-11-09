@@ -131,7 +131,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # - Every live route of the router is walked, each area tab a page links,
   #   each detail tab it offers and each view it links in place (Wealth's
   #   stacked chart's levels and a filtered category too, with a band that
-  #   changes sign, #1433), in the
+  #   changes sign, #1433, and the TTWROR series' lines at a level and
+  #   under a filter, FR-57), in the
   #   light and the dark theme, at 1200 and 390 px, on the review seed and
   #   three synthetic predictions.
   # - Any step that answers an error status, crashes its LiveView or does
@@ -332,8 +333,16 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # levels, the breadcrumb and one category drilled into (`inPageLinks` in
   # privacy_leak.js).
   # The value series opens at „Kategorien“ (FR-56), so the single value
-  # line, „Gesamt“, is an address of its own.
-  defp extra_addresses("/portfolio"), do: ["/portfolio?level=category", "/portfolio?level=total"]
+  # line, „Gesamt“, is an address of its own. The TTWROR series keeps the
+  # bar since FR-57 (Sprint 28 S4): its lines at „Kategorien“, from which
+  # the walker follows its levels and one filter too.
+  defp extra_addresses("/portfolio"),
+    do: [
+      "/portfolio?level=category",
+      "/portfolio?level=total",
+      "/portfolio?level=category&scale=ttwror"
+    ]
+
   defp extra_addresses(_path), do: []
 
   # The two most traded securities, the first bond and a bond priced on two

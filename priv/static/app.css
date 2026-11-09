@@ -6427,6 +6427,46 @@ details[open] > .disclosure-summary .disclosure-chevron {
 .stack-swatch--other {
   background: var(--color-chart-other);
 }
+/* --- Sprint 28 S4 begin --- */
+/* FR-57 (board 03): the TTWROR series at a level, one line per band in the
+   band's colour, the view's or the filter's line bold in the text colour and
+   on top; a wide transparent stroke under each line is its hit target, so a
+   1.6-unit line takes a click as a band does. A late band's first point is a
+   dot. */
+.stack-line__stroke {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.stack-line--bold .stack-line__stroke {
+  stroke-width: 3;
+}
+.stack-line__hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  pointer-events: stroke;
+}
+.stack-line[phx-click] {
+  cursor: pointer;
+}
+.stack-line[phx-click]:hover .stack-line__stroke {
+  stroke-width: 2.6;
+}
+.stack-line-start {
+  stroke: var(--color-chart-surface);
+  stroke-width: 1;
+}
+.lines-legend__parent td {
+  font-weight: 700;
+}
+.lines-legend__since {
+  margin-left: 4px;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+/* --- Sprint 28 S4 end --- */
 
 .perf-table-disclosure > summary {
   cursor: pointer;

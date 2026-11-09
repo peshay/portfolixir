@@ -7,7 +7,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   The anatomy (DESIGN.md → Amendment 2026-11-07 → the stacked chart):
 
-    * **the bar** (`bar/1`) above the chart, in the value series only: the
+    * **the bar** (`bar/1`) above the chart, in both series (FR-57): the
       breadcrumb on the left, the filter's path through its tree, then the
       level (Total · Categories · Securities), the classification and the
       sort (Size · Change). Every choice is a link that patches the address,
@@ -32,6 +32,13 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     * **the basis line**: one line, what the chart shows, the window and
       when it was computed, ending in the section's ⓘ that holds the method
       (I1; #1366).
+
+  **The TTWROR series** (`lines/1`; FR-57, Sprint 28 S4, board
+  `ux-design-2026-11-08-sprint28/03-ttwror-levels`): the same bar, level and
+  filter, the bands drawn as one line each, their own TTWROR, the view's or
+  the filter's line bold and first in a legend of percentages only; a band
+  whose line starts inside the window starts with a dot. No amount, so the
+  privacy mode leaves it as it is.
 
   **The privacy mode** (I22; #1433, plan amendment D-A2, board 06): the
   stack keeps its shape, the same picture as without the mode, and only
@@ -340,6 +347,429 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     </figure>
     """
   end
+
+  # --- Sprint 28 S4 begin ---
+  # -- the TTWROR lines (FR-57) ------------------------------------------------------
+
+  attr(:result, :map, required: true)
+  attr(:colors, :map, required: true)
+  attr(:drill_paths, :map, required: true)
+  attr(:benchmark_note, :string, default: nil)
+
+  @doc """
+  The TTWROR series at a level or under a filter (FR-57, I28; board
+  `ux-design-2026-11-08-sprint28/03-ttwror-levels`): one line per band, each
+  band's own TTWROR (`Bands`' `scale: :ttwror`), not stacked, since returns
+  do not add up; the parent's line (the view's own, or the filter's) bold,
+  drawn last so it lies on top. A band whose line starts after the window's
+  first day starts at 0 % with a dot. The legend lists the bold line first,
+  then the lines in the answer's order, each with its TTWROR only: no
+  amount, so the privacy mode changes nothing here. A category's line and
+  legend row set the filter on a click and keep the level, as the bands do.
+  """
+  def lines(assigns) do
+    result = assigns.result
+    parent = result.parent
+    others = Enum.reject(result.bands, &(parent && &1.key == parent.key))
+    legend = if parent, do: [parent | others], else: others
+    geometry = lines_geometry(result.dates, legend)
+
+    assigns =
+      assign(assigns,
+        parent: parent,
+        legend: legend,
+        # The thin lines first, the bold one last, on top.
+        drawn: Enum.reverse(legend),
+        geometry: geometry,
+        width: @width,
+        height: @height,
+        plot_left: @padding_left,
+        plot_right: @width - @padding_right
+      )
+
+    ~H"""
+    <figure
+      id="performance-figure-lines"
+      class="perf-figure stack-figure lines-figure"
+      data-level={@result.level}
+      data-scale="ttwror"
+    >
+      <%= if @legend == [] do %>
+        <p class="hint" data-role="stack-empty"><%= gettext("No values in this period.") %></p>
+      <% else %>
+        <div class="stack-figure__body">
+          <div class="stack-figure__chart" id="lines-figure-chart" phx-hook="ChartScale">
+            <svg
+              class="stack-chart lines-chart"
+              role="img"
+              aria-label={lines_aria_label(@result)}
+              viewBox={"0 0 #{@width} #{@height}"}
+              preserveAspectRatio="xMidYMid meet"
+              width="100%"
+              data-points={@geometry.points}
+              data-plot-top={coord(@geometry.plot_top)}
+            >
+              <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
+                <line
+                  :for={{_value, y} <- @geometry.ticks}
+                  x1={@plot_left}
+                  y1={coord(y)}
+                  x2={@plot_right}
+                  y2={coord(y)}
+                />
+              </g>
+              <line
+                class="chart-zeroline"
+                x1={@plot_left}
+                y1={coord(@geometry.zero_y)}
+                x2={@plot_right}
+                y2={coord(@geometry.zero_y)}
+              />
+              <g
+                :for={line <- @drawn}
+                class={[
+                  "stack-line",
+                  "stack-line--#{kind_class(line.kind)}",
+                  bold?(line, @parent) && "stack-line--bold"
+                ]}
+                data-band={line.key}
+                phx-click={if Map.has_key?(@drill_paths, line.key), do: "drill_stack"}
+                phx-value-category={if Map.has_key?(@drill_paths, line.key), do: filter_value(line)}
+              >
+                <title><%= line_title(line, @parent, @geometry.starts) %></title>
+                <path class="stack-line__hit" d={Map.fetch!(@geometry.paths, line.key)} fill="none" />
+                <path
+                  class="stack-line__stroke"
+                  d={Map.fetch!(@geometry.paths, line.key)}
+                  fill="none"
+                  stroke={line_stroke(line, @parent, @colors)}
+                />
+              </g>
+              <%= for line <- @drawn, start = Map.get(@geometry.starts, line.key) do %>
+                <circle
+                  class="stack-line-start"
+                  data-band={line.key}
+                  cx={coord(start.x)}
+                  cy={coord(start.y)}
+                  r={if bold?(line, @parent), do: "4", else: "3.2"}
+                  fill={line_stroke(line, @parent, @colors)}
+                />
+              <% end %>
+              <g class="chart-axis-labels">
+                <text
+                  :for={{{value, y}, index} <- Enum.with_index(@geometry.ticks)}
+                  class={["chart-axis-y", index == length(@geometry.ticks) - 1 && "is-top"]}
+                  x={@plot_left - 6}
+                  y={coord(y)}
+                  text-anchor="end"
+                  dominant-baseline="central"
+                >
+                  <%= percent_tick(value, @geometry.places) %>
+                </text>
+                <text class="chart-axis-x" x={@plot_left} y={@height - 6} text-anchor="start">
+                  <%= Format.date(List.first(@result.dates)) %>
+                </text>
+                <text class="chart-axis-x" x={@plot_right} y={@height - 6} text-anchor="end">
+                  <%= Format.date(List.last(@result.dates)) %>
+                </text>
+              </g>
+            </svg>
+          </div>
+          <table
+            id="lines-legend"
+            class="stack-legend lines-legend"
+            data-role="lines-legend"
+            data-date={Date.to_iso8601(@result.end_date)}
+          >
+            <caption class="sr-only">
+              <%= gettext("Each line's TTWROR on %{date}, the bold line first",
+                date: Format.date(@result.end_date)
+              ) %>
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">
+                  <%= if @result.level == :security, do: gettext("Security"), else: gettext("Category") %>
+                </th>
+                <th scope="col" class="num"><%= gettext("TTWROR") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                :for={line <- @legend}
+                data-band={line.key}
+                class={bold?(line, @parent) && "lines-legend__parent"}
+              >
+                <td class="stack-legend__name lines-legend__name">
+                  <span
+                    class={["stack-swatch", bold?(line, @parent) && "lines-swatch--bold"]}
+                    style={"background: #{line_stroke(line, @parent, @colors)}"}
+                    aria-hidden="true"
+                  >
+                  </span>
+                  <%= cond do %>
+                    <% bold?(line, @parent) -> %>
+                      <%= gettext("%{name} (bold)", name: line_name(line)) %>
+                    <% path = Map.get(@drill_paths, line.key) -> %>
+                      <.link patch={path} class="stack-legend__drill"><%= line_name(line) %></.link>
+                    <% true -> %>
+                      <%= line_name(line) %>
+                  <% end %>
+                  <%!-- A late band's first day, the dot's date (board 03 ②). --%>
+                  <%= if start = Map.get(@geometry.starts, line.key) do %>
+                    <span class="lines-legend__since">(<%= gettext("from %{date}", date: Format.date(start.date)) %>)</span>
+                  <% end %>
+                  <span
+                    :if={not bold?(line, @parent) and Map.has_key?(@drill_paths, line.key)}
+                    class="stack-legend__chevron"
+                    aria-hidden="true"
+                  >›</span>
+                </td>
+                <td class={["num", sign_class(line.ttwror)]} data-role="line-ttwror">
+                  <%= change(line.ttwror) %>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <%!-- I1 (#1351; #1366, amendment D-A4): one line, what the lines
+             show, the window and when they were computed; the method in
+             the ⓘ at its end. --%>
+        <div class="hint stack-basis" data-role="stack-basis">
+          <span data-role="stack-basis-line">
+            <%= lines_shows(@result) %> · <%= Format.date(@result.start_date) %> – <%= Format.date(@result.end_date) %><%= if @result.as_of do %> · <%= gettext("computed %{at}", at: Format.utc_instant(@result.as_of)) %><% end %>
+          </span>
+          <AppShell.section_info>
+            <:line :for={line <- lines_method(@result, @drill_paths != %{})}><%= line %></:line>
+            <:line :if={@benchmark_note}><span data-role="benchmark-lines-hint"><%= @benchmark_note %></span></:line>
+          </AppShell.section_info>
+        </div>
+      <% end %>
+    </figure>
+    """
+  end
+
+  defp bold?(line, parent), do: parent != nil and line.key == parent.key
+
+  # The view's own line is named for the view; every other one as its band.
+  defp line_name(%{kind: :total}), do: gettext("View")
+  defp line_name(line), do: band_name(line)
+
+  # The bold line in the text colour, every other in its band's colour.
+  defp line_stroke(line, parent, colors) do
+    if bold?(line, parent), do: "currentColor", else: Map.get(colors, line.key) || "currentColor"
+  end
+
+  # The tooltip: the name and the TTWROR, and where a line starts late, its
+  # first day. A percentage, never an amount.
+  defp line_title(line, parent, starts) do
+    name =
+      if bold?(line, parent),
+        do: gettext("%{name} (bold)", name: line_name(line)),
+        else: line_name(line)
+
+    since =
+      case Map.get(starts, line.key) do
+        %{date: date} -> " · " <> gettext("from %{date}", date: Format.date(date))
+        nil -> ""
+      end
+
+    "#{name} · #{change(line.ttwror)}#{since}"
+  end
+
+  defp lines_aria_label(%{level: :security}), do: gettext("TTWROR per security over time")
+  defp lines_aria_label(_result), do: gettext("TTWROR per category over time")
+
+  # The visible half of the basis: what the lines show, the filter named.
+  defp lines_shows(%{category_id: :unclassified} = result),
+    do: gettext("TTWROR of what “%{tree}” files nowhere", tree: tree_name(result.classification))
+
+  defp lines_shows(%{level: :security, category: %{name: name}}),
+    do: gettext("TTWROR per security of “%{category}”", category: name)
+
+  defp lines_shows(%{level: :category, category: %{name: name}} = result) do
+    if divided?(result),
+      do: gettext("TTWROR of “%{category}” by sub-category", category: name),
+      else: gettext("TTWROR of “%{category}”", category: name)
+  end
+
+  defp lines_shows(%{category: %{name: name}}),
+    do: gettext("TTWROR of “%{category}”", category: name)
+
+  defp lines_shows(%{level: :category} = result),
+    do: gettext("TTWROR per category of “%{tree}”", tree: tree_name(result.classification))
+
+  defp lines_shows(_result), do: gettext("TTWROR per security")
+
+  # The method behind the ⓘ, one short sentence per line (I1): what a line
+  # is, its flows, what it leaves out, the start rule, the selection, the
+  # order, the bold line and what a click does.
+  defp lines_method(result, filter_links?) do
+    [
+      gettext(
+        "Each band's own time-weighted return over the window (TTWROR), not stacked: returns do not add up."
+      ),
+      gettext(
+        "A band's flows are its buys, sells and deliveries: an inflow at the day's start, an outflow at its end."
+      ),
+      gettext(
+        "Dividends and interest are no flow and in no line: they go to the cash, so a line is the return of the band's market value."
+      ),
+      gettext(
+        "A band that gains its first value inside the window starts at 0 % on that day, at a dot."
+      ),
+      lines_selection(result),
+      lines_order(result.sort),
+      lines_bold(result),
+      filter_links? &&
+        gettext(
+          "A click on a category filters the lines to it and keeps the level; the path above leads back."
+        )
+    ]
+    |> Enum.filter(&is_binary/1)
+  end
+
+  defp lines_selection(%{category_id: nil}),
+    do:
+      gettext(
+        "At most eight lines, the largest by value at the window's end; none for the cash or the unassigned rest."
+      )
+
+  defp lines_selection(_filtered),
+    do: gettext("At most eight lines, the largest by value at the window's end.")
+
+  defp lines_order(:change),
+    do: gettext("The legend lists the bold line first, then the lines by TTWROR, largest first.")
+
+  defp lines_order(_size),
+    do:
+      gettext(
+        "The legend lists the bold line first, then the lines by value at the window's end."
+      )
+
+  defp lines_bold(%{parent: nil}), do: nil
+
+  defp lines_bold(%{parent: %{kind: :total}}),
+    do: gettext("The bold line is the view's own TTWROR.")
+
+  defp lines_bold(%{parent: parent}),
+    do: gettext("The bold line is “%{name}”, the filter's.", name: band_name(parent))
+
+  # A tick in percent: the sign, the step's places and „%“.
+  defp percent_tick(value, places),
+    do: Format.plain_signed_decimal(Decimal.from_float(value * 1.0), places) <> "%"
+
+  # The lines' geometry: a percent axis with round steps that holds every
+  # point and 0 %; per line its path, broken where it has no point (before
+  # a late start, after a sale), through the sampled days and each run's
+  # first and last day, so a start and the window's last point are always
+  # drawn; and the start of each line that begins after the window's first
+  # day, a dot at 0 %.
+  defp lines_geometry(dates, lines) do
+    count = length(dates)
+    sampled = count |> sample() |> MapSet.new()
+
+    runs =
+      Map.new(lines, fn line ->
+        {line.key, line.returns |> runs() |> Enum.map(&thin(&1, sampled))}
+      end)
+
+    values = for {_key, rs} <- runs, run <- rs, {_i, v} <- run, do: v
+    {lo, hi, step} = percent_axis([0.0 | values])
+
+    plot_top = @padding_top * 1.0
+    plot_bottom = (@height - @padding_bottom) * 1.0
+    plot_left = @padding_left * 1.0
+    plot_right = (@width - @padding_right) * 1.0
+
+    x = fn i ->
+      if count <= 1, do: plot_left, else: plot_left + (plot_right - plot_left) * i / (count - 1)
+    end
+
+    y = fn v -> plot_bottom - (plot_bottom - plot_top) * (v - lo) / (hi - lo) end
+
+    paths =
+      Map.new(runs, fn {key, rs} ->
+        {key,
+         Enum.map_join(rs, " ", fn [{i, v} | rest] ->
+           IO.iodata_to_binary([
+             "M",
+             coord(x.(i)),
+             ",",
+             coord(y.(v)),
+             Enum.map(rest, fn {j, w} -> [" L", coord(x.(j)), ",", coord(y.(w))] end)
+           ])
+         end)}
+      end)
+
+    starts =
+      for line <- lines,
+          index = Enum.find_index(line.returns, &(not is_nil(&1))),
+          index != nil and index > 0,
+          into: %{} do
+        value = line.returns |> Enum.at(index) |> Decimal.mult(100) |> Decimal.to_float()
+        {line.key, %{date: Enum.at(dates, index), x: x.(index), y: y.(value)}}
+      end
+
+    ticks =
+      Stream.iterate(lo, &(&1 + step))
+      |> Enum.take_while(&(&1 <= hi + step / 1000))
+      |> Enum.map(&{&1, y.(&1)})
+
+    %{
+      points: MapSet.size(sampled),
+      plot_top: plot_top,
+      paths: paths,
+      starts: starts,
+      zero_y: y.(0.0),
+      ticks: ticks,
+      places: places(step)
+    }
+  end
+
+  # The runs of consecutive days on which a line has a point, each a list
+  # of `{index, percent}`.
+  defp runs(returns) do
+    returns
+    |> Enum.with_index()
+    |> Enum.chunk_by(fn {value, _i} -> is_nil(value) end)
+    |> Enum.reject(fn [{value, _i} | _rest] -> is_nil(value) end)
+    |> Enum.map(fn run ->
+      Enum.map(run, fn {value, i} -> {i, value |> Decimal.mult(100) |> Decimal.to_float()} end)
+    end)
+  end
+
+  # A run through the sampled days, its first and last day kept.
+  defp thin(run, sampled) do
+    {first, _} = List.first(run)
+    {last, _} = List.last(run)
+    Enum.filter(run, fn {i, _v} -> i == first or i == last or MapSet.member?(sampled, i) end)
+  end
+
+  # The axis: a round step (1, 2, 2.5 or 5 times a power of ten) giving
+  # about five intervals, its ends on whole steps around every value.
+  defp percent_axis(values) do
+    lo = Enum.min(values)
+    hi = Enum.max(values)
+    span = if hi - lo < 1.0e-9, do: 1.0, else: hi - lo
+    raw = span / 5
+    magnitude = :math.pow(10, Float.floor(:math.log10(raw)))
+    step = Enum.find([1, 2, 2.5, 5, 10], &(&1 * magnitude >= raw)) * magnitude
+    bottom = Float.floor(lo / step) * step
+    top = Float.ceil(hi / step) * step
+    top = if top - bottom < step / 2, do: bottom + step, else: top
+    {bottom, top, step}
+  end
+
+  defp places(step) do
+    cond do
+      step >= 1 and Float.round(step * 1.0) == step -> 0
+      Float.round(step * 10.0) == step * 10 -> 1
+      true -> 2
+    end
+  end
+
+  # --- Sprint 28 S4 end ---
 
   # -- names, figures and words ----------------------------------------------------
 
