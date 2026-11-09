@@ -2751,12 +2751,17 @@ Bänder ergeben an jedem Tag die Wertlinie, und ein Kauf erscheint als Stufe
 in seinem Band, denn die Bänder sind Marktwerte. Ein Wertpapier, das die
 Kategorie gewechselt hat, steht für den ganzen Zeitraum in seiner heutigen
 Kategorie: eine Klassifizierung ist so gespeichert, wie sie jetzt ist. Im
-**Privatsphäre-Modus** wird der Stapel als 100-%-Stapel gezeichnet, jedes
-Band als Anteil an den positiven Bändern des Tages, und die Legende behält
-Anteil und Veränderung, aber keinen Wert; ihr Anteil folgt derselben Basis,
-so liest ein Band, das den Stapel bei überzogenem Konto füllt, 100 % (der
-`share` der API ist der Nettoanteil). Ihr Agent liest dieselben Bänder über `…/performance/bands` und
-die MCP-Tools `portfolixir.portfolios.bands` und `portfolixir.views.bands`
+**Privatsphäre-Modus** behält der Stapel seine Form, dasselbe Bild wie ohne
+den Modus (Issue #1433): Die Achse liest in Prozent der Summe der Bänder am
+ersten Tag des Zeitraums (100 %; mit Filter die Summe der gefilterten Bänder),
+wie jede Achse in einer Währung im Modus. Ist diese Summe nicht über null (ein
+Kauf, gebucht vor dem Geld, das ihn bezahlt), liest die Achse in Prozent des
+ersten Tages, an dem sie es ist, und das ⓘ nennt diesen Tag; ist sie an keinem
+Tag über null, trägt die Achse keine Beschriftung. Die Legende behält Anteil
+(den Nettoanteil der API) und Veränderung, aber keinen Wert, und kein Tooltip
+nennt einen Betrag. Ihr Agent liest dieselben Bänder über
+`…/performance/bands` und die MCP-Tools `portfolixir.portfolios.bands` und
+`portfolixir.views.bands`
 ([API und MCP](/de/integration/api-and-mcp.html)).
 
 ### Beitrag je Position
@@ -4894,7 +4899,9 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
 - **Charts:** Eine Achse in einer Währung wechselt auf Prozent vom
   Fensterbeginn. Die Wertreihe unter Vermögen heißt „Wert (%)“, und eine
   Zeile darunter sagt, dass Ein- und Auszahlungen darin zählen, sie also
-  keine Rendite ist (die Rendite zeigt TTWROR). Der Chart eines Wertpapiers
+  keine Rendite ist (die Rendite zeigt TTWROR). Ihr gestapelter Chart behält
+  seine Form, seine Achse in Prozent der Summe der Bänder am ersten Tag des
+  Zeitraums. Der Chart eines Wertpapiers
   bleibt in seiner Ansicht „Prozent“, gedrückt und gesperrt; der Tooltip
   eines Trades behält seine Art und verbirgt Stückzahl und Kurs. Die Balken
   unter Cashflow behalten ihre Höhe und verlieren ihre Beträge; ihre

@@ -195,8 +195,9 @@ eine Kategorie filtert den Stapel auf sie, auf derselben Ebene, ihre
 Unterkategorien und Wertpapiere als Bänder, ein Pfad darüber führt Stufe für
 Stufe zurück, und jede Wahl steht in der Adresse, ein Link öffnet sie also
 wieder. Eine Kategorie trägt
-auf beiden Reitern ihre Allokationsfarbe. Im Privatsphäre-Modus ist der
-Stapel ein 100-%-Stapel und zeigt keinen Betrag. Ihr Agent liest dieselben
+auf beiden Reitern ihre Allokationsfarbe. Im Privatsphäre-Modus behält der
+Stapel seine Form, seine Achse in Prozent der Summe am ersten Tag, und zeigt
+keinen Betrag. Ihr Agent liest dieselben
 Bänder mit ihrer Berechnungsbasis über `…/performance/bands` und die
 MCP-Tools `portfolixir.portfolios.bands` und `portfolixir.views.bands`
 ([Handbuch](/de/product-documentation.html#das-wertdiagramm-nach-kategorien)).
