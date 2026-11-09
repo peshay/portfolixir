@@ -1816,14 +1816,20 @@ const viewContributionZ = viewPerformanceZ.omit({ series: true });
 const bandsProperties = {
   level: { type: "string", enum: ["total", "category", "security"] },
   classification_id: { type: "integer", minimum: 1 },
-  category_id: { type: "integer", minimum: 1 },
+  // --- Sprint 28 S1 begin ---
+  // FR-56: the filter at every level, a category's id or the unclassified
+  // remainder.
+  category_id: { anyOf: [{ type: "integer", minimum: 1 }, { type: "string", const: "unclassified" }] },
+  // --- Sprint 28 S1 end ---
   sort: { type: "string", enum: ["size", "change"] }
 };
 
 const bandsZ = {
   level: z.enum(["total", "category", "security"]).optional(),
   classification_id: z.number().int().positive().optional(),
-  category_id: z.number().int().positive().optional(),
+  // --- Sprint 28 S1 begin ---
+  category_id: z.union([z.number().int().positive(), z.literal("unclassified")]).optional(),
+  // --- Sprint 28 S1 end ---
   sort: z.enum(["size", "change"]).optional()
 };
 
@@ -4390,7 +4396,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.bands",
     "Portfolio value bands",
-    "The value series split into bands that sum to it exactly on every date of dates. level: total (one band, the series), category (default: one band per root category of classification_id, else of the tree the scope's targets use, else the first custom tree; plus cash and unclassified) or security (one per security plus cash; with category_id, that category's securities, summing to its band). A band: key, kind, id, name, color (the category's own or null), values (aligned with dates), start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without a start value. Over 8 bands the smallest merge into other (members listed), ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to and view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
+    "The value series in bands that sum to it exactly on every date. level: total (the series), category (default: root categories of classification_id, else the targets' tree, else the first custom tree; plus cash and unclassified) or security (plus cash). category_id filters every level to a category's subtree, no cash, summing to its band; at category its direct sub-categories plus kind direct (own securities); unclassified: those filed nowhere. A band: color, values, start_value, end_value, net_flows, share (last day), change = (end_value - start_value - net_flows) / start_value, null without start_value. Over 8 bands the smallest merge into other, ties by name; sort size (default) or change. An unpriced day counts zero; a security sits in its category of today. period, year, from/to, view as in portfolixir.portfolios.performance. Decimal strings; computation_basis states each rule." +
       portfolioScopeTwin("portfolixir.views.bands", "contributions"),
     portfolioBandsSchema,
     portfolioBandsZ
@@ -4539,7 +4545,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.bands",
     "View value bands (cross-portfolio)",
-    "Value bands of a bucket view (id is the view id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to the series of portfolixir.views.performance; the default tree is this view's target plans'. Other parameters as there; base_currency (default EUR): the screen uses its base." +
+    "Value bands of a bucket view (id): the portfolixir.portfolios.bands shape with portfolio_id null, summing to portfolixir.views.performance's series; default tree: its target plans'. Rest as there; base_currency (default EUR)." +
       viewScopeTwin("portfolixir.portfolios.bands", "contributions"),
     viewBandsSchema,
     viewBandsZ

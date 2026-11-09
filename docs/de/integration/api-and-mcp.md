@@ -3278,15 +3278,30 @@ Beispiel-Payloads für Konten:
   die Portfolio-Form antwortet in der Basiswährung des Portfolios. `level` ist `total` (ein Band, die Reihe),
   `category` (Standard: ein Band je Wurzelkategorie der Klassifikation, dazu
   `cash` und `unclassified`) oder `security` (ein Band je Wertpapier plus
-  `cash`, oder mit `category_id=` die Wertpapiere des Teilbaums dieser
-  Kategorie, die sich zu ihrem Band summieren). `classification_id=` wählt
+  `cash`). Ein Aufruf ohne `level` antwortet mit `category`; die
+  Standardebene der Vermögen-Seite ist deren eigene Wahl und ändert die der
+  API nicht. **`category_id=` filtert jede Ebene** (FR-56) auf den Teilbaum
+  dieser Kategorie, ohne `cash` und `unclassified`, sodass sich die Bänder
+  zum Band der Kategorie eine Ebene höher summieren: auf `total` ein Band,
+  die Linie der Kategorie (Schlüssel `category:<id>`); auf `category` ein
+  Band je direkter Unterkategorie über ihren Teilbaum und ein Band der Art
+  `direct` (Schlüssel `direct:<id>`, ID und Name der Kategorie selbst,
+  `color` null) für die Wertpapiere, die direkt in der Kategorie stehen,
+  fehlend, wenn dort keins steht, oder für eine Kategorie ohne
+  Unterkategorien ein Band, ihr eigenes; auf `security` ihre Wertpapiere.
+  `category_id=unclassified` filtert auf die Wertpapiere, die der Baum
+  nirgends einordnet: ein Band `unclassified` auf `total` und `category`,
+  ein Band je Wertpapier auf `security`. Das Band `direct` trägt den
+  schlichten Namen; die Oberfläche beschriftet es „‹Name› (direkt)“ in
+  ihrer Sprache. Die Antwort gibt `category_id` (die ID, `"unclassified"`
+  oder `null`) und `computation_basis.filter` zurück. `classification_id=` wählt
   den Baum; ohne ihn stapelt die Kategorie-Ebene nach dem Baum der
   Zielgewichte des Bereichs, sonst nach der ersten eigenen Klassifikation,
   sonst nach den eingebauten Anlageklassen, und `classification.chosen_by`
   sagt, welcher (`requested`, `targets`, `default`, `category`). `sort` ist
   `size` (Wert des letzten Tages, größter zuerst, Standard) oder `change`.
-  Die Antwort trägt `level`, `sort`, `classification`, `category`, `dates`
-  und `bands`; jedes Band hat `key`, `kind`, `id`, `name`, `color` (die
+  Die Antwort trägt `level`, `sort`, `classification`, `category_id`,
+  `category`, `dates` und `bands`; jedes Band hat `key`, `kind`, `id`, `name`, `color` (die
   eigene Farbe der Kategorie, sonst `null`), `tree_index`, `values`
   (Decimal-Strings passend zu `dates`), `start_value`, `end_value`,
   `net_flows`, `share` (am letzten Tag, ein Nettoanteil: über 1 oder
@@ -3299,9 +3314,9 @@ Beispiel-Payloads für Konten:
   welche Sortierung auch gilt. Ein Tag ohne Kurs zählt null, wie in der Reihe, und ein
   Wertpapier steht das ganze Fenster in seiner heutigen Kategorie;
   `computation_basis` nennt jede Regel. Ein unbekanntes `level` oder `sort`,
-  eine fehlerhafte oder unbekannte `classification_id` oder `category_id`,
-  eine Kategorie eines anderen Baums oder `category_id` ohne
-  `level=security` liefert `422` mit dem Parameter, ebenso eine nicht
+  eine fehlerhafte oder unbekannte `classification_id` oder `category_id`
+  (alles außer einer ID oder genau `unclassified`) oder eine Kategorie eines
+  anderen Baums liefert `422` mit dem Parameter, ebenso eine nicht
   unterstützte `base_currency`. Nichts wird gespeichert.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei

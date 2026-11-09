@@ -4,13 +4,16 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
   `classification_id` and `category_id`, read strictly. A value outside its
   set, or an id that is malformed, is refused naming the parameter; the
   values map onto atoms by an explicit whitelist, never `String.to_atom/1`
-  (AGENTS.md).
+  (AGENTS.md). `category_id` is the filter at every level (FR-56): a
+  category's id, or exactly `unclassified` for the securities the tree files
+  nowhere.
   """
 
   alias Portfolixir.Catalog.Currencies
   alias PortfolixirWeb.Api.V1.IdParam
 
   @levels %{"total" => :total, "category" => :category, "security" => :security}
+  @filter_error "is invalid: must be a category id or unclassified"
   @sorts %{"size" => :size, "change" => :change}
 
   @doc """
@@ -22,7 +25,7 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
     with {:ok, level} <- choice(params, "level", @levels, "total, category, security"),
          {:ok, sort} <- choice(params, "sort", @sorts, "size, change"),
          {:ok, classification_id} <- id(params, "classification_id"),
-         {:ok, category_id} <- id(params, "category_id") do
+         {:ok, category_id} <- filter(params) do
       {:ok,
        []
        |> put_present(:level, level)
@@ -67,8 +70,7 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
   def errors(:category_outside_classification),
     do: %{category_id: ["is not a category of classification_id"]}
 
-  def errors(:category_needs_security_level),
-    do: %{category_id: ["applies only to level security"]}
+  def errors(:invalid_category), do: %{category_id: [@filter_error]}
 
   def errors(_other), do: nil
 
@@ -81,6 +83,22 @@ defmodule PortfolixirWeb.Api.V1.BandsParam do
         case Map.fetch(allowed, raw) do
           {:ok, value} -> {:ok, value}
           :error -> {:error, %{key => ["is invalid: must be one of #{names}"]}}
+        end
+    end
+  end
+
+  defp filter(params) do
+    case Map.get(params, "category_id") do
+      nil ->
+        {:ok, nil}
+
+      "unclassified" ->
+        {:ok, :unclassified}
+
+      raw ->
+        case IdParam.parse(raw) do
+          {:ok, id} -> {:ok, id}
+          :error -> {:error, %{"category_id" => [@filter_error]}}
         end
     end
   end

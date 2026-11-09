@@ -3001,15 +3001,30 @@ Example account payloads:
   asks in its page's base currency, so the two agree when asked alike; the
   portfolio form answers in the portfolio's base currency. `level` is `total` (one band, the series), `category` (the default: one
   band per root category of the classification, plus `cash` and
-  `unclassified`) or `security` (one band per security plus `cash`, or with
-  `category_id=` the securities of that category's subtree, which add up to
-  its band). `classification_id=` picks the tree; without it the category
+  `unclassified`) or `security` (one band per security plus `cash`). A call
+  without `level` answers `category`; the Wealth screen's default level is
+  its own choice and does not change the API's. **`category_id=` filters
+  every level** (FR-56) to that category's subtree, without `cash` and
+  `unclassified`, so the bands add up to the category's band one level up:
+  at `total` one band, the category's line (key `category:<id>`); at
+  `category` one band per direct sub-category over its subtree plus one
+  band of kind `direct` (key `direct:<id>`, the category's own id and name,
+  `color` null) for the securities filed in the category itself, absent
+  when it holds none, or, for a category without sub-categories, one band,
+  its own; at `security` its securities. `category_id=unclassified` filters
+  to the securities the tree files nowhere: one band `unclassified` at
+  `total` and `category`, one band per security at `security`. The
+  `direct` band carries the plain name; the screen labels it „‹name›
+  (direkt)“ in its own language. The answer echoes `category_id` (the id,
+  `"unclassified"` or `null`) and `computation_basis.filter`.
+  `classification_id=` picks the tree; without it the category
   level stacks by the tree the scope's allocation targets use, else the
   first custom classification, else the built-in asset classes, and
   `classification.chosen_by` says which (`requested`, `targets`, `default`,
   `category`). `sort` is `size` (the last day's value, largest first, the
   default) or `change`. The response carries `level`, `sort`,
-  `classification`, `category`, `dates` and `bands`; each band has `key`,
+  `classification`, `category_id`, `category`, `dates` and `bands`; each
+  band has `key`,
   `kind`, `id`, `name`, `color` (the category's own colour, else `null`),
   `tree_index`, `values` (Decimal strings aligned with `dates`),
   `start_value`, `end_value`, `net_flows`, `share` (of the last day, a net
@@ -3022,10 +3037,10 @@ Example account payloads:
   whatever the sort. An unpriced day counts zero, as in the series, and a security
   is drawn in its category of today for the whole window;
   `computation_basis` states each rule. An unknown `level` or `sort`, a
-  malformed or unknown `classification_id` or `category_id`, a category of
-  another tree, or `category_id` without `level=security` answers `422`
-  naming the parameter, and so does an unsupported `base_currency`. Nothing
-  is persisted.
+  malformed or unknown `classification_id` or `category_id` (anything but an
+  id or exactly `unclassified`), or a category of another tree answers
+  `422` naming the parameter, and so does an unsupported `base_currency`.
+  Nothing is persisted.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate

@@ -2429,6 +2429,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       level: Atom.to_string(result.level),
       sort: Atom.to_string(result.sort),
       classification: bands_classification(result.classification),
+      category_id: bands_filter(result.category_id),
       category: result.category,
       dates: Enum.map(result.dates, &date/1),
       bands: Enum.map(result.bands, &band/1),
@@ -2439,6 +2440,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         |> computation_basis()
         |> Map.merge(
           Map.take(result.computation_basis, [
+            :filter,
             :level,
             :classification,
             :merge_rule,
@@ -2474,6 +2476,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp bands_classification(classification),
     do: %{classification | chosen_by: Atom.to_string(classification.chosen_by)}
+
+  # The filter echoed as the parameter names it (FR-56).
+  defp bands_filter(:unclassified), do: "unclassified"
+  defp bands_filter(id), do: id
 
   defp band(band) do
     %{

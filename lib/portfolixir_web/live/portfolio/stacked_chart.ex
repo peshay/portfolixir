@@ -330,6 +330,9 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   def band_name(%{kind: :unclassified}), do: gettext("Unassigned")
   def band_name(%{kind: :other}), do: pgettext("stack band", "Other")
   def band_name(%{kind: :total}), do: gettext("Total")
+  # FR-56: the securities filed in a filtered category itself; the API
+  # carries the category's plain name.
+  def band_name(%{kind: :direct, name: name}), do: gettext("%{name} (direct)", name: name)
   def band_name(%{name: name}), do: name
 
   defp band_class(%{kind: kind}), do: "stack-band--#{kind_class(kind)}"
@@ -340,6 +343,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   defp kind_class(:unclassified), do: "unclassified"
   defp kind_class(:other), do: "other"
   defp kind_class(:total), do: "total"
+  defp kind_class(:direct), do: "direct"
 
   # The tooltip: the name and the share, and the value unless the privacy
   # mode is on (the figure's text would be the stand-in, never the bar).

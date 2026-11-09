@@ -3678,6 +3678,51 @@ describe("Portfolixir MCP tools", () => {
     assert.match(viewText, /Decimal strings/);
   });
 
+  // --- Sprint 28 S1 begin ---
+  // User story (FR-56, Sprint 28 S1):
+  // As the operator's agent reading a category the way the chart filters it,
+  // I want category_id to take a category's id or "unclassified" at every
+  // level, through both bands tools,
+  // so that I read the same parts of a category the operator sees.
+  //
+  // Acceptance criteria:
+  // - category_id "unclassified" passes through as the query parameter,
+  //   with level category or total; an id with level category too.
+  // - Any other string never leaves the companion.
+  // - The descriptions name the filter, the direct band and that a call
+  //   without level answers category.
+  it("passes category_id as a filter at every level, unclassified included", async () => {
+    const { client, requests } = createRecordingClient({ data: { bands: [] } });
+
+    await callTool(client, "portfolixir.portfolios.bands", {
+      portfolio_id: 3,
+      level: "category",
+      category_id: "unclassified"
+    });
+
+    await callTool(client, "portfolixir.views.bands", { id: 2, level: "category", category_id: 7 });
+    await callTool(client, "portfolixir.views.bands", { level: "total", category_id: "unclassified" });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/portfolios/3/performance/bands?level=category&category_id=unclassified",
+        "/api/v1/views/2/performance/bands?level=category&category_id=7",
+        "/api/v1/performance/bands?level=total&category_id=unclassified"
+      ]
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.views.bands", { category_id: "none" }));
+    await assert.rejects(callTool(client, "portfolixir.views.bands", { category_id: 0 }));
+    assert.equal(requests.length, 3);
+
+    const text = listTools().find((tool) => tool.name === "portfolixir.portfolios.bands")?.description ?? "";
+    for (const fragment of [/category_id filters every level/, /kind direct/, /unclassified/, /category \(default/]) {
+      assert.match(text, fragment);
+    }
+  });
+  // --- Sprint 28 S1 end ---
+
   // User story (I23, FR-53; coverage rule):
   // As the operator's agent asking what a scope's wealth is made of,
   // I want one read-only tool per scope, twins of each other, that answers

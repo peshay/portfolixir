@@ -526,6 +526,20 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     }
   },
   // --- Sprint 28 V1 end ---
+  // --- Sprint 28 S1 begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, S1 (FR-56): the two bands tools take category_id as a filter at every " +
+      "level, a category's id or unclassified, paid for by tightening the same tools' own " +
+      "wording, which now measure 2,040 + 1,310 = 3,350 bytes in each profile, 4 fewer " +
+      "than after Sprint 27's closing act, so each ceiling is lowered to the figure " +
+      "measured with them: read 117,785, book 192,665 and full 227,687",
+    read: 117_785,
+    book: 192_665,
+    full: 227_687
+  },
+  // --- Sprint 28 S1 end ---
 ];
 
 describe("the schema budget", () => {

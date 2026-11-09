@@ -2764,7 +2764,7 @@ msgstr "vom Depot geerbt"
 msgid "no buckets (excluded)"
 msgstr "keine Buckets (ausgeschlossen)"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:412
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:416
 #: lib/portfolixir_web/live/securities_live.ex:6903
 #: lib/portfolixir_web/live/securities_live.ex:6911
 #, elixir-autogen, elixir-format
@@ -15725,17 +15725,17 @@ msgstr "Veränderung ohne Ein- und Auszahlungen."
 msgid "Create one on the Classifications page"
 msgstr "Im Bereich Klassifizierungen anlegen"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:379
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:383
 #, elixir-autogen, elixir-format
 msgid "Each category's share of the day's value, classification “%{tree}”; cash and the unclassified rest are bands of their own."
 msgstr "Anteil jeder Kategorie am Wert des Tages, Klassifizierung „%{tree}“; Cash und der nicht zugeordnete Rest sind eigene Bänder."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:404
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:408
 #, elixir-autogen, elixir-format
 msgid "Each security's share of the day's value, and the cash's."
 msgstr "Anteil jedes Wertpapiers und des Cash am Wert des Tages."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:393
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:397
 #, elixir-autogen, elixir-format
 msgid "Each security's share of the value of “%{category}” per day."
 msgstr "Anteil jedes Wertpapiers am Wert von „%{category}“ je Tag."
@@ -15745,17 +15745,17 @@ msgstr "Anteil jedes Wertpapiers am Wert von „%{category}“ je Tag."
 msgid "Level"
 msgstr "Ebene"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:384
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:388
 #, elixir-autogen, elixir-format
 msgid "Market value per category of “%{tree}” at each day's close, in %{currency}; cash and the unclassified rest are bands of their own."
 msgstr "Marktwert je Kategorie von „%{tree}“ am Tagesende in %{currency}; Cash und der nicht zugeordnete Rest sind eigene Bänder."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:406
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:410
 #, elixir-autogen, elixir-format
 msgid "Market value per security at each day's close, in %{currency}, and the cash."
 msgstr "Marktwert je Wertpapier am Tagesende in %{currency}, dazu das Cash."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:395
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:399
 #, elixir-autogen, elixir-format
 msgid "Market value per security of “%{category}” at each day's close, in %{currency}; the share is of the category."
 msgstr "Marktwert je Wertpapier von „%{category}“ am Tagesende in %{currency}; der Anteil ist der an der Kategorie."
@@ -15790,7 +15790,7 @@ msgstr "Sortieren"
 msgid "Stack"
 msgstr "Stapel"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:416
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:420
 #, elixir-autogen, elixir-format
 msgid "The band with the largest change at the bottom; the legend reads like the stack, top band first."
 msgstr "Das Band mit der größten Veränderung unten; die Legende liest sich wie der Stapel, oberstes Band zuerst."
@@ -15800,17 +15800,17 @@ msgstr "Das Band mit der größten Veränderung unten; die Legende liest sich wi
 msgid "The bands on %{date}, the top band first"
 msgstr "Die Bänder am %{date}, oberstes Band zuerst"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:422
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:426
 #, elixir-autogen, elixir-format
 msgid "The largest band at the bottom; the legend reads like the stack, top band first."
 msgstr "Größtes Band unten; die Legende liest sich wie der Stapel, oberstes Band zuerst."
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:371
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:375
 #, elixir-autogen, elixir-format
 msgid "Value by category over time"
 msgstr "Wert je Kategorie im Zeitverlauf"
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:372
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:376
 #, elixir-autogen, elixir-format
 msgid "Value by security over time"
 msgstr "Wert je Wertpapier im Zeitverlauf"
@@ -15887,3 +15887,8 @@ msgstr "Version"
 #, elixir-autogen, elixir-format
 msgid "unknown"
 msgstr "unbekannt"
+
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:335
+#, elixir-autogen, elixir-format
+msgid "%{name} (direct)"
+msgstr "%{name} (direkt)"
