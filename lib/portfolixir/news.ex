@@ -348,7 +348,7 @@ defmodule Portfolixir.News do
           assignment: assignment,
           security_id: security_id,
           candidates: candidates,
-          scope_at: scope_at(item, {assignment, security_id}, now),
+          scope_at: scope_at(item, {assignment, security_id, candidates}, now),
           updated_at: now()
         ]
       )
@@ -357,9 +357,16 @@ defmodule Portfolixir.News do
 
   # C3: an item that enters another scope (assigned to a security, or moved
   # between the unassigned and ambiguous remainders) enters it now, never
-  # before its first sight; one whose scope stays keeps its time.
-  defp scope_at(%Item{assignment: assignment, security_id: id} = item, {assignment, id}, _now),
-    do: item.scope_at
+  # before its first sight; one whose scope stays keeps its time. An
+  # ambiguous item whose candidates change enters the remainder of each new
+  # one, which a view's digest counts (closing act, AT8), so it enters now
+  # too.
+  defp scope_at(
+         %Item{assignment: assignment, security_id: id, candidates: candidates} = item,
+         {assignment, id, candidates},
+         _now
+       ),
+       do: item.scope_at
 
   defp scope_at(%Item{first_seen_at: first_seen_at}, _scope, now),
     do: Enum.max([first_seen_at, now], DateTime)
@@ -807,7 +814,9 @@ defmodule Portfolixir.News do
 
   **What it moves.** The item leaves the story it is in and its scope; it
   enters the target's scope at `now` (`scope_at`, C3, never before its
-  first sight), assigned with no candidates. **`nil` is the matcher's
+  first sight), read once the write holds its locks (closing act, AT8), so
+  a write that waited stamps the time it wrote, assigned with no
+  candidates. **`nil` is the matcher's
   answer now** (§2: the item's title against the universe and its aliases
   of the moment): one security named assigns it there, none leaves it
   `unassigned`, several `ambiguous` with them, out of any story. *Why not
@@ -869,12 +878,13 @@ defmodule Portfolixir.News do
   end
 
   defp assign_attempt(actor, item_id, security_id, opts, attempts) do
-    now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
-
     Multi.new()
     |> Multi.run(:held, fn _repo, _changes -> hold_for_assign(item_id, security_id) end)
     |> Multi.run(:prior, fn _repo, %{held: {read, held}} -> lock_for_assign(read, held) end)
     |> Multi.run(:item, fn _repo, %{prior: prior, held: {_read, held}} ->
+      # AT8: the clock is read once every lock is held, so an item that
+      # waited enters its scope after what it waited for, never before.
+      now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
       assign_locked(prior, security_id, held, now)
     end)
     |> Journal.record(actor,
@@ -1033,7 +1043,7 @@ defmodule Portfolixir.News do
           assignment: assignment,
           security_id: target_id,
           candidates: candidates,
-          scope_at: scope_at(prior, {assignment, target_id}, now),
+          scope_at: scope_at(prior, {assignment, target_id, candidates}, now),
           updated_at: now()
         ]
       )
