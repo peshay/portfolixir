@@ -2,7 +2,9 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
   # ADR-0056 §9, B1, B2, B7 (Sprint 27, N8): the news layer's upkeep writes
   # over the API — a feed registered, changed and removed, a source rated by
   # hand, and a security's news identity and watch flag. Every name resolves
-  # through the test resolver; no test opens a socket.
+  # through the test resolver; no test opens a socket. The domain it rates
+  # is this module's own (`*.writes-test.example.com`), so no other async
+  # module's uncommitted rating blocks it (Sprint 28, #1424).
   use PortfolixirWeb.ConnCase
 
   import Ecto.Query
@@ -428,7 +430,7 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
     test "rates a domain by hand, journaled under the token", %{conn: conn} do
       assert %{
                "data" => %{
-                 "domain" => "wire.example.com",
+                 "domain" => "wire.writes-test.example.com",
                  "tier" => "blocked",
                  "set_by" => "hand"
                }
@@ -436,7 +438,9 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
                conn
                |> put(
                  "/api/v1/news/sources",
-                 Jason.encode!(%{source: %{domain: "WWW.Wire.Example.com", tier: "blocked"}})
+                 Jason.encode!(%{
+                   source: %{domain: "WWW.Wire.Writes-Test.Example.com", tier: "blocked"}
+                 })
                )
                |> json_response(200)
 
@@ -446,11 +450,14 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
       assert entry.after["tier"] == "blocked"
 
       assert {:kept, _row} =
-               Sources.put_source(Portfolixir.Actor.owner_ui(), "wire.example.com", :primary,
+               Sources.put_source(
+                 Portfolixir.Actor.owner_ui(),
+                 "wire.writes-test.example.com",
+                 :primary,
                  set_by: :seed
                )
 
-      assert Repo.get_by!(Source, domain: "wire.example.com").tier == :blocked
+      assert Repo.get_by!(Source, domain: "wire.writes-test.example.com").tier == :blocked
     end
 
     test "an unknown field, a bad domain or tier answers 422 naming it", %{conn: conn} do
@@ -802,8 +809,9 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
       first_seen_at: DateTime.utc_now(),
       published_at_claimed: DateTime.utc_now(),
       title: "Northwind opens a new harbour terminal",
-      canonical_url: "https://wire.example.com/a-#{System.unique_integer([:positive])}",
-      domain: "wire.example.com",
+      canonical_url:
+        "https://wire.writes-test.example.com/a-#{System.unique_integer([:positive])}",
+      domain: "wire.writes-test.example.com",
       tier: "primary",
       language: feed.language,
       content_hash: String.duplicate("a", 64),

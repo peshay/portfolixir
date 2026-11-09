@@ -1,6 +1,9 @@
 defmodule Portfolixir.News.SourcesTest do
   # ADR-0056 §3 and B5 (Sprint 27, N5): the tier table and the tier an item
-  # is stored with. Synthetic domains only.
+  # is stored with. Synthetic domains only, every rated one this module's
+  # own (`*.sources-test.example.*`): a domain two async modules rate holds
+  # the unique index under one's uncommitted row and blocks the other
+  # (Sprint 28, #1424's likely flake).
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Actor
@@ -35,48 +38,54 @@ defmodule Portfolixir.News.SourcesTest do
       assert Sources.tier_for("unrated.example.com", :issuer) == :primary
       assert Sources.tier_for("unrated.example.com", :regulatory) == :primary
 
-      {:ok, _} = Sources.put_source(@agent, "wire.example.com", :primary)
-      {:ok, _} = Sources.put_source(@agent, "daily.example.com", :secondary)
-      {:ok, _} = Sources.put_source(@agent, "chatter.example.com", :awareness)
+      {:ok, _} = Sources.put_source(@agent, "wire.sources-test.example.com", :primary)
+      {:ok, _} = Sources.put_source(@agent, "daily.sources-test.example.com", :secondary)
+      {:ok, _} = Sources.put_source(@agent, "chatter.sources-test.example.com", :awareness)
 
       # B5: an aggregator item naming a primary domain reads secondary.
-      assert Sources.tier_for("wire.example.com", :aggregator) == :secondary
-      assert Sources.tier_for("wire.example.com", :thematic) == :secondary
-      assert Sources.tier_for("daily.example.com", :aggregator) == :secondary
-      assert Sources.tier_for("chatter.example.com", :aggregator) == :awareness
-      assert Sources.tier_for("chatter.example.com", :issuer) == :primary
-      assert Sources.tier_for("daily.example.com", :regulatory) == :primary
+      assert Sources.tier_for("wire.sources-test.example.com", :aggregator) == :secondary
+      assert Sources.tier_for("wire.sources-test.example.com", :thematic) == :secondary
+      assert Sources.tier_for("daily.sources-test.example.com", :aggregator) == :secondary
+      assert Sources.tier_for("chatter.sources-test.example.com", :aggregator) == :awareness
+      assert Sources.tier_for("chatter.sources-test.example.com", :issuer) == :primary
+      assert Sources.tier_for("daily.sources-test.example.com", :regulatory) == :primary
     end
 
     test "a blocked domain is blocked for every class, its subdomains with it" do
-      {:ok, _} = Sources.put_source(@agent, "spam.example.net", :blocked)
+      {:ok, _} = Sources.put_source(@agent, "spam.sources-test.example.net", :blocked)
 
       for class <- [:issuer, :regulatory, :aggregator, :thematic] do
-        assert Sources.tier_for("spam.example.net", class) == :blocked, inspect(class)
-        assert Sources.tier_for("deep.cdn.spam.example.net", class) == :blocked
+        assert Sources.tier_for("spam.sources-test.example.net", class) == :blocked,
+               inspect(class)
+
+        assert Sources.tier_for("deep.cdn.spam.sources-test.example.net", class) == :blocked
       end
 
-      assert Sources.blocked?("spam.example.net")
-      assert Sources.blocked?("WWW.Spam.Example.Net.")
-      assert Sources.blocked?("x.spam.example.net")
-      refute Sources.blocked?("notspam.example.net")
+      assert Sources.blocked?("spam.sources-test.example.net")
+      assert Sources.blocked?("WWW.Spam.Sources-Test.Example.Net.")
+      assert Sources.blocked?("x.spam.sources-test.example.net")
+      refute Sources.blocked?("notspam.sources-test.example.net")
       refute Sources.blocked?("example.net")
       refute Sources.blocked?("unrated.example.org")
     end
 
     test "a subdomain's own row wins over its parent's; www and case do not matter" do
-      {:ok, _} = Sources.put_source(@agent, "daily.example.com", :secondary)
-      {:ok, _} = Sources.put_source(@agent, "blog.daily.example.com", :awareness)
+      {:ok, _} = Sources.put_source(@agent, "daily.sources-test.example.com", :secondary)
+      {:ok, _} = Sources.put_source(@agent, "blog.daily.sources-test.example.com", :awareness)
 
-      assert Sources.tier_for("www.daily.example.com", :aggregator) == :secondary
-      assert Sources.tier_for("Markets.Daily.Example.COM", :aggregator) == :secondary
-      assert Sources.tier_for("blog.daily.example.com", :aggregator) == :awareness
-      assert Sources.tier_for("a.blog.daily.example.com", :aggregator) == :awareness
+      assert Sources.tier_for("www.daily.sources-test.example.com", :aggregator) == :secondary
+      assert Sources.tier_for("Markets.Daily.Sources-Test.Example.COM", :aggregator) == :secondary
+      assert Sources.tier_for("blog.daily.sources-test.example.com", :aggregator) == :awareness
+      assert Sources.tier_for("a.blog.daily.sources-test.example.com", :aggregator) == :awareness
 
-      assert Sources.lookup(["markets.daily.example.com", "blog.daily.example.com", "x.example"]) ==
+      assert Sources.lookup([
+               "markets.daily.sources-test.example.com",
+               "blog.daily.sources-test.example.com",
+               "x.example"
+             ]) ==
                %{
-                 "markets.daily.example.com" => :secondary,
-                 "blog.daily.example.com" => :awareness
+                 "markets.daily.sources-test.example.com" => :secondary,
+                 "blog.daily.sources-test.example.com" => :awareness
                }
     end
 
@@ -109,23 +118,34 @@ defmodule Portfolixir.News.SourcesTest do
     #   with the before and after images; an unchanged write records none.
     # - A tier outside the four or a malformed domain is a changeset error.
     test "a hand correction is never overwritten by a later seed" do
-      {:ok, seeded} = Sources.put_source(@seeder, "Wire.Example.com", :secondary, set_by: :seed)
-      assert %Source{domain: "wire.example.com", tier: :secondary, set_by: :seed} = seeded
+      {:ok, seeded} =
+        Sources.put_source(@seeder, "Wire.Sources-Test.Example.com", :secondary, set_by: :seed)
 
-      {:ok, reseeded} = Sources.put_source(@seeder, "wire.example.com", :awareness, set_by: :seed)
+      assert %Source{domain: "wire.sources-test.example.com", tier: :secondary, set_by: :seed} =
+               seeded
+
+      {:ok, reseeded} =
+        Sources.put_source(@seeder, "wire.sources-test.example.com", :awareness, set_by: :seed)
+
       assert %Source{tier: :awareness, set_by: :seed, id: id} = reseeded
       assert id == seeded.id
 
-      {:ok, corrected} = Sources.put_source(@agent, "www.wire.example.com.", :primary)
+      {:ok, corrected} =
+        Sources.put_source(@agent, "www.wire.sources-test.example.com.", :primary)
+
       assert %Source{id: ^id, tier: :primary, set_by: :hand} = corrected
 
       assert {:kept, kept} =
-               Sources.put_source(@seeder, "wire.example.com", :blocked, set_by: :seed)
+               Sources.put_source(@seeder, "wire.sources-test.example.com", :blocked,
+                 set_by: :seed
+               )
 
       assert %Source{id: ^id, tier: :primary, set_by: :hand} = kept
       assert Repo.get!(Source, id).tier == :primary
 
-      {:ok, recorrected} = Sources.put_source(@agent, "wire.example.com", :blocked, set_by: :hand)
+      {:ok, recorrected} =
+        Sources.put_source(@agent, "wire.sources-test.example.com", :blocked, set_by: :hand)
+
       assert %Source{tier: :blocked, set_by: :hand} = recorrected
 
       entries = Journal.list_entries(resource_type: "news_source", order: :asc)
@@ -148,13 +168,18 @@ defmodule Portfolixir.News.SourcesTest do
     end
 
     test "a write that changes nothing records nothing" do
-      {:ok, source} = Sources.put_source(@agent, "daily.example.com", :secondary)
-      assert {:ok, ^source} = Sources.put_source(@agent, "daily.example.com", :secondary)
+      {:ok, source} = Sources.put_source(@agent, "daily.sources-test.example.com", :secondary)
+
+      assert {:ok, ^source} =
+               Sources.put_source(@agent, "daily.sources-test.example.com", :secondary)
+
       assert length(Journal.list_entries(resource_type: "news_source")) == 1
     end
 
     test "a bad tier or domain is a changeset error, and nothing is written" do
-      assert {:error, changeset} = Sources.put_source(@agent, "daily.example.com", :gold)
+      assert {:error, changeset} =
+               Sources.put_source(@agent, "daily.sources-test.example.com", :gold)
+
       assert %{tier: ["is invalid"]} = errors_on(changeset)
 
       assert {:error, changeset} = Sources.put_source(@agent, "https://x.example/a", :secondary)

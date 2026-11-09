@@ -1,7 +1,9 @@
 defmodule Portfolixir.News.StoriesTest do
   # ADR-0056 §4, §14 item 3, B3, B4 and B5 (Sprint 27, N5): stories as
   # connected components, their survivor and representative never by id
-  # or by order. Synthetic data only.
+  # or by order. Synthetic data only; the rated domains are this module's
+  # own (`*.stories-test.example.com`), so no other async module's
+  # uncommitted rating blocks or is blocked by them (Sprint 28, #1424).
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Actor
@@ -33,8 +35,8 @@ defmodule Portfolixir.News.StoriesTest do
      "Northwind Harbour Logistics: third quarter 2026 results", 24 * 28, 3, "en"},
     # An aggregator naming a primary domain, with the earliest claim of all:
     # secondary (B5), never the representative over a true primary.
-    {:q3_wire, :aggregator, "wire.example.com", @q3, -1, 40 / 60, "en"},
-    {:q3_daily, :aggregator, "daily.example.com",
+    {:q3_wire, :aggregator, "wire.stories-test.example.com", @q3, -1, 40 / 60, "en"},
+    {:q3_daily, :aggregator, "daily.stories-test.example.com",
      "NORTHWIND HARBOUR LOGISTICS REPORTS THIRD-QUARTER 2026 RESULTS!", 10 / 60, 50 / 60, "en"},
     # Eight shared words of ten: a Jaccard similarity of exactly 0.8.
     {:q3_chatter, :aggregator, "chatter.example.org",
@@ -45,27 +47,27 @@ defmodule Portfolixir.News.StoriesTest do
      "North\u200Bwind Harbour Logistics reports third quarter 2026 results", 15 / 60, 55 / 60,
      "en"},
     # A ~ B, B ~ C, A not ~ C: one story whatever the order.
-    {:chain_a, :aggregator, "daily.example.com",
+    {:chain_a, :aggregator, "daily.stories-test.example.com",
      "Northwind Harbour opens new container terminal at Baltic deepwater port", 30, 30, "en"},
     {:chain_b, :aggregator, "chatter.example.org",
      "Northwind Harbour unveils new container terminal at Baltic deepwater port", 31, 31, "en"},
-    {:chain_c, :aggregator, "wire.example.com",
+    {:chain_c, :aggregator, "wire.stories-test.example.com",
      "Northwind Harbour unveils second container terminal at Baltic deepwater port", 32, 32,
      "en"},
     # Linked through time: x ~ y and y ~ z are 60 hours apart, x and z 120.
     {:cfo_x, :issuer, "newsroom.northwind.example", @cfo, 1, 1, "en"},
-    {:cfo_y, :aggregator, "daily.example.com", @cfo, 61, 61, "en"},
+    {:cfo_y, :aggregator, "daily.stories-test.example.com", @cfo, 61, 61, "en"},
     {:cfo_z, :aggregator, "chatter.example.org", @cfo, 121, 121, "en"},
     # The same title outside the 72 hours: a story of its own.
-    {:q3_late, :aggregator, "daily.example.com", @q3, 100, 100, "en"},
+    {:q3_late, :aggregator, "daily.stories-test.example.com", @q3, 100, 100, "en"},
     {:strike, :aggregator, "chatter.example.org", "Harbour cranes idle during regional strike",
      50, 50, "en"},
     # Titles without a word match nothing, not even each other.
-    {:stars_1, :aggregator, "daily.example.com", "***", 70, 70, "en"},
+    {:stars_1, :aggregator, "daily.stories-test.example.com", "***", 70, 70, "en"},
     {:stars_2, :aggregator, "chatter.example.org", "***", 70, 70 + 5 / 60, "en"},
     # The same release in German: its own story, apart from the English one.
     {:q3_de_issuer, :issuer, "newsroom.northwind.example", @q3_de, 0, 5 / 60, "de"},
-    {:q3_de_wire, :aggregator, "wire.example.com", @q3_de, 0, 45 / 60, "de"}
+    {:q3_de_wire, :aggregator, "wire.stories-test.example.com", @q3_de, 0, 45 / 60, "de"}
   ]
 
   # The stories the fixture must give, each with its representative.
@@ -165,7 +167,7 @@ defmodule Portfolixir.News.StoriesTest do
     end
 
     test "72 hours apart links, a microsecond more does not" do
-      a = pure_item({:a, :aggregator, "daily.example.com", @cfo, 0, 0, "en"})
+      a = pure_item({:a, :aggregator, "daily.stories-test.example.com", @cfo, 0, 0, "en"})
       b = %{a | canonical_url: "https://b.example/b", published_at: at(72), first_seen_at: at(72)}
       assert [_one] = Stories.cluster([a, b])
 
@@ -181,7 +183,7 @@ defmodule Portfolixir.News.StoriesTest do
 
       primary_b = row.(:b, :issuer, "newsroom.b.example", 1)
       primary_a = row.(:a, :regulatory, "filings.a.example", 1)
-      secondary = row.(:early, :aggregator, "wire.example.com", 0)
+      secondary = row.(:early, :aggregator, "wire.stories-test.example.com", 0)
 
       assert [%{representative: rep}] = Stories.cluster([primary_b, secondary, primary_a])
       assert rep.canonical_url == "https://filings.a.example/a"
@@ -247,8 +249,8 @@ defmodule Portfolixir.News.StoriesTest do
     #   the story's id; a merge keeps the story whose earliest member is
     #   earliest by (first seen, URL), whichever id is smaller.
     setup do
-      {:ok, _} = Sources.put_source(@agent, "wire.example.com", :primary)
-      {:ok, _} = Sources.put_source(@agent, "daily.example.com", :secondary)
+      {:ok, _} = Sources.put_source(@agent, "wire.stories-test.example.com", :primary)
+      {:ok, _} = Sources.put_source(@agent, "daily.stories-test.example.com", :secondary)
       security = WorldFixtures.create_security!(name: "Northwind Harbour", ticker: nil)
 
       feeds = %{
@@ -295,7 +297,11 @@ defmodule Portfolixir.News.StoriesTest do
 
       # The later story is stored first, so its id is the smaller one.
       late =
-        insert!({:late, :aggregator, "daily.example.com", @cfo, 100, 100, "en"}, security, feeds)
+        insert!(
+          {:late, :aggregator, "daily.stories-test.example.com", @cfo, 100, 100, "en"},
+          security,
+          feeds
+        )
 
       {:ok, _} = Stories.recluster(scope, "en", now)
 
@@ -336,7 +342,12 @@ defmodule Portfolixir.News.StoriesTest do
                List.duplicate(early_story, 3)
 
       # A joining item keeps the id.
-      insert!({:joiner, :aggregator, "daily.example.com", @cfo, 51, 51, "en"}, security, feeds)
+      insert!(
+        {:joiner, :aggregator, "daily.stories-test.example.com", @cfo, 51, 51, "en"},
+        security,
+        feeds
+      )
+
       {:ok, _} = Stories.recluster(scope, "en", now)
       assert [%Cluster{id: ^early_story, member_count: 4}] = Repo.all(Cluster)
     end
@@ -353,7 +364,10 @@ defmodule Portfolixir.News.StoriesTest do
 
       feed = feed!(%{class: "thematic", category_id: category.id, language: "en"})
 
-      for {key, domain} <- [one: "daily.example.com", two: "wire.example.com"] do
+      for {key, domain} <- [
+            one: "daily.stories-test.example.com",
+            two: "wire.stories-test.example.com"
+          ] do
         %Item{}
         |> Item.changeset(
           Map.merge(Stories.title_keys(@q3), %{
@@ -599,8 +613,8 @@ defmodule Portfolixir.News.StoriesTest do
     })
   end
 
-  defp rated("wire.example.com"), do: :primary
-  defp rated("daily.example.com"), do: :secondary
+  defp rated("wire.stories-test.example.com"), do: :primary
+  defp rated("daily.stories-test.example.com"), do: :secondary
   defp rated(_domain), do: nil
 
   defp urls(story), do: MapSet.new(story.members, & &1.canonical_url)
