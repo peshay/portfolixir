@@ -1301,7 +1301,9 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   #   rests on the zero line on every day and its negative part hangs from
   #   it, a separate path (`data-part="negative"`) with the lighter class;
   #   the zero line is drawn.
-  # - The legend and its order stay the API's.
+  # - The legend reads like the stack, the top band first: the drawn order
+  #   reversed, so the cash band, drawn first at the zero line, is its last
+  #   row (the closing act's design critic, D1), its rows the API's bands.
   test "a band that changes sign sits next to the zero line and crosses no other band",
        %{conn: conn} do
     sign_world()
@@ -1310,7 +1312,13 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     settle(view)
 
     data = api(conn, %{"level" => "security", "period" => "1y"})
-    assert legend_keys(view) == api_keys(data)
+    assert Enum.sort(legend_keys(view)) == Enum.sort(api_keys(data))
+
+    drawn =
+      view |> attrs("#performance-figure-stack path.stack-band", "data-band") |> Enum.dedup()
+
+    assert legend_keys(view) == Enum.reverse(drawn)
+    assert List.last(legend_keys(view)) == "cash"
     cash = Enum.find(data["bands"], &(&1["key"] == "cash"))
     assert Enum.count(cash["values"], &Decimal.negative?(Decimal.new(&1))) == 2
 
