@@ -48,9 +48,13 @@ defmodule PortfolixirWeb.PrivacyModeTest do
     ~r/(\sphx-value-[a-z-]+=")\d+(?=")/
   ]
 
+  # A figure counts where it stands as a number of its own: "44.55" inside a
+  # chart's coordinate "644.55" is not the quote. A plain substring match
+  # read the one-year window's x-axis as a leak on the days its spacing put
+  # a coordinate on one of the figures, so the test failed by the calendar.
   defp leaked(html) do
     html = Enum.reduce(@id_sites, html, &Regex.replace(&1, &2, "\\1ID"))
-    Enum.filter(@figures, &String.contains?(html, &1))
+    Enum.filter(@figures, &Regex.match?(~r/(?<!\d)#{Regex.escape(&1)}(?!\d)/, html))
   end
 
   defp switch_tag(html) do
