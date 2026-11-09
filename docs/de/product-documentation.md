@@ -248,7 +248,7 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
 - `?since=<ISO8601>` — der **Geändert-seit**-Schnitt (siehe unten); die Chips
   *Heute / 7 Tage / 30 Tage* schreiben hier ein konkretes ISO-Datum, sodass
   der Link bedeutet, was er beim Teilen bedeutete.
-- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote|currency_mismatch`
   — die Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen
   (inklusive „gar kein Kurs"); gar kein Kurs; kein hinterlegtes Logo; *Kein
   Wechselkurs* (Issue #717): bepreist, aber ohne gespeicherten Kurs von
@@ -259,11 +259,15 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   passt nicht zu Buchungen* (Issue #1101): die gehaltenen Wertpapiere, deren
   gespeicherte Kurse ihren eigenen Buchungen widersprechen (siehe *Ein Kurs,
   der nicht zu den Buchungen passt* unter Kurse und Charts), die Liste, die
-  der Zähler der Übersicht für sie öffnet. Die
-  ersten drei lassen eine Benchmark und ein stillgelegtes Wertpapier in
-  Ruhe: Ein ausverkauftes oder delistetes Wertpapier, das Sie stilllegen,
-  verlässt alle drei, und die Zahlen der Übersicht sinken mit ihm;
-  reaktiviert, steht es wieder in denen, auf die es passt.
+  der Zähler der Übersicht für sie öffnet; und *Währung abweichend* (Issue
+  #1415): die Wertpapiere, deren Kursanbieter bei der Synchronisierung, die
+  sie gespeichert hat, eine andere Währung nannte als ihre eigene (siehe
+  *Eine Antwort in einer anderen Währung wird abgelehnt* unter Kurse und
+  Charts), die Liste, die der Zähler der Übersicht für sie öffnet. Die
+  ersten drei und *Währung abweichend* lassen eine Benchmark und ein
+  stillgelegtes Wertpapier in Ruhe: Ein ausverkauftes oder delistetes
+  Wertpapier, das Sie stilllegen, verlässt sie, und die Zahlen der Übersicht
+  sinken mit ihm; reaktiviert, steht es wieder in denen, auf die es passt.
   Dieselben Bedingungen sind im Filter-Bedienelement unter **Datenqualität**
   direkt wählbar — der Link von der Übersicht ist eine Abkürzung dorthin,
   nicht der einzige Weg. Der Agent fragt genau dieselben Mengen über
@@ -273,7 +277,8 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
 
 **Die häufigen Filter sind One-Tap-Chips** (Issue #717): eine feste, benannte
 Zeile über der Tabelle — *Im Bestand · Ohne Bestand · Ohne Anlageklasse ·
-Kurs veraltet · Kein Kurs · Kein Wechselkurs*, dazu je ein Chip pro genutzter
+Kurs veraltet · Kein Kurs · Kein Wechselkurs · Währung abweichend*, dazu je
+ein Chip pro genutzter
 Währung und Anlageklasse. Chips sind Schalter; verschiedene Familien
 kombinieren als UND, mehrere Chips der Währungs- oder Klassenfamilie als
 Entweder-oder. Zwei davon tragen eine bewusste Unterscheidung: **Ohne
@@ -2177,7 +2182,15 @@ beiden Befunde sagen nach ihrem Link auch, was sie mit der Summe darüber
 machen (Issue #1121): „— gehalten zählt sie in der Summe oben hundertfach
 zu hoch oder zu niedrig" und „— ihr Wert in der Summe oben oder ihr
 Einstand ist daher falsch"; die Wertkarte selbst schweigt, denn eine solche
-Zeile steht in der Summe, nicht außerhalb. Drei Befunde aus dem Hauptbuch
+Zeile steht in der Summe, nicht außerhalb. Nach ihnen (Issue #1415) zählt die
+Zeile die Wertpapiere, deren Kursanbieter eine andere Währung meldet als ihre
+eigene („2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre
+eigene — ihre Kurse sind womöglich in der falschen Währung gespeichert;
+gehalten ist ihr Wert in der Summe oben daher falsch"), mit Link auf
+`?dq=currency_mismatch`; wie der Zähler veralteter Kurse lässt er Benchmarks
+und stillgelegte Wertpapiere aus, und ein Wertpapier, für das noch keine
+Synchronisierung eine Währung gelesen hat, ist noch unbekannt und wird nie
+gezählt. Drei Befunde aus dem Hauptbuch
 schließen die Zeile (Sprint 23), jeder nur, wenn sein Zähler größer als null
 ist, und jeder verlinkt auf die Transaktionshistorie, gefiltert auf genau
 seine Zeilen (`?dq=`, beschrieben bei der Historie): „eine Buchung, deren
@@ -2192,8 +2205,8 @@ Zähler ist die Zahl der Zeilen, die der passende API-Read liefert
 der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
 Anlageklasse"). Der Hinweis nimmt die höchste vorhandene Stufe an: Problem,
 solange eine Anleihe auf zwei Skalen bepreist ist, die Kurse eines
-gehaltenen Wertpapiers nicht zu seinen Buchungen passen oder einer der drei
-Hauptbuch-Befunde steht, Achtung, solange ein Kurs veraltet ist, sonst
+gehaltenen Wertpapiers nicht zu seinen Buchungen passen, ein Anbieter eine
+andere Währung meldet oder einer der drei Hauptbuch-Befunde steht, Achtung, solange ein Kurs veraltet ist, sonst
 Hinweis.
 Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist; ein
 sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Die Daten
@@ -4425,6 +4438,20 @@ anderen Untereinheiten, die Yahoo nutzt (`ZAc`, `ILA`). Eine Antwort ohne
 Währung wird gespeichert wie bisher. Ticker (oder Börse) korrigieren und neu
 synchronisieren.
 
+Jede Synchronisierung, die die Währung des Anbieters liest, hält sie am
+Wertpapier fest, auch eine abgelehnte (#1415), zusammen mit der Zeit des
+Lesens; geschrieben wird sie nur, wenn sie sich ändert, und das
+Prüfprotokoll hält jede Änderung unter dem Systemjob `quote_sync` fest. Ein
+Wertpapier, dessen gespeicherte Anbieterwährung von seiner eigenen abweicht,
+steht in der Datenqualitätsmenge *Währung abweichend*, gezählt auf der
+Übersicht und einen Chip entfernt auf der Wertpapierseite: Das schließt eine
+Reihe ein, die vor dieser Prüfung gespeichert wurde und die die
+Synchronisierung nie neu schreibt. Ein Wertpapier, das vor dem Upgrade mit
+der neuen Spalte synchronisiert wurde, ist bis zu seiner nächsten
+Synchronisierung noch unbekannt, nie abweichend. Was zu tun ist, bleibt bei
+Ihnen: Ticker korrigieren, neu synchronisieren, dann die alten Kurse freigeben
+oder korrigieren.
+
 Wertpapiere, deren Anbieter keinen Kurs-Adapter hat oder deren Adapter nicht
 laufen kann, weil Pflichtfelder wie der Ticker fehlen, werden mit einem Grund als
 übersprungen gemeldet. Fehlgeschlagene Adapter-Aufrufe werden getrennt von
@@ -4436,10 +4463,10 @@ jede Synchronisierung vom Wertpapier fern: der sechsstündliche Lauf, *Kurse
 aktualisieren* in der Werkzeugleiste und *Kurse aktualisieren* im Zeilenmenü
 überspringen es und fragen keinen Anbieter, und die Antwort des Zeilenmenüs
 lautet „Für dieses Wertpapier gibt es keinen Kursanbieter.“ So bekommt es nur
-die Kurse, die du von Hand pflegst. **Ein stillgelegtes Wertpapier**
+die Kurse, die Sie von Hand pflegen. **Ein stillgelegtes Wertpapier**
 überspringen der sechsstündliche Lauf und *Kurse aktualisieren* in der
 Werkzeugleiste ebenfalls; *Kurse aktualisieren* im Zeilenmenü holt es
-weiterhin, wenn du seine Historie auffüllen willst. Beides zählt in der
+weiterhin, wenn Sie seine Historie auffüllen wollen. Beides zählt in der
 Antwort der Synchronisierung als übersprungen.
 
 Von Hand eingetragene Kurse gewinnen gegen synchronisierte: Die

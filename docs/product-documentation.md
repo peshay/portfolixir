@@ -218,7 +218,7 @@ be bookmarked or linked to:
 - `?since=<ISO8601>` — the **Changed since** cut (see below); the *Today /
   7 days / 30 days* chips write a concrete ISO date here, so the link keeps
   meaning what it meant when it was shared.
-- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote|currency_mismatch`
   — the data-quality shortcut filters: no quote in the last 7 days
   (including none at all); no quote at all; no stored logo; *Missing FX*
   (issue #717): priced, but with no stored rate from its currency to the
@@ -228,10 +228,15 @@ be bookmarked or linked to:
   opens; and *Quote does not match bookings* (issue #1101): the held
   securities whose stored quotes contradict their own bookings (see *A
   quote that does not match the bookings* under Quotes and Charts), the
-  list the Overview's count of them opens. The first
-  three leave a benchmark and a retired security alone: a sold-out or
-  delisted security you retire leaves all three, and the Overview's counts
-  drop with it; reactivated, it is back in those it matches. The same
+  list the Overview's count of them opens; and *Currency mismatch* (issue
+  #1415): the securities whose quote provider stated another currency than
+  their own at the sync that stored it (see *An answer in another currency
+  is refused* under Quotes and Charts), the list the Overview's count of
+  them opens. The first
+  three, and *Currency mismatch*, leave a benchmark and a retired security
+  alone: a sold-out or delisted security you retire leaves them, and the
+  Overview's counts drop with it; reactivated, it is back in those it
+  matches. The same
   conditions can be picked in the filter control under **Data quality** —
   the dashboard link is a shortcut to them, not the only way in. The agent
   asks for the identical sets over
@@ -241,7 +246,8 @@ be bookmarked or linked to:
 
 **The common filters are one-tap chips** (issue #717): a fixed, named row
 above the table — *Held · Not held · Unclassified · Stale quote · No price ·
-Missing FX*, then one chip per currency and per asset class in use. Chips
+Missing FX · Currency mismatch*, then one chip per currency and per asset
+class in use. Chips
 are toggles; different families combine as AND, several chips within the
 currency or class family combine as either/or. Two of them encode a
 deliberate distinction: **Unclassified** is keyed on the *stored* class (a
@@ -1974,7 +1980,13 @@ findings also say, after their link, what they do to the total above it
 (issue #1121): "— if held, it counts a hundredfold too high or too low in
 the total above" and "— so their value in the total above, or their cost,
 is wrong"; the value card itself stays silent, since such a row is in the
-total, not left out of it. Three findings from the ledger close the line
+total, not left out of it. After them (issue #1415) the line counts the
+securities whose quote provider reports another currency than their own
+("2 securities whose provider reports another currency than their own —
+their quotes may be stored in the wrong currency; if held, their value in
+the total above is wrong"), linking to `?dq=currency_mismatch`; like the
+stale-quote count it leaves out benchmarks and retired securities, and a
+security no sync has read a currency for is not yet known, never counted. Three findings from the ledger close the line
 (Sprint 23), each only when its count is above zero and each linking to the
 transaction history filtered to exactly its rows (`?dq=`, described under
 the history): "one booking whose cash misses its quantity × price, fees and
@@ -1988,7 +2000,8 @@ is not". Each count is the number of rows the matching API read returns
 opens the line carries the noun ("4 securities without an asset class").
 The note takes the highest severity present: a problem while a bond is
 priced on two scales, a held security's quotes do not match its
-bookings or any of the three ledger findings stands, attention while a
+bookings, a provider reports another currency or any of the three ledger
+findings stands, attention while a
 quote is stale, otherwise a note. The line renders only when at least one count is
 non-zero; a clean catalog shows nothing (no all-clear badge). The **Due**
 card's dates follow the interface language (15.10.2026 in German). There is
@@ -4011,6 +4024,17 @@ currencies are compared as written, so a London listing quoted in pence
 (`GBp`) is refused for a security in pounds (`GBP`), and so are the other
 minor units Yahoo uses (`ZAc`, `ILA`). An answer that states no currency is
 stored as before. Fix the ticker (or the exchange) and sync again.
+
+Each sync that reads the provider's currency keeps it on the security, a
+refused one's too (#1415), together with the time it was read; it is
+written only when it changes, and the audit journal records each change
+under the system job `quote_sync`. A security whose stored provider
+currency differs from its own is in the data-quality set *Currency
+mismatch*, counted on the Overview and one chip away on the securities
+page: that includes a series stored before this check, which the sync
+never rewrites. A security synced before the upgrade that added the column
+is not yet known until its next sync, never a mismatch. What to do stays
+yours: fix the ticker, sync again, then release or correct the old quotes.
 
 Securities whose provider has no quote adapter, or whose adapter cannot run
 because required fields such as ticker are missing, are reported as skipped

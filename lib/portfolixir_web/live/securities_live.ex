@@ -7372,14 +7372,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # -- #717 chip helpers ------------------------------------------------------
 
-  # The chip row's data-quality trio, with the spec's short chip names
+  # The chip row's data-quality chips, with the spec's short chip names
   # (missing_logo stays a builder condition — it has its own overview entry
-  # and is not in the fixed chip set).
+  # and is not in the fixed chip set); since #1415 currency_mismatch too.
   defp dq_chip_options do
     [
       {"stale_quote", gettext("Stale quote")},
       {"missing_quote", gettext("No price")},
-      {"missing_fx", gettext("Missing FX")}
+      {"missing_fx", gettext("Missing FX")},
+      # #1415 (board ux-design-2026-11-08-sprint28/05 ③): beside "Missing FX".
+      {"currency_mismatch", gettext("Currency mismatch")}
     ]
   end
 
@@ -7396,7 +7398,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # A dq id without a one-tap chip (missing_logo) keeps the removable-chip
   # form and counts toward "More filters" — demotion never hides state.
-  defp removable_dq?(dq), do: dq != nil and dq not in ~w(stale_quote missing_quote missing_fx)
+  defp removable_dq?(dq),
+    do: dq != nil and dq not in ~w(stale_quote missing_quote missing_fx currency_mismatch)
 
   defp more_filters_count(filters, dq),
     do: builder_filter_count(filters) + if(removable_dq?(dq), do: 1, else: 0)

@@ -471,7 +471,7 @@ verengen, was der Betreiber sieht.
   Wertpapier eines — `security_id`, `currency_code`, `provider_currency` und
   `provider_currency_at` (ISO 8601, UTC) — und `computation_basis` mit
   denselben sechs Schlüsseln. Nichts wird umgerechnet: Die Abhilfe (der
-  Ticker, eine Synchronisierung, die gespeicherten Kurse) liegt bei dir),
+  Ticker, eine Synchronisierung, die gespeicherten Kurse) liegt bei Ihnen),
   `projection`
   (`slim`/`full`) und `limit`/`offset` zur
   Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
@@ -1632,8 +1632,8 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   geplanten Synchronisierung und der Synchronisierung aller Wertpapiere auf
   der Seite. `PATCH /api/v1/securities/:id`
   (`portfolixir.securities.update`) mit diesem Feed ist also der Weg, die
-  Anbieterkurse eines Wertpapiers anzuhalten, dessen Kurse du von Hand
-  pflegst. Ein ausgemustertes Wertpapier synchronisiert dieser Aufruf; die
+  Anbieterkurse eines Wertpapiers anzuhalten, dessen Kurse Sie von Hand
+  pflegen. Ein ausgemustertes Wertpapier synchronisiert dieser Aufruf; die
   geplante Synchronisierung und die aller Wertpapiere überspringen es mit
   `retired` (#1410). Beides zählt als übersprungen. Eine Anbieterantwort,
   die eine andere Währung nennt als den `currency_code` des Wertpapiers,
