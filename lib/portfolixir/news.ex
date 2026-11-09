@@ -796,6 +796,26 @@ defmodule Portfolixir.News do
   def issue_digest_cursor(%DigestConsumer{} = consumer, %DateTime{} = position, key),
     do: DigestCursor.issue(consumer, position, key)
 
+  # --- closing act, AT5 begin ---
+
+  @doc """
+  The page token of `consumer`'s truncated digest, read until `until`, after
+  the rows of the page keys `keys`, signed with `key`. See
+  `Portfolixir.News.DigestCursor.issue_page/4`.
+  """
+  @spec issue_digest_page(DigestConsumer.t(), DateTime.t(), [String.t()], binary()) ::
+          String.t()
+  def issue_digest_page(%DigestConsumer{} = consumer, %DateTime{} = until, keys, key),
+    do: DigestCursor.issue_page(consumer, until, keys, key)
+
+  @doc "The page token `token` checked for `consumer`; see `DigestCursor.verify_page/3`."
+  @spec verify_digest_page(DigestConsumer.t(), String.t(), binary()) ::
+          {:ok, %{position: DateTime.t(), until: DateTime.t(), keys: [String.t()]}} | :error
+  def verify_digest_page(%DigestConsumer{} = consumer, token, key),
+    do: DigestCursor.verify_page(consumer, token, key)
+
+  # --- closing act, AT5 end ---
+
   # --- S28 N3 end ---
 
   # --- S28 N4 begin ---

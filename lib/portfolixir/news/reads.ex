@@ -690,7 +690,8 @@ defmodule Portfolixir.News.Reads do
       the newest publication, then the smallest link — never an id. Rows are
       ordered by their highest materiality from 3 down to 1 (a label orders
       them, §7), then a row of noise or without a label, each by its top
-      story the same way, then by security id. The top
+      story's tier and publication, then by security id (closing act,
+      AT5: no longer by its link, so a page key holds a row's place). The top
       story's title is cut to 50 characters (an ellipsis marks the cut), so
       a row with its labels fits §9's budget whatever the feed wrote; the
       whole title is in `list/2` and `story/2`.
@@ -724,7 +725,14 @@ defmodule Portfolixir.News.Reads do
       only the securities' stories, and `ambiguous` only the items naming
       one of them among their candidates.
     * `max_rows` caps `rows` and `categories` each; `truncated` and `more`
-      (the rows left out) say so.
+      (the rows left out) say so. `:after` (`{rows key, categories key}`,
+      `nil` for none) reads on after the rows a page already answered, by
+      their place in the order (closing act, AT5), and `page_keys` is the
+      place of the last row of each this answer holds, for the next page
+      (`encode_page_key/1`). A row whose place moved before a key between
+      two pages is one a write after the first page changed — a newer
+      member or label — so it reads again after the consumer's
+      confirmation (AT6).
   """
   @spec digest([pos_integer()], DateTime.t(), boolean(), pos_integer(), keyword()) :: map()
   def digest(security_ids, %DateTime{} = since, include_unlabeled, max_rows, opts \\ [])
@@ -756,15 +764,22 @@ defmodule Portfolixir.News.Reads do
 
     categories = digest_rows(by_category, :category_id, Category)
 
-    {shown_rows, left_rows} = Enum.split(rows, max_rows)
-    {shown_categories, left_categories} = Enum.split(categories, max_rows)
+    {rows_after, categories_after} = Keyword.get(opts, :after, {nil, nil})
+    {shown_rows, left_rows} = rows |> after_key(rows_after) |> Enum.split(max_rows)
+
+    {shown_categories, left_categories} =
+      categories |> after_key(categories_after) |> Enum.split(max_rows)
+
     more = length(left_rows) + length(left_categories)
     open = open_counts(since, if(view?, do: security_ids))
 
     %{
-      rows: shown_rows,
+      rows: Enum.map(shown_rows, &Map.delete(&1, :key)),
       categories:
-        if(not view? and (include_unlabeled or shown_categories != []), do: shown_categories),
+        if(not view? and (include_unlabeled or shown_categories != []),
+          do: Enum.map(shown_categories, &Map.delete(&1, :key))
+        ),
+      page_keys: {last_key(shown_rows, rows_after), last_key(shown_categories, categories_after)},
       quiet: length(security_ids) - length(with_news),
       hidden: length(hidden),
       unlabeled: Enum.count(new, &is_nil(&1.materiality)),
@@ -899,12 +914,56 @@ defmodule Portfolixir.News.Reads do
           tier: top.tier,
           at: top.at
         },
-        key: {materiality_rank(materiality), top_key(top), id}
+        key: row_key(materiality, top, id)
       }
     end)
     |> Enum.sort_by(& &1.key)
-    |> Enum.map(&Map.delete(&1, :key))
   end
+
+  # --- closing act, AT5 begin ---
+  # A row's place (§9, AT5): its highest materiality, its top story's tier
+  # and publication, then the security's (or category's) id — every part a
+  # number, so a page key carries it whole and a later page continues after
+  # it (`:after`). The top story's link no longer orders rows: it would not
+  # fit a page key, and the id after it was already the last tie-break.
+  defp row_key(materiality, top, id) do
+    {tier, published, _url} = top_key(top)
+    {materiality_rank(materiality), tier, published, id}
+  end
+
+  defp after_key(rows, nil), do: rows
+  defp after_key(rows, key), do: Enum.filter(rows, &(&1.key > key))
+
+  defp last_key([], previous), do: previous
+  defp last_key(shown, _previous), do: List.last(shown).key
+
+  @doc """
+  A row's page key as text (`nil` as `-`): `<materiality 0..3>.<tier
+  1..3>.<publication µs>.<id>`, the parts `digest/5`'s `:after` compares.
+  """
+  @spec encode_page_key(tuple() | nil) :: String.t()
+  def encode_page_key(nil), do: "-"
+
+  def encode_page_key({rank, tier, published, id}),
+    do: Enum.join([-rank, -tier, -published, id], ".")
+
+  @doc "The page key `encode_page_key/1` wrote, or `:error`."
+  @spec decode_page_key(String.t()) :: {:ok, tuple() | nil} | :error
+  def decode_page_key("-"), do: {:ok, nil}
+
+  def decode_page_key(text) when is_binary(text) do
+    case Regex.run(~r/\A([0-3])\.([1-3])\.(-?[0-9]{1,19})\.([1-9][0-9]{0,18})\z/, text) do
+      [_, rank, tier, published, id] ->
+        {:ok,
+         {-String.to_integer(rank), -String.to_integer(tier), -String.to_integer(published),
+          String.to_integer(id)}}
+
+      nil ->
+        :error
+    end
+  end
+
+  # --- closing act, AT5 end ---
 
   # The best tier, then the newest publication, then the smallest link.
   defp top_key(story),

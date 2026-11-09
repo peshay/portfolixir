@@ -133,6 +133,13 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "not issued to that consumer answers 422 naming ack_cursor"
     assert newest["summary"] =~ "at most 32 consumers"
     assert newest["summary"] =~ "its label of the read's prompt version was written after the"
+    assert newest["summary"] =~ "A consumer's truncated answer is paged"
+    assert newest["summary"] =~ "only the last page carries the cursor"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "GET /api/v1/news/digest (portfolixir.news.digest) takes page with consumer")
+           )
 
     assert Enum.any?(
              newest["parameters"],

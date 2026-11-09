@@ -80,9 +80,12 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
   #
   # Acceptance criteria:
   # - A truncated answer's cursor, confirmed, still lets the consumer read
-  #   the rows that answer left out (here: the next call shows them).
-  @tag :n34_attack_red
-  test "a truncated digest's cursor confirms past the rows it left out", %{conn: conn, now: now} do
+  #   the rows that answer left out. Since the closing act (AT5) a
+  #   truncated consumer answer carries no cursor at all, only next_page;
+  #   the page it names holds the row left out and the cursor, and
+  #   confirming that cursor loses nothing.
+  test "a truncated digest's cursor no longer confirms past the rows it left out",
+       %{conn: conn, now: now} do
     securities =
       for n <- 1..13 do
         security = watched!("Truncation #{n} AG", "Truncation#{n}")
@@ -94,14 +97,20 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
     assert first["truncated"] == true and first["more"] == 1
     [left_out] = Enum.map(securities, & &1.id) -- row_ids(first)
 
-    next = data(digest(conn, consumer: "busy-run", ack_cursor: first["cursor"]))
+    # Observed before AT5: the first answer carried a cursor, and the call
+    # confirming it answered rows [] and nothing truncated — the thirteenth
+    # security's release was behind the confirmed position for good.
+    assert first["cursor"] == nil
+    assert is_binary(first["next_page"])
 
-    # Observed: rows [] and nothing truncated — the thirteenth security's
-    # release is behind the confirmed position and no read of this consumer
-    # answers it again.
+    next = data(digest(conn, consumer: "busy-run", page: first["next_page"]))
+
     assert left_out in row_ids(next),
-           "the row the truncated answer left out (security #{left_out}) was confirmed past: " <>
+           "the row the truncated answer left out (security #{left_out}) was not paged: " <>
              inspect(Map.take(next, ["rows", "truncated", "more", "since"]))
+
+    confirmed = data(digest(conn, consumer: "busy-run", ack_cursor: next["cursor"]))
+    assert row_ids(confirmed) == []
   end
 
   # User story (ADR-0056 §7 fail-open, §9 at least once, C5):

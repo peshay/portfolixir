@@ -15,4 +15,15 @@ defmodule PortfolixirWeb.Api.V1.DigestCursorKey do
     PortfolixirWeb.Endpoint.config(:secret_key_base)
     |> KeyGenerator.generate("portfolixir.news.digest_cursor", cache: Plug.Keys)
   end
+
+  @doc """
+  The 32-byte key a truncated digest's page tokens are signed with (closing
+  act, AT5): derived the same way under a purpose of its own, so a page
+  token never verifies as a cursor, nor a cursor as a page.
+  """
+  @spec page_key() :: binary()
+  def page_key do
+    PortfolixirWeb.Endpoint.config(:secret_key_base)
+    |> KeyGenerator.generate("portfolixir.news.digest_page", cache: Plug.Keys)
+  end
 end
