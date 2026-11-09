@@ -152,7 +152,8 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
           uniq: true,
           do: module
 
-    assert callers == ["Portfolixir.Catalog.QuoteSync"]
+    assert Enum.sort(callers) ==
+             ["Portfolixir.Catalog.QuoteSync", "Portfolixir.Lifecycle.SecurityMerge"]
 
     writes =
       for {path, source} <- sources,
@@ -386,12 +387,16 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
   # so that a wrong series does not vanish from the set by changing its
   # security id.
   #
-  # Acceptance criteria:
+  # Acceptance criteria (closing act, QA1, the decided answer):
+  # - The preview lists the source's stored provider currency among the
+  #   identifiers' differences when it differs from the target's currency
+  #   or the target's stored provider currency; no guard refuses.
   # - After merging a source whose provider stated USD (its own EUR) into a
-  #   target no sync has read, the moved quotes stand on the target and the
-  #   target is in the set — or the preview names the source's mismatch.
-  @tag :q_attack_red
-  test "a merge moves a mismatching source's quotes and drops its finding" do
+  #   target no sync has read, the moved quotes stand on the target, the
+  #   target carries the source's provider currency and its time, journaled
+  #   under the merge's actor, and the target is in the set.
+  # - A target that has a stored provider currency keeps its own.
+  test "a merge carries a mismatching source's provider currency onto a target that has none" do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Main", base_currency_code: "EUR"})
 
@@ -443,10 +448,43 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
 
     assert moved == [~D[2025-03-05], ~D[2025-03-06]]
 
-    assert target.id in mismatched_ids() or
-             inspect(preview) =~ "provider_currency",
-           "the merged quotes the provider stated in USD are on the target, and neither " <>
-             "the set nor the preview names them"
+    assert %{field: :provider_currency, source: "USD", target: nil} in preview.identifiers.differences
+
+    assert %{provider_currency: "USD", provider_currency_at: @read_at} = stored(target)
+    assert target.id in mismatched_ids()
+
+    [entry | _] =
+      Journal.list_entries(
+        resource_type: "security",
+        resource_id: to_string(target.id),
+        operation: :update
+      )
+      |> Enum.filter(&(&1.after["provider_currency"] == "USD"))
+
+    assert entry.actor_label == "synthetic-agent"
+    assert entry.before["provider_currency"] == nil
+  end
+
+  test "a merge keeps the target's own provider currency and lists the source's" do
+    target = stated!(security!("Kept Fund", "EUR", %{asset_class: "etf"}), "EUR")
+    source = stated!(security!("Kept Fund", "EUR", %{asset_class: "etf"}), "GBp")
+
+    {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+
+    assert %{field: :provider_currency, source: "GBp", target: "EUR"} in preview.identifiers.differences
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_security(Actor.api_token_rw("synthetic-agent"), source.id, target.id, %{
+        plan_digest: preview.plan_digest
+      })
+
+    assert %{provider_currency: "EUR", provider_currency_at: @read_at} = stored(target)
+    refute target.id in mismatched_ids()
+
+    # A source that agrees with the target lists nothing.
+    agreeing = stated!(security!("Kept Fund", "EUR", %{asset_class: "etf"}), "EUR")
+    {:ok, quiet} = Lifecycle.preview_security_merge(agreeing.id, target.id)
+    refute Enum.any?(quiet.identifiers.differences, &(&1.field == :provider_currency))
   end
 
   # --- helpers ---------------------------------------------------------------

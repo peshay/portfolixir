@@ -94,7 +94,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "per listed security (security_id, currency_code, provider_currency, " <>
           "provider_currency_at in ISO 8601 UTC), and computation_basis (input_series, " <>
           "reference, window, gaps, threshold, assumptions). Paid for by trimming the quote " <>
-          "tools' descriptions, and the schema budget's ceilings move down (#1415)."
+          "tools' descriptions, and the schema budget's ceilings move down (#1415).",
+        "GET /api/v1/securities/:id/merge_preview (portfolixir.securities.merge_preview, " <>
+          "whose description names it): identifiers.differences lists provider_currency, the " <>
+          "currency the source's quote provider stated, wherever it differs from the " <>
+          "target's currency_code or the target's own stored one; POST " <>
+          "/api/v1/securities/:id/merge (portfolixir.securities.merge) carries it with its " <>
+          "time onto a target that has none, journaled, so a moved series keeps its " <>
+          "currency_mismatch finding (closing act)."
         # --- Sprint 28 Q end ---
       ],
       removed_endpoints: [],

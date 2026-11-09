@@ -399,7 +399,11 @@ the merge does:
   lacks is taken over — unless it breaks the rule a changed identifier must
   meet (a WKN of six letters or digits, a ticker of plain ASCII characters),
   which the master data then show as not adopted; its name, asset class and
-  logo stay.
+  logo stay. The currency the duplicate's quote provider stated (see *An
+  answer in another currency is refused*) goes with its quotes onto a kept
+  security that has none, so a currency mismatch is not lost in the merge;
+  the master data show it whenever it differs from the kept security's
+  currency or from the one its own provider stated, which it keeps.
 
 **In the dialog**, the first step searches the security to keep by name,
 ISIN, WKN or ticker. A match that cannot take the duplicate's history stays in
