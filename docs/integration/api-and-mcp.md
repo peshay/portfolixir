@@ -1400,9 +1400,11 @@ always true): it sorts stories, and it moves, hides or writes nothing else.
   `event_type` (`earnings`, `guidance`, `capital_measure`, `legal`,
   `m_and_a`, `product`, `regulatory`, `macro`, `noise`), `materiality` 0 to
   3, `tone` -1, 0 or 1, `confidence` a decimal string from 0 to 1 with at
-  most four places, and optionally `thesis_note_id` (a thesis of the story's
-  security), `clause_idx` (one of its clauses, numbered as the unlabeled
-  read numbers them) and `suggested_security_id`. A new label answers `201`;
+  most four places, and optionally `thesis_note_id` (the story's security's
+  current intact thesis, the one the unlabeled read offers; a superseded
+  or withdrawn one answers `422`), `clause_idx` (one of its
+  clauses, numbered as the unlabeled read numbers them) and
+  `suggested_security_id`. A new label answers `201`;
   a put of the same `cluster_id`, `model` and `prompt_version` replaces it
   in place and answers `200`. The schema is closed: a field outside it,
   inside `label` or beside it, answers `422` naming it, and so does a wrong

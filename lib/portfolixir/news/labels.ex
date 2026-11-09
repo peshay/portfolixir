@@ -25,10 +25,12 @@ defmodule Portfolixir.News.Labels do
       a story follows its items out of retention or merges away);
     * `suggested_security_id`, when given, names a security that exists,
       held the same way;
-    * `thesis_note_id`, when given, names a `thesis` entry of the story's
-      own security (a category's story has none); `clause_idx`, when given,
-      needs it and is one of that thesis's invalidation condition's clauses
-      as `clauses/1` numbers them, the numbering `news.unlabeled` answers.
+    * `thesis_note_id`, when given, names the story's own security's
+      current thesis while it is intact — the one `news.unlabeled` offers,
+      never a superseded or withdrawn one (a category's story
+      has none); `clause_idx`, when given, needs it and is one of that
+      thesis's invalidation condition's clauses as `clauses/1` numbers
+      them, the numbering `news.unlabeled` answers.
 
   ## Idempotent per (cluster, model, prompt version)
 
@@ -405,10 +407,24 @@ defmodule Portfolixir.News.Labels do
        when kind != :thesis or of != story.security_id,
        do: {:thesis_note_id, "must name a thesis entry of the story's security"}
 
-  defp thesis_refusal(_note, _id, _story, nil), do: nil
+  # N1 attack AT2: §7 offers the labeller "the active thesis", the one
+  # news.unlabeled lists — the security's current thesis while intact. A
+  # superseded or withdrawn one is not offered, so not named.
+  defp thesis_refusal(%SecurityNote{id: id}, _id, story, clause) do
+    case Knowledge.thesis_state(story.security_id) do
+      %{status: :intact, derived_from_entry_id: ^id, invalidation_condition: condition} ->
+        clause_refusal(condition, clause)
 
-  defp thesis_refusal(%SecurityNote{} = note, _id, _story, clause) do
-    count = length(clauses(note.invalidation_condition))
+      _other ->
+        {:thesis_note_id,
+         "must name the story's security's current intact thesis, the one news.unlabeled offers"}
+    end
+  end
+
+  defp clause_refusal(_condition, nil), do: nil
+
+  defp clause_refusal(condition, clause) do
+    count = length(clauses(condition))
 
     if clause <= count,
       do: nil,
