@@ -5,9 +5,10 @@ defmodule PortfolixirWeb.ApiV1NewsLabelsAttackTest do
   # attack list is api_v1_news_labels_test.exs and labels_test.exs; this
   # file holds only cases they do not name.
   #
-  # A test tagged `:n1_attack_red` fails on the story's head: it pins a
-  # defect the security lens found, for the story's author to fix. The
-  # untagged tests pass and pin holes that are closed but were not tested.
+  # Three tests here failed on the story's head and pinned defects the
+  # lens found (the query's label dropped, a thesis the read never offered,
+  # a name cut by graphemes); the fixes (N1 attack, AT1 to AT3) turned them
+  # green. The others pin holes that were closed but not tested.
   # Synthetic names and hosts only, no socket.
   use PortfolixirWeb.ConnCase
 
@@ -107,7 +108,6 @@ defmodule PortfolixirWeb.ApiV1NewsLabelsAttackTest do
   # - PUT /api/v1/news/labels?label[security_id]=…, ?label[tier]=primary or
   #   ?label=x with a valid JSON label: 422 naming label (or the field),
   #   nothing stored or journaled.
-  @tag :n1_attack_red
   test "a label field in the query beside a JSON body is refused, not dropped", %{
     conn: conn,
     story: story,

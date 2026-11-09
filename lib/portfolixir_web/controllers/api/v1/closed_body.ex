@@ -7,7 +7,8 @@ defmodule PortfolixirWeb.Api.V1.ClosedBody do
 
   `check/3` reads the request's query and body parameters (never the route's
   path parameters): beside the one wrapper key, nothing; inside the wrapper,
-  only the fields the write takes. A wrapper that is not an object is
+  only the fields the write takes; and the wrapper only in the body, never
+  in the query, where the write would not read it. A wrapper that is not an object is
   `PortfolixirWeb.Api.V1.BodyObject`'s to answer, so it is not looked into.
   """
 
@@ -26,6 +27,7 @@ defmodule PortfolixirWeb.Api.V1.ClosedBody do
       |> request_keys()
       |> Enum.reject(&(&1 == wrapper))
       |> Map.new(&{&1, [outside_message(wrapper)]})
+      |> Map.merge(in_query(conn, wrapper))
 
     inside =
       case wrapper && body(conn)[wrapper] do
@@ -65,6 +67,17 @@ defmodule PortfolixirWeb.Api.V1.ClosedBody do
     |> Enum.reject(&(&1 in fields))
     |> Map.new(&{&1, [inside_message(kind, fields)]})
   end
+
+  # Sprint 28, N1 attack AT3: the wrapper is the body's. Sent in the query
+  # (`?label[tier]=primary` beside a JSON label), the parser keeps it apart
+  # from the body the write reads, so it would be dropped in silence.
+  defp in_query(_conn, nil), do: %{}
+
+  defp in_query(%Plug.Conn{query_params: %{} = query}, wrapper)
+       when is_map_key(query, wrapper),
+       do: %{wrapper => ["is refused in the query: this write takes #{wrapper} in its JSON body"]}
+
+  defp in_query(_conn, _wrapper), do: %{}
 
   defp request_keys(conn) do
     [conn.query_params, body(conn)]
