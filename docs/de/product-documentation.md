@@ -2696,8 +2696,9 @@ In der Ansicht **Wert** des Performance-Diagramms unter **Vermögen →
 Bestände** stapelt eine Leiste über dem Diagramm den Wert nach dem, woraus
 er besteht (I23, FR-53):
 
-- **Ebene**: *Gesamt* ist die eine Wertlinie, unverändert; *Kategorien*
-  stapelt ein Band je oberster Kategorie der Klassifizierung, dazu Cash und
+- **Ebene**: *Gesamt* ist die eine Wertlinie, unverändert; *Kategorien*,
+  die Vorgabe (FR-56), stapelt ein Band je oberster Kategorie der
+  Klassifizierung, dazu Cash und
   den nicht zugeordneten Rest als eigene Bänder; *Wertpapiere* ein Band je
   Wertpapier, dazu Cash.
 - **Klassifizierung**: der Baum, aus dem die Kategorien kommen. Vorgabe ist

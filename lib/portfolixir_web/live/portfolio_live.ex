@@ -159,7 +159,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           # category ride the address, so a link handed over reopens them;
           # a stacked level opens the value series it belongs to.
           |> assign(:stack, param_stack(params, classifications))
-          |> then(&assign(&1, :chart_mode, stack_chart_mode(&1.assigns.stack)))
+          |> assign(:chart_mode, stack_chart_mode(params))
           |> assign(bands: nil, bands_colors: %{}, bands_for: nil, bands_failed: false)
           # The classification tree and the tree/positions mode round-trip
           # through the URL (mobile-reconnect fix): a socket reconnect remounts
@@ -288,10 +288,12 @@ defmodule PortfolixirWeb.PortfolioLive do
           )
 
         # Holdings carries the stacked chart's choices (I23), so a locale
-        # or privacy switch keeps them.
+        # or privacy switch keeps them; an address naming no level keeps
+        # naming none, so it reopens the TTWROR series (FR-56).
         _holdings ->
-          stack_path(
+          holdings_path(
             socket.assigns.carried_view,
+            params,
             param_stack(params, socket.assigns.classifications)
           )
       end
@@ -378,8 +380,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- the stacked chart's address (I23, FR-53) ----------------------------------
 
-  # The stack the address names: the level (`total` unless `level=category`
-  # or `level=security`), the tree (`tree=`, a loaded classification, else
+  # The stack the address names: the level (`category` unless `level=total`
+  # or `level=security`: „Kategorien“ is the screen's default, FR-56; the
+  # API's own default is unchanged), the tree (`tree=`, a loaded classification, else
   # the bands' own default), the drilled category (`category=`, at the
   # securities level only) and the sort (`sort=change`, else size). Every
   # value is matched against a whitelist or parsed as an id, never made an
@@ -387,9 +390,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp param_stack(params, classifications) do
     level =
       case params["level"] do
-        "category" -> :category
+        "total" -> :total
         "security" -> :security
-        _other -> :total
+        _other -> :category
       end
 
     tree =
@@ -416,17 +419,28 @@ defmodule PortfolixirWeb.PortfolioLive do
     %{level: level, tree: tree, category: category, sort: sort}
   end
 
-  # A stacked level belongs to the value series: a link to one opens it.
-  defp stack_chart_mode(%{level: :total}), do: "ttwror"
-  defp stack_chart_mode(_stack), do: "value"
+  # A level belongs to the value series: an address that names one opens
+  # it; one that names none opens the TTWROR series, as the page always has.
+  defp stack_chart_mode(params) do
+    if stack_addressed?(params), do: "value", else: "ttwror"
+  end
 
-  # The address of a stack on Holdings: the carried view, then the level,
-  # the tree, the category and the sort, each only when it is not the
-  # default, in this order so the links compare equal.
+  defp stack_addressed?(params), do: params["level"] in ["total", "category", "security"]
+
+  # The page's own address on Holdings: the stack's when the address names
+  # a level, else the carried view alone.
+  defp holdings_path(view, params, stack) do
+    if stack_addressed?(params), do: stack_path(view, stack), else: pairs_path(view_pairs(view))
+  end
+
+  # The address of a stack on Holdings: the carried view, then the level
+  # (always, so the link opens the value series), the tree, the category
+  # and the sort, each only when it is not the default, in this order so
+  # the links compare equal.
   defp stack_path(view, stack) do
     pairs =
       view_pairs(view) ++
-        if(stack.level == :total, do: [], else: [{"level", Atom.to_string(stack.level)}]) ++
+        [{"level", Atom.to_string(stack.level)}] ++
         if(stack.tree && stack.level != :total,
           do: [{"tree", Integer.to_string(stack.tree)}],
           else: []
@@ -434,11 +448,11 @@ defmodule PortfolixirWeb.PortfolioLive do
         if(stack.category, do: [{"category", Integer.to_string(stack.category)}], else: []) ++
         if(stack.sort == :change and stack.level != :total, do: [{"sort", "change"}], else: [])
 
-    case pairs do
-      [] -> "/portfolio"
-      pairs -> "/portfolio?" <> URI.encode_query(pairs)
-    end
+    pairs_path(pairs)
   end
+
+  defp pairs_path([]), do: "/portfolio"
+  defp pairs_path(pairs), do: "/portfolio?" <> URI.encode_query(pairs)
 
   # The address with one choice of the bar made.
   defp stack_choice(stack, :total), do: %{stack | level: :total, category: nil}

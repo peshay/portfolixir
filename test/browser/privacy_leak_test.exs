@@ -327,7 +327,9 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # value series' category stack, from which the walker follows the bar's
   # levels, the breadcrumb and one category drilled into (`inPageLinks` in
   # privacy_leak.js).
-  defp extra_addresses("/portfolio"), do: ["/portfolio?level=category"]
+  # The value series opens at „Kategorien“ (FR-56), so the single value
+  # line, „Gesamt“, is an address of its own.
+  defp extra_addresses("/portfolio"), do: ["/portfolio?level=category", "/portfolio?level=total"]
   defp extra_addresses(_path), do: []
 
   # The two most traded securities, the first bond and a bond priced on two

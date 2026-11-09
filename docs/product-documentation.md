@@ -2445,9 +2445,9 @@ period and per view, and available over the API
 In the **Value** series of the performance chart on **Wealth → Holdings**, a
 bar above the chart stacks the value by what it is made of (I23, FR-53):
 
-- **Level**: *Total* is the one value line, unchanged; *Categories* stacks
-  one band per top-level category of the classification, plus cash and the
-  unassigned rest as bands of their own; *Securities* one band per security,
+- **Level**: *Total* is the one value line, unchanged; *Categories*, the
+  default (FR-56), stacks one band per top-level category of the
+  classification, plus cash and the unassigned rest as bands of their own; *Securities* one band per security,
   plus cash.
 - **Classification**: the tree the categories come from. By default the
   one your allocation targets use, else the first tree of your own, else

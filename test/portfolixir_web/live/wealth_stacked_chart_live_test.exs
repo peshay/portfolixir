@@ -346,7 +346,8 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   #   chosen first does not stop a link from opening the value chart.
   # - The address after a drill, opened fresh, shows the same level, sort,
   #   category and legend order; no choice lives only in the page process.
-  # - "Total" drops the stack's parameters again.
+  # - "Total" drops the stack's other parameters and names its level
+  #   (FR-56: „Kategorien“ is the default, so the address names the level).
   test "the stack's state is on the address, and a link handed over reopens it", %{conn: conn} do
     w = stack_world()
 
@@ -355,7 +356,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
 
     refute has_element?(view, "[data-role='stack-bar']")
     view |> element("[data-role='chart-series'] button[phx-value-mode='value']") |> render_click()
-    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='total']")
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='category']")
 
     view |> element("[data-role='stack-level'] a[data-level='category']") |> render_click()
     assert_patch(view, "/portfolio?level=category")
@@ -411,7 +412,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
              "/portfolio?level=category&tree=#{w.tree.id}&sort=change"
 
     fresh |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
-    assert_patch(fresh, "/portfolio")
+    assert_patch(fresh, "/portfolio?level=total")
   end
 
   # User story (I23, FR-53; plan D-4: "Gesamt is today's chart"):
@@ -420,8 +421,8 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # so that the bar adds a choice and takes nothing away.
   #
   # Acceptance criteria:
-  # - In the value series the bar stands above the chart with the level
-  #   "Total" chosen and no classification or sort control.
+  # - In the value series, "Total" chosen (no longer the default, FR-56),
+  #   the bar stands above the chart with no classification or sort control.
   # - The figure under it is byte for byte the value chart without the bar's
   #   parameters, after a trip through the category stack and back too.
   # - The TTWROR series shows no bar.
@@ -431,6 +432,8 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     settle(view)
     view |> element("[data-role='chart-series'] button[phx-value-mode='value']") |> render_click()
+    view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
+    settle(view)
     before = figure(view)
 
     assert before =~ ~s(class="security-chart)
@@ -779,6 +782,61 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
              StackedChart.band_name(band)
            end) ==
              "Aktien (direkt)"
+  end
+
+  # User story (FR-56, I29: „Gesamt“ should not be the default; plan D-6):
+  # As a local portfolio maintainer switching Wealth's chart to its value,
+  # I want the stack by categories first, not the single line,
+  # so that I see what my wealth is made of without a further click, while
+  # my agent's read without a level answers as it always has.
+  #
+  # Acceptance criteria:
+  # - `/portfolio` still opens the TTWROR series without the bar; switched
+  #   to the value series, the bar's level is „Kategorien“ and the stack
+  #   shows the API's bands of a read without `level` (period 1Y), the
+  #   largest at the bottom.
+  # - „Gesamt“ is a link to `level=total`, which opens the single value
+  #   line, fresh too; „Kategorien“ links `level=category`, so a link
+  #   handed over always opens the value series.
+  # - A locale or privacy switch from the TTWROR series keeps the plain
+  #   address, so it reopens the TTWROR series.
+  test "Kategorien is the screen's default level; the API's stays as it was", %{conn: conn} do
+    w = stack_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    settle(view)
+
+    assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
+    refute has_element?(view, "[data-role='stack-bar']")
+    switches = attrs(view, "a[href*='locale=']", "href")
+    assert switches != []
+    refute Enum.any?(switches, &(&1 =~ "level"))
+
+    view |> element("[data-role='chart-series'] button[phx-value-mode='value']") |> render_click()
+    settle(view)
+
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='category']")
+    assert has_element?(view, "#performance-figure-stack[data-level='category']")
+
+    data = api(conn, %{"period" => "1y"})
+    assert data["level"] == "category"
+    assert legend_keys(view) == data["bands"] |> Enum.map(& &1["key"]) |> Enum.reverse()
+    assert "category:#{w.income.id}" in legend_keys(view)
+
+    assert href(view, "[data-role='stack-level'] a[data-level='total']") ==
+             "/portfolio?level=total"
+
+    assert href(view, "[data-role='stack-level'] a[data-level='category']") ==
+             "/portfolio?level=category"
+
+    view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
+    assert_patch(view, "/portfolio?level=total")
+    assert figure(view) =~ ~s(class="security-chart)
+
+    {:ok, fresh, _html} = live(build_conn(), "/portfolio?level=total")
+    settle(fresh)
+    assert has_element?(fresh, "#performance-figure[data-chart-mode='value']")
+    assert has_element?(fresh, "[data-role='stack-level'] a.is-active[data-level='total']")
   end
 
   # --- Sprint 28 S1 end ---
