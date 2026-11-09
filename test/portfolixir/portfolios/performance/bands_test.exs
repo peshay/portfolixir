@@ -806,7 +806,7 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
   #   on every day, also when a USD value over 1.0832 or 1.0917 does not
   #   terminate.
   # - At the category level the sum is within one unit in the 34th
-  #   significant digit of the day's value, per day.
+  #   significant digit of the day's value per band added.
   # - `computation_basis.input_series` and the module's documentation state
   #   that bound, and that it applies only at the category level and only
   #   when a quotient does not terminate.
@@ -832,7 +832,8 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
         if level == :category do
           gap = day_sum |> Decimal.sub(point.value) |> Decimal.abs()
-          assert Decimal.compare(gap, last_unit(point.value)) != :gt, label
+          bound = Decimal.mult(length(result.bands), last_unit(point.value))
+          assert Decimal.compare(gap, bound) != :gt, label
         else
           assert Decimal.equal?(day_sum, point.value), label
         end
@@ -848,11 +849,80 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
 
       assert result.computation_basis.input_series =~
                "at the category level, the bands' sum may differ from the series by at most " <>
-                 "one unit in the 34th significant digit per day"
+                 "one unit in the 34th significant digit per band added"
     end
 
     {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs(Bands)
-    assert moduledoc =~ "one unit in the 34th significant digit"
+    assert moduledoc =~ "one unit in the 34th significant digit per band added"
+    refute moduledoc =~ "significant digit per day"
+  end
+
+  # The closing act's money lens (ML3): six USD members over EUR/USD 1.0832
+  # filed in three sub-categories of one category. The three filtered bands
+  # each round their partial sums, and their sum lands three units in the
+  # 34th significant digit from the category's band one level up: the bound
+  # "one unit per day" was false; it is one unit per band added.
+  #
+  # User story: as the operator's agent adding up a filtered category's
+  # bands, I want the stated bound to hold, so that a rounding difference
+  # within it is never mistaken for a missing amount and one beyond it
+  # always is.
+  #
+  # Acceptance criteria:
+  # - The filtered bands' sum differs from the parent band by more than one
+  #   unit in the 34th significant digit (the old bound fails).
+  # - It stays within one unit per band added, and the basis says so.
+  test "a filtered category's bands sum to the parent within one unit per band added" do
+    rate!("USD", ~D[2026-01-02], "1.0832")
+
+    world =
+      base_world(name: "Bound", cash_name: "Cash", depot_name: "Depot", cash_currency: "USD")
+
+    deposit!(world, "1000000", ~D[2026-01-02], currency: "USD")
+
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Bound"})
+    top = category!(tree, "Top")
+    subs = Map.new(1..3, &{&1, category!(tree, "Sub #{&1}", parent_id: top.id)})
+
+    for {price, sub} <-
+          Enum.zip([49_846, 78_810, 37_316, 77_793, 81_361, 73_701], [2, 1, 2, 3, 1, 3]) do
+      security = create_security!(name: "S#{price}", currency: "USD")
+
+      WorldFixtures.buy!(world, security,
+        quantity: "1",
+        price: "#{price}",
+        date: ~D[2026-01-02],
+        currency: "USD"
+      )
+
+      WorldFixtures.put_quotes!(security, [{~D[2026-01-02], "#{price}"}])
+      assign!(security, tree, subs[sub])
+    end
+
+    opts = [
+      period: {:range, ~D[2026-01-05], ~D[2026-01-09]},
+      today: @today,
+      classification_id: tree.id,
+      level: :category
+    ]
+
+    {:ok, roots} = Bands.for_portfolio(world.portfolio.id, opts)
+    parent = band(roots, "category:#{top.id}")
+    {:ok, filtered} = Bands.for_portfolio(world.portfolio.id, opts ++ [category_id: top.id])
+    assert length(filtered.bands) == 3
+
+    for index <- 0..(length(parent.values) - 1) do
+      expected = Enum.at(parent.values, index)
+      day_sum = sum(Enum.map(filtered.bands, &Enum.at(&1.values, index)))
+      gap = day_sum |> Decimal.sub(expected) |> Decimal.abs()
+      unit = last_unit(expected)
+
+      assert Decimal.gt?(gap, unit), "the old bound fails on day #{index}: #{gap}"
+      assert Decimal.compare(gap, Decimal.mult(3, unit)) != :gt, "day #{index}: #{gap}"
+    end
+
+    assert filtered.computation_basis.input_series =~
+             "within one unit in the 34th significant digit per band added"
   end
 
   # User story (I23, FR-53; the closing act's money lens, M4):
