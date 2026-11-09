@@ -12,6 +12,9 @@ describe("Portfolixir MCP tools", () => {
 
     assert.deepEqual(names, [
       "portfolixir.contract.get",
+      // --- Sprint 28 V1 begin ---
+      "portfolixir.version",
+      // --- Sprint 28 V1 end ---
       "portfolixir.securities.list",
       "portfolixir.securities.get",
       "portfolixir.securities.create",
@@ -5316,6 +5319,40 @@ describe("Portfolixir MCP tools", () => {
     assert.match(contract?.description ?? "", /last_changed_at/);
     assert.match(contract?.description ?? "", /re-read the tool list/);
   });
+
+  // --- Sprint 28 V1 begin ---
+  // User story (FR-55, #1429):
+  // As the agent the operator runs,
+  // I want a tool that names the version the instance was built from,
+  // so that I know which release I am talking to.
+  //
+  // Acceptance criteria:
+  // - portfolixir.version takes no argument (an unknown one is refused) and
+  //   sends GET /api/v1/version; it is a read in every profile.
+  // - Its description names the three kinds and that the app requests
+  //   nothing.
+  it("issues a GET to /version for portfolixir.version, and takes no argument", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { kind: "release", value: "2026.11.12", url: null }
+    });
+
+    const result = await callTool(client, "portfolixir.version", {});
+    await assert.rejects(callTool(client, "portfolixir.version", { since: "2026-11-01" }));
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path]),
+      [["GET", "/api/v1/version"]]
+    );
+    assert.equal((result.structuredContent as any).data.value, "2026.11.12");
+
+    const version = listTools().find((tool) => tool.name === "portfolixir.version");
+    assert.equal(version?.annotations.readOnlyHint, true);
+    assert.deepEqual(version?.inputSchema.properties, {});
+    for (const part of ["release", "build", "unknown", "never a guess", "requests nothing"]) {
+      assert.match(version?.description ?? "", new RegExp(part));
+    }
+  });
+  // --- Sprint 28 V1 end ---
 
   // Issue #771: the bounded list reads take limit on both halves, spelled once.
   it("passes limit through on the bounded list reads", async () => {

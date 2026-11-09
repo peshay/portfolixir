@@ -4801,6 +4801,25 @@ oder die Beschreibungen sich bewegt haben.
   `min_drift` auf View-Ebene und Positionsebene (#740), den historischen
   Backfill-Scope (#737) und diesen Read.
 
+## Version der Instanz
+
+Die Instanz sagt, aus welcher Version sie gebaut wurde (FR-55), damit ein
+Agent weiß, mit welchem Release er spricht, ohne den Betreiber zu fragen.
+
+- `GET /api/v1/version` liefert `kind`, `value` und `url`: `release` (das
+  Kalender-Tag `YYYY.M.N`, auf dem der Build genau steht; `url` seine
+  Versionshinweise auf GitHub), `build` (`Branch · kurzer Hash · Commit-Datum`,
+  ohne Branch bei einem abgehängten Checkout; `url` der Commit auf GitHub)
+  oder `unknown` (`value` `"unknown"`, `url` `null`). Daneben `tag`, `branch`,
+  `commit` (der volle Hash, wo er bekannt ist), `date` (das eigene Datum des
+  Commits, ISO), `source` (`build_arguments`, `git` oder `none`) und eine
+  `version_note`. Die Version wird **einmal beim Kompilieren** gelesen: aus den
+  Build-Argumenten `PORTFOLIXIR_VERSION`, `PORTFOLIXIR_COMMIT` und
+  `PORTFOLIXIR_BUILD_DATE`, wenn eines gesetzt ist (der Weg des
+  Release-Images, [Home-Deployment](../home-deployment.html), „Upgrade“),
+  sonst von `git` im Quell-Checkout, sonst `unknown` — nie
+  geraten. Dem Link in `url` folgt der Betreiber; die App fragt nichts an.
+
 ## Audit-Journal
 
 Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
@@ -5218,6 +5237,8 @@ lässt sich nicht lesen.
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
   `since=`.
+- `portfolixir.version` — die Version, aus der diese Instanz gebaut wurde
+  (FR-55): `GET /api/v1/version`, ohne Argument.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
   einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)

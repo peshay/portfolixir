@@ -55,6 +55,22 @@ RUN --mount=type=secret,id=build_ca \
 
 COPY lib lib
 COPY priv priv
+
+# The version this image is built from (FR-55, Sprint 28 plan D-7), which
+# `mix compile` reads once. The build context leaves `.git` out
+# (.dockerignore), so the version arrives as three build arguments:
+# docker-compose.yml passes them from the environment, and the home
+# deployment guide's upgrade command sets them from the checkout. Unset, they
+# are empty and the instance reads "unknown", never a guess. Declared after
+# the dependency steps, so a new commit rebuilds only from here; set for this
+# stage only, because nothing reads them at run time.
+ARG PORTFOLIXIR_VERSION=""
+ARG PORTFOLIXIR_COMMIT=""
+ARG PORTFOLIXIR_BUILD_DATE=""
+ENV PORTFOLIXIR_VERSION=${PORTFOLIXIR_VERSION} \
+    PORTFOLIXIR_COMMIT=${PORTFOLIXIR_COMMIT} \
+    PORTFOLIXIR_BUILD_DATE=${PORTFOLIXIR_BUILD_DATE}
+
 RUN mix compile && mix phx.digest && mix release
 
 # --- runtime stage ---------------------------------------------------------

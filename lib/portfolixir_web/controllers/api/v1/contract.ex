@@ -166,8 +166,16 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S28 N3 OQ2 begin ---
             "Sprint 28, N3's open question 2: the daily news retention deletes a digest " <>
               "consumer whose last confirmation, or creation, is more than 90 days old, so " <>
-              "the cap of 32 frees itself."
+              "the cap of 32 frees itself.",
             # --- S28 N3 OQ2 end ---
+            # --- Sprint 28 V1 begin ---
+            "Sprint 28, V1 (FR-55): GET /api/v1/version, new, answers the version this " <>
+              "instance was built from, read once at compile time (the build arguments " <>
+              "PORTFOLIXIR_VERSION, PORTFOLIXIR_COMMIT and PORTFOLIXIR_BUILD_DATE, else the " <>
+              "source checkout): kind release (the calendar tag, url its release notes), build " <>
+              "(branch, short hash and commit date, url the commit) or unknown (url null), " <>
+              "never a guess; the read tool portfolixir.version reaches it in every profile."
+            # --- Sprint 28 V1 end ---
           ],
           " "
         ),
@@ -177,8 +185,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/news/unlabeled",
         # --- S28 N1 end ---
         # --- S28 N4 begin ---
-        "PUT /api/v1/news/items/:id/assignment"
+        "PUT /api/v1/news/items/:id/assignment",
         # --- S28 N4 end ---
+        # --- Sprint 28 V1 begin ---
+        "GET /api/v1/version"
+        # --- Sprint 28 V1 end ---
       ],
       tools: [
         # --- S28 N1 begin ---
@@ -186,8 +197,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.news.unlabeled",
         # --- S28 N1 end ---
         # --- S28 N4 begin ---
-        "portfolixir.news.assign"
+        "portfolixir.news.assign",
         # --- S28 N4 end ---
+        # --- Sprint 28 V1 begin ---
+        "portfolixir.version"
+        # --- Sprint 28 V1 end ---
       ],
       parameters: [
         # --- Sprint 28 Q begin ---

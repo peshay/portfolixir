@@ -532,6 +532,27 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
   // --- S28 N5 end ---
   // --- S28 N6 begin ---
   // --- S28 N6 end ---
+  // --- Sprint 28 V1 begin ---
+  {
+    since: "2026-11-09",
+    why:
+      "Sprint 28, V1 (FR-55): portfolixir.version, a read in every profile, whose own " +
+      "schema the rule of Sprint 24's D-2 lets the ceilings grow by and no more: its " +
+      "tools/list entry measures 642 bytes in each profile, so read 117,695 + 642 = " +
+      "118,337, book 192,448 + 642 = 193,090 and full 227,470 + 642 = 228,112; the comma " +
+      "before it is paid for by tightening contract.get's wording by one byte, and no " +
+      "other tool's bytes are added",
+    read: 118_337,
+    book: 193_090,
+    full: 228_112,
+    raisedBy: {
+      tools: ["portfolixir.version"],
+      read: 642,
+      book: 642,
+      full: 642
+    }
+  },
+  // --- Sprint 28 V1 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

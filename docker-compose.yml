@@ -54,6 +54,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.release
+      # The version the image is built from (FR-55): the upgrade command in
+      # docs/home-deployment.md sets these from the checkout; unset, they are
+      # empty and the instance reads "unknown".
+      args:
+        PORTFOLIXIR_VERSION: ${PORTFOLIXIR_VERSION:-}
+        PORTFOLIXIR_COMMIT: ${PORTFOLIXIR_COMMIT:-}
+        PORTFOLIXIR_BUILD_DATE: ${PORTFOLIXIR_BUILD_DATE:-}
     depends_on:
       db:
         condition: service_healthy

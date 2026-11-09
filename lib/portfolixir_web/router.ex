@@ -151,6 +151,11 @@ defmodule PortfolixirWeb.Router do
     # when it last changed, pollable with ?since=.
     get("/contract", ContractController, :show)
 
+    # --- Sprint 28 V1 begin ---
+    # FR-55: the version this instance was built from, read at compile time.
+    get("/version", VersionController, :show)
+    # --- Sprint 28 V1 end ---
+
     get("/securities/search", SecuritySearchController, :index)
     get("/securities", SecurityController, :index)
     post("/securities", SecurityController, :create)
