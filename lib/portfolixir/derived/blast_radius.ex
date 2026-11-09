@@ -43,6 +43,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
+  alias Portfolixir.News.Item, as: NewsItem
   alias Portfolixir.News.Label
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRule
@@ -103,6 +104,13 @@ defmodule Portfolixir.Derived.BlastRadius do
   def for_write("news_label", %{__struct__: Label}), do: []
   # --- S28 N1 end ---
 
+  # --- S28 N4 begin ---
+  # A news item assigned by hand (ADR-0056 §9, news.assign) moves between
+  # securities' stories: no walk, quote, rate or rule reads an item, so no
+  # portfolio's derived values move. Resolved per struct, like the label.
+  def for_write("news_item", %{__struct__: NewsItem}), do: []
+  # --- S28 N4 end ---
+
   # The default view (H61) is a preference: which scope a page opens on, read
   # by no walk, quote, rate or rule, so no portfolio's derived values move.
   # Resolved per struct, like the knowledge records above.
@@ -145,10 +153,11 @@ defmodule Portfolixir.Derived.BlastRadius do
   # type is absent from it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification depot_bucket_assignment merge_record news_label policy_rule policy_rule_version
-    portfolio position_bucket_override prediction retired_import_hash securities_account
-    security_category_assignment security_event security_identifier_alias security_note
-    setting snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view
+    classification depot_bucket_assignment merge_record news_item news_label policy_rule
+    policy_rule_version portfolio position_bucket_override prediction retired_import_hash
+    securities_account security_category_assignment security_event security_identifier_alias
+    security_note setting snapshot target target_plan tax_parameters tax_profile
+    tax_statement_snapshot view
   )
 
   @doc """
