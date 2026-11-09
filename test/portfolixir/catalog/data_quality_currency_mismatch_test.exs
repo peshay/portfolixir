@@ -78,6 +78,9 @@ defmodule Portfolixir.Catalog.DataQualityCurrencyMismatchTest do
 
     # A caller's narrowing to the retired securities finds no held one here,
     # by list and by count alike.
+    # A row with no security is no finding, as in two_scales.
+    assert DataQuality.refine([%{}], "currency_mismatch") == []
+
     assert DataQuality.list("currency_mismatch", is_retired: true) == []
     assert DataQuality.count("currency_mismatch", is_retired: true) == 0
   end

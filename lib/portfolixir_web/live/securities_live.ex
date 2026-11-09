@@ -7366,9 +7366,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # #1101 (D-7; board 02, L2 A): the held securities whose quotes contradict
   # their own bookings. A removable chip, as two_scales'; no one-tap chip.
   defp dq_label("implausible_quote"), do: gettext("Quote does not match bookings")
-  # #1415 (Sprint 28 Q3; board ux-design-2026-11-08-sprint28/05): the
-  # securities whose provider stated another currency, the chip's words.
-  defp dq_label("currency_mismatch"), do: gettext("Currency mismatch")
 
   # -- #717 chip helpers ------------------------------------------------------
 

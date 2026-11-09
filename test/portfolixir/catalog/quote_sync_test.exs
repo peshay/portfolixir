@@ -453,6 +453,39 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
     assert length(journaled.(refused.id)) == 2
   end
 
+  # User story (Sprint 28 Q, coverage):
+  # As a local portfolio maintainer whose adapter's answer carries a currency
+  # the security cannot store,
+  # I want the closes stored and the failed record logged, never the sync
+  # failed for it,
+  # so that the stated currency, a record about the security, never costs a
+  # quote.
+  #
+  # Acceptance criteria:
+  # - An adapter answering its rows with `%{currency: "EURO"}` (not three
+  #   letters) has its rows stored and the sync ok; nothing is kept as the
+  #   provider currency, and the log names the security.
+  # - An answer whose meta carries no currency string stores its rows and
+  #   keeps nothing.
+  test "a stated currency the writer refuses costs no quote and is logged" do
+    unstorable = security_fixture(name: "Unstorable", currency_code: "EUR")
+    unstated = security_fixture(name: "Unstated", currency_code: "EUR")
+    row = %{date: ~D[2026-05-14], close: Decimal.new("100.00")}
+
+    Fake.put_response(unstorable.id, {:ok, [row], %{currency: "EURO"}})
+    Fake.put_response(unstated.id, {:ok, [row], %{currency: nil}})
+
+    {{:ok, %{ok: 2, error: 0}}, log} =
+      ExUnit.CaptureLog.with_log(fn -> QuoteSync.sync_all(adapter_for: %{"manual" => Fake}) end)
+
+    assert log =~ "quote sync kept no provider currency for security ##{unstorable.id}"
+
+    for security <- [unstorable, unstated] do
+      assert Decimal.equal?(Quotes.latest(security.id).close, Decimal.new("100.00"))
+      assert %{provider_currency: nil} = Catalog.get_security(security.id)
+    end
+  end
+
   defp chart_plug(stated) do
     fn conn ->
       meta =
