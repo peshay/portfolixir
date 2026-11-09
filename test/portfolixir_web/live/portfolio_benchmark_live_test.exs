@@ -117,6 +117,62 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     assert has_element?(again, "#kpi-benchmark [data-role='benchmark-row']", "Bench ETF")
   end
 
+  # --- Sprint 28 S2 begin ---
+  # Polish: Wealth (#1366), the line of 2026-11-08; amendment D-A4, board 07
+  # ③: the benchmark sentence read „Ansicht %% (TTWROR)“.
+  #
+  # User story:
+  # As the operator with a benchmark chosen, reading the value chart,
+  # I want the sentence that benchmarks are drawn in the TTWROR series only
+  # to name that series as the switch does, „% (TTWROR)“,
+  # so that the page does not print a stray „%%“.
+  #
+  # Acceptance criteria:
+  # - At the level „Gesamt“ the visible sentence reads "the % (TTWROR)
+  #   view", in English and German, and no „%%“.
+  # - In the stack it joins the method behind the basis line's ⓘ, with one
+  #   „%“, and is not repeated under it.
+  test "the benchmark sentence prints one %", %{conn: conn} do
+    world = seed_world()
+    choice = "benchmark[]=security:#{world.bench.id}"
+
+    conn = get(conn, "/portfolio?" <> choice)
+    {:ok, view, _html} = live(conn, "/portfolio?level=total&" <> choice)
+    render_async(view)
+
+    hint = view |> element("[data-role='benchmark-value-hint']") |> render()
+    assert hint =~ "drawn in the % (TTWROR) view only"
+    refute hint =~ "%%"
+
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        %{build_conn() | host: "localhost"},
+        "portfolixir_locale",
+        "de"
+      )
+
+    {:ok, view, _html} = live(german, "/portfolio?level=total&" <> choice)
+    render_async(view)
+
+    hint = view |> element("[data-role='benchmark-value-hint']") |> render()
+    assert hint =~ "Ansicht % (TTWROR)"
+    refute hint =~ "%%"
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category&" <> choice)
+    Enum.each(1..4, fn _round -> render_async(view) end)
+
+    tip =
+      view
+      |> element("[data-role='stack-basis'] [data-role='section-info'] [role='tooltip']")
+      |> render()
+
+    assert tip =~ "drawn in the % (TTWROR) view only"
+    refute tip =~ "%%"
+    assert length(Regex.scan(~r/data-role="benchmark-value-hint"/, render(view))) == 1
+  end
+
+  # --- Sprint 28 S2 end ---
+
   test "the value chart carries no overlay; an explicit empty choice clears the selection", %{
     conn: conn
   } do
@@ -131,7 +187,10 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     refute html =~ ~s(class="chart-benchmark-1")
     refute has_element?(view, "[data-role='benchmark-legend']")
     refute has_element?(view, "[data-role='perf-summary-table'] th", "Bench ETF")
-    # The deliberate limit is stated where the overlay is missing (UX-DR26).
+    # The deliberate limit is stated where the overlay is missing (UX-DR26);
+    # in the stack, the value series' default level, behind the ⓘ of its
+    # basis line once its bands have landed (#1366, Sprint 28 S2).
+    render_async(view)
     assert has_element?(view, "[data-role='benchmark-value-hint']", "TTWROR")
 
     conn = get(conn, "/portfolio?benchmark[]=")

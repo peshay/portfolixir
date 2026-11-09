@@ -283,58 +283,6 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
              Enum.map(usd["bands"], & &1["end_value"])
   end
 
-  # User story (I23, FR-53; board 01 A):
-  # As a local portfolio maintainer,
-  # I want a click on a category's band or on its legend row to show that
-  # category alone, stacked by its securities, and a breadcrumb back,
-  # so that I can look inside one level without losing my way.
-  #
-  # Acceptance criteria:
-  # - A click on the category's band patches to `level=security` with the
-  #   category; the stack then holds its securities, as the API answers
-  #   `level=security&category_id=…` for the same period, and no cash.
-  # - The breadcrumb reads "All categories › Income"; its link leads back
-  #   to the category stack.
-  # - The legend row's link opens the same view as the band.
-  # - Cash, unclassified and other bands open nothing.
-  test "a click on a band or its legend row opens the category by its securities; the breadcrumb leads back",
-       %{conn: conn} do
-    w = stack_world()
-    drilled = "/portfolio?level=security&category=#{w.income.id}"
-
-    {:ok, view, _html} = live(conn, "/portfolio?level=category")
-    settle(view)
-
-    refute has_element?(view, "#performance-figure-stack path[data-band='cash'][phx-click]")
-    refute has_element?(view, "#stack-legend tr[data-band='unclassified'] a")
-
-    view
-    |> element("#performance-figure-stack path[data-band='category:#{w.income.id}']")
-    |> render_click()
-
-    assert_patch(view, drilled)
-    settle(view)
-
-    data =
-      api(conn, %{"level" => "security", "category_id" => w.income.id, "period" => "1y"})
-
-    assert legend_keys(view) == data["bands"] |> Enum.map(& &1["key"]) |> Enum.reverse()
-    assert legend_keys(view) == ["security:#{w.beta.id}", "security:#{w.gamma.id}"]
-    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='security']")
-    assert text_of(view, "[data-role='stack-crumbs']") == "All categories › Income"
-
-    view |> element("[data-role='stack-crumbs'] a", "All categories") |> render_click()
-    assert_patch(view, "/portfolio?level=category")
-    settle(view)
-    assert length(legend_keys(view)) == 4
-
-    view
-    |> element("#stack-legend tr[data-band='category:#{w.income.id}'] a", "Income")
-    |> render_click()
-
-    assert_patch(view, drilled)
-  end
-
   # User story (I23, FR-53; story workflow: a link handed over):
   # As a local portfolio maintainer who sends a colleague the address,
   # I want every choice of the bar on the address,
@@ -344,10 +292,11 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # - Each choice is a link that patches: the sort "Change" adds
   #   `sort=change`, another classification `tree=…`; the TTWROR series
   #   chosen first does not stop a link from opening the value chart.
-  # - The address after a drill, opened fresh, shows the same level, sort,
-  #   category and legend order; no choice lives only in the page process.
-  # - "Total" drops the stack's other parameters and names its level
-  #   (FR-56: „Kategorien“ is the default, so the address names the level).
+  # - The address after a filter's click, opened fresh, shows the same
+  #   level, sort, filter and legend order; no choice lives only in the page
+  #   process.
+  # - "Total" drops the sort, keeps the filter (FR-56, board 02 ③) and names
+  #   its level („Kategorien“ is the default, so the address names it).
   test "the stack's state is on the address, and a link handed over reopens it", %{conn: conn} do
     w = stack_world()
 
@@ -387,7 +336,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     |> render_click()
 
     handed_over =
-      "/portfolio?level=security&tree=#{w.tree.id}&category=#{w.income.id}&sort=change"
+      "/portfolio?level=category&tree=#{w.tree.id}&category=#{w.income.id}&sort=change"
 
     assert_patch(view, handed_over)
     settle(view)
@@ -401,18 +350,19 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
              "[data-role='chart-series'] button.is-active[phx-value-mode='value']"
            )
 
-    assert has_element?(fresh, "[data-role='stack-level'] a.is-active[data-level='security']")
+    assert has_element?(fresh, "[data-role='stack-level'] a.is-active[data-level='category']")
     assert has_element?(fresh, "[data-role='stack-sort'] a.is-active[data-sort='change']")
     assert text_of(fresh, "[data-role='stack-crumbs']") == "All categories › Income"
     assert legend_keys(fresh) == shown
-    # Gamma +5 %, Beta −10 %: the larger change at the bottom.
-    assert shown == ["security:#{w.beta.id}", "security:#{w.gamma.id}"]
+    # Dividends (Gamma) +5 %, Income (direct) (Beta) −10 %: the larger
+    # change at the bottom.
+    assert shown == ["direct:#{w.income.id}", "category:#{w.dividends.id}"]
 
     assert href(fresh, "[data-role='stack-crumbs'] a") ==
              "/portfolio?level=category&tree=#{w.tree.id}&sort=change"
 
     fresh |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
-    assert_patch(fresh, "/portfolio?level=total")
+    assert_patch(fresh, "/portfolio?level=total&tree=#{w.tree.id}&category=#{w.income.id}")
   end
 
   # User story (I23, FR-53; plan D-4: "Gesamt is today's chart"):
@@ -840,4 +790,440 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   end
 
   # --- Sprint 28 S1 end ---
+
+  # --- Sprint 28 S2 begin ---
+  defp crumbs(view), do: text_of(view, "[data-role='stack-crumbs']")
+
+  defp api_keys(data), do: data["bands"] |> Enum.map(& &1["key"]) |> Enum.reverse()
+
+  # One day's figure, the window's last, on the screen and in the API's
+  # answer for the same request: each legend row's value as its attribute
+  # and as the shown amount.
+  defp assert_same_figures(view, data) do
+    assert legend_keys(view) == api_keys(data)
+    assert attrs(view, "#stack-legend", "data-date") == [data["end_date"]]
+
+    for band <- data["bands"] do
+      row = "#stack-legend tr[data-band='#{band["key"]}']"
+      assert attrs(view, row, "data-end-value") == [band["end_value"]]
+
+      assert text_of(view, row <> " td[data-role='stack-value']") ==
+               Format.money(Decimal.new(band["end_value"]))
+    end
+  end
+
+  # User story (FR-56, I29; board 02 ① to ③):
+  # As the operator looking into one category of my wealth,
+  # I want a click on its band or its legend row to filter the stack to it
+  # while the level stays, and a breadcrumb that leads up one level at a
+  # time,
+  # so that I walk down my tree and back without losing the level I read.
+  #
+  # Acceptance criteria:
+  # - At „Kategorien“ a click on the band „Income“ patches to
+  #   `level=category&category=<Income>`: the level stays, the stack holds
+  #   Income's sub-category „Dividends“ and „Income (direct)“, as the API
+  #   answers `level=category&category_id=<Income>` for the same period, on
+  #   the window's last day to the cent.
+  # - The breadcrumb reads „All categories › Income“. „Dividends“ is a
+  #   filter link again, „Income (direct)“ is not. Its click reads
+  #   „All categories › Income › Dividends“, one band, its own, which opens
+  #   nothing more.
+  # - The breadcrumb's „Income“ leads one level up, „All categories“ to the
+  #   unfiltered stack, each at the level shown.
+  # - A level chosen with a filter keeps it: „Wertpapiere“ shows Income's
+  #   securities as the API answers them; there no band is a filter, and
+  #   „All categories“ leads to all securities. „Gesamt“ with the filter
+  #   draws Income's own line, the API's band at `level=total`, a category
+  #   in the legend's head.
+  # - The address after each step, opened fresh, shows the same filter,
+  #   level, breadcrumb and legend.
+  test "a click on a band or legend row sets the filter and keeps the level; the breadcrumb leads up one level at a time",
+       %{conn: conn} do
+    w = stack_world()
+    income = "/portfolio?level=category&category=#{w.income.id}"
+    dividends = "/portfolio?level=category&category=#{w.dividends.id}"
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+
+    view
+    |> element("#performance-figure-stack path[data-band='category:#{w.income.id}']")
+    |> render_click()
+
+    assert_patch(view, income)
+    settle(view)
+
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='category']")
+    assert crumbs(view) == "All categories › Income"
+
+    data = api(conn, %{"level" => "category", "category_id" => w.income.id, "period" => "1y"})
+    assert_same_figures(view, data)
+    assert legend_keys(view) == ["direct:#{w.income.id}", "category:#{w.dividends.id}"]
+
+    assert text_of(view, "#stack-legend tr[data-band='direct:#{w.income.id}']") =~
+             "Income (direct)"
+
+    refute has_element?(view, "#stack-legend tr[data-band='direct:#{w.income.id}'] a")
+    refute has_element?(view, "path[data-band='direct:#{w.income.id}'][phx-click]")
+
+    view
+    |> element("#stack-legend tr[data-band='category:#{w.dividends.id}'] a", "Dividends")
+    |> render_click()
+
+    assert_patch(view, dividends)
+    settle(view)
+
+    assert crumbs(view) == "All categories › Income › Dividends"
+
+    data =
+      api(conn, %{"level" => "category", "category_id" => w.dividends.id, "period" => "1y"})
+
+    assert_same_figures(view, data)
+    assert legend_keys(view) == ["category:#{w.dividends.id}"]
+    refute has_element?(view, "#stack-legend a")
+    refute has_element?(view, "#performance-figure-stack path[phx-click]")
+
+    {:ok, fresh, _html} = live(build_conn(), dividends)
+    settle(fresh)
+    assert crumbs(fresh) == "All categories › Income › Dividends"
+    assert has_element?(fresh, "[data-role='stack-level'] a.is-active[data-level='category']")
+    assert legend_keys(fresh) == ["category:#{w.dividends.id}"]
+
+    view |> element("[data-role='stack-crumbs'] a", "Income") |> render_click()
+    assert_patch(view, income)
+    settle(view)
+    assert crumbs(view) == "All categories › Income"
+
+    view |> element("[data-role='stack-level'] a[data-level='security']") |> render_click()
+    assert_patch(view, "/portfolio?level=security&category=#{w.income.id}")
+    settle(view)
+
+    assert crumbs(view) == "All categories › Income"
+    data = api(conn, %{"level" => "security", "category_id" => w.income.id, "period" => "1y"})
+    assert_same_figures(view, data)
+    refute has_element?(view, "#stack-legend a")
+    refute has_element?(view, "#performance-figure-stack path[phx-click]")
+
+    view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
+    assert_patch(view, "/portfolio?level=total&category=#{w.income.id}")
+    settle(view)
+
+    assert crumbs(view) == "All categories › Income"
+    data = api(conn, %{"level" => "total", "category_id" => w.income.id, "period" => "1y"})
+    assert_same_figures(view, data)
+    assert legend_keys(view) == ["category:#{w.income.id}"]
+    assert text_of(view, "#stack-legend th:first-child") == "Category"
+
+    view |> element("[data-role='stack-level'] a[data-level='security']") |> render_click()
+    settle(view)
+    view |> element("[data-role='stack-crumbs'] a", "All categories") |> render_click()
+    assert_patch(view, "/portfolio?level=security")
+    settle(view)
+    assert crumbs(view) == "All categories"
+    assert "cash" in legend_keys(view)
+
+    {:ok, fresh, _html} =
+      live(build_conn(), "/portfolio?level=security&category=#{w.income.id}")
+
+    settle(fresh)
+    assert has_element?(fresh, "[data-role='stack-level'] a.is-active[data-level='security']")
+    assert crumbs(fresh) == "All categories › Income"
+    assert legend_keys(fresh) == ["security:#{w.beta.id}", "security:#{w.gamma.id}"]
+  end
+
+  # User story (FR-56, I29; board 02 ① and ④):
+  # As the operator who wants to see what my tree files nowhere,
+  # I want „Nicht zugeordnet“ to filter like a category, and cash and
+  # „Sonstige“ to stay what they are,
+  # so that I find the securities still missing a category.
+  #
+  # Acceptance criteria:
+  # - At „Kategorien“ the unassigned band and its legend row are a filter:
+  #   `category=unclassified`, the level kept, one band „Unassigned“ as the
+  #   API answers `category_id=unclassified`; at „Wertpapiere“ its
+  #   securities (Delta). The breadcrumb reads „All categories › Unassigned“.
+  # - Cash is no filter, nor is „Other“ when more than eight bands merge.
+  test "Unassigned is a filter; cash and Other are not", %{conn: conn} do
+    w = stack_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+
+    refute has_element?(view, "#performance-figure-stack path[data-band='cash'][phx-click]")
+    refute has_element?(view, "#stack-legend tr[data-band='cash'] a")
+    assert has_element?(view, "#stack-legend tr[data-band='unclassified'] a")
+
+    view
+    |> element("#performance-figure-stack path[data-band='unclassified']")
+    |> render_click()
+
+    assert_patch(view, "/portfolio?level=category&category=unclassified")
+    settle(view)
+
+    assert crumbs(view) == "All categories › Unassigned"
+
+    assert_same_figures(
+      view,
+      api(conn, %{"level" => "category", "category_id" => "unclassified", "period" => "1y"})
+    )
+
+    assert legend_keys(view) == ["unclassified"]
+    refute has_element?(view, "#stack-legend a")
+
+    view |> element("[data-role='stack-level'] a[data-level='security']") |> render_click()
+    assert_patch(view, "/portfolio?level=security&category=unclassified")
+    settle(view)
+    assert legend_keys(view) == ["security:#{w.delta.id}"]
+    assert crumbs(view) == "All categories › Unassigned"
+
+    nine_world()
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Nine Tree"})
+
+    for k <- 1..9 do
+      security = Enum.find(Portfolixir.Catalog.list_securities(), &(&1.name == "Position #{k}"))
+      assign!(security, tree, category!(tree, "Bucket #{k}"))
+    end
+
+    {:ok, nine, _html} = live(conn, "/portfolio?level=category&tree=#{tree.id}")
+    settle(nine)
+    assert "other" in legend_keys(nine)
+    refute has_element?(nine, "#stack-legend tr[data-band='other'] a")
+    refute has_element?(nine, "#performance-figure-stack path[data-band='other'][phx-click]")
+  end
+
+  # User story (FR-56; plan D-6, board 02 ②):
+  # As the operator reading a filtered category,
+  # I want its sub-categories in the palette's colours in order of size and
+  # „‹Name› (direkt)“ last,
+  # so that the filtered stack reads like a drilled one and the direct
+  # securities never take the first colour.
+  #
+  # Acceptance criteria:
+  # - Filtered to Income, whose direct securities (Beta, Epsilon: 2,400)
+  #   are worth more than its sub-category Dividends (1,050), Dividends
+  #   takes the palette's first colour and „Income (direct)“ the next, the
+  #   last one in use.
+  test "a filter's sub-categories take the palette in order, (direct) the last colour",
+       %{conn: conn} do
+    w = stack_world()
+    epsilon = create_security!(name: "Epsilon Synthetic AB")
+    buy!(w.world, epsilon, quantity: "10", price: "100", date: days_ago(500))
+    put_quotes!(epsilon, [{days_ago(500), "100"}, {today(), "150"}])
+    assign!(epsilon, w.tree, w.income)
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category&category=#{w.income.id}")
+    settle(view)
+
+    assert legend_keys(view) == ["category:#{w.dividends.id}", "direct:#{w.income.id}"]
+
+    fill = fn key ->
+      view |> attrs("#performance-figure-stack path[data-band='#{key}']", "fill") |> Enum.uniq()
+    end
+
+    assert fill.("category:#{w.dividends.id}") == [Enum.at(@palette, 0)]
+    assert fill.("direct:#{w.income.id}") == [Enum.at(@palette, 1)]
+  end
+
+  # -- #1426: a band that changes sign -----------------------------------------------
+
+  # Deposit 1,500 and buy Alpha for 1,000 (cash 500); 50 days ago buy Beta
+  # for 800 before the money that pays it (cash −300 for two days), then
+  # deposit 800 (cash 500 again). Every booking lies inside the 1Y window.
+  defp sign_world do
+    world = base_world(name: "Sign World", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "1500", days_ago(100))
+    alpha = create_security!(name: "Alpha Synthetic AG")
+    buy!(world, alpha, quantity: "10", price: "100", date: days_ago(100))
+    put_quotes!(alpha, [{days_ago(100), "100"}, {today(), "110"}])
+    beta = create_security!(name: "Beta Synthetic SE")
+    buy!(world, beta, quantity: "8", price: "100", date: days_ago(50))
+    put_quotes!(beta, [{days_ago(50), "100"}])
+    deposit!(world, "800", days_ago(48))
+    %{world: world, alpha: alpha, beta: beta}
+  end
+
+  # Each drawn area of the stack as {key, part, [{upper_y, lower_y}]}, one
+  # pair per drawn day, read from the SVG the component emits: a path's
+  # first `points` vertices are its upper edge left to right, the rest its
+  # lower edge right to left.
+  defp polygons(view) do
+    [points] = attrs(view, "#performance-figure-stack svg", "data-points")
+    points = String.to_integer(points)
+
+    view
+    |> doc()
+    |> Floki.find("#performance-figure-stack path.stack-band")
+    |> Enum.map(fn path ->
+      [d] = Floki.attribute(path, "d")
+      [key] = Floki.attribute(path, "data-band")
+      part = path |> Floki.attribute("data-part") |> List.first("positive")
+
+      ys =
+        ~r/[ML]\s*(-?[\d.]+),(-?[\d.]+)/
+        |> Regex.scan(d)
+        |> Enum.map(fn [_, _x, y] -> String.to_float(y) end)
+
+      {upper, lower} = Enum.split(ys, points)
+      {key, part, Enum.zip(upper, Enum.reverse(lower))}
+    end)
+  end
+
+  # Two areas cross when one lies above the other on one day and below it
+  # on another (screen y grows downwards), or when they overlap on a day;
+  # touching is neither.
+  defp crossings(polygons) do
+    pairs =
+      for {a, ia} <- Enum.with_index(polygons),
+          {b, ib} <- Enum.with_index(polygons),
+          ia < ib,
+          do: {a, b}
+
+    for {{ka, pa, da}, {kb, pb, db}} <- pairs,
+        relations = Enum.zip_with(da, db, &relation/2),
+        :overlap in relations or (:above in relations and :below in relations),
+        do: {{ka, pa}, {kb, pb}}
+  end
+
+  defp relation({ua, la}, {ub, lb}) do
+    cond do
+      la <= ub + 0.01 and ua < lb - 0.01 and la - ua > 0.01 -> :above
+      lb <= ua + 0.01 and ub < la - 0.01 and lb - ub > 0.01 -> :below
+      la <= ub + 0.01 or lb <= ua + 0.01 -> :touch
+      true -> :overlap
+    end
+  end
+
+  # User story (#1426; board 02 ⑤ and ⑥):
+  # As the operator whose cash account was overdrawn for two days (a buy
+  # booked before the money that pays it),
+  # I want the cash band drawn next to the zero line, its negative part as
+  # a separate, lighter area under it,
+  # so that the stack does not read as a crash of every position between.
+  #
+  # Acceptance criteria:
+  # - At „Wertpapiere“, with the cash negative on two days of the window,
+  #   no two drawn areas cross or overlap on any day, read from the SVG the
+  #   page emits.
+  # - The cash band, which changes sign, is drawn first: its positive part
+  #   rests on the zero line on every day and its negative part hangs from
+  #   it, a separate path (`data-part="negative"`) with the lighter class;
+  #   the zero line is drawn.
+  # - The legend and its order stay the API's.
+  test "a band that changes sign sits next to the zero line and crosses no other band",
+       %{conn: conn} do
+    sign_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=security")
+    settle(view)
+
+    data = api(conn, %{"level" => "security", "period" => "1y"})
+    assert legend_keys(view) == api_keys(data)
+    cash = Enum.find(data["bands"], &(&1["key"] == "cash"))
+    assert Enum.count(cash["values"], &Decimal.negative?(Decimal.new(&1))) == 2
+
+    shapes = polygons(view)
+    assert crossings(shapes) == []
+
+    assert [{"cash", "positive", positive}, {"cash", "negative", negative}] =
+             Enum.filter(shapes, fn {key, _part, _days} -> key == "cash" end)
+
+    assert has_element?(
+             view,
+             "path.stack-band--negative[data-band='cash'][data-part='negative']"
+           )
+
+    [zero] = attrs(view, "#performance-figure-stack line.chart-zeroline", "y1")
+    zero = String.to_float(zero)
+
+    assert Enum.all?(positive, fn {_upper, lower} -> abs(lower - zero) < 0.01 end)
+    assert Enum.all?(negative, fn {upper, _lower} -> abs(upper - zero) < 0.01 end)
+    assert Enum.count(negative, fn {upper, lower} -> lower - upper > 0.01 end) == 2
+
+    assert view |> attrs("#performance-figure-stack path.stack-band", "data-band") |> hd() ==
+             "cash"
+  end
+
+  # -- #1366's lines: the basis behind its ⓘ ---------------------------------------
+
+  # User story (#1366, 2026-11-08; amendment D-A4, board 07 ① to ③; I1):
+  # As the operator reading the stacked chart,
+  # I want one short basis line under it and the method behind its ⓘ,
+  # so that the chart is not followed by five open sentences.
+  #
+  # Acceptance criteria:
+  # - Under the stack one line reads what it shows, the window and when it
+  #   was computed: „Market value per category of “Strategy” · ‹start› –
+  #   ‹end› · computed ‹as of›“, the API's dates and as-of; the section's
+  #   own window line is not repeated.
+  # - The line ends in the section's ⓘ (`data-role="section-info"`), which
+  #   holds the method: the currency, the change without flows, the order,
+  #   what a click does.
+  # - Filtered, the line names the filter.
+  test "the stack's basis is one line, its method behind the ⓘ at its end", %{conn: conn} do
+    w = stack_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=category")
+    settle(view)
+
+    data = api(conn, %{"level" => "category", "period" => "1y"})
+    {:ok, as_of, _offset} = DateTime.from_iso8601(data["as_of"])
+
+    assert text_of(view, "[data-role='stack-basis'] [data-role='stack-basis-line']") ==
+             "Market value per category of “Strategy” · " <>
+               Format.date(Date.from_iso8601!(data["start_date"])) <>
+               " – " <>
+               Format.date(Date.from_iso8601!(data["end_date"])) <>
+               " · computed " <> Format.utc_instant(as_of)
+
+    refute has_element?(view, "[data-role='performance-basis']")
+
+    tip = text_of(view, "[data-role='stack-basis'] [data-role='section-info'] [role='tooltip']")
+    assert tip =~ "in EUR"
+    assert tip =~ "Change without deposits and withdrawals."
+    assert tip =~ "The largest band at the bottom"
+    assert tip =~ "A click on a category filters the stack to it"
+
+    {:ok, filtered, _html} = live(conn, "/portfolio?level=security&category=#{w.income.id}")
+    settle(filtered)
+
+    assert text_of(filtered, "[data-role='stack-basis-line']") =~
+             "Market value per security of “Income”"
+  end
+
+  # User story (FR-56; a stale link):
+  # As the operator following a link to a filter whose category was
+  # deleted since,
+  # I want the same level without the filter,
+  # so that the page never shows a stack its address does not name.
+  #
+  # Acceptance criteria:
+  # - `/portfolio?level=security&category=<a deleted id>` replaces the
+  #   address once with `/portfolio?level=security` and shows all
+  #   securities; a `category` that is no id filters nothing.
+  test "a link to a filter that is gone keeps its level without the filter", %{conn: conn} do
+    w = stack_world()
+
+    {:ok, gone} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: w.tree.id,
+        name: "Gone"
+      })
+
+    {:ok, _} = Classifications.delete_category(Actor.owner_ui(), gone)
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=security&category=#{gone.id}")
+    settle(view)
+    assert_patch(view, "/portfolio?level=security")
+    settle(view)
+    assert "cash" in legend_keys(view)
+    assert has_element?(view, "[data-role='stack-level'] a.is-active[data-level='security']")
+
+    {:ok, view, _html} = live(conn, "/portfolio?level=security&category=abc")
+    settle(view)
+    assert crumbs(view) == "All categories"
+    assert "cash" in legend_keys(view)
+  end
+
+  # --- Sprint 28 S2 end ---
 end

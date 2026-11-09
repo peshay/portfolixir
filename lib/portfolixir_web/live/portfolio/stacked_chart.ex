@@ -2,27 +2,36 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   @moduledoc """
   The stacked value chart on Wealth → Holdings → Performance (I23, FR-53;
   idea board `ux-design-2026-11-06-ideas-i23-i24/01-stacked-chart`, variant
-  A; Sprint 27 plan D-4, D-5).
+  A; Sprint 27 plan D-4, D-5), with the filter of FR-56 (Sprint 28 S2,
+  board `ux-design-2026-11-08-sprint28/02-stack-filter`).
 
   The anatomy (DESIGN.md → Amendment 2026-11-07 → the stacked chart):
 
     * **the bar** (`bar/1`) above the chart, in the value series only: the
-      breadcrumb on the left, then the level (Total · Categories ·
-      Securities), the classification and the sort (Size · Change). Every
-      choice is a link that patches the address, so a link handed over
-      reopens the same stack. At the level Total the bar holds the level
-      alone, and the chart under it is today's value chart, unchanged;
+      breadcrumb on the left, the filter's path through its tree, then the
+      level (Total · Categories · Securities), the classification and the
+      sort (Size · Change). Every choice is a link that patches the address,
+      so a link handed over reopens the same stack; a level keeps the
+      filter. At the level Total without a filter the bar holds the level
+      alone, and the chart under it is today's value chart, unchanged. The
+      bar is the first user of "labelled controls start on one edge"
+      (DESIGN.md, amendment of 2026-11-08): a container query turns it into
+      a label column, or labels above their controls, when it wraps;
     * **the bands** (`figure/1`): `Portfolixir.Portfolios.Performance.Bands`'
       daily values, the first band of its order at the bottom, the largest
-      by the chosen sort. Values below zero (an overdrawn cash account)
-      stack downwards from the zero line, so the bands still add up to the
-      day's value. A category's band patches to its securities on a click;
+      by the chosen sort. A band's part below zero (an overdrawn cash
+      account) is an area of its own under the zero line, a little lighter,
+      and a band that changes sign inside the window is drawn next to the
+      zero line, so no band crosses another (#1426). At the category level a
+      category's band, and the unassigned rest's, sets the filter on a
+      click and keeps the level;
     * **the legend as a table**, reading like the stack, the top band first:
-      the swatch and the name (a category's name is the drill link), the
+      the swatch and the name (a filterable band's name is the link), the
       value on the window's last day, its share and its change without
       flows;
-    * **the basis line**: what a band is, the order, the merge into "Other"
-      when it happened; the window is the section's basis line under it.
+    * **the basis line**: one line, what the chart shows, the window and
+      when it was computed, ending in the section's ⓘ that holds the method
+      (I1; #1366).
 
   **The privacy mode** (I22): the stack is drawn as a 100 % stack by itself,
   each day's bands over the sum of that day's positive bands, so the axis
@@ -39,6 +48,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
@@ -62,7 +72,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   @doc """
   The bar above the value chart. `paths` holds the address of every choice:
   `:total`, `:category`, `:security`, `:size` and `:change`; `crumbs` is the
-  breadcrumb as `{label, path | nil}`, the last one the place shown.
+  breadcrumb as `{label, path | nil}`, each step up the filter's tree a
+  link, the last one the place shown.
   """
   def bar(assigns) do
     ~H"""
@@ -98,7 +109,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         </div>
         </span>
         <form
-          :if={@stack.level == :category or not is_nil(@stack.category)}
+          :if={@stack.level == :category or (@stack.level == :security and not is_nil(@stack.category))}
           id="stack-classification-form"
           class="stack-bar__tree"
           phx-change="select_stack_classification"
@@ -157,11 +168,15 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   attr(:result, :map, required: true)
   attr(:colors, :map, required: true)
   attr(:drill_paths, :map, required: true)
+  attr(:benchmark_note, :string, default: nil)
 
   @doc """
   The stacked bands and their legend. `result` is a `Bands` answer,
-  `colors` each band's colour by key (`:other` for the neutral token), and
-  `drill_paths` the address a category's band opens, by key.
+  `colors` each band's colour by key (`:other` for the neutral token),
+  `drill_paths` the address a band's filter opens, by key (FR-56: a
+  category, or the unassigned rest), and `benchmark_note` the sentence
+  that the benchmarks are drawn in the TTWROR series only, when any is
+  chosen; it joins the method behind the basis line's ⓘ.
   """
   def figure(assigns) do
     privacy? = PrivacyMode.on?()
@@ -173,6 +188,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         privacy?: privacy?,
         geometry: geometry,
         legend: Enum.reverse(bands),
+        by_key: Map.new(bands, &{&1.key, &1}),
         width: @width,
         height: @height,
         plot_left: @padding_left,
@@ -212,16 +228,30 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
                 />
               </g>
               <path
-                :for={band <- Enum.reverse(@legend)}
-                class={["stack-band", band_class(band), Map.get(@colors, band.key) == :other && "stack-band--other"]}
-                d={Map.fetch!(@geometry.paths, band.key)}
-                fill={fill(Map.get(@colors, band.key))}
-                data-band={band.key}
-                phx-click={if Map.has_key?(@drill_paths, band.key), do: "drill_stack"}
-                phx-value-category={if Map.has_key?(@drill_paths, band.key), do: band.id}
+                :for={%{key: key, part: part, d: d} <- @geometry.parts}
+                class={[
+                  "stack-band",
+                  band_class(Map.fetch!(@by_key, key)),
+                  Map.get(@colors, key) == :other && "stack-band--other",
+                  part == :negative && "stack-band--negative"
+                ]}
+                d={d}
+                fill={fill(Map.get(@colors, key))}
+                data-band={key}
+                data-part={if part == :negative, do: "negative"}
+                phx-click={if Map.has_key?(@drill_paths, key), do: "drill_stack"}
+                phx-value-category={if Map.has_key?(@drill_paths, key), do: filter_value(Map.fetch!(@by_key, key))}
               >
-                <title><%= band_title(band, @privacy?) %></title>
+                <title><%= band_title(Map.fetch!(@by_key, key), @privacy?) %></title>
               </path>
+              <line
+                :if={@geometry.zero_y}
+                class="chart-zeroline"
+                x1={@plot_left}
+                y1={coord(@geometry.zero_y)}
+                x2={@plot_right}
+                y2={coord(@geometry.zero_y)}
+              />
               <g class="chart-axis-labels">
                 <text
                   :for={{{value, y}, index} <- Enum.with_index(@geometry.ticks)}
@@ -254,7 +284,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             <thead>
               <tr>
                 <th scope="col">
-                  <%= if @result.level == :category, do: gettext("Category"), else: gettext("Security") %>
+                  <%= if @result.level == :security, do: gettext("Security"), else: gettext("Category") %>
                 </th>
                 <th :if={not @privacy?} scope="col" class="num"><%= gettext("Value") %></th>
                 <th scope="col" class="num"><%= gettext("Share") %></th>
@@ -290,16 +320,18 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             </tbody>
           </table>
         </div>
-        <p class="hint" data-role="stack-basis">
-          <%= basis(@result, @privacy?) %>
-          <%= gettext("Change without deposits and withdrawals.") %>
-          <%= order_text(@result.sort) %>
-          <%= if @other?,
-            do:
-              gettext(
-                "Above eight bands the smallest merge into “Other”, which always sits on top."
-              ) %>
-        </p>
+        <%!-- I1 (#1351; #1366, amendment D-A4, board 07 ② and ③): one
+             line stays, what the chart shows, the window and when it was
+             computed; the method sits in the ⓘ at its end. --%>
+        <div class="hint stack-basis" data-role="stack-basis">
+          <span data-role="stack-basis-line">
+            <%= shows(@result) %> · <%= Format.date(@result.start_date) %> – <%= Format.date(@result.end_date) %><%= if @result.as_of do %> · <%= gettext("computed %{at}", at: Format.utc_instant(@result.as_of)) %><% end %>
+          </span>
+          <AppShell.section_info>
+            <:line :for={line <- method(@result, @privacy?, @drill_paths != %{}, @other?)}><%= line %></:line>
+            <:line :if={@benchmark_note}><span data-role="benchmark-value-hint"><%= @benchmark_note %></span></:line>
+          </AppShell.section_info>
+        </div>
       <% end %>
     </figure>
     """
@@ -372,45 +404,99 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   defp swatch_style(color) when is_binary(color), do: "background: #{color}"
   defp swatch_style(_other), do: nil
 
-  defp aria_label(%{level: :category}), do: gettext("Value by category over time")
-  defp aria_label(_result), do: gettext("Value by security over time")
+  defp aria_label(%{level: :security}), do: gettext("Value by security over time")
+  defp aria_label(_result), do: gettext("Value by category over time")
 
-  defp basis(%{level: :category} = result, privacy?) do
-    tree = tree_name(result.classification)
+  # The visible half of the basis: what the chart shows (I1's basis
+  # clause), the filter named.
+  defp shows(%{category_id: :unclassified} = result),
+    do:
+      gettext("Market value of what “%{tree}” files nowhere",
+        tree: tree_name(result.classification)
+      )
 
-    if privacy?,
-      do:
+  defp shows(%{level: :security, category: %{name: name}}),
+    do: gettext("Market value per security of “%{category}”", category: name)
+
+  defp shows(%{level: :category, category: %{name: name}} = result) do
+    if divided?(result),
+      do: gettext("Market value of “%{category}” by sub-category", category: name),
+      else: gettext("Market value of “%{category}”", category: name)
+  end
+
+  defp shows(%{category: %{name: name}}),
+    do: gettext("Market value of “%{category}”", category: name)
+
+  defp shows(%{level: :category} = result),
+    do: gettext("Market value per category of “%{tree}”", tree: tree_name(result.classification))
+
+  defp shows(_result), do: gettext("Market value per security and the cash")
+
+  # The method behind the ⓘ, one sentence per line (I1): the currency and
+  # what a band holds, the change, the order, the merge, the negative parts,
+  # what a click does, and the privacy mode's picture.
+  defp method(result, privacy?, filter_links?, other?) do
+    [
+      gettext("Market value at each day's close, in %{currency}.",
+        currency: result.base_currency
+      ),
+      holds(result),
+      gettext("Change without deposits and withdrawals."),
+      order_text(result.sort),
+      other? &&
+        gettext("Above eight bands the smallest merge into “Other”, which always sits on top."),
+      negative?(result) &&
         gettext(
-          "Each category's share of the day's value, classification “%{tree}”; cash and the unclassified rest are bands of their own.",
-          tree: tree
+          "Below zero a band is drawn lighter, under the zero line; a band that changes sign sits next to it."
         ),
-      else:
+      filter_links? &&
         gettext(
-          "Market value per category of “%{tree}” at each day's close, in %{currency}; cash and the unclassified rest are bands of their own.",
-          tree: tree,
-          currency: result.base_currency
+          "A click on a category filters the stack to it and keeps the level; the path above leads back."
+        ),
+      privacy? &&
+        gettext(
+          "In the privacy mode each day's bands are drawn over that day's positive bands, from 0 % to 100 %."
         )
+    ]
+    |> Enum.filter(&is_binary/1)
   end
 
-  defp basis(%{category: %{name: name}} = result, privacy?) do
-    if privacy?,
-      do: gettext("Each security's share of the value of “%{category}” per day.", category: name),
-      else:
+  defp holds(%{category_id: nil, level: :category}),
+    do: gettext("Cash and the unassigned rest are bands of their own.")
+
+  defp holds(%{category_id: nil, level: :security}), do: gettext("Cash is a band of its own.")
+  defp holds(%{category_id: nil}), do: nil
+
+  defp holds(%{level: :category, bands: bands, category: %{name: name}} = result) do
+    cond do
+      Enum.any?(bands, &(&1.kind == :direct)) ->
         gettext(
-          "Market value per security of “%{category}” at each day's close, in %{currency}; the share is of the category.",
-          category: name,
-          currency: result.base_currency
+          "Each sub-category over its whole subtree, “%{name} (direct)” the securities filed in “%{name}” itself; no cash, no unassigned rest.",
+          name: name
         )
+
+      divided?(result) ->
+        gettext("Each sub-category over its whole subtree; no cash, no unassigned rest.")
+
+      true ->
+        holds(:filtered)
+    end
   end
 
-  defp basis(result, privacy?) do
-    if privacy?,
-      do: gettext("Each security's share of the day's value, and the cash's."),
-      else:
-        gettext("Market value per security at each day's close, in %{currency}, and the cash.",
-          currency: result.base_currency
-        )
-  end
+  defp holds(_filtered),
+    do: gettext("Without cash and the unassigned rest; the bands add up to the filter's band.")
+
+  # A filtered category drawn by its sub-categories, not as its own band.
+  defp divided?(%{bands: bands, category: %{id: id}}),
+    do: Enum.any?(bands, &(&1.kind == :direct or (&1.kind == :category and &1.id != id)))
+
+  defp negative?(result),
+    do: Enum.any?(result.bands, fn band -> Enum.any?(band.values, &Decimal.negative?/1) end)
+
+  # The value a band's click sends: a category's id, or the unassigned
+  # rest.
+  defp filter_value(%{kind: :unclassified}), do: "unclassified"
+  defp filter_value(%{id: id}), do: id
 
   defp tree_name(%{name: name}), do: name
   defp tree_name(_none), do: gettext("none")
@@ -445,7 +531,11 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   # -- geometry ---------------------------------------------------------------------
 
   # The drawn days (at most @max_points, the window's last day always among
-  # them), each band's area as one path, and the axis.
+  # them), each band's areas, and the axis. A band draws one area above the
+  # zero line and, when it is negative on a day, a second one below it, so
+  # the two never cross the bands between (#1426); a band that changes sign
+  # inside the window is drawn first, next to the zero line, and its two
+  # areas meet there. „Other“ stays on top whatever its sign (D4).
   defp geometry(%{bands: []}, _privacy?), do: nil
 
   defp geometry(result, privacy?) do
@@ -459,7 +549,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       end)
 
     series = if privacy?, do: shares(series), else: series
-    stacked = stack(series)
+    kinds = Map.new(result.bands, &{&1.key, &1.kind})
+    stacked = series |> zero_first(kinds) |> stack()
 
     {lo, hi} = range(stacked, privacy?)
     plot_top = @padding_top * 1.0
@@ -474,8 +565,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
     y = fn v -> plot_bottom - (plot_bottom - plot_top) * (v - lo) / (hi - lo) end
 
-    paths =
-      Map.new(stacked, fn {key, edges} ->
+    parts =
+      Enum.map(stacked, fn {key, part, edges} ->
         upper = edges |> Enum.with_index() |> Enum.map(fn {{_l, u}, i} -> {x.(i), y.(u)} end)
 
         lower =
@@ -484,7 +575,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
           |> Enum.map(fn {{l, _u}, i} -> {x.(i), y.(l)} end)
           |> Enum.reverse()
 
-        {key, path(upper ++ lower)}
+        %{key: key, part: part, d: path(upper ++ lower)}
       end)
 
     ticks =
@@ -496,11 +587,24 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     %{
       points: n,
       plot_top: plot_top,
-      paths: paths,
+      parts: parts,
+      zero_y: if(lo < 0, do: y.(0.0)),
       ticks: ticks,
       first_date: List.first(dates),
       last_date: List.last(dates)
     }
+  end
+
+  # The bands that change sign inside the window first, in their order,
+  # then the others: the first sit next to the zero line (#1426).
+  defp zero_first(series, kinds) do
+    {changing, steady} =
+      Enum.split_with(series, fn {key, values} ->
+        Map.get(kinds, key) != :other and Enum.any?(values, &(&1 > 0)) and
+          Enum.any?(values, &(&1 < 0))
+      end)
+
+    changing ++ steady
   end
 
   defp sample(count) when count <= @max_points, do: Enum.to_list(0..(count - 1)//1)
@@ -529,33 +633,41 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     end)
   end
 
-  # Each band's lower and upper edge per day, the first band at the bottom:
-  # a positive value stacks up from the positives below it, a negative one
-  # down from the negatives (a diverging stack), so each day's bands still
-  # add up to its value.
+  # Each band's areas with their lower and upper edge per day, the first
+  # band at the bottom: its positive part stacks up from the positives
+  # below it, its negative part down from the negatives (a diverging stack),
+  # so each day's bands still add up to its value. The positive area is
+  # drawn unless the band is never above zero; the negative one only when
+  # it is below zero on some day.
   defp stack(series) do
     days = series |> hd() |> elem(1) |> length()
-    start = List.duplicate({0.0, 0.0}, days)
+    start = {List.duplicate(0.0, days), List.duplicate(0.0, days)}
 
     {stacked, _acc} =
-      Enum.map_reduce(series, start, fn {key, values}, acc ->
-        {edges, acc} =
-          values
-          |> Enum.zip(acc)
-          |> Enum.map(fn
-            {value, {pos, neg}} when value >= 0 -> {{pos, pos + value}, {pos + value, neg}}
-            {value, {pos, neg}} -> {{neg + value, neg}, {pos, neg + value}}
-          end)
-          |> Enum.unzip()
+      Enum.flat_map_reduce(series, start, fn {key, values}, {pos, neg} ->
+        up = Enum.map(values, &max(&1, 0.0))
+        down = Enum.map(values, &min(&1, 0.0))
+        pos_after = Enum.zip_with(pos, up, &(&1 + &2))
+        neg_after = Enum.zip_with(neg, down, &(&1 + &2))
 
-        {{key, edges}, acc}
+        positive = {key, :positive, Enum.zip(pos, pos_after)}
+        negative = {key, :negative, Enum.zip(neg_after, neg)}
+
+        parts =
+          cond do
+            Enum.all?(values, &(&1 >= 0)) -> [positive]
+            Enum.all?(values, &(&1 <= 0)) -> [negative]
+            true -> [positive, negative]
+          end
+
+        {parts, {pos_after, neg_after}}
       end)
 
     stacked
   end
 
   defp range(stacked, privacy?) do
-    edges = Enum.flat_map(stacked, fn {_key, edges} -> edges end)
+    edges = Enum.flat_map(stacked, fn {_key, _part, edges} -> edges end)
     lo = edges |> Enum.map(&elem(&1, 0)) |> Enum.min(fn -> 0.0 end) |> min(0.0)
     top = edges |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 0.0 end) |> max(0.0)
 

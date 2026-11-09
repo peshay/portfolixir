@@ -6325,6 +6325,18 @@ details[open] > .disclosure-summary .disclosure-chevron {
 .stack-band--other {
   fill: var(--color-chart-other);
 }
+/* Issue 1426: a band's part below zero, a separate area under the zero line,
+   drawn a little lighter than its part above. */
+.stack-band--negative {
+  fill-opacity: 0.75;
+}
+.stack-chart .chart-zeroline {
+  stroke-opacity: 0.8;
+}
+/* The basis line ends in the section's ⓘ, which holds the method (I1). */
+.stack-basis {
+  margin: 0;
+}
 .stack-legend {
   width: 100%;
   border-collapse: collapse;
