@@ -70,6 +70,13 @@ defmodule Portfolixir.Catalog.Security do
     embeds_many(:news_aliases, NewsAlias, on_replace: :delete)
     field(:news_watch, :boolean, default: false)
 
+    # #1415 (Sprint 28 Q3): the currency the quote provider stated for the
+    # security and when the sync that stored it read it, written by the quote
+    # sync alone (`provider_currency_changeset/3`), never cast from a caller.
+    # Null is not yet known: no sync has read one since the column exists.
+    field(:provider_currency, :string)
+    field(:provider_currency_at, :utc_datetime)
+
     has_many(:identifier_aliases, Portfolixir.Catalog.IdentifierAlias)
 
     # ADR-0044 §1 (#749): the current thesis state, a projection over the
@@ -116,6 +123,32 @@ defmodule Portfolixir.Catalog.Security do
       |> Map.new()
 
     change(security, attributes: merged)
+  end
+
+  # Three ASCII letters, as written: an ISO 4217 code, or one of the
+  # minor-unit codes Yahoo states (GBp, ZAc, ILA).
+  @provider_currency_shape ~r/\A[A-Za-z]{3}\z/
+
+  @doc """
+  The quote sync's record of the currency its provider stated (#1415):
+  `provider_currency` and `provider_currency_at`, nothing else. The value is
+  the provider's, so it is bounded here as any foreign text is: three
+  letters, kept as written (`GBp` is not `GBP`), or a field error and no
+  write. A currency equal to the stored one changes nothing, so the time
+  stays that of the read that stored it.
+  """
+  def provider_currency_changeset(security, currency, %DateTime{} = read_at) do
+    if security.provider_currency == currency do
+      change(security)
+    else
+      security
+      |> change(
+        provider_currency: currency,
+        provider_currency_at: DateTime.truncate(read_at, :second)
+      )
+      |> Text.validate(:provider_currency, max: 3)
+      |> validate_format(:provider_currency, @provider_currency_shape)
+    end
   end
 
   def changeset(security, attrs) do

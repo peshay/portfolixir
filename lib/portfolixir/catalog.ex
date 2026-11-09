@@ -709,6 +709,54 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
+  The quote sync's record, on behalf of `actor`, of the currency its provider
+  stated for `security` (#1415, Sprint 28 Q3): `provider_currency` and
+  `provider_currency_at`, `read_at` being the time of the sync that read it. Called on every sync
+  that reads a currency, a refused one's too (#1411), and written only when
+  the currency differs from the one stored under the row's lock, so a sync
+  that reads the same currency again writes nothing and the time stays that
+  of the read that stored it. The sync writes it as the system job
+  `quote_sync`, so the journal is the history of what the provider stated. A value that is
+  not three letters is a changeset error and is not stored.
+  """
+  @spec put_provider_currency(Actor.t(), Security.t(), String.t(), DateTime.t()) ::
+          {:ok, Security.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def put_provider_currency(
+        %Actor{},
+        %Security{provider_currency: currency} = security,
+        currency,
+        _read_at
+      )
+      when is_binary(currency),
+      do: {:ok, security}
+
+  def put_provider_currency(
+        %Actor{} = actor,
+        %Security{} = security,
+        currency,
+        %DateTime{} = read_at
+      )
+      when is_binary(currency) do
+    multi =
+      Multi.new()
+      |> Multi.update(:security, fn changes ->
+        Security.provider_currency_changeset(Journal.locked_row(changes), currency, read_at)
+      end)
+      |> Journal.record(actor,
+        resource_type: "security",
+        operation: :update,
+        source: :security,
+        before: security
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{security: updated}} -> {:ok, updated}
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Starts the logo reconciliation once the supervisor is up (#933), as a task
   under `Portfolixir.LogoSupervisor`: it never holds up or stops the boot,
   and a crash in it is logged. `run` is the work, `reconcile_logos/0`

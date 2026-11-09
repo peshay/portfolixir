@@ -17,6 +17,7 @@ defmodule Portfolixir.Catalog.QuoteSync do
   use GenServer
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quotes
@@ -225,6 +226,21 @@ defmodule Portfolixir.Catalog.QuoteSync do
           {:ok, rows} when is_list(rows) ->
             persist(security, rows, provider)
 
+          # #1415 (Q3): the currency the provider stated is kept before the
+          # rows are stored, and before a refusal (#1411) is reported.
+          {:ok, rows, %{currency: currency}} when is_list(rows) ->
+            keep_provider_currency(security, currency)
+            persist(security, rows, provider)
+
+          {:error, {:currency_mismatch, currency} = reason} ->
+            keep_provider_currency(security, currency)
+
+            Logger.warning(
+              "quote fetch refused for security ##{security.id} via #{inspect(adapter)}: #{inspect(reason)}"
+            )
+
+            result(security, :error, reason)
+
           {:error, reason} when reason in @skip_reasons ->
             result(security, :skipped, reason)
 
@@ -244,6 +260,28 @@ defmodule Portfolixir.Catalog.QuoteSync do
         end
     end
   end
+
+  # The stated currency is a record about the security, not a quote: a write
+  # that fails (the row gone, a value that is not three letters) is logged and
+  # leaves the sync's own answer as it is.
+  defp keep_provider_currency(security, currency) when is_binary(currency) do
+    case Catalog.put_provider_currency(
+           Actor.system_job("quote_sync"),
+           security,
+           currency,
+           DateTime.utc_now()
+         ) do
+      {:ok, _security} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "quote sync kept no provider currency for security ##{security.id}: #{inspect(reason)}"
+        )
+    end
+  end
+
+  defp keep_provider_currency(_security, _currency), do: :ok
 
   defp safe_fetch(adapter, security, opts) do
     adapter.fetch(security, opts)

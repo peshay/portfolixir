@@ -47,7 +47,7 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
       currency_code: "USD"
     }
 
-    {:ok, rows} = Yahoo.fetch(security, req: req_stub(body))
+    {:ok, rows, %{currency: "USD"}} = Yahoo.fetch(security, req: req_stub(body))
 
     assert [
              %{date: ~D[2024-05-06], close: c1},
@@ -172,10 +172,12 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
     end
   end
 
+  # #1415 (Sprint 28 Q3): the answer carries the currency it stated, for
+  # the sync to keep on the security.
   test "an answer in the security's own currency returns its rows" do
     security = %Security{id: 1, ticker_symbol: "ARBL", currency_code: "EUR"}
 
-    assert {:ok, [%{date: ~D[2024-05-06], close: close}]} =
+    assert {:ok, [%{date: ~D[2024-05-06], close: close}], %{currency: "EUR"}} =
              Yahoo.fetch(security, req: req_stub(chart("EUR")))
 
     assert Decimal.equal?(close, Decimal.new("100.10"))

@@ -65,6 +65,11 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #                    in memory (security review 2026-10-12, H53). The
   #                    apply's own creations go through
   #                    `Catalog.create_security/2`, classified above.
+  #   :provider_currency_only — `Security.provider_currency_changeset/3`
+  #                    (#1415, Sprint 28 Q3), which writes `provider_currency`
+  #                    and `provider_currency_at` alone, the quote sync's
+  #                    record of the currency its provider stated; no frozen
+  #                    field and no name is changed.
   @expected_writers %{
     {"lib/portfolixir/portfolios.ex", :create_cash_account, "CashAccount.changeset"} => :insert,
     {"lib/portfolixir/portfolios.ex", :update_cash_account, "CashAccount.changeset"} => :update,
@@ -77,6 +82,10 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/catalog.ex", :put_logo_attributes, "Security.logo_changeset"} => :logo_only,
     # The logo reconciliation's mark (#933): `logo_file_missing` alone.
     {"lib/portfolixir/catalog.ex", :put_logo_file_mark, "Security.logo_changeset"} => :logo_only,
+    # --- Sprint 28 Q3 begin ---
+    {"lib/portfolixir/catalog.ex", :put_provider_currency, "Security.provider_currency_changeset"} =>
+      :provider_currency_only,
+    # --- Sprint 28 Q3 end ---
     {"lib/portfolixir/catalog/identifier_aliases.ex", :write_new_isin, "Security.changeset"} =>
       :isin_only,
     {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset,

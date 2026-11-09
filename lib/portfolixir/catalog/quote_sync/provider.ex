@@ -12,8 +12,20 @@ defmodule Portfolixir.Catalog.QuoteSync.Provider do
   @type quote_row :: %{date: Date.t(), close: Decimal.t()}
 
   @callback id() :: atom()
+  @typedoc """
+  What an answer stated beside its rows (#1415): `currency`, the currency the
+  provider gave for the series, which the sync keeps on the security.
+  """
+  @type answer_meta :: %{optional(:currency) => String.t()}
+
+  @doc """
+  The security's daily closes. An adapter that reads the provider's currency
+  answers `{:ok, rows, %{currency: currency}}`, and one whose provider stated
+  another currency than the security's answers `{:error, {:currency_mismatch,
+  currency}}` and no rows (#1411); the sync keeps the currency in both cases.
+  """
   @callback fetch(security :: Security.t(), opts :: keyword()) ::
-              {:ok, [quote_row()]} | {:error, term()}
+              {:ok, [quote_row()]} | {:ok, [quote_row()], answer_meta()} | {:error, term()}
 
   @doc """
   Whether the adapter can ask its feed for `security` at all — the
