@@ -319,6 +319,39 @@ defmodule PortfolixirWeb.ApiV1NewsWritesTest do
       assert Repo.aggregate(Feed, :count) == 0
       assert entries("news_feed") == []
     end
+
+    # User story (ADR-0056 §7's closed schema; Sprint 28, N1 attack AT3):
+    # As the operator,
+    # I want a write's wrapper sent in the query string beside its JSON body
+    # refused naming it,
+    # so that a field sent there (`?feed[enabled]=false`) is never dropped
+    # in silence while the write answers as if it had taken it.
+    #
+    # Acceptance criteria:
+    # - PUT /api/v1/news/feeds?feed[enabled]=false or ?feed=x with a valid
+    #   JSON feed, and PUT /api/v1/news/sources?source[tier]=blocked with a
+    #   valid JSON source: 422 naming the wrapper; nothing written or
+    #   journaled.
+    test "a wrapper in the query beside a JSON body is refused naming it", %{conn: conn} do
+      security = security!()
+      feed = Jason.encode!(%{feed: issuer_feed(security)})
+
+      for query <- ["feed[enabled]=false", "feed=x"] do
+        %{"errors" => errors} =
+          conn |> put("/api/v1/news/feeds?" <> query, feed) |> json_response(422)
+
+        assert Map.keys(errors) == ["feed"], "?#{query}: #{inspect(errors)}"
+      end
+
+      source = Jason.encode!(%{source: %{domain: "a.example.com", tier: "primary"}})
+
+      %{"errors" => errors} =
+        conn |> put("/api/v1/news/sources?source[tier]=blocked", source) |> json_response(422)
+
+      assert Map.keys(errors) == ["source"]
+      assert Repo.aggregate(Feed, :count) == 0 and Repo.aggregate(Source, :count) == 0
+      assert entries("news_feed") == [] and entries("news_source") == []
+    end
   end
 
   # User story (ADR-0056 §9, §12, B7):
