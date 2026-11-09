@@ -13,9 +13,26 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     * `:category` — one band per root category of a classification tree,
       holding the securities filed under it or under any of its descendants,
       plus `cash` and `unclassified` (the securities the tree files nowhere);
-    * `:security` — one band per security plus `cash`, or, with a
-      `category_id`, one band per security of that category's subtree and no
-      cash, so they add up to the category's band.
+    * `:security` — one band per security plus `cash`.
+
+  **The filter** (FR-56, Sprint 28 S1): a `category_id` narrows every level
+  to that category's subtree, without cash and without `unclassified`, so
+  the bands add up to the category's band one level up:
+
+    * `:total` — one band, the filtered category's line (its own key,
+      `category:<id>`);
+    * `:category` — one band per direct sub-category, each over its
+      subtree, plus one band of kind `:direct` (key `direct:<id>`, the
+      category's id and name) for the securities filed in the category
+      itself, absent when it holds none; a category without sub-categories
+      is one band, its own;
+    * `:security` — one band per security of the subtree.
+
+  `category_id: :unclassified` filters to the securities the tree files
+  nowhere: one band per security at the security level, one band
+  `unclassified` at the others. The `:direct` band carries the category's
+  name, not a label: the screen names it „‹name› (direkt)“ in its own
+  language, as it names cash, `unclassified` and `other`.
 
   **The classification** (Sprint 27 plan D-5): the one requested; else, at
   the category level, the tree of the allocation targets of the scope's
@@ -26,11 +43,12 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   security that moved between categories inside the window is drawn in its
   category of today on every day of it.
 
-  **At most eight bands** (D-5). `cash` and `unclassified` always keep their
-  own band; with more than eight bands, the smallest of the others by value
-  on the window's last day (ties by name, never by id) merge into `other`, so
-  that eight remain. When the cut falls between two bands of equal value and
-  equal name, both merge: nothing but an id would tell them apart. `other`
+  **At most eight bands** (D-5), inside a filter too. `cash` and
+  `unclassified` always keep their own band; with more than eight bands,
+  the smallest of the others by value on the window's last day (ties by
+  name, never by id) merge into `other`, so that eight remain. When the cut
+  falls between two bands of equal value and equal name, both merge:
+  nothing but an id would tell them apart. `other`
   is always the last band, on top of the stack, whatever the sort and its
   size (the closing act's design critic, D4).
 
@@ -58,7 +76,9 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   terminate (a USD value over EUR/USD 1.0832), each partial sum rounds at
   Decimal's 34 significant digits, and the bands' sum may differ from the
   series by at most one unit in the 34th significant digit per day. When
-  every quotient terminates, it is exact at every level.
+  every quotient terminates, it is exact at every level. With a filter the
+  bands add up to the filter's band one level up under the same rule, since
+  that band, too, sums its members first.
 
   Nothing is stored: each read runs its own walk from the window's baseline
   day (ADR-0051, note of 2026-10-28).
@@ -93,13 +113,13 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   Options: `:period` (`Performance.summarise/2`'s terms, default `"max"`),
   `:view` (a view id narrowing the portfolio), `:today`, `:level`
   (`#{inspect(@levels)}`, default `:category`), `:classification_id`,
-  `:category_id` (with level `:security` only) and `:sort`
-  (`#{inspect(@sorts)}`, default `:size`).
+  `:category_id` (a category's id or `:unclassified`, the filter, at every
+  level) and `:sort` (`#{inspect(@sorts)}`, default `:size`).
 
   Returns `{:ok, result}` or `{:error, reason}`, the reason one of
   `:invalid_level`, `:invalid_sort`, `:invalid_period`, `:view_not_found`,
-  `:classification_not_found`, `:category_not_found`,
-  `:category_outside_classification` and `:category_needs_security_level`.
+  `:classification_not_found`, `:category_not_found`, `:invalid_category`
+  and `:category_outside_classification`.
   """
   @spec for_portfolio(integer(), keyword()) :: {:ok, map()} | {:error, atom()}
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
@@ -172,13 +192,18 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     cond do
       level not in @levels -> {:error, :invalid_level}
       sort not in @sorts -> {:error, :invalid_sort}
-      category_id != nil and level != :security -> {:error, :category_needs_security_level}
+      not filter?(category_id) -> {:error, :invalid_category}
       true -> {:ok, %{level: level, sort: sort, category_id: category_id, opts: opts}}
     end
   end
 
+  defp filter?(nil), do: true
+  defp filter?(:unclassified), do: true
+  defp filter?(id), do: is_integer(id)
+
   # What the bands group by: the classification (with how it was chosen),
-  # the category drilled into, and the tree's filing of each security.
+  # the filter (a category, the unclassified remainder or none), and the
+  # tree's filing of each security.
   defp grouping(request, targets) do
     with {:ok, requested} <- requested_classification(request.opts) do
       resolve(request, requested, targets)
@@ -198,35 +223,44 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     end
   end
 
-  defp resolve(%{level: :security, category_id: category_id}, requested, _targets)
-       when not is_nil(category_id) do
+  # A category filter stacks within the category's own tree, at any level.
+  defp resolve(%{category_id: category_id}, requested, _targets)
+       when is_integer(category_id) do
     with {:ok, category} <- fetch_category(category_id),
          :ok <- same_tree(category, requested) do
       classification = Classifications.get_classification(category.classification_id)
-      {:ok, tree(classification, :category, category)}
+      {:ok, tree(classification, :category, {:category, category})}
     end
   end
 
-  defp resolve(%{level: :category}, %{} = requested, _targets),
-    do: {:ok, tree(requested, :requested, nil)}
+  # The unclassified remainder is "filed nowhere" in the tree the category
+  # level would stack by, so it chooses that tree, at any level.
+  defp resolve(%{category_id: :unclassified}, requested, targets),
+    do: chosen_tree(requested, targets, :unclassified)
 
-  defp resolve(%{level: :category}, nil, targets) do
+  defp resolve(%{level: :category}, requested, targets),
+    do: chosen_tree(requested, targets, nil)
+
+  defp resolve(_request, _requested, _targets), do: {:ok, untreed(nil, nil)}
+
+  defp chosen_tree(%{} = requested, _targets, filter),
+    do: {:ok, tree(requested, :requested, filter)}
+
+  defp chosen_tree(nil, targets, filter) do
     classifications = Classifications.list_classifications()
     targeted = MapSet.new(targets.(), & &1.classification_id)
 
     case Enum.find(classifications, &MapSet.member?(targeted, &1.id)) do
       nil ->
         case Classifications.default_classification(classifications) do
-          nil -> {:ok, untreed(:default)}
-          classification -> {:ok, tree(classification, :default, nil)}
+          nil -> {:ok, untreed(:default, filter)}
+          classification -> {:ok, tree(classification, :default, filter)}
         end
 
       classification ->
-        {:ok, tree(classification, :targets, nil)}
+        {:ok, tree(classification, :targets, filter)}
     end
   end
-
-  defp resolve(_request, _requested, _targets), do: {:ok, untreed(nil)}
 
   defp fetch_category(id) do
     case Classifications.get_category(id) do
@@ -243,33 +277,59 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       else: {:error, :category_outside_classification}
   end
 
-  defp untreed(chosen_by),
-    do: %{classification: nil, chosen_by: chosen_by, category: nil, filing: %{}, roots: %{}}
+  defp untreed(chosen_by, filter),
+    do: %{
+      classification: nil,
+      chosen_by: chosen_by,
+      filter: filter,
+      category: nil,
+      filing: %{},
+      roots: %{},
+      children: []
+    }
 
-  # The tree as stored today: each security's category, rolled up to its
-  # root category, and each root category's position in tree order.
-  defp tree(classification, chosen_by, drilled) do
+  # The tree as stored today: each security's category with its ancestors,
+  # each root category's position in tree order, and, under a category
+  # filter, the category's direct sub-categories in tree order.
+  defp tree(classification, chosen_by, filter) do
     categories = Classifications.list_categories(classification.id)
     by_id = Map.new(categories, &{&1.id, &1})
     {:ok, filing} = Classifications.security_category_map(classification.id)
 
+    indexed =
+      categories |> Enum.with_index() |> Enum.map(fn {c, i} -> Map.put(c, :tree_index, i) end)
+
     roots =
-      for {category, index} <- Enum.with_index(categories),
+      for category <- indexed,
           category.parent_id == nil or not Map.has_key?(by_id, category.parent_id),
           into: %{},
-          do: {category.id, Map.put(category, :tree_index, index)}
+          do: {category.id, category}
 
     filing =
       Map.new(filing, fn {security_id, category_id} ->
         {security_id, ancestry(category_id, by_id, [])}
       end)
 
+    {filter, category, children} =
+      case filter do
+        {:category, category} ->
+          category = Enum.find(indexed, &(&1.id == category.id))
+
+          {{:category, category}, category,
+           Enum.filter(indexed, &(&1.parent_id == category.id and &1.id != category.id))}
+
+        other ->
+          {other, nil, []}
+      end
+
     %{
       classification: classification,
       chosen_by: chosen_by,
-      category: drilled,
+      filter: filter,
+      category: category,
       filing: filing,
-      roots: roots
+      roots: roots,
+      children: children
     }
   end
 
@@ -314,6 +374,7 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       level: request.level,
       sort: request.sort,
       classification: classification_field(grouping),
+      category_id: request.category_id,
       category: category_field(grouping.category),
       dates: if(walked?, do: Enum.map(summary.series, & &1.date), else: []),
       bands: bands,
@@ -342,18 +403,30 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   defp bands(summary, kept, request, grouping) do
     days = Enum.map(summary.series, &Map.get(kept.days, &1.date, @empty_day))
 
-    case request.level do
-      :total ->
+    case {request.level, grouping.filter} do
+      {:total, nil} ->
         finish([total_band(summary)])
 
-      level ->
+      {level, nil} ->
         level
         |> group(security_leaves(kept, days), cash_leaf(summary, kept, days), grouping)
-        |> merge_small()
-        |> finish()
-        |> sort(request.sort)
-        |> other_on_top()
+        |> stack(request.sort)
+
+      {level, filter} ->
+        kept
+        |> security_leaves(days)
+        |> Enum.filter(&in_filter?(&1.id, filter, grouping))
+        |> filtered(level, filter, grouping)
+        |> stack(request.sort)
     end
+  end
+
+  defp stack(bands, sort) do
+    bands
+    |> merge_small()
+    |> finish()
+    |> sort(sort)
+    |> other_on_top()
   end
 
   # "Other" is the rest, never a peer of the bands it summarises: it is the
@@ -430,11 +503,7 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     }
   end
 
-  defp group(:security, securities, cash, %{category: nil}), do: [cash | securities]
-
-  defp group(:security, securities, _cash, %{category: category, filing: filing}) do
-    Enum.filter(securities, fn leaf -> category.id in Map.get(filing, leaf.id, []) end)
-  end
+  defp group(:security, securities, cash, _grouping), do: [cash | securities]
 
   defp group(:category, securities, cash, grouping) do
     {filed, unfiled} =
@@ -444,43 +513,105 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       filed
       |> Enum.group_by(&root_of(&1.id, grouping))
       |> Enum.map(fn {root_id, members} ->
-        root = Map.fetch!(grouping.roots, root_id)
-
-        members
-        |> combine()
-        |> Map.merge(%{
-          key: "category:#{root.id}",
-          kind: :category,
-          id: root.id,
-          name: root.name,
-          color: root.color,
-          tree_index: root.tree_index,
-          members: []
-        })
+        category_band(members, Map.fetch!(grouping.roots, root_id))
       end)
 
     unclassified =
       case unfiled do
-        [] ->
-          []
-
-        members ->
-          [
-            members
-            |> combine()
-            |> Map.merge(%{
-              key: "unclassified",
-              kind: :unclassified,
-              id: nil,
-              name: "Unclassified",
-              color: nil,
-              tree_index: nil,
-              members: []
-            })
-          ]
+        [] -> []
+        members -> [unclassified_band(members)]
       end
 
     [cash | unclassified] ++ categories
+  end
+
+  defp category_band(members, category) do
+    members
+    |> combine()
+    |> Map.merge(%{
+      key: "category:#{category.id}",
+      kind: :category,
+      id: category.id,
+      name: category.name,
+      color: category.color,
+      tree_index: category.tree_index,
+      members: []
+    })
+  end
+
+  defp unclassified_band(members) do
+    members
+    |> combine()
+    |> Map.merge(%{
+      key: "unclassified",
+      kind: :unclassified,
+      id: nil,
+      name: "Unclassified",
+      color: nil,
+      tree_index: nil,
+      members: []
+    })
+  end
+
+  # The securities a filter keeps: those filed under the category or any of
+  # its descendants, or those the tree files nowhere.
+  defp in_filter?(security_id, {:category, category}, %{filing: filing}),
+    do: category.id in Map.get(filing, security_id, [])
+
+  defp in_filter?(security_id, :unclassified, grouping),
+    do: root_of(security_id, grouping) == nil
+
+  # A filter's bands, no cash and no unclassified: its securities at the
+  # security level; one band at the total level, and at the category level
+  # for the unclassified remainder and a category without sub-categories;
+  # else one band per direct sub-category over its subtree and one for the
+  # securities filed in the category itself. Nothing in scope, no band.
+  defp filtered([], _level, _filter, _grouping), do: []
+  defp filtered(securities, :security, _filter, _grouping), do: securities
+  defp filtered(securities, _level, :unclassified, _grouping), do: [unclassified_band(securities)]
+
+  defp filtered(securities, :category, {:category, category}, %{children: [_ | _]} = grouping) do
+    securities
+    |> Enum.group_by(&branch_of(&1.id, category.id, grouping))
+    |> Enum.map(fn
+      {:direct, members} ->
+        direct_band(members, category)
+
+      {child_id, members} ->
+        category_band(members, Enum.find(grouping.children, &(&1.id == child_id)))
+    end)
+  end
+
+  defp filtered(securities, _level, {:category, category}, _grouping),
+    do: [category_band(securities, category)]
+
+  # Where under the filtered category a security sits: in the category
+  # itself, or in the subtree of which direct sub-category. Its ancestry
+  # lists its own category first, so the sub-category is the entry just
+  # before the filtered one.
+  defp branch_of(security_id, category_id, %{filing: filing}) do
+    case Map.fetch!(filing, security_id) do
+      [^category_id | _] ->
+        :direct
+
+      chain ->
+        index = Enum.find_index(chain, &(&1 == category_id))
+        Enum.at(chain, index - 1)
+    end
+  end
+
+  defp direct_band(members, category) do
+    members
+    |> combine()
+    |> Map.merge(%{
+      key: "direct:#{category.id}",
+      kind: :direct,
+      id: category.id,
+      name: category.name,
+      color: nil,
+      tree_index: nil,
+      members: []
+    })
   end
 
   defp root_of(security_id, %{filing: filing, roots: roots}) do
@@ -624,13 +755,19 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "levels; at the category level, the bands' sum may differ from the series by at " <>
           "most one unit in the 34th significant digit per day, and only when a conversion " <>
           "quotient does not terminate (a band sums its members first, and Decimal rounds " <>
-          "each partial sum at 34 significant digits)",
+          "each partial sum at 34 significant digits); with category_id, the bands sum to " <>
+          "the filter's band one level up (that category's band, or unclassified, in the " <>
+          "read of its parent category, or without category_id for a root category or " <>
+          "unclassified) under the same rule: exactly when every conversion quotient " <>
+          "terminates, else within one unit in the 34th significant digit per day",
       window: %{start_date: start_date, end_date: end_date},
       reference: nil,
+      filter: filter_text(grouping),
       level: level_text(request.level, grouping),
       classification: classification_text(grouping),
       merge_rule:
-        "at most #{@max_bands} bands: cash and unclassified always keep their own band; " <>
+        "at most #{@max_bands} bands, inside a filter too: cash and unclassified always " <>
+          "keep their own band (a filter has neither beside its own bands); " <>
           "with more than #{@max_bands} bands, the smallest of the others by value on the " <>
           "window's last day, equal values by name and never by id, merge into other so " <>
           "that #{@max_bands} remain, and other lists its members; bands equal in value and " <>
@@ -673,18 +810,64 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     }
   end
 
-  defp level_text(:total, _grouping), do: "total: one band, the series itself"
+  defp filter_text(%{filter: nil}),
+    do: "none: the whole scope (category_id narrows every level to one category's subtree)"
 
-  defp level_text(:category, _grouping),
+  defp filter_text(%{filter: :unclassified}),
+    do:
+      "unclassified: the securities the classification files nowhere, no cash; they add " <>
+        "up to the unclassified band of the read without category_id"
+
+  defp filter_text(%{filter: {:category, category}}),
+    do:
+      "category #{inspect(category.name)} (id #{category.id}): the securities filed under " <>
+        "it or any of its descendants, no cash and no unclassified; they add up to its " <>
+        "band one level up"
+
+  defp level_text(:total, %{filter: nil}), do: "total: one band, the series itself"
+
+  defp level_text(:total, %{filter: :unclassified}),
+    do: "total: one band, unclassified, the filter's line"
+
+  defp level_text(:total, %{filter: {:category, category}}),
+    do:
+      "total: one band, the filtered category's line, keyed category:#{category.id} like " <>
+        "its band one level up"
+
+  defp level_text(:category, %{filter: nil}),
     do:
       "category: one band per root category of the classification, holding the " <>
         "securities filed under it or any of its descendants, plus cash and unclassified " <>
         "(the securities the classification files nowhere)"
 
-  defp level_text(:security, %{category: nil}),
+  defp level_text(:category, %{filter: :unclassified}),
+    do:
+      "category: the unclassified remainder has no sub-categories, so one band, " <>
+        "unclassified"
+
+  defp level_text(:category, %{filter: {:category, category}, children: []}),
+    do:
+      "category: #{inspect(category.name)} has no sub-categories, so one band, its own, " <>
+        "keyed category:#{category.id}"
+
+  defp level_text(:category, %{filter: {:category, category}}),
+    do:
+      "category: one band per direct sub-category of #{inspect(category.name)} holding " <>
+        "something in the scope, each over the securities filed under it or any of its " <>
+        "descendants, plus one band of kind direct (key direct:#{category.id}, the " <>
+        "category's id and name) for the securities filed in #{inspect(category.name)} " <>
+        "itself, absent when it holds none; no cash, no unclassified; they add up to the " <>
+        "category's band"
+
+  defp level_text(:security, %{filter: nil}),
     do: "security: one band per security of the scope, plus cash"
 
-  defp level_text(:security, %{category: category}),
+  defp level_text(:security, %{filter: :unclassified}),
+    do:
+      "security: one band per security the classification files nowhere, no cash; they " <>
+        "add up to the unclassified band"
+
+  defp level_text(:security, %{filter: {:category, category}}),
     do:
       "security: one band per security filed under the category #{inspect(category.name)} " <>
         "or any of its descendants, no cash; they add up to that category's band"
@@ -694,8 +877,8 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       "chosen as requested by classification_id; else, at the category level, the tree " <>
         "of the allocation targets of the scope's active plan (the first in tree order " <>
         "when targets sit in several trees), else the default steering tree: the first " <>
-        "custom classification, else the built-in asset class tree; a drilled category " <>
-        "stacks within its own tree"
+        "custom classification, else the built-in asset class tree, the same for the " <>
+        "unclassified filter at every level; a category filter stacks within its own tree"
 
     case grouping do
       %{classification: nil, chosen_by: nil} ->

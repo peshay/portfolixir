@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.Portfolio.StackedChart
 
   # The app's category palette and its cash and unclassified colours, as the
   # allocation sunburst draws them.
@@ -757,4 +758,28 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     settle(view)
     assert legend_keys(view) == ["unclassified", "cash"]
   end
+
+  # --- Sprint 28 S1 begin ---
+  # User story (FR-56, board 02: „‹Name› (direkt)“):
+  # As the operator reading a filtered category,
+  # I want the band of the securities filed in the category itself named
+  # „‹Name› (direkt)“ in my language,
+  # so that I tell it from the category as a whole.
+  #
+  # Acceptance criteria:
+  # - The API names a band of kind direct by the category's plain name; the
+  #   screen names it "‹name› (direct)" in English and „‹Name› (direkt)“ in
+  #   German, and gives it a class of its own.
+  test "a direct band reads ‹name› (direkt)" do
+    band = %{kind: :direct, name: "Aktien", key: "direct:1"}
+
+    assert StackedChart.band_name(band) == "Aktien (direct)"
+
+    assert Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+             StackedChart.band_name(band)
+           end) ==
+             "Aktien (direkt)"
+  end
+
+  # --- Sprint 28 S1 end ---
 end

@@ -675,9 +675,12 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
   # so that I never read a stack I did not ask for.
   #
   # Acceptance criteria:
-  # - An unknown level or sort, an unknown classification or category, a
-  #   category of another tree and a category without the security level are
-  #   each an error naming it; an invalid period is the family's error.
+  # - An unknown level or sort, an unknown classification or category and a
+  #   category of another tree are each an error naming it, at every level;
+  #   an invalid period is the family's error.
+  # - A category is a filter at every level (FR-56), so a category at the
+  #   category or total level is no error any more; neither is the
+  #   unclassified filter; any other filter value is refused.
   test "a wrong level, sort, tree or category is refused" do
     w = bands_world()
     s = strategy!(w)
@@ -689,18 +692,23 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
     assert {:error, :invalid_period} = Bands.for_portfolio(pid, period: "2y")
     assert {:error, :classification_not_found} = Bands.for_portfolio(pid, classification_id: -1)
 
-    assert {:error, :category_not_found} =
-             Bands.for_portfolio(pid, level: :security, category_id: -1)
+    for level <- [:total, :category, :security] do
+      assert {:error, :category_not_found} =
+               Bands.for_portfolio(pid, level: level, category_id: -1)
 
-    assert {:error, :category_outside_classification} =
-             Bands.for_portfolio(pid,
-               level: :security,
-               category_id: s.growth.id,
-               classification_id: other.id
-             )
+      assert {:error, :category_outside_classification} =
+               Bands.for_portfolio(pid,
+                 level: level,
+                 category_id: s.growth.id,
+                 classification_id: other.id
+               )
 
-    assert {:error, :category_needs_security_level} =
-             Bands.for_portfolio(pid, level: :category, category_id: s.growth.id)
+      assert {:error, :invalid_category} =
+               Bands.for_portfolio(pid, level: level, category_id: "none")
+
+      assert {:ok, _} = Bands.for_portfolio(pid, level: level, category_id: s.growth.id)
+      assert {:ok, _} = Bands.for_portfolio(pid, level: level, category_id: :unclassified)
+    end
 
     assert {:error, :view_not_found} = Bands.for_view(-1, [])
   end
@@ -903,5 +911,526 @@ defmodule Portfolixir.Portfolios.Performance.BandsTest do
                  ["Cash"] ++ Enum.map(1..6, &"Large #{&1}") ++ ["Other"]
       end
     end
+  end
+
+  # -- the filter (FR-56, Sprint 28 S1) ------------------------------------------
+  #
+  # Invented figures only. One EUR-base portfolio with a EUR and a USD cash
+  # account. EUR/USD 1.25, then 1.6 from 2026-04-30 (reciprocals 0.8 and
+  # 0.625: every figure exact and computable by hand). The window is ytd,
+  # 2026-01-01 to 2026-06-30, its baseline day 2025-12-31.
+  #
+  # The tree "Filter": Equity with the sub-categories Tech (with its own
+  # sub-category Chips) and Value; Bonds without one. Direct Co is filed in
+  # Equity itself, Soft AG in Tech itself, Chip Inc (USD) in Chips, Bank SE,
+  # Ghost and Short Ltd in Value, Bund in Bonds; Loose plc nowhere. Soft AG
+  # was first filed in Value and then re-filed in Tech (a category change).
+  #
+  #   2025-12-01  deposit 10000 EUR, 1000 USD; buy Direct Co 10 @ 100,
+  #               Chip Inc 5 @ 80 USD, Bank SE 20 @ 50, Soft AG 4 @ 25,
+  #               Loose plc 3 @ 10
+  #   2026-02-02  buy Bund 10 @ 100                       (a buy)
+  #   2026-02-10  buy Soft AG 4 @ 30                      (a buy)
+  #   2026-03-02  sell Bank SE 20 @ 55                    (a sale)
+  #   2026-04-01  inbound delivery Ghost 5, never quoted  (an unpriced day)
+  #   2026-04-15  removal 12000 EUR; 2026-04-22 deposit 12000 EUR
+  #               (the EUR cash negative for seven days)
+  #   2026-05-11  sell Short Ltd 2 @ 40, held none: −2 until
+  #   2026-05-20  buy Short Ltd 2 @ 45                    (a negative band)
+  #
+  # Quotes: Direct Co 100, 120 from 2026-03-02; Chip Inc 80, 96 USD from
+  # 2026-05-04; Soft AG 25, 30 from 2026-02-10; Bank SE 50, 55 from
+  # 2026-03-02; Short Ltd 40 from 2026-05-11, 45 from 2026-05-20; Bund 100;
+  # Loose plc 10, 12 from 2026-06-01.
+  defp filter_world do
+    world = base_world(name: "Filter", cash_name: "Cash EUR", depot_name: "Depot EUR")
+
+    usd =
+      world.portfolio
+      |> add_depot(cash_currency: "USD", cash_name: "Cash USD", depot_name: "Depot USD")
+      |> Map.put(:portfolio, world.portfolio)
+
+    rate!("USD", ~D[2025-12-01], "1.25")
+    rate!("USD", ~D[2026-04-30], "1.6")
+    deposit!(world, "10000", ~D[2025-12-01])
+    deposit!(usd, "1000", ~D[2025-12-01], currency: "USD")
+
+    [direct, soft, bank, ghost, short, bund, loose] =
+      Enum.map(
+        ["Direct Co", "Soft AG", "Bank SE", "Ghost", "Short Ltd", "Bund", "Loose plc"],
+        &create_security!(name: &1, ticker: nil)
+      )
+
+    chip = create_security!(name: "Chip Inc", ticker: nil, currency: "USD")
+
+    WorldFixtures.buy!(world, direct, quantity: "10", price: "100", date: ~D[2025-12-01])
+
+    WorldFixtures.buy!(usd, chip,
+      quantity: "5",
+      price: "80",
+      date: ~D[2025-12-01],
+      currency: "USD"
+    )
+
+    WorldFixtures.buy!(world, bank, quantity: "20", price: "50", date: ~D[2025-12-01])
+    WorldFixtures.buy!(world, soft, quantity: "4", price: "25", date: ~D[2025-12-01])
+    WorldFixtures.buy!(world, loose, quantity: "3", price: "10", date: ~D[2025-12-01])
+    WorldFixtures.buy!(world, bund, quantity: "10", price: "100", date: ~D[2026-02-02])
+    WorldFixtures.buy!(world, soft, quantity: "4", price: "30", date: ~D[2026-02-10])
+    WorldFixtures.sell!(world, bank, quantity: "20", price: "55", date: ~D[2026-03-02])
+
+    book!(%{
+      portfolio_id: world.portfolio.id,
+      securities_account_id: world.depot.id,
+      security_id: ghost.id,
+      type: "inbound_delivery",
+      date: ~D[2026-04-01],
+      quantity: "5",
+      currency_code: "EUR"
+    })
+
+    cash!(world, "removal", "12000", ~D[2026-04-15])
+    deposit!(world, "12000", ~D[2026-04-22])
+    WorldFixtures.sell!(world, short, quantity: "2", price: "40", date: ~D[2026-05-11])
+    WorldFixtures.buy!(world, short, quantity: "2", price: "45", date: ~D[2026-05-20])
+
+    WorldFixtures.put_quotes!(direct, [{~D[2025-12-01], "100"}, {~D[2026-03-02], "120"}])
+    WorldFixtures.put_quotes!(chip, [{~D[2025-12-01], "80"}, {~D[2026-05-04], "96"}])
+    WorldFixtures.put_quotes!(soft, [{~D[2025-12-01], "25"}, {~D[2026-02-10], "30"}])
+    WorldFixtures.put_quotes!(bank, [{~D[2025-12-01], "50"}, {~D[2026-03-02], "55"}])
+    WorldFixtures.put_quotes!(short, [{~D[2026-05-11], "40"}, {~D[2026-05-20], "45"}])
+    WorldFixtures.put_quotes!(bund, [{~D[2026-02-02], "100"}])
+    WorldFixtures.put_quotes!(loose, [{~D[2025-12-01], "10"}, {~D[2026-06-01], "12"}])
+
+    {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Filter"})
+    equity = category!(tree, "Equity", color: "#445566")
+    tech = category!(tree, "Tech", parent_id: equity.id)
+    chips = category!(tree, "Chips", parent_id: tech.id)
+    value = category!(tree, "Value", parent_id: equity.id)
+    bonds = category!(tree, "Bonds")
+
+    assign!(direct, tree, equity)
+    assign!(soft, tree, value)
+    assign!(chip, tree, chips)
+    assign!(bank, tree, value)
+    assign!(ghost, tree, value)
+    assign!(short, tree, value)
+    assign!(bund, tree, bonds)
+    # The category change: Soft AG moves from Value to Tech.
+    assign!(soft, tree, tech)
+
+    %{
+      world: world,
+      tree: tree,
+      equity: equity,
+      tech: tech,
+      chips: chips,
+      value: value,
+      bonds: bonds,
+      direct: direct,
+      soft: soft,
+      chip: chip,
+      bank: bank,
+      ghost: ghost,
+      short: short,
+      bund: bund,
+      loose: loose
+    }
+  end
+
+  defp filtered!(f, opts) do
+    {:ok, result} =
+      Bands.for_portfolio(
+        f.world.portfolio.id,
+        Keyword.merge([period: "ytd", today: @today, classification_id: f.tree.id], opts)
+      )
+
+    result
+  end
+
+  defp keys(result), do: result.bands |> Enum.map(& &1.key) |> Enum.sort()
+
+  # The bands' sum on each date equals `parent`'s values, exactly; and their
+  # start values and net flows add up to the parent's.
+  defp assert_sums_to(result, parent, label) do
+    assert result.dates != [], label
+
+    for {_date, index} <- Enum.with_index(result.dates) do
+      day = sum(Enum.map(result.bands, &Enum.at(&1.values, index)))
+      assert Decimal.equal?(day, Enum.at(parent.values, index)), "#{label} day #{index}"
+    end
+
+    assert Decimal.equal?(sum(Enum.map(result.bands, & &1.start_value)), parent.start_value),
+           label
+
+    assert Decimal.equal?(sum(Enum.map(result.bands, & &1.net_flows)), parent.net_flows), label
+  end
+
+  # User story (FR-56, I29; Sprint 28 plan S1, D-1 criterion 7):
+  # As a local portfolio maintainer whose classification has sub-categories,
+  # I want a category filter to split the category into its direct
+  # sub-categories, each over its subtree, and a band „‹name› (direkt)“ for
+  # what is filed in the category itself,
+  # so that I read a tree with several levels one level at a time, and the
+  # parts always add up to the whole I clicked.
+  #
+  # Acceptance criteria:
+  # - `category_id` at the category level answers one band per direct
+  #   sub-category holding something (key `category:<id>`) plus one band of
+  #   kind `direct` (key `direct:<id>`, the category's id and name, no
+  #   colour) for the securities filed in the category itself; no cash, no
+  #   unclassified.
+  # - On every day the filtered bands sum exactly to the category's band of
+  #   the read one level up: Equity's of the unfiltered read, Tech's of the
+  #   read filtered by Equity; so do their start values and net flows.
+  # - A category without sub-categories is one band, its own; so is the
+  #   filter at the total level, „the filtered category's line“.
+  # - Pinned by hand, with a buy, a sale, a re-filed security, an unpriced
+  #   day, a negative cash day, a USD security and a band negative for nine
+  #   days: on 2026-01-15 Direct Co 1000, Tech 320 + 100 = 420, Value 1000;
+  #   on 2026-05-15 Direct Co 1200, Tech 300 + 240 = 540 (Chip Inc 5 × 96
+  #   USD at 0.625), Value −80 (Short Ltd −2 × 40); on 2026-06-30 Value 0.
+  test "a category filter's bands are its sub-categories and (direkt), summing to its band" do
+    f = filter_world()
+    top = filtered!(f, level: :category)
+    equity_band = band(top, "category:#{f.equity.id}")
+
+    # The parent read itself: Equity, Bonds, the cash and Loose plc.
+    assert keys(top) ==
+             Enum.sort([
+               "cash",
+               "unclassified",
+               "category:#{f.equity.id}",
+               "category:#{f.bonds.id}"
+             ])
+
+    # The negative cash days lie inside the window.
+    assert Decimal.lt?(value_on(top, "cash", ~D[2026-04-15]), d("0"))
+
+    equity = filtered!(f, level: :category, category_id: f.equity.id)
+
+    assert keys(equity) ==
+             Enum.sort([
+               "category:#{f.tech.id}",
+               "category:#{f.value.id}",
+               "direct:#{f.equity.id}"
+             ])
+
+    assert equity.dates == top.dates
+    assert_sums_to(equity, equity_band, "Equity")
+
+    direct = band(equity, "direct:#{f.equity.id}")
+
+    assert {direct.kind, direct.id, direct.name, direct.color} ==
+             {:direct, f.equity.id, "Equity", nil}
+
+    assert direct.members == []
+
+    tech = "category:#{f.tech.id}"
+    value = "category:#{f.value.id}"
+    direct = "direct:#{f.equity.id}"
+
+    for {date, expected} <- [
+          {~D[2026-01-15], [{direct, "1000"}, {tech, "420"}, {value, "1000"}]},
+          {~D[2026-03-02], [{direct, "1200"}, {tech, "560"}, {value, "0"}]},
+          {~D[2026-05-15], [{direct, "1200"}, {tech, "540"}, {value, "-80"}]},
+          {~D[2026-05-20], [{direct, "1200"}, {tech, "540"}, {value, "0"}]},
+          {~D[2026-06-30], [{direct, "1200"}, {tech, "540"}, {value, "0"}]}
+        ],
+        {key, figure} <- expected do
+      assert Decimal.equal?(value_on(equity, key, date), d(figure)), "#{key} #{date}"
+    end
+
+    # Value is negative on exactly the nine days Short Ltd is held short.
+    negative =
+      for date <- equity.dates, Decimal.lt?(value_on(equity, value, date), d("0")), do: date
+
+    assert negative == Enum.map(0..8, &Date.add(~D[2026-05-11], &1))
+
+    # Start values and flows of the window, by hand: Tech holds Chip Inc 320
+    # and Soft AG 100 on the baseline day and buys 120; Value holds Bank SE
+    # 1000, sells it for 1100, and goes short and back for −80 + 90.
+    assert Decimal.equal?(band(equity, tech).start_value, d("420"))
+    assert Decimal.equal?(band(equity, tech).net_flows, d("120"))
+    assert Decimal.equal?(band(equity, value).start_value, d("1000"))
+    assert Decimal.equal?(band(equity, value).net_flows, d("-1090"))
+    assert Decimal.equal?(band(equity, direct).change, d("0.2"))
+
+    # One level further down: Tech is Chips and Tech (direkt), summing to
+    # Tech's band of the Equity read; Soft AG, re-filed, is in Tech's own
+    # band on every day, also before the move.
+    in_tech = filtered!(f, level: :category, category_id: f.tech.id)
+
+    assert keys(in_tech) == Enum.sort(["category:#{f.chips.id}", "direct:#{f.tech.id}"])
+    assert_sums_to(in_tech, band(equity, tech), "Tech")
+    assert Decimal.equal?(value_on(in_tech, "direct:#{f.tech.id}", ~D[2026-01-15]), d("100"))
+    assert Decimal.equal?(value_on(in_tech, "category:#{f.chips.id}", ~D[2026-05-15]), d("300"))
+    assert Decimal.equal?(value_on(in_tech, "category:#{f.chips.id}", ~D[2026-01-15]), d("320"))
+
+    # A category without sub-categories is one band, its own, at the
+    # category level; Value's equals Value's band one level up, Bonds' its
+    # band in the unfiltered read.
+    for {category, parent} <- [
+          {f.value, band(equity, value)},
+          {f.chips, band(in_tech, "category:#{f.chips.id}")},
+          {f.bonds, band(top, "category:#{f.bonds.id}")}
+        ] do
+      leaf = filtered!(f, level: :category, category_id: category.id)
+      assert keys(leaf) == ["category:#{category.id}"], category.name
+      assert_sums_to(leaf, parent, category.name)
+      assert hd(leaf.bands).name == category.name
+    end
+
+    # With a filter, the total level is the filtered category's line: one
+    # band, the category's, equal to its band one level up.
+    for {category, parent} <- [{f.equity, equity_band}, {f.tech, band(equity, tech)}] do
+      line = filtered!(f, level: :total, category_id: category.id)
+      assert keys(line) == ["category:#{category.id}"], category.name
+      assert hd(line.bands).values == parent.values, category.name
+      assert Decimal.equal?(hd(line.bands).share, d("1"))
+      assert_sums_to(line, parent, category.name)
+    end
+
+    # The securities level keeps its filter: Equity's securities, summing to
+    # its band.
+    securities = filtered!(f, level: :security, category_id: f.equity.id)
+
+    assert keys(securities) ==
+             Enum.sort(
+               Enum.map(
+                 [f.direct, f.soft, f.chip, f.bank, f.ghost, f.short],
+                 &"security:#{&1.id}"
+               )
+             )
+
+    assert_sums_to(securities, equity_band, "Equity's securities")
+    # Ghost, never quoted, counts zero on every day.
+    assert Enum.all?(band(securities, "security:#{f.ghost.id}").values, &Decimal.equal?(&1, 0))
+  end
+
+  # User story (FR-56, I29: „so sieht man, was fehlt“):
+  # As a local portfolio maintainer,
+  # I want „Nicht zugeordnet“ to be a filter as well,
+  # so that I see which securities my tree files nowhere.
+  #
+  # Acceptance criteria:
+  # - `category_id: :unclassified` at the securities level answers the
+  #   securities the tree files nowhere, no cash; at the category and total
+  #   levels one band, `unclassified`, equal day by day to the unclassified
+  #   band of the unfiltered read.
+  # - The read names the filter (`category_id`) and has no `category`.
+  test "the unclassified remainder is a filter at every level" do
+    f = filter_world()
+    top = filtered!(f, level: :category)
+    parent = band(top, "unclassified")
+
+    securities = filtered!(f, level: :security, category_id: :unclassified)
+    assert keys(securities) == ["security:#{f.loose.id}"]
+    assert_sums_to(securities, parent, "securities")
+    assert securities.category_id == :unclassified
+    assert securities.category == nil
+
+    for level <- [:category, :total] do
+      result = filtered!(f, level: level, category_id: :unclassified)
+      assert keys(result) == ["unclassified"], inspect(level)
+      assert hd(result.bands).values == parent.values, inspect(level)
+      assert_sums_to(result, parent, inspect(level))
+    end
+
+    # Loose plc: 3 at 10, then at 12.
+    assert Decimal.equal?(value_on(top, "unclassified", ~D[2026-06-30]), d("36"))
+  end
+
+  # User story (FR-56; AGENTS.md metric rule):
+  # As the operator's agent reading a filtered stack,
+  # I want the basis to name the filter and the level it applies at,
+  # so that I can tell a category's sub-categories from the whole scope.
+  #
+  # Acceptance criteria:
+  # - `computation_basis.filter` names the category by name and id, or the
+  #   unclassified remainder, or says there is none.
+  # - `computation_basis.level` says what a band is under the filter: the
+  #   direct sub-categories and (direkt), one band for a category without
+  #   sub-categories, the filtered category's line at the total level.
+  # - The exactness sentence names the parent band the filtered bands sum to.
+  # - Without a filter, `category_id` is nil.
+  test "the basis names the filter and its level" do
+    f = filter_world()
+
+    plain = filtered!(f, level: :category)
+    assert plain.category_id == nil
+    assert plain.computation_basis.filter =~ "none"
+
+    equity = filtered!(f, level: :category, category_id: f.equity.id)
+    assert equity.category_id == f.equity.id
+    assert equity.computation_basis.filter =~ ~s("Equity" \(id #{f.equity.id}\))
+    assert equity.computation_basis.level =~ "direct sub-category"
+    assert equity.computation_basis.level =~ "kind direct"
+    assert equity.computation_basis.level =~ "no cash"
+
+    assert equity.computation_basis.input_series =~
+             "with category_id, the bands sum to the filter's band one level up"
+
+    leaf = filtered!(f, level: :category, category_id: f.bonds.id)
+    assert leaf.computation_basis.level =~ "no sub-categories"
+
+    line = filtered!(f, level: :total, category_id: f.equity.id)
+    assert line.computation_basis.level =~ "the filtered category's line"
+
+    loose = filtered!(f, level: :security, category_id: :unclassified)
+    assert loose.computation_basis.filter =~ "unclassified"
+    assert loose.computation_basis.level =~ "files nowhere"
+  end
+
+  # User story (FR-56; Sprint 28 plan D-8 carry-forward 5, the order lens):
+  # As a local portfolio maintainer filtering a category with many
+  # sub-categories,
+  # I want at most eight bands, the smallest merged into „Sonstige“, and
+  # the same bands merged however the tree was built,
+  # so that the chart stays readable and the same data draws the same bands.
+  #
+  # Acceptance criteria:
+  # - A filter with nine sub-categories and its own securities is ten
+  #   bands: seven keep theirs, three merge into other; no band is fixed,
+  #   since a filter has no cash and no unclassified.
+  # - Which bands merge depends on the last day's value and the name, never
+  #   on an id or on the order the categories were created in: the same
+  #   holdings filed in two trees, one built in the reverse order of the
+  #   other, merge the same names; at the cut, Kilo and Lima (equal values)
+  #   are decided by name, Kilo kept.
+  # - The bands still sum to the category's band every day.
+  test "the eight-band merge applies inside a filter, independent of ids and order" do
+    world = base_world(name: "Many", cash_name: "Cash", depot_name: "Depot")
+    deposit!(world, "10000", ~D[2025-12-01])
+
+    # Name, the security's price; "(own)" is filed in the filter itself.
+    holdings = [
+      {"Alfa", "900"},
+      {"Bravo", "800"},
+      {"Charlie", "700"},
+      {"Delta", "600"},
+      {"Echo", "500"},
+      {"Kilo", "100"},
+      {"Lima", "100"},
+      {"Mike", "20"},
+      {"November", "10"},
+      {"(own)", "300"}
+    ]
+
+    securities =
+      for {name, price} <- holdings, into: %{} do
+        security = create_security!(name: "#{name} Co", ticker: nil)
+        WorldFixtures.buy!(world, security, quantity: "1", price: price, date: ~D[2025-12-01])
+        WorldFixtures.put_quote!(security, ~D[2025-12-01], price)
+        {name, security}
+      end
+
+    names = holdings |> Enum.map(&elem(&1, 0)) |> Enum.reject(&(&1 == "(own)"))
+
+    trees =
+      for {label, order} <- [{"Forward", names}, {"Reverse", Enum.reverse(names)}] do
+        {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: label})
+        root = category!(tree, "Many")
+
+        for name <- order do
+          category = category!(tree, name, parent_id: root.id)
+          assign!(securities[name], tree, category)
+        end
+
+        assign!(securities["(own)"], tree, root)
+        {label, tree, root}
+      end
+
+    answers =
+      for {label, tree, root} <- trees do
+        {:ok, top} =
+          Bands.for_portfolio(world.portfolio.id,
+            period: "ytd",
+            today: @today,
+            level: :category,
+            classification_id: tree.id
+          )
+
+        {:ok, r} =
+          Bands.for_portfolio(world.portfolio.id,
+            period: "ytd",
+            today: @today,
+            level: :category,
+            category_id: root.id
+          )
+
+        assert length(r.bands) == 8, label
+        refute Enum.any?(r.bands, &(&1.kind in [:cash, :unclassified])), label
+        assert_sums_to(r, band(top, "category:#{root.id}"), label)
+
+        other = band(r, "other")
+        assert Enum.map(other.members, & &1.name) == ["Lima", "Mike", "November"], label
+        assert Enum.all?(other.values, &Decimal.equal?(&1, d("130"))), label
+
+        {label, Enum.map(r.bands, &{&1.kind, &1.name})}
+      end
+
+    [{_, forward}, {_, reverse}] = answers
+    assert forward == reverse
+
+    assert forward == [
+             {:category, "Alfa"},
+             {:category, "Bravo"},
+             {:category, "Charlie"},
+             {:category, "Delta"},
+             {:category, "Echo"},
+             {:direct, "Many"},
+             {:category, "Kilo"},
+             {:other, "Other"}
+           ]
+  end
+
+  # User story (FR-56; the closing act's money lens, M2, kept):
+  # As the operator's agent adding up a filtered stack in a foreign currency,
+  # I want the filtered bands to keep to the bound the basis states,
+  # so that I do not mistake Decimal's rounding for a missing amount.
+  #
+  # Acceptance criteria:
+  # - With EUR/USD 1.0832 and 1.0917, whose quotients do not terminate, the
+  #   bands of a filter with a sub-category and its own securities sum to
+  #   the filter's band one level up within one unit in the 34th significant
+  #   digit of that band's value, per day, at every level; at the category
+  #   level some day is not exact, so the bound is exercised; at the total
+  #   level the line is the band itself, exactly.
+  test "a filtered stack keeps the bound when FX does not terminate" do
+    w = fx_world()
+    pid = w.world.portfolio.id
+    [alpha | _] = w.tree.id |> Classifications.list_categories() |> Enum.sort_by(& &1.name)
+    sub = category!(w.tree, "Alpha One", parent_id: alpha.id)
+    named = Map.new(Portfolixir.Catalog.list_securities(), &{&1.name, &1})
+    # Alpha holds E1, U1 and U3 itself, U2 and U4 through Alpha One.
+    assign!(named["U2"], w.tree, sub)
+    assign!(named["U4"], w.tree, sub)
+    assign!(named["U1"], w.tree, alpha)
+    assign!(named["U3"], w.tree, alpha)
+
+    opts = [period: "ytd", today: @today]
+
+    {:ok, top} =
+      Bands.for_portfolio(pid, opts ++ [level: :category, classification_id: w.tree.id])
+
+    parent = band(top, "category:#{alpha.id}")
+
+    gaps =
+      for level <- [:total, :category, :security],
+          {:ok, r} = Bands.for_portfolio(pid, opts ++ [level: level, category_id: alpha.id]),
+          {value, index} <- Enum.with_index(parent.values) do
+        day = sum(Enum.map(r.bands, &Enum.at(&1.values, index)))
+        gap = day |> Decimal.sub(value) |> Decimal.abs()
+        assert Decimal.compare(gap, last_unit(value)) != :gt, "#{level} day #{index}"
+        {level, gap}
+      end
+
+    # The case is real: at the category level, Alpha One and Alpha (direkt)
+    # group the terms otherwise than Alpha's band, and some day rounds.
+    assert Enum.any?(gaps, fn {level, gap} -> level == :category and Decimal.gt?(gap, 0) end)
+
+    # The total level sums the same members in the same order: exact.
+    assert Enum.all?(gaps, fn {level, gap} -> level != :total or Decimal.equal?(gap, 0) end)
   end
 end

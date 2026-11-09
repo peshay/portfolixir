@@ -208,6 +208,24 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "never a guess"
     # --- Sprint 28 V1 end ---
 
+    # --- Sprint 28 S begin ---
+    # S1 (FR-56): category_id a filter at every level of the bands read,
+    # the unclassified remainder included; no new endpoint or tool.
+    assert newest["summary"] =~ "Sprint 28, S1 (FR-56): "
+
+    assert [filter] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(&1, "GET .../performance/bands (portfolixir.portfolios.bands")
+             )
+
+    for part <- ~w(category_id unclassified direct category_id=unclassified level=total) do
+      assert filter =~ part, part
+    end
+
+    assert filter =~ "without level answers category, as before"
+    # --- Sprint 28 S end ---
+
     # Sprint 27's sprint PR (version 27), found by version from Sprint 28 on.
     # Dated strictly after entry 26, so since=2026-11-07 still returns it.
     # Each story appends its own items between its own markers.

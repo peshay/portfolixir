@@ -174,8 +174,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "PORTFOLIXIR_VERSION, PORTFOLIXIR_COMMIT and PORTFOLIXIR_BUILD_DATE, else the " <>
               "source checkout): kind release (the calendar tag, url its release notes), build " <>
               "(branch, short hash and commit date, url the commit) or unknown (url null), " <>
-              "never a guess; the read tool portfolixir.version reaches it in every profile."
+              "never a guess; the read tool portfolixir.version reaches it in every profile.",
             # --- Sprint 28 V1 end ---
+            # --- Sprint 28 S begin ---
+            "Sprint 28, S1 (FR-56): the bands read's category_id becomes a filter at every " <>
+              "level, the unclassified remainder included; no endpoint or tool is added."
+            # --- Sprint 28 S end ---
           ],
           " "
         ),
@@ -268,8 +272,22 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         # --- S28 N2 yield end ---
         # --- S28 N6 begin ---
         "GET /api/v1/securities/:id/dossier (portfolixir.securities.dossier) answers the part " <>
-          "news and parts.news (ADR-0056 §9; S28 N6)"
+          "news and parts.news (ADR-0056 §9; S28 N6)",
         # --- S28 N6 end ---
+        # --- Sprint 28 S begin ---
+        "GET .../performance/bands (portfolixir.portfolios.bands, portfolixir.views.bands), " <>
+          "all three forms: category_id (a category's id, or exactly unclassified) filters " <>
+          "every level to that category's subtree, without cash and unclassified: " <>
+          "level=total answers one band, the category's line (key category:<id>); " <>
+          "level=category one band per direct sub-category over its subtree plus one of kind " <>
+          "direct (key direct:<id>, the category's id and name, no colour) for the securities " <>
+          "filed in the category itself, or one band, its own, for a category without " <>
+          "sub-categories; level=security its securities; category_id=unclassified the " <>
+          "securities the tree files nowhere, one band unclassified above the security " <>
+          "level. The answer echoes category_id and computation_basis.filter. A call " <>
+          "without level answers category, as before; category_id without level=security " <>
+          "is no longer a 422, and any other value than an id or unclassified is."
+        # --- Sprint 28 S end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

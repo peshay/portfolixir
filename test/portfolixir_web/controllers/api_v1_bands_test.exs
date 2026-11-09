@@ -290,6 +290,140 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
     end
   end
 
+  # User story (FR-56, Sprint 28 S1; plan D-6):
+  # As the operator's agent reading a category the way the chart filters it,
+  # I want category_id to be a filter at every level, the unclassified
+  # remainder included, in all three forms,
+  # so that I read the same parts of a category the operator sees, and they
+  # add up to its band.
+  #
+  # Acceptance criteria:
+  # - `level=category&category_id=` of a category with a sub-category and
+  #   securities of its own answers one band per direct sub-category and one
+  #   band of kind `direct` (key `direct:<id>`, the category's own name, no
+  #   colour), no cash, no unclassified; on every date they sum to the
+  #   category's band of the read without category_id, exactly.
+  # - `level=total&category_id=` is one band, the category's, equal to that
+  #   band; `category_id=unclassified` at every level answers the remainder,
+  #   one band `unclassified` above the securities level.
+  # - The answer echoes `category_id` (the id, `unclassified` or null) and
+  #   `computation_basis.filter`; the view and view-less forms answer the
+  #   same bands.
+  test "category_id filters every level, the unclassified remainder included", %{conn: conn} do
+    w = world()
+    year = w.year
+
+    {:ok, large} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: w.tree.id,
+        name: "Large Caps",
+        parent_id: w.growth.id
+      })
+
+    gamma = create_security!(name: "Gamma Corp", ticker: "GMC")
+    buy!(w, gamma, quantity: "2", price: "50", date: Date.new!(year, 6, 1))
+    put_quotes!(gamma, [{Date.new!(year, 6, 1), "50"}, {Date.new!(year, 12, 31), "60"}])
+    {:ok, _} = Classifications.assign_security(Actor.owner_ui(), gamma.id, w.tree.id, large.id)
+
+    for path <- [
+          "/api/v1/portfolios/#{w.portfolio.id}/performance/bands",
+          "/api/v1/views/#{w.view.id}/performance/bands",
+          "/api/v1/performance/bands"
+        ] do
+      query = "?year=#{year}&classification_id=#{w.tree.id}"
+      top = get_json(conn, path <> query)["data"]
+      assert top["category_id"] == nil
+      growth = Enum.find(top["bands"], &(&1["key"] == "category:#{w.growth.id}"))
+      unclassified = Enum.find(top["bands"], &(&1["key"] == "unclassified"))
+
+      filtered =
+        get_json(conn, path <> query <> "&level=category&category_id=#{w.growth.id}")["data"]
+
+      assert filtered["category_id"] == w.growth.id
+      assert filtered["level"] == "category"
+      assert filtered["computation_basis"]["filter"] =~ ~s("Growth" \(id #{w.growth.id}\))
+      assert filtered["computation_basis"]["level"] =~ "kind direct"
+
+      assert Enum.map(filtered["bands"], &Map.take(&1, ["key", "kind", "id", "name", "color"])) ==
+               [
+                 %{
+                   "key" => "direct:#{w.growth.id}",
+                   "kind" => "direct",
+                   "id" => w.growth.id,
+                   "name" => "Growth",
+                   "color" => nil
+                 },
+                 %{
+                   "key" => "category:#{large.id}",
+                   "kind" => "category",
+                   "id" => large.id,
+                   "name" => "Large Caps",
+                   "color" => nil
+                 }
+               ]
+
+      for {value, index} <- Enum.with_index(growth["values"]) do
+        day = decimal_sum(Enum.map(filtered["bands"], &Enum.at(&1["values"], index)))
+        assert Decimal.equal?(day, Decimal.new(value)), "#{path} day #{index}"
+      end
+
+      # Alpha 10 at 130 and Gamma 2 at 60 on the last day.
+      assert Enum.map(filtered["bands"], & &1["end_value"]) == ["1300", "120"]
+
+      [line] =
+        get_json(conn, path <> query <> "&level=total&category_id=#{w.growth.id}")["data"][
+          "bands"
+        ]
+
+      assert Map.take(line, ["key", "values"]) == Map.take(growth, ["key", "values"])
+
+      for level <- ["total", "category"] do
+        [rest] =
+          get_json(conn, path <> query <> "&level=#{level}&category_id=unclassified")["data"][
+            "bands"
+          ]
+
+        assert Map.take(rest, ["key", "values"]) == Map.take(unclassified, ["key", "values"])
+      end
+
+      loose = get_json(conn, path <> query <> "&level=security&category_id=unclassified")["data"]
+      assert loose["category_id"] == "unclassified"
+      assert loose["category"] == nil
+      assert Enum.map(loose["bands"], & &1["key"]) == ["security:#{w.beta.id}"]
+      assert loose["computation_basis"]["filter"] =~ "unclassified"
+    end
+  end
+
+  # User story (FR-56; Sprint 28 plan D-6: "an agent's call without `level`
+  # answers as before"):
+  # As the operator's agent that reads the bands without naming a level,
+  # I want the answer unchanged by the screen's new default,
+  # so that the contract does not move under me.
+  #
+  # Acceptance criteria:
+  # - A call without `level` answers `level: "category"`, the root
+  #   categories with cash and unclassified, exactly as `level=category`
+  #   answers, in all three forms; only the screen's default changes.
+  test "a call without level answers as before", %{conn: conn} do
+    w = world()
+
+    for path <- [
+          "/api/v1/portfolios/#{w.portfolio.id}/performance/bands",
+          "/api/v1/views/#{w.view.id}/performance/bands",
+          "/api/v1/performance/bands"
+        ] do
+      query = "?year=#{w.year}&classification_id=#{w.tree.id}"
+      plain = get_json(conn, path <> query)["data"]
+      named = get_json(conn, path <> query <> "&level=category")["data"]
+
+      assert plain["level"] == "category"
+      assert Map.delete(plain, "as_of") == Map.delete(named, "as_of")
+
+      assert Enum.map(plain["bands"], & &1["key"]) ==
+               ["cash", "category:#{w.growth.id}", "unclassified"]
+    end
+  end
+
   # User story (I23, FR-53):
   # As the operator's agent,
   # I want a wrong parameter refused by name,
@@ -297,9 +431,10 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
   #
   # Acceptance criteria:
   # - An unknown level or sort, a malformed or unknown classification_id or
-  #   category_id, a category of another tree, and a category_id without
-  #   level=security each answer 422 naming the parameter; a bad period
-  #   answers the family's 422; an unknown portfolio or view a 404.
+  #   category_id (anything but an id or `unclassified`, exactly), and a
+  #   category of another tree at any level each answer 422 naming the
+  #   parameter; a bad period answers the family's 422; an unknown portfolio
+  #   or view a 404.
   test "refuses a wrong parameter by name", %{conn: conn} do
     w = world()
     {:ok, other} = Classifications.create_classification(Actor.owner_ui(), %{name: "Other"})
@@ -314,7 +449,9 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
           {"level=security&category_id=999999999", "category_id"},
           {"level=security&category_id=#{w.growth.id}&classification_id=#{other.id}",
            "category_id"},
-          {"level=category&category_id=#{w.growth.id}", "category_id"},
+          {"level=total&category_id=#{w.growth.id}&classification_id=#{other.id}", "category_id"},
+          {"category_id=none", "category_id"},
+          {"category_id=Unclassified", "category_id"},
           {"period=2y", "period"}
         ],
         path <- [
@@ -328,6 +465,10 @@ defmodule PortfolixirWeb.ApiV1BandsTest do
 
     assert get_json(conn, "#{base}?level=sector", 422)["errors"]["level"] == [
              "is invalid: must be one of total, category, security"
+           ]
+
+    assert get_json(conn, "#{base}?category_id=none", 422)["errors"]["category_id"] == [
+             "is invalid: must be a category id or unclassified"
            ]
 
     get_json(conn, "/api/v1/portfolios/999999999/performance/bands", 404)
