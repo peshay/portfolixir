@@ -81,7 +81,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "than the security's currency_code, compared as written (GBp is not GBP), stores " <>
           ~s(no quote and answers status "error" with reason "currency_mismatch", where it ) <>
           "stored the closes under the security's currency; an answer that states none is " <>
-          "stored as before; the provider's own word is not echoed (#1411).",
+          "stored as before; the provider's own word is not echoed (#1411). A stated value " <>
+          ~s[that is no currency code (not three letters) answers reason "invalid_currency" ] <>
+          "the same way, and the provider currency an earlier sync kept stands (closing act).",
         "GET /api/v1/securities (portfolixir.securities.list, whose data_quality enum and " <>
           "description now carry it) takes data_quality=currency_mismatch: every security " <>
           "whose provider_currency, the currency its quote provider stated at the sync that " <>

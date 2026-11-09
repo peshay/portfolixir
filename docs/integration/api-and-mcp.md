@@ -1511,7 +1511,9 @@ Example create payload:
   `currency_code` stores no quote and answers `status` `error` with
   `reason` `currency_mismatch` (#1411): compared as written, so Yahoo's
   `GBp` (pence) is not `GBP`; an answer that states no currency is stored
-  as before. A history
+  as before. A stated value that is not three letters is no currency code:
+  it stores no quote and answers `reason` `invalid_currency`, and the
+  provider currency kept from an earlier sync stands. A history
   of any length is stored in one sync, and in the scheduled sync one
   security that fails is that security's error while the others are still
   synced. One sync of a security

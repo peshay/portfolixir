@@ -130,6 +130,17 @@ defmodule Portfolixir.Catalog.Security do
   @provider_currency_shape ~r/\A[A-Za-z]{3}\z/
 
   @doc """
+  Whether `value` has the shape `provider_currency_changeset/3` stores: three
+  ASCII letters, as written. The quote adapters refuse a stated currency
+  of any other shape before they compare it (closing act, QA3).
+  """
+  @spec provider_currency_shape?(term()) :: boolean()
+  def provider_currency_shape?(value) when is_binary(value),
+    do: value =~ @provider_currency_shape
+
+  def provider_currency_shape?(_value), do: false
+
+  @doc """
   The quote sync's record of the currency its provider stated (#1415):
   `provider_currency` and `provider_currency_at`, nothing else. The value is
   the provider's, so it is bounded here as any foreign text is: three

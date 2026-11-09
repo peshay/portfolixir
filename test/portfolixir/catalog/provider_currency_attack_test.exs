@@ -229,18 +229,19 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
 
   # User story:
   # As the operator reading the set,
-  # I want a security listed exactly while the latest stated currency differs
-  # from its own, as the basis's window says ("one that reads another
-  # replaces both"),
-  # so that a provider that now states something unstorable is not reported
-  # as agreeing with the security.
+  # I want a provider that now states something unstorable named per
+  # security, and the set's basis to say what that leaves standing,
+  # so that a sync refused for a malformed currency is not silent, and the
+  # set's answer is read with its window.
   #
-  # Acceptance criteria:
+  # Acceptance criteria (closing act, QA3):
   # - A security whose provider stated its own currency, then a malformed
-  #   one (`€€€`, `USDX`), is refused by the sync and is in the set — or the
-  #   stored value says the last read was not its own currency.
-  @tag :q_attack_red
-  test "a malformed stated currency after an agreeing one leaves the set silent" do
+  #   one (`€€€`), is refused by the sync under `{:invalid_currency, _}`,
+  #   and nothing is stored: the earlier read stands, so the security is not
+  #   in the set.
+  # - The set's computation basis states that an unstorable value leaves the
+  #   earlier read standing.
+  test "a malformed stated currency after an agreeing one is refused; the earlier read stands" do
     security = security!("Garbled Line", "EUR", %{ticker_symbol: "GRBL"})
 
     sync = fn currency ->
@@ -258,14 +259,14 @@ defmodule Portfolixir.Catalog.ProviderCurrencyAttackTest do
 
     {result, log} = sync.("€€€")
 
-    # Refused by #1411 and nothing stored, so the earlier agreement stands.
-    assert result.status == :error
-    assert log =~ "kept no provider currency"
-    assert %{provider_currency: "EUR"} = stored(security)
+    assert %{status: :error, reason: {:invalid_currency, _value}} = result
+    assert log =~ "invalid_currency"
+    assert %{provider_currency: "EUR", provider_currency_at: at} = stored(security)
+    assert at
+    refute security.id in mismatched_ids()
 
-    assert security.id in mismatched_ids(),
-           "every sync of this security is now refused for another currency, " <>
-             "yet the set still reads its provider as agreeing (EUR, an earlier read)"
+    assert DataQuality.computation_basis("currency_mismatch").window =~
+             "earlier read standing"
   end
 
   # User story:

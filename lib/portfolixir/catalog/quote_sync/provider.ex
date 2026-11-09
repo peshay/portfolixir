@@ -23,6 +23,8 @@ defmodule Portfolixir.Catalog.QuoteSync.Provider do
   answers `{:ok, rows, %{currency: currency}}`, and one whose provider stated
   another currency than the security's answers `{:error, {:currency_mismatch,
   currency}}` and no rows (#1411); the sync keeps the currency in both cases.
+  A stated value that is no currency code answers `{:error,
+  {:invalid_currency, value}}` and no rows, and nothing is kept (QA3).
   """
   @callback fetch(security :: Security.t(), opts :: keyword()) ::
               {:ok, [quote_row()]} | {:ok, [quote_row()], answer_meta()} | {:error, term()}

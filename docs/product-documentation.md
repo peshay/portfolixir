@@ -4023,7 +4023,10 @@ as failed (`currency_mismatch` over the API), while the others sync. The
 currencies are compared as written, so a London listing quoted in pence
 (`GBp`) is refused for a security in pounds (`GBP`), and so are the other
 minor units Yahoo uses (`ZAc`, `ILA`). An answer that states no currency is
-stored as before. Fix the ticker (or the exchange) and sync again.
+stored as before. Fix the ticker (or the exchange) and sync again. A stated
+value that is no currency code at all (not three letters) is refused the
+same way, as `invalid_currency`, and the provider currency an earlier sync
+kept stands.
 
 Each sync that reads the provider's currency keeps it on the security, a
 refused one's too (#1415), together with the time it was read; it is
