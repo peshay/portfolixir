@@ -224,6 +224,16 @@ contradicted an environment the owner runs (owner, 2026-11-07).
   Elixir contexts. *Why:* one integration contract and no second data path
   around the API's validation and auth (ADR-0002;
   `test/invariants/mcp_dependency_allowlist_test.exs`).
+- **A lifecycle is named once.** A record's status is derived in one
+  status module of its context (`Portfolixir.Status`), which names the
+  closed set of statuses and the writes each permits; the write guards
+  refuse by that module, the API carries `status`, `permits` and
+  `status_basis`, the screen's buttons and labels read the same struct, and
+  the companion's text names every status and permit
+  (`test/invariants/status_named_once_test.exs`). Never a stored status
+  column, never a guard copied. *Why:* a status inferred from null
+  timestamps was read differently by the screen, the API and the agent,
+  and a guard copied three times drifted (ADR-0059).
 
 ## API And MCP Coverage
 
