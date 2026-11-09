@@ -2515,7 +2515,10 @@ stacked, because returns do not add up: its flows are its buys, sells and
 deliveries (an inflow counts at the day's start, an outflow at its end), and
 dividends and interest are no flow and in no line, so a line is the return
 of the band's market value. The **bold** line is the view's own TTWROR, the
-figure above the chart, or under a filter the filtered category's line. A
+figure above the chart, or under a filter the filtered category's line.
+The view's line counts every flow at the day's start, the bands count a
+sale at the day's end, so a band that holds the whole view can differ from
+the bold line on a day with a sale. A
 band that gains its first value inside the period, a first buy into a new
 category, starts at 0 % on that day, marked by a dot, and its legend row
 says from when. A day on which a band opens at or below zero, a short sold

@@ -9762,7 +9762,9 @@ last day.
   no flow and in no line (a price return of the band's market value); a
   late band starts at 0 % at a dot; a day opening at or below zero (a
   short) adds no return (closing act, ML1); at most eight lines by value, none for
-  the cash or the unassigned rest; the legend's order; which line is bold;
+  the cash or the unassigned rest; the legend's order; which line is bold,
+  and that the view's line counts every flow at the day's start while the
+  bands count an outflow at its end (closing act, ML2);
   what a click does; and with a benchmark chosen, that benchmarks stand
   over the view's own line at *Total* without a filter.
 - **The privacy mode** changes nothing here: every figure is a percentage

@@ -3064,7 +3064,10 @@ Example account payloads:
   last point); `sort=change` orders the lines by `ttwror`. `parent` is the
   line one level up: the view's own TTWROR (the performance read's
   `cumulative_ttwror` series, exactly) without `category_id`, the filter's
-  band with it; `null` with `scale=value`. `computation_basis` names
+  band with it. The view's line counts every flow at the day's start, the
+  bands an outflow at its end, so a band that holds the whole view can
+  differ from it on a day with a sale; `computation_basis.reference` says
+  so; `null` with `scale=value`. `computation_basis` names
   `flows`, `start_rule` and `selection_rule` in place of `merge_rule`. An
   unknown `level`, `sort` or `scale`, a
   malformed or unknown `classification_id` or `category_id` (anything but an
