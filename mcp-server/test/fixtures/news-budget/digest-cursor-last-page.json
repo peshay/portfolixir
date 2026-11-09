@@ -1,0 +1,47 @@
+{
+  "data": {
+    "ambiguous": 0,
+    "cursor": "1762592400~AAAAAAAAAAAAAAAAAAAAAA",
+    "hidden": 0,
+    "prompt_version": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+    "quiet": 14,
+    "rows": [
+      {
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
+        "id": 1,
+        "materiality": 3,
+        "name": "Holding 13 Syntheti\u2026",
+        "top": {
+          "at": "2026-11-08T09:00:00Z",
+          "id": 1,
+          "tier": "primary",
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
+        }
+      },
+      {
+        "count": 2,
+        "event_types": [
+          "capital_measure",
+          "regulatory"
+        ],
+        "id": 1,
+        "materiality": 3,
+        "name": "Holding 14 Syntheti\u2026",
+        "top": {
+          "at": "2026-11-08T09:00:00Z",
+          "id": 1,
+          "tier": "primary",
+          "title": "H\u00ADo\u00ADl\u00ADd\u00ADi\u00ADn\u2026"
+        }
+      }
+    ],
+    "since": "2026-11-08T09:00:00Z",
+    "truncated": false,
+    "unassigned": 0,
+    "unlabeled": 0
+  }
+}

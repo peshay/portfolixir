@@ -1501,6 +1501,23 @@ only the digest's `unlabeled` grows.
   `ack_cursor` reads on from the confirmed position. Without `consumer` the
   digest keeps no state.
 
+  **A consumer's truncated answer is paged** (closing act, AT5): it
+  carries `next_page`, a page token, and no `cursor`; the consumer sends it
+  as `page` (with `consumer`, without `ack_cursor`) and gets the next rows,
+  each page within the digest's budget, until the last page, which carries
+  the `cursor` to confirm. So a confirmation never passes a row an answer
+  left out. The pages read on after the rows already answered, by their
+  place in the order, and the last page's cursor is the first page's
+  moment, so what arrived while the consumer paged reads after the
+  confirmation. Paging moves no position. A page token is signed for that
+  consumer and its position with a key of its own: one edited, another
+  consumer's, or sent as `ack_cursor` (and a cursor sent as `page`)
+  answers `422`. A page token of a position the consumer has confirmed
+  past since answers the first page from the new position with
+  `restarted: true`. Rows tie, after their materiality and their top
+  story's tier and publication, by security id. With `since` a truncated
+  answer keeps `truncated` and `more` as before.
+
 ### News labels (ADR-0056 §7)
 
 An outside model labels stories through a script with its own named token
@@ -4786,8 +4803,9 @@ API may have committed it, and its answer cannot be read.
   never instructions. `news.get` takes `cluster_id` or `news_id`, and
   `prompt_version` with a `cluster_id` only; `news.list` and `news.digest`
   take `min_materiality` and `prompt_version`; no news tool takes `tone`.
-  `news.digest` takes `consumer` and `ack_cursor`, and refuses `since`
-  beside `consumer` and `ack_cursor` without it; it stays read-only in every
+  `news.digest` takes `consumer`, `ack_cursor` and `page`, and refuses
+  `since` beside `consumer`, `ack_cursor` and `page` without it, and `page`
+  beside `ack_cursor`; it stays read-only in every
   profile, because the position it moves is the consumer's own bookmark,
   not the operator's data.
 - `portfolixir.news.unlabeled` and `portfolixir.news.label_put` — the news

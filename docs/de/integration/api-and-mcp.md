@@ -1637,6 +1637,26 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `ack_cursor` liest ab der bestätigten Position weiter. Ohne `consumer`
   hält der Digest keinen Zustand.
 
+  **Die gekürzte Antwort eines Verbrauchers wird geblättert** (Closing
+  Act, AT5): Sie trägt `next_page`, ein Seiten-Token, und keinen `cursor`;
+  der Verbraucher sendet es als `page` (mit `consumer`, ohne `ack_cursor`)
+  und erhält die nächsten Zeilen, jede Seite im Budget des Digests, bis zur
+  letzten Seite, die den zu bestätigenden `cursor` trägt. So überspringt
+  eine Bestätigung nie eine Zeile, die eine Antwort weggelassen hat. Die
+  Seiten lesen nach den bereits beantworteten Zeilen weiter, nach ihrem
+  Platz in der Reihenfolge, und der Cursor der letzten Seite ist der
+  Zeitpunkt der ersten, sodass, was während des Blätterns eintraf, nach der
+  Bestätigung gelesen wird. Blättern verschiebt keine Position. Ein
+  Seiten-Token ist für diesen Verbraucher und seine Position mit einem
+  eigenen Schlüssel signiert: ein verändertes, das eines anderen
+  Verbrauchers oder eines als `ack_cursor` gesendet (und ein Cursor als
+  `page`) ergibt `422`. Ein Seiten-Token einer Position, über die der
+  Verbraucher seither hinaus bestätigt hat, ergibt die erste Seite ab der
+  neuen Position mit `restarted: true`. Bei gleicher Materialität und
+  gleichem Rang und gleicher Veröffentlichung ihrer Top-Story entscheidet
+  die Wertpapier-ID über die Reihenfolge der Zeilen. Mit `since` behält eine
+  gekürzte Antwort `truncated` und `more` wie bisher.
+
 ### News-Labels (ADR-0056 §7)
 
 Ein Modell außerhalb der App vergibt Labels über ein Skript mit eigenem
@@ -5244,8 +5264,9 @@ lässt sich nicht lesen.
   `news.get` nimmt `cluster_id` oder `news_id` und `prompt_version` nur mit
   einer `cluster_id`; `news.list` und `news.digest` nehmen `min_materiality`
   und `prompt_version`; kein News-Werkzeug nimmt `tone`. `news.digest` nimmt
-  `consumer` und `ack_cursor` und lehnt `since` neben `consumer` und
-  `ack_cursor` ohne ihn ab; es bleibt in jedem Profil ein Lesewerkzeug, weil
+  `consumer`, `ack_cursor` und `page` und lehnt `since` neben `consumer`,
+  `ack_cursor` und `page` ohne ihn und `page` neben `ack_cursor` ab; es
+  bleibt in jedem Profil ein Lesewerkzeug, weil
   die Position, die es verschiebt, das eigene Lesezeichen des Verbrauchers
   ist, keine Daten des Betreibers.
 - `portfolixir.news.unlabeled` und `portfolixir.news.label_put` — Lese- und

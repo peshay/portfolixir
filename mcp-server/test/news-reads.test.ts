@@ -242,5 +242,42 @@ describe("the news read tools", () => {
     assert.match(description, /unconfirmed/);
     assert.equal(tool(DIGEST)?.annotations?.readOnlyHint, true);
   });
+
+  // --- closing act, AT5 begin ---
+  // User story (ADR-0056 §9 at least once; closing act, AT5):
+  // As the operator's agent reading a busy day's digest under a consumer,
+  // I want to page a truncated answer with its next_page and confirm only
+  // the last page's cursor,
+  // so that no row an answer left out falls behind my confirmed position.
+  //
+  // Acceptance criteria:
+  // - news.digest sends page with consumer to GET /api/v1/news/digest.
+  // - page without consumer, and page beside ack_cursor, are refused
+  //   before any request.
+  // - The description says a consumer sends next_page as page and the last
+  //   cursor as ack_cursor.
+  it("pages a consumer's truncated digest", async () => {
+    const { client, requests } = createRecordingClient({ data: { rows: [] } });
+    const page = "1762592400~1762592400~3.3.1762592400000000.1~-~AAAA";
+
+    await callTool(client, DIGEST, { consumer: "morning-run", page });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/news/digest?consumer=morning-run&page=" +
+          "1762592400%7E1762592400%7E3.3.1762592400000000.1%7E-%7EAAAA"
+      ]
+    );
+
+    for (const args of [{ page }, { consumer: "morning-run", page, ack_cursor: "1762592400~AAAA" }]) {
+      const before = requests.length;
+      await assert.rejects(callTool(client, DIGEST, { ...args }), JSON.stringify(args));
+      assert.equal(requests.length, before, JSON.stringify(args));
+    }
+
+    assert.match(tool(DIGEST)?.description ?? "", /next_page as page, the last cursor as ack_cursor/);
+  });
+  // --- closing act, AT5 end ---
   // --- S28 N3 end ---
 });

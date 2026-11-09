@@ -164,6 +164,12 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
       ~r/"cursor":"\d{10}~[A-Za-z0-9_-]{22}"/,
       ~s("cursor":"1762592400~AAAAAAAAAAAAAAAAAAAAAA")
     )
+    # Closing act, AT5: a page token, its positions, row key and tag
+    # normalized at their width.
+    |> String.replace(
+      ~r/"next_page":"\d{10}~\d{10}~\d\.\d\.\d{16}\.\d+~(-|[0-9.]+)~[A-Za-z0-9_-]{22}"/,
+      ~s("next_page":"1762592400~1762592400~3.3.1762592400000000.1~-~AAAAAAAAAAAAAAAAAAAAAA")
+    )
     |> Jason.decode!()
     |> Jason.encode!(pretty: true, escape: :unicode_safe)
   end
@@ -258,11 +264,21 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
 
     # --- S28 N3 begin ---
     # The digest with a consumer (§9; D-8 carry-forward 4): the same rows,
-    # `cursor` in place of `as_of`, within the same 800.
-    cursor_digest = get(conn, "/api/v1/news/digest?consumer=budget-run-with-a-long-name-0001")
-    assert %{"cursor" => _, "truncated" => true} = json_response(cursor_digest, 200)["data"]
-    assert tokens(cursor_digest) <= 800, "digest with a cursor: #{tokens(cursor_digest)}"
+    # within the same 800. Truncated, it is paged (closing act, AT5): the
+    # first page carries next_page in place of as_of, the last the cursor,
+    # each page within 800.
+    consumer = "budget-run-with-a-long-name-0001"
+    cursor_digest = get(conn, "/api/v1/news/digest?consumer=" <> consumer)
+    assert %{"next_page" => page, "truncated" => true} = json_response(cursor_digest, 200)["data"]
+    assert tokens(cursor_digest) <= 800, "digest's first page: #{tokens(cursor_digest)}"
     fixture!("digest-cursor-soft-hyphens", cursor_digest)
+
+    last_page =
+      get(conn, "/api/v1/news/digest?" <> URI.encode_query(consumer: consumer, page: page))
+
+    assert %{"cursor" => _, "truncated" => false} = json_response(last_page, 200)["data"]
+    assert tokens(last_page) <= 800, "digest's last page: #{tokens(last_page)}"
+    fixture!("digest-cursor-last-page", last_page)
     # --- S28 N3 end ---
 
     since = DateTime.to_iso8601(hours_ago(now, 40))

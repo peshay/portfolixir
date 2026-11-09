@@ -108,7 +108,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "consumers; a new one beyond answers 422 naming the cap. Without consumer the " <>
               "digest keeps no state and answers as_of as before. For a consumer a story is " <>
               "also new when its label of the read's prompt version was written after the " <>
-              "position (closing act, AT6).",
+              "position (closing act, AT6). A consumer's truncated answer is paged (closing " <>
+              "act, AT5): it carries next_page and no cursor, the consumer sends it as page " <>
+              "and only the last page carries the cursor, so a confirmation never passes a " <>
+              "row an answer left out; a page token is the consumer's own and no cursor, an " <>
+              "edited or another's answers 422 naming page, and one of a position confirmed " <>
+              "past since starts again from it with restarted true.",
             # --- S28 N3 end ---
             # --- S28 N4 begin ---
             "Sprint 28, N4 (ADR-0056 §9, #1424): news.assign. PUT " <>
@@ -232,6 +237,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "with consumer the answer's since is the consumer's confirmed position and it " <>
           "carries cursor, <unix seconds>~<tag>, in place of as_of; ack_cursor confirms it " <>
           "on the next call (ADR-0056 §9; S28 N3)",
+        "GET /api/v1/news/digest (portfolixir.news.digest) takes page with consumer: a " <>
+          "consumer's truncated answer carries next_page in place of cursor, sent back as " <>
+          "page; the last page carries the cursor (ADR-0056 §9; S28 closing act, AT5)",
         # --- S28 N3 end ---
         # --- S28 N5 begin ---
         "POST /api/v1/securities/:security_id/notes (portfolixir.notes.append) takes " <>

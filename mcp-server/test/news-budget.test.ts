@@ -57,8 +57,19 @@ describe("the news reads' budgets, as the tool returns them", () => {
       { consumer: "budget-run-with-a-long-name-0001" },
       "digest-cursor-soft-hyphens"
     );
-    assert.match(cursorDigest, /"cursor":"\d+~/);
-    assert.ok(tokens(cursorDigest) <= 800, `digest with a cursor: ${tokens(cursorDigest)} tokens`);
+    // Truncated, it is paged (closing act, AT5): the first page carries
+    // next_page, the last the cursor, each within 800.
+    assert.match(cursorDigest, /"next_page":"\d+~\d+~/);
+    assert.doesNotMatch(cursorDigest, /"cursor"/);
+    assert.ok(tokens(cursorDigest) <= 800, `digest's first page: ${tokens(cursorDigest)} tokens`);
+
+    const lastPage = await returned(
+      "portfolixir.news.digest",
+      { consumer: "budget-run-with-a-long-name-0001", page: "1762592400~1762592400~3.3.1762592400000000.1~-~AAAA" },
+      "digest-cursor-last-page"
+    );
+    assert.match(lastPage, /"cursor":"\d+~/);
+    assert.ok(tokens(lastPage) <= 800, `digest's last page: ${tokens(lastPage)} tokens`);
     // --- S28 N3 end ---
 
     const list = await returned("portfolixir.news.list", { security_id: 1 }, "list-tag-characters");

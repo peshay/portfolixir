@@ -34,6 +34,16 @@ defmodule Portfolixir.News.DigestCursor do
       `Portfolixir.DeltaCursor` signs nothing — its cursors are instants a
       caller may choose freely, because they keep no state — so there was
       no signing rule to follow;
+    * **a truncated answer is paged** (closing act, AT5): it carries a
+      page token (`issue_page/4`) in place of the cursor, and only its last
+      page carries the cursor, the first page's moment, so a confirmation
+      never passes a row an answer left out. A page token names the
+      consumer's position, that moment and the place of the last row
+      answered, signed like a cursor but under a key of its own purpose
+      (`PortfolixirWeb.Api.V1.DigestCursorKey.page_key/0`) and with more
+      parts, so neither passes for the other. Paging moves nothing; a page
+      of a position the consumer has confirmed past is the caller's to
+      restart;
     * **a new consumer starts 24 hours back**, the stateless digest's
       default window, and its start counts as confirmed;
     * **at most 32 consumers** (`cap/0`): each is a row kept until the
@@ -110,6 +120,70 @@ defmodule Portfolixir.News.DigestCursor do
     seconds = Integer.to_string(DateTime.to_unix(position))
     seconds <> "~" <> tag(consumer, seconds, key)
   end
+
+  # --- closing act, AT5 begin ---
+
+  @doc """
+  The page token of `consumer`'s truncated answer (closing act, AT5): the
+  consumer's confirmed position, `until` (the first page's `as_of`, the
+  cursor its last page carries), and `keys` (the page keys of the rows
+  already answered, `Portfolixir.News.Reads.encode_page_key/1`), signed
+  with `key`: `<position>~<until>~<key>…~<tag>`. Never a cursor: it has
+  more parts, and its tag is an HMAC under another purpose, so neither
+  verifies as the other.
+  """
+  @spec issue_page(DigestConsumer.t(), DateTime.t(), [String.t()], binary()) :: String.t()
+  def issue_page(%DigestConsumer{} = consumer, %DateTime{} = until, keys, key)
+      when is_list(keys) and byte_size(key) >= @key_min_bytes do
+    parts = [unix(consumer.position), unix(until) | keys]
+    Enum.join(parts ++ [page_tag(consumer, parts, key)], "~")
+  end
+
+  @doc """
+  The page token `token` checked for `consumer`: `{:ok, %{position:,
+  until:, keys:}}` when the server signed it for that consumer row with
+  `key`, else `:error`. The position it names may be older than the
+  consumer's now; the caller decides what a stale page reads.
+  """
+  @spec verify_page(DigestConsumer.t(), String.t(), binary()) ::
+          {:ok, %{position: DateTime.t(), until: DateTime.t(), keys: [String.t()]}} | :error
+  def verify_page(%DigestConsumer{} = consumer, token, key)
+      when is_binary(token) and byte_size(key) >= @key_min_bytes do
+    with [_, _, _ | _] = all <- String.split(token, "~"),
+         {parts, [tag]} = Enum.split(all, -1),
+         expected = page_tag(consumer, parts, key),
+         true <- byte_size(tag) == byte_size(expected),
+         true <- Plug.Crypto.secure_compare(tag, expected),
+         [position, until | keys] <- parts,
+         {:ok, position} <- from_unix(position),
+         {:ok, until} <- from_unix(until) do
+      {:ok, %{position: position, until: until, keys: keys}}
+    else
+      _other -> :error
+    end
+  end
+
+  defp page_tag(%DigestConsumer{id: id, name: name}, parts, key) do
+    message = Enum.join(["portfolixir.news.digest_page", id, name | parts], <<0>>)
+
+    :hmac
+    |> :crypto.mac(:sha256, key, message)
+    |> binary_part(0, @tag_bytes)
+    |> Base.url_encode64(padding: false)
+  end
+
+  defp unix(%DateTime{} = at), do: Integer.to_string(DateTime.to_unix(at))
+
+  defp from_unix(seconds) do
+    with {unix, ""} when unix >= 0 <- Integer.parse(seconds),
+         {:ok, at} <- DateTime.from_unix(unix) do
+      {:ok, usec(at)}
+    else
+      _other -> :error
+    end
+  end
+
+  # --- closing act, AT5 end ---
 
   defp verify(consumer, cursor, key) do
     with [seconds, tag] <- String.split(cursor, "~"),
