@@ -146,6 +146,43 @@ defmodule Portfolixir.LockRace.NewsN34AttackTest do
     assert Repo.get!(Item, w.item.id).security_id == w.target.id
   end
 
+  # User story (ADR-0056 C3, §9 at least once; closing act, AT8):
+  # As the operator whose agent assigns an item while another write holds
+  # the target security,
+  # I want the item to enter its new scope at the time the assignment
+  # writes, not at the time it started waiting,
+  # so that a consumer that confirmed a position while it waited still
+  # reads the item as new.
+  #
+  # Acceptance criteria:
+  # - An assignment that waited on a lock of the target security stamps
+  #   scope_at after the holder's last statement, not before its wait.
+  test "an assignment that waited on its target stamps scope_at after the wait", %{db: db} do
+    _source = watched!("Waiting Harbour AG", "Waitingharbour")
+    target = watched!("Quay Holding AG", "Quayholding")
+    item = aggregator_item!("Waitingharbour reports third quarter results")
+
+    {released_at, assigned} =
+      LockRace.race!(
+        db,
+        {fn ->
+           {:ok, at} =
+             Repo.transaction(fn ->
+               Repo.query!("SELECT id FROM securities WHERE id = $1 FOR UPDATE", [target.id])
+               DateTime.utc_now()
+             end)
+
+           at
+         end, LockRace.query?("FOR UPDATE")},
+        fn -> News.assign_item(agent(), item.id, target.id) end
+      )
+
+    assert {:ok, %Item{scope_at: scope_at}} = assigned
+
+    assert DateTime.compare(scope_at, released_at) == :gt,
+           "scope_at #{scope_at} was read before the wait, which ended after #{released_at}"
+  end
+
   # User story (ADR-0056 §9, the cap; plan D-8 security lens):
   # As the operator whose agents name consumers concurrently,
   # I want two new consumers racing for the last slot to leave exactly 32,

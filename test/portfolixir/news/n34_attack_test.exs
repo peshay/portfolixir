@@ -59,6 +59,8 @@ defmodule Portfolixir.News.N34AttackTest do
 
   defp reload(item), do: Repo.get!(Item, item.id)
 
+  defp days_ago(days), do: DateTime.add(now(), -days * 86_400, :second)
+
   defp entries, do: Journal.list_entries(resource_type: "news_item", order: :asc)
 
   describe "the cursor's signature (N3, security lens)" do
@@ -272,6 +274,31 @@ defmodule Portfolixir.News.N34AttackTest do
 
       {:ok, moved} = News.assign_item(@agent, item.id, harbourline.id)
       assert DateTime.compare(moved.scope_at, confirmed.position) == :gt
+    end
+
+    # User story (ADR-0056 C3, §9; closing act, AT8):
+    # As the operator whose agent gives an ambiguous item back to the
+    # matcher after a third security started naming it,
+    # I want the item to enter the new candidate's remainder now,
+    # so that a view holding that security reads it as new.
+    #
+    # Acceptance criteria:
+    # - null on an item ambiguous between two securities, which a third
+    #   now also names (first seen 8 days ago, outside the re-match's
+    #   window), keeps it ambiguous with three candidates and stamps
+    #   scope_at with the time of the write.
+    test "null on an ambiguous item whose candidates change stamps scope_at anew" do
+      _a = watched!("Northwind Harbour Logistics AG", "Northwind")
+      _b = watched!("Harbourline Shipping AG", "Harbourline")
+      item = aggregator_item!("Northwind and Harbourline at Quayside", days_ago(8))
+      assert %Item{assignment: :ambiguous, candidates: [_, _]} = before = reload(item)
+
+      _c = watched!("Quayside Terminals AG", "Quayside")
+      assert reload(item).candidates == before.candidates
+
+      assert {:ok, moved} = News.assign_item(@agent, item.id, nil)
+      assert %Item{assignment: :ambiguous, candidates: [_, _, _]} = moved
+      assert DateTime.diff(moved.scope_at, now(), :second) in -60..0
     end
 
     test "an item assigned to a retired security (characterised: accepted, out of the universe)" do
