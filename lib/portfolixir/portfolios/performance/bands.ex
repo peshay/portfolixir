@@ -80,6 +80,24 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   bands add up to the filter's band one level up under the same rule, since
   that band, too, sums its members first.
 
+  **The TTWROR scale** (FR-57, Sprint 28 S3, scope-ladder level (b)):
+  `scale: :ttwror` answers each band as a line, its own time-weighted
+  return over the window, not stacked, since returns do not add up. A
+  band's flows are ADR-0051's net flows of its securities kept per day (a
+  group's the sum); the day's net flow counts at the day's start when it is
+  an inflow, `1 + r = V / (V_prev + F + B)`, and at its end when an
+  outflow, `1 + r = (V − F) / (V_prev + B)`, `B` the day's trade-price
+  basis step of its securities (#545) and a day without a positive base no
+  return, as in the walk. A band with a value at the baseline's close
+  chains from it; else its line starts at 0 % on its first day with a
+  value. After its start a day on which it holds nothing and moved nothing
+  has no point, so a band sold out inside the window ends at the sale day.
+  At most eight lines, by value on the window's last day (ties by name,
+  never by id), without cash and `unclassified` beside the categories and
+  never merged into `other`; `parent` is the line one level up, the view's
+  own TTWROR (the walk's series, exactly) or the filter's band. Dividends,
+  interest and trade costs are no flow: they move cash, which has no line.
+
   Nothing is stored: each read runs its own walk from the window's baseline
   day (ADR-0051, note of 2026-10-28).
   """
@@ -95,8 +113,10 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   @hub "EUR"
   @levels [:total, :category, :security]
   @sorts [:size, :change]
+  @scales [:value, :ttwror]
   @max_bands 8
-  @empty_day %{securities: %{}, cash: Decimal.new("0")}
+  @one Decimal.new("1")
+  @empty_day %{securities: %{}, cash: Decimal.new("0"), flows: %{}, basis: %{}}
 
   @doc "The levels a stack groups by."
   def levels, do: @levels
@@ -107,6 +127,9 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   @doc "The most bands one answer carries."
   def max_bands, do: @max_bands
 
+  @doc "The scales a read answers in: the values, or each band's own TTWROR."
+  def scales, do: @scales
+
   @doc """
   The bands of one portfolio over a period.
 
@@ -114,10 +137,12 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   `:view` (a view id narrowing the portfolio), `:today`, `:level`
   (`#{inspect(@levels)}`, default `:category`), `:classification_id`,
   `:category_id` (a category's id or `:unclassified`, the filter, at every
-  level) and `:sort` (`#{inspect(@sorts)}`, default `:size`).
+  level), `:sort` (`#{inspect(@sorts)}`, default `:size`) and `:scale`
+  (`#{inspect(@scales)}`, default `:value`; `:ttwror` answers each band's own
+  return as a line, see the moduledoc).
 
   Returns `{:ok, result}` or `{:error, reason}`, the reason one of
-  `:invalid_level`, `:invalid_sort`, `:invalid_period`, `:view_not_found`,
+  `:invalid_level`, `:invalid_sort`, `:invalid_scale`, `:invalid_period`, `:view_not_found`,
   `:classification_not_found`, `:category_not_found`, `:invalid_category`
   and `:category_outside_classification`.
   """
@@ -187,13 +212,24 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   defp request(opts) do
     level = Keyword.get(opts, :level, :category)
     sort = Keyword.get(opts, :sort, :size)
+    scale = Keyword.get(opts, :scale, :value)
     category_id = Keyword.get(opts, :category_id)
 
     cond do
-      level not in @levels -> {:error, :invalid_level}
-      sort not in @sorts -> {:error, :invalid_sort}
-      not filter?(category_id) -> {:error, :invalid_category}
-      true -> {:ok, %{level: level, sort: sort, category_id: category_id, opts: opts}}
+      level not in @levels ->
+        {:error, :invalid_level}
+
+      sort not in @sorts ->
+        {:error, :invalid_sort}
+
+      scale not in @scales ->
+        {:error, :invalid_scale}
+
+      not filter?(category_id) ->
+        {:error, :invalid_category}
+
+      true ->
+        {:ok, %{level: level, sort: sort, scale: scale, category_id: category_id, opts: opts}}
     end
   end
 
@@ -354,10 +390,11 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   defp build(analysis, period, request, grouping) do
     {:ok, summary} = Performance.summarise(analysis, period)
 
-    bands =
-      case analysis.contribution do
-        nil -> []
-        kept -> bands(summary, kept, request, grouping)
+    {bands, parent} =
+      case {analysis.contribution, request.scale} do
+        {nil, _scale} -> {[], nil}
+        {kept, :value} -> {bands(summary, kept, request, grouping), nil}
+        {kept, :ttwror} -> lines(summary, kept, request, grouping)
       end
 
     # A window with no walked day is empty; a drilled category holding
@@ -373,11 +410,13 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
       end_date: summary.end_date,
       level: request.level,
       sort: request.sort,
+      scale: request.scale,
       classification: classification_field(grouping),
       category_id: request.category_id,
       category: category_field(grouping.category),
       dates: if(walked?, do: Enum.map(summary.series, & &1.date), else: []),
       bands: bands,
+      parent: parent,
       as_of: summary.as_of,
       stale: false,
       computation_basis:
@@ -414,11 +453,16 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
 
       {level, filter} ->
         kept
-        |> security_leaves(days)
-        |> Enum.filter(&in_filter?(&1.id, filter, grouping))
+        |> filter_leaves(days, filter, grouping)
         |> filtered(level, filter, grouping)
         |> stack(request.sort)
     end
+  end
+
+  defp filter_leaves(kept, days, filter, grouping) do
+    kept
+    |> security_leaves(days)
+    |> Enum.filter(&in_filter?(&1.id, filter, grouping))
   end
 
   defp stack(bands, sort) do
@@ -477,6 +521,11 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
         values: Enum.map(days, &Map.get(&1.securities, id, @zero)),
         start_value: position.start_value,
         net_flows: position.net_flows,
+        # The per-band return's terms (FR-57): whether the security is held
+        # at each day's close, and its flows and basis step of the day.
+        held: Enum.map(days, &Map.has_key?(&1.securities, id)),
+        flows: Enum.map(days, &Map.get(&1.flows, id, @zero)),
+        basis: Enum.map(days, &Map.get(&1.basis, id, @zero)),
         members: []
       }
     end
@@ -623,13 +672,19 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   end
 
   # Members' values add up day by day, and so do their start values and net
-  # flows.
+  # flows, and their day's flows and basis steps; a group is held on a day
+  # when any member is.
   defp combine([first | rest]) do
-    Enum.reduce(rest, Map.take(first, [:values, :start_value, :net_flows]), fn leaf, acc ->
+    terms = [:values, :start_value, :net_flows, :held, :flows, :basis]
+
+    Enum.reduce(rest, Map.take(first, terms), fn leaf, acc ->
       %{
         values: Enum.zip_with(acc.values, leaf.values, &Decimal.add/2),
         start_value: Decimal.add(acc.start_value, leaf.start_value),
-        net_flows: Decimal.add(acc.net_flows, leaf.net_flows)
+        net_flows: Decimal.add(acc.net_flows, leaf.net_flows),
+        held: Enum.zip_with(acc.held, leaf.held, &(&1 or &2)),
+        flows: Enum.zip_with(acc.flows, leaf.flows, &Decimal.add/2),
+        basis: Enum.zip_with(acc.basis, leaf.basis, &Decimal.add/2)
       }
     end)
   end
@@ -682,6 +737,123 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     })
   end
 
+  # -- the per-band return (FR-57, Sprint 28 S3) ------------------------------------
+
+  # The TTWROR scale: the same bands as the value scale, without cash and
+  # unclassified beside the categories and without merging, at most eight
+  # of them chosen by value on the window's last day; each band a line, its
+  # own time-weighted return over the window. And the line one level up:
+  # the view's own TTWROR, or the filter's band.
+  defp lines(summary, kept, request, grouping) do
+    days = Enum.map(summary.series, &Map.get(kept.days, &1.date, @empty_day))
+
+    candidates =
+      case {request.level, grouping.filter} do
+        {:total, nil} ->
+          [total_band(summary)]
+
+        {level, nil} ->
+          level
+          |> group(security_leaves(kept, days), cash_leaf(summary, kept, days), grouping)
+          |> Enum.reject(&(&1.kind in [:cash, :unclassified]))
+
+        {level, filter} ->
+          kept |> filter_leaves(days, filter, grouping) |> filtered(level, filter, grouping)
+      end
+
+    lines =
+      candidates
+      |> select_lines()
+      |> Enum.map(&line(&1, summary))
+      |> sort_lines(request.sort)
+
+    {lines, parent_line(summary, kept, days, grouping)}
+  end
+
+  defp parent_line(summary, _kept, _days, %{filter: nil}), do: line(total_band(summary), summary)
+
+  defp parent_line(summary, kept, days, %{filter: filter} = grouping) do
+    case kept |> filter_leaves(days, filter, grouping) |> filtered(:total, filter, grouping) do
+      [band] -> line(band, summary)
+      [] -> nil
+    end
+  end
+
+  # The eight largest by value on the window's last day, equal values by
+  # name; a run equal in value and name at the cut is left out whole, as
+  # the value scale merges it whole: nothing but an id would tell it apart.
+  defp select_lines(bands) when length(bands) <= @max_bands, do: bands
+
+  defp select_lines(bands) do
+    {kept, rest} = bands |> Enum.sort(&larger?/2) |> Enum.split(@max_bands)
+    {kept, _rest} = untie(kept, rest)
+    kept
+  end
+
+  # The view's own line is the walk's TTWROR series itself, exactly the
+  # performance read's; every other band chains its own days.
+  defp line(%{kind: :total} = band, summary),
+    do: line_of(band, Enum.map(summary.series, & &1.cumulative_ttwror))
+
+  defp line(band, _summary), do: line_of(band, chain(band))
+
+  defp line_of(band, returns) do
+    band
+    |> Map.take([:key, :kind, :id, :name, :color, :tree_index, :start_value, :net_flows])
+    |> Map.merge(%{
+      end_value: last_value(band),
+      returns: returns,
+      ttwror: returns |> Enum.reject(&is_nil/1) |> List.last()
+    })
+  end
+
+  # A band with a value at the baseline's close chains from it, as the
+  # view's line does; else it waits for its first day with a value, whose
+  # close is its 0 %. Each later day's factor is chained; a day on which the
+  # band holds nothing and moved nothing is no point.
+  defp chain(band) do
+    start =
+      if Decimal.equal?(band.start_value, @zero), do: :waiting, else: {@one, band.start_value}
+
+    [band.values, band.flows, band.basis, band.held]
+    |> Enum.zip()
+    |> Enum.map_reduce(start, &chain_day/2)
+    |> elem(0)
+  end
+
+  defp chain_day({value, _flow, _basis, _held}, :waiting) do
+    if Decimal.equal?(value, @zero), do: {nil, :waiting}, else: {@zero, {@one, value}}
+  end
+
+  defp chain_day({value, flow, basis, held}, {growth, prev}) do
+    if not held and Decimal.equal?(value, @zero) and Decimal.equal?(flow, @zero) do
+      {nil, {growth, value}}
+    else
+      growth = Decimal.mult(growth, day_factor(value, flow, basis, prev))
+      {Decimal.sub(growth, @one), {growth, value}}
+    end
+  end
+
+  # One day's factor 1 + r: the day's net flow at its start when it is an
+  # inflow, `V / (V_prev + F + B)`, and at its end when an outflow,
+  # `(V − F) / (V_prev + B)`, so a sale's proceeds are measured against the
+  # value they left. `B` is the day's trade-price basis step (#545), as in
+  # `Performance.day_factor/2`; a day whose base is not positive contributes
+  # no return, the walk's rule.
+  defp day_factor(value, flow, basis, prev) do
+    {inflow, outflow} =
+      if Decimal.negative?(flow), do: {@zero, Decimal.negate(flow)}, else: {flow, @zero}
+
+    base = prev |> Decimal.add(inflow) |> Decimal.add(basis)
+
+    if Decimal.gt?(base, @zero),
+      do: Decimal.div(Decimal.add(value, outflow), base),
+      else: @one
+  end
+
+  defp sort_lines(lines, :size), do: sort(lines, :size)
+  defp sort_lines(lines, :change), do: by_figure(lines, & &1.ttwror)
+
   # -- figures and order -------------------------------------------------------------
 
   # Each band's end value, change without flows and share of the last day.
@@ -720,9 +892,12 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
     end)
   end
 
-  defp sort(bands, :change) do
+  defp sort(bands, :change), do: by_figure(bands, & &1.change)
+
+  # The largest figure first, the bands without one last.
+  defp by_figure(bands, figure) do
     Enum.sort(bands, fn a, b ->
-      case {a.change, b.change} do
+      case {figure.(a), figure.(b)} do
         {nil, nil} -> {name_key(a), a.key} <= {name_key(b), b.key}
         {nil, _} -> false
         {_, nil} -> true
@@ -743,6 +918,68 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
   defp sum(decimals), do: Enum.reduce(decimals, @zero, &Decimal.add(&2, &1))
 
   # -- the basis in the payload --------------------------------------------------------
+
+  defp computation_basis(start_date, end_date, %{scale: :ttwror} = request, grouping) do
+    %{
+      input_series:
+        "the daily valuation walk of ADR-0010 for this scope and period, as the value " <>
+          "scale reads it: each window day's value of every held security, and each " <>
+          "security's flows and trade-price basis step of the day, kept apart; a band's " <>
+          "are its members' sums. scale=ttwror answers one line per band, its own " <>
+          "time-weighted return over the window; returns[i] is the cumulative return " <>
+          "through dates[i] (null: no point), ttwror the line's last point",
+      window: %{start_date: start_date, end_date: end_date},
+      reference: "parent: " <> parent_text(grouping),
+      filter: filter_text(grouping),
+      level: level_text(request.level, grouping),
+      classification: classification_text(grouping),
+      flows:
+        "a band's flows are ADR-0051's net flows of its securities, per day: a buy + " <>
+          "price × quantity and a sell − price × quantity at the booking day's rate, a " <>
+          "delivery ± the value the walk's flow gives it (its booked price, else the " <>
+          "day's price), a leg crossing a view's edge its boundary flow; a group's are " <>
+          "its members' sums per day. The day's net flow counts at the day's start when " <>
+          "an inflow, 1 + r = V / (V_prev + F + B), at its end when an outflow, 1 + r = " <>
+          "(V − F) / (V_prev + B), so a sale's proceeds are measured against the value " <>
+          "they left; B is the day's trade-price basis step of its securities (#545), as " <>
+          "in the walk. Dividends, interest and trade fees and taxes are no flow and not " <>
+          "in a line: they move cash, which has none, so a line is the return of the " <>
+          "band's market value",
+      start_rule:
+        "a band holding a value at the close of the day before the window chains from " <>
+          "that close, as the view's line does; else its line starts at 0 % on the first " <>
+          "window day it holds a value (the move from that day's trade prices to its " <>
+          "close is not in the line), the days before have no point. After its start a " <>
+          "day on which it holds nothing and moved nothing has no point: a band sold out " <>
+          "inside the window ends at the sale day, its ttwror the return through the " <>
+          "sale; one that holds a value again later continues its chain",
+      selection_rule:
+        "at most #{@max_bands} lines, none merged into other; without category_id no " <>
+          "line for cash or unclassified (with it, the filter's own band stays): the " <>
+          "#{@max_bands} largest bands by value on the window's last day, equal values " <>
+          "by name and never by id; bands equal in value and name at the cut are both " <>
+          "left out, since only an id would tell them apart. sort size orders the " <>
+          "lines by that value, sort change by ttwror, largest first, null last; equal " <>
+          "ones by name",
+      gaps:
+        "a day on which a held security has no price, or no rate path to the base " <>
+          "currency, counts zero in its band, as it counts zero in the series; prices and " <>
+          "rates carry the most recent stored point forward (ADR-0010), so a band counts " <>
+          "zero only before its securities' first price or rate, and its line starts on " <>
+          "its first day with a value; a security's first quote after trade prices is a " <>
+          "basis step, not return. A day whose base (V_prev + inflow + B) is not " <>
+          "positive contributes no return, the walk's rule. A window holding no walked " <>
+          "day is empty: start_date null, no dates, no lines and parent null",
+      category_change:
+        "a classification is stored as it is today, without a history: a security is " <>
+          "drawn in its category of today on every day of the window (Sprint 27 plan D-5)",
+      assumptions:
+        "values are market values in the base currency at each day's close, at the " <>
+          "day's rate; exact in Decimal whenever every quotient terminates, else each " <>
+          "quotient rounds at Decimal's 34 significant digits. A line is not stacked: " <>
+          "returns do not add up. No line is a rank, a signal or a recommendation"
+    }
+  end
 
   defp computation_basis(start_date, end_date, request, grouping) do
     %{
@@ -809,6 +1046,15 @@ defmodule Portfolixir.Portfolios.Performance.Bands do
           "equal ones by name. No band is a rank, a signal or a recommendation"
     }
   end
+
+  defp parent_text(%{filter: nil}),
+    do: "the view's own TTWROR, exactly the performance read's cumulative series"
+
+  defp parent_text(%{filter: :unclassified}),
+    do: "the unclassified band's line, the filter's"
+
+  defp parent_text(%{filter: {:category, category}}),
+    do: "the line of the category #{inspect(category.name)}, the filter's band one level up"
 
   defp filter_text(%{filter: nil}),
     do: "none: the whole scope (category_id narrows every level to one category's subtree)"
