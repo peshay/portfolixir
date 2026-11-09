@@ -9554,21 +9554,45 @@ and the MCP tools answer, for the section's period and the page's view.
 
 - The **bar** stands between the period badge and the chart, in the Value
   series only; the TTWROR series shows none.
-- Every choice is a link that patches the address: `level=category|security`,
-  `tree=<classification id>`, `category=<id>` (with `level=security`),
-  `sort=change`, each only when not the default, in that order. A link to a
-  stacked level opens the Value series, so a link handed over reopens the
-  same stack. The period is not on the address (as before: it is page state).
+- Every choice is a link that patches the address: `level=total|category|security`
+  (always named, since „Kategorien“ is the screen's default, FR-56),
+  `tree=<classification id>`, `category=<id>|unclassified` (the filter, at
+  every level), `sort=change`, each only when not the default, in that
+  order. A link to a stacked level opens the Value series, so a link handed
+  over reopens the same stack, filter and level. The period is not on the
+  address (as before: it is page state).
+- *Amended 2026-11-09 (Sprint 28 S2, FR-56, I29; board
+  `mockups/ux-design-2026-11-08-sprint28/02-stack-filter` ① to ④; plan D-6):*
+  **a click sets a filter and keeps the level.** Before, a click on a
+  category opened it at the securities level. Now a category's band or
+  legend row, and the unassigned rest's („Nicht zugeordnet“), patch
+  `category=` and leave `level=` as it was; a level chosen with a filter
+  keeps it. Cash, „Sonstige“, „‹Name› (direkt)“ and the filter's own band
+  (a category without sub-categories) set nothing. At *Total* with a
+  filter the chart is the filter's own band, the bands read's `level=total`
+  with `category_id`; without one it is today's value chart.
 
 ### Anatomy, top to bottom
 
-1. **The bar** (`.stack-bar`, flex, wraps): the breadcrumb on the left
-   (`.stack-crumbs`: "All categories", "All securities", or a link "All
-   categories" › the drilled category's name), then the controls on the
-   right: **Level** (Total · Categories · Securities) as the app's segmented
-   control, **Classification** as a select (at the category level and in a
-   drilled category), **Sort** (Size · Change). At *Total* the bar holds the
-   level alone, and the chart under it is today's value chart, byte for byte.
+1. **The bar** (`.stack-bar`): the breadcrumb on the left
+   (`.stack-crumbs`), then the controls on the right: **Level** (Total ·
+   Categories · Securities) as the app's segmented control,
+   **Classification** as a select (at the category level, and at the
+   securities level with a filter), **Sort** (Size · Change). At *Total*
+   without a filter the bar holds the level alone, and the chart under it
+   is today's value chart, byte for byte. *Amended 2026-11-09 (Sprint 28
+   S2):* the breadcrumb is the filter's path through its tree, „Alle
+   Kategorien“ › each ancestor › the filtered category (or „Nicht
+   zugeordnet“), every step but the last a link that leads one level up and
+   keeps the level; without a filter it reads „Alle Kategorien“ at both
+   stacked levels, the board's root. The bar is the first user of
+   "Labelled controls start on one edge" (Amendment 2026-11-08): `.stack-bar`
+   is the container `stack-bar`; at most 760 px of its own width the
+   controls become a two-column grid (`max-content` labels, controls from
+   one edge, the groups `display: contents`), A; at most 330 px every label
+   stands above its control, B. Measured at 1200 px the German bar is one
+   line (controls 698 px in a 924 px bar); at 390 px A holds, every control
+   from one edge (`test/browser/closing_act_layout_test.exs`).
 2. **The bands** (`svg.stack-chart`, 960 × 320 like the shared chart, the
    same axes and padding): one filled area per band, the first band of the
    sort at the bottom (the largest value on the window's last day, or the
@@ -9577,8 +9601,18 @@ and the MCP tools answer, for the section's period and the page's view.
    a peer of the bands it summarises, so it never takes the base where the
    largest band belongs (closing act, design critic D4). A negative band (an overdrawn account)
    stacks downwards from zero, so the bands always add up to the day's
-   value. A category's band is clickable and opens the category stacked by
-   its securities; its `<title>` names the band, value and share.
+   value. A filterable band is clickable (above); its `<title>` names the
+   band, value and share. *Amended 2026-11-09 (Sprint 28 S2, #1426; board
+   02 ⑤ and ⑥):* **a band that changes sign** inside the window no longer
+   sweeps diagonally through the bands between. Every band draws its part
+   above zero and its part below zero as separate areas (the second
+   `path.stack-band--negative`, `data-part="negative"`, at
+   `fill-opacity: 0.75`, a little lighter); a band that changes sign is
+   drawn first, next to the zero line, so its two areas meet there, and
+   the zero line (`.chart-zeroline`) is drawn whenever the axis goes below
+   zero. No band's edge crosses another's on any day, pinned on the SVG the
+   page emits. The legend and the API keep their order; „Sonstige“ stays on
+   top whatever its sign.
 3. **The legend as a table** (`#stack-legend`), beside the chart from
    900 px of the section's width (a container query), under it below:
    swatch and name, **Value** on the window's last day, **Share**,
@@ -9588,13 +9622,23 @@ and the MCP tools answer, for the section's period and the page's view.
    drill link, followed by an accent "›". Under 560 px it stays a table
    whose name cell wraps (`display: table; white-space: normal` in the
    phone block), so the figures stay beside the name (D2).
-4. **The basis line**: what a band is (market value
-   per category of the named tree, in the base currency; cash and the
-   unassigned rest as bands of their own; or per security), "change
-   without deposits and withdrawals", the order, and, when it happened, the
-   merge of more than eight bands into „Sonstige“, which always sits on
-   top. The window's dates are
-   the section's own basis line under the figure, as for the line chart.
+4. **The basis line** *(amended 2026-11-09, Sprint 28 S2; #1366, plan
+   amendment D-A4, board 07 ② and ③; I1)*: one line,
+   `[data-role=stack-basis-line]` — what the chart shows („Marktwert je
+   Kategorie von „Strategie““, „… je Wertpapier von „Aktien““, „… von
+   „Aktien“ je Unterkategorie“, „… dessen, was „Strategie“ keiner Kategorie
+   zuordnet“), the window, „berechnet …“ — and the section's ⓘ at its end
+   (`AppShell.section_info`), which holds the method one sentence per line:
+   the market value at each day's close in the base currency; what the
+   bands hold (cash and the unassigned rest as bands of their own, or a
+   filter's sub-categories over their subtrees and „‹Name› (direkt)“);
+   change without deposits and withdrawals; the order; the merge into
+   „Sonstige“ when it happened; the parts below zero when there are any;
+   what a click does when a band is filterable; the privacy mode's picture
+   when it is on; and, with a benchmark chosen, that benchmarks are drawn in
+   the % (TTWROR) series only (UX-DR26; one „%“, the string printed „%%“
+   before). The section's own window line under the figure
+   (`performance-basis`) is not repeated under a stack.
 
 ### Colours *(the owner, 2026-11-07)*
 
@@ -9608,6 +9652,11 @@ and the MCP tools answer, for the section's period and the page's view.
 - A drilled category's securities (and the securities level): the palette's
   hues in order of size, the largest first, whatever the sort; never shades
   of the category's colour.
+- *Amended 2026-11-09 (Sprint 28 S2, plan D-6, board 02 ②):* under a
+  filter, the sub-categories take the palette's hues in order of size as
+  the securities do, and „‹Name› (direkt)“ the hue after them, the last in
+  use, whatever its size; the filter's own band (a category without
+  sub-categories, or the total's line) the first.
 - Cash: the cash colour `#0ea5e9`; the unassigned rest: the sunburst's grey
   `#9ca3af`, named "Unassigned" as on the sunburst.
 - „Sonstige“ ("Other"): the token `--color-chart-other`, `--color-text-muted`
@@ -9628,9 +9677,11 @@ mode on (plan D-8, carry-forward 2).
 
 ### The `app.css` rules
 
-`.stack-bar` (with `__group`: a label stays beside its control when the
-bar wraps), `.stack-crumbs`, `.stack-figure` (the container),
-`.stack-figure__body`, `.stack-chart`, `.stack-band` (and `--other`),
+`.stack-bar` (the container `stack-bar`, with `__group`: a label beside
+its control while the bar is one line, and the two `@container stack-bar`
+blocks for A and B), `.stack-crumbs`, `.stack-figure` (the container),
+`.stack-figure__body`, `.stack-chart`, `.stack-band` (and `--other`,
+`--negative`), `.stack-chart .chart-zeroline`, `.stack-basis`,
 `.stack-legend`, `.stack-swatch` (and `--other`); the token
 `--color-chart-other` in the four theme blocks. The axis labels take the
 shared chart's rule (`.stack-chart .chart-axis-labels text`: muted, mono,

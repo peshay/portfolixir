@@ -200,4 +200,56 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
 
     assert result == %{"ok" => true}
   end
+
+  # --- Sprint 28 S2 begin ---
+  # Polish: Wealth (#1366), the line of 2026-11-08; plan amendment D-A5,
+  # board 07 ④; DESIGN.md "Labelled controls start on one edge".
+  #
+  # User story:
+  # As the operator choosing the stack's level, classification and sort on
+  # a phone,
+  # I want the three controls to start on one edge when the bar wraps,
+  # so that they read as one column, not offset by their labels' widths.
+  #
+  # Acceptance criteria:
+  # - At 1200 px, in English and in German, the bar's labels and controls
+  #   stand on one line.
+  # - At 390 px, in both languages, the level's segmented control, the
+  #   classification's select and the sort's segmented control share one
+  #   left edge (±1 px), each label beside its control in a column or above
+  #   it; no control leaves the bar and the page does not scroll sideways.
+  test "the stacked chart's bar is one line at 1200 px and its controls share one edge at 390 px",
+       %{base_url: base_url} do
+    world = base_world(name: "Bar Stack", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "10000", ~D[2025-01-02])
+    owner = Actor.owner_ui()
+    {:ok, tree} = Classifications.create_classification(owner, %{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(owner, %{classification_id: tree.id, name: "Growth"})
+
+    security = create_security!(name: "Synthetic Growth Fund")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2025-01-02])
+    put_quotes!(security, [{~D[2025-01-02], "100"}])
+    {:ok, _} = Classifications.assign_security(owner, security.id, tree.id, category.id)
+
+    locales =
+      Map.new(["en", "de"], fn locale ->
+        {locale,
+         "portfolixir_locale"
+         |> PreferenceCookieHelpers.cookie_pair(locale)
+         |> String.split("=", parts: 2)
+         |> List.last()}
+      end)
+
+    result =
+      run!("stack_bar_edge", base_url, %{
+        path: "/portfolio?level=category&tree=#{tree.id}",
+        locales: locales
+      })
+
+    assert result == %{"ok" => true}
+  end
+
+  # --- Sprint 28 S2 end ---
 end

@@ -2711,16 +2711,31 @@ er besteht (I23, FR-53):
 Die Legende neben dem Diagramm ist eine Tabelle, die sich wie der Stapel
 liest, oberstes Band zuerst: Wert jedes Bands am letzten Tag des Zeitraums,
 Anteil und Veränderung. Ein Klick auf das Band einer Kategorie oder auf
-ihren Namen in der Legende zeigt nur diese Kategorie, gestapelt nach ihren
-Wertpapieren; der Pfad darüber („Alle Kategorien › …“) führt zurück. Mehr
+ihren Namen in der Legende **filtert** den Stapel auf diese Kategorie und
+behält die Ebene (FR-56): bei *Kategorien* werden ihre direkten
+Unterkategorien die Bänder, jede über ihren ganzen Teilbaum, dazu
+„‹Name› (direkt)“ für die Wertpapiere, die in der Kategorie selbst stehen;
+bei *Wertpapiere* die Wertpapiere ihres ganzen Teilbaums; bei *Gesamt* ihre
+eigene Linie. Cash und der nicht zugeordnete Rest verlassen das Diagramm,
+und die Bänder ergeben zusammen das Band der Kategorie eine Ebene höher.
+Auch „Nicht zugeordnet“ ist ein Filter, so sehen Sie, welchen Wertpapieren
+noch eine Kategorie fehlt; Cash und „Sonstige“ sind keiner. Der Pfad über
+dem Diagramm („Alle Kategorien › Aktien › Welt“) führt Stufe für Stufe
+zurück, und eine mit Filter gewählte Ebene behält ihn. Mehr
 als acht Bänder fasst das Diagramm zu „Sonstige“ zusammen; dieses Band liegt
 immer oben im Stapel. Eine Kategorie
-trägt die Farbe, die ihr das Allokations-Sunburst gibt; die Wertpapiere
-einer geöffneten Kategorie nehmen die Farben der Palette der Größe nach,
-Cash sein eigenes Blau, der nicht zugeordnete Rest Grau, „Sonstige“ ein
-neutrales Grau.
+trägt die Farbe, die ihr das Allokations-Sunburst gibt; mit Filter nehmen
+die Unterkategorien und die Wertpapiere die Farben der Palette der Größe
+nach, „‹Name› (direkt)“ die nächste nach ihnen, Cash sein eigenes Blau, der
+nicht zugeordnete Rest Grau, „Sonstige“ ein neutrales Grau. Ein Band, das an
+einigen Tagen negativ ist, etwa ein für ein, zwei Tage überzogenes Konto,
+wird als zwei Flächen gezeichnet, über und unter der Nulllinie, die untere
+etwas heller; ein Band, das das Vorzeichen wechselt, liegt direkt an der
+Nulllinie und kreuzt so kein anderes Band. Eine Zeile unter dem Diagramm
+sagt, was es zeigt, den Zeitraum und wann es berechnet wurde; ihr ⓘ sagt,
+wie es berechnet ist.
 
-Jede Wahl steht in der Adresse, ein Link öffnet also denselben Stapel. Die
+Jede Wahl steht in der Adresse, der Filter eingeschlossen, ein Link öffnet also denselben Stapel. Die
 Bänder ergeben an jedem Tag die Wertlinie, und ein Kauf erscheint als Stufe
 in seinem Band, denn die Bänder sind Marktwerte. Ein Wertpapier, das die
 Kategorie gewechselt hat, steht für den ganzen Zeitraum in seiner heutigen
