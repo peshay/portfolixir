@@ -23,6 +23,7 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
+  alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Predictions
 
   # Figures that stay in the mode where a decimal comma alone would read as
@@ -43,8 +44,24 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   # generate new addresses forever.
   @max_addresses 250
 
+  # --- Sprint 28 S6 lens begin ---
+  # Wealth's single value line over the Max window, which opens at zero.
+  @zero_start "/portfolio?level=total&period=max"
+  # --- Sprint 28 S6 lens end ---
+
   setup do
     world = base_world(name: "Privacy Routes")
+
+    # --- Sprint 28 S6 lens begin ---
+    # A window that opens at zero (the S6 lens of the closing act): the
+    # world's first booking is a buy three days before the money that pays
+    # it, so the value is 0 on the first day of the Max window, and the
+    # value line's percent axis must not read the amounts as percentages.
+    zero_start = create_security!(name: "Synthetic Zero Start Fund", ticker: "SZS")
+    put_quotes!(zero_start, [{~D[2024-12-30], "100"}, {~D[2025-06-30], "104"}])
+    buy!(world, zero_start, quantity: "10", price: "100", date: ~D[2024-12-30])
+    # --- Sprint 28 S6 lens end ---
+
     deposit!(world, "20000", ~D[2025-01-02])
 
     sold = create_security!(name: "Synthetic Masked Fund", ticker: "SMF")
@@ -234,8 +251,11 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           # FR-57: the TTWROR series keeps the bar, each band a line.
           "/portfolio?level=category&scale=ttwror",
           "/portfolio?level=security&scale=ttwror",
-          "/portfolio?level=category&category=#{ctx.core.id}&scale=ttwror"
+          "/portfolio?level=category&category=#{ctx.core.id}&scale=ttwror",
           # --- Sprint 28 S4 end ---
+          # --- Sprint 28 S6 lens begin ---
+          @zero_start
+          # --- Sprint 28 S6 lens end ---
         ] do
       assert expected in visited, "the walk never opened #{expected}"
     end
@@ -251,7 +271,54 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     end
 
     # --- Sprint 28 S6 end ---
+
+    # --- Sprint 28 S6 lens begin ---
+    # The value line of a window that opens at zero reads in percent of its
+    # first day above zero: no tick of the masked axis is a tick of the
+    # plain one, an amount printed as a percentage.
+    {:ok, %{series: [day_one | _rest]}} = Performance.for_view(nil, period: "max")
+    assert Decimal.equal?(day_one.value, 0), "the Max window opens at #{inspect(day_one)}"
+
+    plain = @zero_start |> zero_start_render(build_conn()) |> value_ticks()
+    masked = @zero_start |> zero_start_render(masked_conn()) |> value_ticks()
+    assert length(plain) == 5 and length(masked) == 5, inspect({plain, masked})
+    assert Enum.all?(masked, &String.ends_with?(&1, "%")), inspect(masked)
+
+    for tick <- masked, amount <- plain do
+      refute abs(tick_number(tick) - tick_number(amount)) < 1,
+             "#{@zero_start} prints the amount #{amount} as #{tick}"
+    end
+
+    # --- Sprint 28 S6 lens end ---
   end
+
+  # --- Sprint 28 S6 lens begin ---
+  defp zero_start_render(path, conn) do
+    {:ok, view, _html} = live(put_preference_cookie(conn, "portfolixir_locale", "de"), path)
+    html = render_async(view, 5_000)
+    assert html =~ ~s(data-chart-mode="value"), "#{path} draws no value line"
+    html
+  end
+
+  defp value_ticks(html) do
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.query("#performance-figure .chart-axis-y")
+    |> Enum.map(&String.trim(LazyHTML.text(&1)))
+  end
+
+  # A German tick as a number: "20.500", "-1.025,00", "+26,0%".
+  defp tick_number(tick) do
+    {number, _rest} =
+      tick
+      |> String.replace(~r/[.%+]/, "")
+      |> String.replace(",", ".")
+      |> Float.parse()
+
+    number
+  end
+
+  # --- Sprint 28 S6 lens end ---
 
   defp shell_paths(ctx) do
     PortfolixirWeb.Router.__routes__()
@@ -268,7 +335,8 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
       # The value series' category stack, from which the walk follows the
       # bar's links: the stack shows only in the value series.
       "/portfolio" ->
-        ["/portfolio", "/portfolio?level=category"]
+        # --- Sprint 28 S6 lens: the Max window, which opens at zero ---
+        ["/portfolio", "/portfolio?level=category", @zero_start]
 
       path ->
         if String.contains?(path, ":"), do: flunk("no address for #{path}"), else: [path]

@@ -4919,7 +4919,10 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
   kopierten Auswahl noch in der Ausgabe eines Screenreaders (der „verborgen“
   liest), und jeder Balken ist gleich breit, wie lang die Zahl auch ist.
 - **Charts:** Eine Achse in einer Währung wechselt auf Prozent vom
-  Fensterbeginn. Die Wertreihe unter Vermögen heißt „Wert (%)“, und eine
+  Fensterbeginn; beginnt das Fenster bei null oder darunter (ein Kauf vor
+  dem Geld, das ihn bezahlt), vom ersten Tag über null, und liegt kein Tag
+  darüber, trägt die Achse keine Beschriftung, wie die Zeile unter der
+  Wertreihe unter Vermögen dann sagt. Die Wertreihe unter Vermögen heißt „Wert (%)“, und eine
   Zeile darunter sagt, dass Ein- und Auszahlungen darin zählen, sie also
   keine Rendite ist (die Rendite zeigt TTWROR). Ihr gestapelter Chart behält
   seine Form, seine Achse in Prozent der Summe der Bänder am ersten Tag des

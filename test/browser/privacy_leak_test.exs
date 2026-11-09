@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Bands
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Predictions
@@ -113,6 +114,9 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     seed!()
     predict!()
     overdraw!()
+    # --- Sprint 28 S6 lens begin ---
+    zero_start!()
+    # --- Sprint 28 S6 lens end ---
     # "localhost", the endpoint's configured host, so the LiveView socket's
     # origin check passes.
     %{base_url: "http://localhost:#{port}"}
@@ -336,11 +340,16 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # line, „Gesamt“, is an address of its own. The TTWROR series keeps the
   # bar since FR-57 (Sprint 28 S4): its lines at „Kategorien“, from which
   # the walker follows its levels and one filter too.
+  # The Max window's value line opens at zero (`zero_start!/0`, the S6 lens
+  # of the Sprint 28 closing act).
   defp extra_addresses("/portfolio"),
     do: [
       "/portfolio?level=category",
       "/portfolio?level=total",
-      "/portfolio?level=category&scale=ttwror"
+      "/portfolio?level=category&scale=ttwror",
+      # --- Sprint 28 S6 lens begin ---
+      "/portfolio?level=total&period=max"
+      # --- Sprint 28 S6 lens end ---
     ]
 
   defp extra_addresses(_path), do: []
@@ -490,6 +499,56 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   end
 
   # --- Sprint 28 S6 end ---
+
+  # --- Sprint 28 S6 lens begin ---
+  # A window that opens at zero (the S6 lens of the Sprint 28 closing act):
+  # a synthetic buy three days before the seed's first booking, with no
+  # money yet, so the value is 0 on the Max window's first day and the
+  # value line's percent axis reads from the first day it is above zero.
+  # Checked on the series read, so a seed that changes cannot leave the
+  # state unwalked unnoticed.
+  defp zero_start! do
+    base = Portfolixir.Portfolios.first_portfolio().base_currency_code
+    first = Repo.one(from(t in Transaction, select: min(t.date)))
+    on = Date.add(first, -3)
+
+    {depot, cash} =
+      Repo.one(
+        from(d in SecuritiesAccount,
+          join: c in CashAccount,
+          on: c.id == d.cash_account_id,
+          where: c.currency_code == ^base,
+          order_by: d.id,
+          limit: 1,
+          select: {d, c}
+        )
+      )
+
+    security =
+      WorldFixtures.create_security!(
+        name: "Synthetic Zero Start Fund",
+        ticker: "SZSF",
+        currency: base
+      )
+
+    WorldFixtures.put_quotes!(security, [{on, "100"}])
+
+    WorldFixtures.buy!(
+      %{portfolio: %{id: depot.portfolio_id}, depot: depot, cash: cash},
+      security,
+      quantity: "10",
+      price: "100",
+      date: on
+    )
+
+    {:ok, %{series: [day_one | _rest]}} =
+      Performance.for_view(nil, period: "max", base_currency: base)
+
+    assert day_one.date == on and Decimal.equal?(day_one.value, 0),
+           "the Max window's value line does not open at zero: #{inspect(day_one)}"
+  end
+
+  # --- Sprint 28 S6 lens end ---
 
   defp seed! do
     conflicts = Code.get_compiler_option(:ignore_module_conflict)

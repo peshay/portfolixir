@@ -444,4 +444,81 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
       end)
     end
   end
+
+  # --- Sprint 28 S6 lens begin ---
+  describe "the privacy mode's base, a window that starts at or below zero (S6 lens)" do
+    setup do
+      PortfolixirWeb.PrivacyMode.put(true)
+      on_exit(fn -> PortfolixirWeb.PrivacyMode.put(false) end)
+    end
+
+    defp series(closes) do
+      closes
+      |> Enum.with_index()
+      |> Enum.map(fn {close, i} -> quote_fixture(Date.add(~D[2026-03-02], i), close) end)
+    end
+
+    defp y_labels(html) do
+      html
+      |> Floki.parse_fragment!()
+      |> Floki.find("g.chart-axis-labels text.chart-axis-y")
+      |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+    end
+
+    defp displays(html) do
+      [json] =
+        Regex.run(~r/data-chart-payload[^>]*>(.*?)<\/script>/s, html, capture: :all_but_first)
+
+      json |> Jason.decode!() |> Map.fetch!("points") |> Enum.map(&Enum.at(&1, 1))
+    end
+
+    # User story (S6 lens, the closing act's privacy lens):
+    # As the operator showing a value chart in the privacy mode,
+    # I want its percent axis based on the first day the value is above
+    # zero,
+    # so that a window that opens at zero or below prints no amount as a
+    # percentage and draws no inverted axis.
+    #
+    # Acceptance criteria:
+    # - A series in a currency whose first value is 0 reads in percent of
+    #   its first value above zero: 0, 5 000, 5 500, 6 000 give the ticks
+    #   -106 % to +26 %, never the amounts 6 300 or -300.
+    # - A first value below zero is no base either: -200, 5 000, 6 000 read
+    #   from 5 000, the top tick above the bottom one.
+    # - The tooltip's figure is the same percentage.
+    # - With no value above zero, the ticks carry no label and the tooltip
+    #   names no figure.
+    test "a window that opens at zero reads in percent of its first value above zero" do
+      html =
+        render_chart(
+          default_assigns(quotes: series(["0", "5000", "5500", "6000"]), currency_code: "EUR")
+        )
+
+      assert y_labels(html) == ["-106.0%", "-73.0%", "-40.0%", "-7.0%", "+26.0%"]
+      assert displays(html) == ["-100.0%", "0.0%", "+10.0%", "+20.0%"]
+      refute html =~ ~r/(?<![\d.,])6,300(?![\d])/
+    end
+
+    test "a first value below zero is no base and does not turn the axis over" do
+      html =
+        render_chart(
+          default_assigns(quotes: series(["-200", "5000", "6000"]), currency_code: "EUR")
+        )
+
+      assert y_labels(html) == ["-110.2%", "-76.1%", "-42.0%", "-7.9%", "+26.2%"]
+      assert displays(html) == ["-104.0%", "0.0%", "+20.0%"]
+    end
+
+    test "a window with no value above zero draws its line without tick labels" do
+      html =
+        render_chart(default_assigns(quotes: series(["0", "-25", "-10"]), currency_code: "EUR"))
+
+      assert html =~ ~s(class="quote-line")
+      assert y_labels(html) == []
+      assert length(Floki.find(Floki.parse_fragment!(html), "text.chart-axis-x")) == 2
+      assert displays(html) == ["—", "—", "—"]
+    end
+  end
+
+  # --- Sprint 28 S6 lens end ---
 end

@@ -27,7 +27,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   view, re-based on the window's first value, so the axis, the tooltip and
   the payload carry percentages and no amount; a trade's line keeps its
   kind and hides its quantity and price, and the payload leaves both out.
-  A series already in percent keeps its axis.
+  A series already in percent keeps its axis. The percent view's 100 % is
+  the first value above zero: a window that opens at zero or below reads
+  from the first day it is above, and one with no such day draws its line
+  without tick labels, so no amount is printed as a percentage.
 
   Reasoning: the repo has no JS bundler, so charts are produced as a
   single `<svg>` element. Interactivity (range/log) is handled at the
@@ -234,19 +237,19 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
   # The crosshair tooltip's display value: a quote's explicit `:label` wins
   # (lets a caller show two series in one tooltip line). Else, #1163: the
-  # percent view prints the axis's signed percent against the first close
-  # ("+10,4%"), a percent series its value with one decimal, and a price
+  # percent view prints the axis's signed percent against its base, the
+  # first close above zero ("+10,4%"; "—" without one), a percent series its value with one decimal, and a price
   # series its close at two places, the Quotes table's and the pane head's
   # form, with the chart's currency ("41,40 USD"). The hook appends nothing,
   # so a label that names its currency reads it once (the review of γ2).
   defp point_display(%{label: label}, _geometry, _assigns) when is_binary(label), do: label
 
   defp point_display(q, %{percent_mode?: true} = geometry, _assigns) do
-    first = chart_decimal(List.first(geometry.quotes) |> elem(0) |> Map.get(:close))
+    base = geometry.base
     close = chart_decimal(q.close)
 
-    if first && close && not Decimal.equal?(first, 0) do
-      Format.signed_percent(Decimal.div(Decimal.sub(close, first), first)) <> "%"
+    if base && close do
+      Format.signed_percent(Decimal.div(Decimal.sub(close, base), base)) <> "%"
     else
       "—"
     end
@@ -340,13 +343,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     indexed = Enum.with_index(quotes)
     first_date = List.first(quotes).date
     last_date = List.last(quotes).date
-    first_close = chart_float(List.first(quotes).close)
+    base = percent_base(quotes)
+    base_close = base && chart_float(base)
+    rebase? = percent_mode? and is_float(base_close)
 
     raw_values =
-      if percent_mode? and first_close != 0.0 do
-        Enum.map(quotes, fn q ->
-          (chart_float(q.close) - first_close) / first_close * 100.0
-        end)
+      if rebase? do
+        Enum.map(quotes, fn q -> (chart_float(q.close) - base_close) / base_close * 100.0 end)
       else
         Enum.map(quotes, &chart_float(&1.close))
       end
@@ -355,9 +358,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       opts
       |> Keyword.get(:extra_values, [])
       |> Enum.map(fn value ->
-        if percent_mode? and first_close != 0.0,
-          do: (value - first_close) / first_close * 100.0,
-          else: value
+        if rebase?, do: (value - base_close) / base_close * 100.0, else: value
       end)
 
     {y_min, y_max} = Enum.min_max(raw_values ++ extra_values)
@@ -372,12 +373,26 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       quotes: indexed,
       first_date: first_date,
       last_date: last_date,
-      first_close: first_close,
+      base: base,
+      first_close: base_close,
       y_min: y_min,
       y_max: y_max,
       log_scale?: log_scale?,
       percent_mode?: percent_mode?
     }
+  end
+
+  # The percent view's 100 %: the first close above zero, as a `Decimal`,
+  # or nil when none is. A value series can open at zero (a buy booked
+  # before its money) or below it, and a percent of such a base would print
+  # the amounts themselves as percentages, or turn the axis over; so the
+  # base is the first day whose value is above zero, as the stacked chart's
+  # index is (S6, #1433), and with none the axis carries no label.
+  defp percent_base(quotes) do
+    Enum.find_value(quotes, fn q ->
+      close = chart_decimal(q.close)
+      if close && Decimal.gt?(close, 0), do: close
+    end)
   end
 
   defp range_extending_values(%{overlays_extend_range?: true, overlays: overlays}) do
@@ -449,7 +464,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
     value =
       cond do
-        geometry.percent_mode? and geometry.first_close != 0.0 ->
+        geometry.percent_mode? and is_float(geometry.first_close) ->
           (raw - geometry.first_close) / geometry.first_close * 100.0
 
         geometry.log_scale? ->
@@ -599,7 +614,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp normalized_overlay_y(value, geometry) when is_number(value) do
     transformed =
       cond do
-        geometry.percent_mode? and geometry.first_close != 0.0 ->
+        geometry.percent_mode? and is_float(geometry.first_close) ->
           (value - geometry.first_close) / geometry.first_close * 100.0
 
         geometry.log_scale? ->
@@ -652,7 +667,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
     ~H"""
     <g class="chart-axis-labels">
-      <%= for {{value, y}, index} <- Enum.with_index(@y_ticks) do %>
+      <%= for {{value, y}, index} <- Enum.with_index(@y_ticks),
+              not (@percent_mode? and is_nil(@geometry.base)) do %>
         <text
           class={["chart-axis-y", index == length(@y_ticks) - 1 && "is-top"]}
           x={@plot_left - 6}
