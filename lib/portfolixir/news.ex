@@ -42,6 +42,8 @@ defmodule Portfolixir.News do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Journal
   alias Portfolixir.News.Cluster
+  alias Portfolixir.News.DigestConsumer
+  alias Portfolixir.News.DigestCursor
   alias Portfolixir.News.Feed
   alias Portfolixir.News.FeedDay
   alias Portfolixir.News.Fetcher
@@ -764,6 +766,27 @@ defmodule Portfolixir.News do
   # --- S28 N2 end ---
 
   # --- S28 N3 begin ---
+  # The digest's consumer cursor (§9): at least once, the confirmed position
+  # kept per consumer (`Portfolixir.News.DigestCursor`).
+
+  @doc """
+  The digest consumer `name` after confirming `ack_cursor` (`nil` for no
+  confirmation) at the server's clock `now`, created at its first call;
+  `key` signs and checks the cursors (at least 32 bytes, the caller's):
+  `{:ok, consumer}` with its confirmed position, `{:error, :not_issued}`
+  for a cursor the server did not issue to `name`, `{:error, {:cap, n}}`
+  for a new consumer beyond the cap. See `Portfolixir.News.DigestCursor`.
+  """
+  @spec digest_consumer(String.t(), String.t() | nil, DateTime.t(), binary()) ::
+          {:ok, DigestConsumer.t()} | {:error, :not_issued | {:cap, pos_integer()}}
+  def digest_consumer(name, ack_cursor, %DateTime{} = now, key),
+    do: DigestCursor.consumer(name, ack_cursor, now, key)
+
+  @doc "The cursor a digest of `consumer` answers, at `position`, signed with `key`."
+  @spec issue_digest_cursor(DigestConsumer.t(), DateTime.t(), binary()) :: String.t()
+  def issue_digest_cursor(%DigestConsumer{} = consumer, %DateTime{} = position, key),
+    do: DigestCursor.issue(consumer, position, key)
+
   # --- S28 N3 end ---
 
   # --- S28 N4 begin ---
