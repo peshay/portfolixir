@@ -83,7 +83,7 @@ defmodule PortfolixirWeb.ApiThrottleBoundedTableTest do
     Application.put_env(:portfolixir, :trusted_proxies, [{{127, 0, 0, 1}, 32}])
 
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit,
          plug: PortfolixirWeb.Endpoint,
          scheme: :http,

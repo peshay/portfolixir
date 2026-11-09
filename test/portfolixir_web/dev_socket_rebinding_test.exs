@@ -62,7 +62,7 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
       )
 
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit,
          plug: @endpoint_mod, scheme: :http, ip: {127, 0, 0, 1}, port: 0, startup_log: false}
       )

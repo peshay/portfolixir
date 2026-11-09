@@ -33,7 +33,7 @@ defmodule PortfolixirWeb.Browser.InfoTipsPlacementTest do
 
   setup do
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit,
          plug: PortfolixirWeb.Endpoint,
          scheme: :http,

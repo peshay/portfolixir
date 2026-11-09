@@ -100,6 +100,22 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     })
   end
 
+  # The tree page loads its holdings and per-category results in tasks
+  # (`PortfolixirWeb.CappedAsync`), at mount and again after its tree
+  # changes. They share this async test's one sandbox connection (#1425): a
+  # dry run, a delete or a write of the test that holds the connection past
+  # the sandbox's queue limit, as a loaded machine makes it, failed a
+  # waiting load's checkout, and a load still running when the test ended
+  # was killed mid-query with its page. Both reached the console log, which
+  # fails the run (#927). So a test lets the page's loads land before it
+  # drives the next database work and before it ends: after the mount here,
+  # and with `render_async/1` after a confirm, which may reload the tree.
+  defp tree_page(conn, classification) do
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    render_async(view)
+    {:ok, view, html}
+  end
+
   defp dialog(view), do: view |> element("#delete-preview-dialog") |> render()
 
   # The lines under "The delete removes:", as the operator reads them.
@@ -190,7 +206,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     api = api_dry_run("/api/v1/classifications/#{t.classification.id}")
     assert Map.new(answer, fn {kind, %{count: c}} -> {kind, %{count: c}} end) == api
 
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     view |> element("header.detail-head button.button-danger") |> render_click()
 
@@ -261,7 +277,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
 
     assert Map.new(answer, fn {kind, %{count: c}} -> {kind, %{count: c}} end) == api
 
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     view
     |> element(~s(button[phx-click="ask_delete_category"][phx-value-id="#{t.root.id}"]))
@@ -281,6 +297,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     assert html =~ "in this classification they then sit under “Unassigned”"
 
     html = view |> element("#delete-preview-confirm") |> render_click()
+    render_async(view)
     assert html =~ "Category deleted"
     refute has_element?(view, "#delete-preview-dialog")
     refute Classifications.get_category(t.root.id)
@@ -360,7 +377,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
       severity: "hard"
     })
 
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     view
     |> element(~s(button[phx-click="ask_delete_category"][phx-value-id="#{t.root.id}"]))
@@ -381,6 +398,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
       "id" => to_string(t.root.id)
     })
 
+    render_async(view)
     assert Classifications.get_category(t.root.id)
 
     view |> element("header.detail-head button.button-danger") |> render_click()
@@ -414,7 +432,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     conn: conn
   } do
     t = world()
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     view
     |> element(~s(button[phx-click="ask_delete_category"][phx-value-id="#{t.root.id}"]))
@@ -426,6 +444,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
       Classifications.assign_security(owner(), t.third.id, t.classification.id, t.child.id)
 
     view |> element("#delete-preview-confirm") |> render_click()
+    render_async(view)
 
     assert Classifications.get_category(t.root.id)
     assert Classifications.get_category(t.child.id)
@@ -434,6 +453,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     assert "3 security assignments" in lines(view)
 
     view |> element("#delete-preview-confirm") |> render_click()
+    render_async(view)
     refute Classifications.get_category(t.root.id)
   end
 
@@ -455,8 +475,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
     # are in.
     for security <- [t.first, t.second, t.third], do: buy!(t.world, security, [])
 
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
-    render_async(view)
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     view
     |> element(~s(button[phx-click="ask_delete_category"][phx-value-id="#{t.root.id}"]))
@@ -468,6 +487,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
       Classifications.assign_security(owner(), t.third.id, t.classification.id, t.child.id)
 
     view |> element("#delete-preview-confirm") |> render_click()
+    render_async(view)
     assert has_element?(view, "#delete-preview-dialog [data-role=delete-preview-changed]")
     assert subject(view) =~ "3 positions"
 
@@ -483,6 +503,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
       })
 
     view |> element("#delete-preview-confirm") |> render_click()
+    render_async(view)
     assert has_element?(view, "#delete-preview-dialog [data-role=delete-preview-changed]")
     assert subject(view) =~ "3 categories · 3 levels"
   end
@@ -512,7 +533,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
   #   stays.
   test "Cancel and Escape close the dialog and delete nothing", %{conn: conn} do
     t = world()
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     ask = fn ->
       view
@@ -558,13 +579,14 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
   #   delete nothing.
   test "no misspelled or forged event or parameter reaches the real delete", %{conn: conn} do
     t = world()
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
 
     render_click(view, "confirm_delete_preview", %{
       "kind" => "category",
       "id" => to_string(t.root.id)
     })
 
+    render_async(view)
     render_click(view, "ask_delete_category", %{"ID" => to_string(t.root.id)})
     refute has_element?(view, "#delete-preview-dialog")
 
@@ -593,6 +615,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
       render_click(view, event, %{"id" => to_string(t.root.id)})
     end
 
+    render_async(view)
     assert Classifications.get_category(t.root.id)
     assert Classifications.get_category(t.child.id)
     assert Classifications.get_classification(t.classification.id)
@@ -629,7 +652,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
         "de"
       )
 
-    {:ok, view, _html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, _html} = tree_page(conn, t.classification)
     render_click(view, "ask_delete_category", %{"id" => to_string(t.root.id)})
 
     html = dialog(view)
@@ -652,7 +675,7 @@ defmodule PortfolixirWeb.DeletePreviewDialogLiveTest do
   #   any more; each opens the dialog.
   test "the three delete controls carry no browser confirmation", %{conn: conn} do
     t = world()
-    {:ok, view, html} = live(conn, "/classifications/#{t.classification.id}")
+    {:ok, view, html} = tree_page(conn, t.classification)
     doc = Floki.parse_document!(html)
 
     assert [_] =

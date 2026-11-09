@@ -52,7 +52,7 @@ defmodule PortfolixirWeb.LogControlBytesTest do
         http: http
       )
 
-    {:ok, {_ip, port}} = ThousandIsland.listener_info(start_supervised!(spec))
+    {:ok, {_ip, port}} = ThousandIsland.listener_info(PortfolixirWeb.TestListener.start!(spec))
     %{port: port}
   end
 

@@ -98,7 +98,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     on_exit(fn -> Portfolixir.DataCase.stop_sandbox(long_owner) end)
 
     server =
-      start_supervised!(
+      PortfolixirWeb.TestListener.start!(
         {Bandit,
          plug: PortfolixirWeb.Endpoint,
          scheme: :http,

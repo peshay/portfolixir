@@ -43,7 +43,7 @@ defmodule PortfolixirWeb.ListenerBoundsTest do
     [spec] =
       Bandit.PhoenixAdapter.child_specs(@endpoint_mod, otp_app: :portfolixir, http: listener)
 
-    server = start_supervised!(spec)
+    server = PortfolixirWeb.TestListener.start!(spec)
     {:ok, {_ip, port}} = ThousandIsland.listener_info(server)
     %{server: server, port: port, http: http}
   end
