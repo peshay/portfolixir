@@ -131,8 +131,11 @@ defmodule PortfolixirWeb.PrivacyChartsLiveTest do
              display =~ "· ••••" and not (display =~ ~r/\d{1,3}(,\d{3})*\.\d{2} EUR/)
            end)
 
-    html =
-      view |> element("#portfolio-performance button[phx-value-mode='value']") |> render_click()
+    view |> element("#portfolio-performance button[phx-value-mode='value']") |> render_click()
+
+    # The single line is the level „Gesamt“; „Kategorien“ is the default
+    # (FR-56).
+    html = view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
 
     labels = axis_labels(html)
     assert labels != [] and Enum.all?(labels, &String.ends_with?(&1, "%")), inspect(labels)

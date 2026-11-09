@@ -1782,8 +1782,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # Default series is the TTWROR %.
     assert has_element?(view, "#performance-figure[data-chart-mode='ttwror']")
 
-    # Toggling to Value switches the rendered series (money axis, no zero line).
+    # Toggling to Value switches the rendered series (money axis, no zero line);
+    # its level „Kategorien“ is the default (FR-56), „Gesamt“ the single line.
     view |> element("button[phx-value-mode='value']") |> render_click()
+    view |> element("[data-role='stack-level'] a[data-level='total']") |> render_click()
     assert has_element?(view, "#performance-figure[data-chart-mode='value']")
     # ADR-0024: the value series describes the wealth number, not a portfolio.
     assert has_element?(view, "svg.security-chart[aria-label='Value over time']")
