@@ -127,7 +127,8 @@ defmodule PortfolixirWeb.LayoutView do
               "stroke-width", "stroke-dasharray", "stroke-linecap",
               "stroke-linejoin", "opacity",
               "font-family", "font-size", "font-weight", "color",
-              "paint-order", "text-anchor", "dominant-baseline", "transform"
+              "paint-order", "text-anchor", "dominant-baseline", "transform",
+              "r", "scale", "transform-box", "transform-origin"
             ];
 
             window.Portfolixir._inlineStyles = function (sourceEl, cloneEl) {
