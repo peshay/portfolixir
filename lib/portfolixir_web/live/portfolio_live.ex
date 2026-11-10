@@ -2439,7 +2439,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <%= gettext("Computation failed. Reload retries.") %>
                   </p>
                 <% true -> %>
-                  <div class="section-skeleton" data-role="stack-skeleton" role="status">
+                  <div class="section-skeleton" data-role="stack-skeleton" role="status" aria-busy="true">
                     <span class="recomputing-cue">
                       <span class="spinner"></span> <%= gettext("computing") %>
                     </span>
@@ -2502,7 +2502,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               view_name={active_view_name(@active_view)}
             />
           <% else %>
-            <div class="section-skeleton" data-role="performance-skeleton" role="status">
+            <div class="section-skeleton" data-role="performance-skeleton" role="status" aria-busy="true">
               <span class="recomputing-cue">
                 <span class="spinner"></span> <%= gettext("computing") %>
               </span>

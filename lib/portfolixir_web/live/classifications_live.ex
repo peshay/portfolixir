@@ -43,6 +43,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:current_only, true)
      |> assign(:holdings, nil)
      |> assign(:results, nil)
+     # The reads running (`start_holdings/1`, `start_results/2`): the tree
+     # is `aria-busy` while any does (the Sprint 28 closing act).
+     |> assign(:reads_pending, MapSet.new())
      |> assign(:current_path, "/classifications")
      |> assign(:portfolio, Portfolios.first_portfolio())
      |> assign(:views, Buckets.list_views())
@@ -66,7 +69,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp start_holdings(socket) do
     if connected?(socket) do
       view_id = socket.assigns.active_view_id
-      CappedAsync.start_async(socket, :holdings, fn -> scoped_holdings(view_id) end)
+
+      socket
+      |> update(:reads_pending, &MapSet.put(&1, :holdings))
+      |> CappedAsync.start_async(:holdings, fn -> scoped_holdings(view_id) end)
     else
       socket
     end
@@ -77,21 +83,30 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp scoped_holdings(view_id), do: Valuation.holdings_by_security_for_view(view_id)
 
+  # A read that answers is no longer pending (the tree's `aria-busy`; the
+  # Sprint 28 closing act): a read started again before it answered is
+  # pending until the new one does, since LiveView drops the old answer.
+  @impl true
+  def handle_async(read, result, socket) do
+    socket
+    |> update(:reads_pending, &MapSet.delete(&1, read))
+    |> landed(read, result)
+  end
+
   # Either read answering that the chosen view is gone degrades the screen
   # (`view_gone/1`); whichever answers first does, the other is dropped.
-  @impl true
-  def handle_async(read, {:ok, {:error, :view_not_found}}, socket)
-      when read in [:holdings, :results],
-      do: {:noreply, view_gone(socket)}
+  defp landed(socket, read, {:ok, {:error, :view_not_found}})
+       when read in [:holdings, :results],
+       do: {:noreply, view_gone(socket)}
 
-  def handle_async(:holdings, {:ok, {:ok, read}}, socket) do
+  defp landed(socket, :holdings, {:ok, {:ok, read}}) do
     {:noreply,
      socket
      |> assign(holdings: read.holdings, view_matches_nothing: read.matches_no_accounts)
      |> reload()}
   end
 
-  def handle_async(:holdings, {:exit, _reason}, socket) do
+  defp landed(socket, :holdings, {:exit, _reason}) do
     {:noreply, assign(socket, :error, gettext("Couldn't load current holdings."))}
   end
 
@@ -100,11 +115,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # the screen's scope. A failure leaves the tree fully usable and simply
   # omits the columns -- the result is an addition to this surface, not a
   # precondition for it.
-  def handle_async(:results, {:ok, {:ok, result}}, socket) do
+  defp landed(socket, :results, {:ok, {:ok, result}}) do
     {:noreply, assign(socket, :results, index_results(result))}
   end
 
-  def handle_async(:results, _other, socket), do: {:noreply, socket}
+  defp landed(socket, :results, _other), do: {:noreply, socket}
 
   # The chosen view was deleted while the page read it (another tab, the
   # API): the screen degrades to Everything with Wealth's notice and reads
@@ -519,7 +534,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <span class="tree-head__num"><%= gettext("Result") %></span>
           <span class="tree-head__actions" aria-hidden="true"></span>
         </div>
-        <section class="tree">
+        <%!-- Busy while the holdings or the result load (the Sprint 28
+             closing act): the rows' figures land with them. --%>
+        <section class="tree" aria-busy={MapSet.size(@reads_pending) > 0 && "true"}>
           <%= for node <- @tree.nodes do %>
             <.category_node
               node={node}
@@ -2620,7 +2637,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
     if connected?(socket) do
       view_id = socket.assigns.active_view_id
 
-      CappedAsync.start_async(socket, :results, fn ->
+      socket
+      |> update(:reads_pending, &MapSet.put(&1, :results))
+      |> CappedAsync.start_async(:results, fn ->
         scoped_result(view_id, classification_id)
       end)
     else

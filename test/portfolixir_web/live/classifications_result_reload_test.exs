@@ -231,4 +231,41 @@ defmodule PortfolixirWeb.ClassificationsResultReloadTest do
 
     assert invested(view, ctx.satellite) == "500.00"
   end
+
+  # The tree's `aria-busy`: "true" while a read runs, nil once none does.
+  defp tree_busy(html) do
+    html
+    |> Floki.parse_document!()
+    |> Floki.attribute("section.tree", "aria-busy")
+    |> List.first()
+  end
+
+  # User story (the Sprint 28 closing act, browser job):
+  # As the operator on a screen reader, and as the owner who trusts the
+  # privacy walk (test/browser/privacy_leak.js),
+  # I want the tree to say it is busy while its holdings and its result
+  # load,
+  # so that neither I nor the walk read its rows before their figures have
+  # landed, and the walk does not leave the page while a read is mid-query.
+  #
+  # Acceptance criteria:
+  # - The connected page's first render marks the tree `aria-busy="true"`
+  #   while its two reads run, and the mark is gone once both have landed.
+  # - An edit that restarts the result marks the tree busy again until the
+  #   result has landed.
+  test "the tree is busy while its reads run, and only then", %{conn: conn} = ctx do
+    {:ok, view, html} = live(conn, "/classifications/#{ctx.classification.id}")
+    assert tree_busy(html) == "true"
+    assert tree_busy(render_async(view)) == nil
+
+    html =
+      render_hook(view, "assign_security", %{
+        "security_id" => ctx.bravo.id,
+        "classification_id" => ctx.classification.id,
+        "category_id" => ctx.satellite.id
+      })
+
+    assert tree_busy(html) == "true"
+    assert tree_busy(render_async(view)) == nil
+  end
 end
