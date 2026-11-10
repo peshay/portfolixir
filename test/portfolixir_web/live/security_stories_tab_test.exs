@@ -119,7 +119,10 @@ defmodule PortfolixirWeb.SecurityStoriesTabTest do
 
     for row <- rows do
       selector = "#security-stories-table tr[data-story='#{row["id"]}']"
-      assert has_element?(view, selector <> " [data-role='story-title']", row["title"])
+      # The API cuts a list's title at 80 (closing act AG1), the tab at 160:
+      # the tab shows what the API answers, and more of it.
+      title = String.trim_trailing(row["title"], "…")
+      assert has_element?(view, selector <> " [data-role='story-title']", title)
       assert has_element?(view, selector <> " [data-role='story-source']", row["domain"])
       assert has_element?(view, selector <> " [data-role='story-source']", row["tier"])
       assert has_element?(view, selector <> " [data-role='story-time']", cell_time(row["at"]))

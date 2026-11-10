@@ -463,8 +463,9 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
   # so that reading the news costs the agent a known, small context.
   #
   # Acceptance criteria (characters / 4 of the JSON the tool returns):
-  # - the digest over the last 24 hours, at its default max_rows (12, C5)
-  #   with 14 securities active: 12 rows, truncated, at most 800 tokens;
+  # - the digest over the last 24 hours, at its default max_rows (10; 12
+  #   in C5 until the closing act of Sprint 28, AG1) with 14 securities
+  #   active: 10 rows, truncated, at most 800 tokens;
   #   with nothing new: at most 100;
   # - 20 rows of news.list: at most 1,500;
   # - news.get of a story with a 160-character title and a 600-character
@@ -475,23 +476,23 @@ defmodule PortfolixirWeb.ApiV1NewsDigestTest do
       securities = forty!(now)
 
       day = digest(conn)
-      # The default max_rows (12, C5) holds the budget: 14 securities have
-      # news, 12 rows are shown and the other two said.
+      # The default max_rows (10, closing act AG1) holds the budget: 14
+      # securities have news, 10 rows are shown and the other four said.
       assert %{"rows" => rows, "quiet" => 26, "unassigned" => 4} =
                data = json_response(day, 200)["data"]
 
-      assert length(rows) == 12
-      assert %{"truncated" => true, "more" => 2} = data
+      assert length(rows) == 10
+      assert %{"truncated" => true, "more" => 4} = data
 
       # A caller may still ask for up to 40.
       wide = conn |> digest(max_rows: 40) |> json_response(200) |> Map.fetch!("data")
       assert length(wide["rows"]) == 14 and wide["truncated"] == false
-      assert Enum.all?(rows, &(&1["count"] == 3 and String.length(&1["top"]["title"]) == 50))
+      assert Enum.all?(rows, &(&1["count"] == 3 and String.length(&1["top"]["title"]) == 45))
       assert Enum.all?(rows, &String.ends_with?(&1["top"]["title"], "…"))
       assert tokens(day) <= 800, "digest: #{tokens(day)} tokens"
 
       unlabeled = digest(conn, include_unlabeled: true)
-      assert length(json_response(unlabeled, 200)["data"]["rows"]) == 12
+      assert length(json_response(unlabeled, 200)["data"]["rows"]) == 10
 
       nothing = digest(conn, since: iso(now))
       assert %{"rows" => [], "quiet" => 40} = json_response(nothing, 200)["data"]

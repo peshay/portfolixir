@@ -7,12 +7,14 @@ defmodule Portfolixir.News.Reads do
   (`short_name/1`), and a page is capped with a `truncated` flag and a
   cursor. Titles and excerpts are cut by the width the companion spells
   them in (`clip_spelled/2`, C5): 160 for a title in a list and in a story
-  or item, 50 in the digest (100 before S28 N2), 600 for an excerpt. `news.get` holds §9's
+  or item, 45 in the digest (100 before S28 N2, 50 before its closing act),
+  600 for an excerpt; a caller may cut a list's titles shorter
+  (`:title_max`, the API's 80: §9's 60 tokens a row). `news.get` holds §9's
   400 tokens on the companion's text, its link and members included: the
   link is cut at 300 characters as the companion spells them (the whole
   link stays stored; S28 N2 finding: a link of one letter and combining
   marks is one grapheme, so a grapheme cut handed it back whole), every
-  domain at 40, and the excerpt last, to what the rest of the answer leaves of the
+  domain at 40 (a member's at 28, closing act AG1), and the excerpt last, to what the rest of the answer leaves of the
   400 (`story/2`, `item/1`), every id counted at its widest so the cut does
   not move with the ids: a long answer gives up excerpt, never its source.
 
@@ -78,8 +80,10 @@ defmodule Portfolixir.News.Reads do
   @members_max 5
   # S28 N2: a digest row's title is cut at 50 (it was 100 in Sprint 27), so
   # the row's materiality and event types fit §9's 800 tokens at the default
-  # max_rows; the whole title is list's and get's.
-  @digest_title_max 50
+  # max_rows; the whole title is list's and get's. The closing act (AG1)
+  # cut it at 45: measured with every id, count and tier at its widest, 50
+  # left no margin.
+  @digest_title_max 45
   # S28 N2 (§9): the digest's default threshold, and how many event types a
   # row names.
   @digest_min_materiality 2
@@ -107,7 +111,8 @@ defmodule Portfolixir.News.Reads do
           limit: pos_integer(),
           cursor: cursor() | nil,
           prompt_version: String.t() | nil,
-          min_materiality: 0..3
+          min_materiality: 0..3,
+          title_max: pos_integer() | nil
         ]
   @type page :: %{
           kind: :stories | :items,
@@ -149,10 +154,18 @@ defmodule Portfolixir.News.Reads do
   # --- closing act, AG1 rest: news.get's 400 tokens, link included ----------
   # §9's 400 tokens as characters of the companion's text (C5: four a
   # token), less what the controller adds around the answer Reads builds:
-  # `{"data":…}`, `"kind":"story"` and the excerpt's quotes over its `null`.
+  # `{"data":…}`, `"kind":"story"` and the excerpt's quotes over its `null`,
+  # and a margin (Sprint 28 closing act, AG1): 40 characters, so the widest
+  # answer stays ten tokens under the budget, not on it.
   @get_chars 400 * 4
   @get_envelope 40
+  @get_margin 40
   @domain_max 40
+  # Sprint 28 closing act, AG1: a member's domain is cut at 28, so a story
+  # of five members on the longest domains, every id, count and tier at its
+  # widest, holds the 400 with its margin once its excerpt is gone; the
+  # story's own domain keeps 40.
+  @member_domain_max 28
   @widest_integer 9_223_372_036_854_775_807
   # --- end closing act, AG1 rest ---------------------------------------------
 
@@ -252,12 +265,13 @@ defmodule Portfolixir.News.Reads do
   # The excerpt last (closing act, AG1 rest): cut to what the answer without
   # it leaves of `@get_chars`, measured as the companion spells the JSON,
   # and never past `@get_excerpt_max`. Every integer counts as the widest
-  # id (a bigint's 19 digits), so the cut does not move with the ids, and
+  # id (a bigint's 19 digits) and every tier as the widest tier's name
+  # (Sprint 28 closing act, AG1), so the cut does not move with them, and
   # times encoded with microseconds and the excerpt's own `null` count more
   # than the controller sends: the measure is a bound.
   defp fit_excerpt(answer, excerpt) do
     used = answer |> Map.put(:excerpt, nil) |> widest() |> spelled_json()
-    room = @get_chars - @get_envelope - used
+    room = @get_chars - @get_envelope - @get_margin - used
     Map.put(answer, :excerpt, clip_spelled(excerpt, room |> min(@get_excerpt_max) |> max(1)))
   end
 
@@ -268,6 +282,7 @@ defmodule Portfolixir.News.Reads do
   defp widest(%{} = map), do: Map.new(map, fn {key, value} -> {key, widest(value)} end)
   defp widest(list) when is_list(list), do: Enum.map(list, &widest/1)
   defp widest(integer) when is_integer(integer), do: @widest_integer
+  defp widest(tier) when is_map_key(@tier_rank, tier), do: :secondary
   defp widest(other), do: other
 
   # --- end closing act, Fix-2 -------------------------------------------------
@@ -296,6 +311,8 @@ defmodule Portfolixir.News.Reads do
   An item row is `id`, `title`, `tier`, `at`, `domain`, `candidates`,
   `url` and `note_ids`. `{:error, :not_found}` when the security, category
   or story does not exist. Options: `since`, `tier_min`, `limit`, `cursor`,
+  `title_max` (the width a title is cut to as spelled, 160 by default; the
+  API passes 80, Sprint 28 closing act, AG1),
   and for a scope's stories `prompt_version` and `min_materiality` (S28 N2):
   a story row adds its active label's `materiality` and `event_type`, and a
   threshold above 0 keeps only the certain stories and those labelled at or
@@ -379,7 +396,7 @@ defmodule Portfolixir.News.Reads do
 
     rows =
       rows
-      |> clip_titles()
+      |> clip_titles(opts)
       |> Enum.map(&Map.update!(&1, :domain, fn d -> clip_spelled(d, @domain_max) end))
       |> put_story_notes()
 
@@ -425,7 +442,7 @@ defmodule Portfolixir.News.Reads do
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
-    rows = clip_titles(rows)
+    rows = clip_titles(rows, opts)
 
     %{kind: :items, rows: rows, truncated: truncated != [], cursor: cursor(rows, truncated)}
   end
@@ -442,12 +459,10 @@ defmodule Portfolixir.News.Reads do
 
   # --- S28 N2 end ---
 
-  defp clip_titles(rows),
-    do:
-      Enum.map(
-        rows,
-        &Map.update!(&1, :title, fn title -> clip_spelled(title, @list_title_max) end)
-      )
+  defp clip_titles(rows, opts) do
+    max = Keyword.get(opts, :title_max) || @list_title_max
+    Enum.map(rows, &Map.update!(&1, :title, fn title -> clip_spelled(title, max) end))
+  end
 
   defp scope_field(:security), do: :security_id
   defp scope_field(:category), do: :category_id
@@ -559,7 +574,7 @@ defmodule Portfolixir.News.Reads do
       |> Enum.map(
         &(&1
           |> Map.delete(:url)
-          |> Map.update!(:domain, fn d -> clip_spelled(d, @domain_max) end))
+          |> Map.update!(:domain, fn d -> clip_spelled(d, @member_domain_max) end))
       )
 
     %{

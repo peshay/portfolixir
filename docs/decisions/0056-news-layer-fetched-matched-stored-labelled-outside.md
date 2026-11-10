@@ -789,6 +789,15 @@ alternative loses a story or opens a hole.
   **`news.get`'s label leaves out `model` and `prompt_version`** (the
   version is the read's, and both are in the journal), and the excerpt,
   cut last, gives way to it. **To flip:** a number by comment.
+- **Measured with every id, count and tier at its widest** (closing act,
+  AG1: the figures above held with id 1 and a primary tier, and the widest
+  answer read 908 of 800), **the digest defaults to `max_rows=10`** (C5's
+  12) **and cuts its top title at 45, a list row's title is cut at 80 on
+  the API** (the screens keep 160) **and a story's members' domains at
+  28**: the digest 747 of 800, its consumer's first page 765, a list row
+  56 of §9's 60 and 20 rows 1,197 of 1,500, `news.get` 388 of 400; an
+  ambiguous item row adds its candidates' ids, about five tokens each, and
+  is not held to the 60. **To flip:** a number by comment.
 - **The count is named `unlabeled`**, where §7 wrote `n_unlabeled`: §9's
   compact rule names fields by what they count.
 - `min_materiality` on `news.list` defaults to 0; above 0 it also leaves

@@ -5,11 +5,13 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   # `[U+XXXX]` (ADR-0054 §4). Items are stored through the ingest at times
   # relative to now; synthetic names and hosts only, no socket.
   #
-  # The answers are also written, with ids and times normalized, to
+  # The answers are also written, times normalized and every id, count and
+  # tier at its widest (closing act of Sprint 28, AG1), to
   # mcp-server/test/fixtures/news-budget/, and the companion's test runs
   # them through `callTool` and counts what the tool returns; this test
-  # fails when they no longer match what the server answers. Regenerate
-  # them with PORTFOLIXIR_WRITE_NEWS_BUDGET=1.
+  # fails when they no longer match what the server answers, and measures
+  # the same widened text. Regenerate them with
+  # PORTFOLIXIR_WRITE_NEWS_BUDGET=1.
   use PortfolixirWeb.ConnCase
 
   import Ecto.Query
@@ -69,9 +71,21 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   defp tag_excerpt, do: String.pad_trailing("Excerpt ", 600, @tag_a)
 
   # Characters / 4 of what the companion returns: invisible characters
-  # spelled, counted in code points.
-  defp tokens(%Plug.Conn{resp_body: body}),
-    do: (body |> Text.escape_invisible() |> String.length()) / 4
+  # spelled, counted in code points, every id, count and tier at its widest
+  # (`widened/1`), so a budget does not hold only while the ids are small.
+  defp tokens(%Plug.Conn{resp_body: body}), do: body |> widened() |> spelled_tokens()
+
+  defp spelled_tokens(json), do: (json |> Text.escape_invisible() |> String.length()) / 4
+
+  # Closing act of Sprint 28, AG1 (§9: at most 60 tokens a list row): each
+  # row of a list page as the companion spells it, widened.
+  defp row_tokens(%Plug.Conn{resp_body: body}) do
+    body
+    |> widened()
+    |> Jason.decode!()
+    |> get_in(["data", "rows"])
+    |> Enum.map(&(&1 |> Jason.encode!() |> spelled_tokens()))
+  end
 
   # Sprint 28, N1 attack AT1: a name of one letter and 254 combining marks,
   # one grapheme and 255 characters on the wire, is cut like any other.
@@ -150,14 +164,27 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
            "names wider than 20 code points: #{inspect(Enum.map(wide, &length(String.codepoints(&1))), charlists: :as_lists)}"
   end
 
-  # Normalized so the fixture does not change with ids and the clock, and
-  # written in ASCII: every character beyond it as a JSON \u escape, so the
-  # file holds no raw invisible character (the pre-commit hooks refuse one).
-  defp normalize(body) do
+  # The widest an id (a bigint) and a count (an integer column) are, and the
+  # widest tier's name (closing act of Sprint 28, AG1: with id 1 and a
+  # primary tier the fixtures held budgets the widest answer broke).
+  @widest_id "9223372036854775807"
+  @widest_count "2147483647"
+  @widest_tier "secondary"
+
+  # Times normalized, and every id, count and tier at its widest, so the
+  # fixture neither changes with ids and the clock nor holds a budget only
+  # small ids keep. The replacements keep the JSON's shape: what the
+  # companion receives, widened.
+  defp widened(body) do
     body
     |> String.replace(~r/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z/, "2026-11-08T09:00:00Z")
-    |> String.replace(~r/"(\w*id)":\d+/, ~s("\\1":1))
-    |> String.replace(~r/~\d+"/, ~s(~1"))
+    |> String.replace(~r/"(\w*id)":\d+/, ~s("\\1":#{@widest_id}))
+    |> String.replace(
+      ~r/"(count|quiet|hidden|unlabeled|unassigned|ambiguous|more)":\d+/,
+      ~s("\\1":#{@widest_count})
+    )
+    |> String.replace(~r/"tier":"\w+"/, ~s("tier":"#{@widest_tier}"))
+    |> String.replace(~r/~\d+"/, ~s(~#{@widest_id}"))
     # S28 N3: a consumer's cursor, its position and tag normalized at their
     # width, so the fixture neither changes with the clock nor shrinks.
     |> String.replace(
@@ -165,11 +192,18 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
       ~s("cursor":"1762592400~AAAAAAAAAAAAAAAAAAAAAA")
     )
     # Closing act, AT5: a page token, its positions, row key and tag
-    # normalized at their width.
+    # normalized at their width, the row key's id at its widest.
     |> String.replace(
       ~r/"next_page":"\d{10}~\d{10}~\d\.\d\.\d{16}\.\d+~(-|[0-9.]+)~[A-Za-z0-9_-]{22}"/,
-      ~s("next_page":"1762592400~1762592400~3.3.1762592400000000.1~-~AAAAAAAAAAAAAAAAAAAAAA")
+      ~s("next_page":"1762592400~1762592400~3.3.1762592400000000.#{@widest_id}~-~AAAAAAAAAAAAAAAAAAAAAA")
     )
+  end
+
+  # Written in ASCII: every character beyond it as a JSON \u escape, so the
+  # file holds no raw invisible character (the pre-commit hooks refuse one).
+  defp normalize(body) do
+    body
+    |> widened()
     |> Jason.decode!()
     |> Jason.encode!(pretty: true, escape: :unicode_safe)
   end
@@ -202,13 +236,17 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   #   160 code points with a soft hyphen after every letter: at most 800;
   #   with tag-character titles: at most 800; one security named by one
   #   letter and 254 combining marks, its name cut to 20 code points;
-  # - 20 list rows with tag-character titles: at most 1,500;
+  # - 20 list rows with tag-character titles: at most 1,500, and each row
+  #   at most 60 (§9; closing act of Sprint 28, AG1);
+  # - every budget measured with each id, count and tier at its widest
+  #   (AG1), so none holds only while the ids are small;
   # - news.get of a story with a tag-character title and excerpt, a link
   #   of 2,048 characters and five members: at most 400, its link included,
   #   which is cut to 300 characters with an ellipsis (the whole link stays
   #   stored); the item's answer too (closing act, AG1 rest);
   # - the worst case of the same, every domain of 253 characters: at most
-  #   400 with its link, the domains cut to 40, and the excerpt cut to what
+  #   400 with its link, the story's domain cut to 40 and its members' to
+  #   28 (closing act of Sprint 28, AG1), and the excerpt cut to what
   #   the rest leaves; and a title and excerpt of JSON-quoted characters
   #   (`"`, `\`), each two characters on the wire: at most 400;
   # - each answer is the fixture the companion's test measures;
@@ -302,6 +340,8 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     assert Enum.all?(json_response(page, 200)["data"]["rows"], &(&1["materiality"] == 3))
     assert length(json_response(page, 200)["data"]["rows"]) == 20
     assert tokens(page) <= 1_500, "20 list rows (tag characters): #{tokens(page)}"
+    # Closing act of Sprint 28, AG1: §9's at most 60 tokens a row.
+    assert Enum.max(row_tokens(page)) <= 60, "a list row: #{Enum.max(row_tokens(page))}"
     fixture!("list-tag-characters", page)
 
     long = "https://ir.example.com/" <> String.duplicate("a", 2_048 - 23)
@@ -363,8 +403,13 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     assert %{"clause_idx" => 6, "materiality" => 3} = worst_story["label"]
     assert String.length(worst_story["url"]) == 300
 
-    for domain <- [worst_story["domain"] | Enum.map(worst_story["members"], & &1["domain"])] do
-      assert String.length(domain) == 40 and String.ends_with?(domain, "…"), domain
+    # Closing act of Sprint 28, AG1: a member's domain at 28, so the widest
+    # answer holds the 400 with its margin; the story's own keeps 40.
+    assert String.length(worst_story["domain"]) == 40
+    assert String.ends_with?(worst_story["domain"], "…")
+
+    for %{"domain" => domain} <- worst_story["members"] do
+      assert String.length(domain) == 28 and String.ends_with?(domain, "…"), domain
     end
 
     assert tokens(worst_get) <= 400, "get (worst case): #{tokens(worst_get)}"

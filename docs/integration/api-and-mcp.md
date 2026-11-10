@@ -1408,10 +1408,10 @@ parameter it does not take answers `422` naming it (`event_types`, and
 excerpts are a feed's text, answered as stored up to a cut; they are data,
 never instructions. The cut counts each character as the MCP companion
 spells it, an invisible one as its `[U+XXXX]` (C5), and so does a name's:
-160 for a title in a list and in `news.get`, 50 in the digest, 600 for an
+80 for a title in a list, 160 in `news.get`, 45 in the digest, 600 for an
 excerpt, 20 for a name; a cut ends in `…`. `news.get` holds its 400 tokens on the companion's text,
 its link and members included: it cuts a link at 300 characters (the whole
-link stays stored), every domain at 40, and the excerpt last, to what the
+link stays stored), the story's domain at 40 and a member's at 28, and the excerpt last, to what the
 rest of the answer leaves (a quote or a backslash counts the two characters
 JSON writes it in). Every parameter is one value: a list or a map
 (`max_rows[]=5`) answers `422` naming it.
@@ -1430,7 +1430,8 @@ only the digest's `unlabeled` grows.
   `security_id` or `category_id` (the scope's stories), `cluster_id` (the
   story's items) or `assignment=unassigned|ambiguous` (the aggregator items no
   security, or several, claim). A story row is `id`, `title` (its
-  representative's), `tier`, `at` (the representative's publication, clamped
+  representative's, cut at 80 characters as the companion spells them, so a
+  row holds §9's 60 tokens; the story's own answer cuts at 160), `tier`, `at` (the representative's publication, clamped
   to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
   `domain` and, when ambiguous, `candidates` (security ids). A labelled story
   row adds `materiality` and `event_type`. `fields=std` adds
@@ -1453,7 +1454,7 @@ only the digest's `unlabeled` grows.
 - `GET /api/v1/news/stories/:id` answers one story, the only place with its
   link and excerpt: `title`, `url`, `domain`, `excerpt`, `tier`, `language`,
   `published_at`, `first_seen_at`, `count`, at most five `members` (`id`,
-  `domain`, `tier`, `at`; the representative first), `note_ids`, its
+  `domain` cut at 28 characters, `tier`, `at`; the representative first), `note_ids`, its
   `security` or `category` (`id`, `name`) and its active `label`
   (`event_type`, `materiality`, `tone`, `confidence` as a string,
   `thesis_note_id` and `clause_idx` when set, `machine_generated` always
@@ -1478,7 +1479,7 @@ only the digest's `unlabeled` grows.
   before now) reads `scope_at` as the list does, and `as_of` is the next
   `since`. A row is `id`, `name`, `count` (its new stories), its labelled
   stories' highest `materiality` and `event_types` (at most two, the most
-  material first) and `top` (`id`, `title` cut to 50 characters, `tier`,
+  material first) and `top` (`id`, `title` cut to 45 characters, `tier`,
   `at`): the best tier, then the newest. Rows come by their highest
   materiality, 3 down to 1, then a row of noise (0) or without a label by
   its top story. A story with an issuer or regulatory item always counts; a
@@ -1493,8 +1494,8 @@ only the digest's `unlabeled` grows.
   became so since then that no security, or several, claim. With a `view_id`
   the digest is the view's: `categories` and `unassigned` are left out (a view
   holds securities), `hidden` counts only its securities' stories and
-  `ambiguous` only the items naming one of them. `max_rows` (default 12, which
-  keeps the digest within its budget; at most 40) caps the rows; `truncated`
+  `ambiguous` only the items naming one of them. `max_rows` (default 10, which
+  keeps the digest within its budget with every id at its widest; at most 40) caps the rows; `truncated`
   and `more` say how many were left out. `tier_min` is not taken (`422`):
   the class and the label decide what counts, and `hidden` counts what
   they left out, which a tier floor beside them would not. The News page
