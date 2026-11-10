@@ -88,7 +88,7 @@ describe("the labels in the news read tools", () => {
     assert.match(digest, /Issuer and regulatory stories always/);
     assert.match(digest, /labeled min_materiality \(2\) or more/);
     assert.match(digest, /unlabeled, unassigned, ambiguous/);
-    assert.match(digest, /title \(50 chars\)/);
+    assert.match(digest, /title \(45 chars\)/);
     assert.match(digest, /prompt_version's, default newest/);
 
     for (const name of [LIST, GET, HEALTH, DIGEST]) {

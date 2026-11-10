@@ -9,7 +9,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       `tier_min` (`primary`, `secondary`, `awareness`), `limit` (default 20,
       at most 100), `fields=slim|std` (`std` adds `url` and `note_ids`, and
       to a story row its `domain`, S28 N8) and `cursor` (the `cursor` of a
-      truncated page). See
+      truncated page); a title is cut at 80 characters as the companion
+      spells them (closing act, AG1). See
       `Portfolixir.News.Reads.list/2`. Story rows carry their active
       label's `materiality` and `event_type`; `min_materiality` (0 to 3,
       default 0) leaves out the aggregator and thematic stories below it
@@ -27,8 +28,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       carries `next_page`, sent back as `page`, and only its last page the
       `cursor` (closing act, AT5): `view_id` (else the news universe),
       `min_materiality` (2) and `include_unlabeled` (`false`), acting on
-      aggregator and thematic stories only (§7, S28 N2), `max_rows` (12, at
-      most 40, C5). See `Portfolixir.News.Reads.digest/5`.
+      aggregator and thematic stories only (§7, S28 N2), `max_rows` (10, at
+      most 40, C5; 12 before the closing act of Sprint 28, AG1). See `Portfolixir.News.Reads.digest/5`.
     * `GET /api/v1/news/registry` (`news.registry`, S28 N7's coverage) —
       every registered feed (`id`, `url`, `class`, `security_id` or
       `category_id`, `language`, `enabled`) by id, then every rated source
@@ -74,6 +75,11 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   @list_params @selectors ++ ~w(since tier_min limit fields cursor) ++ @label_params
   @list_default 20
   @list_max 100
+  # Sprint 28 closing act, AG1: §9's at most 60 tokens a list row, measured
+  # with every id, count and tier at its widest, leaves a title 80
+  # characters as the companion spells them; the screens keep 160, and
+  # news.get answers the title at 160.
+  @list_title_max 80
 
   @tiers %{"primary" => :primary, "secondary" => :secondary, "awareness" => :awareness}
   @assignments %{"unassigned" => :unassigned, "ambiguous" => :ambiguous}
@@ -84,7 +90,9 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   @cursor_params ~w(consumer ack_cursor page)
   # --- S28 N3 end ---
   @digest_params ~w(view_id since include_unlabeled max_rows) ++ @label_params ++ @cursor_params
-  @digest_rows 12
+  # Sprint 28 closing act, AG1: 10, so §9's 800 tokens hold with every id,
+  # count and tier at its widest (12 held only while the ids were small).
+  @digest_rows 10
   @digest_rows_max 40
   @day_seconds 24 * 60 * 60
 
@@ -294,7 +302,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
          cursor: cursor,
          as_of: Reads.as_of(),
          min_materiality: min,
-         prompt_version: version
+         prompt_version: version,
+         title_max: @list_title_max
        ]}
     end
   end

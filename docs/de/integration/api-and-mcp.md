@@ -1533,11 +1533,11 @@ Sortierschlüssel ist). Titel und Auszüge sind Text eines Feeds, so
 beantwortet, wie er gespeichert ist, bis zu einem Schnitt; sie sind Daten,
 nie Anweisungen. Der Schnitt zählt jedes Zeichen so, wie der MCP-Begleiter es
 schreibt, ein unsichtbares als sein `[U+XXXX]` (C5), und ebenso den eines
-Namens: 160 für einen Titel in einer Liste und in `news.get`, 50 im Digest,
+Namens: 80 für einen Titel in einer Liste, 160 in `news.get`, 45 im Digest,
 600 für einen Auszug, 20 für einen Namen; ein Schnitt endet auf `…`. `news.get` hält seine 400 Token auf dem
 Text des Begleiters, Link und Mitglieder eingeschlossen: Es schneidet einen
-Link bei 300 Zeichen (der ganze Link bleibt gespeichert), jede Domain bei 40
-und den Auszug zuletzt, auf das, was der Rest der Antwort übrig lässt (ein
+Link bei 300 Zeichen (der ganze Link bleibt gespeichert), die Domain der Story
+bei 40 und die eines Mitglieds bei 28 und den Auszug zuletzt, auf das, was der Rest der Antwort übrig lässt (ein
 Anführungszeichen oder ein Backslash zählt die zwei Zeichen, in denen JSON
 es schreibt). Jeder Parameter ist ein Wert: Eine Liste oder eine Map
 (`max_rows[]=5`) ergibt `422`, das ihn nennt.
@@ -1557,7 +1557,9 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `security_id` oder `category_id` (die Storys des Bereichs), `cluster_id`
   (die Einträge der Story) oder `assignment=unassigned|ambiguous` (die
   Aggregator-Einträge, die kein Wertpapier oder mehrere beanspruchen). Eine
-  Story-Zeile ist `id`, `title` (der ihres Repräsentanten), `tier`, `at` (die
+  Story-Zeile ist `id`, `title` (der ihres Repräsentanten, gekürzt auf 80
+  Zeichen, wie der Begleiter sie schreibt, damit eine Zeile 60 Token hält;
+  die Antwort der Story kürzt bei 160), `tier`, `at` (die
   Veröffentlichung des Repräsentanten, auf seine erste Sichtung begrenzt) und
   `count`; eine Eintragszeile ist `id`, `title`, `tier`, `at`, `domain` und,
   wenn mehrdeutig, `candidates` (Wertpapier-IDs). Eine Story-Zeile mit Label
@@ -1584,7 +1586,7 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
 - `GET /api/v1/news/stories/:id` beantwortet eine Story, die einzige Stelle mit
   ihrem Link und Auszug: `title`, `url`, `domain`, `excerpt`, `tier`,
   `language`, `published_at`, `first_seen_at`, `count`, höchstens fünf
-  `members` (`id`, `domain`, `tier`, `at`; der Repräsentant zuerst),
+  `members` (`id`, `domain` auf 28 Zeichen gekürzt, `tier`, `at`; der Repräsentant zuerst),
   `note_ids`, ihr `security` oder `category` (`id`, `name`) und ihr aktives
   `label` (`event_type`, `materiality`, `tone`, `confidence` als String,
   `thesis_note_id` und `clause_idx`, wenn gesetzt, `machine_generated` immer
@@ -1611,7 +1613,7 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   und `as_of` ist das nächste `since`. Eine Zeile ist `id`, `name`, `count`
   (ihre neuen Storys), die höchste `materiality` ihrer Storys mit Label und
   deren `event_types` (höchstens zwei, die wesentlichsten zuerst) und `top`
-  (`id`, `title` auf 50 Zeichen gekürzt, `tier`, `at`): die beste Stufe, dann
+  (`id`, `title` auf 45 Zeichen gekürzt, `tier`, `at`): die beste Stufe, dann
   die neueste. Die Zeilen kommen nach ihrer höchsten Wesentlichkeit, von 3
   bis 1, dann eine Zeile mit Rauschen (0) oder ohne Label nach ihrer
   Top-Story. Eine Story mit einem Eintrag eines Emittenten- oder
@@ -1628,7 +1630,8 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   der Sicht: `categories` und `unassigned` fehlen (eine Sicht hält
   Wertpapiere), `hidden` zählt nur die Storys ihrer Wertpapiere und
   `ambiguous` nur die Einträge, die eines davon nennen. `max_rows`
-  (standardmäßig 12, womit der Digest in seinem Budget bleibt; höchstens 40)
+  (standardmäßig 10, womit der Digest auch mit jeder ID in ihrer größten Breite
+  in seinem Budget bleibt; höchstens 40)
   begrenzt die Zeilen; `truncated` und `more` sagen, wie viele weggelassen
   wurden. `tier_min` wird nicht genommen (`422`): Klasse und Label
   entscheiden, was zählt, und `hidden` zählt, was sie wegließen, was eine

@@ -76,7 +76,8 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
   # As the operator whose agent reads the digest under a consumer name with
   # the default max_rows,
   # I want a cursor never to confirm past a row the answer left out,
-  # so that a busy day's thirteenth security is not lost to the agent.
+  # so that a busy day's eleventh security (the thirteenth before the
+  # default max_rows was 10, closing act AG1) is not lost to the agent.
   #
   # Acceptance criteria:
   # - A truncated answer's cursor, confirmed, still lets the consumer read
@@ -87,7 +88,7 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
   test "a truncated digest's cursor no longer confirms past the rows it left out",
        %{conn: conn, now: now} do
     securities =
-      for n <- 1..13 do
+      for n <- 1..11 do
         security = watched!("Truncation #{n} AG", "Truncation#{n}")
         release!(security, "Truncation #{n} release", hours_ago(now, 2))
         security
@@ -98,7 +99,7 @@ defmodule PortfolixirWeb.ApiV1NewsN34AttackTest do
     [left_out] = Enum.map(securities, & &1.id) -- row_ids(first)
 
     # Observed before AT5: the first answer carried a cursor, and the call
-    # confirming it answered rows [] and nothing truncated — the thirteenth
+    # confirming it answered rows [] and nothing truncated — the last
     # security's release was behind the confirmed position for good.
     assert first["cursor"] == nil
     assert is_binary(first["next_page"])

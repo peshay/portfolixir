@@ -10,8 +10,10 @@ import { createRecordingClient } from "./support/recording-client.js";
 // the tool returns, where every character an operator cannot see is spelled
 // [U+XXXX] (ADR-0054 §4). The fixtures are the server's answers to the worst
 // cases of test/portfolixir_web/controllers/api_v1_news_budget_test.exs,
-// ids and times normalized; that test fails when they no longer match what
-// the server answers.
+// times normalized and every id, count and tier at its widest (Sprint 28
+// closing act, AG1: with id 1 and a primary tier they held budgets the
+// widest answer broke); that test fails when they no longer match what the
+// server answers.
 const FIXTURES = new URL("./fixtures/news-budget/", import.meta.url);
 
 function answer(name: string): unknown {
@@ -39,11 +41,14 @@ describe("the news reads' budgets, as the tool returns them", () => {
   // - The digest at its default max_rows, titles with a soft hyphen after
   //   every letter: at most 800 tokens, the soft hyphens spelled [U+00AD].
   // - 20 list rows with tag-character titles: at most 1,500, the tag
-  //   characters spelled [U+E0041].
+  //   characters spelled [U+E0041], and each row at most 60 (§9; Sprint 28
+  //   closing act, AG1).
+  // - Every id, count and tier at its widest (AG1).
   // - news.get with a tag-character title and excerpt and a link of 2,048
   //   characters: the link cut to 300 characters, and at most 400 tokens
   //   with it (closing act, AG1 rest); so in the worst case, every domain
-  //   of 253 characters, cut to 40.
+  //   of 253 characters, the story's cut to 40 and its members' to 28
+  //   (Sprint 28 closing act, AG1).
   it("holds the digest, list and get budgets with invisible characters spelled", async () => {
     const digest = await returned("portfolixir.news.digest", {}, "digest-soft-hyphens");
     assert.match(digest, /\[U\+00AD\]/);
@@ -65,7 +70,7 @@ describe("the news reads' budgets, as the tool returns them", () => {
 
     const lastPage = await returned(
       "portfolixir.news.digest",
-      { consumer: "budget-run-with-a-long-name-0001", page: "1762592400~1762592400~3.3.1762592400000000.1~-~AAAA" },
+      { consumer: "budget-run-with-a-long-name-0001", page: "1762592400~1762592400~3.3.1762592400000000.9223372036854775807~-~AAAA" },
       "digest-cursor-last-page"
     );
     assert.match(lastPage, /"cursor":"\d+~/);
@@ -76,6 +81,10 @@ describe("the news reads' budgets, as the tool returns them", () => {
     assert.match(list, /\[U\+E0041\]/);
     assert.equal((JSON.parse(list) as { data: { rows: unknown[] } }).data.rows.length, 20);
     assert.ok(tokens(list) <= 1_500, `list: ${tokens(list)} tokens`);
+    for (const row of (JSON.parse(list) as { data: { rows: unknown[] } }).data.rows) {
+      const rowTokens = tokens(JSON.stringify(row));
+      assert.ok(rowTokens <= 60, `a list row: ${rowTokens} tokens`);
+    }
 
     const get = await returned("portfolixir.news.get", { cluster_id: 1 }, "get-tag-characters");
     const url = (JSON.parse(get) as { data: { url: string } }).data.url;
@@ -90,8 +99,9 @@ describe("the news reads' budgets, as the tool returns them", () => {
     assert.match(worst, /\[U\+E0041\]/);
     assert.equal(Array.from(story.url).length, 300);
     assert.equal(story.members.length, 5);
-    for (const domain of [story.domain, ...story.members.map((member) => member.domain)]) {
-      assert.equal(Array.from(domain).length, 40, domain);
+    assert.equal(Array.from(story.domain).length, 40, story.domain);
+    for (const { domain } of story.members) {
+      assert.equal(Array.from(domain).length, 28, domain);
     }
     assert.ok(tokens(worst) <= 400, `get (worst case): ${tokens(worst)} tokens`);
   });

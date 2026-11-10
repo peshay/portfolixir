@@ -128,7 +128,7 @@ describe("the news read tools", () => {
   // - news.health names yield_30d and low_yield (S28 N2, now that
   //   promotion exists), and no longer yield not_measured_until_promotion.
   // - news.digest names hidden, a quiet security as one with nothing
-  //   hidden, max_rows 12 (max 40), and that a view omits categories and
+  //   hidden, max_rows 10 (max 40), and that a view omits categories and
   //   unassigned; its schema refuses max_rows above 40.
   it("say what the closing act changed", () => {
     assert.match(tool(LIST)?.description ?? "", /entered its scope/);
@@ -141,7 +141,7 @@ describe("the news read tools", () => {
     const digest = tool(DIGEST)?.description ?? "";
     assert.match(digest, /counted as hidden/);
     assert.match(digest, /quiet \(no row, none hidden\)/);
-    assert.match(digest, /max_rows 12 \(max 40\)/);
+    assert.match(digest, /max_rows 10 \(max 40\)/);
     assert.match(digest, /a view omits categories and unassigned/);
     assert.equal((tool(DIGEST)?.inputSchema as any).properties.max_rows.maximum, 40);
   });

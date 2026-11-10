@@ -95,9 +95,10 @@ defmodule PortfolixirWeb.ApiV1NewsDigestPagesTest do
   # whatever arrives while my agent pages.
   #
   # Acceptance criteria:
-  # - 13 securities with news, max_rows 12: the first page has 12 rows,
-  #   truncated, more 1 and next_page, and no cursor; the page next_page
-  #   names has the 13th and the cursor.
+  # - 13 securities with news, max_rows 10 (12 before the closing act's
+  #   AG1): the first page has 10 rows, truncated, more 3 and next_page,
+  #   and no cursor; the page next_page names has the other 3 and the
+  #   cursor.
   # - 13 more securities' news arriving between the pages: page and ack
   #   lose none of the 26; the next read (paged again) has the 13 new ones.
   # - Paging moves no position; only the confirmation does.
@@ -105,8 +106,8 @@ defmodule PortfolixirWeb.ApiV1NewsDigestPagesTest do
     early = released!("Pageone", 13, hours_ago(now, 2))
 
     first = data(digest(conn, consumer: "paging-run"))
-    assert length(first["rows"]) == 12
-    assert %{"truncated" => true, "more" => 1, "next_page" => _} = first
+    assert length(first["rows"]) == 10
+    assert %{"truncated" => true, "more" => 3, "next_page" => _} = first
     refute Map.has_key?(first, "cursor")
     start = position("paging-run")
 
