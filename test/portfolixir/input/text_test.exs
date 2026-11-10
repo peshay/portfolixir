@@ -41,6 +41,32 @@ defmodule Portfolixir.Input.TextTest do
     refute changeset(%{"name" => "a\u001Bb"}, multiline: true).valid?
   end
 
+  # --- closing act, NL4 begin ---
+
+  # User story (ADR-0054 §4: a single-line field is one line; Sprint 28's
+  # closing act, NL4):
+  # As the operator reading a name, a title or a headline,
+  # I want a single-line value to hold no line break of any kind,
+  # so that a stored value never breaks where I cannot see why.
+  #
+  # Acceptance criteria:
+  # - A single-line value refuses Unicode's line separator (U+2028) and
+  #   paragraph separator (U+2029) as control characters or line breaks.
+  # - A multi-line value keeps them, as it keeps a line feed.
+  test "a single-line value refuses the Unicode line and paragraph separators" do
+    for separator <- ["\u2028", "\u2029"] do
+      value = "line one" <> separator <> "line two"
+      assert Text.check(value, max: 255) == {:error, :control_characters}
+
+      assert [name: {"must not contain control characters or line breaks", _}] =
+               changeset(%{"name" => value}, max: 255).errors
+
+      assert Text.check(value, multiline: true) == :ok
+    end
+  end
+
+  # --- closing act, NL4 end ---
+
   test "the length bound counts code points, not graphemes" do
     # One grapheme, three code points.
     combined = "é́"

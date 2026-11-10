@@ -3,8 +3,9 @@ defmodule Portfolixir.News.NLensTest do
   # security lenses on N4, N5 and the entry's headline): a story becomes
   # knowledge only by a confirmed write, and what it links stays its own
   # security's (ADR-0056 §8, §12; ADR-0044's amendment of 2026-11-06).
-  # Cases tagged `:n_lens_red` show a defect the lenses found and fail until
-  # it is fixed. Synthetic names and hosts only, no socket.
+  # The cases were tagged `:n_lens_red` while they showed a defect the
+  # lenses found; the closing act's fixes (NL2–NL4) made them pass.
+  # Synthetic names and hosts only, no socket.
   use Portfolixir.DataCase
 
   import Portfolixir.NewsFixtures, only: [feed!: 1, security!: 1, story!: 2]
@@ -128,7 +129,6 @@ defmodule Portfolixir.News.NLensTest do
   # Acceptance criteria:
   # - A headline carrying Unicode's line separator (U+2028) or paragraph
   #   separator (U+2029) is refused naming `headline`.
-  @tag :n_lens_red
   test "a headline with a Unicode line or paragraph separator is refused" do
     for separator <- [0x2028, 0x2029] do
       changeset =
