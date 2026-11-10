@@ -5892,17 +5892,23 @@ details[open] > .cat-summary::before {
    trade's triangle on the line. The tone is the head's colour and its
    glyph (a plus, a minus, none; UX-DR7, never colour alone): +1 the gain
    token, -1 the loss token, 0 and none the muted text, several tones on
-   one day the muted text with their count. The halo is the frame's colour,
+   one day the muted text with a ± (closing act, ND3) and their count. The halo is the frame's colour,
    as the trades' is. */
 .security-chart .note-pin__stem {
   stroke: var(--color-text-muted);
   stroke-width: 1.2;
   stroke-dasharray: 2 3;
 }
+/* Closing act of Sprint 28, ND3: the head, its halo, the glyph and the
+   count's offset are sized in CSS pixels through --chart-upx, as the axis
+   labels are, so a 390 px chart (about 2.8 units a pixel) draws a 12 px
+   head with a 6 px glyph, not a 5 px dot with a 2 px one; the glyph scales
+   about its own centre, which is the head's. */
 .security-chart .note-pin__head {
   fill: var(--color-text-muted);
   stroke: var(--color-bg);
-  stroke-width: 1.5;
+  r: calc(6px * var(--chart-upx, 1));
+  stroke-width: calc(1.5px * var(--chart-upx, 1));
 }
 .security-chart .note-pin--pos .note-pin__head {
   fill: var(--color-positive);
@@ -5921,8 +5927,12 @@ details[open] > .cat-summary::before {
   stroke: var(--color-bg);
   stroke-width: 1.6;
   stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  scale: var(--chart-upx, 1);
 }
 .security-chart .note-pin__count {
+  transform: translateX(calc(9px * var(--chart-upx, 1)));
   font-size: calc(10px * var(--chart-upx, 1));
   font-weight: 700;
   fill: var(--color-text);

@@ -46,7 +46,9 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   triangle or the line. Its colour is the tone's (`note-pin--pos`, `--neg`,
   `--neu`), and its glyph says it too (a plus, a minus, none: never colour
   alone, UX-DR7). Several notes on one day are one pin: `--mixed` when
-  their tones differ, with their count beside it, and every headline in
+  their tones differ, with a ± and their count beside it (closing act,
+  ND3; the head, the glyph and the count are sized in CSS pixels through
+  `--chart-upx`, so they keep their size on a phone), and every headline in
   its title and in the tooltip, because two pins on one x would hide each
   other. The tooltip (the payload's `notes`) reads, per note, the headline
   and „event type · tone · date“ in the page's language.
@@ -201,7 +203,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
             <%= for pin <- note_pins(@notes, @geometry, {@plot_left, @plot_top, @plot_right, @plot_bottom}) do %>
               <g class={["note-pin", "note-pin--#{pin.tone}"]} data-date={pin.date}>
                 <line class="note-pin__stem" x1={pin.x} x2={pin.x} y1={pin.stem_top} y2={pin.stem_bottom} />
-                <circle class="note-pin__head" cx={pin.x} cy={pin.y} r="6.5" />
+                <circle class="note-pin__head" cx={pin.x} cy={pin.y} r="6" />
                 <path :if={pin.glyph} class="note-pin__glyph" d={pin.glyph} />
                 <text :if={pin.count > 1} class="note-pin__count" x={pin.count_x} y={pin.y} dominant-baseline="central">
                   <%= pin.count %>
@@ -318,7 +320,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         tone: tone,
         glyph: pin_glyph(tone, x, head_y),
         count: length(day_notes),
-        count_x: format_coord(x + 9.5),
+        count_x: format_coord(x),
         lines: lines,
         title: Enum.map_join(lines, "\n", &Enum.join(&1, "\n"))
       }
@@ -336,7 +338,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp tone_class(-1), do: "neg"
   defp tone_class(_neutral_or_none), do: "neu"
 
-  # The tone as a glyph inside the head (UX-DR7): a plus, a minus, none.
+  # The tone as a glyph inside the head (UX-DR7): a plus, a minus, a ± for a
+  # mixed day (closing act, ND3: without it a mixed day read as a neutral
+  # one), none for a neutral one. Each is centred on the head, so the CSS
+  # scales it about its own centre (`--chart-upx`).
   defp pin_glyph("pos", x, y) do
     "M#{format_coord(x - 3)},#{format_coord(y)} H#{format_coord(x + 3)} " <>
       "M#{format_coord(x)},#{format_coord(y - 3)} V#{format_coord(y + 3)}"
@@ -345,7 +350,13 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp pin_glyph("neg", x, y),
     do: "M#{format_coord(x - 3)},#{format_coord(y)} H#{format_coord(x + 3)}"
 
-  defp pin_glyph(_neutral_or_mixed, _x, _y), do: nil
+  defp pin_glyph("mixed", x, y) do
+    "M#{format_coord(x - 2.5)},#{format_coord(y - 1.5)} H#{format_coord(x + 2.5)} " <>
+      "M#{format_coord(x)},#{format_coord(y - 4)} V#{format_coord(y + 1)} " <>
+      "M#{format_coord(x - 2.5)},#{format_coord(y + 4)} H#{format_coord(x + 2.5)}"
+  end
+
+  defp pin_glyph(_neutral, _x, _y), do: nil
 
   # A note's two lines: the headline, then „event type · tone · date“ in
   # words, each part only when the note states it.

@@ -99,7 +99,8 @@ defmodule PortfolixirWeb.SecurityNoteMarkersTest do
   #   a day no note names draw nothing (never a raw item or a story).
   # - The pin's class names its tone (pos, neg, neu); a day whose notes
   #   differ in tone is mixed and carries their count; the tone is also a
-  #   glyph, never colour alone.
+  #   glyph, never colour alone: a plus, a minus, a ± for a mixed day
+  #   (closing act, ND3), none for a neutral one.
   # - Its title, and the payload's tooltip lines, read the headline, the
   #   event type in words, the tone in words and the date, every headline
   #   of the day.
@@ -125,6 +126,10 @@ defmodule PortfolixirWeb.SecurityNoteMarkersTest do
 
     assert has_element?(view, "g.note-pin--pos path.note-pin__glyph")
     assert has_element?(view, "g.note-pin--neg path.note-pin__glyph")
+    # Closing act of Sprint 28, ND3: a mixed day has its own glyph (±), so
+    # it does not read as a neutral one.
+    assert has_element?(view, "g.note-pin--mixed path.note-pin__glyph")
+    refute has_element?(view, "g.note-pin--neu path.note-pin__glyph")
 
     assert has_element?(
              view,

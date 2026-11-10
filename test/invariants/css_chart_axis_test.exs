@@ -271,6 +271,38 @@ defmodule Portfolixir.Invariants.CssChartAxisTest do
     assert surface == "var(--color-chart-surface)"
   end
 
+  # User story (Sprint 28 closing act, ND3; UX-DR7; board 01, marker A):
+  # As the operator reading a security's chart on a phone, and its export,
+  # I want a note pin's head and glyph sized in CSS pixels as the axis
+  # labels are,
+  # so that a 390 px chart does not shrink them to unreadable dots, and the
+  # file keeps what the screen shows.
+  #
+  # Acceptance criteria:
+  # - The head's radius and halo, the glyph's scale and the count's offset
+  #   are multiples of --chart-upx; the glyph scales about its own centre.
+  # - Every property the pin rules declare is on `_CHART_EXPORT_PROPS`.
+  test "the note pins are sized in CSS pixels, and the export bakes them" do
+    head = block(".security-chart .note-pin__head")
+    glyph = block(".security-chart .note-pin__glyph")
+    count = block(".security-chart .note-pin__count")
+
+    assert head =~ ~r/\br:\s*calc\(6px \* var\(--chart-upx, 1\)\);/
+    assert head =~ ~r/stroke-width:\s*calc\(1\.5px \* var\(--chart-upx, 1\)\);/
+    # The `scale` property, not `transform: scale(…)`, which the stylesheet
+    # keeps out (density is never a transform, securities_live_test.exs).
+    assert glyph =~ ~r/\bscale:\s*var\(--chart-upx, 1\);/
+    assert glyph =~ ~r/transform-box:\s*fill-box;/
+    assert glyph =~ ~r/transform-origin:\s*center;/
+    assert count =~ ~r/transform:\s*translateX\(calc\(9px \* var\(--chart-upx, 1\)\)\);/
+
+    props = export_props()
+
+    for body <- [head, glyph, count], property <- declared_properties(body) do
+      assert property in props, "a note pin rule sets #{property}, which the export drops"
+    end
+  end
+
   defp export_props do
     case Regex.run(~r/window\.Portfolixir\._CHART_EXPORT_PROPS = \[(.*?)\];/s, @layout) do
       [_, list] -> Regex.scan(~r/"([a-z-]+)"/, list) |> Enum.map(fn [_, name] -> name end)
