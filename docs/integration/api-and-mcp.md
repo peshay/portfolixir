@@ -1435,7 +1435,7 @@ only the digest's `unlabeled` grows.
   to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
   `domain` and, when ambiguous, `candidates` (security ids). A labelled story
   row adds `materiality` and `event_type`. `fields=std` adds
-  `url` and `note_ids`, and to a story row its representative's `domain`,
+  `url` (cut at 300 characters as `news.get` cuts it) and `note_ids`, and to a story row its representative's `domain`,
   cut at 40 characters as the companion spells it: the source the
   security's News tab shows. Rows come newest first by the time they
   entered their scope; rows of the same instant (one fetch stamps its items alike) by

@@ -1564,7 +1564,7 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `count`; eine Eintragszeile ist `id`, `title`, `tier`, `at`, `domain` und,
   wenn mehrdeutig, `candidates` (Wertpapier-IDs). Eine Story-Zeile mit Label
   ergänzt `materiality` und `event_type`. `fields=std` ergänzt `url`
-  und `note_ids`, bei einer Story-Zeile auch die `domain` ihres
+  (bei 300 Zeichen gekürzt wie in `news.get`) und `note_ids`, bei einer Story-Zeile auch die `domain` ihres
   Repräsentanten, gekürzt auf 40 Zeichen, wie der Begleiter sie schreibt
   – die Quelle, die der Reiter „Nachrichten“ des
   Wertpapiers zeigt. Die Zeilen kommen neueste zuerst nach dem Zeitpunkt, zu dem
