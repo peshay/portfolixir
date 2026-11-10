@@ -205,7 +205,9 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
         values: values,
         errors: errors,
         kinds: @kinds,
-        event_types: SecurityNote.event_types()
+        event_types: SecurityNote.event_types(),
+        spelled_headline:
+          spelled_headline?(assigns.promotion.proposal["headline"], values["headline"])
       )
 
     ~H"""
@@ -277,9 +279,11 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
         >
           <%= Enum.join(@errors["headline"], "; ") %>
         </p>
-        <AppShell.invisible_text_note texts={[@values["headline"]]}>
-          <%= gettext("The headline must be written anew: the entry refuses invisible characters.") %>
-        </AppShell.invisible_text_note>
+        <div :if={@spelled_headline} class="research-entry-form__full">
+          <AppShell.invisible_text_note texts={[@proposal["headline"]]}>
+            <%= gettext("The headline must be written anew: the entry refuses invisible characters.") %>
+          </AppShell.invisible_text_note>
+        </div>
         <label class="research-entry-form__full">
           <span><%= gettext("Entry") %></span>
           <textarea name="promotion[body]" rows="3" required><%= @values["body"] %></textarea>
@@ -324,6 +328,14 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
     </form>
     """
   end
+
+  # Closing act, ND2: the proposed headline carries an invisible character
+  # and the field still holds it spelled, as pre-filled: the note says it
+  # must be written anew, across the form's width.
+  defp spelled_headline?(proposed, value) when is_binary(proposed),
+    do: Text.invisible_count(proposed) > 0 and value == Text.escape_invisible(proposed)
+
+  defp spelled_headline?(_proposed, _value), do: false
 
   defp kind_label("evidence"), do: gettext("Evidence")
   defp kind_label("event_result"), do: gettext("Event result")

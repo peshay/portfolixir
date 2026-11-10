@@ -23,6 +23,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
@@ -6812,7 +6813,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
          %{} = row <- Enum.find(socket.assigns.detail_stories.rows, &(&1.id == cluster_id)) do
       values =
         proposal
-        |> Map.take(~w(kind headline event_type))
+        |> Map.take(~w(kind event_type))
+        |> Map.put("headline", spelled(proposal["headline"]))
         |> Map.put("tone", proposal["tone"] && to_string(proposal["tone"]))
 
       assign(socket, :story_promotion, %{
@@ -6875,10 +6877,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
       end)
 
     sent
+    |> Map.update!("headline", &unspelled(&1, promotion.proposal["headline"]))
     |> Map.put("security_id", security_id)
     |> Map.put("author", "operator")
     |> Map.put("body", params["body"] || "")
   end
+
+  # --- closing act, ND2 begin ---
+  # A proposed headline with an invisible character is shown spelled
+  # (`[U+202E]`, ADR-0054 §4), never raw: an operator sees what to retype.
+  # Sent back as shown, it is the story's title as stored, which the entry
+  # refuses naming the headline, as it refuses it from the agent.
+  defp spelled(nil), do: nil
+  defp spelled(headline), do: Text.escape_invisible(headline)
+
+  defp unspelled(sent, proposed) when is_binary(sent) and is_binary(proposed) do
+    if sent != proposed and sent == spelled(proposed), do: proposed, else: sent
+  end
+
+  defp unspelled(sent, _proposed), do: sent
+
+  # --- closing act, ND2 end ---
 
   defp blank_to_nil(value) when value in [nil, ""], do: nil
   defp blank_to_nil(value) when is_binary(value), do: value
