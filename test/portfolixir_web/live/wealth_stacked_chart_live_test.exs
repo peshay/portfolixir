@@ -512,8 +512,6 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     end)
   end
 
-  defp tick_ys(view), do: attrs(view, "#performance-figure-stack .chart-axis-y", "y")
-
   defp tick_texts(view) do
     view
     |> doc()
@@ -526,6 +524,38 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
 
   # A percent tick ("107%", "-8%").
   defp tick_percent(text), do: text |> String.trim_trailing("%") |> tick_value()
+
+  # Each axis tick as {its number, its y}.
+  defp ticks(view, parse) do
+    view
+    |> doc()
+    |> Floki.find("#performance-figure-stack .chart-axis-y")
+    |> Enum.map(fn tick ->
+      [y] = Floki.attribute(tick, "y")
+      {tick |> Floki.text() |> String.trim() |> parse.(), String.to_float(y)}
+    end)
+  end
+
+  # The amount at a height of the value mode's plot, read off two of its
+  # ticks: the axis is linear.
+  defp amount_at(plain) do
+    [{v1, y1}, {v2, y2} | _] = ticks(plain, &tick_value/1)
+    fn y -> v1 + (y - y1) * (v2 - v1) / (y2 - y1) end
+  end
+
+  # The axis reads round steps (D2): equal steps of 1, 2, 2.5 or 5 times a
+  # power of ten, 0 among them when the plot reaches below zero.
+  defp assert_round_ticks(numbers, label) do
+    assert length(numbers) >= 2, label
+
+    [step | _] =
+      steps = numbers |> Enum.chunk_every(2, 1, :discard) |> Enum.map(fn [a, b] -> b - a end)
+
+    assert Enum.all?(steps, &(abs(&1 - step) < 1.0e-6)), "#{label}: #{inspect(numbers)}"
+    mantissa = step / :math.pow(10, Float.floor(:math.log10(step)))
+    assert Enum.any?([1.0, 2.0, 2.5, 5.0], &(abs(&1 - mantissa) < 1.0e-6)), "#{label}: #{step}"
+    assert Enum.all?(numbers, &(abs(&1 / step - Float.round(&1 / step)) < 1.0e-6)), label
+  end
 
   # Each drawn area's height per drawn day, by key and part.
   defp heights(view) do
@@ -563,11 +593,11 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
   # Acceptance criteria:
   # - At every level, with a filter (a category, the unassigned rest) and
   #   without, the picture is the value mode's: every band's height on
-  #   every drawn day is the value mode's times one factor, and the axis
-  #   lines sit where they sit without the mode.
+  #   every drawn day is the value mode's times one factor.
   # - Each axis tick reads in percent of the bands' total on the window's
-  #   first day (with a filter, the filtered stack's total): the value
-  #   mode's tick over that total, a whole percent.
+  #   first day (with a filter, the filtered stack's total): the amount at
+  #   its height over that total, a whole percent, in round steps (the
+  #   closing act's design critic, D2).
   # - No tick, legend cell or tooltip names an amount; the legend drops the
   #   value column and its share is the API's net share; the ⓘ says what
   #   the axis reads.
@@ -604,13 +634,16 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
 
       assert factors != [], address
       assert Enum.max(factors) - Enum.min(factors) < 0.02, "#{address}: #{inspect(factors)}"
-      assert tick_ys(view) == tick_ys(plain), address
 
-      # Each tick in percent of the first day's total.
-      for {percent, amount} <- Enum.zip(tick_texts(view), tick_texts(plain)) do
-        assert abs(tick_percent(percent) - tick_value(amount) / base * 100) <= 0.51,
-               "#{address}: #{percent} is not #{amount} over #{base}"
+      # Each tick in percent of the first day's total, in round steps.
+      amount = amount_at(plain)
+
+      for {percent, y} <- ticks(view, &tick_percent/1) do
+        assert abs(percent - amount.(y) / base * 100) <= 0.51,
+               "#{address}: #{percent} % is not #{amount.(y)} over #{base}"
       end
+
+      assert_round_ticks(view |> ticks(&tick_percent/1) |> Enum.map(&elem(&1, 0)), address)
 
       refute_amounts(view, address)
 
@@ -724,8 +757,10 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     {:ok, view, _html} = live(masked(conn), "/portfolio?level=category")
     settle(view)
 
-    for {percent, amount} <- Enum.zip(tick_texts(view), tick_texts(plain)) do
-      assert abs(tick_percent(percent) - tick_value(amount) / base * 100) <= 0.51
+    amount = amount_at(plain)
+
+    for {percent, y} <- ticks(view, &tick_percent/1) do
+      assert abs(percent - amount.(y) / base * 100) <= 0.51
     end
 
     assert text_of(view, "[data-role='stack-basis'] [data-role='section-info']") =~
@@ -1342,6 +1377,44 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
 
     assert view |> attrs("#performance-figure-stack path.stack-band", "data-band") |> hd() ==
              "cash"
+  end
+
+  # User story (board 02 ⑥ and 06 ②; the closing act's design critic, D2):
+  # As the operator reading a stack that reaches below zero,
+  # I want the zero line labelled and the axis in round steps, in money and
+  # in the privacy mode's percent,
+  # so that I read a band's height without dividing an odd range by four.
+  #
+  # Acceptance criteria:
+  # - With the cash overdrawn for two days, at „Wertpapiere“ and
+  #   „Kategorien“, the value mode's ticks are equal steps of 1, 2, 2.5 or 5
+  #   times a power of ten, every tick a multiple of the step, „0“ among
+  #   them and on the zero line.
+  # - In the privacy mode the same holds in whole percents, „0%“ among
+  #   them and on the zero line.
+  test "the stack's axis reads round steps with 0 among them, in money and in percent",
+       %{conn: conn} do
+    sign_world()
+
+    for address <- ["/portfolio?level=security", "/portfolio?level=category"] do
+      {:ok, plain, _html} = live(conn, address)
+      settle(plain)
+      {:ok, view, _html} = live(masked(conn), address)
+      settle(view)
+
+      [zero] = attrs(plain, "#performance-figure-stack line.chart-zeroline", "y1")
+      zero = String.to_float(zero)
+
+      for {mode, parse} <- [{plain, &tick_value/1}, {view, &tick_percent/1}] do
+        shown = ticks(mode, parse)
+        assert_round_ticks(Enum.map(shown, &elem(&1, 0)), address)
+        {_zero, y} = Enum.find(shown, &(elem(&1, 0) == 0)) || flunk("#{address}: no 0 tick")
+        assert abs(y - zero) < 0.01, address
+      end
+
+      assert "0" in tick_texts(plain)
+      assert "0%" in tick_texts(view)
+    end
   end
 
   # -- #1366's lines: the basis behind its ⓘ ---------------------------------------

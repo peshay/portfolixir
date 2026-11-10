@@ -47,7 +47,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   filter, as Sprint 26's rule reads every axis in a currency. Where that
   total is not above zero (a buy booked before its money), the axis indexes
   to the first day it is, and says so behind the ⓘ; where no day is, the
-  ticks carry no label. The legend keeps share (the API's net share) and
+  ticks carry no label. The axis reads round steps in its own unit (an
+  amount, or a whole percent in the mode), 0 among them whenever the stack
+  reaches below zero (the closing act's design critic, D2); the plot's
+  range is the data's in either mode. The legend keeps share (the API's net share) and
   change and drops the value, the bands' tooltips name no amount, and no
   attribute carries one. Sprint 27's 100 % stack retired with D-A2.
 
@@ -189,13 +192,14 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   """
   def figure(assigns) do
     privacy? = PrivacyMode.on?()
-    geometry = geometry(assigns.result)
+    index = if privacy?, do: index_basis(assigns.result)
+    geometry = geometry(assigns.result, index)
     bands = assigns.result.bands
 
     assigns =
       assign(assigns,
         privacy?: privacy?,
-        index: if(privacy?, do: index_basis(assigns.result)),
+        index: index,
         geometry: geometry,
         legend: legend(bands, geometry),
         by_key: Map.new(bands, &{&1.key, &1}),
@@ -264,15 +268,15 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
               />
               <g class="chart-axis-labels">
                 <text
-                  :for={{{value, y}, index} <- Enum.with_index(@geometry.ticks)}
+                  :for={{value, y} <- @geometry.ticks}
                   :if={not @privacy? or @index != :none}
-                  class={["chart-axis-y", index == length(@geometry.ticks) - 1 && "is-top"]}
+                  class={["chart-axis-y", y - @geometry.plot_top < 12 && "is-top"]}
                   x={@plot_left - 6}
                   y={coord(y)}
                   text-anchor="end"
                   dominant-baseline="central"
                 >
-                  <%= tick_label(value, @index) %>
+                  <%= tick_label(value, @index, @geometry.places) %>
                 </text>
                 <text class="chart-axis-x" x={@plot_left} y={@height - 6} text-anchor="start">
                   <%= Format.date(@geometry.first_date) %>
@@ -767,13 +771,19 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
     lo = Enum.min(values)
     hi = Enum.max(values)
     span = if hi - lo < 1.0e-9, do: 1.0, else: hi - lo
-    raw = span / 5
-    magnitude = :math.pow(10, Float.floor(:math.log10(raw)))
-    step = Enum.find([1, 2, 2.5, 5, 10], &(&1 * magnitude >= raw)) * magnitude
+    step = round_step(span / 5)
     bottom = Float.floor(lo / step) * step
     top = Float.ceil(hi / step) * step
     top = if top - bottom < step / 2, do: bottom + step, else: top
     {bottom, top, step}
+  end
+
+  # The smallest round step, 1, 2, 2.5 or 5 times a power of ten, at
+  # least `raw`: the lines' axis and the stack's (the closing act's design
+  # critic, D2) read in the same steps.
+  defp round_step(raw) do
+    magnitude = :math.pow(10, Float.floor(:math.log10(raw)))
+    Enum.find([1, 2, 2.5, 5, 10], &(&1 * magnitude >= raw)) * magnitude
   end
 
   defp places(step) do
@@ -980,23 +990,15 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   # A tick in the privacy mode reads as a whole percent of the index's
   # total (a ratio, so the plain form); a tick in money as the shared
   # chart's axis prints it.
-  defp tick_label(value, {_date, total, _first?}) do
+  defp tick_label(value, {_date, total, _first?}, _places) do
     percent = round(value / Decimal.to_float(total) * 100)
     Format.plain_decimal(Decimal.new(percent), 0) <> "%"
   end
 
-  defp tick_label(value, nil) when value == 0, do: Format.decimal(Decimal.new(0), 0)
+  defp tick_label(value, nil, _places) when value == 0, do: Format.decimal(Decimal.new(0), 0)
 
-  defp tick_label(value, nil) do
-    places =
-      cond do
-        abs(value) >= 1000 -> 0
-        abs(value) >= 1 -> 2
-        true -> 4
-      end
-
-    Format.decimal(Decimal.from_float(value * 1.0), places)
-  end
+  defp tick_label(value, nil, places),
+    do: Format.decimal(Decimal.from_float(value * 1.0), places)
 
   # -- geometry ---------------------------------------------------------------------
 
@@ -1006,9 +1008,9 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   # the two never cross the bands between (#1426); a band that changes sign
   # inside the window is drawn first, next to the zero line, and its two
   # areas meet there. „Other“ stays on top whatever its sign (D4).
-  defp geometry(%{bands: []}), do: nil
+  defp geometry(%{bands: []}, _index), do: nil
 
-  defp geometry(result) do
+  defp geometry(result, index) do
     indices = sample(length(result.dates))
     dates = Enum.map(indices, &Enum.at(result.dates, &1))
 
@@ -1048,11 +1050,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
         %{key: key, part: part, d: path(upper ++ lower)}
       end)
 
-    ticks =
-      for i <- 0..4 do
-        value = lo + (hi - lo) * i / 4
-        {value, y.(value)}
-      end
+    {ticks, step} = round_ticks(lo, hi, unit(index, lo, hi))
+    ticks = Enum.map(ticks, &{&1, y.(&1)})
 
     %{
       points: n,
@@ -1061,10 +1060,31 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       parts: parts,
       zero_y: if(lo < 0, do: y.(0.0)),
       ticks: ticks,
+      places: places(step),
       first_date: List.first(dates),
       last_date: List.last(dates)
     }
   end
+
+  # The axis in round steps (D2): the ticks are the multiples of a round
+  # step in the axis's own unit that lie in the plot, 0 among them whenever
+  # the plot reaches below zero, so the zero line is labelled; the plot's
+  # range stays the data's, so the picture is the same in either mode. The
+  # unit is one currency unit, or in the privacy mode one percent of the
+  # index's total (whole percents only), or one percent of the range when
+  # no total is above zero (no label is drawn then, and no tick sits on a
+  # round amount). `{tick values, step in the unit}`.
+  defp round_ticks(lo, hi, {unit, min_step}) do
+    step = max(round_step((hi - lo) / unit / 5), min_step)
+    first = Float.ceil(lo / unit / step - 1.0e-9)
+    last = Float.floor(hi / unit / step + 1.0e-9)
+    ticks = for k <- trunc(first)..trunc(last)//1, do: k * step * unit
+    {ticks, step}
+  end
+
+  defp unit(nil, _lo, _hi), do: {1.0, 0.0}
+  defp unit({_date, total, _first?}, _lo, _hi), do: {Decimal.to_float(total) / 100, 1.0}
+  defp unit(:none, lo, hi), do: {(hi - lo) / 100, 1.0}
 
   # The legend reads like the stack, the top band first: the drawn order
   # reversed, so a band that changes sign, drawn first at the zero line, is
