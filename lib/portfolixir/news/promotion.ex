@@ -217,12 +217,18 @@ defmodule Portfolixir.News.Promotion do
       :error ->
         :ok
 
-      {:ok, kind} ->
-        if to_string(kind) in @kinds,
-          do: :ok,
-          else: {:error, %{"kind" => ["a story becomes an evidence or event_result entry"]}}
+      # Closing act, NL3: a kind that is neither a string nor an atom (a
+      # JSON object or list) is refused as any other, never raised on.
+      {:ok, kind} when is_binary(kind) or is_atom(kind) ->
+        if to_string(kind) in @kinds, do: :ok, else: refuse_kind()
+
+      {:ok, _other} ->
+        refuse_kind()
     end
   end
+
+  defp refuse_kind,
+    do: {:error, %{"kind" => ["a story becomes an evidence or event_result entry"]}}
 
   defp own_story(cluster_id, security_id) do
     case Repo.get(Cluster, cluster_id) do

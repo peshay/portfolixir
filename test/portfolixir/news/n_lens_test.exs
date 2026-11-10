@@ -102,7 +102,6 @@ defmodule Portfolixir.News.NLensTest do
   #
   # Acceptance criteria:
   # - A kind that is a JSON object answers `{:error, %{"kind" => _}}`.
-  @tag :n_lens_red
   test "a kind that is not a string is refused naming kind, not raised" do
     security = security!("Object Kind Synthetic AG")
     story = story!(security, title: "Object Kind Synthetic AG reports")
