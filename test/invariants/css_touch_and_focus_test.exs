@@ -187,6 +187,36 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     assert body =~ ~r/outline-offset:\s*2px;/
   end
 
+  # User story (FR-55, board 04; the closing act's design critic of Sprint
+  # 28, D4):
+  # As the operator reaching the version at the menu's foot by keyboard or
+  # by thumb,
+  # I want its link to show the house focus ring and to be a 44 px target
+  # under a coarse pointer,
+  # so that it is a control like every other, not the 41.5 px of a 13 px
+  # pad around an 11.5 px line.
+  #
+  # Acceptance criteria:
+  # - `a.sidebar-version__text:focus-visible` is in the shared text-like
+  #   controls' rule (2 px accent at a 2 px offset).
+  # - Under a coarse pointer its block padding is `(44px - 1lh) / 2`, the
+  #   margin the same negated, so the hit area is 44 px whatever the line
+  #   height and the line does not move.
+  test "the version link draws the house focus ring and is a 44 px target on touch" do
+    [_, selectors, body] =
+      ~r/\n((?:[^{}\n]+,\n)*[^{}\n]+) \{([^}]*)\}/
+      |> Regex.scan(@css)
+      |> Enum.find(fn [_, selectors, _body] ->
+        selectors =~ ".stack-legend__drill:focus-visible"
+      end) || flunk("no shared focus rule")
+
+    assert selectors =~ "a.sidebar-version__text:focus-visible"
+    assert body =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+
+    assert @css =~
+             ~r/@media \(pointer: coarse\) \{\s*a\.sidebar-version__text \{\s*padding-block: calc\(\(44px - 1lh\) \/ 2\);\s*margin-block: calc\(\(1lh - 44px\) \/ 2\);\s*\}\s*\}/
+  end
+
   # User story (#1033; board 06, H6.3, rule ③):
   # As the operator moving through the Overview by keyboard,
   # I want a row of "Abgeschlossene Trades", "Ziel-Abweichungen" or "Fällig"
