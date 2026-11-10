@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Input.Text
   alias Portfolixir.Knowledge
   alias Portfolixir.News.Ingest
@@ -492,6 +493,54 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
       assert tokens(answer) <= 400, "get (a link of combining marks): #{tokens(answer)}"
     end
   end
+
+  # --- Sprint 28 closing act, AG4 begin ---
+  # User story (ADR-0056 §9: at most 100 tokens with nothing new):
+  # As the operator whose agent reads the digest under a consumer every run,
+  # I want an answer with nothing new to cost at most 100 tokens on the
+  # companion's text, its cursor, a restart and the widest names included,
+  # so that a quiet day costs my agent almost nothing.
+  #
+  # Acceptance criteria (widened as above):
+  # - a consumer whose page was overtaken by its own confirmation reads
+  #   restarted: true, no rows and a cursor, with a 64-character prompt
+  #   version: at most 100, with a view_id and without one (then with its
+  #   categories and unassigned);
+  # - each answer is the fixture the companion's test measures.
+  test "the digest with nothing new holds 100 tokens for a consumer", %{conn: conn, now: now} do
+    world = base_world(name: "Quiet", cash_name: "Cash", depot_name: "Depot")
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Quiet", include_all: true})
+
+    for n <- 1..2 do
+      security = held!(world, n)
+
+      ingest!(
+        feed!(%{class: "issuer", security_id: security.id}),
+        [item("Quiet release #{n}", "https://ir#{n}.example.com/q")],
+        hours_ago(now, 2 + n)
+      )
+    end
+
+    for {name, scope} <- [{"view", [view_id: view.id]}, {"universe", []}] do
+      consumer = "quiet-run-with-a-long-name-0001"
+      base = [consumer: consumer <> "-" <> name, prompt_version: @wide_version] ++ scope
+      read = &get(conn, "/api/v1/news/digest?" <> URI.encode_query(base ++ &1))
+
+      assert %{"next_page" => page} = json_response(read.(max_rows: 1), 200)["data"]
+      assert %{"cursor" => cursor} = json_response(read.(page: page), 200)["data"]
+      assert %{"rows" => []} = json_response(read.(ack_cursor: cursor), 200)["data"]
+
+      quiet = read.(page: page)
+
+      assert %{"restarted" => true, "rows" => [], "cursor" => _} =
+               json_response(quiet, 200)["data"]
+
+      assert tokens(quiet) <= 100, "nothing new (#{name}): #{tokens(quiet)}"
+      fixture!("digest-nothing-new-" <> name, quiet)
+    end
+  end
+
+  # --- Sprint 28 closing act, AG4 end ---
 
   # A host of 253 characters, the most a name holds: three labels of 63
   # and one of 53, then `.example`.

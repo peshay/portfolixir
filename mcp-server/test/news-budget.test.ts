@@ -106,6 +106,27 @@ describe("the news reads' budgets, as the tool returns them", () => {
     assert.ok(tokens(worst) <= 400, `get (worst case): ${tokens(worst)} tokens`);
   });
 
+  // User story (ADR-0056 §9; Sprint 28 closing act, AG4):
+  // As the operator whose agent reads the digest under a consumer every run,
+  // I want an answer with nothing new to cost at most 100 tokens on the text
+  // the tool returns,
+  // so that a quiet day costs my agent almost nothing.
+  //
+  // Acceptance criteria:
+  // - A consumer's answer with nothing new, restarted, its cursor and a
+  //   64-character prompt version, every id and count at its widest: at
+  //   most 100 tokens with a view_id and without one.
+  it("holds the digest with nothing new for a consumer", async () => {
+    for (const fixture of ["digest-nothing-new-view", "digest-nothing-new-universe"]) {
+      const quiet = await returned("portfolixir.news.digest", { consumer: "quiet-run" }, fixture);
+      const data = (JSON.parse(quiet) as { data: { rows: unknown[]; restarted: boolean; cursor: string } }).data;
+      assert.deepEqual(data.rows, []);
+      assert.equal(data.restarted, true);
+      assert.match(data.cursor, /^\d{10}~/);
+      assert.ok(tokens(quiet) <= 100, `${fixture}: ${tokens(quiet)} tokens`);
+    }
+  });
+
   // User story (ADR-0056 §9; Sprint 28 closing act, AG2):
   // As the operator whose agent asks a list for its links,
   // I want fields=std to cut each link as news.get cuts it,
