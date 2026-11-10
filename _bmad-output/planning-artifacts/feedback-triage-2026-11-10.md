@@ -14,7 +14,9 @@ from the instance (feeds, rated sources, refused items) and named feed and
 story ids. None of that is reproduced here. Only the product shape of each
 point is kept.
 
-Status: **open.** Waiting for the owner's answer to Part 3.
+Status: **answered.** On 2026-11-10 the owner accepted every
+recommendation of Part 3 ("ja"). Every item now has a record (Part 4);
+P1 and P2 are built on the PR that carries this document.
 
 ---
 
@@ -79,7 +81,7 @@ needs nothing built here. Three things the PM adds:
 
 ---
 
-## Part 3 — The owner's questions
+## Part 3 — The owner's questions (all answered 2026-11-10 with the recommendation)
 
 - **OQ-1 — P1/P2 now, or in Sprint 29?** Recommended: **now**, as one
   small single-concern PR (squash), outside the sprint: one function in
@@ -95,14 +97,15 @@ needs nothing built here. Three things the PM adds:
 
 ---
 
-## Part 4 — Where each item goes once answered
+## Part 4 — Where each item went (2026-11-10)
 
 | Item | Record | Label |
 |---|---|---|
-| P1 + P2, the parser's prolog (encoding, BOM) | one issue under #416 | `agentic` |
-| C1, `source_url` 2,048 | one issue under #416 | `agentic`, after OQ-2 |
-| C2, re-tier on `sources_put` | one issue under #416, ADR amendment first | `needs-decision` until OQ-3, then `agentic` |
-| R1, the redirect target in `last_error` | a line on #1356 | — |
+| P1 + P2, the parser's prolog (encoding, BOM) | #1442 (under #416), built on this PR | `agentic` |
+| C1, `source_url` 2,048 | #1443 (under #416) | `agentic` |
+| C2, re-tier on `sources_put` | #1444 (under #416), the ADR-0056 §3 amendment on the Sprint 29 planning PR first | `agentic` |
+| R1, the redirect target in `last_error` | a line on #1356 ("Polish: API and MCP") | — |
 
-Nothing is filed and nothing is built in this session until the owner
-answers.
+The next planning session takes #1443 and #1444 as candidates. ADR-0056
+A1 states no encoding, so #1442 changes no decision record; the parser's
+moduledoc states the rule.
