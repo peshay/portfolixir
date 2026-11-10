@@ -797,7 +797,11 @@ alternative loses a story or opens a hole.
   28**: the digest 747 of 800, its consumer's first page 765, a list row
   56 of §9's 60 and 20 rows 1,197 of 1,500, `news.get` 388 of 400; an
   ambiguous item row adds its candidates' ids, about five tokens each, and
-  is not held to the 60. **To flip:** a number by comment.
+  is not held to the 60. **`fields=std` cuts a row's link at 300** as
+  `news.get` does (AG2: it answered each whole, 12,067 tokens for 20 rows
+  of 2,048-character links), so a std row holds 150 tokens and 20 rows
+  3,045, and an item row's domain is cut at 40 as a story row's.
+  **To flip:** a number by comment.
 - **The count is named `unlabeled`**, where §7 wrote `n_unlabeled`: §9's
   compact rule names fields by what they count.
 - `min_materiality` on `news.list` defaults to 0; above 0 it also leaves

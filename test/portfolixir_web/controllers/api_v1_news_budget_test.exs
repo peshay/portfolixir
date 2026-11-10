@@ -238,6 +238,9 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
   #   letter and 254 combining marks, its name cut to 20 code points;
   # - 20 list rows with tag-character titles: at most 1,500, and each row
   #   at most 60 (§9; closing act of Sprint 28, AG1);
+  # - 20 rows with fields=std, each a link of 2,048 characters on a domain
+  #   of 253: each link cut to 300 as news.get cuts it, each domain to 40,
+  #   at most 155 a row and 3,200 the page (closing act of Sprint 28, AG2);
   # - every budget measured with each id, count and tier at its widest
   #   (AG1), so none holds only while the ids are small;
   # - news.get of a story with a tag-character title and excerpt, a link
@@ -435,6 +438,36 @@ defmodule PortfolixirWeb.ApiV1NewsBudgetTest do
     quote_get = get(conn, "/api/v1/news/stories/#{quote_item.cluster_id}")
     assert tokens(quote_get) <= 400, "get (JSON-quoted text): #{tokens(quote_get)}"
     # --- end closing act, AG1 rest ------------------------------------------
+
+    # --- closing act of Sprint 28, AG2: fields=std cuts its links ----------
+    # 20 stories, each a link of 2,048 characters on a domain of 253: std
+    # answers each link cut at 300 as news.get does, its domain at 40.
+    linked = held!(world, 780)
+
+    for n <- 1..20 do
+      link = "https://" <> long_host(n) <> "/"
+
+      ingest!(
+        feed!(%{class: "issuer", security_id: linked.id}),
+        [item(tag_title(200 + n), link <> String.duplicate("a", 2_048 - String.length(link)))],
+        hours_ago(now, 0.3 + n * 0.01)
+      )
+    end
+
+    label_stories!(linked)
+    std = get(conn, "/api/v1/news/stories?security_id=#{linked.id}&fields=std")
+    std_rows = json_response(std, 200)["data"]["rows"]
+    assert length(std_rows) == 20
+
+    for row <- std_rows do
+      assert length(String.codepoints(row["url"])) == 300 and String.ends_with?(row["url"], "…")
+      assert String.length(row["domain"]) == 40
+    end
+
+    assert tokens(std) <= 3_200, "20 std rows (long links): #{tokens(std)}"
+    assert Enum.max(row_tokens(std)) <= 155, "a std row: #{Enum.max(row_tokens(std))}"
+    fixture!("list-std-long-links", std)
+    # --- end closing act of Sprint 28, AG2 ----------------------------------
 
     # --- S28 N2 finding: a link of combining marks --------------------------
     # One letter and 2,000 combining marks is one grapheme and 2,001 code

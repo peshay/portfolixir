@@ -8,7 +8,8 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       (the remainder, with candidates). `since` (by `scope_at`, B4, C3),
       `tier_min` (`primary`, `secondary`, `awareness`), `limit` (default 20,
       at most 100), `fields=slim|std` (`std` adds `url` and `note_ids`, and
-      to a story row its `domain`, S28 N8) and `cursor` (the `cursor` of a
+      to a story row its `domain`, S28 N8; the link cut at 300 characters as
+      the companion spells it, closing act AG2) and `cursor` (the `cursor` of a
       truncated page); a title is cut at 80 characters as the companion
       spells them (closing act, AG1). See
       `Portfolixir.News.Reads.list/2`. Story rows carry their active
@@ -80,6 +81,10 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
   # characters as the companion spells them; the screens keep 160, and
   # news.get answers the title at 160.
   @list_title_max 80
+  # Closing act, AG2: fields=std cuts a row's link at 300 characters as the
+  # companion spells it, as news.get and the registry cut theirs (the whole
+  # link stays stored), so 20 rows cannot answer 2,048 characters each.
+  @list_url_max 300
 
   @tiers %{"primary" => :primary, "secondary" => :secondary, "awareness" => :awareness}
   @assignments %{"unassigned" => :unassigned, "ambiguous" => :ambiguous}
@@ -638,7 +643,12 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
 
     # S28 N8: std adds the representative's domain beside its link.
     if std?,
-      do: Map.merge(slim, %{url: story.url, domain: story.domain, note_ids: story.note_ids}),
+      do:
+        Map.merge(slim, %{
+          url: list_url(story.url),
+          domain: story.domain,
+          note_ids: story.note_ids
+        }),
       else: slim
   end
 
@@ -653,8 +663,10 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
         candidates: non_empty(item.candidates)
       })
 
-    if std?, do: Map.merge(slim, %{url: item.url, note_ids: item.note_ids}), else: slim
+    if std?, do: Map.merge(slim, %{url: list_url(item.url), note_ids: item.note_ids}), else: slim
   end
+
+  defp list_url(url), do: Reads.clip_spelled(url, @list_url_max)
 
   defp digest_row(row), do: compact(%{row | top: %{row.top | at: time(row.top.at)}})
 

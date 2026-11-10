@@ -105,4 +105,30 @@ describe("the news reads' budgets, as the tool returns them", () => {
     }
     assert.ok(tokens(worst) <= 400, `get (worst case): ${tokens(worst)} tokens`);
   });
+
+  // User story (ADR-0056 §9; Sprint 28 closing act, AG2):
+  // As the operator whose agent asks a list for its links,
+  // I want fields=std to cut each link as news.get cuts it,
+  // so that 20 rows of 2,048-character links cannot cost twelve thousand
+  // tokens.
+  //
+  // Acceptance criteria:
+  // - 20 std rows, each a link of 2,048 characters on a 253-character
+  //   domain, every id, count and tier at its widest: each link 300
+  //   characters ending in an ellipsis, each domain 40, at most 155 tokens
+  //   a row and 3,200 the page.
+  it("holds a std list page with its links cut", async () => {
+    const std = await returned("portfolixir.news.list", { security_id: 1, fields: "std" }, "list-std-long-links");
+    const rows = (JSON.parse(std) as { data: { rows: { url: string; domain: string }[] } }).data.rows;
+    assert.equal(rows.length, 20);
+
+    for (const row of rows) {
+      assert.equal(Array.from(row.url).length, 300);
+      assert.ok(row.url.endsWith("…"));
+      assert.equal(Array.from(row.domain).length, 40);
+      assert.ok(tokens(JSON.stringify(row)) <= 155, `a std row: ${tokens(JSON.stringify(row))} tokens`);
+    }
+
+    assert.ok(tokens(std) <= 3_200, `20 std rows: ${tokens(std)} tokens`);
+  });
 });

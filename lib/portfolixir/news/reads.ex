@@ -308,7 +308,7 @@ defmodule Portfolixir.News.Reads do
     * `{:assignment, :unassigned | :ambiguous}` — the aggregator items no
       security, or several, claim; an ambiguous one with its `candidates`.
 
-  An item row is `id`, `title`, `tier`, `at`, `domain`, `candidates`,
+  An item row is `id`, `title`, `tier`, `at`, `domain` (cut at 40, AG2), `candidates`,
   `url` and `note_ids`. `{:error, :not_found}` when the security, category
   or story does not exist. Options: `since`, `tier_min`, `limit`, `cursor`,
   `title_max` (the width a title is cut to as spelled, 160 by default; the
@@ -442,7 +442,14 @@ defmodule Portfolixir.News.Reads do
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
-    rows = clip_titles(rows, opts)
+
+    # Closing act of Sprint 28, AG2: an item row's domain is cut at 40 as a
+    # story row's is, so a 253-character domain does not cost a row 60
+    # tokens on its own.
+    rows =
+      rows
+      |> clip_titles(opts)
+      |> Enum.map(&Map.update!(&1, :domain, fn d -> clip_spelled(d, @domain_max) end))
 
     %{kind: :items, rows: rows, truncated: truncated != [], cursor: cursor(rows, truncated)}
   end
