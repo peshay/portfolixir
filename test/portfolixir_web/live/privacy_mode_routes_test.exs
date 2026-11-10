@@ -178,6 +178,12 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
         "resolves_on" => Date.to_iso8601(Date.add(Clock.today(), 60))
       })
 
+    # --- S28 N7 begin ---
+    # The news page's tabs read a story, a queue item, two feeds and a
+    # source, so the walk reads them filled.
+    Portfolixir.NewsFixtures.page_world!(next)
+    # --- S28 N7 end ---
+
     %{sold: sold, next: next, tree: tree, core: core, bonds: [forward, reverse]}
   end
 
@@ -237,6 +243,11 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           "/securities/#{ctx.sold.id}?tab=predictions",
           "/predictions",
           "/journal",
+          # --- S28 N7 begin ---
+          "/news",
+          "/news?tab=feeds",
+          "/news?tab=sources",
+          # --- S28 N7 end ---
           "/portfolio?level=category",
           "/portfolio?level=security",
           "/portfolio?level=security&category=#{ctx.core.id}",

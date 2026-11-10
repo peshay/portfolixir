@@ -1120,4 +1120,59 @@ defmodule Portfolixir.News do
   def dossier_block(security_id, %DateTime{} = now), do: Dossier.block(security_id, now)
 
   # --- S28 N6 end ---
+
+  # --- S28 N7 begin ---
+  # The news page (ADR-0056 §10): what its regions show beside the reads
+  # the API answers from (`health/1`, `Portfolixir.News.Reads`).
+
+  @type feed_registration :: %{
+          id: pos_integer(),
+          url: String.t(),
+          class: atom(),
+          enabled: boolean(),
+          security_id: pos_integer() | nil,
+          security_name: String.t() | nil,
+          category_id: pos_integer() | nil,
+          category_name: String.t() | nil
+        }
+
+  @doc """
+  Each registered feed's URL, class and binding (its security's or
+  category's name), in id order, as `health/1` lists the feeds: what the
+  page's „Feeds“ tab shows beside each feed's health. The registration is
+  the API's and the agent's (`news.feeds_put`); the page only shows it.
+  """
+  @spec feed_registrations() :: [feed_registration()]
+  def feed_registrations do
+    from(f in Feed,
+      left_join: s in assoc(f, :security),
+      left_join: c in assoc(f, :category),
+      order_by: f.id,
+      select: %{
+        id: f.id,
+        url: f.url,
+        class: f.class,
+        enabled: f.enabled,
+        security_id: f.security_id,
+        security_name: s.name,
+        category_id: f.category_id,
+        category_name: c.name
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  The securities an item may be assigned to on the page (`assign_item/4`
+  takes any security; the picker offers the news universe, §2), as `{id,
+  name}` sorted by name.
+  """
+  @spec assign_choices() :: [{pos_integer(), String.t()}]
+  def assign_choices do
+    Universe.members()
+    |> Enum.map(&{&1.id, &1.name})
+    |> Enum.sort_by(fn {id, name} -> {String.downcase(name), id} end)
+  end
+
+  # --- S28 N7 end ---
 end

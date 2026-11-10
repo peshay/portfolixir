@@ -235,6 +235,23 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           "not the raw news archive the non-goal names"
     },
     # --- S28 N4 end ---
+    # --- S28 N7 begin ---
+    # The operator's view of the news reads (ADR-0056 §10): the page's
+    # route and its LiveView. Exactly `GET /news` and `NewsLive`; a news
+    # route under another verb, or a module for news archives, is still
+    # caught.
+    %{
+      phrases: [~w(get news), ~w(news live)],
+      kinds: [:route, :module],
+      class: :permanent,
+      adr: "ADR-0056",
+      reason:
+        "the page that shows the operator what the news reads answer the agent (ADR-0056 " <>
+          "§10): the health, the queue with its one assign write, the digest, the feeds and " <>
+          "the rated sources, nothing kept beyond the reads' 90 days (§12), so not the raw " <>
+          "news archive the non-goal names"
+    },
+    # --- S28 N7 end ---
     %{
       phrases: [~w(sync now)],
       kinds: [:event],
@@ -347,7 +364,11 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
             {:table, "news_items"},
             {:module, "Portfolixir.News.FeedDay"},
             {:table, "news_item_tombstones"},
-            {:table, "news_feed_drops"}
+            {:table, "news_feed_drops"},
+            # --- S28 N7 begin ---
+            {:route, "GET /news"},
+            {:module, "PortfolixirWeb.NewsLive"}
+            # --- S28 N7 end ---
           ] do
         assert violations(name) == [], "#{inspect(name)} should not be caught"
       end

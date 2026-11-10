@@ -90,6 +90,11 @@ defmodule PortfolixirWeb.Router do
       live("/portfolio", PortfolioLive)
       live("/securities", SecuritiesLive)
       live("/securities/:id", SecuritiesLive)
+      # --- S28 N7 begin ---
+      # ADR-0056 §10 (board ux-design-2026-11-08-sprint28/01, variant A): the
+      # page „Nachrichten“, the operator's view of the news reads.
+      live("/news", NewsLive)
+      # --- S28 N7 end ---
       live("/portfolios", PortfolioAccountsLive)
       live("/transactions", TransactionManagementLive)
       live("/cashflow", IncomeLive)

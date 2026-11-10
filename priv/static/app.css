@@ -5773,6 +5773,84 @@ details[open] > .cat-summary::before {
 }
 /* --- Sprint 26 V2 end --- */
 
+/* --- S28 N7 begin: the page „Nachrichten“ (ADR-0056 §10) --- */
+/* Board ux-design-2026-11-08-sprint28/01, variant A. The tabs are the area
+   tabs, the chips the house badges, the tables data tables and the rows
+   phone rows (UX-DR27); new are the health line's wrapping chip row, a
+   cell's muted second line, the queue's picker beside its button, and the
+   tables' fit to their wrappers: a title wraps, a time and a count never
+   do. */
+.news-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+}
+.data-table-wrapper > .news-table {
+  min-width: 0;
+}
+.news-table td {
+  vertical-align: top;
+}
+.news-table td.news-cell-title {
+  min-width: 14rem;
+  overflow-wrap: anywhere;
+}
+.news-table th,
+.news-table td.news-cell-time,
+.news-table td.num {
+  white-space: nowrap;
+}
+.news-title {
+  display: block;
+  overflow-wrap: anywhere;
+}
+/* A URL breaks at its end of line, not inside a word, so its cell widens
+   and the wrapper scrolls (UX-DR15) rather than splitting a path. */
+.news-url {
+  display: block;
+  overflow-wrap: break-word;
+}
+.news-title {
+  font-weight: 600;
+}
+.news-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.news-label--none {
+  color: var(--color-text-muted);
+}
+.news-states {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.news-assign {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.news-assign select {
+  flex: 0 1 auto;
+  min-width: 12rem;
+  max-width: 16rem;
+}
+.news-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.news-rows .news-assign {
+  margin-top: var(--space-1);
+}
+@media (max-width: 560px) {
+  .news-table-wrap {
+    display: none;
+  }
+}
+/* --- S28 N7 end --- */
+
 /* Classification category descriptions */
 .cat-description {
   margin: 0.1rem 0 0.35rem;

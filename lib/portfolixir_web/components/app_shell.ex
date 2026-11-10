@@ -274,20 +274,27 @@ defmodule PortfolixirWeb.AppShell do
   The label element reserves its bold width (UX-DR18) via `data-label`.
   """
   attr(:tabs, :list, required: true)
+  # --- S28 N7 begin ---
+  # Tabs of one LiveView (the news page) patch the address instead of
+  # loading the page anew; the markup is the same.
+  attr(:id, :string, default: "area-tabs")
+  attr(:patch, :boolean, default: false)
+  # --- S28 N7 end ---
 
   def area_tabs(assigns) do
     ~H"""
     <nav
-      id="area-tabs"
+      id={@id}
       class="area-tabs"
       data-role="area-tabs"
       phx-hook="AreaTabs"
       data-tab-level="1"
       aria-label={gettext("Section tabs")}
     >
-      <a
+      <.link
         :for={tab <- @tabs}
-        href={tab.href}
+        href={if !@patch, do: tab.href}
+        patch={if @patch, do: tab.href}
         class={["area-tab", tab.current && "is-active"]}
         aria-current={if tab.current, do: "page", else: nil}
       >
@@ -295,7 +302,7 @@ defmodule PortfolixirWeb.AppShell do
           <.icon name={tab.icon} size={14} />
         </span>
         <span class="area-tab__label" data-label={tab.label}><%= tab.label %></span>
-      </a>
+      </.link>
     </nav>
     """
   end
@@ -394,6 +401,18 @@ defmodule PortfolixirWeb.AppShell do
             section: :securities,
             icon: :layers
           },
+          # --- S28 N7 begin ---
+          # ADR-0056 §10 (board ux-design-2026-11-08-sprint28/01 A, plan
+          # D-5; ADR-0022's amendment of 2026-11-09): the news page after
+          # Securities, its own glyph.
+          %{
+            id: "nav-news",
+            href: "/news",
+            label: gettext("News"),
+            section: :news,
+            icon: :newspaper
+          },
+          # --- S28 N7 end ---
           %{
             id: "nav-transactions",
             href: "/transactions",
@@ -460,6 +479,11 @@ defmodule PortfolixirWeb.AppShell do
         String.starts_with?(path, "/risk") or String.starts_with?(path, "/predictions")
 
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
+  # --- S28 N7 begin ---
+  defp nav_current?(path, %{section: :news}),
+    do: path == "/news" or String.starts_with?(path, "/news?")
+
+  # --- S28 N7 end ---
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")
 
   defp nav_current?(path, %{section: :transactions}),
@@ -1014,6 +1038,17 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:layers),
     do: ~s(<path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/>)
 
+  # --- S28 N7 begin ---
+  # The news page (sidebar and its Reports tab): a folded paper with lines.
+  defp icon_paths(:newspaper),
+    do:
+      ~s(<path d="M4 5h13v14a1 1 0 0 0 1 1H6a2 2 0 0 1-2-2Z"/><path d="M17 9h3v10a1 1 0 0 1-2 0"/><path d="M7 9h7M7 13h7M7 16h4"/>)
+
+  # Its Feeds tab: a source sending in waves.
+  defp icon_paths(:signal),
+    do: ~s(<circle cx="6" cy="18" r="1.5"/><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14"/>)
+
+  # --- S28 N7 end ---
   defp icon_paths(:bookmark), do: ~s(<path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-4Z"/>)
 
   defp icon_paths(:briefcase),

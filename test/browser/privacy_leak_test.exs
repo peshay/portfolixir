@@ -123,6 +123,11 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
     # --- Sprint 28 S6 lens begin ---
     zero_start!()
     # --- Sprint 28 S6 lens end ---
+    # --- S28 N7 begin ---
+    # The news page (ADR-0056 §10): a story, a queue item, two feeds and a
+    # rated source, so the walk reads its tabs filled.
+    news!()
+    # --- S28 N7 end ---
     # "localhost", the endpoint's configured host, so the LiveView socket's
     # origin check passes.
     %{base_url: "http://localhost:#{port}"}
@@ -556,6 +561,14 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   end
 
   # --- Sprint 28 S6 lens end ---
+
+  # --- S28 N7 begin ---
+  defp news! do
+    security = Repo.one(from(s in Security, order_by: s.id, limit: 1))
+    Portfolixir.NewsFixtures.page_world!(security)
+  end
+
+  # --- S28 N7 end ---
 
   defp seed! do
     conflicts = Code.get_compiler_option(:ignore_module_conflict)
