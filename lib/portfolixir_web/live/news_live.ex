@@ -45,6 +45,7 @@ defmodule PortfolixirWeb.NewsLive do
   alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
 
   @tabs %{"feeds" => :feeds, "sources" => :sources}
@@ -99,10 +100,12 @@ defmodule PortfolixirWeb.NewsLive do
         after: {nil, nil}
       )
 
+    {choices, names} = picker_names(News.assign_choices(), queue.rows)
+
     assign(socket,
       queue: queue,
-      choices: News.assign_choices(),
-      names: candidate_names(queue.rows),
+      choices: choices,
+      names: names,
       digest: Map.update!(digest, :rows, &full_names/1),
       since: since
     )
@@ -133,11 +136,19 @@ defmodule PortfolixirWeb.NewsLive do
     }
   end
 
-  defp candidate_names(rows) do
-    rows
-    |> Enum.flat_map(fn {_assignment, row} -> row.candidates end)
-    |> Catalog.get_securities_by_ids()
-    |> Map.new(fn {id, security} -> {id, security.name} end)
+  # The picker's names, the universe's and the candidates', with same-named
+  # securities told apart over both lists as every picker does (UAT-13;
+  # the Sprint 28 closing act's UAT line on N7).
+  defp picker_names(choices, rows) do
+    candidates =
+      rows
+      |> Enum.flat_map(fn {_assignment, row} -> row.candidates end)
+      |> Catalog.get_securities_by_ids()
+
+    tags = SecurityNames.tags(choices ++ Map.values(candidates))
+
+    {Enum.map(choices, &{&1.id, SecurityNames.label(tags, &1)}),
+     Map.new(candidates, fn {id, security} -> {id, SecurityNames.label(tags, security)} end)}
   end
 
   # The digest names a security by its short name (§9's 20 characters, a
