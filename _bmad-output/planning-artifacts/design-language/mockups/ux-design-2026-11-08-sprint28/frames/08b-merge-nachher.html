@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08b-merge-nachher</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-mode { display: flex; gap: 12px; margin: 0 0 12px; }
+.mock-pad { padding: 16px 20px; }
+</style>
+<style id="proposal">.mock-dialog { margin: 0 auto; max-height: none; } .mock-dialog .modal-footer { margin-top: 0; }</style>
+</head>
+<body><div class="mock-pad">
+<div class="modal merge-dialog security-merge-dialog mock-dialog">
+<header class="modal-head">
+<h2>Beispiel Industrie AG zusammenführen <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span>
+</h2>
+<button type="button" class="icon-button" aria-label="Schließen">×</button>
+</header>
+<div class="modal-body">
+<div class="merge-pair" data-role="merge-pair">
+<div class="merge-pair__side"><span class="merge-pair__role merge-pair__role--gone">Quelle · wird gelöscht</span><b>Beispiel Industrie AG</b><span class="mono">XX0000000018</span><small>3 Buchungen · angelegt 02.03.2026</small>
+</div><span class="merge-pair__arrow" aria-hidden="true">→</span>
+<div class="merge-pair__side"><span class="merge-pair__role">Ziel · bleibt</span><b>Beispiel Industrie AG</b><span class="mono">XX0000000018</span><small>5 Buchungen · angelegt 14.01.2025</small>
+</div>
+</div><dl class="merge-counts" data-role="merge-counts"><dt>3</dt><dd>Buchungen wechseln zum Ziel</dd><dt>42</dt><dd>Kurse der Quelle füllen Lücken im Ziel</dd></dl>
+<h3 class="merge-block-head">Stammdaten, die sich unterscheiden</h3>
+<div class="data-table-wrapper" data-role="merge-master-data">
+<table class="data-table merge-table">
+<thead>
+<tr>
+<th>Feld</th>
+<th>Quelle</th>
+<th>Ziel</th>
+<th>Danach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anbieterwährung</td>
+<td>USD</td>
+<td>—</td>
+<td class="merge-table__keep">USD<small>übernommen: Das Ziel hatte keine; der Anbieter nannte eine andere Währung als die des Wertpapiers.</small>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="merge-basis">Name, Anlageklasse und Logo folgen dem Ziel; WKN, Ticker und Kursquelle werden nur übernommen, wo das Ziel keine hat.</p>
+</div>
+<div class="modal-footer modal-footer--band">
+<button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span>
+<button type="button" class="button-danger">In Beispiel Industrie AG zusammenführen</button>
+</div>
+</div>
+</div></body>
+</html>
