@@ -168,4 +168,43 @@ defmodule PortfolixirWeb.ApiV1NewsAssignTest do
     refute Map.has_key?(row, "suggested_security_id")
     assert Repo.get!(Item, item.id).cluster_id == nil
   end
+
+  # --- closing act, NL2 begin ---
+
+  # User story (ADR-0056 §8: the story becomes promoted and links the note;
+  # §12: a promoted item is kept as the note's source):
+  # As the operator's agent assigning items by hand,
+  # I want an item kept in a security's research log refused by
+  # news.assign,
+  # so that a note's source never moves to another security, nor into
+  # the queue.
+  #
+  # Acceptance criteria:
+  # - An aggregator item promoted to a note answers 422 naming news_id,
+  #   both for another security and for null; the item stays where it is
+  #   and nothing is journaled for it.
+  test "an item kept in the research log is not assigned", %{conn: conn} do
+    northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
+    harbourline = watched!("Harbourline Shipping AG", "Harbourline")
+    item = aggregator_item!("Northwind Harbour wins a synthetic terminal contract")
+    %Item{security_id: security_id, cluster_id: story_id} = Repo.get!(Item, item.id)
+    assert security_id == northwind.id
+
+    {:ok, _note} =
+      Portfolixir.News.append_note_from_story(
+        Actor.api_token_rw("mcp"),
+        %{"security_id" => northwind.id, "author" => "agent", "body" => "Kept."},
+        story_id
+      )
+
+    for target <- [harbourline.id, nil] do
+      assert %{"news_id" => [_]} =
+               errors(put_assignment(conn, item.id, %{assignment: %{security_id: target}}))
+    end
+
+    assert %Item{security_id: ^security_id, status: :promoted} = Repo.get!(Item, item.id)
+    assert Journal.list_entries(resource_type: "news_item", limit: 10) == []
+  end
+
+  # --- closing act, NL2 end ---
 end

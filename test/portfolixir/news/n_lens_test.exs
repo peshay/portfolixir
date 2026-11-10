@@ -74,7 +74,6 @@ defmodule Portfolixir.News.NLensTest do
   # - An aggregator story of Northwind promoted to a Northwind note, whose
   #   item is then assigned to Harbourline by hand: no Harbourline story
   #   names the Northwind note, and a Northwind story still names it.
-  @tag :n_lens_red
   test "an item kept in a security's research log does not carry the note to another security" do
     northwind = watched!("Northwind Harbour Logistics AG", "Northwind Harbour")
     harbourline = watched!("Harbourline Shipping AG", "Harbourline")
@@ -89,7 +88,7 @@ defmodule Portfolixir.News.NLensTest do
         story_id
       )
 
-    _assigned = News.assign_item(@agent, item.id, harbourline.id)
+    assert {:error, %{"news_id" => [_]}} = News.assign_item(@agent, item.id, harbourline.id)
 
     refute Enum.any?(story_rows(harbourline), &(note.id in &1.note_ids))
     assert Enum.any?(story_rows(northwind), &(note.id in &1.note_ids))
