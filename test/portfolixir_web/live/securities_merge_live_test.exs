@@ -1331,4 +1331,24 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     |> Regex.scan(refusal, capture: :all_but_first)
     |> List.flatten()
   end
+
+  # User story (Sprint 28 closing act, board 08's finding on QA1):
+  # As the operator reading a merge preview in its dialog,
+  # I want a master-data row's reason to wrap under its value,
+  # so that „übernommen: …“ reads whole instead of scrolling the table
+  # sideways out of the dialog.
+  #
+  # Acceptance criteria:
+  # - The reason under a value wraps (white-space normal) and breaks a long
+  #   word where it must, whatever the data table's cells do.
+  test "a master-data row's reason wraps under its value" do
+    css = File.read!("priv/static/app.css")
+
+    [_, body] =
+      Regex.run(~r/(?:^|\n)\.merge-table td small \{([^}]*)\}/, css) ||
+        flunk("no rule for .merge-table td small")
+
+    assert body =~ ~r/white-space:\s*normal;/
+    assert body =~ ~r/overflow-wrap:\s*anywhere;/
+  end
 end
