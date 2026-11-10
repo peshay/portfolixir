@@ -7469,6 +7469,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp sync_reason(:sync_in_progress),
     do: gettext("A sync of this security is already running.")
 
+  # Sprint 28 closing act (UAT line on #1411, QA3): a refusal for another
+  # currency reads as a sentence; a stated value that is no currency code
+  # is never shown, it stays in the log.
+  defp sync_reason({:currency_mismatch, stated}) when is_binary(stated),
+    do:
+      gettext(
+        "The quote provider reports prices in %{currency}, not in the security's currency; nothing was stored.",
+        currency: stated
+      )
+
+  defp sync_reason({:invalid_currency, _value}),
+    do: gettext("The quote provider stated no valid currency; nothing was stored.")
+
   defp sync_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp sync_reason(reason), do: inspect(reason)
 

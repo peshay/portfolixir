@@ -1485,7 +1485,7 @@ msgstr ""
 msgid "Unrealised P&L"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7499
+#: lib/portfolixir_web/live/securities_live.ex:7512
 #, elixir-autogen, elixir-format
 msgid "default"
 msgstr ""
@@ -1999,7 +1999,7 @@ msgid "Set balance"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6110
-#: lib/portfolixir_web/live/securities_live.ex:7494
+#: lib/portfolixir_web/live/securities_live.ex:7507
 #, elixir-autogen
 msgid "YTD"
 msgstr ""
@@ -2008,25 +2008,25 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:1036
 #: lib/portfolixir_web/live/dashboard_live.ex:1039
 #: lib/portfolixir_web/live/portfolio_live.ex:6111
-#: lib/portfolixir_web/live/securities_live.ex:7495
+#: lib/portfolixir_web/live/securities_live.ex:7508
 #, elixir-autogen
 msgid "1Y"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6112
-#: lib/portfolixir_web/live/securities_live.ex:7496
+#: lib/portfolixir_web/live/securities_live.ex:7509
 #, elixir-autogen
 msgid "3Y"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6113
-#: lib/portfolixir_web/live/securities_live.ex:7497
+#: lib/portfolixir_web/live/securities_live.ex:7510
 #, elixir-autogen
 msgid "5Y"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6114
-#: lib/portfolixir_web/live/securities_live.ex:7498
+#: lib/portfolixir_web/live/securities_live.ex:7511
 #, elixir-autogen
 msgid "Max"
 msgstr ""
@@ -3030,7 +3030,7 @@ msgid "Income per month in %{year}"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:257
-#: lib/portfolixir_web/live/securities_live.ex:7684
+#: lib/portfolixir_web/live/securities_live.ex:7697
 #, elixir-autogen, elixir-format
 msgid "No logo"
 msgstr ""
@@ -4958,7 +4958,7 @@ msgid "Last known value —"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:256
-#: lib/portfolixir_web/live/securities_live.ex:7683
+#: lib/portfolixir_web/live/securities_live.ex:7696
 #, elixir-autogen, elixir-format
 msgid "No quote at all"
 msgstr ""
@@ -5234,7 +5234,7 @@ msgid "Any"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:254
-#: lib/portfolixir_web/live/securities_live.ex:7681
+#: lib/portfolixir_web/live/securities_live.ex:7694
 #, elixir-autogen, elixir-format
 msgid "No quote in %{days} days"
 msgstr ""
@@ -5355,23 +5355,23 @@ msgstr ""
 msgid "Filter the list"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7701
+#: lib/portfolixir_web/live/securities_live.ex:7714
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:258
-#: lib/portfolixir_web/live/securities_live.ex:7685
+#: lib/portfolixir_web/live/securities_live.ex:7698
 #, elixir-autogen, elixir-format
 msgid "Missing FX rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7700
+#: lib/portfolixir_web/live/securities_live.ex:7713
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7699
+#: lib/portfolixir_web/live/securities_live.ex:7712
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr ""
@@ -5394,14 +5394,14 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6160
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:405
-#: lib/portfolixir_web/live/securities_live.ex:7678
+#: lib/portfolixir_web/live/securities_live.ex:7691
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6157
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:432
-#: lib/portfolixir_web/live/securities_live.ex:7675
+#: lib/portfolixir_web/live/securities_live.ex:7688
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr ""
@@ -10644,18 +10644,18 @@ msgid "The security has no currency."
 msgstr ""
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:919
-#: lib/portfolixir_web/live/securities_live.ex:7491
+#: lib/portfolixir_web/live/securities_live.ex:7504
 #, elixir-autogen, elixir-format
 msgid "1M"
 msgstr ""
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:920
-#: lib/portfolixir_web/live/securities_live.ex:7492
+#: lib/portfolixir_web/live/securities_live.ex:7505
 #, elixir-autogen, elixir-format
 msgid "3M"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:7493
+#: lib/portfolixir_web/live/securities_live.ex:7506
 #, elixir-autogen, elixir-format
 msgid "6M"
 msgstr ""
@@ -11452,7 +11452,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:260
-#: lib/portfolixir_web/live/securities_live.ex:7687
+#: lib/portfolixir_web/live/securities_live.ex:7700
 #, elixir-autogen, elixir-format
 msgid "Priced on two scales"
 msgstr ""
@@ -12165,7 +12165,7 @@ msgid "no return, no cost basis"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:263
-#: lib/portfolixir_web/live/securities_live.ex:7690
+#: lib/portfolixir_web/live/securities_live.ex:7703
 #, elixir-autogen, elixir-format
 msgid "Quote does not match bookings"
 msgstr ""
@@ -15820,7 +15820,7 @@ msgid "Above eight bands the smallest merge into “Other”, which always sits 
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:266
-#: lib/portfolixir_web/live/securities_live.ex:7703
+#: lib/portfolixir_web/live/securities_live.ex:7716
 #, elixir-autogen, elixir-format
 msgid "Currency mismatch"
 msgstr ""
@@ -16760,4 +16760,14 @@ msgstr ""
 #: lib/portfolixir_web/live/news_live.ex:462
 #, elixir-autogen, elixir-format
 msgid "„Newest from the best source“ is the newest story of the row's best tier; „Label“ sums up all its new stories, their highest materiality and their event types, so the two can name different stories."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:7477
+#, elixir-autogen, elixir-format
+msgid "The quote provider reports prices in %{currency}, not in the security's currency; nothing was stored."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:7483
+#, elixir-autogen, elixir-format
+msgid "The quote provider stated no valid currency; nothing was stored."
 msgstr ""
