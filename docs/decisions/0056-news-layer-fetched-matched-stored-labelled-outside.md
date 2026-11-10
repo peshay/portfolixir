@@ -13,8 +13,10 @@ description: "Decision for gate B3.3, narrowed to news (idea F12, idea I21; exte
   day (see "Amendment of 2026-11-06"), and amended on 2026-11-07 by the
   merge of the Sprint 27 planning PR (see "Amendment of 2026-11-07"), and
   amended on 2026-11-08 by the Sprint 27 closing act, adopted by the merge
-  of the sprint PR (see "Amendment of 2026-11-08" at the end). The merge
-  opens gate B3.3
+  of the sprint PR (see "Amendment of 2026-11-08"), and amended on
+  2026-11-09 by the Sprint 28 build and its closing act, adopted by the
+  merge of that sprint PR (see "Amendment of 2026-11-09" at the end). The
+  merge opens gate B3.3
   **for news feeds only**; every other kind of acquisition (bank, broker
   and wallet sync, F13; CPI and other series) stays behind it.
 - **Date:** 2026-11-05
@@ -712,3 +714,355 @@ day, so `err_24h` sums today's and yesterday's rows and can include up to
 "errors of the server's current and previous day". Counting per hour would
 add rows for a figure that only needs to read "not zero". **To flip:**
 "news errors hourly".
+
+## Amendment of 2026-11-09: what the second sprint decided
+
+**Adopted by the merge of the Sprint 28 sprint PR**, as the amendment of
+2026-11-08 was adopted by Sprint 27's. The second sprint (§11) built §7 to
+§10, A2, A3's yield and the end of C4, and its closing act attacked them.
+Where this record left an answer open, the story that met it decided and
+its commit and module documentation say why; this amendment collects
+those answers, so the record and the code say the same thing. None books
+or corrects a stored money figure, so each is decided here with its
+reason and flips by a comment naming its flip; where none is offered, the
+alternative loses a story or opens a hole.
+
+### D1. A label: replaced in place, checked without a foreign key, closed to the last character
+
+- **The same `(cluster_id, model, prompt_version)` replaces the label in
+  place**, a full replacement (an optional field the put leaves out is
+  cleared), journaled as an update whose before-image is the old label; a
+  put equal to the stored label writes and journals nothing. *Why:* a
+  labeller that corrects itself without a new prompt version is believed,
+  and the journal keeps what it withdrew; ignoring the second put would
+  keep a label its own author took back. **To flip:** "news labels
+  append".
+- **No foreign key on `cluster_id` or `suggested_security_id`.** Labels
+  are kept without limit (§12) while stories age out and merge away, and a
+  suggestion must never block a security's merge or delete. The write
+  checks that both exist and holds their rows `FOR KEY SHARE` until it
+  commits. A label can outlive its story; it then names nothing a read
+  shows. **To flip:** none offered.
+- **`confidence` is a decimal string** from 0 to 1 with at most four
+  places, checked against its own truncation, never rounded; a JSON number
+  answers "must be a decimal string", as every decimal the API takes
+  (ADR-0003). **`model` and `prompt_version` are identifiers:** 1 to 64
+  letters, digits or `. _ : / @ + -`, starting with a letter or a digit,
+  no invisible character (ADR-0054 §4). A digest consumer's name has the
+  same shape (D3).
+- **`thesis_note_id` names only the thesis the labeller's read offers**
+  (closing act, AT2): the story's security's current thesis while it is
+  intact, and `clause_idx` counts that thesis's clauses. §7 offers "the
+  active thesis"; a label that names a superseded or withdrawn one ties a
+  story to a condition nobody holds any more.
+- **The wrapper sent in the query is refused** (AT3): `label` (and
+  Sprint 27's `feed` and `source`) in the query string beside a JSON body
+  answers 422 naming it. The query's fields had been dropped in silence
+  while the put answered 201; a closed schema that drops is not closed.
+- **The labeller's read** answers 10 stories by default and 25 at most,
+  six clauses per thesis with `more` counting the rest, and holds 6,000
+  tokens at the default on the companion's text with a 40-security
+  universe. **The universe is not bounded:** it is the news universe and
+  the rows' securities, so an instance that watches far more pays more
+  per call. Recorded, not capped. **To flip:** "news universe paged".
+- A label write moves no derived figure (`BlastRadius`): it sorts reads
+  and is read nowhere else.
+
+### D2. The reads take one prompt version, and one active label of it
+
+- **`prompt_version` is a parameter of `news.list`, `news.get` (a story)
+  and `news.digest`; without it, the version of the label created last.**
+  *Why one version per read:* materialities from two prompts are not on
+  one scale, so one answer never compares them; a story the new prompt has
+  not labelled reads as unlabelled and comes back in `news.unlabeled`.
+  *Why creation, not update:* a correction to an old version's label does
+  not move the reads back to that version. **To flip:** "news label per
+  story newest".
+- **The active label** (§7's "newest one per prompt_version") is the one
+  written last, by `updated_at`, then the smallest model name, never an
+  id.
+- **To hold §9's budgets with the widest label** (a 64-character prompt
+  version, materiality 3, the longest event types), the digest names **at
+  most two event types** per row, the most material first, and cuts its
+  top story's title at **50** characters (C5 cut at 100): 754 of 800
+  tokens measured; the list 1,452 of 1,500; `news.get` 362 of 400.
+  **`news.get`'s label leaves out `model` and `prompt_version`** (the
+  version is the read's, and both are in the journal), and the excerpt,
+  cut last, gives way to it. **To flip:** a number by comment.
+- **The count is named `unlabeled`**, where §7 wrote `n_unlabeled`: §9's
+  compact rule names fields by what they count.
+- `min_materiality` on `news.list` defaults to 0; above 0 it also leaves
+  out the unlabelled aggregator and thematic stories, and with
+  `cluster_id` or `assignment` it answers 422 (it reads stories). No read
+  takes `tone` (§7).
+- **`tier_min` is not a digest parameter.** §9's signature lists
+  `tier_min=secondary`; the digest built in Sprint 27 never took it, and
+  it answers 422 naming it, while `news.list` takes it. That is recorded
+  here as the state: what the digest counts is decided by the feed's class
+  and the label (§7), and its `hidden` count says what that rule left out
+  (C5); a tier floor beside it would leave out stories `hidden` does not
+  count, the false calm C5 removed. A primary story comes only from an
+  issuer or regulatory feed (B5) and always counts. **To flip:** "news
+  digest tier_min" (the floor, its omissions counted in `hidden`).
+
+### D3. The consumer cursor (§9)
+
+- **A consumer is a row of `news_digest_consumers`, not journaled.**
+  `Portfolixir.Journal.Allowlist`'s non-journaled tables grow by this one
+  table, beside B7's staging area, and the allowlist's test says growing
+  that list takes an amendment of a record: this is it. *Why:* the
+  position is a reader's bookmark that every confirmed read moves, and it
+  changes nothing any other reader is answered; journaling it would write
+  an entry per agent run and record no decision.
+- **A cursor is `<unix seconds>~<tag>`**, the tag an HMAC-SHA-256 over the
+  consumer's row id, its name and the position, cut to 16 bytes, under a
+  **key derived from `SECRET_KEY_BASE`** for this one purpose. Nothing
+  secret is stored: a stored key would be a credential-shaped column, the
+  thing the stored-credentials backstop (B1) refuses. A changed
+  `SECRET_KEY_BASE` refuses every earlier cursor; the consumer reads once
+  without `ack_cursor`, from its confirmed position, and loses nothing.
+- **The position is the answer's moment** (the digest's `as_of`, a little
+  early, so a story may repeat and never be skipped). **A new consumer
+  starts 24 hours back**, the stateless default window, and its start
+  counts as confirmed. **A confirmation is one `GREATEST` update**: an
+  older cursor changes nothing, and of two racing confirmations the newer
+  stays, whichever commits last.
+- **Refusals** (422, naming the parameter): `since` beside `consumer`;
+  `ack_cursor` or `page` without `consumer`; `page` beside `ack_cursor`; a
+  name that is not an identifier; a cursor not issued to that consumer
+  (forged, altered, another consumer's, or one issued before the consumer
+  was deleted and named again); a new consumer beyond the cap.
+- **A consumer is not bound to a token.** Every token carries the same
+  authority (ADR-0054 §1), and a name is a run's bookmark, not a
+  principal. `news.digest` stays read-only in every profile: the position
+  it moves is the consumer's own. **To flip:** "news consumer per token".
+- **At most 32 consumers**, created one at a time under an advisory lock
+  so the cap holds. **The daily retention deletes a consumer not
+  confirmed for 90 days** (its `updated_at`: its last confirmation or,
+  never confirmed, its creation); named again it starts anew, 24 hours
+  back. *Why a cap:* an agent that names a fresh consumer each run would
+  grow the table without bound and read the stateless 24 hours in
+  disguise. **The residual:** a careless agent can fill the cap and hold
+  it for 90 days, and no API path removes a consumer; stored consumers keep
+  reading, a new name is refused, and the stateless `since` digest still
+  answers. **To flip:** "news consumers delete tool".
+- **A consumer's truncated digest is paged** (closing act, AT5): with
+  `consumer`, an answer cut by `max_rows` carries `next_page`, a page
+  token, and no cursor; sent back as `page` it answers the next rows, and
+  only the last page carries the cursor, at the first page's moment, so a
+  confirmation never passes a row an answer left out and what arrived
+  while the consumer paged reads after it. A page token names the
+  consumer's position, that moment and the place of the last row
+  answered, signed under a key of its own purpose, so neither passes for
+  the other; paging moves nothing; a page of a position the consumer has
+  confirmed past answers the first page from the new one with
+  `restarted: true`. Rows tie, after their materiality and their top
+  story's tier and publication, by security id: a link would not fit a
+  page token. `since` keeps `truncated` and `more`.
+- **A label written after the position makes a story new** (closing act,
+  AT6): for a consumer a story is new when it entered its scope after the
+  position, or when its active label of the read's prompt version was
+  written or replaced after it. An aggregator story hidden as unlabelled
+  when the consumer confirmed is otherwise lost once a label shows it.
+  The price is a story read again when its label is replaced. The
+  stateless `since` reads `scope_at` alone: its caller chooses the window.
+
+### D4. `news.assign`
+
+- **The route is `PUT /api/v1/news/items/:id/assignment`** with
+  `{"assignment": {"security_id": id or null}}`, `security_id` required.
+  The tool is a replace-shaped write (the previous security sent back
+  restores it): in `book` and `full`, not in `read` or `label`.
+- **Aggregator items only.** An issuer or regulatory item is its feed's
+  security's, a thematic item its feed's category's, by construction
+  (§2); assigning one answers 422 naming `news_id`.
+- **`null` is the matcher's answer now**: one security named assigns it,
+  none leaves it `unassigned`, several `ambiguous` with them. *Why not
+  "the assignment before the hand's":* nothing stores who assigned an
+  item, the matcher's answer is a function of the title and the aliases,
+  and the journal keeps every before-image. An assignment the item already
+  has writes and journals nothing; any other is one `news_item` update,
+  journaled under the actor: B7's exception for a hand write.
+- **The scopes follow in its transaction:** the scope the item left and
+  the one it entered are reclustered in full, as a merge does, and the
+  item enters its new scope at the assignment (`scope_at`, C3).
+- **Securities are locked first** (closing act, AT4): `FOR KEY SHARE`, in
+  id order, on every security the write may touch (the item's own, its
+  candidates, the target or the matcher's names), before the matcher's
+  advisory lock, the scope's and the item's. A security merge holds both
+  securities `FOR UPDATE` before it writes their news items, so the old
+  order deadlocked in both directions. An item that moved between the
+  read and the lock is attempted again, at most three times
+  (`Portfolixir.LockTable`, row 21).
+- **`scope_at` is stamped after the locks** (AT8): an assignment that
+  waited enters its scope after what it waited for, so a consumer that
+  confirmed meanwhile still reads it. An ambiguous item whose set of
+  candidates changes enters its remainder anew, in the one rule the
+  matcher's re-match and `news.assign` share.
+- **A label after a split: the limit, recorded.** A label belongs to a
+  story id. When an item leaves a story (an assignment, a re-match,
+  retention) and the story splits, the label stays with the part that
+  keeps the id, the part holding the survivor key's member (C2), which
+  need not hold the representative whose title the labeller read; the
+  other parts are new stories without a label and return in
+  `news.unlabeled`. A misplaced label can sort an aggregator story; it can
+  hide no issuer or regulatory story (§7). **To flip:** "news relabel on
+  split" (a split drops the label of the part that keeps the id).
+
+### D5. An open question: no suggestion reaches the queue
+
+§7 says `suggested_security_id` "shows beside an `unassigned` or
+`ambiguous` item". **It cannot as built:** a label is a story's, and an
+unassigned or ambiguous item sits in no story (§4 clusters within a
+security's or a category's scope), so no label reaches it. The queue's
+rows and `news.list`'s remainder carry no suggestion, and the page draws
+none (the board did). Until this is decided, an assignment is the agent's
+or the operator's judgment from the title and the candidates. **Two
+options, for the owner:**
+
+- **(a) the labeller labels remainder items**: `news.unlabeled` offers
+  them and `news.label_put` takes a `news_id` in place of a `cluster_id`;
+  a second key on the label and a wider closed schema, attacked again.
+  "news suggest by item" picks it.
+- **(b) the remainder forms stories of its own**, in an "unassigned"
+  scope, so a label reaches them as any story; it changes §4's scopes and
+  what the digest counts as `unassigned`. "news remainder stories" picks
+  it.
+
+### D6. From story to knowledge (§8, A2)
+
+- **What the server fills** for `notes.append` with `cluster_id`:
+  `kind` `evidence` (`event_result` may be sent; another kind answers 422,
+  a story is a finding or an outcome, not a thesis); `as_of` the
+  representative's publication day (clamped, B4) on the instance's
+  calendar; `source_url` the representative's link, or, when it is longer
+  than an entry's 255 characters, the first member's that fits in
+  `news.get`'s member order; `source_quality` by §3's rule over every
+  member (a `primary` member gives `primary`, two or more distinct
+  `secondary` domains `secondary_multi`, one `unverified`, else
+  `awareness`); `headline` the representative's title cut at 80
+  characters on a word boundary as the companion spells them; `event_type`
+  and `tone` from the story's active label of the newest prompt version (a
+  `noise` label gives no event type), the entry keeping that label's id as
+  `news_label_id` only when it took one of them.
+- **What the caller may override:** `kind`, `headline`, `event_type` and
+  `tone`, a `null` leaving one out; the write is the confirmation NFR-10
+  asks for. **What belongs to the story:** `as_of`, `source_url` and
+  `source_quality`, each refused with 422 beside `cluster_id`: they state
+  the provenance by rule, and a write may not claim a better source than
+  the story has. A title holding an invisible character is refused as a
+  headline (ADR-0054 §4), naming `headline`; the caller sends its own.
+- **Every member is promoted** and names the entry, so the story's
+  sources outlive retention (§12). **A second promotion appends another
+  entry**, and the story names both: the log is append-only, and a story
+  may carry a finding and later its outcome. The write runs under the
+  story's scope lock with its members locked.
+- **`events.create` takes an item's `news_id`**, not a story's: an event
+  names one source. The item's link becomes `source_url` and its tier
+  `source_quality` (`secondary` as `unverified`); `source_url` or
+  `source_quality` beside it, an item of another security and a link over
+  255 characters answer 422. The item is not promoted: an event is a
+  mutable calendar fact (ADR-0048), and what lasts from news is an entry
+  (A2).
+- **The entry's columns:** four nullable columns on `security_notes`,
+  `headline` (1 to 80 code points), `event_type` (§7's set without
+  `noise`), `tone` and `news_label_id`, each with a CHECK, the first
+  three on `evidence` and `event_result` entries only. `news_label_id`
+  has no foreign key: it is provenance, and the label it names can be
+  replaced in place (D1); the journal keeps every version.
+  [ADR-0044's amendment of 2026-11-06](0044-security-knowledge-as-an-append-only-log.html#amendment-of-2026-11-06-a-headline-an-event-type-and-a-tone-on-an-entry)
+  is built with them.
+
+### D7. Yield, the dossier and the registry
+
+- **A3 is answered and C4 retired.** `news.health` answers `yield_30d`,
+  `promoted_30d` over `items_30d` as an exact decimal rounded half-up to 4
+  places and left out for a feed without items, and `low_yield` at 50
+  items or more in 30 days with none of its stories promoted
+  (`promoted_30d` counts each promoted story its items are in once). C4's
+  placeholder `yield` is gone. Nothing disables a feed by itself.
+- **The dossier's news block** (§9): `count_7d`, the stories with a member
+  that entered their scope in the last 7 days (as `news.list`'s `since`
+  reads them), `primary_7d`, `max_materiality` of their active labels of
+  the newest prompt version, and `newest_primary`, the newest primary
+  story **at any age** with its title cut at 50, so a quiet security and a
+  dead feed read apart (§6). About 50 tokens on the companion's text,
+  which answers the dossier as compact JSON.
+- **`news.registry`, a ninth tool for the agent** (§9 counted eight), by
+  the coverage rule: the page's Feeds and Quellen tabs showed stored feed
+  URLs, bindings and rated sources that no read listed, a capability for
+  the human only. `GET /api/v1/news/registry` lists them, each row what
+  `news.feeds_put` and `news.sources_put` answer without the interval, in
+  pages of 40 (at most 100) of at most 4,500 tokens, and the page reads
+  through the same function. In `read`, `book` and `full`, not in
+  `label`. `news.list`'s `std` row adds its representative's domain, cut
+  at 40, the source the security's tab shows.
+
+### D8. The human view (§10, A2)
+
+- **The page „Nachrichten“** in the main navigation after Wertpapiere
+  (ADR-0022 names News a top-level area), with three tabs, each an
+  address: Meldungen (the health line, the queue with „Zuordnen“, the
+  digest per security), Feeds and Quellen. **No logic of its own:** each
+  region reads through the function the API's read answers from, with
+  its defaults. The digest is read **without a consumer**, so opening the
+  page moves no agent's position, and over **the news universe**, not a
+  view; the queue shows the first page of each kind (20). „Zuordnen“ is
+  the view's one write, the function `news.assign` calls, journaled under
+  the operator. **Feeds and sources are shown, not edited** (Sprint 28
+  plan D-3): they stay with the API and the companion. **To flip:** "Feeds
+  am Bildschirm pflegen".
+- **The security's tab „Nachrichten“** after Research: its stories as
+  `news.list` reads them, a label marked „maschinell“; „Ins Research-Log“
+  opens the entry form pre-filled with the very proposal D6 writes, and
+  only its save writes (NFR-10). A field left as proposed is not sent, so
+  the server fills it as for the agent. A kept story reads „übernommen“;
+  a second promotion is the API's.
+- **The pins** (A2): a research entry with a headline that no later entry
+  supersedes is drawn at its `as_of` as a pin at the chart's top edge, its
+  colour and glyph the tone; never a story or an item. **One pin per day**,
+  with a count and a mixed tone when several notes share it: two heads on
+  one x would hide each other. A superseded entry is not drawn, since a
+  pin cannot say it was replaced. „Notizen anzeigen“ beside „Transaktionen
+  anzeigen“ toggles them, and the Übersicht's small chart has one toggle
+  under it. The privacy mode keeps them: they name no amount.
+
+### D9. The asks after the second sprint (ADR-0043)
+
+§13's table stands; the second sprint changes these rows.
+
+| Ask | Source | Verdict |
+|---|---|---|
+| Labels from an outside model, fail-open | request §4, §5 | **Answered and built** — §7, D1, D2 |
+| A token only the labeller holds, reaching only its two tools | request §4, §6 item 6 | **Answered differently, built** — a named token, the `label` profile and a closed schema (§7, D1) |
+| Agents without `label_put` | request §6 item 6 | **Built as a convenience** — `read`, `book` and `full` do not list it |
+| Delta without loss | request §3, review | **Answered and built** — the consumer cursor, paged when cut (D3) |
+| Promote a story to a note, an event as its source | request §3 | **Answered and built** — D6 |
+| The human view | request §0, coverage rule | **Answered and built** — D8; feeds and sources stay agent-side (D8) |
+| A label's suggested security beside the queue | §7 | **Deferred** — an open question with two options (D5) |
+| Following redirects of aggregator links | request §1, §7 item 1 | **Deferred**, unchanged — "news follow" |
+| Clustering across languages | review | **Deferred**, unchanged — not a goal (§4) |
+| End-to-end saving of the agent's runs | request §6 | **Outside the app**, unchanged — measured on the real instance |
+
+### D10. An open question: which prompt version the reads follow
+
+D2's default reads the version of the label **created last**. With one
+labeller that is the version it moved to. **With two labellers on
+different prompt versions** (two models compared, or an old script left
+running beside a new one), whichever created a label last decides, so
+every read without `prompt_version` flips between their materialities
+from one call to the next, and the digest's rows and `hidden` count move
+with it. Found by the Sprint 28 closing act's lenses. Until it is
+decided, run one labeller's prompt version at a time, or name
+`prompt_version` on every read. **Two options, for the owner:**
+
+- **(a) a configured active prompt version**: a setting names the version
+  the reads use by default, changed by the operator or the agent, and a
+  version nobody named is read only when a call names it. "news active
+  prompt version" picks it.
+- **(b) per read only**: a read without `prompt_version` reads no label
+  (as with none stored, §7's fail-open), and a caller that wants labels
+  names its version. "news prompt per read" picks it.
+
+§13's table gains no row: this is a question about D2's default, not an
+ask.

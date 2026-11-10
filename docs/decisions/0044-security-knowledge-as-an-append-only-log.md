@@ -9,7 +9,8 @@ description: What an agent knows about a security is recorded as entries that ar
 - **Status:** Accepted (owner sign-off 2026-09-03, decision gate per
   [ADR-0026](0026-epic-batch-workflow.html) step 1). Amended 2026-11-06,
   adopted by the merge of the Sprint 26 planning PR: an entry may carry a
-  headline, an event type and a tone (see the amendment at the end)
+  headline, an event type and a tone (see the amendment at the end); built
+  in Sprint 28
 - **Date:** 2026-08-27 (signed 2026-09-03)
 - **Closes gate:** B4.1 (theses and conviction as structured fields), together
   with the agent's P0-6 (an append-only research log). The two were opened
@@ -294,3 +295,8 @@ the label it took them from.
 derived from the credential, `machine_generated` stays reserved for a
 local-model path (an outside model's label becomes an entry only through
 an agent's write).
+
+**Built in Sprint 28** (N5), as written above: the four nullable columns
+`headline`, `event_type`, `tone` and `news_label_id` on the entry, each
+with a CHECK; what a story pre-fills and what the writer may change is in
+[ADR-0056's amendment of 2026-11-09, D6](0056-news-layer-fetched-matched-stored-labelled-outside.html#d6-from-story-to-knowledge-8-a2).
