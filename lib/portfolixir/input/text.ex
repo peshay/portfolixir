@@ -11,7 +11,9 @@ defmodule Portfolixir.Input.Text do
     * invalid UTF-8;
     * NUL and every other C0 control character, DEL and the C1 controls —
       except tab, line feed and carriage return in text that is multi-line by
-      nature (`multiline: true`: notes, descriptions);
+      nature (`multiline: true`: notes, descriptions) — and, in single-line
+      text, Unicode's line and paragraph separators U+2028 and U+2029
+      (ADR-0054 §4 "one line"; Sprint 28's closing act, NL4);
     * **invisible characters** (E25 S7, G20; security review 2026-10-12,
       H12): Unicode's whole Default_Ignorable_Code_Point set and the
       interlinear annotation characters — the tag characters and the rest of
@@ -64,9 +66,11 @@ defmodule Portfolixir.Input.Text do
 
   import Ecto.Changeset
 
-  # C0 minus tab, line feed and carriage return; DEL; C1.
+  # C0 minus tab, line feed and carriage return; DEL; C1. One line also
+  # refuses Unicode's line and paragraph separators U+2028 and U+2029 (Zl,
+  # Zp; Sprint 28's closing act, NL4): a line break by any other name.
   @multiline_controls ~r/[\x{0}-\x{8}\x{B}\x{C}\x{E}-\x{1F}\x{7F}-\x{9F}]/u
-  @single_line_controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u
+  @single_line_controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}\x{2028}\x{2029}]/u
 
   # E25 S7, G20: the characters an operator cannot see. The ranges are
   # written out rather than read from the Unicode tables (`\p{Cf}`), so this
