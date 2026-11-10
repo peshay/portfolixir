@@ -9684,14 +9684,22 @@ and the MCP tools answer, for the section's period and the page's view.
 the owner; board `mockups/ux-design-2026-11-08-sprint28/06-privacy-stack`
 ②):* **the stack keeps its shape.** The picture is the value mode's,
 coordinate for coordinate: the same bands, the same areas below zero, the
-same axis lines (`StackedChart.geometry/1` takes no privacy argument). Only the labels
-change: each axis tick reads as a whole percent of **the bands' total on
+same plot range. Only the labels and the axis lines change: each axis tick
+reads as a whole percent of **the bands' total on
 the window's first day** (100 %), with a filter the filtered bands' total,
 as Sprint 26's rule reads every axis in a currency (board 02; the „Wert
 (%)“ line). Where that total is not above zero (a buy booked before the
 money that pays it, an empty start), the ticks read in percent of the first
 day whose total is, and the ⓘ names that day; where no day's total is
 above zero, the ticks carry no label (the lines stay) and the ⓘ says so.
+*Amended in Sprint 28's closing act (design critic, D2; boards 02 ⑥ and
+06 ②):* the axis reads **round steps**, 1, 2, 2.5 or 5 times a power of ten
+in the axis's own unit, a currency unit or a whole percent, the ticks being
+the step's multiples inside the plot, so **0 is labelled** whenever the
+stack reaches below zero; the plot's range stays the data's, so the bands
+are the value mode's coordinate for coordinate while the axis lines sit at
+round percents (they would otherwise sit at round amounts, which the mode
+must not show either). The TTWROR lines read the same steps.
 The ⓘ's privacy sentence says what the axis reads. The legend drops the
 Value column and keeps Share, the API's net share, and Change; the rows
 carry no `data-end-value`, the bands' titles name the band and its share,
