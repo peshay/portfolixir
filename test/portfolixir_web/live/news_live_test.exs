@@ -242,8 +242,10 @@ defmodule PortfolixirWeb.NewsLiveTest do
              cell_time(row["top"]["at"])
            )
 
+    # S28 N8: an event type in words, never its code.
     for type <- row["event_types"] do
-      assert has_element?(view, selector <> " [data-role='digest-label']", type)
+      words = PortfolixirWeb.EventTypeLabel.event_type(type)
+      assert has_element?(view, selector <> " [data-role='digest-label']", words)
     end
 
     assert has_element?(

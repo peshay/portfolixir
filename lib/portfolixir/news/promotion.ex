@@ -124,6 +124,33 @@ defmodule Portfolixir.News.Promotion do
     end
   end
 
+  # --- S28 N8 begin ---
+
+  @doc """
+  The pre-fill `append_note/3` would write for the story `cluster_id` of
+  the security `security_id`, read without a write (Sprint 28, N8: the
+  security's tab „Nachrichten“ opens the note form with it, and only the
+  form's save writes, through `append_note/3`, NFR-10): `kind`, `as_of`,
+  `source_url`, `source_quality`, `headline`, and `event_type` and `tone`
+  from the active label when it has them, as string keys. The same story
+  rule refuses as the write does: `{:error, errors}` naming `cluster_id`.
+
+  A proposal is read at the moment it is shown; the write reads the story
+  again under its lock, so a label put in between is the one the entry
+  takes.
+  """
+  @spec proposal(pos_integer(), pos_integer()) :: {:ok, map()} | {:error, errors()}
+  def proposal(cluster_id, security_id) when is_integer(cluster_id) and is_integer(security_id) do
+    with {:ok, story} <- own_story(cluster_id, security_id),
+         members = Repo.all(from(i in Item, where: i.cluster_id == ^story.id, order_by: i.id)),
+         {:ok, source_url} <- source_url(story, members) do
+      {prefill, _label} = prefill(story, members, source_url)
+      {:ok, prefill}
+    end
+  end
+
+  # --- S28 N8 end ---
+
   defp refuse_story_fields(attrs) do
     case Enum.filter(@story_fields, &Map.has_key?(attrs, &1)) do
       [] ->

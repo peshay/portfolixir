@@ -174,7 +174,8 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
       |> Enum.map(&Floki.attribute(&1, "phx-value-tab"))
       |> List.flatten()
 
-    assert Enum.drop(tabs, 7) == ["research", "predictions", "events"]
+    # S28 N8: the tab „Nachrichten“ stands between Research and Predictions.
+    assert Enum.drop(tabs, 7) == ["research", "news", "predictions", "events"]
 
     view |> element("#detail-tab-predictions") |> render_click()
     assert_patch(view, "/securities/#{w.security.id}?tab=predictions")

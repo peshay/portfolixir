@@ -42,6 +42,7 @@ defmodule PortfolixirWeb.NewsLive do
   alias Portfolixir.News.Reads
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.StoredText
@@ -524,13 +525,14 @@ defmodule PortfolixirWeb.NewsLive do
 
   attr(:row, :map, required: true)
 
-  # A row's label (§7): its event types and highest materiality, marked
+  # A row's label (§7): its event types in words (S28 N8,
+  # `PortfolixirWeb.EventTypeLabel`) and highest materiality, marked
   # machine-made; none, „ohne Einordnung“.
   defp label(assigns) do
     ~H"""
     <%= if @row.materiality do %>
       <span class="news-label">
-        <%= Enum.join(@row.event_types || [], ", ") %> · <%= gettext("materiality %{value}", value: @row.materiality) %>
+        <%= Enum.map_join(@row.event_types || [], ", ", &EventTypeLabel.event_type/1) %> · <%= gettext("materiality %{value}", value: @row.materiality) %>
         <span class="badge badge--neutral"><%= gettext("machine-made") %></span>
       </span>
     <% else %>

@@ -7,8 +7,9 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
       `cluster_id` (the story's items) or `assignment=unassigned|ambiguous`
       (the remainder, with candidates). `since` (by `scope_at`, B4, C3),
       `tier_min` (`primary`, `secondary`, `awareness`), `limit` (default 20,
-      at most 100), `fields=slim|std` (`std` adds `url` and `note_ids`) and
-      `cursor` (the `cursor` of a truncated page). See
+      at most 100), `fields=slim|std` (`std` adds `url` and `note_ids`, and
+      to a story row its `domain`, S28 N8) and `cursor` (the `cursor` of a
+      truncated page). See
       `Portfolixir.News.Reads.list/2`. Story rows carry their active
       label's `materiality` and `event_type`; `min_materiality` (0 to 3,
       default 0) leaves out the aggregator and thematic stories below it
@@ -626,7 +627,10 @@ defmodule PortfolixirWeb.Api.V1.NewsReadController do
         event_type: story.event_type
       })
 
-    if std?, do: Map.merge(slim, %{url: story.url, note_ids: story.note_ids}), else: slim
+    # S28 N8: std adds the representative's domain beside its link.
+    if std?,
+      do: Map.merge(slim, %{url: story.url, domain: story.domain, note_ids: story.note_ids}),
+      else: slim
   end
 
   defp row(:items, item, std?) do

@@ -248,6 +248,9 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
           "/news?tab=feeds",
           "/news?tab=sources",
           # --- S28 N7 end ---
+          # --- S28 N8 begin ---
+          "/securities/#{ctx.next.id}?tab=news",
+          # --- S28 N8 end ---
           "/portfolio?level=category",
           "/portfolio?level=security",
           "/portfolio?level=security&category=#{ctx.core.id}",

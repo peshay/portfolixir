@@ -563,9 +563,21 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # --- Sprint 28 S6 lens end ---
 
   # --- S28 N7 begin ---
+  # S28 N8: on the most traded security, the first `/securities/:id` the
+  # walk opens, so its tab „Nachrichten“ is read filled too.
   defp news! do
-    security = Repo.one(from(s in Security, order_by: s.id, limit: 1))
-    Portfolixir.NewsFixtures.page_world!(security)
+    security_id =
+      Repo.one(
+        from(t in Transaction,
+          where: not is_nil(t.security_id) and t.type in ["buy", "sell"],
+          group_by: t.security_id,
+          order_by: [desc: count(t.id), asc: t.security_id],
+          limit: 1,
+          select: t.security_id
+        )
+      )
+
+    Portfolixir.NewsFixtures.page_world!(Repo.get!(Security, security_id))
   end
 
   # --- S28 N7 end ---

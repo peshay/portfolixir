@@ -33,11 +33,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.News
+  alias Portfolixir.News.Reads
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Predictions
+  alias PortfolixirWeb.Api.V1.JSON, as: ApiJSON
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ChangedSince
@@ -58,6 +61,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
   alias PortfolixirWeb.Securities.SplitWizardDialog
+  alias PortfolixirWeb.Securities.StoriesTab
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
@@ -67,7 +71,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
 
-  @tabs ~w(overview chart transactions trades quotes holdings classifications research predictions events)
+  @tabs ~w(overview chart transactions trades quotes holdings classifications research news predictions events)
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
@@ -81,6 +85,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # only ones its submit is read for (E25 S6, F15, decision T-5).
   @research_form_keys ~w(kind source_quality as_of supersedes_id body source_url
                          valid_until conviction invalidation_condition time_stop)
+
+  # S28 N8: the fields the story's note form offers to change (ADR-0056 §8);
+  # its body is the operator's, its date and source the story's.
+  @promotion_fields ~w(kind headline event_type tone)
 
   # Data-quality shortcut filters (#561): conditions that are not expressible
   # as a plain column filter — stale/missing quotes are metric-derived and the
@@ -173,6 +181,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
      |> assign(:research_form_values, %{})
+     # S28 N8: the tab „Nachrichten“ and its note form, closed.
+     |> assign(:detail_stories, %{rows: [], truncated: false})
+     |> assign(:detail_story_block, nil)
+     |> assign(:story_promotion, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
@@ -1508,6 +1520,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
+      <%!-- S28 N8 (ADR-0056 §8, §10; board ux-design-2026-11-08-sprint28/01):
+           the security's stories, after Research. --%>
+      <%= if @detail_tab == "news" do %>
+        <StoriesTab.panel
+          rows={@detail_stories.rows}
+          truncated={@detail_stories.truncated}
+          block={@detail_story_block}
+          promotion={@story_promotion}
+        />
+      <% end %>
+
       <%!-- Sprint 26 V1 (ADR-0055 §5; board ux-design-2026-11-06-sprint26-f1,
            part 1): the security's predictions, after Research. --%>
       <%= if @detail_tab == "predictions" do %>
@@ -1594,7 +1617,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </section>
       <% end %>
 
-      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research predictions events) do %>
+      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research news predictions events) do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -4284,6 +4307,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {"holdings", gettext("Holdings")},
       {"classifications", gettext("Classifications")},
       {"research", gettext("Research")},
+      # S28 N8 (ADR-0056 §10; board ux-design-2026-11-08-sprint28/01): the
+      # security's stories beside its research log, where a story is kept.
+      {"news", gettext("News")},
       # Sprint 26 V1 (board ux-design-2026-11-06-sprint26-f1, judgment call
       # 1): a prediction points at a research entry, so the two stand
       # together; the row scrolls since #817.
@@ -5553,6 +5579,59 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("research_entry_changed", _params, socket), do: {:noreply, socket}
 
+  # --- S28 N8 begin ---
+  # „Ins Research-Log“ (ADR-0056 §8, NFR-10): opening the form writes
+  # nothing; its save is the one write, the function notes.append with a
+  # cluster_id calls, journaled under the operator's UI actor.
+  def handle_event("open_promotion", %{"story" => story}, socket) do
+    with %Security{} = security <- socket.assigns.selected_security,
+         {:ok, cluster_id} <- LiveParam.fetch_id(story) do
+      {:noreply, open_promotion(socket, security, cluster_id)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_promotion", _params, socket),
+    do: {:noreply, assign(socket, :story_promotion, nil)}
+
+  def handle_event("save_promotion", %{"promotion" => params}, socket) when is_map(params) do
+    with %Security{id: id} <- socket.assigns.selected_security,
+         %{security_id: ^id} = promotion <- socket.assigns.story_promotion do
+      params = LiveParam.map(params)
+      attrs = promotion_attrs(promotion, params, id)
+
+      case News.append_note_from_story(Actor.owner_ui(), attrs, promotion.cluster_id) do
+        {:ok, note} ->
+          {:noreply,
+           socket
+           |> assign(:story_promotion, nil)
+           |> load_research_log()
+           |> load_stories()
+           |> put_action_result(
+             :note,
+             gettext("Entry #%{id} appended to the research log.", id: note.id)
+           )}
+
+        {:error, refusal} ->
+          values = Map.merge(promotion.values, Map.take(params, @promotion_fields ++ ["body"]))
+
+          {:noreply,
+           assign(socket, :story_promotion, %{
+             promotion
+             | values: values,
+               errors: promotion_errors(refusal)
+           })}
+      end
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("save_promotion", _params, socket), do: {:noreply, socket}
+
+  # --- S28 N8 end ---
+
   # E25 S7, G20: the remedy of an entry carrying invisible characters opens
   # the append form with that entry as the one it supersedes.
   def handle_event("supersede_research_entry", %{"id" => id}, socket) do
@@ -6505,6 +6584,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_metric_block, nil)
     |> assign(:detail_events, [])
     |> assign(:detail_predictions, [])
+    |> assign(:detail_stories, %{rows: [], truncated: false})
+    |> assign(:detail_story_block, nil)
+    |> assign(:story_promotion, nil)
     |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
     |> assign(:detail_lineage, %{former_isins: [], merged_from: []})
@@ -6620,6 +6702,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     })
     |> load_research_log()
     |> load_predictions()
+    |> load_stories()
   end
 
   # Sprint 26 V1 (ADR-0055 §5): the security's predictions with their
@@ -6632,6 +6715,123 @@ defmodule PortfolixirWeb.SecuritiesLive do
        do: assign(socket, :detail_predictions, Predictions.list_with_resolution(security_id: id))
 
   defp load_predictions(socket), do: assign(socket, :detail_predictions, [])
+
+  # --- S28 N8 begin ---
+  # The tab „Nachrichten“ (ADR-0056 §10): the page news.list answers for the
+  # security with fields=std and the API's defaults, and the dossier's news
+  # block, each through the context function the API reads. Read only while
+  # the tab is open; its note form stays open across a reload of the same
+  # security's tab and closes on any other.
+  @story_limit 20
+
+  defp load_stories(
+         %{assigns: %{selected_security: %Security{id: id}, detail_tab: "news"}} = socket
+       ) do
+    {:ok, page} =
+      Reads.list({:security, id},
+        since: nil,
+        tier_min: nil,
+        limit: @story_limit,
+        cursor: nil,
+        as_of: Reads.as_of(),
+        min_materiality: 0,
+        prompt_version: News.newest_prompt_version()
+      )
+
+    promotion =
+      case socket.assigns[:story_promotion] do
+        %{security_id: ^id} = open -> open
+        _other -> nil
+      end
+
+    socket
+    |> assign(:detail_stories, %{rows: page.rows, truncated: page.truncated})
+    |> assign(:detail_story_block, News.dossier_block(id, DateTime.utc_now()))
+    |> assign(:story_promotion, promotion)
+  end
+
+  defp load_stories(socket) do
+    socket
+    |> assign(:detail_stories, %{rows: [], truncated: false})
+    |> assign(:detail_story_block, nil)
+    |> assign(:story_promotion, nil)
+  end
+
+  # The note form of the story `cluster_id`, pre-filled with what
+  # notes.append with the cluster_id would write (NFR-10: opening it writes
+  # nothing).
+  defp open_promotion(socket, %Security{id: id}, cluster_id) do
+    with {:ok, proposal} <- News.story_proposal(cluster_id, id),
+         %{} = row <- Enum.find(socket.assigns.detail_stories.rows, &(&1.id == cluster_id)) do
+      values =
+        proposal
+        |> Map.take(~w(kind headline event_type))
+        |> Map.put("tone", proposal["tone"] && to_string(proposal["tone"]))
+
+      assign(socket, :story_promotion, %{
+        security_id: id,
+        cluster_id: cluster_id,
+        title: row.title,
+        proposal: proposal,
+        quality_label: source_quality_label(proposal["source_quality"]),
+        values: values,
+        errors: %{}
+      })
+    else
+      _gone -> put_action_result(socket, :problem, gettext("The story is no longer there."))
+    end
+  end
+
+  # Only what the operator changed is sent beside the cluster_id: a field
+  # left as proposed is pre-filled by the server as it is for the agent,
+  # and the label's id stays as provenance; one emptied is sent as null,
+  # which leaves it out (ADR-0044's amendment: the writer may change any).
+  defp promotion_attrs(promotion, params, security_id) do
+    proposed = promotion.values
+
+    changed =
+      for field <- @promotion_fields,
+          value = blank_to_nil(params[field]),
+          value != blank_to_nil(proposed[field]),
+          into: %{},
+          do: {field, promotion_value(field, value)}
+
+    changed
+    |> Map.put("security_id", security_id)
+    |> Map.put("author", "operator")
+    |> Map.put("body", params["body"] || "")
+  end
+
+  defp blank_to_nil(value) when value in [nil, ""], do: nil
+  defp blank_to_nil(value) when is_binary(value), do: value
+  defp blank_to_nil(_other), do: nil
+
+  defp promotion_value("tone", nil), do: nil
+
+  # A tone outside −1..1, or not a number, goes as typed, and the write
+  # refuses it naming the field.
+  defp promotion_value("tone", value), do: LiveParam.integer(value, -1..1) || value
+
+  defp promotion_value(_field, value), do: value
+
+  # The write's refusal by field, as the form shows it: a field it renders
+  # at the field, the rest (cluster_id, a story's own field) in the list.
+  defp promotion_errors(%Ecto.Changeset{} = changeset),
+    do: changeset |> ApiJSON.errors() |> promotion_errors()
+
+  defp promotion_errors(errors) when is_map(errors) do
+    {own, other} =
+      errors
+      |> Map.new(fn {field, messages} -> {to_string(field), List.wrap(messages)} end)
+      |> Map.split(~w(headline body))
+
+    rest =
+      for {field, messages} <- other, message <- messages, do: "#{field}: #{message}"
+
+    if rest == [], do: own, else: Map.put(own, "other", rest)
+  end
+
+  # --- S28 N8 end ---
 
   # ADR-0044 §6: the research log newest first and the thesis state derived
   # from it — one read, the projection computed over the rows just loaded.
