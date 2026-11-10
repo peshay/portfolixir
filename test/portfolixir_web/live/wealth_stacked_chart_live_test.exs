@@ -1252,6 +1252,44 @@ defmodule PortfolixirWeb.WealthStackedChartLiveTest do
     assert fill.("direct:#{w.income.id}") == [Enum.at(@palette, 1)]
   end
 
+  # User story (FR-56; boards 02 ② and 03 ②; the closing act's design
+  # critic, D3):
+  # As the operator who filtered the stack to one category,
+  # I want the legend's head to say its rows are that category's
+  # sub-categories,
+  # so that I do not read „Dividends“ as a category beside „Income“.
+  #
+  # Acceptance criteria:
+  # - At „Kategorien“ filtered to Income, the value legend's and the TTWROR
+  #   legend's first column read „Subcategory“, in German „Unterkategorie“.
+  # - Without a filter, filtered to a category holding no sub-category (one
+  #   band, its own), to the unassigned rest, and at „Gesamt“, they read
+  #   „Category“.
+  test "the legend's head reads Subcategory under a category filter at Kategorien",
+       %{conn: conn} do
+    w = stack_world()
+    german = put_preference_cookie(conn, "portfolixir_locale", "de")
+
+    for {scale, legend} <- [{"value", "#stack-legend"}, {"ttwror", "#lines-legend"}] do
+      head = fn conn, address ->
+        {:ok, view, _html} = live(conn, address <> "&scale=#{scale}")
+        settle(view)
+        text_of(view, legend <> " th:first-child")
+      end
+
+      income = "/portfolio?level=category&category=#{w.income.id}"
+      assert head.(conn, income) == "Subcategory", scale
+      assert head.(german, income) == "Unterkategorie", scale
+      assert head.(conn, "/portfolio?level=category") == "Category", scale
+      assert head.(conn, "/portfolio?level=category&category=#{w.dividends.id}") == "Category"
+      assert head.(conn, "/portfolio?level=category&category=unclassified") == "Category"
+    end
+
+    {:ok, total, _html} = live(conn, "/portfolio?level=total&category=#{w.income.id}")
+    settle(total)
+    assert text_of(total, "#stack-legend th:first-child") == "Category"
+  end
+
   # -- #1426: a band that changes sign -----------------------------------------------
 
   # Deposit 1,500 and buy Alpha for 1,000 (cash 500); 50 days ago buy Beta
