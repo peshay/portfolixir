@@ -1485,7 +1485,7 @@ msgstr "Trades"
 msgid "Unrealised P&L"
 msgstr "Unrealisierter G/V"
 
-#: lib/portfolixir_web/live/securities_live.ex:7499
+#: lib/portfolixir_web/live/securities_live.ex:7512
 #, elixir-autogen, elixir-format
 msgid "default"
 msgstr "Standard"
@@ -1999,7 +1999,7 @@ msgid "Set balance"
 msgstr "Saldo setzen"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6110
-#: lib/portfolixir_web/live/securities_live.ex:7494
+#: lib/portfolixir_web/live/securities_live.ex:7507
 #, elixir-autogen
 msgid "YTD"
 msgstr "YTD"
@@ -2008,25 +2008,25 @@ msgstr "YTD"
 #: lib/portfolixir_web/live/dashboard_live.ex:1036
 #: lib/portfolixir_web/live/dashboard_live.ex:1039
 #: lib/portfolixir_web/live/portfolio_live.ex:6111
-#: lib/portfolixir_web/live/securities_live.ex:7495
+#: lib/portfolixir_web/live/securities_live.ex:7508
 #, elixir-autogen
 msgid "1Y"
 msgstr "1J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6112
-#: lib/portfolixir_web/live/securities_live.ex:7496
+#: lib/portfolixir_web/live/securities_live.ex:7509
 #, elixir-autogen
 msgid "3Y"
 msgstr "3J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6113
-#: lib/portfolixir_web/live/securities_live.ex:7497
+#: lib/portfolixir_web/live/securities_live.ex:7510
 #, elixir-autogen
 msgid "5Y"
 msgstr "5J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6114
-#: lib/portfolixir_web/live/securities_live.ex:7498
+#: lib/portfolixir_web/live/securities_live.ex:7511
 #, elixir-autogen
 msgid "Max"
 msgstr "Max"
@@ -3031,7 +3031,7 @@ msgid "Income per month in %{year}"
 msgstr "Erträge pro Monat in %{year}"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:257
-#: lib/portfolixir_web/live/securities_live.ex:7684
+#: lib/portfolixir_web/live/securities_live.ex:7697
 #, elixir-autogen, elixir-format
 msgid "No logo"
 msgstr "Kein Logo"
@@ -4959,7 +4959,7 @@ msgid "Last known value —"
 msgstr "Letzter bekannter Wert —"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:256
-#: lib/portfolixir_web/live/securities_live.ex:7683
+#: lib/portfolixir_web/live/securities_live.ex:7696
 #, elixir-autogen, elixir-format
 msgid "No quote at all"
 msgstr "Gar kein Kurs"
@@ -5235,7 +5235,7 @@ msgid "Any"
 msgstr "Alle"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:254
-#: lib/portfolixir_web/live/securities_live.ex:7681
+#: lib/portfolixir_web/live/securities_live.ex:7694
 #, elixir-autogen, elixir-format
 msgid "No quote in %{days} days"
 msgstr "Kein Kurs seit %{days} Tagen"
@@ -5356,23 +5356,23 @@ msgstr "Heute"
 msgid "Filter the list"
 msgstr "Liste filtern"
 
-#: lib/portfolixir_web/live/securities_live.ex:7701
+#: lib/portfolixir_web/live/securities_live.ex:7714
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr "Kein Wechselkurs"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:258
-#: lib/portfolixir_web/live/securities_live.ex:7685
+#: lib/portfolixir_web/live/securities_live.ex:7698
 #, elixir-autogen, elixir-format
 msgid "Missing FX rate"
 msgstr "Kein Wechselkurs hinterlegt"
 
-#: lib/portfolixir_web/live/securities_live.ex:7700
+#: lib/portfolixir_web/live/securities_live.ex:7713
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr "Kein Kurs"
 
-#: lib/portfolixir_web/live/securities_live.ex:7699
+#: lib/portfolixir_web/live/securities_live.ex:7712
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr "Kurs veraltet"
@@ -5395,14 +5395,14 @@ msgstr "Diese Ansicht trifft keine Konten — ihre eingeschlossenen Buckets sind
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6160
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:405
-#: lib/portfolixir_web/live/securities_live.ex:7678
+#: lib/portfolixir_web/live/securities_live.ex:7691
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr "Kein Datum — Format JJJJ-MM-TT (ISO: YYYY-MM-DD)."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:6157
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:432
-#: lib/portfolixir_web/live/securities_live.ex:7675
+#: lib/portfolixir_web/live/securities_live.ex:7688
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr "Das Enddatum liegt vor dem Startdatum."
@@ -10652,18 +10652,18 @@ msgid "The security has no currency."
 msgstr "Das Wertpapier hat keine Währung."
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:919
-#: lib/portfolixir_web/live/securities_live.ex:7491
+#: lib/portfolixir_web/live/securities_live.ex:7504
 #, elixir-autogen, elixir-format
 msgid "1M"
 msgstr "1M"
 
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:920
-#: lib/portfolixir_web/live/securities_live.ex:7492
+#: lib/portfolixir_web/live/securities_live.ex:7505
 #, elixir-autogen, elixir-format
 msgid "3M"
 msgstr "3M"
 
-#: lib/portfolixir_web/live/securities_live.ex:7493
+#: lib/portfolixir_web/live/securities_live.ex:7506
 #, elixir-autogen, elixir-format
 msgid "6M"
 msgstr "6M"
@@ -11460,7 +11460,7 @@ msgstr[0] "eine Anleihe auf zwei Skalen bepreist"
 msgstr[1] "%{count} Anleihen auf zwei Skalen bepreist"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:260
-#: lib/portfolixir_web/live/securities_live.ex:7687
+#: lib/portfolixir_web/live/securities_live.ex:7700
 #, elixir-autogen, elixir-format
 msgid "Priced on two scales"
 msgstr "Auf zwei Skalen bepreist"
@@ -12175,7 +12175,7 @@ msgid "no return, no cost basis"
 msgstr "keine Rendite, keine Kostenbasis"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:263
-#: lib/portfolixir_web/live/securities_live.ex:7690
+#: lib/portfolixir_web/live/securities_live.ex:7703
 #, elixir-autogen, elixir-format
 msgid "Quote does not match bookings"
 msgstr "Kurs passt nicht zu Buchungen"
@@ -15830,7 +15830,7 @@ msgid "Above eight bands the smallest merge into “Other”, which always sits 
 msgstr "Über acht Bänder fasst der Chart die kleinsten zu „Sonstige“ zusammen; dieses Band liegt immer oben."
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:266
-#: lib/portfolixir_web/live/securities_live.ex:7703
+#: lib/portfolixir_web/live/securities_live.ex:7716
 #, elixir-autogen, elixir-format
 msgid "Currency mismatch"
 msgstr "Währung abweichend"
@@ -16771,3 +16771,13 @@ msgstr "Neueste der besten Quelle"
 #, elixir-autogen, elixir-format
 msgid "„Newest from the best source“ is the newest story of the row's best tier; „Label“ sums up all its new stories, their highest materiality and their event types, so the two can name different stories."
 msgstr "„Neueste der besten Quelle“ ist die neueste Meldung der besten Stufe der Zeile; „Einordnung“ fasst alle neuen Meldungen der Zeile zusammen, ihre höchste Materialität und ihre Ereignisarten, sodass beide Spalten verschiedene Meldungen nennen können."
+
+#: lib/portfolixir_web/live/securities_live.ex:7477
+#, elixir-autogen, elixir-format
+msgid "The quote provider reports prices in %{currency}, not in the security's currency; nothing was stored."
+msgstr "Der Kursanbieter meldet Kurse in %{currency}, nicht in der Währung des Wertpapiers; nichts wurde gespeichert."
+
+#: lib/portfolixir_web/live/securities_live.ex:7483
+#, elixir-autogen, elixir-format
+msgid "The quote provider stated no valid currency; nothing was stored."
+msgstr "Der Kursanbieter hat keine gültige Währung genannt; nichts wurde gespeichert."

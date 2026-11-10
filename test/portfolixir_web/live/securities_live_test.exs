@@ -36,6 +36,16 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     def fetch(_security, _opts), do: Process.exit(self(), :kill)
   end
 
+  defmodule MismatchAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+    @impl true
+    def id, do: :mismatch
+    @impl true
+    def fetch(%{name: "Pence Line"}, _opts), do: {:error, {:currency_mismatch, "GBp"}}
+    def fetch(_security, _opts), do: {:error, {:invalid_currency, "<b>XX</b>"}}
+  end
+
   describe "list view" do
     # User story:
     # As a local portfolio maintainer,
@@ -762,6 +772,78 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
         assert view |> element("#securities-action-result") |> render() =~
                  "Price sync failed: exited"
+      after
+        Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+      end
+    end
+
+    # User story (Sprint 28 closing act, the UAT persona's line on #1411):
+    # As the operator who synced one security,
+    # I want a sync refused because the provider answers in another currency
+    # to say so in my language,
+    # so that I read a sentence, not the code's term and a quoted value.
+    #
+    # Acceptance criteria:
+    # - A currency mismatch names the provider's currency and says nothing
+    #   was stored, in German on a German page.
+    # - A stated value that is no currency code is named as such, the value
+    #   itself never shown (QA3 keeps it for the log only).
+    test "a sync refused for another currency answers in a sentence, never the code's term",
+         %{conn: conn} do
+      {:ok, pence} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Pence Line",
+          currency_code: "GBP",
+          provider: "manual"
+        })
+
+      {:ok, odd} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Odd Code",
+          currency_code: "USD",
+          provider: "manual"
+        })
+
+      prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+      Application.put_env(
+        :portfolixir,
+        Portfolixir.Catalog.QuoteSync,
+        Keyword.put(prior_cfg, :adapter_for, %{"manual" => MismatchAdapter})
+      )
+
+      try do
+        conn =
+          PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            conn,
+            "portfolixir_locale",
+            "de"
+          )
+
+        {:ok, view, _html} = live(conn, "/securities")
+
+        log =
+          ExUnit.CaptureLog.capture_log(fn ->
+            render_click(view, "row_action", %{"action" => "sync", "id" => to_string(pence.id)})
+            await_sync_idle(view)
+          end)
+
+        assert log =~ "currency_mismatch"
+        result = view |> element("#securities-action-result") |> render()
+
+        assert result =~ "Der Kursanbieter meldet Kurse in GBp"
+        refute result =~ "currency_mismatch"
+
+        ExUnit.CaptureLog.capture_log(fn ->
+          render_click(view, "row_action", %{"action" => "sync", "id" => to_string(odd.id)})
+          await_sync_idle(view)
+        end)
+
+        result = view |> element("#securities-action-result") |> render()
+
+        assert result =~ "keine gültige Währung"
+        refute result =~ "invalid_currency"
+        refute result =~ "XX"
       after
         Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
       end
