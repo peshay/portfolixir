@@ -8,7 +8,9 @@
 // live document (attributes, hidden text, a chart's JSON payload) and in
 // the page source the server sent. It fails as well on any step that did
 // not render: an error status, a crashed LiveView, a click that did not
-// arrive (fix round of the Sprint 26 closing act). After the pages it opens
+// arrive (fix round of the Sprint 26 closing act), and on a page whose
+// loads have not landed after 45 s: each step is read once nothing on the
+// page is busy (`settle`; the Sprint 28 closing act). After the pages it opens
 // the declared open states — a dialog, a drawer, a flow's preview — each by
 // its own clicks, and reads each the same way, an enabled form control's
 // value excepted where the state is a form that edits a stored figure
@@ -25,10 +27,6 @@
 
 const fs = require("fs");
 const { launchChromium } = require("./launch");
-
-const base = process.argv[2];
-const pages = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-const only = process.env.PRIVACY_LEAK_ONLY || null;
 
 const WIDTHS = [
   { width: 1200, height: 900 },
@@ -233,25 +231,68 @@ async function sourceFindings(context, url, plainSelectors, amountData, amountNa
   }
 }
 
-// Waits until the page at `url` is connected and its loads have landed.
-// False when it never connects: a page that crashed, an error page.
-async function settle(page) {
+// What marks a load still running: every placeholder a page shows while a
+// load runs carries `aria-busy` (test/invariants/busy_placeholders_test.exs),
+// and LiveView's own loading class.
+const BUSY = "[aria-busy='true'], .phx-loading, .value-slot-pending";
+
+// Waits until the page is connected and every load it started has landed:
+// no element is busy, and none is again a moment later (a load asked for
+// once the page is connected, such as Wealth's remembered period, starts
+// after the first ones land). Answers {connected, settled, pending}. A page
+// that never connects (a crash, an error page) is not waited on. One still
+// busy after `settleMs` is not settled, and `pending` names what it waits
+// for: the walk fails it (`failures`), since reading it would check figures
+// that have not landed, and leaving it would kill a load mid-query, which
+// takes the test's one shared database connection with it (the Sprint 28
+// closing act: on CI's slower runner the old wait gave up after 8 s,
+// silently, and every later page answered 500).
+async function settle(page, { connectMs = 15000, settleMs = 45000 } = {}) {
   const connected = await page
-    .waitForFunction(() => document.querySelector("[data-phx-main].phx-connected") !== null, null, { timeout: 15000 })
+    .waitForFunction(() => document.querySelector("[data-phx-main].phx-connected") !== null, null, { timeout: connectMs })
     .then(() => true)
     .catch(() => false);
-  await page
-    .waitForFunction(() => document.querySelector("[aria-busy='true'], .phx-loading, .value-slot-pending") === null, null, { timeout: 8000 })
-    .catch(() => {});
-  await page.waitForTimeout(250);
-  return connected;
+  if (!connected) return { connected, settled: false, pending: [] };
+  const deadline = Date.now() + settleMs;
+  const idle = () => page.evaluate((busy) => document.querySelector(busy) === null, BUSY).catch(() => false);
+  for (;;) {
+    const left = deadline - Date.now();
+    const landed =
+      left > 0 &&
+      (await page
+        .waitForFunction((busy) => document.querySelector(busy) === null, BUSY, { timeout: left, polling: 100 })
+        .then(() => true)
+        .catch(() => false));
+    if (!landed) return { connected, settled: false, pending: await busyNow(page) };
+    await page.waitForTimeout(250);
+    if (await idle()) return { connected, settled: true, pending: [] };
+  }
+}
+
+// The busy elements on the page, each by its tag and its data-role, id or
+// class.
+function busyNow(page) {
+  return page
+    .$$eval(BUSY, (els) =>
+      els.slice(0, 5).map((el) => {
+        const name = el.getAttribute("data-role") || el.id || [...el.classList].join(".");
+        return el.tagName.toLowerCase() + (name ? " " + name : "");
+      })
+    )
+    .catch(() => ["(the page is gone)"]);
+}
+
+// Two waits on one view in a row (an open state's steps): it connected and
+// settled only if every one did.
+function both(a, b) {
+  return { connected: a.connected && b.connected, settled: a.settled && b.settled, pending: a.pending.concat(b.pending) };
 }
 
 // A walk that reads a crashed page checks nothing (the closing act of
 // Sprint 26 found one that passed on two pages that answered 500 or
 // crashed on a tab): every step is also checked for a failure. An error
 // status of any document the page loaded, a page that never connected, a
-// LiveView that crashed (LiveView announces it with
+// page whose loads never landed (`settle`), a LiveView that crashed (LiveView announces it with
 // `phx:page-loading-start` of kind "error", counted per document by the
 // init script below: the document a navigation leaves announces one as
 // its socket closes, and goes with it) or still shows its error class, and
@@ -266,9 +307,12 @@ function watchErrors(context) {
   });
 }
 
-async function failures(page, statuses, connected) {
+async function failures(page, statuses, loaded) {
   const out = statuses.splice(0).map((s) => ({ where: "HTTP status", hit: String(s.status), context: s.url }));
-  if (!connected) out.push({ where: "LiveView", hit: "the page never connected", context: page.url() });
+  if (!loaded.connected) out.push({ where: "LiveView", hit: "the page never connected", context: page.url() });
+  if (loaded.connected && !loaded.settled) {
+    out.push({ where: "LiveView", hit: "the page never settled: a load had not landed when the wait ran out (" + loaded.pending.join(", ") + ")", context: page.url() });
+  }
   const state = await page
     .evaluate(() => {
       const crashes = window.__privacyLeakCrashes || 0;
@@ -326,7 +370,10 @@ function short(findings) {
   return out;
 }
 
-(async () => {
+async function main() {
+  const base = process.argv[2];
+  const pages = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+  const only = process.env.PRIVACY_LEAK_ONLY || null;
   const browser = await launchChromium();
   const findings = [];
   let visited = 0;
@@ -378,9 +425,9 @@ function short(findings) {
         };
 
         // Reads the page as it stands after a step, its failures first.
-        const check = async (label, connected, allowFormValues = false) => {
+        const check = async (label, loaded, allowFormValues = false) => {
           visited++;
-          for (const f of await failures(page, statuses, connected)) findings.push({ page: label, ...f });
+          for (const f of await failures(page, statuses, loaded)) findings.push({ page: label, ...f });
           for (const f of await read(page, allowFormValues)) findings.push({ page: label, ...f });
         };
 
@@ -400,12 +447,12 @@ function short(findings) {
               if (!link) continue;
               await link.click();
               await page.waitForURL((u) => u.pathname + u.search === target, { timeout: 5000 }).catch(() => {});
-              const connected = await settle(page);
+              const loaded = await settle(page);
               const at = address(page.url(), page.url());
               if (at !== target) {
                 findings.push({ page: tag + " → " + target, where: "LiveView", hit: "the click did not arrive (a crash re-joins at the address before it)", context: at });
               }
-              await check(tag + " → " + target, connected);
+              await check(tag + " → " + target, loaded);
             }
           }
         };
@@ -456,12 +503,12 @@ function short(findings) {
               continue;
             }
             await button.click();
-            const connected = await settle(page);
+            const loaded = await settle(page);
             const selected = await page.getAttribute("#" + id, "aria-selected").catch(() => null);
             if (selected !== "true") {
               findings.push({ page: tag + " #" + id, where: "LiveView", hit: "the pressed tab is not selected (a crash re-joins without it)", context: page.url() });
             }
-            await check(tag + " #" + id, connected);
+            await check(tag + " #" + id, loaded);
             await followInPage(tag + " #" + id, clicked);
           }
 
@@ -478,19 +525,19 @@ function short(findings) {
         // The declared open states (the privacy lens of the closing act):
         // each opened from its page by its own steps, checked to be open,
         // and read; a state that does not open fails the walk.
-        for (const state of pages.openStates || []) {
-          if (only && !statesOnly && !state.url.startsWith(only)) continue;
-          const tag = theme + " " + viewport.width + " " + state.url + " [" + state.name + "]";
-          await page.goto(base + state.url).catch((error) => {
-            findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: state.url });
+        for (const openState of pages.openStates || []) {
+          if (only && !statesOnly && !openState.url.startsWith(only)) continue;
+          const tag = theme + " " + viewport.width + " " + openState.url + " [" + openState.name + "]";
+          await page.goto(base + openState.url).catch((error) => {
+            findings.push({ page: tag, where: "navigation", hit: String(error && error.message), context: openState.url });
           });
-          let connected = await settle(page);
+          let loaded = await settle(page);
           let opened = true;
-          for (const step of state.steps) {
+          for (const step of openState.steps) {
             try {
               if (step.click) await page.locator(step.click).locator("visible=true").first().click({ timeout: 5000 });
               if (step.upload) await page.setInputFiles(step.upload[0], step.upload[1]);
-              connected = (await settle(page)) && connected;
+              loaded = both(loaded, await settle(page));
             } catch (error) {
               opened = false;
               findings.push({ page: tag, where: "open state", hit: "a step did not run: " + String(error && error.message).split("\n")[0], context: JSON.stringify(step) });
@@ -499,15 +546,15 @@ function short(findings) {
           }
           if (opened) {
             const open = await page
-              .locator(state.open)
+              .locator(openState.open)
               .locator("visible=true")
               .first()
               .waitFor({ timeout: 8000 })
               .then(() => true)
               .catch(() => false);
-            if (!open) findings.push({ page: tag, where: "open state", hit: "the state did not open", context: state.open });
+            if (!open) findings.push({ page: tag, where: "open state", hit: "the state did not open", context: openState.open });
           }
-          await check(tag, connected, state.allowFormValues === true);
+          await check(tag, loaded, openState.allowFormValues === true);
         }
         await context.close();
       }
@@ -524,7 +571,14 @@ function short(findings) {
   } finally {
     await browser.close();
   }
-})().catch((error) => {
-  process.stderr.write(String(error && error.stack) + "\n");
-  process.exit(2);
-});
+}
+
+// `settle` is the walk's wait, checked on its own by privacy_leak_settle.js.
+module.exports = { settle };
+
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(String(error && error.stack) + "\n");
+    process.exit(2);
+  });
+}
