@@ -1251,4 +1251,18 @@ defmodule Portfolixir.News do
   end
 
   # --- S28 N7 end ---
+
+  # --- S28 N8 begin ---
+
+  @doc """
+  What `append_note_from_story/3` would pre-fill for the story `cluster_id`
+  of the security `security_id`, read without a write: the security's tab
+  „Nachrichten“ opens its note form with it (ADR-0056 §8, NFR-10). See
+  `Portfolixir.News.Promotion.proposal/2`.
+  """
+  @spec story_proposal(pos_integer(), pos_integer()) ::
+          {:ok, map()} | {:error, %{String.t() => [String.t()]}}
+  def story_proposal(cluster_id, security_id), do: Promotion.proposal(cluster_id, security_id)
+
+  # --- S28 N8 end ---
 end

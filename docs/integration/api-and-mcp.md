@@ -1415,7 +1415,9 @@ only the digest's `unlabeled` grows.
   to its first sight) and `count`; an item row is `id`, `title`, `tier`, `at`,
   `domain` and, when ambiguous, `candidates` (security ids). A labelled story
   row adds `materiality` and `event_type`. `fields=std` adds
-  `url` and `note_ids`. Rows come newest first by the time they entered their
+  `url` and `note_ids`, and to a story row its representative's `domain`,
+  cut at 40 characters as the companion spells it (Sprint 28 N8: the source
+  the security's tab „Nachrichten“ shows). Rows come newest first by the time they entered their
   scope; rows of the same instant (one fetch stamps its items alike) by
   tier, primary first, then the newest publication, then the link, never by
   id. `since` reads that time, `scope_at`, the server's clock, never the

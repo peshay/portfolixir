@@ -291,6 +291,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/securities/:id/dossier (portfolixir.securities.dossier) answers the part " <>
           "news and parts.news (ADR-0056 §9; S28 N6)",
         # --- S28 N6 end ---
+        # --- S28 N8 begin ---
+        "GET /api/v1/news/stories (portfolixir.news.list) with fields=std answers a story " <>
+          "row's domain, its representative's, cut at 40 characters as the companion spells " <>
+          "it, beside url and note_ids: the source the security's tab „Nachrichten“ shows " <>
+          "(ADR-0056 §10; S28 N8)",
+        # --- S28 N8 end ---
         # --- Sprint 28 S begin ---
         "GET .../performance/bands (portfolixir.portfolios.bands, portfolixir.views.bands), " <>
           "all three forms: category_id (a category's id, or exactly unclassified) filters " <>

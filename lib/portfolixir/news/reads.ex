@@ -287,7 +287,8 @@ defmodule Portfolixir.News.Reads do
     * `{:security, id}` / `{:category, id}` — the scope's stories, one row
       each: `id`, `title` (the representative's), `tier` (the story's best),
       `at` (the representative's clamped publication), `count`, `url` (the
-      representative's link) and `note_ids` (every member's notes);
+      representative's link), `domain` (its domain, cut at 40 as spelled;
+      S28 N8) and `note_ids` (every member's notes);
     * `{:cluster, id}` — the story's items;
     * `{:assignment, :unassigned | :ambiguous}` — the aggregator items no
       security, or several, claim; an ambiguous one with its `candidates`.
@@ -352,6 +353,11 @@ defmodule Portfolixir.News.Reads do
           at: r.published_at,
           count: c.member_count,
           url: r.canonical_url,
+          # --- S28 N8 begin ---
+          # The representative's domain, which `fields=std` answers beside
+          # its link: the source the security's tab shows (§10).
+          domain: r.domain,
+          # --- S28 N8 end ---
           seen: s.seen,
           link_key: fragment("md5(?)", r.canonical_url),
           materiality: l.materiality,
@@ -370,7 +376,12 @@ defmodule Portfolixir.News.Reads do
       |> Repo.all()
 
     {rows, truncated} = Enum.split(rows, limit)
-    rows = rows |> clip_titles() |> put_story_notes()
+
+    rows =
+      rows
+      |> clip_titles()
+      |> Enum.map(&Map.update!(&1, :domain, fn d -> clip_spelled(d, @domain_max) end))
+      |> put_story_notes()
 
     %{kind: :stories, rows: rows, truncated: truncated != [], cursor: cursor(rows, truncated)}
   end

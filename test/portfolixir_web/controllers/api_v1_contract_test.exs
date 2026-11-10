@@ -204,6 +204,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "a truncated page carries cursor"
     # --- S28 N7 end ---
 
+    # --- S28 N8 begin ---
+    # N8 (ADR-0056 §10): a story row's domain under fields=std.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "with fields=std answers a story row's domain" and &1 =~ "S28 N8")
+           )
+
+    # --- S28 N8 end ---
+
     # --- S28 N3 OQ2 begin ---
     assert newest["summary"] =~ "deletes a digest consumer whose last confirmation, or creation"
     # --- S28 N3 OQ2 end ---

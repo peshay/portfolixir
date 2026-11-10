@@ -9971,9 +9971,11 @@ it cannot read, is the API's 24 hours.
 
 Stored foreign text — a title, a domain, a URL, an error code — is shown
 with each invisible character spelled `[U+XXXX]` and isolated in `<bdi>`
-(ADR-0054 §4, the companion's spelling). Tier, class and event-type codes
-are shown as the agent reads them, untranslated. **Feeds and sources are
-shown, not edited** (plan D-3): neither tab carries a form.
+(ADR-0054 §4, the companion's spelling). Tier and class codes are shown as
+the agent reads them, untranslated; an event type reads in words
+(`PortfolixirWeb.EventTypeLabel`, S28 N8: „Kapitalmaßnahme“, never
+`capital_measure`). **Feeds and sources are shown, not edited** (plan
+D-3): neither tab carries a form.
 
 ### Under 560 px *(UX-DR27)*
 
@@ -10005,14 +10007,116 @@ wrappers hidden under 560 px. Every colour is a token.
 
 ### Stated, not settled here
 
-- **The feeds' URLs and bindings and the rated sources have no API read.**
-  `news.health` answers a feed by id and class, and no read lists
-  `news_sources`; the page shows them from the stored rows
-  (`Portfolixir.News.feed_registrations/0`, `Portfolixir.News.Sources.list/0`).
-  An agent knows a feed's URL from its own `news.feeds_put`; a list read
-  for either is its own story.
+- ~~**The feeds' URLs and bindings and the rated sources have no API
+  read.**~~ Settled in the same sprint (N7's coverage): `GET
+  /api/v1/news/registry` (`news.registry`) lists both, and the Feeds and
+  Quellen tabs read through the same `Portfolixir.News.registry/1`; the
+  Feeds tab's „Bindung“ cell adds the feed's language („· de“).
 - **The digest reads the news universe**, not the selected view; `view_id`
   narrows the agent's digest and is not offered here.
 - **The queue shows the API's first page of each kind (20)** and says so
   when cut; the rest is reached by assigning, or over the API.
 <!-- S28 N7 end -->
+
+<!-- S28 N8 begin -->
+## Amendment 2026-11-10 — Wertpapier → Nachrichten: a security's stories and „Ins Research-Log“ *(Sprint 28 N8, ADR-0056 §8, §10; board `mockups/ux-design-2026-11-08-sprint28/01-news-view`, "Am Wertpapier"; plan D-5)*
+
+The security page's eleventh tab, „Nachrichten“ (English "News"), shows
+the stories the news layer keeps for one security, as the agent reads
+them, and is where the operator keeps one in the research log. Built in
+`PortfolixirWeb.Securities.StoriesTab` (its panel and its note form) and
+`PortfolixirWeb.EventTypeLabel` (the event types' and tones' words, shared
+with the news page and the chart's note markers). **No logic of its
+own:** the rows are the page `news.list` answers for the security with
+`fields=std` and the API's defaults (`Portfolixir.News.Reads.list/2`), the
+line on top `securities.dossier`'s news block
+(`Portfolixir.News.dossier_block/2`); a LiveView test compares the rows
+with the API's.
+
+### Anatomy
+
+1. **The tab** sits after „Research“ and before „Prognosen“
+   (`#detail-tab-news`, `tab=news` in the URL): a story is kept in the
+   research log, so the two stand together. Eleven tabs keep the row's
+   scroll and roving tabindex. The stories are read only while the tab is
+   open.
+2. **The line and its ⓘ** (`div.detail-tab-hint`,
+   `data-role="stories-basis"`): „Die Meldungen zu diesem Wertpapier, die
+   die Nachrichtenschicht hält, neueste zuerst, so wie der Agent sie
+   liest.“ The ⓘ: a label is an outside model's reading, marked
+   „maschinell“, and moves nothing; what „Ins Research-Log“ pre-fills and
+   that only saving writes; only an entry with a headline is drawn on the
+   chart, a story never.
+3. **The week** (`.news-health`, `data-role="stories-week"`): the chips
+   „7 Tage: 6 Meldungen · 2 primär“ and „höchste Materialität 2“ (only
+   with a labelled story), the dossier block's `count_7d`, `primary_7d`
+   and `max_materiality`.
+4. **The table** (`#security-stories-table`, `.news-table`) Meldung ·
+   Quelle · Zeit · Einordnung · (action), one `tr[data-story]` per story in
+   the read's order: the title (spelled, `<bdi>`) over „3 Quellen zur
+   selben Meldung“ when it has several; the representative's domain (the
+   std row's `domain`, cut at 40 as the companion spells it) with its tier
+   chip (primary accent, the others neutral); the publication to the
+   minute in UTC; the label — the event type in words, „Materialität 2“
+   and the chip „maschinell“ — or „ohne Einordnung“; the ghost button „Ins
+   Research-Log“, or the neutral chip „übernommen“ (its notes' ids in the
+   title) for a story with notes. Tone is not in the row: `news.list` does
+   not answer it (ADR-0056 §7). „Die neuesten 20 Meldungen; den Rest liest
+   der Agent mit dem Cursor.“ when the page is cut. Empty: „Zu diesem
+   Wertpapier ist noch keine Meldung eingegangen. …“
+5. **The note form** (`#story-promotion-form`, the research form's
+   anatomy in a bordered elevated panel above the table), opened by „Ins
+   Research-Log“ and closed by „Abbrechen“ or a save; a click on another
+   tab or security closes it. Its head „Ins Research-Log“ and the hint
+   „Aus der Meldung „…“: Erst das Speichern des Eintrags schreibt etwas.“
+   The fields are what the agent may change beside a `cluster_id`: Art
+   („Beleg“ or „Ereignisergebnis“), Ereignisart (the eight in words, or
+   „— nicht angegeben —“), Tonalität („positiv“, „neutral“, „negativ“,
+   or none), Überschrift (full width), Eintrag (the body, required). Under
+   them the story's facts, shown and not offered (`dl.research-entry__facts`):
+   Stichtag, Quellenqualität and Quellenlink, with „Datum, Quellenlink und
+   Quellenqualität stammen aus der Meldung.“ The primary button „Ins
+   Research-Log speichern“ beside the ghost „Abbrechen“.
+   - **Pre-filled as the agent's write pre-fills** (ADR-0044's amendment,
+     A2): the proposal is `Portfolixir.News.story_proposal/2`, the very
+     pre-fill `notes.append` with `cluster_id` writes — the headline cut at
+     80 on a word boundary as the companion spells it, the active label's
+     event type and tone, the representative's day, the best-tier link,
+     §3's source quality. **Opening writes nothing (NFR-10).**
+   - **The save is the agent's write**
+     (`Portfolixir.News.append_note_from_story/3`, under the UI actor, the
+     author the operator). A field left as proposed is not sent, so the
+     server fills it as it would for the agent and the entry keeps the
+     label's id; a field changed is sent, an emptied one as `null`. The
+     story's members turn `promoted`, the row reads „übernommen“, the
+     research log reloads, and the result reads „Eintrag #N ins
+     Research-Log übernommen.“
+   - **A refusal stays in the form:** the headline's or the body's error
+     under its field (`.field-error`, `aria-invalid` on the input), any
+     other in the form's error list; what was typed stays. A title that
+     carries an invisible character makes the proposed headline invalid
+     (N5's finding): the error names it, the house note (`AppShell.invisible_text_note`)
+     spells it, „Die Überschrift muss neu geschrieben werden: Der Eintrag
+     lehnt unsichtbare Zeichen ab.“, and an edited headline saves.
+
+### Under 560 px *(UX-DR27)*
+
+The table gives way to `ul#security-stories-phone-rows.phone-rows.news-rows`:
+the title over its domain, tier and time, the label, then the button or
+„übernommen“. The form's grid falls to one column, its actions wrap.
+
+### The privacy mode
+
+The tab shows no amount: titles, domains, times, counts and labels. The
+privacy backstop opens `/securities/:id?tab=news` on its news world, and
+the browser's leak walk presses the tab on the most traded security, where
+`NewsFixtures.page_world!/1` puts its story.
+
+### The `app.css` rules (between `S28 N8 begin` / `end`)
+
+`.story-promotion-form` (a `--space-3` padded panel, `--color-border-strong`
+border, `--radius-md`, `--color-bg-elevated`), its `h3` at 15 px,
+`.field-error` without its margin inside it, the source link breaking
+anywhere, `.story-promotion-form__actions` (a wrapping row, `--space-2`).
+Every colour is a token; the table and phone rows are N7's.
+<!-- S28 N8 end -->
