@@ -599,6 +599,22 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     raisedBy: { tools: ["portfolixir.news.registry"], read: 697, book: 697, full: 697 }
   },
   // --- S28 N7 end ---
+  // --- Sprint 28 closing act, AG5 begin ---
+  {
+    since: "2026-11-10",
+    why:
+      "Sprint 28 closing act (AG1, AG3, AG5): portfolixir.news.registry's wording is tightened " +
+      "to name portfolixir.news.health in full, and its tools/list entry now measures 654 " +
+      "bytes, 43 fewer than N7's row credited it, so each ceiling is lowered by those 43 " +
+      "bytes: read 118,437, book 193,317 and full 228,339; the news reads' new sentences (the " +
+      "digest's consumer flow, where each id goes) are paid by tightening the same tools' " +
+      "wording and that of portfolios.valuation, holdings.list, policy_rules.list, " +
+      "portfolios.policy_findings, notes.list and events.list",
+    read: 118_437,
+    book: 193_317,
+    full: 228_339
+  },
+  // --- Sprint 28 closing act, AG5 end ---
 ];
 
 const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];

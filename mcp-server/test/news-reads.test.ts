@@ -316,5 +316,35 @@ describe("the news read tools", () => {
     assert.equal(requests.length, 1);
   });
   // --- Sprint 28 closing act, AG3 end ---
+
+  // --- Sprint 28 closing act, AG5 begin ---
+  // User story (ADR-0056 §9; Sprint 28 closing act, AG5):
+  // As the operator's agent following a news answer with the next call,
+  // I want each description to say which input an answer's id goes to, and
+  // to name every other tool by the name I call it with,
+  // so that I pass a story's id as cluster_id and an item's as news_id
+  // without a 422 to learn it.
+  //
+  // Acceptance criteria:
+  // - news.list says a story row's id is passed as cluster_id and an item
+  //   row's as news_id; news.digest says its top id is a story's, passed
+  //   as cluster_id; news.get says an item's story_id is passed as
+  //   cluster_id.
+  // - No description in any profile names a news tool without its
+  //   portfolixir. prefix.
+  it("say where each id goes and name tools in full", () => {
+    const list = tool(LIST)?.description ?? "";
+    assert.match(list, /id: a story's, pass as cluster_id/);
+    assert.match(list, /an item's, as news_id/);
+    assert.match(tool(DIGEST)?.description ?? "", /top \{id \(a story's, as cluster_id\)/);
+    assert.match(tool(GET)?.description ?? "", /story_id \(as cluster_id\)/);
+
+    for (const profile of ["read", "book", "full", "label"] as const) {
+      for (const entry of listTools({ profile } as never)) {
+        assert.doesNotMatch(entry.description, /(?<!portfolixir\.)\bnews\.[a-z_]+/, `${profile}: ${entry.name}`);
+      }
+    }
+  });
+  // --- Sprint 28 closing act, AG5 end ---
   // --- S28 N3 end ---
 });

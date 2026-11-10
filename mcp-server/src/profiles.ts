@@ -6,7 +6,8 @@
  * - `book` lists and calls every tool except the admin set below: the reads,
  *   every create, and the replace-shaped writes, which the same write sent
  *   the former value undoes (two leave a residue, named below).
- * - `full` (the default) lists and calls every tool.
+ * - `full` (the default) lists and calls every tool but the news labeller's
+ *   two.
  *
  * None of the three lists the news labeller's two tools (LABEL_TOOLS below),
  * and the fourth profile, `label`, lists those two and nothing else
@@ -413,7 +414,7 @@ export function profileClause(profile: McpProfile): string {
       "it lists the reads, the creates and the replace-shaped writes (updates, upserts, " +
       "sets), and leaves out the admin tools (every removal, the merges, the ISIN change, a " +
       "rule's new version or retirement, the release of manual quotes)",
-    full: "it lists every tool",
+    full: "it lists every tool but the news labeller's two",
     // --- S28 N1 begin ---
     label:
       "it lists only portfolixir.news.unlabeled and portfolixir.news.label_put, the news " +

@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import {
   ADMIN_TOOLS,
   BOOK_KEPT_DESTRUCTIVE,
+  LABEL_TOOLS,
   MCP_PROFILES,
+  profileClause,
   profileSwitch
 } from "../src/profiles.js";
 import { callTool, listTools } from "../src/tools.js";
@@ -188,7 +190,8 @@ describe("the companion's tool profiles", () => {
   // - read lists exactly the tools with readOnlyHint.
   // - book lists every tool but the admin set: the reads, every create, and
   //   the overwrites it keeps.
-  // - full, and no profile at all, list every tool.
+  // - full, and no profile at all, list every tool but the news labeller's
+  //   two, and the server instructions say so (Sprint 28 closing act, AG5).
   it("lists exactly each profile's tools to the host", async () => {
     const all = listTools().map((tool) => tool.name);
     const names = async (profile?: "read" | "book" | "full") =>
@@ -218,6 +221,8 @@ describe("the companion's tool profiles", () => {
     assert.ok(!book.some((name) => ADMIN_TOOLS.has(name)));
     assert.deepEqual(await names("full"), all);
     assert.deepEqual(await names(), all);
+    assert.ok(!all.some((name) => LABEL_TOOLS.has(name)));
+    assert.match(profileClause("full"), /it lists every tool but the news labeller's two/);
     assert.deepEqual(
       listTools({ profile: "book" }).map((tool) => tool.name),
       book
