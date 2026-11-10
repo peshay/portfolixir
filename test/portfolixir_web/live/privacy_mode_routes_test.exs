@@ -183,6 +183,10 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
     # source, so the walk reads them filled.
     Portfolixir.NewsFixtures.page_world!(next)
     # --- S28 N7 end ---
+    # --- S28 N9 begin ---
+    # A story kept in the research log, so the chart draws a note pin.
+    Portfolixir.NewsFixtures.chart_note!(next)
+    # --- S28 N9 end ---
 
     %{sold: sold, next: next, tree: tree, core: core, bonds: [forward, reverse]}
   end
@@ -333,6 +337,35 @@ defmodule PortfolixirWeb.PrivacyModeRoutesTest do
   end
 
   # --- Sprint 28 S6 lens end ---
+
+  # --- S28 N9 begin ---
+  # User story (S28 N9; ADR-0056 A2; plan N9: "its backstop and leak walk
+  # cover the new states"):
+  # As the owner who trusts the privacy mode's gate,
+  # I want the chart's note pins, and the chart with them switched off, read
+  # by the backstop like every page,
+  # so that a pin can never carry an amount past the mode.
+  #
+  # Acceptance criteria:
+  # - With the privacy mode on, the Diagramm tab and the Übersicht draw the
+  #   kept note's pin and name no amount; switched off by „Notizen“, they
+  #   draw none and still name no amount.
+  test "the chart's note pins and their toggle name no amount with the privacy mode on", ctx do
+    for {path, toggle, scope} <- [
+          {"/securities/#{ctx.next.id}?tab=chart", "#toggle-notes", "#detail-tab-panel-chart"},
+          {"/securities/#{ctx.next.id}", "#toggle-notes-overview", ".overview-chart"}
+        ] do
+      {:ok, view, html} = live(masked_conn(), path)
+      assert html =~ "note-pin", "#{path} draws no note pin"
+      refute_amounts(path, render(view))
+
+      view |> element(toggle) |> render_click()
+      refute has_element?(view, scope <> " g.note-pin")
+      refute_amounts(path <> " (notes off)", render(view))
+    end
+  end
+
+  # --- S28 N9 end ---
 
   defp shell_paths(ctx) do
     PortfolixirWeb.Router.__routes__()

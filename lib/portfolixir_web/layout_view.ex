@@ -1009,7 +1009,9 @@ defmodule PortfolixirWeb.LayoutView do
                 this.crosshair.hidden = false;
 
                 var tx = this.transactionAt(payload.txs, px);
-                this.renderTooltip(shownDate, close, tx);
+                // S28 N9: the research notes of the pin under the crosshair.
+                var note = this.noteAt(payload.notes, px);
+                this.renderTooltip(shownDate, close, tx, note);
 
                 this.positionTooltip(cssX, cssY, frameRect.width);
               },
@@ -1032,7 +1034,15 @@ defmodule PortfolixirWeb.LayoutView do
                 }
                 return null;
               },
-              renderTooltip: function (shownDate, close, tx) {
+              // S28 N9: a pin within half a day of the crosshair's point.
+              noteAt: function (notes, x) {
+                if (!notes || notes.length === 0) return null;
+                for (var i = 0; i < notes.length; i++) {
+                  if (Math.abs(notes[i].x - x) <= notes[i].tol) return notes[i];
+                }
+                return null;
+              },
+              renderTooltip: function (shownDate, close, tx, note) {
                 // Built through the DOM API (#770): every value is text, never markup.
                 var tooltip = this.tooltip;
                 tooltip.textContent = "";
@@ -1052,6 +1062,14 @@ defmodule PortfolixirWeb.LayoutView do
                     "chart-tooltip__tx chart-tooltip__tx--" + String(tx.type).replace(/[^a-z_]/g, ""),
                     String(tx.label)
                   );
+                }
+                // S28 N9: each note of the pin, its headline over „event
+                // type · tone · date“, the server's words.
+                if (note && note.lines) {
+                  for (var n = 0; n < note.lines.length; n++) {
+                    line("chart-tooltip__note", String(note.lines[n][0]));
+                    line("chart-tooltip__note-meta", String(note.lines[n][1]));
+                  }
                 }
                 tooltip.hidden = false;
               },

@@ -19,6 +19,12 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     * `:zero_line?` — boolean, draws a horizontal zero line when 0 is inside
       the value range (e.g. the TTWROR gain/loss boundary)
     * `:show_transactions?` — boolean, toggles buy/sell markers
+    * `:notes` — research notes to mark (S28 N9, ADR-0056 A2):
+      `[%{date: Date, headline: String, event_type: atom | nil, tone:
+      -1 | 0 | 1 | nil}]`, only entries with a headline; the caller passes
+      nothing else, so a story or a raw item is never drawn
+    * `:show_notes?` — boolean, toggles the note pins (default off, so a
+      chart that is not a security's draws none)
     * `:currency_code` — string label for the Y axis
     * `:aria_label` — accessible name of the rendered svg
 
@@ -30,7 +36,20 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   A series already in percent keeps its axis. The percent view's 100 % is
   the first value above zero: a window that opens at zero or below reads
   from the first day it is above, and one with no such day draws its line
-  without tick labels, so no amount is printed as a percentage.
+  without tick labels, so no amount is printed as a percentage. A note's pin
+  stays: it carries a headline, an event type, a tone and a date, and no
+  amount.
+
+  **The note pins** (S28 N9; board `ux-design-2026-11-08-sprint28/01`,
+  marker A): one pin per day with notes, at the plot's top edge over a
+  dashed stem to the price of that day, so it never covers a trade's
+  triangle or the line. Its colour is the tone's (`note-pin--pos`, `--neg`,
+  `--neu`), and its glyph says it too (a plus, a minus, none: never colour
+  alone, UX-DR7). Several notes on one day are one pin: `--mixed` when
+  their tones differ, with their count beside it, and every headline in
+  its title and in the tooltip, because two pins on one x would hide each
+  other. The tooltip (the payload's `notes`) reads, per note, the headline
+  and „event type · tone · date“ in the page's language.
 
   Reasoning: the repo has no JS bundler, so charts are produced as a
   single `<svg>` element. Interactivity (range/log) is handled at the
@@ -40,6 +59,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.EventTypeLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
   alias PortfolixirWeb.TransactionKindLabel
@@ -64,6 +84,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:value_mode, :atom, default: :absolute, values: [:absolute, :percent_values])
   attr(:zero_line?, :boolean, default: false)
   attr(:show_transactions?, :boolean, default: true)
+  # --- S28 N9 begin ---
+  attr(:notes, :list, default: [])
+  attr(:show_notes?, :boolean, default: false)
+  # --- S28 N9 end ---
   attr(:currency_code, :string, default: "")
   # nil resolves to the localized "Price chart" at render time — a compile-time
   # attr default cannot go through gettext with the caller's locale.
@@ -171,6 +195,22 @@ defmodule PortfolixirWeb.Components.SecurityChart do
             <% end %>
           <% end %>
 
+          <%!-- S28 N9 (board 01, marker A): the note pins at the top edge,
+               after the trades, so a stem never paints over a triangle. --%>
+          <%= if @show_notes? do %>
+            <%= for pin <- note_pins(@notes, @geometry, {@plot_left, @plot_top, @plot_right, @plot_bottom}) do %>
+              <g class={["note-pin", "note-pin--#{pin.tone}"]} data-date={pin.date}>
+                <line class="note-pin__stem" x1={pin.x} x2={pin.x} y1={pin.stem_top} y2={pin.stem_bottom} />
+                <circle class="note-pin__head" cx={pin.x} cy={pin.y} r="6.5" />
+                <path :if={pin.glyph} class="note-pin__glyph" d={pin.glyph} />
+                <text :if={pin.count > 1} class="note-pin__count" x={pin.count_x} y={pin.y} dominant-baseline="central">
+                  <%= pin.count %>
+                </text>
+                <title><%= pin.title %></title>
+              </g>
+            <% end %>
+          <% end %>
+
           <%!-- J5 A (board 05, rule ③): the labels follow the series, so on
                a narrow chart, where the values sit inside the plot, their
                halo paints over the line and the fill. --%>
@@ -217,11 +257,112 @@ defmodule PortfolixirWeb.Components.SecurityChart do
     %{
       points: points,
       txs: txs,
+      # S28 N9: the note pins' tooltip lines, matched to the crosshair by x.
+      notes: note_payload(assigns, geometry, {x0, y0, x1, y1}),
       view: %{width: @width, height: @height},
       currency: assigns.currency_code,
       mode: payload_mode(assigns)
     }
   end
+
+  # --- S28 N9 begin ---
+  defp note_payload(%{show_notes?: true, notes: notes}, geometry, plot) do
+    tolerance = day_width(geometry, plot) / 2
+
+    for pin <- note_pins(notes, geometry, plot) do
+      %{
+        date: pin.date,
+        x: round2(pin.x_value),
+        tol: round2(max(tolerance, 3.0)),
+        lines: pin.lines
+      }
+    end
+  end
+
+  defp note_payload(_assigns, _geometry, _plot), do: []
+
+  defp day_width(geometry, {x0, _y0, x1, _y1}) do
+    case date_span_days(geometry) do
+      0 -> x1 - x0
+      span -> (x1 - x0) / span
+    end
+  end
+
+  # One pin per day with notes in the window (see the moduledoc): its x at
+  # the day, its head at the plot's top edge, its stem down to the close of
+  # that day (the last on or before it).
+  defp note_pins(notes, geometry, {x0, y0, x1, y1}) do
+    plot_w = x1 - x0
+    plot_h = y1 - y0
+
+    notes
+    |> Enum.filter(&(is_binary(&1[:headline]) and &1[:headline] != ""))
+    |> Enum.filter(&within_range?(&1.date, geometry))
+    |> Enum.group_by(& &1.date)
+    |> Enum.sort_by(fn {date, _notes} -> date end, Date)
+    |> Enum.map(fn {date, day_notes} ->
+      x = x0 + plot_w * x_fraction_for_date(date, geometry)
+      close = close_for_date(geometry, date)
+      price_y = if chart_float(close), do: y1 - plot_h * normalized_y(close, geometry), else: y1
+      head_y = y0 + 7.5
+      tone = pin_tone(day_notes)
+      lines = Enum.map(day_notes, &note_lines/1)
+
+      %{
+        date: payload_date(date),
+        x: format_coord(x),
+        x_value: x,
+        y: format_coord(head_y),
+        stem_top: format_coord(head_y + 6.5),
+        stem_bottom: format_coord(max(price_y, head_y + 6.5)),
+        tone: tone,
+        glyph: pin_glyph(tone, x, head_y),
+        count: length(day_notes),
+        count_x: format_coord(x + 9.5),
+        lines: lines,
+        title: Enum.map_join(lines, "\n", &Enum.join(&1, "\n"))
+      }
+    end)
+  end
+
+  defp pin_tone(notes) do
+    case notes |> Enum.map(&tone_class(&1[:tone])) |> Enum.uniq() do
+      [tone] -> tone
+      _differ -> "mixed"
+    end
+  end
+
+  defp tone_class(1), do: "pos"
+  defp tone_class(-1), do: "neg"
+  defp tone_class(_neutral_or_none), do: "neu"
+
+  # The tone as a glyph inside the head (UX-DR7): a plus, a minus, none.
+  defp pin_glyph("pos", x, y) do
+    "M#{format_coord(x - 3)},#{format_coord(y)} H#{format_coord(x + 3)} " <>
+      "M#{format_coord(x)},#{format_coord(y - 3)} V#{format_coord(y + 3)}"
+  end
+
+  defp pin_glyph("neg", x, y),
+    do: "M#{format_coord(x - 3)},#{format_coord(y)} H#{format_coord(x + 3)}"
+
+  defp pin_glyph(_neutral_or_mixed, _x, _y), do: nil
+
+  # A note's two lines: the headline, then „event type · tone · date“ in
+  # words, each part only when the note states it.
+  defp note_lines(note) do
+    meta =
+      [
+        note[:event_type] && EventTypeLabel.event_type(note.event_type),
+        note[:tone] in [-1, 0, 1] && EventTypeLabel.tone(note.tone),
+        Format.date(note.date)
+      ]
+      |> Enum.filter(&is_binary/1)
+      |> Enum.join(" · ")
+
+    [note.headline, meta]
+  end
+
+  # --- S28 N9 end ---
 
   # The hook's JSON keeps ISO at `points[i][0]` and on a trade: the zoom
   # sends these dates back as the custom range. #1163 (board 02 ⑥): the

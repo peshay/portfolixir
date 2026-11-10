@@ -8,7 +8,9 @@ defmodule Portfolixir.NewsFixtures do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
+  alias Portfolixir.Clock
   alias Portfolixir.News
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Feed
@@ -185,6 +187,53 @@ defmodule Portfolixir.NewsFixtures do
   end
 
   # --- S28 N7 end ---
+
+  # --- S28 N9 begin ---
+
+  @doc """
+  A story of `security` kept in its research log three days ago, so the
+  security's chart draws a note pin (S28 N9) for the walks that read it
+  (the privacy backstop and the browser's leak walk): a close on that day
+  (the security's latest close repeated, or `"100"` without one) keeps the
+  pin inside the chart's window, and the note is written through the one
+  write a story becomes a note by (`Portfolixir.News.append_note_from_story/3`),
+  its headline the story's title. Answers the note.
+  """
+  def chart_note!(security) do
+    day = Date.add(Clock.today(), -3)
+
+    case Quotes.latest(security.id) do
+      %{date: date} = latest when is_struct(date, Date) ->
+        if Date.compare(date, day) == :lt, do: close_on!(security, day, latest.close)
+
+      _none ->
+        close_on!(security, day, "100")
+    end
+
+    story =
+      story!(security,
+        title: "Synthetic contract win kept in the research log",
+        at: DateTime.new!(day, ~T[12:00:00.000000], "Etc/UTC")
+      )
+
+    label!(story.id, event_type: "product", tone: 1, materiality: 2)
+
+    {:ok, note} =
+      News.append_note_from_story(
+        Actor.owner_ui(),
+        %{"security_id" => security.id, "author" => "operator", "body" => "Synthetic finding."},
+        story.id
+      )
+
+    note
+  end
+
+  defp close_on!(security, day, close) do
+    {:ok, _quotes} =
+      Quotes.upsert_many(security.id, [%{date: day, close: close, source: "manual"}])
+  end
+
+  # --- S28 N9 end ---
 end
 
 defmodule Portfolixir.News.NoNetwork do

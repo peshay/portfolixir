@@ -10120,3 +10120,69 @@ border, `--radius-md`, `--color-bg-elevated`), its `h3` at 15 px,
 anywhere, `.story-promotion-form__actions` (a wrapping row, `--space-2`).
 Every colour is a token; the table and phone rows are N7's.
 <!-- S28 N8 end -->
+
+<!-- S28 N9 begin -->
+## Amendment 2026-11-10 — The security chart's note pins *(Sprint 28 N9, ADR-0056 A2, ADR-0044's amendment of 2026-11-06; board `mockups/ux-design-2026-11-08-sprint28/01-news-view`, marker A; plan D-5)*
+
+What lasts from news is a research note with a headline, an event type
+and a tone, and the security chart draws exactly that: **research entries
+with a headline, never a story or a raw item** (A2). Built in
+`PortfolixirWeb.Components.SecurityChart` (attributes `notes` and
+`show_notes?`; off by default, so no other chart draws pins) and fed by
+`SecuritiesLive`'s `chart_notes/1` from the research log the pane already
+holds.
+
+### Anatomy
+
+1. **One pin per day** with notes in the chart's window
+   (`g.note-pin[data-date]`): a head (`circle.note-pin__head`, r 6.5 view
+   units) at the plot's top edge, 7.5 units under it, over a dashed stem
+   (`line.note-pin__stem`, 1.2 wide, dashes 2/3) down to the day's close
+   (the last on or before it). The head sits above every price, so it
+   never covers a trade's ▲/▼ on the line (marker B, dots on the line, did:
+   plan D-5); the pins draw after the trades and before the axis labels.
+2. **The tone** is the head's colour and its glyph (UX-DR7, never colour
+   alone): +1 `--color-positive` with a plus (`path.note-pin__glyph`,
+   `note-pin--pos`), −1 `--color-danger` with a minus (`note-pin--neg`), 0
+   or none `--color-text-muted` without a glyph (`note-pin--neu`); the
+   stem takes the head's colour; the glyph and the halo are `--color-bg`,
+   as the trades' halo is. Tone is a stored reading, never a signal: it
+   colours and nothing else (ADR-0044's amendment).
+3. **Several notes on one day are one pin** (decided here): two heads on
+   one x would hide each other. Its tone is theirs when they agree, else
+   `note-pin--mixed` (muted, no glyph); its count stands beside the head
+   (`text.note-pin__count`, 10 CSS px at every width, `--chart-upx`).
+4. **The tooltip:** the crosshair's tooltip (`ChartCrosshair`) adds, under
+   the date and price (and a trade's line), each note of a pin within half
+   a day of the pointer's point — its headline (`.chart-tooltip__note`,
+   sans, 600, wrapping at 260 px) over „Kapitalmaßnahme · positiv ·
+   08.11.2026“ (`.chart-tooltip__note-meta`, the event type and the tone
+   in words, `PortfolixirWeb.EventTypeLabel`, then the date, each part only
+   when stated). The pin's `<title>` carries the same lines. Every string
+   is the server's, in the page's language, written as text.
+5. **What is drawn:** an entry with a headline (only `evidence` and
+   `event_result` carry one) whose `as_of` lies in the window, and that no
+   later entry supersedes — a pin cannot say it was replaced or
+   retracted, and the log shows it marked. A note kept from the tab
+   „Nachrichten“ is drawn at its story's day once saved, and not before.
+6. **The toggle:** „Notizen anzeigen“ (`#toggle-notes`, a `.chart-toggle`
+   pressed by default) right after „Transaktionen anzeigen“ on the
+   Diagramm tab; the Übersicht's small chart has no toolbar, so its one
+   toggle (`#toggle-notes-overview`) stands under it, only when the
+   security has a note to draw. Both switch one setting of the pane.
+
+### The privacy mode
+
+The pins stay: a headline, an event type, a tone and a date name no
+amount (board 01). The chart's axis turns to percent as before; the stem
+still ends on the line. The privacy backstop opens the Diagramm tab and
+the Übersicht with a kept note's pin, and again with „Notizen“ off; the
+browser's leak walk opens the same four states (the tab's note form
+included) in both themes at both widths.
+
+### The `app.css` rules (between `S28 N9 begin` / `end`)
+
+`.note-pin__stem`, `.note-pin__head`, the `--pos` and `--neg` heads and
+stems, `.note-pin__glyph`, `.note-pin__count`, `.chart-tooltip__note` and
+`__note-meta`, `.overview-chart__toggles`. Every colour is a token.
+<!-- S28 N9 end -->
