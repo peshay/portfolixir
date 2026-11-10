@@ -861,8 +861,8 @@ Example append payload:
 }
 ```
 
-**A news story becomes an entry only by a confirmed write** (ADR-0056 §8,
-A2; Sprint 28, N5): `POST /api/v1/securities/:security_id/notes` with
+**A news story becomes an entry only by a confirmed write** (ADR-0056 §8, A2):
+`POST /api/v1/securities/:security_id/notes` with
 `note.cluster_id` (a story of that security) and a `body` writes an entry
 the server pre-fills from the story: `kind` `evidence` (`event_result` may be
 sent instead; another kind answers `422` naming `kind`); `as_of` the day the
@@ -1093,8 +1093,8 @@ The writes:
 
 - `POST /api/v1/securities/:security_id/events` — records one event (`201`).
   `security_id` comes from the path, never the body; `machine_generated` is
-  reserved and is ignored in the body. `event.news_id` (ADR-0056 §8; Sprint
-  28, N5) names a news item of that security as the event's source: its
+  reserved and is ignored in the body. `event.news_id` (ADR-0056 §8) names a
+  news item of that security as the event's source: its
   link becomes `source_url` and its tier `source_quality` (`primary`,
   `secondary` as `unverified`, `awareness`); `source_url` or
   `source_quality` sent beside it answers `422` naming it, and an item of
@@ -1223,7 +1223,7 @@ computation basis or note, so a part always equals what its read answers.
     view's plan is the same read with `view=`; `parts.targets` says so), and
     `drift`, naming the read that states each row's drift: the dossier
     computes none;
-  - `news` (ADR-0056 §9; Sprint 28, N6) — `count_7d`, the security's
+  - `news` (ADR-0056 §9) — `count_7d`, the security's
     stories with a member that entered their scope in the last 7 days (as
     `GET /api/v1/news/stories?security_id=:id&since=` 7 days back lists
     them), `primary_7d`, those whose best tier is `primary`,
@@ -1331,6 +1331,21 @@ evaluate.
 
 ### News upkeep (ADR-0056)
 
+The news layer (ADR-0056) fetches registered feeds, binds each item to a
+security or a category by rule, groups duplicates into stories and serves
+them compactly; an outside model may label the stories. Its surface is
+four parts: the upkeep writes here, the [reads](#news-reads-adr-0056), the
+[labeller's read and write](#news-labels-adr-0056-7), and the step from a
+story to knowledge, which is the [research log](#research-log-adr-0044)'s
+`notes.append` with a `cluster_id`, a [security event](#security-events-adr-0048)'s
+`news_id` and the [dossier](#the-position-dossier-fr-49)'s news block. The
+human view is the News page and each security's News tab
+([Product documentation](../product-documentation.html#news)): each region
+reads what the read of the same request answers; the page's one write
+is the assignment below, the tab's a research entry from a story; feeds
+and sources are registered, changed and removed here only, and the page
+shows them.
+
 The writes that keep the news layer (§9, B1). Each is journaled under the
 calling token and closed: a field it does not take answers `422` naming it.
 Answers are compact: short codes, null fields left out.
@@ -1369,7 +1384,9 @@ Answers are compact: short codes, null fields left out.
   `story_id`, `assignment`, `security_id` and `candidates`. A label's
   `suggested_security_id` assigns nothing; an unassigned or ambiguous item
   sits in no story, so no label reaches it and its row carries no
-  suggestion.
+  suggestion (an open question of ADR-0056's amendment of 2026-11-09,
+  D5). The News page's **Assign** is this write, journaled under the
+  operator.
 - `PATCH /api/v1/securities/:id` takes `news_identity` — `cik` (1 to 10
   digits, `null` clears it) and `aliases`, each a literal `token` (no
   pattern), optional `context` words of which one must share the sentence,
@@ -1416,9 +1433,9 @@ only the digest's `unlabeled` grows.
   `domain` and, when ambiguous, `candidates` (security ids). A labelled story
   row adds `materiality` and `event_type`. `fields=std` adds
   `url` and `note_ids`, and to a story row its representative's `domain`,
-  cut at 40 characters as the companion spells it (Sprint 28 N8: the source
-  the security's tab „Nachrichten“ shows). Rows come newest first by the time they entered their
-  scope; rows of the same instant (one fetch stamps its items alike) by
+  cut at 40 characters as the companion spells it: the source the
+  security's News tab shows. Rows come newest first by the time they
+  entered their scope; rows of the same instant (one fetch stamps its items alike) by
   tier, primary first, then the newest publication, then the link, never by
   id. `since` reads that time, `scope_at`, the server's clock, never the
   feed's claim (B4, C3): an item's first sight, or the time a later
@@ -1450,10 +1467,9 @@ only the digest's `unlabeled` grows.
   `yield_30d` (`promoted_30d` over `items_30d`, a decimal string rounded to
   4 places, left out for a feed without items) and `low_yield` (`true` for a
   feed with at least 50 items in 30 days and none of its stories promoted;
-  A3). Nothing disables a feed by itself: the operator decides. Until
-  promotion existed the two were left out for a `yield` placeholder (C4);
-  Sprint 28 answers them. Then the day's `unassigned`, `ambiguous`, `dropped` (`cap`,
-  `no_source`, `old`) and `blocked` counts.
+  A3). Nothing disables a feed by itself: the operator decides. Then the
+  day's `unassigned`, `ambiguous`, `dropped` (`cap`, `no_source`, `old`)
+  and `blocked` counts.
 - `GET /api/v1/news/digest` answers what is new, one row per security: with
   `view_id` the securities that view holds, without it the news universe
   (held, carrying a target weight, or watched). `since` (default 24 hours
@@ -1477,7 +1493,10 @@ only the digest's `unlabeled` grows.
   holds securities), `hidden` counts only its securities' stories and
   `ambiguous` only the items naming one of them. `max_rows` (default 12, which
   keeps the digest within its budget; at most 40) caps the rows; `truncated`
-  and `more` say how many were left out. `tier_min` answers `422`.
+  and `more` say how many were left out. `tier_min` is not taken (`422`):
+  the class and the label decide what counts, and `hidden` counts what
+  they left out, which a tier floor beside them would not. The News page
+  reads this digest without `consumer`, so it moves no reader's position.
 
   **The consumer cursor** (§9, at least once): with `consumer` (an
   identifier as a label's model) the server keeps that reader's confirmed
@@ -1519,7 +1538,7 @@ only the digest's `unlabeled` grows.
   `restarted: true`. Rows tie, after their materiality and their top
   story's tier and publication, by security id. With `since` a truncated
   answer keeps `truncated` and `more` as before.
-- `GET /api/v1/news/registry` (`news.registry`, Sprint 28 N7) lists what
+- `GET /api/v1/news/registry` (`news.registry`) lists what
   the news page's Feeds and Quellen tabs show, read through the same
   function: every registered feed by id (`id`, `url` cut at 300 characters
   as the companion spells it, `class`, `security_id` or `category_id` (none
@@ -1535,10 +1554,23 @@ only the digest's `unlabeled` grows.
 
 ### News labels (ADR-0056 §7)
 
-An outside model labels stories through a script with its own named token
-(`PORTFOLIXIR_API_TOKENS`, e.g. `labeller=<token>`), so every label is
-journaled under that name. A label is a proposal (`machine_generated` is
-always true): it sorts stories, and it moves, hides or writes nothing else.
+An outside model labels stories through a script on the operator's machine
+that holds its own named token (`PORTFOLIXIR_API_TOKENS`, e.g.
+`labeller=<token>`), so every label is journaled under that name. The model
+never holds the token: it returns JSON to the script, and the script calls
+these two routes and nothing else, directly or through a companion run with
+`PORTFOLIXIR_MCP_PROFILE=label`, the profile that alone lists the two tools
+([MCP Tools](#mcp-tools)). A label is a proposal (`machine_generated` is
+always true): it orders and filters aggregator and thematic stories in the
+[reads](#news-reads-adr-0056), never hides an issuer's or a regulator's
+story, and moves, assigns or writes nothing else; its
+`suggested_security_id` assigns nothing. Without any label every read
+answers as before. A labeller that changes its prompt changes
+`prompt_version`: the reads follow the version of the label created last,
+and the new version's stories come back in `unlabeled` until labelled.
+Two labellers on different versions make every read without
+`prompt_version` follow whichever created a label last, so run one at a
+time or name the version (ADR-0056's amendment of 2026-11-09, D10).
 
 - `PUT /api/v1/news/labels` stores one label from a `label` object:
   `cluster_id` (a story), `model` and `prompt_version` (1 to 64 letters,
@@ -1552,7 +1584,9 @@ always true): it sorts stories, and it moves, hides or writes nothing else.
   clauses, numbered as the unlabeled read numbers them) and
   `suggested_security_id`. A new label answers `201`;
   a put of the same `cluster_id`, `model` and `prompt_version` replaces it
-  in place and answers `200`. The schema is closed: a field outside it,
+  in place, a full replacement journaled as an update, and answers `200`;
+  a put equal to the stored label writes nothing. The schema is closed: a
+  field outside it,
   inside `label` or beside it, answers `422` naming it, and so does a wrong
   JSON type, a `confidence` sent as a number (`"must be a decimal
   string"`), and a story, security, thesis or clause that is not there.
@@ -1564,7 +1598,9 @@ always true): it sorts stories, and it moves, hides or writes nothing else.
   `categories`, and per row security with an intact thesis its `note_id`
   and the invalidation condition's `clauses` (`idx`, `text`), split at line
   breaks and semicolons, six listed with `more` counting the rest. Another
-  parameter answers `422` naming it.
+  parameter answers `422` naming it. At the default limit the answer holds
+  about 6,000 tokens with a 40-security universe; the universe is the
+  whole news universe, so a larger one costs more.
 
 ### Logos
 
@@ -4657,7 +4693,12 @@ keeps its full authority over the API.
 
 **Tool profiles.** `PORTFOLIXIR_MCP_PROFILE` takes `read`, `book` or `full` (the
 default), in any case. `read` is the read-only mode above. `full` lists and
-calls every tool. `book` lists the reads, every create and the replace-shaped
+calls every tool but the news labeller's two. A fourth profile, `label`,
+lists `portfolixir.news.unlabeled` and `portfolixir.news.label_put` and
+nothing else, and no other profile lists them: it is for a labeller's
+script that runs its own companion with its own named token (ADR-0056 §7),
+and each side refuses the other's tools at the call. `book` lists the reads,
+every create and the replace-shaped
 writes, and leaves out the **admin set**, an explicit list in the companion
 (`mcp-server/src/profiles.ts`) drawn by one line, as implemented:
 removal-shaped tools are admin, and replace-shaped writes stay in `book`. Every
@@ -4892,6 +4933,10 @@ API may have committed it, and its answer cannot be read.
   beside `ack_cursor`; it stays read-only in every
   profile, because the position it moves is the consumer's own bookmark,
   not the operator's data.
+- `portfolixir.news.registry` — the feeds and rated sources the News
+  page's Feeds and Sources tabs show, calling `GET /api/v1/news/registry`
+  of [News reads](#news-reads-adr-0056), paged, compact JSON; in `read`,
+  `book` and `full`, not in `label`.
 - `portfolixir.news.unlabeled` and `portfolixir.news.label_put` — the news
   labeller's read and write (ADR-0056 §7), each calling the route of
   [News labels](#news-labels-adr-0056-7). Only the `label` profile
@@ -4924,7 +4969,7 @@ API may have committed it, and its answer cannot be read.
   transaction.
 - `portfolixir.events.create` — records a dated fact; the description spells
   out that `timing` says how well the date is known. Its `event` takes
-  `news_id`, a news item of the security as the source (S28 N5): the
+  `news_id`, a news item of the security as the source: the
   companion refuses `source_url` or `source_quality` beside it, and an event
   with neither `news_id` nor `source_quality`, before any request.
 - `portfolixir.events.update` — corrects or confirms one in place, because an
@@ -4942,9 +4987,9 @@ API may have committed it, and its answer cannot be read.
   description says so.
 - `portfolixir.securities.dossier` — one security's position dossier (FR-49):
   its record, holdings, metrics, newest research-log entries, upcoming and
-  recent events, categories, position targets and its news of the week (S28
-  N6) in one read, each part as its own read answers it and naming that
-  read. It answers compact JSON (no indentation), so the news block's
+  recent events, categories, position targets and its news of the week in
+  one read, each part as its own read answers it and naming that read. It
+  answers compact JSON (no indentation), so the news block's
   budget of about 50 tokens holds on the text the agent receives.
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
@@ -4953,7 +4998,7 @@ API may have committed it, and its answer cannot be read.
   with `supersedes_id` is how a finding is withdrawn. It takes `headline`,
   `event_type` and `tone` on an evidence or event_result entry, and
   `cluster_id`: a news story kept with the agent's body, the server setting
-  the rest as [Research log](#research-log-adr-0044) says (S28 N5); the
+  the rest as [Research log](#research-log-adr-0044) says; the
   companion refuses `as_of`, `source_url` or `source_quality` beside
   `cluster_id`, and a note without `cluster_id` missing `kind`,
   `source_quality` or `as_of`, before any request. A summary, never the

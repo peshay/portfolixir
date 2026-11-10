@@ -962,7 +962,7 @@ Beispiel-Payload zum Anhängen:
 ```
 
 **Eine Story wird nur durch einen bestätigten Schreibvorgang zum Eintrag**
-(ADR-0056 §8, A2; Sprint 28, N5): `POST /api/v1/securities/:security_id/notes`
+(ADR-0056 §8, A2): `POST /api/v1/securities/:security_id/notes`
 mit `note.cluster_id` (eine Story dieses Wertpapiers) und einem `body`
 schreibt einen Eintrag, den der Server aus der Story vorbelegt: `kind`
 `evidence` (`event_result` darf stattdessen gesendet werden; eine andere Art
@@ -1205,7 +1205,7 @@ Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 `PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
 (`204`). Beim Anlegen gilt: `security_id` kommt aus dem Pfad, nie aus dem
 Body; `machine_generated` ist reserviert und wird im Body ignoriert.
-`event.news_id` (ADR-0056 §8; Sprint 28, N5) nennt einen Nachrichten-Eintrag
+`event.news_id` (ADR-0056 §8) nennt einen Nachrichten-Eintrag
 dieses Wertpapiers als Quelle des Termins: Sein Link wird `source_url`, seine
 Stufe `source_quality` (`primary`, `secondary` als `unverified`,
 `awareness`); `source_url` oder `source_quality` daneben liefert `422` mit
@@ -1326,7 +1326,7 @@ ein Teil immer gleich dem ist, was sein Lesezugriff antwortet.
     (den Plan einer View liest derselbe Lesezugriff mit `view=`; das sagt
     auch `parts.targets`), und `drift`, das den Lesezugriff nennt, der die Abweichung jeder Zeile
     angibt: Das Dossier berechnet keine;
-  - `news` (ADR-0056 §9; Sprint 28, N6) — `count_7d`, die Storys des
+  - `news` (ADR-0056 §9) — `count_7d`, die Storys des
     Wertpapiers, bei denen ein Mitglied in den letzten 7 Tagen in ihren
     Bereich kam (wie `GET /api/v1/news/stories?security_id=:id&since=` 7
     Tage zurück sie listet), `primary_7d`, die davon mit der besten Stufe
@@ -1447,6 +1447,23 @@ berichtet, sie bewertet nicht.
 
 ### News-Pflege (ADR-0056)
 
+Die News-Schicht (ADR-0056) ruft registrierte Feeds ab, ordnet jeden
+Eintrag nach Regel einem Wertpapier oder einer Kategorie zu, bündelt
+Dubletten zu Storys und liefert sie knapp; ein Modell außerhalb der App
+kann die Storys einordnen. Ihre Oberfläche hat vier Teile: die
+Pflege-Schreibzugriffe hier, die [Lesezugriffe](#news-lesezugriffe-adr-0056),
+[Lese- und Schreibzugriff des Labellers](#news-labels-adr-0056-7) und den
+Schritt von der Story zum Wissen, nämlich `notes.append` mit einer
+`cluster_id` im [Research-Log](#research-log-adr-0044), `news_id` an einem
+[Wertpapier-Termin](#wertpapier-termine-adr-0048) und den News-Block des
+[Dossiers](#das-positionsdossier-fr-49). Die menschliche Sicht ist die Seite
+Nachrichten und der Reiter Nachrichten jedes Wertpapiers
+([Produktdokumentation](../product-documentation.html#nachrichten)): Jeder
+Bereich liest, was der Lesezugriff derselben Anfrage antwortet; der einzige
+Schreibzugriff der Seite ist die Zuordnung unten, der des Reiters ein
+Research-Eintrag aus einer Story; Feeds und Quellen werden nur hier
+angelegt, geändert und entfernt, und die Seite zeigt sie.
+
 Die Schreibzugriffe, die die News-Schicht pflegen (§9, B1). Jeder wird unter
 dem aufrufenden Token journalisiert und ist geschlossen: Ein Feld, das er
 nicht nimmt, ergibt `422`, das es nennt. Die Antworten sind knapp: kurze
@@ -1490,7 +1507,9 @@ Codes, leere Felder weggelassen.
   `candidates` des Eintrags. Die `suggested_security_id` eines Labels ordnet
   nichts zu; ein nicht zugeordneter oder mehrdeutiger Eintrag steht in
   keiner Story, kein Label erreicht ihn, und seine Zeile trägt keinen
-  Vorschlag.
+  Vorschlag (eine offene Frage der Ergänzung von ADR-0056 vom 2026-11-09,
+  D5). **Zuordnen** auf der Seite Nachrichten ist dieser Schreibzugriff,
+  unter dem Betreiber protokolliert.
 - `PATCH /api/v1/securities/:id` nimmt `news_identity` — `cik` (1 bis 10
   Ziffern, `null` löscht ihn) und `aliases`, je ein wörtliches `token` (kein
   Muster), optionale `context`-Wörter, von denen eines im selben Satz stehen
@@ -1543,8 +1562,8 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   ergänzt `materiality` und `event_type`. `fields=std` ergänzt `url`
   und `note_ids`, bei einer Story-Zeile auch die `domain` ihres
   Repräsentanten, gekürzt auf 40 Zeichen, wie der Begleiter sie schreibt
-  (Sprint 28 N8: die Quelle, die der Reiter „Nachrichten“ des Wertpapiers
-  zeigt). Die Zeilen kommen neueste zuerst nach dem Zeitpunkt, zu dem
+  – die Quelle, die der Reiter „Nachrichten“ des
+  Wertpapiers zeigt. Die Zeilen kommen neueste zuerst nach dem Zeitpunkt, zu dem
   sie in ihren Bereich kamen; Zeilen desselben Zeitpunkts (ein Abruf stempelt
   seine Einträge gleich) nach Stufe, primäre zuerst, dann nach neuester
   Veröffentlichung, dann nach Link, nie nach ID. `since` liest diesen Zeitpunkt, `scope_at`, die
@@ -1580,9 +1599,8 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   Dezimal-String auf 4 Stellen gerundet, fehlt bei einem Feed ohne Einträge)
   und `low_yield` (`true` für einen Feed mit mindestens 50 Einträgen in 30
   Tagen, von dessen Storys keine übernommen wurde; A3). Nichts schaltet einen
-  Feed von selbst ab: Der Betreiber entscheidet. Solange es keine Übernahme
-  gab, fehlten beide zugunsten eines Platzhalters `yield` (C4); Sprint 28
-  beantwortet sie. Dazu die Tageszähler `unassigned`, `ambiguous`, `dropped`
+  Feed von selbst ab: Der Betreiber entscheidet. Dazu die Tageszähler
+  `unassigned`, `ambiguous`, `dropped`
   (`cap`, `no_source`, `old`) und `blocked`.
 - `GET /api/v1/news/digest` beantwortet, was neu ist, eine Zeile je
   Wertpapier: mit `view_id` die Wertpapiere, die diese Sicht hält, ohne sie
@@ -1610,7 +1628,10 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   `ambiguous` nur die Einträge, die eines davon nennen. `max_rows`
   (standardmäßig 12, womit der Digest in seinem Budget bleibt; höchstens 40)
   begrenzt die Zeilen; `truncated` und `more` sagen, wie viele weggelassen
-  wurden. `tier_min` ergibt `422`.
+  wurden. `tier_min` wird nicht genommen (`422`): Klasse und Label
+  entscheiden, was zählt, und `hidden` zählt, was sie wegließen, was eine
+  Stufen-Untergrenze daneben nicht täte. Die Seite Nachrichten liest diesen
+  Digest ohne `consumer` und verschiebt so keine Leseposition.
 
   **Der Verbraucher-Cursor** (§9, mindestens einmal): mit `consumer` (ein
   Bezeichner wie das Modell eines Labels) hält der Server die bestätigte
@@ -1659,7 +1680,7 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
   gleichem Rang und gleicher Veröffentlichung ihrer Top-Story entscheidet
   die Wertpapier-ID über die Reihenfolge der Zeilen. Mit `since` behält eine
   gekürzte Antwort `truncated` und `more` wie bisher.
-- `GET /api/v1/news/registry` (`news.registry`, Sprint 28 N7) listet, was
+- `GET /api/v1/news/registry` (`news.registry`) listet, was
   die Reiter Feeds und Quellen der Nachrichten-Seite zeigen, gelesen über
   dieselbe Funktion: jeden registrierten Feed nach ID (`id`, `url`, gekürzt
   auf 300 Zeichen, wie der Begleiter sie schreibt, `class`, `security_id`
@@ -1676,11 +1697,25 @@ wie zuvor, und nur `unlabeled` des Digests wächst.
 
 ### News-Labels (ADR-0056 §7)
 
-Ein Modell außerhalb der App vergibt Labels über ein Skript mit eigenem
-benannten Token (`PORTFOLIXIR_API_TOKENS`, z. B. `labeller=<token>`), sodass
-jedes Label unter diesem Namen im Journal steht. Ein Label ist ein Vorschlag
-(`machine_generated` ist immer wahr): Es sortiert Storys und verschiebt,
-verbirgt oder schreibt sonst nichts.
+Ein Modell außerhalb der App vergibt Labels über ein Skript auf dem Rechner
+des Betreibers, das ein eigenes benanntes Token hält
+(`PORTFOLIXIR_API_TOKENS`, z. B. `labeller=<token>`), sodass jedes Label
+unter diesem Namen im Journal steht. Das Modell hält das Token nie: Es gibt
+dem Skript JSON zurück, und das Skript ruft diese beiden Routen und sonst
+nichts auf, direkt oder über einen Begleitdienst mit
+`PORTFOLIXIR_MCP_PROFILE=label`, dem Profil, das als einziges die beiden
+Tools listet ([MCP-Tools](#mcp-tools)). Ein Label ist ein Vorschlag
+(`machine_generated` ist immer wahr): Es ordnet und filtert Aggregator- und
+thematische Storys in den [Lesezugriffen](#news-lesezugriffe-adr-0056),
+verbirgt nie die Story eines Emittenten oder einer Aufsicht und verschiebt,
+ordnet zu oder schreibt sonst nichts; seine `suggested_security_id` ordnet
+nichts zu. Ohne Label antwortet jeder Lesezugriff wie zuvor. Ein Labeller,
+der seinen Prompt ändert, ändert `prompt_version`: Die Lesezugriffe folgen
+der Version des zuletzt angelegten Labels, und die Storys der neuen Version
+kommen in `unlabeled` zurück, bis sie eingeordnet sind. Zwei Labeller mit
+verschiedenen Versionen lassen jeden Lesezugriff ohne `prompt_version` dem
+folgen, der zuletzt ein Label anlegte; betreiben Sie also einen zur Zeit
+oder nennen Sie die Version (Ergänzung von ADR-0056 vom 2026-11-09, D10).
 
 - `PUT /api/v1/news/labels` speichert ein Label aus einem `label`-Objekt:
   `cluster_id` (eine Story), `model` und `prompt_version` (1 bis 64
@@ -1695,7 +1730,9 @@ verbirgt oder schreibt sonst nichts.
   wie der Lesezugriff auf unbeschriftete Storys sie nummeriert) und
   `suggested_security_id`. Ein neues Label ergibt `201`; ein Put mit
   denselben `cluster_id`, `model` und `prompt_version` ersetzt es an Ort und
-  Stelle und ergibt `200`. Das Schema ist geschlossen: Ein Feld außerhalb, in
+  Stelle, als vollständiger Ersatz, im Journal
+  als Änderung, und ergibt `200`; ein Put gleich dem gespeicherten Label
+  schreibt nichts. Das Schema ist geschlossen: Ein Feld außerhalb, in
   `label` oder daneben, ergibt `422` mit seinem Namen, ebenso ein falscher
   JSON-Typ, eine als Zahl gesendete `confidence` (`"must be a decimal
   string"`) und eine Story, ein Wertpapier, eine These oder Klausel, die es
@@ -1709,7 +1746,9 @@ verbirgt oder schreibt sonst nichts.
   ihre `note_id` und die `clauses` (`idx`, `text`) der
   Invalidierungsbedingung, getrennt an Zeilenumbrüchen und Semikolons, sechs
   aufgeführt, `more` zählt den Rest. Ein anderer Parameter ergibt `422` mit
-  seinem Namen.
+  seinem Namen. Beim Standardlimit hält die Antwort mit einem Universum von
+  40 Wertpapieren etwa 6.000 Token; das Universum ist das ganze
+  Nachrichten-Universum, ein größeres kostet also mehr.
 
 ### Logos
 
@@ -5080,7 +5119,13 @@ Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
 
 **Tool-Profile.** `PORTFOLIXIR_MCP_PROFILE` nimmt `read`, `book` oder `full`
 (Standard), in beliebiger Schreibweise. `read` ist der Nur-Lese-Modus oben.
-`full` listet und ruft jedes Tool. `book` listet die Lesezugriffe, jedes Anlegen
+`full` listet und ruft jedes Tool außer den zwei des News-Labellers. Ein
+viertes Profil, `label`, listet `portfolixir.news.unlabeled` und
+`portfolixir.news.label_put` und sonst nichts, und kein anderes Profil
+listet sie: Es ist für das Skript eines Labellers, das einen eigenen
+Begleitdienst mit eigenem benannten Token betreibt (ADR-0056 §7), und jede
+Seite lehnt die Tools der anderen beim Aufruf ab. `book` listet die
+Lesezugriffe, jedes Anlegen
 und die ersetzenden Schreibzugriffe und lässt die **Admin-Menge** weg, eine
 ausdrückliche Liste im Begleitdienst (`mcp-server/src/profiles.ts`), gezogen
 nach einer Linie, wie sie umgesetzt ist: entfernende Tools sind Admin,
@@ -5351,6 +5396,11 @@ lässt sich nicht lesen.
   bleibt in jedem Profil ein Lesewerkzeug, weil
   die Position, die es verschiebt, das eigene Lesezeichen des Verbrauchers
   ist, keine Daten des Betreibers.
+- `portfolixir.news.registry` — die Feeds und bewerteten Quellen, die die
+  Reiter Feeds und Quellen der Seite Nachrichten zeigen; ruft
+  `GET /api/v1/news/registry` aus den
+  [News-Lesezugriffen](#news-lesezugriffe-adr-0056) auf, geblättert,
+  kompaktes JSON; in `read`, `book` und `full`, nicht in `label`.
 - `portfolixir.news.unlabeled` und `portfolixir.news.label_put` — Lese- und
   Schreibzugriff des News-Labellers (ADR-0056 §7), jeder ruft die Route aus
   [News-Labels](#news-labels-adr-0056-7) auf. Nur das Profil `label`
@@ -5384,7 +5434,7 @@ lässt sich nicht lesen.
   `portfolixir.events.update`, `portfolixir.events.delete` — der Kalender
   eines Wertpapiers und seine drei Schreibzugriffe (ADR-0048). Das `event`
   von `events.create` nimmt `news_id`, einen Nachrichten-Eintrag des
-  Wertpapiers als Quelle (S28 N5): Der Begleiter lehnt `source_url` oder
+  Wertpapiers als Quelle: Der Begleiter lehnt `source_url` oder
   `source_quality` daneben ab, ebenso einen Termin ohne `news_id` und ohne
   `source_quality`, vor jeder Anfrage.
 - `portfolixir.events.upcoming` — was in den nächsten N Tagen im **gesamten
@@ -5400,7 +5450,7 @@ lässt sich nicht lesen.
 - `portfolixir.securities.dossier` — das Positionsdossier eines Wertpapiers
   (FR-49): Datensatz, Bestände, Kennzahlen, neueste Research-Log-Einträge,
   anstehende und jüngste Termine, Kategorien, Positionsziele und seine
-  Nachrichten der Woche (S28 N6) in einem Lesezugriff, jeder Teil so, wie
+  Nachrichten der Woche in einem Lesezugriff, jeder Teil so, wie
   sein eigener Lesezugriff ihn antwortet, und mit dessen Namen. Es antwortet
   kompaktes JSON (ohne Einrückung), sodass das Budget des News-Blocks von
   etwa 50 Token für den Text gilt, den der Agent erhält.
@@ -5412,7 +5462,7 @@ lässt sich nicht lesen.
   `headline`, `event_type` und `tone` bei einem evidence- oder
   event_result-Eintrag, und `cluster_id`: eine Story, mit dem `body` des
   Agenten festgehalten, den Rest setzt der Server, wie
-  [Research-Log](#research-log-adr-0044) sagt (S28 N5); der Begleiter lehnt
+  [Research-Log](#research-log-adr-0044) sagt; der Begleiter lehnt
   `as_of`, `source_url` oder `source_quality` neben `cluster_id` ab, ebenso
   einen Eintrag ohne `cluster_id`, dem `kind`, `source_quality` oder `as_of`
   fehlt, vor jeder Anfrage. Eine Zusammenfassung, nie der Artikel, und eine

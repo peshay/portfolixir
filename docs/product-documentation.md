@@ -3219,37 +3219,49 @@ The same report is `GET /api/v1/predictions/calibration` (with `author`,
 `GET /api/v1/predictions` and `portfolixir.predictions.list`. The page
 shows the figures those reads answer.
 
-## News (for the agent, this sprint)
+## News
 
 Portfolixir fetches news feeds that you or your agent register, and keeps
-what they bring as short records, never as articles (ADR-0056). What it does
-today:
+what they bring as short records, never as articles (ADR-0056). The agent
+reads it all through its tools; you read the same on the **News** page and
+on each security's **News** tab, and what you decide to keep becomes a
+research-log entry drawn on the security's chart.
 
-- **Feeds are registered by the agent** (or by you over the API): an
-  issuer's newsroom or a filing feed bound to a security, a theme feed bound
-  to a category, or a news search feed bound to nothing. A security's news
-  identity — the names and symbols that stand for it — is set on the
-  security, and a security you do not hold can be watched.
+- **Feeds and sources are registered by the agent** (or by you over the
+  API): an issuer's newsroom or a filing feed bound to a security, a theme
+  feed bound to a category, or a news search feed bound to nothing, and a
+  tier for a source's domain. They are registered, changed and removed
+  through the API and the companion; the page shows them and edits
+  neither. A security's news identity — the names and symbols that stand
+  for it — is set on the security, and a security you do not hold can be
+  watched.
 - **Fetched** on each feed's interval, each feed on its own: a feed that
   fails never stops another, and a feed's URL is checked before every fetch
   so it never reaches a private address.
 - **Matched**: an issuer's or a regulator's item belongs to its security by
   construction; an item from a news search lands on the one security it
   names, and one that names none, or several, waits as unassigned or
-  ambiguous. Nothing is guessed.
+  ambiguous until you or the agent assign it. Nothing is guessed.
 - **Deduplicated** into stories: the same release from several sites, in one
   language, is one story, its representative chosen by the source's tier,
   never by who was fetched first.
-- **Health**: each feed's last successful fetch, its yield, and `stale` once
-  it has had no success for 24 hours, so a dead feed reads differently from a
-  quiet security.
+- **Labelled from outside, if you want:** a model you run outside the app
+  can give a story an event type, a materiality from 0 to 3 and a tone
+  (see "Running a labeller" below). A label is a machine's proposal: it
+  sorts the stories and leaves out search and theme stories below the
+  agent's threshold, and it never hides what an issuer or a regulator
+  said. Without a labeller everything works; only the count of unlabelled
+  stories grows.
+- **Health**: each feed's last successful fetch, its errors, its yield
+  (the stories kept in the research log over its items of 30 days) and
+  `stale` once it has had no success for 24 hours, so a dead feed reads
+  differently from a quiet security.
 
-Items are kept 90 days, excerpts at most 600 characters. The agent reads all
-of it through its tools — the digest of what is new per security, a
-security's stories, one story with its link, the health — described in
-[API and MCP](integration/api-and-mcp.html#news-reads-adr-0056). **Nothing is
-shown on screen yet**: the feeds and their health, a security's stories and
-the queue of unassigned and ambiguous items get their screen in Sprint 28.
+Items are kept 90 days, excerpts at most 600 characters; a story kept in
+the research log keeps its items. The agent's tools — the digest of what
+is new per security, a security's stories, one story with its link, the
+health, the registry of feeds and sources, the assignment — are described
+in [API and MCP](integration/api-and-mcp.html#news-reads-adr-0056).
 
 A filing feed on `sec.gov` needs your contact in the user agent the fetcher
 sends, as the SEC asks: set `PORTFOLIXIR_NEWS_USER_AGENT` as
@@ -3257,6 +3269,112 @@ sends, as the SEC asks: set `PORTFOLIXIR_NEWS_USER_AGENT` as
 it is set, such a feed makes no request and reads `user_agent_missing`. It is
 sent to `sec.gov` and its subdomains only; every other feed's host receives
 the application's own user agent.
+
+### The News page
+
+**News**, in the main navigation after Securities, answers two questions
+at once: what is new, and is the collector alive. It has no logic of its
+own: each part reads what the agent's tool reads for the same request,
+with the tool's defaults, so the two never disagree. A line on top of
+every tab sums up the feeds' health: how many feeds, how many stale or of
+low yield, the errors of today and yesterday, the items of 24 hours,
+today's unassigned and ambiguous items, and what was dropped.
+
+- **Reports** (`/news`) holds two parts. **To assign** lists the search
+  items no security, or several, claim — ambiguous ones first, each with
+  its candidates — and a picker with the candidates first and then every
+  security of the news universe. **Assign** files the item under the
+  security chosen, as the agent's `news.assign` does: its stories are
+  regrouped at once and the audit journal records you as its author. It
+  is the page's only write. **New per security** is the agent's digest of
+  the last 24 hours, one row per security with its new stories, its top
+  story and its label, then what the digest left out (securities without
+  news, search and theme stories hidden by the threshold). It is read
+  without a reader of its own, so opening the page moves no agent's
+  position, and it reads the whole news universe, not the selected view.
+- **Feeds** (`/news?tab=feeds`) lists every feed in the order it was
+  registered: its URL with the last error, its class, what it is bound to
+  and its language, the last good fetch, the counts of 24 hours and 30
+  days, how many stories were kept, its yield, and its state — *ok*,
+  *paused*, *stale*, *low yield* (at least 50 items in 30 days and none
+  kept) or *last fetch failed*. Nothing switches a feed off by itself: you
+  decide, through the agent or the API.
+- **Sources** (`/news?tab=sources`) lists every rated domain with its tier
+  and whether it was set by hand or is a default; a domain without a row
+  counts as `awareness`, and a blocked one's items are dropped when they
+  are fetched.
+
+Titles, domains and links are a feed's text, shown with every invisible
+character spelled `[U+XXXX]`. A label's event type reads in words, and the
+label carries the chip **machine-made**; a story without one reads **no
+label**. On a phone every table becomes two-line rows. The privacy mode
+changes nothing here: the page shows no amount.
+
+### The security's News tab
+
+The security's **News** tab, after Research, lists the stories the news
+layer keeps for that security, newest first, as the agent's `news.list`
+reads them: the title (and how many sources carried the same story), the
+source's domain and tier, the time and the label, with the week's count of
+stories, primary ones and the highest materiality on top. A story already
+in the research log reads **kept**.
+
+**To the research log** opens the entry form pre-filled from the story,
+exactly as the agent's `notes.append` with the story fills it: the kind
+(evidence, or event result), the headline cut from the title at 80
+characters, the event type and the tone from the story's label, and, shown
+but not offered, the date, the source link and the source quality, which
+are the story's. You write the entry's text and may change the kind, the
+headline, the event type and the tone. Opening the form writes nothing;
+only **Save to the research log** does, as you, and the story then reads
+**kept**. A title with an invisible character cannot be a headline: the
+form says so, and you type your own. Keeping the same story a second time
+is the API's.
+
+### Notes on the chart
+
+A research-log entry with a headline — one kept from a story, or one the
+agent wrote with a headline — is drawn on the security's chart as a pin at
+the top edge, at the entry's date, over a dashed line to that day's close.
+Its colour and its sign are the tone: plus for positive, minus for
+negative, none for neutral or no tone. Several entries on one day are one
+pin with their count. The tooltip reads each headline over its event type,
+tone and date. An entry a later one supersedes, and every story or item
+that was never kept, is not drawn. **Show notes**, beside **Show
+transactions** on the Chart tab, switches the pins off and on; the
+Overview's small chart has the same toggle under it once there is a note
+to draw. The privacy mode keeps the pins: they name no amount.
+
+### Running a labeller
+
+A labeller is a small script of your own that hands the unlabelled stories
+to a model and writes back what the model returns, on your machine. It
+holds its own named token, and the model never holds the token: the model
+returns JSON to the script, and the script writes labels and nothing else
+(ADR-0056 §7).
+
+1. Give the labeller a token of its own: add an entry to
+   `PORTFOLIXIR_API_TOKENS` such as `labeller=<token>` (made with `openssl
+   rand -base64 48`) and restart the application. Every label it writes is
+   journaled under that name.
+2. Let the script read the stories without a label of its prompt version
+   (`GET /api/v1/news/unlabeled?prompt_version=…`), hand them to the model
+   as data, and write each label it gets back (`PUT /api/v1/news/labels`).
+   The write is closed: any field outside the label's schema is refused,
+   so a label cannot assign, hide or change anything else.
+3. Or run the MCP companion for it over stdio with
+   `PORTFOLIXIR_MCP_PROFILE=label` and that token as
+   `PORTFOLIXIR_API_TOKEN`: the `label` profile lists only those two tools.
+   Leave your agent's companion on `read`, `book` or `full`, which do not
+   list them.
+4. Change the prompt, change `prompt_version`: the reads follow the version
+   of the label created last, and the new version's stories come back as
+   unlabelled until it has labelled them. Run one prompt version at a time:
+   two labellers on different versions make every read follow whichever
+   wrote last (an open question of ADR-0056's amendment of 2026-11-09, D10).
+
+The details of both calls are in
+[API and MCP](integration/api-and-mcp.html#news-labels-adr-0056-7).
 
 ## Imports
 
@@ -4240,7 +4358,7 @@ selected tab, **Arrow Left/Right** move to the previous or next tab (wrapping
 at the ends), **Home** and **End** jump to the first and last, and the tab
 that receives focus opens its panel. When the page opens on a tab — from a link, a
 reload, back or forward, or a shared URL — the row scrolls that tab into
-view, which matters on a phone, where the ten tabs do not fit.
+view, which matters on a phone, where the eleven tabs do not fit.
 
 The detail pane shows a server-rendered SVG price chart with:
 
@@ -4250,6 +4368,8 @@ The detail pane shows a server-rendered SVG price chart with:
 - A *Show transactions* toggle that overlays buy/sell markers from the
   ledger — shape-coded triangles (▲ buy, ▼ sell), so the direction is
   readable without colour.
+- A *Show notes* toggle that draws the research-log entries with a headline
+  as pins at the chart's top edge (see [Notes on the chart](#notes-on-the-chart)).
 - A *Sync prices for this security* button.
 
 **Stock splits and the price basis (ADR-0028).** After a split is booked, the
