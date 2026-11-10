@@ -55,6 +55,7 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
     >
       <div class="detail-tab-hint" data-role="stories-basis">
         <%= gettext("The stories of this security the news layer keeps, newest first, as the agent reads them.") %>
+        <%= gettext("Times in UTC.") %>
         <AppShell.section_info>
           <:line>
             <%= gettext(
@@ -89,7 +90,7 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
       <.promotion_form :if={@promotion} promotion={@promotion} />
 
       <%= if @rows == [] do %>
-        <p id="security-stories-empty" class="detail-tab-empty" role="status">
+        <p id="security-stories-empty" class="empty-state" role="status">
           <%= gettext("No story of this security has come in. Feeds are registered over the API or MCP.") %>
         </p>
       <% else %>
@@ -320,7 +321,7 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
         <li :for={error <- @errors["other"]}><%= error %></li>
       </ul>
       <div class="story-promotion-form__actions">
-        <button type="submit" class="button"><%= gettext("Save to the research log") %></button>
+        <button type="submit" class="button-primary"><%= gettext("Save to the research log") %></button>
         <button type="button" id="story-promotion-cancel" class="button-ghost" phx-click="close_promotion">
           <%= gettext("Cancel") %>
         </button>

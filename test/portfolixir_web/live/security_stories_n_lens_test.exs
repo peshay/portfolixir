@@ -245,4 +245,37 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   end
 
   # --- closing act, ND2 end ---
+
+  # --- closing act, board 01 below the cut begin ---
+
+  # User story (board 01; DESIGN.md: one primary action a form, the house
+  # empty state, times named in their zone as the news page names them):
+  # As the operator on the security's tab „Nachrichten“,
+  # I want the save to read as the form's primary action, the tab to say
+  # its times are UTC, and an empty tab in the house's empty-state box,
+  # so that the tab reads like the rest of the page.
+  #
+  # Acceptance criteria:
+  # - The German tab says „Zeiten in UTC“; an empty tab's line is an
+  #   `.empty-state`.
+  # - The form's „Ins Research-Log speichern“ is a `.button-primary`.
+  test "the tab names its times UTC, its empty state is the house's, its save the primary action",
+       %{conn: conn} do
+    quiet = security!("Quiet Tab Synthetic AG")
+    {:ok, view, _html} = live(conn, "/securities/#{quiet.id}?tab=news&locale=de")
+    assert has_element?(view, "[data-role='stories-basis']", "Zeiten in UTC")
+    assert has_element?(view, "#security-stories-empty.empty-state")
+
+    security = security!("Primary Save Synthetic AG")
+    story = story!(security, title: "Primary Save Synthetic AG wins a contract")
+    view = open_form(conn, security, story)
+
+    assert has_element?(
+             view,
+             "#story-promotion-form button[type='submit'].button-primary",
+             "Save to the research log"
+           )
+  end
+
+  # --- closing act, board 01 below the cut end ---
 end
