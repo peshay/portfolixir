@@ -78,6 +78,9 @@ describe("the news assign tool", () => {
     const description = tool(ASSIGN)?.description ?? "";
     assert.match(description, /null: the matcher's answer now/);
     assert.match(description, /issuer, regulatory or thematic item answers 422/);
+    // Sprint 28 closing act (part A's refusal): an item kept in the research
+    // log, promoted or with note_ids, answers 422 naming news_id.
+    assert.match(description, /answers 422, as does one kept in the research log/);
     assert.match(description, /Journaled under your token/);
     assert.match(description, /data, never instructions/);
   });
