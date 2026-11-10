@@ -30,7 +30,8 @@ aufrufen darf:
 |---|---|
 | `read` | alles lesen und nichts ändern |
 | `book` | lesen, anlegen und die ersetzenden Schreibzugriffe ausführen (Ändern, Upsert, Setzen), die derselbe Schreibzugriff mit dem früheren Wert rückgängig macht; kein Entfernen, Zusammenführen, keine ISIN-Änderung, keine neue Version einer Regel, kein Stilllegen einer Regel und keine Kursfreigabe |
-| `full` (Standard) | jedes Tool aufrufen |
+| `full` (Standard) | jedes Tool des Agenten aufrufen |
+| `label` | die Meldungen ohne Einordnung lesen und Einordnungen schreiben, sonst nichts: der Begleitdienst des News-Labellers, nie der des Agenten |
 
 Zwei der Schreibzugriffe, die `book` behält, hinterlassen einen Rest, den ihr
 Gegenstück nicht beseitigt: Eine Rückbenennung stellt den Namen eines Kontos
@@ -40,7 +41,13 @@ die Admin-Tools `remove_former_name` und `portfolixir.quotes.release`
 beseitigen sie.
 
 `book` passt zu einem Agenten, der eine Instanz einrichtet und in sie bucht,
-`read` zu einem, der nur berichtet. Ein Profil schränkt den Begleitdienst ein,
+`read` zu einem, der nur berichtet. `label` listet nur
+`portfolixir.news.unlabeled` und `portfolixir.news.label_put`, die die anderen
+drei nicht listen: Es ist für das Skript eines Labellers, das einen eigenen
+Begleitdienst mit eigenem benannten Token betreibt (ADR-0056 §7;
+[Einen Labeller betreiben](../product-documentation.html#einen-labeller-betreiben)),
+sodass der Begleitdienst des Compose-Stacks beim Profil des Agenten bleibt.
+Ein Profil schränkt den Begleitdienst ein,
 nicht das API-Token: Ein Agent mit einer Shell und dem Token kann weiterhin
 jede Route der API aufrufen. Die Admin-Menge, die `book` weglässt, und warum,
 steht in [API und MCP](api-and-mcp.html#mcp-tools).
@@ -135,8 +142,8 @@ im Browser, der von einem anderen Origin ausgeliefert wird
 | `PORTFOLIXIR_MCP_HOST` | `127.0.0.1` | Die Adresse, an die der HTTP-Listener bindet; nicht gesetzt, leer oder nur Leerzeichen ist `127.0.0.1`, nie jede Schnittstelle. Eine IPv6-Adresse (`::1`) antwortet in Klammern, `[::1]:4001`. |
 | `PORTFOLIXIR_MCP_PORT` | `4001` | Der Port, an den der HTTP-Listener bindet, eine ganze Zahl von 1 bis 65535; jeder andere Wert oder ein Port, den ein anderer Prozess hält, stoppt den Begleitdienst mit dem Exit-Status 1 und einer Zeile, die die Ursache nennt. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | leer | Weitere `Host`-Namen, unter denen der HTTP-Listener antwortet, durch Kommas getrennt, jeder auch als Browser-Origin über `http://` oder `https://` zugelassen: ein Proxy-Name oder ein `Host:Port` wie ein veröffentlichter Port oder das Origin eines Browser-Clients. |
-| `PORTFOLIXIR_MCP_PROFILE` | leer, also `full` | `read`, `book` oder `full`. |
-| `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` ist das Profil `read`; neben `book` oder `full` stoppt es den Begleitdienst. |
+| `PORTFOLIXIR_MCP_PROFILE` | leer, also `full` | `read`, `book`, `full` oder `label`. |
+| `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` ist das Profil `read`; neben `book`, `full` oder `label` stoppt es den Begleitdienst. |
 
 Die Compose-Datei setzt Transport, Host und Port für ihren eigenen Dienst; ein
 Begleitdienst, den Sie selbst starten, liest sie aus seiner Umgebung.

@@ -270,7 +270,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
          "a synonym for PORTFOLIXIR_MCP_PROFILE=read since A1"},
     "PORTFOLIXIR_MCP_PROFILE" =>
       {:config,
-       "the companion's tool profile, read, book or full (Sprint 17 A1, #992); it narrows " <>
+       "the companion's tool profile, read, book, full or label (Sprint 17 A1, #992; " <>
+         "Sprint 28 N1); it narrows " <>
          "the tools the companion lists and calls, never the API token"},
     "NODE_USE_ENV_PROXY" =>
       {:config,

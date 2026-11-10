@@ -27,7 +27,8 @@ server, for one), so check your client's documentation for its spelling.
 |---|---|
 | `read` | read everything and change nothing |
 | `book` | read, create, and make the replace-shaped writes (update, upsert, set), which the same write sent the former value undoes; no removal, merge, ISIN change, new rule version, rule retirement or quote release |
-| `full` (the default) | call every tool |
+| `full` (the default) | call every agent tool |
+| `label` | read the stories without a label and write labels, and nothing else: the news labeller's companion, never the agent's |
 
 Two of the writes `book` keeps leave a residue their inverse does not clear: a
 rename back restores an account's name but keeps the in-between name as a
@@ -36,7 +37,12 @@ quote there; only the admin tools `remove_former_name` and
 `portfolixir.quotes.release` clear them.
 
 `book` suits an agent that sets up an instance and books into it, `read` one
-that only reports. A profile narrows the companion, not the API token: an agent
+that only reports. `label` lists only `portfolixir.news.unlabeled` and
+`portfolixir.news.label_put`, which the other three do not list: it is for a
+labeller's script that runs its own companion with its own named token
+(ADR-0056 §7; [Running a labeller](../product-documentation.html#running-a-labeller)),
+so the Compose stack's companion stays on the agent's profile. A profile
+narrows the companion, not the API token: an agent
 with a shell and the token can still call every route of the API. The admin
 set `book` leaves out, and why, is in [API and MCP](api-and-mcp.html#mcp-tools).
 
@@ -126,8 +132,8 @@ MCP client served from another origin (`localhost:6274`).
 | `PORTFOLIXIR_MCP_HOST` | `127.0.0.1` | The address the HTTP listener binds; unset, empty or blank is `127.0.0.1`, never every interface. An IPv6 address (`::1`) answers under its bracketed form, `[::1]:4001`. |
 | `PORTFOLIXIR_MCP_PORT` | `4001` | The port the HTTP listener binds, a whole number from 1 to 65535; any other value, or a port another process holds, stops the companion with exit status 1 and a line naming the cause. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | empty | Further `Host` names the HTTP listener answers under, comma-separated, each also admitted as a browser origin over `http://` or `https://`: a proxy name, or a `host:port` such as a published port or a browser client's origin. |
-| `PORTFOLIXIR_MCP_PROFILE` | empty, which is `full` | `read`, `book` or `full`. |
-| `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` is the `read` profile; beside `book` or `full` it stops the companion. |
+| `PORTFOLIXIR_MCP_PROFILE` | empty, which is `full` | `read`, `book`, `full` or `label`. |
+| `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` is the `read` profile; beside `book`, `full` or `label` it stops the companion. |
 
 The Compose file sets the transport, host and port for its own service; a
 companion you start yourself reads them from its environment.

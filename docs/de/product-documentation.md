@@ -3549,40 +3549,54 @@ Derselbe Bericht ist `GET /api/v1/predictions/calibration` (mit
 `GET /api/v1/predictions` und `portfolixir.predictions.list`. Die Seite
 zeigt die Zahlen, die diese Lesezugriffe antworten.
 
-## News (für den Agenten, in diesem Sprint)
+## Nachrichten
 
 Portfolixir ruft News-Feeds ab, die Sie oder Ihr Agent registrieren, und
-behält, was sie bringen, als kurze Einträge, nie als Artikel (ADR-0056). Was
-es heute tut:
+behält, was sie bringen, als kurze Einträge, nie als Artikel (ADR-0056). Der
+Agent liest alles über seine Werkzeuge; Sie lesen dasselbe auf der Seite
+**Nachrichten** und im Reiter **Nachrichten** jedes Wertpapiers, und was Sie
+behalten wollen, wird ein Eintrag im Research-Log, der im Diagramm des
+Wertpapiers erscheint.
 
-- **Feeds registriert der Agent** (oder Sie über die API): den Newsroom eines
-  Emittenten oder einen Meldungs-Feed, an ein Wertpapier gebunden, einen
-  Themen-Feed, an eine Kategorie gebunden, oder einen News-Such-Feed, an
-  nichts gebunden. Die News-Identität eines Wertpapiers — die Namen und
-  Kürzel, die für es stehen — wird am Wertpapier gesetzt, und ein Wertpapier,
-  das Sie nicht halten, lässt sich beobachten.
+- **Feeds und Quellen registriert der Agent** (oder Sie über die API): den
+  Newsroom eines Emittenten oder einen Meldungs-Feed, an ein Wertpapier
+  gebunden, einen Themen-Feed, an eine Kategorie gebunden, oder einen
+  News-Such-Feed, an nichts gebunden, und eine Stufe für die Domain einer
+  Quelle. Sie werden über die API und den Begleitdienst angelegt, geändert
+  und entfernt; die Seite zeigt sie und bearbeitet keins von beiden. Die
+  News-Identität eines Wertpapiers — die Namen und Kürzel, die für es
+  stehen — wird am Wertpapier gesetzt, und ein Wertpapier, das Sie nicht
+  halten, lässt sich beobachten.
 - **Abgerufen** im Intervall jedes Feeds, jeder Feed für sich: Ein Feed, der
   scheitert, hält keinen anderen auf, und die URL eines Feeds wird vor jedem
   Abruf geprüft, damit sie nie eine private Adresse erreicht.
 - **Zugeordnet**: Ein Eintrag eines Emittenten oder einer Aufsicht gehört
   durch seinen Feed zu seinem Wertpapier; ein Eintrag aus einer News-Suche
   landet bei dem einen Wertpapier, das er nennt, und einer, der keins oder
-  mehrere nennt, wartet als nicht zugeordnet oder mehrdeutig. Nichts wird
-  geraten.
-- **Entdoppelt** zu Storys: dieselbe Meldung von mehreren Seiten, in einer
-  Sprache, ist eine Story; ihr Repräsentant wird nach der Stufe der Quelle
+  mehrere nennt, wartet als nicht zugeordnet oder mehrdeutig, bis Sie oder
+  der Agent ihn zuordnen. Nichts wird geraten.
+- **Entdoppelt** zu Meldungen: dieselbe Meldung von mehreren Seiten, in einer
+  Sprache, ist eine; ihr Repräsentant wird nach der Stufe der Quelle
   gewählt, nie danach, wer zuerst abgerufen wurde.
-- **Zustand**: je Feed der letzte erfolgreiche Abruf, sein Ertrag und
-  `stale`, sobald er 24 Stunden keinen Erfolg hatte, sodass ein toter Feed
-  anders aussieht als ein ruhiges Wertpapier.
+- **Von außen eingeordnet, wenn Sie wollen:** Ein Modell, das Sie außerhalb
+  der App betreiben, kann einer Meldung eine Ereignisart, eine Materialität
+  von 0 bis 3 und eine Tonalität geben (siehe „Einen Labeller betreiben“
+  unten). Eine Einordnung ist der Vorschlag einer Maschine: Sie sortiert
+  die Meldungen und lässt Such- und Themenmeldungen unter der Schwelle des
+  Agenten weg, und sie verbirgt nie, was ein Emittent oder eine Aufsicht
+  gesagt hat. Ohne Labeller funktioniert alles; nur die Zahl der Meldungen
+  ohne Einordnung wächst.
+- **Zustand**: je Feed der letzte erfolgreiche Abruf, seine Fehler, sein
+  Ertrag (die ins Research-Log übernommenen Meldungen über seine Einträge
+  von 30 Tagen) und `stale`, sobald er 24 Stunden keinen Erfolg hatte,
+  sodass ein toter Feed anders aussieht als ein ruhiges Wertpapier.
 
-Einträge werden 90 Tage behalten, Auszüge höchstens 600 Zeichen. Der Agent
-liest alles über seine Werkzeuge — den Digest dessen, was je Wertpapier neu
-ist, die Storys eines Wertpapiers, eine Story mit ihrem Link, den Zustand —,
-beschrieben in [API und MCP](integration/api-and-mcp.html#news-lesezugriffe-adr-0056).
-**Auf dem Bildschirm erscheint noch nichts**: Die Feeds und ihr Zustand, die
-Storys eines Wertpapiers und die Warteschlange der nicht zugeordneten und
-mehrdeutigen Einträge erhalten ihre Seite in Sprint 28.
+Einträge werden 90 Tage behalten, Auszüge höchstens 600 Zeichen; eine ins
+Research-Log übernommene Meldung behält ihre Einträge. Die Werkzeuge des
+Agenten — der Digest dessen, was je Wertpapier neu ist, die Meldungen eines
+Wertpapiers, eine Meldung mit ihrem Link, der Zustand, das Verzeichnis der
+Feeds und Quellen, die Zuordnung — sind beschrieben in
+[API und MCP](integration/api-and-mcp.html#news-lesezugriffe-adr-0056).
 
 Ein Meldungs-Feed auf `sec.gov` braucht Ihre Kontaktadresse im User-Agent,
 den der Abruf sendet, wie die SEC es verlangt: Setzen Sie
@@ -3592,6 +3606,125 @@ Bis dahin stellt ein solcher Feed keine Anfrage und zeigt
 `user_agent_missing`. Gesendet wird er nur an `sec.gov` und seine
 Subdomains; jeder andere Feed-Host erhält den eigenen User-Agent der
 Anwendung.
+
+### Die Seite Nachrichten
+
+**Nachrichten**, in der Hauptnavigation nach Wertpapiere, beantwortet zwei
+Fragen auf einmal: Was ist neu, und lebt der Abruf? Sie hat keine eigene
+Logik: Jeder Teil liest, was das Werkzeug des Agenten für dieselbe Anfrage
+liest, mit dessen Voreinstellungen, sodass beide nie auseinanderlaufen. Eine
+Zeile oben auf jedem Reiter fasst den Zustand der Feeds zusammen: wie viele
+Feeds, wie viele veraltet oder mit wenig Ertrag, die Fehler von heute und
+gestern, die Einträge von 24 Stunden, die heute nicht zugeordneten und
+mehrdeutigen Einträge und was verworfen wurde.
+
+- **Meldungen** (`/news`) hat zwei Teile. **Zuzuordnen** listet die
+  Such-Einträge, die kein Wertpapier oder mehrere beanspruchen —
+  mehrdeutige zuerst, jeder mit seinen Kandidaten — und eine Auswahl mit
+  den Kandidaten zuerst und danach jedem Wertpapier des
+  Nachrichten-Universums. **Zuordnen** ordnet den Eintrag dem gewählten
+  Wertpapier zu, wie `news.assign` des Agenten: Seine Meldungen werden
+  sofort neu gruppiert, und das Audit-Journal nennt Sie als Urheber. Es ist
+  der einzige Schreibzugriff der Seite. **Neu je Wertpapier** ist der Digest
+  des Agenten über die letzten 24 Stunden, eine Zeile je Wertpapier mit
+  seinen neuen Meldungen, seiner wichtigsten Meldung und ihrer Einordnung,
+  danach, was der Digest wegließ (Wertpapiere ohne Neues, Such- und
+  Themenmeldungen unter der Schwelle). Er wird ohne eigenen Leser gelesen,
+  das Öffnen der Seite verschiebt keine Leseposition eines Agenten, und er
+  liest das ganze Nachrichten-Universum, nicht die gewählte Sicht.
+- **Feeds** (`/news?tab=feeds`) listet jeden Feed in der Reihenfolge seiner
+  Anlage: seine URL mit dem letzten Fehler, seine Klasse, woran er gebunden
+  ist, und seine Sprache, den letzten erfolgreichen Abruf, die Zahlen von
+  24 Stunden und 30 Tagen, wie viele Meldungen übernommen wurden, seinen
+  Ertrag und seinen Zustand — *ok*, *pausiert*, *veraltet*, *wenig Ertrag*
+  (mindestens 50 Einträge in 30 Tagen und keine übernommen) oder *letzter
+  Abruf fehlgeschlagen*. Nichts schaltet einen Feed von selbst ab: Sie
+  entscheiden, über den Agenten oder die API.
+- **Quellen** (`/news?tab=sources`) listet jede bewertete Domain mit ihrer
+  Stufe und ob sie von Hand gesetzt oder eine Voreinstellung ist; eine
+  Domain ohne Eintrag gilt als `awareness`, und die Einträge einer
+  gesperrten werden beim Abruf verworfen.
+
+Titel, Domains und Links sind Text eines Feeds, gezeigt mit jedem
+unsichtbaren Zeichen als `[U+XXXX]`. Die Ereignisart einer Einordnung steht
+in Worten, und die Einordnung trägt den Chip **maschinell**; eine Meldung
+ohne sie zeigt **ohne Einordnung**. Auf dem Telefon wird jede Tabelle zu
+zweizeiligen Zeilen. Der Privatsphäre-Modus ändert hier nichts: Die Seite
+zeigt keinen Betrag.
+
+### Der Reiter Nachrichten des Wertpapiers
+
+Der Reiter **Nachrichten** eines Wertpapiers, nach Research, listet die
+Meldungen, die die Nachrichtenschicht zu diesem Wertpapier hält, neueste
+zuerst, so wie `news.list` des Agenten sie liest: den Titel (und wie viele
+Quellen dieselbe Meldung brachten), Domain und Stufe der Quelle, die Zeit
+und die Einordnung, darüber die Zahl der Meldungen der Woche, der primären
+und die höchste Materialität. Eine Meldung, die schon im Research-Log
+steht, zeigt **übernommen**.
+
+**Ins Research-Log** öffnet das Eintragsformular, vorausgefüllt aus der
+Meldung, genau wie `notes.append` des Agenten mit der Meldung es füllt: die
+Art (Beleg oder Ereignisergebnis), die Überschrift, aus dem Titel auf 80
+Zeichen gekürzt, Ereignisart und Tonalität aus der Einordnung der Meldung,
+und, gezeigt, aber nicht angeboten, Datum, Quellenlink und
+Quellenqualität, die der Meldung gehören. Sie schreiben den Text des
+Eintrags und können Art, Überschrift, Ereignisart und Tonalität ändern. Das
+Öffnen des Formulars schreibt nichts; erst **Ins Research-Log speichern**
+schreibt, als Sie, und die Meldung zeigt danach **übernommen**. Ein Titel
+mit einem unsichtbaren Zeichen kann keine Überschrift sein: Das Formular
+sagt es, und Sie schreiben eine eigene. Dieselbe Meldung ein zweites Mal
+zu übernehmen, bleibt der API vorbehalten.
+
+### Notizen im Diagramm
+
+Ein Research-Log-Eintrag mit Überschrift — aus einer Meldung übernommen
+oder vom Agenten mit Überschrift geschrieben — erscheint im Diagramm des
+Wertpapiers als Pin am oberen Rand, an seinem Stichtag, über einer
+gestrichelten Linie zum Schlusskurs des Tages. Farbe und Zeichen sind die
+Tonalität: Plus für positiv, Minus für negativ, keins für neutral oder ohne
+Tonalität. Mehrere Einträge an einem Tag sind ein Pin mit ihrer Zahl. Der
+Tooltip zeigt jede Überschrift über Ereignisart, Tonalität und Datum. Ein
+Eintrag, den ein späterer ersetzt, erscheint nicht, ebenso wenig eine
+Meldung, die nie übernommen wurde. **Notizen anzeigen**, neben
+**Transaktionen anzeigen** im Reiter Diagramm, schaltet die Pins aus und
+ein; das kleine Diagramm der Übersicht hat denselben Schalter darunter,
+sobald es eine Notiz zu zeichnen gibt. Der Privatsphäre-Modus behält die
+Pins: Sie nennen keinen Betrag.
+
+### Einen Labeller betreiben
+
+Ein Labeller ist ein kleines eigenes Skript, das die Meldungen ohne
+Einordnung einem Modell gibt und zurückschreibt, was das Modell liefert,
+auf Ihrem Rechner. Es hält sein eigenes benanntes Token, und das Modell
+hält das Token nie: Das Modell gibt dem Skript JSON zurück, und das Skript
+schreibt Einordnungen und sonst nichts (ADR-0056 §7).
+
+1. Geben Sie dem Labeller ein eigenes Token: Ergänzen Sie
+   `PORTFOLIXIR_API_TOKENS` um einen Eintrag wie `labeller=<token>`
+   (erzeugt mit `openssl rand -base64 48`) und starten Sie die Anwendung
+   neu. Jede Einordnung, die er schreibt, steht unter diesem Namen im
+   Journal.
+2. Das Skript liest die Meldungen ohne Einordnung seiner Prompt-Version
+   (`GET /api/v1/news/unlabeled?prompt_version=…`), gibt sie dem Modell als
+   Daten und schreibt jede Einordnung, die es zurückbekommt
+   (`PUT /api/v1/news/labels`). Der Schreibzugriff ist geschlossen: Jedes
+   Feld außerhalb des Schemas einer Einordnung wird abgelehnt, sodass eine
+   Einordnung nichts zuordnen, verbergen oder sonst ändern kann.
+3. Oder Sie betreiben dafür den MCP-Begleitdienst über stdio mit
+   `PORTFOLIXIR_MCP_PROFILE=label` und diesem Token als
+   `PORTFOLIXIR_API_TOKEN`: Das Profil `label` listet nur diese beiden
+   Tools. Lassen Sie den Begleitdienst Ihres Agenten auf `read`, `book` oder
+   `full`, die sie nicht listen.
+4. Ändern Sie den Prompt, ändern Sie `prompt_version`: Die Lesezugriffe
+   folgen der Version der zuletzt angelegten Einordnung, und die Meldungen
+   der neuen Version kommen ohne Einordnung zurück, bis sie eingeordnet
+   sind. Betreiben Sie eine Prompt-Version zur Zeit: Zwei Labeller mit
+   verschiedenen Versionen lassen jeden Lesezugriff dem folgen, der zuletzt
+   schrieb (eine offene Frage der Ergänzung von ADR-0056 vom 2026-11-09,
+   D10).
+
+Die Einzelheiten beider Aufrufe stehen in
+[API und MCP](integration/api-and-mcp.html#news-labels-adr-0056-7).
 
 ## Imports
 
@@ -4682,7 +4815,7 @@ oder nächsten Reiter (am Ende geht es von vorn weiter), **Pos1** und **Ende**
 springen zum ersten und letzten, und der Reiter, der den Fokus erhält, öffnet
 seinen Bereich. Öffnet die Seite auf einem Reiter — über einen Link, ein
 Neuladen, Zurück oder Vor oder eine geteilte Adresse —, rollt die Zeile diesen
-Reiter ins Bild; das zählt auf dem Telefon, wo die zehn Reiter nicht
+Reiter ins Bild; das zählt auf dem Telefon, wo die elf Reiter nicht
 hineinpassen.
 
 Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
@@ -4693,6 +4826,9 @@ Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 - Einem Schalter *Show transactions*, der Kauf-/Verkauf-Marker aus dem Ledger
   überlagert — formcodierte Dreiecke (▲ Kauf, ▼ Verkauf), die Richtung ist
   also ohne Farbe erkennbar.
+- Einem Schalter „Notizen anzeigen“, der die Research-Log-Einträge mit
+  Überschrift als Pins am oberen Rand des Diagramms zeichnet (siehe
+  [Notizen im Diagramm](#notizen-im-diagramm)).
 - Einem Button *Sync prices for this security*.
 
 **Aktiensplits und die Kursbasis (ADR-0028).** Nach dem Buchen eines Splits
