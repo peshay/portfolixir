@@ -3327,9 +3327,14 @@ but not offered, the date, the source link and the source quality, which
 are the story's. You write the entry's text and may change the kind, the
 headline, the event type and the tone. Opening the form writes nothing;
 only **Save to the research log** does, as you, and the story then reads
-**kept**. A title with an invisible character cannot be a headline: the
-form says so, and you type your own. Keeping the same story a second time
-is the API's.
+**kept**. It stores what the form shows: a field you cleared stays empty,
+and a label the outside model writes while the form is open is not taken.
+Should the story's date, source link or source quality change meanwhile,
+nothing is written and the form shows the story anew with a line saying
+so. A title with an invisible character cannot be a headline: the form
+shows the character spelled, such as `[U+202E]`, says so, and you type
+your own. Keeping the same story a second time is the API's. The tab's
+times are in UTC.
 
 ### Notes on the chart
 

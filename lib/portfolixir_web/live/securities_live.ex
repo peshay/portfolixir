@@ -5636,7 +5636,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
       params = LiveParam.map(params)
       attrs = promotion_attrs(promotion, params, id)
 
-      case News.append_note_from_story(Actor.owner_ui(), attrs, promotion.cluster_id) do
+      case News.append_note_from_story(Actor.owner_ui(), attrs, promotion.cluster_id,
+             shown: promotion.proposal
+           ) do
         {:ok, note} ->
           {:noreply,
            socket
@@ -5648,14 +5650,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
              gettext("Entry #%{id} appended to the research log.", id: note.id)
            )}
 
+        {:error, :story_changed} ->
+          values = typed_promotion_values(promotion, params)
+          {:noreply, reopen_promotion(socket, promotion, values)}
+
         {:error, refusal} ->
-          values = Map.merge(promotion.values, Map.take(params, @promotion_fields ++ ["body"]))
+          values = typed_promotion_values(promotion, params)
 
           {:noreply,
            assign(socket, :story_promotion, %{
              promotion
              | values: values,
-               errors: promotion_errors(refusal)
+               errors: promotion_errors(refusal),
+               story_changed: false
            })}
       end
     else
@@ -6816,28 +6823,59 @@ defmodule PortfolixirWeb.SecuritiesLive do
         proposal: proposal,
         quality_label: source_quality_label(proposal["source_quality"]),
         values: values,
-        errors: %{}
+        errors: %{},
+        story_changed: false
       })
     else
       _gone -> put_action_result(socket, :problem, gettext("The story is no longer there."))
     end
   end
 
-  # Only what the operator changed is sent beside the cluster_id: a field
-  # left as proposed is pre-filled by the server as it is for the agent,
-  # and the label's id stays as provenance; one emptied is sent as null,
-  # which leaves it out (ADR-0044's amendment: the writer may change any).
+  # --- closing act, NL1 begin ---
+  # The story's date, link or quality changed after the form opened: the
+  # form shows the story as it is now, keeps what the operator typed and
+  # says why nothing was written.
+  defp reopen_promotion(socket, promotion, values) do
+    case News.story_proposal(promotion.cluster_id, promotion.security_id) do
+      {:ok, proposal} ->
+        assign(socket, :story_promotion, %{
+          promotion
+          | proposal: proposal,
+            quality_label: source_quality_label(proposal["source_quality"]),
+            values: values,
+            errors: %{},
+            story_changed: true
+        })
+
+      {:error, _gone} ->
+        socket
+        |> assign(:story_promotion, nil)
+        |> put_action_result(:problem, gettext("The story is no longer there."))
+    end
+  end
+
+  # What the form holds after a save that wrote nothing: what was typed,
+  # a field the submit did not carry as it was shown.
+  defp typed_promotion_values(promotion, params),
+    do: Map.merge(promotion.values, Map.take(params, @promotion_fields ++ ["body"]))
+
+  # --- closing act, NL1 end ---
+
+  # All four fields the form offers are sent beside the cluster_id, one
+  # emptied as null (ADR-0044's amendment: the writer may change any): the
+  # write takes them over the proposal it showed (`shown:`), and keeps the
+  # shown label's id as provenance only where they still say the label's
+  # (closing act, NL1).
   defp promotion_attrs(promotion, params, security_id) do
-    proposed = promotion.values
+    shown = promotion.values
 
-    changed =
-      for field <- @promotion_fields,
-          value = blank_to_nil(params[field]),
-          value != blank_to_nil(proposed[field]),
-          into: %{},
-          do: {field, promotion_value(field, value)}
+    sent =
+      Map.new(@promotion_fields, fn field ->
+        value = if Map.has_key?(params, field), do: params[field], else: shown[field]
+        {field, promotion_value(field, blank_to_nil(value))}
+      end)
 
-    changed
+    sent
     |> Map.put("security_id", security_id)
     |> Map.put("author", "operator")
     |> Map.put("body", params["body"] || "")

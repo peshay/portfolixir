@@ -3670,10 +3670,17 @@ und, gezeigt, aber nicht angeboten, Datum, Quellenlink und
 Quellenqualität, die der Meldung gehören. Sie schreiben den Text des
 Eintrags und können Art, Überschrift, Ereignisart und Tonalität ändern. Das
 Öffnen des Formulars schreibt nichts; erst **Ins Research-Log speichern**
-schreibt, als Sie, und die Meldung zeigt danach **übernommen**. Ein Titel
-mit einem unsichtbaren Zeichen kann keine Überschrift sein: Das Formular
-sagt es, und Sie schreiben eine eigene. Dieselbe Meldung ein zweites Mal
-zu übernehmen, bleibt der API vorbehalten.
+schreibt, als Sie, und die Meldung zeigt danach **übernommen**. Gespeichert
+wird, was das Formular zeigt: Ein Feld, das Sie geleert haben, bleibt leer,
+und eine Einordnung, die das externe Modell schreibt, während das
+Formular offen ist, wird nicht übernommen. Ändern sich inzwischen Datum,
+Quellenlink oder Quellenqualität der Meldung, wird nichts geschrieben, und
+das Formular zeigt die Meldung neu, mit einer Zeile, die das sagt. Ein
+Titel mit einem unsichtbaren Zeichen kann keine Überschrift sein: Das
+Formular zeigt das Zeichen ausgeschrieben, etwa `[U+202E]`, sagt es, und
+Sie schreiben eine eigene. Dieselbe Meldung ein zweites Mal zu
+übernehmen, bleibt der API vorbehalten. Die Zeiten des Reiters sind in
+UTC.
 
 ### Notizen im Diagramm
 

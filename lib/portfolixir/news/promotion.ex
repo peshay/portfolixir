@@ -56,6 +56,17 @@ defmodule Portfolixir.News.Promotion do
   links both: the log is append-only, and a story can carry a finding and
   later its outcome; refusing it would leave a judged entry unwritten.
 
+  **The operator's form saves against what it showed** (closing act,
+  NL1): the security's tab „Nachrichten“ passes the proposal it showed
+  (`proposal/2`) as `shown:` — an option of the trusted UI caller, never
+  read from `attrs` — and sends all four fields it offers, a cleared one
+  as `nil`. The shown proposal is the base, not the story's label of the
+  moment, so a label written after the form opened is never stored unseen;
+  the shown label's id stays as provenance only while that label still
+  says the entry's event type or tone. Should the story's date, source link
+  or source quality differ from the ones shown, the save is refused
+  (`{:error, :story_changed}`) and the form shows the story as it is now.
+
   The write runs in one transaction under the story's scope lock
   (`Portfolixir.News.Stories.lock/2`, the clustering's), with its members
   locked: no re-cluster or retention run moves a member between the read
@@ -79,6 +90,7 @@ defmodule Portfolixir.News.Promotion do
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.News.Cluster
   alias Portfolixir.News.Item
+  alias Portfolixir.News.Label
   alias Portfolixir.News.Labels
   alias Portfolixir.News.Reads
   alias Portfolixir.News.Stories
@@ -94,29 +106,33 @@ defmodule Portfolixir.News.Promotion do
   @doc """
   Appends the research note `attrs` (string keys; `security_id`, `author`
   and the caller's fields) written from the story `cluster_id`, journaled
-  under `actor`; see the moduledoc. `{:ok, note}`, `{:error, errors}` for a
-  refusal of the story or of a field beside it, or `{:error, changeset}`.
+  under `actor`; see the moduledoc. `shown:` is the proposal the
+  operator's form showed. `{:ok, note}`, `{:error, errors}` for a refusal
+  of the story or of a field beside it, `{:error, :story_changed}` when the
+  story's own fields are no longer the ones shown, or `{:error, changeset}`.
   """
-  @spec append_note(Actor.t(), map(), pos_integer()) ::
-          {:ok, SecurityNote.t()} | {:error, errors() | Ecto.Changeset.t()}
-  def append_note(%Actor{} = actor, attrs, cluster_id)
+  @spec append_note(Actor.t(), map(), pos_integer(), keyword()) ::
+          {:ok, SecurityNote.t()}
+          | {:error, errors() | Ecto.Changeset.t() | :story_changed}
+  def append_note(%Actor{} = actor, attrs, cluster_id, opts \\ [])
       when is_map(attrs) and is_integer(cluster_id) do
     attrs = Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
 
     with :ok <- refuse_story_fields(attrs),
          :ok <- check_kind(attrs) do
-      Repo.transaction(fn -> promote(actor, attrs, cluster_id) end)
+      Repo.transaction(fn -> promote(actor, attrs, cluster_id, Keyword.get(opts, :shown)) end)
     end
   end
 
-  defp promote(actor, attrs, cluster_id) do
+  defp promote(actor, attrs, cluster_id, shown) do
     with {:ok, story} <- own_story(cluster_id, attrs["security_id"]),
          :ok <- Stories.lock({:security, story.security_id}, story.language),
          {:ok, story} <- own_story(cluster_id, attrs["security_id"]),
          members = lock_members(story),
          {:ok, source_url} <- source_url(story, members),
          {prefill, label} = prefill(story, members, source_url),
-         {:ok, note} <- write(actor, Map.merge(prefill, attrs), label, attrs) do
+         :ok <- unchanged_since_shown(prefill, shown),
+         {:ok, note} <- write(actor, {story, prefill, label}, attrs, shown) do
       link(members, note)
       note
     else
@@ -134,20 +150,54 @@ defmodule Portfolixir.News.Promotion do
   `source_url`, `source_quality`, `headline`, and `event_type` and `tone`
   from the active label when it has them, as string keys. The same story
   rule refuses as the write does: `{:error, errors}` naming `cluster_id`.
+  `news_label_id` names the label it took them from, or is `nil` (closing
+  act, NL1: the form passes the proposal back as `shown:`).
 
   A proposal is read at the moment it is shown; the write reads the story
-  again under its lock, so a label put in between is the one the entry
-  takes.
+  again under its lock and, given the proposal back as `shown:`, takes
+  the shown values, never a label put in between.
   """
   @spec proposal(pos_integer(), pos_integer()) :: {:ok, map()} | {:error, errors()}
   def proposal(cluster_id, security_id) when is_integer(cluster_id) and is_integer(security_id) do
     with {:ok, story} <- own_story(cluster_id, security_id),
          members = Repo.all(from(i in Item, where: i.cluster_id == ^story.id, order_by: i.id)),
          {:ok, source_url} <- source_url(story, members) do
-      {prefill, _label} = prefill(story, members, source_url)
-      {:ok, prefill}
+      {prefill, label} = prefill(story, members, source_url)
+      {:ok, Map.put(prefill, "news_label_id", label && label.id)}
     end
   end
+
+  # --- closing act, NL1 begin ---
+  # The form's save against the proposal it showed (`shown:`, from the
+  # trusted UI caller, never from attrs): the story's own fields must be
+  # the ones the operator saw, or the save is refused and the form shows
+  # the story as it is now.
+  defp unchanged_since_shown(_prefill, nil), do: :ok
+
+  defp unchanged_since_shown(prefill, shown) when is_map(shown) do
+    if Map.take(prefill, @story_fields) == Map.take(shown, @story_fields),
+      do: :ok,
+      else: {:error, :story_changed}
+  end
+
+  # The label shown keeps its id as provenance only while it still says
+  # what the entry says: its event type or its tone, as sent.
+  defp shown_label(nil, _story, _merged), do: nil
+
+  defp shown_label(label_id, story, merged) when is_integer(label_id) do
+    case Repo.get(Label, label_id) do
+      %Label{cluster_id: cluster_id} = label when cluster_id == story.id ->
+        fields = label_fields(label)
+
+        if Enum.any?(~w(event_type tone), &(merged[&1] != nil and merged[&1] == fields[&1])),
+          do: label
+
+      _other ->
+        nil
+    end
+  end
+
+  # --- closing act, NL1 end ---
 
   # --- S28 N8 end ---
 
@@ -257,13 +307,25 @@ defmodule Portfolixir.News.Promotion do
 
   # The label's id stays when the entry took its event type or its tone
   # from it, the caller having sent neither in its place.
-  defp write(actor, merged, label, attrs) do
+  defp write(actor, {_story, prefill, label}, attrs, nil) do
+    merged = Map.merge(prefill, attrs)
+
     taken? =
       label != nil and
         ((Map.has_key?(merged, "event_type") and not Map.has_key?(attrs, "event_type")) or
            not Map.has_key?(attrs, "tone"))
 
     Knowledge.append_note(actor, merged, news_label_id: if(taken?, do: label.id))
+  end
+
+  # The form's save (closing act, NL1): what the operator saw is the base
+  # and what the form sent replaces it, a cleared field sent as nil; a
+  # label written after the form opened is never taken.
+  defp write(actor, {story, _prefill, _label}, attrs, shown) do
+    merged = shown |> Map.delete("news_label_id") |> Map.merge(attrs)
+    label = shown_label(shown["news_label_id"], story, merged)
+
+    Knowledge.append_note(actor, merged, news_label_id: label && label.id)
   end
 
   defp link(members, note) do

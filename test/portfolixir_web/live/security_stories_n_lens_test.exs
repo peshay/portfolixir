@@ -8,10 +8,13 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   # hosts only.
   use PortfolixirWeb.ConnCase
 
+  import Ecto.Query, only: [from: 2]
   import Phoenix.LiveViewTest
   import Portfolixir.NewsFixtures, only: [label!: 2, security!: 1, story!: 2]
 
   alias Portfolixir.Knowledge
+  alias Portfolixir.News.Item
+  alias Portfolixir.Repo
 
   defp open_form(conn, security, story) do
     {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=news")
@@ -39,7 +42,6 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   # - Saving with the headline emptied and the event type and tone set to
   #   „— not stated —“ stores an entry without a headline, an event type
   #   or a tone, and without the label's id as provenance.
-  @tag :n_lens_red
   test "a field the operator cleared is stored cleared, not re-filled from the story",
        %{conn: conn} do
     security = security!("Cleared Fields Synthetic AG")
@@ -72,7 +74,6 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   # - The tone changed from the label's positive to neutral, saved once
   #   with an empty entry text (refused naming the body) and again with a
   #   text, is stored neutral.
-  @tag :n_lens_red
   test "a change survives a refused save", %{conn: conn} do
     security = security!("Refused Save Synthetic AG")
     story = story!(security, title: "Refused Save Synthetic AG wins a contract")
@@ -88,5 +89,81 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
 
     assert [note] = Knowledge.list_notes(security.id)
     assert note.tone == 0
+  end
+
+  # User story (NFR-10: the save is the confirmation of what was shown;
+  # ADR-0044's amendment: the entry keeps the label's id as provenance):
+  # As the operator saving a story's entry while the outside model labels
+  # the story again,
+  # I want the entry to store what the form showed me, and to name a label
+  # only while that label says what the entry says,
+  # so that nothing I did not see lands in the research log.
+  #
+  # Acceptance criteria:
+  # - A second model's label written after the form opened is not stored:
+  #   the entry keeps the shown event type and tone and the shown label's
+  #   id.
+  # - The shown label rewritten in place to another reading: the entry
+  #   keeps the shown values and names no label.
+  test "a label written after the form opened is not stored unseen", %{conn: conn} do
+    security = security!("Stale Label Synthetic AG")
+    story = story!(security, title: "Stale Label Synthetic AG wins a contract")
+    shown = label!(story.id, event_type: "product", tone: 1, materiality: 2)
+
+    view = open_form(conn, security, story)
+    _newer = label!(story.id, model: "synthetic-model-2", event_type: "earnings", tone: -1)
+    save(view, %{"body" => "Kept as shown."})
+
+    assert [note] = Knowledge.list_notes(security.id)
+    assert {note.event_type, note.tone, note.news_label_id} == {:product, 1, shown.id}
+
+    other = security!("Rewritten Label Synthetic AG")
+    story = story!(other, title: "Rewritten Label Synthetic AG wins a contract")
+    shown = label!(story.id, event_type: "product", tone: 1, materiality: 2)
+
+    view = open_form(conn, other, story)
+    rewritten = label!(story.id, event_type: "earnings", tone: -1)
+    assert rewritten.id == shown.id
+    save(view, %{"body" => "Kept as shown."})
+
+    assert [note] = Knowledge.list_notes(other.id)
+    assert {note.event_type, note.tone, note.news_label_id} == {:product, 1, nil}
+  end
+
+  # User story (NFR-10; ADR-0056 §8: the date, the source link and the
+  # source quality are the story's, shown, not offered):
+  # As the operator saving an entry whose story changed after I opened
+  # the form,
+  # I want nothing written and the form to show the story as it is now,
+  # so that I never confirm a date or a source I did not see.
+  #
+  # Acceptance criteria:
+  # - The story's date moved after the form opened: the save writes
+  #   nothing, the form shows the new date and a line saying the story
+  #   changed, and keeps what was typed; saving again writes the entry.
+  test "a story that changed after the form opened is shown anew, nothing written",
+       %{conn: conn} do
+    security = security!("Changed Story Synthetic AG")
+    story = story!(security, title: "Changed Story Synthetic AG wins a contract")
+
+    view = open_form(conn, security, story)
+
+    Repo.update_all(from(i in Item, where: i.cluster_id == ^story.id),
+      set: [
+        published_at: ~U[2026-10-01 09:00:00.000000Z],
+        published_at_claimed: ~U[2026-10-01 09:00:00.000000Z]
+      ]
+    )
+
+    save(view, %{"body" => "Typed before the change."})
+
+    assert Knowledge.list_notes(security.id) == []
+    assert has_element?(view, "[data-role='promotion-story-changed']")
+    assert has_element?(view, "[data-role='promotion-as-of']", "2026")
+    assert render(view) =~ "Typed before the change."
+
+    save(view, %{"body" => "Typed before the change."})
+    assert [note] = Knowledge.list_notes(security.id)
+    assert note.as_of == ~D[2026-10-01]
   end
 end
