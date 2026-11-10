@@ -11869,11 +11869,16 @@ dialog.merge-dialog {
   font-size: 12.5px;
 }
 
+/* A reason wraps under its value, whatever the data table's cells do, so
+   a long one (QA1's „übernommen: …“) never scrolls the table sideways out
+   of the dialog (Sprint 28 closing act, board 08's finding). */
 .merge-table td small {
   display: block;
   font-size: 11px;
   font-weight: 400;
   color: var(--color-text-muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .merge-table__keep {
