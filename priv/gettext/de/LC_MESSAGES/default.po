@@ -1045,7 +1045,7 @@ msgstr "Kurse"
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:275
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:509
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:141
-#: lib/portfolixir_web/live/securities/stories_tab.ex:325
+#: lib/portfolixir_web/live/securities/stories_tab.ex:326
 #: lib/portfolixir_web/live/securities_live.ex:1295
 #: lib/portfolixir_web/live/securities_live.ex:2005
 #: lib/portfolixir_web/live/securities_live.ex:3315
@@ -1437,7 +1437,7 @@ msgstr "Verkauf"
 #: lib/portfolixir_web/live/news_live.ex:367
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:341
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:278
-#: lib/portfolixir_web/live/securities/stories_tab.ex:101
+#: lib/portfolixir_web/live/securities/stories_tab.ex:102
 #: lib/portfolixir_web/live/securities_live.ex:1622
 #: lib/portfolixir_web/live/securities_live.ex:3755
 #, elixir-autogen, elixir-format
@@ -3678,7 +3678,7 @@ msgstr "Auf aktuellem Stand"
 msgid "Activate this plan"
 msgstr "Diesen Plan aktivieren"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:302
+#: lib/portfolixir_web/live/securities/stories_tab.ex:303
 #: lib/portfolixir_web/live/securities_live.ex:3414
 #: lib/portfolixir_web/live/securities_live.ex:3470
 #: lib/portfolixir_web/live/securities_live.ex:7084
@@ -5548,7 +5548,7 @@ msgstr "Abgeleitet aus"
 
 #: lib/portfolixir_web/live/imports_live.ex:5296
 #: lib/portfolixir_web/live/journal_live.ex:347
-#: lib/portfolixir_web/live/securities/stories_tab.ex:288
+#: lib/portfolixir_web/live/securities/stories_tab.ex:289
 #: lib/portfolixir_web/live/securities_live.ex:3485
 #: lib/portfolixir_web/live/securities_live.ex:7080
 #, elixir-autogen, elixir-format
@@ -5561,14 +5561,14 @@ msgid "Entry appended."
 msgstr "Eintrag angehängt."
 
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:200
-#: lib/portfolixir_web/live/securities/stories_tab.ex:341
+#: lib/portfolixir_web/live/securities/stories_tab.ex:342
 #: lib/portfolixir_web/live/securities_live.ex:3636
 #, elixir-autogen, elixir-format
 msgid "Event result"
 msgstr "Ereignisergebnis"
 
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:198
-#: lib/portfolixir_web/live/securities/stories_tab.ex:340
+#: lib/portfolixir_web/live/securities/stories_tab.ex:341
 #: lib/portfolixir_web/live/securities_live.ex:3634
 #, elixir-autogen, elixir-format
 msgid "Evidence"
@@ -5605,7 +5605,7 @@ msgstr "Invalidierungsbedingung"
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:293
 #: lib/portfolixir_web/live/securities/merge_preview.ex:701
 #: lib/portfolixir_web/live/securities/merge_preview.ex:950
-#: lib/portfolixir_web/live/securities/stories_tab.ex:238
+#: lib/portfolixir_web/live/securities/stories_tab.ex:239
 #: lib/portfolixir_web/live/securities_live.ex:3452
 #: lib/portfolixir_web/live/securities_live.ex:7081
 #, elixir-autogen, elixir-format
@@ -5692,7 +5692,7 @@ msgstr "Risiko"
 msgid "Several secondary sources"
 msgstr "Mehrere Sekundärquellen"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:310
+#: lib/portfolixir_web/live/securities/stories_tab.ex:311
 #: lib/portfolixir_web/live/securities_live.ex:3489
 #: lib/portfolixir_web/live/securities_live.ex:3585
 #: lib/portfolixir_web/live/securities_live.ex:7083
@@ -5700,7 +5700,7 @@ msgstr "Mehrere Sekundärquellen"
 msgid "Source link"
 msgstr "Quellenlink"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:306
+#: lib/portfolixir_web/live/securities/stories_tab.ex:307
 #: lib/portfolixir_web/live/securities_live.ex:3460
 #: lib/portfolixir_web/live/securities_live.ex:7082
 #, elixir-autogen, elixir-format
@@ -5756,8 +5756,8 @@ msgstr "Gültig bis"
 msgid "machine-generated proposal"
 msgstr "maschinell erzeugter Vorschlag"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:248
-#: lib/portfolixir_web/live/securities/stories_tab.ex:257
+#: lib/portfolixir_web/live/securities/stories_tab.ex:249
+#: lib/portfolixir_web/live/securities/stories_tab.ex:258
 #: lib/portfolixir_web/live/securities_live.ex:3500
 #, elixir-autogen, elixir-format
 msgid "— not stated —"
@@ -6690,7 +6690,7 @@ msgstr "Kursverlauf"
 msgid "Quotes: %{feed}"
 msgstr "Kurse: %{feed}"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:104
+#: lib/portfolixir_web/live/securities/stories_tab.ex:105
 #: lib/portfolixir_web/live/securities_live.ex:1958
 #, elixir-autogen, elixir-format
 msgid "Research log"
@@ -16311,7 +16311,7 @@ msgid "Kept"
 msgstr "übernommen"
 
 #: lib/portfolixir_web/live/news_live.ex:477
-#: lib/portfolixir_web/live/securities/stories_tab.ex:103
+#: lib/portfolixir_web/live/securities/stories_tab.ex:104
 #, elixir-autogen, elixir-format
 msgid "Label"
 msgstr "Einordnung"
@@ -16372,7 +16372,7 @@ msgid "Sources"
 msgstr "Quellen"
 
 #: lib/portfolixir_web/live/news_live.ex:475
-#: lib/portfolixir_web/live/securities/stories_tab.ex:125
+#: lib/portfolixir_web/live/securities/stories_tab.ex:126
 #, elixir-autogen, elixir-format
 msgid "Stories"
 msgstr "Meldungen"
@@ -16398,7 +16398,7 @@ msgid "Tier"
 msgstr "Stufe"
 
 #: lib/portfolixir_web/live/news_live.ex:368
-#: lib/portfolixir_web/live/securities/stories_tab.ex:102
+#: lib/portfolixir_web/live/securities/stories_tab.ex:103
 #, elixir-autogen, elixir-format
 msgid "Time"
 msgstr "Zeit"
@@ -16471,13 +16471,13 @@ msgid "low yield"
 msgstr "wenig Ertrag"
 
 #: lib/portfolixir_web/live/news_live.ex:536
-#: lib/portfolixir_web/live/securities/stories_tab.ex:177
+#: lib/portfolixir_web/live/securities/stories_tab.ex:178
 #, elixir-autogen, elixir-format
 msgid "machine-made"
 msgstr "maschinell"
 
 #: lib/portfolixir_web/live/news_live.ex:535
-#: lib/portfolixir_web/live/securities/stories_tab.ex:176
+#: lib/portfolixir_web/live/securities/stories_tab.ex:177
 #, elixir-autogen, elixir-format
 msgid "materiality %{value}"
 msgstr "Materialität %{value}"
@@ -16488,7 +16488,7 @@ msgid "materiality 2 or more, or an issuer's or regulator's"
 msgstr "Materialität ab 2 oder von Emittent oder Aufsicht"
 
 #: lib/portfolixir_web/live/news_live.ex:539
-#: lib/portfolixir_web/live/securities/stories_tab.ex:180
+#: lib/portfolixir_web/live/securities/stories_tab.ex:181
 #, elixir-autogen, elixir-format
 msgid "no label"
 msgstr "ohne Einordnung"
@@ -16567,21 +16567,21 @@ msgctxt "news source"
 msgid "default"
 msgstr "Voreinstellung"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:112
+#: lib/portfolixir_web/live/securities/stories_tab.ex:113
 #, elixir-autogen, elixir-format
 msgid "%{count} source to the same story"
 msgid_plural "%{count} sources to the same story"
 msgstr[0] "%{count} Quelle zur selben Meldung"
 msgstr[1] "%{count} Quellen zur selben Meldung"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:77
+#: lib/portfolixir_web/live/securities/stories_tab.ex:78
 #, elixir-autogen, elixir-format
 msgid "7 days: %{count} story · %{primary} primary"
 msgid_plural "7 days: %{count} stories · %{primary} primary"
 msgstr[0] "7 Tage: %{count} Meldung · %{primary} primär"
 msgstr[1] "7 Tage: %{count} Meldungen · %{primary} primär"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:60
+#: lib/portfolixir_web/live/securities/stories_tab.ex:61
 #, elixir-autogen, elixir-format
 msgid "A label is an outside model's reading, marked „machine-made“; it moves and writes nothing."
 msgstr "Eine Einordnung ist die Lesart eines Modells außerhalb der App, markiert als „maschinell“; sie verschiebt und schreibt nichts."
@@ -16591,52 +16591,52 @@ msgstr "Eine Einordnung ist die Lesart eines Modells außerhalb der App, markier
 msgid "Entry #%{id} appended to the research log."
 msgstr "Eintrag #%{id} ins Research-Log übernommen."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:246
+#: lib/portfolixir_web/live/securities/stories_tab.ex:247
 #, elixir-autogen, elixir-format
 msgid "Event type"
 msgstr "Ereignisart"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:225
+#: lib/portfolixir_web/live/securities/stories_tab.ex:226
 #, elixir-autogen, elixir-format
 msgid "From the story „%{title}“: nothing is written until the entry is saved."
 msgstr "Aus der Meldung „%{title}“: Erst das Speichern des Eintrags schreibt etwas."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:264
+#: lib/portfolixir_web/live/securities/stories_tab.ex:265
 #, elixir-autogen, elixir-format
 msgid "Headline"
 msgstr "Überschrift"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:93
+#: lib/portfolixir_web/live/securities/stories_tab.ex:94
 #, elixir-autogen, elixir-format
 msgid "No story of this security has come in. Feeds are registered over the API or MCP."
 msgstr "Zu diesem Wertpapier ist noch keine Meldung eingegangen. Feeds werden über die API oder MCP registriert."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:70
+#: lib/portfolixir_web/live/securities/stories_tab.ex:71
 #, elixir-autogen, elixir-format
 msgid "Only an entry with a headline is drawn on the chart; a story never is."
 msgstr "Nur ein Eintrag mit Überschrift erscheint im Diagramm, eine Meldung nie."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:323
+#: lib/portfolixir_web/live/securities/stories_tab.ex:324
 #, elixir-autogen, elixir-format
 msgid "Save to the research log"
 msgstr "Ins Research-Log speichern"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:100
+#: lib/portfolixir_web/live/securities/stories_tab.ex:101
 #, elixir-autogen, elixir-format
 msgid "Story"
 msgstr "Meldung"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:318
+#: lib/portfolixir_web/live/securities/stories_tab.ex:319
 #, elixir-autogen, elixir-format
 msgid "The date, the source link and the source quality are the story's."
 msgstr "Datum, Quellenlink und Quellenqualität stammen aus der Meldung."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:284
+#: lib/portfolixir_web/live/securities/stories_tab.ex:285
 #, elixir-autogen, elixir-format
 msgid "The headline must be written anew: the entry refuses invisible characters."
 msgstr "Die Überschrift muss neu geschrieben werden: Der Eintrag lehnt unsichtbare Zeichen ab."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:138
+#: lib/portfolixir_web/live/securities/stories_tab.ex:139
 #, elixir-autogen, elixir-format
 msgid "The newest 20 stories; the agent reads the rest with the cursor."
 msgstr "Die neuesten 20 Meldungen; den Rest liest der Agent mit dem Cursor."
@@ -16652,23 +16652,23 @@ msgstr "Die Meldungen zu diesem Wertpapier, die die Nachrichtenschicht hält, ne
 msgid "The story is no longer there."
 msgstr "Die Meldung ist nicht mehr da."
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:163
-#: lib/portfolixir_web/live/securities/stories_tab.ex:221
+#: lib/portfolixir_web/live/securities/stories_tab.ex:164
+#: lib/portfolixir_web/live/securities/stories_tab.ex:222
 #, elixir-autogen, elixir-format
 msgid "To the research log"
 msgstr "Ins Research-Log"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:255
+#: lib/portfolixir_web/live/securities/stories_tab.ex:256
 #, elixir-autogen, elixir-format
 msgid "Tone"
 msgstr "Tonalität"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:85
+#: lib/portfolixir_web/live/securities/stories_tab.ex:86
 #, elixir-autogen, elixir-format
 msgid "highest materiality %{value}"
 msgstr "höchste Materialität %{value}"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:65
+#: lib/portfolixir_web/live/securities/stories_tab.ex:66
 #, elixir-autogen, elixir-format
 msgid "„To the research log“ opens the entry form pre-filled from the story, as the agent's notes.append with the story fills it: the headline from its title, the event type and the tone from its label, the date and the source from its best source. Only saving writes the entry."
 msgstr "„Ins Research-Log“ öffnet das Eintragsformular, vorausgefüllt aus der Meldung, wie es notes.append des Agenten mit der Meldung füllt: die Überschrift aus ihrem Titel, Ereignisart und Tonalität aus ihrer Einordnung, Datum und Quelle aus ihrer besten Quelle. Erst das Speichern schreibt den Eintrag."
@@ -16727,7 +16727,7 @@ msgctxt "event type"
 msgid "Regulatory"
 msgstr "Regulierung"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:153
+#: lib/portfolixir_web/live/securities/stories_tab.ex:154
 #, elixir-autogen, elixir-format
 msgctxt "news story"
 msgid "kept"
@@ -16757,7 +16757,12 @@ msgstr "positiv"
 msgid "Show notes"
 msgstr "Notizen anzeigen"
 
-#: lib/portfolixir_web/live/securities/stories_tab.ex:232
+#: lib/portfolixir_web/live/securities/stories_tab.ex:233
 #, elixir-autogen, elixir-format
 msgid "The story changed after the form was opened: nothing was written. Check its date, source link and source quality below, then save again."
 msgstr "Die Meldung hat sich geändert, seit das Formular geöffnet wurde: Es wurde nichts geschrieben. Stichtag, Quellenlink und Quellenqualität unten prüfen, dann erneut speichern."
+
+#: lib/portfolixir_web/live/securities/stories_tab.ex:58
+#, elixir-autogen, elixir-format
+msgid "Times in UTC."
+msgstr "Zeiten in UTC."
