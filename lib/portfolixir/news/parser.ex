@@ -36,6 +36,11 @@ defmodule Portfolixir.News.Parser do
 
     * **parses at most `max_bytes/0`** (8 MiB, the cap the fetcher's bounded
       client is given): a longer body is refused before a byte is parsed;
+    * **reads UTF-8, and Latin-1 by transcoding** (#1442): one UTF-8
+      byte-order mark is skipped; a body declaring ISO-8859-1 or US-ASCII
+      (regulators' Atom feeds do) is transcoded to UTF-8, its UTF-8 size
+      held to the same cap before anything is transcoded; every other
+      declared encoding is refused;
     * **processes no document type declaration**: a document whose prolog
       carries one (or any other `<!` declaration) is refused before the XML
       reader sees it, so no external entity is resolved (no file, no URL)
@@ -155,9 +160,17 @@ defmodule Portfolixir.News.Parser do
   @spec scan(binary()) :: {:ok, feed(), stats()} | {:refused, reason(), stats()}
   def scan(body) when is_binary(body) do
     cond do
-      byte_size(body) > @max_bytes -> {:refused, :too_large, unread(body)}
-      declares_dtd?(body) -> {:refused, :dtd, unread(body)}
-      true -> read(body)
+      byte_size(body) > @max_bytes ->
+        {:refused, :too_large, unread(body)}
+
+      declares_dtd?(body) ->
+        {:refused, :dtd, unread(body)}
+
+      true ->
+        case to_utf8(body) do
+          {:ok, utf8} -> read(utf8)
+          {:refused, reason} -> {:refused, reason, unread(body)}
+        end
     end
   end
 
@@ -215,6 +228,71 @@ defmodule Portfolixir.News.Parser do
       :nomatch -> <<>>
     end
   end
+
+  # -- the encoding: UTF-8 for the reader (#1442) ------------------------------
+  #
+  # The reader takes UTF-8 only. One UTF-8 byte-order mark is skipped; it
+  # says UTF-8, so a Latin-1 declaration behind it contradicts it and is
+  # refused. A body declaring Latin-1 or US-ASCII (regulators' Atom feeds
+  # do) is transcoded from Latin-1, which maps every byte, so a byte above
+  # 0x7F under a US-ASCII declaration is read as Latin-1 too; C1 controls
+  # are dropped later by `News.Text`. Its UTF-8 size (one byte more per byte
+  # above 0x7F) is checked against `max_bytes/0` before anything is
+  # transcoded. Every other declared encoding reaches the reader unchanged
+  # and is refused there. The declaration is the document's first bytes
+  # (XML 1.0 §2.8), read within its first 256 bytes.
+
+  @declaration_scope 256
+  @encoding_attribute ~r/\sencoding\s*=\s*(["'])([A-Za-z][A-Za-z0-9._-]*)\1/
+  @latin1_labels ~w(iso-8859-1 iso_8859-1 latin1 latin-1 us-ascii ascii)
+
+  defp to_utf8(<<0xEF, 0xBB, 0xBF, rest::binary>>) do
+    case latin1_declaration(rest) do
+      nil -> {:ok, rest}
+      _declaration -> {:refused, :unsupported_encoding}
+    end
+  end
+
+  defp to_utf8(body) do
+    case latin1_declaration(body) do
+      nil -> {:ok, body}
+      declaration -> transcode(body, declaration)
+    end
+  end
+
+  # `<?xml` followed by whitespace: `<?xml-stylesheet …?>` is a processing
+  # instruction, not the declaration.
+  defp latin1_declaration(<<"<?xml", space, _rest::binary>> = body)
+       when space in [?\s, ?\t, ?\r, ?\n] do
+    scope = min(byte_size(body), @declaration_scope)
+
+    with {at, 2} <- :binary.match(body, "?>", scope: {0, scope}),
+         declaration = binary_part(body, 0, at + 2),
+         [_attribute, _quote, label] <- Regex.run(@encoding_attribute, declaration),
+         true <- String.downcase(label) in @latin1_labels do
+      declaration
+    else
+      _other -> nil
+    end
+  end
+
+  defp latin1_declaration(_body), do: nil
+
+  defp transcode(body, declaration) do
+    if byte_size(body) + high_bytes(body) > @max_bytes do
+      {:refused, :too_large}
+    else
+      rest = binary_part(body, byte_size(declaration), byte_size(body) - byte_size(declaration))
+
+      utf8_declaration =
+        Regex.replace(@encoding_attribute, declaration, " encoding=\"UTF-8\"", global: false)
+
+      {:ok, utf8_declaration <> :unicode.characters_to_binary(rest, :latin1, :utf8)}
+    end
+  end
+
+  defp high_bytes(body),
+    do: for(<<byte <- body>>, byte > 0x7F, reduce: 0, do: (count -> count + 1))
 
   # -- the SAX handler ---------------------------------------------------------
   #

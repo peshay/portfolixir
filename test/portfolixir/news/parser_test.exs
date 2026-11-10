@@ -262,4 +262,89 @@ defmodule Portfolixir.News.ParserTest do
       assert item.link == "https://f.example/alt"
     end
   end
+
+  # User story:
+  # As the operator who registers a regulator's filings feed,
+  # I want a feed that declares ISO-8859-1 or US-ASCII, or that starts with
+  # a UTF-8 byte-order mark, read like any other,
+  # so that the regulator's own word reaches the news layer (the operator's
+  # agent's report of 2026-11-10, items P1 and P2; #1442).
+  #
+  # Acceptance criteria:
+  # - An Atom feed shaped like SEC EDGAR's, declaring
+  #   `encoding="ISO-8859-1"` with a space before `?>`, is read.
+  # - ISO-8859-1, its aliases `ISO_8859-1`, `latin1` and `latin-1`, and
+  #   `US-ASCII`/`ASCII` are read, in any letter case and either quote.
+  # - A byte above 0x7F under a Latin-1 declaration is read as its Latin-1
+  #   character.
+  # - One UTF-8 byte-order mark before the document is skipped, with or
+  #   without a declaration.
+  describe "declared encodings and the byte-order mark" do
+    @edgar_like """
+    <?xml version="1.0" encoding="ISO-8859-1" ?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Synthetic filer - Recent Filings</title>
+    <id>urn:synthetic:filer:0000000001</id>
+    <entry>
+    <title>8-K - Current report</title>
+    <link rel="alternate" type="text/html" href="https://filings.example/doc/8k"/>
+    <summary type="html">Filed: 2026-11-07 AccNo: 0000000001-26-000001</summary>
+    <updated>2026-11-07T16:05:12-05:00</updated>
+    <id>urn:synthetic:accession-number=0000000001-26-000001</id>
+    </entry>
+    </feed>
+    """
+
+    test "an Atom feed shaped like a regulator's, declared ISO-8859-1, is read" do
+      assert {:ok, %{format: :atom, items: [item]}} = Parser.parse(@edgar_like)
+
+      assert item == %Item{
+               title: "8-K - Current report",
+               link: "https://filings.example/doc/8k",
+               guid: "urn:synthetic:accession-number=0000000001-26-000001",
+               published_at: ~U[2026-11-07 21:05:12Z],
+               excerpt: "Filed: 2026-11-07 AccNo: 0000000001-26-000001",
+               source_domain: nil
+             }
+    end
+
+    test "Latin-1's aliases and US-ASCII are read, in any case and either quote" do
+      for label <- ~w(ISO-8859-1 iso-8859-1 ISO_8859-1 latin1 Latin-1 US-ASCII us-ascii ASCII),
+          quote <- [~s("), "'"] do
+        body =
+          ~s(<?xml version="1.0" encoding=#{quote}#{label}#{quote}?>) <>
+            rss_item("<title>Plain</title>")
+
+        assert {:ok, %{items: [%Item{title: "Plain"}]}} = Parser.parse(body), label
+      end
+    end
+
+    test "a byte above 0x7F under a Latin-1 declaration is its Latin-1 character" do
+      body =
+        ~s(<?xml version="1.0" encoding="ISO-8859-1"?>) <>
+          rss_item(
+            "<title>Exemple Soci" <>
+              <<0xE9>> <> "t" <> <<0xE9>> <> " r" <> <<0xE9>> <> "sultats</title>"
+          )
+
+      assert only_item(body).title == "Exemple Société résultats"
+    end
+
+    test "a processing instruction named like the declaration is not one" do
+      body =
+        ~s(<?xml-stylesheet type="text/xsl" href="s.xsl" encoding="latin1"?>) <>
+          rss_item("<title>Exemple Société</title>")
+
+      assert only_item(body).title == "Exemple Société"
+    end
+
+    test "one UTF-8 byte-order mark is skipped, with or without a declaration" do
+      bom = <<0xEF, 0xBB, 0xBF>>
+      plain = rss_item("<title>Exemple Société</title>")
+
+      for body <- [bom <> ~s(<?xml version="1.0" encoding="UTF-8"?>\n) <> plain, bom <> plain] do
+        assert only_item(body).title == "Exemple Société"
+      end
+    end
+  end
 end
