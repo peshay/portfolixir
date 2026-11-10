@@ -82,7 +82,7 @@ msgstr "Wertpapiere anlegen"
 msgid "Currency"
 msgstr "Währung"
 
-#: lib/portfolixir_web/components/app_shell.ex:482
+#: lib/portfolixir_web/components/app_shell.ex:506
 #, elixir-autogen
 msgid "Dark"
 msgstr "Dunkel"
@@ -137,8 +137,8 @@ msgstr "Depots"
 msgid "Display preferences"
 msgstr "Anzeigeeinstellungen"
 
-#: lib/portfolixir_web/components/app_shell.ex:623
-#: lib/portfolixir_web/components/app_shell.ex:624
+#: lib/portfolixir_web/components/app_shell.ex:647
+#: lib/portfolixir_web/components/app_shell.ex:648
 #: lib/portfolixir_web/live/portfolio_live.ex:2353
 #: lib/portfolixir_web/live/portfolio_live.ex:2354
 #: lib/portfolixir_web/live/securities_live.ex:1044
@@ -147,7 +147,7 @@ msgstr "Anzeigeeinstellungen"
 msgid "Dismiss"
 msgstr "Schließen"
 
-#: lib/portfolixir_web/components/app_shell.ex:510
+#: lib/portfolixir_web/components/app_shell.ex:534
 #, elixir-autogen
 msgid "English"
 msgstr "Englisch"
@@ -168,7 +168,7 @@ msgstr "Börse"
 msgid "Fees"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:509
+#: lib/portfolixir_web/components/app_shell.ex:533
 #, elixir-autogen
 msgid "German"
 msgstr "Deutsch"
@@ -189,7 +189,7 @@ msgstr "ISIN"
 msgid "Language"
 msgstr "Sprache"
 
-#: lib/portfolixir_web/components/app_shell.ex:481
+#: lib/portfolixir_web/components/app_shell.ex:505
 #, elixir-autogen
 msgid "Light"
 msgstr "Hell"
@@ -207,7 +207,7 @@ msgstr "Ein Depot mit einem Verrechnungskonto verknüpfen"
 msgid "Accent color"
 msgstr "Akzentfarbe"
 
-#: lib/portfolixir_web/components/app_shell.ex:490
+#: lib/portfolixir_web/components/app_shell.ex:514
 #, elixir-autogen
 msgid "Coral"
 msgstr "Koralle"
@@ -222,12 +222,12 @@ msgstr "Lokales Portfolio-Tracking"
 msgid "Workflow path"
 msgstr "Workflow-Pfad"
 
-#: lib/portfolixir_web/components/app_shell.ex:489
+#: lib/portfolixir_web/components/app_shell.ex:513
 #, elixir-autogen
 msgid "Teal"
 msgstr "Petrol"
 
-#: lib/portfolixir_web/components/app_shell.ex:488
+#: lib/portfolixir_web/components/app_shell.ex:512
 #, elixir-autogen
 msgid "Violet"
 msgstr "Violett"
@@ -317,11 +317,12 @@ msgstr "Transaktion erfassen"
 msgid "Review current holdings"
 msgstr "Aktuelle Bestände prüfen"
 
-#: lib/portfolixir_web/components/app_shell.ex:393
+#: lib/portfolixir_web/components/app_shell.ex:400
 #: lib/portfolixir_web/live/dashboard_live.ex:1516
 #: lib/portfolixir_web/live/imports_live.ex:366
 #: lib/portfolixir_web/live/imports_live.ex:1283
 #: lib/portfolixir_web/live/journal/row.ex:182
+#: lib/portfolixir_web/live/news_live.ex:419
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:170
 #: lib/portfolixir_web/live/portfolio_live.ex:1744
 #: lib/portfolixir_web/live/portfolio_live.ex:1838
@@ -337,6 +338,8 @@ msgstr "Wertpapiere"
 #: lib/portfolixir_web/live/income_live.ex:1400
 #: lib/portfolixir_web/live/income_live.ex:1476
 #: lib/portfolixir_web/live/journal/row.ex:82
+#: lib/portfolixir_web/live/news_live.ex:413
+#: lib/portfolixir_web/live/news_live.ex:469
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:187
 #: lib/portfolixir_web/live/portfolio/stacked_chart.ex:822
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:355
@@ -368,7 +371,7 @@ msgstr "Depot auswählen"
 msgid "Select security"
 msgstr "Wertpapier auswählen"
 
-#: lib/portfolixir_web/components/app_shell.ex:480
+#: lib/portfolixir_web/components/app_shell.ex:504
 #: lib/portfolixir_web/live/journal/row.ex:70
 #, elixir-autogen
 msgid "System"
@@ -407,7 +410,7 @@ msgstr "Transaktionshistorie"
 msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
-#: lib/portfolixir_web/components/app_shell.ex:400
+#: lib/portfolixir_web/components/app_shell.ex:419
 #: lib/portfolixir_web/live/dashboard_live.ex:1528
 #: lib/portfolixir_web/live/securities/bond_strip.ex:314
 #: lib/portfolixir_web/live/securities_live.ex:1697
@@ -441,7 +444,7 @@ msgstr "Typ"
 msgid "Asset class"
 msgstr "Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:429
+#: lib/portfolixir_web/components/app_shell.ex:448
 #: lib/portfolixir_web/live/classifications_live.ex:285
 #: lib/portfolixir_web/live/classifications_live.ex:639
 #: lib/portfolixir_web/live/classifications_live.ex:647
@@ -459,7 +462,7 @@ msgstr "Klassifizierungen"
 msgid "Dividends"
 msgstr "Dividenden"
 
-#: lib/portfolixir_web/components/app_shell.ex:311
+#: lib/portfolixir_web/components/app_shell.ex:318
 #: lib/portfolixir_web/live/securities_live.ex:4284
 #, elixir-autogen, elixir-format
 msgid "Holdings"
@@ -1118,7 +1121,7 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/components/app_shell.ex:932
+#: lib/portfolixir_web/components/app_shell.ex:956
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:606
 #, elixir-autogen, elixir-format
 msgid "Actions for %{row}"
@@ -1382,7 +1385,7 @@ msgstr "Eröffnungsdatum"
 msgid "Open positions (FIFO)"
 msgstr "Offene Positionen (FIFO)"
 
-#: lib/portfolixir_web/components/app_shell.ex:379
+#: lib/portfolixir_web/components/app_shell.ex:386
 #: lib/portfolixir_web/live/dashboard_live.ex:234
 #: lib/portfolixir_web/live/securities_live.ex:4279
 #, elixir-autogen, elixir-format
@@ -1430,6 +1433,7 @@ msgstr "Wertpapier-Detailansicht"
 msgid "Sell"
 msgstr "Verkauf"
 
+#: lib/portfolixir_web/live/news_live.ex:362
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:341
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:278
 #: lib/portfolixir_web/live/securities_live.ex:1582
@@ -1738,7 +1742,7 @@ msgstr "Entnahme"
 msgid "Fee"
 msgstr "Gebühren"
 
-#: lib/portfolixir_web/components/app_shell.ex:334
+#: lib/portfolixir_web/components/app_shell.ex:341
 #: lib/portfolixir_web/live/income_live.ex:1402
 #: lib/portfolixir_web/live/tax_live.ex:625
 #: lib/portfolixir_web/transaction_kind_label.ex:24
@@ -3041,7 +3045,7 @@ msgstr "Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = ü
 msgid "Toggle the category's securities"
 msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 
-#: lib/portfolixir_web/components/app_shell.ex:412
+#: lib/portfolixir_web/components/app_shell.ex:431
 #: lib/portfolixir_web/live/buckets_live.ex:314
 #: lib/portfolixir_web/live/imports_live.ex:2902
 #: lib/portfolixir_web/live/imports_live.ex:2928
@@ -3050,34 +3054,34 @@ msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 msgid "Accounts & depots"
 msgstr "Konten & Depots"
 
-#: lib/portfolixir_web/components/app_shell.ex:407
+#: lib/portfolixir_web/components/app_shell.ex:426
 #, elixir-autogen, elixir-format
 msgid "Administration"
 msgstr "Verwaltung"
 
-#: lib/portfolixir_web/components/app_shell.ex:317
+#: lib/portfolixir_web/components/app_shell.ex:324
 #, elixir-autogen, elixir-format
 msgid "Allocation & targets"
 msgstr "Allokation & Ziele"
 
-#: lib/portfolixir_web/components/app_shell.ex:357
+#: lib/portfolixir_web/components/app_shell.ex:364
 #, elixir-autogen, elixir-format
 msgid "History"
 msgstr "Historie"
 
-#: lib/portfolixir_web/components/app_shell.ex:362
+#: lib/portfolixir_web/components/app_shell.ex:369
 #: lib/portfolixir_web/live/journal/row.ex:69
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:1660
 #, elixir-autogen, elixir-format
 msgid "Import"
 msgstr "Import"
 
-#: lib/portfolixir_web/components/app_shell.ex:286
+#: lib/portfolixir_web/components/app_shell.ex:292
 #, elixir-autogen, elixir-format
 msgid "Section tabs"
 msgstr "Bereichs-Tabs"
 
-#: lib/portfolixir_web/components/app_shell.ex:386
+#: lib/portfolixir_web/components/app_shell.ex:393
 #: lib/portfolixir_web/live/portfolio_live.ex:1599
 #: lib/portfolixir_web/live/portfolio_live.ex:1602
 #: lib/portfolixir_web/live/portfolio_live.ex:1615
@@ -3510,7 +3514,7 @@ msgstr "Die neuen Datensätze starten mit diesen Buckets getaggt."
 msgid "The new tag could not be created."
 msgstr "Der neue Tag konnte nicht angelegt werden."
 
-#: lib/portfolixir_web/components/app_shell.ex:422
+#: lib/portfolixir_web/components/app_shell.ex:441
 #: lib/portfolixir_web/components/view_switcher.ex:94
 #: lib/portfolixir_web/live/buckets_live.ex:65
 #: lib/portfolixir_web/live/buckets_live.ex:82
@@ -3782,7 +3786,7 @@ msgstr "Echt (TTWROR)"
 msgid "Scope"
 msgstr "Geltungsbereich"
 
-#: lib/portfolixir_web/components/app_shell.ex:329
+#: lib/portfolixir_web/components/app_shell.ex:336
 #: lib/portfolixir_web/live/snapshots_live.ex:331
 #: lib/portfolixir_web/live/snapshots_live.ex:334
 #: lib/portfolixir_web/live/snapshots_live.ex:347
@@ -4981,19 +4985,19 @@ msgid_plural "%{count} without an asset class"
 msgstr[0] "eins ohne Anlageklasse"
 msgstr[1] "%{count} ohne Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:980
+#: lib/portfolixir_web/components/app_shell.ex:1004
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Attention"
 msgstr "Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:979
+#: lib/portfolixir_web/components/app_shell.ex:1003
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Note"
 msgstr "Hinweis"
 
-#: lib/portfolixir_web/components/app_shell.ex:981
+#: lib/portfolixir_web/components/app_shell.ex:1005
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Problem"
@@ -5238,7 +5242,7 @@ msgstr "Kein Kurs seit %{days} Tagen"
 msgid "Accumulated dividends and interest through %{year}"
 msgstr "Kumulierte Dividenden und Zinsen im Jahr %{year}"
 
-#: lib/portfolixir_web/components/app_shell.ex:323
+#: lib/portfolixir_web/components/app_shell.ex:330
 #: lib/portfolixir_web/live/income_live.ex:266
 #: lib/portfolixir_web/live/income_live.ex:1803
 #, elixir-autogen, elixir-format
@@ -5668,7 +5672,7 @@ msgstr "Widerruf"
 msgid "Retracts #%{id}"
 msgstr "Widerruft #%{id}"
 
-#: lib/portfolixir_web/components/app_shell.ex:338
+#: lib/portfolixir_web/components/app_shell.ex:345
 #: lib/portfolixir_web/live/risk_live.ex:215
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:201
 #: lib/portfolixir_web/live/securities_live.ex:3579
@@ -6142,7 +6146,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 msgid "no exchange rate"
 msgstr "kein Wechselkurs"
 
-#: lib/portfolixir_web/components/app_shell.ex:966
+#: lib/portfolixir_web/components/app_shell.ex:990
 #, elixir-autogen, elixir-format
 msgctxt "price freshness"
 msgid "stale"
@@ -8240,6 +8244,7 @@ msgstr "Gesetzte Salden"
 msgid "adjusted so the merged history holds"
 msgstr "angepasst, damit der zusammengeführte Verlauf stimmt"
 
+#: lib/portfolixir_web/live/news_live.ex:723
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:245
 #, elixir-autogen, elixir-format
 msgid "Set"
@@ -9641,26 +9646,26 @@ msgstr "Version von:"
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr "%{field} enthält unsichtbare Zeichen (%{characters})"
 
-#: lib/portfolixir_web/components/app_shell.ex:824
+#: lib/portfolixir_web/components/app_shell.ex:848
 #, elixir-autogen, elixir-format
 msgid "The text contains %{count} invisible character."
 msgid_plural "The text contains %{count} invisible characters."
 msgstr[0] "Der Text enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Text enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:832
+#: lib/portfolixir_web/components/app_shell.ex:856
 #, elixir-autogen, elixir-format
 msgid "The name contains %{count} invisible character."
 msgid_plural "The name contains %{count} invisible characters."
 msgstr[0] "Der Name enthält %{count} unsichtbares Zeichen."
 msgstr[1] "Der Name enthält %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:854
+#: lib/portfolixir_web/components/app_shell.ex:878
 #, elixir-autogen, elixir-format
 msgid "Text with the characters made visible"
 msgstr "Text mit sichtbar gemachten Zeichen"
 
-#: lib/portfolixir_web/components/app_shell.ex:855
+#: lib/portfolixir_web/components/app_shell.ex:879
 #, elixir-autogen, elixir-format
 msgid "Name with the characters made visible"
 msgstr "Name mit sichtbar gemachten Zeichen"
@@ -10738,7 +10743,7 @@ msgstr "„%{name}“ wurde inzwischen gelöscht; die Liste ist neu geladen."
 msgid "“%{name}” was merged into %{target} meanwhile; the list is reloaded."
 msgstr "„%{name}“ wurde inzwischen in %{target} zusammengeführt; die Liste ist neu geladen."
 
-#: lib/portfolixir_web/components/app_shell.ex:840
+#: lib/portfolixir_web/components/app_shell.ex:864
 #, elixir-autogen, elixir-format
 msgid "A former name contains %{count} invisible character."
 msgid_plural "A former name contains %{count} invisible characters."
@@ -10759,14 +10764,14 @@ msgid_plural "An import that writes one of them exactly so keeps booking to this
 msgstr[0] "Ein Import, der ihn genau so schreibt, bucht weiter auf dieses Depot."
 msgstr[1] "Ein Import, der einen von ihnen genau so schreibt, bucht weiter auf dieses Depot."
 
-#: lib/portfolixir_web/components/app_shell.ex:848
+#: lib/portfolixir_web/components/app_shell.ex:872
 #, elixir-autogen, elixir-format
 msgid "Former names contain %{count} invisible character."
 msgid_plural "Former names contain %{count} invisible characters."
 msgstr[0] "Frühere Namen enthalten %{count} unsichtbares Zeichen."
 msgstr[1] "Frühere Namen enthalten %{count} unsichtbare Zeichen."
 
-#: lib/portfolixir_web/components/app_shell.ex:856
+#: lib/portfolixir_web/components/app_shell.ex:880
 #, elixir-autogen, elixir-format
 msgid "Names with the characters made visible"
 msgstr "Namen mit sichtbar gemachten Zeichen"
@@ -13828,30 +13833,30 @@ msgid_plural "%{count} securities match."
 msgstr[0] "%{count} Wertpapier passt."
 msgstr[1] "%{count} Wertpapiere passen."
 
-#: lib/portfolixir_web/components/app_shell.ex:650
+#: lib/portfolixir_web/components/app_shell.ex:674
 #: lib/portfolixir_web/live/sale_hindsight_section.ex:526
 #, elixir-autogen, elixir-format
 msgid "About this section"
 msgstr "Zu diesem Abschnitt"
 
-#: lib/portfolixir_web/components/app_shell.ex:721
+#: lib/portfolixir_web/components/app_shell.ex:745
 #, elixir-autogen, elixir-format
 msgctxt "data-note clamp"
 msgid "less"
 msgstr "weniger"
 
-#: lib/portfolixir_web/components/app_shell.ex:720
+#: lib/portfolixir_web/components/app_shell.ex:744
 #, elixir-autogen, elixir-format
 msgctxt "data-note clamp"
 msgid "more"
 msgstr "mehr"
 
-#: lib/portfolixir_web/components/app_shell.ex:768
+#: lib/portfolixir_web/components/app_shell.ex:792
 #, elixir-autogen, elixir-format
 msgid "Show details"
 msgstr "Details anzeigen"
 
-#: lib/portfolixir_web/components/app_shell.ex:758
+#: lib/portfolixir_web/components/app_shell.ex:782
 #, elixir-autogen, elixir-format
 msgctxt "data-note fold"
 msgid "%{count} Attention"
@@ -13859,7 +13864,7 @@ msgid_plural "%{count} Attention"
 msgstr[0] "%{count} Achtung"
 msgstr[1] "%{count} Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:763
+#: lib/portfolixir_web/components/app_shell.ex:787
 #, elixir-autogen, elixir-format
 msgctxt "data-note fold"
 msgid "%{count} Note"
@@ -13998,7 +14003,7 @@ msgstr "Fehlt bei den Trades: %{counts}."
 msgid "Not in the total: %{counts}."
 msgstr "Nicht in der Summe: %{counts}."
 
-#: lib/portfolixir_web/components/app_shell.ex:768
+#: lib/portfolixir_web/components/app_shell.ex:792
 #, elixir-autogen, elixir-format
 msgid "Hide details"
 msgstr "Details ausblenden"
@@ -14251,7 +14256,7 @@ msgstr[1] "%{count} Einträge"
 msgid "Actor"
 msgstr "Akteur"
 
-#: lib/portfolixir_web/components/app_shell.ex:439
+#: lib/portfolixir_web/components/app_shell.ex:458
 #: lib/portfolixir_web/live/journal_live.ex:229
 #, elixir-autogen, elixir-format
 msgid "Audit journal"
@@ -14305,6 +14310,7 @@ msgid "Time (UTC)"
 msgstr "Zeit (UTC)"
 
 #: lib/portfolixir_web/live/journal_live.ex:522
+#: lib/portfolixir_web/live/news_live.ex:796
 #, elixir-autogen, elixir-format
 msgid "times in UTC"
 msgstr "Zeiten in UTC"
@@ -14905,7 +14911,7 @@ msgstr "Übertrifft %{benchmark} bis %{date}"
 msgid "Outperforms %{rate} a year by %{date}"
 msgstr "Übertrifft %{rate} p. a. bis %{date}"
 
-#: lib/portfolixir_web/components/app_shell.ex:344
+#: lib/portfolixir_web/components/app_shell.ex:351
 #: lib/portfolixir_web/live/predictions_live.ex:144
 #: lib/portfolixir_web/live/securities/predictions_tab.ex:93
 #: lib/portfolixir_web/live/securities_live.ex:4290
@@ -16098,3 +16104,446 @@ msgstr "Die Linie der Ansicht zählt jeden Fluss zu Tagesbeginn; die Bänder zä
 #, elixir-autogen, elixir-format
 msgid "Subcategory"
 msgstr "Unterkategorie"
+
+#: lib/portfolixir_web/live/news_live.ex:638
+#, elixir-autogen, elixir-format
+msgid "%{count} error"
+msgid_plural "%{count} errors"
+msgstr[0] "%{count} Fehler"
+msgstr[1] "%{count} Fehler"
+
+#: lib/portfolixir_web/live/news_live.ex:299
+#, elixir-autogen, elixir-format
+msgid "%{count} error (today and yesterday)"
+msgid_plural "%{count} errors (today and yesterday)"
+msgstr[0] "%{count} Fehler (heute und gestern)"
+msgstr[1] "%{count} Fehler (heute und gestern)"
+
+#: lib/portfolixir_web/live/news_live.ex:290
+#, elixir-autogen, elixir-format
+msgid "%{count} feed"
+msgid_plural "%{count} feeds"
+msgstr[0] "%{count} Feed"
+msgstr[1] "%{count} Feeds"
+
+#: lib/portfolixir_web/live/news_live.ex:794
+#, elixir-autogen, elixir-format
+msgid "%{count} item"
+msgid_plural "%{count} items"
+msgstr[0] "%{count} Meldung"
+msgstr[1] "%{count} Meldungen"
+
+#: lib/portfolixir_web/live/news_live.ex:302
+#, elixir-autogen, elixir-format
+msgid "%{count} item in 24 h"
+msgid_plural "%{count} items in 24 h"
+msgstr[0] "%{count} Meldung in 24 h"
+msgstr[1] "%{count} Meldungen in 24 h"
+
+#: lib/portfolixir_web/live/news_live.ex:829
+#, elixir-autogen, elixir-format
+msgid "%{count} more row not shown"
+msgid_plural "%{count} more rows not shown"
+msgstr[0] "%{count} weitere Zeile nicht gezeigt"
+msgstr[1] "%{count} weitere Zeilen nicht gezeigt"
+
+#: lib/portfolixir_web/live/news_live.ex:818
+#, elixir-autogen, elixir-format
+msgid "%{count} security without news"
+msgid_plural "%{count} securities without news"
+msgstr[0] "%{count} Wertpapier ohne Neues"
+msgstr[1] "%{count} Wertpapiere ohne Neues"
+
+#: lib/portfolixir_web/live/news_live.ex:293
+#, elixir-autogen, elixir-format
+msgid "%{count} stale"
+msgid_plural "%{count} stale"
+msgstr[0] "%{count} veraltet"
+msgstr[1] "%{count} veraltet"
+
+#: lib/portfolixir_web/live/news_live.ex:823
+#, elixir-autogen, elixir-format
+msgid "%{count} story of aggregators or themes hidden (no label or materiality below 2)"
+msgid_plural "%{count} stories of aggregators or themes hidden (no label or materiality below 2)"
+msgstr[0] "%{count} Meldung aus Aggregatoren oder Themen ausgeblendet (ohne Einordnung oder Materialität unter 2)"
+msgstr[1] "%{count} Meldungen aus Aggregatoren oder Themen ausgeblendet (ohne Einordnung oder Materialität unter 2)"
+
+#: lib/portfolixir_web/live/news_live.ex:296
+#, elixir-autogen, elixir-format
+msgid "%{count} with low yield"
+msgid_plural "%{count} with low yield"
+msgstr[0] "%{count} mit wenig Ertrag"
+msgstr[1] "%{count} mit wenig Ertrag"
+
+#: lib/portfolixir_web/live/news_live.ex:625
+#, elixir-autogen, elixir-format
+msgid "%{items} in 30 d · %{kept} kept · yield %{yield}"
+msgstr "%{items} in 30 T · %{kept} übernommen · Ertrag %{yield}"
+
+#: lib/portfolixir_web/live/news_live.ex:588
+#, elixir-autogen, elixir-format
+msgid "24 h"
+msgstr "24 h"
+
+#: lib/portfolixir_web/live/news_live.ex:590
+#, elixir-autogen, elixir-format
+msgid "30 d"
+msgstr "30 T"
+
+#: lib/portfolixir_web/live/news_live.ex:694
+#, elixir-autogen, elixir-format
+msgid "A domain without a row reads as awareness; a rating covers the domain's subdomains."
+msgstr "Eine Domain ohne Eintrag gilt als awareness; eine Bewertung gilt auch für die Subdomains."
+
+#: lib/portfolixir_web/live/news_live.ex:450
+#, elixir-autogen, elixir-format
+msgid "A label is an outside model's reading, marked „machine-made“; it sorts the rows and hides nothing an issuer or a regulator said."
+msgstr "Eine Einordnung ist die Lesart eines Modells außerhalb der App, markiert als „maschinell“; sie sortiert die Zeilen und blendet nichts aus, was ein Emittent oder eine Aufsicht gemeldet hat."
+
+#: lib/portfolixir_web/live/news_live.ex:704
+#, elixir-autogen, elixir-format
+msgid "A rating by hand is never overwritten by a default. Sources are rated through the API and the agent; this page shows them."
+msgstr "Eine Bewertung von Hand überschreibt keine Voreinstellung. Quellen bewerten API und Agent; diese Seite zeigt sie."
+
+#: lib/portfolixir_web/live/news_live.ex:445
+#, elixir-autogen, elixir-format
+msgid "A story counts when one of its items came in after the cut. An issuer's or a regulator's story always shows; an aggregator's or a thematic one shows when its label's materiality is 2 or more, and is counted as hidden otherwise."
+msgstr "Eine Meldung zählt, wenn eines ihrer Exemplare nach dem Stichzeitpunkt eingegangen ist. Die Meldung eines Emittenten oder einer Aufsicht erscheint immer; die eines Aggregators oder Themen-Feeds erscheint ab Materialität 2 und zählt sonst als ausgeblendet."
+
+#: lib/portfolixir_web/live/news_live.ex:336
+#, elixir-autogen, elixir-format
+msgid "An aggregator's item is filed under the one security its title names; none named leaves it unassigned, several leave it ambiguous with them as candidates."
+msgstr "Eine Meldung aus einem Aggregator gehört zu dem einen Wertpapier, das ihr Titel nennt; nennt er keines, bleibt sie nicht zugeordnet, nennt er mehrere, ist sie mehrdeutig mit diesen als Kandidaten."
+
+#: lib/portfolixir_web/live/news_live.ex:699
+#, elixir-autogen, elixir-format
+msgid "An item from a blocked domain is dropped when it is fetched and counted in the health line."
+msgstr "Eine Meldung einer gesperrten Domain wird beim Abruf verworfen und in der Zustandszeile gezählt."
+
+#: lib/portfolixir_web/live/news_live.ex:364
+#: lib/portfolixir_web/live/news_live.ex:423
+#, elixir-autogen, elixir-format
+msgid "Assign"
+msgstr "Zuordnen"
+
+#: lib/portfolixir_web/live/news_live.ex:586
+#, elixir-autogen, elixir-format
+msgid "Binding"
+msgstr "Bindung"
+
+#: lib/portfolixir_web/live/news_live.ex:416
+#, elixir-autogen, elixir-format
+msgid "Candidates"
+msgstr "Kandidaten"
+
+#: lib/portfolixir_web/live/news_live.ex:188
+#, elixir-autogen, elixir-format
+msgid "Choose a security first."
+msgstr "Zuerst ein Wertpapier wählen."
+
+#: lib/portfolixir_web/live/news_live.ex:585
+#, elixir-autogen, elixir-format
+msgid "Class"
+msgstr "Klasse"
+
+#: lib/portfolixir_web/live/news_live.ex:288
+#, elixir-autogen, elixir-format
+msgid "Collector health"
+msgstr "Zustand der Feeds"
+
+#: lib/portfolixir_web/live/news_live.ex:721
+#, elixir-autogen, elixir-format
+msgid "Domain"
+msgstr "Domain"
+
+#: lib/portfolixir_web/live/news_live.ex:589
+#, elixir-autogen, elixir-format
+msgid "Errors"
+msgstr "Fehler"
+
+#: lib/portfolixir_web/live/news_live.ex:554
+#, elixir-autogen, elixir-format
+msgid "Errors are counted per server day, today's and yesterday's, so up to 48 hours."
+msgstr "Fehler zählen je Servertag, heute und gestern, also bis zu 48 Stunden."
+
+#: lib/portfolixir_web/live/news_live.ex:584
+#, elixir-autogen, elixir-format
+msgid "Feed"
+msgstr "Feed"
+
+#: lib/portfolixir_web/live/news_live.ex:255
+#: lib/portfolixir_web/live/news_live.ex:546
+#: lib/portfolixir_web/live/news_live.ex:617
+#, elixir-autogen, elixir-format
+msgid "Feeds"
+msgstr "Feeds"
+
+#: lib/portfolixir_web/live/news_live.ex:564
+#, elixir-autogen, elixir-format
+msgid "Feeds are registered, changed and removed through the API and the agent; this page shows them."
+msgstr "Feeds anlegen, ändern und löschen API und Agent; diese Seite zeigt sie."
+
+#: lib/portfolixir_web/live/news_live.ex:578
+#, elixir-autogen, elixir-format
+msgid "In order of registration · counts by first sight · times in UTC"
+msgstr "In der Reihenfolge der Anlage · gezählt nach Erstabruf · Zeiten in UTC"
+
+#: lib/portfolixir_web/live/news_live.ex:361
+#, elixir-autogen, elixir-format
+msgid "Item"
+msgstr "Meldung"
+
+#: lib/portfolixir_web/live/news_live.ex:591
+#, elixir-autogen, elixir-format
+msgid "Kept"
+msgstr "übernommen"
+
+#: lib/portfolixir_web/live/news_live.ex:472
+#, elixir-autogen, elixir-format
+msgid "Label"
+msgstr "Einordnung"
+
+#: lib/portfolixir_web/live/news_live.ex:587
+#, elixir-autogen, elixir-format
+msgid "Last good fetch"
+msgstr "Letzter Abruf"
+
+#: lib/portfolixir_web/live/news_live.ex:437
+#: lib/portfolixir_web/live/news_live.ex:493
+#, elixir-autogen, elixir-format
+msgid "New per security"
+msgstr "Neu je Wertpapier"
+
+#: lib/portfolixir_web/components/app_shell.ex:411
+#: lib/portfolixir_web/live/news_live.ex:229
+#, elixir-autogen, elixir-format
+msgid "News"
+msgstr "Nachrichten"
+
+#: lib/portfolixir_web/live/news_live.ex:574
+#, elixir-autogen, elixir-format
+msgid "No feed is registered yet. Feeds are registered over the API or MCP."
+msgstr "Noch ist kein Feed angelegt. Feeds werden über die API oder MCP angelegt."
+
+#: lib/portfolixir_web/live/news_live.ex:714
+#, elixir-autogen, elixir-format
+msgid "No source is rated yet: every domain reads as awareness. Sources are rated over the API or MCP."
+msgstr "Noch ist keine Quelle bewertet: jede Domain gilt als awareness. Quellen werden über die API oder MCP bewertet."
+
+#: lib/portfolixir_web/live/news_live.ex:462
+#, elixir-autogen, elixir-format
+msgid "Nothing new since the cut."
+msgstr "Seit dem Stichzeitpunkt nichts Neues."
+
+#: lib/portfolixir_web/live/news_live.ex:353
+#, elixir-autogen, elixir-format
+msgid "Nothing to assign: every aggregator item names one security or none of the universe has come in."
+msgstr "Nichts zuzuordnen: jede Meldung aus Aggregatoren nennt genau ein Wertpapier, oder keine ist eingegangen."
+
+#: lib/portfolixir_web/live/news_live.ex:419
+#, elixir-autogen, elixir-format
+msgid "Other securities"
+msgstr "Weitere Wertpapiere"
+
+#: lib/portfolixir_web/live/news_live.ex:253
+#, elixir-autogen, elixir-format
+msgid "Reports"
+msgstr "Meldungen"
+
+#: lib/portfolixir_web/live/news_live.ex:261
+#: lib/portfolixir_web/live/news_live.ex:691
+#: lib/portfolixir_web/live/news_live.ex:735
+#, elixir-autogen, elixir-format
+msgid "Sources"
+msgstr "Quellen"
+
+#: lib/portfolixir_web/live/news_live.ex:470
+#, elixir-autogen, elixir-format
+msgid "Stories"
+msgstr "Meldungen"
+
+#: lib/portfolixir_web/live/news_live.ex:440
+#, elixir-autogen, elixir-format
+msgid "The agent's digest, read without a reader of its own: opening this page moves no agent's position."
+msgstr "Der Überblick des Agenten, ohne eigenen Leser gelesen: diese Seite verschiebt keine Leseposition eines Agenten."
+
+#: lib/portfolixir_web/live/news_live.ex:195
+#, elixir-autogen, elixir-format
+msgid "The item could not be assigned; it may have moved meanwhile."
+msgstr "Die Meldung ließ sich nicht zuordnen; sie hat sich womöglich inzwischen bewegt."
+
+#: lib/portfolixir_web/live/news_live.ex:217
+#, elixir-autogen, elixir-format
+msgid "The item is assigned to %{security}."
+msgstr "Die Meldung ist %{security} zugeordnet."
+
+#: lib/portfolixir_web/live/news_live.ex:722
+#, elixir-autogen, elixir-format
+msgid "Tier"
+msgstr "Stufe"
+
+#: lib/portfolixir_web/live/news_live.ex:363
+#, elixir-autogen, elixir-format
+msgid "Time"
+msgstr "Zeit"
+
+#: lib/portfolixir_web/live/news_live.ex:333
+#: lib/portfolixir_web/live/news_live.ex:382
+#, elixir-autogen, elixir-format
+msgid "To assign"
+msgstr "Zuzuordnen"
+
+#: lib/portfolixir_web/live/news_live.ex:471
+#, elixir-autogen, elixir-format
+msgid "Top story"
+msgstr "Wichtigste Meldung"
+
+#: lib/portfolixir_web/live/news_live.ex:657
+#, elixir-autogen, elixir-format
+msgid "Universe"
+msgstr "Universum"
+
+#: lib/portfolixir_web/live/news_live.ex:230
+#, elixir-autogen, elixir-format
+msgid "What the feeds deliver, as the agent sees it"
+msgstr "Was die Feeds liefern, wie der Agent es sieht"
+
+#: lib/portfolixir_web/live/news_live.ex:592
+#, elixir-autogen, elixir-format
+msgid "Yield"
+msgstr "Ertrag"
+
+#: lib/portfolixir_web/live/news_live.ex:559
+#, elixir-autogen, elixir-format
+msgid "Yield: the stories kept in the research log over the items of 30 days; „low yield“ is at least 50 items and none kept. Nothing switches a feed off by itself."
+msgstr "Ertrag: die ins Research-Log übernommenen Meldungen über die Meldungen von 30 Tagen; „wenig Ertrag“ heißt mindestens 50 Meldungen und keine übernommen. Nichts schaltet einen Feed von selbst ab."
+
+#: lib/portfolixir_web/live/news_live.ex:791
+#, elixir-autogen, elixir-format
+msgid "ambiguous first, each newest first"
+msgstr "mehrdeutige zuerst, jeweils neueste zuerst"
+
+#: lib/portfolixir_web/live/news_live.ex:779
+#, elixir-autogen, elixir-format
+msgid "ambiguous · candidates: %{candidates}"
+msgstr "mehrdeutig · Kandidaten: %{candidates}"
+
+#: lib/portfolixir_web/live/news_live.ex:808
+#, elixir-autogen, elixir-format
+msgid "at most %{rows} rows"
+msgstr "höchstens %{rows} Zeilen"
+
+#: lib/portfolixir_web/live/news_live.ex:835
+#, elixir-autogen, elixir-format
+msgid "by hand"
+msgstr "von Hand"
+
+#: lib/portfolixir_web/live/news_live.ex:601
+#: lib/portfolixir_web/live/news_live.ex:632
+#, elixir-autogen, elixir-format
+msgid "last error:"
+msgstr "letzter Fehler:"
+
+#: lib/portfolixir_web/live/news_live.ex:672
+#, elixir-autogen, elixir-format
+msgid "last fetch failed"
+msgstr "letzter Abruf fehlgeschlagen"
+
+#: lib/portfolixir_web/live/news_live.ex:671
+#, elixir-autogen, elixir-format
+msgid "low yield"
+msgstr "wenig Ertrag"
+
+#: lib/portfolixir_web/live/news_live.ex:530
+#, elixir-autogen, elixir-format
+msgid "machine-made"
+msgstr "maschinell"
+
+#: lib/portfolixir_web/live/news_live.ex:529
+#, elixir-autogen, elixir-format
+msgid "materiality %{value}"
+msgstr "Materialität %{value}"
+
+#: lib/portfolixir_web/live/news_live.ex:807
+#, elixir-autogen, elixir-format
+msgid "materiality 2 or more, or an issuer's or regulator's"
+msgstr "Materialität ab 2 oder von Emittent oder Aufsicht"
+
+#: lib/portfolixir_web/live/news_live.ex:533
+#, elixir-autogen, elixir-format
+msgid "no label"
+msgstr "ohne Einordnung"
+
+#: lib/portfolixir_web/live/news_live.ex:677
+#, elixir-autogen, elixir-format
+msgid "ok"
+msgstr "ok"
+
+#: lib/portfolixir_web/live/news_live.ex:669
+#, elixir-autogen, elixir-format
+msgid "paused"
+msgstr "pausiert"
+
+#: lib/portfolixir_web/live/news_live.ex:805
+#, elixir-autogen, elixir-format
+msgid "since %{time} UTC"
+msgstr "seit %{time} UTC"
+
+#: lib/portfolixir_web/live/news_live.ex:670
+#, elixir-autogen, elixir-format
+msgid "stale"
+msgstr "veraltet"
+
+#: lib/portfolixir_web/live/news_live.ex:793
+#, elixir-autogen, elixir-format
+msgid "the newest %{limit} of each"
+msgstr "je die neuesten %{limit}"
+
+#: lib/portfolixir_web/live/news_live.ex:806
+#, elixir-autogen, elixir-format
+msgid "the news universe"
+msgstr "das Nachrichten-Universum"
+
+#: lib/portfolixir_web/live/news_live.ex:311
+#, elixir-autogen, elixir-format
+msgid "today %{count} dropped, %{blocked} of them from blocked sources"
+msgid_plural "today %{count} dropped, %{blocked} of them from blocked sources"
+msgstr[0] "heute %{count} verworfen, davon %{blocked} aus gesperrten Quellen"
+msgstr[1] "heute %{count} verworfen, davon %{blocked} aus gesperrten Quellen"
+
+#: lib/portfolixir_web/live/news_live.ex:305
+#, elixir-autogen, elixir-format
+msgid "today %{unassigned} unassigned · %{ambiguous} ambiguous"
+msgstr "heute %{unassigned} nicht zugeordnet · %{ambiguous} mehrdeutig"
+
+#: lib/portfolixir_web/live/news_live.ex:785
+#, elixir-autogen, elixir-format
+msgid "unassigned · no security of the universe named"
+msgstr "nicht zugeordnet · kein Wertpapier des Universums genannt"
+
+#: lib/portfolixir_web/live/news_live.ex:415
+#, elixir-autogen, elixir-format
+msgid "— choose a security —"
+msgstr "— Wertpapier wählen —"
+
+#: lib/portfolixir_web/live/news_live.ex:341
+#, elixir-autogen, elixir-format
+msgid "„Assign“ files it under the security chosen, as the agent's news.assign does, and its stories are regrouped at once; the journal records the operator as its author."
+msgstr "„Zuordnen“ ordnet sie dem gewählten Wertpapier zu, wie news.assign des Agenten, und ihre Meldungen werden sofort neu gruppiert; das Journal nennt den Operator als Urheber."
+
+#: lib/portfolixir_web/live/news_live.ex:549
+#, elixir-autogen, elixir-format
+msgid "„Stale“: no successful fetch for 24 hours; a paused feed is never stale."
+msgstr "„Veraltet“: seit 24 Stunden kein erfolgreicher Abruf; ein pausierter Feed ist nie veraltet."
+
+#: lib/portfolixir_web/live/news_live.ex:593
+#, elixir-autogen, elixir-format
+msgctxt "news feed"
+msgid "State"
+msgstr "Zustand"
+
+#: lib/portfolixir_web/live/news_live.ex:836
+#, elixir-autogen, elixir-format
+msgctxt "news source"
+msgid "default"
+msgstr "Voreinstellung"

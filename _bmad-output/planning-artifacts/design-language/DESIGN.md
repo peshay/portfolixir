@@ -9874,3 +9874,145 @@ compiled from (`Portfolixir.BuildVersion`), and a build without its build
 arguments reads „unbekannt“ (plan D-7). The same value answers
 `GET /api/v1/version` and `portfolixir.version`. It is no figure, so the
 privacy mode leaves it as it is.
+
+<!-- S28 N7 begin -->
+## Amendment 2026-11-09 — The page „Nachrichten“ *(Sprint 28 N7, ADR-0056 §10; board `mockups/ux-design-2026-11-08-sprint28/01-news-view`, variant A; plan D-3, D-5)*
+
+The operator's view of the news reads the agent has had since Sprint 27:
+what is new, what waits to be assigned, and whether the collector is
+alive. Built in `PortfolixirWeb.NewsLive`. **No logic of its own:** each
+region reads through the context function the API's read answers from,
+with the API's defaults — the health line `Portfolixir.News.health/1`
+(`news.health`), the queue `Portfolixir.News.Reads.list/2` with
+`assignment` `ambiguous` and `unassigned` (`news.list`), the digest
+`Portfolixir.News.Reads.digest/5` (`news.digest`) — so the screen states
+what the agent reads for the same request; a LiveView test per region
+compares the two (plan D-1, criterion 6).
+
+### Placement and URL
+
+The sidebar's first group, after „Wertpapiere“: `#nav-news`,
+„Nachrichten“, its own glyph (`:newspaper`, a folded page with lines; no
+other destination carries it), current on `/news` and its tabs; the
+phone's menu is the same sidebar. The top bar reads „Nachrichten“ over
+„Was die Feeds liefern, wie der Agent es sieht“. Three first-level tabs
+(`AppShell.area_tabs/1` with `patch`, `#news-tabs`): „Meldungen“ (`/news`,
+the page's glyph), „Feeds“ (`/news?tab=feeds`, `:signal`) and „Quellen“
+(`/news?tab=sources`, `:globe`). The tab is the address, so a link handed
+over reopens it; a tab the page does not know opens „Meldungen“. The
+digest's cut is the API's `since`, read by the API's parser; none, or one
+it cannot read, is the API's 24 hours.
+
+### Anatomy, top to bottom
+
+1. **The health line** on every tab (`#news-health`, a wrapping row of
+   house badges in the controls band): „3 Feeds“, „1 veraltet“ (warning
+   when above 0), „N mit wenig Ertrag“ (warning, only when above 0), „N
+   Fehler (heute und gestern)“ (danger when above 0), „N Meldungen in
+   24 h“, „heute 2 nicht zugeordnet · 1 mehrdeutig“ (the health's day),
+   and „heute N verworfen, davon M aus gesperrten Quellen“ only when
+   above 0. Each count is the health read's, summed over its feeds.
+2. **„Meldungen“** — two sections:
+   - **„Zuzuordnen“** (`#news-queue`), its ⓘ with the matcher's rule and
+     what „Zuordnen“ does. The basis line „mehrdeutige zuerst, jeweils
+     neueste zuerst · 3 Meldungen · Zeiten in UTC“ („je die neuesten 20“
+     when a page is cut, UX-DR26). The table (`#news-queue-table`)
+     Meldung · Quelle · Zeit · Zuordnen: the title over its state,
+     „mehrdeutig · Kandidaten: A · B“ or „nicht zugeordnet · kein
+     Wertpapier des Universums genannt“; the domain with its tier chip;
+     the publication to the minute; the picker — a select „— Wertpapier
+     wählen —“ with the candidates first („Kandidaten“), then the news
+     universe („Weitere Wertpapiere“), and the ghost button „Zuordnen“.
+     The write is `Portfolixir.News.assign_item/4`, the one `news.assign`
+     calls, journaled under the UI actor; the item leaves the queue and
+     the inline result reads „Die Meldung ist ‹Wertpapier› zugeordnet.“
+     Submitting without a security writes nothing: „Zuerst ein Wertpapier
+     wählen.“ (attention). **No suggestion beside a row:** the board drew a
+     label's `suggested_security_id`, but a label is a story's and a queue
+     item sits in no story, so the read carries none (N4's contract note).
+     Empty: „Nichts zuzuordnen: …“, no table.
+   - **„Neu je Wertpapier“** (`#news-digest`), its ⓘ with three sentences
+     (read without a consumer, so the page moves no agent's position; what
+     counts and what is hidden; a label is machine-made and hides nothing
+     certain). The basis line „seit 08.11.2026 10:55 UTC · das
+     Nachrichten-Universum · Materialität ab 2 oder von Emittent oder
+     Aufsicht · höchstens 12 Zeilen“. The table (`#news-digest-table`)
+     Wertpapier · Meldungen · Wichtigste Meldung · Einordnung: the whole
+     name linking the security (the read's 20-character name is the
+     agent's budget, not a fact), the count, the top story's title (as the
+     digest cuts it, at 50) over its tier chip and time, the event types
+     and „Materialität 2“ with the chip „maschinell“, or „ohne
+     Einordnung“. A category's row (thematic stories) follows with its
+     name. Under it, always, what the digest left out (C5): „1 Wertpapier
+     ohne Neues · 6 Meldungen aus Aggregatoren oder Themen ausgeblendet
+     (ohne Einordnung oder Materialität unter 2)“ and „N weitere Zeilen
+     nicht gezeigt“ when cut. Empty: „Seit dem Stichzeitpunkt nichts
+     Neues.“
+3. **„Feeds“** (`#news-feeds`), its ⓘ with stale, the errors' two server
+   days, the yield and its low-yield rule, and that registering stays
+   with the API and the agent (plan D-3). The basis line „In der
+   Reihenfolge der Anlage · gezählt nach Erstabruf · Zeiten in UTC“. The
+   table (`#news-feeds-table`) Feed · Klasse · Bindung · Letzter Abruf ·
+   24 h · Fehler · 30 T · übernommen · Ertrag · Zustand: the URL (breaking
+   at its line's end, never inside a path) over „letzter Fehler: code“
+   when the fetcher recorded one; the class code; the bound security
+   (linked), the category, or „Universum“ for an aggregator; the last
+   good fetch; the health's `items_24h`, `err_24h`, `items_30d`,
+   `promoted_30d`; `yield_30d` as a percentage („0,0 %“, „—“ without
+   items); the state chips „pausiert“ (undetermined), „veraltet“ and
+   „wenig Ertrag“ (warning), „letzter Abruf fehlgeschlagen“ (danger), or
+   „ok“ (neutral). Empty: „Noch ist kein Feed angelegt. …“
+4. **„Quellen“** (`#news-sources`), its ⓘ with the unrated default
+   (awareness), the blocked drop, and that a rating by hand outlives a
+   default. The table (`#news-sources-table`) Domain · Stufe · Gesetzt:
+   the domain, its tier chip (primary accent, blocked danger, the others
+   neutral), „von Hand“ or „Voreinstellung“. Empty: „Noch ist keine Quelle
+   bewertet: …“
+
+Stored foreign text — a title, a domain, a URL, an error code — is shown
+with each invisible character spelled `[U+XXXX]` and isolated in `<bdi>`
+(ADR-0054 §4, the companion's spelling). Tier, class and event-type codes
+are shown as the agent reads them, untranslated. **Feeds and sources are
+shown, not edited** (plan D-3): neither tab carries a form.
+
+### Under 560 px *(UX-DR27)*
+
+Each table gives way to two-line rows (`ul.phone-rows.news-rows`): a queue
+row is the title over its source, tier and time, its state, and the picker
+on one line; a digest row the name over the top story and its label, the
+count right; a feed row the URL over class · binding · last fetch, the
+30-day counts and yield, the state chips, its 24-hour count right over its
+errors; a source row the domain over who set it, the tier chip right. The
+health line wraps. Nothing scrolls sideways at 390 px.
+
+### The privacy mode
+
+The page shows no amount: counts, a yield in percent, times and names.
+The privacy backstop (`privacy_mode_routes_test.exs`) and the browser's
+leak walk open `/news` and its two other tabs on a small news world
+(`Portfolixir.NewsFixtures.page_world!/1`).
+
+### The `app.css` rules (between `S28 N7 begin` / `end`)
+
+`.news-health` (a wrapping badge row, `--space-2` gaps, `--space-3` block
+padding); the tables' fit to their wrappers (`min-width: 0`, top-aligned
+cells, a title cell's 14 rem floor wrapping anywhere, headers, times and
+counts never wrapping); `.news-title`, `.news-url` (breaks at the line's
+end), `.news-sub` (the muted 12 px second line); `.news-label--none`;
+`.news-states`; `.news-assign` (the select at 12 to 16 rem beside its
+button, on one line); `.news-rows .phone-row` two tracks; the table
+wrappers hidden under 560 px. Every colour is a token.
+
+### Stated, not settled here
+
+- **The feeds' URLs and bindings and the rated sources have no API read.**
+  `news.health` answers a feed by id and class, and no read lists
+  `news_sources`; the page shows them from the stored rows
+  (`Portfolixir.News.feed_registrations/0`, `Portfolixir.News.Sources.list/0`).
+  An agent knows a feed's URL from its own `news.feeds_put`; a list read
+  for either is its own story.
+- **The digest reads the news universe**, not the selected view; `view_id`
+  narrows the agent's digest and is not offered here.
+- **The queue shows the API's first page of each kind (20)** and says so
+  when cut; the rest is reached by assigning, or over the API.
+<!-- S28 N7 end -->

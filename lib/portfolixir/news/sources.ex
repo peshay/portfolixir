@@ -60,6 +60,17 @@ defmodule Portfolixir.News.Sources do
 
   @by_construction [:issuer, :regulatory]
 
+  # --- S28 N7 begin ---
+  @doc """
+  Every rated domain (§3), by domain: what the news page's „Quellen“ tab
+  shows (ADR-0056 §10). An unrated domain has no row and reads as
+  `awareness`.
+  """
+  @spec list() :: [Source.t()]
+  def list, do: Repo.all(from(s in Source, order_by: s.domain))
+
+  # --- S28 N7 end ---
+
   @doc """
   The tier an item of `class` from `domain` is stored with, or `:blocked`
   when it must be dropped. Reads the table; see the moduledoc.

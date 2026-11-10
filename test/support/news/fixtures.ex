@@ -7,6 +7,7 @@ defmodule Portfolixir.NewsFixtures do
   """
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.News
   alias Portfolixir.News.Cluster
@@ -14,6 +15,7 @@ defmodule Portfolixir.NewsFixtures do
   alias Portfolixir.News.Ingest
   alias Portfolixir.News.Item
   alias Portfolixir.News.Parser.Item, as: Parsed
+  alias Portfolixir.News.Sources
   alias Portfolixir.Repo
   alias Portfolixir.WorldFixtures
 
@@ -150,6 +152,39 @@ defmodule Portfolixir.NewsFixtures do
   end
 
   # --- S28 N2 end ---
+
+  # --- S28 N7 begin ---
+
+  @doc """
+  A small news world on `security` for the walks that read the news page
+  (the privacy backstop and the browser's leak walk, S28 N7): the security
+  watched, an issuer story of it, labelled, an aggregator item no security
+  claims, and a source rated by hand. Every host is synthetic.
+  """
+  def page_world!(security) do
+    {:ok, _watched} =
+      Catalog.update_security(Actor.owner_ui(), security, %{news_watch: true})
+
+    story = story!(security, title: "Synthetic release of the walked security")
+    label!(story.id, [])
+
+    aggregator = feed!(%{class: "aggregator", url: "https://search.example.com/rss-walk"})
+
+    item = %Parsed{
+      title: "Synthetic market wrap naming no company",
+      link: "https://search.example.com/r?u=walk",
+      source_domain: "wire.example.com"
+    }
+
+    {:ok, %{stored: 1}} = Ingest.ingest(aggregator, [item], DateTime.utc_now())
+
+    {:ok, _source} =
+      Sources.put_source(Actor.owner_ui(), "ir.example.com", "primary")
+
+    :ok
+  end
+
+  # --- S28 N7 end ---
 end
 
 defmodule Portfolixir.News.NoNetwork do

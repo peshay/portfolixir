@@ -112,3 +112,21 @@ while it holds every kind of entry (board
 Sprint 23 plan, D-5 and D-8). Decision 7 stands: the Overview keeps no
 activity feed; the journal is the place for forensic detail, now with a
 screen of its own.
+
+## Amendment: News joins the top level, after Securities (2026-11-09, Sprint 28 N7; ADR-0056 §10)
+
+The first group gains a sixth area, **News** (de: „Nachrichten“,
+`/news`), after Securities, with the tabs **Reports** („Meldungen“: the
+collector's health, the queue of unassigned and ambiguous items with the
+one assign action, the digest per security), **Feeds** and **Sources**
+(„Quellen“). It is the operator's view of the news reads ADR-0056 §9 gave
+the agent, and §10 owed it by Sprint 28.
+
+*Why a new area and not a place in an existing one:* the guardrail above
+asks to discuss the IA first, and the Sprint 28 planning board did
+(`ux-design-2026-11-08-sprint28/01`, plan D-5). Spread over
+Administration and a filter on the securities list (variant B), the
+digest — "what is new, and is the collector alive", the one question the
+agent answers with one call — would have no place on screen. Variant A
+was adopted with the plan; "News verteilt" flips it to B. A security's
+own stories stay on its page, as a tab (Sprint 28 N8).
