@@ -456,6 +456,41 @@ defmodule PortfolixirWeb.NewsLiveTest do
     assert has_element?(view, "[data-role='queue-title']", "Rates[U+200B]unchanged again")
   end
 
+  # User story (Sprint 28 closing act, ND4; board 01):
+  # As the operator reading the digest,
+  # I want the story column named for what picks it, and the ⓘ to say that
+  # the label column sums up every new story of the row,
+  # so that I do not read a row's highest materiality as the shown story's.
+  #
+  # Acceptance criteria:
+  # - The column is „Newest from the best source“ (German „Neueste der
+  #   besten Quelle“), no longer „Top story“.
+  # - The digest's ⓘ says the label sums up all the row's new stories, so
+  #   the two columns can name different stories (German too).
+  test "the digest's story column says what picks it", %{conn: conn} do
+    news_world()
+    since = DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.to_iso8601()
+    {:ok, view, _html} = live(conn, "/news?since=#{URI.encode_www_form(since)}")
+
+    assert has_element?(view, "#news-digest-table th", "Newest from the best source")
+    refute has_element?(view, "#news-digest-table th", "Top story")
+
+    sentence =
+      "„Newest from the best source“ is the newest story of the row's best tier; " <>
+        "„Label“ sums up all its new stories, their highest materiality and their " <>
+        "event types, so the two can name different stories."
+
+    assert has_element?(view, "#news-digest", sentence)
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+      assert Gettext.gettext(PortfolixirWeb.Gettext, "Newest from the best source") ==
+               "Neueste der besten Quelle"
+
+      assert Gettext.gettext(PortfolixirWeb.Gettext, sentence) =~
+               "„Einordnung“ fasst alle neuen Meldungen der Zeile zusammen"
+    end)
+  end
+
   # User story (ADR-0056 §10; DESIGN.md empty states):
   # As an operator before any feed is registered,
   # I want each region to say it is empty and how it fills,

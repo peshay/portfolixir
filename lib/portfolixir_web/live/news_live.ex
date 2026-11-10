@@ -456,6 +456,13 @@ defmodule PortfolixirWeb.NewsLive do
                 "A label is an outside model's reading, marked „machine-made“; it sorts the rows and hides nothing an issuer or a regulator said."
               ) %>
             </:line>
+            <%!-- Closing act of Sprint 28, ND4: the two columns pick by
+                 different rules, so the ⓘ says which. --%>
+            <:line>
+              <%= gettext(
+                "„Newest from the best source“ is the newest story of the row's best tier; „Label“ sums up all its new stories, their highest materiality and their event types, so the two can name different stories."
+              ) %>
+            </:line>
           </AppShell.section_info>
         </div>
       </header>
@@ -473,7 +480,7 @@ defmodule PortfolixirWeb.NewsLive do
               <tr>
                 <th><%= gettext("Security") %></th>
                 <th class="num"><%= gettext("Stories") %></th>
-                <th><%= gettext("Top story") %></th>
+                <th><%= gettext("Newest from the best source") %></th>
                 <th><%= gettext("Label") %></th>
               </tr>
             </thead>
