@@ -20,8 +20,12 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
   the function that call uses. The operator may change the kind, the
   headline, the event type and the tone, as the agent may; the date, the
   source link and the source quality are the story's and are shown, not
-  offered. A field left as proposed is not sent, so the server pre-fills
-  it as it would for the agent and keeps the label's id as provenance.
+  offered. The save sends all four fields, a cleared one empty, against
+  the proposal the form showed (closing act, NL1): a label written after
+  the form opened is never stored unseen, the shown label's id stays as
+  provenance only where the entry still says what it said, and a story
+  whose date, link or quality changed meanwhile is shown anew with a line
+  saying so, nothing written.
   """
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -220,6 +224,11 @@ defmodule PortfolixirWeb.Securities.StoriesTab do
             title: StoredText.slot(:title)
           ),
           title: Text.escape_invisible(@promotion.title)
+        ) %>
+      </p>
+      <p :if={@promotion.story_changed} class="field-error" data-role="promotion-story-changed" role="alert">
+        <%= gettext(
+          "The story changed after the form was opened: nothing was written. Check its date, source link and source quality below, then save again."
         ) %>
       </p>
       <div class="research-entry-form__grid">

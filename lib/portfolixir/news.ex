@@ -1092,13 +1092,14 @@ defmodule Portfolixir.News do
   Appends a research note written from the story `cluster_id`
   (`notes.append` with a `cluster_id`, ADR-0056 §8): the server pre-fills
   what the story knows, the story is promoted and links the note. See
-  `Portfolixir.News.Promotion`, the one place a story becomes a note.
+  `Portfolixir.News.Promotion`, the one place a story becomes a note;
+  `shown:` is the proposal the operator's form showed (closing act, NL1).
   """
-  @spec append_note_from_story(Actor.t(), map(), pos_integer()) ::
+  @spec append_note_from_story(Actor.t(), map(), pos_integer(), keyword()) ::
           {:ok, Portfolixir.Knowledge.SecurityNote.t()}
-          | {:error, %{String.t() => [String.t()]} | Ecto.Changeset.t()}
-  def append_note_from_story(%Actor{} = actor, attrs, cluster_id),
-    do: Promotion.append_note(actor, attrs, cluster_id)
+          | {:error, %{String.t() => [String.t()]} | Ecto.Changeset.t() | :story_changed}
+  def append_note_from_story(%Actor{} = actor, attrs, cluster_id, opts \\ []),
+    do: Promotion.append_note(actor, attrs, cluster_id, opts)
 
   @doc """
   The source an event of `security_id` takes from the item `news_id`
