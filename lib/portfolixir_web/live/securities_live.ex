@@ -144,6 +144,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_percent_mode?, false)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
+     # S28 N9: the note pins, on by default (board 01, marker A).
+     |> assign(:detail_show_notes?, true)
      # #824 (design pick D1-A): SMA-50 and SMA-200 are the chart's second and
      # third series, because a moving average's meaning is its distance to the
      # price (a number, in the grid) and its crossing with the other average
@@ -1331,6 +1333,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
               >
                 <%= gettext("Show transactions") %>
               </button>
+              <%!-- S28 N9 (board 01, marker A): the research notes with a
+                   headline, as pins at the top edge. --%>
+              <button
+                type="button"
+                id="toggle-notes"
+                phx-click="toggle_detail_notes"
+                class={["chart-toggle", @detail_show_notes? && "is-active"]}
+                aria-pressed={to_string(@detail_show_notes?)}
+              >
+                <%= gettext("Show notes") %>
+              </button>
               <%= for window <- [30, 50, 200] do %>
                 <button
                   type="button"
@@ -1397,6 +1410,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
             log_scale?={@detail_log_scale? and not @detail_percent_mode? and not PrivacyMode.on?()}
             percent_mode?={@detail_percent_mode? or PrivacyMode.on?()}
             show_transactions?={@detail_show_transactions?}
+            notes={chart_notes(@detail_notes)}
+            show_notes?={@detail_show_notes?}
             currency_code={@selected_security.currency_code}
           />
           <%!-- #824: the overlays are named where they are drawn. Two of
@@ -1457,6 +1472,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
           note_editing?={@detail_note_editing?}
           bond={@detail_bond}
           implausible={@detail_implausible}
+          notes={chart_notes(@detail_notes)}
+          show_notes?={@detail_show_notes?}
         />
       <% end %>
 
@@ -1755,6 +1772,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:bond, :map, default: nil)
   # #1112 (board 02, N7 A): the security's implausible_quote finding, or nil.
   attr(:implausible, :map, default: nil)
+  # S28 N9: the note pins of the small chart and their toggle.
+  attr(:notes, :list, default: [])
+  attr(:show_notes?, :boolean, default: true)
 
   # #804 (review C7/A8, owner's pick 2026-09-14): the first tab answers "what
   # is this, how does it stand, what do I think about it" — six figures, the
@@ -1883,9 +1903,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <SecurityChart.chart
                 quotes={@quotes}
                 show_transactions?={false}
+                notes={@notes}
+                show_notes?={@show_notes?}
                 currency_code={@security.currency_code}
                 aria_label={gettext("Price history")}
               />
+              <%!-- S28 N9 (board 01, marker A): the small chart has no
+                   toolbar; its one toggle is the notes'. --%>
+              <div :if={@notes != []} class="chart-toggles overview-chart__toggles">
+                <button
+                  type="button"
+                  id="toggle-notes-overview"
+                  phx-click="toggle_detail_notes"
+                  class={["chart-toggle", @show_notes? && "is-active"]}
+                  aria-pressed={to_string(@show_notes?)}
+                >
+                  <%= gettext("Show notes") %>
+                </button>
+              </div>
             <% end %>
           </div>
 
@@ -5832,6 +5867,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, update(socket, :detail_show_transactions?, &(!&1))}
   end
 
+  # S28 N9: the note pins, one switch for the Diagramm tab and the
+  # Übersicht's small chart.
+  def handle_event("toggle_detail_notes", _params, socket) do
+    {:noreply, update(socket, :detail_show_notes?, &(!&1))}
+  end
+
   def handle_event("dismiss_result", _params, socket) do
     {:noreply, assign(socket, :action_result, nil)}
   end
@@ -6832,6 +6873,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   # --- S28 N8 end ---
+
+  # --- S28 N9 begin ---
+  # The chart's note pins (ADR-0056 A2, ADR-0044's amendment): the research
+  # entries with a headline, from the log the pane already holds; never a
+  # story or a raw item. An entry another supersedes is left out: the pin
+  # has no room to say it was replaced or retracted, and the log shows it
+  # marked.
+  defp chart_notes(notes) do
+    for note <- notes,
+        is_binary(note.headline) and note.headline != "",
+        note.superseded_by_ids == [],
+        do: %{
+          date: note.as_of,
+          headline: note.headline,
+          event_type: note.event_type,
+          tone: note.tone
+        }
+  end
+
+  # --- S28 N9 end ---
 
   # ADR-0044 §6: the research log newest first and the thesis state derived
   # from it — one read, the projection computed over the rows just loaded.

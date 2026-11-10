@@ -294,8 +294,50 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
         steps: [%{upload: ["input[name='pp_file']", @warning_csv]}],
         open: "#parser-warnings-box"
       }
+    ] ++ news_states()
+  end
+
+  # --- S28 N9 begin ---
+  # The news states of the security that holds the walk's news world (S28
+  # N8, N9): the tab's note form opened from a story, the chart with the
+  # kept note's pin, and the chart and the Übersicht with the pins switched
+  # off by „Notizen“.
+  defp news_states do
+    security = news_security_id()
+
+    open_form =
+      "#security-stories-table button[phx-click='open_promotion'], " <>
+        "#security-stories-phone-rows button[phx-click='open_promotion']"
+
+    [
+      %{
+        name: "the story's note form",
+        url: "/securities/#{security}?tab=news",
+        steps: [%{click: open_form}],
+        open: "#story-promotion-form"
+      },
+      %{
+        name: "a chart with a note pin",
+        url: "/securities/#{security}?tab=chart",
+        steps: [],
+        open: "#detail-tab-panel-chart g.note-pin"
+      },
+      %{
+        name: "a chart with its notes off",
+        url: "/securities/#{security}?tab=chart",
+        steps: [%{click: "#toggle-notes"}],
+        open: "#toggle-notes[aria-pressed='false']"
+      },
+      %{
+        name: "the overview with its notes off",
+        url: "/securities/#{security}",
+        steps: [%{click: "#toggle-notes-overview"}],
+        open: "#toggle-notes-overview[aria-pressed='false']"
+      }
     ]
   end
+
+  # --- S28 N9 end ---
 
   # The newest booking of one of `types`, so it stands on the history's
   # first page.
@@ -566,18 +608,24 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # S28 N8: on the most traded security, the first `/securities/:id` the
   # walk opens, so its tab „Nachrichten“ is read filled too.
   defp news! do
-    security_id =
-      Repo.one(
-        from(t in Transaction,
-          where: not is_nil(t.security_id) and t.type in ["buy", "sell"],
-          group_by: t.security_id,
-          order_by: [desc: count(t.id), asc: t.security_id],
-          limit: 1,
-          select: t.security_id
-        )
-      )
+    security = Repo.get!(Security, news_security_id())
+    Portfolixir.NewsFixtures.page_world!(security)
+    # --- S28 N9 begin ---
+    # A story kept in the research log, so the chart draws a note pin.
+    Portfolixir.NewsFixtures.chart_note!(security)
+    # --- S28 N9 end ---
+  end
 
-    Portfolixir.NewsFixtures.page_world!(Repo.get!(Security, security_id))
+  defp news_security_id do
+    Repo.one(
+      from(t in Transaction,
+        where: not is_nil(t.security_id) and t.type in ["buy", "sell"],
+        group_by: t.security_id,
+        order_by: [desc: count(t.id), asc: t.security_id],
+        limit: 1,
+        select: t.security_id
+      )
+    )
   end
 
   # --- S28 N7 end ---
