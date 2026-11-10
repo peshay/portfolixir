@@ -2,28 +2,35 @@
 // each to a 256-colour palette when python3 with Pillow is available.
 // First measures every frame at its width and writes frames/sizes.json, so
 // build.js gives each <iframe> its real height; then rebuilds and renders.
-// Usage: node build.js && node render.js
+// Usage: node build.js && node render.js [board ...]
+// Naming boards renders only those (their frames measured into the kept
+// sizes.json), so a board added later leaves the others' PNGs untouched.
 const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const QUANTIZE = 'import sys\nfrom PIL import Image\nfor f in sys.argv[1:]:\n    Image.open(f).convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(f, optimize=True)\n';
-const BOARDS = ['01-news-view', '02-stack-filter', '03-ttwror-levels', '04-version', '05-currency-mismatch', '06-privacy-stack', '07-basis-and-bar'];
+const BOARDS = ['01-news-view', '02-stack-filter', '03-ttwror-levels', '04-version', '05-currency-mismatch', '06-privacy-stack', '07-basis-and-bar', '08-merge-provider-currency'];
 const FRAMES = path.join(__dirname, 'frames');
-const WIDTH = { '01-news-view': 1310, '02-stack-filter': 1090, '03-ttwror-levels': 1090, '04-version': 1960, '05-currency-mismatch': 1090, '06-privacy-stack': 1090, '07-basis-and-bar': 1300 };
+const WIDTH = { '01-news-view': 1310, '02-stack-filter': 1090, '03-ttwror-levels': 1090, '04-version': 1960, '05-currency-mismatch': 1090, '06-privacy-stack': 1090, '07-basis-and-bar': 1300, '08-merge-provider-currency': 1200 };
 
 (async () => {
   const launch = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {};
   const browser = await chromium.launch(launch);
+  const only = process.argv.slice(2);
+  const boards = only.length ? BOARDS.filter((b) => only.includes(b)) : BOARDS;
 
   // 1. Measure every frame at the width the board gives it.
   const widths = {};
-  for (const b of BOARDS) {
+  for (const b of boards) {
     const html = fs.readFileSync(path.join(__dirname, b + '.html'), 'utf8');
     for (const m of html.matchAll(/<iframe src="frames\/([^"]+)" width="(\d+)"/g)) widths[m[1]] = Number(m[2]);
   }
-  const sizes = {};
+  let sizes = {};
+  if (only.length) {
+    try { sizes = JSON.parse(fs.readFileSync(path.join(FRAMES, 'sizes.json'), 'utf8')); } catch (e) { /* none yet */ }
+  }
   for (const [file, width] of Object.entries(widths)) {
     if (file.startsWith('04-')) continue; // fixed heights: the sidebar is 100vh
     const page = await browser.newPage({ viewport: { width, height: 100 }, deviceScaleFactor: 1, locale: 'de-DE' });
@@ -38,7 +45,7 @@ const WIDTH = { '01-news-view': 1310, '02-stack-filter': 1090, '03-ttwror-levels
   // 2. Render each board in both themes, the theme set in every frame too.
   const page = await browser.newPage({ viewport: { width: 1960, height: 900 }, deviceScaleFactor: 1, locale: 'de-DE' });
   const written = [];
-  for (const board of BOARDS) {
+  for (const board of boards) {
     for (const theme of ['light', 'dark']) {
       await page.setViewportSize({ width: WIDTH[board], height: 900 });
       await page.goto('file://' + path.join(__dirname, board + '.html'), { waitUntil: 'load' });

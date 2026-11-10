@@ -10,7 +10,9 @@
 //      filter on Wertpapiere (#1415);
 //   06 the stacked chart in the privacy mode, the shape kept, and
 //   07 the stack's basis behind its ⓘ and labelled controls on one edge
-//      (both the Sprint 28 amendment of 2026-11-08).
+//      (both the Sprint 28 amendment of 2026-11-08);
+//   08 the merge preview's provider-currency row, boarded after the fact
+//      by the closing act (design critic, D5).
 //
 // The chrome (sidebar, top bar, tabs, segmented controls, tables, the
 // stacked chart's bar and legend) is the app's own markup: the shell is
@@ -713,4 +715,31 @@ board('07-basis-and-bar.html', 'Sprint 28 — Board 07: die Basis hinter ihrem �
     { title: '④ Die Leiste bei 390 px', note: 'Heute beginnt jedes Feld hinter seinem eigenen Label, also bei 66, 118 und 84 px. A: eine Labelspalte so breit wie das längste Label, alle Felder an einer Kante. B: jedes Label über seinem Feld, alles an der linken Kante; braucht eine Zeile mehr je Gruppe.', frames: [B7.barToday, B7.barA, B7.barB] },
   ]);
 
-console.log('wrote frames/ and boards 01 to 07');
+// ===========================================================================
+// Board 08 — the merge preview's provider-currency row (Lane Q, QA1), boarded
+// after the fact by Sprint 28's closing act (design critic, D5): the row
+// shipped in merge_preview.ex before a board showed it. The dialog is the
+// app's markup (merge_dialog.ex, merge_preview.ex) with its German copy;
+// the two securities, their ISINs and counts are invented.
+
+// The dialog's height is the viewport's less 76 px in the app; a frame is
+// measured at 100 px, so the mock lets it take its content's height.
+const MERGE_CSS = '.mock-dialog { margin: 0 auto; max-height: none; } .mock-dialog .modal-footer { margin-top: 0; }';
+const mergeRow = (source, target, after, why) => `<tr><td>Anbieterwährung</td><td>${source}</td><td>${target}</td><td class="merge-table__keep">${after}<small>${why}</small></td></tr>`;
+const masterData = (rows) => `<h3 class="merge-block-head">Stammdaten, die sich unterscheiden</h3><div class="data-table-wrapper" data-role="merge-master-data"><table class="data-table merge-table"><thead><tr><th>Feld</th><th>Quelle</th><th>Ziel</th><th>Danach</th></tr></thead><tbody>${rows}</tbody></table></div><p class="merge-basis">Name, Anlageklasse und Logo folgen dem Ziel; WKN, Ticker und Kursquelle werden nur übernommen, wo das Ziel keine hat.</p>`;
+const mergeDialog = (master) => `<div class="mock-pad"><div class="modal merge-dialog security-merge-dialog mock-dialog"><header class="modal-head"><h2>Beispiel Industrie AG zusammenführen <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2><button type="button" class="icon-button" aria-label="Schließen">×</button></header><div class="modal-body"><div class="merge-pair" data-role="merge-pair"><div class="merge-pair__side"><span class="merge-pair__role merge-pair__role--gone">Quelle · wird gelöscht</span><b>Beispiel Industrie AG</b><span class="mono">XX0000000018</span><small>3 Buchungen · angelegt 02.03.2026</small></div><span class="merge-pair__arrow" aria-hidden="true">→</span><div class="merge-pair__side"><span class="merge-pair__role">Ziel · bleibt</span><b>Beispiel Industrie AG</b><span class="mono">XX0000000018</span><small>5 Buchungen · angelegt 14.01.2025</small></div></div><dl class="merge-counts" data-role="merge-counts"><dt>3</dt><dd>Buchungen wechseln zum Ziel</dd><dt>42</dt><dd>Kurse der Quelle füllen Lücken im Ziel</dd></dl>${master}</div><div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">In Beispiel Industrie AG zusammenführen</button></div></div></div>`;
+const CARRIED = 'übernommen: Das Ziel hatte keine; der Anbieter nannte eine andere Währung als die des Wertpapiers.';
+const B8 = {};
+B8.before = sized(writeFrame('08a-merge-vorher', mergeDialog(''), { css: MERGE_CSS, width: 760 }), 'vorher — kein Stammdaten-Block');
+B8.after = sized(writeFrame('08b-merge-nachher', mergeDialog(masterData(mergeRow('USD', '—', 'USD', CARRIED))), { css: MERGE_CSS, width: 760 }), 'nachher — die Zeile übernommen');
+B8.keeps = sized(writeFrame('08c-merge-ziel-gilt', mergeDialog(masterData(mergeRow('USD', 'GBP', 'GBP', 'Der Wert des Ziels gilt.'))), { css: MERGE_CSS, width: 760 }), 'nachher — das Ziel hat einen eigenen Wert');
+B8.phone = sized(writeFrame('08d-merge-390', mergeDialog(masterData(mergeRow('USD', '—', 'USD', CARRIED))), { css: MERGE_CSS, width: 390 }), 'nachher, 390 px');
+board('08-merge-provider-currency.html', 'Sprint 28 — Board 08: die Anbieterwährung in der Vorschau des Zusammenführens (nachträglich)', 1120,
+  `<div class="mock-pickbar"><p><strong>Was gebaut ist (Lane Q, QA1 des Abschlusses):</strong> beim Zusammenführen zweier Wertpapiere wandert die Währung, die der Anbieter für die Quelle meldet, zum Ziel, wenn das Ziel keine hat; so behalten die verschobenen Kurse ihren Befund „Währung abweichend“. Die Vorschau zeigt das als Zeile „Anbieterwährung“ in den Stammdaten, die sich unterscheiden.</p><p><strong>Warum dieses Board nachträglich ist (Design-Kritik D5):</strong> die Zeile kam ohne Board; dieses Board zeigt vorher und nachher, damit die Änderung wie jede andere geprüft werden kann. UI-Änderung nachträglich geboardet.</p></div>`,
+  [
+    { title: '① Vorher', note: 'Zwei Wertpapiere, die sich nur in der Anbieterwährung unterscheiden: die Vorschau zeigte keinen Stammdaten-Block, die Währung ging beim Zusammenführen verloren.', frames: [B8.before] },
+    { title: '② Nachher', note: 'Die Zeile „Anbieterwährung“: Quelle USD, Ziel ohne Wert, danach USD, mit dem Grund. Daneben der Fall, dass das Ziel einen eigenen Wert hat: der gilt, wie für jedes andere Stammdatum. Was das Board zeigt: der lange Grund unter „USD“ bricht nicht um (die Tabellenzellen umbrechen nicht), die Tabelle rollt seitwärts; ein Befund für die Polish-Liste.', frames: [B8.after, B8.keeps], decided: true },
+    { title: '③ Nachher bei 390 px', note: 'Dieselbe Vorschau im Telefon-Rahmen, als Bodenblatt; die Tabelle der Stammdaten rollt seitwärts wie die übrigen des Dialogs, der Grund ist erst nach dem Rollen ganz zu lesen.', frames: [B8.phone], decided: true },
+  ]);
+
+console.log('wrote frames/ and boards 01 to 08');
