@@ -239,7 +239,7 @@ describe("the news read tools", () => {
     const description = tool(DIGEST)?.description ?? "";
     assert.match(description, /consumer/);
     assert.match(description, /ack_cursor/);
-    assert.match(description, /unconfirmed/);
+    assert.match(description, /without it you read again/);
     assert.equal(tool(DIGEST)?.annotations?.readOnlyHint, true);
   });
 
@@ -276,8 +276,45 @@ describe("the news read tools", () => {
       assert.equal(requests.length, before, JSON.stringify(args));
     }
 
-    assert.match(tool(DIGEST)?.description ?? "", /next_page as page, the last cursor as ack_cursor/);
+    assert.match(tool(DIGEST)?.description ?? "", /next_page as page; once handled, the last page's cursor as ack_cursor/);
   });
   // --- closing act, AT5 end ---
+
+  // --- Sprint 28 closing act, AG3 begin ---
+  // User story (ADR-0056 §9 at least once, D3; Sprint 28 closing act, AG3):
+  // As the operator's agent reading the digest under a consumer,
+  // I want the tool to teach the whole flow, and to refuse a name the
+  // server would refuse,
+  // so that I use one name per reader, page, confirm on my next call and
+  // start over when another run confirmed past my pages, without learning
+  // it from 422s.
+  //
+  // Acceptance criteria:
+  // - The description says: one stable identifier per reader (at most 32);
+  //   page with next_page as page; once handled, the last page's cursor as
+  //   ack_cursor on the next call, which also reads on; without it the
+  //   call reads again; restarted: true means start over from this page.
+  // - consumer carries the identifier pattern in the input schema, and a
+  //   name outside it is refused before any request.
+  it("teaches the consumer's flow and refuses a name the server would refuse", async () => {
+    const description = tool(DIGEST)?.description ?? "";
+    assert.match(description, /one stable identifier per reader \(max 32\)/);
+    assert.match(description, /next_page as page/);
+    assert.match(description, /last page's cursor as ack_cursor on your next call/);
+    assert.match(description, /without it you read again/);
+    assert.match(description, /restarted: true/);
+
+    const consumer = (tool(DIGEST)?.inputSchema as any).properties.consumer;
+    assert.equal(consumer.pattern, "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,63}$");
+
+    const { client, requests } = createRecordingClient({ data: { rows: [] } });
+    for (const name of ["morning run", "-run", "r".repeat(65), "run\u200B"]) {
+      await assert.rejects(callTool(client, DIGEST, { consumer: name }), name);
+    }
+    assert.equal(requests.length, 0);
+    await callTool(client, DIGEST, { consumer: "agent:morning-run@v2" });
+    assert.equal(requests.length, 1);
+  });
+  // --- Sprint 28 closing act, AG3 end ---
   // --- S28 N3 end ---
 });

@@ -1,0 +1,15 @@
+{
+  "data": {
+    "ambiguous": 2147483647,
+    "cursor": "1762592400~AAAAAAAAAAAAAAAAAAAAAA",
+    "hidden": 2147483647,
+    "prompt_version": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+    "quiet": 2147483647,
+    "restarted": true,
+    "rows": [],
+    "since": "2026-11-08T09:00:00Z",
+    "truncated": false,
+    "unassigned": 2147483647,
+    "unlabeled": 2147483647
+  }
+}
