@@ -40,7 +40,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Predictions
-  alias PortfolixirWeb.Api.V1.JSON, as: ApiJSON
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ChangedSince
@@ -6895,8 +6894,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # The write's refusal by field, as the form shows it: a field it renders
   # at the field, the rest (cluster_id, a story's own field) in the list.
+  # A changeset's messages go through the "errors" domain as the research
+  # form's do, so a German page reads them in German (closing act, ND1).
   defp promotion_errors(%Ecto.Changeset{} = changeset),
-    do: changeset |> ApiJSON.errors() |> promotion_errors()
+    do:
+      changeset
+      |> Ecto.Changeset.traverse_errors(&translate_research_error/1)
+      |> promotion_errors()
 
   defp promotion_errors(errors) when is_map(errors) do
     {own, other} =

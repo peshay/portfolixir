@@ -3,9 +3,9 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   # lenses on N8): the security's tab „Nachrichten“ and its note form,
   # whose save is the operator's confirmation of a story's entry (ADR-0056
   # §8; NFR-10; ADR-0044's amendment of 2026-11-06, "the writer may change
-  # any of them before the write"). Cases tagged `:n_lens_red` show a
-  # defect the lenses found and fail until it is fixed. Synthetic names and
-  # hosts only.
+  # any of them before the write"). The cases were tagged `:n_lens_red`
+  # while they showed a defect the lenses found; the closing act's fixes
+  # (NL1, ND1) made them pass. Synthetic names and hosts only.
   use PortfolixirWeb.ConnCase
 
   import Ecto.Query, only: [from: 2]
@@ -166,4 +166,36 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
     assert [note] = Knowledge.list_notes(security.id)
     assert note.as_of == ~D[2026-10-01]
   end
+
+  # --- closing act, ND1 begin ---
+
+  # User story (board 01; the research form's errors read in the page's
+  # language, E25 S6):
+  # As the operator on a German page saving a story's entry,
+  # I want the headline's refusal in German,
+  # so that I read what to change without the API's English.
+  #
+  # Acceptance criteria:
+  # - On the German page, a pre-filled headline carrying U+200B saved as
+  #   proposed names the error at the headline in German, naming U+200B.
+  test "the form's field errors read in the page's language", %{conn: conn} do
+    security = security!("German Error Synthetic AG")
+
+    story =
+      story!(security,
+        title: "German" <> <<0x200B::utf8>> <> "Error Synthetic AG wins a contract"
+      )
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=news&locale=de")
+    view |> element("#open-promotion-#{story.id}") |> render_click()
+    save(view, %{"body" => "Behalten."})
+
+    assert Knowledge.list_notes(security.id) == []
+
+    assert view
+           |> element("[data-role='promotion-error-headline']")
+           |> render() =~ "darf keine unsichtbaren Zeichen enthalten (U+200B)"
+  end
+
+  # --- closing act, ND1 end ---
 end
