@@ -68,6 +68,33 @@ describe("from story to knowledge", () => {
     assert.deepEqual((tool(APPEND)?.inputSchema as any).properties.note.required, ["body"]);
   });
 
+  // --- closing act, NL5 begin ---
+  // User story (ADR-0044's amendment: a headline of at most 80 characters,
+  // counted in code points as the server counts them):
+  // As the operating agent writing a headline in a script outside the
+  // Basic Multilingual Plane,
+  // I want the companion to count it as the server does,
+  // so that a headline the server takes is never refused before the
+  // request, nor one it refuses sent.
+  //
+  // Acceptance criteria:
+  // - 80 characters of U+1F4C8 (two UTF-16 units each) reach the API; 81
+  //   are refused before any request.
+  it("notes.append counts a headline in code points, as the server does", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+    const chart = "\u{1F4C8}";
+
+    await callTool(client, APPEND, { security_id: 7, note: { cluster_id: 9, body: "Kept.", headline: chart.repeat(80) } });
+    assert.equal(requests.length, 1);
+
+    await assert.rejects(
+      callTool(client, APPEND, { security_id: 7, note: { cluster_id: 9, body: "Kept.", headline: chart.repeat(81) } }),
+      /at most 80 characters/
+    );
+    assert.equal(requests.length, 1);
+  });
+  // --- closing act, NL5 end ---
+
   // User story (ADR-0056 §8; ADR-0048):
   // As the operating agent recording a date a news item announced,
   // I want events.create to take the item's news_id as its source,

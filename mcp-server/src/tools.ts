@@ -3069,7 +3069,7 @@ const noteAppendZ = z.object({
     .object({
       // --- S28 N5 begin ---
       cluster_id: z.number().int().positive().optional(),
-      headline: z.string().max(80).nullable().optional(),
+      headline: cappedText(80).nullable().optional(),
       event_type: z.enum(noteEventTypes).nullable().optional(),
       tone: z.number().int().min(-1).max(1).nullable().optional(),
       // --- S28 N5 end ---
