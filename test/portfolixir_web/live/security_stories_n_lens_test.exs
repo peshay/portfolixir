@@ -5,7 +5,7 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   # §8; NFR-10; ADR-0044's amendment of 2026-11-06, "the writer may change
   # any of them before the write"). The cases were tagged `:n_lens_red`
   # while they showed a defect the lenses found; the closing act's fixes
-  # (NL1, ND1) made them pass. Synthetic names and hosts only.
+  # (NL1, ND1, ND2) made them pass. Synthetic names and hosts only.
   use PortfolixirWeb.ConnCase
 
   import Ecto.Query, only: [from: 2]
@@ -198,4 +198,51 @@ defmodule PortfolixirWeb.SecurityStoriesNLensTest do
   end
 
   # --- closing act, ND1 end ---
+
+  # --- closing act, ND2 begin ---
+
+  # User story (board 01; ADR-0054 §4: an invisible character is spelled
+  # where the operator sees it):
+  # As the operator promoting a story whose title carries a character I
+  # cannot see,
+  # I want the pre-filled headline to show it spelled, and the note saying
+  # so across the form's width,
+  # so that I see what to retype instead of mirrored text.
+  #
+  # Acceptance criteria:
+  # - A title carrying U+202E pre-fills the headline as „[U+202E]“, never
+  #   the raw character.
+  # - The invisible-text note spans the form's grid (its full row).
+  # - Saved as proposed, the entry is still refused naming the headline;
+  #   retyped, it is stored as typed.
+  test "a headline with an invisible character is pre-filled spelled, its note across the form",
+       %{conn: conn} do
+    security = security!("Mirrored Title Synthetic AG")
+
+    story =
+      story!(security,
+        title: "Mirrored" <> <<0x202E::utf8>> <> "Title Synthetic AG wins a contract"
+      )
+
+    view = open_form(conn, security, story)
+
+    input = view |> element("#story-promotion-form input[name='promotion[headline]']") |> render()
+    assert input =~ "Mirrored[U+202E]Title Synthetic AG wins a contract"
+    refute input =~ <<0x202E::utf8>>
+
+    assert has_element?(
+             view,
+             "#story-promotion-form .research-entry-form__full [data-role='invisible-text-note']"
+           )
+
+    save(view, %{"body" => "Kept."})
+    assert Knowledge.list_notes(security.id) == []
+    assert has_element?(view, "[data-role='promotion-error-headline']")
+
+    save(view, %{"headline" => "Mirrored Title Synthetic AG wins a contract", "body" => "Kept."})
+    assert [note] = Knowledge.list_notes(security.id)
+    assert note.headline == "Mirrored Title Synthetic AG wins a contract"
+  end
+
+  # --- closing act, ND2 end ---
 end
