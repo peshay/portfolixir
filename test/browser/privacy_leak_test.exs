@@ -16,7 +16,13 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # names a tab), so a new tab is walked too. A step that did not render --
   # an error status, a crashed LiveView, a click that did not arrive --
   # fails the walk as a leak does: a crashed page shows no figure and
-  # proves nothing (Sprint 26 closing act).
+  # proves nothing (Sprint 26 closing act). So does a page whose loads have
+  # not landed after 45 s: the walk reads a page and leaves it only once
+  # nothing on it is busy (`settle` in privacy_leak.js, checked by
+  # privacy_leak_settle_test.exs), since a page read early has not shown
+  # its figures yet, and one left early has its load killed mid-query,
+  # which takes the shared sandbox connection with it (Sprint 28 closing
+  # act: every later page answered 500 on CI).
   #
   # Excluded from the test job (test/test_helper.exs): it needs Node, the
   # Playwright test/browser/package-lock.json pins and its Chromium, which
@@ -139,8 +145,9 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   #   under a filter, FR-57), in the
   #   light and the dark theme, at 1200 and 390 px, on the review seed and
   #   three synthetic predictions.
-  # - Any step that answers an error status, crashes its LiveView or does
-  #   not arrive where it was sent fails the test.
+  # - Any step that answers an error status, crashes its LiveView, does not
+  #   arrive where it was sent or whose loads have not landed after 45 s
+  #   fails the test; every step is read once its loads have landed.
   # - It fails on any figure in a currency or quantity in the visible text,
   #   in hidden text, in an attribute (a native tooltip, an accessible name,
   #   an amount-valued data attribute, a hidden figure's markup put into an
