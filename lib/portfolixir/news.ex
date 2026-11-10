@@ -854,7 +854,10 @@ defmodule Portfolixir.News do
 
   **Only an aggregator item.** An issuer or regulatory item is its feed's
   security's, a thematic item its feed's category's, by construction
-  (§2); assigning one answers an error on `news_id`. A security that does
+  (§2); assigning one answers an error on `news_id`. **Never a kept
+  item** (closing act, NL2): one `promoted` or naming a note in
+  `note_ids` is a research note's source and stays with its security
+  (§8, §12), so it answers an error on `news_id` too. A security that does
   not exist answers an error on `security_id` (it is held `FOR KEY SHARE`
   until the write commits, so it cannot be deleted beneath it).
 
@@ -1001,6 +1004,24 @@ defmodule Portfolixir.News do
   # The scope whose stories an item may sit in: an assigned item's.
   defp story_scope(%Item{assignment: :assigned} = item), do: Stories.scope(item)
   defp story_scope(_item), do: nil
+
+  # --- closing act, NL2 begin ---
+  # §8, §12: an item kept as a research note's source stays with the note's
+  # security; moving it would carry the note's link to another security's
+  # story, and `nil` would put it in the queue for good.
+  defp assign_locked(%Item{class: :aggregator} = prior, _security_id, _held, _now)
+       when prior.status == :promoted or prior.note_ids != [] do
+    {:error,
+     {:refused,
+      %{
+        "news_id" => [
+          "is kept in the research log as a note's source (ADR-0056 §8, §12): " <>
+            "it stays with that note's security"
+        ]
+      }}}
+  end
+
+  # --- closing act, NL2 end ---
 
   defp assign_locked(%Item{class: :aggregator} = prior, security_id, held, now) do
     with {:ok, outcome} <- assign_outcome(prior, security_id, held) do

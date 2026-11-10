@@ -1500,7 +1500,9 @@ Codes, leere Felder weggelassen.
   neu gebündelt, sodass er sofort in der richtigen Story steht; er tritt mit
   der Zuordnung in seinen neuen Bereich ein (`since` liest ihn dann). Ein
   Emittenten-, Regulierungs- oder thematischer Eintrag gehört durch
-  Konstruktion seinem Feed und ergibt `422` mit `news_id`; ein Wertpapier,
+  Konstruktion seinem Feed und ergibt `422` mit `news_id`, ebenso ein im
+  Research-Log behaltener Eintrag (`promoted`, die Quelle einer Notiz, die
+  beim Wertpapier dieser Notiz bleibt); ein Wertpapier,
   das es nicht gibt, ergibt `422` mit `security_id`; ein unbekannter Eintrag
   `404`. Eine Zuordnung, die der Eintrag schon hat, ändert und protokolliert
   nichts. Antwortet `id`, `story_id`, `assignment`, `security_id` und

@@ -1378,7 +1378,9 @@ Answers are compact: short codes, null fields left out.
   reclustered in the same transaction, so it reads in the right story at
   once; it enters its new scope at the assignment (`since` reads it then).
   An issuer, regulatory or thematic item is its feed's by construction and
-  answers `422` naming `news_id`; a security that does not exist answers
+  answers `422` naming `news_id`, and so does an item kept in the research
+  log (`promoted`, a note's source, which stays with that note's
+  security); a security that does not exist answers
   `422` naming `security_id`; an unknown item `404`. An assignment the item
   already has changes and journals nothing. Answers the item's `id`,
   `story_id`, `assignment`, `security_id` and `candidates`. A label's
