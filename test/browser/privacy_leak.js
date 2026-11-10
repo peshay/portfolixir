@@ -431,20 +431,37 @@ async function main() {
           for (const f of await read(page, allowFormValues)) findings.push({ page: label, ...f });
         };
 
+        // The in-page views clicked so far in this theme and width. Each is
+        // clicked once, from the first page that links it: the address
+        // carries the whole view, so a later page's link to it opens the
+        // same view, which is read again as an address of its own. Wealth's
+        // allocation views were clicked from each of its 22 chart states
+        // per theme and width, two thirds of its reads (the Sprint 28
+        // closing act, browser job).
+        const clicked = new Set();
+
         // Clicks each in-page link to another view of the page (a patch),
         // checks it arrived there, and queues its address for a visit of
         // its own; the views a click opens are followed the same way.
-        const followInPage = async (tag, clicked) => {
+        const followInPage = async (tag) => {
           for (let round = 0; round < 4; round++) {
-            const hrefs = (await inPageLinks(page)).filter((href) => !clicked.has(address(href, page.url())));
+            const fresh = (href) => {
+              const target = address(href, page.url());
+              return target !== address(page.url(), page.url()) && !clicked.has(target);
+            };
+            const hrefs = (await inPageLinks(page)).filter(fresh);
             if (!hrefs.length) return;
             for (const href of hrefs) {
               const target = address(href, page.url());
-              if (clicked.has(target)) continue;
-              clicked.add(target);
+              if (!fresh(href)) continue;
               enqueue(target);
+              // A link an earlier click took off the page, or one this width
+              // does not show, is clicked from the next page that shows it
+              // (Wealth's chart levels, gone once a click had opened the
+              // allocation tab, were never clicked).
               const link = await page.$(`main a[href="${href.replace(/"/g, '\\"')}"]`);
-              if (!link) continue;
+              if (!link || !(await link.isVisible())) continue;
+              clicked.add(target);
               await link.click();
               await page.waitForURL((u) => u.pathname + u.search === target, { timeout: 5000 }).catch(() => {});
               const loaded = await settle(page);
@@ -485,8 +502,7 @@ async function main() {
           }
 
           // The page's other views it links in place (a patch).
-          const clicked = new Set([address(page.url(), page.url())]);
-          await followInPage(tag, clicked);
+          await followInPage(tag);
           if (address(page.url(), page.url()) !== path) {
             await page.goto(base + path).catch(() => null);
             await settle(page);
@@ -509,7 +525,7 @@ async function main() {
               findings.push({ page: tag + " #" + id, where: "LiveView", hit: "the pressed tab is not selected (a crash re-joins without it)", context: page.url() });
             }
             await check(tag + " #" + id, loaded);
-            await followInPage(tag + " #" + id, clicked);
+            await followInPage(tag + " #" + id);
           }
 
           // The page's own extra views the mode changes (P2): each pressed
