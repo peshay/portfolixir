@@ -299,7 +299,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             <thead>
               <tr>
                 <th scope="col">
-                  <%= if @result.level == :security, do: gettext("Security"), else: gettext("Category") %>
+                  <%= legend_head(@result) %>
                 </th>
                 <th :if={not @privacy?} scope="col" class="num"><%= gettext("Value") %></th>
                 <th scope="col" class="num"><%= gettext("Share") %></th>
@@ -493,7 +493,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             <thead>
               <tr>
                 <th scope="col">
-                  <%= if @result.level == :security, do: gettext("Security"), else: gettext("Category") %>
+                  <%= legend_head(@result) %>
                 </th>
                 <th scope="col" class="num"><%= gettext("TTWROR") %></th>
               </tr>
@@ -814,6 +814,21 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       if Decimal.gt?(total, 0), do: {date, total, i == 0}
     end)
   end
+
+  # The legend's head (D3; boards 02 ② and 03 ②): under a category filter
+  # at „Kategorien“ its rows are the category's sub-categories (and its
+  # direct band), unless the category holds none and its own band is the
+  # only row.
+  defp legend_head(%{level: :security}), do: gettext("Security")
+
+  defp legend_head(%{level: :category, category: %{id: id}, bands: bands})
+       when bands != [] do
+    if Enum.all?(bands, &(&1.key == "category:#{id}")),
+      do: gettext("Category"),
+      else: gettext("Subcategory")
+  end
+
+  defp legend_head(_result), do: gettext("Category")
 
   @doc "A band's name in the page's language: the fixed bands translated."
   def band_name(%{kind: :cash}), do: gettext("Cash")
