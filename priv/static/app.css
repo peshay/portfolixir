@@ -5838,6 +5838,13 @@ details[open] > .cat-summary::before {
   min-width: 12rem;
   max-width: 16rem;
 }
+/* Closing act of Sprint 28, ND5 (UX-DR6): under a coarse pointer the
+   queue's security select is a 44 px target; it was 34 px. */
+@media (pointer: coarse) {
+  .news-assign select {
+    min-height: 44px;
+  }
+}
 .news-rows .phone-row {
   grid-template-columns: minmax(0, 1fr) auto;
 }

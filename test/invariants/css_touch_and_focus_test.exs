@@ -274,6 +274,19 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     assert touch =~ ~r/margin-block:\s*-14px;/
   end
 
+  # User story (Sprint 28 closing act, ND5; UX-DR6; board 01):
+  # As the operator assigning a queue item on a phone,
+  # I want the security select to be a 44 px target,
+  # so that I can open it with a thumb; it was 34 px.
+  #
+  # Acceptance criteria:
+  # - Under a coarse pointer, `.news-assign select` takes a 44 px minimum
+  #   height.
+  test "the news queue's security select is a 44 px target on touch" do
+    assert @css =~
+             ~r/@media \(pointer: coarse\) \{\s*\.news-assign select \{\s*min-height: 44px;\s*\}\s*\}/
+  end
+
   # H6.1's coarse-pointer rule: its selector list and its declarations.
   defp remedy_rule do
     case Regex.run(
