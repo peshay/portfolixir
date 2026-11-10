@@ -315,7 +315,14 @@ jobs:
   browser:
     runs-on: ubuntu-latest
     needs: pre-commit
-    timeout-minutes: 20
+    # A resource limit, not a check. The privacy walk grew with Sprint 28's
+    # states (Wealth's chart levels, filters, TTWROR lines, a band that
+    # changes sign, a window that opens at zero; x 2 themes x 2 widths) and
+    # now waits up to 45 s per page for its loads to land: about 15 of the
+    # suite's 15 minutes on a 4-CPU machine, with 3 more to set the job up.
+    # 35 keeps about half of that again for a slower runner (Sprint 28
+    # closing act; at 20 the walk was cancelled mid-run).
+    timeout-minutes: 35
 
     services:
       db:
