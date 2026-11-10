@@ -214,10 +214,12 @@ defmodule Portfolixir.News.ParserAttackTest do
       end
     end
 
-    test "a declared encoding other than UTF-8 is refused" do
-      body = String.replace(feed([1]), ~s(encoding="UTF-8"), ~s(encoding="ISO-8859-1"))
+    test "a declared encoding other than UTF-8, Latin-1 or US-ASCII is refused" do
+      for label <- ~w(windows-1252 UTF-16 Shift_JIS ISO-8859-15 KOI8-R) do
+        body = String.replace(feed([1]), ~s(encoding="UTF-8"), ~s(encoding="#{label}"))
 
-      assert Parser.parse(body) == {:error, {:parse_refused, :unsupported_encoding}}
+        assert Parser.parse(body) == {:error, {:parse_refused, :unsupported_encoding}}, label
+      end
     end
 
     test "XML that is not RSS 2.0 or Atom 1.0 is refused at its root" do
@@ -237,6 +239,75 @@ defmodule Portfolixir.News.ParserAttackTest do
       body = feed(1..Parser.max_items())
 
       assert Parser.parse(body, timeout_ms: 1) == {:error, {:parse_refused, :timeout}}
+    end
+  end
+
+  # User story:
+  # As the operator who registers a feed that declares Latin-1 (#1442),
+  # I want the transcoding to UTF-8 held to the parser's bounds,
+  # so that reading a Latin-1 feed opens no way around the byte cap, the
+  # declaration guard or the encoding check.
+  #
+  # Acceptance criteria:
+  # - A Latin-1 body whose UTF-8 form would pass the byte cap is refused as
+  #   `:too_large` before anything is transcoded or parsed; one whose UTF-8
+  #   form is exactly at the cap is read.
+  # - A document type declaration behind a Latin-1 declaration is still
+  #   refused as `:dtd`, unread.
+  # - A byte-order mark says UTF-8, so one before a Latin-1 declaration
+  #   contradicts it and is refused as `:unsupported_encoding`, unread.
+  # - Only one byte-order mark is skipped; a second is malformed.
+  describe "Latin-1 and the byte-order mark" do
+    @latin1_open String.replace(@rss_open, ~s(encoding="UTF-8"), ~s(encoding="ISO-8859-1"))
+
+    # A Latin-1 feed with one item, padded with `high` bytes 0xE9 inside its
+    # title, each of which becomes two bytes in UTF-8.
+    defp latin1_feed(high),
+      do:
+        @latin1_open <>
+          "<item><title>" <>
+          :binary.copy(<<0xE9>>, high) <> "</title></item>" <> @rss_close
+
+    test "a body whose UTF-8 form would pass the cap is refused unread" do
+      room = Parser.max_bytes() - byte_size(latin1_feed(0))
+      high = div(room, 2) + 1
+      body = latin1_feed(high)
+
+      assert byte_size(body) <= Parser.max_bytes()
+      assert byte_size(body) + high > Parser.max_bytes()
+      assert_refused_unread(body, :too_large)
+    end
+
+    test "a body whose UTF-8 form is exactly at the cap is read" do
+      base = latin1_feed(0)
+      high = div(Parser.max_bytes() - byte_size(base), 2)
+      pad = Parser.max_bytes() - byte_size(base) - 2 * high
+      body = latin1_feed(high) <> String.duplicate(" ", pad)
+
+      assert byte_size(body) + high == Parser.max_bytes()
+      assert {:ok, %{items: [_item]}} = Parser.parse(body)
+    end
+
+    test "a document type declaration behind a Latin-1 declaration is refused unread" do
+      body =
+        String.replace(
+          fixture("billion_laughs.xml"),
+          ~r/encoding="[^"]*"/,
+          ~s(encoding="ISO-8859-1")
+        )
+
+      assert body =~ ~s(encoding="ISO-8859-1")
+      assert_refused_unread(body, :dtd)
+    end
+
+    test "a byte-order mark before a Latin-1 declaration is refused unread" do
+      assert_refused_unread(<<0xEF, 0xBB, 0xBF>> <> latin1_feed(1), :unsupported_encoding)
+    end
+
+    test "a second byte-order mark is malformed" do
+      bom = <<0xEF, 0xBB, 0xBF>>
+
+      assert Parser.parse(bom <> bom <> feed([1])) == {:error, {:parse_refused, :malformed}}
     end
   end
 
