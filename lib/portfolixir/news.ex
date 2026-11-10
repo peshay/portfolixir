@@ -1262,14 +1262,15 @@ defmodule Portfolixir.News do
 
   @doc """
   The securities an item may be assigned to on the page (`assign_item/4`
-  takes any security; the picker offers the news universe, §2), as `{id,
-  name}` sorted by name.
+  takes any security; the picker offers the news universe, §2), as maps of
+  `id`, `name` and `isin` sorted by name; the page tells same-named ones
+  apart by `isin` (the closing act's UAT line).
   """
-  @spec assign_choices() :: [{pos_integer(), String.t()}]
+  @spec assign_choices() :: [%{id: pos_integer(), name: String.t(), isin: String.t() | nil}]
   def assign_choices do
     Universe.members()
-    |> Enum.map(&{&1.id, &1.name})
-    |> Enum.sort_by(fn {id, name} -> {String.downcase(name), id} end)
+    |> Enum.map(&Map.take(&1, [:id, :name, :isin]))
+    |> Enum.sort_by(&{String.downcase(&1.name), &1.id})
   end
 
   # --- S28 N7 end ---

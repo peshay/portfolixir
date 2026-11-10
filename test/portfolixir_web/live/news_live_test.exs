@@ -311,6 +311,42 @@ defmodule PortfolixirWeb.NewsLiveTest do
     assert entry.resource_id == to_string(world.ambiguous.id)
   end
 
+  # User story (Sprint 28 closing act, the UAT persona's S2 on N7):
+  # As the operator picking a security for a queue item,
+  # I want two securities of the same name told apart in the picker,
+  # so that I never attach a story to the wrong one of a pair.
+  #
+  # Acceptance criteria:
+  # - Same-named securities read „‹name› · ‹ISIN›“ in „Zuordnen“'s picker,
+  #   as every other picker tells them apart (SecurityNames, UAT-13);
+  #   a unique name stays bare.
+  test "Zuordnen's picker tells same-named securities apart", %{conn: conn} do
+    world = news_world()
+    first = watched!("Juniper Rail AG", "Juniper Rail")
+    second = watched!("Juniper Rail AG", "Juniper Rail")
+    {:ok, first} = Catalog.update_security(Actor.owner_ui(), first, %{isin: "DE0007164600"})
+    {:ok, second} = Catalog.update_security(Actor.owner_ui(), second, %{isin: "US0378331005"})
+
+    {:ok, view, _html} = live(conn, "/news")
+
+    row = "tr[data-item='#{world.unassigned.id}']"
+
+    assert has_element?(
+             view,
+             row <> " option[value='#{first.id}']",
+             "Juniper Rail AG · DE0007164600"
+           )
+
+    assert has_element?(
+             view,
+             row <> " option[value='#{second.id}']",
+             "Juniper Rail AG · US0378331005"
+           )
+
+    assert view |> element(row <> " option[value='#{world.harbourline.id}']") |> render() =~
+             ~r/>\s*Harbourline Shipping AG\s*</
+  end
+
   # User story (ADR-0056 §6, A3; plan D-3):
   # As the operator who decides whether a feed earns its keep,
   # I want the Feeds tab to show each feed with news.health's fields and
