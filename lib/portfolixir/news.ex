@@ -286,6 +286,23 @@ defmodule Portfolixir.News do
   # match and re-match runs under it, one at a time.
   @matcher_lock 727_227_006
 
+  # --- S29 N1 begin ---
+  @doc """
+  Takes the matcher's advisory lock (ORD5) for the caller's open
+  transaction, as `news.assign` takes it (D4; `Portfolixir.LockTable`,
+  row 21): a rating that re-rates stored items (ADR-0056 E1,
+  `Portfolixir.News.Retier`) takes it after the securities its items name
+  and before their scopes' locks, so no match or assignment moves an item
+  between scopes while the rating holds them.
+  """
+  @spec lock_matcher() :: :ok
+  def lock_matcher do
+    Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
+    :ok
+  end
+
+  # --- S29 N1 end ---
+
   defp assign_locked(ids, now) do
     Repo.query!("SELECT pg_advisory_xact_lock($1)", [@matcher_lock])
 

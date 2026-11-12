@@ -24,7 +24,10 @@ defmodule Portfolixir.News.Ingest do
        feed already stored, or one repeated in the same answer, is `known`
        and neither stored nor counted again;
     5. **rates each item by the tier table** (§3, B5;
-       `Portfolixir.News.Sources`, read once for the batch): an `issuer`
+       `Portfolixir.News.Sources`, read once for the batch, under the
+       domains' tier locks held until the items commit, so a rating
+       written meanwhile either waits for them and re-rates them or is read
+       here as written, ADR-0056 E1): an `issuer`
        or `regulatory` item is `primary` by construction, any other is its
        domain's tier (or a parent domain's), at most `secondary`, and
        `awareness` when unrated; an item of a `blocked` domain is dropped
@@ -133,12 +136,21 @@ defmodule Portfolixir.News.Ingest do
   end
 
   # §3, B5: each candidate's tier from the tier table, read once for the
-  # batch; a `blocked` domain's candidates are dropped and counted
-  # `dropped_blocked`, before the cap, so a blocked item takes no room.
+  # batch under the domains' tier locks (E1); a `blocked` domain's
+  # candidates are dropped and counted `dropped_blocked`, before the cap,
+  # so a blocked item takes no room.
   defp tier_and_block([], summary), do: {[], summary}
 
   defp tier_and_block(candidates, summary) do
-    rated = candidates |> Enum.map(& &1.domain) |> Enum.uniq() |> Sources.lookup()
+    domains = candidates |> Enum.map(& &1.domain) |> Enum.uniq()
+    # --- S29 N1 begin ---
+    # E1 ("Order"): the tier locks of the domains, shared, held until the
+    # items commit, before their tiers are read: a rating of one of them
+    # waits for this fetch and re-rates what it stores, and one that holds
+    # its lock first is read here as written (`Sources.lock_rating/1`).
+    :ok = Sources.lock_ingest(domains)
+    # --- S29 N1 end ---
+    rated = Sources.lookup(domains)
 
     {kept, blocked} =
       candidates
