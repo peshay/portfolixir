@@ -575,4 +575,90 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   end
 
   # --- Sprint 29 H4 end ---
+
+  # --- Sprint 29 H5 begin ---
+  # User story (FR-58, ADR-0060 §8; Sprint 29 H5):
+  # As the maintainer holding the scope ladder,
+  # I want the analog band's payload walked as well, over a read where both
+  # bands, their parts, `agree`, the states and the cones are present,
+  # so that a band never becomes a signal to buy in it or sell at its edge.
+  #
+  # Acceptance criteria:
+  # - The walk covers the projection's keys: the bands, `agree`, the states,
+  #   every part with its anchor, the cones with their apex, `low_so_far`
+  #   (asserted present, so a renamed or missing block cannot pass empty).
+  # - No key contains a forbidden word.
+  test "the analog band payload carries no verdict key" do
+    agent = Actor.api_token_rw("synthetic-agent")
+    coin = create_security!(name: "Verdict Band", ticker: "VBD", asset_class: "crypto")
+    {:ok, coin} = Catalog.update_security(agent, coin, %{halving_chain: :litecoin})
+
+    for {k, date, confirmed} <- [
+          {1, "2013-01-10", true},
+          {2, "2015-01-10", true},
+          {3, "2017-01-10", true},
+          {4, "2019-01-10", true},
+          {5, "2021-01-05", false}
+        ] do
+      {:ok, _event} =
+        Events.create_event(agent, %{
+          "security_id" => coin.id,
+          "kind" => "halving",
+          "chain_height" => k * 840_000,
+          "date" => date,
+          "timing" => "exact",
+          "confirmed" => confirmed,
+          "source_quality" => "unverified"
+        })
+    end
+
+    closes = [
+      {~D[2013-03-01], "50"},
+      {~D[2013-06-01], "80"},
+      {~D[2014-09-01], "10"},
+      {~D[2015-01-10], "9"},
+      {~D[2016-03-01], "200"},
+      {~D[2016-09-01], "30"},
+      {~D[2017-01-10], "50"},
+      {~D[2017-08-01], "500"},
+      {~D[2018-05-01], "100"},
+      {~D[2019-01-10], "470"},
+      {~D[2019-10-01], "1500"},
+      {~D[2020-05-01], "1000"}
+    ]
+
+    rows =
+      for {date, close} <- closes, do: %{date: date, close: Decimal.new(close), source: "manual"}
+
+    {:ok, _count} = Quotes.upsert_many(coin.id, rows)
+    {:ok, payload} = SecurityCycles.for_security(coin.id)
+
+    walked = keys(payload)
+
+    for key <- [
+          :projection,
+          :not_a_forecast,
+          :band,
+          :agree,
+          :state,
+          :window_ended,
+          :parts,
+          :anchor,
+          :factors_used,
+          :cones,
+          :apex,
+          :low_so_far
+        ] do
+      assert key in walked, "the walk misses #{inspect(key)}"
+    end
+
+    assert payload.projection.next_low.agree != nil
+    assert payload.projection.next_top.band != nil
+
+    assert offenders(payload) == [],
+           "ADR-0060 §8: the band payload carries verdict keys #{inspect(offenders(payload))}; " <>
+             "a band is a range with its basis, never a signal."
+  end
+
+  # --- Sprint 29 H5 end ---
 end
