@@ -9607,7 +9607,16 @@ and the MCP tools answer, for the section's period and the page's view.
    one edge, the groups `display: contents`), A; at most 330 px every label
    stands above its control, B. Measured at 1200 px the German bar is one
    line (controls 698 px in a 924 px bar); at 390 px A holds, every control
-   from one edge (`test/browser/closing_act_layout_test.exs`).
+   from one edge (`test/browser/closing_act_layout_test.exs`). *Amended
+   2026-11-12 (the owner's report of 2026-11-11):* the breadcrumb stands on
+   a line of its own above the controls, and the controls start at the
+   bar's left edge at every level, no longer on the right. With the
+   breadcrumb beside them and the bar spread between the two, the level's
+   control stood at the right edge at *Total* and jumped to the left one at
+   *Categories* wherever the bar wrapped (a tablet's width). At *Total*,
+   where there is no path, no breadcrumb is rendered; a switch to a
+   stacked level adds its line above and leaves the controls' edge where it
+   was (`stack_bar_switch` in `test/browser/closing_act_layout.js`).
 2. **The bands** (`svg.stack-chart`, 960 × 320 like the shared chart, the
    same axes and padding): one filled area per band, the first band of the
    sort at the bottom (the largest value on the window's last day, or the

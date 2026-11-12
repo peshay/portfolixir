@@ -323,7 +323,7 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:1283
 #: lib/portfolixir_web/live/journal/row.ex:182
 #: lib/portfolixir_web/live/news_live.ex:435
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:170
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:178
 #: lib/portfolixir_web/live/portfolio_live.ex:1744
 #: lib/portfolixir_web/live/portfolio_live.ex:1838
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:572
@@ -341,7 +341,7 @@ msgstr ""
 #: lib/portfolixir_web/live/news_live.ex:429
 #: lib/portfolixir_web/live/news_live.ex:492
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:187
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:822
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:830
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:355
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:490
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:391
@@ -732,7 +732,7 @@ msgid "Updated %{name}"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:532
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:304
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:312
 #: lib/portfolixir_web/live/portfolio_live.ex:2806
 #: lib/portfolixir_web/live/portfolio_live.ex:3124
 #: lib/portfolixir_web/live/risk_live.ex:364
@@ -1463,8 +1463,8 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:1001
 #: lib/portfolixir_web/live/income_live.ex:1028
 #: lib/portfolixir_web/live/income_live.ex:1263
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:168
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:837
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:176
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:845
 #: lib/portfolixir_web/live/securities_live.ex:3138
 #: lib/portfolixir_web/live/transaction_management_live.ex:3253
 #, elixir-autogen, elixir-format
@@ -1881,7 +1881,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:1518
 #: lib/portfolixir_web/live/dashboard_live.ex:1172
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:834
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:842
 #: lib/portfolixir_web/live/portfolio_live.ex:1745
 #: lib/portfolixir_web/live/portfolio_live.ex:2978
 #: lib/portfolixir_web/live/portfolio_live.ex:5159
@@ -1893,7 +1893,7 @@ msgid "Cash"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:385
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:498
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:506
 #: lib/portfolixir_web/live/portfolio_live.ex:1763
 #: lib/portfolixir_web/live/portfolio_live.ex:2060
 #: lib/portfolixir_web/live/portfolio_live.ex:4147
@@ -1927,7 +1927,7 @@ msgid "Allocation"
 msgstr ""
 
 #: lib/portfolixir_web/live/journal/row.ex:103
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:129
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:137
 #: lib/portfolixir_web/live/portfolio_live.ex:2548
 #, elixir-autogen
 msgid "Classification"
@@ -1936,8 +1936,8 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:530
 #: lib/portfolixir_web/live/classifications_live.ex:1409
 #: lib/portfolixir_web/live/journal/row.ex:104
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:827
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:831
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:835
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:839
 #: lib/portfolixir_web/live/portfolio_live.ex:2805
 #: lib/portfolixir_web/live/portfolio_live.ex:3113
 #: lib/portfolixir_web/live/securities/merge_preview.ex:817
@@ -1964,7 +1964,7 @@ msgstr ""
 msgid "Drift"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:835
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:843
 #: lib/portfolixir_web/live/portfolio_live.ex:708
 #: lib/portfolixir_web/live/portfolio_live.ex:3028
 #: lib/portfolixir_web/live/portfolio_live.ex:3179
@@ -2772,7 +2772,7 @@ msgstr ""
 msgid "no buckets (excluded)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:993
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:1001
 #: lib/portfolixir_web/live/securities_live.ex:7225
 #: lib/portfolixir_web/live/securities_live.ex:7233
 #, elixir-autogen, elixir-format
@@ -5123,8 +5123,8 @@ msgstr[1] ""
 msgid "Stale — the statement is %{days} days old."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:343
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:544
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:351
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:552
 #: lib/portfolixir_web/live/portfolio_live.ex:2481
 #, elixir-autogen, elixir-format
 msgid "computed %{at}"
@@ -6472,7 +6472,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:106
 #: lib/portfolixir_web/live/journal/row.ex:102
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:559
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:567
 #: lib/portfolixir_web/policy_rule_label.ex:29
 #, elixir-autogen, elixir-format
 msgid "View"
@@ -7654,8 +7654,8 @@ msgstr ""
 msgid "Window"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:524
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:577
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:532
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:585
 #: lib/portfolixir_web/live/risk/policy_rule_format.ex:65
 #: lib/portfolixir_web/live/risk_live.ex:620
 #, elixir-autogen, elixir-format
@@ -15720,12 +15720,12 @@ msgstr ""
 msgid "All categories"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:169
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:177
 #, elixir-autogen, elixir-format
 msgid "Categories"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:917
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:925
 #, elixir-autogen, elixir-format
 msgid "Change without deposits and withdrawals."
 msgstr ""
@@ -15735,7 +15735,7 @@ msgstr ""
 msgid "Create one on the Classifications page"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:105
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:113
 #, elixir-autogen, elixir-format
 msgid "Level"
 msgstr ""
@@ -15745,76 +15745,76 @@ msgstr ""
 msgid "No classification yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:221
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:402
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:229
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:410
 #, elixir-autogen, elixir-format
 msgid "No values in this period."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:305
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:313
 #, elixir-autogen, elixir-format
 msgid "Share"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:176
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:184
 #, elixir-autogen, elixir-format
 msgid "Size"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:142
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:150
 #, elixir-autogen, elixir-format
 msgid "Sort"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:93
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:100
 #, elixir-autogen, elixir-format
 msgid "Stack"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:997
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:1005
 #, elixir-autogen, elixir-format
 msgid "The band with the largest change at the bottom; the legend reads like the stack, top band first."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:297
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:305
 #, elixir-autogen, elixir-format
 msgid "The bands on %{date}, the top band first"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:1003
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:1011
 #, elixir-autogen, elixir-format
 msgid "The largest band at the bottom; the legend reads like the stack, top band first."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:881
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:889
 #, elixir-autogen, elixir-format
 msgid "Value by category over time"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:880
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:888
 #, elixir-autogen, elixir-format
 msgid "Value by security over time"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:836
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:844
 #, elixir-autogen, elixir-format
 msgctxt "stack band"
 msgid "Other"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:176
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:184
 #, elixir-autogen, elixir-format
 msgctxt "stack"
 msgid "Change"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:306
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:314
 #, elixir-autogen, elixir-format
 msgctxt "stack column"
 msgid "Change"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:920
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:928
 #, elixir-autogen, elixir-format
 msgid "Above eight bands the smallest merge into “Other”, which always sits on top."
 msgstr ""
@@ -15869,17 +15869,17 @@ msgstr ""
 msgid "unknown"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:840
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:848
 #, elixir-autogen, elixir-format
 msgid "%{name} (direct)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:926
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:934
 #, elixir-autogen, elixir-format
 msgid "A click on a category filters the stack to it and keeps the level; the path above leads back."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:922
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:930
 #, elixir-autogen, elixir-format
 msgid "Below zero a band is drawn lighter, under the zero line; a band that changes sign sits next to it."
 msgstr ""
@@ -15889,63 +15889,63 @@ msgstr ""
 msgid "Benchmarks are drawn in the % (TTWROR) view only — they have no value in %{currency}."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:956
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:964
 #, elixir-autogen, elixir-format
 msgid "Cash and the unassigned rest are bands of their own."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:958
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:966
 #, elixir-autogen, elixir-format
 msgid "Cash is a band of its own."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:964
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:972
 #, elixir-autogen, elixir-format
 msgid "Each sub-category over its whole subtree, “%{name} (direct)” the securities filed in “%{name}” itself; no cash, no unassigned rest."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:970
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:978
 #, elixir-autogen, elixir-format
 msgid "Each sub-category over its whole subtree; no cash, no unassigned rest."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:913
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:921
 #, elixir-autogen, elixir-format
 msgid "Market value at each day's close, in %{currency}."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:887
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:895
 #, elixir-autogen, elixir-format
 msgid "Market value of what “%{tree}” files nowhere"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:897
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:901
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:905
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:909
 #, elixir-autogen, elixir-format
 msgid "Market value of “%{category}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:896
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:904
 #, elixir-autogen, elixir-format
 msgid "Market value of “%{category}” by sub-category"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:904
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:912
 #, elixir-autogen, elixir-format
 msgid "Market value per category of “%{tree}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:906
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:914
 #, elixir-autogen, elixir-format
 msgid "Market value per security and the cash"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:892
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:900
 #, elixir-autogen, elixir-format
 msgid "Market value per security of “%{category}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:978
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:986
 #, elixir-autogen, elixir-format
 msgid "Without cash and the unassigned rest; the bands add up to the filter's band."
 msgstr ""
@@ -15955,48 +15955,48 @@ msgstr ""
 msgid "The period asked for does not fit the data, so 1 year is shown."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:951
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:959
 #, elixir-autogen, elixir-format
 msgid "In the privacy mode the axis has no labels: the bands’ total is above zero on no day of the window."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:944
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:952
 #, elixir-autogen, elixir-format
 msgid "In the privacy mode the axis reads in percent of the bands’ total on %{date}, the first day it is above zero (100 %); the picture is the same."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:938
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:946
 #, elixir-autogen, elixir-format
 msgid "In the privacy mode the axis reads in percent of the bands’ total on the window’s first day (100 %); the picture is the same."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:516
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:572
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:524
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:580
 #, elixir-autogen, elixir-format
 msgid "%{name} (bold)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:622
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:630
 #, elixir-autogen, elixir-format
 msgid "A band that gains its first value inside the window starts at 0 % on that day, at a dot."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:616
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:624
 #, elixir-autogen, elixir-format
 msgid "A band's flows are its buys, sells and deliveries: an inflow at the day's start, an outflow at its end."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:633
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:641
 #, elixir-autogen, elixir-format
 msgid "A click on a category filters the lines to it and keeps the level; the path above leads back."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:647
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:655
 #, elixir-autogen, elixir-format
 msgid "At most eight lines, the largest by value at the window's end."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:642
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:650
 #, elixir-autogen, elixir-format
 msgid "At most eight lines, the largest by value at the window's end; none for the cash or the unassigned rest."
 msgstr ""
@@ -16006,78 +16006,78 @@ msgstr ""
 msgid "Benchmarks are drawn over the view's own line, at the level Total without a filter."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:619
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:627
 #, elixir-autogen, elixir-format
 msgid "Dividends and interest are no flow and in no line: they go to the cash, so a line is the return of the band's market value."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:613
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:621
 #, elixir-autogen, elixir-format
 msgid "Each band's own time-weighted return over the window (TTWROR), not stacked: returns do not add up."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:489
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:497
 #, elixir-autogen, elixir-format
 msgid "Each line's TTWROR on %{date}, the bold line first"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:589
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:597
 #, elixir-autogen, elixir-format
 msgid "TTWROR of what “%{tree}” files nowhere"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:597
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:601
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:605
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:609
 #, elixir-autogen, elixir-format
 msgid "TTWROR of “%{category}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:596
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:604
 #, elixir-autogen, elixir-format
 msgid "TTWROR of “%{category}” by sub-category"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:604
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:612
 #, elixir-autogen, elixir-format
 msgid "TTWROR per category of “%{tree}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:585
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:593
 #, elixir-autogen, elixir-format
 msgid "TTWROR per category over time"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:606
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:614
 #, elixir-autogen, elixir-format
 msgid "TTWROR per security"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:592
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:600
 #, elixir-autogen, elixir-format
 msgid "TTWROR per security of “%{category}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:584
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:592
 #, elixir-autogen, elixir-format
 msgid "TTWROR per security over time"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:672
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:680
 #, elixir-autogen, elixir-format
 msgid "The bold line is the view's own TTWROR."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:675
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:683
 #, elixir-autogen, elixir-format
 msgid "The bold line is “%{name}”, the filter's."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:650
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:658
 #, elixir-autogen, elixir-format
 msgid "The legend lists the bold line first, then the lines by TTWROR, largest first."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:654
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:662
 #, elixir-autogen, elixir-format
 msgid "The legend lists the bold line first, then the lines by value at the window's end."
 msgstr ""
@@ -16092,17 +16092,17 @@ msgstr ""
 msgid "In privacy mode the axis shows the value in percent of the value on %{date}, the first day it is above zero, deposits and withdrawals included; the return is TTWROR."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:625
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:633
 #, elixir-autogen, elixir-format
 msgid "A day on which a band opens at or below zero, a short, adds no return: its line waits until the band is above zero again."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:663
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:671
 #, elixir-autogen, elixir-format
 msgid "The view's line counts every flow at the day's start; the bands count an outflow at the day's end, so a band that holds the whole view can differ from it on a day with a sale."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:828
+#: lib/portfolixir_web/live/portfolio/stacked_chart.ex:836
 #, elixir-autogen, elixir-format
 msgid "Subcategory"
 msgstr ""
