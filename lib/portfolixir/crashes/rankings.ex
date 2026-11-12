@@ -47,16 +47,35 @@ defmodule Portfolixir.Crashes.Rankings do
   is in no list and is counted under its reason (`no_close_at_start`,
   `no_close_at_end`, `no_fx_rate`), listed by `include_unanswered: true`.
 
+  **Rebounders** rank each security's rise from its **own low** — its
+  lowest close (display basis) on a day from `start` to `trough`, the
+  earliest of equal lows — to the end of the **recovery span**, `trough`
+  plus three calendar months (`Date.shift/2`, as sale hindsight's spans: a
+  day the month lacks becomes its last day, so 30 November ends on 28
+  February), in EUR by `WindowReturn.price_return/3` from the low's date to
+  the span's end; highest first. A rebounder needs a close standing for
+  `start` (its pre-crash close) and a close on a day from `start` to
+  `trough` (its low), else `no_close_at_start`. Beside it: `days_back`, the
+  **calendar days** (F3) from its own low to its first close at or above its
+  close at `start`, 0 when the low is not below it, or `nil` with `not_yet:
+  true` when that has not happened by its last close up to today. The
+  reference is the crash benchmark's rise from its own low by the same rule.
+
   ## Provisional
 
   The lists of a window not yet recovered carry `provisional: true`, as its
-  trough does (§2.5, §7.5): it moves while the benchmark falls.
+  trough does (§2.5, §7.5): it moves while the benchmark falls. A rebound
+  span that ends after today is measured to today, `provisional: true`, and
+  `completes_on` names the day it ends (for a window still falling there is
+  no such day yet: `nil`); a rebound is never ranked over a shorter span than
+  the one it names without saying so.
   """
 
   import Ecto.Query
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.BenchmarkSecurity
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Crashes.PeakTrough
@@ -66,7 +85,7 @@ defmodule Portfolixir.Crashes.Rankings do
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias Portfolixir.Repo
 
-  @lists ~w(losers winners)
+  @lists ~w(losers winners rebounders)
   @default_limit 8
   @max_limit 50
   @recovery_span_months 3
@@ -97,7 +116,8 @@ defmodule Portfolixir.Crashes.Rankings do
   @doc """
   Checks a request before anything is read: `universe` is `"catalogue"` or
   `"view:<id>"`, the id spelled without a leading zero or sign;
-  `opts` take `:list` (default `"losers"`), `:limit` (default
+  `opts` take `:list` (`"losers"`, the default, `"winners"` or
+  `"rebounders"`), `:limit` (default
   #{@default_limit}, at most #{@max_limit}), `:include_unanswered` (default
   false) and `:today` (default `Portfolixir.Clock.today/0`).
   """
@@ -153,13 +173,13 @@ defmodule Portfolixir.Crashes.Rankings do
 
   defp ranked(window, securities, benchmark, benchmark_reason, request) do
     held = MapSet.new(HeldSecurities.held_ids())
+    span = span(request.list, window, request.today)
 
-    {reference, reference_reason} =
-      reference(benchmark, benchmark_reason, window.start, window.trough)
+    {reference, reference_reason} = reference(benchmark, benchmark_reason, span)
 
     {answered, unanswered} =
       securities
-      |> Enum.map(&measure(&1, window.start, window.trough))
+      |> Enum.map(&measure(&1, span))
       |> Enum.split_with(&match?({:ok, _entry}, &1))
 
     entries =
@@ -177,10 +197,8 @@ defmodule Portfolixir.Crashes.Rankings do
       list: request.list,
       universe: request.universe,
       limit: request.limit,
-      from: window.start,
-      to: window.trough,
-      provisional: provisional?(window),
-      completes_on: nil,
+      provisional: span.provisional,
+      completes_on: span.completes_on,
       benchmark: benchmark_read(benchmark),
       reference: reference,
       reference_reason: reference_reason,
@@ -189,8 +207,46 @@ defmodule Portfolixir.Crashes.Rankings do
       unanswered: count(unanswered),
       basis: basis(window, benchmark, benchmark_reason, request)
     }
+    |> Map.merge(span_dates(span))
     |> with_unanswered(unanswered, held, request.include_unanswered)
   end
+
+  # What a list measures over. Losers and winners: the window's fall, from
+  # start to trough. Rebounders: each own low within start..trough, to the
+  # end of the recovery span (trough + 3 calendar months, the last day of
+  # the month when the day does not exist), or to today while it has not
+  # ended.
+  defp span("rebounders", window, today) do
+    span_end = Date.shift(window.trough, month: @recovery_span_months)
+    open? = Date.compare(span_end, today) == :gt
+    falling? = provisional?(window)
+
+    %{
+      kind: :rebound,
+      low_from: window.start,
+      low_to: window.trough,
+      span_end: span_end,
+      measured_to: if(open?, do: today, else: span_end),
+      today: today,
+      provisional: falling? or open?,
+      completes_on: if(open? and not falling?, do: span_end, else: nil)
+    }
+  end
+
+  defp span(_list, window, _today) do
+    %{
+      kind: :fall,
+      from: window.start,
+      to: window.trough,
+      provisional: provisional?(window),
+      completes_on: nil
+    }
+  end
+
+  defp span_dates(%{kind: :fall} = span), do: Map.take(span, [:from, :to])
+
+  defp span_dates(%{kind: :rebound} = span),
+    do: Map.take(span, [:low_from, :low_to, :span_end, :measured_to])
 
   # -- the universe ------------------------------------------------------------
 
@@ -237,38 +293,103 @@ defmodule Portfolixir.Crashes.Rankings do
 
   # -- the figures -------------------------------------------------------------
 
-  defp measure(security, start_on, end_on) do
+  defp measure(security, %{kind: :fall, from: start_on, to: end_on}) do
     case WindowReturn.price_return(security, start_on, end_on) do
-      {:ok, result} ->
-        {:ok, %{security: security, return: result.return, start: result.start, end: result.end}}
-
-      {:error, reason} ->
-        {:error, security, unanswered_reason(reason)}
+      {:ok, result} -> {:ok, figure(security, result)}
+      {:error, reason} -> {:error, security, unanswered_reason(reason)}
     end
+  end
+
+  defp measure(security, %{kind: :rebound} = span) do
+    with {:ok, start_close} <- pre_crash_close(security, span.low_from),
+         closes = closes_since(security, span.low_from, span.today),
+         {:ok, low} <- own_low(closes, span.low_to),
+         {:ok, result} <- rise(security, low.date, span.measured_to) do
+      back = Enum.find(closes, &back?(&1, low, start_close))
+
+      {:ok,
+       security
+       |> figure(result)
+       |> Map.merge(%{
+         low: %{date: low.date, close: low.close},
+         start_close: Map.take(start_close, [:stands_for, :date, :close]),
+         back_on: back && back.date,
+         days_back: back && Date.diff(back.date, low.date),
+         not_yet: is_nil(back)
+       })}
+    else
+      {:error, reason} -> {:error, security, reason}
+    end
+  end
+
+  defp figure(security, result),
+    do: %{security: security, return: result.return, start: result.start, end: result.end}
+
+  # The close standing for the window's start, by WindowReturn's lookup.
+  defp pre_crash_close(security, start_on) do
+    case WindowReturn.close_on_or_before(security, start_on) do
+      {:ok, close} -> {:ok, close}
+      {:error, :no_close} -> {:error, :no_close_at_start}
+    end
+  end
+
+  # The positive closes from the window's start to today, in the current
+  # display basis, oldest first: the own low is read from them, and the
+  # first close back at the pre-crash close.
+  defp closes_since(%Security{id: id}, from, today) do
+    id
+    |> Quotes.adjusted_range(from, today)
+    |> Enum.filter(&(Decimal.compare(&1.close, 0) == :gt))
+  end
+
+  # The lowest close on a day up to the trough; the earliest of equal lows.
+  defp own_low(closes, low_to) do
+    closes
+    |> Enum.take_while(&(Date.compare(&1.date, low_to) != :gt))
+    |> Enum.reduce(nil, fn
+      close, nil -> close
+      close, low -> if Decimal.compare(close.close, low.close) == :lt, do: close, else: low
+    end)
+    |> case do
+      nil -> {:error, :no_close_at_start}
+      low -> {:ok, low}
+    end
+  end
+
+  defp rise(security, low_on, end_on) do
+    case WindowReturn.price_return(security, low_on, end_on) do
+      {:ok, result} -> {:ok, result}
+      {:error, reason} -> {:error, unanswered_reason(reason)}
+    end
+  end
+
+  # A close on or after the low's day at or above the pre-crash close.
+  defp back?(close, low, start_close) do
+    Date.compare(close.date, low.date) != :lt and
+      Decimal.compare(close.close, start_close.close) != :lt
   end
 
   defp unanswered_reason(:no_start_close), do: :no_close_at_start
   defp unanswered_reason(:no_end_close), do: :no_close_at_end
   defp unanswered_reason(:no_fx_rate), do: :no_fx_rate
 
-  # The crash benchmark's EUR return over the same dates, by the same call;
-  # without one (F2), or without its close, no reference and the reason.
-  defp reference(nil, benchmark_reason, _start_on, _end_on), do: {nil, benchmark_reason}
+  # The crash benchmark's EUR figure by the same rule and call as each
+  # entry's (over the same dates for a fall, from its own low for a
+  # rebound); without one (F2), or without its close, no reference and the
+  # reason.
+  defp reference(nil, benchmark_reason, _span), do: {nil, benchmark_reason}
 
-  defp reference(%Security{} = benchmark, _benchmark_reason, start_on, end_on) do
-    case WindowReturn.price_return(benchmark, start_on, end_on) do
-      {:ok, result} ->
-        {%{
-           security_id: benchmark.id,
-           return: result.return,
-           start: result.start,
-           end: result.end
-         }, nil}
+  defp reference(%Security{} = benchmark, _benchmark_reason, span) do
+    case measure(benchmark, span) do
+      {:ok, figure} ->
+        {figure
+         |> Map.take([:return, :start, :end, :low])
+         |> Map.put(:security_id, benchmark.id), nil}
 
-      {:error, :no_fx_rate} ->
+      {:error, _benchmark, :no_fx_rate} ->
         {nil, "no_fx_rate"}
 
-      {:error, _no_close} ->
+      {:error, _benchmark, _no_close} ->
         {nil, "no_benchmark_close"}
     end
   end
@@ -276,16 +397,15 @@ defmodule Portfolixir.Crashes.Rankings do
   defp entry(entry, rank, held, reference) do
     benchmark_return = reference && reference.return
 
-    %{
+    entry
+    |> Map.take([:return, :start, :end, :low, :start_close, :back_on, :days_back, :not_yet])
+    |> Map.merge(%{
       rank: rank,
       security: security_read(entry.security),
       held: MapSet.member?(held, entry.security.id),
-      return: entry.return,
-      start: entry.start,
-      end: entry.end,
       benchmark_return: benchmark_return,
       vs_benchmark_pp: points(entry.return, benchmark_return)
-    }
+    })
   end
 
   defp points(_return, nil), do: nil
@@ -295,6 +415,7 @@ defmodule Portfolixir.Crashes.Rankings do
 
   defp direction("losers"), do: :asc
   defp direction("winners"), do: :desc
+  defp direction("rebounders"), do: :desc
 
   # Ties by the figure, then the case-folded name, then the ISIN (none
   # after any), never by an id.
@@ -405,7 +526,17 @@ defmodule Portfolixir.Crashes.Rankings do
         "each close converts at the stored EUR-hub rate of its own date, carried forward " <>
           "without a bound, never a later one; the return is one division of exact products",
       recovery_span_months: @recovery_span_months,
+      recovery_span:
+        "rebounders are measured to the trough plus #{@recovery_span_months} calendar months, " <>
+          "one span for every window; a day the month lacks becomes its last day; while the " <>
+          "span has not ended the list is measured to today, provisional, and names the day " <>
+          "it completes",
       days_back_unit: "calendar_days",
+      days_back:
+        "calendar days from a security's own low to its first close at or above its close " <>
+          "standing for the window's start, compared in the display basis in its own " <>
+          "currency; 0 when the low is not below that close; null with not_yet when no close " <>
+          "up to today reaches it",
       gaps:
         "a day without a close is skipped, never interpolated; a security with no close " <>
           "standing for the start is no_close_at_start, none standing for the end " <>
@@ -431,7 +562,8 @@ defmodule Portfolixir.Crashes.Rankings do
 
   defp reference_text(%Security{}),
     do:
-      "the crash benchmark's EUR price return over the same dates, by the same function; " <>
+      "the crash benchmark measured by the same rule and function as each entry: over the " <>
+        "same dates for losers and winners, from its own low for rebounders; " <>
         "vs_benchmark_pp is (return - benchmark_return) x 100, in percentage points, unrounded"
 
   defp dates_text("detected"),
@@ -461,5 +593,15 @@ defmodule Portfolixir.Crashes.Rankings do
     "each security's EUR price return from the window's start to its trough by " <>
       "WindowReturn.price_return/3, the function sale hindsight and the prediction " <>
       "resolution share; #{order}; a price return: distributions are not counted"
+  end
+
+  defp figure_text("rebounders") do
+    "each security's rise from its own low, its lowest close in the display basis on a day " <>
+      "from the window's start to its trough (the earliest of equal lows), to its close at " <>
+      "the end of the recovery span (the trough plus #{@recovery_span_months} calendar " <>
+      "months, the last day of the month when the day does not exist), in EUR by " <>
+      "WindowReturn.price_return/3 from the low's date; highest first; a rebounder needs a " <>
+      "close standing for the start and one on a day from start to trough, else " <>
+      "no_close_at_start; a price return: distributions are not counted"
   end
 end

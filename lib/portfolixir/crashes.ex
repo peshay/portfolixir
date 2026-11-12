@@ -169,7 +169,7 @@ defmodule Portfolixir.Crashes do
   window (a detected one, `d:`, as the rule detects it now; a manual one,
   `m:`), the list's entries, the crash benchmark's return beside them, the
   answers counted and the computation basis. `opts` take `:list`
-  (`"losers"`, the default, or `"winners"`), `:limit` (default 8, at most
+  (`"losers"`, the default, `"winners"` or `"rebounders"`), `:limit` (default 8, at most
   50), `:include_unanswered` and `:today`.
 
   `universe` is `"catalogue"` or `"view:<id>"`, the securities the view
