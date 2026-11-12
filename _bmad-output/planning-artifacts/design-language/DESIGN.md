@@ -10356,3 +10356,125 @@ view's (flip: „Im Bestand je Ansicht“).
 `.bm-groups`, `.bm-groups__label`, `.bm-groups__options` and the 560 px
 rule. Every colour is a token.
 <!-- S29 B2 end -->
+
+<!-- S29 C6 begin -->
+## Amendment 2026-11-12 — Vermögen → Risiko: the Crashes section *(Sprint 29 C6, FR-54, issue 1421; ADR-0058 §9 and its amendment's F1 to F4; board `mockups/ux-design-2026-11-12-sprint29/01-crash-section`, and board 02 ④ for the crash benchmark, picks P1 A, P2 A, P3, P4, P5 A, Q2 A; plan D-5)*
+
+`PortfolixirWeb.Risk.CrashSection`, a LiveComponent of the Risk page.
+Every list it shows is `Portfolixir.Crashes.rankings/3` over `view:<id>`
+or `catalogue`, the call `GET /api/v1/crashes/:key/rankings` makes, so the
+screen and the API answer alike for the same window, list and universe.
+
+### Placement and URL
+
+- **After „Kennzahlen des Portfolios“** (P1 A; flip „Crashes ans Ende“),
+  whose „Max. Rückgang“ is the same notion on the view, and before the
+  concentration sections.
+- **The choice is in the address** (P4): `crash` (the window's key,
+  `d:<benchmark>:<start>` or `m:<id>`), `crash_list` (`losers`, `winners`,
+  `rebounders`) and `crash_universe` (`depot`, `catalogue`), after the
+  page's own pairs. Without them the section opens on the **newest
+  window**, **Verlierer** and **„Im Depot“** (P3; the API's default stays
+  the catalogue). A value the section does not know opens the default.
+- **With no view chosen** (Everything) there is no `view:<id>` to ask: the
+  section lists the catalogue, „Im Depot“ is a disabled option
+  (`aria-disabled`), and one hint line says why.
+
+### Anatomy, top to bottom *(inside `section#risk-crashes.crash-section`)*
+
+1. **The heading** „Crashes“ with the section ⓘ: the rule (10 %, the
+   latest high, the earliest low), the currencies (detected in the
+   benchmark's, listed in EUR), the close lookup (7 days, no answer never a
+   zero), the rebound span and its calendar days, the ties, and „Kein
+   Urteil“.
+2. **The no-benchmark note** (UX-DR17 `:note`,
+   `data-role="crash-no-benchmark"`) while no crash benchmark is chosen or
+   it is no longer available, with „Crash-Benchmark wählen“, which opens
+   the disclosure on the benchmark form.
+3. **The bar** (`div.stack-bar.crash-bar`), built as DESIGN.md's
+   "Labelled controls start on one edge" on the stacked chart's
+   `stack-bar` until the shared component of issue 1435 takes it over:
+   **Fenster**, a native select (P2 A; flip „Crash-Fenster als Chips“) whose
+   options read „Name · TT.MM.JJJJ–TT.MM.JJJJ“, „Ohne Namen · seit … ·
+   läuft“ for the ongoing window, and „· manuell“ after a manual one, newest
+   first; then **Liste** (Verlierer · Gewinner · Erholer) and
+   **Wertpapiere** (Im Depot · Ganzer Katalog) as segmented controls of
+   patch links.
+4. **The window line** (`p.crash-window`): the name (or „Ohne Namen“,
+   italic), the kind badge (`erkannt` neutral; `manuell` in the accent,
+   `.crash-badge--manual`, because a person chose its dates), „Hoch
+   ‹date› → Tief ‹date›“ (an ongoing window: „Tief bisher“ with
+   „vorläufig“), the crash benchmark's fall in its own currency, „erholt am
+   …“ or „läuft“; for the rebounders „Erholung gemessen bis ‹date›“ with
+   „(Tief + 3 Monate)“ or „vorläufig · vollständig am …“. At its end
+   **„Im Depot ansehen →“**, Holdings at `/portfolio?from=<start>&to=<low>`
+   (to today while the window runs), or, for a window that ends before the
+   view's first booking, no link and one line: „Die Ansicht beginnt am …:
+   in diesem Fenster gab es kein Depot.“ (F4).
+5. **The ongoing hint** (`p.hint.crash-provisional`) while the window
+   runs: the low and the lists move while the benchmark falls.
+6. **The list** (`table.data-table.crash-table`, `is-rebound` for the
+   rebounders): #, Wertpapier (in the catalogue a held security carries a
+   neutral „im Depot“ badge, the API's `held`), the bar column (44 %, 34 %
+   for the rebounders) with a zero line, the entry's bar (loss coral, gain
+   teal) and the **crash benchmark's dashed line** at its figure, the
+   figure in percent, „ggü. ‹benchmark›“ in points (absent without a
+   reference, F2), and for the rebounders „Tage bis Vorkrisenkurs“ (calendar
+   days, F3) or „noch nicht“ in the loss colour. The axis below the bars in
+   whole percent, rounded outward to a step of at most four intervals,
+   zero always inside. Eight entries.
+7. **The basis line** (`p.summary-basis.crash-basis`): the figure and its
+   dates, the reference („gestrichelt ‹benchmark› über dieselben Tage (…)“,
+   or „kein Vergleich: kein Crash-Benchmark gewählt“), survivorship („nur
+   Wertpapiere, die der Katalog heute führt“).
+8. **The answered and unanswered** (`p.crash-unanswered`): „8 von 214
+   Wertpapieren mit Antwort gezeigt · 31 ohne Antwort: …“ per reason, and
+   „anzeigen“, which names each unanswered security with its reason.
+9. **The windows' disclosure** (`details#crash-windows`, `DisclosureState`,
+   open while a form is): „Crash-Fenster · 6 erkannt · 1 manuell · 2 Namen
+   ohne Fenster“ (empty parts left out); inside, the rule line with the
+   crash benchmark, **„Ändern“** and „Fenster anlegen“; the **benchmark
+   form** (board 02 ④, Q2 A; flip „Einstellungsseite“): one select with the
+   pickers' optgroups „Benchmarks“, „Im Bestand“ (and „Weitere“ for a
+   chosen one neither offers, `PortfolixirWeb.BenchmarkChoices`),
+   „Speichern“ and „Abbrechen“, and the hints that every agent reads the
+   same windows and that names stay with their benchmark; the **windows
+   table** (Name, Hoch, Tief, Rückgang, Erholt, Lücke in days, Art, and
+   Benennen / Umbenennen / Name löschen for a detected window, Bearbeiten /
+   Löschen for a manual one; the ongoing row on the warning tint); the
+   **name / manual form** (`form.crash-edit-form`: Name, and Hoch and Tief
+   as ISO text inputs for a manual window); **„Namen ohne Fenster (n)“**
+   with the hint that a name is never re-attached by a guess, each name
+   with the benchmark it was given for („kehrt zurück, wenn er wieder
+   Crash-Benchmark ist“), „Als manuelles Fenster anlegen …“ (F1: the form
+   shows the stored high read-only and asks for the low, required) and
+   „Löschen“. Every delete asks first (`data-confirm`).
+10. **No window at all**: the note (if no benchmark) and „Noch kein
+    Fenster.“ with „Fenster anlegen“.
+
+### Under 560 px of the section *(P5 A; flip „Crashes am Handy als Tabelle“)*
+
+A container query on the section: the bar's controls stand in its label
+column (the `stack-bar` rule A); each entry becomes **two lines** — rank,
+name (ellipsis) and figure; then the bar under the name and the points
+under the figure — and the rebounders' days a third line with their label;
+the column heads leave the layout (kept for screen readers); the axis
+stays under the bars. „Im Depot ansehen“ joins the line's flow.
+
+### The privacy mode
+
+Nothing changes (plan D-5): the section holds percentages, points, dates
+and day counts only, each formatted by a percent or `plain_*` form. „Im
+Depot ansehen“ opens Holdings, which hides its amounts there.
+
+### The `app.css` rules (between `S29 C6 begin` / `end`)
+
+`.crash-section` (the container), `.crash-bar select`, `.crash-window`,
+`__link`, `__nolink`, `.crash-badge--manual`, `.crash-table` and its
+columns, `.crash-track` with `__bar`, `__zero`, `__ref`, `.crash-axis`,
+`.crash-unanswered`, `.crash-windows__body`, `.crash-rule`,
+`.crash-windows-table`, `.crash-unmatched`, `.crash-edit-form`,
+`.crash-form__errors`, `.crash-benchmark-form`,
+`.segmented-control__option.is-disabled`, and the 560 px container rule.
+Every colour is a token.
+<!-- S29 C6 end -->
