@@ -10310,3 +10310,45 @@ its grey border here and in „Ins Research-Log“.
 **„Ins Research-Log“ shows its source link as its domain** (ADR-0056 E2),
 as the entry does: `PortfolixirWeb.LinkDomain.of/1` is the one helper.
 <!-- S29 N4 end -->
+
+<!-- S29 B2 begin -->
+## Amendment 2026-11-12 — The benchmark pickers: „Benchmarks“, then „Im Bestand“ *(Sprint 29 B2, issue 1416; ADR-0046's amendment of 2026-11-07, point 3; ADR-0058 F5; board `mockups/ux-design-2026-11-12-sprint29/02-benchmark-picker` ① and ③, pick Q1 A; plan D-5)*
+
+Both screen pickers of a benchmark offer the same two labelled groups, from
+one read (`PortfolixirWeb.BenchmarkChoices` over
+`Portfolixir.Catalog.BenchmarkSecurity.choices/0`): **„Benchmarks“**, the
+securities flagged `is_benchmark`, then **„Im Bestand“** (English "In
+holdings"), the unflagged securities held today in any depot — each group
+by name, and only securities with a stored quote, so everything offered is
+what the API's rule (`BenchmarkSecurity.resolve/1`) accepts. A flagged
+security that is also held appears once, under „Benchmarks“. No search
+(flip: „Benchmark-Suche“); the held group is the instance's, not the
+view's (flip: „Im Bestand je Ansicht“).
+
+- **Vermögen → Bestände, „Benchmark…“** (`portfolio_live.ex`): inside the
+  disclosure's form, `div.bm-groups` (`data-role="benchmark-groups"`), a
+  grid of a label column (`span.bm-groups__label`, 12.5 px, semibold,
+  muted ink) and the options from one edge (`span.bm-groups__options`,
+  `role="group"`, `aria-labelledby` its label, `data-group` `flagged`,
+  `held` or `other`; the existing `label.benchmark-form__option`
+  checkboxes, wrapping). The block takes the form's full width, so the
+  rate field, „Anwenden“ and the hint follow on the next line. Under
+  560 px the label stands above its options.
+- **„Nach dem Verkauf“, the select** (`sale_hindsight_section.ex`): the
+  same groups as `<optgroup label=…>` of the native select. Its default
+  stays the first flagged security; without one the chooser opens on
+  „Ohne“ as before, and „Wertpapier“ then compares with the first held one.
+- **„Weitere“** (English "Other"), a third group in either picker, only
+  while the address names a security the rule accepts and neither group
+  offers (an unheld one with a quote, as an agent's link may carry): it
+  is chosen, as the API takes it, and shown ticked or selected there, so
+  the picker never shows one security while another is compared, and
+  „Anwenden“ keeps it. The board does not draw this state; it is the
+  smallest one that keeps the picker truthful.
+- A held security named in the address is chosen and compared, never
+  dropped to "not selected" or to the default (ADR-0058 F5).
+
+**The `app.css` rules** (between `Sprint 29 B2 begin` / `end`):
+`.bm-groups`, `.bm-groups__label`, `.bm-groups__options` and the 560 px
+rule. Every colour is a token.
+<!-- S29 B2 end -->
