@@ -266,12 +266,15 @@ defmodule Portfolixir.Chains.EsploraAttackTest do
       end
     end
 
+    # On the lower of the run's two blocks, so that the blocks stay in
+    # order (`blocks_out_of_order`, the attack lens's check).
     test "the genesis block's own timestamp is the lower bound and passes" do
-      body = Jason.encode!(Map.put(block(@tip), "timestamp", genesis_time()))
-      serve(%{"mempool.space" => {:chain, @tip, %{"block/#{hash(@tip)}" => {200, body}}}})
+      low = @tip - 2016
+      body = Jason.encode!(Map.put(block(low), "timestamp", genesis_time()))
+      serve(%{"mempool.space" => {:chain, @tip, %{"block/#{hash(low)}" => {200, body}}}})
 
       assert {:ok, %{source: :mempool} = reading} = read()
-      assert reading.blocks[@tip].timestamp == genesis_time()
+      assert reading.blocks[low].timestamp == genesis_time()
     end
   end
 
@@ -410,15 +413,17 @@ defmodule Portfolixir.Chains.EsploraAttackTest do
   # into a request.
   #
   # Acceptance criteria:
-  # - `heights_for` returning a path, a negative height, one above the tip,
-  #   a float or no list raises before any `/block-height/` request.
+  # - `heights_for` returning a path, a float or no list raises before any
+  #   `/block-height/` request.
+  # - A negative height or one above the tip fails the source that answered
+  #   the tip (`heights_out_of_range`, the attack lens: a tip is the
+  #   source's claim, so the heights it yields are too) before any
+  #   `/block-height/` request, and the next source is asked.
   # - A height asked twice is read once.
   # - An option the adapter does not know (a URL, a host, a plug) raises.
   describe "the caller's heights and options" do
     for {label, heights} <- [
           {"a path", ["1/../../x"]},
-          {"a negative height", [-1]},
-          {"a height above the tip", [:above]},
           {"a float", [1.0]},
           {"no list", :not_a_list}
         ] do
@@ -435,6 +440,26 @@ defmodule Portfolixir.Chains.EsploraAttackTest do
         assert_raise ArgumentError, fn ->
           Esplora.read(heights_for, now: @now, genesis_due?: fn _ -> false end)
         end
+
+        refute Enum.any?(requested(), fn {_host, path} ->
+                 String.starts_with?(path, "block-height/")
+               end)
+      end
+    end
+
+    for {label, heights_for} <- [
+          {"a negative height", quote(do: fn _tip -> [-1] end)},
+          {"a height above the tip", quote(do: fn tip -> [tip + 1] end)}
+        ] do
+      test "heights_for returning #{label} fails each source before any block is asked" do
+        serve(%{"mempool.space" => {:chain, @tip}, "blockstream.info" => {:chain, @tip}})
+
+        assert {:error,
+                [
+                  %{source: :mempool, error: "heights_out_of_range"},
+                  %{source: :blockstream, error: "heights_out_of_range"}
+                ]} =
+                 Esplora.read(unquote(heights_for), now: @now, genesis_due?: fn _ -> false end)
 
         refute Enum.any?(requested(), fn {_host, path} ->
                  String.starts_with?(path, "block-height/")

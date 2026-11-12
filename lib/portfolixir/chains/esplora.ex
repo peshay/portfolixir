@@ -33,8 +33,11 @@ defmodule Portfolixir.Chains.Esplora do
 
   **Every answer is checked before it is handed on** (§7):
 
-    * the tip is a decimal integer of at most 12 digits (`invalid_tip`) and
-      not more than 6 below the last stored tip (`tip_behind`);
+    * the tip is a decimal integer of at most 12 digits (`invalid_tip`),
+      not more than 6 below the last stored tip (`tip_behind`), not below
+      the fourth halving's height 840,000 (`tip_too_low`), and not above the
+      height ten-minute spacing gives for the time since the genesis block,
+      times 1.1 (`tip_ahead`);
     * a hash has exactly 64 hex characters (`invalid_hash`), so a hash
       placed in a path is one segment of hex and nothing else;
     * a block has an `id`, an integer `height` and an integer `timestamp`
@@ -42,6 +45,8 @@ defmodule Portfolixir.Chains.Esplora do
       asked (`block_mismatch`);
     * a timestamp lies between the genesis block's time and the server's
       clock + 2 hours (`timestamp_out_of_bounds`);
+    * of two blocks read at least 2,016 heights apart, the higher one has
+      the later timestamp (`blocks_out_of_order`);
     * when the caller says the day's check is due, the hash at height 0 is
       Bitcoin's registered genesis hash (`wrong_chain`), so an instance on
       testnet or signet is refused.
@@ -67,6 +72,18 @@ defmodule Portfolixir.Chains.Esplora do
   # (Bitcoin's own consensus rule for a block's time).
   @future_slack_seconds 2 * 60 * 60
   @max_tip_lag 6
+  # The tip's floor (ADR-0059 §7, the attack lens): the fourth halving,
+  # height 840,000, mined on 2024-04-20. A height the chain has passed never
+  # comes back, so a lower tip is a lie or a node still syncing, and every
+  # height a run asks below an honest tip (the tip, 2,016 below it, a past
+  # halving) stays non-negative.
+  @min_tip 4 * Registry.halving_interval(@chain)
+  # The tip's ceiling (ADR-0059 §7, the attack lens): the height ten-minute
+  # spacing gives for the time since the genesis block, times 11/10. The
+  # chain ran 4.4 % ahead of that spacing at the fourth halving; 10 % is
+  # more than twice that lead, so only a forged tip passes it.
+  @tip_ceiling_factor {11, 10}
+  @target_spacing Registry.target_spacing(@chain)
   @max_bytes 64 * 1024
   @deadline_ms 10_000
   @user_agent "portfolixir/0.1 (+https://github.com/portfolixir)"
@@ -89,7 +106,9 @@ defmodule Portfolixir.Chains.Esplora do
   @doc """
   One run's reads from the first source that answers them all: the tip,
   the genesis check when it is due, and the hash and block of every height
-  `heights_for` returns for that tip (each between 0 and the tip).
+  `heights_for` returns for that tip. A result that is not a list of
+  integers raises; a height outside 0 and the tip fails that source
+  (`heights_out_of_range`) before any block is asked.
 
   `{:ok, reading}` carries the source, its host and base, the tip, the
   blocks by height, whether the genesis was checked, and the `attempts` of
@@ -97,7 +116,8 @@ defmodule Portfolixir.Chains.Esplora do
   source's failure, in order.
 
   Options: `:last_tip` (the last stored tip, for `tip_behind`; none by
-  default), `:genesis_due?` (a function of the source's host, true when the
+  default; anything but a non-negative integer or `nil` raises, so a wrong
+  type cannot turn the check off), `:genesis_due?` (a function of the source's host, true when the
   day's genesis check is due; always due by default), `:now` (the server's
   clock for the timestamp bound; `DateTime.utc_now/0` by default). Any
   other option raises: no caller hands this module a URL, a host or a
@@ -107,6 +127,7 @@ defmodule Portfolixir.Chains.Esplora do
           {:ok, reading()} | {:error, [failure()]}
   def read(heights_for, opts \\ []) when is_function(heights_for, 1) do
     opts = Keyword.validate!(opts, @read_options)
+    validate_last_tip!(Keyword.get(opts, :last_tip))
 
     case sources() do
       {:ok, sources} -> first_answer(sources, heights_for, opts, [])
@@ -187,9 +208,13 @@ defmodule Portfolixir.Chains.Esplora do
     host = host(base)
     genesis? = genesis_due?(opts, host)
 
-    with {:ok, tip} <- tip(req, base, Keyword.get(opts, :last_tip)),
+    now = now(opts)
+
+    with {:ok, tip} <- tip(req, base, Keyword.get(opts, :last_tip), now),
          :ok <- if(genesis?, do: genesis(req, base), else: :ok),
-         {:ok, blocks} <- blocks(req, base, heights(heights_for, tip), now(opts)) do
+         {:ok, heights} <- heights(heights_for, tip),
+         {:ok, blocks} <- blocks(req, base, heights, now),
+         :ok <- in_order(blocks) do
       {:ok,
        %{
          source: source,
@@ -202,13 +227,22 @@ defmodule Portfolixir.Chains.Esplora do
     end
   end
 
-  defp tip(req, base, last_tip) do
+  defp tip(req, base, last_tip, now) do
     with {:ok, body} <- get(req, base <> "/blocks/tip/height"),
          {:ok, tip} <- parse_height(body) do
-      if is_integer(last_tip) and tip < last_tip - @max_tip_lag,
-        do: {:error, "tip_behind"},
-        else: {:ok, tip}
+      cond do
+        is_integer(last_tip) and tip < last_tip - @max_tip_lag -> {:error, "tip_behind"}
+        tip < @min_tip -> {:error, "tip_too_low"}
+        tip > tip_ceiling(now) -> {:error, "tip_ahead"}
+        true -> {:ok, tip}
+      end
     end
+  end
+
+  defp tip_ceiling(now) do
+    {numerator, denominator} = @tip_ceiling_factor
+
+    div((DateTime.to_unix(now) - @genesis_time) * numerator, @target_spacing * denominator)
   end
 
   defp genesis(req, base) do
@@ -285,14 +319,46 @@ defmodule Portfolixir.Chains.Esplora do
        else: {:error, "timestamp_out_of_bounds"}
   end
 
+  # The blocks of one run against each other (ADR-0059 §7, the attack
+  # lens): of two blocks read at least 2,016 heights apart, the higher one
+  # is the later. A block's time may run behind its predecessors' by an
+  # hour or two, never by two weeks of blocks; so a tip block older than
+  # the block 2,016 below it, which would make the recent mean block time
+  # negative, fails the source.
+  defp in_order(blocks) do
+    sorted = blocks |> Map.values() |> Enum.sort_by(& &1.height)
+
+    ordered? =
+      for low <- sorted, high <- sorted, high.height - low.height >= 2016, reduce: true do
+        acc -> acc and high.timestamp > low.timestamp
+      end
+
+    if ordered?, do: :ok, else: {:error, "blocks_out_of_order"}
+  end
+
+  defp validate_last_tip!(nil), do: :ok
+  defp validate_last_tip!(tip) when is_integer(tip) and tip >= 0, do: :ok
+
+  defp validate_last_tip!(tip),
+    do:
+      raise(ArgumentError, "last_tip must be a non-negative integer or nil, got: #{inspect(tip)}")
+
+  # A result that is not a list of integers is the caller's bug and raises.
+  # An integer outside 0..tip follows from the tip, which is the source's
+  # claim, so it fails that source and the next one is asked (the attack
+  # lens: a hostile tip crashed the run instead of asking the fallback).
   defp heights(heights_for, tip) do
     heights = heights_for.(tip)
 
-    if is_list(heights) and
-         Enum.all?(heights, &(is_integer(&1) and &1 >= 0 and &1 <= tip)) do
-      Enum.uniq(heights)
-    else
-      raise ArgumentError, "heights_for must return heights between 0 and the tip #{tip}"
+    cond do
+      not (is_list(heights) and Enum.all?(heights, &is_integer/1)) ->
+        raise ArgumentError, "heights_for must return a list of integer heights"
+
+      Enum.all?(heights, &(&1 >= 0 and &1 <= tip)) ->
+        {:ok, Enum.uniq(heights)}
+
+      true ->
+        {:error, "heights_out_of_range"}
     end
   end
 
