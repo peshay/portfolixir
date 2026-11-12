@@ -8,7 +8,9 @@ description: "Decision for I24 (FR-54). A crash window is a peak-to-trough decli
 
 - **Status:** Accepted. Adopted by the merge of the Sprint 28 planning PR
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
-  **Built in Sprint 29**, not 28 (the Sprint 28 plan, D-2).
+  **Built in Sprint 29**, not 28 (the Sprint 28 plan, D-2). Amended on
+  2026-11-12 by the merge of the Sprint 29 planning PR (see "Amendment of
+  2026-11-12" at the end).
 - **Date:** 2026-11-08
 - **Answers:** FR-54 (`epics.md`); idea I24
   (`_bmad-output/planning-artifacts/ideas.md`), as the owner narrowed it on
@@ -295,3 +297,80 @@ Sprint 27 plan's D-9; idea board 03.
 | A rebounder's low within `start`–`trough` | "Erholer-Tief bis Spannenende" (the low may fall after the market's trough) |
 | Flagged benchmarks left out of the lists | "Crashes mit Benchmarks" |
 | Detected windows derived, never stored | none: storing them would need a rule to keep them in step with the closes, which is the problem §3 avoids |
+
+## Amendment of 2026-11-12: what drawing the screen found
+
+**Adopted by the merge of the Sprint 29 planning PR**, before the build.
+Drawing §9's planning board
+([01](../../_bmad-output/planning-artifacts/design-language/mockups/ux-design-2026-11-12-sprint29/01-crash-section--light.png))
+found five places where this record says less than a build needs, or
+something the code does not do. None books or corrects a stored money
+figure; each is decided here with its reason and flips by a comment.
+
+### F1. A name without a window becomes a manual window only with its trough
+
+§3 offers to "make a manual window from its dates", but a name stores only
+its key, the benchmark and the start (§2, §3): the trough was never
+stored. **The form takes the stored start and asks for the trough**,
+under §4's rules (after the start, not in the future); nothing is
+guessed from the closes. *Why not the trough the rule would give today:*
+the name lost its window because the closes changed, so today's closes
+are exactly what can no longer be trusted to give the old dates.
+
+### F2. Without a crash benchmark, a manual window's lists carry no reference
+
+§1 says manual windows work without a crash benchmark, and §5 puts the
+benchmark's EUR return and the difference in points beside each security.
+**With no crash benchmark set, a manual window's lists answer without
+both**: no reference line, no `vs_benchmark_pp`, and the basis says
+`benchmark: null` with `reason: "no_crash_benchmark"`. The ranking is
+unchanged. *Why not refuse the lists:* a manual window is the operator's
+own span, and ranking the securities inside it needs no market line.
+**To flip:** "Ohne Crash-Benchmark keine Listen".
+
+### F3. `days_back` counts calendar days
+
+§5 names `days_back` without a unit. **It counts calendar days** from a
+security's own low to its first close at or above its close at `start`,
+stated in the basis as `days_back_unit: "calendar_days"`. *Why:* trading
+days differ per venue, and a list that mixes venues would compare
+different clocks; calendar days are the same for every row. **To flip:**
+"Erholer-Tage als Handelstage".
+
+### F4. „Im Depot ansehen“ only for a window the view can show
+
+§9 links Holdings with the window as a custom range. Holdings replaces a
+range that ends before the view's first day with one year and a line
+that the period does not fit the data (`portfolio_live.ex`, the range
+check). **For a window that ends before the view's first booking, the
+section shows no link and one line saying why** ("Das Fenster liegt vor
+der ersten Buchung dieser Ansicht"); a window that overlaps the view's
+history links with its range as stated. *Why:* a link that opens a
+different period than it names misleads. **To flip:** "Depot-Link immer".
+
+### F5. Lane B's rule reaches the screens' resolvers too
+
+ADR-0046's amendment of 2026-11-07 (any security with a stored quote may
+be a benchmark), on which §1 builds, was filed as #1416 naming the API's
+`BenchmarkParam` and `Predictions`. Two screens resolve a benchmark by the
+flag as well: Holdings' benchmark choice (`resolve_benchmark_security/1`
+in `portfolio_live.ex`) and the sale-hindsight section's select
+(`sale_hindsight_section.ex`), which looks the id up in the flagged list
+only. **Both take the same rule as the API**, so a security picked in the
+new picker is never dropped silently to "not selected". This states what
+the amendment already meant; it changes no reading of it.
+
+### F6. The asks of the board (ADR-0043)
+
+| Ask | Source | Verdict |
+|---|---|---|
+| A name without a window made manual | §3 | **Answered** — F1 |
+| The lists without a crash benchmark | §1, §5 | **Answered** — F2 |
+| The unit of `days_back` | §5 | **Answered** — F3 |
+| „Im Depot ansehen“ before the view's history | §9 | **Answered** — F4 |
+| The screens' benchmark resolvers | #1416 | **Answered** — F5 |
+
+The screen's own choices (where the section sits, the window as a select,
+the opening universe and window, the phone's rows, the „im Depot“ mark in
+the catalogue, where the crash benchmark is chosen) are the board's, and
+the Sprint 29 plan's D-5 names each with its flip.
