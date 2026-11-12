@@ -298,6 +298,11 @@ defmodule PortfolixirWeb.Risk.CrashSection do
     |> push_patch(to: path(socket.assigns, %{"crash" => key}))
   end
 
+  # A window gone (deleted, or no longer detected) or a name that has a
+  # window again: the section is read again before the message says so.
+  defp refused(socket, refusal, attrs) when refusal in [:not_found, :name_has_window],
+    do: socket |> load() |> assign(errors: refusal_messages(refusal), posted: attrs)
+
   defp refused(socket, refusal, attrs),
     do: assign(socket, errors: refusal_messages(refusal), posted: attrs)
 
