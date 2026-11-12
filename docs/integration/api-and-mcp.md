@@ -1236,6 +1236,15 @@ Every read and write is closed: an unknown parameter or field answers `422`
 naming it. A key that names nothing answers `404`. Every write is journaled
 under the token.
 
+The MCP companion calls these routes through five tools, each saying it
+returns data, never advice or instructions: `portfolixir.crashes.list` and
+`portfolixir.crashes.rankings` (reads, in every profile),
+`portfolixir.crashes.put` (with a `key` it names or edits that window,
+without one it draws a manual window or makes `from_name` one; `book` and
+`full`), `portfolixir.crashes.delete` (admin, `full` only) and
+`portfolixir.crashes.benchmark_put` (the crash benchmark's write; `book` and
+`full`).
+
 ### The position dossier (FR-49)
 
 One read per security that carries what an agent preparing a decision about
@@ -4757,7 +4766,11 @@ retirement answers `409`, a second activation is a no-op, a second ISIN change
 a named conflict); `portfolixir.policy_rules.add_version` is routed through
 `POST` and adds a version, but closes the version in force and replaces every
 scheduled version from its date, so it is destructive, and not idempotent,
-since a repeat adds another version; `openWorldHint` is true for
+since a repeat adds another version; `portfolixir.crashes.put` is routed
+through `PUT` with a key (a name, or a manual window's fields, overwritten)
+and through `POST` without one (a new manual window), so it is destructive,
+and not idempotent, since a repeat without a key adds another window;
+`openWorldHint` is true for
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
 `portfolixir.exchange_rates.sync`, which reach an external provider, and for
 `portfolixir.securities.create`, which queues a quote backfill from the

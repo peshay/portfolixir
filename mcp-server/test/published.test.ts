@@ -130,6 +130,18 @@ function routedMethodsFromSource(): Map<string, string> {
     routes.set(name, method);
   }
 
+  // --- S29 C5 begin ---
+  // One tool routes two ways by whether a key is given (ADR-0058 §9:
+  // crashes.put names or edits with a key, draws without one). Its route is
+  // the keyed branch's, the one the companion's own derivation reads with
+  // every argument set; REPLACING_POSTS below names its hints.
+  for (const [, name, method] of source.matchAll(
+    /case "(portfolixir\.[a-z0-9_.]+)":\s*return args\.key === undefined\s*\?\s*client\.request\(\s*"POST"[^\n]*\n\s*:\s*client\.request\(\s*"([A-Z]+)"/g
+  )) {
+    routes.set(name, method);
+  }
+  // --- S29 C5 end ---
+
   return routes;
 }
 
@@ -166,7 +178,12 @@ const MODIFYING_POSTS = [
 // 2026-10-12, H13): destructive, and not idempotent, since a repeat adds
 // another version.
 const REPLACING_POSTS = [
-  "portfolixir.policy_rules.add_version" // closes the version in force, replaces scheduled ones
+  "portfolixir.policy_rules.add_version", // closes the version in force, replaces scheduled ones
+  // --- S29 C5 begin ---
+  // PUT with a key (overwrites a name or a manual window's fields), POST
+  // without one (adds a manual window): destructive, and not idempotent.
+  "portfolixir.crashes.put"
+  // --- S29 C5 end ---
 ];
 
 const OPEN_WORLD = [

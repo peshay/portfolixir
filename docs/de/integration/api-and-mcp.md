@@ -1339,6 +1339,15 @@ Jeder Lese- und Schreibzugriff ist geschlossen: ein unbekannter Parameter oder
 ein unbekanntes Feld ergibt `422`, das es nennt. Ein Schlüssel, der nichts
 nennt, ergibt `404`. Jeder Schreibzugriff wird unter dem Token journalisiert.
 
+Der MCP-Begleitdienst ruft diese Routen über fünf Tools auf, die je sagen, dass
+sie Daten liefern, nie einen Rat oder Anweisungen: `portfolixir.crashes.list`
+und `portfolixir.crashes.rankings` (Lesezugriffe, in jedem Profil),
+`portfolixir.crashes.put` (mit `key` benennt oder ändert es dieses Fenster,
+ohne zieht es ein manuelles Fenster oder macht `from_name` zu einem; `book`
+und `full`), `portfolixir.crashes.delete` (Admin, nur `full`) und
+`portfolixir.crashes.benchmark_put` (das Schreiben des Crash-Benchmarks; `book`
+und `full`).
+
 ### Das Positionsdossier (FR-49)
 
 Ein Lesezugriff je Wertpapier, der trägt, was ein Agent für eine Entscheidung
@@ -5192,6 +5201,10 @@ ISIN-Wechsel ist ein benannter Konflikt); `portfolixir.policy_rules.add_version`
 läuft über `POST` und fügt eine Version an, schließt aber die geltende Version
 und ersetzt jede geplante ab ihrem Datum und ist deshalb destruktiv und nicht
 idempotent, weil eine Wiederholung eine weitere Version anfügt;
+`portfolixir.crashes.put` läuft mit einem Schlüssel über `PUT` (ein Name oder
+die Felder eines manuellen Fensters werden überschrieben) und ohne über `POST`
+(ein neues manuelles Fenster) und ist deshalb destruktiv und nicht idempotent,
+weil eine Wiederholung ohne Schlüssel ein weiteres Fenster anfügt;
 `openWorldHint` ist wahr für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
 `portfolixir.exchange_rates.sync`, die einen externen Anbieter erreichen, und

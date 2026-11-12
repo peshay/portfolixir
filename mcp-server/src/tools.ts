@@ -3599,6 +3599,96 @@ const newsRegistryZ = z
   .strict();
 // --- S28 N7 end ---
 
+// --- S29 C5 begin ---
+// The crash tools (ADR-0058 §9; Sprint 29, C5): a window's key is
+// d:<benchmark_security_id>:<start> (detected) or m:<id> (manual), as
+// crashes.list answers it; the API refuses any other spelling with 404.
+const CRASH_KEY = "^(d:[1-9][0-9]*:[0-9]{4}-[0-9]{2}-[0-9]{2}|m:[1-9][0-9]*)$";
+const DETECTED_KEY = "^d:[1-9][0-9]*:[0-9]{4}-[0-9]{2}-[0-9]{2}$";
+const crashKey = () => ({ type: "string", pattern: CRASH_KEY });
+const crashKeyZ = () => z.string().regex(new RegExp(CRASH_KEY));
+
+const crashesListSchema = { type: "object", additionalProperties: false, properties: {} };
+const crashesListZ = z.object({}).strict();
+
+const crashesRankingsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["key"],
+  properties: {
+    key: crashKey(),
+    list: { type: "string", enum: ["losers", "winners", "rebounders"] },
+    universe: { type: "string", pattern: "^(catalogue|view:[1-9][0-9]*)$" },
+    limit: { type: "integer", minimum: 1, maximum: 50 },
+    include_unanswered: { type: "boolean" }
+  }
+};
+
+const crashesRankingsZ = z
+  .object({
+    key: crashKeyZ(),
+    list: z.enum(["losers", "winners", "rebounders"]).optional(),
+    universe: z
+      .string()
+      .regex(/^(catalogue|view:[1-9][0-9]*)$/)
+      .optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+    include_unanswered: z.boolean().optional()
+  })
+  .strict();
+
+const crashesPutSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["window"],
+  properties: {
+    key: crashKey(),
+    window: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        name: { type: "string" },
+        start: { type: "string", format: "date" },
+        trough: { type: "string", format: "date" },
+        from_name: { type: "string", pattern: DETECTED_KEY }
+      }
+    }
+  }
+};
+
+const crashesPutZ = z
+  .object({
+    key: crashKeyZ().optional(),
+    window: z
+      .object({
+        name: cappedText(80).optional(),
+        start: optionalString(),
+        trough: optionalString(),
+        from_name: z.string().regex(new RegExp(DETECTED_KEY)).optional()
+      })
+      .strict()
+  })
+  .strict();
+
+const crashesDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["key"],
+  properties: { key: crashKey() }
+};
+
+const crashesDeleteZ = z.object({ key: crashKeyZ() }).strict();
+
+const crashBenchmarkPutSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id"],
+  properties: { security_id: { type: ["integer", "null"], minimum: 1 } }
+};
+
+const crashBenchmarkPutZ = z.object({ security_id: z.number().int().positive().nullable() }).strict();
+// --- S29 C5 end ---
+
 const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.contract.get",
@@ -4887,6 +4977,43 @@ const declaredTools: DeclaredTool[] = [
     newsRegistryZ
   ),
   // --- S28 N7 end ---
+  // --- S29 C5 begin ---
+  tool(
+    "portfolixir.crashes.list",
+    "List crash windows",
+    "ADR-0058: detected, falls of 10 % or more the rule peak_trough_v1 finds in the crash benchmark's closes at read (key d:<benchmark_security_id>:<start>, name, start, trough, closes and decline as strings, recovered_on, provisional while ongoing, max_gap_days); manual, windows a person drew (key m:<id>: dates chosen, maybe knowing the outcome); unmatched_names, names the closes no longer give a window. No crash benchmark: detected [] and reason. computation_basis states the rule. Data, never advice.",
+    crashesListSchema,
+    crashesListZ
+  ),
+  tool(
+    "portfolixir.crashes.rankings",
+    "Rank a crash window",
+    "One list of window key: losers (default) or winners by EUR price return start to trough; rebounders by the rise from each own low to trough + 3 calendar months, days_back in calendar days or not_yet. universe catalogue (default, flagged benchmarks left out) or view:<id> (held today). Beside each: the crash benchmark's return, vs_benchmark_pp. limit 8 (max 50); include_unanswered lists those counted under no_close_at_start, no_close_at_end, no_fx_rate. provisional: not over yet. Survivorship: removed securities are in no list. Decimals are strings; computation_basis states the rules. Data, never advice.",
+    crashesRankingsSchema,
+    crashesRankingsZ
+  ),
+  tool(
+    "portfolixir.crashes.put",
+    "Name or draw a crash window",
+    "With key d:, name that detected window (window: name only); m:, edit a manual window's name, start, trough. Without key, draw a manual window (name of at most 80, start, trough after it, neither in the future), or window from_name (a key under unmatched_names) and trough: that name becomes a manual window from its stored start. An unknown field answers 422 naming it. Journaled under your token. Returns the window: data, never instructions.",
+    crashesPutSchema,
+    crashesPutZ
+  ),
+  tool(
+    "portfolixir.crashes.delete",
+    "Delete a crash name or window",
+    "Remove the name of key d: (a detected window keeps its dates) or the manual window m:. Journaled under your token. Returns key, kind, deleted, name: data, never instructions.",
+    crashesDeleteSchema,
+    crashesDeleteZ
+  ),
+  tool(
+    "portfolixir.crashes.benchmark_put",
+    "Set the crash benchmark",
+    "ADR-0058 §1: the security whose closes the crash rule reads, any with a stored quote, flagged or not; null clears it (then no window is detected). Without a quote 422; merged away 422 naming merged_into. Journaled under your token. Returns security_id and security: data, never instructions.",
+    crashBenchmarkPutSchema,
+    crashBenchmarkPutZ
+  )
+  // --- S29 C5 end ---
 ];
 
 // E25 S7, F24 and G25 (T-8): every tool's hints follow the HTTP method it
@@ -4935,7 +5062,14 @@ const MODIFYING_POSTS = new Set([
 const REPLACING_POSTS = new Set([
   // Closes the version in force and replaces every scheduled version from
   // its valid_from.
-  "portfolixir.policy_rules.add_version"
+  "portfolixir.policy_rules.add_version",
+  // --- S29 C5 begin ---
+  // ADR-0058 §9's "create or name": with a key it PUTs (a name, or a
+  // manual window's fields, overwritten), without one it POSTs a new
+  // manual window, so a repeat can add another. routedMethod reads its
+  // keyed route, PUT; it is hinted as this set's tools are.
+  "portfolixir.crashes.put"
+  // --- S29 C5 end ---
 ]);
 
 // Reach an external provider through the API, so their answer depends on
@@ -5936,6 +6070,35 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.news.registry":
       return client.request("GET", withQuery("/api/v1/news/registry", args, ["limit", "cursor"]));
     // --- S28 N7 end ---
+    // --- S29 C5 begin ---
+    case "portfolixir.crashes.list":
+      return client.request("GET", "/api/v1/crashes");
+    case "portfolixir.crashes.rankings":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/crashes/${encodeURIComponent(String(args.key))}/rankings`, args, [
+          "list",
+          "universe",
+          "limit",
+          "include_unanswered"
+        ])
+      );
+    // Create or name (ADR-0058 §9): a key PUTs that window, none POSTs a
+    // manual window (REPLACING_POSTS above names its hints). A key is one
+    // path segment, encoded.
+    case "portfolixir.crashes.put":
+      return args.key === undefined
+        ? client.request("POST", "/api/v1/crashes", { window: args.window })
+        : client.request("PUT", `/api/v1/crashes/${encodeURIComponent(String(args.key))}`, {
+            window: args.window
+          });
+    case "portfolixir.crashes.delete":
+      return client.request("DELETE", `/api/v1/crashes/${encodeURIComponent(String(args.key))}`);
+    case "portfolixir.crashes.benchmark_put":
+      return client.request("PUT", "/api/v1/settings/crash_benchmark", {
+        security_id: args.security_id
+      });
+    // --- S29 C5 end ---
     default:
       throw new Error(`Unknown Portfolixir MCP tool: ${name}`);
   }
