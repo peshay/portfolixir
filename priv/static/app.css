@@ -6659,9 +6659,14 @@ details[open] > .disclosure-summary .disclosure-chevron {
   dominant-baseline: central;
   transform: translate(calc(6px + 4px * var(--chart-upx, 1)), 0);
 }
+/* --- Sprint 29 P2 begin --- */
+/* Idea I33 (board 05): the bands slightly translucent, so the grid shows
+   through; the legend's swatches carry the same 0.8 so they still match.
+   The hover's opacity multiplies with the fill (0.68). */
 .stack-band {
   stroke: var(--color-chart-surface);
   stroke-width: 0.6;
+  fill-opacity: 0.8;
 }
 .stack-band[phx-click] {
   cursor: pointer;
@@ -6673,10 +6678,12 @@ details[open] > .disclosure-summary .disclosure-chevron {
   fill: var(--color-chart-other);
 }
 /* Issue 1426: a band's part below zero, a separate area under the zero line,
-   drawn a little lighter than its part above. */
+   drawn lighter than its part above. Its fill-opacity replaces the base's on
+   the same path, it does not multiply: 0.6 is 0.8 times the earlier 0.75. */
 .stack-band--negative {
-  fill-opacity: 0.75;
+  fill-opacity: 0.6;
 }
+/* --- Sprint 29 P2 end --- */
 .stack-chart .chart-zeroline {
   stroke-opacity: 0.8;
 }
@@ -6732,6 +6739,13 @@ details[open] > .disclosure-summary .disclosure-chevron {
 .stack-swatch--other {
   background: var(--color-chart-other);
 }
+/* --- Sprint 29 P2 begin --- */
+/* The bands' legend only: the TTWROR lines are opaque strokes, so their
+   legend's swatches stay opaque. */
+.stack-legend:not(.lines-legend) .stack-swatch {
+  opacity: 0.8;
+}
+/* --- Sprint 29 P2 end --- */
 /* --- Sprint 28 S4 begin --- */
 /* FR-57 (board 03): the TTWROR series at a level, one line per band in the
    band's colour, the view's or the filter's line bold in the text colour and

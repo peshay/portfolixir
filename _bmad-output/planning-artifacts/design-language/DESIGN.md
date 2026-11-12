@@ -9647,7 +9647,15 @@ and the MCP tools answer, for the section's period and the page's view.
    the zero line (`.chart-zeroline`) is drawn whenever the axis goes below
    zero. No band's edge crosses another's on any day, pinned on the SVG the
    page emits. The legend and the API keep their order; „Sonstige“ stays on
-   top whatever its sign.
+   top whatever its sign. *Amended 2026-11-12 (Sprint 29 P2, idea I33;
+   board `mockups/ux-design-2026-11-12-sprint29/05-translucent-bands`):*
+   **the bands are slightly translucent**: `.stack-band` fills at
+   `fill-opacity: 0.8`, so the grid shows through. The part below zero is
+   set explicitly to `fill-opacity: 0.6`, since its `fill-opacity` replaces
+   the base's on the same path rather than multiplying it (0.75 would leave
+   it nearly as strong as the part above). A clickable band's hover keeps
+   `opacity: 0.85`, which multiplies with the fill and lands at 0.68. The
+   same in both themes and in the privacy mode, which hides no band.
 3. **The legend as a table** (`#stack-legend`), beside the chart from
    900 px of the section's width (a container query), under it below:
    swatch and name, **Value** on the window's last day, **Share**,
@@ -9656,7 +9664,11 @@ and the MCP tools answer, for the section's period and the page's view.
    band first, so „Sonstige“ is its first row. A category's name is the
    drill link, followed by an accent "›". Under 560 px it stays a table
    whose name cell wraps (`display: table; white-space: normal` in the
-   phone block), so the figures stay beside the name (D2).
+   phone block), so the figures stay beside the name (D2). *Amended
+   2026-11-12 (Sprint 29 P2, I33):* its swatches sit at `opacity: 0.8`,
+   the bands' own, so each still matches its band
+   (`.stack-legend:not(.lines-legend) .stack-swatch`); the TTWROR lines'
+   legend keeps its swatches opaque, as its lines are.
 4. **The basis line** *(amended 2026-11-09, Sprint 28 S2; #1366, plan
    amendment D-A4, board 07 ② and ③; I1)*: one line,
    `[data-role=stack-basis-line]` — what the chart shows („Marktwert je
