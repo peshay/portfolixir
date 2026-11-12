@@ -765,9 +765,13 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     `move` oder `drop` mit dem `reason` `collides` — das Ziel hat in dem
     Plan schon eine Zeile — oder `stale` — die Zeile läge nicht mehr unter
     der Kategorie des Ziels);
-  - `events`: die Termine, die wandern, und `possible_duplicates`, ein
+  - `events`: die Termine, die wandern, `possible_duplicates`, ein
     Termin der Quelle und einer des Ziels gleicher Art am selben Tag (beide
-    bleiben);
+    bleiben), und `dropped`, die Halvings der Quelle, die die
+    Zusammenführung löscht, jedes mit seiner `chain_height` und dem `reason`
+    `height_held` (das Ziel hat diese Höhe schon) oder `chain_differs` (das
+    Ziel ist an eine andere Kette oder an keine gebunden); sonst wandert ein
+    Halving (Ergänzung von ADR-0048 vom 2026-11-12);
   - `identifiers`: `choice_required` (beide tragen eine ISIN), dann
     `after_by_identity_choice` mit `keep_target_isin` und
     `adopt_source_isin` — oder `after`, wenn es nichts zu wählen gibt —,
@@ -1246,7 +1250,24 @@ und nichts wird geschrieben. Die `note` eines Termins fasst höchstens 10000
 Zeichen (Unicode-Codepoints); eine längere liefert `422` auf `note`. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
 Ein Termin trägt **kein Geld**.
 
-**Was diese Fläche nicht ist.** Nichts ruft einen Kalender ab — Eintrag von
+**Halvings** (Ergänzung von ADR-0048 vom 2026-11-12, ADR-0059). Die Art
+`halving` ist der Block, bei dem sich die Blockbelohnung einer Kette
+halbiert. Sie braucht ein an eine Kette gebundenes Wertpapier
+(`halving_chain` über `PATCH /api/v1/securities/:id`), sonst `422` mit
+`errors.code` `no_halving_chain`, und eine `chain_height`, die *k* × dem
+Halving-Intervall dieser Kette ist, sonst `422` mit `chain_height`; eine
+`chain_height` bei jeder anderen Art wird abgewiesen, und ein Wertpapier
+hat je Höhe einen Termin. Bei einem an `bitcoin` gebundenen Wertpapier
+schreibt allein der Ketten-Leser Halvings: Anlegen, Ändern oder Löschen
+über die API liefert `422` mit `errors.code` `halving_from_chain` und
+`errors.chain`. Jeder Termin trägt `chain_height`, `null` bei anderen Arten.
+Der Veraltet-Read lässt bestätigte Halvings aus. Eine gelöste oder
+geänderte Bindung löscht die Halving-Termine des Wertpapiers im selben
+Schreibzugriff, je einer journalisiert, und der `PATCH` liefert
+`halving_events_deleted` neben `data`, sobald er `halving_chain` sendet.
+
+**Was diese Fläche nicht ist.** Nichts ruft einen Kalender ab außer dem
+Ketten-Leser, nur für Halvings (ADR-0059) — Eintrag jeder anderen Art von
 Hand oder durch den Agenten. Der Fälligkeits-Read wird **abgefragt**: es gibt
 keine Benachrichtigung und keine Zustellung nach außen, und keine Regel liest
 diese Zeilen.

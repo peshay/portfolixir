@@ -15,6 +15,7 @@ defmodule Portfolixir.SeededUpgrade.HalvingTest do
   # The migration before the binding, and the binding itself.
   @before_binding 20_261_112_153_000
   @binding 20_261_112_200_000
+  @halving_kind 20_261_112_200_100
 
   # User story (ADR-0059 §4):
   # As the operator upgrading an instance that holds securities,
@@ -77,5 +78,82 @@ defmodule Portfolixir.SeededUpgrade.HalvingTest do
 
       id
     end
+  end
+
+  # User story (ADR-0048's amendment of 2026-11-12, items 1 and 2):
+  # As the operator upgrading an instance whose calendar holds events,
+  # I want the kind halving and its height added without touching them,
+  # so that every stored event keeps its kind and a null height, and a
+  # halving can only ever be stored with one height per security.
+  #
+  # Acceptance criteria:
+  # - Seeded with an earnings and a guidance event, the database migrates
+  #   through the halving kind; both keep their kind and read chain_height
+  #   null.
+  # - After the upgrade a halving at 840000 is stored; a second at the same
+  #   height on the same security, a halving without a height and an
+  #   earnings event with one are refused by the database.
+  @tag seeded_upgrade: 20_261_112_200_100
+  test "the halving kind keeps every stored event and holds one row per height",
+       %{seeded_upgrade: migration} do
+    upgrade = SeededUpgrade.upgrade!(from: @binding, to: @halving_kind, seed: &seed_events/1)
+
+    assert upgrade.migrated == [migration]
+    security = upgrade.seeded
+
+    assert %{rows: [["earnings", nil], ["guidance_update", nil]]} =
+             SeededUpgrade.query!(
+               upgrade,
+               "SELECT kind, chain_height FROM security_events ORDER BY kind"
+             )
+
+    SeededUpgrade.journaled!(upgrade, fn ->
+      insert_event!(upgrade, security, "halving", 840_000)
+    end)
+
+    for {kind, height, constraint} <- [
+          {"halving", 840_000, "security_events_security_id_chain_height_index"},
+          {"halving", nil, "security_events_chain_height_check"},
+          {"earnings", 840_000, "security_events_chain_height_check"}
+        ] do
+      error =
+        assert_raise Postgrex.Error, fn ->
+          SeededUpgrade.journaled!(upgrade, fn ->
+            insert_event!(upgrade, security, kind, height)
+          end)
+        end
+
+      assert %{postgres: %{constraint: ^constraint}} = error
+    end
+  end
+
+  defp seed_events(db) do
+    [security] = seed_securities(db) |> Enum.take(1)
+
+    for kind <- ["earnings", "guidance_update"] do
+      SeededUpgrade.query!(
+        db,
+        """
+        INSERT INTO security_events
+          (security_id, kind, date, timing, source_quality, inserted_at, updated_at)
+        VALUES ($1, $2, '2026-10-01', 'exact', 'primary', LOCALTIMESTAMP(0), LOCALTIMESTAMP(0))
+        """,
+        [security, kind]
+      )
+    end
+
+    security
+  end
+
+  defp insert_event!(db, security, kind, height) do
+    SeededUpgrade.query!(
+      db,
+      """
+      INSERT INTO security_events
+        (security_id, kind, chain_height, date, timing, source_quality, inserted_at, updated_at)
+      VALUES ($1, $2, $3, '2019-08-05', 'exact', 'primary', LOCALTIMESTAMP(0), LOCALTIMESTAMP(0))
+      """,
+      [security, kind, height]
+    )
   end
 end

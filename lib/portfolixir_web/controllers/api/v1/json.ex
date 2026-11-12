@@ -2907,6 +2907,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       days_since_checked: event.days_since_checked,
       note: event.note,
       machine_generated: event.machine_generated,
+      # ADR-0048's amendment of 2026-11-12: a halving's block height, null on
+      # every other kind.
+      chain_height: event.chain_height,
       inserted_at: timestamp(event.inserted_at),
       updated_at: timestamp(event.updated_at)
     }

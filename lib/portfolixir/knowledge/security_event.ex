@@ -33,6 +33,13 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
   read.
 
   No `Decimal` anywhere: an event carries no money (§6).
+
+  **`halving`** (ADR-0048's amendment of 2026-11-12, ADR-0059): the block at
+  which a chain's subsidy halves, on a security bound to that chain through
+  its `halving_chain`. It carries `chain_height`, required for this kind and
+  refused for every other; that the height is *k* × the chain's interval is
+  checked by `Portfolixir.Knowledge.Events`, which reads the binding. Per
+  security and height there is one row (a unique index).
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -42,7 +49,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
   alias Portfolixir.Input.Text
 
   @kinds ~w(earnings ex_dividend dividend_payment lockup_expiry index_review
-            shareholder_meeting regulatory_decision guidance_update)a
+            shareholder_meeting regulatory_decision guidance_update halving)a
   @timings ~w(exact estimated window month)a
   @source_qualities ~w(primary secondary_multi awareness unverified)a
 
@@ -59,6 +66,9 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     field(:checked_at, :date)
     field(:note, :string)
     field(:machine_generated, :boolean, default: false)
+    # ADR-0048's amendment, item 2: the halving's block height, its identity
+    # (the estimated halving's date moves daily, its height does not).
+    field(:chain_height, :integer)
 
     # Read-side annotation of the staleness read (§5.4); virtual, so it never
     # reaches the DB or the journal snapshot.
@@ -102,7 +112,11 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
   # 2,048 characters (ADR-0056 E2).
   @max_source_url 2048
 
-  @castable ~w(security_id date date_end confirmed source_url checked_at note machine_generated)a
+  @castable ~w(security_id date date_end confirmed source_url checked_at note machine_generated
+              chain_height)a
+
+  # The column is a bigint; a height past it is a field error, not a 500.
+  @max_chain_height 9_223_372_036_854_775_807
 
   @closed_sets [kind: @kinds, timing: @timings, source_quality: @source_qualities]
 
@@ -142,6 +156,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> Text.validate(:source_url, max: @max_source_url)
     |> Text.validate(:note, multiline: true, max: Text.free_text_max())
     |> validate_window()
+    |> validate_chain_height()
     |> validate_machine_generated_source()
     |> foreign_key_constraint(:security_id)
     |> check_constraint(:kind, name: :security_events_kind_check)
@@ -150,6 +165,29 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> check_constraint(:date_end, name: :security_events_window_end_check)
     |> check_constraint(:source_url, name: :security_events_machine_generated_source_check)
     |> check_constraint(:note, name: :security_events_note_length_check)
+    |> check_constraint(:chain_height, name: :security_events_chain_height_check)
+    |> unique_constraint(:chain_height, name: :security_events_security_id_chain_height_index)
+  end
+
+  # ADR-0048's amendment, item 2: a halving carries its height, no other kind
+  # does. Its multiple of the chain's interval is the context's check.
+  defp validate_chain_height(changeset) do
+    halving? = get_field(changeset, :kind) == :halving
+    height = get_field(changeset, :chain_height)
+
+    cond do
+      halving? and is_nil(height) ->
+        add_error(changeset, :chain_height, "is required for a halving event")
+
+      not halving? and not is_nil(height) ->
+        add_error(changeset, :chain_height, "is only recorded on a halving event")
+
+      true ->
+        validate_number(changeset, :chain_height,
+          greater_than: 0,
+          less_than_or_equal_to: @max_chain_height
+        )
+    end
   end
 
   defp validate_checked_by(changeset, today) do

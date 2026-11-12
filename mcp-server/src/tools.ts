@@ -967,7 +967,11 @@ const securityUpdateSchema = {
         ...bondProperties(true),
         ...newsIdentityProperties,
         // --- S29 H1 begin ---
-        halving_chain: { type: ["string", "null"], enum: [...HALVING_CHAINS, null] }
+        halving_chain: {
+          type: ["string", "null"],
+          enum: [...HALVING_CHAINS, null],
+          description: "ADR-0059. A change deletes its halving events: halving_events_deleted."
+        }
         // --- S29 H1 end ---
       }
     }
@@ -2594,7 +2598,10 @@ const EVENT_KINDS = [
   "index_review",
   "shareholder_meeting",
   "regulatory_decision",
-  "guidance_update"
+  "guidance_update",
+  // --- S29 H1 begin ---
+  "halving"
+  // --- S29 H1 end ---
 ] as const;
 
 const EVENT_TIMINGS = ["exact", "estimated", "window", "month"] as const;
@@ -2617,7 +2624,10 @@ const eventBodySchema = {
         "The day the fact was last re-read; no later than tomorrow (the instance's calendar day plus one day of zone slack), else 422."
       )
     },
-    note: { type: "string", maxLength: FREE_TEXT_MAX, description: capNote(FREE_TEXT_MAX) }
+    note: { type: "string", maxLength: FREE_TEXT_MAX, description: capNote(FREE_TEXT_MAX) },
+    // --- S29 H1 begin ---
+    chain_height: { type: "integer", minimum: 1 }
+    // --- S29 H1 end ---
   }
 } as const;
 
@@ -2630,7 +2640,10 @@ const eventBodyZ = z.object({
   source_url: z.string().optional(),
   source_quality: z.enum(EVENT_SOURCE_QUALITIES).optional(),
   checked_at: z.string().optional(),
-  note: cappedText(FREE_TEXT_MAX).optional()
+  note: cappedText(FREE_TEXT_MAX).optional(),
+  // --- S29 H1 begin ---
+  chain_height: z.number().int().positive().optional()
+  // --- S29 H1 end ---
 });
 
 const eventsListSchema = {
@@ -3809,7 +3822,7 @@ const declaredTools: DeclaredTool[] = [
       "target's wins; manual_collisions, typed by hand, with both closes); " +
       "configuration (category_assignments and position_targets, each to move, or drop with " +
       "reason collides or stale); events (moved; possible_duplicates, same kind and " +
-      "day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
+      "day; dropped, a halving the target holds or of another chain); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
       "adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset " +
       "class and former ISINs; adopted, what the target takes from the source; differences, every source value " +
       "that follows the target instead (a WKN or ticker the catalog refuses, and provider_currency if it " +
@@ -3892,28 +3905,28 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.list",
     "Calendar of one security",
-    "One security's events (ADR-0048), soonest first. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
+    "One security's events (ADR-0048), soonest first. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is paid, book it through the ledger and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (the research log's scale), chain_height (a halving's block), checked_at (the day the fact was last re-read against its source) and note. limit and truncated are echoed. Optional since (ISO8601 UTC) is a delta read: events changed strictly after it, oldest change first (a rescheduled date returns as its changed row), with as_of (this read's next since; on has_more=true a cursor at the page's last row, or, with no ~id, poll later: a write is in flight) and a delta_note; with since, page by as_of, never offset. A later read may re-deliver a row, never skip one. Deletions are NOT represented; a full read shows them. The due, stale and unconfirmed queues take no since: time, not a row, changes them." + REIMPORT_GUARANTEE,
     eventsListSchema,
     eventsListZ
   ),
   tool(
     "portfolixir.events.create",
     "Record a calendar date for a security",
-    "Record one dated calendar fact against a security (ADR-0048). timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at: the day you last re-read its source (portfolixir.events.stale lists the unread). ANY catalog security, held or not: a candidate's date is worth recording. The write is journaled under the API token.",
+    "Record one dated calendar fact against a security (ADR-0048). timing SAYS HOW WELL YOU KNOW THE DATE: exact = a source sets it, estimated = expected, not announced, window = between date and date_end inclusive (date_end required, and allowed ONLY here), month = the month is known, the day not. source_quality is SET, not guessed. checked_at: the day you last re-read its source (portfolixir.events.stale lists the unread). ANY catalog security, held or not. halving: bind halving_chain first (else 422 no_halving_chain), chain_height k × its interval; on bitcoin the chain alone writes it (422 halving_from_chain). The write is journaled under the API token.",
     eventCreateSchema,
     eventCreateZ
   ),
   tool(
     "portfolixir.events.update",
     "Correct or confirm a calendar date",
-    "Update one event in place (ADR-0048 §4). An event is MUTABLE, unlike a research-log entry: a rescheduled date makes the old one wrong, not a second fact, and two rows for one date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The journal keeps the history. The security an event belongs to cannot be changed.",
+    "Update one event in place (ADR-0048 §4): a rescheduled date makes the old one wrong, not a second fact, so correct the row rather than adding another, set confirmed=true once it happened, and bump checked_at when you re-read the source. The journal keeps the history. Its security cannot be changed.",
     eventUpdateSchema,
     eventUpdateZ
   ),
   tool(
     "portfolixir.events.delete",
     "Remove a calendar date",
-    "Delete one event (ADR-0048 §4) — for a duplicate or a date that turned out never to have existed. Journaled with the row recorded, so the deletion is auditable. To record that a date passed, mark it confirmed instead.",
+    "Delete one event (ADR-0048 §4), a duplicate or a date that never existed; journaled with the row. To record that a date passed, mark it confirmed instead.",
     eventDeleteSchema,
     eventDeleteZ
   ),
@@ -3934,7 +3947,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.stale",
     "Dates nobody has re-read in N days",
-    "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit, echoed with truncated." + REIMPORT_GUARANTEE,
+    "Events whose checked_at is older than days (default 90) — or never checked, listed with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). A confirmed halving is never listed. Optional security_id, kind, held_only and limit, echoed with truncated." + REIMPORT_GUARANTEE,
     eventsStaleSchema,
     eventsStaleZ
   ),

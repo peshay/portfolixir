@@ -14,8 +14,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
       defaults to the holdings cannot hold a date for a security not yet
       owned — which is the failure this object exists to prevent.
     * **This is a pull surface.** The due-date read is polled; nothing is
-      pushed anywhere (B3.7), nothing fetches a calendar (B3.3) and no rule
-      reads these rows (FR-43, B3.6).
+      pushed anywhere (B3.7), nothing fetches a calendar but ADR-0059's
+      chain reader, for `halving` events only (B3.3), and no rule reads
+      these rows (FR-43, B3.6).
 
   Mirrored by the `portfolixir.events.*` MCP tools (API/MCP parity,
   FR-16/AR-11).
@@ -107,7 +108,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
           conn |> put_status(:created) |> json(%{data: JSON.security_event(event)})
         else
           {:refused, errors} -> unprocessable(conn, errors)
-          {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+          {:error, reason} -> refused(conn, reason)
         end
 
       nil ->
@@ -128,7 +129,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
         # The row went away between the read and the write — the two-writer
         # model of §4 makes that reachable, and "it is gone" is a 404.
         {:error, :stale} -> not_found(conn)
-        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+        {:error, reason} -> refused(conn, reason)
       end
     else
       :error -> not_found(conn)
@@ -143,7 +144,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
       send_resp(conn, :no_content, "")
     else
       {:error, :stale} -> not_found(conn)
-      {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+      {:error, reason} -> refused(conn, reason)
       :error -> not_found(conn)
       nil -> not_found(conn)
     end
@@ -377,6 +378,31 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
         end
     end
   end
+
+  # ADR-0048's amendment of 2026-11-12, items 3 and 4: a halving refused for
+  # its binding answers a code an agent can act on, beside the field.
+  defp refused(conn, :no_halving_chain) do
+    unprocessable(conn, %{
+      code: "no_halving_chain",
+      kind: [
+        "halving needs a security bound to a halving chain: set halving_chain on " <>
+          "PATCH /api/v1/securities/:id first"
+      ]
+    })
+  end
+
+  defp refused(conn, {:halving_from_chain, chain}) do
+    chain = Atom.to_string(chain)
+
+    unprocessable(conn, %{
+      code: "halving_from_chain",
+      chain: chain,
+      kind: ["halving on a security bound to #{chain} is written by the chain reader alone"]
+    })
+  end
+
+  defp refused(conn, %Ecto.Changeset{} = changeset),
+    do: unprocessable(conn, JSON.errors(changeset))
 
   defp unprocessable(conn, errors) do
     conn

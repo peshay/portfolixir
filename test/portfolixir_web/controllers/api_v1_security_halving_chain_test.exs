@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ApiV1SecurityHalvingChainTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Lifecycle
 
   setup %{conn: conn} do
@@ -94,5 +95,150 @@ defmodule PortfolixirWeb.ApiV1SecurityHalvingChainTest do
              |> json_response(404)
 
     assert target_id == target.id
+  end
+
+  defp post_event(conn, security_id, event),
+    do: post(conn, "/api/v1/securities/#{security_id}/events", Jason.encode!(%{"event" => event}))
+
+  defp halving(height, extra \\ %{}) do
+    Map.merge(
+      %{
+        "kind" => "halving",
+        "chain_height" => height,
+        "date" => "2019-08-05",
+        "timing" => "exact",
+        "confirmed" => true,
+        "source_quality" => "primary"
+      },
+      extra
+    )
+  end
+
+  # User story (ADR-0048's amendment of 2026-11-12, items 1 to 4):
+  # As the agent recording a halving through the API,
+  # I want a halving refused with a code that names why when the security
+  # is unbound or bound to a chain the app reads itself, and stored with its
+  # chain_height otherwise,
+  # so that I know whether to bind first or to leave it to the chain.
+  #
+  # Acceptance criteria:
+  # - On an unbound security: 422 errors.code "no_halving_chain".
+  # - On a litecoin-bound security: 201 with kind "halving" and chain_height
+  #   840000; a height that is no halving of litecoin is 422 naming
+  #   chain_height.
+  # - On a bitcoin-bound security: create, update and delete of a halving
+  #   answer 422 errors.code "halving_from_chain" with errors.chain
+  #   "bitcoin", and the stored row is unchanged.
+  test "a halving over the events routes: no chain, a hand-written chain, the chain's own",
+       %{conn: conn} do
+    unbound = security!("Coin Unbound H1")
+
+    assert %{"errors" => %{"code" => "no_halving_chain", "kind" => [_]}} =
+             conn |> post_event(unbound.id, halving(840_000)) |> json_response(422)
+
+    litecoin = security!("Coin Litecoin H1")
+
+    {:ok, litecoin} =
+      Catalog.update_security(Actor.owner_ui(), litecoin, %{halving_chain: :litecoin})
+
+    assert %{"data" => %{"kind" => "halving", "chain_height" => 840_000}} =
+             conn |> post_event(litecoin.id, halving(840_000)) |> json_response(201)
+
+    assert %{"errors" => %{"chain_height" => [message]}} =
+             conn |> post_event(litecoin.id, halving(420_000)) |> json_response(422)
+
+    assert message =~ "litecoin"
+
+    bitcoin = security!("Coin Bitcoin H1")
+
+    {:ok, bitcoin} =
+      Catalog.update_security(Actor.owner_ui(), bitcoin, %{halving_chain: :bitcoin})
+
+    assert %{"errors" => %{"code" => "halving_from_chain", "chain" => "bitcoin"}} =
+             conn |> post_event(bitcoin.id, halving(840_000)) |> json_response(422)
+
+    {:ok, event} =
+      Events.put_chain_halving(Actor.system_job("chain_read"), bitcoin.id, :bitcoin, 840_000, %{
+        date: ~D[2024-04-20],
+        timing: :exact,
+        confirmed: true,
+        source_quality: :primary
+      })
+
+    body = Jason.encode!(%{"event" => %{"note" => "by hand"}})
+
+    assert %{"errors" => %{"code" => "halving_from_chain", "chain" => "bitcoin"}} =
+             conn |> patch("/api/v1/security_events/#{event.id}", body) |> json_response(422)
+
+    assert %{"errors" => %{"code" => "halving_from_chain", "chain" => "bitcoin"}} =
+             conn |> delete("/api/v1/security_events/#{event.id}") |> json_response(422)
+
+    assert Events.get_event(event.id) == event
+  end
+
+  # User story (ADR-0059 §4):
+  # As the agent that rebinds a coin to another chain,
+  # I want the answer to count the halving events the rebinding deleted,
+  # so that I know what my write removed without a second read.
+  #
+  # Acceptance criteria:
+  # - A PATCH that sends halving_chain answers halving_events_deleted beside
+  #   data: 0 when the chain stays, the number deleted when it changes.
+  # - A PATCH without halving_chain carries no such key.
+  test "a rebinding counts the halving events it deleted", %{conn: conn} do
+    security = security!("Coin Rebound H1")
+
+    {:ok, security} =
+      Catalog.update_security(Actor.owner_ui(), security, %{halving_chain: :litecoin})
+
+    for height <- [840_000, 1_680_000] do
+      conn |> post_event(security.id, halving(height)) |> json_response(201)
+    end
+
+    assert %{"halving_events_deleted" => 0, "data" => %{"halving_chain" => "litecoin"}} =
+             conn
+             |> patch_security(security.id, %{"halving_chain" => "litecoin"})
+             |> json_response(200)
+
+    assert %{"halving_events_deleted" => 2, "data" => %{"halving_chain" => "bitcoin_cash"}} =
+             conn
+             |> patch_security(security.id, %{"halving_chain" => "bitcoin_cash"})
+             |> json_response(200)
+
+    refute Map.has_key?(
+             conn |> patch_security(security.id, %{"note" => "Synthetic."}) |> json_response(200),
+             "halving_events_deleted"
+           )
+  end
+
+  # User story (ADR-0048's amendment, item 8):
+  # As the agent previewing a merge of two listings of one coin,
+  # I want the halvings the merge would drop listed with their height and
+  # reason,
+  # so that I see what goes before I apply it.
+  #
+  # Acceptance criteria:
+  # - The merge preview's events carry dropped, each with id, kind, date,
+  #   chain_height and reason ("height_held" or "chain_differs").
+  test "the merge preview lists the halvings it drops", %{conn: conn} do
+    source = security!("Coin Twin Drop H1")
+    target = security!("Coin Twin Drop H1")
+
+    for security <- [source, target] do
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), security, %{halving_chain: :litecoin})
+      conn |> post_event(security.id, halving(840_000)) |> json_response(201)
+    end
+
+    assert %{"data" => %{"events" => %{"moved" => [], "dropped" => [dropped]}}} =
+             conn
+             |> get("/api/v1/securities/#{source.id}/merge_preview?target_id=#{target.id}")
+             |> json_response(200)
+
+    assert %{
+             "kind" => "halving",
+             "date" => "2019-08-05",
+             "chain_height" => 840_000,
+             "reason" => "height_held"
+           } = dropped
   end
 end

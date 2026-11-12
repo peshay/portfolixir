@@ -253,6 +253,17 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
         possible_duplicates:
           Enum.map(preview.events.possible_duplicates, fn pair ->
             %{pair | kind: Atom.to_string(pair.kind), date: JSON.date(pair.date)}
+          end),
+        # ADR-0048's amendment of 2026-11-12, item 8: the source's halvings
+        # the merge drops, reason height_held or chain_differs.
+        dropped:
+          Enum.map(preview.events.dropped, fn event ->
+            %{
+              event
+              | kind: Atom.to_string(event.kind),
+                date: JSON.date(event.date),
+                reason: Atom.to_string(event.reason)
+            }
           end)
       },
       identifiers: identifiers(preview.identifiers),
