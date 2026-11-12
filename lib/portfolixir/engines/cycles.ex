@@ -98,6 +98,8 @@ defmodule Portfolixir.Engines.Cycles do
   alias Portfolixir.Engines.Statistics
 
   @partial_days 7
+  # ADR-0060 §11: the close a window is indexed to is at most this many days old.
+  @halving_close_days 7
   @anchor_threshold Decimal.new("0.20")
   @anchor_ratio Decimal.sub(Decimal.new(1), @anchor_threshold)
   @zero Decimal.new(0)
@@ -447,6 +449,61 @@ defmodule Portfolixir.Engines.Cycles do
       cycles_partial: Enum.count(windows, &(&1.kind == :partial)),
       cycle_open: Enum.any?(windows, &(&1.kind == :open))
     }
+  end
+
+  # ------------------------------------------------------------------ aligned
+  # Sprint 29 H6: ADR-0060 §11, `include=aligned`.
+
+  @doc """
+  The windows laid over each other from their halving (ADR-0060 §11,
+  `include=aligned`): per window of `windows` (`compute/2`'s), in their
+  order, its `start` and `start_height`, the `base` close — the last close of
+  `series` on or before the halving date, at most #{@halving_close_days} days
+  old — and every close inside the window as its `date`, the calendar `days`
+  since the halving and its `index`, close / base at scale 6. A window
+  without a base is left out: `base: nil`, `points: []`, `reason:
+  :no_halving_close`. Positive closes only, as in `compute/2`.
+  """
+  @spec aligned([close()], [map()]) :: [map()]
+  def aligned(series, windows) when is_list(series) and is_list(windows) do
+    closes =
+      series
+      |> Enum.filter(&(Decimal.compare(&1.close, @zero) == :gt))
+      |> Enum.sort_by(& &1.date, Date)
+
+    Enum.map(windows, fn window ->
+      head = %{start: window.start, start_height: window.start_height}
+
+      case halving_close(closes, window.start) do
+        nil ->
+          Map.merge(head, %{base: nil, points: [], reason: :no_halving_close})
+
+        base ->
+          points =
+            for point <- closes, inside?(point.date, window.start, window.end) do
+              %{
+                date: point.date,
+                days: Date.diff(point.date, window.start),
+                index: point.close |> Decimal.div(base.close) |> Statistics.round_scale()
+              }
+            end
+
+          Map.merge(head, %{base: base, points: points, reason: nil})
+      end
+    end)
+  end
+
+  @doc "How old the close a window is indexed to may be, in days (ADR-0060 §11)."
+  @spec halving_close_days() :: pos_integer()
+  def halving_close_days, do: @halving_close_days
+
+  defp halving_close(closes, halving) do
+    closes
+    |> Enum.filter(
+      &(Date.compare(&1.date, halving) != :gt and
+          Date.diff(halving, &1.date) <= @halving_close_days)
+    )
+    |> List.last()
   end
 
   # --------------------------------------------------------------- projection

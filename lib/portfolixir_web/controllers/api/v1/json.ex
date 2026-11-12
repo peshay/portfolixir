@@ -2996,6 +2996,40 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp close_point(nil), do: nil
   defp close_point(%{date: date, close: close}), do: %{date: date(date), close: decimal(close)}
 
+  # --- S29 H6 begin ---
+  @doc """
+  The halving cycles read (FR-58, ADR-0060 §11) as the API answers it: the
+  context's payload (`Portfolixir.Catalog.SecurityCycles.for_security/2`)
+  with every Decimal a string, every date and time ISO 8601 and every enum
+  its name (`plain/1`). The keys are the context's, so the read and the
+  payload a test recomputes are one shape; the verdict walk
+  (`metrics_carry_no_verdict_test.exs`) reads this rendering.
+  """
+  def security_cycles(payload), do: plain(payload)
+
+  @doc "One chain's entry of `Portfolixir.Chains` (ADR-0059 §8, §11), rendered by `plain/1`."
+  def chain(entry), do: plain(entry)
+
+  @doc """
+  A payload made of maps, lists and scalars, rendered for the API: a Decimal
+  as `decimal/1` spells it, a `Date`, `DateTime` or `NaiveDateTime` ISO
+  8601, an atom other than `nil`, `true` and `false` its name; keys stay as
+  they are.
+  """
+  def plain(%Decimal{} = value), do: decimal(value)
+  def plain(%Date{} = value), do: date(value)
+  def plain(%DateTime{} = value), do: datetime(value)
+  def plain(%NaiveDateTime{} = value), do: timestamp(value)
+  def plain(value) when is_boolean(value) or is_nil(value), do: value
+  def plain(value) when is_atom(value), do: Atom.to_string(value)
+  def plain(value) when is_list(value), do: Enum.map(value, &plain/1)
+
+  def plain(%{} = value) when not is_struct(value),
+    do: Map.new(value, fn {key, inner} -> {key, plain(inner)} end)
+
+  def plain(value) when is_binary(value) or is_number(value), do: value
+  # --- S29 H6 end ---
+
   def decimal(nil), do: nil
 
   def decimal(%Decimal{} = decimal) do

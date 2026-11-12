@@ -424,4 +424,160 @@ defmodule Portfolixir.Catalog.SecurityCyclesTest do
   end
 
   # --- Sprint 29 H5 end ---
+
+  # --- Sprint 29 H6 begin ---
+  defp aligned_points(window), do: Enum.map(window.points, &{&1.date, &1.days, dec(&1.index)})
+  defp dec(decimal), do: Decimal.to_string(decimal, :normal)
+
+  # User story (ADR-0060 §11; plan row H6):
+  # As the operator's agent comparing the current cycle with the past ones,
+  # I want, on request, each window's closes indexed to its halving day's
+  # close with the days since the halving,
+  # so that the windows can be laid over each other from their halving
+  # without my recomputing them, and the default answer stays small.
+  #
+  # Acceptance criteria:
+  # - Without `include` the payload has no `aligned` key and its basis no
+  #   `aligned` rule.
+  # - `include: "aligned"` (or `%{"include" => "aligned"}`, or `:aligned`)
+  #   adds per window, in the cycles' order, its start and start height, the
+  #   base close (the last close on or before the halving date, at most 7
+  #   days old), and every close inside the window as its date, the calendar
+  #   days since the halving and close / base at scale 6.
+  # - A window without such a close is left out: no base, no points,
+  #   `reason: :no_halving_close`; a close after the halving day or 8 days
+  #   before it is no base.
+  # - Over the split-adjusted Synthetic Coin the second window's base is
+  #   2021-01-10's 80 (160 / 2) and its 2021-07-01 close of 450 is 5.625.
+  # - The basis states the rule; the window kinds and the rest are as before.
+  test "include=aligned indexes each window's closes to its halving day's close" do
+    security = synthetic_coin!()
+
+    assert {:ok, plain} = SecurityCycles.for_security(security.id)
+    refute Map.has_key?(plain, :aligned)
+    refute Map.has_key?(plain.computation_basis, :aligned)
+
+    assert {:ok, payload} = SecurityCycles.for_security(security.id, %{"include" => "aligned"})
+    assert {:ok, ^payload} = SecurityCycles.for_security(security.id, include: :aligned)
+
+    assert Map.delete(payload, :aligned)
+           |> Map.update!(:computation_basis, &Map.delete(&1, :aligned)) == plain
+
+    assert Enum.map(payload.aligned, &{&1.start, &1.start_height, &1.reason}) == [
+             {~D[2020-01-10], 840_000, nil},
+             {~D[2021-01-10], 1_680_000, nil},
+             {~D[2022-01-10], 2_520_000, nil}
+           ]
+
+    [first, second, open] = payload.aligned
+    assert {first.base.date, dec(first.base.close)} == {~D[2020-01-10], "50.000000"}
+
+    # py: adjusted closes 50, 200, 50, 75 over 50; days from 2020-01-10.
+    assert aligned_points(first) == [
+             {~D[2020-01-10], 0, "1.000000"},
+             {~D[2020-04-01], 82, "4.000000"},
+             {~D[2020-07-01], 173, "1.000000"},
+             {~D[2020-10-01], 265, "1.500000"}
+           ]
+
+    # py: base 160 / 2 = 80; 600 / 2 = 300 → 3.75; 450 / 80 = 5.625.
+    assert {second.base.date, dec(second.base.close)} == {~D[2021-01-10], "80.000000"}
+    assert Enum.at(aligned_points(second), 1) == {~D[2021-03-01], 50, "3.750000"}
+    assert Enum.at(aligned_points(second), 4) == {~D[2021-07-01], 172, "5.625000"}
+    assert length(second.points) == 7
+
+    # py: 900 / 310 = 2.903225806… → 2.903226.
+    assert Enum.at(aligned_points(open), 1) == {~D[2022-06-01], 142, "2.903226"}
+
+    basis = payload.computation_basis.aligned
+    assert basis =~ "at most 7 days"
+    assert basis =~ "no_halving_close"
+    assert basis =~ "scale 6"
+  end
+
+  test "a window without a close at most 7 days before its halving is left out" do
+    coin = bound_security!("Gappy Coin")
+    halving!(coin, 1, ~D[2020-01-10])
+    halving!(coin, 2, ~D[2021-01-10])
+    halving!(coin, 3, ~D[2022-01-10])
+
+    closes!(coin, [
+      {~D[2020-01-20], "10"},
+      {~D[2020-06-01], "20"},
+      {~D[2021-01-03], "30"},
+      {~D[2021-06-01], "60"},
+      {~D[2022-01-02], "40"},
+      {~D[2022-03-01], "80"}
+    ])
+
+    assert {:ok, %{aligned: [first, second, third]}} =
+             SecurityCycles.for_security(coin.id, %{"include" => "aligned"})
+
+    assert {first.reason, first.base, first.points} == {:no_halving_close, nil, []}
+    # py: 60 / 30 = 2, 40 / 30 = 1.333333…; 142 and 357 days after 2021-01-10.
+    assert {second.reason, second.base.date} == {nil, ~D[2021-01-03]}
+
+    assert aligned_points(second) == [
+             {~D[2021-06-01], 142, "2.000000"},
+             {~D[2022-01-02], 357, "1.333333"}
+           ]
+
+    assert {third.reason, third.points} == {:no_halving_close, []}
+  end
+
+  # User story (ADR-0060 §11; plan row H6): the API's include parameter.
+  #
+  # Acceptance criteria:
+  # - `include` takes `aligned` only; any other value, a list or a map is
+  #   refused naming include, and `as_of` beside it is still refused.
+  test "include takes aligned only" do
+    security = synthetic_coin!()
+
+    for value <- ["bands", "", ["aligned"], %{"a" => "aligned"}] do
+      assert {:error, {:invalid_params, %{"include" => [message]}}} =
+               SecurityCycles.for_security(security.id, %{"include" => value})
+
+      assert message =~ "aligned"
+    end
+
+    assert {:error, {:invalid_params, errors}} =
+             SecurityCycles.for_security(security.id, %{"include" => "aligned", "as_of" => "x"})
+
+    assert Map.keys(errors) == ["as_of"]
+  end
+
+  # User story (ADR-0059 §8; ADR-0060 §11; plan row H6):
+  # As the operator's agent reading a bound security's cycles,
+  # I want the chain source's health beside the halvings,
+  # so that I can tell a quiet chain from a dead source before I trust the
+  # next halving.
+  #
+  # Acceptance criteria:
+  # - Unbound: `chain_source` is nil. Bound to a chain without a source:
+  #   `%{chain, has_source: false}`. Bound to Bitcoin: the health as the
+  #   chains read states it, with chain and has_source.
+  test "chain_source carries the chain's health" do
+    assert {:ok, %{chain_source: %{chain: "litecoin", has_source: false}}} =
+             SecurityCycles.for_security(bound_security!("Lite Source Coin").id)
+
+    unbound = create_security!(name: "No Source Coin", ticker: nil, asset_class: "crypto")
+    assert {:ok, %{chain_source: nil}} = SecurityCycles.for_security(unbound.id)
+
+    btc = create_security!(name: "Bit Source Coin", ticker: nil, asset_class: "crypto")
+    {:ok, btc} = Catalog.update_security(agent(), btc, %{halving_chain: :bitcoin})
+
+    assert {:ok, %{chain_source: source}} = SecurityCycles.for_security(btc.id)
+
+    assert source == %{
+             chain: "bitcoin",
+             has_source: true,
+             source_host: nil,
+             last_tried_at: nil,
+             last_ok_at: nil,
+             last_error: nil,
+             stale: false
+           }
+  end
+
+  # --- Sprint 29 H6 end ---
 end

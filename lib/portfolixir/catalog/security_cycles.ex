@@ -37,6 +37,7 @@ defmodule Portfolixir.Catalog.SecurityCycles do
 
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Chains
   alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Engines.Cycles
@@ -51,6 +52,9 @@ defmodule Portfolixir.Catalog.SecurityCycles do
                    "from that cycle's data, is a replay of the band rule: level (d) of the " <>
                    "scope ladder (ADR-0060 §8)"
 
+  @include_refusal "is invalid: include takes aligned only, the windows' closes indexed to " <>
+                     "their halving day's close (ADR-0060 §11)"
+
   @doc """
   `{:ok, payload}` for one security, `{:error, :not_found}`, or
   `{:error, {:invalid_params, errors}}`.
@@ -60,57 +64,71 @@ defmodule Portfolixir.Catalog.SecurityCycles do
   (the security is bound to no chain), `:too_few_halvings` (fewer than two
   confirmed halvings), `:no_closes` (no close inside any window).
 
-  **The read takes no parameter** (ADR-0060 §8, §13 items 5 and 12): no
-  constant can be tuned by a caller, and above all no `as_of`, because a
-  past cycle's band computed from that cycle's data is a replay of the band
-  rule, level (d). Any parameter — a query-parameter map or a keyword list —
-  is refused before the lookup with `{:error, {:invalid_params, errors}}`,
+  **The read takes one parameter, `include`** (ADR-0060 §8, §11, §13
+  items 5 and 12): `include` `aligned` (`"aligned"` or `:aligned`) adds
+  `aligned`, each window's closes indexed to its halving day's close
+  (`Portfolixir.Engines.Cycles.aligned/2`), off by default so the payload
+  stays small. No constant can be tuned by a caller, and above all there is
+  no `as_of`, because a past cycle's band computed from that cycle's data is
+  a replay of the band rule, level (d). Any other parameter, and `include`
+  with any other value — a query-parameter map or a keyword list — is
+  refused before the lookup with `{:error, {:invalid_params, errors}}`,
   `errors` naming each parameter (`%{"as_of" => [message]}`), the shape the
   API answers with 422.
+
+  `chain_source` is the bound chain's health (`Portfolixir.Chains.source_health/2`,
+  ADR-0059 §8), `nil` for an unbound security.
   """
   @spec for_security(integer() | String.t(), map() | keyword()) ::
           {:ok, map()} | {:error, :not_found} | {:error, {:invalid_params, map()}}
   def for_security(security_id, params \\ %{}) do
-    case refused(params) do
-      errors when map_size(errors) == 0 -> read_id(security_id)
-      errors -> {:error, {:invalid_params, errors}}
+    case options(params) do
+      {aligned?, errors} when map_size(errors) == 0 -> read_id(security_id, aligned?)
+      {_aligned?, errors} -> {:error, {:invalid_params, errors}}
     end
   end
 
   # Keys come from the caller's map or keyword list; an atom key is the
   # caller's own code, converted to its name, never the other way round.
-  defp refused(params) when is_map(params) or is_list(params) do
-    Map.new(params, fn {key, _value} -> {to_string(key), [refusal(to_string(key))]} end)
+  defp options(params) when is_map(params) or is_list(params) do
+    Enum.reduce(params, {false, %{}}, fn {key, value}, {aligned?, errors} ->
+      case {to_string(key), value} do
+        {"include", include} when include in ["aligned", :aligned] -> {true, errors}
+        {"include", _other} -> {aligned?, Map.put(errors, "include", [@include_refusal])}
+        {name, _value} -> {aligned?, Map.put(errors, name, [refusal(name)])}
+      end
+    end)
   end
 
   defp refusal("as_of"), do: @as_of_refusal
-  defp refusal(_name), do: "is unknown: the cycles read takes no parameters"
+  defp refusal(_name), do: "is unknown: the cycles read takes only include=aligned"
 
-  defp read_id(security_id) when is_binary(security_id) do
+  defp read_id(security_id, aligned?) when is_binary(security_id) do
     case Integer.parse(security_id) do
-      {id, ""} -> read_id(id)
+      {id, ""} -> read_id(id, aligned?)
       _other -> {:error, :not_found}
     end
   end
 
-  defp read_id(security_id) when is_integer(security_id) do
+  defp read_id(security_id, aligned?) when is_integer(security_id) do
     case Repo.get(Security, security_id) do
       nil -> {:error, :not_found}
-      %Security{} = security -> {:ok, fetch(security)}
+      %Security{} = security -> {:ok, fetch(security, aligned?)}
     end
   end
 
   # Served through the derived-value axis (ADR-0039) as `:security_cycles`,
   # at the registry's `:none` lifetime (ADR-0060 §10): a plain call, computed
   # at every read, never stored. Keyed under the security's own basis and
-  # today's date (the series runs to today), as `security_metrics` is.
-  defp fetch(%Security{} = security) do
+  # today's date (the series runs to today), as `security_metrics` is; the
+  # aligned form under its own key.
+  defp fetch(%Security{} = security, aligned?) do
     {:fresh, payload} =
       Derived.fetch(
         :security_cycles,
         Derived.security_basis(security.id),
-        "#{security.id}:#{Date.to_iso8601(Clock.today())}",
-        fn -> read(security) end
+        "#{security.id}:#{Date.to_iso8601(Clock.today())}#{if aligned?, do: ":aligned"}",
+        fn -> security |> read() |> with_aligned(aligned?) end
       )
 
     payload
@@ -121,7 +139,8 @@ defmodule Portfolixir.Catalog.SecurityCycles do
 
   defp read(%Security{} = security) do
     halvings = halvings(security)
-    result = Cycles.compute(series(security), halvings)
+    series = series(security)
+    result = Cycles.compute(series, halvings)
 
     cond do
       Enum.count(halvings, & &1.confirmed) < 2 ->
@@ -139,7 +158,35 @@ defmodule Portfolixir.Catalog.SecurityCycles do
           intervals: result.intervals,
           projection: result.projection
         })
+        |> Map.put(:series, series)
     end
+  end
+
+  # ADR-0060 §11: the windows' closes indexed to their halving day's close,
+  # only on request. The series read once rides along to here and no further.
+  defp with_aligned(payload, false), do: Map.delete(payload, :series)
+
+  defp with_aligned(payload, true) do
+    aligned =
+      case Map.get(payload, :series) do
+        nil -> []
+        series -> Cycles.aligned(series, payload.cycles)
+      end
+
+    payload
+    |> Map.delete(:series)
+    |> Map.put(:aligned, aligned)
+    |> put_in([:computation_basis, :aligned], aligned_basis())
+  end
+
+  defp aligned_basis do
+    "include=aligned: per window, in the cycles' order, its closes indexed to its halving " <>
+      "day's close, the last close on or before the halving date, at most " <>
+      "#{Cycles.halving_close_days()} days old (base); each point is a close inside the " <>
+      "window with its date, the calendar days since the halving and close / base at " <>
+      "scale 6. A window without such a close is left out: base null, no points, reason " <>
+      "no_halving_close. The same split-adjusted closes in the security's own currency as " <>
+      "the windows; nothing is filled"
   end
 
   # No view, no band: the projection header still says what it would be.
@@ -168,6 +215,7 @@ defmodule Portfolixir.Catalog.SecurityCycles do
       security_name: security.name,
       currency_code: security.currency_code,
       chain: chain,
+      chain_source: security.halving_chain && Chains.source_health(security.halving_chain),
       halvings: Enum.map(halvings, &Map.put(&1, :chain, chain)),
       next_halving: result && result.next_halving,
       computation_basis: computation_basis(security, result)

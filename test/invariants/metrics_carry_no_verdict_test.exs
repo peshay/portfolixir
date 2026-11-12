@@ -33,7 +33,6 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
-  alias Portfolixir.Catalog.SecurityCycles
   alias Portfolixir.Crashes
   alias Portfolixir.Crashes.Rankings
   alias Portfolixir.Knowledge.Events
@@ -517,9 +516,10 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   #   intervals with their observations, the halvings and the computation
   #   basis — contains a forbidden word, over a payload with cycles AND over
   #   one with a reason and no cycles.
-  # - The walk is at the context level until the API read lands (H6), which
-  #   moves it to the rendered JSON.
-  test "the halving cycles payload carries no verdict key" do
+  # - The walk reads the rendered JSON of GET /api/v1/securities/:id/cycles
+  #   (Sprint 29 H6 moved it there from the context), with and without
+  #   include=aligned.
+  test "the halving cycles payload carries no verdict key", %{conn: conn} do
     agent = Actor.api_token_rw("synthetic-agent")
     rich = create_security!(name: "Verdict Cycle", ticker: "VCY", asset_class: "crypto")
     {:ok, rich} = Catalog.update_security(agent, rich, %{halving_chain: :litecoin})
@@ -560,14 +560,21 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
 
     {:ok, _count} = Quotes.upsert_many(rich.id, rows)
 
-    {:ok, with_cycles} = SecurityCycles.for_security(rich.id)
-    {:ok, without} = SecurityCycles.for_security(bare.id)
+    %{"data" => with_cycles} =
+      conn |> get("/api/v1/securities/#{rich.id}/cycles") |> json_response(200)
 
-    assert length(with_cycles.cycles) == 3
-    assert with_cycles.intervals.low_to_top.n == 2
-    assert without.reason == :no_halving_chain
+    %{"data" => aligned} =
+      conn |> get("/api/v1/securities/#{rich.id}/cycles?include=aligned") |> json_response(200)
 
-    for payload <- [with_cycles, without] do
+    %{"data" => without} =
+      conn |> get("/api/v1/securities/#{bare.id}/cycles") |> json_response(200)
+
+    assert length(with_cycles["cycles"]) == 3
+    assert with_cycles["intervals"]["low_to_top"]["n"] == 2
+    assert [%{"points" => [_ | _]} | _] = aligned["aligned"]
+    assert without["reason"] == "no_halving_chain"
+
+    for payload <- [with_cycles, aligned, without] do
       assert offenders(payload) == [],
              "ADR-0060 §8: the cycles payload carries verdict keys #{inspect(offenders(payload))}; " <>
                "a top, a low and an interval are figures, never a signal."
@@ -588,7 +595,7 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   #   every part with its anchor, the cones with their apex, `low_so_far`
   #   (asserted present, so a renamed or missing block cannot pass empty).
   # - No key contains a forbidden word.
-  test "the analog band payload carries no verdict key" do
+  test "the analog band payload carries no verdict key", %{conn: conn} do
     agent = Actor.api_token_rw("synthetic-agent")
     coin = create_security!(name: "Verdict Band", ticker: "VBD", asset_class: "crypto")
     {:ok, coin} = Catalog.update_security(agent, coin, %{halving_chain: :litecoin})
@@ -631,29 +638,19 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
       for {date, close} <- closes, do: %{date: date, close: Decimal.new(close), source: "manual"}
 
     {:ok, _count} = Quotes.upsert_many(coin.id, rows)
-    {:ok, payload} = SecurityCycles.for_security(coin.id)
+
+    %{"data" => payload} =
+      conn |> get("/api/v1/securities/#{coin.id}/cycles") |> json_response(200)
 
     walked = keys(payload)
 
-    for key <- [
-          :projection,
-          :not_a_forecast,
-          :band,
-          :agree,
-          :state,
-          :window_ended,
-          :parts,
-          :anchor,
-          :factors_used,
-          :cones,
-          :apex,
-          :low_so_far
-        ] do
+    for key <- ~w(projection not_a_forecast band agree state window_ended parts anchor
+                  factors_used cones apex low_so_far chain_source) do
       assert key in walked, "the walk misses #{inspect(key)}"
     end
 
-    assert payload.projection.next_low.agree != nil
-    assert payload.projection.next_top.band != nil
+    assert payload["projection"]["next_low"]["agree"] != nil
+    assert payload["projection"]["next_top"]["band"] != nil
 
     assert offenders(payload) == [],
            "ADR-0060 §8: the band payload carries verdict keys #{inspect(offenders(payload))}; " <>

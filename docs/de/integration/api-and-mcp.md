@@ -1707,6 +1707,36 @@ anderes zusammengeführtes Wertpapier antwortet `404` mit `errors.merged_into`
 das schlichte `404`. Die menschliche Ansicht ist die Wertpapierseite für jeden
 Teil außer `targets`, dessen Ansicht die Klassifizierungsseite ist.
 
+### Halving-Zyklen und die Kettenquelle (FR-58, ADR-0059, ADR-0060)
+
+Ein Wertpapier, das an eine Blockchain gebunden ist (`halving_chain`), hat
+seine Halvings als Kalendertermine und ab zwei bestätigten Halvings eine
+Zyklen-Lesung. Die Halvings von Bitcoin werden aus der Kette selbst gelesen;
+Bitcoin Cash und Litecoin haben keine Quelle und werden von Hand erfasst.
+
+- `GET /api/v1/chains` — die registrierten Ketten (`bitcoin`, `bitcoin_cash`,
+  `litecoin`) mit `halving_interval`, `target_spacing_seconds`, `has_source`
+  und `bound_securities`; für Bitcoin außerdem `health` (`source_host`,
+  `last_tried_at`, `last_ok_at`, `last_error`, `stale` nach 24 Stunden ohne
+  erfolgreichen Lauf), `next_halving_inputs` (der Tip, seine Zeit, die Zeit
+  2.016 Blöcke darunter und `mean_block_seconds` als Dezimal-String) und
+  `refresh.available_at`. Nimmt keinen Parameter.
+- `POST /api/v1/chains/:chain/refresh` — liest die Quelle der Kette sofort
+  und antwortet ihren Eintrag mit `run` (`ok`, `unbound` oder `failed`).
+  Höchstens einmal je 10 Minuten und Kette, geplante Läufe mitgezählt: früher
+  antwortet `429` mit `errors.retry_after` und dem Header `Retry-After`; eine
+  Kette ohne Quelle antwortet `422` mit `errors.code` `no_source`.
+- `GET /api/v1/securities/:security_id/cycles` — die Halvings,
+  `chain_source`, die Fenster mit ihren Hochs und Tiefs, die sechs Abstände
+  mit `n`, Minimum und Maximum und die `projection`: das Analogband des
+  nächsten Tiefs und des nächsten Hochs, `not_a_forecast: true`, mit seinen
+  Teilen, `agree` und `state`; `computation_basis` nennt jede Regel.
+  `include=aligned` ergänzt je Fenster seine Schlusskurse, indexiert auf den
+  Schlusskurs am Halving-Tag. Es gibt kein `as_of`: dieser und jeder andere
+  Parameter antworten `422` mit seinem Namen. Dezimalzahlen sind Strings.
+
+Das Dossier trägt die beiden Bänder als seine `cycles`-Zeile.
+
 ### Anleihen: Stammdaten und Anleihe-Lesung (ADR-0052)
 
 Die Stammdaten einer Anleihe sind sechs nullbare Felder des Wertpapiers,
