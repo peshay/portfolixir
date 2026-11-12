@@ -48,6 +48,9 @@ defmodule Portfolixir.Predictions.ResolutionTest do
         is_benchmark: true
       })
 
+    # Since Sprint 29 B1 (#1416) a benchmark security needs a stored quote;
+    # one old close, far from every date a call here reads.
+    put_quotes!(security, [{~D[2020-01-02], "100"}])
     security
   end
 

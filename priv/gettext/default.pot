@@ -15037,13 +15037,6 @@ msgstr[1] ""
 msgid "open · waiting for the close"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6344
-#, elixir-autogen, elixir-format
-msgid "%{name} is no longer a benchmark. %{count} recorded prediction keeps measuring against it; a new prediction can no longer name it as its benchmark."
-msgid_plural "%{name} is no longer a benchmark. %{count} recorded predictions keep measuring against it; a new prediction can no longer name it as its benchmark."
-msgstr[0] ""
-msgstr[1] ""
-
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:185
 #, elixir-autogen, elixir-format
 msgid "Delete this security? Bookings, quotes, events, research entries, predictions and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
@@ -16800,3 +16793,10 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "At most 80 characters, one line. Only an entry with a headline is drawn as a pin on the chart."
 msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:6344
+#, elixir-autogen, elixir-format
+msgid "%{name} is no longer a benchmark. %{count} recorded prediction keeps measuring against it."
+msgid_plural "%{name} is no longer a benchmark. %{count} recorded predictions keep measuring against it."
+msgstr[0] ""
+msgstr[1] ""

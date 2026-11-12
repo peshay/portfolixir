@@ -166,6 +166,8 @@ defmodule PortfolixirWeb.Api.V1.LifecycleDeleteControllerTest do
         is_benchmark: true
       })
 
+    WorldFixtures.put_quote!(index, ~D[2026-01-02], "100")
+
     for direction <- ["outperform", "underperform"] do
       {:ok, _prediction} =
         Predictions.create_prediction(Actor.api_token_rw("agent"), %{
@@ -178,16 +180,21 @@ defmodule PortfolixirWeb.Api.V1.LifecycleDeleteControllerTest do
         })
     end
 
-    for security <- [called, index] do
+    # Since Sprint 29 B1 (#1416) a benchmark security needs a stored quote,
+    # which the index's refusal counts beside the predictions.
+    for {security, referenced_by, counted} <- [
+          {called, %{"predictions" => 2}, "2 predictions"},
+          {index, %{"predictions" => 2, "security_quotes" => 1}, "2 predictions, 1 quote"}
+        ] do
       assert %{"errors" => errors} =
                conn |> delete("/api/v1/securities/#{security.id}") |> json_response(409)
 
-      assert errors["referenced_by"] == %{"predictions" => 2}
+      assert errors["referenced_by"] == referenced_by
       assert errors["remedy"] == "retire"
       assert errors["remedy_route"] == "PATCH /api/v1/securities/#{security.id}"
 
       assert errors["detail"] =~
-               "security is referenced by existing records (2 predictions); research notes, " <>
+               "security is referenced by existing records (#{counted}); research notes, " <>
                  "policy-rule versions and predictions can neither move nor vanish"
 
       assert Catalog.get_security(security.id)

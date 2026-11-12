@@ -984,6 +984,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       end
 
       worked_example!(ctx)
+      # Since Sprint 29 B1 (#1416) a benchmark security needs a stored quote.
+      quote!(ctx.source, ~D[2025-01-02], "100.00")
       prediction!(security!("Called Z"), "security:#{ctx.source.id}")
 
       guard = refused_guard!(ctx, :predictions)

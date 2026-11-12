@@ -9,8 +9,9 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
     * `{:rate, annual_rate}` — a constant effective annual rate compounding
       daily from a base of 1 (Act/365; the savings-account alternative, and
       in v1 also how inflation is expressed);
-    * `{:security, security}` — a catalog security flagged `is_benchmark`,
-      priced from its stored quotes in the current display basis
+    * `{:security, security}` — any catalog security with a stored quote,
+      flagged `is_benchmark` or not (ADR-0046's amendment of 2026-11-07;
+      `Portfolixir.Catalog.BenchmarkSecurity`), priced from its stored quotes in the current display basis
       (ADR-0028), each day converted to the base currency at the most recent
       stored EUR-hub rate on or before the day, exactly as the walk prices
       positions.
@@ -60,6 +61,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   """
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Derived
@@ -164,12 +166,21 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         end
 
       {:ok,
-       Map.merge(comparison, %{
+       comparison
+       |> Map.merge(%{
          as_of: analysis.basis.computed_at,
          stale: Map.get(analysis, :stale, false)
-       })}
+       })
+       |> put_in([:computation_basis, :benchmark_security], standing(benchmark))}
     end
   end
+
+  # ADR-0046's amendment of 2026-11-07, point 4: the basis says which kind of
+  # security it read, flagged or a held or unheld catalog security. Read at
+  # every request, outside the memo: a flag or a holding changes it without
+  # touching the series the memo keeps.
+  defp standing({:rate, _rate}), do: nil
+  defp standing({:security, %Security{} = security}), do: BenchmarkSecurity.standing(security)
 
   # -- validation --------------------------------------------------------------
 

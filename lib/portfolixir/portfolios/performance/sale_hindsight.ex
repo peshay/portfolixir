@@ -48,6 +48,7 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
@@ -335,6 +336,9 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
           "return = end close in EUR / start close in EUR - 1, unrounded; days counts the " <>
           "calendar days from the sale day to end_on",
       reference: reference(benchmark),
+      # ADR-0046's amendment of 2026-11-07, point 4: flagged, or a held or
+      # unheld catalog security; nil for a rate or no benchmark.
+      benchmark_security: standing(benchmark),
       gaps:
         "the close standing for a date is the last positive stored close on or before it, at " <>
           "most #{staleness} calendar days older; the start is the close standing for the " <>
@@ -357,6 +361,9 @@ defmodule Portfolixir.Portfolios.Performance.SaleHindsight do
           "sides are measured from a close"
     }
   end
+
+  defp standing({:security, %Security{} = security}), do: BenchmarkSecurity.standing(security)
+  defp standing(_rate_or_none), do: nil
 
   defp benchmark_series(nil), do: "no benchmark"
 

@@ -1,0 +1,126 @@
+defmodule Portfolixir.Catalog.BenchmarkSecurityTest do
+  # Sprint 29 B1 (#1416; ADR-0046's amendment of 2026-11-07): the one rule
+  # every read that takes benchmark=security:<id> applies, and the crash
+  # benchmark of ADR-0058 §1 after it. Every name and figure is synthetic.
+  use Portfolixir.DataCase, async: true
+
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, buy!: 3, create_security!: 1, put_quote!: 3, sell!: 3]
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.BenchmarkSecurity
+  alias Portfolixir.Lifecycle
+
+  defp flagged!(opts) do
+    security = create_security!(opts)
+    {:ok, flagged} = Catalog.update_security(Actor.owner_ui(), security, %{is_benchmark: true})
+    flagged
+  end
+
+  # A security with no identifier, so a merge meets no identifier veto.
+  defp bare!(name) do
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{name: name, currency_code: "EUR"})
+
+    security
+  end
+
+  defp merge!(source, target) do
+    {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_security(Actor.owner_ui(), source.id, target.id, %{
+        plan_digest: preview.plan_digest
+      })
+  end
+
+  # User story (#1416; ADR-0046's amendment of 2026-11-07, point 1):
+  # As the operator who wants the fund I hold as my benchmark,
+  # I want any security with a stored quote to be accepted as a benchmark,
+  # flagged or not,
+  # so that the fund stays bookable and in every data-quality check while it
+  # is my comparison's reference.
+  #
+  # Acceptance criteria:
+  # - A held fund that is not flagged, with one stored quote, resolves.
+  # - A flagged security with a stored quote resolves, as before.
+  # - An unheld, unflagged security with a stored quote resolves.
+  # - A security without a stored quote is refused as :no_quote, flagged or
+  #   not.
+  # - An id no row and no merge names is :not_found.
+  test "any security with a stored quote is a benchmark, flagged or not" do
+    world = base_world(name: "Synthetic Bench Rule")
+    held = create_security!(name: "Synthetic Held Fund", ticker: "SHF")
+    buy!(world, held, quantity: "3", price: "50", date: ~D[2025-03-03])
+    put_quote!(held, ~D[2025-03-03], "50")
+
+    index = flagged!(name: "Synthetic Broad Index", ticker: "SBX")
+    put_quote!(index, ~D[2025-03-03], "200")
+
+    unheld = create_security!(name: "Synthetic Watched Fund", ticker: "SWF")
+    put_quote!(unheld, ~D[2025-03-03], "10")
+
+    assert {:ok, %{id: id}} = BenchmarkSecurity.resolve(held.id)
+    assert id == held.id
+    assert {:ok, %{is_benchmark: true}} = BenchmarkSecurity.resolve(index.id)
+    assert {:ok, %{is_benchmark: false}} = BenchmarkSecurity.resolve(unheld.id)
+
+    unquoted = create_security!(name: "Synthetic Unquoted Fund", ticker: "SUF")
+    unquoted_flagged = flagged!(name: "Synthetic Unquoted Index", ticker: "SUI")
+
+    assert BenchmarkSecurity.resolve(unquoted.id) == {:error, :no_quote}
+    assert BenchmarkSecurity.resolve(unquoted_flagged.id) == {:error, :no_quote}
+    assert BenchmarkSecurity.resolve(999_999_999) == {:error, :not_found}
+  end
+
+  # Acceptance criteria (ADR-0046's amendment, point 1; #959):
+  # - A merged-away id is refused naming the survivor when the survivor is
+  #   itself a benchmark by the rule (a stored quote), flagged or not.
+  # - A survivor without a stored quote is no benchmark: the refusal is
+  #   :not_found, naming nothing.
+  test "a merged-away id names a survivor the rule accepts, and only such a one" do
+    target = bare!("Synthetic Harbour Fund")
+    source = bare!("Synthetic Harbour Fund")
+    put_quote!(target, ~D[2025-03-03], "20")
+    merge!(source, target)
+
+    assert BenchmarkSecurity.resolve(source.id) == {:error, {:merged_into, target.id}}
+
+    bare_target = bare!("Synthetic Bare Fund")
+    bare_source = bare!("Synthetic Bare Fund")
+    merge!(bare_source, bare_target)
+
+    assert BenchmarkSecurity.resolve(bare_source.id) == {:error, :not_found}
+  end
+
+  # User story (ADR-0046's amendment, point 4):
+  # As the agent reading a comparison,
+  # I want to know which kind of security the benchmark is,
+  # so that I can tell a reference index from a fund the operator holds.
+  #
+  # Acceptance criteria:
+  # - standing/1 answers :flagged for a flagged security, held or not; :held
+  #   for an unflagged security held today; :unheld for one that is not, a
+  #   security sold out included.
+  test "standing names a flagged, a held and an unheld security" do
+    world = base_world(name: "Synthetic Standing")
+    held = create_security!(name: "Synthetic Held Fund", ticker: "SHF")
+    buy!(world, held, quantity: "3", price: "50", date: ~D[2025-03-03])
+
+    sold = create_security!(name: "Synthetic Sold Fund", ticker: "SSF")
+    buy!(world, sold, quantity: "2", price: "40", date: ~D[2025-03-03])
+    sell!(world, sold, quantity: "2", price: "45", date: ~D[2025-04-01])
+
+    held_index = flagged!(name: "Synthetic Held Index", ticker: "SHI")
+    buy!(world, held_index, quantity: "1", price: "200", date: ~D[2025-03-03])
+
+    assert BenchmarkSecurity.standing(held) == :held
+    assert BenchmarkSecurity.standing(sold) == :unheld
+    assert BenchmarkSecurity.standing(create_security!(name: "Synthetic Plain")) == :unheld
+    assert BenchmarkSecurity.standing(held_index) == :flagged
+
+    assert BenchmarkSecurity.standing(flagged!(name: "Synthetic Index", ticker: "SIX")) ==
+             :flagged
+  end
+end

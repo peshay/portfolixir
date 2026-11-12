@@ -27,6 +27,7 @@ defmodule Portfolixir.Predictions do
   alias Ecto.Changeset
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Journal
@@ -70,8 +71,9 @@ defmodule Portfolixir.Predictions do
     * `probability` — required, a decimal string (or a `Decimal`) from
       `"0.50"` to `"0.99"` in steps of 0.01, stored at two places; a float
       is refused;
-    * `benchmark` — required, `"security:<id>"` (an existing security
-      flagged `is_benchmark`, not the security itself) or `"rate:<decimal>"`
+    * `benchmark` — required, `"security:<id>"` (any security with a stored
+      quote, flagged `is_benchmark` or not, and not the security itself;
+      `Portfolixir.Catalog.BenchmarkSecurity`) or `"rate:<decimal>"`
       (a fixed annual rate, `rate:0` for an absolute call);
     * `resolves_on` — required, 7 to 1,830 days after the UTC day of
       `made_at`;
@@ -115,7 +117,7 @@ defmodule Portfolixir.Predictions do
   end
 
   # The references the changeset can only check for shape: the security
-  # exists, a benchmark security exists and is flagged, a linked note is an
+  # exists, a benchmark security exists and has a stored quote, a linked note is an
   # entry of the same security. The foreign keys stand behind each (the
   # note's is composite, over (note_id, security_id)), so a row removed or
   # changed between this read and the insert is still refused.
@@ -141,16 +143,21 @@ defmodule Portfolixir.Predictions do
         changeset
 
       id ->
-        case Repo.get(Security, id) do
-          %Security{is_benchmark: true} ->
-            changeset
-
-          _not_flagged_or_gone ->
-            if changeset.errors[:benchmark],
-              do: changeset,
-              else: Changeset.add_error(changeset, :benchmark, "is not a benchmark security")
+        # ADR-0046's amendment of 2026-11-07 (#1416): the one rule every
+        # benchmark=security:<id> takes, any security with a stored quote,
+        # flagged or not.
+        case BenchmarkSecurity.resolve(id) do
+          {:ok, _security} -> changeset
+          {:error, :no_quote} -> benchmark_error(changeset, "has no stored quote")
+          {:error, _gone} -> benchmark_error(changeset, "is not a benchmark security")
         end
     end
+  end
+
+  defp benchmark_error(changeset, message) do
+    if changeset.errors[:benchmark],
+      do: changeset,
+      else: Changeset.add_error(changeset, :benchmark, message)
   end
 
   defp validate_note(changeset) do
@@ -209,9 +216,9 @@ defmodule Portfolixir.Predictions do
   @doc """
   How many predictions measure against `security_id`: name it as their
   benchmark security, of every author. A call about the security itself is
-  not counted. The benchmark flag gates only new calls; a recorded one keeps
-  measuring against the security when the flag is removed (ADR-0055 §2;
-  Sprint 26 V1, #1365).
+  not counted. A recorded call keeps measuring against the security when its
+  benchmark flag is removed (ADR-0055 §2; Sprint 26 V1, #1365); since
+  ADR-0046's amendment of 2026-11-07 the flag gates no call at all.
   """
   @spec count_measuring_against(integer()) :: non_neg_integer()
   def count_measuring_against(security_id) when is_integer(security_id) do

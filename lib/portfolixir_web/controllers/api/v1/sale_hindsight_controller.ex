@@ -8,7 +8,8 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightController do
   date, inclusive, the bounded dates every read takes), `limit` (default
   100, at most 500) and `benchmark=` (ADR-0046's `rate:<decimal>` or
   `security:<id>`, read by `PortfolixirWeb.Api.V1.BenchmarkParam`
-  unchanged, so a security must be flagged `is_benchmark`). Absent or blank,
+  unchanged, so any security with a stored quote, flagged `is_benchmark` or
+  not, ADR-0046's amendment of 2026-11-07). Absent or blank,
   `benchmark` compares nothing. `include=reinvestment` (I18 mode 3,
   ADR-0057 §4) adds to each row what the switch cost: the buys its money
   went into, found by rule, and per span the kept and the switched side.
