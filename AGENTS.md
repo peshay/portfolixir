@@ -13,7 +13,13 @@ the rule in a PR with the new reason; do not follow it blindly or quietly
 ignore it. A new rule lands only with its reason; *(inferred)* marks a reason
 not yet recorded. *Why:* a rule whose reason is known can be questioned and
 waived correctly, and a model follows an instruction better when it knows the
-goal (ADR-0026, amendment of 2026-10-08).
+goal (the owner's restructuring of this file on 2026-10-08, commit
+`ba2187a2`, the day of ADR-0026's amendment, which does not record it). **A
+fact in a rule found wrong** — a count, a source, a path — is corrected by the
+sprint's maintenance lane with its evidence; what a rule asks changes only
+through a reviewed plan or PR. *Why:* in Sprint 13 an agent knew the check
+list was short and left it for three batches, because it read the list as
+not its to edit (Sprint 13 retrospective; the rule review of 2026-11-12).
 
 **This file stays short; procedures are read when they apply.** *Why:* it loads
 into every session, long instruction files are followed less well, and Codex
@@ -140,6 +146,11 @@ verification, not code, is the bottleneck (ADR-0026).
   stays permitted in principle and gated in practice (Phase 3, still forbidden
   here until its ADR lands); and "no advice" does not retract ADR-0023's
   display-only rebalancing hints, which are arithmetic beside a drift figure.
+  **Advice** is an output that tells the operator what to do — buy, sell,
+  hold, wait, or a rating that stands for one; a figure with its computation
+  basis stated is not advice, and `metrics_carry_no_verdict_test.exs` keeps
+  verdict words out of every metric payload (the rule review of 2026-11-12;
+  ideas I6 and I8).
   *Why:* they are what the product is: intelligence stays outside and
   replaceable, and the operator stays the one who acts (product brief, "Scope";
   PRD §1 "Cornerstone principle").
@@ -218,8 +229,13 @@ contradicted an environment the owner runs (owner, 2026-11-07).
   `lib/portfolixir/` (Catalog, Portfolios, Ledger, Imports, Knowledge,
   Lifecycle, Tax and the rest), the web layer in `lib/portfolixir_web/`, and
   `mcp-server/`, a TypeScript MCP companion. Contexts never depend on the web
-  layer. *Why:* a single-user tool gains nothing from services but overhead,
-  and clear seams keep the domain testable (ADR-0001).
+  layer, except the exceptions `test/invariants/context_web_boundary_test.exs`
+  registers with their reasons: the one Gettext backend, and the OTP boot in
+  `Portfolixir.Application` and `Portfolixir.Release`. *Why:* a single-user
+  tool gains nothing from services but overhead, and clear seams keep the
+  domain testable (ADR-0001); the rule review of 2026-11-12 found the text
+  contradicted by those references, with no check on this direction, so the
+  test now holds it.
 - **MCP tools call the public JSON API only** — never the database or the
   Elixir contexts. *Why:* one integration contract and no second data path
   around the API's validation and auth (ADR-0002;
@@ -237,19 +253,24 @@ contradicted an environment the owner runs (owner, 2026-11-07).
 - **Endpoints live under `/api/v1`; financial decimals are strings** in API
   responses and in MCP tool schemas. *Why:* JSON numbers become binary floats
   in most clients and lose cents (ADR-0003).
-- **The MCP companion installs and runs on its own, outside Docker Compose.**
-  *Why (inferred):* MCP clients start it themselves as a local process (connect
-  an agent).
+- **The MCP companion also installs and runs on its own, outside Docker
+  Compose**; the Compose file's `mcp` service is one way to run it, and CI's
+  compose smoke test calls a tool through it. *Why (inferred):* MCP clients
+  start it themselves as a local process (connect an agent).
 
 ## How Work Is Done
 
-- **A sprint is two sessions and two PRs.** A planning session writes the
-  planning PR, and the owner's merge is the signature; a fresh implementation
-  session builds the whole sprint on one branch as one sprint PR, with the
-  lanes as commit groups and the retrospective as its last commits. *Why:* two
-  owner touchpoints per sprint instead of five, and a fresh session tests
-  whether the plan is complete (ADR-0026, amendment of 2026-10-08; [sprint
-  workflow](docs/development/sprint-workflow.md)).
+- **A sprint is two sessions: a planning PR and a sprint PR.** A planning
+  session writes the planning PR, and the owner's merge is the signature; a
+  fresh implementation session builds the whole sprint as one sprint PR, with
+  the lanes as commit groups and the retrospective as its last commits. A
+  sprint that would pass 100 commits is stacked at a lane-group boundary into
+  two or three PRs, merged in order in one sitting; never one PR per lane by
+  default. *Why:* two owner touchpoints per sprint instead of five, and a
+  fresh session tests whether the plan is complete (ADR-0026, amendment of
+  2026-10-08; [sprint workflow](docs/development/sprint-workflow.md)); GitHub
+  offers "Rebase and merge" up to 100 commits, and a self-imposed lower cap
+  pushed planned work out of sprints (owner, 2026-11-12).
 - **An idea is recorded, not built**: it goes into the idea list with a
   status, an agent triages it, and it is built only once worked out; see the
   sprint workflow's "Ideas". *Why:* ideas built as first read were built
@@ -259,7 +280,8 @@ contradicted an environment the owner runs (owner, 2026-11-07).
   the sprint workflow for each rule and its reason.
 - **A PR you open is yours until it is merged or closed**: subscribe to its
   events as soon as it exists (never offer to and wait for a yes), drive CI to
-  green, keep it current with `main`. Never weaken a quality gate, never fix
+  green, keep it current with `main`. Never weaken a quality gate (a time
+  bound only after its cause is found, see the sprint workflow), never fix
   outside the PR's scope, **never merge**. *Why:* an offer declined by silence
   leaves the PR unwatched, and a lapsed watch makes no noise (Sprint 10
   retrospective); the gates stand in for the human read (ADR-0026,
@@ -284,7 +306,12 @@ contradicted an environment the owner runs (owner, 2026-11-07).
   `claude/<name>`) is used as assigned and is the agent's own branch. *Why
   (inferred):* the name shows which agent made a branch; *why the
   exception:* an environment that pushes only to its assigned branch would
-  otherwise break the rule on every session (owner, 2026-11-07).
+  otherwise break the rule on every session (owner, 2026-11-07). **For a
+  stacked sprint, the session may push branches named `<its branch>-<lane
+  group>`** (for example `claude/<name>-pr2`), each the base of the next,
+  as a standing grant (owner, 2026-11-12). *Why:* without it an environment
+  that pushes only to its assigned branch cannot stack, and Sprint 28's PR
+  reached 102 commits.
 - **Stop the moment the owner says stop.**
 
 ## Required Local Checks

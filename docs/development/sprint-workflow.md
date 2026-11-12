@@ -47,10 +47,17 @@ complete ([ADR-0026, amendment of 2026-10-08](../decisions/0026-epic-batch-workf
   a question costs a read even when silence adopts it
   ([ADR-0038](../decisions/0038-continuous-feedback-and-design-authority.html);
   ADR-0026, amendment of 2026-10-08).
-- **The plan estimates the sprint PR's commit count.** Above 90, it cuts the
-  sprint into a stack of PRs and says why.
-  *Why:* GitHub refuses "Rebase and merge" beyond 100 commits, and `main`
-  requires a linear history (ADR-0026, amendment of 2026-10-08).
+- **The plan estimates the sprint's commit count**, the closing act's fixes
+  counted by its lenses. When the estimate passes about 90, the plan stacks
+  the sprint at a lane-group boundary into two or three PRs, each under 100
+  commits, merged in order in one sitting, and says where it cuts; never one
+  PR per lane by default. The implementation session pushes the later PRs'
+  branches as `<its branch>-<lane group>` (`AGENTS.md`, Branches).
+  *Why:* GitHub offers "Rebase and merge" up to 100 commits, and `main`
+  requires a linear history (ADR-0026, amendment of 2026-10-08); a lower cap
+  of our own pushed planned work out of sprints, and a PR per lane would
+  multiply the owner's merges (owner, 2026-11-12; Sprint 28 retrospective,
+  carry-forward 4).
 - **A surface a decision places is mocked on the planning PR** (see
   [UI changes are mocked first](#ui-changes-are-mocked-first)).
 - **After the merge, the planning session does the plan's registry
@@ -66,8 +73,9 @@ complete ([ADR-0026, amendment of 2026-10-08](../decisions/0026-epic-batch-workf
   in memory only shows in a session that does not
   ([Claude Code best practices](https://code.claude.com/docs/en/best-practices);
   ADR-0026, amendment of 2026-10-08).
-- **One branch, one PR.** `agent/<provider>/sprint-<N>`, opened as a draft
-  with its first commit. The plan's lanes are commit groups in the plan's
+- **One branch per PR.** `agent/<provider>/sprint-<N>` (or the branch the
+  environment assigns, and for a stack `<it>-<lane group>`), each opened as
+  a draft with its first commit. The plan's lanes are commit groups in the plan's
   order; one commit or a small commit group per issue; every commit passes
   the local gates.
   *Why:* a branch without a PR is invisible to the owner and CI does not run
@@ -151,7 +159,8 @@ complete ([ADR-0026, amendment of 2026-10-08](../decisions/0026-epic-batch-workf
 
 - **Promote the PR yourself once all four hold** — do not ask:
   1. the closing act has run and every confirmed finding is fixed;
-  2. CI is green on the head commit, required checks included;
+  2. every CI job is green on the head commit, whether or not branch
+     protection requires it;
   3. every question put to the owner is answered;
   4. the branch is current with `main`, conflict-free, and you judge it
      mergeable.
@@ -159,7 +168,9 @@ complete ([ADR-0026, amendment of 2026-10-08](../decisions/0026-epic-batch-workf
   Leave one short comment saying what changed since the draft opened.
   *Why:* the four conditions are the owner's permission, so asking adds a
   round trip on a decision already made; a red required check once sat on
-  `main` for a week unnoticed (E17–E19 retrospective §3). The comment's
+  `main` for a week unnoticed (E17–E19 retrospective §3), and on 2026-11-12
+  `main`'s branch protection listed no required check at all, so "required"
+  alone would check nothing (the rule review of 2026-11-12). The comment's
   reason is inferred, not recorded: it saves the owner a diff read.
 - **A question the work records** (an `OQ-n`, a named follow-up) **does not
   block promotion; a question put to the owner and unanswered does.**
@@ -171,8 +182,10 @@ complete ([ADR-0026, amendment of 2026-10-08](../decisions/0026-epic-batch-workf
   *Why (inferred, not recorded):* the status is the signal the owner reads;
   flapping turns it into noise.
 - **History cleanup before promotion:** mechanical fix-ups fold into the
-  commits that caused them; substantive review-round commits stay; the final
-  tree is byte-identical to a backup ref; force-push only with
+  commits that caused them; a closing-act fix inside one story's own code
+  may fold into that story's commit, since the briefing lists the finding;
+  a fix across stories stays a commit of its own; the final tree is
+  byte-identical to a backup ref; force-push only with
   `--force-with-lease`. A history rebuild proves every commit's invariants,
   not only the tip's.
   *Why:* `main` gets meaningful per-issue commits with unchanged content
@@ -214,14 +227,17 @@ amendment of 2026-10-08).
 - **Maintenance lane.** Every sprint reviews available updates for Hex, npm,
   Elixir/OTP, PostgreSQL, BMAD and the external BMAD modules, applies what
   passes the gates as commits of their own, and reports what it deliberately
-  did not update, with the reason (a `version-report-*` file). *Why:* BMAD
+  did not update, with the reason (a `version-report-*` file). It also
+  corrects a rule's facts the sprint found wrong — a count, a source, a
+  path — each with its evidence (`AGENTS.md`, preamble). *Why:* BMAD
   went two months without an update because nobody owned the question, and a
   habit depends on someone remembering (feedback triage of 2026-08-12, Q1;
   [ADR-0036](../decisions/0036-risk-tier-rides-the-batch.html) item 1 for
   the separate commits).
 - **After the merge:** the merge wakes the session; it confirms the merge's
   CI run on `main` and the calendar release the Release workflow made, and
-  tells the owner in one line. The next planning PR records both in its
+  tells the owner in one line. **A red `main` is reported to the owner at
+  once**, with what fails; no merge waits behind it unannounced. The next planning PR records both in its
   verification basis. Every push to `main` that touches shipped code gets a
   `YYYY.M.N` release (annotated tag plus GitHub Release, one job; Sprint 17
   plan D-11); docs-only, test-only and planning pushes make none. If that
@@ -259,10 +275,18 @@ A PR you open is yours until it is merged or closed.
   pushing, and a gate that is always red trains everyone to ignore red
   (Sprint 13 retrospective).
 - **Never weaken a quality gate** — no lowered threshold, added ignore,
-  skipped test or baselined finding. *Why:* the gates are the compensating
-  controls that replaced the human read
-  ([ADR-0026](../decisions/0026-epic-batch-workflow.html), "Compensating
-  controls"; ADR-0036).
+  skipped test or baselined finding. **A time or performance bound** (a
+  job's time limit, a test's time bound) **is loosened only after its cause
+  is found:** the commit that made it slower is named (timed per commit or
+  bisected), an optimisation is tried and its result recorded, and only then
+  is the loosening named under "What you need to do" with that evidence.
+  Coverage thresholds, ignores, skips and baselines are never loosened.
+  *Why:* the gates are the compensating controls that replaced the human
+  read ([ADR-0026](../decisions/0026-epic-batch-workflow.html),
+  "Compensating controls"; ADR-0036); Sprints 27 and 28 loosened two time
+  bounds as "named" under a rule that said never, and the browser job's
+  cause was found only afterwards (owner, 2026-11-12: "never" is a strong
+  word, but the cause comes first).
 - **Never fix outside the PR's scope**; say so on the PR and file it.
   *Why:* every change stays reviewable against its decision (ADR-0022,
   Context).
