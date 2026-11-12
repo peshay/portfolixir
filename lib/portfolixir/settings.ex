@@ -236,6 +236,7 @@ defmodule Portfolixir.Settings do
           {:ok, Security.t() | nil} | {:error, BenchmarkSecurity.refusal()}
   def set_crash_benchmark(%Actor{} = actor, nil) do
     Multi.new()
+    |> Multi.run(:key_lock, fn repo, _changes -> lock_key(repo, @crash_benchmark_key) end)
     |> Multi.run(:prior, fn repo, _changes ->
       {:ok, locked_setting(repo, @crash_benchmark_key)}
     end)
@@ -263,6 +264,7 @@ defmodule Portfolixir.Settings do
       })
 
     Multi.new()
+    |> Multi.run(:key_lock, fn repo, _changes -> lock_key(repo, @crash_benchmark_key) end)
     |> Multi.run(:prior, fn repo, _changes ->
       {:ok, locked_setting(repo, @crash_benchmark_key)}
     end)
@@ -310,6 +312,15 @@ defmodule Portfolixir.Settings do
       before_step: :prior
     )
     |> commit_setting()
+  end
+
+  # One writer of the setting `key` at a time, taken before the prior read:
+  # while no row is stored, the read's FOR UPDATE locks nothing, and two
+  # first writes would both journal "nothing before" (the closing act,
+  # #1421).
+  defp lock_key(repo, key) do
+    repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", ["setting|" <> key])
+    {:ok, key}
   end
 
   defp locked_setting(repo, key),
