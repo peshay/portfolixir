@@ -1957,6 +1957,15 @@ discovery never overwrites the choice.
   `no_source`, or `failed`. Locked securities are left untouched and answer
   `no_source`.
 
+The companion reaches the three writes (Sprint 29 D3, issue #1413):
+`portfolixir.securities.logo_put` (`security_id`, `url`; its schema takes an
+`https://` URL only, and the API refuses a plain-http or private address as
+above), `portfolixir.securities.logo_delete` and
+`portfolixir.securities.logo_discover` (`security_id`), each answering the
+logo status. The put and the rediscovery make the server fetch, so they
+carry `openWorldHint`; both are in the `book` profile. The delete deletes the
+stored image, a removal, so it is an admin tool, listed only under `full`.
+
 Example create payload:
 
 ```json
@@ -5345,6 +5354,11 @@ API may have committed it, and its answer cannot be read.
   one read, each part as its own read answers it and naming that read. It
   answers compact JSON (no indentation), so the news block's
   budget of about 50 tokens holds on the text the agent receives.
+- `portfolixir.securities.logo_put`, `portfolixir.securities.logo_discover`
+  and `portfolixir.securities.logo_delete` — a security's logo set from an
+  https image URL, searched again, or removed as "no logo", through the
+  [logo endpoints](#logos) (#1413). The first two reach outside the instance
+  (`openWorldHint`) and are in `book`; the delete is admin (`full` only).
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
   (ADR-0044).

@@ -170,7 +170,11 @@ const MODIFYING_POSTS = [
   "portfolixir.cash_accounts.merge",
   "portfolixir.securities_accounts.merge",
   // ADR-0050 §9, §10: the security merge, idempotent the same way.
-  "portfolixir.securities.merge"
+  "portfolixir.securities.merge",
+  // --- S29 D3 begin ---
+  // #1413: replaces a discovered logo; a repeat stores no second record.
+  "portfolixir.securities.logo_discover"
+  // --- S29 D3 end ---
 ];
 
 // Routed through POST and add a row, but close the version in force and
@@ -190,7 +194,11 @@ const OPEN_WORLD = [
   "portfolixir.securities.search_online", // sends its query to the configured provider
   "portfolixir.securities.create", // queues a provider backfill and a logo lookup (R6)
   "portfolixir.quotes.sync", // the quote provider
-  "portfolixir.exchange_rates.sync" // the rate feed
+  "portfolixir.exchange_rates.sync", // the rate feed
+  // --- S29 D3 begin ---
+  "portfolixir.securities.logo_put", // downloads the image its URL names (#1413)
+  "portfolixir.securities.logo_discover" // asks the discovery sources (#1413)
+  // --- S29 D3 end ---
 ];
 
 // Writes that only ever add, and whose additions are permanent.
