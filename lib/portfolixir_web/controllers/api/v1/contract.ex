@@ -46,9 +46,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   @entries [
     %{
       version: 29,
-      # Sprint 29's sprint PR. Dated after entry 28, because since= compares
-      # strictly after a date. Each story of the sprint appends its own
-      # summary sentence and items between its own markers.
+      # Sprint 29's sprint PRs. Dated after entry 28, because since=
+      # compares strictly after a date. Each story of the sprint appends its
+      # own summary sentence and items between its own markers.
       date: ~D[2026-11-12],
       summary:
         Enum.join(
@@ -62,8 +62,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
             # --- S29 N2 begin ---
             "Sprint 29, N2 (ADR-0056 E2, #1443): a research entry's and an event's " <>
               "source_url hold 2,048 characters, the news parser's own cap, so a story " <>
-              "whose links are all long becomes an entry."
+              "whose links are all long becomes an entry.",
             # --- S29 N2 end ---
+            # --- S29 B1 begin ---
+            "Sprint 29, B1 (#1416; ADR-0046's amendment of 2026-11-07): benchmark=security:<id> " <>
+              "takes any security with a stored quote, flagged is_benchmark or not, on the " <>
+              "comparisons, sale hindsight and a prediction's write; the basis names the kind " <>
+              "it read; no endpoint or tool is added."
+            # --- S29 B1 end ---
           ],
           " "
         ),
@@ -93,8 +99,24 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "PATCH /api/v1/security_events/:id (portfolixir.events.update), changed: " <>
           "source_url is at most 2,048 characters (was 255), else 422 naming source_url; " <>
           "with news_id the item's link is taken whole, and the 422 naming news_id for a " <>
-          "link over 2,048 characters is kept."
+          "link over 2,048 characters is kept.",
         # --- S29 N2 end ---
+        # --- S29 B1 begin ---
+        "GET /api/v1/portfolios/:portfolio_id/performance/benchmark, " <>
+          "GET /api/v1/views/:id/performance/benchmark and GET /api/v1/performance/benchmark " <>
+          "(portfolixir.portfolios.benchmark, portfolixir.views.benchmark), GET " <>
+          "/api/v1/sales/hindsight (portfolixir.sales.hindsight) and POST /api/v1/predictions " <>
+          "(portfolixir.predictions.create), whose descriptions and the position_review " <>
+          "prompt now say it; no parameter added: benchmark=security:<id> accepts any " <>
+          "security with at least one stored quote, flagged is_benchmark or not, where it " <>
+          "accepted a flagged one only; a security with no stored quote answers 422 " <>
+          ~s(errors.benchmark ["has no stored quote"], flagged or not, where an unflagged one ) <>
+          ~s(answered "is not a benchmark security" and a flagged one compared; a merged-away ) <>
+          "id answers as before and names merged_into when the survivor has a stored quote. " <>
+          "The comparisons' and sale hindsight's computation_basis carry benchmark_security: " <>
+          "flagged, held (not flagged, held today) or unheld, null for a rate or none. " <>
+          "is_benchmark keeps its meaning (ADR-0046's amendment, point 2)."
+        # --- S29 B1 end ---
       ],
       removed_endpoints: [],
       removed_tools: [],

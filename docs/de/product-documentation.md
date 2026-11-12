@@ -786,11 +786,16 @@ zweite Kursquelle. Eine Benchmark wird in keinem Buchungsformular angeboten,
 und die Datenqualitäts-Hinweise des Katalogs (veralteter oder fehlender
 Kurs, fehlendes Logo) lassen sie in Ruhe; sie kann trotzdem gehalten werden
 und ist dann einfach beides. Die API listet Benchmarks mit
-`is_benchmark=true`. Was der Vergleich zeigt, steht unter Performance.
-Das Entfernen der Markierung (**Benchmark-Markierung entfernen**) hindert
-nur eine *neue* Prognose daran, das Wertpapier als Benchmark zu nennen:
-Messen festgehaltene Prognosen an ihm, sagt der Hinweis, wie viele es
-weiter tun.
+`is_benchmark=true`. Für einen Vergleich braucht ein Wertpapier die
+Markierung nicht: Über API und MCP kann jedes Wertpapier mit einem
+gespeicherten Kurs die Benchmark eines Vergleichs, des Rückblicks nach dem
+Verkauf oder einer Prognose sein, sodass ein gehaltener Fonds buchbar und
+geprüft bleibt, während er Ihre Referenz ist, und die Basis des Vergleichs
+sagt, ob sie ein markiertes, ein gehaltenes oder ein nicht gehaltenes
+Wertpapier gelesen hat. Was der Vergleich zeigt, steht unter Performance.
+Das Entfernen der Markierung (**Benchmark-Markierung entfernen**) ändert
+keine festgehaltene Prognose: Messen festgehaltene Prognosen an ihm, sagt
+der Hinweis, wie viele es weiter tun.
 
 **Stillgelegte Wertpapiere.** Ein Wertpapier, das Sie nicht mehr halten und
 dessen Notierung endete — ausverkauft oder delistet —, bleibt im Katalog,

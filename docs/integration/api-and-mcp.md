@@ -925,8 +925,10 @@ size or a limit, and nothing proposes one.
   `0.01` (a JSON number answers `422`; `"0.49"` answers `422` naming the
   other direction, since a call below 50 % is the opposite call above it, and
   `"1.00"` is refused because a call stated as certain cannot be scored);
-  `benchmark`, as `benchmark=` spells it — `security:<id>` of a security
-  flagged `is_benchmark` (not the security itself) or `rate:<decimal>`, a
+  `benchmark`, as `benchmark=` spells it — `security:<id>` of any security
+  with a stored quote, flagged `is_benchmark` or not (not the security
+  itself; one without a quote answers `422`, `has no stored quote`;
+  ADR-0046's amendment of 2026-11-07) or `rate:<decimal>`, a
   fixed annual rate as a **fraction** from `-0.999999` to `1` (`rate:0.02` is
   2 % a year; a rate above 1 answers `422` naming the fraction form, because
   `rate:5` meant as 5 % would be 500 % a year on a record that can never be
@@ -2632,8 +2634,10 @@ Example account payloads:
   both inclusive) narrow the rows; `limit` caps them (default 100, at most
   500) and the answer echoes it with `truncated`. An optional `benchmark=`
   is the benchmark comparison's (ADR-0046): `rate:<decimal>`, a fixed annual
-  rate compounding daily, or `security:<id>`, a security flagged
-  `is_benchmark` (any other is refused); without it each span answers the
+  rate compounding daily, or `security:<id>`, any security with a stored
+  quote, flagged `is_benchmark` or not, refused as on the comparison below;
+  `computation_basis.benchmark_security` names its kind as there (`null`
+  without a security); without it each span answers the
   security's own return only. The answer is `{as_of, spans, benchmark, include,
   rows, limit, truncated, computation_basis}`, `include` echoing the
   `include` applied (`[]` without one). A row carries `sale_id` (the
@@ -2942,15 +2946,20 @@ Example account payloads:
   effective annual rate compounding daily from a base of 1 (Act/365;
   `rate:0.02` is 2 % p.a., the savings-account baseline and, in v1, how
   inflation is expressed; accepted between `-0.999999` and `10`, the IRR
-  solver's own domain) or `security:<id>` for a catalog security flagged
-  `is_benchmark` (list them with `GET /api/v1/securities?is_benchmark=true`;
-  any other security answers `422`, `{"errors": {"benchmark": ["is not a
-  benchmark security"]}}`). A security a merge took away is refused the
-  same way; when the survivor at the live end of its merge chain is itself a
-  flagged benchmark, the body adds `merged_into` `{"kind": "security", "id":
-  …}` naming it, as the merged-away reads do, and a retry with that id
-  compares (#959). A survivor that is not flagged, a chain that ends at a row
-  deleted since, and an id no merge names answer without it. The view and
+  solver's own domain) or `security:<id>` for **any catalog security with
+  at least one stored quote, flagged `is_benchmark` or not** (ADR-0046's
+  amendment of 2026-11-07, #1416: a fund you hold can be the benchmark and
+  stays bookable and in every data-quality check; `GET
+  /api/v1/securities?is_benchmark=true` lists the flagged reference
+  instruments). A security with no stored quote answers `422`, `{"errors":
+  {"benchmark": ["has no stored quote"]}}`; an unknown id answers `422`,
+  `{"errors": {"benchmark": ["is not a benchmark security"]}}`. A security a
+  merge took away is refused the same way; when the survivor at the live
+  end of its merge chain has a stored quote, the body adds `merged_into`
+  `{"kind": "security", "id": …}` naming it, as the merged-away reads do,
+  and a retry with that id compares (#959). A survivor without a stored
+  quote, a chain that ends at a row deleted since, and an id no merge names
+  answer without it. The view and
   the view-less comparison below answer the same. `period`, `year`, `from`/`to`, `view=`
   and `series=true` behave like the performance read. The response carries
   `benchmark` (`kind`, then `annual_rate` or `security_id`/`name`/
@@ -2981,7 +2990,10 @@ Example account payloads:
   frictionless (`frictionless: true`: no fees, no taxes), which biases the
   comparison against the real portfolio. The basis names a benchmark
   security as `security <id> (<currency>)`, never by its stored name, which
-  travels only as data in `benchmark.name` (E25). A missing or malformed `benchmark`
+  travels only as data in `benchmark.name` (E25), and
+  `computation_basis.benchmark_security` says which kind it read:
+  `flagged` (flagged `is_benchmark`, held or not), `held` (not flagged,
+  held today in any depot) or `unheld`; `null` for a fixed rate. A missing or malformed `benchmark`
   is `422`; a portfolio with nothing to walk, or a benchmark without a quote
   in the window, answers `null` figures with `window.start_date: null` and
   every flow named in `excluded_flows`. A cash account whose balance counted

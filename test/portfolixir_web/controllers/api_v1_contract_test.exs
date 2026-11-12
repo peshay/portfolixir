@@ -49,7 +49,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 29's sprint PR (version 29). Dated strictly after entry 28, so
+    # Sprint 29's sprint PRs (version 29). Dated strictly after entry 28, so
     # since=2026-11-09 still returns it. Each story appends its own items
     # between its own markers.
     assert newest["version"] == 29
@@ -87,6 +87,39 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     for part <- ["source_url", "2,048 characters", "cluster_id"], do: assert(notes =~ part, part)
     for part <- ["source_url", "2,048 characters", "news_id"], do: assert(events =~ part, part)
     # --- S29 N2 end ---
+
+    # --- S29 B1 begin ---
+    # B1 (#1416; ADR-0046's amendment of 2026-11-07): benchmark=security:<id>
+    # takes any security with a stored quote, flagged or not, on every read
+    # that takes it; no endpoint or tool is added.
+    assert newest["summary"] =~ "Sprint 29, B1 (#1416; ADR-0046's amendment of 2026-11-07): "
+
+    assert [any_security] =
+             Enum.filter(
+               newest["parameters"],
+               &String.starts_with?(
+                 &1,
+                 "GET /api/v1/portfolios/:portfolio_id/performance/benchmark,"
+               )
+             )
+
+    for part <- [
+          "GET /api/v1/views/:id/performance/benchmark",
+          "GET /api/v1/performance/benchmark",
+          "GET /api/v1/sales/hindsight",
+          "POST /api/v1/predictions",
+          "portfolixir.predictions.create",
+          "any security with at least one stored quote",
+          "has no stored quote",
+          "merged_into",
+          "benchmark_security",
+          "flagged, held",
+          "unheld"
+        ] do
+      assert any_security =~ part, part
+    end
+
+    # --- S29 B1 end ---
 
     # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
     # Dated strictly after entry 27, so since=2026-11-08 still returns it.

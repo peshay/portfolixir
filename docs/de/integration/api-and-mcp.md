@@ -1035,8 +1035,10 @@ trägt eine Order, eine Größe oder ein Limit, und nichts schlägt eines vor.
   `422`; `"0.49"` liefert `422` mit der Gegenrichtung, denn eine Prognose
   unter 50 % ist die entgegengesetzte über 50 %, und `"1.00"` wird
   abgelehnt, weil sich eine als sicher genannte Prognose nicht bewerten
-  lässt); `benchmark`, geschrieben wie `benchmark=` — `security:<id>` eines
-  mit `is_benchmark` markierten Wertpapiers (nicht des Wertpapiers selbst)
+  lässt); `benchmark`, geschrieben wie `benchmark=` — `security:<id>`
+  jedes Wertpapiers mit einem gespeicherten Kurs, mit oder ohne
+  `is_benchmark` (nicht des Wertpapiers selbst; eines ohne Kurs liefert
+  `422`, `has no stored quote`; Ergänzung von ADR-0046 vom 2026-11-07)
   oder `rate:<dezimal>`, ein fester Jahreszins als **Bruch** von
   `-0.999999` bis `1` (`rate:0.02` sind 2 % im Jahr; ein Zins über 1 liefert
   `422` mit der Bruchschreibweise, denn `rate:5`, gemeint als 5 %, wären
@@ -2881,8 +2883,10 @@ Beispiel-Payloads für Konten:
   Zeilen ein; `limit` deckelt sie (Standard 100, höchstens 500), und die
   Antwort nennt es mit `truncated`. Ein optionales `benchmark=` ist das des
   Benchmark-Vergleichs (ADR-0046): `rate:<decimal>`, ein fester Jahreszins
-  mit täglicher Verzinsung, oder `security:<id>`, ein als `is_benchmark`
-  markiertes Wertpapier (jedes andere wird abgelehnt); ohne es nennt jede
+  mit täglicher Verzinsung, oder `security:<id>`, jedes Wertpapier mit einem
+  gespeicherten Kurs, mit oder ohne `is_benchmark`, abgelehnt wie beim
+  Vergleich unten; `computation_basis.benchmark_security` nennt seine Art wie
+  dort (`null` ohne Wertpapier); ohne es nennt jede
   Spanne nur die eigene Rendite des Wertpapiers. Die Antwort ist `{as_of,
   spans, benchmark, include, rows, limit, truncated, computation_basis}`,
   wobei `include` das angewandte `include` nennt (`[]` ohne eines). Eine Zeile
@@ -3215,16 +3219,20 @@ Beispiel-Payloads für Konten:
   festen effektiven Jahreszins, der täglich von Basis 1 aufzinst (Act/365;
   `rate:0.02` sind 2 % p. a., die Tagesgeld-Baseline und in v1 auch die
   Ausdrucksform der Inflation; akzeptiert zwischen `-0.999999` und `10`, dem
-  Definitionsbereich des IRR-Solvers), oder `security:<id>` für ein
-  Katalog-Wertpapier mit gesetztem `is_benchmark` (Liste über
-  `GET /api/v1/securities?is_benchmark=true`; jedes andere Wertpapier
-  liefert `422`, `{"errors": {"benchmark": ["is not a benchmark
-  security"]}}`). Ein Wertpapier, das eine Zusammenführung entfernt hat, wird
-  ebenso abgelehnt; ist der Überlebende am lebenden Ende seiner
-  Zusammenführungskette selbst eine gesetzte Benchmark, ergänzt der Body
+  Definitionsbereich des IRR-Solvers), oder `security:<id>` für **jedes
+  Katalog-Wertpapier mit mindestens einem gespeicherten Kurs, mit oder ohne
+  `is_benchmark`** (Ergänzung von ADR-0046 vom 2026-11-07, #1416: ein
+  gehaltener Fonds kann die Benchmark sein und bleibt buchbar und in jeder
+  Datenqualitätsprüfung; `GET /api/v1/securities?is_benchmark=true` listet
+  die markierten Referenzinstrumente). Ein Wertpapier ohne gespeicherten
+  Kurs liefert `422`, `{"errors": {"benchmark": ["has no stored quote"]}}`;
+  eine unbekannte ID liefert `422`, `{"errors": {"benchmark": ["is not a
+  benchmark security"]}}`. Ein Wertpapier, das eine Zusammenführung entfernt
+  hat, wird ebenso abgelehnt; hat der Überlebende am lebenden Ende seiner
+  Zusammenführungskette einen gespeicherten Kurs, ergänzt der Body
   `merged_into` `{"kind": "security", "id": …}` mit ihm, wie ihn die Abfragen
   zusammengeführter IDs nennen, und ein neuer Versuch mit dieser ID vergleicht
-  (#959). Ein Überlebender ohne `is_benchmark`, eine Kette, die an einer
+  (#959). Ein Überlebender ohne gespeicherten Kurs, eine Kette, die an einer
   inzwischen gelöschten Zeile endet, und eine ID, die keine Zusammenführung
   nennt, antworten ohne ihn. Der View- und der
   view-lose Vergleich unten antworten genauso. `period`, `year`, `from`/`to`, `view=` und `series=true`
@@ -3257,7 +3265,11 @@ Beispiel-Payloads für Konten:
   reibungsfrei (`frictionless: true`: keine Gebühren, keine Steuern), was
   den Vergleich gegen das reale Portfolio verzerrt. Die Basis nennt ein
   Benchmark-Wertpapier als `security <id> (<Währung>)`, nie mit seinem
-  gespeicherten Namen, der nur als Datum in `benchmark.name` steht (E25). Ein fehlendes oder
+  gespeicherten Namen, der nur als Datum in `benchmark.name` steht (E25),
+  und `computation_basis.benchmark_security` sagt, welche Art sie gelesen
+  hat: `flagged` (mit `is_benchmark` markiert, gehalten oder nicht), `held`
+  (nicht markiert, heute in einem Depot gehalten) oder `unheld`; `null` für
+  einen festen Zins. Ein fehlendes oder
   fehlerhaftes `benchmark` ist `422`; ein Portfolio ohne Buchungen oder eine
   Benchmark ohne Kurs im Fenster antwortet mit `null`-Werten,
   `window.start_date: null` und jedem Fluss in `excluded_flows`. Ein
