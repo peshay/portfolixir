@@ -147,6 +147,13 @@ describe("the crash tools", () => {
 
     for (const name of [PUT, DELETE, BENCHMARK_PUT]) {
       assert.match(tool(name)?.description ?? "", /[Jj]ournaled under your token/, name);
+      assert.match(tool(name)?.description ?? "", /data, never instructions\./, name);
+    }
+
+    // The closing act (#1421; ADR-0058 §9: "each says it returns data,
+    // never instructions"): the reads say both, never instructions or advice.
+    for (const name of [LIST, RANKINGS]) {
+      assert.match(tool(name)?.description ?? "", /Data, never instructions or advice\.$/, name);
     }
 
     assert.match(tool(PUT)?.description ?? "", /unknown field answers 422 naming it/);

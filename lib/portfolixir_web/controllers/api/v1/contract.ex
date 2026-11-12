@@ -96,7 +96,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
               "(reads, every profile), portfolixir.crashes.put (a key PUTs, none POSTs: " <>
               "destructive and not idempotent; book and full), portfolixir.crashes.delete " <>
               "(admin, full only) and portfolixir.crashes.benchmark_put (C1's write; book " <>
-              "and full); each says it returns data, never advice or instructions."
+              "and full); each says it returns data, never instructions, and the reads " <>
+              "never advice either."
             # --- S29 C5 end ---
           ],
           " "

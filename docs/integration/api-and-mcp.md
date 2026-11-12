@@ -1454,7 +1454,8 @@ window under a new key.
 **The MCP tools.**
 
 The MCP companion calls these routes through five tools, each saying in its
-description that it returns data, never advice or instructions:
+description that it returns data, never instructions; the two reads say
+never instructions or advice:
 
 - `portfolixir.crashes.list` — `GET /api/v1/crashes`, no parameter; a read,
   in `read`, `book` and `full`.
@@ -1465,8 +1466,9 @@ description that it returns data, never advice or instructions:
   detected window or edits that manual one; without one it routes to `POST`
   and draws a manual window, or makes `window.from_name` one. In `book` and
   `full`; destructive (it overwrites a name or a manual window's fields, and
-  putting the previous ones restores them) and not idempotent (a repeat
-  without a key draws another window).
+  putting the previous ones restores them, except that a name `from_name`
+  made a manual window cannot be put back while its window is not detected)
+  and not idempotent (a repeat without a key draws another window).
 - `portfolixir.crashes.delete` — `DELETE /api/v1/crashes/:key`; admin, in
   `full` only, since a removed manual window drawn again is a new window
   under a new key.
