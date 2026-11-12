@@ -704,6 +704,27 @@ Wahrnehmung, ungeprüft), sein Stichdatum und seinen Autor (Betreiber, Agent
 oder lokales Modell; ein maschinell erzeugter Vorschlag ist als solcher
 markiert).
 
+**Überschrift, Ereignisart und Tonalität.** Ein Beleg oder ein
+Ereignisergebnis mit Überschrift — aus einer Meldung übernommen oder vom
+Agenten mit Überschrift geschrieben — beginnt mit dieser Überschrift in
+Fett, hinter dem Zeichen, das sein Pin im Diagramm trägt (Plus für positiv,
+Minus für negativ, keins für neutral oder ohne Tonalität). Darunter stehen
+Ereignisart und Tonalität in Worten (*Zahlen · positiv*), die zweite Zeile
+des Tooltips am Pin. *maschinell* folgt, wo Ereignisart und Tonalität aus
+der Einordnung eines Modells für die übernommene Meldung stammen
+(`news_label_id` des Eintrags in der API); ein Eintrag, den ein lokales
+Modell vorgeschlagen hat, behält seine eigene Markierung, *maschinell
+erzeugter Vorschlag*. Ein Eintrag mit Überschrift, den ein späterer ersetzt,
+ergänzt *nicht im Diagramm, weil ersetzt*, denn das Diagramm zeichnet nur
+Einträge, die kein späterer ersetzt. Ein Eintrag ohne Überschrift,
+Ereignisart und Tonalität sieht aus wie bisher. Der Privatsphäre-Modus
+behält diese Zeilen: Sie nennen keinen Betrag.
+
+**Der Quellenlink** zeigt nur die Domain des Links (`ir.example`) und
+öffnet den vollständigen Link in einem neuen Tab: Der Link eines
+Aggregators mit mehreren hundert Zeichen wird nie vollständig ausgegeben
+(ADR-0056 E2).
+
 Ein falscher Befund wird zurückgezogen, indem ein **Widerruf** angehängt
 wird, der ihn ersetzt: Der Widerruf liest sich als „Widerruft #n“ mit der
 Begründung, der ersetzte Eintrag bleibt in der Liste mit „Ersetzt durch #n“
@@ -3702,7 +3723,8 @@ Meldung, die nie übernommen wurde. **Notizen anzeigen**, neben
 **Transaktionen anzeigen** im Reiter Diagramm, schaltet die Pins aus und
 ein; das kleine Diagramm der Übersicht hat denselben Schalter darunter,
 sobald es eine Notiz zu zeichnen gibt. Der Privatsphäre-Modus behält die
-Pins: Sie nennen keinen Betrag.
+Pins: Sie nennen keinen Betrag. Der Tab Research zeigt jeden Eintrag mit
+denselben zwei Zeilen, seine Überschrift über Ereignisart und Tonalität.
 
 ### Einen Labeller betreiben
 

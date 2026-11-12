@@ -645,6 +645,24 @@ retraction, decision), its source quality (primary source, several secondary
 sources, awareness, unverified), its as-of date and its author (operator,
 agent or local model; a machine-generated proposal is marked as such).
 
+**Headline, event type and tone.** An evidence or event-result entry with a
+headline — one kept from a story, or one the agent wrote with a headline —
+opens with that headline in bold, behind the sign its pin carries on the
+chart (plus for positive, minus for negative, none for neutral or no tone).
+Under it stand the event type and the tone in words (*Earnings · positive*),
+the second line of the pin's tooltip. *machine-made* follows where the event
+type and the tone were taken from a model's label of the story it was kept
+from (the entry's `news_label_id` over the API); an entry a local model
+proposed keeps its own mark, *machine-generated proposal*. An entry with a
+headline that a later one supersedes adds *not on the chart, as it is
+superseded*, since the chart draws only entries no later one supersedes. An
+entry without a headline, event type or tone looks as before. The privacy
+mode keeps these lines: they name no amount.
+
+**The source link** reads the link's domain only (`ir.example`) and opens
+the full link in a new tab: an aggregator's link of several hundred
+characters is never printed in full (ADR-0056 E2).
+
 A wrong finding is withdrawn by appending a **retraction** that supersedes
 it: the retraction reads "Retracts #n" with the reason, the superseded entry
 stays in the list marked "Superseded by #n", and a retracted thesis is called
@@ -3352,7 +3370,9 @@ tone and date. An entry a later one supersedes, and every story or item
 that was never kept, is not drawn. **Show notes**, beside **Show
 transactions** on the Chart tab, switches the pins off and on; the
 Overview's small chart has the same toggle under it once there is a note
-to draw. The privacy mode keeps the pins: they name no amount.
+to draw. The privacy mode keeps the pins: they name no amount. The Research
+tab shows each entry with the same two lines, its headline over its event
+type and tone.
 
 ### Running a labeller
 
