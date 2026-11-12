@@ -14,13 +14,14 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { visit, leave } = require("./settle");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
 const errors = [];
 
 async function connected(page, url) {
-  await page.goto(base + url);
+  await visit(page, base + url);
   await page.waitForSelector("[data-phx-main].phx-connected");
 }
 
@@ -196,10 +197,10 @@ async function run() {
         await thesisLabel(page);
         await eventMeta(page);
       }
-      await context.close();
+      await leave(context);
     }
   } finally {
-    await browser.close();
+    await leave(browser);
   }
   console.log(JSON.stringify(errors.length ? { ok: false, errors } : { ok: true }));
 }

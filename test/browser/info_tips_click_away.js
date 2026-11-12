@@ -9,6 +9,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { visit, leave } = require("./settle");
 
 const url = process.argv[2];
 // Two ⓘ on Wealth whose open panels cover neither the other's summary nor
@@ -51,7 +52,7 @@ async function activeIs(page, selector) {
 }
 
 async function ready(page) {
-  await page.goto(url);
+  await visit(page, url);
   await page.waitForSelector("[data-phx-main].phx-connected");
   await page.waitForSelector(A + " > summary");
   await page.waitForSelector(B + " > summary");
@@ -111,7 +112,7 @@ async function pointer(browser) {
   await expectOpen(page, [], "Escape left");
   check(await activeIs(page, A + " > summary"), "Escape did not return the focus to A's summary");
 
-  await page.close();
+  await leave(page);
 }
 
 // A tap outside closes the panel on a touch screen.
@@ -131,7 +132,7 @@ async function touch(browser) {
   await page.tap("h1");
   await expectOpen(page, [], "a tap elsewhere left");
 
-  await context.close();
+  await leave(context);
 }
 
 (async () => {
@@ -143,7 +144,7 @@ async function touch(browser) {
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message) }) + "\n");
   } finally {
-    await browser.close();
+    await leave(browser);
   }
 })().catch((error) => {
   process.stderr.write(String(error && error.stack) + "\n");

@@ -1,12 +1,13 @@
-defmodule PortfolixirWeb.Browser.PrivacyLeakSettleTest do
-  # The privacy walk's wait (the Sprint 28 closing act, browser job):
-  # `settle/2` in privacy_leak.js waited at most 8 s for a page's busy marks
+defmodule PortfolixirWeb.Browser.SettleCheckTest do
+  # The walks' wait (the Sprint 28 closing act, browser job; one helper,
+  # test/browser/settle.js, for every walk since Sprint 29 M2): the privacy
+  # walk's `settle/2` waited at most 8 s for a page's busy marks
   # to go and then went on silently, so on CI's slower runner the walk read
   # Wealth's stacked chart before its bands had landed and left the page
   # while the bands' task was mid-query; the killed task took the test's
   # one shared database connection with it, and every later page answered
   # 500 (DBConnection.OwnershipError). The wait is checked here on pages
-  # the browser draws itself, through `privacy_leak_settle.js`, with no
+  # the browser draws itself, through `settle_check.js`, with no
   # server and no database.
   #
   # Excluded from the test job (test/test_helper.exs): it needs Node, the
@@ -19,7 +20,7 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakSettleTest do
   @moduletag :browser
   @moduletag timeout: 120_000
 
-  @script Path.expand("privacy_leak_settle.js", __DIR__)
+  @script Path.expand("settle_check.js", __DIR__)
 
   # User story (the Sprint 28 closing act, browser job):
   # As the owner who trusts the privacy walk instead of reading every page,
@@ -61,5 +62,48 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakSettleTest do
 
     assert match?(%{"connected" => false}, unconnected["answer"]) and unconnected["ms"] < 5000,
            "a page that never connects is waited on: #{inspect(unconnected)}"
+  end
+
+  # User story (Sprint 29 M2, the Sprint 28 retrospective's carry-forward 1):
+  # As the owner whose CI browser job failed three times for a walk that
+  # left a page mid-load,
+  # I want every way out of a page to wait for the page's loads,
+  # so that no walk kills a load mid-query and takes the shared database
+  # connection with it.
+  #
+  # Acceptance criteria:
+  # - A click on a link on a live page (one with the LiveView client) is
+  #   made only once the page's load has landed.
+  # - On a live page whose load never lands the way out fails, naming what
+  #   it waits for, and the click is not made; a second way out while it is
+  #   still busy fails at once, and one after its load landed goes.
+  # - A page without the LiveView client (a blank page, an error page, a
+  #   page the walk drew) is left at once: nothing on the server to stop.
+  test "a walk leaves a live page only once its loads have landed" do
+    {output, status} = System.cmd("node", [@script], stderr_to_stdout: true)
+    assert status == 0, "the browser run failed:\n" <> output
+
+    result = output |> String.split("\n", trim: true) |> List.last() |> Jason.decode!()
+    refute result["error"], "the browser run failed: #{result["error"]}"
+
+    assert result["leaving"]["landed"] == true,
+           "the click was made before the page's load landed: #{inspect(result["leaving"])}"
+
+    stuck = result["stuckLeave"]
+
+    assert match?(%{"failed" => true, "clicked" => false}, stuck) and
+             stuck["message"] =~ "stuck-load",
+           "a page whose load never lands was left: #{inspect(stuck)}"
+
+    again = result["stuckAgain"]
+
+    assert match?(%{"failed" => true}, again) and again["ms"] < 1000,
+           "a page the wait gave up on was waited on again, or left: #{inspect(again)}"
+
+    assert result["landedLate"] == true,
+           "a page whose load landed late was not left: #{inspect(result["landedLate"])}"
+
+    assert result["withoutClient"]["ms"] < 1000,
+           "a page without the LiveView client was waited on: #{inspect(result["withoutClient"])}"
   end
 end

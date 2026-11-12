@@ -10,6 +10,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { settle, visit, follow, leave } = require("./settle");
 
 const [base, from, to] = process.argv.slice(2);
 const DESKTOP = { width: 1200, height: 800 };
@@ -79,39 +80,18 @@ async function pickRange(page) {
   }
 }
 
-// The page's loads have landed: no busy marker left (the privacy walk's
-// rule). Leaving a page mid-load stops its LiveView and kills a load task
-// mid-query, which drops the shared sandbox's connection and fails every
-// later request with an ownership error (the Sprint 28 closing act, CI's
-// browser job on the integrated head).
-const BUSY = "[aria-busy='true'], .phx-loading, .value-slot-pending";
-
-async function settled(page) {
-  try {
-    await page.waitForFunction((busy) => document.querySelector(busy) === null, BUSY, {
-      timeout: 45000,
-      polling: 100
-    });
-    await page.waitForTimeout(250);
-    await page.waitForFunction((busy) => document.querySelector(busy) === null, BUSY, {
-      timeout: 45000,
-      polling: 100
-    });
-  } catch (_) {
-    throw new Error("the page never settled: at " + (await page.evaluate(() => location.href)));
-  }
-}
-
 // Away through the sidebar and back to Wealth through the sidebar, each
-// page's loads landed before it is left.
+// page's loads landed before it is left and Wealth's before it is read
+// (settle.js): leaving a page mid-load stops its LiveView and kills a load
+// task mid-query, which drops the shared sandbox's connection and fails
+// every later request with an ownership error (the Sprint 28 closing act,
+// CI's browser job on the integrated head).
 async function awayAndBack(page) {
-  await settled(page);
-  await page.click("#nav-securities");
+  await follow(page, () => page.click("#nav-securities"));
   await connected(page, "/securities");
-  await settled(page);
-  await page.click("#nav-portfolio");
+  await follow(page, () => page.click("#nav-portfolio"));
   await connected(page, "/portfolio");
-  await settled(page);
+  await settle(page);
 }
 
 (async () => {
@@ -124,7 +104,7 @@ async function awayAndBack(page) {
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(String(error && error.message)));
 
-    await page.goto(base + "/portfolio");
+    await visit(page, base + "/portfolio");
     await connected(page, "/portfolio");
     check(await oneYear(page), "a first visit did not open at 1 year");
     await pickRange(page);
@@ -148,8 +128,7 @@ async function awayAndBack(page) {
       throw new Error("the return through the sidebar did not reopen the range: " + (await page.evaluate(() => location.href)));
     }
     check(!(await oneYear(page)), "the return reopened the range but 1 year is still pressed");
-    await settled(page);
-    await context.close();
+    await leave(context);
 
     // Blocked storage: 1 year, a pick that works, 1 year again on return,
     // and no script error.
@@ -159,7 +138,7 @@ async function awayAndBack(page) {
       const page2 = await blocked.newPage();
       page2.on("pageerror", (error) => errors.push(String(error && error.message)));
 
-      await page2.goto(base + "/portfolio");
+      await visit(page2, base + "/portfolio");
       await connected(page2, "/portfolio");
       check(await oneYear(page2), "with storage " + name + " the page did not open at 1 year");
       await pickRange(page2);
@@ -174,8 +153,7 @@ async function awayAndBack(page) {
         !(await page2.evaluate(() => /[?&](from|to|year|period)=/.test(location.search))),
         "with storage " + name + " the return's address names a period: " + (await page2.evaluate(() => location.href))
       );
-      await settled(page2);
-      await blocked.close();
+      await leave(blocked);
     }
 
     check(errors.length === 0, "the page raised a script error: " + errors.join(" | "));
@@ -183,7 +161,7 @@ async function awayAndBack(page) {
   } catch (error) {
     process.stdout.write(JSON.stringify({ ok: false, error: String(error && error.message) }) + "\n");
   } finally {
-    await browser.close();
+    await leave(browser);
   }
 })().catch((error) => {
   process.stderr.write(String(error && error.stack) + "\n");

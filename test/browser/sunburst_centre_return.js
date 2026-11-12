@@ -11,6 +11,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { visit, leave } = require("./settle");
 
 const url = process.argv[2];
 const CENTRE = "[data-role='sunburst-centre']";
@@ -79,7 +80,7 @@ async function run() {
       isMobile: true
     });
     const page = await context.newPage();
-    await page.goto(url);
+    await visit(page, url);
     await page.waitForSelector("[data-phx-main].phx-connected");
     await page.waitForSelector("path.sunburst-seg[data-label='Core']");
     await page.locator(".sunburst-figure").scrollIntoViewIfNeeded();
@@ -119,9 +120,9 @@ async function run() {
     await tapSlice(page, "Satellite");
     await expectCentre(page, "Satellite", "a tap on another slice did not move the selection");
 
-    await context.close();
+    await leave(context);
   } finally {
-    await browser.close();
+    await leave(browser);
   }
 }
 

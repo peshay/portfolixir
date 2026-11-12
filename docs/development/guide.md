@@ -257,11 +257,16 @@ only the browser does (the ⓘ panels closing one another and on a click
 elsewhere, Sprint 23 C1) is checked in a real Chromium. A browser test lives
 in `test/browser/`, carries `@moduletag :browser`, boots the endpoint on a
 free loopback port with Bandit, seeds its world in the shared sandbox and runs
-a Playwright script beside it with `node`, which prints one JSON result. It
-needs Node, the `playwright` package on Node's module path (`NODE_PATH`) and
+a Playwright script beside it with `node`, which prints one JSON result. The
+script leaves every page through the shared wait in `test/browser/settle.js`
+(`visit`, `draw`, `follow`, `leave`), which lets a page go only once its loads
+have landed: a page left mid-load kills its load's task mid-query, and that
+takes the test's shared database connection with it.
+`test/invariants/browser_walks_settle_test.exs` refuses a script that
+navigates or closes a page without it. It needs Node, the `playwright` package on Node's module path (`NODE_PATH`) and
 its Chromium (`npx playwright install chromium`). The tag is excluded by
-default (`test/test_helper.exs`), so `mix test`, `mix coveralls` and CI's jobs
-skip it; run it with:
+default (`test/test_helper.exs`), so `mix test`, `mix coveralls` and CI's
+`test` job skip it; CI's `browser` job runs only it. Run it locally with:
 
 ```bash
 mix test test/browser --only browser

@@ -5,9 +5,9 @@ defmodule Portfolixir.Invariants.BusyPlaceholdersTest do
   # a figure will land while its load runs, a block skeleton
   # (`.section-skeleton`) or a pending value slot (`.value-slot-pending`).
   # Assistive technology learns that the region is still loading only from
-  # `aria-busy`, and so does the privacy walk (test/browser/privacy_leak.js,
-  # `settle`), which reads a page and leaves it only once nothing on it is
-  # busy. Wealth's stacked chart and its performance chart showed their
+  # `aria-busy`, and so does every browser walk (test/browser/settle.js,
+  # `settle`; the privacy walk first), which reads a page and leaves it only
+  # once nothing on it is busy. Wealth's stacked chart and its performance chart showed their
   # skeletons without the mark, so the walk read them before their loads
   # landed and left while the bands' task was mid-query, which took the
   # test's shared database connection with it on CI. The placeholders are

@@ -15,6 +15,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { visit, leave } = require("./settle");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -24,7 +25,7 @@ function check(condition, message) {
 }
 
 async function ready(page, path) {
-  await page.goto(base + path);
+  await visit(page, base + path);
   await page.waitForSelector("[data-phx-main].phx-connected");
 }
 
@@ -94,7 +95,7 @@ async function mergeDialog(browser) {
 
   const tip = "#merge-dialog [data-role='merge-flows'] details.metric-tooltip";
   assertInside("the merge dialog's external flows ⓘ at 1280", await openAndMeasure(page, tip));
-  await page.close();
+  await leave(page);
 }
 
 // Lane I: a heading's ⓘ near the top of the page, under the top bar.
@@ -102,7 +103,7 @@ async function headingNearTop(browser, path, tip, viewport, label) {
   const page = await browser.newPage({ viewport });
   await ready(page, path);
   assertInside(label, await openAndMeasure(page, tip));
-  await page.close();
+  await leave(page);
 }
 
 // Every case runs, so a failure names each box an ⓘ leaves.
@@ -137,7 +138,7 @@ async function headingNearTop(browser, path, tip, viewport, label) {
       }
     }
   } finally {
-    await browser.close();
+    await leave(browser);
   }
   const result = errors.length === 0 ? { ok: true } : { ok: false, errors };
   process.stdout.write(JSON.stringify(result) + "\n");

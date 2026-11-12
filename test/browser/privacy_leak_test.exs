@@ -18,8 +18,8 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
   # fails the walk as a leak does: a crashed page shows no figure and
   # proves nothing (Sprint 26 closing act). So does a page whose loads have
   # not landed after 45 s: the walk reads a page and leaves it only once
-  # nothing on it is busy (`settle` in privacy_leak.js, checked by
-  # privacy_leak_settle_test.exs), since a page read early has not shown
+  # nothing on it is busy (`settle` in settle.js, the wait every walk
+  # shares, checked by settle_check_test.exs), since a page read early has not shown
   # its figures yet, and one left early has its load killed mid-query,
   # which takes the shared sandbox connection with it (Sprint 28 closing
   # act: every later page answered 500 on CI).

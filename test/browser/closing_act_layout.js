@@ -10,6 +10,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
+const { settle, visit, leave } = require("./settle");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -18,29 +19,13 @@ function check(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+// Goes to `path` once the page before has settled (settle.js): leaving a
+// page mid-load stops its LiveView and kills a load task mid-query, which
+// the sandbox logs as a dropped connection, and the log noise rule fails
+// the run (CI's browser job on #1447).
 async function ready(page, path) {
-  await page.goto(base + path);
+  await visit(page, base + path);
   await page.waitForSelector("[data-phx-main].phx-connected");
-}
-
-// The page's loads have landed: no busy marker left (period_memory.js's
-// rule). Leaving a page mid-load stops its LiveView and kills a load task
-// mid-query, which the sandbox logs as a dropped connection, and the log
-// noise rule fails the run (CI's browser job on #1447).
-const BUSY = "[aria-busy='true'], .phx-loading, .value-slot-pending";
-
-async function settled(page) {
-  try {
-    for (let pass = 0; pass < 2; pass++) {
-      await page.waitForFunction((busy) => document.querySelector(busy) === null, BUSY, {
-        timeout: 45000,
-        polling: 100
-      });
-      if (pass === 0) await page.waitForTimeout(250);
-    }
-  } catch (_) {
-    throw new Error("the page never settled: at " + (await page.evaluate(() => location.href)));
-  }
 }
 
 async function nextFrame(page) {
@@ -74,7 +59,7 @@ async function deleteDialogs(browser) {
     "button[phx-click='ask_delete_category'][phx-value-id='" + args.category_id + "']"
   );
   await dialogCentred(page, "the category's delete dialog at 1200");
-  await page.close();
+  await leave(page);
 }
 
 // V3: "After the sale"'s table wrapper on a security's Trades tab is as tall
@@ -144,7 +129,7 @@ async function tradesTab(browser) {
     "[data-role='predictions-basis'] details.metric-tooltip",
     "the Predictions tab's ⓘ in fullscreen"
   );
-  await page.close();
+  await leave(page);
 }
 
 // P1: at 390 px, beside the privacy switch, the top bar's title shows
@@ -193,7 +178,7 @@ async function topbarTitles(browser) {
       errors.push(path + ": in a wide font the title is cut " + JSON.stringify(wide));
     }
   }
-  await context.close();
+  await leave(context);
   check(errors.length === 0, "at 390 px: " + errors.join("; "));
 }
 
@@ -250,7 +235,7 @@ async function stackPhone(browser) {
   if (focused !== "stack-crumbs-current") {
     errors.push("after a drill the focus is on " + JSON.stringify(focused));
   }
-  await context.close();
+  await leave(context);
   check(errors.length === 0, "at 390 px: " + errors.join("; "));
 }
 
@@ -309,7 +294,7 @@ async function stackBarEdge(browser) {
       if (!placed) errors.push(label + "a label is not beside or above its control " + JSON.stringify(m));
       console.error(label + JSON.stringify({ lefts, labels: m.labels.map((l) => [l.left, l.right]) }));
     }
-    await context.close();
+    await leave(context);
   }
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
@@ -339,7 +324,7 @@ async function stackBarSwitch(browser) {
         await ready(page, path);
         await page.waitForSelector("[data-role='stack-level']");
         if (level !== "total") await page.waitForSelector("#stack-legend tbody tr");
-        await settled(page);
+        await settle(page);
         await nextFrame(page);
         const m = await page.evaluate(() => {
           const left = (selector) => document.querySelector(selector).getBoundingClientRect().left;
@@ -368,7 +353,7 @@ async function stackBarSwitch(browser) {
         );
       }
       console.error(locale + " at " + width + " px: " + JSON.stringify(seen));
-      await context.close();
+      await leave(context);
     }
   }
   if (errors.length > 0) throw new Error(errors.join("; "));
@@ -391,7 +376,7 @@ const CASES = {
   } catch (error) {
     errors.push(String(error && error.message));
   } finally {
-    await browser.close();
+    await leave(browser);
   }
   const result = errors.length === 0 ? { ok: true } : { ok: false, errors };
   process.stdout.write(JSON.stringify(result) + "\n");
