@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.PreviewStore
+  alias Portfolixir.LoweredHeapCap
   alias Portfolixir.Portfolios
 
   @moduletag timeout: 300_000
@@ -16,9 +17,6 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
     PreviewStore.clear()
     on_exit(&PreviewStore.clear/0)
 
-    saved_cap = Application.get_env(:portfolixir, PortfolixirWeb.HeapCap)
-    on_exit(fn -> restore_cap(saved_cap) end)
-
     # An instance with a portfolio, so the hash layers and the correction
     # pass run against it as on a used instance.
     {:ok, _portfolio} =
@@ -27,7 +25,7 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
         base_currency_code: "EUR"
       })
 
-    {:ok, saved_cap: saved_cap}
+    :ok
   end
 
   # User story (security review 2026-10-12, H07):
@@ -41,7 +39,7 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
   # - Under a heap cap a fresh session's GET /imports fits, the GET of a
   #   session with a parked preview fits too.
   test "a plain GET /imports needs no more heap under a session with a parked preview",
-       %{conn: conn, saved_cap: saved_cap} do
+       %{conn: conn} do
     parked_token = session_token()
     park!(parked_token, 20_000)
 
@@ -49,24 +47,29 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
     fresh_conn = conn |> recycle() |> init_test_session(%{"_csrf_token" => session_token()})
 
     cap_mib = 16
-    Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, max_heap_bytes: cap_mib * @mib)
+    cap_words = div(cap_mib * @mib, :erlang.system_info(:wordsize))
 
+    # The lowered cap holds for the two requests only, and the kill report of
+    # either is logged inside the capture (#1440).
     {results, _log} =
       with_log(fn ->
-        fresh = timed_get(fresh_conn)
-        parked = timed_get(parked_conn)
-        Process.sleep(300)
-        {fresh, parked}
+        LoweredHeapCap.run(cap_mib * @mib, fn ->
+          {timed_get(fresh_conn), timed_get(parked_conn)}
+        end)
       end)
 
-    restore_cap(saved_cap)
     {fresh_capped, parked_capped} = results
 
     # The control: a GET of a session with nothing parked fits the cap.
-    assert match?({200, _ms}, fresh_capped),
+    assert match?({200, _ms, _cap}, fresh_capped),
            "control failed: a fresh session's GET does not fit #{cap_mib} MiB: #{inspect(fresh_capped)}"
 
-    assert match?({200, _ms}, parked_capped),
+    # The cap under test is the cap the request process took (#1459).
+    assert match?({200, _ms, ^cap_words}, fresh_capped),
+           "control failed: the fresh session's GET ran under a cap other than " <>
+             "#{cap_mib} MiB (#{cap_words} words): #{inspect(fresh_capped)}"
+
+    assert match?({200, _ms, ^cap_words}, parked_capped),
            "GET /imports under the parked session was #{inspect(parked_capped)} under a " <>
              "#{cap_mib} MiB heap cap that the fresh session's GET fits"
   end
@@ -149,7 +152,9 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
   defp mib(bytes), do: Float.round(bytes / @mib, 1)
 
   # GET /imports in a process of its own (the HeapCap plug caps it as it caps
-  # every request process): `{status | exit_reason, ms}`.
+  # every request process): `{status | exit_reason, ms, cap_words | nil}`,
+  # the cap the request process took, or nil for a process that did not end
+  # its request.
   defp timed_get(conn) do
     parent = self()
 
@@ -157,27 +162,22 @@ defmodule PortfolixirWeb.ImportsParkedPreviewCostTest do
       spawn_monitor(fn ->
         started = System.monotonic_time(:millisecond)
         response = get(conn, "/imports")
-
-        send(
-          parent,
-          {:got, self(), response.status, System.monotonic_time(:millisecond) - started}
-        )
+        ms = System.monotonic_time(:millisecond) - started
+        {:max_heap_size, %{size: cap_words}} = Process.info(self(), :max_heap_size)
+        send(parent, {:got, self(), response.status, ms, cap_words})
       end)
 
     started = System.monotonic_time(:millisecond)
 
     receive do
-      {:got, ^pid, status, ms} ->
+      {:got, ^pid, status, ms, cap_words} ->
         Process.demonitor(ref, [:flush])
-        {status, ms}
+        {status, ms, cap_words}
 
       {:DOWN, ^ref, :process, ^pid, reason} ->
-        {reason, System.monotonic_time(:millisecond) - started}
+        {reason, System.monotonic_time(:millisecond) - started, nil}
     after
-      120_000 -> {:timeout, nil}
+      120_000 -> {:timeout, nil, nil}
     end
   end
-
-  defp restore_cap(nil), do: Application.delete_env(:portfolixir, PortfolixirWeb.HeapCap)
-  defp restore_cap(saved), do: Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, saved)
 end
