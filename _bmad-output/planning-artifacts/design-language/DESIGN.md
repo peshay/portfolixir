@@ -9912,7 +9912,7 @@ between the markers `control-bar begin` and `control-bar end` in
   apply, B wins.
 - **The fold and the floor are named widths**, each a class on the bar with
   one container query (a container query cannot read a variable): the fold
-  560, 760 (the default) or 960 px, or always (a chip row whose families
+  560, 760 (the default), 840 or 960 px, or always (a chip row whose families
   never fit one line, board 06 ③ and ④); the floor 330 (the default) or
   560 px, or always. A bar picks the width at which its groups measured no
   longer fit; a new width is one more rule, which sets the layout's
@@ -9928,7 +9928,7 @@ family of several lines keeps its label on its first line.
 |---|---|---|---|
 | The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 760, 330 | Ebene, Klassifizierung, Sortieren |
 | The journal (board 06 ①) | `live/journal_live.ex` | always, 330 | Akteur, Vorgang (chips), Art (select, its label now visible), Seit (field), the scenarios checkbox in the control column; one bar where there were two, the form around it |
-| „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 760, 560 | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
+| „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 840, 560 (the fold moved from 760 by L3's walk, which measured the line wrapping the benchmark select under the comparison up to a 793 px bar) | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
 | Wertpapiere, the chip row (board 06 ③) | `live/securities_live.ex` | always, 330 | Bestand, Datenqualität (both named now), Währung, Anlageklasse, Geändert seit, „Weitere Filter“ in the control column; the phone's filter sheet unchanged |
 | Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
 | Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Autor, Modell (when a model is recorded) |

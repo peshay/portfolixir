@@ -112,7 +112,7 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
   # floor.
   #
   # Acceptance criteria:
-  # - `fold` is one of 560, 760, 960 or `:always`; `floor` one of 330, 560
+  # - `fold` is one of 560, 760, 840, 960 or `:always`; `floor` one of 330, 560
   #   or `:always`; each becomes the class `control-bar--fold-<w>` /
   #   `control-bar--floor-<w>`.
   # - A width outside these lists is refused when the bar renders, so no bar
@@ -186,7 +186,7 @@ defmodule PortfolixirWeb.Components.ControlBarTest do
     above =
       ~r/--control-bar-display:\s*grid;.*--control-bar-columns:\s*minmax\(0, 1fr\);.*--control-bar-control-margin:\s*6px;/s
 
-    for width <- [560, 760, 960] do
+    for width <- [560, 760, 840, 960] do
       assert container_block(width) =~ ".control-bar--fold-#{width} > .control-bar__controls"
     end
 

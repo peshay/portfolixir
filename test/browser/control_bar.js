@@ -13,7 +13,7 @@
 "use strict";
 
 const { launchChromium } = require("./launch");
-const { settle, visit, leave } = require("./settle");
+const { settle, visit, draw, leave } = require("./settle");
 
 const args = JSON.parse(process.argv[2]);
 const base = args.base_url;
@@ -149,7 +149,13 @@ async function stackBarLayout(browser) {
 // are a group without a label). `roots` may name more than one element: the
 // journal's chips and its form are measured as one bar, which they become.
 function measureBar(page, roots) {
-  return page.evaluate((roots) => {
+  return measureBars(page, [roots]).then(([m]) => m);
+}
+
+// The same measure for several bars in one call (L3's sweep measures every
+// bar of a page at each width).
+function measureBars(page, rootsList) {
+  return page.evaluate((rootsList) => rootsList.map((roots) => {
     const round = (n) => Math.round(n * 10) / 10;
     const visible = (e) => {
       const r = e.getBoundingClientRect();
@@ -173,10 +179,20 @@ function measureBar(page, roots) {
     const all = (selector) => [...new Set(rootEls.flatMap((r) => [...r.querySelectorAll(selector)]))];
     const controls = all(CONTROL).filter((c) => visible(c) && !c.parentElement.closest(".segmented-control"));
     const atomic = controls.filter((c) => !controls.some((o) => o !== c && o.contains(c)));
-    const labels = all(LABEL).filter(
+    // A label's text, the text CSS sets in its ::before and ::after
+    // included (L3: a label set in CSS is a label the operator reads).
+    const generated = (e) =>
+      ["::before", "::after"]
+        .map((p) => getComputedStyle(e, p).content)
+        .filter((c) => c && c !== "none" && c !== "normal")
+        .map((c) => c.replace(/^"(.*)"$/, "$1"))
+        .join(" ");
+    const labelText = (e) => (e.textContent + " " + generated(e)).trim().replace(/\s+/g, " ");
+    const cssLabels = all("*").filter((e) => /\p{L}/u.test(generated(e)) && !e.matches(CONTROL));
+    const labels = [...new Set([...all(LABEL), ...cssLabels])].filter(
       (l) =>
-        visible(l) && !l.closest(".segmented-control") && l.textContent.trim() &&
-        !atomic.some((c) => c.contains(l)) && !l.querySelector("select, input")
+        visible(l) && !l.closest(".segmented-control") && labelText(l) &&
+        !atomic.some((c) => c.contains(l) || l.contains(c)) && !l.querySelector("select, input")
     );
     const box = (e) => {
       const r = e.getBoundingClientRect();
@@ -187,7 +203,7 @@ function measureBar(page, roots) {
         bottom: round(r.bottom - top)
       };
     };
-    const text = (e) => e.textContent.trim().replace(/\s+/g, " ").slice(0, 30);
+    const text = (e) => labelText(e).slice(0, 30);
     const rows = [];
     for (const c of [...atomic].sort((a, b) => box(a).top - box(b).top || box(a).left - box(b).left)) {
       const b = box(c);
@@ -216,8 +232,17 @@ function measureBar(page, roots) {
       }
     }
     if (cur.first || cur.label) groups.push(cur);
+    // A label around its own field („Seit“ and its input) labels it too: a
+    // bar that holds one is a labelled bar (L3), though its label has no
+    // box of its own to measure.
+    const wrapping = all("label:not(.visually-hidden)").filter(
+      (l) =>
+        visible(l) && l.querySelector("select, input:not([type=hidden]):not([type=checkbox])") &&
+        [...l.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && /\p{L}/u.test(n.textContent))
+    );
     return {
       visible: true,
+      labelled: labels.length > 0 || wrapping.length > 0,
       width: round(width),
       rows: rows
         .sort((a, b) => a.top - b.top)
@@ -229,9 +254,14 @@ function measureBar(page, roots) {
           control: { text: text(g.first), ...box(g.first) },
           chips: g.chips
         })),
-      page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+      page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      // How far the furthest control reaches past the bar or the screen.
+      overflow: round(
+        Math.max(0, ...atomic.map((c) => c.getBoundingClientRect().right)) -
+          Math.min(left + width, document.documentElement.clientWidth)
+      )
     };
-  }, roots);
+  }), rootsList);
 }
 
 function round1(n) {
@@ -245,7 +275,7 @@ function round1(n) {
 // label's line (the one line, or the label column A) or under it on the
 // label's edge (labels above, B). Where a bar names every family, no chip
 // family stands without a visible label.
-function breaches(m, { everyFamilyNamed }) {
+function breaches(m, { everyFamilyNamed, sweep }) {
   const errors = [];
   const near = (a, b) => Math.abs(a - b) <= 1;
   if (m.rows.length > 1) {
@@ -277,7 +307,13 @@ function breaches(m, { everyFamilyNamed }) {
       errors.push("a chip family without a visible label, from „" + g.control.text + "“");
     }
   }
-  if (m.page > 0) errors.push("the page scrolls sideways by " + m.page);
+  // The sweep (L3) asks of the bar what is the bar's: a page may scroll
+  // sideways at 320 px for a table, never for a bar's control.
+  if (sweep) {
+    if (m.overflow > 0.5) errors.push("a control reaches " + m.overflow + " px past the bar or the screen");
+  } else if (m.page > 0) {
+    errors.push("the page scrolls sideways by " + m.page);
+  }
   return errors;
 }
 
@@ -363,22 +399,342 @@ async function migratedBar(browser) {
 }
 // --- L2 end ---
 
+// --- L3 begin: the walk as a gate (issue 1435 (2), Sprint 29 L3) ---
+
+// The bars the walk looks for: every bar on the component, and every older
+// bar of controls (the inventory's list, `capture-b-inventory.js`) — one
+// that carries a visible label falls under the rule, so a labelled bar
+// built beside the component is measured as well as one built on it.
+const COMPONENT_BAR = ".control-bar";
+const OLDER_BARS = [
+  ".filter-chips", ".filter-bar", ".hs-controls", ".section-head-controls",
+  ".workspace-section--controls", ".select-toolbar", ".toolbar", ".journal-filters",
+  ".detail-pane-toolbar", ".chart-toggles", ".overview-chart__toggles"
+].join(", ");
+
+// The widths a labelled bar is measured at: 1440 down to 320 px in steps
+// of 8 (768, a tablet's, among them), and 390, the phone the plan names.
+const SWEEP = [390];
+for (let width = 1440; width >= 320; width -= 8) SWEEP.push(width);
+SWEEP.sort((a, b) => b - a);
+
+// Opens each closed disclosure that holds a bar (the allocation's drift
+// filter), the way the operator does: its summary pressed.
+async function openDisclosures(page) {
+  const summaries = await page.evaluate(
+    ({ component, older }) => {
+      const out = [];
+      document.querySelectorAll("details:not([open]):not(.metric-tooltip)").forEach((d, i) => {
+        if (d.querySelector(component + ", " + older) && d.querySelector(":scope > summary")) {
+          d.setAttribute("data-walk-details", String(i));
+          out.push("[data-walk-details='" + i + "'] > summary");
+        }
+      });
+      return out;
+    },
+    { component: COMPONENT_BAR, older: OLDER_BARS }
+  );
+  for (const summary of summaries) {
+    await page.click(summary).catch(() => {});
+    await settle(page);
+  }
+}
+
+// Finds the bars on the page as it stands and tags each with
+// `data-walk-bar`, so it can be measured by that tag; answers each with its
+// name and its markup. A bar on the component is measured on its own; an
+// older bar only where it neither sits in nor holds one, the outermost of
+// nested ones. A bar in a dialog, a filter sheet or an ⓘ is not a bar of
+// the page.
+function tagBars(page) {
+  return page.evaluate(
+    ({ component, older }) => {
+      const outside = (e) => !e.closest("dialog, .modal, .filter-sheet, details.metric-tooltip");
+      const bars = [...document.querySelectorAll(component)].filter(outside);
+      const olderBars = [...document.querySelectorAll(older)].filter(
+        (e) =>
+          outside(e) && !e.closest(component) && !e.querySelector(component) &&
+          !(e.parentElement && e.parentElement.closest(older))
+      );
+      return [...bars, ...olderBars].map((e, i) => {
+        e.removeAttribute("data-walk-bar");
+        const markup = e.outerHTML;
+        e.setAttribute("data-walk-bar", String(i));
+        const name = e.getAttribute("data-role") || e.id || [...e.classList].join(".");
+        return { selector: "[data-walk-bar='" + i + "']", name, component: e.matches(component), markup };
+      });
+    },
+    { component: COMPONENT_BAR, older: OLDER_BARS }
+  );
+}
+
+// Sets the width and waits for what it set off: a frame, and every finite
+// animation or transition it started (the sidebar folding away), so a bar
+// is never measured mid-way.
+async function atWidth(page, width) {
+  await page.setViewportSize({ width, height: 900 });
+  await nextFrame(page);
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect && a.effect.getComputedTiming().endTime !== Infinity)
+          .map((a) => a.finished.catch(() => {}))
+      ),
+      new Promise((resolve) => setTimeout(resolve, 2000))
+    ])
+  );
+}
+
+// The widths as ranges: [764, 772] for 764, 772 and every 8 between.
+function ranges(widths) {
+  const sorted = [...widths].sort((a, b) => a - b);
+  const out = [];
+  for (const w of sorted) {
+    const last = out[out.length - 1];
+    if (last && w - last[1] <= 8) last[1] = w;
+    else out.push([w, w]);
+  }
+  return out.map(([a, b]) => (a === b ? a + " px" : a + "–" + b + " px")).join(", ");
+}
+
+// Measures the page's bars: each at 1200 and 390 px to learn whether it is
+// labelled, then every labelled bar and every bar on the component at
+// every width of the sweep. Answers the bars found and, per bar, the
+// widths at which it breaks the rule with the first breach seen at each.
+//
+// `swept` holds the bars already swept on earlier pages, by their markup
+// and their width at 1200 and 390 px: the same bar in the same place (the
+// securities' chip row beside each of a security's tabs) is swept once.
+async function walkBars(page, where, swept = new Set()) {
+  await openDisclosures(page);
+  const bars = await tagBars(page);
+  const report = [];
+  const labelled = new Set();
+  const seen = new Set();
+  const widths = new Map(bars.map((b) => [b.selector, []]));
+  for (const width of [1200, 390]) {
+    await atWidth(page, width);
+    const ms = await measureBars(page, bars.map((b) => b.selector));
+    bars.forEach((bar, i) => {
+      widths.get(bar.selector).push(ms[i].visible ? ms[i].width : null);
+      if (!ms[i].visible) return;
+      seen.add(bar.selector);
+      if (ms[i].labelled) labelled.add(bar.selector);
+    });
+  }
+  const measured = bars.filter((b) => {
+    if (!b.component && !labelled.has(b.selector)) return false;
+    const key = JSON.stringify(widths.get(b.selector)) + b.markup;
+    if (swept.has(key)) return false;
+    swept.add(key);
+    return true;
+  });
+  const started = Date.now();
+  const broken = new Map(measured.map((b) => [b.selector, new Map()]));
+  for (const width of measured.length > 0 ? SWEEP : []) {
+    await atWidth(page, width);
+    const ms = await measureBars(page, measured.map((b) => b.selector));
+    measured.forEach((bar, i) => {
+      const m = ms[i];
+      if (!m.visible) return;
+      seen.add(bar.selector);
+      const found = breaches(m, { everyFamilyNamed: bar.component, sweep: true });
+      if (found.length === 0) return;
+      broken.get(bar.selector).set(width, found);
+      console.error(where + " " + bar.name + " at " + width + " px: " + JSON.stringify(m));
+    });
+  }
+  console.error(where + ": swept " + measured.map((b) => b.name).join(", ") + " in " + (Date.now() - started) + " ms");
+  for (const bar of measured) {
+    const at = broken.get(bar.selector);
+    if (at.size > 0) {
+      const first = [...at.entries()].sort((a, b) => a[0] - b[0])[0];
+      report.push({
+        bar: bar.name,
+        widths: [...at.keys()],
+        error:
+          where + ": the bar " + bar.name + " breaks the rule at " + ranges([...at.keys()]) +
+          "; at " + first[0] + " px: " + first[1].join("; ")
+      });
+    }
+  }
+  for (const bar of measured.filter((b) => b.component && !seen.has(b.selector))) {
+    report.push({ bar: bar.name, widths: [], error: where + ": the bar " + bar.name + " is never shown, so it was never measured" });
+  }
+  await atWidth(page, 1200);
+  return { bars: bars.filter((b) => seen.has(b.selector)).map((b) => b.name), report };
+}
+
+// The area tabs and comparisons a page links in place (a `tab` or a
+// `hindsight` in the address), as the privacy walk follows them.
+function inPageLinks(page) {
+  return page.$$eval("main a[href]", (as) =>
+    as
+      .map((a) => new URL(a.getAttribute("href"), location.href))
+      .filter((u) => u.origin === location.origin && u.pathname === location.pathname)
+      .filter((u) => /(^|[?&])(tab|hindsight)=/.test(u.search.slice(1)))
+      .map((u) => u.pathname + u.search)
+  );
+}
+
+// Issue 1435 (2): every page the router serves, in German and in English
+// (side by side, a context each), every bar on it, every width. A page's
+// detail tabs (buttons, a security's) are pressed one by one and each is
+// walked as the privacy walk walks them.
+async function everyBar(browser) {
+  const errors = [];
+  const found = new Set();
+  const host = new URL(base).hostname;
+  let visited = 0;
+  const walkLocale = async (locale) => {
+    const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+    await context.addCookies([
+      { name: "portfolixir_locale", value: args.locales[locale], domain: host, path: "/" }
+    ]);
+    const page = await context.newPage();
+    const swept = new Set();
+    const queue = [...args.addresses];
+    const queued = new Set(queue);
+    const walk = async (where) => {
+      const { bars, report } = await walkBars(page, where, swept);
+      bars.forEach((b) => found.add(b));
+      console.error(where + ": " + JSON.stringify(bars));
+      for (const r of report) errors.push(r.error);
+    };
+    while (queue.length > 0) {
+      const path = queue.shift();
+      const response = await visit(page, base + path);
+      const loaded = await settle(page);
+      visited += 1;
+      const where = locale + " " + path;
+      if (!response || response.status() >= 400 || !loaded.settled) {
+        errors.push(where + ": the page did not load (" + (response && response.status()) + ", " + JSON.stringify(loaded) + ")");
+        continue;
+      }
+      await walk(where);
+      for (const link of await inPageLinks(page)) {
+        if (!queued.has(link)) {
+          queued.add(link);
+          queue.push(link);
+        }
+      }
+      const tabs = await page.$$eval("[data-tab-level='2'] [role='tab']", (bs) =>
+        bs.filter((b) => b.getAttribute("aria-selected") !== "true").map((b) => b.id).filter(Boolean)
+      );
+      for (const id of tabs) {
+        const button = await page.$("#" + id);
+        if (!button) {
+          errors.push(where + " #" + id + ": the tab is gone");
+          continue;
+        }
+        await button.click();
+        const pressed = await settle(page);
+        visited += 1;
+        if (!pressed.settled) {
+          errors.push(where + " #" + id + ": the tab did not load (" + JSON.stringify(pressed) + ")");
+          continue;
+        }
+        await walk(where + " #" + id);
+      }
+    }
+    await leave(context);
+  };
+  await Promise.all(["de", "en"].map(walkLocale));
+  return { errors, bars: [...found].sort(), visited };
+}
+
+// The gate's own attack: pages drawn here, measured as the app's are.
+const FIXTURE_CSS = `
+  body { margin: 0; font: 16px/1.4 sans-serif; }
+  .bar { padding: 8px; }
+  .filter-chip { font: inherit; padding: 2px 8px; }
+  select { font: inherit; }
+`;
+
+const FIXTURES = {
+  // The label column (A) at every width: every control from one edge.
+  sound: `
+    <div class="bar control-bar"><div class="control-bar__controls"
+      style="display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 10px">
+      <span class="control-bar__label" id="a">Konto</span>
+      <span class="filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button></span>
+      <label class="control-bar__label" for="k">Anlageklasse</label>
+      <select id="k"><option>Alle</option></select>
+    </div></div>`,
+  // One line at every width but 764 to 772 px, where the groups wrap and
+  // each control starts after its own label (a tablet's breakpoint gone
+  // wrong).
+  wraps_at_768: `
+    <style>
+      .w { display: flex; gap: 8px; }
+      .w > span { display: inline-flex; gap: 6px; align-items: center; }
+      @media (min-width: 764px) and (max-width: 772px) { .w { flex-direction: column; align-items: flex-start; } }
+    </style>
+    <div class="bar control-bar"><div class="control-bar__controls w">
+      <span class="control-bar__group"><span class="control-bar__label" id="a">Konto</span>
+        <span class="filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button></span></span>
+      <span class="control-bar__group"><label class="control-bar__label" for="k">Anlageklasse</label>
+        <select id="k"><option>Alle</option></select></span>
+    </div></div>`,
+  // Labels set in CSS: the label's text is nowhere in the document, and
+  // each control sits indented under its label, neither beside it nor on
+  // its edge.
+  css_label: `
+    <style>
+      .c .control-bar__label { display: block; }
+      .c .control-bar__label::before { content: attr(data-text); }
+      .c .ctl { display: block; margin-left: 24px; }
+    </style>
+    <div class="bar control-bar c"><div class="control-bar__controls">
+      <span class="control-bar__label" id="a" data-text="Konto"></span>
+      <span class="ctl filter-chips" role="group" aria-labelledby="a"><button class="filter-chip">Giro</button></span>
+      <span class="control-bar__label" id="b" data-text="Typ"></span>
+      <span class="ctl filter-chips" role="group" aria-labelledby="b"><button class="filter-chip">Kauf</button></span>
+    </div></div>`
+};
+
+async function attack(browser) {
+  const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  const page = await context.newPage();
+  const fixtures = {};
+  for (const [name, html] of Object.entries(FIXTURES)) {
+    await draw(page, "<!doctype html><html><head><style>" + FIXTURE_CSS + "</style></head><body>" + html + "</body></html>");
+    const { report } = await walkBars(page, name);
+    fixtures[name] = { widths: report.flatMap((r) => r.widths), errors: report.map((r) => r.error) };
+    for (const r of report) console.error(r.error);
+  }
+  await leave(context);
+  return { errors: [], fixtures };
+}
+// --- L3 end ---
+
 const CASES = {
   stack_bar_layout: stackBarLayout,
-  migrated_bar: migratedBar
+  migrated_bar: migratedBar,
+  // --- L3 begin ---
+  every_bar: everyBar,
+  attack: attack
+  // --- L3 end ---
 };
 
 (async () => {
   const browser = await launchChromium();
   const errors = [];
+  let extra = {};
   try {
-    await CASES[args.case](browser);
+    // A case may answer its own errors and what it found (L3).
+    const answer = (await CASES[args.case](browser)) || {};
+    errors.push(...(answer.errors || []));
+    extra = { ...answer };
+    delete extra.errors;
   } catch (error) {
     errors.push(String(error && error.message));
   } finally {
     await leave(browser);
   }
-  const result = errors.length === 0 ? { ok: true } : { ok: false, errors };
+  const result = errors.length === 0 ? { ok: true, ...extra } : { ok: false, errors, ...extra };
   process.stdout.write(JSON.stringify(result) + "\n");
 })().catch((error) => {
   process.stderr.write(String(error && error.stack) + "\n");

@@ -20,8 +20,14 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2]
 
+  import Ecto.Query
+
+  alias Ecto.Adapters.SQL.Sandbox
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
   alias PortfolixirWeb.PreferenceCookieHelpers
 
   @moduletag :browser
@@ -168,4 +174,155 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   end
 
   # --- L2 end ---
+
+  # --- L3 begin ---
+  # Issue 1435 (2), Sprint 29 L3: the walk as a gate. The migrated bars'
+  # cases above name each bar; this one names none. It opens every page the
+  # router serves on the review seed (every live route, an address for each
+  # one that takes a parameter, every area tab and comparison a page links
+  # in place), opens each closed disclosure that holds a bar, and measures
+  # every bar it finds there: each `.control-bar`, and each older bar of
+  # controls (`.filter-chips`, `.toolbar`, ...) that carries a visible
+  # label. A bar the component does not draw, or one added tomorrow, is
+  # measured without a change here; a route with a parameter this test
+  # cannot address fails it until it is given one.
+  #
+  # A labelled bar is measured across every width from 1440 down to 320
+  # px in steps of 8 (and at 390), so a bar that breaks only in a band of
+  # widths, at a tablet's 768 px say, is caught; at 390 and 1200 px the
+  # plan asked for, and everywhere between.
+  #
+  # User story:
+  # As the owner who trusts CI's browser job instead of reading each
+  # screen,
+  # I want one walk to measure every bar of labelled controls on every page,
+  # at every width, without being told where the bars are,
+  # so that a bar that breaks "labelled controls start on one edge", an old
+  # one or a new one, fails the build instead of reaching my screen.
+  #
+  # Acceptance criteria:
+  # - Every live route of the router is opened (in German and in English),
+  #   with an address for each one that takes a parameter, and every area
+  #   tab or comparison a page links in place.
+  # - Every `.control-bar` on those pages is found and measured, and so is
+  #   every other bar of controls with a visible label, a label set in CSS
+  #   included; the seven bars on the component today are among them.
+  # - At every width from 1440 to 320 px (steps of 8, and 390), once a bar
+  #   has more than one row, the first control of every row and of every
+  #   labelled group start on one edge (±1 px); every labelled control sits
+  #   after its label on its line or under it on its edge; a bar on the
+  #   component names every chip family; no control leaves the bar or the
+  #   screen.
+  # - A `.control-bar` the walk never sees at any width fails it: a gate
+  #   that measured nothing checks nothing.
+  @tag timeout: 1_200_000
+  test "every bar of labelled controls on every page starts its controls on one edge",
+       %{base_url: base_url, sandbox_owner: owner} do
+    # The walk holds the shared connection for minutes, longer than the
+    # sandbox's two-minute ownership timeout: a fresh owner with room for
+    # the whole walk replaces the case's, as the privacy walk's does.
+    Portfolixir.DataCase.stop_sandbox(owner)
+    long_owner = Sandbox.start_owner!(Repo, shared: true, ownership_timeout: 1_200_000)
+    on_exit(fn -> Portfolixir.DataCase.stop_sandbox(long_owner) end)
+
+    seed!()
+    addresses = shell_addresses()
+
+    {result, output} =
+      run!("every_bar", base_url, %{addresses: addresses, locales: locales()})
+
+    assert result["ok"] == true, output
+    assert result["visited"] >= length(addresses) * 2, output
+
+    found = MapSet.new(result["bars"])
+
+    for bar <- ~w(stack-bar journal-chips hindsight-compare securities-filter-chips
+                  transaction-chips prediction-filters drift-filter) do
+      assert bar in found, "the walk did not find the bar #{bar}:\n" <> output
+    end
+  end
+
+  # The gate's own attack (Sprint 29 plan, the attack lens of Lane L): pages
+  # the walk draws itself and measures the way it measures the app's.
+  #
+  # Acceptance criteria:
+  # - A bar whose groups wrap only between 764 and 772 px (one line at 390
+  #   and at 1200 px) is caught, and only in that band.
+  # - A bar whose labels are set in CSS (`::before`), with controls that
+  #   sit neither beside nor under them, is caught for that, its labels
+  #   read as labels.
+  # - A bar that holds the rule at every width is not.
+  test "the walk catches a bar that wraps only at 768 px and a label set in CSS",
+       %{base_url: base_url} do
+    {result, output} = run!("attack", base_url, %{})
+
+    fixtures = result["fixtures"]
+    assert fixtures["sound"]["widths"] == [], output
+
+    assert fixtures["wraps_at_768"]["widths"] != [], output
+    assert Enum.all?(fixtures["wraps_at_768"]["widths"], &(&1 in 764..772)), output
+
+    # Caught for what it is: a control away from its label, the label read
+    # from CSS, never "a family without a label".
+    assert fixtures["css_label"]["widths"] != [], output
+    [error] = fixtures["css_label"]["errors"]
+    assert error =~ "sits neither after nor under its label „Konto“", output
+    refute error =~ "without a visible label", output
+  end
+
+  # Every live route of the router, as the addresses the walk opens; the
+  # walk follows each page's area tabs and comparisons from there.
+  defp shell_addresses do
+    routes =
+      PortfolixirWeb.Router.__routes__()
+      |> Enum.filter(&(&1.plug == Phoenix.LiveView.Plug))
+      |> Enum.map(& &1.path)
+      |> Enum.uniq()
+
+    assert "/" in routes and "/journal" in routes
+
+    Enum.flat_map(routes, fn path ->
+      cond do
+        not String.contains?(path, ":") ->
+          [path | extra_addresses(path)]
+
+        (list = address(path)) != [] ->
+          list
+
+        true ->
+          flunk("""
+          The shell route #{path} takes a parameter the control bar walk has no address for.
+          Give it one in address/1 of #{__ENV__.file}, so its bars are measured too.
+          """)
+      end
+    end)
+  end
+
+  # Wealth's stacked chart, whose bar shows once the value series stands
+  # at a stacked level.
+  defp extra_addresses("/portfolio"), do: ["/portfolio?level=category"]
+  defp extra_addresses(_path), do: []
+
+  # The seed's most sold security (its Trades tab holds the sale's
+  # comparison) and its first classification.
+  defp address("/securities/:id") do
+    Repo.all(
+      from(t in Transaction,
+        where: not is_nil(t.security_id) and t.type == "sell",
+        group_by: t.security_id,
+        order_by: [desc: count(t.id), asc: t.security_id],
+        limit: 1,
+        select: t.security_id
+      )
+    )
+    |> Enum.map(&"/securities/#{&1}")
+  end
+
+  defp address("/classifications/:id") do
+    Repo.all(from(c in Classification, order_by: c.id, limit: 1, select: c.id))
+    |> Enum.map(&"/classifications/#{&1}")
+  end
+
+  defp address(_path), do: []
+  # --- L3 end ---
 end
