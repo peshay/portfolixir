@@ -66,6 +66,11 @@ defmodule Portfolixir.News.Sources do
 
   @by_construction [:issuer, :regulatory]
 
+  # --- S29 N1 begin ---
+  # How often a rating runs again when its items moved (`put_attempt/4`).
+  @attempts 3
+  # --- S29 N1 end ---
+
   # --- S28 N7 begin ---
   @doc """
   Every rated domain (§3), by domain: what the news page's „Quellen“ tab
@@ -119,6 +124,77 @@ defmodule Portfolixir.News.Sources do
   @spec decider([String.t()]) :: %{String.t() => String.t()}
   def decider(domains) when is_list(domains),
     do: Map.new(deciding_rows(domains), fn {domain, {row, _tier}} -> {domain, row} end)
+
+  # The first key of the tier locks (`pg_advisory_xact_lock(int, int)`),
+  # distinct from the app's other advisory locks; the second is a domain's
+  # hash. `Portfolixir.LockTable`, rows 22 and 23.
+  @tier_lock 727_227_007
+
+  @doc """
+  The rating's tier locks (ADR-0056 E1, "Order"; `Portfolixir.LockTable`,
+  row 22), for the caller's open transaction: `domain`'s own key
+  exclusive, and the key of each parent domain of at least two labels
+  shared, in ascending key order.
+
+  The fetch takes the key of every suffix of its items' domains shared
+  (`lock_ingest/1`) before it reads their tiers, and holds it until its
+  items commit. So a rating waits for every fetch storing an item its row
+  could decide, and re-rates what those fetches stored; a fetch that
+  starts while a rating holds its key reads the tier the rating wrote.
+  Two ratings of which one domain is a suffix of the other meet at the
+  shorter's key (exclusive against shared), so the later reads the
+  earlier's row; two ratings of unrelated domains do not wait for each
+  other.
+  """
+  @spec lock_rating(String.t()) :: :ok
+  def lock_rating(domain) when is_binary(domain) do
+    [own | parents] = domain |> normalize_domain() |> suffixes()
+    own_key = tier_key(own)
+
+    parents
+    |> Enum.map(&tier_key/1)
+    |> Enum.reject(&(&1 == own_key))
+    |> Enum.map(&{&1, :shared})
+    |> Enum.concat([{own_key, :exclusive}])
+    |> Enum.uniq_by(&elem(&1, 0))
+    |> Enum.sort()
+    |> Enum.each(fn
+      {key, :exclusive} ->
+        Repo.query!("SELECT pg_advisory_xact_lock($1, $2) /* news tier: rating */", [
+          @tier_lock,
+          key
+        ])
+
+      {key, :shared} ->
+        Repo.query!("SELECT pg_advisory_xact_lock_shared($1, $2) /* news tier: parent */", [
+          @tier_lock,
+          key
+        ])
+    end)
+  end
+
+  @doc """
+  The fetch's tier locks (`Portfolixir.LockTable`, row 23), for the
+  caller's open transaction: the key of every suffix of `domains` (as
+  `lookup/1` reads them) shared, in ascending key order. See
+  `lock_rating/1`.
+  """
+  @spec lock_ingest([String.t()]) :: :ok
+  def lock_ingest(domains) when is_list(domains) do
+    domains
+    |> Enum.flat_map(&suffixes(normalize_domain(&1)))
+    |> Enum.map(&tier_key/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.each(
+      &Repo.query!("SELECT pg_advisory_xact_lock_shared($1, $2) /* news tier: ingest */", [
+        @tier_lock,
+        &1
+      ])
+    )
+  end
+
+  defp tier_key(domain), do: :erlang.phash2(domain)
 
   # --- S29 N1 end ---
 
@@ -189,40 +265,54 @@ defmodule Portfolixir.News.Sources do
 
     with {:ok, _valid} <- Ecto.Changeset.apply_action(changeset, :insert) do
       domain = Ecto.Changeset.get_field(changeset, :domain)
-
       now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
-
-      Multi.new()
-      |> Multi.run(:claim, fn repo, _changes -> claim(repo, domain, attrs) end)
-      |> Multi.run(:prior, fn _repo, %{claim: claim} -> {:ok, prior(claim)} end)
-      |> Multi.run(:source, fn repo, %{claim: claim} -> written(repo, claim, attrs) end)
-      # --- S29 N1 begin ---
-      |> Multi.run(:retier, fn _repo, %{prior: prior, source: source} ->
-        Retier.run(prior, source, now)
-      end)
-      |> Multi.run(:image, fn _repo, %{source: source, retier: counts} ->
-        {:ok, image(source, counts)}
-      end)
-      |> Journal.record(actor,
-        resource_type: "news_source",
-        operation: :upsert,
-        source: :image,
-        before_step: :prior
-      )
-      # --- S29 N1 end ---
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{source: source}} -> {:ok, source}
-        {:error, :source, {:kept, prior}, _changes} -> {:kept, prior}
-        {:error, :source, {:unchanged, prior}, _changes} -> {:ok, prior}
-        {:error, :source, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
-        {:error, :claim, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
-        {:error, :retier, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
-      end
+      put_attempt(actor, {domain, attrs, changeset}, now, @attempts)
     end
   end
 
   # --- S29 N1 begin ---
+  # E1: an item that moved between scopes while the re-rating took its
+  # locks (`Retier`, `:moved`) rolls the write back, releasing every lock,
+  # and the next attempt reads it where it is now, as `news.assign` runs
+  # again (D4). After the last attempt the write is refused naming `domain`.
+  defp put_attempt(_actor, {_domain, _attrs, changeset}, _now, 0) do
+    {:error,
+     Ecto.Changeset.add_error(
+       changeset,
+       :domain,
+       "its items moved between stories while it was rated: send it again"
+     )}
+  end
+
+  defp put_attempt(actor, {domain, attrs, _changeset} = put, now, attempts) do
+    Multi.new()
+    |> Multi.run(:claim, fn repo, _changes -> claim(repo, domain, attrs) end)
+    |> Multi.run(:prior, fn _repo, %{claim: claim} -> {:ok, prior(claim)} end)
+    |> Multi.run(:source, fn repo, %{claim: claim} -> written(repo, claim, attrs) end)
+    |> Multi.run(:retier, fn _repo, %{prior: prior, source: source} ->
+      Retier.run(prior, source, now)
+    end)
+    |> Multi.run(:image, fn _repo, %{source: source, retier: counts} ->
+      {:ok, image(source, counts)}
+    end)
+    |> Journal.record(actor,
+      resource_type: "news_source",
+      operation: :upsert,
+      source: :image,
+      before_step: :prior
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{source: source}} -> {:ok, source}
+      {:error, :source, {:kept, prior}, _changes} -> {:kept, prior}
+      {:error, :source, {:unchanged, prior}, _changes} -> {:ok, prior}
+      {:error, :source, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:error, :claim, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:error, :retier, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:error, :retier, :moved, _changes} -> put_attempt(actor, put, now, attempts - 1)
+    end
+  end
+
   # E1 rule 6: the journal entry's after-image is the row as written and,
   # beside its tier, the counts of the items the write re-rated, removed and
   # left because promoted.
