@@ -1122,8 +1122,10 @@ promoted** and whose domain the row now decides:
    (below). A later fetch that lists them again drops them at ingest and
    counts them `dropped_blocked`, as for any blocked item; no tombstone is
    needed.
-4. **Each touched story's representative is chosen again** by C2's rule
-   (best tier, then `first_seen_at`, then URL), so a story whose best
+4. **Each touched story's representative is chosen again** by B3's rule
+   (best tier, then the earliest clamped `published_at`, then the
+   smallest canonical URL; C2 keys which story survives a merge, not the
+   representative), so a story whose best
    member lost its tier is represented by the member that now ranks
    first. Removed items leave their stories through
    `Stories.remove/5`, as retention's do (§12): a story left without a
@@ -1165,7 +1167,15 @@ retier hand only".
 - *Two ratings of overlapping domains* (`example.com` and
   `markets.example.com`): each re-rates only the items its own row
   decides after its write, so the result depends on the rows, not on
-  which write came first.
+  which write came first. **One exception, a block's removal** (rule 3):
+  the removal is the block's own and is not undone by a later row. When a
+  parent's block commits before a child's rating, the child's items are
+  already gone, and the next fetch that lists them stores them at the
+  child's tier; with the child's rating first, they are kept. Removing
+  them a second time or restoring them by a guess would both rewrite
+  what a write already decided. *Found by the attack lens on the build
+  (Sprint 29); a precision of rule 3, not a new rule.* **To flip:** none
+  without changing rule 3 itself (a block that keeps what it covers).
 
 *Why at write and not at read:* reading the tier at query time was
 weighed and not chosen. It moves the digest's tier filter, each story's
