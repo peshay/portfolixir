@@ -219,6 +219,14 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
          "fair-access policy asks for; without it a feed on sec.gov makes no request " <>
          "(ADR-0056 §5, B8); a label sent to sec.gov and its subdomains only (C6), never a " <>
          "host or a credential"},
+    # --- Sprint 29 H2 begin ---
+    # ADR-0059 §3, §10: read at boot by config/runtime.exs, never written.
+    "PORTFOLIXIR_BITCOIN_ESPLORA_URL" =>
+      {:config,
+       "the operator's own Esplora base URL for the Bitcoin chain source, replacing " <>
+         "mempool.space and blockstream.info (ADR-0059 §3); https, no userinfo and public " <>
+         "addresses only, checked with name resolution before every run; no credential"},
+    # --- Sprint 29 H2 end ---
     # --- Sprint 28 V1 begin ---
     # FR-55 (plan D-7): the build arguments Dockerfile.release sets for its
     # compile step; read at compile time only, by Portfolixir.BuildVersion.

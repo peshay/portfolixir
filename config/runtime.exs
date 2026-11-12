@@ -22,6 +22,12 @@ end
 if config_env() in [:dev, :prod] do
   config :portfolixir, Portfolixir.News.Fetcher,
     user_agent: Portfolixir.RuntimeConfig.news_user_agent()
+
+  # The chain source's own Esplora instance (ADR-0059 §3), replacing both
+  # public sources when set; checked by the adapter before every run, never
+  # written by the app.
+  config :portfolixir, Portfolixir.Chains.Esplora,
+    own_url: Portfolixir.RuntimeConfig.bitcoin_esplora_url()
 end
 
 if config_env() == :prod do

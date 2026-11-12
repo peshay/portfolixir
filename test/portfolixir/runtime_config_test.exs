@@ -540,6 +540,50 @@ defmodule Portfolixir.RuntimeConfigTest do
     end
   end
 
+  # --- Sprint 29 H2 begin ---
+  # User story (ADR-0059 §3):
+  # As an operator who runs an own mempool or Esplora instance,
+  # I want PORTFOLIXIR_BITCOIN_ESPLORA_URL read at boot as the chain source's
+  # one base URL,
+  # so that my instance replaces both public sources without a UI that
+  # writes the environment.
+  #
+  # Acceptance criteria:
+  # - Unset or blank is no own URL (nil); a value is taken trimmed. Its
+  #   checks (https, public addresses) are the adapter's, before every run,
+  #   so a refused URL is a reason on the health read, not a failed boot.
+  # - config/runtime.exs reads it through this function for development and
+  #   the release, never for the test suite.
+  test "reads the chain source's own URL from PORTFOLIXIR_BITCOIN_ESPLORA_URL" do
+    assert RuntimeConfig.bitcoin_esplora_url(nil) == nil
+    assert RuntimeConfig.bitcoin_esplora_url("") == nil
+    assert RuntimeConfig.bitcoin_esplora_url("  ") == nil
+
+    assert RuntimeConfig.bitcoin_esplora_url(" https://node.example.com/api ") ==
+             "https://node.example.com/api"
+
+    # Refused later, with its reason on the health read; never at boot.
+    assert RuntimeConfig.bitcoin_esplora_url("http://192.168.1.20/api") ==
+             "http://192.168.1.20/api"
+
+    runtime = File.read!("config/runtime.exs")
+    assert runtime =~ "Portfolixir.RuntimeConfig.bitcoin_esplora_url()"
+
+    # The variable is this test's alone: nothing else in the suite reads it.
+    System.put_env("PORTFOLIXIR_BITCOIN_ESPLORA_URL", "https://node.example.com/api")
+
+    try do
+      for {env, expected} <- [dev: "https://node.example.com/api", test: nil] do
+        config = Config.Reader.read!("config/runtime.exs", env: env, target: :host)
+        assert get_in(config, [:portfolixir, Portfolixir.Chains.Esplora, :own_url]) == expected
+      end
+    after
+      System.delete_env("PORTFOLIXIR_BITCOIN_ESPLORA_URL")
+    end
+  end
+
+  # --- Sprint 29 H2 end ---
+
   # User story (security review 2026-10-12, H72):
   # As an operator whose database password holds a character a URL reserves,
   # I want the release to refuse DATABASE_URL at boot naming the variable and

@@ -100,6 +100,9 @@ services:
       # The news fetcher's user agent, with the operator's contact; a feed on
       # sec.gov makes no request without it (ADR-0056 §5).
       PORTFOLIXIR_NEWS_USER_AGENT: ${PORTFOLIXIR_NEWS_USER_AGENT:-}
+      # The operator's own Esplora instance for the chain source; replaces
+      # mempool.space and blockstream.info when set (ADR-0059 §3).
+      PORTFOLIXIR_BITCOIN_ESPLORA_URL: ${PORTFOLIXIR_BITCOIN_ESPLORA_URL:-}
     # Descriptors above the listener's connection cap (500, config/config.exs),
     # so a flood of connections meets the cap, not the descriptor table.
     ulimits:
