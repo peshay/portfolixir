@@ -68,6 +68,34 @@ defmodule Portfolixir.Catalog.BenchmarkSecurity do
     if held?, do: :held, else: :unheld
   end
 
+  @doc """
+  What a screen's benchmark picker offers (#1416, B2; the amendment's
+  point 3; ADR-0058 F5; board 02, Q1 A), by name: `:flagged`, the flagged
+  securities, then `:held`, the unflagged ones held today in any depot —
+  each only with a stored quote, so every security offered is one
+  `resolve/1` accepts. A flagged security that is also held is listed once,
+  under `:flagged`, as `standing/1` names it.
+  """
+  @spec choices() :: %{flagged: [Security.t()], held: [Security.t()]}
+  def choices do
+    quoted =
+      from(s in Security,
+        as: :security,
+        where: exists(from(q in Quote, where: q.security_id == parent_as(:security).id)),
+        order_by: [asc: s.name, asc: s.id]
+      )
+
+    %{
+      flagged: Repo.all(from(s in quoted, where: s.is_benchmark)),
+      held:
+        Repo.all(
+          from(s in quoted,
+            where: not s.is_benchmark and s.id in subquery(HeldSecurities.held_ids_query())
+          )
+        )
+    }
+  end
+
   defp quoted(%Security{id: id} = security) do
     if Repo.exists?(from(q in Quote, where: q.security_id == ^id)),
       do: {:ok, security},

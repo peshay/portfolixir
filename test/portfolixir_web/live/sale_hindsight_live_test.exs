@@ -157,6 +157,9 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
       {~D[2026-01-15], "90"}
     ])
 
+    # #1416 (B2): bought before it is sold out, so neither fund is held
+    # today and the benchmark select's „In holdings“ group stays the test's.
+    buy!(world, sold, quantity: "10", price: "90", date: ~D[2024-12-02])
     sale = sell!(world, sold, quantity: "10", price: "101.50", date: ~D[2025-01-15])
 
     bench = create_security!(name: "Synthetic Bench Index", ticker: "SBI", currency: "EUR")
@@ -172,6 +175,7 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
     recent_day = Date.add(Clock.today(), -3)
     recent_security = create_security!(name: "Synthetic Recent Fund", ticker: "SRF")
     put_quotes!(recent_security, [{recent_day, "40"}])
+    buy!(world, recent_security, quantity: "1", price: "38", date: Date.add(recent_day, -5))
     recent = sell!(world, recent_security, quantity: "1", price: "40", date: recent_day)
 
     bare = create_security!(name: "Synthetic Unpriced Fund", ticker: "SUF")
@@ -838,4 +842,124 @@ defmodule PortfolixirWeb.SaleHindsightLiveTest do
   end
 
   # --- Sprint 26 fix D end ---
+
+  # --- Sprint 29 B2 begin ---
+  # The select's optgroups in order, each with its options' names.
+  defp select_groups(view) do
+    view
+    |> element("#sale-hindsight select[name='benchmark']")
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("optgroup")
+    |> Enum.map(fn group ->
+      [label] = LazyHTML.attribute(group, "label")
+
+      {label,
+       group |> LazyHTML.query("option") |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))}
+    end)
+  end
+
+  # A fund held today, with closes on the sale's days.
+  defp held_fund!(world) do
+    held = create_security!(name: "Synthetic Held Fund", ticker: "SHLD", currency: "EUR")
+    buy!(world, held, quantity: "4", price: "50", date: ~D[2024-12-02])
+
+    put_quotes!(held, [
+      {~D[2024-12-02], "50"},
+      {~D[2025-01-15], "50"},
+      {~D[2025-02-14], "55"},
+      {~D[2025-04-15], "60"},
+      {~D[2026-01-15], "40"}
+    ])
+
+    held
+  end
+
+  # User story (#1416, B2; ADR-0046's amendment of 2026-11-07, point 3;
+  # ADR-0058 F5; board 02 ③, Q1 A):
+  # As the operator asking what a sale missed against a fund I hold,
+  # I want „Nach dem Verkauf“'s select to offer the flagged benchmarks and
+  # then the securities I hold today, as two labelled groups,
+  # so that I pick my own fund and each span reads the difference to it,
+  # the same the API answers.
+  #
+  # Acceptance criteria:
+  # - The select carries the optgroups „Benchmarks“ (flagged, with a
+  #   quote) then „In holdings“ (held today, with a quote, unflagged), by
+  #   name; its default stays the first flagged security.
+  # - Choosing the held fund patches the address with
+  #   hindsight_benchmark=<id>, the select shows it chosen, and the 3m span
+  #   reads the difference GET /api/v1/sales/hindsight answers for
+  #   benchmark=security:<id>.
+  test "the select offers the held funds after the benchmarks and compares with the one picked",
+       %{conn: conn} do
+    %{world: world, sale: sale, bench: bench} = world()
+    held = held_fund!(world)
+    cell = "#sale-hindsight tr[data-sale='#{sale.id}'] td[data-span='3m'] .hs-lead"
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    assert select_groups(view) == [
+             {"Benchmarks", ["Synthetic Bench Index"]},
+             {"In holdings", ["Synthetic Held Fund"]}
+           ]
+
+    assert has_element?(view, "select[name='benchmark'] option[selected]", bench.name)
+
+    view
+    |> form("form[data-role='hindsight-benchmark-form']", %{"benchmark" => "#{held.id}"})
+    |> render_change()
+
+    assert_patch(
+      view,
+      "/cashflow?tab=realized&hindsight=security&hindsight_benchmark=#{held.id}"
+    )
+
+    assert has_element?(view, "select[name='benchmark'] option[selected]", held.name)
+    by_held = api_span(conn, %{"benchmark" => "security:#{held.id}"}, sale.id, "3m")
+    assert text(view, cell) == percent(by_held["difference"])
+    assert text(view, "#sale-hindsight .hs-legend") =~ held.name
+  end
+
+  # Acceptance criteria (#1416, B2; ADR-0058 F5):
+  # - A link naming a held fund opens with it chosen and compared, never
+  #   dropped to the first flagged benchmark.
+  # - A link naming an unheld security with a quote, which the API takes,
+  #   opens with it chosen too, in a third group, so the select shows what
+  #   is compared.
+  # - A flagged fund that is also held is offered once, under „Benchmarks“.
+  # - In German the groups read „Benchmarks“, „Im Bestand“, „Weitere“.
+  test "a held or quoted security in the link stays chosen; a held benchmark is listed once",
+       %{conn: conn} do
+    %{world: world, sale: sale, bench: bench} = world()
+    held = held_fund!(world)
+    buy!(world, bench, quantity: "1", price: "200", date: ~D[2024-12-02])
+    watched = create_security!(name: "Synthetic Watched Fund", ticker: "SWTF", currency: "EUR")
+    put_quotes!(watched, [{~D[2025-01-15], "10"}, {~D[2025-04-15], "12"}])
+    cell = "#sale-hindsight tr[data-sale='#{sale.id}'] td[data-span='3m'] .hs-lead"
+
+    {:ok, view, _html} =
+      live(conn, "/cashflow?tab=realized&hindsight=security&hindsight_benchmark=#{held.id}")
+
+    assert has_element?(view, "select[name='benchmark'] option[selected]", held.name)
+    by_held = api_span(conn, %{"benchmark" => "security:#{held.id}"}, sale.id, "3m")
+    assert text(view, cell) == percent(by_held["difference"])
+
+    link = "/cashflow?tab=realized&hindsight=security&hindsight_benchmark=#{watched.id}"
+    {:ok, view, _html} = live(conn, link)
+
+    assert has_element?(view, "select[name='benchmark'] option[selected]", watched.name)
+    by_watched = api_span(conn, %{"benchmark" => "security:#{watched.id}"}, sale.id, "3m")
+    assert text(view, cell) == percent(by_watched["difference"])
+
+    {:ok, view, _html} = live(conn, link <> "&locale=de")
+
+    assert select_groups(view) == [
+             {"Benchmarks", ["Synthetic Bench Index"]},
+             {"Im Bestand", ["Synthetic Held Fund"]},
+             {"Weitere", ["Synthetic Watched Fund"]}
+           ]
+  end
+
+  # --- Sprint 29 B2 end ---
 end

@@ -17,8 +17,10 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     * the chooser „Vergleich“ — the shipped segmented control, as query
       state (`hindsight`, `hindsight_rate`, `hindsight_benchmark`), and the
       one field the chosen kind needs: the rate and „Anwenden“, or the
-      flagged benchmark securities' select (ADR-0046), or the shipped hint
-      when none is flagged;
+      benchmark select with its labelled groups, „Benchmarks“ then „Im
+      Bestand“ (ADR-0046's amendment of 2026-11-07; #1416, board
+      `ux-design-2026-11-12-sprint29/02`, Q1 A; `PortfolixirWeb.BenchmarkChoices`),
+      or the shipped hint when it offers none;
     * the table — security (not on the security page), sale (date over
       quantity × booked price), start close (EUR, its date where it is not
       the sale day, the close in its own currency where that is not EUR),
@@ -48,10 +50,11 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
-  alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.BenchmarkSecurity
   alias Portfolixir.Portfolios.Performance.SaleHindsight
   alias Portfolixir.Portfolios.Performance.SaleReinvestment
   alias Portfolixir.Portfolios.Performance.WindowReturn
+  alias PortfolixirWeb.BenchmarkChoices
   alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
@@ -94,8 +97,9 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   defp load(socket) do
     %{uri: uri, security_id: security_id} = socket.assigns
     params = query_params(uri)
-    benchmarks = Catalog.list_securities(is_benchmark: true)
-    comparison = comparison(params, benchmarks)
+    groups = BenchmarkChoices.groups()
+    comparison = comparison(params, groups)
+    groups = BenchmarkChoices.with_chosen(groups, chosen(comparison))
 
     report =
       SaleHindsight.report(
@@ -113,7 +117,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
 
     assign(socket,
       comparison: comparison,
-      benchmarks: benchmarks,
+      groups: groups,
       report: report,
       rows: rows
     )
@@ -122,25 +126,29 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   # -- the comparison, from the address ----------------------------------------
 
   # The address is the comparison's one source: a chooser link, the rate
-  # field and the select all patch it. No `hindsight` reads the flagged
-  # benchmark when one exists, else none.
-  defp comparison(params, benchmarks) do
-    mode = Map.get(@mode_params, params[@param_prefix]) || default_mode(benchmarks)
-    resolve(mode, params, benchmarks)
+  # field and the select all patch it. No `hindsight` reads the first
+  # flagged benchmark when one exists, else none (board 02 ③: the default
+  # stays the flagged one).
+  defp comparison(params, groups) do
+    mode = Map.get(@mode_params, params[@param_prefix]) || default_mode(groups)
+    resolve(mode, params, groups)
   end
+
+  defp chosen(%{benchmark: {:security, security}}), do: [security]
+  defp chosen(_comparison), do: []
 
   # Mode 3 reads the same rows with the reinvestment block, as
   # `GET /api/v1/sales/hindsight?include=reinvestment` does.
   defp include(%{mode: :reinvestment}), do: [:reinvestment]
   defp include(_comparison), do: []
 
-  defp default_mode([]), do: :none
-  defp default_mode(_benchmarks), do: :security
+  defp default_mode([%{key: :flagged} | _groups]), do: :security
+  defp default_mode(_groups), do: :none
 
-  defp resolve(:none, _params, _benchmarks), do: %{base(:none) | benchmark: nil}
-  defp resolve(:reinvestment, _params, _benchmarks), do: base(:reinvestment)
+  defp resolve(:none, _params, _groups), do: %{base(:none) | benchmark: nil}
+  defp resolve(:reinvestment, _params, _groups), do: base(:reinvestment)
 
-  defp resolve(:rate, params, _benchmarks) do
+  defp resolve(:rate, params, _groups) do
     case params[@rate_param] do
       raw when is_binary(raw) and raw != "" ->
         case parse_rate(raw) do
@@ -153,14 +161,20 @@ defmodule PortfolixirWeb.SaleHindsightSection do
     end
   end
 
-  defp resolve(:security, params, benchmarks) do
+  # ADR-0058 F5 (#1416, B2): the id in the address is resolved by the
+  # API's one rule — any security with a stored quote — so a held fund
+  # picked is never dropped to the default; one the rule refuses falls back
+  # to the first security the select offers, as before.
+  defp resolve(:security, params, groups) do
     chosen =
-      case LiveParam.id(params[@benchmark_param]) do
-        nil -> nil
-        id -> Enum.find(benchmarks, &(&1.id == id))
+      with id when is_integer(id) <- LiveParam.id(params[@benchmark_param]),
+           {:ok, security} <- BenchmarkSecurity.resolve(id) do
+        security
+      else
+        _none_or_refused -> nil
       end
 
-    case chosen || List.first(benchmarks) do
+    case chosen || BenchmarkChoices.first(groups) do
       nil -> base(:security)
       security -> %{base(:security) | benchmark: {:security, security}}
     end
@@ -357,7 +371,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
           <button type="submit"><%= gettext("Apply") %></button>
         </form>
         <form
-          :if={@comparison.mode == :security and @benchmarks != []}
+          :if={@comparison.mode == :security and @groups != []}
           id={"#{@id}-benchmark-form"}
           class="hs-controls__field"
           phx-change="benchmark"
@@ -365,18 +379,22 @@ defmodule PortfolixirWeb.SaleHindsightSection do
           data-role="hindsight-benchmark-form"
         >
           <label for={"#{@id}-benchmark"} class="visually-hidden"><%= gettext("Benchmark") %></label>
+          <%!-- #1416 (B2; board 02 ③, Q1 A): „Benchmarks“ then „Im
+               Bestand“ as optgroups of the native select. --%>
           <select id={"#{@id}-benchmark"} name="benchmark">
-            <option
-              :for={security <- @benchmarks}
-              value={security.id}
-              selected={benchmark_id(@comparison.benchmark) == Integer.to_string(security.id)}
-            >
-              <%= security.name %>
-            </option>
+            <optgroup :for={group <- @groups} label={group.label} data-group={group.key}>
+              <option
+                :for={security <- group.securities}
+                value={security.id}
+                selected={benchmark_id(@comparison.benchmark) == Integer.to_string(security.id)}
+              >
+                <%= security.name %>
+              </option>
+            </optgroup>
           </select>
         </form>
         <span
-          :if={@comparison.mode == :security and @benchmarks == []}
+          :if={@comparison.mode == :security and @groups == []}
           class="hint"
           data-role="benchmark-none"
         >
