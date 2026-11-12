@@ -413,15 +413,18 @@ defmodule PortfolixirWeb.DashboardTest do
   # Acceptance criteria:
   # - Data quality renders as a single data-note line, not a card grid.
   # - Each count links to /securities with the matching filter applied
-  #   (dq=stale_quote, filter[]=asset_class:is_nil, dq=missing_logo).
+  #   (dq=stale_quote, filter[]=asset_class:is_nil, dq=missing_logo), over
+  #   the held securities since issue 1417 (holding=held).
   # - The line renders only when at least one count is non-zero; there is no
   #   green all-clear badge.
   # - The note carries a severity word and glyph, never colour alone.
   test "data quality is one line linking to pre-filtered securities lists", %{conn: conn} do
     seed_holding()
 
-    {:ok, _} =
+    {:ok, no_quote} =
       Catalog.create_security(Actor.owner_ui(), %{name: "NoQuote Co", currency_code: "EUR"})
+
+    buy!(base_world(), no_quote, quantity: "1", price: "10", date: ~D[2026-01-12])
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
@@ -429,15 +432,16 @@ defmodule PortfolixirWeb.DashboardTest do
     assert has_element?(view, "#dashboard-data-quality [data-role='data-quality-line']")
     refute has_element?(view, "#dashboard-data-quality .grid .stat")
 
-    # Counts link to the pre-filtered securities list (#651).
+    # Counts link to the pre-filtered securities list (#651), held first
+    # (issue 1417).
     assert has_element?(
              view,
-             ~s(#dashboard-data-quality a[href="/securities?dq=stale_quote"])
+             ~s(#dashboard-data-quality a[href="/securities?dq=stale_quote&holding=held"])
            )
 
     assert has_element?(
              view,
-             ~s(#dashboard-data-quality a[href="/securities?dq=missing_logo"])
+             ~s(#dashboard-data-quality a[href="/securities?dq=missing_logo&holding=held"])
            )
 
     # The note is a data-note with a severity word (UX-DR17/UX-DR7): a stale
@@ -471,9 +475,9 @@ defmodule PortfolixirWeb.DashboardTest do
   # so that the line counts what still needs work, not what I have closed.
   #
   # Acceptance criteria:
-  # - A never-priced security without an asset class or a logo counts once
-  #   under each of the three findings, and the asset-class link opens a list
-  #   holding it.
+  # - A held, never-priced security without an asset class or a logo counts
+  #   once under each of the three findings, and the asset-class link opens a
+  #   list holding it.
   # - Retired, it counts under none, the asset-class link's list no longer
   #   holds it, and with nothing else open the line is gone.
   test "a retired security leaves the data-quality line's quote, class and logo counts",
@@ -488,13 +492,15 @@ defmodule PortfolixirWeb.DashboardTest do
     {:ok, closed} =
       Catalog.create_security(Actor.owner_ui(), %{name: "Closed Co", currency_code: "EUR"})
 
+    buy!(base_world(), closed, quantity: "1", price: "10", date: ~D[2026-01-12])
+
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
     assert has_element?(
              view,
              "[data-role='dq-quotes']",
-             "one security in the catalog without a quote in 7 days"
+             "one held security without a quote in 7 days"
            )
 
     assert has_element?(view, "[data-role='dq-class']", "one without an asset class")
@@ -533,8 +539,9 @@ defmodule PortfolixirWeb.DashboardTest do
   #
   # Acceptance criteria:
   # - Before the reconciliation the two rows with a stored path count as
-  #   having a logo; after it marks them, the line reads "2 without a logo"
-  #   and links to dq=missing_logo, whose list holds both.
+  #   having a logo; after it marks them, the line counts the held one
+  #   (issue 1417) and links to dq=missing_logo&holding=held, and "(2 in
+  #   the catalog)" links to dq=missing_logo, whose list holds both.
   # - A security locked to "no logo" is not counted.
   test "the logo count includes logos whose file is gone once marked", %{conn: conn} do
     %{security: security} = seed_holding()
@@ -582,8 +589,14 @@ defmodule PortfolixirWeb.DashboardTest do
 
     assert has_element?(
              view,
-             ~s([data-role='dq-logo'][href="/securities?dq=missing_logo"]),
-             "2 without a logo"
+             ~s([data-role='dq-logo'][href="/securities?dq=missing_logo&holding=held"]),
+             "one held security without a logo"
+           )
+
+    assert has_element?(
+             view,
+             ~s([data-catalog-of='dq-logo'] a[href="/securities?dq=missing_logo"]),
+             "2 in the catalog"
            )
 
     {:ok, list, _html} = live(conn, "/securities?dq=missing_logo")
@@ -602,10 +615,10 @@ defmodule PortfolixirWeb.DashboardTest do
   #
   # Acceptance criteria:
   # - One forward finding (quotes near 100, a buy near 1) and one reverse
-  #   finding (quotes near 1, a buy near 100) read "2 Anleihen auf zwei
-  #   Skalen bepreist" on the German line, linking to
-  #   /securities?dq=two_scales, and the note takes the problem severity,
-  #   the highest present.
+  #   finding (quotes near 1, a buy near 100), both held, read "2 gehaltene
+  #   Anleihen auf zwei Skalen bepreist" on the German line, linking to
+  #   /securities?dq=two_scales&holding=held (issue 1417), and the note
+  #   takes the problem severity, the highest present.
   # - The linked list holds those two bonds and nothing else, under a
   #   removable "Auf zwei Skalen bepreist" filter chip.
   # - A bond on one scale and an unclassed security with no master data
@@ -642,8 +655,8 @@ defmodule PortfolixirWeb.DashboardTest do
 
     assert has_element?(
              view,
-             ~s(#dashboard-dq-line a[data-role="dq-two-scales"][href="/securities?dq=two_scales"]),
-             "2 Anleihen auf zwei Skalen bepreist"
+             ~s(#dashboard-dq-line a[data-role="dq-two-scales"][href="/securities?dq=two_scales&holding=held"]),
+             "2 gehaltene Anleihen auf zwei Skalen bepreist"
            )
 
     assert has_element?(view, "#dashboard-data-quality .data-note--problem .data-note__word")
@@ -658,11 +671,13 @@ defmodule PortfolixirWeb.DashboardTest do
   end
 
   # User story (#1068, review): the singular follows the line's convention
-  # ("eine Anleihe", "one bond"), and the problem outranks a stale quote.
+  # ("eine gehaltene Anleihe", "one held bond" since issue 1417), and the
+  # problem outranks a stale quote.
   #
   # Acceptance criteria:
-  # - One reverse bond reads "eine Anleihe auf zwei Skalen bepreist" in
-  #   German and "one bond priced on two scales" in English.
+  # - One reverse bond reads "eine gehaltene Anleihe auf zwei Skalen
+  #   bepreist" in German and "one held bond priced on two scales" in
+  #   English.
   # - Beside a stale quote, the line keeps both findings and takes the
   #   problem severity, never attention.
   test "one bond on two scales reads in the singular, and outranks a stale quote",
@@ -686,6 +701,7 @@ defmodule PortfolixirWeb.DashboardTest do
         asset_class: "equity"
       })
 
+    buy!(world, stale, quantity: "10", price: "12", date: ~D[2026-03-12])
     put_quote!(stale, Date.add(Date.utc_today(), -30), "12.50")
 
     german =
@@ -701,7 +717,7 @@ defmodule PortfolixirWeb.DashboardTest do
     assert has_element?(
              view,
              ~s(#dashboard-dq-line a[data-role="dq-two-scales"]),
-             "eine Anleihe auf zwei Skalen bepreist"
+             "eine gehaltene Anleihe auf zwei Skalen bepreist"
            )
 
     {:ok, view, _html} = live(conn, "/")
@@ -709,8 +725,8 @@ defmodule PortfolixirWeb.DashboardTest do
 
     assert has_element?(
              view,
-             ~s(#dashboard-dq-line a[data-role="dq-two-scales"][href="/securities?dq=two_scales"]),
-             "one bond priced on two scales"
+             ~s(#dashboard-dq-line a[data-role="dq-two-scales"][href="/securities?dq=two_scales&holding=held"]),
+             "one held bond priced on two scales"
            )
 
     assert has_element?(view, ~s(#dashboard-dq-line a[data-role="dq-quotes"]))

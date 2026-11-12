@@ -77,12 +77,15 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
     wrenfield
   end
 
-  defp api_count(conn) do
+  # Since issue 1417 the Overview counts the held ones first: the API's
+  # `holding_status=held` answers that count, the unfiltered read the
+  # catalogue's.
+  defp api_count(conn, extra \\ "") do
     conn
     |> Phoenix.ConnTest.recycle()
     |> put_req_header("authorization", "Bearer test-api-token")
     |> put_req_header("accept", "application/json")
-    |> get("/api/v1/securities?data_quality=currency_mismatch")
+    |> get("/api/v1/securities?data_quality=currency_mismatch" <> extra)
     |> json_response(200)
     |> Map.fetch!("data")
     |> length()
@@ -97,25 +100,34 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
   # first, and one tap opens exactly those securities.
   #
   # Acceptance criteria:
-  # - The clause reads „2 Wertpapiere, deren Anbieter eine andere Währung
-  #   meldet als ihre eigene“, links to /securities?dq=currency_mismatch and
-  #   is followed, outside the link, by „— ihre Kurse sind womöglich in der
-  #   falschen Währung gespeichert; gehalten ist ihr Wert in der Summe oben
-  #   daher falsch“; English "2 securities whose provider reports another
-  #   currency than their own" and "— their quotes may be stored in the wrong
-  #   currency; if held, their value in the total above is wrong".
+  # - The clause reads „2 gehaltene Wertpapiere, deren Anbieter eine andere
+  #   Währung meldet als ihre eigene“, links to
+  #   /securities?dq=currency_mismatch&holding=held, „(im Katalog 3)“ after
+  #   it to the catalogue's list, and is followed, outside the link, by
+  #   „— ihre Kurse sind womöglich in der falschen Währung gespeichert; ihr
+  #   Wert in der Summe oben ist daher falsch“; English "2 held securities
+  #   whose provider reports another currency than their own" and "— their
+  #   quotes may be stored in the wrong currency, so their value in the
+  #   total above is wrong" (issue 1417: held first, no "if held").
   # - It stands right after the implausible series, and the note takes the
   #   problem severity.
-  # - The count is the API's answer for the same set: a benchmark and a
-  #   retired security with another stated currency, and one whose provider
-  #   stated its own, are in neither.
+  # - The count is the API's answer for the same set: a benchmark with
+  #   another stated currency, and one whose provider stated its own, are
+  #   in neither.
   test "the data-quality line counts the securities whose provider reports another currency",
        %{conn: conn} do
     world = base_world(name: "EUR Depot")
     implausible!(world)
-    stated!("Dollar Line AG", "DLA", "USD")
-    stated!("Pence Line plc", "PLP", "GBp")
-    stated!("Own Line AG", "OLA", "EUR")
+
+    for {name, ticker, stated} <- [
+          {"Dollar Line AG", "DLA", "USD"},
+          {"Pence Line plc", "PLP", "GBp"},
+          {"Own Line AG", "OLA", "EUR"}
+        ] do
+      buy!(world, stated!(name, ticker, stated), quantity: "1", price: "10", date: ~D[2026-05-12])
+    end
+
+    stated!("Sold Line AG", "SLA", "USD")
 
     {:ok, benchmark} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
@@ -137,16 +149,22 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
 
     assert has_element?(
              view,
-             ~s(#dashboard-dq-line a[data-role="dq-currency-mismatch"][href="/securities?dq=currency_mismatch"]),
-             "2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
+             ~s(#dashboard-dq-line a[data-role="dq-currency-mismatch"][href="/securities?dq=currency_mismatch&holding=held"]),
+             "2 gehaltene Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
            )
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-currency-mismatch"])) ==
-             "2 Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
+             "2 gehaltene Wertpapiere, deren Anbieter eine andere Währung meldet als ihre eigene"
+
+    assert has_element?(
+             view,
+             ~s(#dashboard-dq-line [data-catalog-of="dq-currency-mismatch"] a[href="/securities?dq=currency_mismatch"]),
+             "im Katalog 3"
+           )
 
     assert effect(view, "dq-currency-mismatch") ==
              "— ihre Kurse sind womöglich in der falschen Währung gespeichert; " <>
-               "gehalten ist ihr Wert in der Summe oben daher falsch"
+               "ihr Wert in der Summe oben ist daher falsch"
 
     refute has_element?(view, ~s(#dashboard-dq-line a [data-effect-of]))
     assert has_element?(view, "#dashboard-data-quality .data-note--problem")
@@ -154,44 +172,49 @@ defmodule PortfolixirWeb.CurrencyMismatchLiveTest do
     assert view |> roles("#dashboard-dq-line") |> Enum.take(-2) ==
              ["dq-implausible-quote", "dq-currency-mismatch"]
 
-    assert api_count(conn) == 2
+    assert api_count(conn, "&holding_status=held") == 2
+    assert api_count(conn) == 3
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-currency-mismatch"])) ==
-             "2 securities whose provider reports another currency than their own"
+             "2 held securities whose provider reports another currency than their own"
 
     assert effect(view, "dq-currency-mismatch") ==
-             "— their quotes may be stored in the wrong currency; if held, their value in " <>
+             "— their quotes may be stored in the wrong currency, so their value in " <>
                "the total above is wrong"
   end
 
   test "one security on the line reads in the singular", %{conn: conn} do
-    booked_world!()
-    stated!("Dollar Line AG", "DLA", "USD")
+    world = booked_world!()
+    dollar = stated!("Dollar Line AG", "DLA", "USD")
+    buy!(world, dollar, quantity: "1", price: "10", date: ~D[2026-05-12])
 
     {:ok, view, _html} = live(german(conn), "/")
     render_async(view)
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-currency-mismatch"])) ==
-             "ein Wertpapier, dessen Anbieter eine andere Währung meldet als seine eigene"
+             "ein gehaltenes Wertpapier, dessen Anbieter eine andere Währung meldet als seine eigene"
+
+    refute has_element?(view, ~s([data-catalog-of="dq-currency-mismatch"]))
 
     assert effect(view, "dq-currency-mismatch") ==
              "— seine Kurse sind womöglich in der falschen Währung gespeichert; " <>
-               "gehalten ist sein Wert in der Summe oben daher falsch"
+               "sein Wert in der Summe oben ist daher falsch"
 
     assert has_element?(view, "#dashboard-data-quality .data-note--problem")
+    assert api_count(conn, "&holding_status=held") == 1
     assert api_count(conn) == 1
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-currency-mismatch"])) ==
-             "one security whose provider reports another currency than its own"
+             "one held security whose provider reports another currency than its own"
 
     assert effect(view, "dq-currency-mismatch") ==
-             "— its quotes may be stored in the wrong currency; if held, its value in the " <>
+             "— its quotes may be stored in the wrong currency, so its value in the " <>
                "total above is wrong"
   end
 

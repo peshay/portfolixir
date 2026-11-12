@@ -285,20 +285,27 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
              "und fehlt daher in den Summen: Harborline Freight (12,40 USD)."
   end
 
-  # User story (#1081, D-3, pick J1.2 A; UX-DR26):
+  # User story (#1081, D-3; since issue 1417, board
+  # ux-design-2026-11-12-sprint29/04 ② A, the reverse of pick J1.2 A):
   # As a reader of the strip, whose basis line speaks of held positions,
-  # I want the stale count to say that it counts the catalog,
-  # so that the difference between the two is stated, not a contradiction.
+  # I want the stale count to count the held securities and say so, the
+  # catalogue's count beside it on the line,
+  # so that the cell and its basis line speak of one set.
   #
   # Acceptance criteria:
-  # - The quotes cell's sub-line reads "%{count} veraltet im Katalog".
-  # - The data-quality line reads "%{count} Wertpapiere im Katalog ohne Kurs
-  #   seit 7 Tagen".
-  test "the stale count says it counts the catalog, in the cell and on the line",
+  # - The quotes cell's sub-line reads "%{count} gehaltene veraltet".
+  # - The data-quality line reads "%{count} gehaltene Wertpapiere ohne Kurs
+  #   seit 7 Tagen (im Katalog n)".
+  test "the stale count says it counts the held, in the cell and on the line",
        %{conn: conn} do
-    world()
-    create_security!(name: "Watch One", ticker: "WO1")
-    create_security!(name: "Watch Two", ticker: "WO2")
+    world = world()
+
+    for {name, ticker} <- [{"Watch One", "WO1"}, {"Watch Two", "WO2"}] do
+      security = create_security!(name: name, ticker: ticker)
+      buy!(world, security, quantity: "1", price: "10", date: days_ago(20))
+    end
+
+    create_security!(name: "Watch Three", ticker: "WO3")
 
     {:ok, view, _html} = de_live(conn, "/")
     render_async(view)
@@ -307,10 +314,12 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
 
     assert doc
            |> Floki.find(~s([data-role="kpi-freshness"] .kpi-strip__sub--attention))
-           |> text() == "2 veraltet im Katalog"
+           |> text() == "2 gehaltene veraltet"
 
     assert doc |> Floki.find(~s([data-role="dq-quotes"])) |> text() ==
-             "2 Wertpapiere im Katalog ohne Kurs seit 7 Tagen"
+             "2 gehaltene Wertpapiere ohne Kurs seit 7 Tagen"
+
+    assert doc |> Floki.find(~s([data-catalog-of="dq-quotes"])) |> text() == "(im Katalog 3)"
   end
 
   # User story (#1081, board 01 "found while drawing" 3):
@@ -320,16 +329,17 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   #
   # Acceptance criteria:
   # - With no stale quote, the class finding that opens the line reads
-  #   "%{count} Wertpapiere ohne Anlageklasse", and the logo finding after it
-  #   keeps its short form.
+  #   "%{count} gehaltene Wertpapiere ohne Anlageklasse", and the logo
+  #   finding after it keeps its short form.
   # - With neither a stale quote nor a missing class, the logo finding opens
   #   the line with its noun.
   test "the line's first finding carries its noun", %{conn: conn} do
-    world()
+    world = world()
 
     unclassed =
       for n <- 1..4 do
         security = create_security!(name: "Lumen #{n}", ticker: "LM#{n}", asset_class: nil)
+        buy!(world, security, quantity: "1", price: "10", date: days_ago(20))
         put_quote!(security, Clock.today(), "10")
         security
       end
@@ -342,7 +352,7 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
     assert Floki.find(doc, ~s([data-role="dq-quotes"])) == []
 
     assert doc |> Floki.find(~s([data-role="dq-class"])) |> text() ==
-             "4 Wertpapiere ohne Anlageklasse"
+             "4 gehaltene Wertpapiere ohne Anlageklasse"
 
     assert doc |> Floki.find(~s([data-role="dq-logo"])) |> text() == "5 ohne Logo"
 
@@ -355,7 +365,9 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
 
     doc = view |> render() |> Floki.parse_document!()
     assert Floki.find(doc, ~s([data-role="dq-class"])) == []
-    assert doc |> Floki.find(~s([data-role="dq-logo"])) |> text() == "5 Wertpapiere ohne Logo"
+
+    assert doc |> Floki.find(~s([data-role="dq-logo"])) |> text() ==
+             "5 gehaltene Wertpapiere ohne Logo"
   end
 
   # User story (#1081, D-3; PR #1102 built the agreement):
@@ -365,15 +377,22 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   #
   # Acceptance criteria:
   # - With a benchmark and a retired security among the unquoted, logo-less,
-  #   unclassed securities, each Overview count equals the rows of the list
-  #   its link opens: stale quotes and logos leave both out, the asset-class
-  #   finding leaves out the retired one and keeps the benchmark.
+  #   unclassed held securities, each Overview count equals the rows of the
+  #   list its link opens: stale quotes and logos leave both out, the
+  #   asset-class finding leaves out the retired one and keeps the
+  #   benchmark. Since issue 1417 the counts are the held ones' and the
+  #   links carry the Held chip.
   test "the Overview's counts equal the rows of the lists they link to", %{conn: conn} do
-    world()
-    create_security!(name: "Watch One", ticker: "WO1", asset_class: nil)
+    world = world()
+    watch = create_security!(name: "Watch One", ticker: "WO1", asset_class: nil)
     retired = create_security!(name: "Closed Two", ticker: "CL2", asset_class: nil)
-    {:ok, _} = Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
     bench = create_security!(name: "Index Three", ticker: "IX3", asset_class: nil)
+
+    for security <- [watch, retired, bench] do
+      buy!(world, security, quantity: "1", price: "10", date: days_ago(20))
+    end
+
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
     {:ok, _} = Catalog.update_security(Actor.owner_ui(), bench, %{is_benchmark: true})
 
     {:ok, view, _html} = live(conn, "/")

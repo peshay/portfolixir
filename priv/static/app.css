@@ -1525,6 +1525,15 @@ li + li {
 .data-note__actions {
   margin-top: var(--space-2);
 }
+/* Issue 1417 (board ux-design-2026-11-12-sprint29/04 ② A): the Overview's
+   catalogue count after a held one, "(im Katalog 26)", in the muted voice;
+   its link takes that ink too, so the held count stays the clause's figure. */
+.dq-catalog {
+  color: var(--color-text-muted);
+}
+.dq-catalog a {
+  color: inherit;
+}
 /* Two classes: `.link-button` comes later at one and draws the accent. */
 .data-note > .data-note__more {
   flex: none;

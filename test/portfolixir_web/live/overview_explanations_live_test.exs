@@ -26,6 +26,11 @@ defmodule PortfolixirWeb.OverviewExplanationsLiveTest do
       WorldFixtures.sell!(world, security, quantity: "10", price: "110", date: sell_date)
     end
 
+    # A held position without a quote, for the data-quality line, which
+    # counts the held securities (issue 1417).
+    unpriced = WorldFixtures.create_security!(name: "Steady Holdings", ticker: "STH")
+    WorldFixtures.buy!(world, unpriced, quantity: "1", price: "100", date: ~D[2026-02-01])
+
     # A dated fact inside the horizon, for "Due".
     candidate = WorldFixtures.create_security!(name: "Candidate Co", ticker: "CND")
 

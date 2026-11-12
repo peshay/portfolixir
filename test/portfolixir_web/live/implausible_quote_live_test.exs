@@ -325,10 +325,11 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
   # I just read is wrong, not only that a list somewhere has entries.
   #
   # Acceptance criteria:
-  # - After the two-scales link, outside it, in the note's body: "— gehalten
-  #   zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig" for
-  #   one bond (English "— if held, it counts a hundredfold too high or too
-  #   low in the total above").
+  # - After the two-scales link, outside it, in the note's body: "— sie
+  #   zählt in der Summe oben hundertfach zu hoch oder zu niedrig" for one
+  #   bond (English "— it counts a hundredfold too high or too low in the
+  #   total above"); since issue 1417 the count is the held bonds', so the
+  #   clause has no "if held".
   # - After the implausible-quote link, outside it: "— ihr Wert in der Summe
   #   oben oder ihr Einstand ist daher falsch" for two (English "— so their
   #   value in the total above, or their cost, is wrong").
@@ -345,10 +346,10 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     render_async(view)
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-two-scales"])) ==
-             "eine Anleihe auf zwei Skalen bepreist"
+             "eine gehaltene Anleihe auf zwei Skalen bepreist"
 
     assert effect(view, "dq-two-scales") ==
-             "— gehalten zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig"
+             "— sie zählt in der Summe oben hundertfach zu hoch oder zu niedrig"
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-implausible-quote"])) ==
              "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"
@@ -366,7 +367,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     render_async(view)
 
     assert effect(view, "dq-two-scales") ==
-             "— if held, it counts a hundredfold too high or too low in the total above"
+             "— it counts a hundredfold too high or too low in the total above"
 
     assert effect(view, "dq-implausible-quote") ==
              "— so their value in the total above, or their cost, is wrong"
@@ -391,10 +392,10 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     render_async(view)
 
     assert text(view, ~s(#dashboard-dq-line a[data-role="dq-two-scales"])) ==
-             "2 Anleihen auf zwei Skalen bepreist"
+             "2 gehaltene Anleihen auf zwei Skalen bepreist"
 
     assert effect(view, "dq-two-scales") ==
-             "— gehalten zählt jede in der Summe oben hundertfach zu hoch oder zu niedrig"
+             "— jede zählt in der Summe oben hundertfach zu hoch oder zu niedrig"
 
     assert effect(view, "dq-implausible-quote") ==
              "— sein Wert in der Summe oben oder sein Einstand ist daher falsch"
@@ -403,7 +404,7 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
     render_async(view)
 
     assert effect(view, "dq-two-scales") ==
-             "— each one held counts a hundredfold too high or too low in the total above"
+             "— each counts a hundredfold too high or too low in the total above"
 
     assert effect(view, "dq-implausible-quote") ==
              "— so its value in the total above, or its cost, is wrong"

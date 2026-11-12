@@ -21,12 +21,13 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
   # Acceptance criteria:
   # - #dashboard-kpi-strip carries four cells: kpi-ttwror (→ /portfolio),
   #   kpi-cash-quote (→ /portfolio), kpi-last-booking (→ /transactions),
-  #   kpi-freshness (→ the securities list pre-filtered to stale quotes).
+  #   kpi-freshness (→ the securities list pre-filtered to held securities
+  #   with stale quotes, issue 1417).
   # - The last-booking cell shows the newest booking's date, its kind as the
   #   localized label (never the raw enum) and its subject.
   # - The freshness cell shows the newest quote date across held positions
-  #   and carries "n stale in the catalog" only when n > 0 — with n = 0 the
-  #   date alone.
+  #   and carries "n held stale" only when n > 0 — with n = 0 the date
+  #   alone (issue 1417, board ux-design-2026-11-12-sprint29/04 ② A).
   # - A basis line under the strip names the view, the period and the
   #   currency; the value card's sub-line keeps the YTD change and drops the
   #   cash quote.
@@ -86,7 +87,7 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
     assert text(Floki.find(booking, ".kpi-strip__sub")) == "Buy · ACME"
 
     freshness = cell(doc, "kpi-freshness")
-    assert Floki.attribute(freshness, "href") == ["/securities?dq=stale_quote"]
+    assert Floki.attribute(freshness, "href") == ["/securities?dq=stale_quote&holding=held"]
     assert text(Floki.find(freshness, "strong")) == Date.to_iso8601(today)
     refute text(freshness) =~ "stale"
 
@@ -118,8 +119,9 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
     freshness = cell(doc, "kpi-freshness")
     # The newest quote across the held positions is still today's.
     assert text(Floki.find(freshness, "strong")) == Date.to_iso8601(today)
-    # The count is the catalog's, and says so (#1081, pick J1.2 A).
-    assert text(Floki.find(freshness, ".kpi-strip__sub")) == "1 stale in the catalog"
+    # The count is the held securities', and says so (issue 1417, reversing
+    # #1081's J1.2 A).
+    assert text(Floki.find(freshness, ".kpi-strip__sub")) == "1 held stale"
 
     # The last booking follows the ledger, not the quote.
     assert text(Floki.find(cell(doc, "kpi-last-booking"), ".kpi-strip__sub")) == "Buy · Old Co"
