@@ -381,6 +381,42 @@ defmodule Portfolixir.Portfolios.Performance.WindowReturnTest do
     assert_decimal(result.return, "0.1")
   end
 
+  # The closing act of Sprint 29 (#1421): a split whose ratio does not
+  # terminate. 100 stored before a 3:1 split reads 100/3 (33.33… at 34
+  # digits); a return computed on that rounded close misses -0.1 in the 33rd
+  # digit, so a crash list ranked an exactly -10 % security below a plain
+  # one, and sale hindsight and a prediction resolution would read the same
+  # off-by-1E-33 figure. The split factors fold into the one division:
+  # (30 × 3 × hub) / (100 × 1 × hub) − 1 = -0.1 exactly, at a moving rate too.
+  test "a non-terminating split ratio folds into the one division: exactly -0.1" do
+    world = base_world(name: "S1 World", cash_name: "S1 Cash", depot_name: "S1 Depot")
+    security = create_security!(name: "Third Co", ticker: "THR", currency: "USD")
+    deposit!(world, "1000", ~D[2026-03-02])
+    buy!(world, security, quantity: "3", price: "100", date: ~D[2026-03-02])
+    put_quotes!(security, [{~D[2026-03-02], "100"}, {~D[2026-06-01], "30"}])
+    rate!(~D[2026-03-02], "1.07")
+    rate!(~D[2026-06-01], "1.13")
+
+    {:ok, _txs} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: ~D[2026-04-01],
+        ratio_numerator: 3,
+        ratio_denominator: 1
+      })
+
+    assert {:ok, result} = WindowReturn.price_return(security, ~D[2026-03-02], ~D[2026-06-01])
+
+    # The display close stays the 34-digit 100/3, named beside the stored 100.
+    assert Decimal.to_string(result.start.close) == "33.33333333333333333333333333333333"
+    assert_decimal(result.start.stored_close, "100")
+
+    # (30 × 3 × 1.07) / (100 × 1 × 1.13) − 1 = 96.3 / 113 − 1, one rounding.
+    expected = Decimal.sub(Decimal.div(d("96.3"), d("113")), d(1))
+    assert Decimal.to_string(result.return) == Decimal.to_string(expected)
+    assert Decimal.to_string(result.return) == "-0.1477876106194690265486725663716814"
+  end
+
   # User story (S1): an end before the start is no window.
   test "an end date before the start date is refused" do
     security = create_security!(name: "Order Fund", ticker: "ORD", currency: "EUR")

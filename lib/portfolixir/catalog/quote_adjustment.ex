@@ -81,10 +81,34 @@ defmodule Portfolixir.Catalog.QuoteAdjustment do
   through unchanged.
   """
   @spec display_close(Decimal.t(), Date.t(), basis(), [split_event()]) :: Decimal.t()
-  def display_close(%Decimal{} = close, _date, :provider_mirror, _events), do: close
+  def display_close(%Decimal{} = close, date, basis, events),
+    do: divide_by_ratio(close, display_ratio(date, basis, events))
 
-  def display_close(%Decimal{} = close, %Date{} = date, :raw, events),
-    do: divide_by_ratio(close, cumulative_ratio_after(events, date))
+  @doc """
+  The exact integer pair `{p, q}` a stored close of `date` and `basis` is
+  divided by to read in the display basis: the cumulative ratio of
+  strictly-later splits for a raw close, `{1, 1}` for a provider-mirror one.
+  The display close is `stored × q / p`; a caller that must compare or divide
+  display closes exactly (a ratio that does not terminate, such as 3:1,
+  rounds at 34 digits) works on the stored close and this pair instead.
+  """
+  @spec display_ratio(Date.t(), basis(), [split_event()]) :: {pos_integer(), pos_integer()}
+  def display_ratio(_date, :provider_mirror, _events), do: {1, 1}
+  def display_ratio(%Date{} = date, :raw, events), do: cumulative_ratio_after(events, date)
+
+  @doc """
+  The display close of an adjusted row as an exact fraction
+  `{numerator, denominator}`: `stored_close × q` over `p`, by the row's
+  `display_ratio` (see `display_ratio/3`). A row without one (a plain
+  `%{close: c}`) is `{c, 1}`. Two such fractions compare and divide by
+  cross-multiplication, with no rounding before the one division a caller
+  makes.
+  """
+  @spec exact_close(map()) :: {Decimal.t(), pos_integer()}
+  def exact_close(%{stored_close: %Decimal{} = stored, display_ratio: {p, q}}),
+    do: {Decimal.mult(stored, q), p}
+
+  def exact_close(%{close: %Decimal{} = close}), do: {close, 1}
 
   @doc """
   The as-traded (raw, own-date basis) value of one stored close — the inverse
@@ -124,13 +148,16 @@ defmodule Portfolixir.Catalog.QuoteAdjustment do
   @doc """
   Adjusts a stored quote series (rows of `%{date, close, source}`) to the
   display basis. Each output row keeps the stored value reachable:
-  `%{date, close, stored_close, source, basis, adjusted?}`.
+  `%{date, close, stored_close, source, basis, adjusted?, display_ratio}`,
+  where `display_ratio` is the exact pair the stored close was divided by
+  (`display_ratio/3`; `exact_close/1` reads the row as a fraction).
   """
   @spec adjust_series([map()], [split_event()], Security.t() | nil) :: [map()]
   def adjust_series(quotes, events, security) when is_list(quotes) do
     Enum.map(quotes, fn row ->
       row_basis = basis(row.source, security)
-      display = display_close(row.close, row.date, row_basis, events)
+      ratio = display_ratio(row.date, row_basis, events)
+      display = divide_by_ratio(row.close, ratio)
 
       %{
         date: row.date,
@@ -138,7 +165,8 @@ defmodule Portfolixir.Catalog.QuoteAdjustment do
         stored_close: row.close,
         source: row.source,
         basis: row_basis,
-        adjusted?: not Decimal.equal?(display, row.close)
+        adjusted?: not Decimal.equal?(display, row.close),
+        display_ratio: ratio
       }
     end)
   end
