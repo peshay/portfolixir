@@ -9,7 +9,9 @@ description: Decision for gate B3.4 (FR-44). An event is a dated calendar fact a
 - **Status:** Accepted (decision gate **B3.4** per
   [ADR-0026](0026-epic-batch-workflow.html)) — owner sign-off is the merge of
   the Sprint 13 planning PR (step 1 as amended on PR #780: the merge is the
-  signature).
+  signature). **Amended on 2026-11-12** by the merge of the Sprint 29
+  planning PR: a new kind `halving`, written by ADR-0059's chain reader (see
+  "Amendment of 2026-11-12" at the end).
 - **Date:** 2026-09-19
 - **Answers:** FR-44. The asks it answers and defers are in §9, per
   [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html).
@@ -228,3 +230,66 @@ the 2026-09-19 agent round's P0-4 with its near-missed candidate date.
 - The B3.4 gate is **closed by this record and by nothing else**: a later
   decision that wants acquisition, alerting or rules over these events opens
   its own gate and cites its own ADR.
+
+## Amendment of 2026-11-12: a halving is an event, and the chain writes it
+
+**Adopted by the merge of the Sprint 29 planning PR**, together with
+[ADR-0059](0059-chain-source-block-heights-and-times-for-halvings.html)
+(the chain source) and
+[ADR-0060](0060-halving-cycles-tops-and-lows-by-drawdown-projected-as-a-band.html)
+(the cycles read). **Built in Sprint 30.** Idea I12's triage (point 1)
+asked for past halvings to become confirmed events "of a new kind
+`halving`, an ADR-0048 amendment". This is that amendment. It also
+corrects §8, which ADR-0059 makes untrue for one kind. Nothing here books
+or corrects a stored money figure.
+
+1. **A new kind `halving`**: the block at which a chain's subsidy halves,
+   bound to a security through its `halving_chain` (ADR-0059 §4). It
+   carries a gettext label ("Halving"), and the enum-label meta-test
+   applies from its first commit, as §6 requires of every kind.
+2. **A new nullable integer field, `chain_height`**: required for `halving`
+   and refused for every other kind. It must be *k* × the halving interval
+   of the security's chain (*k* ≥ 1, ADR-0059 §2), so even a halving typed
+   by hand is checked against the protocol constant. There is a unique index
+   on `(security_id, chain_height)`. *Why a field and not a date:* the
+   estimated halving's date moves daily, and the height is the halving's
+   identity.
+3. **A `halving` event needs a bound security.** On a security without a
+   `halving_chain`, a write of the kind is refused with 422
+   `no_halving_chain`.
+4. **One writer per bound chain with a source.** On a security bound to a
+   chain that has a source (Bitcoin, ADR-0059 §3), only the chain reader
+   (system job `chain_read`, registered in B5) writes `halving` events.
+   A create, update or delete of one through the API is refused with 422
+   `halving_from_chain`, naming the chain. *Why:* the chain is the
+   source, and a hand correction would either repeat it or contradict it.
+   A source that is wrong is corrected at the source (ADR-0059 §13 item 3).
+   On a chain **without** a source (Bitcoin Cash, Litecoin), the operator
+   or an agent writes `halving` events like any other event, with
+   `source_quality` as they judge it.
+5. **§8 becomes:** "Nothing fetches a calendar, except ADR-0059's chain
+   reader, for `halving` events only. Entry of every other kind is manual
+   or through the agent's own write, and automatic population of those
+   stays behind B3.3."
+6. **The staleness read (§5.4) leaves out confirmed `halving` events.**
+   Their block is buried and there is nothing to re-read, so a 2012 fact
+   would otherwise stay stale for ever. The unconfirmed next halving stays
+   in the read, and that read is where a dead chain source shows a second
+   time (ADR-0059 §6).
+7. **Unbinding or rebinding a security deletes its `halving` events** in
+   the same write, journaled (ADR-0059 §4).
+8. **A security merge** ([ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+   §9, which moves every event of the source security,
+   `lib/portfolixir/lifecycle/security_merge.ex:1720`) moves a source's
+   `halving` event only when the target is bound to the same chain and
+   holds no event at that `chain_height`. Otherwise the event is dropped,
+   journaled and listed in the merge preview. *Why:* moving it would break
+   the unique index of item 2, or put a fact about another chain on the
+   target.
+9. **§7's re-import guarantee holds unchanged.** The applier never deletes
+   a security, and a halving event is never imported.
+
+**The asks** (ADR-0043): a halving as an event kind (I12 triage 1):
+**answered**, items 1 and 2; automatic population for halvings (I12, the
+owner's wish of 2026-11-10): **answered** by ADR-0059 and item 5; every
+other kind's automatic population: **unchanged**, behind B3.3.
