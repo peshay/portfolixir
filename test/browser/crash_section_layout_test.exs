@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Crashes
   alias Portfolixir.Settings
 
   @moduletag :browser
@@ -55,6 +56,11 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
   #   beside its name and its bar under it, inside the section.
   # - At both widths the benchmark's dashed line stays inside each track,
   #   and the page never scrolls sideways.
+  # - The closing act (board 01 ①, ⑥, ⑨; P2): with a manual window of a
+  #   long name in the select and a security of 55 characters, the bar
+  #   stays one line at 1200 px; the rebounders' six columns fit the
+  #   section; the windows table's actions are inside it; and at 390 px
+  #   the dashed lines never cross the name line of a two-line row.
   test "the Crashes section at 1200 and 390 px", %{base_url: base_url} do
     world = base_world()
     index = create_security!(name: "Synthetic Crash Index", ticker: "SCI")
@@ -67,14 +73,29 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
 
     securities =
       for {name, from, to} <- [
-            {"Synthetic Faller With A Rather Long Company Name AG", "50", "30"},
+            {"Synthetic Faller With A Rather Long Company Name Hold A", "50", "30"},
             {"Synthetic Riser", "20", "22"},
             {"Synthetic Outsider", "10", "8"}
           ] do
         security = create_security!(name: name, ticker: nil)
-        put_quotes!(security, [{~D[2022-01-03], from}, {~D[2022-10-12], to}])
+
+        # Each back above its start by the end of the recovery span, so
+        # every rebounder draws a bar.
+        put_quotes!(security, [
+          {~D[2022-01-03], from},
+          {~D[2022-10-12], to},
+          {~D[2023-01-12], Decimal.mult(Decimal.new(from), Decimal.new("1.2"))}
+        ])
+
         security
       end
+
+    {:ok, _manual} =
+      Crashes.create_manual_window(Actor.owner_ui(), %{
+        "name" => "Synthetic war leg drawn by hand over a long stretch of the bear market",
+        "start" => "2022-02-23",
+        "trough" => "2022-03-07"
+      })
 
     deposit!(world, "10000", ~D[2021-05-04])
     buy!(world, hd(securities), quantity: "10", price: "45", date: ~D[2021-05-04])
@@ -88,15 +109,20 @@ defmodule PortfolixirWeb.Browser.CrashSectionLayoutTest do
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
     {:ok, _index} = Settings.set_crash_benchmark(Actor.owner_ui(), index.id)
 
-    query =
+    query = fn list ->
       URI.encode_query(
         view: view.id,
         crash: "d:#{index.id}:2022-01-03",
-        crash_list: "losers",
+        crash_list: list,
         crash_universe: "catalogue"
       )
+    end
 
-    args = Jason.encode!(%{url: base_url <> "/risk?" <> query})
+    args =
+      Jason.encode!(%{
+        url: base_url <> "/risk?" <> query.("losers"),
+        rebounders: base_url <> "/risk?" <> query.("rebounders")
+      })
 
     {output, status} = System.cmd("node", [@script, args], stderr_to_stdout: true)
 
