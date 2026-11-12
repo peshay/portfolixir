@@ -38,6 +38,7 @@ defmodule Portfolixir.Derived.BlastRadius do
 
   alias Portfolixir.Catalog.QuoteWrite
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Crashes.ManualWindow
   alias Portfolixir.Crashes.WindowName
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
@@ -118,11 +119,13 @@ defmodule Portfolixir.Derived.BlastRadius do
   def for_write("setting", %{__struct__: Setting}), do: []
 
   # --- S29 C3 begin ---
-  # A crash window's name (ADR-0058 §3) labels a window derived at read: no
-  # walk, quote, rate or rule reads it, and the crash rankings read it at
-  # request time, so no portfolio's derived values move. Resolved per
-  # struct, like the knowledge records above.
+  # A crash window's name (ADR-0058 §3) labels a window derived at read, and
+  # a manual window (§4) is a span a person drew: no walk, quote, rate or
+  # rule reads either, and the crash rankings read both at request time, so
+  # no portfolio's derived values move. Resolved per struct, like the
+  # knowledge records above.
   def for_write("crash_window_name", %{__struct__: WindowName}), do: []
+  def for_write("crash_manual_window", %{__struct__: ManualWindow}), do: []
   # --- S29 C3 end ---
 
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
@@ -162,7 +165,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   # type is absent from it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification crash_window_name depot_bucket_assignment merge_record news_item news_label policy_rule
+    classification crash_manual_window crash_window_name depot_bucket_assignment merge_record news_item news_label policy_rule
     policy_rule_version portfolio position_bucket_override prediction retired_import_hash
     securities_account security_category_assignment security_event security_identifier_alias
     security_note setting snapshot target target_plan tax_parameters tax_profile
