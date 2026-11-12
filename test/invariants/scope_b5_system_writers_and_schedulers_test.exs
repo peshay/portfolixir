@@ -78,8 +78,16 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
       "the news retention run (ADR-0056 §12, B7): deletes items first seen more than 90 " <>
         "days ago unless promoted or linked to a note, the stories they leave empty, and " <>
         "day counters older than 30 days, and recomputes the stories that lost members; a " <>
-        "staging area, unjournaled (Journal.Allowlist); it books nothing"
+        "staging area, unjournaled (Journal.Allowlist); it books nothing",
     # --- end Sprint 27 N6 ------------------------------------------------
+    # --- Sprint 29 H3 (ADR-0059 §10) -------------------------------------
+    {"Portfolixir.Chains.Reader", "chain_read"} =>
+      "the chain reader (ADR-0059 §5, §6; ADR-0048's amendment of 2026-11-12, item 4): the " <>
+        "only writer of halving events on a security bound to a chain with a source, each " <>
+        "write journaled under this label; past halvings from the chain's blocks, the next " <>
+        "one as an unconfirmed window at most once a day; it books nothing and writes no " <>
+        "other event kind"
+    # --- end Sprint 29 H3 ------------------------------------------------
   }
 
   # `module => reason`.
@@ -122,8 +130,16 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
         "feeds that are due, each in its own task; it runs exactly where the quote sync runs " <>
         "(production, development with PORTFOLIXIR_BACKGROUND_FETCH, never in tests), and " <>
         "with no enabled feed it requests nothing; the first tick of each server day also " <>
-        "runs the news retention (News.Retention, N6) after its fetches, in the same task"
+        "runs the news retention (News.Retention, N6) after its fetches, in the same task",
     # --- end Sprint 27 N3 ------------------------------------------------
+    # --- Sprint 29 H3 (ADR-0059 §10) -------------------------------------
+    "Portfolixir.Chains.Reader" =>
+      "the chain reader (ADR-0059 §10): a minute after boot and then every 6 hours it reads " <>
+        "Bitcoin's tip and a few blocks over the Esplora adapter, in a task of its own; it " <>
+        "runs exactly where the quote sync runs (production, development with " <>
+        "PORTFOLIXIR_BACKGROUND_FETCH, never in tests), and with no security bound to a " <>
+        "chain with a source it requests nothing"
+    # --- end Sprint 29 H3 ------------------------------------------------
   }
 
   # Modules allowed to name the journal's `scenario_id` at all: the writer

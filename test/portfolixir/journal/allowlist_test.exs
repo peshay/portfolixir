@@ -14,10 +14,11 @@ defmodule Portfolixir.Journal.AllowlistTest do
   # ADR-0056 B7 adds the news layer's staging area: items, stories and the
   # per-feed day counters; its closing act retention's tombstones (COR2) and
   # the day's record of dropped items (COR4). Sprint 28 N3 the digest's
-  # consumers: each reader's confirmed position (ADR-0056 §9).
+  # consumers: each reader's confirmed position (ADR-0056 §9). Sprint 29 H3
+  # the chain reader's state row per chain (ADR-0059 §9).
   @expected_non_journaled MapSet.new(~w(security_quotes exchange_rates news_items news_clusters
                                news_feed_days news_item_tombstones news_feed_drops
-                               news_digest_consumers))
+                               news_digest_consumers chain_reads))
 
   test "the non-journaled allowlist is exactly the closed market-data set" do
     assert MapSet.new(Allowlist.non_journaled_tables()) == @expected_non_journaled

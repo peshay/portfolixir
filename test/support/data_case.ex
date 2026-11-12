@@ -55,17 +55,19 @@ defmodule Portfolixir.DataCase do
   # then merges (exclusive) in its one transaction deadlocked with another
   # such test on the one database-wide key. So is the default-portfolio lock
   # (H54), which every test that resolves the default on an empty database
-  # takes, and the news matcher's lock (`Portfolixir.News`, ORD5), which
+  # takes, the news matcher's lock (`Portfolixir.News`, ORD5), which
   # every test that stores an aggregator item, re-rates an item or changes a
   # news identity takes: a fetch of the scheduler test waited on it for
   # another test's whole length, and its sibling fetch task, queued on the
-  # same connection, was dropped (closing act, flaky).
+  # same connection, was dropped (closing act, flaky); and the chain-read
+  # lock (ADR-0059, S29 H3), which every run of the chain reader takes.
   defp scope_isin_write_lock do
     Portfolixir.Repo.query!("""
     SELECT set_config('portfolixir.isin_write_lock_scope', pg_backend_pid()::text, true),
            set_config('portfolixir.import_hash_lock_scope', pg_backend_pid()::text, true),
            set_config('portfolixir.default_portfolio_lock_scope', pg_backend_pid()::text, true),
-           set_config('portfolixir.matcher_lock_scope', pg_backend_pid()::text, true)
+           set_config('portfolixir.matcher_lock_scope', pg_backend_pid()::text, true),
+           set_config('portfolixir.chain_read_lock_scope', pg_backend_pid()::text, true)
     """)
   end
 

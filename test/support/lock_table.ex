@@ -2,7 +2,8 @@ defmodule Portfolixir.LockTable do
   @moduledoc """
   The lock-order table: every writer of `cash_accounts` and `transactions`
   rows, since Sprint 28 news.assign against the security merge, and since
-  Sprint 29 a news rating against a fetch, a promotion and an assignment, with
+  Sprint 29 a news rating against a fetch, a promotion and an assignment, and
+  the chain reader against itself and a rebinding, with
   the locks it takes in the order it takes them (Sprint 21's D-7;
   Sprint 20's retrospective). The lock-race harness (`Portfolixir.LockRace`)
   pins the pairs that meet; this table is what a new lock is checked
@@ -72,6 +73,7 @@ defmodule Portfolixir.LockTable do
   | 21 | **news.assign** (`News.assign_item/4`: API, MCP; closing act, AT4) | every security it may touch `KS`, id order, off an unlocked read of the item: its own, its candidates, and the target or, for `null`, the securities the matcher names then → `adv(matcher)` (ORD5) → `adv(story scope)` of the item's security (`Stories.lock/2`) → the item `U` → the target's `adv(story scope)` → its UPDATE and the reclusters (the stories of both scopes, under the scope locks it holds). Should the item, read again under its lock, or the matcher's answer then name a security the first step did not hold, the transaction rolls back, releasing all of it, and runs again (at most three times, then `422` on `news_id`): no security is locked out of order. |
   | 22 | **A news rating** (`News.Sources.put_source/4` → `News.Retier.run/3`: API, MCP, a seed; ADR-0056 E1, S29 N1) | the source row `U` (or its INSERT, `ON CONFLICT DO NOTHING`) → `adv(news tier)` of its domain `X` and of each parent domain of two labels or more `S`, ascending key → when the write changes the tier and an unpromoted item it decides changes with it: the securities those items name (their own and an ambiguous one's candidates) `KS`, id order (off an unlocked read of the items, under the tier lock, so their set cannot grow) → `adv(matcher)` → `adv(story scope)` of each item's scope and language, in order → the items `U`, id order → their UPDATE, or for a block `Stories.remove/5` (it takes again the scope lock the rating holds) and the DELETE of the unassigned ones → the full reclusters of the scopes (under the scope locks held). An item that moved into a scope whose lock it does not hold rolls the whole write back, releasing all of it, and runs again (at most three times, then `422` on `domain`). |
   | 23 | **A news fetch's tier read** (`News.Ingest.ingest/3`; ADR-0056 E1, S29 N1) | the feed `U` → `adv(news tier)` of every suffix of its items' domains `S`, ascending key, held to its commit → the tier read and the INSERTs (`FK` on the feed, the security or the category) → after the commit, in transactions of their own, the matcher (`adv(matcher)` → items `U` → securities `KS`) and the reclusters (`adv(story scope)`). |
+  | 24 | **A chain read's writes** (`Chains.Reader.run/2`: the scheduled run and the on-demand refresh; ADR-0059 §5, §6, S29 H3) | the network reads first, outside any transaction → `adv(chain read, chain)` → every security bound to the chain `S`, id order, the binding read again under it → per halving `Events.put_chain_halving/6`: the security `S` again (held), the event `NKU` (the journal's lock step) or its INSERT (`FK` on the security, `KS`) → the state row's upsert (`chain_reads`, unjournaled). Locks no booking. |
 
   ## Where two rows meet
 
@@ -188,5 +190,17 @@ defmodule Portfolixir.LockTable do
     * Rows 14 and 15 against row 12: the depot merge takes the securities'
       split rows `U` after its depots and bookings and the security only
       `KS`; the split's `KS` does not conflict with it.
+    * Row 24 against row 24: two runs of one chain meet at `adv(chain
+      read)` before any row; the later reads what the earlier committed, a
+      confirmed halving it skips and the day's estimate it leaves, so each
+      halving is written once (S29 H3).
+    * Row 24 against a rebinding (`Catalog.update_security/4` changing
+      `halving_chain`: the security `NKU`, the journal's lock step → UPDATE
+      → its halving events `U`, id order → DELETE each): both take the
+      security before any event. A run holding it `S` makes the rebinding
+      wait, which then deletes the halvings the run wrote; a rebinding
+      holding it makes the run wait, which then reads the security unbound
+      and leaves it out. Row 13 meets row 24 the same way: the merge takes
+      both securities `U` before their events.
   """
 end
