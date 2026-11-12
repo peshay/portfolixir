@@ -110,6 +110,14 @@ defmodule Portfolixir.Derived.Registry do
     # `:durable` is therefore AVAILABLE, NOT TAKEN; `SecurityMetrics` already
     # keys under the security basis, so the move is that measurement.
     security_metrics: %{computation_version: 1, default_lifetime: :none},
+    # The halving cycles read (ADR-0060 §10, Sprint 29 H5): the windows, the
+    # intervals and the analog band over one security's own closes and its
+    # halving events, computed at every read and never stored. `:none` like
+    # `security_metrics`, keyed under the security basis. Moving it off
+    # `:none` needs more than the measurement: the halving events are written
+    # as `security_event`, which `BlastRadius` lists as feeding no security
+    # data, so the security basis does not move on a halving write today.
+    security_cycles: %{computation_version: 1, default_lifetime: :none},
     # The per-portfolio and per-view derived metrics (ADR-0047 §8, Sprint 14
     # Lane A1): the walk-derived figures and the Top-N correlation matrix on
     # the risk read. `:request` like its neighbours, keyed under the portfolio
