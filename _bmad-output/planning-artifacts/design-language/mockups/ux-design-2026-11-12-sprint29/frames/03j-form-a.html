@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03j-form-a</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-pad { padding: 16px 20px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-gone { padding: 10px 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-muted); }
+</style>
+<style id="proposal">
+.research-entry-form__more { grid-column: 1 / -1; }
+.research-entry-form__more > summary { color: var(--color-accent); }
+.research-entry-form__more[open] > summary { margin-bottom: var(--space-2); }
+.research-entry-form__grid [aria-invalid="true"] { border-color: var(--color-danger); }
+</style>
+</head>
+<body><aside class="detail-pane" id="security-detail-pane" style="position: static; max-height: none;">
+<header class="detail-pane-head">
+<div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">B</span>
+<div>
+<h2>Beispiel Technik AG</h2>
+<p class="detail-pane-sub">XX0000000041 · BTA · EUR · Letzter 142,18 (11.11.2026)</p>
+</div>
+</div>
+<div class="detail-pane-head__actions">
+<button type="button" class="button-ghost">Bearbeiten</button>
+<button type="button" class="button-ghost">Split erfassen</button>
+</div>
+</header>
+<nav class="detail-pane-tabs" role="tablist">
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Übersicht</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Diagramm</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Transaktionen</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Trades</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Kurse</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Bestände</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Klassifizierungen</button>
+<button type="button" role="tab" class="detail-pane-tab is-active" aria-selected="true">Research</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Nachrichten</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Prognosen</button>
+<button type="button" role="tab" class="detail-pane-tab" aria-selected="false">Termine</button>
+</nav>
+<section id="detail-tab-panel-research" role="tabpanel" class="detail-tab-panel detail-tab-panel--research">
+<p class="mock-crop">Basis und These wie in ①; unverändert.</p>
+<form id="research-entry-form" class="research-entry-form" aria-label="Eintrag anhängen">
+<h3>Eintrag anhängen</h3>
+<div class="research-entry-form__grid">
+<label><span>Art</span>
+<select name="note[kind]"><option value="thesis">These</option><option value="evidence" selected>Beleg</option><option value="invalidation_check">Invalidierungsprüfung</option><option value="event_result">Ereignisergebnis</option><option value="risk">Risiko</option><option value="retraction">Widerruf</option><option value="decision">Entscheidung</option>
+</select>
+</label>
+<label><span>Quellenqualität</span>
+<select name="note[source_quality]"><option value="Primärquelle" selected>Primärquelle</option><option value="Mehrere Sekundärquellen">Mehrere Sekundärquellen</option><option value="Wahrnehmung">Wahrnehmung</option><option value="Ungeprüft">Ungeprüft</option>
+</select>
+</label>
+<label><span>Stichtag</span><input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value="2026-11-12" required />
+</label>
+<label><span>Ersetzt</span>
+<select name="note[supersedes_id]"><option value="">— nichts —</option>
+</select>
+</label>
+<div class="research-entry-form__full research-entry-form__grid mock-new" data-role="research-marker-fields">
+<label class="research-entry-form__full"><span>Überschrift</span><input type="text" name="note[headline]" value="Quartalsbericht: Umsatz über dem eigenen Ausblick" aria-describedby="research-headline-hint" />
+</label>
+<p class="hint research-entry-form__full" id="research-headline-hint">Höchstens 80 Zeichen, eine Zeile. Nur ein Eintrag mit Überschrift steht als Nadel im Diagramm.</p>
+<label><span>Ereignisart</span>
+<select name="note[event_type]"><option value="">— nicht angegeben —</option><option value="earnings" selected>Zahlen</option><option value="guidance">Ausblick</option><option value="capital_measure">Kapitalmaßnahme</option><option value="legal">Recht</option><option value="m_and_a">Übernahme oder Fusion</option><option value="product">Produkt</option><option value="regulatory">Regulierung</option><option value="macro">Makro</option>
+</select>
+</label>
+<label><span>Tonalität</span>
+<select name="note[tone]"><option value="">— nicht angegeben —</option><option value="1" selected>positiv</option><option value="0">neutral</option><option value="-1">negativ</option>
+</select>
+</label>
+</div>
+<label class="research-entry-form__full"><span>Eintrag</span>
+<textarea name="note[body]" rows="3" required>Umsatz im dritten Quartal rund 6 % über dem Ausblick vom Juli, Marge unverändert. Aus dem Bericht des Emittenten übernommen.</textarea>
+</label>
+<label class="research-entry-form__full"><span>Quellenlink</span><input type="url" name="note[source_url]" inputmode="url" value="https://ir.example/berichte/q3-2026" />
+</label>
+<label><span>Gültig bis</span><input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" value="" />
+</label>
+</div>
+<button type="submit" class="button">Eintrag anhängen</button>
+</form>
+<p class="mock-crop">Die Zeitleiste wie in ① bis ④.</p>
+</section>
+</aside></body>
+</html>
