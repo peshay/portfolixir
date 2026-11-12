@@ -1489,7 +1489,21 @@ Codes, leere Felder weggelassen.
   `source`-Objekt, `domain` und `tier` (`primary`, `secondary`, `awareness`,
   `blocked`); kein späterer Seed überschreibt das. Zwei gleichzeitige
   Schreibzugriffe auf eine neue Domain landen beide, der spätere auf der
-  Zeile des früheren.
+  Zeile des früheren. Ein Schreibzugriff, der die Stufe der Domain ändert,
+  stuft in derselben Transaktion jeden gespeicherten Eintrag neu ein, über
+  den die Zeile der Domain entscheidet (die Domain und ihre Subdomains,
+  sofern keine spezifischere Zeile über sie entscheidet), auf die Stufe,
+  die ihm ein Abruf jetzt gäbe, den eines Aggregators höchstens auf
+  `secondary`, und der Repräsentant jeder Meldung folgt den neuen Stufen
+  (ADR-0056 E1). Ein in einen Research-Eintrag übernommener Eintrag behält
+  seine Stufe; `blocked` entfernt die übrigen aus ihren Meldungen, und ein
+  späterer Abruf, der einen wieder listet, verwirft ihn als gesperrt. Die
+  Antwort bleibt `domain`, `tier` und `set_by`; der Journaleintrag des
+  Schreibzugriffs (`news_source`) trägt neben der Stufe `items_rerated`,
+  `items_removed` und `items_kept_promoted`. Ein Abruf, der währenddessen
+  Einträge der Domain speichert, wird entweder vom Schreibzugriff neu
+  eingestuft oder liest die neue Stufe, und eine währenddessen übernommene
+  Meldung behält die Stufen, mit denen sie übernommen wurde.
 - `PUT /api/v1/news/items/:id/assignment` (`news.assign`) ordnet einen
   Aggregator-Eintrag von Hand zu, aus einem `assignment`-Objekt mit
   `security_id` (Pflicht); `null` gibt den Eintrag an die jetzige Antwort
@@ -5146,14 +5160,20 @@ ersetzender Schreibzugriff (ein Ändern, ein Upsert, eine Bucket-Menge, das
 Aktivieren eines Plans) bleibt in `book`, weil derselbe Schreibzugriff mit dem
 früheren Wert ihn rückgängig macht; eine enger gesendete Bucket-Menge oder
 eine auf `[]` gesetzte Positions-Überschreibung bleibt ebenfalls, das Löschen
-der Überschreibung ist Admin. Zwei behaltene Schreibzugriffe hinterlassen
+der Überschreibung ist Admin. Drei behaltene Schreibzugriffe hinterlassen
 einen Rest, den ihr Gegenstück nicht beseitigt: eine Rückbenennung stellt den
 Namen wieder her, behält aber den Zwischennamen als früheren Namen, den kein
 neues Konto annehmen darf und auf den ein späterer Import bucht, bis
 `portfolixir.cash_accounts.remove_former_name` (oder der Depot-Zwilling), ein
-Admin-Tool, ihn entfernt; und ein Upsert über einem Datum mit Anbieterdaten
+Admin-Tool, ihn entfernt; ein Upsert über einem Datum mit Anbieterdaten
 lässt dieses Datum manuell, was nur `portfolixir.quotes.release`, ein
-Admin-Tool, zurückgibt. Die Schreibzugriffe, die `book` behält, stehen als
+Admin-Tool, zurückgibt; und `portfolixir.news.sources_put`, das eine Domain
+von `blocked` zurückstuft, stellt ihre Stufe wieder her und stuft ihre
+gespeicherten Einträge neu ein, aber die Einträge, die die Sperre entfernt
+hat, kommen erst zurück, wenn ein Feed sie wieder listet (ADR-0056 E1:
+gespeicherte Nachrichteneinträge sind ein Zwischenlager, das ein Abruf
+wieder füllt, deshalb bleibt die Bewertung ein Ersetzen). Die
+Schreibzugriffe, die `book` behält, stehen als
 zweite Liste neben der Admin-Menge, jeder mit seinem Grund, und ein Test des
 Begleitdienstes schlägt für jedes Tool mit `destructiveHint: true` fehl, das in
 keiner der beiden steht. Unter `book` wird ein Aufruf eines Admin-Tools,

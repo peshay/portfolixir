@@ -45,6 +45,46 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 29,
+      # Sprint 29's sprint PR. Dated after entry 28, because since= compares
+      # strictly after a date. Each story of the sprint appends its own
+      # summary sentence and items between its own markers.
+      date: ~D[2026-11-12],
+      summary:
+        Enum.join(
+          [
+            # --- S29 N1 begin ---
+            "Sprint 29, N1 (ADR-0056 E1, #1444): a rating by hand or by seed that changes " <>
+              "a source's tier re-rates the stored news items it decides in the same " <>
+              "write, a block removes the ones no research entry names, and the write's " <>
+              "journal entry counts both; portfolixir.news.sources_put says so."
+            # --- S29 N1 end ---
+          ],
+          " "
+        ),
+      endpoints: [],
+      tools: [],
+      parameters: [
+        # --- S29 N1 begin ---
+        "PUT /api/v1/news/sources (portfolixir.news.sources_put), changed: a write that " <>
+          "changes a domain's tier re-rates, in its transaction, every stored item the " <>
+          "domain's row decides (the domain and its subdomains, unless a more specific " <>
+          "row decides them) to the tier an ingest would give it now, an aggregator's " <>
+          "at most secondary; an item promoted to a research entry keeps its tier; " <>
+          "blocked removes the others from their stories, and a later fetch drops them " <>
+          "as blocked; each story's representative follows the new tiers. The answer is " <>
+          "unchanged (domain, tier, set_by); the write's journal entry (news_source) " <>
+          "carries items_rerated, items_removed and items_kept_promoted beside the tier. " <>
+          "A seed onto a hand rating still changes nothing. The tool's description says " <>
+          "so, within its former bytes."
+        # --- S29 N1 end ---
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 28,
       # Sprint 28's sprint PR. Dated the day after entry 27, because since=
       # compares strictly after a date. Each story of the sprint appends its

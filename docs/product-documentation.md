@@ -3302,7 +3302,11 @@ today's unassigned and ambiguous items, and what was dropped.
 - **Sources** (`/news?tab=sources`) lists every rated domain with its tier
   and whether it was set by hand or is a default; a domain without a row
   counts as `awareness`, and a blocked one's items are dropped when they
-  are fetched.
+  are fetched. A rating reaches what is already stored: changing a
+  domain's tier re-rates its stored items at once, and each story's
+  representative follows; blocking it removes its stored items. An item
+  already kept in a research-log entry keeps the tier it was kept at
+  (ADR-0056 E1).
 
 Titles, domains and links are a feed's text, shown with every invisible
 character spelled `[U+XXXX]`. A label's event type reads in words, and the

@@ -113,6 +113,32 @@ describe("the news upkeep tools", () => {
     assert.match(tool(FEEDS_DELETE)?.description ?? "", /items stay, detached/);
   });
 
+  // --- S29 N1 begin ---
+  // User story (ADR-0056 E1; Sprint 29, N1, #1444):
+  // As the agent that rates a source after its items were stored,
+  // I want sources_put to say that a tier change reaches the stored items,
+  // so that I know a block removes what no entry names and a rating back
+  // does not bring those items back.
+  //
+  // Acceptance criteria:
+  // - The description says that a tier change re-rates the stored items it
+  //   decides, that promoted ones keep their tier, that blocked removes the
+  //   others, and that the journal counts them.
+  // - book's reason for keeping it names the residue: a block's removed
+  //   items return only when a feed lists them again.
+  it("says that a rating re-rates the stored items it covers", () => {
+    const description = tool(SOURCES_PUT)?.description ?? "";
+    assert.match(description, /Re-rates the stored items it decides/);
+    assert.match(description, /promoted ones keep their tier/);
+    assert.match(description, /blocked removes the others/);
+    assert.match(description, /journal counts them/);
+    assert.match(
+      BOOK_KEPT_DESTRUCTIVE.get(SOURCES_PUT) ?? "",
+      /items a block removed return only when a feed lists them again/
+    );
+  });
+  // --- S29 N1 end ---
+
   // User story (ADR-0056 §2, §9):
   // As the agent that keeps the news layer,
   // I want securities.update to take a security's news identity and watch
