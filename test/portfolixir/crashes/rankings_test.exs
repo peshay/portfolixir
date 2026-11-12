@@ -300,6 +300,11 @@ defmodule Portfolixir.Crashes.RankingsTest do
     assert [%{rank: 1, return: return, vs_benchmark_pp: pp}] = losers.entries
     assert_decimal(return, "-0.05")
     assert_decimal(pp, "10")
+
+    # Its rebound span hangs on a trough that still moves: provisional,
+    # with no date it completes on.
+    assert {:ok, %{provisional: true, completes_on: nil}} =
+             Crashes.rankings("d:#{index.id}:2024-01-02", "catalogue", list: "rebounders")
   end
 
   # User story (ADR-0058 amendment F2):
@@ -485,6 +490,200 @@ defmodule Portfolixir.Crashes.RankingsTest do
     assert losers.basis.universe =~ "today"
 
     assert {:error, :view_not_found} = Crashes.rankings(key, "view:#{view.id + 1000}", [])
+  end
+
+  # User story (ADR-0058 §5, amendment F3):
+  # As the operator, or the agent I run,
+  # I want the securities that recovered best after a crash, measured from
+  # each one's own low, with the days it took to be back,
+  # so that I see who came back and how fast, beside the benchmark.
+  #
+  # Acceptance criteria:
+  # - A security's own low is its lowest close (display basis) on a day
+  #   from start to trough, the earliest of equal lows.
+  # - Its rise is WindowReturn's EUR return from the low's date to trough
+  #   plus three calendar months; a day the month lacks is its last day
+  #   (30 November + 3 months is 28 February).
+  # - days_back counts calendar days from the low to the first close at or
+  #   above its close at start, 0 when the low is not below it, nil with
+  #   not_yet when it has not happened by the last close.
+  # - Beside each: the crash benchmark's rise from its own low by the same
+  #   rule, and the difference in points. Highest first.
+  test "rebounders: from each own low to trough + 3 months, days back in calendar days" do
+    index = create_security!(name: "Synthetic Autumn Index", ticker: "SAI")
+
+    put_quotes!(index, [
+      {~D[2021-11-01], "100"},
+      {~D[2021-11-30], "85"},
+      {~D[2022-02-28], "95"},
+      {~D[2022-04-01], "101"}
+    ])
+
+    choose!(index)
+    rate!(~D[2021-11-22], "1.1300")
+    rate!(~D[2022-02-28], "1.1200")
+
+    series = fn name, ticker, opts, points ->
+      security = create_security!([name: name, ticker: ticker] ++ opts)
+      put_quotes!(security, points)
+    end
+
+    series.("Rho Rebound", "RHO", [], [
+      {~D[2021-11-01], "50"},
+      {~D[2021-11-15], "30"},
+      {~D[2021-11-30], "35"},
+      {~D[2022-01-10], "50"},
+      {~D[2022-02-28], "60"}
+    ])
+
+    # Its low is on the trough; the close standing for 28 February is
+    # three days old; never back at 40.
+    series.("Sigma Slow", "SGS", [], [
+      {~D[2021-11-01], "40"},
+      {~D[2021-11-30], "20"},
+      {~D[2022-02-25], "30"}
+    ])
+
+    # Two equal lows: the earliest, 22 November, is its own; back at 100
+    # after the span ended.
+    series.("Tau Dollar", "TAD", [currency: "USD"], [
+      {~D[2021-11-01], "100"},
+      {~D[2021-11-22], "80"},
+      {~D[2021-11-29], "80"},
+      {~D[2022-02-28], "92"},
+      {~D[2022-03-15], "100"}
+    ])
+
+    # Never below its close at start: its low is the start itself.
+    series.("Upsilon Steady", "UPS", [], [
+      {~D[2021-11-01], "10"},
+      {~D[2021-11-10], "10"},
+      {~D[2022-02-28], "11"}
+    ])
+
+    series.("Phi Young", "PHY", [], [{~D[2021-11-20], "10"}, {~D[2022-02-28], "12"}])
+
+    series.("Chi Gone", "CHG", [], [
+      {~D[2021-11-01], "10"},
+      {~D[2021-11-15], "8"},
+      {~D[2021-12-15], "9"}
+    ])
+
+    key = "d:#{index.id}:2021-11-01"
+
+    assert {:ok, rebounders} = Crashes.rankings(key, "catalogue", list: "rebounders")
+
+    assert %{
+             list: "rebounders",
+             low_from: ~D[2021-11-01],
+             low_to: ~D[2021-11-30],
+             span_end: ~D[2022-02-28],
+             measured_to: ~D[2022-02-28],
+             provisional: false,
+             completes_on: nil,
+             answered: 4
+           } = rebounders
+
+    assert rebounders.unanswered == %{no_close_at_start: 1, no_close_at_end: 1, no_fx_rate: 0}
+
+    # The index's own low is the trough: 95 / 85 − 1, recomputed in Python
+    # = 0.117647058823529411764705882352941.
+    assert %{low: %{date: ~D[2021-11-30]}} = rebounders.reference
+    assert Decimal.to_string(rebounders.reference.return) == "0.117647058823529411764705882352941"
+
+    assert names(rebounders.entries) == [
+             {1, "Rho Rebound", nil},
+             {2, "Sigma Slow", nil},
+             {3, "Tau Dollar", nil},
+             {4, "Upsilon Steady", nil}
+           ]
+
+    [rho, sigma, tau, upsilon] = rebounders.entries
+
+    # 60 / 30 − 1; back at 50 on 10 January 2022, 56 days after the low.
+    assert %{low: %{date: ~D[2021-11-15]}, days_back: 56, back_on: ~D[2022-01-10], not_yet: false} =
+             rho
+
+    assert_decimal(rho.low.close, "30")
+    assert_decimal(rho.start_close.close, "50")
+    assert_decimal(rho.return, "1")
+    assert rho.start.date == ~D[2021-11-15]
+    assert rho.end.date == ~D[2022-02-28]
+
+    # 30 / 20 − 1, the end close dated 25 February standing for the 28th.
+    assert %{low: %{date: ~D[2021-11-30]}, days_back: nil, back_on: nil, not_yet: true} = sigma
+    assert_decimal(sigma.return, "0.5")
+    assert sigma.end.date == ~D[2022-02-25]
+
+    # Python: (92 × 1.1300) / (80 × 1.1200) − 1
+    #       = 0.160267857142857142857142857142857;
+    # back on 15 March 2022, 113 days after 22 November 2021.
+    assert %{low: %{date: ~D[2021-11-22]}, days_back: 113, not_yet: false} = tau
+    assert Decimal.to_string(tau.return) == "0.160267857142857142857142857142857"
+
+    # 11 / 10 − 1; the low is not below the start close: 0 days.
+    assert %{low: %{date: ~D[2021-11-01]}, days_back: 0, not_yet: false} = upsilon
+    assert_decimal(upsilon.return, "0.1")
+
+    # (rise − index rise) × 100, recomputed in Python:
+    #   rho      88.23529411764705882352941176470590
+    #   sigma    38.23529411764705882352941176470590
+    #   tau       4.262079831932773109243697478991600
+    #   upsilon  -1.764705882352941176470588235294100
+    assert_decimal(rho.vs_benchmark_pp, "88.23529411764705882352941176470590")
+    assert_decimal(sigma.vs_benchmark_pp, "38.23529411764705882352941176470590")
+    assert_decimal(tau.vs_benchmark_pp, "4.262079831932773109243697478991600")
+    assert_decimal(upsilon.vs_benchmark_pp, "-1.764705882352941176470588235294100")
+
+    assert %{days_back_unit: "calendar_days", recovery_span_months: 3} = rebounders.basis
+    assert rebounders.basis.figure =~ "own low"
+    assert rebounders.basis.figure =~ "last day of the month"
+    assert rebounders.basis.days_back =~ "calendar days"
+  end
+
+  # Acceptance criteria (ADR-0058 §5; board 01, frame 01b2):
+  # - While the recovery span has not ended, the list is measured to today,
+  #   answers provisional: true and the date it completes; days_back reads
+  #   no close after today.
+  # - Without a crash benchmark (F2) a rebound carries no reference.
+  test "rebounders over a span not yet ended are provisional with the date they complete" do
+    stock = create_security!(name: "Synthetic Recovering", ticker: "SRC")
+
+    put_quotes!(stock, [
+      {~D[2020-02-19], "50"},
+      {~D[2020-03-23], "40"},
+      {~D[2020-05-08], "46"},
+      {~D[2020-06-01], "60"}
+    ])
+
+    {:ok, window} =
+      Crashes.create_manual_window(agent(), %{
+        "name" => "Synthetic Spring",
+        "start" => "2020-02-19",
+        "trough" => "2020-03-23"
+      })
+
+    assert {:ok, rebounders} =
+             Crashes.rankings("m:#{window.id}", "catalogue",
+               list: "rebounders",
+               today: ~D[2020-05-11]
+             )
+
+    assert %{
+             provisional: true,
+             completes_on: ~D[2020-06-23],
+             span_end: ~D[2020-06-23],
+             measured_to: ~D[2020-05-11],
+             reference: nil,
+             reference_reason: "no_crash_benchmark"
+           } = rebounders
+
+    # 46 / 40 − 1, the close of Friday 8 May standing for Monday 11 May.
+    assert [%{return: return, days_back: nil, not_yet: true, vs_benchmark_pp: nil} = entry] =
+             rebounders.entries
+
+    assert_decimal(return, "0.15")
+    assert entry.end.date == ~D[2020-05-08]
   end
 
   # Acceptance criteria (ADR-0058 §5, §9):
