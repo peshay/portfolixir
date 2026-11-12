@@ -2184,4 +2184,34 @@ end
 
 IO.puts("Sprint 26 V3: synthetic closes around three sales and the benchmark index")
 
+# 22. Predictions (issue 1435, Sprint 29 L2; board
+#     ux-design-2026-11-12-sprint29/06-control-bar, inventory §1 row 9):
+#     Vermögen → Prognosen shows its author and model chips only once a
+#     prediction is recorded, and the seed recorded none, so the walks never
+#     reached that bar. Two open predictions on the held timber position,
+#     SYNTHETIC: one the operator's, one an agent's with a model, so both
+#     chip families render. Written only while no prediction exists, so a
+#     re-run adds nothing.
+if Portfolixir.Predictions.list_predictions() == [] do
+  for {actor, attrs} <- [
+        {owner, %{"probability" => "0.60", "resolves_on" => Date.add(today, 60)}},
+        {Actor.api_token_rw("review-agent"),
+         %{
+           "probability" => "0.55",
+           "direction" => "underperform",
+           "model" => "model-synthetic-1",
+           "resolves_on" => Date.add(today, 90)
+         }}
+      ] do
+    attrs =
+      %{"security_id" => timber.id, "direction" => "outperform", "benchmark" => "rate:0"}
+      |> Map.merge(attrs)
+      |> Map.update!("resolves_on", &Date.to_iso8601/1)
+
+    {:ok, _prediction} = Portfolixir.Predictions.create_prediction(actor, attrs)
+  end
+
+  IO.puts("Sprint 29 L2: two open predictions, one an agent's with a model")
+end
+
 IO.puts("review seed done (timber position: #{timber_state})")

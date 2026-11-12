@@ -203,6 +203,16 @@ seed) reads each sale against the closes around it:
   Wechselkurs“). The sold securities are no longer held, so no value
   history moves.
 
+Sprint 29's shared bar of labelled controls (issue 1435, L2; step 22 of the
+seed) needs a state for each bar it moved:
+
+- **Two open predictions:** on "Nordic Timber Holdings AB", one the
+  operator's and one an agent's with the model "model-synthetic-1", both
+  synthetic and resolving in 60 and 90 days, so Vermögen → Prognosen shows
+  its author and model chips. They are written only while no prediction
+  exists. The allocation's drift filter needs no step: it shows on the
+  Strategies plan once „Daten als Tabelle“ is open.
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate

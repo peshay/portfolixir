@@ -309,6 +309,21 @@ const BARS = {
     roots: "#transaction-chips",
     shows: [1200],
     everyFamilyNamed: true
+  },
+  prediction_filters: {
+    path: "/predictions",
+    wait: "#prediction-filters",
+    roots: "#prediction-filters",
+    shows: [390, 1200],
+    everyFamilyNamed: true
+  },
+  drift_filter: {
+    path: "/portfolio?tab=allocation",
+    wait: "#allocation-disclosure",
+    open: "#allocation-disclosure > summary",
+    roots: ".drift-table-actions > .filter-chips, [data-role='drift-filter']",
+    shows: [390, 1200],
+    everyFamilyNamed: true
   }
 };
 
