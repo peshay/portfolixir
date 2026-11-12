@@ -46,12 +46,18 @@ defmodule Portfolixir.News.Sources do
   import's rating. **A correction by hand is never overwritten by a later
   seed** (§3, ADR-0044 §2's invariant): a seed write onto a `hand` row
   writes and journals nothing and answers `{:kept, row}`.
+
+  **A write that changes a row's tier re-rates the stored items it covers**
+  (ADR-0056 E1), in the same transaction: `Portfolixir.News.Retier`. The
+  journal entry's after-image carries, beside the row, the counts
+  `items_rerated`, `items_removed` and `items_kept_promoted`.
   """
   import Ecto.Query
 
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
+  alias Portfolixir.News.Retier
   alias Portfolixir.News.Source
   alias Portfolixir.Repo
 
@@ -100,7 +106,23 @@ defmodule Portfolixir.News.Sources do
   out. One query for the whole list.
   """
   @spec lookup([String.t()]) :: %{String.t() => tier()}
-  def lookup(domains) when is_list(domains) do
+  def lookup(domains) when is_list(domains),
+    do: Map.new(deciding_rows(domains), fn {domain, {_row, tier}} -> {domain, tier} end)
+
+  # --- S29 N1 begin ---
+  @doc """
+  The stored domain whose row decides each of `domains` (§3's longest
+  suffix on a label boundary), keyed by the domain as given; a domain no
+  row decides is left out. One query for the whole list. The re-rating of
+  ADR-0056 E1 (`Portfolixir.News.Retier`) keeps the items a row decides.
+  """
+  @spec decider([String.t()]) :: %{String.t() => String.t()}
+  def decider(domains) when is_list(domains),
+    do: Map.new(deciding_rows(domains), fn {domain, {row, _tier}} -> {domain, row} end)
+
+  # --- S29 N1 end ---
+
+  defp deciding_rows(domains) do
     suffixes_by_domain = Map.new(domains, &{&1, suffixes(normalize_domain(&1))})
     candidates = suffixes_by_domain |> Map.values() |> List.flatten() |> Enum.uniq()
 
@@ -115,9 +137,9 @@ defmodule Portfolixir.News.Sources do
           )
 
     for {domain, suffixes} <- suffixes_by_domain,
-        tier = Enum.find_value(suffixes, &Map.get(rated, &1)),
+        row = Enum.find(suffixes, &Map.has_key?(rated, &1)),
         into: %{},
-        do: {domain, tier}
+        do: {domain, {row, Map.fetch!(rated, row)}}
   end
 
   # The domain itself, then each parent of at least two labels, longest first.
@@ -168,16 +190,26 @@ defmodule Portfolixir.News.Sources do
     with {:ok, _valid} <- Ecto.Changeset.apply_action(changeset, :insert) do
       domain = Ecto.Changeset.get_field(changeset, :domain)
 
+      now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+
       Multi.new()
       |> Multi.run(:claim, fn repo, _changes -> claim(repo, domain, attrs) end)
       |> Multi.run(:prior, fn _repo, %{claim: claim} -> {:ok, prior(claim)} end)
       |> Multi.run(:source, fn repo, %{claim: claim} -> written(repo, claim, attrs) end)
+      # --- S29 N1 begin ---
+      |> Multi.run(:retier, fn _repo, %{prior: prior, source: source} ->
+        Retier.run(prior, source, now)
+      end)
+      |> Multi.run(:image, fn _repo, %{source: source, retier: counts} ->
+        {:ok, image(source, counts)}
+      end)
       |> Journal.record(actor,
         resource_type: "news_source",
         operation: :upsert,
-        source: :source,
+        source: :image,
         before_step: :prior
       )
+      # --- S29 N1 end ---
       |> Repo.transaction()
       |> case do
         {:ok, %{source: source}} -> {:ok, source}
@@ -185,9 +217,19 @@ defmodule Portfolixir.News.Sources do
         {:error, :source, {:unchanged, prior}, _changes} -> {:ok, prior}
         {:error, :source, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
         {:error, :claim, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+        {:error, :retier, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
       end
     end
   end
+
+  # --- S29 N1 begin ---
+  # E1 rule 6: the journal entry's after-image is the row as written and,
+  # beside its tier, the counts of the items the write re-rated, removed and
+  # left because promoted.
+  defp image(%Source{} = source, counts),
+    do: source |> Map.take(Source.__schema__(:fields)) |> Map.merge(counts)
+
+  # --- S29 N1 end ---
 
   # --- S28 N4 begin ---
   # #1424: the domain's row, read under its lock, or this put's insert. A
