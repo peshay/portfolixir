@@ -3532,6 +3532,10 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   spart, liest bei gleichen Kursen dasselbe Risiko wie wer nur hält. Eine Zahl
   ohne ausreichende Historie sagt **„nicht berechenbar“** mit der Zahl der
   vorhandenen und der nötigen Beobachtungen, statt eine Zahl zu zeigen.
+- **Crashes**, nach den Kennzahlen des Portfolios: die Marktcrashes, die ein
+  Benchmark Ihrer Wahl durchlaufen hat, und je Crash die Wertpapiere, die am
+  tiefsten fielen, stiegen und sich am besten erholten; beschrieben unter
+  [Crashes](#crashes) unten.
 - **Größte Einzelpositionen** mit Gewicht und der Schwelle, über oder unter der
   sie liegen — über 10 % für eine Einzelaktie (7 % ist die erste Linie), über
   25 % für einen ETF. Die Schwelle wird genannt, nicht bewertet.
@@ -3547,6 +3551,131 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
 Die Seite berichtet, sie empfiehlt nicht. Dieselben Zahlen liefert
 `GET /api/v1/portfolios/:portfolio_id/risk` und das MCP-Werkzeug
 `portfolixir.portfolios.risk`, mit allen drei Fenstern.
+
+### Crashes
+
+Der Abschnitt **Crashes** beantwortet für einen Marktcrash, welche
+Wertpapiere am tiefsten fielen, welche stiegen und welche sich danach am
+besten erholten, jedes neben der eigenen Linie des Marktes (FR-54,
+[ADR-0058](decisions/0058-crash-windows-detected-by-rule-ranked-by-price.html)).
+Er vergleicht Kurse und gibt keinen Rat: Keine Liste sagt, was im nächsten
+Crash zu kaufen ist.
+
+**Wie ein Fenster gefunden wird.** Ein Crash-Fenster wird aus den
+Schlusskursen eines Wertpapiers gelesen, das Sie wählen, dem
+**Crash-Benchmark** (etwa einem Index-ETF). Ein Fenster öffnet, sobald der
+Crash-Benchmark 10 % oder mehr unter seinem bisherigen Hoch schließt; es
+beginnt am letzten Tag am Hoch, und sein Tief ist der niedrigste Kurs, bevor
+der Benchmark wieder auf diesem Hoch steht, unter gleichen Tiefs das
+früheste. Es hat sich mit dem ersten Kurs auf oder über dem Hoch erholt, und
+das nächste Fenster kann erst danach beginnen, sodass ein Fall in mehreren
+Schüben ohne Erholung dazwischen ein Fenster ist. Die Regel liest den
+Benchmark in seiner eigenen Währung und splitbereinigt, ein Split ist also
+kein Fall, und sie überspringt einen Tag ohne Kurs. Vom Fenster wird nichts
+gespeichert: Es wird bei jedem Lesen der Seite oder eines Agenten neu
+gefunden, sodass beide immer dieselben Fenster sehen, und ein korrigierter
+Kurs kann ein Fenster verschieben oder verschwinden lassen. Ein Fenster, das
+sich noch nicht erholt hat, ist **vorläufig**: Sein Tief ist der niedrigste
+Kurs bisher und wandert mit jeder Liste, solange der Benchmark weiter fällt.
+
+**Was angezeigt wird.** Eine Leiste mit Bedienelementen steht oben im
+Abschnitt:
+
+- **Fenster**, jedes Fenster, das neueste zuerst, je mit seinem Namen, seinen
+  Daten (oder „läuft“) und „manuell“, wo eine Person es gezogen hat;
+- **Liste**: **Verlierer**, **Gewinner** oder **Erholer**;
+- **Wertpapiere**: **Im Depot**, die Wertpapiere, die die aktive Ansicht
+  heute hält, oder **Ganzer Katalog**, jedes Wertpapier im Katalog.
+  Wertpapiere, die als Benchmark markiert sind, stehen in keiner Liste, und
+  der Crash-Benchmark selbst auch nicht. Ohne gewählte Ansicht (Alles) wird
+  der Katalog gelistet, und eine Zeile sagt warum.
+
+Der Abschnitt öffnet mit dem neuesten Fenster, den Verlierern und **Im
+Depot**. Die Wahl steht in der Adresse, sodass ein Link dieselbe Liste wieder
+öffnet.
+
+**Die Fensterzeile** nennt das Fenster (oder „Ohne Namen“), ob es
+**erkannt** oder **manuell** ist, sein Hoch und sein Tief, den Fall des
+Crash-Benchmarks in seiner eigenen Währung und den Tag seiner Erholung. **Im
+Depot ansehen** öffnet die Bestände unter Vermögen mit dem Fenster als
+eigenem Zeitraum, vom Hoch bis zum Tief (bis heute, solange es läuft). Ein
+Fenster, das vor der ersten Buchung dieser Ansicht endet, zeigt keinen Link,
+sondern eine Zeile: „Die Ansicht beginnt am …: in diesem Fenster gab es kein
+Depot“, weil die Bestände einen anderen Zeitraum öffnen würden, als der Link
+nennt; eine Ansicht ohne jede Buchung sagt es.
+
+**Die Liste** zeigt acht Wertpapiere, jedes als Balken seiner Zahl in EUR
+gegen eine gestrichelte Linie, den Crash-Benchmark auf dieselbe Weise
+gemessen, mit der Zahl in Prozent und ihrem Abstand zum Benchmark in
+Prozentpunkten:
+
+- **Verlierer** und **Gewinner**: die Kursrendite jedes Wertpapiers in EUR
+  vom Hoch des Fensters bis zu seinem Tief, niedrigste oder höchste zuerst.
+  Wenn wenige Wertpapiere stiegen, behalten die Gewinner ihr Minuszeichen.
+- **Erholer**: der Anstieg jedes Wertpapiers von seinem eigenen Tief (seinem
+  niedrigsten Kurs zwischen Hoch und Tief des Fensters) bis drei
+  Kalendermonate nach dem Tief des Fensters, höchster zuerst. **Tage bis
+  Vorkrisenkurs** zählt die Kalendertage von seinem eigenen Tief, bis es
+  erstmals wieder auf oder über seinem Kurs am Tag des Hochs schloss, oder
+  zeigt **noch nicht**. Solange die drei Monate nicht vorbei sind, ist die
+  Liste bis zum letzten Kurs gemessen, als vorläufig markiert, mit dem Tag,
+  an dem sie vollständig ist.
+
+Im ganzen Katalog trägt ein Wertpapier, das heute ein Depot hält, **im
+Depot**. Der Kurs eines Tages ist der letzte Schlusskurs an oder vor ihm,
+höchstens 7 Tage alt, zum Wechselkurs dieses Tages in EUR umgerechnet. Ein
+Wertpapier ohne Kurs am Start oder Ende des Fensters oder ohne Wechselkurs
+hat keine Antwort: Es wird nie als Null gezeigt, die Zeile unter der Liste
+zählt es je Grund, und „anzeigen“ listet es. Gleiche Zahlen werden nach
+Namen, dann ISIN geordnet. Die Grundlagenzeile unter der Liste sagt, was
+gemessen wurde, und endet mit „nur Wertpapiere, die der Katalog heute
+führt“: Ein Wertpapier, das scheiterte und entfernt wurde, steht in keiner
+Liste, sodass die Listen, und die Erholer am meisten, besser aussehen, als
+der Markt war.
+
+**Crash-Fenster**, die Aufklappfläche unter der Liste, hält alles, was die
+Fenster ändert:
+
+- **Die Regel und der Crash-Benchmark**, daneben **Ändern**. Ohne einen sagt
+  ein Hinweis oben im Abschnitt „Kein Crash-Benchmark gewählt: die Regel
+  erkennt keine Fenster, manuelle gelten weiter“, mit **Crash-Benchmark
+  wählen**. Die Wahl ist eine Auswahl mit den Gruppen **Benchmarks** und
+  **Im Bestand**, wie die Benchmark-Auswahl im Performance-Abschnitt, und
+  wird dort gespeichert, im Abschnitt; eine Einstellungsseite gibt es nicht.
+  Sie gilt für diese Seite und jeden Agenten gleich, und die Änderung steht
+  im Audit-Journal. Die vergebenen Namen bleiben beim früheren
+  Crash-Benchmark und kehren zurück, wenn er wieder gewählt wird.
+- **Jedes Fenster** mit Namen, Hoch, Tief, Rückgang, Erholung, der längsten
+  Lücke zwischen zwei Kursen in Tagen und seiner Art. Ein erkanntes Fenster
+  wird mit **Benennen** benannt, mit **Umbenennen** umbenannt, und sein Name
+  mit **Name löschen** entfernt; ein Name verschiebt nie seine Daten, die
+  bleiben die der Regel.
+- **Fenster anlegen** zieht ein **manuelles** Fenster: ein Name (höchstens
+  80 Zeichen), ein Hoch und ein Tief, das Tief nach dem Hoch, keines in der
+  Zukunft. Es darf ein erkanntes oder ein anderes manuelles Fenster
+  überlappen, etwa die ersten Wochen eines Krieges in einem längeren
+  Bärenmarkt, den die Regel als ein Fenster liest. Seine Daten hat eine
+  Person gewählt, die gewusst haben kann, was danach kam, deshalb steht
+  „manuell“ überall, wo es gezeigt wird. Es wird mit **Bearbeiten** geändert
+  und mit **Löschen** entfernt. Ohne Crash-Benchmark tragen seine Listen
+  keine gestrichelte Linie und keinen Abstand; die Reihenfolge ist dieselbe.
+- **Namen ohne Fenster**: Ändern sich die Kurse (ein erneuter Abgleich, ein
+  manueller Kurs, ein später gebuchter Split), kann ein erkanntes Fenster an
+  einem anderen Tag beginnen oder verschwinden. Sein Name wird dann nie
+  geraten einem anderen Fenster zugeordnet: Er steht hier mit dem Benchmark,
+  für den er vergeben wurde. **Als manuelles Fenster anlegen …** behält seinen
+  Start und fragt nach dem Tief, das nie gespeichert wurde; **Löschen**
+  entfernt den Namen.
+
+Der **Privatsphäre-Modus** ändert in diesem Abschnitt nichts: Er hält nur
+Prozente, Daten und Tageszahlen.
+
+Dieselben Fenster und Listen liefern `GET /api/v1/crashes` und
+`GET /api/v1/crashes/:key/rankings` und die MCP-Werkzeuge
+`portfolixir.crashes.list` und `portfolixir.crashes.rankings`; Namen,
+manuelle Fenster und der Crash-Benchmark werden ebenso über die API und den
+Begleitdienst geschrieben, unter dem Namen des Tokens, wie beschrieben in
+[API und MCP](integration/api-and-mcp.html#crash-fenster-adr-0058).
 
 ## Prognosen (wie die festgehaltenen Aussagen getroffen haben)
 
@@ -5153,6 +5282,8 @@ Positionen und Verhältnisse wie der Vermögensmultiplikator.
   kopiert die Warnungen mit jeder verborgenen Zahl als „••••“: Die
   Zwischenablage hält nur Text, und die eingefügte Warnung nennt weiter die
   Zeile und die Spalte, die zu korrigieren sind.
+- **Der Abschnitt „Crashes“** unter Risiko bleibt, wie er ist: Er hält nur
+  Prozente, Daten und Tageszahlen.
 - **Formulare behalten ihre Werte.** Ein Formular, das eine gespeicherte Zahl
   bearbeitet (die Buchungsleiste, eine Abrechnung, ein manueller Kurs),
   öffnet mit dem echten Wert, weil eine blind getippte Korrektur einen

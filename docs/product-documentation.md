@@ -3200,6 +3200,10 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   and a holder on the same prices read the same risk. A figure without enough
   history says **"not computable"** with how many observations it had and how
   many it needs, instead of showing a number it cannot stand behind.
+- **Crashes**, after the portfolio metrics: the market crashes a benchmark
+  of your choice went through, and for each the securities that fell
+  furthest, rose and recovered best; described under [Crashes](#crashes)
+  below.
 - **Largest single names**, with each weight and the threshold it is above or
   below — above 10 % for a single stock (7 % is the first line), above 25 %
   for an ETF. The threshold is named, not judged.
@@ -3215,6 +3219,121 @@ The **Risk** tab of the Wealth area shows two things that answer one question
 The page reports; it does not recommend. The same figures are on
 `GET /api/v1/portfolios/:portfolio_id/risk` and the MCP tool
 `portfolixir.portfolios.risk`, with all three windows.
+
+### Crashes
+
+The **Crashes** section answers, for one market crash, which securities fell
+furthest, which rose, and which recovered best afterwards, each beside the
+market's own line (FR-54,
+[ADR-0058](decisions/0058-crash-windows-detected-by-rule-ranked-by-price.html)).
+It compares prices and gives no advice: no list says what to buy in the next
+crash.
+
+**How a window is found.** A crash window is read from the closes of one
+security you choose, the **crash benchmark** (an index ETF, say). A window
+opens once the crash benchmark closes 10 % or more below its high so far; it
+starts on the last day at the high and its low is the lowest close before
+the benchmark is back at that high, the earliest of equal lows. It has
+recovered on the first close at or above the high, and the next window can
+only start after that, so a fall in several legs without a recovery in
+between is one window. The rule reads the benchmark in its own currency with
+splits adjusted, so a split is not a fall, and it skips a day without a
+close. Nothing about the window is stored: it is found again whenever the
+page or an agent reads it, so both always see the same windows, and a
+corrected quote can move a window or make it disappear. A window that has
+not recovered yet is **provisional**: its low is the lowest close so far and
+moves, with every list, while the benchmark falls further.
+
+**Choosing what to see.** One bar of controls leads the section:
+
+- **Window**, every window newest first, each with its name, its dates (or
+  "ongoing") and "manual" where a person drew it;
+- **List**: **Losers**, **Winners** or **Rebounders**;
+- **Securities**: **In depot**, the securities the active view holds today,
+  or **Whole catalogue**, every security in the catalogue. Securities marked
+  as a benchmark are in no list, and neither is the crash benchmark itself.
+  With no view chosen (Everything) the catalogue is listed, and a line says
+  why.
+
+The section opens on the newest window, the losers and **In depot**. The
+choice is kept in the address, so a link reopens the same list.
+
+**The window line** names the window (or "Unnamed"), whether it is
+**detected** or **manual**, its high and its low, the crash benchmark's fall
+in its own currency and the day it recovered. **View in holdings** opens
+Wealth's Holdings with the window as a custom range, from the high to the
+low (to today while it is ongoing). A window that ends before the first
+booking of this view shows no link and one line instead, "The view begins on
+…: there was no depot in this window", because Holdings would open a
+different period than the link names; a view without any booking says so.
+
+**The list** shows eight securities, each as a bar of its figure in EUR
+against a dashed line, the crash benchmark measured the same way, with the
+figure in percent and its difference from the benchmark in percentage
+points:
+
+- **Losers** and **Winners**: each security's price return in EUR from the
+  window's high to its low, lowest or highest first. When few securities
+  rose, the winners keep their minus signs.
+- **Rebounders**: each security's rise from its own low (its lowest close
+  between the window's high and low) to three calendar months after the
+  window's low, highest first. **Days to pre-crash close** counts the
+  calendar days from its own low until it first closed again at or above its
+  close on the day of the high, or reads **not yet**. While those three
+  months have not passed, the list is measured to the last close, marked
+  provisional, with the day it completes.
+
+In the whole catalogue, a security a depot holds today carries **in depot**.
+The price for a day is the last close on or before it, at most 7 days old,
+converted to EUR at that day's exchange rate. A security without a close at
+the window's start or end, or without an exchange rate, has no answer: it is
+never shown as a zero, the line under the list counts it per reason, and
+"show" lists it. Equal figures are ordered by name, then ISIN. The basis line
+under the list says what was measured and ends with "only securities the
+catalogue still holds": a security that failed and was removed is in no
+list, so the lists, and the rebounders most of all, read better than the
+market did.
+
+**Crash windows**, the disclosure under the list, holds everything that
+changes the windows:
+
+- **The rule and the crash benchmark**, with **Change** beside it. Without
+  one, a note at the top of the section says "No crash benchmark chosen: the
+  rule detects no windows, manual ones still apply", with **Choose crash
+  benchmark**. The choice is a select with the groups **Benchmarks** and
+  **In holdings**, the same as the performance section's benchmark picker,
+  and is saved there, in the section; there is no settings page. It applies
+  to this page and every agent alike, and the change is in the audit
+  journal. The names you gave stay with the former crash benchmark and come
+  back when it is chosen again.
+- **Every window** with its name, high, low, decline, recovery, the longest
+  gap between two closes in days, and its kind. A detected window is named
+  with **Name**, renamed with **Rename**, and its name removed with **Delete
+  name**; a name never moves its dates, which stay the rule's.
+- **Add window** draws a **manual** window: a name (at most 80 characters),
+  a high and a low, the low after the high, neither in the future. It may
+  overlap a detected window or another manual one, such as the first weeks
+  of a war inside a longer bear market that the rule reads as one window.
+  Its dates were chosen by a person, who may have known what came after, so
+  it reads "manual" wherever it is shown. It is changed with **Edit** and
+  removed with **Delete**. Without a crash benchmark its lists carry no
+  dashed line and no difference; the order is the same.
+- **Names without a window**: when the closes change (a re-sync, a manual
+  quote, a split booked later), a detected window may start on another day
+  or vanish. Its name is then never moved to another window by a guess: it
+  is listed here with the benchmark it was given for. **Make a manual
+  window …** keeps its start and asks for the low, which was never stored;
+  **Delete** removes the name.
+
+**Privacy mode** changes nothing in this section: it holds percentages, dates
+and day counts only.
+
+The same windows and lists are `GET /api/v1/crashes` and
+`GET /api/v1/crashes/:key/rankings`, and the MCP tools
+`portfolixir.crashes.list` and `portfolixir.crashes.rankings`; names, manual
+windows and the crash benchmark are written through the API and the
+companion as well, under the token's name, as described in
+[API and MCP](integration/api-and-mcp.html#crash-windows-adr-0058).
 
 ## Predictions (how the recorded calls have scored)
 
@@ -4659,6 +4778,8 @@ multiplier.
   "already booked" line. The copy button copies the warnings with each
   hidden figure as "••••": the clipboard holds text only, and the pasted
   warning still names the row and the column to fix.
+- **Risk's Crashes section** stays as it is: it holds percentages, dates
+  and day counts only.
 - **Forms keep their values.** A form that edits a stored figure (the
   booking drawer, a statement, a manual quote) opens with the real value,
   because a correction typed blind could book a wrong amount.
