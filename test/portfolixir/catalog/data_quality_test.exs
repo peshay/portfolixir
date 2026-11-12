@@ -8,6 +8,7 @@ defmodule Portfolixir.Catalog.DataQualityTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.LogoStore
+  alias Portfolixir.Catalog.Quotes
 
   # User story (#705):
   # As the LLM agent maintaining this catalog,
@@ -387,25 +388,33 @@ defmodule Portfolixir.Catalog.DataQualityTest do
   end
 
   # User story (#1101, Sprint 20 plan D-7; board ux-design-2026-10-07/02,
-  # pick L2 A):
+  # pick L2 A; widened by #1414, Sprint 29 D1, the owner's answer of
+  # 2026-11-07 to OQ-1):
   # As the operator whose Overview counts what needs work,
-  # I want the held securities whose quotes contradict their own bookings
-  # as a data-quality set of their own,
-  # so that the Overview's count, the securities page's
+  # I want every security whose quotes contradict its own bookings, held or
+  # not, as a data-quality set of its own,
+  # so that a unit error in a sold security's stored series — which still
+  # feeds the snapshot comparison, sale hindsight and the long TTWROR
+  # windows — is named, and the Overview's count, the securities page's
   # dq=implausible_quote list and the agent's data_quality=implausible_quote
   # read are one rule (#705).
   #
   # Acceptance criteria:
   # - implausible_quote holds a held security bought at 48.20 and quoted
-  #   4.87 that day, and keeps it retired or flagged as a benchmark: its
-  #   value is as wrong as before. Its query half is the held filter.
-  # - It leaves out a security sold out since (its sell at 61.40 beside
-  #   618.90 the day before names it while held), a twentyfold riser, a
-  #   held security with no quote in any booking's window, and a bond the
-  #   two-scales guard names.
+  #   4.87 that day, and a security sold out since (its sell at 61.40
+  #   beside 618.90 the day before); its query half leaves out benchmarks
+  #   only, the held filter is gone.
+  # - It leaves out a twentyfold riser, a held security with no quote in
+  #   any booking's window, and a bond the two-scales guard names.
+  # - Benchmarks and retired securities are left out as in every set, a
+  #   retired one only while it is not held (as currency_mismatch keeps
+  #   it): retired, the sold-out one leaves and the held one stays; a
+  #   benchmark leaves, held or not.
+  # - A caller's holding_status narrows it: held answers the held one,
+  #   not_held the sold-out one; is_benchmark: true contradicts the set.
   # - The count is the list's length, and a row with no security is no
-  #   finding.
-  test "implausible_quote is the held securities whose quotes contradict their bookings" do
+  #   finding; the in-memory half applies the same exclusions.
+  test "implausible_quote is every security whose quotes contradict its bookings, held or not" do
     world = base_world()
 
     held = security!(%{name: "Wrenfield Gardens AG"})
@@ -436,20 +445,113 @@ defmodule Portfolixir.Catalog.DataQualityTest do
 
     assert DataQuality.valid?("implausible_quote")
     assert "implausible_quote" in DataQuality.ids()
-    assert DataQuality.list_opts("implausible_quote") == [holding_status: :held]
-    assert names(DataQuality.list("implausible_quote")) == ["Wrenfield Gardens AG"]
-    assert DataQuality.count("implausible_quote") == 1
+    assert DataQuality.list_opts("implausible_quote") == [is_benchmark: false]
+
+    assert names(DataQuality.list("implausible_quote")) == [
+             "Arbolia Inc.",
+             "Wrenfield Gardens AG"
+           ]
+
+    assert DataQuality.count("implausible_quote") == 2
     assert names(DataQuality.list("two_scales")) == ["Kestrel Anleihe 2030 2,75%"]
 
+    # A caller's holding filter narrows the set; a benchmark narrowing
+    # contradicts it.
+    assert names(DataQuality.list("implausible_quote", holding_status: :held)) ==
+             ["Wrenfield Gardens AG"]
+
+    assert DataQuality.count("implausible_quote", holding_status: :held) == 1
+
+    assert names(DataQuality.list("implausible_quote", holding_status: "not_held")) ==
+             ["Arbolia Inc."]
+
+    assert DataQuality.list("implausible_quote", is_benchmark: true) == []
+    assert DataQuality.count("implausible_quote", is_benchmark: true) == 0
+
+    # The in-memory half reads the same set: rows loaded without the query
+    # half name both.
+    rows = Catalog.list_securities_with_metrics()
+
+    assert names(DataQuality.refine(rows, "implausible_quote")) == [
+             "Arbolia Inc.",
+             "Wrenfield Gardens AG"
+           ]
+
+    assert DataQuality.refine([%{}], "implausible_quote") == []
+
+    # Retired: the sold-out one leaves, the held one stays (its value is as
+    # wrong as before), in the query and in memory alike.
     retire!(held, true)
-    {:ok, _} = Catalog.update_security(Actor.owner_ui(), held, %{is_benchmark: true})
+    retire!(sold_out, true)
     assert names(DataQuality.list("implausible_quote")) == ["Wrenfield Gardens AG"]
     assert DataQuality.count("implausible_quote") == 1
-
-    # The in-memory half reads held too: rows loaded without the query half
-    # cannot bring the sold-out security back.
     rows = Catalog.list_securities_with_metrics()
     assert names(DataQuality.refine(rows, "implausible_quote")) == ["Wrenfield Gardens AG"]
-    assert DataQuality.refine([%{}], "implausible_quote") == []
+
+    # A benchmark leaves, held or not.
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), held, %{is_benchmark: true})
+    assert DataQuality.list("implausible_quote") == []
+    assert DataQuality.count("implausible_quote") == 0
+    rows = Catalog.list_securities_with_metrics()
+    assert DataQuality.refine(rows, "implausible_quote") == []
+  end
+
+  # User story (#1414, Sprint 29 D1; the owner's answer to OQ-1):
+  # As the operator whose sold security's provider series was split-adjusted
+  # backwards after the sale,
+  # I want the set to name it against its bookings in the old units, each
+  # finding saying whether the security is held,
+  # so that the series that still feeds sale hindsight and the long TTWROR
+  # windows is checked like a held one, and I can tell the two apart.
+  #
+  # Acceptance criteria:
+  # - "Linden Optik AG", bought at 400.00 and sold at 420.00, its provider
+  #   series (source auto) back-adjusted for an unrecorded 1:4 split to
+  #   100.00 and 105.00 on those days, is named: the latest booking (the
+  #   sell), ratio 0.25, both bookings outside, held false.
+  # - The held "Wrenfield Gardens AG" is named with held true.
+  # - The security's own finding (`implausible_quote_finding/1`, the
+  #   security's Overview) names the sold one too, held false.
+  test "a sold security's backwards-adjusted series is named, with held false" do
+    world = base_world()
+
+    linden = security!(%{name: "Linden Optik AG"})
+    buy!(world, linden, quantity: "10", price: "400.00", date: ~D[2023-03-01])
+
+    Portfolixir.WorldFixtures.sell!(world, linden,
+      quantity: "10",
+      price: "420.00",
+      date: ~D[2024-06-03]
+    )
+
+    {:ok, _} =
+      Quotes.upsert_many(linden.id, [
+        %{date: ~D[2023-03-01], close: "100.00", source: "auto"},
+        %{date: ~D[2024-06-03], close: "105.00", source: "auto"}
+      ])
+
+    held = security!(%{name: "Wrenfield Gardens AG"})
+    buy!(world, held, quantity: "120", price: "48.20", date: ~D[2026-05-12])
+    put_quote!(held, ~D[2026-05-12], "4.87")
+
+    assert names(DataQuality.list("implausible_quote")) == [
+             "Linden Optik AG",
+             "Wrenfield Gardens AG"
+           ]
+
+    securities = Enum.map(DataQuality.list("implausible_quote"), & &1.security)
+
+    assert [sold, kept] = DataQuality.implausible_quote_findings(securities)
+
+    assert %{security_id: linden_id, kind: "sell", date: ~D[2024-06-03], held: false} = sold
+    assert linden_id == linden.id
+    assert Decimal.equal?(sold.ratio, Decimal.new("0.25"))
+    assert sold.bookings_outside == 2
+
+    assert %{security_id: held_id, held: true} = kept
+    assert held_id == held.id
+
+    assert %{kind: "sell", held: false} = DataQuality.implausible_quote_finding(linden)
+    assert %{kind: "buy", held: true} = DataQuality.implausible_quote_finding(held)
   end
 end

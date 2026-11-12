@@ -404,9 +404,9 @@ describe("Portfolixir MCP tools", () => {
   // - The tool exposes exactly the predicates the engine defines — since
   //   #717 that includes missing_fx (priced, but no stored rate to the
   //   base currency), since #1068 two_scales (a bond priced on two
-  //   scales, either way), and since #1101 implausible_quote (a held
-  //   security whose quotes contradict its own bookings, with the findings
-  //   and computation_basis the API's envelope carries).
+  //   scales, either way), and since #1101 implausible_quote (a security
+  //   whose quotes contradict its own bookings, held or not since #1414,
+  //   with the findings and computation_basis the API's envelope carries).
   // - It forwards the choice to the API rather than filtering client-side.
   // - Its description says that missing_logo holds a stored logo whose file
   //   is gone (#933).
@@ -438,7 +438,13 @@ describe("Portfolixir MCP tools", () => {
     assert.match(securitiesList?.description ?? "", /7 days/);
     assert.match(securitiesList?.description ?? "", /INCLUDING never-priced/);
     assert.match(securitiesList?.description ?? "", /two_scales \(/);
-    assert.match(securitiesList?.description ?? "", /implausible_quote \(held/);
+    // --- S29 D1 begin ---
+    // #1414: implausible_quote runs over every security with a priced
+    // booking, held or not, each finding saying held; benchmarks out, a
+    // retired one only while held, as currency_mismatch.
+    assert.match(securitiesList?.description ?? "", /implausible_quote \(held or not: see findings' held;/);
+    assert.match(securitiesList?.description ?? "", /both no benchmark, retired if held/);
+    // --- S29 D1 end ---
     assert.match(securitiesList?.description ?? "", /findings and computation_basis/);
     // #933: a stored logo whose file is gone is in the missing_logo set.
     assert.match(securitiesList?.description ?? "", /missing_logo \(none and unlocked, or file gone\)/);

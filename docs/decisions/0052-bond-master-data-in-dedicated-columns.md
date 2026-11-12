@@ -194,3 +194,18 @@ sweeps.
 >   window, gaps, threshold). Its severity is problem, as §4's (pick L2 A):
 >   the booked price and the quote are two stored facts about one day, and
 >   one of them is wrong.
+
+> **Note 2026-11-12 (#1414, Sprint 29 D1):** the owner's answer of
+> 2026-11-07 to OQ-1 of the feedback triage widens the note above's
+> `implausible_quote` from the held securities to every security with a
+> priced booking, **held or not**. A sold security's stored series still
+> feeds the snapshot comparison, sale hindsight and every TTWROR window
+> over its holding period, so a unit error in it — a provider series
+> split-adjusted backwards against bookings in the old units, an ADS
+> ratio, a ticker on an ADR — is named too. The guard is unchanged (the
+> same band, window, split basis and overlap); each finding says `held`,
+> the set leaves out a benchmark, and a retired security unless it is
+> held, as `currency_mismatch` does, and its computation basis says what
+> it covers. The Overview's data-quality line counts the held members.
+> Naming such findings inside the computation basis of the snapshot
+> comparison, sale hindsight and the performance read is a later step.

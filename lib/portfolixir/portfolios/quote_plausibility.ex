@@ -21,8 +21,9 @@ defmodule Portfolixir.Portfolios.QuotePlausibility do
   general case.
 
   Who reads it: Wealth, over the positions its scope values, and the
-  catalog-wide `implausible_quote` predicate over the held securities
-  (`Portfolixir.Catalog.DataQuality`), which the Overview counts and the
+  catalog-wide `implausible_quote` predicate over every security, held or
+  not since #1414 (`Portfolixir.Catalog.DataQuality`, which states the
+  set's coverage in its basis), which the Overview counts and the
   securities list and `GET /api/v1/securities?data_quality=` serve. It names
   and converts nothing.
   """
@@ -189,8 +190,7 @@ defmodule Portfolixir.Portfolios.QuotePlausibility do
           "at scale 6, and bookings_outside counts them",
       assumptions:
         "a security the two-scales guard names (data_quality two_scales) is not counted " <>
-          "again; held means a non-zero quantity summed across every depot of every " <>
-          "portfolio; nothing is converted or stored"
+          "again; nothing is converted or stored"
     }
   end
 end

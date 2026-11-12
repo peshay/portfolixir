@@ -20,7 +20,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   | `missing_logo` | no stored logo and not deliberately locked to "no logo", or a stored logo whose file is gone, whatever its lock (#933) |
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
   | `two_scales` | a bond priced on two scales, in either direction: its latest stored quote is #{20} to #{500} times a booked price per unit, or 1/#{500} to 1/#{20} of one (`Portfolixir.Portfolios.Bonds`) |
-  | `implausible_quote` | held, and a booking's quote — on its date, or the latest within #{7} days before — is below half or above twice its price per unit, unless `two_scales` names it (`Portfolixir.Portfolios.QuotePlausibility`) |
+  | `implausible_quote` | held or not (#1414), a booking's quote — on its date, or the latest within #{7} days before — is below half or above twice its price per unit, unless `two_scales` names it (`Portfolixir.Portfolios.QuotePlausibility`) |
   | `currency_mismatch` | the currency the quote provider stated at the last sync that read one (`provider_currency`) is present and differs from `currency_code`, as written (#1415) |
 
   `missing_quote` is a subset of `stale_quote`, and that is deliberate rather
@@ -52,16 +52,22 @@ defmodule Portfolixir.Catalog.DataQuality do
   counts it through `count/2`, as it counts the others.
 
   `implausible_quote` (#1101, Sprint 20 plan D-7) is its general case, and
-  not catalog hygiene either: every **held** security whose stored quotes
+  not catalog hygiene either: every security whose stored quotes
   contradict its own bookings — for a buy, a sell or a priced inbound
   delivery, the quote of the booking's date (or the latest within 7 days
   before it) below half or above twice the booking's price per unit, in
   the security's currency and on one split basis — which is
-  `Portfolixir.Portfolios.QuotePlausibility.findings_among/1` over the held
-  rows. A security `two_scales` names is not counted again. Held is
-  `Portfolixir.Ledger.HeldSecurities`' answer, in the query and in memory
-  alike; a retired or benchmark security that is held stays in the set, as
-  its value is as wrong as before.
+  `Portfolixir.Portfolios.QuotePlausibility.findings_among/1` over the
+  rows. A security `two_scales` names is not counted again. Since #1414
+  (Sprint 29 D1, the owner's answer of 2026-11-07 to OQ-1) it is **held or
+  not**: a sold security's stored series still feeds the snapshot
+  comparison, sale hindsight and every TTWROR window over its holding
+  period, so a unit error in it is named too, and each finding says
+  `held` (`implausible_quote_findings/1`). It leaves out benchmarks, and a
+  retired security unless it is held, as `currency_mismatch` does: a held
+  one's value is as wrong as before. Held is
+  `Portfolixir.Ledger.HeldSecurities`' answer, in the query (a caller's
+  `holding_status`) and in memory alike.
 
   `currency_mismatch` (#1415, Sprint 28 Q3) is catalog hygiene of the same
   kind as the first three, and leaves benchmarks out as they do, and a
@@ -146,8 +152,8 @@ defmodule Portfolixir.Catalog.DataQuality do
   benchmark and retired exclusions. The quote conditions themselves are
   metric-derived, cannot be expressed in SQL over the quote history, and are
   `refine/3`'s; so is the two-scales guard, which reads quotes and bookings.
-  `implausible_quote` pushes its held filter here and its guard to
-  `refine/3`.
+  `implausible_quote` pushes its benchmark exclusion here and its guard,
+  with the retired-unless-held rule, to `refine/3`.
   """
   @spec list_opts(String.t()) :: keyword()
   # ADR-0046 §1: a benchmark security is a reference, not a holding, so the
@@ -161,9 +167,10 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   def list_opts("missing_fx"), do: []
   def list_opts("two_scales"), do: []
-  # #1101 (D-7): the held securities, whatever their flags, as two_scales
-  # keeps its rows.
-  def list_opts("implausible_quote"), do: [holding_status: :held]
+  # #1414 (Sprint 29 D1): every security, held or not, but a benchmark; a
+  # retired one only while it is held, which `refine/3` applies, as for
+  # currency_mismatch.
+  def list_opts("implausible_quote"), do: [is_benchmark: false]
   # Closing act, QA4: a retired security stays in currency_mismatch while it
   # is held, as in implausible_quote; `refine/3` leaves the others out.
   def list_opts("currency_mismatch"), do: [is_benchmark: false]
@@ -250,13 +257,19 @@ defmodule Portfolixir.Catalog.DataQuality do
   end
 
   # #1101: the same for implausible_quote, whose guard reads bookings and
-  # quotes, not the metrics.
+  # quotes, not the metrics; a caller's narrowing that contradicts the set
+  # counts nothing, as the list answers (#1414).
   def count("implausible_quote", opts) do
-    opts
-    |> Keyword.merge(list_opts("implausible_quote"))
-    |> Catalog.list_securities()
-    |> QuotePlausibility.findings_among()
-    |> length()
+    if contradicts?(opts, "implausible_quote") do
+      0
+    else
+      opts
+      |> Keyword.merge(list_opts("implausible_quote"))
+      |> Catalog.list_securities()
+      |> implausible_quote_candidates()
+      |> QuotePlausibility.findings_among()
+      |> length()
+    end
   end
 
   # #1415: the currency rule reads two columns of the row and no metric, so
@@ -298,8 +311,11 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   @doc """
   The computation basis of a set that states one (the AGENTS.md metric
-  rule): for `currency_mismatch` (#1415) its input, reference, window, gaps,
-  threshold and assumptions, served beside the set's findings.
+  rule): for `currency_mismatch` (#1415) and `implausible_quote` (#1101,
+  #1414) its input, reference, window, gaps, threshold and assumptions,
+  served beside the set's findings; `implausible_quote`'s is the guard's
+  own (`QuotePlausibility.computation_basis/0`), its assumptions opening
+  with what the set covers.
   """
   @spec computation_basis(String.t()) :: map()
   def computation_basis("currency_mismatch") do
@@ -330,20 +346,62 @@ defmodule Portfolixir.Catalog.DataQuality do
     }
   end
 
+  # #1101, #1414: the guard's own basis, its assumptions opening with what
+  # the set covers.
+  def computation_basis("implausible_quote") do
+    Map.update!(QuotePlausibility.computation_basis(), :assumptions, fn guard ->
+      "the set covers every security with a priced booking, held or not, and each " <>
+        "finding's held says which (held: a non-zero quantity summed across every depot " <>
+        "of every portfolio, now); benchmark securities are left out, and a retired " <>
+        "security unless it is held: a held one's value is as wrong as before; " <> guard
+    end)
+  end
+
+  @doc """
+  The `implausible_quote` findings of `securities` (#1101), each
+  `Portfolixir.Portfolios.QuotePlausibility`'s finding with `held`, whether
+  the security is held now (#1414). It applies the guard only: a caller
+  passes rows the set already holds (`list/2`), as the securities listing's
+  envelope does.
+  """
+  @spec implausible_quote_findings([Security.t()]) :: [map()]
+  def implausible_quote_findings(securities) do
+    with_held(QuotePlausibility.findings_among(securities))
+  end
+
   @doc """
   The `implausible_quote` finding of one security, or `nil`: the
-  predicate's own rule — held, and the guard over its bookings, which
-  leaves a security on two scales to that finding — for a surface that
-  shows one security (#1112, the security's Overview). The finding is
-  `Portfolixir.Portfolios.QuotePlausibility`'s: the latest booking outside
-  the band, the quote it was compared with, the ratio and how many
-  bookings are outside.
+  predicate's own rule — no benchmark, retired only while held, and the
+  guard over its bookings, which leaves a security on two scales to that
+  finding — for a surface that shows one security (#1112, the security's
+  Overview), held or not since #1414. The finding is
+  `Portfolixir.Portfolios.QuotePlausibility`'s, with `held`: the latest
+  booking outside the band, the quote it was compared with, the ratio and
+  how many bookings are outside.
   """
   @spec implausible_quote_finding(Security.t()) :: map() | nil
-  def implausible_quote_finding(%Security{id: id} = security) do
-    if id in HeldSecurities.held_ids() do
-      security |> List.wrap() |> QuotePlausibility.findings_among() |> List.first()
-    end
+  def implausible_quote_finding(%Security{} = security) do
+    security
+    |> List.wrap()
+    |> implausible_quote_candidates()
+    |> QuotePlausibility.findings_among()
+    |> with_held()
+    |> List.first()
+  end
+
+  defp with_held([]), do: []
+
+  defp with_held(findings) do
+    held = MapSet.new(HeldSecurities.held_ids())
+    Enum.map(findings, &Map.put(&1, :held, MapSet.member?(held, &1.security_id)))
+  end
+
+  # #1414: the securities the set may name — no benchmark, and a retired
+  # one only while it is held — before the guard reads their bookings.
+  defp implausible_quote_candidates(securities) do
+    securities
+    |> Enum.reject(&(&1.is_benchmark == true))
+    |> held_unless_retired()
   end
 
   @doc """
@@ -399,16 +457,15 @@ defmodule Portfolixir.Catalog.DataQuality do
     end)
   end
 
-  # #1101 (D-7): the guard over the rows' held securities. The held filter
-  # is applied here too, so rows loaded without the query half cannot bring
-  # a sold-out security back; a row without a security is no finding.
+  # #1101 (D-7), #1414: the guard over the rows' securities, held or not.
+  # The benchmark and retired-unless-held exclusions are applied here too,
+  # so rows loaded without the query half cannot bring one back; a row
+  # without a security is no finding.
   def refine(rows, "implausible_quote", _today) do
-    held = MapSet.new(HeldSecurities.held_ids())
-
     named =
       rows
       |> Enum.flat_map(&security_list/1)
-      |> Enum.filter(&MapSet.member?(held, &1.id))
+      |> implausible_quote_candidates()
       |> QuotePlausibility.findings_among()
       |> MapSet.new(& &1.security_id)
 

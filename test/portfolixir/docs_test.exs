@@ -2950,6 +2950,73 @@ defmodule Portfolixir.DocsTest do
 
   # --- Sprint 28 Q end ---
 
+  # --- S29 D1 begin ---
+  # User story (#1414, Sprint 29 D1; the owner's answer of 2026-11-07 to
+  # OQ-1):
+  # As the operator and the agent reading why a security is named as having
+  # quotes that do not match its bookings,
+  # I want the handbooks, the API references and ADR-0052 to say the set is
+  # held or not, what it leaves out, that each finding says held, and that
+  # the Overview counts the held ones,
+  # so that the record, the docs and the code say the same thing.
+  #
+  # Acceptance criteria:
+  # - The handbooks (English, then German) say the guard covers every
+  #   security, held or not (issue #1414), name the sold security's series
+  #   split-adjusted backwards, the benchmark and retired-unless-held
+  #   exclusions, and the Overview's link with holding=held.
+  # - The API references name held or not, the findings' held, and the
+  #   holding_status narrowing.
+  # - ADR-0052 carries a note dated 2026-11-12 citing #1414.
+  test "the docs and ADR-0052 describe implausible_quote held or not (#1414)" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "compared with its own bookings, held or not (issue #1414)",
+             "split-adjusted backwards after the sale",
+             "A benchmark is left out, and a retired security unless it is held",
+             "`?dq=implausible_quote&holding=held`"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "mit seinen eigenen Buchungen verglichen, gehalten oder nicht (Issue #1414)",
+             "nach dem Verkauf rückwirkend um einen Split bereinigt",
+             "Eine Benchmark bleibt außen vor, ein stillgelegtes Wertpapier, solange es nicht gehalten ist",
+             "`?dq=implausible_quote&holding=held`"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "every security, **held or not** (issue #1414)",
+             "`held` (`true` or `false`",
+             "`holding_status=held`"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "jedes Wertpapier, **gehalten oder nicht** (Issue #1414)",
+             "`held` (`true` oder `false`",
+             "`holding_status=held`"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    adr =
+      "docs/decisions/0052-bond-master-data-in-dedicated-columns.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Note 2026-11-12 \(#1414, Sprint 29 D1\).*/, adr)
+    assert note =~ "held or not"
+    assert note =~ "benchmark"
+    assert note =~ "retired"
+  end
+
+  # --- S29 D1 end ---
+
   test "the docs and ADR-0052 describe implausible_quote (#1101)" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",

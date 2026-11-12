@@ -438,25 +438,33 @@ verengen, was der Betreiber sieht.
   Datenqualitätszeile der Übersicht zählt; Regel und welche Wertpapiere als
   Anleihe gelten, siehe `bond.two_scales` unten. Auch sie behält eine
   Benchmark und ein stillgelegtes Wertpapier, denn deren Zahlen sind so
-  falsch wie zuvor; `implausible_quote` — Issue #1101: jedes **gehaltene**
-  Wertpapier, bei dem ein Kauf, ein Verkauf oder eine bepreiste Einlieferung
-  einen gespeicherten Kurs hat, am Tag der Buchung oder der letzte innerhalb
+  falsch wie zuvor; `implausible_quote` — Issue #1101: jedes Wertpapier,
+  **gehalten oder nicht** (Issue #1414), bei dem ein Kauf, ein Verkauf oder
+  eine bepreiste Einlieferung einen gespeicherten Kurs hat, am Tag der Buchung oder der letzte innerhalb
   von 7 Tagen davor, der unter der Hälfte oder über dem Doppelten des
   Preises je Stück der Buchung in der Währung des Wertpapiers liegt (eine
   Buchung in anderer Währung mit `security_amount` ÷ `quantity`), gelesen
   auf der Split-Basis der Buchung (ADR-0028 §2), sodass ein erfasster Split
   nicht genannt wird und ein nicht erfasster schon; eine Buchung zum Preis 0
   oder ohne Kurs im Fenster wird nicht verglichen, und ein Wertpapier, das
-  `two_scales` nennt, wird nicht noch einmal gezählt. Es ist die Menge, die
-  die Datenqualitätszeile der Übersicht zählt, und behält eine gehaltene
-  Benchmark oder ein gehaltenes stillgelegtes Wertpapier. Darunter ergänzt
+  `two_scales` nennt, wird nicht noch einmal gezählt. Auch ein verkauftes
+  Wertpapier wird genannt: Seine Reihe speist weiter den Snapshot-Vergleich,
+  die Rückschau auf Verkäufe und die TTWROR-Fenster über seine Haltedauer,
+  so fällt eine Anbieterreihe auf, die gegen Buchungen in den alten
+  Einheiten rückwirkend um einen Split bereinigt wurde. Sie lässt eine
+  Benchmark aus, und ein stillgelegtes Wertpapier, solange es nicht
+  gehalten ist; `holding_status=held` oder `not_held` schränkt sie ein wie
+  jede Liste. Die Datenqualitätszeile der Übersicht zählt ihre gehaltenen
+  Mitglieder. Darunter ergänzt
   der Umschlag `findings`, je gelistetem Wertpapier eines — `security_id`,
   `kind` (`buy`, `sell` oder `inbound_delivery`), `date`, `price`,
   `currency_code`, `quote_date`, `close` (auf der Split-Basis der Buchung),
-  `ratio` (Kurs ÷ Preis, kaufmännisch auf 6 Stellen gerundet) und
+  `ratio` (Kurs ÷ Preis, kaufmännisch auf 6 Stellen gerundet),
   `bookings_outside`, wobei die letzte Buchung außerhalb des Bandes die
-  genannte ist — und `computation_basis`, das `input_series`, `reference`,
-  `window`, `gaps`, `threshold` und `assumptions` nennt; `currency_mismatch`
+  genannte ist, und `held` (`true` oder `false`, ob das Wertpapier jetzt
+  gehalten ist) — und `computation_basis`, das `input_series`, `reference`,
+  `window`, `gaps`, `threshold` und `assumptions` nennt, Letzteres zuerst
+  mit dem, was die Menge umfasst; `currency_mismatch`
   — Issue #1415: jedes Wertpapier, dessen gespeicherte `provider_currency`,
   die Währung, die sein Kursanbieter bei der Synchronisierung nannte, die
   sie gespeichert hat, vorhanden ist und von seinem `currency_code`

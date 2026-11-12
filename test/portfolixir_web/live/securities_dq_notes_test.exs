@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.SecuritiesDqNotesTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Clock
 
   @css File.read!("priv/static/app.css")
@@ -335,6 +336,44 @@ defmodule PortfolixirWeb.SecuritiesDqNotesTest do
     put_quote!(larkspur, ~D[2026-03-02], "33.10")
 
     {:ok, view, _html} = live(german(conn), "/securities/#{larkspur.id}")
+    refute has_element?(view, ~s([data-role="implausible-quote-note"]))
+  end
+
+  # User story (#1414, Sprint 29 D1; the owner's answer to OQ-1):
+  # As the operator opening a sold security that the implausible_quote list
+  # names,
+  # I want its Overview to carry the same note, so that a series
+  # split-adjusted backwards after the sale is explained where the list
+  # leads, as a held one's is.
+  #
+  # Acceptance criteria:
+  # - "Linden Optik AG", sold out, its provider series back-adjusted for an
+  #   unrecorded 1:4 split, carries the implausible-quote note naming its
+  #   sell ("Verkauf 03.06.2024 zu 420 EUR · Kurs 03.06.2024: 105 EUR, das
+  #   0,25-Fache", 2 bookings).
+  # - Retired, it carries none: the set leaves a retired security out unless
+  #   it is held.
+  test "a sold security the set names carries the implausible-quote note", %{conn: conn} do
+    world = base_world()
+    linden = create_security!(name: "Linden Optik AG", ticker: "LOP")
+    buy!(world, linden, quantity: "10", price: "400.00", date: ~D[2023-03-01])
+    sell!(world, linden, quantity: "10", price: "420.00", date: ~D[2024-06-03])
+
+    {:ok, _} =
+      Quotes.upsert_many(linden.id, [
+        %{date: ~D[2023-03-01], close: "100.00", source: "auto"},
+        %{date: ~D[2024-06-03], close: "105.00", source: "auto"}
+      ])
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{linden.id}")
+
+    assert text(view, ~s([data-role="implausible-quote-note"])) =~
+             "Kurs passt nicht zu den Buchungen: 2 Buchungen, zuletzt: Verkauf 03.06.2024 zu " <>
+               "420 EUR · Kurs 03.06.2024: 105 EUR, das 0,25-Fache"
+
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), linden, %{is_retired: true})
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{linden.id}")
     refute has_element?(view, ~s([data-role="implausible-quote-note"]))
   end
 end

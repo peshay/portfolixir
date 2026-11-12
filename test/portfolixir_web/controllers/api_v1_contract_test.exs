@@ -121,6 +121,25 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S29 B1 end ---
 
+    # --- S29 D1 begin ---
+    # D1 (#1414, the owner's answer to OQ-1): implausible_quote over every
+    # security with a priced booking, held or not, each finding with held;
+    # no new endpoint or tool, securities.list's description says so.
+    assert newest["summary"] =~ "Sprint 29, D1 (#1414): "
+
+    assert [implausible] =
+             Enum.filter(
+               newest["parameters"],
+               &(String.starts_with?(&1, "GET /api/v1/securities (portfolixir.securities.list") and
+                   &1 =~ "data_quality=implausible_quote")
+             )
+
+    for part <- ["held or not", "held true or false", "holding_status", "computation_basis"] do
+      assert implausible =~ part, part
+    end
+
+    # --- S29 D1 end ---
+
     # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
     # Dated strictly after entry 27, so since=2026-11-08 still returns it.
     # Each story appends its own items between its own markers.

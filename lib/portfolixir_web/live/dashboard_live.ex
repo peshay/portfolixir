@@ -1273,8 +1273,8 @@ defmodule PortfolixirWeb.DashboardLive do
   # same wherever it stands.
   #
   # #1101 (D-7, board 02 L2 A): the held securities whose quotes contradict
-  # their own bookings follow two scales, with their noun and their scope
-  # word ("held"), since the line otherwise counts the catalog (J1.2).
+  # their own bookings follow two scales, with their noun and scope word
+  # ("held"); the set is held or not since #1414, the line its held ones.
   defp dq_findings(dq) do
     [
       dq.without_quote > 0 && {:quotes, dq.without_quote},
@@ -1363,7 +1363,7 @@ defmodule PortfolixirWeb.DashboardLive do
   defp dq_finding(:implausible_quote, count, _first?) do
     %{
       role: "dq-implausible-quote",
-      href: "/securities?dq=implausible_quote",
+      href: "/securities?dq=implausible_quote&holding=held",
       text:
         ngettext(
           "one held security whose quotes do not match its bookings",
@@ -1498,7 +1498,7 @@ defmodule PortfolixirWeb.DashboardLive do
         ),
       without_logo: DataQuality.count("missing_logo"),
       two_scales: DataQuality.count("two_scales"),
-      implausible_quote: DataQuality.count("implausible_quote"),
+      implausible_quote: DataQuality.count("implausible_quote", holding_status: :held),
       currency_mismatch: DataQuality.count("currency_mismatch"),
       cash_mismatch: LedgerChecks.count("cash_mismatch"),
       rate_only: LedgerChecks.count("rate_only"),

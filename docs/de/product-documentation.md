@@ -2223,8 +2223,10 @@ eingeschlossen, denn die gebuchte Geschichte einer solchen Anleihe — ihre
 früheren Werte und ihr realisiertes Ergebnis — liegt hundertfach daneben,
 ob sie gehalten wird oder nicht. Der Zähler der gehaltenen Wertpapiere,
 deren Kurse nicht zu ihren Buchungen passen (Issue #1101), sagt
-„gehaltene", weil die Zeile sonst den Katalog zählt, und behält ein
-gehaltenes Wertpapier, das stillgelegt oder eine Benchmark ist. Diese
+„gehaltene", weil die Zeile sonst den Katalog zählt: Er zählt die
+gehaltenen Mitglieder einer Menge, die auch verkaufte Wertpapiere enthält
+(Issue #1414), lässt Benchmarks aus, behält ein gehaltenes stillgelegtes
+Wertpapier und verlinkt auf die Liste mit dem Chip *Im Bestand*. Diese
 beiden Befunde sagen nach ihrem Link auch, was sie mit der Summe darüber
 machen (Issue #1121): „— gehalten zählt sie in der Summe oben hundertfach
 zu hoch oder zu niedrig" und „— ihr Wert in der Summe oben oder ihr
@@ -4878,17 +4880,24 @@ Wert — auch zuvor synchronisierte.
 Ein Ticker oder eine Online-ID, die auf eine andere Notierung zeigt, speichert
 frische Kurse des falschen Instruments. Der Bestand wird mit ihnen bewertet,
 und weil der Kurs aktuell ist, markiert ihn sonst nichts. Deshalb werden die
-gespeicherten Kurse jedes gehaltenen Wertpapiers mit seinen eigenen
-Buchungen verglichen: Für jeden Kauf, Verkauf und jede bepreiste
-Einlieferung wird der gespeicherte Kurs am Tag der Buchung, oder der letzte
-innerhalb von 7 Tagen davor, mit dem Preis je Stück der Buchung in der
-Währung des Wertpapiers verglichen (eine Buchung in anderer Währung mit
-ihrem Bein in der Wertpapierwährung). Das Wertpapier wird genannt, wenn
+gespeicherten Kurse jedes Wertpapiers mit seinen eigenen Buchungen
+verglichen, gehalten oder nicht (Issue #1414): Für jeden Kauf, Verkauf
+und jede bepreiste Einlieferung wird der gespeicherte Kurs am Tag der
+Buchung, oder der letzte innerhalb von 7 Tagen davor, mit dem Preis je
+Stück der Buchung in der Währung des Wertpapiers verglichen (eine Buchung
+in anderer Währung mit ihrem Bein in der Wertpapierwährung). Das
+Wertpapier wird genannt, wenn
 dieser Kurs bei mindestens einer Buchung unter der Hälfte oder über dem
 Doppelten des Preises je Stück der Buchung liegt. Eine Aktie, die auf das
 Zwanzigfache gestiegen ist, wird nie genannt, weil jede ihrer Buchungen zum
 Kurs ihres eigenen Tages passte; ein vom ersten Tag an falsch zugeordneter
-Ticker wird genannt, ebenso ein Pence-/Pfund-Fehler.
+Ticker wird genannt, ebenso ein Pence-/Pfund-Fehler. Auch ein verkauftes
+Wertpapier wird verglichen: Seine gespeicherten Kurse speisen weiter den
+Snapshot-Vergleich, die Rückschau auf Verkäufe und jedes TTWROR-Fenster
+über seine Haltedauer, also wird eine Anbieterreihe, die nach dem Verkauf
+rückwirkend um einen Split bereinigt wurde, gegen Buchungen in den alten
+Einheiten genannt. Eine Benchmark bleibt außen vor, ein stillgelegtes
+Wertpapier, solange es nicht gehalten ist, wie bei den anderen Mengen.
 
 - Eine Buchung zum Preis 0 — Gratisaktien, eine Einlieferung ohne Kosten —
   hat kein Verhältnis und wird übersprungen, und eine Buchung ohne Kurs in
@@ -4911,11 +4920,14 @@ also ist entweder der Wert (ein falscher Kurs) oder Einstand und Ergebnis
 (eine falsche Buchung) in den Summen falsch. Die Datenqualitätszeile der
 Übersicht zählt die gehaltenen Wertpapiere, die er nennt („2 gehaltene
 Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"), und verlinkt auf
-`?dq=implausible_quote`, wo sie unter dem entfernbaren Chip *Kurs passt
-nicht zu Buchungen* stehen; Vermögen → Bestände nennt jede Position seines
-Bereichs mit der Buchung und dem Kurs ihres Tages und verlinkt auf den Tab
-**Kurse** des Wertpapiers. Der Agent liest dieselbe Menge, mit der Buchung,
-der jedes Wertpapier widerspricht, und der Regel, über
+`?dq=implausible_quote&holding=held`, wo sie unter dem entfernbaren Chip
+*Kurs passt nicht zu Buchungen* stehen; ohne den Chip *Im Bestand* hält
+die Liste auch die verkauften, und die Seite eines verkauften trägt
+denselben Hinweis wie die eines gehaltenen. Vermögen → Bestände nennt jede
+Position seines Bereichs mit der Buchung und dem Kurs ihres Tages und
+verlinkt auf den Tab **Kurse** des Wertpapiers. Der Agent liest dieselbe
+Menge, mit der Buchung, der jedes Wertpapier widerspricht, ob es gehalten
+ist, und der Regel, über
 `GET /api/v1/securities?data_quality=implausible_quote`. Nichts wird
 umgerechnet.
 
