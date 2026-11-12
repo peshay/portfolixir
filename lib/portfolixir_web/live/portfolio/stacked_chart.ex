@@ -18,8 +18,10 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
       filter. At the level Total without a filter the bar holds the level
       alone, and the chart under it is today's value chart, unchanged. The
       bar is the first user of "labelled controls start on one edge"
-      (DESIGN.md, amendment of 2026-11-08): a container query turns it into
-      a label column, or labels above their controls, when it wraps;
+      (DESIGN.md, amendment of 2026-11-08), built as the shared
+      `PortfolixirWeb.ControlBar.bar/1` (issue 1435): a container query
+      turns it into a label column at 760 px of its width, or labels above
+      their controls at 330 px;
     * **the bands** (`figure/1`): `Portfolixir.Portfolios.Performance.Bands`'
       daily values, the first band of its order at the bottom, the largest
       by the chosen sort. A band's part below zero (an overdrawn cash
@@ -65,6 +67,7 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PrivacyMode
 
@@ -92,25 +95,20 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
   """
   def bar(assigns) do
     ~H"""
-    <div class="stack-bar" data-role="stack-bar">
-      <nav
-        :if={@crumbs != []}
-        class="stack-crumbs"
-        data-role="stack-crumbs"
-        aria-label={gettext("Stack")}
-      >
-        <%= for {{label, path}, index} <- Enum.with_index(@crumbs) do %>
-          <span :if={index > 0} class="stack-crumbs__sep" aria-hidden="true">›</span>
-          <%= if path do %>
-            <.link patch={path}><%= label %></.link>
-          <% else %>
-            <span id="stack-crumbs-current" aria-current="location" tabindex="-1"><%= label %></span>
+    <ControlBar.bar data-role="stack-bar">
+      <:head :if={@crumbs != []}>
+        <nav class="stack-crumbs" data-role="stack-crumbs" aria-label={gettext("Stack")}>
+          <%= for {{label, path}, index} <- Enum.with_index(@crumbs) do %>
+            <span :if={index > 0} class="stack-crumbs__sep" aria-hidden="true">›</span>
+            <%= if path do %>
+              <.link patch={path}><%= label %></.link>
+            <% else %>
+              <span id="stack-crumbs-current" aria-current="location" tabindex="-1"><%= label %></span>
+            <% end %>
           <% end %>
-        <% end %>
-      </nav>
-      <div class="stack-bar__controls">
-        <span class="stack-bar__group">
-        <span class="stack-bar__label" id="stack-level-label"><%= gettext("Level") %></span>
+        </nav>
+      </:head>
+      <:group label={gettext("Level")} label_id="stack-level-label">
         <div
           class="segmented-control"
           data-role="stack-level"
@@ -127,28 +125,24 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             <%= label %>
           </.link>
         </div>
-        </span>
-        <form
-          :if={@stack.level == :category or (@stack.level == :security and not is_nil(@stack.category))}
-          id="stack-classification-form"
-          class="stack-bar__tree"
-          phx-change="select_stack_classification"
-        >
-          <label for="stack-classification"><%= gettext("Classification") %></label>
-          <select id="stack-classification" name="tree">
-            <option
-              :for={classification <- @classifications}
-              value={classification.id}
-              selected={classification.id == @classification_id}
-            >
-              <%= ClassificationName.display(classification) %>
-            </option>
-          </select>
-        </form>
-        <span :if={@stack.level != :total} class="stack-bar__group">
-        <span class="stack-bar__label" id="stack-sort-label">
-          <%= gettext("Sort") %>
-        </span>
+      </:group>
+      <:group
+        :if={@stack.level == :category or (@stack.level == :security and not is_nil(@stack.category))}
+        label={gettext("Classification")}
+        for="stack-classification"
+        form={[id: "stack-classification-form", "phx-change": "select_stack_classification"]}
+      >
+        <select id="stack-classification" name="tree">
+          <option
+            :for={classification <- @classifications}
+            value={classification.id}
+            selected={classification.id == @classification_id}
+          >
+            <%= ClassificationName.display(classification) %>
+          </option>
+        </select>
+      </:group>
+      <:group :if={@stack.level != :total} label={gettext("Sort")} label_id="stack-sort-label">
         <div
           class="segmented-control"
           data-role="stack-sort"
@@ -165,9 +159,8 @@ defmodule PortfolixirWeb.Portfolio.StackedChart do
             <%= label %>
           </.link>
         </div>
-        </span>
-      </div>
-    </div>
+      </:group>
+    </ControlBar.bar>
     """
   end
 

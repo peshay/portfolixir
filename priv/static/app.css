@@ -6507,14 +6507,26 @@ details[open] > .disclosure-summary .disclosure-chevron {
    chart wraps under the section's head; its options are links (each choice
    patches the address), drawn as the app's one segmented control. The
    legend sits beside the chart from 900 px of the section, under it below.
-   The bar is the first user of "labelled controls start on one edge"
-   (DESIGN.md, amendment of 2026-11-08; issue 1366, plan amendment D-A5): one
-   line while its groups fit; when they wrap, a label column as wide as the
-   longest label with every control from one edge (A); where that does not
-   fit, every label above its control (B). A container query on the bar
-   switches, so the sidebar's width never decides it. */
-.stack-bar {
-  container: stack-bar / inline-size;
+   The bar is the shared bar of labelled controls (.control-bar, below), its
+   first user (issue 1435). */
+/* control-bar begin (issue 1435, Sprint 29 L1) */
+/* The one bar of labelled controls (`PortfolixirWeb.ControlBar.bar/1`;
+   DESIGN.md, amendment of 2026-11-08 "Labelled controls start on one
+   edge", and the anatomy of the control bar; board 06 of
+   ux-design-2026-11-12-sprint29). One line while its groups fit; once the
+   bar is at most its fold wide, a label column as wide as the longest label
+   with every control from one edge (A); once it is at most its floor wide,
+   every label above its control (B). A container query on the bar
+   switches, so the sidebar's width never decides it.
+
+   A container query cannot read a variable, so the fold and the floor are
+   named widths, each a class on the bar with one rule of its own below.
+   That rule sets the layout's variables on the controls, and the groups,
+   labels and controls inherit them; a new width is one more rule, not a
+   second copy of the layout. Unset, every variable falls back to the one
+   line. */
+.control-bar {
+  container: control-bar / inline-size;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
@@ -6523,73 +6535,127 @@ details[open] > .disclosure-summary .disclosure-chevron {
   font-size: 12.5px;
   color: var(--color-text-muted);
 }
-.stack-bar__controls {
-  display: flex;
+.control-bar__controls {
+  display: var(--control-bar-display, flex);
   flex-wrap: wrap;
-  gap: var(--space-2);
+  grid-template-columns: var(--control-bar-columns, none);
+  gap: var(--control-bar-gap, var(--space-2));
   align-items: center;
+  width: var(--control-bar-width, auto);
 }
-/* A label stays on the line of its control while the bar is one line. */
-.stack-bar__group {
-  display: inline-flex;
+/* A label stays on the line of its control while the bar is one line; in
+   A and B the groups dissolve into the grid's rows. */
+.control-bar__group {
+  display: var(--control-bar-group, inline-flex);
   gap: 6px;
   align-items: center;
 }
-.stack-bar__label,
-.stack-bar__tree label {
+.control-bar__label {
   font-weight: 600;
-  margin-right: 2px;
+  margin-right: var(--control-bar-label-margin, 2px);
 }
-.stack-bar__tree {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
+/* Every control at its own width from its column's start. */
+.control-bar__group > :not(.control-bar__label) {
+  justify-self: start;
+  margin-bottom: var(--control-bar-control-margin, 0);
 }
-@container stack-bar (max-width: 760px) {
-  /* A: the label column. The groups dissolve into the grid's rows, each
-     label in the first column, each control from the second one's edge. */
-  .stack-bar__controls {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--space-2) 10px;
-    align-items: center;
-    width: 100%;
-  }
-  .stack-bar__group,
-  .stack-bar__tree {
-    display: contents;
-  }
-  .stack-bar__controls .segmented-control,
-  .stack-bar__tree select {
-    justify-self: start;
-    width: auto;
-  }
-  .stack-bar__label,
-  .stack-bar__tree label {
-    margin-right: 0;
-  }
+/* A group without a label (a checkbox with its own) keeps its control in
+   the control column: the last column in A and in B. */
+.control-bar__group--bare > * {
+  grid-column: -2 / -1;
 }
-@container stack-bar (max-width: 330px) {
-  /* B, the floor: every label above its control, all on the left edge. */
-  .stack-bar__controls {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
-  }
-  .stack-bar__controls .segmented-control,
-  .stack-bar__tree select {
-    margin-bottom: 6px;
-  }
-}
-.stack-bar__tree select {
+.control-bar__group > select {
+  width: var(--control-bar-select-width, 100%);
   min-height: 30px;
   max-width: 14rem;
   font-size: 12.5px;
 }
-.stack-bar a.segmented-control__option {
+.control-bar a.segmented-control__option {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
 }
+/* A, the label column: the fold's widths, then the bar folded always (the
+   chip rows, whose families never fit one line). */
+@container control-bar (max-width: 560px) {
+  .control-bar--fold-560 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: max-content minmax(0, 1fr);
+    --control-bar-gap: var(--space-2) 10px;
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+  }
+}
+@container control-bar (max-width: 760px) {
+  .control-bar--fold-760 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: max-content minmax(0, 1fr);
+    --control-bar-gap: var(--space-2) 10px;
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+  }
+}
+@container control-bar (max-width: 960px) {
+  .control-bar--fold-960 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: max-content minmax(0, 1fr);
+    --control-bar-gap: var(--space-2) 10px;
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+  }
+}
+.control-bar--fold-always > .control-bar__controls {
+  --control-bar-display: grid;
+  --control-bar-columns: max-content minmax(0, 1fr);
+  --control-bar-gap: var(--space-2) 10px;
+  --control-bar-width: 100%;
+  --control-bar-group: contents;
+  --control-bar-label-margin: 0;
+  --control-bar-select-width: auto;
+}
+/* B, the floor: every label above its control, all on the left edge. After
+   A, so where both apply B wins. */
+@container control-bar (max-width: 330px) {
+  .control-bar--floor-330 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: minmax(0, 1fr);
+    --control-bar-gap: var(--space-1);
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+    --control-bar-control-margin: 6px;
+  }
+}
+@container control-bar (max-width: 560px) {
+  .control-bar--floor-560 > .control-bar__controls {
+    --control-bar-display: grid;
+    --control-bar-columns: minmax(0, 1fr);
+    --control-bar-gap: var(--space-1);
+    --control-bar-width: 100%;
+    --control-bar-group: contents;
+    --control-bar-label-margin: 0;
+    --control-bar-select-width: auto;
+    --control-bar-control-margin: 6px;
+  }
+}
+.control-bar--floor-always > .control-bar__controls {
+  --control-bar-display: grid;
+  --control-bar-columns: minmax(0, 1fr);
+  --control-bar-gap: var(--space-1);
+  --control-bar-width: 100%;
+  --control-bar-group: contents;
+  --control-bar-label-margin: 0;
+  --control-bar-select-width: auto;
+  --control-bar-control-margin: 6px;
+}
+/* control-bar end */
 /* The breadcrumb takes a line of its own, so the controls start at the
    bar's left edge at every level: with the breadcrumb beside them and the
    bar spread between the two, the level's control stood at the right edge
