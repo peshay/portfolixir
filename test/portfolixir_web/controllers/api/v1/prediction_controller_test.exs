@@ -28,7 +28,9 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
 
   defp security!(name), do: create_security!(name: name, ticker: nil, currency: "EUR")
 
-  defp benchmark!(name) do
+  # A flagged index with one old close, since Sprint 29 B1 (#1416) what any
+  # benchmark security needs; `quoted: false` leaves it without one.
+  defp benchmark!(name, opts \\ []) do
     {:ok, security} =
       Catalog.create_security(Actor.owner_ui(), %{
         name: name,
@@ -37,6 +39,7 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
         is_benchmark: true
       })
 
+    if Keyword.get(opts, :quoted, true), do: put_quotes!(security, [{~D[2020-01-02], "100"}])
     security
   end
 
@@ -214,6 +217,44 @@ defmodule PortfolixirWeb.Api.V1.PredictionControllerTest do
 
       assert Predictions.list_predictions() == []
       assert Journal.list_entries(resource_type: "prediction") == []
+    end
+
+    # User story (Sprint 29 B1, #1416; ADR-0046's amendment of 2026-11-07):
+    # As the operator's agent with a view against a fund the operator holds,
+    # I want security:<id> to take that fund without the flag,
+    # so that the call is scored against the reference I mean.
+    #
+    # Acceptance criteria:
+    # - A held fund that is not flagged, with a stored quote, is a
+    #   prediction's benchmark: 201.
+    # - A security with no stored quote answers 422 on benchmark saying so,
+    #   flagged or not, and nothing is stored.
+    test "a quoted fund that is not flagged is a prediction's benchmark", %{conn: conn} do
+      security = security!("Synthetic Call Co.")
+      fund = security!("Synthetic Held Fund")
+      put_quotes!(fund, [{Date.add(Clock.today(), -3), "50"}])
+      refute fund.is_benchmark
+
+      data =
+        conn
+        |> post_prediction(body(security, %{"benchmark" => "security:#{fund.id}"}))
+        |> json_response(201)
+        |> Map.fetch!("data")
+
+      assert data["benchmark"] == "security:#{fund.id}"
+
+      unquoted = security!("Synthetic Unquoted Fund")
+      unquoted_index = benchmark!("Synthetic Unquoted Index", quoted: false)
+
+      for benchmark <- [unquoted, unquoted_index] do
+        assert %{"errors" => %{"benchmark" => ["has no stored quote"]}} =
+                 conn
+                 |> post_prediction(body(security, %{"benchmark" => "security:#{benchmark.id}"}))
+                 |> json_response(422)
+      end
+
+      assert [%{id: id}] = Predictions.list_predictions()
+      assert id == data["id"]
     end
 
     # User story (F4; #853's input-shape rule): a wrapper that is not an

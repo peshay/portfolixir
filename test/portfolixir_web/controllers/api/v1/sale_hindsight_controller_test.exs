@@ -173,6 +173,48 @@ defmodule PortfolixirWeb.Api.V1.SaleHindsightControllerTest do
     end
   end
 
+  # User story (Sprint 29 B1, #1416; ADR-0046's amendment of 2026-11-07):
+  # As the operator asking what a sale missed against the fund I still hold,
+  # I want benchmark=security:<id> to take that fund without the flag,
+  # so that the fund stays bookable while it is the sale's reference.
+  #
+  # Acceptance criteria:
+  # - A held fund that is not flagged, with stored quotes, answers 200 with
+  #   its return and the difference on each span.
+  # - computation_basis.benchmark_security is "held" for it and null without
+  #   a benchmark.
+  # - A security with no stored quote answers 422 "has no stored quote".
+  test "a held fund that is not flagged is the sale's benchmark", %{conn: conn} do
+    %{world: world, sale: sale} = world()
+    fund = create_security!(name: "Synthetic Held Fund", ticker: "SHF", currency: "EUR")
+    buy!(world, fund, quantity: "4", price: "50", date: ~D[2025-01-02])
+    put_quotes!(fund, [{~D[2025-01-15], "50"}, {~D[2025-02-14], "55"}])
+    refute fund.is_benchmark
+
+    %{"data" => data} =
+      conn
+      |> get("/api/v1/sales/hindsight", %{"benchmark" => "security:#{fund.id}"})
+      |> json_response(200)
+
+    assert data["benchmark"]["security_id"] == fund.id
+    row = Enum.find(data["rows"], &(&1["sale_id"] == sale.id))
+    # 1m: the sold fund's 0.1 against 55 / 50 - 1 = 0.1, difference 0.
+    one = span(row, "1m")
+    assert one["benchmark"]["return"] == "0.1"
+    assert one["difference"] == "0"
+    assert data["computation_basis"]["benchmark_security"] == "held"
+
+    %{"data" => without} = conn |> get("/api/v1/sales/hindsight") |> json_response(200)
+    assert without["computation_basis"]["benchmark_security"] == nil
+
+    unquoted = create_security!(name: "Synthetic Unquoted Fund", ticker: "SUQ")
+
+    assert %{"errors" => %{"benchmark" => ["has no stored quote"]}} =
+             conn
+             |> get("/api/v1/sales/hindsight", %{"benchmark" => "security:#{unquoted.id}"})
+             |> json_response(422)
+  end
+
   # User story (S2): the filters and their refusals, as the sibling reads.
   #
   # Acceptance criteria:

@@ -6332,9 +6332,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp dispatch_row_action(socket, _action, _sec), do: {:noreply, socket}
 
-  # Sprint 26 V1 (#1365 line 2, board 02 part 3 ②, judgment call 8): the
-  # flag gates only new predictions, so where recorded ones measure against
-  # the security the note says how many keep doing so.
+  # Sprint 26 V1 (#1365 line 2, board 02 part 3 ②): the note counts the recorded
+  # predictions that keep measuring against the security; since #1416 the flag
+  # gates no new one, so the note no longer says a new one cannot name it.
   defp unflagged_benchmark(%Security{id: id}) do
     case Predictions.count_measuring_against(id) do
       0 ->
@@ -6342,8 +6342,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       count ->
         ngettext(
-          "%{name} is no longer a benchmark. %{count} recorded prediction keeps measuring against it; a new prediction can no longer name it as its benchmark.",
-          "%{name} is no longer a benchmark. %{count} recorded predictions keep measuring against it; a new prediction can no longer name it as its benchmark.",
+          "%{name} is no longer a benchmark. %{count} recorded prediction keeps measuring against it.",
+          "%{name} is no longer a benchmark. %{count} recorded predictions keep measuring against it.",
           count,
           name: StoredText.slot(:name)
         )

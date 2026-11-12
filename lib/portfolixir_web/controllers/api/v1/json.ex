@@ -2340,9 +2340,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       reference: basis.reference,
       gaps: basis.gaps,
       assumptions: basis.assumptions,
-      frictionless: basis.frictionless
+      frictionless: basis.frictionless,
+      # ADR-0046's amendment of 2026-11-07: flagged, held or unheld; null
+      # for a fixed rate.
+      benchmark_security: benchmark_standing(Map.get(basis, :benchmark_security))
     }
   end
+
+  defp benchmark_standing(nil), do: nil
+
+  defp benchmark_standing(standing) when standing in [:flagged, :held, :unheld],
+    do: Atom.to_string(standing)
 
   @doc """
   The contribution analysis (FR-41, ADR-0051 §11): which position made how

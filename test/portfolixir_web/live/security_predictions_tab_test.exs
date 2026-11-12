@@ -29,6 +29,8 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
         is_benchmark: true
       })
 
+    # Since Sprint 29 B1 (#1416) a benchmark security needs a stored quote.
+    put_quotes!(security, [{~D[2020-01-02], "100"}])
     security
   end
 
@@ -379,14 +381,16 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
   # User story (V1, #1365 line 2; board 02 part 3 ②, judgment call 8):
   # As the operator removing a security's benchmark flag,
   # I want the note to say how many recorded predictions keep measuring
-  # against it, and that a new one can no longer name it,
+  # against it,
   # so that I do not believe the flag rewrites recorded calls.
   #
   # Acceptance criteria:
   # - With predictions measuring against it: "… is no longer a benchmark.
-  #   3 recorded predictions keep measuring against it; a new prediction
-  #   can no longer name it as its benchmark." (1: "1 recorded prediction
-  #   keeps …"); in German as the board writes it.
+  #   3 recorded predictions keep measuring against it." (1: "1 recorded
+  #   prediction keeps …"); in German as the board writes it.
+  # - Since Sprint 29 B1 (#1416, ADR-0046's amendment of 2026-11-07) the
+  #   flag gates no new prediction, so the note no longer says a new one
+  #   cannot name it.
   # - Without: the shipped sentence alone.
   test "unflagging a benchmark counts the predictions that keep measuring against it",
        %{conn: conn} do
@@ -395,8 +399,12 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    assert unflag(view, w.index) =~
-             "Synthetic Industrial Index is no longer a benchmark. 3 recorded predictions keep measuring against it; a new prediction can no longer name it as its benchmark."
+    unflag_note = unflag(view, w.index)
+
+    assert unflag_note =~
+             "Synthetic Industrial Index is no longer a benchmark. 3 recorded predictions keep measuring against it."
+
+    refute unflag_note =~ "can no longer name it"
 
     refute Catalog.get_security(w.index.id).is_benchmark
 
@@ -415,8 +423,12 @@ defmodule PortfolixirWeb.SecurityPredictionsTabTest do
 
     {:ok, view, _html} = live(german(conn), "/securities")
 
-    assert unflag(view, single) =~
-             "Synthetic Single Index ist keine Benchmark mehr. 1 festgehaltene Prognose misst weiter an ihr; eine neue Prognose kann sie nicht mehr als Benchmark nennen."
+    german_note = unflag(view, single)
+
+    assert german_note =~
+             "Synthetic Single Index ist keine Benchmark mehr. 1 festgehaltene Prognose misst weiter an ihr."
+
+    refute german_note =~ "nicht mehr als Benchmark nennen"
   end
 
   # --- Sprint 26 fix P begin ---

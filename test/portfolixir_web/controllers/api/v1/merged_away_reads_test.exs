@@ -8,7 +8,7 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
   # synthetic.
   use PortfolixirWeb.ConnCase, async: true
 
-  import Portfolixir.WorldFixtures, only: [base_world: 1]
+  import Portfolixir.WorldFixtures, only: [base_world: 1, put_quote!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -122,14 +122,20 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
   # - benchmark=security:<merged-away id> on the portfolio, the view and the
   #   view-less benchmark read keeps refusing with errors.benchmark and adds
   #   errors.merged_into {"kind": "security", "id": <survivor>} when the
-  #   survivor is a flagged benchmark security.
+  #   survivor is a benchmark security: since Sprint 29 B1 (#1416, ADR-0046's
+  #   amendment of 2026-11-07) any security with a stored quote, flagged or
+  #   not.
   # - A retry with the named survivor answers 200 on each read.
   test "the benchmark parameter names a survivor that is a benchmark", ctx do
     target = benchmark!("Synthetic Broad Index")
     source = benchmark!("Synthetic Broad Index")
+    put_quote!(target, ~D[2025-03-03], "200")
     merge!(source, target)
+    put_quote!(ctx.target, ~D[2025-03-03], "20")
 
-    for path <- benchmark_paths() do
+    paths = benchmark_paths()
+
+    for {source, target} <- [{source, target}, {ctx.source, ctx.target}], path <- paths do
       body =
         ctx.conn
         |> get(path, %{"benchmark" => "security:#{source.id}"})
@@ -152,19 +158,25 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
     end
   end
 
-  # Acceptance criteria (#959):
-  # - A survivor that is not flagged is no benchmark to retry with: the
+  # Acceptance criteria (#959; Sprint 29 B1):
+  # - A survivor with no stored quote is no benchmark to retry with: the
   #   merged-away id answers today's body exactly, with no merged_into.
-  # - So do a plain unflagged security and an id no merge names.
+  # - So does an id no merge names; a plain security with no stored quote
+  #   answers that it has none.
   test "the benchmark parameter names no survivor that is no benchmark", ctx do
     paths = benchmark_paths()
     plain = security!("Synthetic Plain Fund")
 
-    for path <- paths, id <- [ctx.source.id, plain.id, 999_999_999] do
+    for path <- paths, id <- [ctx.source.id, 999_999_999] do
       body = ctx.conn |> get(path, %{"benchmark" => "security:#{id}"}) |> json_response(422)
 
       assert body == %{"errors" => %{"benchmark" => ["is not a benchmark security"]}},
              "#{path} security:#{id}"
+    end
+
+    for path <- paths do
+      body = ctx.conn |> get(path, %{"benchmark" => "security:#{plain.id}"}) |> json_response(422)
+      assert body == %{"errors" => %{"benchmark" => ["has no stored quote"]}}, path
     end
   end
 

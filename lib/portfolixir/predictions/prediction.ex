@@ -170,7 +170,8 @@ defmodule Portfolixir.Predictions.Prediction do
   learns that the server states them.
 
   The references are checked here only for their shape; that the security
-  exists, that a benchmark security exists and is flagged `is_benchmark`,
+  exists, that a benchmark security exists and has a stored quote (flagged
+  `is_benchmark` or not, ADR-0046's amendment of 2026-11-07),
   and that a linked note is an entry of the same security is the
   context's to read (`Portfolixir.Predictions.create_prediction/3`), with
   the database's foreign keys behind it.

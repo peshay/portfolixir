@@ -37,6 +37,9 @@ defmodule Portfolixir.PredictionsTest do
         is_benchmark: true
       })
 
+    # Since Sprint 29 B1 (#1416) a benchmark security needs a stored quote;
+    # one old close, far from every date a call here reads.
+    WorldFixtures.put_quote!(security, ~D[2020-01-02], "100")
     security
   end
 
@@ -344,7 +347,10 @@ defmodule Portfolixir.PredictionsTest do
       assert count() == 0
     end
 
-    test "a benchmark security not flagged is_benchmark, the security itself, or none",
+    # Since Sprint 29 B1 (#1416; ADR-0046's amendment of 2026-11-07) the flag
+    # gates nothing: a security with no stored quote is refused saying so,
+    # and a quoted one that is not flagged is a benchmark.
+    test "a benchmark security with no stored quote, the security itself, or none",
          %{security: security} do
       plain = security!("Plain Co.")
 
@@ -362,7 +368,19 @@ defmodule Portfolixir.PredictionsTest do
       assert {:error, changeset} =
                create(agent(), attrs(security, %{"benchmark" => "security:#{plain.id}"}))
 
+      assert ["has no stored quote"] = errors_on(changeset).benchmark
+
+      assert {:error, changeset} =
+               create(agent(), attrs(security, %{"benchmark" => "security:999999999"}))
+
       assert ["is not a benchmark security"] = errors_on(changeset).benchmark
+
+      WorldFixtures.put_quote!(plain, ~D[2026-11-02], "10")
+
+      assert {:ok, %Prediction{benchmark_security_id: plain_id}} =
+               create(agent(), attrs(security, %{"benchmark" => "security:#{plain.id}"}))
+
+      assert plain_id == plain.id
 
       for benchmark <- [
             nil,
@@ -381,7 +399,8 @@ defmodule Portfolixir.PredictionsTest do
         assert [_refused] = errors_on(changeset).benchmark
       end
 
-      assert count() == 0
+      # The one call the quoted fund took.
+      assert count() == 1
     end
 
     test "a security that does not exist, and a direction outside the set" do
