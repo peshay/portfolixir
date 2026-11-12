@@ -44,6 +44,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Portfolio.CategoryColors
@@ -2800,26 +2801,36 @@ defmodule PortfolixirWeb.PortfolioLive do
               </button>
               <%!-- The same chip component the transaction history filters
                    with: one interaction, one visual. Pressed state is border
-                   plus aria-pressed, not hue alone (UX-DR7). --%>
-              <div
+                   plus aria-pressed, not hue alone (UX-DR7). Issue 1435
+                   (Sprint 29 L2): one family in a bar of labelled controls,
+                   its chips wrapping beside „Abweichung ab“, never under
+                   it. --%>
+              <ControlBar.bar
                 :if={@allocation.has_plan}
-                class="filter-chips"
-                role="group"
-                aria-label={gettext("Drift threshold")}
+                class="drift-filter"
+                fold={:always}
+                data-role="drift-filter"
               >
-                <span class="filter-chips__family"><%= gettext("Deviating by") %></span>
-                <button
-                  :for={pp <- drift_steps()}
-                  type="button"
-                  data-role="drift-chip"
-                  phx-click="set_drift_threshold"
-                  phx-value-pp={pp}
-                  class={["filter-chip", @min_drift_pp == pp && "is-active"]}
-                  aria-pressed={to_string(@min_drift_pp == pp)}
-                >
-                  <%= gettext("≥ %{pp} pp", pp: pp) %>
-                </button>
-              </div>
+                <:group label={gettext("Deviating by")} label_id="drift-filter-label">
+                  <span
+                    class="filter-chips"
+                    role="group"
+                    aria-labelledby="drift-filter-label"
+                  >
+                    <button
+                      :for={pp <- drift_steps()}
+                      type="button"
+                      data-role="drift-chip"
+                      phx-click="set_drift_threshold"
+                      phx-value-pp={pp}
+                      class={["filter-chip", @min_drift_pp == pp && "is-active"]}
+                      aria-pressed={to_string(@min_drift_pp == pp)}
+                    >
+                      <%= gettext("≥ %{pp} pp", pp: pp) %>
+                    </button>
+                  </span>
+                </:group>
+              </ControlBar.bar>
             </div>
             <%!-- A filtered table says what it is showing (UX-DR21), so a
                  short list is never mistaken for a short plan. --%>

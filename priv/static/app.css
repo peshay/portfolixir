@@ -7717,10 +7717,9 @@ button.income-bar-label.is-active {
    squeezing either. `min-width: 0` is what lets the chip row keep its own
    scroller (UX-DR15) inside a flex parent -- without it the flex item refuses
    to shrink and the page scrolls sideways instead. */
-.drift-table-actions .filter-chips {
+.drift-table-actions > .drift-filter {
   flex: 1 1 14rem;
   min-width: 0;
-  margin-bottom: 0;
 }
 /* A filtered table says what it is showing (UX-DR21). Quiet by design: it is
    a caption on the table, not a message. */

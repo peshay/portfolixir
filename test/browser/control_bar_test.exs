@@ -135,16 +135,17 @@ defmodule PortfolixirWeb.Browser.ControlBarTest do
   #   and of every labelled group start on one edge (±1 px).
   # - Every labelled control sits after its label on the label's line, or
   #   under it on the label's edge (labels above).
-  # - Wertpapiere and Transaktionen name every chip family with a visible
-  #   label.
+  # - Wertpapiere, Transaktionen, Prognosen and the drift filter name every
+  #   chip family with a visible label.
   # - The journal's chips and its form are one bar; the sale's comparison
   #   with „Fester Zins“ puts its labels above at 390 px (board 06 ①, ②).
   # - Wertpapiere's and Transaktionen's rows show at 1200 px (the phone's
   #   filter sheet takes their place at 390 px); every other bar shows at
-  #   both widths.
+  #   both widths, Prognosen' on the predictions the seed records and the
+  #   drift filter on the seed's plan with the table opened.
   # - The page never scrolls sideways.
   for bar <-
-        ~w(journal sale_comparison securities_chips transaction_chips) do
+        ~w(journal sale_comparison securities_chips transaction_chips prediction_filters drift_filter) do
     test "the #{bar} bar starts its labelled controls on one edge", %{base_url: base_url} do
       seed!()
 

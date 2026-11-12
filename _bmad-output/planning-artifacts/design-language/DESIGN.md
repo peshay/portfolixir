@@ -9918,8 +9918,26 @@ between the markers `control-bar begin` and `control-bar end` in
   longer fit; a new width is one more rule, which sets the layout's
   variables on the controls.
 
-The stacked chart's bar is its first user (fold 760, floor 330); the other
-bars of the inventory move to it in L2.
+A chip family in a group is one control: its chips wrap inside the control
+column, and the family's label shares its first chip's baseline, so a
+family of several lines keeps its label on its first line.
+
+**The bars on the component** (the inventory's §1; Sprint 29 L1 and L2):
+
+| Bar | File | Fold, floor | Groups |
+|---|---|---|---|
+| The stacked chart's bar | `live/portfolio/stacked_chart.ex` | 760, 330 | Ebene, Klassifizierung, Sortieren |
+| The journal (board 06 ①) | `live/journal_live.ex` | always, 330 | Akteur, Vorgang (chips), Art (select, its label now visible), Seit (field), the scenarios checkbox in the control column; one bar where there were two, the form around it |
+| „Nach dem Verkauf“, Vergleich (board 06 ②) | `live/sale_hindsight_section.ex` | 760, 560 | Vergleich (segmented), „Fester Zins % p. a.“ (field and Anwenden) or the benchmark select (label hidden) in the control column; labels above below 560 px, where the full-width comparison does not fit beside a label column |
+| Wertpapiere, the chip row (board 06 ③) | `live/securities_live.ex` | always, 330 | Bestand, Datenqualität (both named now), Währung, Anlageklasse, Geändert seit, „Weitere Filter“ in the control column; the phone's filter sheet unchanged |
+| Transaktionen, the chip row (board 06 ④) | `live/transaction_management_live.ex` | always, 330 | Konto, Typ, Geändert seit; the phone's filter sheet unchanged |
+| Prognosen, author and model | `live/predictions_live.ex` | always, 330 | Autor, Modell (when a model is recorded) |
+| Allokation, the drift filter | `live/portfolio_live.ex` | always, 330 | „Abweichung ab“, beside „Alles ausklappen“ |
+
+The review seed records two predictions, one an agent's with a model, so
+the walk reaches Prognosen' bar; the drift filter shows on the seed's plan
+once „Daten als Tabelle“ is open. `test/browser/control_bar.js` measures
+each bar at 390 and 1200 px in German and English.
 
 ## Amendment 2026-11-09 — The version at the menu's foot *(Sprint 28 V2, idea I27, FR-55; board `mockups/ux-design-2026-11-08-sprint28/04-version`; plan D-6, D-7; issue 1429)*
 

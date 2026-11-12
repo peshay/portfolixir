@@ -451,9 +451,10 @@ defmodule PortfolixirWeb.Browser.PrivacyLeakTest do
 
   defp address(_path), do: []
 
-  # The review seed records no prediction, and a page that lists one
-  # crashed in the mode once unseen (Sprint 26 closing act): the most traded
-  # security gets three, synthetic — one resolving 30 days ago, one open,
+  # The review seed records two open predictions (Sprint 29 L2), and a page
+  # that lists one crashed in the mode once unseen (Sprint 26 closing act),
+  # so a resolved one is walked too: the most traded security gets three,
+  # synthetic — one resolving 30 days ago, one open,
   # one an agent's — so /predictions and the security's Predictions tab
   # have rows to walk.
   defp predict! do
