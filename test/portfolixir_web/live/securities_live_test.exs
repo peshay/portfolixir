@@ -2548,29 +2548,20 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, view, _html} = live(conn, "/securities")
       lookup = %{"action" => "update_logo", "id" => Integer.to_string(coin.id)}
 
-      # The cap the next task takes as its first act, set after the page
-      # mounted under its own: 2 KiB, below what the lookup holds once it has
-      # read the name, so the runtime kills the task at a collection.
-      prior = Application.get_env(:portfolixir, Portfolixir.HeapCap, [])
-
-      Application.put_env(
-        :portfolixir,
-        Portfolixir.HeapCap,
-        Keyword.put(prior, :max_heap_bytes, 2_048)
-      )
-
       # A lookup that runs answers "No logo source available", so "Logo
       # lookup failed" can only be the killed task's exit. The runtime's
-      # report of the kill is captured, not asserted: it may land after the
-      # page has answered.
+      # report of the kill is captured, not asserted.
       ExUnit.CaptureLog.capture_log(fn ->
+        # The cap the lookup's task takes as its first act, lowered after
+        # the page mounted under its own and for the first lookup only:
+        # 2 KiB, below what the lookup holds once it has read the name, so
+        # the runtime kills the task at a collection. The call returns once
+        # the kill's report is logged, inside this capture (#1440).
         html =
-          try do
+          Portfolixir.LoweredHeapCap.run(2_048, fn ->
             assert render_hook(view, "row_action", lookup) =~ "Looking up logo…"
             await_logo_result(view)
-          after
-            Application.put_env(:portfolixir, Portfolixir.HeapCap, prior)
-          end
+          end)
 
         refute html =~ "inline-result__busy"
 
