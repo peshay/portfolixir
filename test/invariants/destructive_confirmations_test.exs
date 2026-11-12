@@ -10,7 +10,10 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
     {"lib/portfolixir_web/live/securities/logo_override_dialog.ex",
      ~s(phx-click="remove_logo_override")},
     {"lib/portfolixir_web/live/classifications_live.ex", "data-unassign-selected"},
-    {"lib/portfolixir_web/live/portfolio_accounts_live.ex", ~s(phx-click="row_delete")}
+    {"lib/portfolixir_web/live/portfolio_accounts_live.ex", ~s(phx-click="row_delete")},
+    # Sprint 29 C6: a manual crash window, and a crash window's name.
+    {"lib/portfolixir_web/live/risk/crash_section.ex", ~s(phx-click="crash_manual_delete")},
+    {"lib/portfolixir_web/live/risk/crash_section.ex", ~s(phx-click="crash_unname")}
   ]
 
   # User story:

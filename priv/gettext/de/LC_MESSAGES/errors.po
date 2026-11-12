@@ -277,3 +277,6 @@ msgstr "ist als frühere ISIN von „%{security_name}“ (Wertpapier #%{security
 #, elixir-autogen, elixir-format
 msgid "is still the current ISIN of \"%{security_name}\" (security #%{security_id})"
 msgstr "ist noch die aktuelle ISIN von „%{security_name}“ (Wertpapier #%{security_id})"
+
+msgid "must be after start"
+msgstr "muss nach dem Hoch liegen"

@@ -25,7 +25,8 @@ defmodule PortfolixirWeb.Journal.Row do
             security_identifier_alias security_category_assignment cash_account
             securities_account cash_account_bucket_assignment depot_bucket_assignment
             position_bucket_override portfolio bucket view classification category
-            target target_plan policy_rule policy_rule_version snapshot
+            target target_plan policy_rule policy_rule_version crash_window_name
+            crash_manual_window snapshot
             tax_statement_snapshot tax_profile tax_parameters allowance_order setting
             merge_record retired_import_hash)
 
@@ -106,6 +107,9 @@ defmodule PortfolixirWeb.Journal.Row do
   def kind_label("target_plan"), do: pgettext("journal kind", "Target plan")
   def kind_label("policy_rule"), do: gettext("Rule")
   def kind_label("policy_rule_version"), do: pgettext("journal kind", "Rule version")
+  # Sprint 29 C6: the Crashes section's writes (ADR-0058 §3, §4).
+  def kind_label("crash_window_name"), do: pgettext("journal kind", "Crash window name")
+  def kind_label("crash_manual_window"), do: pgettext("journal kind", "Manual crash window")
   def kind_label("snapshot"), do: pgettext("journal kind", "Snapshot")
   def kind_label("tax_statement_snapshot"), do: pgettext("journal kind", "Recorded statement")
   def kind_label("tax_profile"), do: pgettext("journal kind", "Tax profile")
@@ -217,6 +221,10 @@ defmodule PortfolixirWeb.Journal.Row do
     do: "/portfolio?tab=allocation"
 
   defp page(type, _id, _image) when type in ~w(policy_rule policy_rule_version), do: "/risk"
+
+  defp page(type, _id, _image) when type in ~w(crash_window_name crash_manual_window),
+    do: "/risk#risk-crashes"
+
   defp page("snapshot", id, _image), do: "/snapshots?snapshot=#{id}"
 
   defp page(type, _id, _image)

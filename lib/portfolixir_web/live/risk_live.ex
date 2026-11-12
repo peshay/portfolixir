@@ -19,6 +19,11 @@ defmodule PortfolixirWeb.RiskLive do
   what it had and what it needed (ADR-0047 §6 as amended, #838) — never a dash
   and never a number.
 
+  After the metrics sits the **Crashes** section (Sprint 29 C6, FR-54,
+  ADR-0058 §9; `PortfolixirWeb.Risk.CrashSection`): the crash windows'
+  ranked lists over the view's holdings or the catalogue, its choice kept in
+  the address.
+
   Above both sits the operator's **own rules** section (ADR-0049 §9, Sprint 15
   pick F1-A, board `ux-design-2026-09-23/01-policy-rules-surface`): the rules
   in force for the active view evaluated into findings, breached and
@@ -48,6 +53,7 @@ defmodule PortfolixirWeb.RiskLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.Risk.CrashSection
   alias PortfolixirWeb.Risk.PolicyRuleDialog
   alias PortfolixirWeb.Risk.PolicyRuleFormat
   alias PortfolixirWeb.SecurityNames
@@ -71,7 +77,16 @@ defmodule PortfolixirWeb.RiskLive do
      |> assign(:risk, load(portfolio, socket))
      |> assign(:rule_dialog, nil)
      |> assign(:notice, nil)
+     |> assign(:crash_params, %{})
      |> load_rules()}
+  end
+
+  # Sprint 29 C6 (board ux-design-2026-11-12-sprint29/01, P4): the Crashes
+  # section's window, list and universe are kept in the address; the
+  # section reads them from here.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, assign(socket, :crash_params, Map.filter(params, fn {_k, v} -> is_binary(v) end))}
   end
 
   # ADR-0049 §9: the rules of the active view's context, their findings, and
@@ -338,6 +353,17 @@ defmodule PortfolixirWeb.RiskLive do
               ) %>
             </p>
           </section>
+
+          <%!-- Sprint 29 C6 (board ux-design-2026-11-12-sprint29/01, P1 A):
+               the Crashes section after the portfolio metrics, whose
+               „Max. Rückgang“ is the same notion on the view. --%>
+          <.live_component
+            module={CrashSection}
+            id="risk-crashes-section"
+            params={@crash_params}
+            view_id={@active_view_id}
+            base_currency={@portfolio.base_currency_code}
+          />
 
           <section class="workspace-section" aria-labelledby="risk-top-title">
             <header class="section-head">
