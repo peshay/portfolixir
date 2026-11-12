@@ -144,7 +144,9 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> validate_length(:body, min: 1)
     # The link is rendered as an anchor on the timeline and handed to an agent
     # as a source: only http(s) — never javascript:, data: or a bare path.
-    |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
+    # No backslash (closing act of Sprint 29, F2): a browser reads it as `/`
+    # where RFC 3986 does not, so the host shown and the host opened differ.
+    |> validate_format(:source_url, ~r{\Ahttps?://[^\s\\]+\z}i, message: "must be an http(s) URL")
     # The column is varchar(2048); without this a longer link is a Postgrex
     # 22001 and a 500 instead of a field error the caller can read.
     |> Text.validate(:source_url, max: @max_source_url)

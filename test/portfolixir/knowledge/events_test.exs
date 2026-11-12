@@ -377,5 +377,18 @@ defmodule Portfolixir.Knowledge.EventsTest do
       })
 
     assert %{source_url: [_ | _]} = errors_on(changeset)
+
+    # Closing act, F2: a browser reads `\` as `/`, RFC 3986 does not.
+    {:error, changeset} =
+      Events.create_event(Actor.owner_ui(), %{
+        security_id: security.id,
+        kind: "earnings",
+        date: @today,
+        timing: "exact",
+        source_quality: "unverified",
+        source_url: "https://attacker.example\\@ir.example/report"
+      })
+
+    assert %{source_url: ["must be an http(s) URL"]} = errors_on(changeset)
   end
 end

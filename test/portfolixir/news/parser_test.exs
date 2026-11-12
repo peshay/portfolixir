@@ -132,6 +132,10 @@ defmodule Portfolixir.News.ParserTest do
             {"javascript:alert(1)", nil},
             {"data:text/html,x", nil},
             {"https://wire.example/a b", nil},
+            # Closing act, F2: a browser reads `\` as `/`, RFC 3986 does not,
+            # so the link would open another host than the one stored.
+            {"https://attacker.example\\@ir.example/report", nil},
+            {"https://wire.example/a\\b", nil},
             {"https://", nil},
             {"https://wire.example/" <> String.duplicate("a", 2_100), nil}
           ] do
@@ -180,6 +184,14 @@ defmodule Portfolixir.News.ParserTest do
                nil
 
       assert only_item(rss_item("<title>S</title><source>No URL</source>")).source_domain == nil
+
+      # Closing act, F2: a backslash makes the host a browser reads differ.
+      assert only_item(
+               rss_item(
+                 ~s(<title>S</title><source url="https://attacker.example\\@ir.example/">O</source>)
+               )
+             ).source_domain ==
+               nil
     end
 
     test "a guid is plain text, its whitespace collapsed and capped" do

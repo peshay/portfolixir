@@ -473,7 +473,10 @@ defmodule Portfolixir.News.Parser do
   # An absolute http or https URL with a host, no whitespace (Unicode's, as
   # `News.Shapes` refuses it: closing act, SEC2/EDGE1) or control byte
   # inside and at most 2,048 bytes; anything else (a relative path, a
-  # `javascript:` or `data:` URL) is nil.
+  # `javascript:` or `data:` URL) is nil. So is a link with a backslash
+  # (closing act of Sprint 29, F2; A1): a browser reads `\` as `/` where
+  # RFC 3986 does not, so `https://attacker.example\@ir.example/` would be
+  # stored under one host and open another.
   defp http_url(nil), do: nil
 
   defp http_url(raw) do
@@ -483,6 +486,7 @@ defmodule Portfolixir.News.Parser do
          true <- String.valid?(url),
          false <- has_control_or_space?(url),
          false <- Shapes.space?(url),
+         false <- String.contains?(url, "\\"),
          %URI{scheme: scheme, host: host}
          when is_binary(scheme) and is_binary(host) and host != "" <-
            URI.parse(url),

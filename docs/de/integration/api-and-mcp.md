@@ -869,8 +869,9 @@ absichtlich kein `PATCH` und kein `DELETE` für einen Eintrag.
 Jeder Eintrag trägt `kind` (`thesis`, `evidence`, `invalidation_check`,
 `event_result`, `risk`, `retraction`, `decision`), `body`, `source_url` (eine
 `http(s)`-URL mit höchstens 2.048 Zeichen, der eigenen Grenze des
-Nachrichten-Parsers (ADR-0056 E2); andere Schemata und längere Links sind
-ein `422`),
+Nachrichten-Parsers (ADR-0056 E2); andere Schemata, längere Links und ein
+Link mit einem Backslash, den ein Browser als `/` liest und der so einen
+anderen Host öffnen würde als den angezeigten, sind ein `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **gesetzt, nicht geraten**), `as_of` (das Stichdatum der Aussage, getrennt
 von `inserted_at`: ein heute geschriebener Eintrag über das letzte Quartal

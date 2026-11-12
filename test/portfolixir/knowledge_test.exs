@@ -410,7 +410,15 @@ defmodule Portfolixir.KnowledgeTest do
     test "source_url must be an http(s) URL — a script or data scheme is refused" do
       security = security!()
 
-      for bad <- ["javascript:alert(1)", "data:text/html,x", "ftp://x", "not a url"] do
+      # Closing act, F2: a backslash, which a browser reads as `/` and
+      # RFC 3986 does not, so the shown host and the opened one differ.
+      for bad <- [
+            "javascript:alert(1)",
+            "data:text/html,x",
+            "ftp://x",
+            "not a url",
+            "https://attacker.example\\@ir.example/report"
+          ] do
         assert {:error, changeset} =
                  Knowledge.append_note(owner(), %{
                    security_id: security.id,
