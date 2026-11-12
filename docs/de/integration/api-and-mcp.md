@@ -3774,7 +3774,15 @@ Beispiel-Payloads für Konten:
   oder `scale`, eine fehlerhafte oder unbekannte `classification_id` oder `category_id`
   (alles außer einer ID oder genau `unclassified`) oder eine Kategorie eines
   anderen Baums liefert `422` mit dem Parameter, ebenso eine nicht
-  unterstützte `base_currency`. Nichts wird gespeichert.
+  unterstützte `base_currency`. Nichts wird gespeichert. Die Antwort für
+  einen festen Zeitraum wird je Bereich, Zeitraum und Anfrage im Speicher
+  gehalten, wie die der Beitragstabelle, sodass eine erneute Frage — der
+  Wechsel zurück zu einem schon gesehenen Zeitraum — ohne neuen Durchlauf
+  beantwortet wird, ihr `as_of` der Zeitpunkt ihrer Berechnung; jeder
+  Schreibvorgang, der ein Band bewegt (eine Buchung, ein Kurs, ein
+  Wechselkurs, eine Kategorie, eine Klassifizierung), lässt die nächste
+  Abfrage neu rechnen. Ein Bereich `from`/`to` wird bei jeder Abfrage
+  berechnet.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate

@@ -3462,7 +3462,13 @@ Example account payloads:
   malformed or unknown `classification_id` or `category_id` (anything but an
   id or exactly `unclassified`), or a category of another tree answers
   `422` naming the parameter, and so does an unsupported `base_currency`.
-  Nothing is persisted.
+  Nothing is persisted. A fixed period's answer is held in memory per
+  scope, period and request, as the contribution table's is, so asking
+  again — a switch back to a period already seen — is served without a
+  new walk, its `as_of` the instant it was computed; any write that moves a
+  band (a booking, a quote, an exchange rate, a category, a classification)
+  makes the next read compute afresh. A `from`/`to` range is computed on
+  every read.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate
