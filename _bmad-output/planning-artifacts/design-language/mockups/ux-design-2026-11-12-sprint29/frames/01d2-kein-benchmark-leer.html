@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01d2-kein-benchmark-leer</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: -4px; border-radius: 8px; }
+.mock-pad { padding: 0; }
+.mock-elided { margin: 0; padding: 10px clamp(16px, 2.4vw, 28px); border-bottom: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+</style>
+<style id="proposal">
+.crash-section { position: relative; }
+.crash-bar select { min-height: 30px; width: auto; max-width: min(19.5rem, 100%); font-size: 12.5px; }
+.crash-window { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-window b { color: var(--color-text); font-weight: 600; }
+.crash-window .badge { align-self: center; }
+.crash-window__link { margin-left: auto; color: var(--color-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.crash-window__nolink { margin-left: auto; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-table { width: 100%; }
+.crash-table thead th { white-space: nowrap; }
+.crash-table td { padding-top: 6px; padding-bottom: 6px; }
+.crash-table td.crash-rank { width: 1.5rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-table td.crash-name { white-space: nowrap; }
+.crash-table td.crash-name .badge { margin-left: 6px; }
+.crash-table td.crash-plot, .crash-table th.crash-plot { width: 44%; padding-left: 16px; padding-right: 16px; }
+.crash-table.is-rebound td.crash-plot, .crash-table.is-rebound th.crash-plot { width: 34%; }
+.crash-table th.crash-days { white-space: normal; width: 6.5rem; }
+.crash-table td.num, .crash-table th.num { white-space: nowrap; }
+.crash-table td.crash-pp { color: var(--color-text-muted); }
+.crash-table td.crash-notyet { color: var(--color-danger); font-weight: 600; }
+.crash-table tbody tr:hover td { background: inherit; }
+.crash-track { position: relative; height: 14px; }
+.crash-track__bar { position: absolute; top: 2px; height: 10px; border-radius: 2px; background: var(--color-danger); }
+.crash-track__bar.is-up { background: var(--color-positive); }
+.crash-track__zero { position: absolute; top: -8px; bottom: -8px; width: 1px; background: var(--color-border-strong); }
+.crash-track__ref { position: absolute; top: -8px; bottom: -8px; width: 0; border-left: 1.5px dashed var(--color-text-muted); }
+.crash-axis { position: relative; height: 16px; font-size: 11px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.crash-table tfoot td { border: 0; padding-top: 2px; background: transparent; }
+.crash-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-legend__ref { display: inline-block; width: 0; height: 12px; margin-right: 6px; border-left: 1.5px dashed var(--color-text-muted); vertical-align: -1px; }
+.crash-unanswered { margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-unanswered button { margin-left: 4px; }
+.crash-provisional { margin: 0; }
+.crash-windows > summary { margin-bottom: 0; }
+.crash-windows__body { display: grid; gap: 12px; margin-top: 8px; }
+.crash-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 13px; color: var(--color-text-muted); }
+.crash-rule b { color: var(--color-text); }
+.crash-rule .button-secondary { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.crash-windows-table td, .crash-windows-table th { white-space: nowrap; }
+.crash-windows-table td.crash-unnamed { font-style: italic; color: var(--color-text-muted); }
+.crash-windows-table td.crash-actions { text-align: right; }
+.crash-windows-table td.crash-actions .link-button + .link-button { margin-left: 12px; }
+.crash-windows-table tr.is-ongoing td { background: var(--color-warning-soft); }
+.crash-unmatched h3 { margin: 4px 0 4px; font-size: 13px !important; font-weight: 700 !important; }
+.crash-unmatched p.hint { margin: 0 0 6px; }
+.crash-unmatched-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.crash-unmatched-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.crash-unmatched-form input { min-height: 30px; font-size: 13px; }
+.crash-unmatched-form input[aria-invalid] { border-color: var(--color-danger); }
+.crash-unmatched-form .hint { flex-basis: 100%; margin: 0; }
+.crash-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crash-chips .filter-chip .badge { margin-left: 6px; }
+.crash-bar .stack-bar__label { min-width: 0; }
+</style>
+</head>
+<body><div class="mock-pad"><div class="workspace-page">
+<section class="workspace-section crash-section mock-new" id="risk-crashes" aria-labelledby="risk-crashes-title">
+<header class="section-head">
+<div class="section-title">
+<h2 id="risk-crashes-title">Crashes</h2>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Ein Fenster öffnet, sobald der Crash-Benchmark 10 % oder mehr unter seinem Höchststand schließt; es beginnt am letzten Tag auf dem Hoch und endet im tiefsten Schluss vor der Erholung, bei gleichen Tiefs am frühesten.<br>Erkannt in der Währung des Benchmarks, gelistet in EUR zum Wechselkurs jedes Schlusstags; Splits bereinigt.<br>Kurs an einem Tag: der letzte Schluss am oder vor ihm, höchstens 7 Tage alt. Ohne Kurs oder Wechselkurs keine Antwort, nie eine Null.<br>Erholer: vom eigenen Tief zwischen Hoch und Tief bis drei Kalendermonate nach dem Tief; Tage bis Vorkrisenkurs in Kalendertagen.<br>Gleichstand nach Wert, dann Name, dann ISIN. Benchmarks stehen in keiner Liste.<br>Kein Urteil: die Listen vergleichen Kurse, sie sagen nicht, was zu kaufen ist.</p>
+</details>
+</div>
+</header>
+<div class="data-note data-note--note" data-role="crash-no-benchmark"><span class="data-note__icon" aria-hidden="true">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7">
+</path>
+</svg></span><span class="data-note__word">Hinweis</span>
+<div class="data-note__body">Kein Crash-Benchmark gewählt: die Regel erkennt keine Fenster, manuelle gelten weiter. <a href="#crash-benchmark">Crash-Benchmark wählen</a>
+</div>
+</div>
+<p class="empty-state">Noch kein Fenster. <button type="button" class="link-button">Fenster anlegen</button>
+</p>
+</section>
+</div></div></body>
+</html>

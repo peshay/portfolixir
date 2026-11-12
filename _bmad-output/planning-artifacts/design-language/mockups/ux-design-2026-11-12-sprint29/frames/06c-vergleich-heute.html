@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06c-vergleich-heute</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 8px; }
+.mock-pad { padding: 16px 20px; }
+.mock-crop { margin: 0; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; color: var(--color-text-muted); }
+.mock-gone { padding: 10px 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-muted); }
+</style>
+<style id="proposal"></style>
+</head>
+<body><div class="mock-pad" style="width: 390px; box-sizing: border-box;">
+<div class="workspace-page">
+<section class="hs-section workspace-section">
+<div class="hs-controls" data-role="hindsight-compare">
+    <span class="hs-controls__label" id="sale-hindsight-compare-label">
+      Vergleich
+    </span>
+    <nav class="segmented-control" aria-labelledby="sale-hindsight-compare-label">
+      <a href="/cashflow?tab=realized&amp;hindsight=none" class="segmented-control__option" data-mode="none">
+        Ohne
+      </a>
+<a href="/cashflow?tab=realized&amp;hindsight=rate" class="segmented-control__option is-active" aria-current="true" data-mode="rate">
+        Fester Zins
+      </a>
+<a href="/cashflow?tab=realized&amp;hindsight=security" class="segmented-control__option" data-mode="security">
+        Wertpapier
+      </a>
+<a href="/cashflow?tab=realized&amp;hindsight=reinvestment" class="segmented-control__option" data-mode="reinvestment">
+        Anschlusskauf
+      </a>
+    </nav>
+    <form id="sale-hindsight-rate-form" class="hs-controls__field" data-role="hindsight-rate-form">
+      <label for="sale-hindsight-rate">Fester Zins % p. a.</label>
+      <input type="text" inputmode="decimal" class="num" autocomplete="off" id="sale-hindsight-rate" name="rate" value="">
+      <button type="submit">Anwenden</button>
+    </form>
+
+
+  </div>
+</section>
+</div>
+</div></body>
+</html>

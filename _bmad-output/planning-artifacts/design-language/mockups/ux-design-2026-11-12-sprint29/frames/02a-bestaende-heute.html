@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02a-bestaende-heute</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: -4px; border-radius: 8px; }
+.mock-pad { padding: 0; }
+.mock-elided { margin: 0; padding: 10px clamp(16px, 2.4vw, 28px); border-bottom: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+</style>
+<style id="proposal">
+.bm-groups { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 12px; align-items: baseline; flex-basis: 100%; box-sizing: border-box; padding: 10px 12px; }
+.bm-groups__label { font-size: 12.5px; font-weight: 600; color: var(--color-text-muted); }
+.bm-groups__options { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.bm-groups__options label { font-size: 13px; color: var(--color-text); }
+.bm-search { display: flex; flex-direction: column; gap: 4px; position: relative; flex-basis: 100%; padding: 6px 0; }
+.bm-search input { min-height: 30px; width: 20rem; font-size: 13px; padding-left: 28px; }
+.bm-search > svg { position: absolute; left: 9px; top: 14px; color: var(--color-text-muted); }
+.bm-search ul { position: absolute; top: 42px; left: 0; z-index: 5; list-style: none; margin: 0; padding: 4px; width: 20rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); font-size: 13px; }
+.bm-search li { padding: 6px 8px; border-radius: 6px; }
+.bm-search li:first-child { background: var(--color-hover); }
+.bm-search li small { display: block; color: var(--color-text-muted); font-size: 11.5px; }
+.bm-listbox { position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; margin: 0; padding: 4px 0; width: 17rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); font-size: 13px; list-style: none; }
+.bm-listbox li { padding: 4px 12px 4px 22px; }
+.bm-listbox li.is-group { padding-left: 10px; font-weight: 700; color: var(--color-text-muted); font-size: 12px; }
+.bm-listbox li.is-selected { background: var(--color-accent); color: var(--color-on-accent); }
+.bm-stack { position: relative; }
+.bm-listbox li { line-height: 1.35; }
+.crash-benchmark-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.crash-benchmark-form label { font-size: 12.5px; font-weight: 600; color: var(--color-text-muted); }
+.crash-benchmark-form select { min-height: 30px; max-width: 18rem; font-size: 13px; justify-self: start; }
+.crash-benchmark-form__actions { grid-column: 2; display: flex; gap: 8px; }
+.crash-benchmark-form .hint { grid-column: 2; margin: 0; }
+.settings-page .workspace-section { max-width: 760px; }
+</style>
+</head>
+<body><div class="mock-pad"><div class="workspace-page">
+<section class="workspace-section" id="portfolio-performance">
+<header class="section-head">
+<h2>Performance</h2>
+<div class="section-head-controls">
+<div class="segmented-control" role="group" aria-label="Chartreihe">
+<button type="button" class="segmented-control__option is-active" aria-pressed="true">% (TTWROR)</button>
+<button type="button" class="segmented-control__option" aria-pressed="false">Wert (EUR)</button>
+</div>
+<div class="segmented-control" role="group" aria-label="Zeitraum">
+<button type="button" class="segmented-control__option">YTD</button>
+<button type="button" class="segmented-control__option is-active">1J</button>
+<button type="button" class="segmented-control__option">3J</button>
+<button type="button" class="segmented-control__option">5J</button>
+<button type="button" class="segmented-control__option">Max</button>
+</div>
+<details class="period-disclosure">
+<summary class="disclosure-summary">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true">
+<path d="m9 6 6 6-6 6">
+</path>
+</svg>Benutzerdefinierter Zeitraum …</summary>
+</details>
+<details class="period-disclosure" data-role="benchmark-picker" open>
+<summary class="disclosure-summary">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true">
+<path d="m9 6 6 6-6 6">
+</path>
+</svg>Benchmark…<span class="benchmark-picker__active"><span class="benchmark-chip"><span class="chart-legend__swatch chart-benchmark-1" aria-hidden="true"></span>Weltindex ETF</span></span>
+</summary>
+<form method="get" action="/portfolio" class="period-disclosure__body benchmark-form">
+<label class="benchmark-form__option">
+<input type="checkbox" name="benchmark[]">Europa-Index ETF</label>
+<label class="benchmark-form__option">
+<input type="checkbox" name="benchmark[]" checked>Weltindex ETF</label>
+<label class="benchmark-form__rate" for="benchmark-rate">Fester Zins % p. a.</label>
+<input type="number" id="benchmark-rate" name="benchmark_rate" step="0.01">
+<button type="submit">Anwenden</button><span class="hint">Bis zu zwei Benchmarks — die ersten beiden angekreuzten gelten.</span>
+</form>
+</details>
+</div>
+</header>
+<p class="mock-elided" style="border:0;padding:0">… der Chart wie heute</p>
+</section>
+</div></div></body>
+</html>

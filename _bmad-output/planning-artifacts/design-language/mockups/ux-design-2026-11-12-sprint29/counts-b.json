@@ -1,0 +1,26 @@
+{
+ "stale_quote": {
+  "catalog": 26,
+  "held": 19
+ },
+ "missing_logo": {
+  "catalog": 47,
+  "held": 35
+ },
+ "missing_fx": {
+  "catalog": 3,
+  "held": 2
+ },
+ "two_scales": {
+  "catalog": 3,
+  "held": 3
+ },
+ "implausible_quote": {
+  "catalog": 1,
+  "held": 1
+ },
+ "currency_mismatch": {
+  "catalog": 0,
+  "held": 0
+ }
+}

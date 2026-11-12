@@ -1,0 +1,4777 @@
+[
+ {
+  "url": "/",
+  "name": "Übersicht",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis kpi-strip__basis",
+    "role": "kpi-strip-basis",
+    "words": 16,
+    "sentences": 1,
+    "text": "Ansicht Alles · Rendite über 1J bis 12.11.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "trades-card-basis",
+    "words": 15,
+    "sentences": 1,
+    "text": "Die 5 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht"
+   },
+   {
+    "cls": "hint",
+    "role": "attention-explainer",
+    "words": 16,
+    "sentences": 1,
+    "text": "Ansicht Alles · Plan „Plan“ auf Strategies · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen."
+   },
+   {
+    "cls": "hint",
+    "role": "upcoming-basis",
+    "words": 17,
+    "sentences": 1,
+    "text": "Datierte Fakten zu jedem Wertpapier im Katalog — gehalten oder nicht —, die in den nächsten 30 Tagen anstehen."
+   }
+  ]
+ },
+ {
+  "url": "/portfolio",
+  "name": "Vermögen · Bestände",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 358,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "disclosure"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "% (TTWROR) Wert (EUR)",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 44,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "YTD 1J 3J 5J Max",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 88,
+      "firstControlLeft": 0,
+      "firstKind": "disclosure",
+      "firstText": "Benutzerdefinierter Zeitraum …",
+      "labels": [],
+      "kinds": [
+       "disclosure"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 5791
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "perf-badge is-positive",
+    "role": "period-badge",
+    "words": 4,
+    "sentences": 1,
+    "text": "+8,0% · +7.348,65 EUR (1J)"
+   },
+   {
+    "cls": "hint",
+    "role": "performance-basis",
+    "words": 6,
+    "sentences": 1,
+    "text": "12.11.2025 – 12.11.2026 · berechnet 12.11.2026 11:05 UTC"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "contribution-basis",
+    "words": 7,
+    "sentences": 1,
+    "text": "je Position in EUR, einschließlich der Währungsbewegung"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "positions-basis",
+    "words": 26,
+    "sentences": 2,
+    "text": "Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen Handelspreis. Marktwert in EUR, wie ihn die Summe zählt."
+   },
+   {
+    "cls": "p",
+    "role": "cash-edit-pointer",
+    "words": 5,
+    "sentences": 1,
+    "text": "Salden auf Konten & Depots setzen"
+   }
+  ]
+ },
+ {
+  "url": "/portfolio?level=category",
+  "name": "Vermögen · Bestände, gestapelt (Kategorien)",
+  "width": 390,
+  "state": "value",
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 358,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "disclosure"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "% (TTWROR) Wert (EUR)",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 44,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "YTD 1J 3J 5J Max",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 88,
+      "firstControlLeft": 0,
+      "firstKind": "disclosure",
+      "firstText": "Benutzerdefinierter Zeitraum …",
+      "labels": [],
+      "kinds": [
+       "disclosure"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 5791
+   },
+   {
+    "selector": ".stack-bar__controls",
+    "id": null,
+    "role": null,
+    "width": 358,
+    "labels": [
+     "Ebene",
+     "Klassifizierung",
+     "Sortieren"
+    ],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 100.3,
+      "firstKind": "segmented",
+      "firstText": "Gesamt Kategorien Wertpapiere",
+      "labels": [
+       {
+        "text": "Ebene",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 40,
+      "firstControlLeft": 100.3,
+      "firstKind": "select",
+      "firstText": "Anlageklasse Währung Strategie",
+      "labels": [
+       {
+        "text": "Klassifizierung",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "select"
+      ]
+     },
+     {
+      "top": 79,
+      "firstControlLeft": 100.3,
+      "firstKind": "segmented",
+      "firstText": "Größe Veränderung",
+      "labels": [
+       {
+        "text": "Sortieren",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "segmented"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Ebene",
+      "controlLeft": 100.3,
+      "top": 0
+     },
+     {
+      "label": "Klassifizierung",
+      "controlLeft": 100.3,
+      "top": 40
+     },
+     {
+      "label": "Sortieren",
+      "controlLeft": 100.3,
+      "top": 79
+     }
+    ],
+    "spread": 0,
+    "html": 2095
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "perf-badge is-positive",
+    "role": "period-badge",
+    "words": 4,
+    "sentences": 1,
+    "text": "+8,0% · +7.348,65 EUR (1J)"
+   },
+   {
+    "cls": "hint stack-basis",
+    "role": "stack-basis",
+    "words": 11,
+    "sentences": 1,
+    "text": "Marktwert je Kategorie von „Strategies“ · 12.11.2025 – 12.11.2026 · berechnet 12.11.2026 11:11 UTC"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "contribution-basis",
+    "words": 7,
+    "sentences": 1,
+    "text": "je Position in EUR, einschließlich der Währungsbewegung"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "positions-basis",
+    "words": 26,
+    "sentences": 2,
+    "text": "Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen Handelspreis. Marktwert in EUR, wie ihn die Summe zählt."
+   },
+   {
+    "cls": "p",
+    "role": "cash-edit-pointer",
+    "words": 5,
+    "sentences": 1,
+    "text": "Salden auf Konten & Depots setzen"
+   }
+  ]
+ },
+ {
+  "url": "/portfolio?tab=allocation",
+  "name": "Vermögen · Allokation",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 270,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Baum Positionen",
+      "labels": [],
+      "kinds": [
+       "segmented",
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 1
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "summary-basis allocation-basis",
+    "role": "allocation-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Plan auf Strategies · Σ Soll oberste Ebene: 105,0% · Ansicht Alles · Stand 12.11.2026"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow",
+  "name": "Vermögen · Cashflow · Einkommen",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 9,
+    "sentences": 1,
+    "text": "Beträge in EUR · Dividenden und Zinsen · nur dieses Portfolio"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=realized",
+  "name": "Vermögen · Cashflow · Trades",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".hs-controls",
+    "id": null,
+    "role": "hindsight-compare",
+    "width": 358,
+    "labels": [
+     "Vergleich"
+    ],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 25,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Ohne Fester Zins Wertpapier An",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 65,
+      "firstControlLeft": 0,
+      "firstKind": "select",
+      "firstText": "Kestrel Industrial Group NV In",
+      "labels": [],
+      "kinds": [
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Vergleich",
+      "controlLeft": 0,
+      "top": 25
+     }
+    ],
+    "spread": 0,
+    "html": 1664
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 8,
+    "sentences": 1,
+    "text": "Beträge in EUR · FIFO je Wertpapier · alle Depots"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "trades-basis",
+    "words": 13,
+    "sentences": 1,
+    "text": "Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten"
+   },
+   {
+    "cls": "summary-basis hs-basis",
+    "role": null,
+    "words": 12,
+    "sentences": 1,
+    "text": "Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung"
+   },
+   {
+    "cls": "summary-basis hs-legend",
+    "role": null,
+    "words": 21,
+    "sentences": 2,
+    "text": "Je Spanne die Differenz zu Kestrel Industrial Group NV Index, darunter Wertpapier ggü. Benchmark · Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=flows",
+  "name": "Vermögen · Cashflow · Ein- und Auszahlungen",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 9,
+    "sentences": 1,
+    "text": "Beträge in EUR · externe Zu- und Abflüsse · alle Portfolios"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=costs",
+  "name": "Vermögen · Cashflow · Kosten",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 10,
+    "sentences": 1,
+    "text": "Beträge in EUR · Gebühren und Steuern auf Überblicksebene · alle Portfolios"
+   }
+  ]
+ },
+ {
+  "url": "/snapshots",
+  "name": "Vermögen · Snapshots",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": null,
+    "words": 4,
+    "sentences": 1,
+    "text": "netto, alle Kosten enthalten"
+   },
+   {
+    "cls": "hint",
+    "role": null,
+    "words": 9,
+    "sentences": 1,
+    "text": "Buy-and-hold der am 14.08.2026 eingefrorenen Bestände: 47.301,57 → 47.834,43 EUR"
+   },
+   {
+    "cls": "hint",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "Gebühren und Steuern auf Handelsgeschäfte ausgenommen"
+   },
+   {
+    "cls": "hint",
+    "role": "cost-recovery",
+    "words": 6,
+    "sentences": 2,
+    "text": "Wieder eingespielt? Auch vor Kosten zurück"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "comparison-basis",
+    "words": 7,
+    "sentences": 1,
+    "text": "seit 14.08.2026 · in EUR · brutto, nur Kursentwicklung"
+   }
+  ]
+ },
+ {
+  "url": "/tax",
+  "name": "Vermögen · Steuern",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": "tax-scope",
+    "width": 168,
+    "labels": [],
+    "kinds": [
+     "segmented"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Owner",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": "tax-disclosures",
+    "width": 358,
+    "labels": [],
+    "kinds": [
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Abrechnung erfassen",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 46,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Freistellungsauftrag hinterleg",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 1113
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "budget-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Freistellungsauftrag 640,00 von 1.000,00 verbraucht · Stand 31.12.2025 · Beispiel Direktbank (Agent), Example Bank"
+   }
+  ]
+ },
+ {
+  "url": "/risk",
+  "name": "Vermögen · Risiko",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "policy-rules-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Ausgewertet beim Lesen, Stand 12.11.2026, auf der steuerbaren Basis der Ansicht „Alles“."
+   },
+   {
+    "cls": "summary-basis",
+    "role": "risk-basis",
+    "words": 19,
+    "sentences": 1,
+    "text": "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in EUR, annualisiert mit √365 — eine Einzahlung ist keine Rendite."
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 8,
+    "sentences": 1,
+    "text": "Keine Obergrenze konfiguriert — es gibt nichts zu überschreiten."
+   }
+  ]
+ },
+ {
+  "url": "/predictions",
+  "name": "Vermögen · Prognosen",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "empty-state",
+    "role": "predictions-empty",
+    "words": 12,
+    "sentences": 2,
+    "text": "Noch ist keine Prognose festgehalten. Festgehalten wird über die API oder MCP."
+   }
+  ]
+ },
+ {
+  "url": "/securities",
+  "name": "Wertpapiere",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   }
+  ],
+  "paras": []
+ },
+ {
+  "url": "/securities/1",
+  "name": "Wertpapier · Übersicht",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "overview-basis",
+    "words": 9,
+    "sentences": 1,
+    "text": "Kurse: Portfolio Performance · Anlageklasse Aktie · Strategies → Platforms · WKN 865985"
+   },
+   {
+    "cls": "overview-card__text",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Services mix keeps margins above 40% through the cycle; hold while capex stays flat."
+   },
+   {
+    "cls": "overview-card__meta",
+    "role": null,
+    "words": 2,
+    "sentences": 1,
+    "text": "Stand 15.07.2026"
+   },
+   {
+    "cls": "detail-tab-empty",
+    "role": null,
+    "words": 4,
+    "sentences": 1,
+    "text": "Noch keine persönliche Notiz."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=chart",
+  "name": "Wertpapier · Diagramm",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   },
+   {
+    "selector": ".detail-pane-toolbar",
+    "id": null,
+    "role": null,
+    "width": 368,
+    "labels": [],
+    "kinds": [
+     "button",
+     "disclosure"
+    ],
+    "rows": [
+     {
+      "top": 1,
+      "firstControlLeft": 1,
+      "firstKind": "button",
+      "firstText": "1M",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 46,
+      "firstControlLeft": 0,
+      "firstKind": "disclosure",
+      "firstText": "Benutzerdefinierter Zeitraum …",
+      "labels": [],
+      "kinds": [
+       "disclosure"
+      ]
+     },
+     {
+      "top": 88,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Logarithmische Skala",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 126,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Transaktionen anzeigen",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 164,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "MA30",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 202,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Kurse aktualisieren",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 240,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "PNG exportieren",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 1,
+      "top": 1
+     }
+    ],
+    "spread": 1,
+    "html": 5414
+   },
+   {
+    "selector": ".chart-toggles",
+    "id": null,
+    "role": null,
+    "width": 368,
+    "labels": [],
+    "kinds": [
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Logarithmische Skala",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 38,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Transaktionen anzeigen",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 76,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "MA30",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 114,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Kurse aktualisieren",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 152,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "PNG exportieren",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 2082
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "chart-basis",
+    "words": 11,
+    "sentences": 2,
+    "text": "Kursbasis: wie erfasst. Gespeicherte Kurse werden nie verändert (siehe Tab Kurse)."
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "metrics-basis",
+    "words": 11,
+    "sentences": 1,
+    "text": "Über die eigenen splitbereinigten Schlusskurse dieses Wertpapiers in EUR, nie umgerechnet."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=trades",
+  "name": "Wertpapier · Trades",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=research",
+  "name": "Wertpapier · Research",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "research-basis",
+    "words": 6,
+    "sentences": 1,
+    "text": "Datierte, belegte Einträge zu diesem Wertpapier."
+   },
+   {
+    "cls": "research-thesis__text",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Services mix keeps margins above 40% through the cycle; hold while capex stays flat."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=news",
+  "name": "Wertpapier · Nachrichten",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "stories-basis",
+    "words": 20,
+    "sentences": 2,
+    "text": "Die Meldungen zu diesem Wertpapier, die die Nachrichtenschicht hält, neueste zuerst, so wie der Agent sie liest. Zeiten in UTC."
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 16,
+    "sentences": 2,
+    "text": "Zu diesem Wertpapier ist noch keine Meldung eingegangen. Feeds werden über die API oder MCP registriert."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=predictions",
+  "name": "Wertpapier · Prognosen",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2824
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "predictions-basis",
+    "words": 13,
+    "sentences": 2,
+    "text": "Festgehaltene Prognosen zu diesem Wertpapier, die neueste zuerst. Keine wird geändert oder gelöscht."
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 14,
+    "sentences": 2,
+    "text": "Für dieses Wertpapier ist keine Prognose festgehalten. Festgehalten wird über die API oder MCP."
+   }
+  ]
+ },
+ {
+  "url": "/news",
+  "name": "Nachrichten · Meldungen",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Nichts zuzuordnen: jede Meldung aus Aggregatoren nennt genau ein Wertpapier, oder keine ist eingegangen."
+   },
+   {
+    "cls": "summary-basis",
+    "role": "news-digest-basis",
+    "words": 17,
+    "sentences": 1,
+    "text": "seit 11.11.2026 11:12 UTC · das Nachrichten-Universum · Materialität ab 2 oder von Emittent oder Aufsicht · höchstens 12 Zeilen"
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 5,
+    "sentences": 1,
+    "text": "Seit dem Stichzeitpunkt nichts Neues."
+   },
+   {
+    "cls": "hint",
+    "role": "digest-left-out",
+    "words": 17,
+    "sentences": 1,
+    "text": "35 Wertpapiere ohne Neues · 0 Meldungen aus Aggregatoren oder Themen ausgeblendet (ohne Einordnung oder Materialität unter 2)"
+   }
+  ]
+ },
+ {
+  "url": "/news?tab=feeds",
+  "name": "Nachrichten · Feeds",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 13,
+    "sentences": 2,
+    "text": "Noch ist kein Feed angelegt. Feeds werden über die API oder MCP angelegt."
+   }
+  ]
+ },
+ {
+  "url": "/portfolios",
+  "name": "Konten",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": []
+ },
+ {
+  "url": "/transactions",
+  "name": "Transaktionen",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 263,
+    "labels": [],
+    "kinds": [
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "summary-basis",
+    "words": 37,
+    "sentences": 1,
+    "text": "Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe."
+   }
+  ]
+ },
+ {
+  "url": "/imports",
+  "name": "Import",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "muted",
+    "role": null,
+    "words": 13,
+    "sentences": 1,
+    "text": "CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert"
+   }
+  ]
+ },
+ {
+  "url": "/buckets",
+  "name": "Töpfe",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "assignment-basis",
+    "words": 68,
+    "sentences": 2,
+    "text": "Standard-Buckets werden an der Kontozeile gesetzt → Konten & Depots. Broker Nord Verrechnung, Broker Süd Verrechnung, Broker Verrechnung 1, Broker Verrechnung 2, Coupon-Cash, Coupon-Depot, Depot 1, Depot Nord, Depot Süd, Dollar Cash, Dollar Depot, Family Cash, Family Depot, Festgeld Plus, Haushaltskonto, Round Trip Cash, Round Trip Depot, RÜCKLAGE, Rücklage, Rücklage Giro, Sparplan Depot, Sparplan"
+   }
+  ]
+ },
+ {
+  "url": "/classifications",
+  "name": "Klassifizierungen",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": []
+ },
+ {
+  "url": "/classifications/1",
+  "name": "Klassifizierung",
+  "width": 390,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis tree-basis",
+    "role": "category-result-basis",
+    "words": 18,
+    "sentences": 1,
+    "text": "Ansicht Alles · in EUR · Ergebnis: heutige Zusammensetzung, keine Periodenrendite · Kurse: der neueste, ohne Kurs der letzte eigene Handelspreis"
+   }
+  ]
+ },
+ {
+  "url": "/journal",
+  "name": "Journal",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".filter-chips",
+    "id": "journal-chips",
+    "role": null,
+    "width": 358,
+    "labels": [
+     "Akteur",
+     "Vorgang"
+    ],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 58.4,
+      "firstKind": "chip",
+      "firstText": "Alle",
+      "labels": [
+       {
+        "text": "Akteur",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 30,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "System",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 64,
+      "firstControlLeft": 70.4,
+      "firstKind": "chip",
+      "firstText": "Angelegt",
+      "labels": [
+       {
+        "text": "Vorgang",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 94,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Angelegt oder ersetzt",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Akteur",
+      "controlLeft": 58.4,
+      "top": 0
+     },
+     {
+      "label": "Vorgang",
+      "controlLeft": 70.4,
+      "top": 64
+     }
+    ],
+    "spread": 70.4,
+    "html": 2102
+   },
+   {
+    "selector": ".journal-filters",
+    "id": "journal-filters",
+    "role": null,
+    "width": 358,
+    "labels": [],
+    "kinds": [
+     "select",
+     "input",
+     "checkbox"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "select",
+      "firstText": "Alle Arten Transaktion Wertpap",
+      "labels": [],
+      "kinds": [
+       "select"
+      ]
+     },
+     {
+      "top": 42,
+      "firstControlLeft": 29.3,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 84,
+      "firstControlLeft": 0,
+      "firstKind": "checkbox",
+      "firstText": "Was-wäre-wenn-Szenarien einbez",
+      "labels": [],
+      "kinds": [
+       "checkbox"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 29.3,
+    "html": 3363
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "journal-basis",
+    "words": 11,
+    "sentences": 1,
+    "text": "Neueste zuerst · die neuesten 100 Einträge · ohne Was-wäre-wenn-Szenarien · Zeiten in UTC"
+   },
+   {
+    "cls": "journal-more",
+    "role": null,
+    "words": 3,
+    "sentences": 1,
+    "text": "Ältere Einträge zeigen"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=realized&hindsight=rate",
+  "name": "Vermögen · Cashflow · Trades, Vergleich „Fester Zins“",
+  "width": 390,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".hs-controls",
+    "id": null,
+    "role": "hindsight-compare",
+    "width": 358,
+    "labels": [
+     "Vergleich",
+     "Fester Zins % p. a."
+    ],
+    "kinds": [
+     "segmented",
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 25,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Ohne Fester Zins Wertpapier An",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     },
+     {
+      "top": 65,
+      "firstControlLeft": 113.4,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [
+       {
+        "text": "Fester Zins % p. a.",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Vergleich",
+      "controlLeft": 0,
+      "top": 25
+     },
+     {
+      "label": "Fester Zins % p. a.",
+      "controlLeft": 113.4,
+      "top": 65
+     }
+    ],
+    "spread": 113.4,
+    "html": 1592
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 8,
+    "sentences": 1,
+    "text": "Beträge in EUR · FIFO je Wertpapier · alle Depots"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "trades-basis",
+    "words": 13,
+    "sentences": 1,
+    "text": "Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten"
+   },
+   {
+    "cls": "summary-basis hs-basis",
+    "role": null,
+    "words": 12,
+    "sentences": 1,
+    "text": "Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung"
+   },
+   {
+    "cls": "summary-basis hs-legend",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Je Spanne die Kursrendite des verkauften Wertpapiers · Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten"
+   }
+  ]
+ },
+ {
+  "url": "/portfolio?tab=allocation",
+  "name": "Vermögen · Allokation, Positionen",
+  "width": 390,
+  "state": "flat",
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 270,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Baum Positionen",
+      "labels": [],
+      "kinds": [
+       "segmented",
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 1
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "summary-basis allocation-basis",
+    "role": "allocation-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Plan auf Strategies · Σ Soll oberste Ebene: 105,0% · Ansicht Alles · Stand 12.11.2026"
+   }
+  ]
+ },
+ {
+  "url": "/securities",
+  "name": "Wertpapiere, Filterblatt offen",
+  "width": 390,
+  "state": "sheet",
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 390,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 13,
+      "firstControlLeft": 41,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input"
+      ]
+     },
+     {
+      "top": 52,
+      "firstControlLeft": 10,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 41,
+      "top": 13
+     }
+    ],
+    "spread": 31,
+    "html": 2863
+   },
+   {
+    "selector": ".filter-sheet__families",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 23,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 88,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Ohne Anlageklasse",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 122,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Kein Wechselkurs",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 186,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 251,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Aktie",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 285,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Kryptowährung",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 348,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Heute",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 390,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Weitere Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 23
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 0,
+      "top": 348
+     }
+    ],
+    "spread": 0,
+    "html": 5464
+   },
+   {
+    "selector": ".filter-chips.filter-chips--wrap",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips.filter-chips--wrap",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Ohne Anlageklasse",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 34,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Kein Wechselkurs",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 978
+   },
+   {
+    "selector": ".filter-chips.filter-chips--wrap",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips.filter-chips--wrap",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Aktie",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 34,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Kryptowährung",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 1094
+   },
+   {
+    "selector": ".filter-chips.filter-chips--wrap",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 21,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Heute",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Geändert seit",
+      "controlLeft": 0,
+      "top": 21
+     }
+    ],
+    "spread": 0,
+    "html": 840
+   }
+  ],
+  "paras": []
+ },
+ {
+  "url": "/transactions",
+  "name": "Transaktionen, Filterblatt offen",
+  "width": 390,
+  "state": "sheet",
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 263,
+    "labels": [],
+    "kinds": [
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Filter",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-sheet__families",
+    "id": null,
+    "role": null,
+    "width": 356,
+    "labels": [
+     "Konto",
+     "Typ",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 23,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Broker Nord Verrechnung",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 59,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Broker Süd Verrechnung",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 95,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Broker Verrechnung 1",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 131,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Broker Verrechnung 2",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 167,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Coupon-Cash",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 203,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Demo Cash",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 239,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Dollar Cash",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 275,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Family Cash",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 311,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Festgeld Plus",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 347,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Haushaltskonto",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 383,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Round Trip Cash",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 419,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Rücklage",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 455,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Rücklage Giro",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 491,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Sparplan Konto",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 527,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Sparplan Konto (alt)",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 563,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Tagesgeld",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 599,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Tagesgeld CHF",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 635,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "US Broker",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 671,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "USD Settlement",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 736,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Saldo gesetzt",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 772,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Kauf",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 808,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Umbuchung",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 844,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Einlage",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 880,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Dividende",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 916,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Einlieferung",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 952,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Zinsen",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 988,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Verkauf",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 1024,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Split",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 1094,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Heute",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 1136,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 1178,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "30 Tage",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Konto",
+      "controlLeft": 0,
+      "top": 23
+     },
+     {
+      "label": "Typ",
+      "controlLeft": 0,
+      "top": 736
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 0,
+      "top": 1094
+     }
+    ],
+    "spread": 0,
+    "html": 7053
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "summary-basis",
+    "words": 37,
+    "sentences": 1,
+    "text": "Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe."
+   }
+  ]
+ },
+ {
+  "url": "/",
+  "name": "Übersicht",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis kpi-strip__basis",
+    "role": "kpi-strip-basis",
+    "words": 16,
+    "sentences": 1,
+    "text": "Ansicht Alles · Rendite über 1J bis 12.11.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "trades-card-basis",
+    "words": 15,
+    "sentences": 1,
+    "text": "Die 5 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht"
+   },
+   {
+    "cls": "hint",
+    "role": "attention-explainer",
+    "words": 16,
+    "sentences": 1,
+    "text": "Ansicht Alles · Plan „Plan“ auf Strategies · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen."
+   },
+   {
+    "cls": "hint",
+    "role": "upcoming-basis",
+    "words": 17,
+    "sentences": 1,
+    "text": "Datierte Fakten zu jedem Wertpapier im Katalog — gehalten oder nicht —, die in den nächsten 30 Tagen anstehen."
+   }
+  ]
+ },
+ {
+  "url": "/portfolio",
+  "name": "Vermögen · Bestände",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 706,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "disclosure"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "% (TTWROR) Wert (EUR)",
+      "labels": [],
+      "kinds": [
+       "segmented",
+       "disclosure"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "perf-badge is-positive",
+    "role": "period-badge",
+    "words": 4,
+    "sentences": 1,
+    "text": "+8,0% · +7.348,65 EUR (1J)"
+   },
+   {
+    "cls": "hint",
+    "role": "performance-basis",
+    "words": 6,
+    "sentences": 1,
+    "text": "12.11.2025 – 12.11.2026 · berechnet 12.11.2026 11:05 UTC"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "contribution-basis",
+    "words": 7,
+    "sentences": 1,
+    "text": "je Position in EUR, einschließlich der Währungsbewegung"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "positions-basis",
+    "words": 26,
+    "sentences": 2,
+    "text": "Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen Handelspreis. Marktwert in EUR, wie ihn die Summe zählt."
+   },
+   {
+    "cls": "p",
+    "role": "cash-edit-pointer",
+    "words": 5,
+    "sentences": 1,
+    "text": "Salden auf Konten & Depots setzen"
+   }
+  ]
+ },
+ {
+  "url": "/portfolio?level=category",
+  "name": "Vermögen · Bestände, gestapelt (Kategorien)",
+  "width": 1200,
+  "state": "value",
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 706,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "disclosure"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "% (TTWROR) Wert (EUR)",
+      "labels": [],
+      "kinds": [
+       "segmented",
+       "disclosure"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".stack-bar__controls",
+    "id": null,
+    "role": null,
+    "width": 723,
+    "labels": [
+     "Ebene",
+     "Klassifizierung",
+     "Sortieren"
+    ],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 45.8,
+      "firstKind": "segmented",
+      "firstText": "Gesamt Kategorien Wertpapiere",
+      "labels": [
+       {
+        "text": "Ebene",
+        "left": 0
+       },
+       {
+        "text": "Klassifizierung",
+        "left": 287
+       },
+       {
+        "text": "Sortieren",
+        "left": 512
+       }
+      ],
+      "kinds": [
+       "segmented",
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Ebene",
+      "controlLeft": 45.8,
+      "top": 0
+     },
+     {
+      "label": "Klassifizierung",
+      "controlLeft": 385,
+      "top": 1
+     },
+     {
+      "label": "Sortieren",
+      "controlLeft": 575.8,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 2095
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "perf-badge is-positive",
+    "role": "period-badge",
+    "words": 4,
+    "sentences": 1,
+    "text": "+8,0% · +7.348,65 EUR (1J)"
+   },
+   {
+    "cls": "hint stack-basis",
+    "role": "stack-basis",
+    "words": 11,
+    "sentences": 1,
+    "text": "Marktwert je Kategorie von „Strategies“ · 12.11.2025 – 12.11.2026 · berechnet 12.11.2026 11:12 UTC"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "contribution-basis",
+    "words": 7,
+    "sentences": 1,
+    "text": "je Position in EUR, einschließlich der Währungsbewegung"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "positions-basis",
+    "words": 26,
+    "sentences": 2,
+    "text": "Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs oder, ohne Kurs, zum letzten eigenen Handelspreis. Marktwert in EUR, wie ihn die Summe zählt."
+   },
+   {
+    "cls": "p",
+    "role": "cash-edit-pointer",
+    "words": 5,
+    "sentences": 1,
+    "text": "Salden auf Konten & Depots setzen"
+   }
+  ]
+ },
+ {
+  "url": "/portfolio?tab=allocation",
+  "name": "Vermögen · Allokation",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 264,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Baum Positionen",
+      "labels": [],
+      "kinds": [
+       "segmented",
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 1
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "summary-basis allocation-basis",
+    "role": "allocation-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Plan auf Strategies · Σ Soll oberste Ebene: 105,0% · Ansicht Alles · Stand 12.11.2026"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow",
+  "name": "Vermögen · Cashflow · Einkommen",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 9,
+    "sentences": 1,
+    "text": "Beträge in EUR · Dividenden und Zinsen · nur dieses Portfolio"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=realized",
+  "name": "Vermögen · Cashflow · Trades",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".hs-controls",
+    "id": null,
+    "role": "hindsight-compare",
+    "width": 924,
+    "labels": [
+     "Vergleich"
+    ],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 70.3,
+      "firstKind": "segmented",
+      "firstText": "Ohne Fester Zins Wertpapier An",
+      "labels": [
+       {
+        "text": "Vergleich",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "segmented",
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Vergleich",
+      "controlLeft": 70.3,
+      "top": 1
+     }
+    ],
+    "spread": 0,
+    "html": 1664
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 8,
+    "sentences": 1,
+    "text": "Beträge in EUR · FIFO je Wertpapier · alle Depots"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "trades-basis",
+    "words": 13,
+    "sentences": 1,
+    "text": "Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten"
+   },
+   {
+    "cls": "summary-basis hs-basis",
+    "role": null,
+    "words": 12,
+    "sentences": 1,
+    "text": "Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung"
+   },
+   {
+    "cls": "summary-basis hs-legend",
+    "role": null,
+    "words": 21,
+    "sentences": 2,
+    "text": "Je Spanne die Differenz zu Kestrel Industrial Group NV Index, darunter Wertpapier ggü. Benchmark · Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=flows",
+  "name": "Vermögen · Cashflow · Ein- und Auszahlungen",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 9,
+    "sentences": 1,
+    "text": "Beträge in EUR · externe Zu- und Abflüsse · alle Portfolios"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=costs",
+  "name": "Vermögen · Cashflow · Kosten",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 10,
+    "sentences": 1,
+    "text": "Beträge in EUR · Gebühren und Steuern auf Überblicksebene · alle Portfolios"
+   }
+  ]
+ },
+ {
+  "url": "/snapshots",
+  "name": "Vermögen · Snapshots",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": null,
+    "words": 4,
+    "sentences": 1,
+    "text": "netto, alle Kosten enthalten"
+   },
+   {
+    "cls": "hint",
+    "role": null,
+    "words": 9,
+    "sentences": 1,
+    "text": "Buy-and-hold der am 14.08.2026 eingefrorenen Bestände: 47.301,57 → 47.834,43 EUR"
+   },
+   {
+    "cls": "hint",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "Gebühren und Steuern auf Handelsgeschäfte ausgenommen"
+   },
+   {
+    "cls": "hint",
+    "role": "cost-recovery",
+    "words": 6,
+    "sentences": 2,
+    "text": "Wieder eingespielt? Auch vor Kosten zurück"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "comparison-basis",
+    "words": 7,
+    "sentences": 1,
+    "text": "seit 14.08.2026 · in EUR · brutto, nur Kursentwicklung"
+   }
+  ]
+ },
+ {
+  "url": "/tax",
+  "name": "Vermögen · Steuern",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": "tax-scope",
+    "width": 168,
+    "labels": [],
+    "kinds": [
+     "segmented"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Owner",
+      "labels": [],
+      "kinds": [
+       "segmented"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": "tax-disclosures",
+    "width": 423,
+    "labels": [],
+    "kinds": [
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Abrechnung erfassen",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "budget-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Freistellungsauftrag 640,00 von 1.000,00 verbraucht · Stand 31.12.2025 · Beispiel Direktbank (Agent), Example Bank"
+   }
+  ]
+ },
+ {
+  "url": "/risk",
+  "name": "Vermögen · Risiko",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "policy-rules-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Ausgewertet beim Lesen, Stand 12.11.2026, auf der steuerbaren Basis der Ansicht „Alles“."
+   },
+   {
+    "cls": "summary-basis",
+    "role": "risk-basis",
+    "words": 19,
+    "sentences": 1,
+    "text": "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in EUR, annualisiert mit √365 — eine Einzahlung ist keine Rendite."
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 8,
+    "sentences": 1,
+    "text": "Keine Obergrenze konfiguriert — es gibt nichts zu überschreiten."
+   }
+  ]
+ },
+ {
+  "url": "/predictions",
+  "name": "Vermögen · Prognosen",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "empty-state",
+    "role": "predictions-empty",
+    "words": 12,
+    "sentences": 2,
+    "text": "Noch ist keine Prognose festgehalten. Festgehalten wird über die API oder MCP."
+   }
+  ]
+ },
+ {
+  "url": "/securities",
+  "name": "Wertpapiere",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   }
+  ],
+  "paras": []
+ },
+ {
+  "url": "/securities/1",
+  "name": "Wertpapier · Übersicht",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "overview-basis",
+    "words": 9,
+    "sentences": 1,
+    "text": "Kurse: Portfolio Performance · Anlageklasse Aktie · Strategies → Platforms · WKN 865985"
+   },
+   {
+    "cls": "overview-card__text",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Services mix keeps margins above 40% through the cycle; hold while capex stays flat."
+   },
+   {
+    "cls": "overview-card__meta",
+    "role": null,
+    "words": 2,
+    "sentences": 1,
+    "text": "Stand 15.07.2026"
+   },
+   {
+    "cls": "detail-tab-empty",
+    "role": null,
+    "words": 4,
+    "sentences": 1,
+    "text": "Noch keine persönliche Notiz."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=chart",
+  "name": "Wertpapier · Diagramm",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   },
+   {
+    "selector": ".detail-pane-toolbar",
+    "id": null,
+    "role": null,
+    "width": 954,
+    "labels": [],
+    "kinds": [
+     "button",
+     "disclosure"
+    ],
+    "rows": [
+     {
+      "top": 1,
+      "firstControlLeft": 1,
+      "firstKind": "button",
+      "firstText": "1M",
+      "labels": [],
+      "kinds": [
+       "button",
+       "disclosure"
+      ]
+     },
+     {
+      "top": 46,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Logarithmische Skala",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 84,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Kurse aktualisieren",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 1,
+      "top": 1
+     }
+    ],
+    "spread": 1,
+    "html": 5414
+   },
+   {
+    "selector": ".chart-toggles",
+    "id": null,
+    "role": null,
+    "width": 954,
+    "labels": [],
+    "kinds": [
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Logarithmische Skala",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     },
+     {
+      "top": 38,
+      "firstControlLeft": 0,
+      "firstKind": "button",
+      "firstText": "Kurse aktualisieren",
+      "labels": [],
+      "kinds": [
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 2082
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "chart-basis",
+    "words": 11,
+    "sentences": 2,
+    "text": "Kursbasis: wie erfasst. Gespeicherte Kurse werden nie verändert (siehe Tab Kurse)."
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "metrics-basis",
+    "words": 11,
+    "sentences": 1,
+    "text": "Über die eigenen splitbereinigten Schlusskurse dieses Wertpapiers in EUR, nie umgerechnet."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=trades",
+  "name": "Wertpapier · Trades",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=research",
+  "name": "Wertpapier · Research",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "research-basis",
+    "words": 6,
+    "sentences": 1,
+    "text": "Datierte, belegte Einträge zu diesem Wertpapier."
+   },
+   {
+    "cls": "research-thesis__text",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Services mix keeps margins above 40% through the cycle; hold while capex stays flat."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=news",
+  "name": "Wertpapier · Nachrichten",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "stories-basis",
+    "words": 20,
+    "sentences": 2,
+    "text": "Die Meldungen zu diesem Wertpapier, die die Nachrichtenschicht hält, neueste zuerst, so wie der Agent sie liest. Zeiten in UTC."
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 16,
+    "sentences": 2,
+    "text": "Zu diesem Wertpapier ist noch keine Meldung eingegangen. Feeds werden über die API oder MCP registriert."
+   }
+  ]
+ },
+ {
+  "url": "/securities/1?tab=predictions",
+  "name": "Wertpapier · Prognosen",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".toolbar",
+    "id": null,
+    "role": null,
+    "width": 980,
+    "labels": [],
+    "kinds": [
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 11,
+      "firstControlLeft": 49,
+      "firstKind": "input",
+      "firstText": "",
+      "labels": [],
+      "kinds": [
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 49,
+      "top": 13
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   },
+   {
+    "selector": ".filter-chips",
+    "id": "securities-filter-chips",
+    "role": null,
+    "width": 980,
+    "labels": [
+     "Währung",
+     "Anlageklasse",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 7,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "Im Bestand",
+      "labels": [
+       {
+        "text": "Währung",
+        "left": 892
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 41,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "CAD",
+      "labels": [
+       {
+        "text": "Anlageklasse",
+        "left": 258
+       },
+       {
+        "text": "Geändert seit",
+        "left": 747
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 75,
+      "firstControlLeft": 18,
+      "firstKind": "chip",
+      "firstText": "7 Tage",
+      "labels": [],
+      "kinds": [
+       "chip",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 18,
+      "top": 7
+     },
+     {
+      "label": "Währung",
+      "controlLeft": 18,
+      "top": 41
+     },
+     {
+      "label": "Anlageklasse",
+      "controlLeft": 364.4,
+      "top": 41
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 853.6,
+      "top": 41
+     }
+    ],
+    "spread": 835.6,
+    "html": 4547
+   }
+  ],
+  "paras": [
+   {
+    "cls": "detail-pane-sub",
+    "role": null,
+    "words": 6,
+    "sentences": 1,
+    "text": "XX0000000001 · TICK · EUR · Letzter 188,87 (12.11.2026)"
+   },
+   {
+    "cls": "detail-tab-hint",
+    "role": "predictions-basis",
+    "words": 13,
+    "sentences": 2,
+    "text": "Festgehaltene Prognosen zu diesem Wertpapier, die neueste zuerst. Keine wird geändert oder gelöscht."
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 14,
+    "sentences": 2,
+    "text": "Für dieses Wertpapier ist keine Prognose festgehalten. Festgehalten wird über die API oder MCP."
+   }
+  ]
+ },
+ {
+  "url": "/news",
+  "name": "Nachrichten · Meldungen",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Nichts zuzuordnen: jede Meldung aus Aggregatoren nennt genau ein Wertpapier, oder keine ist eingegangen."
+   },
+   {
+    "cls": "summary-basis",
+    "role": "news-digest-basis",
+    "words": 17,
+    "sentences": 1,
+    "text": "seit 11.11.2026 11:12 UTC · das Nachrichten-Universum · Materialität ab 2 oder von Emittent oder Aufsicht · höchstens 12 Zeilen"
+   },
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 5,
+    "sentences": 1,
+    "text": "Seit dem Stichzeitpunkt nichts Neues."
+   },
+   {
+    "cls": "hint",
+    "role": "digest-left-out",
+    "words": 17,
+    "sentences": 1,
+    "text": "35 Wertpapiere ohne Neues · 0 Meldungen aus Aggregatoren oder Themen ausgeblendet (ohne Einordnung oder Materialität unter 2)"
+   }
+  ]
+ },
+ {
+  "url": "/news?tab=feeds",
+  "name": "Nachrichten · Feeds",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "empty-state",
+    "role": null,
+    "words": 13,
+    "sentences": 2,
+    "text": "Noch ist kein Feed angelegt. Feeds werden über die API oder MCP angelegt."
+   }
+  ]
+ },
+ {
+  "url": "/portfolios",
+  "name": "Konten",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": []
+ },
+ {
+  "url": "/transactions",
+  "name": "Transaktionen",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".filter-chips",
+    "id": "transaction-chips",
+    "role": null,
+    "width": 924,
+    "labels": [
+     "Konto",
+     "Typ",
+     "Geändert seit"
+    ],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 52,
+      "firstKind": "chip",
+      "firstText": "Broker Nord Verrechnung",
+      "labels": [
+       {
+        "text": "Konto",
+        "left": 0
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 30,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Demo Cash",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 60,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Sparplan Konto",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 94,
+      "firstControlLeft": 32.8,
+      "firstKind": "chip",
+      "firstText": "Saldo gesetzt",
+      "labels": [
+       {
+        "text": "Typ",
+        "left": 0
+       },
+       {
+        "text": "Geändert seit",
+        "left": 783
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     },
+     {
+      "top": 128,
+      "firstControlLeft": 0,
+      "firstKind": "chip",
+      "firstText": "Heute",
+      "labels": [],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Konto",
+      "controlLeft": 52,
+      "top": 0
+     },
+     {
+      "label": "Typ",
+      "controlLeft": 32.8,
+      "top": 94
+     },
+     {
+      "label": "Geändert seit",
+      "controlLeft": 0,
+      "top": 128
+     }
+    ],
+    "spread": 52,
+    "html": 6917
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "summary-basis",
+    "words": 37,
+    "sentences": 1,
+    "text": "Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung in der Richtung ihrer Art summiert und nicht umgerechnet; ein Verkauf, dessen Gebühren und Steuern seinen Erlös übersteigen, mindert die Summe der Verkäufe."
+   }
+  ]
+ },
+ {
+  "url": "/imports",
+  "name": "Import",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "muted",
+    "role": null,
+    "words": 13,
+    "sentences": 1,
+    "text": "CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert"
+   }
+  ]
+ },
+ {
+  "url": "/buckets",
+  "name": "Töpfe",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "assignment-basis",
+    "words": 68,
+    "sentences": 2,
+    "text": "Standard-Buckets werden an der Kontozeile gesetzt → Konten & Depots. Broker Nord Verrechnung, Broker Süd Verrechnung, Broker Verrechnung 1, Broker Verrechnung 2, Coupon-Cash, Coupon-Depot, Depot 1, Depot Nord, Depot Süd, Dollar Cash, Dollar Depot, Family Cash, Family Depot, Festgeld Plus, Haushaltskonto, Round Trip Cash, Round Trip Depot, RÜCKLAGE, Rücklage, Rücklage Giro, Sparplan Depot, Sparplan"
+   }
+  ]
+ },
+ {
+  "url": "/classifications",
+  "name": "Klassifizierungen",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": []
+ },
+ {
+  "url": "/classifications/1",
+  "name": "Klassifizierung",
+  "width": 1200,
+  "state": null,
+  "bars": [],
+  "paras": [
+   {
+    "cls": "summary-basis tree-basis",
+    "role": "category-result-basis",
+    "words": 18,
+    "sentences": 1,
+    "text": "Ansicht Alles · in EUR · Ergebnis: heutige Zusammensetzung, keine Periodenrendite · Kurse: der neueste, ohne Kurs der letzte eigene Handelspreis"
+   }
+  ]
+ },
+ {
+  "url": "/journal",
+  "name": "Journal",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".filter-chips",
+    "id": "journal-chips",
+    "role": null,
+    "width": 924,
+    "labels": [
+     "Akteur",
+     "Vorgang"
+    ],
+    "kinds": [
+     "chip"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 58.1,
+      "firstKind": "chip",
+      "firstText": "Alle",
+      "labels": [
+       {
+        "text": "Akteur",
+        "left": 0
+       },
+       {
+        "text": "Vorgang",
+        "left": 395
+       }
+      ],
+      "kinds": [
+       "chip"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Akteur",
+      "controlLeft": 58.1,
+      "top": 0
+     },
+     {
+      "label": "Vorgang",
+      "controlLeft": 465.3,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 2102
+   },
+   {
+    "selector": ".journal-filters",
+    "id": "journal-filters",
+    "role": null,
+    "width": 924,
+    "labels": [],
+    "kinds": [
+     "select",
+     "input",
+     "checkbox"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "select",
+      "firstText": "Alle Arten Transaktion Wertpap",
+      "labels": [],
+      "kinds": [
+       "select",
+       "input",
+       "checkbox"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "journal-basis",
+    "words": 11,
+    "sentences": 1,
+    "text": "Neueste zuerst · die neuesten 100 Einträge · ohne Was-wäre-wenn-Szenarien · Zeiten in UTC"
+   },
+   {
+    "cls": "journal-more",
+    "role": null,
+    "words": 3,
+    "sentences": 1,
+    "text": "Ältere Einträge zeigen"
+   }
+  ]
+ },
+ {
+  "url": "/cashflow?tab=realized&hindsight=rate",
+  "name": "Vermögen · Cashflow · Trades, Vergleich „Fester Zins“",
+  "width": 1200,
+  "state": null,
+  "bars": [
+   {
+    "selector": ".hs-controls",
+    "id": null,
+    "role": "hindsight-compare",
+    "width": 924,
+    "labels": [
+     "Vergleich",
+     "Fester Zins % p. a."
+    ],
+    "kinds": [
+     "segmented",
+     "input",
+     "button"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 70.3,
+      "firstKind": "segmented",
+      "firstText": "Ohne Fester Zins Wertpapier An",
+      "labels": [
+       {
+        "text": "Vergleich",
+        "left": 0
+       },
+       {
+        "text": "Fester Zins % p. a.",
+        "left": 398
+       }
+      ],
+      "kinds": [
+       "segmented",
+       "input",
+       "button"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": "Vergleich",
+      "controlLeft": 70.3,
+      "top": 1
+     },
+     {
+      "label": "Fester Zins % p. a.",
+      "controlLeft": 511.6,
+      "top": 0
+     }
+    ],
+    "spread": 0,
+    "html": 1592
+   }
+  ],
+  "paras": [
+   {
+    "cls": "summary-basis",
+    "role": "facet-basis",
+    "words": 8,
+    "sentences": 1,
+    "text": "Beträge in EUR · FIFO je Wertpapier · alle Depots"
+   },
+   {
+    "cls": "summary-basis",
+    "role": "trades-basis",
+    "words": 13,
+    "sentences": 1,
+    "text": "Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten"
+   },
+   {
+    "cls": "summary-basis hs-basis",
+    "role": null,
+    "words": 12,
+    "sentences": 1,
+    "text": "Kursentwicklung je Verkauf in EUR · ab dem Verkaufstag · eine Zeile je Verkaufsbuchung"
+   },
+   {
+    "cls": "summary-basis hs-legend",
+    "role": null,
+    "words": 14,
+    "sentences": 1,
+    "text": "Je Spanne die Kursrendite des verkauften Wertpapiers · Kursrendite: Ausschüttungen nach dem Verkauf nicht enthalten"
+   }
+  ]
+ },
+ {
+  "url": "/portfolio?tab=allocation",
+  "name": "Vermögen · Allokation, Positionen",
+  "width": 1200,
+  "state": "flat",
+  "bars": [
+   {
+    "selector": ".section-head-controls",
+    "id": null,
+    "role": null,
+    "width": 264,
+    "labels": [],
+    "kinds": [
+     "segmented",
+     "select"
+    ],
+    "rows": [
+     {
+      "top": 0,
+      "firstControlLeft": 0,
+      "firstKind": "segmented",
+      "firstText": "Baum Positionen",
+      "labels": [],
+      "kinds": [
+       "segmented",
+       "select"
+      ]
+     }
+    ],
+    "groups": [
+     {
+      "label": null,
+      "controlLeft": 0,
+      "top": 1
+     }
+    ],
+    "spread": 0,
+    "html": 0
+   }
+  ],
+  "paras": [
+   {
+    "cls": "hint",
+    "role": "default-view-marker",
+    "words": 1,
+    "sentences": 1,
+    "text": "Standard-Ansicht"
+   },
+   {
+    "cls": "summary-basis allocation-basis",
+    "role": "allocation-basis",
+    "words": 12,
+    "sentences": 1,
+    "text": "Plan auf Strategies · Σ Soll oberste Ebene: 105,0% · Ansicht Alles · Stand 12.11.2026"
+   }
+  ]
+ }
+]

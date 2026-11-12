@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01b-erholer</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="frame">
+body { margin: 0; background: var(--color-bg); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: -4px; border-radius: 8px; }
+.mock-pad { padding: 0; }
+.mock-elided { margin: 0; padding: 10px clamp(16px, 2.4vw, 28px); border-bottom: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+</style>
+<style id="proposal">
+.crash-section { position: relative; }
+.crash-bar select { min-height: 30px; width: auto; max-width: min(19.5rem, 100%); font-size: 12.5px; }
+.crash-window { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-window b { color: var(--color-text); font-weight: 600; }
+.crash-window .badge { align-self: center; }
+.crash-window__link { margin-left: auto; color: var(--color-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.crash-window__nolink { margin-left: auto; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-table { width: 100%; }
+.crash-table thead th { white-space: nowrap; }
+.crash-table td { padding-top: 6px; padding-bottom: 6px; }
+.crash-table td.crash-rank { width: 1.5rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-table td.crash-name { white-space: nowrap; }
+.crash-table td.crash-name .badge { margin-left: 6px; }
+.crash-table td.crash-plot, .crash-table th.crash-plot { width: 44%; padding-left: 16px; padding-right: 16px; }
+.crash-table.is-rebound td.crash-plot, .crash-table.is-rebound th.crash-plot { width: 34%; }
+.crash-table th.crash-days { white-space: normal; width: 6.5rem; }
+.crash-table td.num, .crash-table th.num { white-space: nowrap; }
+.crash-table td.crash-pp { color: var(--color-text-muted); }
+.crash-table td.crash-notyet { color: var(--color-danger); font-weight: 600; }
+.crash-table tbody tr:hover td { background: inherit; }
+.crash-track { position: relative; height: 14px; }
+.crash-track__bar { position: absolute; top: 2px; height: 10px; border-radius: 2px; background: var(--color-danger); }
+.crash-track__bar.is-up { background: var(--color-positive); }
+.crash-track__zero { position: absolute; top: -8px; bottom: -8px; width: 1px; background: var(--color-border-strong); }
+.crash-track__ref { position: absolute; top: -8px; bottom: -8px; width: 0; border-left: 1.5px dashed var(--color-text-muted); }
+.crash-axis { position: relative; height: 16px; font-size: 11px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.crash-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.crash-table tfoot td { border: 0; padding-top: 2px; background: transparent; }
+.crash-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-legend__ref { display: inline-block; width: 0; height: 12px; margin-right: 6px; border-left: 1.5px dashed var(--color-text-muted); vertical-align: -1px; }
+.crash-unanswered { margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.crash-unanswered button { margin-left: 4px; }
+.crash-provisional { margin: 0; }
+.crash-windows > summary { margin-bottom: 0; }
+.crash-windows__body { display: grid; gap: 12px; margin-top: 8px; }
+.crash-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 13px; color: var(--color-text-muted); }
+.crash-rule b { color: var(--color-text); }
+.crash-rule .button-secondary { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.crash-windows-table td, .crash-windows-table th { white-space: nowrap; }
+.crash-windows-table td.crash-unnamed { font-style: italic; color: var(--color-text-muted); }
+.crash-windows-table td.crash-actions { text-align: right; }
+.crash-windows-table td.crash-actions .link-button + .link-button { margin-left: 12px; }
+.crash-windows-table tr.is-ongoing td { background: var(--color-warning-soft); }
+.crash-unmatched h3 { margin: 4px 0 4px; font-size: 13px !important; font-weight: 700 !important; }
+.crash-unmatched p.hint { margin: 0 0 6px; }
+.crash-unmatched-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.crash-unmatched-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.crash-unmatched-form input { min-height: 30px; font-size: 13px; }
+.crash-unmatched-form input[aria-invalid] { border-color: var(--color-danger); }
+.crash-unmatched-form .hint { flex-basis: 100%; margin: 0; }
+.crash-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crash-chips .filter-chip .badge { margin-left: 6px; }
+.crash-bar .stack-bar__label { min-width: 0; }
+</style>
+</head>
+<body><div class="mock-pad"><div class="workspace-page">
+<section class="workspace-section crash-section mock-new" id="risk-crashes" aria-labelledby="risk-crashes-title">
+<header class="section-head">
+<div class="section-title">
+<h2 id="risk-crashes-title">Crashes</h2>
+<details class="metric-tooltip metric-tooltip--inline metric-tooltip--section" data-role="section-info">
+<summary aria-label="Zu diesem Abschnitt">ⓘ</summary>
+<p role="tooltip">Ein Fenster öffnet, sobald der Crash-Benchmark 10 % oder mehr unter seinem Höchststand schließt; es beginnt am letzten Tag auf dem Hoch und endet im tiefsten Schluss vor der Erholung, bei gleichen Tiefs am frühesten.<br>Erkannt in der Währung des Benchmarks, gelistet in EUR zum Wechselkurs jedes Schlusstags; Splits bereinigt.<br>Kurs an einem Tag: der letzte Schluss am oder vor ihm, höchstens 7 Tage alt. Ohne Kurs oder Wechselkurs keine Antwort, nie eine Null.<br>Erholer: vom eigenen Tief zwischen Hoch und Tief bis drei Kalendermonate nach dem Tief; Tage bis Vorkrisenkurs in Kalendertagen.<br>Gleichstand nach Wert, dann Name, dann ISIN. Benchmarks stehen in keiner Liste.<br>Kein Urteil: die Listen vergleichen Kurse, sie sagen nicht, was zu kaufen ist.</p>
+</details>
+</div>
+</header>
+<div class="stack-bar crash-bar" data-role="crash-bar">
+<div class="stack-bar__controls">
+<form class="stack-bar__tree">
+<label for="crash-window">Fenster</label>
+<select id="crash-window" name="crash">
+<option>Ohne Namen · seit 23.10.2026 · läuft</option>
+<option>Sommer 2026 · 02.06.–21.08.2026</option>
+<option>Ohne Namen · 18.02.–08.04.2025</option>
+<option>Bärenmarkt 2022 · 03.01.–12.10.2022</option>
+<option>Kriegsbeginn 2022 · 16.02.–07.03.2022 · manuell</option>
+<option selected>Frühjahr 2020 · 19.02.–23.03.2020</option>
+<option>Ohne Namen · 03.10.–24.12.2018</option>
+</select>
+</form>
+<span class="stack-bar__group">
+<span class="stack-bar__label" id="crash-list-label">Liste</span>
+<div class="segmented-control" role="group" aria-labelledby="crash-list-label">
+<a class="segmented-control__option" href="#">Verlierer</a>
+<a class="segmented-control__option" href="#">Gewinner</a>
+<a class="segmented-control__option is-active" href="#" aria-current="true">Erholer</a>
+</div></span>
+<span class="stack-bar__group">
+<span class="stack-bar__label" id="crash-universe-label">Wertpapiere</span>
+<div class="segmented-control" role="group" aria-labelledby="crash-universe-label">
+<a class="segmented-control__option is-active" href="#" aria-current="true">Im Depot</a>
+<a class="segmented-control__option" href="#">Ganzer Katalog</a>
+</div></span>
+</div>
+</div>
+<p class="crash-window" data-role="crash-window"><b>Frühjahr 2020</b>
+<span class="badge badge--neutral">erkannt</span><span>Hoch <b>19.02.2020</b> → Tief <b>23.03.2020</b></span><span>Weltindex ETF <b class="is-negative">−33,9&nbsp;%</b> in USD</span><span>erholt am 16.11.2020</span><span>Erholung gemessen bis <b>23.06.2020</b> (Tief + 3 Monate)</span>
+<a class="crash-window__link" href="/portfolio?from=…&amp;to=…">Im Depot ansehen →</a>
+</p>
+<div class="data-table-wrapper">
+<table class="data-table crash-table is-rebound">
+<thead>
+<tr>
+<th>#</th>
+<th>Wertpapier</th>
+<th class="crash-plot">Anstieg vom eigenen Tief, EUR</th>
+<th class="num">%</th>
+<th class="num">ggü. Weltindex ETF</th>
+<th class="num crash-days">Tage bis Vorkrisenkurs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="crash-rank">1</td>
+<td class="crash-name">Bitcoin</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:89.92%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+112,4&nbsp;%</td>
+<td class="num crash-pp">+76,0&nbsp;Pp.</td>
+<td class="num">49</td>
+</tr>
+<tr>
+<td class="crash-rank">2</td>
+<td class="crash-name">Tech-Einzelwert A</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:56.80%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+71,0&nbsp;%</td>
+<td class="num crash-pp">+34,6&nbsp;Pp.</td>
+<td class="num">58</td>
+</tr>
+<tr>
+<td class="crash-rank">3</td>
+<td class="crash-name">Reise-Einzelwert D</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:41.84%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+52,3&nbsp;%</td>
+<td class="num crash-pp">+15,9&nbsp;Pp.</td>
+<td class="num crash-notyet">noch nicht</td>
+</tr>
+<tr>
+<td class="crash-rank">4</td>
+<td class="crash-name">Industrie-Einzelwert B</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:38.08%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+47,6&nbsp;%</td>
+<td class="num crash-pp">+11,2&nbsp;Pp.</td>
+<td class="num">214</td>
+</tr>
+<tr>
+<td class="crash-rank">5</td>
+<td class="crash-name">USA-Aktien ETF</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:33.44%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+41,8&nbsp;%</td>
+<td class="num crash-pp">+5,4&nbsp;Pp.</td>
+<td class="num">139</td>
+</tr>
+<tr>
+<td class="crash-rank">6</td>
+<td class="crash-name">Schwellenländer ETF</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:31.92%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+39,9&nbsp;%</td>
+<td class="num crash-pp">+3,5&nbsp;Pp.</td>
+<td class="num">252</td>
+</tr>
+<tr>
+<td class="crash-rank">7</td>
+<td class="crash-name">Europa-Aktien ETF</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:26.80%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+33,5&nbsp;%</td>
+<td class="num crash-pp">−2,9&nbsp;Pp.</td>
+<td class="num">301</td>
+</tr>
+<tr>
+<td class="crash-rank">8</td>
+<td class="crash-name">Dividenden-Fonds K</td>
+<td class="crash-plot">
+<div class="crash-track">
+<span class="crash-track__zero" style="left:0.00%"></span>
+<span class="crash-track__bar is-up" style="left:0.00%;width:19.28%"></span>
+<span class="crash-track__ref" style="left:29.12%"></span>
+</div>
+</td>
+<td class="num is-positive">+24,1&nbsp;%</td>
+<td class="num crash-pp">−12,3&nbsp;Pp.</td>
+<td class="num">412</td>
+</tr>
+</tbody>
+<tfoot>
+<tr>
+<td>
+</td>
+<td>
+</td>
+<td class="crash-plot">
+<div class="crash-axis"><span style="left:0.00%">0&nbsp;%</span><span style="left:20.00%">+25&nbsp;%</span><span style="left:40.00%">+50&nbsp;%</span><span style="left:60.00%">+75&nbsp;%</span><span style="left:80.00%">+100&nbsp;%</span><span style="left:100.00%">+125&nbsp;%</span>
+</div>
+</td>
+<td>
+</td>
+<td>
+</td>
+<td>
+</td>
+</tr>
+</tfoot>
+</table>
+</div>
+<p class="summary-basis crash-basis">Grundlage: Anstieg in EUR vom eigenen Tief bis zum Ende der Erholungsspanne · gestrichelt Weltindex ETF (+36,4&nbsp;%) · nur Wertpapiere, die der Katalog heute führt.</p>
+<details class="perf-table-disclosure crash-windows" id="crash-windows">
+<summary class="disclosure-summary">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true">
+<path d="m9 6 6 6-6 6">
+</path>
+</svg>Crash-Fenster · 6 erkannt · 1 manuell · 2 Namen ohne Fenster</summary>
+</details>
+</section>
+</div></div></body>
+</html>
