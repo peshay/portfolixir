@@ -56,6 +56,7 @@ defmodule PortfolixirWeb.SaleHindsightSection do
   alias Portfolixir.Portfolios.Performance.WindowReturn
   alias PortfolixirWeb.BenchmarkChoices
   alias PortfolixirWeb.BenchmarkScope
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
@@ -333,74 +334,83 @@ defmodule PortfolixirWeb.SaleHindsightSection do
         </div>
       <% end %>
 
-      <div class="hs-controls" data-role="hindsight-compare">
-        <span class="hs-controls__label" id={"#{@id}-compare-label"}>
-          <%= gettext("Comparison") %>
-        </span>
-        <nav class="segmented-control" aria-labelledby={"#{@id}-compare-label"}>
-          <.link
-            :for={mode <- modes()}
-            patch={mode_path(@uri, mode, @comparison)}
-            class={["segmented-control__option", @comparison.mode == mode && "is-active"]}
-            aria-current={if @comparison.mode == mode, do: "true"}
-            data-mode={mode}
-          >
-            <%= mode_label(mode) %>
-          </.link>
-        </nav>
-        <form
+      <%!-- Issue 1435 (Sprint 29 L2; board
+           ux-design-2026-11-12-sprint29/06-control-bar ②): a bar of
+           labelled controls; the full-width comparison does not fit beside
+           a label column on a phone, so below 560 px every label stands
+           above its control (B), from one edge. --%>
+      <ControlBar.bar class="hs-compare-bar" floor={560} data-role="hindsight-compare">
+        <:group label={gettext("Comparison")} label_id={"#{@id}-compare-label"}>
+          <nav class="segmented-control" aria-labelledby={"#{@id}-compare-label"}>
+            <.link
+              :for={mode <- modes()}
+              patch={mode_path(@uri, mode, @comparison)}
+              class={["segmented-control__option", @comparison.mode == mode && "is-active"]}
+              aria-current={if @comparison.mode == mode, do: "true"}
+              data-mode={mode}
+            >
+              <%= mode_label(mode) %>
+            </.link>
+          </nav>
+        </:group>
+        <:group
           :if={@comparison.mode == :rate}
-          id={"#{@id}-rate-form"}
-          class="hs-controls__field"
-          phx-submit="rate"
-          phx-target={@myself}
-          data-role="hindsight-rate-form"
+          label={gettext("Fixed rate % p.a.")}
+          for={"#{@id}-rate"}
+          form={[
+            id: "#{@id}-rate-form",
+            "phx-submit": "rate",
+            "phx-target": @myself,
+            "data-role": "hindsight-rate-form"
+          ]}
         >
-          <label for={"#{@id}-rate"}><%= gettext("Fixed rate % p.a.") %></label>
-          <input
-            type="text"
-            inputmode="decimal"
-            class="num"
-            autocomplete="off"
-            id={"#{@id}-rate"}
-            name="rate"
-            value={DecimalInput.value(@comparison.rate_input)}
-            aria-invalid={@comparison.rate_error && "true"}
-            aria-describedby={@comparison.rate_error && "#{@id}-rate-error"}
-          />
-          <button type="submit"><%= gettext("Apply") %></button>
-        </form>
-        <form
+          <span class="hs-compare-bar__field">
+            <input
+              type="text"
+              inputmode="decimal"
+              class="num"
+              autocomplete="off"
+              id={"#{@id}-rate"}
+              name="rate"
+              value={DecimalInput.value(@comparison.rate_input)}
+              aria-invalid={@comparison.rate_error && "true"}
+              aria-describedby={@comparison.rate_error && "#{@id}-rate-error"}
+            />
+            <button type="submit"><%= gettext("Apply") %></button>
+          </span>
+        </:group>
+        <:group
           :if={@comparison.mode == :security and @groups != []}
-          id={"#{@id}-benchmark-form"}
-          class="hs-controls__field"
-          phx-change="benchmark"
-          phx-target={@myself}
-          data-role="hindsight-benchmark-form"
+          form={[
+            id: "#{@id}-benchmark-form",
+            "phx-change": "benchmark",
+            "phx-target": @myself,
+            "data-role": "hindsight-benchmark-form"
+          ]}
         >
-          <label for={"#{@id}-benchmark"} class="visually-hidden"><%= gettext("Benchmark") %></label>
-          <%!-- #1416 (B2; board 02 ③, Q1 A): „Benchmarks“ then „Im
-               Bestand“ as optgroups of the native select. --%>
-          <select id={"#{@id}-benchmark"} name="benchmark">
-            <optgroup :for={group <- @groups} label={group.label} data-group={group.key}>
-              <option
-                :for={security <- group.securities}
-                value={security.id}
-                selected={benchmark_id(@comparison.benchmark) == Integer.to_string(security.id)}
-              >
-                <%= BenchmarkChoices.label(group, security) %>
-              </option>
-            </optgroup>
-          </select>
-        </form>
-        <span
-          :if={@comparison.mode == :security and @groups == []}
-          class="hint"
-          data-role="benchmark-none"
-        >
-          <%= gettext("No benchmark securities yet — mark one on the Securities page.") %>
-        </span>
-      </div>
+          <span class="hs-compare-bar__field">
+            <label for={"#{@id}-benchmark"} class="visually-hidden"><%= gettext("Benchmark") %></label>
+            <%!-- #1416 (B2; board 02 ③, Q1 A): „Benchmarks“ then „Im
+                 Bestand“ as optgroups of the native select. --%>
+            <select id={"#{@id}-benchmark"} name="benchmark">
+              <optgroup :for={group <- @groups} label={group.label} data-group={group.key}>
+                <option
+                  :for={security <- group.securities}
+                  value={security.id}
+                  selected={benchmark_id(@comparison.benchmark) == Integer.to_string(security.id)}
+                >
+                  <%= BenchmarkChoices.label(group, security) %>
+                </option>
+              </optgroup>
+            </select>
+          </span>
+        </:group>
+        <:group :if={@comparison.mode == :security and @groups == []}>
+          <span class="hint" data-role="benchmark-none">
+            <%= gettext("No benchmark securities yet — mark one on the Securities page.") %>
+          </span>
+        </:group>
+      </ControlBar.bar>
       <p
         :if={@comparison.rate_error}
         id={"#{@id}-rate-error"}

@@ -75,30 +75,60 @@ defmodule PortfolixirWeb.ChangedSince do
   attr(:id, :string, required: true)
   attr(:since, :map, default: nil, doc: "the parsed cut map, or nil")
 
+  attr(:label_id, :string,
+    default: nil,
+    doc: "the id of the label a control bar's group gives the family, or nil for its own"
+  )
+
   @doc """
   The changed-since chip group. Clicks emit `set_changed_since` with the
   preset key; the LiveView answers with a URL patch, so the cut is state the
   reader can share, not state the socket holds.
+
+  In a bar of labelled controls (`PortfolixirWeb.ControlBar.bar/1`, issue
+  1435) the bar's group carries the family's name: `label_id` names that
+  label, and the chips are the group's one control, without a name of their
+  own.
   """
+  def chips(%{label_id: label_id} = assigns) when is_binary(label_id) do
+    assigns = assign(assigns, :presets, presets())
+
+    ~H"""
+    <span id={@id} class="filter-chips" role="group" aria-labelledby={@label_id}>
+      <.preset_chips id={@id} since={@since} presets={@presets} />
+    </span>
+    """
+  end
+
   def chips(assigns) do
     assigns = assign(assigns, :presets, presets())
 
     ~H"""
     <span id={@id} class="filter-chips__group" role="group" aria-label={gettext("Changed since")}>
       <span class="filter-chips__family"><%= gettext("Changed since") %></span>
-      <%= for {key, label, iso} <- @presets do %>
-        <button
-          type="button"
-          id={"#{@id}-#{key}"}
-          class={["filter-chip", @since && @since.raw == iso && "is-active"]}
-          aria-pressed={to_string(@since != nil && @since.raw == iso)}
-          phx-click="set_changed_since"
-          phx-value-preset={key}
-        >
-          <%= label %>
-        </button>
-      <% end %>
+      <.preset_chips id={@id} since={@since} presets={@presets} />
     </span>
+    """
+  end
+
+  attr(:id, :string, required: true)
+  attr(:since, :map, default: nil)
+  attr(:presets, :list, required: true)
+
+  defp preset_chips(assigns) do
+    ~H"""
+    <%= for {key, label, iso} <- @presets do %>
+      <button
+        type="button"
+        id={"#{@id}-#{key}"}
+        class={["filter-chip", @since && @since.raw == iso && "is-active"]}
+        aria-pressed={to_string(@since != nil && @since.raw == iso)}
+        phx-click="set_changed_since"
+        phx-value-preset={key}
+      >
+        <%= label %>
+      </button>
+    <% end %>
     """
   end
 end

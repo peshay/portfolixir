@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
+  alias PortfolixirWeb.ControlBar
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.LiveParam
@@ -1730,80 +1731,113 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp chip_families(assigns) do
     ~H"""
-    <div
+    <%!-- Issue 1435 (Sprint 29 L2; board
+         ux-design-2026-11-12-sprint29/06-control-bar ④): the desktop row is
+         a bar of labelled controls folded into its label column, one line
+         per family, every account chip from one edge. --%>
+    <ControlBar.bar
       :if={@layout == :row}
       id="transaction-chips"
-      class="filter-chips"
+      class="filter-bar"
+      fold={:always}
       role="group"
       aria-label={gettext("Filter the history")}
     >
-      <.chip_family_content {assigns} />
-    </div>
+      <:group label={gettext("Account")} label_id="tx-family-account">
+        <span class="filter-chips" role="group" aria-labelledby="tx-family-account">
+          <.account_chips
+            prefix={@prefix}
+            filters={@filters}
+            cash_accounts={@cash_accounts}
+            portfolio_tags={@portfolio_tags}
+            transactions={@transactions}
+          />
+        </span>
+      </:group>
+      <:group label={gettext("Type")} label_id="tx-family-type">
+        <span class="filter-chips" role="group" aria-labelledby="tx-family-type">
+          <.type_chips prefix={@prefix} filters={@filters} transactions={@transactions} />
+        </span>
+      </:group>
+      <:group label={gettext("Changed since")} label_id="tx-family-since">
+        <%!-- The desktop row keeps the id it has always had. --%>
+        <ChangedSince.chips id="changed-since-chips" since={@since} label_id="tx-family-since" />
+      </:group>
+    </ControlBar.bar>
     <div
       :if={@layout == :sheet}
       class="filter-sheet__families"
       role="group"
       aria-label={gettext("Filter the history")}
     >
-      <.chip_family_content {assigns} />
+      <span class="filter-sheet__family">
+        <span class="filter-chips__family"><%= gettext("Account") %></span>
+        <.account_chips
+          prefix={@prefix}
+          filters={@filters}
+          cash_accounts={@cash_accounts}
+          portfolio_tags={@portfolio_tags}
+          transactions={@transactions}
+        />
+      </span>
+      <span class="filter-sheet__family">
+        <span class="filter-chips__family"><%= gettext("Type") %></span>
+        <.type_chips prefix={@prefix} filters={@filters} transactions={@transactions} />
+      </span>
+      <%!-- Only the sheet copy is prefixed, so #816 adds a surface without
+            renaming one. --%>
+      <ChangedSince.chips id={"#{@prefix}-changed-since-chips"} since={@since} />
     </div>
     """
   end
 
   attr(:prefix, :string, required: true)
-  attr(:layout, :atom, required: true)
   attr(:filters, :map, required: true)
   attr(:cash_accounts, :list, required: true)
   attr(:portfolio_tags, :map, required: true)
   attr(:transactions, :list, required: true)
-  attr(:since, :any, default: nil)
 
   # Chips are toggles, so they carry aria-pressed rather than aria-current,
   # and the pressed state shows on the border as well as the tint so it
   # survives forced colours (UX-DR7).
-  defp chip_family_content(assigns) do
+  defp account_chips(assigns) do
     ~H"""
-    <span class={@layout == :sheet && "filter-sheet__family"}>
-      <span class="filter-chips__family"><%= gettext("Account") %></span>
-      <%= for account <- filter_account_options(@cash_accounts, @transactions) do %>
-        <button
-          type="button"
-          id={"#{@prefix}-chip-account-#{account.id}"}
-          class={["filter-chip", to_string(account.id) in @filters["account_ids"] && "is-active"]}
-          aria-pressed={to_string(to_string(account.id) in @filters["account_ids"])}
-          phx-click="toggle_filter"
-          phx-value-family="account"
-          phx-value-option={account.id}
-        >
-          <%= account.name %>
-          <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:cash} id={account.id} />
-        </button>
-      <% end %>
-    </span>
+    <%= for account <- filter_account_options(@cash_accounts, @transactions) do %>
+      <button
+        type="button"
+        id={"#{@prefix}-chip-account-#{account.id}"}
+        class={["filter-chip", to_string(account.id) in @filters["account_ids"] && "is-active"]}
+        aria-pressed={to_string(to_string(account.id) in @filters["account_ids"])}
+        phx-click="toggle_filter"
+        phx-value-family="account"
+        phx-value-option={account.id}
+      >
+        <%= account.name %>
+        <AccountNames.portfolio_tag tags={@portfolio_tags} kind={:cash} id={account.id} />
+      </button>
+    <% end %>
+    """
+  end
 
-    <span class={@layout == :sheet && "filter-sheet__family"}>
-      <span class="filter-chips__family"><%= gettext("Type") %></span>
-      <%= for type <- filter_type_options(@transactions) do %>
-        <button
-          type="button"
-          id={"#{@prefix}-chip-type-#{type}"}
-          class={["filter-chip", type in @filters["types"] && "is-active"]}
-          aria-pressed={to_string(type in @filters["types"])}
-          phx-click="toggle_filter"
-          phx-value-family="type"
-          phx-value-option={type}
-        >
-          <%= tx_type_label(type) %>
-        </button>
-      <% end %>
-    </span>
+  attr(:prefix, :string, required: true)
+  attr(:filters, :map, required: true)
+  attr(:transactions, :list, required: true)
 
-    <%!-- The desktop row keeps the id it has always had; only the sheet copy
-          is prefixed, so #816 adds a surface without renaming one. --%>
-    <ChangedSince.chips
-      id={if @layout == :row, do: "changed-since-chips", else: "#{@prefix}-changed-since-chips"}
-      since={@since}
-    />
+  defp type_chips(assigns) do
+    ~H"""
+    <%= for type <- filter_type_options(@transactions) do %>
+      <button
+        type="button"
+        id={"#{@prefix}-chip-type-#{type}"}
+        class={["filter-chip", type in @filters["types"] && "is-active"]}
+        aria-pressed={to_string(type in @filters["types"])}
+        phx-click="toggle_filter"
+        phx-value-family="type"
+        phx-value-option={type}
+      >
+        <%= tx_type_label(type) %>
+      </button>
+    <% end %>
     """
   end
 

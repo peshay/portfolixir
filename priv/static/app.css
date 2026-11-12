@@ -1909,7 +1909,8 @@ li + li {
   background: color-mix(in srgb, var(--color-bg-elevated) 96%, var(--color-bg-muted));
 }
 
-.workspace-panel > .filter-chips {
+.workspace-panel > .filter-chips,
+.workspace-panel > .control-bar {
   margin: 0;
   padding: 7px clamp(10px, 1.8vw, 18px);
   border-bottom: 1px solid var(--color-border);
@@ -6574,6 +6575,26 @@ details[open] > .disclosure-summary .disclosure-chevron {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
+}
+/* A chip row moved onto the bar keeps the row's space under it. */
+.control-bar.filter-bar {
+  margin-bottom: var(--space-3);
+}
+/* A chip family is one control (Sprint 29 L2): its chips wrap inside the
+   control column, never under the label, so the row's own scroller and its
+   fade give way to the wrap. */
+.control-bar__group > .filter-chips {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  overflow: visible;
+  mask-image: none;
+}
+/* A family of several lines keeps its label on its first line: the label
+   and the chips share the first chip's baseline, where centring stood the
+   label beside the family's middle line. */
+.control-bar__group:has(> .filter-chips) > * {
+  align-self: first baseline;
 }
 /* A, the label column: the fold's widths, then the bar folded always (the
    chip rows, whose families never fit one line). */
@@ -12340,13 +12361,11 @@ dialog.merge-dialog {
    with .cell-note second lines, .disclosure-summary, .phone-row (UX-DR27)
    and .empty-state (DESIGN.md → The audit journal). */
 
-/* ① The kind select and the scenarios checkbox, one row under the chips. */
+/* ① The chips, the kind select, the date field and the scenarios
+   checkbox: one bar of labelled controls (.control-bar, issue 1435, Sprint
+   29 L2), the form around it. */
 .journal-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  margin: var(--space-2) 0;
+  margin: 0 0 var(--space-3);
 }
 
 .journal-filters__scenarios {
@@ -12356,16 +12375,15 @@ dialog.merge-dialog {
   font-size: 13px;
 }
 
-/* The date field „Seit“ beside the kind (Sprint 24 J3; board
-   ux-design-2026-11-04-sprint24/01-journal-since, pick Q1 = A ①): the
-   checkbox's label anatomy, its ISO date input (UX-DR19) in the page's
-   font. Twelve characters plus the 9 px paddings and 1 px borders of the
-   border-box: „YYYY-MM-DD“, wider than any date, fits whole in Inter and
-   in the usual fallbacks (closing act, J3; 11ch cut „2026-10-20“). */
+/* The date field „Seit“ under the kind (Sprint 24 J3; board
+   ux-design-2026-11-04-sprint24/01-journal-since, pick Q1 = A ①; its
+   label the bar's since Sprint 29 L2): its ISO date input (UX-DR19) in the
+   page's font. Twelve characters plus the 9 px paddings and 1 px borders
+   of the border-box: „YYYY-MM-DD“, wider than any date, fits whole in
+   Inter and in the usual fallbacks (closing act, J3; 11ch cut
+   „2026-10-20“). */
 .journal-filters__since {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-size: 13px;
 }
 
@@ -13192,33 +13210,23 @@ dialog.merge-dialog {
 /* What each sale missed, one row per sale booking, under the trades list
    of Cash flow → Trades and on a security's Trades tab
    (`PortfolixirWeb.SaleHindsightSection`; DESIGN.md → Amendment
-   2026-11-06). The comparison chooser: a label, the segmented control, and
-   the one field the chosen kind needs (the rate and Apply, or the flagged
+   2026-11-06). The comparison chooser: a bar of labelled controls
+   (.control-bar, issue 1435, Sprint 29 L2), the segmented control and the
+   one field the chosen kind needs (the rate and Apply, or the flagged
    securities' select). */
-.hs-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+.hs-compare-bar {
   margin: 0 0 12px;
 }
-.hs-controls__label {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-}
-.hs-controls__field {
+.hs-compare-bar__field {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: var(--color-text-muted);
+  max-width: 100%;
 }
-.hs-controls__field input {
+.hs-compare-bar__field input {
   width: 6.5em;
 }
-.hs-controls__field select {
+.hs-compare-bar__field select {
   max-width: 100%;
 }
 
@@ -13355,11 +13363,11 @@ dialog.merge-dialog {
   .hs-phone-rows {
     display: block;
   }
-  .hs-controls .segmented-control {
+  .hs-compare-bar .segmented-control {
     display: flex;
     width: 100%;
   }
-  .hs-controls .segmented-control__option {
+  .hs-compare-bar .segmented-control__option {
     flex: 1 1 auto;
     text-align: center;
   }
