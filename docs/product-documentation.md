@@ -675,7 +675,14 @@ kind, state the source quality (it is set, never guessed), give the as-of
 date (the statement's cut-off, not today's date, when they differ), and
 optionally the source link, a *valid until* date for a dated block, and the
 entry it supersedes. Choosing the *Thesis* kind reveals the thesis fields
-(conviction, invalidation condition, time stop). The same log is readable and
+(conviction, invalidation condition, time stop). An *Evidence* or *Event
+result* entry also takes an optional **Headline** (at most 80 characters,
+one line), an **Event type** and a **Tone** (positive, neutral, negative),
+as the agent may write them with `notes.append`; only an entry with a
+headline is drawn as a pin on the chart. Every other kind shows none of the
+three. A headline that is too long, or carries a line break or an invisible
+character, is refused in the form's error list ("Headline: should be at
+most 80 character(s)") with the field marked and what was typed kept. The same log is readable and
 writable over the API and MCP (`/api/v1/securities/:id/notes` and the
 `portfolixir.notes.*` tools), including the three hygiene reads — held
 positions with no entry for N days, entries that still need corroboration,
