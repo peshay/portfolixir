@@ -2,6 +2,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   use ExUnit.Case, async: true
 
   alias Ecto.Adapters.SQL.Sandbox
+  alias Portfolixir.Chains.Esplora
+  alias Portfolixir.EsploraFixtures
   alias Portfolixir.Net.Http
   alias Portfolixir.News.Feed
   alias Portfolixir.News.Fetcher
@@ -132,8 +134,25 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
           "its URL passes the URL policy with name resolution before every fetch (https " <>
           "only, no userinfo, public addresses only), so a redirect to another host is " <>
           "refused and makes no request"
-    }
+    },
     # --- end Sprint 27 N3 ---------------------------------------------------
+    # --- Sprint 29 H2: the chain source (ADR-0059 §3, §7, §10, B2) ---------
+    "Portfolixir.Chains.Esplora" => %{
+      purpose:
+        "reads Bitcoin's tip height and single blocks' hash, height and timestamp over " <>
+          "the read-only Esplora REST API, three GET paths only, under a 64 KiB cap and a " <>
+          "10-second deadline, redirects never followed (ADR-0059 §3, §7, opening B3.3 " <>
+          "for this one chain source)",
+      hosts_from: :config,
+      hosts: ["mempool.space", "blockstream.info"],
+      any:
+        "ADR-0059 §3, §10: the operator's own instance from " <>
+          "PORTFOLIXIR_BITCOIN_ESPLORA_URL, which replaces both public sources; the " <>
+          "client's allow-list is that URL's one host, the URL passes the URL policy with " <>
+          "name resolution before every run (https only, no userinfo, public addresses " <>
+          "only), and no redirect is followed"
+    }
+    # --- end Sprint 29 H2 ---------------------------------------------------
   }
 
   # --- closing act, Fix-1 (SEC1) ---------------------------------------------
@@ -1106,6 +1125,85 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     end
 
     # --- end Sprint 27 N3 ---------------------------------------------------
+
+    # --- Sprint 29 H2: the chain source's registration (ADR-0059 §10) -------
+    # The story workflow's attack case: a host the registration did not name,
+    # a redirect, and a plain-http or private own URL, each seen refused.
+    test "the chain source reaches only what it registered: another host, a redirect, an own URL" do
+      module = "Portfolixir.Chains.Esplora"
+      entry = Map.fetch!(@adapters, module)
+
+      # The registration reads the config's allow-lists: the two public
+      # hosts and `:any` for the own URL, whose reason the entry carries.
+      assert hosts_for(module, %{module => :computed}, entry) ==
+               ["mempool.space", "blockstream.info", :any]
+
+      # A host the registration did not name, added to the config, is caught.
+      widened = """
+      import Config
+
+      config :portfolixir, Portfolixir.Chains.Esplora,
+        allowed_hosts: %{
+          mempool: ["mempool.space", "api.llm-vendor.example"],
+          blockstream: ["blockstream.info"],
+          own: :any
+        }
+      """
+
+      names = widened |> config_hosts() |> Map.fetch!(module) |> Enum.reject(&(&1 == :any))
+      assert names -- entry.hosts == ["api.llm-vendor.example"]
+
+      # And the chokepoint refuses it with the source's own allow-list.
+      allowed = Application.fetch_env!(:portfolixir, Portfolixir.Chains.Esplora)[:allowed_hosts]
+      test_pid = self()
+
+      plug = fn conn ->
+        send(test_pid, {:requested, conn.host})
+        Plug.Conn.send_resp(conn, 200, "870000")
+      end
+
+      req = Http.new(max_bytes: 65_536, allowed_hosts: allowed.mempool)
+
+      assert {:error, {:url_not_allowed, :host_not_allowed}} =
+               Http.get(req,
+                 url: "https://api.llm-vendor.example/v1/blocks/tip/height",
+                 plug: plug
+               )
+
+      refute_received {:requested, _}
+
+      # A redirect is never followed, to whatever host it points.
+      EsploraFixtures.serve(%{
+        "mempool.space" => fn conn ->
+          conn
+          |> Plug.Conn.put_resp_header("location", "https://api.llm-vendor.example/v1/x")
+          |> Plug.Conn.send_resp(302, "")
+        end,
+        "blockstream.info" => {:status, 503}
+      })
+
+      assert {:error,
+              [
+                %{source: :mempool, error: "redirect_refused"},
+                %{source: :blockstream, error: "http_503"}
+              ]} = Esplora.read(&[&1], now: ~U[2026-11-12 12:00:00Z])
+
+      assert_received {:esplora, "mempool.space", _}
+      assert_received {:esplora, "blockstream.info", _}
+      refute_received {:esplora, _, _}
+
+      # An own URL on plain http or a private address is refused by the policy.
+      for {url, reason} <- [
+            {"http://node.example.com/api", :scheme},
+            {"https://internal.test/api", :private_address},
+            {"https://loopback.test/api", :private_address},
+            {"https://v6local.test/api", :private_address}
+          ] do
+        assert Esplora.check_own_url(url) == {:error, {:url_not_allowed, reason}}, url
+      end
+    end
+
+    # --- end Sprint 29 H2 ---------------------------------------------------
 
     test "synthetic environment reads are named, computed ones are caught" do
       elixir = """

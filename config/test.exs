@@ -115,3 +115,9 @@ config :phoenix_live_view, :test_warnings, missing_form_id: :raise
 # (`Portfolixir.NewsFixtures.serve/1`) and every request no test stubbed as a
 # refused connection, so no fetch in the suite opens a socket.
 config :portfolixir, Portfolixir.News.Fetcher, plug: Portfolixir.News.NoNetwork
+
+# The chain source's adapter in tests (ADR-0059 §10): the one plug it merges.
+# It answers with the test's own stub (`Portfolixir.EsploraFixtures.serve/1`)
+# and every request no test stubbed as a refused connection, so no read in
+# the suite opens a socket.
+config :portfolixir, Portfolixir.Chains.Esplora, plug: Portfolixir.Chains.NoNetwork
