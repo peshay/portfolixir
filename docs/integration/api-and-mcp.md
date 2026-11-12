@@ -209,8 +209,9 @@ to `0` answers `422` and is never stored as zero; a money value with more than
 14 digits before the decimal point answers `422` naming the field.
 
 **Text.** A name, an identifier or any other one-line text a write stores is
-at most as long as its column — 255 characters unless a narrower limit is
-stated (a bucket's or view's name 100, a plan's or snapshot's name 120),
+at most as long as its column — 255 characters unless another limit is
+stated (a bucket's or view's name 100, a plan's or snapshot's name 120, a
+research entry's or an event's `source_url` 2,048),
 counted in Unicode code points, the unit the database counts — and carries no
 control character and no line break. Free text (a booking's `notes`, a
 research-log entry, an event's or a rule version's `note`, a description)
@@ -773,8 +774,8 @@ premise. There is deliberately no `PATCH` and no `DELETE` for an entry.
 
 Each entry carries `kind` (`thesis`, `evidence`, `invalidation_check`,
 `event_result`, `risk`, `retraction`, `decision`), `body`, `source_url` (an
-`http(s)` URL of at most 255 characters; other schemes and longer links are
-a `422`),
+`http(s)` URL of at most 2,048 characters, the news parser's own cap
+(ADR-0056 E2); other schemes and longer links are a `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **set, not guessed**), `as_of` (the statement's cut-off date, distinct from
 `inserted_at`: an entry written today about last quarter carries last
@@ -868,7 +869,7 @@ the server pre-fills from the story: `kind` `evidence` (`event_result` may be
 sent instead; another kind answers `422` naming `kind`); `as_of` the day the
 story was published (its representative's publication, as `news.get`
 answers it); `source_url` the link of its best-tier member, the first that
-fits 255 characters; `source_quality` by ADR-0056 §3's rule (a `primary`
+fits 2,048 characters; `source_quality` by ADR-0056 §3's rule (a `primary`
 member gives `primary`, two or more distinct `secondary` domains
 `secondary_multi`, one `unverified`, else `awareness`); `headline` its title
 cut at 80 characters on a word boundary; `event_type` and `tone` from its
@@ -1099,7 +1100,7 @@ The writes:
   `secondary` as `unverified`, `awareness`); `source_url` or
   `source_quality` sent beside it answers `422` naming it, and an item of
   another security, one that does not exist or whose link is longer than
-  255 characters answers `422` naming `news_id`. The item is not promoted:
+  2,048 characters answers `422` naming `news_id`. The item is not promoted:
   what lasts from news is a research entry.
 - `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
   security it belongs to cannot be changed.

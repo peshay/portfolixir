@@ -48,8 +48,9 @@ defmodule Portfolixir.Knowledge.SecurityNote do
   @marker_fields [:headline, :event_type, :tone]
   @headline_max 80
 
-  # The width of `security_notes.source_url` (character varying(255)).
-  @max_source_url 255
+  # The width of `security_notes.source_url` (character varying(2048)): the
+  # news parser's cap, so a story's link fits an entry (ADR-0056 E2).
+  @max_source_url 2048
 
   @type t :: %__MODULE__{}
 
@@ -144,8 +145,8 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     # The link is rendered as an anchor on the timeline and handed to an agent
     # as a source: only http(s) — never javascript:, data: or a bare path.
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
-    # The column is varchar(255); without this a tracking-laden link is a
-    # Postgrex 22001 and a 500 instead of a field error the caller can read.
+    # The column is varchar(2048); without this a longer link is a Postgrex
+    # 22001 and a 500 instead of a field error the caller can read.
     |> Text.validate(:source_url, max: @max_source_url)
     # Code-point caps on append-only storage (E25 S6, G01), with a CHECK of
     # the same number behind each.

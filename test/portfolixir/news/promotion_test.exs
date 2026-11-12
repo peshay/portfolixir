@@ -13,6 +13,7 @@ defmodule Portfolixir.News.PromotionTest do
   alias Portfolixir.Actor
   alias Portfolixir.Clock
   alias Portfolixir.Journal
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.News
@@ -274,8 +275,10 @@ defmodule Portfolixir.News.PromotionTest do
   # - A second promotion appends another entry; every member names both.
   # - A story of another security, a category's story and an id naming no
   #   story answer naming cluster_id, and nothing is written.
-  # - A representative's link longer than an entry's 255 characters gives
-  #   way to the next member's that fits.
+  # - A story whose every link is 300 characters, as an aggregator's
+  #   redirect links often are, is promoted with its representative's link
+  #   (ADR-0056 E2: an entry's link holds the 2,048 characters the parser
+  #   accepts, so no member's link is too long for it).
   describe "which story" do
     test "a second promotion appends another entry, and the story links both" do
       security = NewsFixtures.security!()
@@ -306,22 +309,25 @@ defmodule Portfolixir.News.PromotionTest do
       assert Repo.aggregate(SecurityNote, :count) == 0
     end
 
-    test "a link too long for an entry gives way to the next member's" do
+    test "a story whose every link is 300 characters is promoted with its representative's" do
       security = NewsFixtures.security!()
-      {long, :issuer} = domain!(:primary)
-      {short, :aggregator} = domain!(:secondary)
-      long_link = "https://#{long}/" <> String.duplicate("a", 300)
+      {first, :issuer} = domain!(:primary)
+      {second, :aggregator} = domain!(:secondary)
+      first_link = "https://#{first}/" <> String.duplicate("a", 300 - String.length(first) - 9)
+      second_link = "https://#{second}/" <> String.duplicate("b", 300 - String.length(second) - 9)
+      assert String.length(first_link) == 300 and String.length(second_link) == 300
 
       story =
-        story!(security, "Northwind long link", [
-          {long, :issuer, long_link},
-          {short, :aggregator, "https://#{short}/fits"}
+        story!(security, "Northwind long links", [
+          {first, :issuer, first_link},
+          {second, :aggregator, second_link}
         ])
 
-      assert Repo.get!(Item, story.representative_item_id).canonical_url == long_link
+      assert Repo.get!(Item, story.representative_item_id).canonical_url == first_link
       assert {:ok, note} = promote(security, story)
-      assert note.source_url == "https://#{short}/fits"
+      assert note.source_url == first_link
       assert note.source_quality == :primary
+      assert Enum.all?(members(story), &(&1.status == :promoted and &1.note_ids == [note.id]))
     end
   end
 
@@ -336,6 +342,7 @@ defmodule Portfolixir.News.PromotionTest do
   #   quality (primary, secondary as unverified, awareness).
   # - An item of another security, and an id naming none, answer naming
   #   news_id.
+  # - An item whose link is 300 characters gives it whole (ADR-0056 E2).
   describe "events.create with a news_id" do
     test "an item gives its link and source quality; another security's is refused" do
       security = NewsFixtures.security!()
@@ -355,6 +362,28 @@ defmodule Portfolixir.News.PromotionTest do
 
       assert {:error, %{"news_id" => _}} = News.event_source(security.id, theirs.id)
       assert {:error, %{"news_id" => _}} = News.event_source(security.id, 9_000_000_000)
+    end
+
+    test "an item whose link is 300 characters gives it whole" do
+      security = NewsFixtures.security!()
+      {domain, :aggregator} = domain!(:secondary)
+      link = "https://#{domain}/" <> String.duplicate("c", 300 - String.length(domain) - 9)
+      assert String.length(link) == 300
+
+      [item] = members(story!(security, "Northwind dated long", [{domain, :aggregator, link}]))
+
+      assert {:ok, %{"source_url" => ^link, "source_quality" => :unverified}} =
+               News.event_source(security.id, item.id)
+
+      assert {:ok, %SecurityEvent{source_url: ^link}} =
+               Events.create_event(@agent, %{
+                 "security_id" => security.id,
+                 "kind" => "earnings",
+                 "date" => "2026-11-20",
+                 "timing" => "exact",
+                 "source_url" => link,
+                 "source_quality" => "unverified"
+               })
     end
   end
 

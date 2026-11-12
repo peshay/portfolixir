@@ -72,6 +72,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     # --- S29 N1 end ---
 
+    # --- S29 N2 begin ---
+    # N2 (ADR-0056 E2, #1443): an entry's and an event's source_url hold
+    # 2,048 characters; the two D6 refusals read 2,048.
+    assert newest["summary"] =~ "Sprint 29, N2 (ADR-0056 E2, #1443): "
+
+    assert [notes, events] =
+             Enum.filter(
+               newest["parameters"],
+               &(String.starts_with?(&1, "POST /api/v1/securities/:security_id/notes") or
+                   String.starts_with?(&1, "POST /api/v1/securities/:security_id/events"))
+             )
+
+    for part <- ["source_url", "2,048 characters", "cluster_id"], do: assert(notes =~ part, part)
+    for part <- ["source_url", "2,048 characters", "news_id"], do: assert(events =~ part, part)
+    # --- S29 N2 end ---
+
     # Sprint 28's sprint PR (version 28), found by version from Sprint 29 on.
     # Dated strictly after entry 27, so since=2026-11-08 still returns it.
     # Each story appends its own items between its own markers.

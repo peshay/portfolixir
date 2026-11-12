@@ -19,8 +19,8 @@ defmodule Portfolixir.News.Promotion do
       instance's calendar (`Portfolixir.Clock.local_date/1`);
     * `source_url` — the best-tier member's link: the representative's (the
       earliest of the best tier, C2), else, when it is longer than an
-      entry's 255 characters, the first member's that fits in `news.get`'s
-      member order (tier, publication, link);
+      entry's 2,048 characters (ADR-0056 E2), the first member's that fits
+      in `news.get`'s member order (tier, publication, link);
     * `source_quality` — §3's one rule over every member: a `primary`
       member gives `primary`; two or more distinct `secondary` domains
       `secondary_multi`; one `secondary` domain `unverified`; else
@@ -98,7 +98,10 @@ defmodule Portfolixir.News.Promotion do
 
   @story_fields ~w(as_of source_url source_quality)
   @kinds ~w(evidence event_result)
-  @source_url_max 255
+  # The width of both link columns, `security_notes.source_url` and
+  # `security_events.source_url`, in code points as the database counts
+  # them: the parser's own 2,048 (ADR-0056 E2), so a stored item's link fits.
+  @source_url_max 2048
   @tier_rank %{primary: 3, secondary: 2, awareness: 1}
 
   @type errors :: %{String.t() => [String.t()]}
@@ -260,16 +263,18 @@ defmodule Portfolixir.News.Promotion do
       &{&1.id != story.representative_item_id, -@tier_rank[&1.tier],
        DateTime.to_unix(&1.published_at, :microsecond), &1.canonical_url}
     )
-    |> Enum.find(&(String.length(&1.canonical_url) <= @source_url_max))
+    |> Enum.find(&fits?(&1.canonical_url))
     |> case do
       %Item{canonical_url: url} ->
         {:ok, url}
 
       nil ->
         {:error,
-         %{"cluster_id" => ["no member's link fits an entry's source_url of 255 characters"]}}
+         %{"cluster_id" => ["no member's link fits an entry's source_url of 2048 characters"]}}
     end
   end
+
+  defp fits?(url), do: url |> String.codepoints() |> length() <= @source_url_max
 
   defp prefill(story, members, source_url) do
     representative = Enum.find(members, &(&1.id == story.representative_item_id))
@@ -348,18 +353,18 @@ defmodule Portfolixir.News.Promotion do
   `security_id` (`events.create` with a `news_id`): `{:ok, %{"source_url"
   => link, "source_quality" => quality}}`, or `{:error, errors}` naming
   `news_id` for an item that does not exist, is not assigned to that
-  security, or whose link is longer than an event's 255 characters.
+  security, or whose link is longer than an event's 2,048 characters.
   """
   @spec event_source(pos_integer(), pos_integer()) ::
           {:ok, %{String.t() => term()}} | {:error, errors()}
   def event_source(security_id, news_id) when is_integer(security_id) and is_integer(news_id) do
     case Repo.get(Item, news_id) do
       %Item{security_id: ^security_id, canonical_url: url, tier: tier} ->
-        if String.length(url) <= @source_url_max,
+        if fits?(url),
           do: {:ok, %{"source_url" => url, "source_quality" => item_quality(tier)}},
           else:
             {:error,
-             %{"news_id" => ["its link is longer than an event's source_url of 255 characters"]}}
+             %{"news_id" => ["its link is longer than an event's source_url of 2048 characters"]}}
 
       %Item{} ->
         {:error, %{"news_id" => ["is not an item of this security"]}}

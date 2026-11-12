@@ -163,13 +163,13 @@ defmodule Portfolixir.Knowledge.SecurityEventTest do
   end
 
   # Acceptance criteria (closing-act finding): the column counts codepoints,
-  # so a URL of 255 graphemes built from combining marks is refused by the
-  # changeset rather than by the database.
-  test "a source_url over 255 codepoints is refused even under 255 graphemes", %{
+  # so a URL of 2,048 graphemes built from combining marks is refused by the
+  # changeset rather than by the database (ADR-0056 E2: 2,048, #1443).
+  test "a source_url over 2048 codepoints is refused even under 2048 graphemes", %{
     security: security
   } do
-    combining = "https://x.invalid/" <> String.duplicate("e\u0301", 237)
-    assert String.length(combining) == 255
+    combining = "https://x.invalid/" <> String.duplicate("e\u0301", 2030)
+    assert String.length(combining) == 2048
 
     assert {:error, changeset} = create(security, %{source_url: combining})
     assert %{source_url: [_ | _]} = errors_on(changeset)
