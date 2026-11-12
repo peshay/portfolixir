@@ -8,7 +8,8 @@ description: "Decision for idea I12 (FR-58) and the scope ladder's analog-band e
 
 - **Status:** Accepted. Adopted by the merge of the Sprint 29 planning PR
   (ADR-0026 step 1, as amended on 2026-10-08: the merge is the signature).
-  **Built in Sprint 30**, not 29 (the Sprint 29 plan, D-2), together with
+  **Built in Sprint 29** as its third stacked sprint PR (the Sprint 29 plan,
+  D-2, as the owner decided on 2026-11-12), together with
   [ADR-0059](0059-chain-source-block-heights-and-times-for-halvings.html).
   The merge also adopts §8's amendment of the scope ladder, which lands in
   `AGENTS.md` and PRD §4 as §8 says.
@@ -476,7 +477,7 @@ none offered.
   owner wanted because the path through securities, Bitcoin, chart was
   long).
 - **Coverage:** API, MCP and the screen ship in the same sprint. The
-  Sprint 30 planning PR draws the planning board from the three idea boards,
+  Sprint 29 planning PR draws the planning board (board 07) from the three idea boards,
   with the states this record adds (`no_top_yet`, a part with too few
   observations, `parts_disjoint`, `one_price_relation`, a stale chain, the
   partial window).

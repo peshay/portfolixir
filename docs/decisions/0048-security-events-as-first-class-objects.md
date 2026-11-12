@@ -237,7 +237,7 @@ the 2026-09-19 agent round's P0-4 with its near-missed candidate date.
 [ADR-0059](0059-chain-source-block-heights-and-times-for-halvings.html)
 (the chain source) and
 [ADR-0060](0060-halving-cycles-tops-and-lows-by-drawdown-projected-as-a-band.html)
-(the cycles read). **Built in Sprint 30.** Idea I12's triage (point 1)
+(the cycles read). **Built in Sprint 29** (its third stacked sprint PR). Idea I12's triage (point 1)
 asked for past halvings to become confirmed events "of a new kind
 `halving`, an ADR-0048 amendment". This is that amendment. It also
 corrects §8, which ADR-0059 makes untrue for one kind. Nothing here books
