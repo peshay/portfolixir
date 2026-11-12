@@ -10195,3 +10195,78 @@ included) in both themes at both widths.
 stems, `.note-pin__glyph`, `.note-pin__count`, `.chart-tooltip__note` and
 `__note-meta`, `.overview-chart__toggles`. Every colour is a token.
 <!-- S28 N9 end -->
+
+<!-- S29 N3 begin -->
+## Amendment 2026-11-12 — A research entry reads what the agent reads *(Sprint 29 N3, the Sprint 28 close-out's two-way coverage finding; ADR-0056 D6, D8, E2; ADR-0044's amendment of 2026-11-06; board `mockups/ux-design-2026-11-12-sprint29/03-research-entry`, variant A; plan D-6)*
+
+The four columns D6 added to an entry (`headline`, `event_type`, `tone`,
+`news_label_id`) were written by the agent and drawn as chart pins, and
+the Research tab showed none of them. The entry now opens with the pin's
+two lines: **the headline behind the pin's glyph, „Ereignisart ·
+Tonalität“ in words under it**. Variant B (the event type as a third badge
+in the head, the tone only as the glyph) would have read differently from
+the tooltip and stated the tone by colour and shape alone; C (a filter by
+event type) waits until a security has dozens of entries and would need
+`event_type` on `GET …/notes` and `notes.list` first.
+
+### Anatomy, top to bottom *(inside `li.research-entry`)*
+
+1. **The head** (`.research-entry__head`: kind badge, source-quality
+   badge, „#id · as of · author“), unchanged; then **the markers**
+   („Ersetzt #n“, „Ersetzt durch #n“, „Widerruft #n“), unchanged.
+2. **The headline** (`p.research-entry__headline`, only when the entry has
+   one): a flex row, the glyph first (`svg.note-glyph`, 14 px, `flex:
+   none`, 2.5 px down so its middle sits on the first line), the headline
+   in a `span` (14.5 px, 650, line height 1.35, `overflow-wrap: anywhere`).
+   The glyph is `SecurityChart.note_glyph/1`: the pin's head (r 6, a halo
+   of `--color-bg-elevated`) and the pin's own glyph path for the tone
+   (`note-glyph--pos` a plus on `--color-positive`, `--neg` a minus on
+   `--color-danger`, `--neu` none on `--color-text-muted`, for 0 and for no
+   tone). It is `aria-hidden`: the tone stands in words on the next line
+   (UX-DR7).
+3. **The label** (`p.research-entry__label`, 12 px, `--color-text-muted`,
+   a wrapping flex row with a 6 px gap), only when one of its parts is
+   there:
+   - „Zahlen · positiv“, `EventTypeLabel.line/2` — the function the pin's
+     tooltip reads its second line from, before the date; each part only
+     when stated;
+   - „maschinell“ (`.badge.badge--neutral`, the news views' badge, title
+     „Ereignisart und Tonalität aus der Einordnung eines Modells
+     übernommen; mit dem Schreiben bestätigt“) **only where
+     `news_label_id` is set**. `machine_generated` stays reserved for a
+     local model (ADR-0044) and keeps its words in the head's meta line,
+     „maschinell erzeugter Vorschlag“;
+   - „nicht im Diagramm, weil ersetzt“, after a „·“ when a part precedes
+     it, on an entry with a headline that a later entry supersedes — the entries `chart_notes/1` leaves out, by
+     the same test (ADR-0056 D8: a pin cannot say it was replaced).
+4. **The body**, the invisible-text note and **the facts**, unchanged but
+   for **the source link**: its text is the link's host, lower-cased
+   („ir.example“), its `href` the full link, `target="_blank"`,
+   `rel="noopener noreferrer"`; a link without a host reads „Link“. The
+   link is printed in full nowhere on the tab (ADR-0056 E2), and has no
+   `title` that would print it.
+
+An entry without a headline, an event type, a tone and a news label (an
+older one, or a thesis, a risk, a decision) draws neither line and looks
+as before.
+
+### At 390 px *(board ④)*
+
+The headline wraps beside the glyph, which stays on its first line; the
+label wraps as one line under it. The browser walk
+`research_entry_phone.js` measures both at 390 px, with an 80-character
+headline and a 400-character link, and that nothing runs past the entry.
+
+### The privacy mode
+
+The lines stay: a headline, an event type, a tone, „maschinell“ and the
+superseded note name no amount (ADR-0056 D8, as the pins).
+
+### The `app.css` rules (between `S29 N3 begin` / `end`)
+
+`.research-entry__headline` and its `span`, `.research-entry__label`,
+`.research-entry--superseded .research-entry__headline` (600),
+`.note-glyph` with its `circle`, `--pos`, `--neg` and `path`, and
+`.research-entry--superseded .note-glyph circle` (`--color-border-strong`,
+as the superseded entry's left edge). Every colour is a token.
+<!-- S29 N3 end -->
