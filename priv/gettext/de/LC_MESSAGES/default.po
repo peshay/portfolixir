@@ -8,7 +8,7 @@ msgstr ""
 msgid "Application navigation"
 msgstr "App-Navigation"
 
-#: lib/portfolixir_web/field_label.ex:83
+#: lib/portfolixir_web/field_label.ex:85
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:339
 #, elixir-autogen
 msgid "Base currency"
@@ -2118,7 +2118,7 @@ msgstr "Klassifizierung nicht gefunden"
 msgid "Clear"
 msgstr "Aufheben"
 
-#: lib/portfolixir_web/field_label.ex:87
+#: lib/portfolixir_web/field_label.ex:89
 #: lib/portfolixir_web/live/buckets_live.ex:242
 #: lib/portfolixir_web/live/buckets_live.ex:270
 #: lib/portfolixir_web/live/classifications_live.ex:451
@@ -2133,7 +2133,7 @@ msgstr "Farbe"
 msgid "Could not update cash account"
 msgstr "Verrechnungskonto konnte nicht aktualisiert werden"
 
-#: lib/portfolixir_web/field_label.ex:84
+#: lib/portfolixir_web/field_label.ex:86
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:126
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:764
 #, elixir-autogen, elixir-format
@@ -8035,7 +8035,7 @@ msgstr "Beim Zusammenführen ziehen die Buchungen in ein Depot mit gleichen Stan
 msgid "Rename — %{name}"
 msgstr "Umbenennen — %{name}"
 
-#: lib/portfolixir_web/field_label.ex:85
+#: lib/portfolixir_web/field_label.ex:87
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:134
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:121
 #, elixir-autogen, elixir-format
@@ -11535,7 +11535,7 @@ msgstr "Gegenkonto"
 msgid "Counter depot"
 msgstr "Gegendepot"
 
-#: lib/portfolixir_web/field_label.ex:86
+#: lib/portfolixir_web/field_label.ex:88
 #, elixir-autogen, elixir-format
 msgid "Dimension"
 msgstr "Dimension"
@@ -11545,13 +11545,13 @@ msgstr "Dimension"
 msgid "Exchange rate"
 msgstr "Wechselkurs"
 
-#: lib/portfolixir_web/field_label.ex:91
+#: lib/portfolixir_web/field_label.ex:93
 #: lib/portfolixir_web/live/journal/row.ex:88
 #, elixir-autogen, elixir-format
 msgid "Former ISIN"
 msgstr "Frühere ISIN"
 
-#: lib/portfolixir_web/field_label.ex:92
+#: lib/portfolixir_web/field_label.ex:94
 #, elixir-autogen, elixir-format
 msgid "ISIN change date"
 msgstr "Datum des ISIN-Wechsels"
@@ -11566,7 +11566,7 @@ msgstr "Emissionstag"
 msgid "Latest quote feed URL"
 msgstr "URL des letzten Kurs-Feeds"
 
-#: lib/portfolixir_web/field_label.ex:90
+#: lib/portfolixir_web/field_label.ex:92
 #, elixir-autogen, elixir-format
 msgid "New ISIN"
 msgstr "Neue ISIN"
@@ -17428,3 +17428,8 @@ msgstr "Rendite bis Fälligkeit linear angenähert: (Kupon + (100 − Kurs) ÷ R
 #, elixir-autogen, elixir-format
 msgid "(on a booking's day, below half or above twice the price per unit). Its comparison after the sale and its returns over the holding period are therefore wrong. Check the quote source (ticker, exchange), then the booking:"
 msgstr "(am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück). Der Vergleich nach dem Verkauf und die Renditen über die Haltedauer sind daher falsch. Die Kursquelle prüfen (Ticker, Börse), dann die Buchung:"
+
+#: lib/portfolixir_web/field_label.ex:82
+#, elixir-autogen, elixir-format
+msgid "Halving chain"
+msgstr "Halving-Kette"

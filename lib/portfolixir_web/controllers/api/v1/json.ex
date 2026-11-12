@@ -83,6 +83,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     :bond,
     :news_identity,
     :news_watch,
+    :halving_chain,
     :inserted_at,
     :updated_at
   ]
@@ -144,6 +145,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         aliases: Enum.map(security.news_aliases || [], &news_alias/1)
       },
       news_watch: security.news_watch,
+      # ADR-0059 §4 (Sprint 29 H1): the registered chain the security is
+      # bound to, or null; written through the update.
+      halving_chain: security.halving_chain && Atom.to_string(security.halving_chain),
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
     }
