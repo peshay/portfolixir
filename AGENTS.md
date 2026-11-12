@@ -110,13 +110,22 @@ verification, not code, is the bottleneck (ADR-0026).
   - **(c) evaluation of decisions** — prediction calibration, rule evaluation,
     signal quality: **allowed**;
   - **(d) backtesting rules against stored price history: forbidden**, behind
-    its own decision gate.
+    its own decision gate;
+  - **an analog band** for a coming event — the range that the stored past
+    cycles' intervals and factors give when applied to the current anchors,
+    with n and both ends shown, never a single date or price and never
+    fitted: **allowed** (ADR-0060). A caller who wants a single figure
+    records an ADR-0055 prediction.
   Level (c) scores what was recorded before its outcome was known; level (d)
   replays a counterfactual. If an analytic needs a history in which the rule
-  was already there, it is (d). *Why:* the blanket rule was drawn before anyone
-  knew where the line was; a replay manufactures a history the rule never ran
-  against (PRD §4 "Scope ladder"; ADR-0049 §4).
-- Every metric in (a)–(c) must state its **computation basis** in its API and
+  was already there, it is (d). Scoring an analog band's rule on past cycles
+  is such a replay, so it is (d). *Why:* the blanket rule was drawn before
+  anyone knew where the line was; a replay manufactures a history the rule
+  never ran against; the analog band has its own entry because a projection
+  is none of (a)–(d), and a band that shows its n and both ends says how
+  little two or three cycles support, where a single figure would hide it
+  (PRD §4 "Scope ladder"; ADR-0049 §4; ADR-0060 §8).
+- Every metric in (a)–(c), and every analog band, must state its **computation basis** in its API and
   MCP payload: input series, window, reference series or benchmark where one
   exists, and the treatment of gaps. Review-blocking; a doc page does not
   satisfy it. *Why:* a metric whose basis is unstated cannot be checked by
