@@ -446,10 +446,8 @@ defmodule Portfolixir.Crashes do
   defp manual_key(%ManualWindow{id: id}), do: "m:#{id}"
 
   defp name_multi(actor, attrs, benchmark_id, start, nil) do
-    window_name = %WindowName{benchmark_security_id: benchmark_id, start: start}
-
     Multi.new()
-    |> Multi.insert(:window_name, WindowName.changeset(window_name, attrs))
+    |> Multi.insert(:window_name, WindowName.create_changeset(benchmark_id, start, attrs))
     |> Journal.record(actor,
       resource_type: "crash_window_name",
       operation: :create,

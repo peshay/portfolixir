@@ -12,6 +12,7 @@ defmodule Portfolixir.Crashes.NamesTest do
   alias Portfolixir.Crashes
   alias Portfolixir.Crashes.WindowName
   alias Portfolixir.Derived.BlastRadius
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Settings
 
@@ -178,6 +179,17 @@ defmodule Portfolixir.Crashes.NamesTest do
              Crashes.name_window(agent(), key, %{"name" => String.duplicate("ä", 80)})
 
     assert String.length(eighty) == 80
+  end
+
+  # The closing act (#1421): the key's start is a stored date like every
+  # other, so the changeset bounds it (Portfolixir.Input.BoundedDate) even
+  # though the context, not the caller, puts it.
+  test "a name's key start is bounded like every stored date" do
+    out_of_range = WindowName.create_changeset(1, ~D[1899-12-31], %{"name" => "Fall"})
+    refute out_of_range.valid?
+    assert errors_on(out_of_range) == %{start: [BoundedDate.message()]}
+
+    assert WindowName.create_changeset(1, ~D[2020-02-19], %{"name" => "Fall"}).valid?
   end
 
   # User story (ADR-0058 §3, §7.4):
