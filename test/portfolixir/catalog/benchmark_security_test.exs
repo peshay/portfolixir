@@ -180,4 +180,45 @@ defmodule Portfolixir.Catalog.BenchmarkSecurityTest do
   end
 
   # --- Sprint 29 B2 end ---
+
+  # The closing act (#1416, #1421): a stored close of 0 is no price (a
+  # legacy row from before the plausibility bounds), as every return read
+  # treats it. A security whose only closes are 0 is no benchmark: refused
+  # as :no_quote and not offered, so the crash read never answers
+  # `detected: []` with no reason over a series that has no price at all.
+  test "a security whose only stored close is 0 is no benchmark and is not offered" do
+    world = base_world(name: "Synthetic Zero World")
+    zero = flagged!(name: "Synthetic Zero Index", ticker: "SZI")
+    held_zero = create_security!(name: "Synthetic Zero Held", ticker: "SZH")
+    buy!(world, held_zero, quantity: "1", price: "10", date: ~D[2025-01-02])
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    Repo.transaction(fn ->
+      Repo.query!("SELECT set_config('portfolixir.journal_actor', 'synthetic-test', true)")
+
+      Repo.insert_all(
+        "security_quotes",
+        for security <- [zero, held_zero] do
+          %{
+            security_id: security.id,
+            date: ~D[2024-01-02],
+            close: Decimal.new(0),
+            source: "auto",
+            inserted_at: now,
+            updated_at: now
+          }
+        end
+      )
+    end)
+
+    assert BenchmarkSecurity.resolve(zero.id) == {:error, :no_quote}
+    assert BenchmarkSecurity.resolve(held_zero.id) == {:error, :no_quote}
+
+    choices = BenchmarkSecurity.choices()
+    refute Enum.any?(choices.flagged ++ choices.held, &(&1.id in [zero.id, held_zero.id]))
+
+    put_quote!(zero, ~D[2024-01-03], "10")
+    assert {:ok, %{id: id}} = BenchmarkSecurity.resolve(zero.id)
+    assert id == zero.id
+  end
 end
