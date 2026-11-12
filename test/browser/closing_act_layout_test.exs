@@ -252,4 +252,55 @@ defmodule PortfolixirWeb.Browser.ClosingActLayoutTest do
   end
 
   # --- Sprint 28 S2 end ---
+
+  # The owner's report of 2026-11-11 (Wealth → Holdings → Performance, on a
+  # tablet): switching the level from Total to Categories moved the bar's
+  # controls from the right edge to the left one.
+  #
+  # User story:
+  # As the operator switching the stack's level,
+  # I want the level's control to stay where it is,
+  # so that the next click lands where my eye already is.
+  #
+  # Acceptance criteria:
+  # - At 1200, 1100, 1024, 900 and 390 px, in English and in German, the
+  #   level's segmented control starts at the bar's left edge (±1 px) at
+  #   the level Total and at the level Categories.
+  # - At the level Total, which has no filter path, no breadcrumb is
+  #   rendered.
+  test "the level's control starts at the bar's left edge at Total and at Categories",
+       %{base_url: base_url} do
+    world = base_world(name: "Switch Stack", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "10000", ~D[2025-01-02])
+    owner = Actor.owner_ui()
+    {:ok, tree} = Classifications.create_classification(owner, %{name: "Strategy"})
+
+    {:ok, category} =
+      Classifications.create_category(owner, %{classification_id: tree.id, name: "Growth"})
+
+    security = create_security!(name: "Synthetic Switch Fund")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2025-01-02])
+    put_quotes!(security, [{~D[2025-01-02], "100"}])
+    {:ok, _} = Classifications.assign_security(owner, security.id, tree.id, category.id)
+
+    locales =
+      Map.new(["en", "de"], fn locale ->
+        {locale,
+         "portfolixir_locale"
+         |> PreferenceCookieHelpers.cookie_pair(locale)
+         |> String.split("=", parts: 2)
+         |> List.last()}
+      end)
+
+    result =
+      run!("stack_bar_switch", base_url, %{
+        paths: %{
+          total: "/portfolio?level=total",
+          category: "/portfolio?level=category&tree=#{tree.id}"
+        },
+        locales: locales
+      })
+
+    assert result == %{"ok" => true}
+  end
 end

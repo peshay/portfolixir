@@ -294,12 +294,72 @@ async function stackBarEdge(browser) {
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
 
+// The owner's report of 2026-11-11: switching the level from Total to
+// Categories moved the level's control from the bar's right edge to its
+// left one. Measured at every width from the desktop to the phone, in both
+// languages: at Total and at Categories the level's label starts at the
+// bar's left edge, and while the bar is no label column (A) the level's
+// control starts at the same place at both levels, so a switch leaves it
+// where it was. In the label column the control follows the column's
+// width, the longest label's (DESIGN.md, "Labelled controls start on one
+// edge"), so there it is not compared. A breadcrumb only exists where it
+// has a step to show.
+async function stackBarSwitch(browser) {
+  const errors = [];
+  const host = new URL(base).hostname;
+  for (const locale of ["en", "de"]) {
+    for (const width of [1200, 1100, 1024, 900, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      await context.addCookies([
+        { name: "portfolixir_locale", value: args.locales[locale], domain: host, path: "/" }
+      ]);
+      const page = await context.newPage();
+      const seen = {};
+      for (const [level, path] of Object.entries(args.paths)) {
+        await ready(page, path);
+        await page.waitForSelector("[data-role='stack-level']");
+        if (level !== "total") await page.waitForSelector("#stack-legend tbody tr");
+        await nextFrame(page);
+        const m = await page.evaluate(() => {
+          const left = (selector) => document.querySelector(selector).getBoundingClientRect().left;
+          const bar = left("[data-role='stack-bar']");
+          return {
+            label: left("#stack-level-label") - bar,
+            control: left("[data-role='stack-level']") - bar,
+            column: getComputedStyle(document.querySelector(".stack-bar__controls")).display === "grid",
+            crumbs: document.querySelectorAll("[data-role='stack-crumbs']").length
+          };
+        });
+        seen[level] = m;
+        const label = locale + " at " + width + " px, " + level + ": ";
+        if (Math.abs(m.label) > 1) {
+          errors.push(label + "the level's label starts " + m.label + " px from the bar's left edge");
+        }
+        if (level === "total" && m.crumbs !== 0) {
+          errors.push(label + "an empty breadcrumb is rendered");
+        }
+      }
+      const { total, category } = seen;
+      if (!total.column && !category.column && Math.abs(total.control - category.control) > 1) {
+        errors.push(
+          locale + " at " + width + " px: the level's control moves from " + total.control +
+            " to " + category.control + " px"
+        );
+      }
+      console.error(locale + " at " + width + " px: " + JSON.stringify(seen));
+      await context.close();
+    }
+  }
+  if (errors.length > 0) throw new Error(errors.join("; "));
+}
+
 const CASES = {
   delete_dialogs: deleteDialogs,
   trades_tab: tradesTab,
   topbar_titles: topbarTitles,
   stack_phone: stackPhone,
-  stack_bar_edge: stackBarEdge
+  stack_bar_edge: stackBarEdge,
+  stack_bar_switch: stackBarSwitch
 };
 
 (async () => {
