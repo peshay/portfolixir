@@ -16,12 +16,14 @@ D-5 and D-6) names each proposal with the phrase that flips it.
 | `05-translucent-bands.html` → `05-translucent-bands--light.png`, `--dark.png` | Idea I33: the stacked chart's bands today, at 0.8 (recommended; the negative part 0.6) and at 0.65, each with a part below zero and a hovered band, and 0.8 in the privacy mode. |
 | `06-control-bar.html` → `06-control-bar--light.png`, `--dark.png` | #1435 (built in Sprint 30, the plan's D-3): the bars that break "labelled controls start on one edge", measured on the review instance, before and after the shared component: the journal and the sale's comparison at 390 px, Wertpapiere and Transaktionen at 1200 px. |
 | `06-control-bar-inventory.md` | #1435's inventory: every bar of labelled controls (file:line, page, controls, measured at 390 and 1200 px), the unlabelled bars the issue names, every free paragraph past one sentence, the proposed threshold and its exceptions. |
+| `07-cycle-states.html` → `07-cycle-states--light.png`, `--dark.png` | ADR-0059 §4, §8, §11 and ADR-0060 §1, §4, §5, §11, §12: the states these records add to the I12 idea boards. „Halving-Kette“ in „Wertpapier bearbeiten“ (Bitcoin with the source's health, Litecoin by hand with „1 von 2“, a refused own URL), the question before halving events are deleted (A in the dialog, recommended; B a second dialog), the cycle bar at 1200 px (not bound, too few halvings A/B, without a source, current, fallback, stale, refused own URL A/B, „Jetzt lesen“), Max with the partial 2012 window and the count line, the range „Zyklus“ today with `one_price_relation` and the band states, `no_top_yet` and `too_few_observations` as of an earlier date, `parts_disjoint` on a labelled what-if variant (A parts inside the outlined hull, recommended; B hull only), and the bar at 390 px. Every figure computed by ADR-0060's rules from the idea boards' synthetic series. |
+| `build-c.js`, `render-c.js` | Board 07: `build-c.js` writes `frames/07*` and the board; `render-c.js` measures and renders it (frame heights through `FRAME_SIZES_C`). |
 | `build-a.js`, `render-a.js`, `shell-a.html` | Boards 01 and 02: `build-a.js` writes `frames/01*`, `frames/02*` and both boards; `render-a.js` measures the frames, rebuilds and renders the PNGs; `shell-a.html` is the Sprint 28 shell with „Nachrichten“ and the version foot added as `app_shell.ex` renders them. |
 | `capture-b.js`, `capture-b-inventory.js` | Boards 03 to 06: capture the shell, the Research tab's head, the Overview's data-quality line, the held and catalogue counts and the bars (`*-b.html`, `counts-b.json`, `bars-b.json`), and measure every page's bars and paragraphs (`inventory-b.json`), from a review instance on port 4012. |
 | `build-b.js`, `render-b.js` | Write `frames/03*` to `frames/06*` and boards 03 to 06; render them to PNG at 1x, light and dark (`frames/sizes-b.json`). |
 
-Two agents drew the boards in parallel, so each half has its own scripts
-and its own frame sizes; neither reads the other's files.
+Three agents drew the boards in parallel, so each part has its own scripts
+and its own frame sizes; none reads another's files.
 
 ## Synthetic data only
 
@@ -38,6 +40,7 @@ node build-a.js && node render-a.js     # boards 01 and 02
 node capture-b.js                       # optional, a review instance on 4012
 node capture-b-inventory.js             # optional, the same instance
 node build-b.js && node render-b.js     # boards 03 to 06
+node build-c.js && node render-c.js     # board 07
 ```
 
 The render scripts need the Playwright that `test/browser` installs; set

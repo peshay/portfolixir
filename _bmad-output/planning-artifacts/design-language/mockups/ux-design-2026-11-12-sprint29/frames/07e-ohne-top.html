@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07e-ohne-top</title>
+<link rel="stylesheet" href="../../../../../../priv/static/app.css">
+<style id="proposal">
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+.mock-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; border-radius: 8px; }
+.cy-card { background: var(--color-bg-elevated); padding: 14px 16px 14px; }
+.cy-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 10px; }
+.cy-head h2 { margin: 0; font-size: 16px; }
+.cy-sub { font-size: 12.5px; color: var(--color-text-muted); }
+.detail-pane-toolbar { margin: 0 0 12px; }
+.chart-toggle[disabled] { opacity: .55; cursor: not-allowed; }
+.cy-bar { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 6px 8px; font-size: 12.5px; color: var(--color-text-muted); }
+.cy-bar__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.cy-bar__label { font-weight: 600; }
+.cy-bar__label + .segmented-control, .cy-bar__label + .cy-switches { margin-right: 8px; }
+.cy-switches { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cy-health { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cy-health b { color: var(--color-text); }
+.cy-health.is-stale b { color: var(--color-warning); }
+.cy-health.is-error b { color: var(--color-danger); }
+.cy-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; align-self: center; margin-right: 2px; }
+.cy-field p.cy-health, .cy-bar.is-phone .cy-health { display: block; }
+.cy-field p.cy-health .cy-dot, .cy-bar.is-phone .cy-dot { margin-right: 6px; vertical-align: 0; }
+.cy-dot.is-ok { background: var(--color-positive); }
+.cy-dot.is-warn { background: var(--color-warning); }
+.cy-dot.is-err { background: var(--color-danger); }
+.cy-dot.is-none { background: transparent; border: 1.5px solid var(--color-text-muted); }
+.cy-readnow { min-height: 26px; padding: 2px 10px; font-size: 12px; margin-left: 4px; }
+.cy-bar .metric-tooltip--inline { position: relative; bottom: auto; right: auto; }
+.cy-bar .metric-tooltip p { width: 30rem; max-width: 80vw; }
+.cy-bar.is-phone .cy-bar__row { gap: 6px 8px; }
+.cy-bar.is-phone .cy-bar__label { width: 100%; }
+.cy-bar.is-phone .cy-health { display: block; line-height: 1.45; }
+.cy-chart { display: block; background: var(--color-chart-surface); border-radius: 6px; }
+.cy-grid line { stroke: var(--color-border); stroke-width: 1; }
+.cy-ylab text, .cy-xlab text { fill: var(--color-text-muted); font: 11px var(--font-sans); }
+.cy-line { stroke: var(--color-accent); stroke-width: 1.5; }
+.cy-line-invented { stroke: var(--color-chart-surface); stroke-width: 2; stroke-dasharray: 3 4; opacity: .9; }
+.cy-halving { stroke: var(--color-warning); stroke-width: 1.4; }
+.cy-halving.is-est { stroke-dasharray: 5 4; stroke-width: 1.1; }
+.cy-halving-l { fill: var(--color-warning); font: 700 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-halving-l.is-sub { font-weight: 600; fill: var(--color-text-muted); }
+.cy-halving-win { fill: color-mix(in oklab, var(--color-warning) 16%, transparent); }
+.cy-halving-win.is-stale { fill: url(#none); fill: color-mix(in oklab, var(--color-text-muted) 14%, transparent); }
+.cy-today { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 1 3; }
+.cy-today-l { fill: var(--color-text-muted); font: 600 10px var(--font-sans); }
+.cy-hatch { stroke: color-mix(in oklab, var(--color-text-muted) 35%, transparent); stroke-width: 2; }
+.cy-band { stroke-width: 1.2; }
+.cy-band--top { fill: color-mix(in oklab, var(--color-positive) 22%, transparent); stroke: var(--color-positive); }
+.cy-band--low { fill: color-mix(in oklab, var(--color-danger) 22%, transparent); stroke: var(--color-danger); }
+.cy-band.is-past { fill: color-mix(in oklab, var(--color-text-muted) 16%, transparent); stroke: var(--color-text-muted); stroke-dasharray: 3 2; }
+.cy-band.is-one { stroke-dasharray: 5 3; }
+.cy-band.is-hull { fill: color-mix(in oklab, var(--color-danger) 6%, transparent); stroke-dasharray: 5 3; }
+.cy-band.is-hull.is-past { fill: color-mix(in oklab, var(--color-text-muted) 6%, transparent); }
+.cy-band.is-part { fill: color-mix(in oklab, var(--color-danger) 26%, transparent); stroke-width: 1; }
+.cy-band.is-part.is-past { fill: color-mix(in oklab, var(--color-text-muted) 26%, transparent); stroke-dasharray: none; }
+.cy-agree { fill: color-mix(in oklab, var(--color-text) 30%, transparent); stroke: none; }
+.cy-band-l { fill: var(--color-text-muted); font: 600 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-band-l.is-head { fill: var(--color-text); }
+.cy-mark--top { fill: var(--color-positive); }
+.cy-mark--low { fill: var(--color-danger); }
+.cy-mark.is-hollow { fill: var(--color-chart-surface); stroke: var(--color-positive); stroke-width: 1.5; }
+.cy-mark-l { fill: var(--color-text); font: 600 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-mark-l.is-sub { fill: var(--color-text-muted); font-weight: 500; }
+.cy-bracket { fill: none; stroke: var(--color-text-muted); stroke-width: 1; }
+.cy-note.is-head { font-style: normal; font-weight: 700; fill: var(--color-text); }
+.cy-note { fill: var(--color-text-muted); font: italic 10.5px var(--font-sans); paint-order: stroke; stroke: var(--color-chart-surface); stroke-width: 3px; }
+.cy-basis { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-text-muted); }
+.cy-count { margin: 0; font-size: 12.5px; color: var(--color-text-muted); }
+.cy-count b { color: var(--color-text); }
+.cy-caption { caption-side: top; text-align: left; padding: 0 0 6px; }
+.cy-table { width: 100%; margin-top: 12px; font-size: 12.5px; }
+.cy-table th, .cy-table td { white-space: nowrap; }
+.cy-bands td:nth-child(2), .cy-bands td[colspan] { white-space: normal; }
+.cy-bands td:nth-child(5) { white-space: normal; }
+.cy-disclosure { margin-top: 14px; }
+.cy-disclosure > summary { font-size: 13px; font-weight: 600; }
+.cy-table td.num, .cy-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cy-muted { color: var(--color-text-muted); font-weight: 500; }
+.cy-badge { font-size: 10px; padding: 0 6px; vertical-align: 1px; }
+.cy-bands tr.cy-row-band td { border-top: 1px solid var(--color-border-strong); }
+.cy-bands tr.cy-row-part td:first-child { padding-left: 22px; color: var(--color-text-muted); }
+.cy-bands tr.is-absent td { color: var(--color-text-muted); }
+.cy-reason.is-hl { color: var(--color-text); font-weight: 650; background: var(--color-accent-soft); padding: 1px 4px; border-radius: 4px; }
+.cy-bands code, .cy-table code { font-size: 11px; color: var(--color-text-muted); }
+.cy-h3 { margin: 12px 0 6px; font-size: 13px; }
+.cy-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cy-pair h3 { margin: 0 0 6px; font-size: 13px; }
+.cy-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; font-size: 11.5px; color: var(--color-text-muted); }
+.cy-strip { border-top: 1px solid var(--color-border); padding: 12px 0 4px; }
+.cy-strip:first-child { border-top: 0; padding-top: 0; }
+.cy-strip > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.cy-strip > h3 small { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--color-accent); margin-left: 6px; }
+.cy-strip .detail-pane-toolbar { margin-bottom: 8px; }
+.cy-hint { margin: 0 0 4px; font-size: 12.5px; color: var(--color-text-muted); }
+/* the edit form */
+.modal.cy-modal { max-width: 600px; margin: 0; box-shadow: none; border-radius: 0; }
+.cy-modal .modal-body { padding-bottom: 4px; }
+.cy-field { display: grid; gap: 6px; padding: 12px; margin: 14px 0 0; border-radius: 8px; }
+.cy-field > label { display: grid; gap: 4px; max-width: 18rem; }
+.cy-field > label > span { font-size: 13px; font-weight: 600; }
+.cy-field select { min-height: 34px; }
+.cy-field .form-help, .cy-field .hint { margin: 0; padding: 0; font-size: 12.5px; color: var(--color-text-muted); line-height: 1.45; }
+.cy-field .cy-health { font-size: 12.5px; color: var(--color-text-muted); }
+.cy-listbox { list-style: none; margin: 0; padding: 4px 0; width: 18rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-panel); font-size: 13px; }
+.cy-listbox li { padding: 5px 12px; }
+.cy-listbox li.is-selected { background: var(--color-accent); color: var(--color-on-accent, #fff); }
+.cy-listbox li small { color: inherit; opacity: .75; margin-left: 6px; }
+.cy-elided { margin: 0 0 4px; font-size: 12.5px; color: var(--color-text-subtle); font-style: italic; }
+.cy-confirm { margin: 10px 0 0; }
+.cy-confirm ul { margin: 4px 0 6px; padding-left: 18px; }
+.cy-confirm > div { margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="cy-card">
+<header class="cy-head">
+<h2>Bitcoin</h2><span class="cy-sub">BTC-USD · USD · Darstellung zum Stand 10.02.2025, synthetisch</span>
+</header>
+<div class="detail-pane-toolbar" role="toolbar" aria-label="Diagramm-Optionen">
+<div class="range-buttons" role="group" aria-label="Zeitraum">
+<button type="button" class="range-button">1M</button>
+<button type="button" class="range-button">3M</button>
+<button type="button" class="range-button">6M</button>
+<button type="button" class="range-button">YTD</button>
+<button type="button" class="range-button">1J</button>
+<button type="button" class="range-button">3J</button>
+<button type="button" class="range-button">5J</button>
+<button type="button" class="range-button">Max</button>
+<button type="button" class="range-button mock-new is-active">Zyklus</button>
+</div>
+<details class="period-disclosure">
+<summary class="disclosure-summary">Benutzerdefinierter Zeitraum …</summary>
+</details>
+<div class="chart-toggles">
+<button type="button" class="chart-toggle is-active">Logarithmische Skala</button>
+<button type="button" class="chart-toggle">Prozent</button>
+<button type="button" class="chart-toggle">Transaktionen anzeigen</button>
+<button type="button" class="chart-toggle">Notizen anzeigen</button>
+<button type="button" class="chart-toggle">MA200</button>
+<button type="button" class="chart-toggle is-active mock-new" aria-pressed="true">Zyklen</button>
+<button type="button" class="chart-toggle">…</button>
+</div>
+</div>
+<div class="cy-bar mock-new">
+<div class="cy-bar__row"><span class="cy-bar__label">Zyklen</span><span class="segmented-control" role="group" aria-label="Zyklen-Modus">
+<button type="button" class="chart-toggle is-active">Zeitachse</button>
+<button type="button" class="chart-toggle">Ausgerichtet</button></span><span class="cy-bar__label">Strecken</span><span class="cy-switches">
+<button type="button" class="chart-toggle is-active">Top ↔ Tief</button>
+<button type="button" class="chart-toggle">Top – Top</button>
+<button type="button" class="chart-toggle">Tief – Tief</button></span>
+</div>
+<div class="cy-bar__row cy-bar__health"><span class="cy-health"><span class="cy-dot is-ok" aria-hidden="true"></span>Kettenquelle: mempool.space · gelesen vor 2 Std.</span>
+<button type="button" class="button-ghost cy-readnow">Jetzt lesen</button>
+</div>
+</div>
+<svg class="cy-chart" viewBox="0 0 1166 420" width="1166" height="420" role="img" aria-label="Kursverlauf mit Zyklen">
+<defs>
+<clipPath id="clip-past">
+<rect x="62" y="6" width="1086" height="380"/>
+</clipPath>
+<pattern id="hatch-past" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+<line x1="0" y1="0" x2="0" y2="6" class="cy-hatch"/>
+</pattern>
+</defs>
+<g class="cy-grid">
+<line x1="62" x2="1148" y1="338.4694699410464" y2="338.4694699410464"/>
+<line x1="62" x2="1148" y1="253.21183573506104" y2="253.21183573506104"/>
+<line x1="62" x2="1148" y1="188.71692520571796" y2="188.71692520571796"/>
+<line x1="62" x2="1148" y1="124.22201467637488" y2="124.22201467637488"/>
+<line x1="62" x2="1148" y1="38.964380470389514" y2="38.964380470389514"/>
+</g>
+<g class="cy-ylab"><text x="54" y="342.4694699410464" text-anchor="end">20&#8239;k&nbsp;$</text><text x="54" y="257.2118357350611" text-anchor="end">50&#8239;k&nbsp;$</text><text x="54" y="192.71692520571796" text-anchor="end">100&#8239;k&nbsp;$</text><text x="54" y="128.2220146763749" text-anchor="end">200&#8239;k&nbsp;$</text><text x="54" y="42.964380470389514" text-anchor="end">500&#8239;k&nbsp;$</text>
+</g>
+<g class="cy-xlab"><text x="217.96299559471365" y="408" text-anchor="middle">Jul</text><text x="394.0193832599119" y="408" text-anchor="middle">2025</text><text x="567.2052863436123" y="408" text-anchor="middle">Jul</text><text x="743.2616740088105" y="408" text-anchor="middle">2026</text><text x="916.4475770925111" y="408" text-anchor="middle">Jul</text><text x="1092.5039647577094" y="408" text-anchor="middle">2027</text>
+</g>
+<g clip-path="url(#clip-past)">
+<line class="cy-today" x1="432.29251101321586" x2="432.29251101321586" y1="22" y2="386"/><text class="cy-today-l" x="436.29251101321586" y="380">Stand 10.02.2025</text>
+<line class="cy-halving" x1="149.0713656387665" x2="149.0713656387665" y1="22" y2="386"/><text class="cy-halving-l" x="153.0713656387665" y="32">Halving 20.04.2024</text>
+<rect class="cy-band cy-band--low is-one" x="1024.5691629955945" y="213.38011884989416" width="5.7409691629959525" height="70.0573401888623"/><text class="cy-band-l is-head" x="1018.5691629955945" y="297.43745903875646" text-anchor="end">Tief-Band 36,1&#8239;k&nbsp;$–76,7&#8239;k&nbsp;$</text><text class="cy-band-l" x="1018.5691629955945" y="309.93745903875646" text-anchor="end">22.10.–28.10.2026</text><text class="cy-band-l" x="1018.5691629955945" y="322.43745903875646" text-anchor="end">nur Tief → Tief (n = 2)</text><text class="cy-band-l" x="1018.5691629955945" y="334.93745903875646" text-anchor="end">Top → Tief wartet auf ein verankertes Top</text>
+<rect class="cy-band cy-band--top is-one" x="670.542731277533" y="74.29273416189865" width="6.697797356828232" height="104.64246789551645"/><text class="cy-band-l is-head" x="664.542731277533" y="78.29273416189865" text-anchor="end">Top-Band 111&#8239;k&nbsp;$–342&#8239;k&nbsp;$</text><text class="cy-band-l" x="664.542731277533" y="90.79273416189865" text-anchor="end">17.10.–24.10.2025</text><text class="cy-band-l" x="664.542731277533" y="103.29273416189865" text-anchor="end">nur Tief → Top (n = 2, 1 aus dem Teilzyklus)</text><text class="cy-band-l" x="664.542731277533" y="115.79273416189865" text-anchor="end">Top → Top und Halving → Top: zu wenige Beobachtungen</text>
+<polyline class="cy-line" fill="none" points="62.0,251.9 63.0,250.3 63.9,250.2 64.9,247.9 65.8,245.9 66.8,247.4 67.7,246.8 68.7,247.9 69.7,249.7 70.6,251.0
+71.6,249.8 72.5,249.9 73.5,246.5 74.4,244.5 75.4,246.6 76.4,247.6 77.3,247.3 78.3,243.5 79.2,242.6 80.2,240.9
+81.1,243.1 82.1,243.6 83.1,240.9 84.0,239.3 85.0,237.5 85.9,237.1 86.9,238.1 87.8,240.2 88.8,240.9 89.7,240.4
+90.7,238.0 91.7,234.9 92.6,232.0 93.6,232.1 94.5,234.0 95.5,233.5 96.4,230.3 97.4,230.6 98.4,229.0 99.3,228.4
+100.3,225.9 101.2,225.4 102.2,225.9 103.1,226.3 104.1,225.5 105.1,224.2 106.0,224.0 107.0,223.9 107.9,222.9 108.9,222.0
+109.8,221.0 110.8,220.2 111.8,219.0 112.7,218.0 113.7,218.9 114.6,218.9 115.6,219.7 116.5,219.7 117.5,218.9 118.5,220.4
+119.4,221.3 120.4,220.8 121.3,221.8 122.3,223.5 123.2,222.7 124.2,224.5 125.2,223.8 126.1,224.6 127.1,224.8 128.0,225.0
+129.0,223.0 129.9,225.1 130.9,227.6 131.8,229.3 132.8,226.9 133.8,227.5 134.7,226.7 135.7,227.0 136.6,226.9 137.6,226.2
+138.5,227.3 139.5,227.6 140.5,229.3 141.4,229.3 142.4,229.3 143.3,229.3 144.3,229.3 145.2,229.3 146.2,229.3 147.2,229.3
+148.1,229.3 149.1,230.2 150.0,231.2 151.0,231.2 151.9,231.2 152.9,231.2 153.9,231.2 154.8,231.4 155.8,231.2 156.7,231.2
+157.7,231.3 158.6,231.2 159.6,231.2 160.6,232.1 161.5,231.2 162.5,231.2 163.4,231.2 164.4,231.2 165.3,231.2 166.3,231.6
+167.3,231.2 168.2,231.2 169.2,232.4 170.1,231.3 171.1,231.2 172.0,231.2 173.0,233.1 173.9,232.7 174.9,232.2 175.9,234.0
+176.8,234.3 177.8,232.4 178.7,235.2 179.7,235.6 180.6,237.0 181.6,237.6 182.6,239.0 183.5,241.2 184.5,239.8 185.4,237.0
+186.4,239.7 187.3,240.1 188.3,237.7 189.3,236.7 190.2,238.4 191.2,240.8 192.1,240.8 193.1,238.5 194.0,240.5 195.0,240.5
+196.0,238.3 196.9,237.5 197.9,240.4 198.8,239.9 199.8,242.8 200.7,239.7 201.7,242.3 202.7,240.9 203.6,241.2 204.6,241.0
+205.5,240.8 206.5,239.0 207.4,239.3 208.4,237.9 209.4,240.1 210.3,239.2 211.3,237.9 212.2,238.1 213.2,237.5 214.1,235.0
+215.1,236.8 216.0,240.3 217.0,240.6 218.0,242.4 218.9,242.6 219.9,244.8 220.8,244.1 221.8,244.8 222.7,243.8 223.7,242.4
+224.7,243.5 225.6,243.2 226.6,241.7 227.5,240.6 228.5,242.9 229.4,241.3 230.4,239.9 231.4,241.4 232.3,242.4 233.3,242.6
+234.2,244.1 235.2,244.9 236.1,243.6 237.1,242.7 238.1,243.9 239.0,243.2 240.0,242.5 240.9,242.8 241.9,243.0 242.8,244.0
+243.8,243.7 244.8,243.9 245.7,244.9 246.7,245.1 247.6,245.1 248.6,245.1 249.5,245.1 250.5,245.1 251.5,246.1 252.4,245.1
+253.4,245.0 254.3,244.5 255.3,244.3 256.2,243.6 257.2,243.4 258.1,242.4 259.1,242.2 260.1,242.1 261.0,242.0 262.0,240.8
+262.9,241.2 263.9,240.2 264.8,240.2 265.8,240.5 266.8,239.9 267.7,239.8 268.7,237.9 269.6,236.7 270.6,237.5 271.5,238.2
+272.5,238.4 273.5,238.1 274.4,236.5 275.4,235.8 276.3,234.5 277.3,233.5 278.2,232.6 279.2,232.9 280.2,232.7 281.1,234.4
+282.1,233.9 283.0,233.2 284.0,234.0 284.9,232.6 285.9,231.9 286.9,232.6 287.8,231.5 288.8,233.3 289.7,234.1 290.7,234.6
+291.6,232.5 292.6,232.8 293.6,232.1 294.5,229.2 295.5,229.8 296.4,228.1 297.4,226.8 298.3,224.4 299.3,220.8 300.3,218.3
+301.2,217.4 302.2,220.1 303.1,219.5 304.1,217.7 305.0,216.9 306.0,215.6 306.9,217.7 307.9,220.2 308.9,217.7 309.8,217.5
+310.8,215.6 311.7,212.1 312.7,212.4 313.6,213.4 314.6,213.7 315.6,215.1 316.5,213.6 317.5,214.6 318.4,211.5 319.4,211.5
+320.3,211.1 321.3,210.1 322.3,210.4 323.2,208.6 324.2,209.8 325.1,206.8 326.1,206.9 327.0,206.5 328.0,206.8 329.0,204.8
+329.9,206.5 330.9,203.3 331.8,204.4 332.8,205.5 333.7,203.1 334.7,203.9 335.7,204.1 336.6,201.7 337.6,201.3 338.5,203.1
+339.5,200.2 340.4,198.0 341.4,199.5 342.4,200.8 343.3,202.8 344.3,203.5 345.2,200.8 346.2,200.9 347.1,201.6 348.1,200.3
+349.0,197.4 350.0,197.0 351.0,198.6 351.9,197.3 352.9,195.9 353.8,196.7 354.8,197.0 355.7,196.8 356.7,196.0 357.7,194.2
+358.6,193.8 359.6,193.3 360.5,191.5 361.5,189.8 362.4,190.5 363.4,189.9 364.4,190.5 365.3,189.2 366.3,189.2 367.2,188.4
+368.2,188.5 369.1,187.6 370.1,187.7 371.1,187.7 372.0,187.4 373.0,186.5 373.9,186.2 374.9,185.8 375.8,185.1 376.8,184.5
+377.8,184.2 378.7,183.3 379.7,184.2 380.6,184.2 381.6,184.2 382.5,184.2 383.5,184.6 384.5,185.2 385.4,185.2 386.4,185.2
+387.3,185.0 388.3,185.9 389.2,187.2 390.2,187.5 391.1,187.9 392.1,187.6 393.1,187.6 394.0,186.9 395.0,185.7 395.9,186.6
+396.9,186.9 397.8,186.5 398.8,186.5 399.8,185.5 400.7,184.2 401.7,186.4 402.6,188.0 403.6,189.7 404.5,188.6 405.5,188.6
+406.5,191.1 407.4,189.3 408.4,191.7 409.3,190.6 410.3,192.8 411.2,193.4 412.2,192.0 413.2,192.7 414.1,193.1 415.1,194.3
+416.0,195.3 417.0,196.1 417.9,198.7 418.9,195.9 419.9,193.1 420.8,192.3 421.8,190.6 422.7,194.0 423.7,195.7 424.6,198.6
+425.6,196.9 426.6,200.1 427.5,199.3 428.5,197.4 429.4,199.8 430.4,198.5 431.3,201.7 432.3,201.3"/>
+<polyline class="cy-line-invented" fill="none" points=""/>
+<polygon class="cy-mark cy-mark--top is-hollow" points="373.71013215859034,174.29520796947028 383.71013215859034,174.29520796947028 378.71013215859034,181.29520796947028"/><text class="cy-mark-l" x="378.71013215859034" y="157.29520796947028" text-anchor="middle">Top bisher 106&#8239;k&nbsp;$ · 16.12.2024</text><text class="cy-mark-l is-sub" x="378.71013215859034" y="169.29520796947028" text-anchor="middle">noch kein Anker: −18&nbsp;%, Anker ab −20&nbsp;%</text>
+</g>
+</svg>
+<details class="cy-disclosure" open>
+<summary class="disclosure-summary">Bänder und ihre Teile</summary>
+<table class="data-table cy-table cy-bands">
+<thead>
+<tr>
+<th>Band · Teil</th>
+<th>Woher</th>
+<th class="num">Zeitfenster</th>
+<th class="num">Kurs</th>
+<th>Wo die Wege übereinstimmen</th>
+<th>Stand</th>
+</tr>
+</thead>
+<tbody>
+<tr class="cy-row-band">
+<td><b>Nächstes Tief</b>
+</td>
+<td>Hülle der Teile</td>
+<td class="num">22.10.–28.10.2026</td>
+<td class="num">36,1&#8239;k&nbsp;$–76,7&#8239;k&nbsp;$</td>
+<td><span class="cy-reason is-hl">ein Kursweg — kein „beide Wege“</span> <code>one_price_relation</code>
+</td>
+<td>offen</td>
+</tr>
+<tr class="cy-row-part is-absent">
+<td>Top → Tief</td>
+<td colspan="4"><span class="cy-reason is-hl">wartet auf ein verankertes Top: bisher −18&nbsp;% unter dem Top bisher, Anker ab −20&nbsp;%</span> <code>no_top_yet</code>
+</td>
+<td class="cy-muted">—</td>
+</tr>
+<tr class="cy-row-part">
+<td>Tief → Tief</td>
+<td>ab Tief Nov 2022 · Zeit n = 2, Kurs n = 2 <span class="badge cy-badge">Teil</span>
+</td>
+<td class="num">22.10.–28.10.2026</td>
+<td class="num">36,1&#8239;k&nbsp;$–76,7&#8239;k&nbsp;$</td>
+<td>
+</td>
+<td>offen</td>
+</tr>
+<tr class="cy-row-band">
+<td><b>Nächstes Top</b>
+</td>
+<td>Hülle der Teile</td>
+<td class="num">17.10.–24.10.2025</td>
+<td class="num">111&#8239;k&nbsp;$–342&#8239;k&nbsp;$</td>
+<td><span class="cy-reason is-hl">ein Kursweg — kein „beide Wege“</span> <code>one_price_relation</code>
+</td>
+<td>offen</td>
+</tr>
+<tr class="cy-row-part is-absent">
+<td>Halving → Top</td>
+<td colspan="4"><span class="cy-reason is-hl">zu wenige Beobachtungen: Kurs aus Top → Top, n = 1, ab n = 2</span> <code>too_few_observations</code>
+</td>
+<td class="cy-muted">—</td>
+</tr>
+<tr class="cy-row-part is-absent">
+<td>Top → Top</td>
+<td colspan="4"><span class="cy-reason is-hl">zu wenige Beobachtungen: n = 1, ab n = 2</span> <code>too_few_observations</code>
+</td>
+<td class="cy-muted">—</td>
+</tr>
+<tr class="cy-row-part">
+<td>Tief → Top</td>
+<td>ab Tief Nov 2022 · Zeit n = 2, Kurs n = 2 <span class="badge cy-badge">Teil</span>
+</td>
+<td class="num">17.10.–24.10.2025</td>
+<td class="num">111&#8239;k&nbsp;$–342&#8239;k&nbsp;$</td>
+<td>
+</td>
+<td>offen</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div>
+</body>
+</html>

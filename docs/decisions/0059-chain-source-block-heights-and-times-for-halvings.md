@@ -318,7 +318,12 @@ addendum's "within a day"). It is reported:
 - in ADR-0060's cycles read, as `chain_source` beside the halvings;
 - on the screen, in the cycle bar of the security chart: the host and the
   age of the last read, and with `stale` the line "Kettenquelle seit
-  ‹n› Std. ohne Antwort", so a quiet chain and a dead source look different.
+  ‹n› Std. ohne Antwort", so a quiet chain and a dead source look different;
+- **in the security's edit form** beside the „Halving-Kette“ choice, the
+  same health line and, for a refused own URL, its reason. *Why:* a
+  security bound to a chain whose source is refused from the start never
+  gets a halving, so it has no cycle view and no cycle bar, and the error
+  would have no place on screen (board 07, Sprint 29 planning).
 
 ### 9. Retention
 
@@ -378,7 +383,10 @@ addendum's "within a day"). It is reported:
   (ADR-0044 §8).
 - **Screen:** a "Halving-Kette" choice (none, Bitcoin, Bitcoin Cash,
   Litecoin) in the security's edit form, with the confirmation of §4 when
-  halving events exist; the health line in the cycle bar (§8). The
+  halving events exist; the health line in the cycle bar and in the form
+  (§8); **a „Jetzt lesen“ button** beside the health line, which runs the
+  on-demand refresh and shows the ten-minute wait, so the refresh is not
+  agent-only (the two-way coverage rule). The
   Sprint 29 planning PR draws its planning board (board 07), from the I12 idea boards,
   with the states this record adds: not bound, bound without a source,
   stale, and a refused own URL.
@@ -427,7 +435,7 @@ sentence.
    unique index (ADR-0048's amendment).
 7. *Can a security merge duplicate a halving?* It would, because ADR-0050 §9
    moves every event of the source security
-   (`lib/portfolixir/lifecycle/security_merge.ex:1720`). ADR-0048's
+   (`lib/portfolixir/lifecycle/security_merge.ex:1721`). ADR-0048's
    amendment keeps the target's row and drops the source's for a height the
    target holds, and drops all of the source's when the target is bound to
    another chain or to none. Each dropped row is journaled and listed in the

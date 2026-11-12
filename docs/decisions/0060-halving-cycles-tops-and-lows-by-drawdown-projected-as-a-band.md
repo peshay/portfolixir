@@ -226,7 +226,10 @@ one relation alone and applied to the current anchor of that relation:
   `top_to_top`'s, and the part says `price_from: "top_to_top"`. Its time
   side starts from the next halving's window (ADR-0059 §6): from the window's
   first day + the minimum to its last day + the maximum. In this way the top
-  band inherits the halving estimate's uncertainty (board 02).
+  band inherits the halving estimate's uncertainty (board 02). **When
+  `top_to_top` is absent** (too few observations), `halving_to_top` is
+  absent too: a borrowed side cannot outlive the part it is borrowed from
+  (board 07, Sprint 29 planning).
 - **The float island widens by one named operation, `:math.log/1`.** The
   step back uses `:math.pow/2`, which is already named. Decimals go in;
   on the way out come `Decimal.from_float/1` then `Decimal.round/2` at
@@ -251,8 +254,9 @@ one relation alone and applied to the current anchor of that relation:
   when that range is not empty. Otherwise it is `null` with
   `reason: "parts_disjoint"`. The screen shades it as "beide Wege". For the
   next top, `halving_to_top` borrows its price side (§4), so until
-  `low_to_top` joins there is one price relation, and `agree` is `null`
-  with `reason: "one_price_relation"`. A shade there would claim two
+  `low_to_top` joins there is one price relation. **For either event,
+  when fewer than two parts have a price side of their own**, `agree` is
+  `null` with `reason: "one_price_relation"`. A shade there would claim two
   ways where there is one.
 - **No average and no intersection as the band.** The parts are read from
   the same lows and tops, so together they are no more evidence than either
@@ -464,8 +468,10 @@ none offered.
   line (ADR-0059 §8) is in the cycle bar.
 - **The range "Zyklus"** appears beside 1M to Max, and only while cycles are
   on. It runs from three months before the last confirmed halving to four
-  months after the end of the next top's band (or of the next low's, when
-  there is no top band). **It reaches past today**, which no preset does
+  months after **the later end of the next top's and the next low's
+  bands** (board 07 found the low band ending after the top band on an
+  early date, which the earlier rule would have cut off; "Zyklus bis zum
+  Top-Band" flips it). **It reaches past today**, which no preset does
   now (each ends today in `range_to_dates/2`,
   `lib/portfolixir_web/live/securities_live.ex:7300`). The axis to the
   right of today is empty except for the halving window and the bands. The
